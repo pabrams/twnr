@@ -31,9 +31,9 @@ async function startServer() {
 startServer();
 
 // WebSocket connection logic
-wss.on('connection', (ws: WebSocket) => {
+wss.on('connection', async (ws: WebSocket) => {
   console.log('✅ New WebSocket client connected');
-
+  const warps = await getGraph();
   const playerId = 1;
   const sector = 1;
 
@@ -41,16 +41,33 @@ wss.on('connection', (ws: WebSocket) => {
   ws.send(JSON.stringify({ type: 'welcome', playerId, sector }));
   console.log(`${playerId} connected.`);
 
-  ws.on('message', (message) => {
+  ws.on('message', async (message) => {
     const data = JSON.parse(message.toString());
     if (data.type === 'move') {
-      if (players[playerId]) {
-        players[playerId].sector = data.sector;
-      }
-      broadcast({ type: 'playerMoved', playerId, sector: data.sector });
+        if (players[playerId]) {
+            const sector = players[playerId].sector;
+            if (warps[sector].indexOf(data.sector) !== -1) {
+                console.log("WARPS CONTAINS SECTOR:");
+                players[playerId].sector = data.sector;
+                broadcast({ type: 'playerMoved', playerId, sector: data.sector });
+            } else {
+                console.log("WARPS NOT CONTAINS SECTOR:");
+                broadcast({ type: 'nonAdjacentMoveRequested', playerId, sector: data.sector });
+            }
+            console.log("sector: " + sector);   
+            console.log("warps: " + warps[sector]);
+        }
     } else if (data.type === 'who') {
-      const playersKeys = Object.keys(players).map(Number);
-      ws.send(JSON.stringify({ type: 'playersOnline', players: playersKeys }));
+        const playersKeys = Object.keys(players).map(Number);
+        ws.send(JSON.stringify({ type: 'playersOnline', players: playersKeys }));
+    } else if (data.type === 'display') {
+        console.log("display");
+        // display current sector
+        const sector = players[playerId].sector;
+        console.log("sector", sector);
+        const displayWarps = warps[sector];
+        console.log("displayWarps", displayWarps);
+        ws.send(JSON.stringify({ type: "sectorDisplay", sector: sector, warps: displayWarps }));
     }
   });
 
@@ -94,7 +111,7 @@ async function createGraph(size: number) {
 }
 
 // Function to retrieve the existing graph from DB
-async function getGraph() {
+async function getGraph(): Promise<number[][]> {
     const graph = await SectorWarps.find({});
     if (graph.length === 0) {
         console.log('No graph found in DB, creating a new one.');
