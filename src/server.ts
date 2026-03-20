@@ -27,12 +27,10 @@ async function startServer() {
   }
 }
 
-// ✅ Start the server
 startServer();
 
-// WebSocket connection logic
 wss.on('connection', async (ws: WebSocket) => {
-  console.log('✅ New WebSocket client connected');
+  console.log('New WebSocket client connected');
   const warps = await getGraph();
   const playerId = 1;
   const sector = 1;
@@ -62,7 +60,7 @@ wss.on('connection', async (ws: WebSocket) => {
         ws.send(JSON.stringify({ type: 'playersOnline', players: playersKeys }));
     } else if (data.type === 'display') {
         console.log("display");
-        // display current sector
+
         const sector = players[playerId].sector;
         console.log("sector", sector);
         const displayWarps = warps[sector];
@@ -85,17 +83,15 @@ interface Player {
 
 const players: Record<number, Player> = {}; 
 
-// Function to create a new graph and store it in the DB
 async function createGraph(size: number) {
     if (size < 10) {
         console.error("Number of sectors must be ten or greater");
     }
 
-    await SectorWarps.deleteMany({}); // Clear any existing graph
+    await SectorWarps.deleteMany({});
 
     for (let i = 0; i < size; i++) {
         console.log("sector " + i);
-        // Ensure every node has at least one exit
         const warps: number[] = [];
         const rand = getRandomInt(1, 6);
         while (warps.length <= rand) {
@@ -110,7 +106,6 @@ async function createGraph(size: number) {
     console.log(`Graph with ${size} nodes created.`);
 }
 
-// Function to retrieve the existing graph from DB
 async function getGraph(): Promise<number[][]> {
     const graph = await SectorWarps.find({});
     if (graph.length === 0) {
