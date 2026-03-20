@@ -1,21 +1,18 @@
 import mongoose from "mongoose";
 
-// ✅ Define Schema
 const WarpSchema = new mongoose.Schema({
   nodeNumber: { type: Number, required: true, unique: true },
   warps: [{ type: Number, required: true }],
 });
 
-// ✅ Define Model
 const SectorWarps = mongoose.model("SectorWarps", WarpSchema);
 
-// ✅ Database Connection Logic
 const MONGO_URI = "mongodb://localhost:27017/twnr"; // Update with your DB name
 
-let isConnected = false; // Track connection state
+let isConnected = false;
 
 export const connectDB = async (): Promise<void> => {
-  if (isConnected) return; // Prevent duplicate connections
+  if (isConnected) return;
 
   try {
     await mongoose.connect(MONGO_URI);
@@ -27,5 +24,4 @@ export const connectDB = async (): Promise<void> => {
   }
 };
 
-// ✅ Export model and connection function
 export { SectorWarps };

@@ -6,23 +6,20 @@ import express from 'express';
 import { createServer, Server } from 'http';
 import { getRandomInt } from './tools.js';
 
-// Create Express app and HTTP server
 const app = express();
 const server: Server = createServer(app);
 const wss = new WebSocketServer({ server });
 
-// Connect to MongoDB and initialize graph
 async function startServer() {
   try {
     await connectDB();
     await getGraph();
 
-    // Start server
     server.listen(3000, () => {
-      console.log('🚀 Server listening on port 3000');
+      console.log('Server listening on port 3000');
     });
   } catch (error) {
-    console.error('❌ Error during server startup:', error);
+    console.error('Error during server startup:', error);
     process.exit(1);
   }
 }

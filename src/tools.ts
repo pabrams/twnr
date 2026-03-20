@@ -1,6 +1,6 @@
-// generate a random integer between min and max (inclusive)
+
 export function getRandomInt(min: number, max: number): number {
-    // Ensure min is less than max
+
     if (isNaN(min) || isNaN(max)) {
         throw new Error("Both min and max must be numbers.");
     }
