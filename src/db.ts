@@ -7,7 +7,7 @@ const WarpSchema = new mongoose.Schema({
 
 const SectorWarps = mongoose.model("SectorWarps", WarpSchema);
 
-const MONGO_URI = "mongodb://localhost:27017/twnr"; // Update with your DB name
+const MONGO_URI = "mongodb://localhost:27017/twnr";
 
 let isConnected = false;
 
@@ -17,9 +17,9 @@ export const connectDB = async (): Promise<void> => {
   try {
     await mongoose.connect(MONGO_URI);
     isConnected = true;
-    console.log("✅ MongoDB connected");
+    console.log("MongoDB connected");
   } catch (error) {
-    console.error("❌ MongoDB connection error:", error);
+    console.error("MongoDB connection error:", error);
     process.exit(1);
   }
 };

@@ -47,14 +47,14 @@ export default class Graph {
     async getShortestPath(start: number, target: number): Promise<number[] | null> {
         try {
             
-            const visited = new Set<number>(); // To keep track of visited sectors
+            const visited = new Set<number>();
             const queue: Array<{ sector: number, path: number[] }> = [{ sector: start, path: [start] }]; // Queue to perform BFS
 
             while (queue.length > 0) {
                 const { sector, path } = queue.shift()!;
 
                 if (sector === target) {
-                    return path; // If we reach the target, return the path
+                    return path;
                 }
 
                 if (!visited.has(sector)) {
@@ -69,7 +69,7 @@ export default class Graph {
                 }
             }
 
-            // If the target is not reachable
+            // target is not reachable
             return null;
         } catch (error) {
             console.error('Error finding the shortest path:', error);
