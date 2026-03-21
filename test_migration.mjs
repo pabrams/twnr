@@ -130,8 +130,6 @@ function closeWS(ws) {
   });
 }
 
-// Test suites
-
 async function runAll() {
 
   // Dependency tests
