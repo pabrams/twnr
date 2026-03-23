@@ -18,7 +18,8 @@ export const connectDB = async (): Promise<void> => {
     // Create tables
     await client.query(`
       CREATE TABLE IF NOT EXISTS sectors (
-        id INTEGER PRIMARY KEY
+        id INTEGER PRIMARY KEY,
+        name VARCHAR(255)
       );
       
       CREATE TABLE IF NOT EXISTS warps (

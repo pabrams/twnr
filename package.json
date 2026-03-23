@@ -16,6 +16,9 @@
         "build": "tsc",
         "coldStart": "npm install && npm run build && npm run test && npm start",
         "start": "node ./dist/server.js",
-        "dropDatabase": "node ./scripts/deleteDatabase.js"
+        "dropDatabase": "node ./scripts/deleteDatabase.js",
+        "bigbang": "node ./scripts/twnr-bigbang.js",
+        "db:import": "node ./scripts/importUniverse.js",
+        "db:seed": "node ./scripts/twnr-bigbang.js ./data/universe --sectors 100 --seed 42 && node ./scripts/importUniverse.js ./data/universe"
     }
 }
