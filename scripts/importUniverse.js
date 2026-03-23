@@ -97,6 +97,14 @@ async function ensureSchema(client) {
       equipment INTEGER NOT NULL DEFAULT 0,
       credits   INTEGER NOT NULL DEFAULT 10000
     );
+
+    CREATE TABLE IF NOT EXISTS player_ships (
+      player_id INTEGER PRIMARY KEY REFERENCES players(id) ON DELETE CASCADE,
+      ship_name VARCHAR(255) NOT NULL,
+      fighters INTEGER NOT NULL DEFAULT 0,
+      shields INTEGER NOT NULL DEFAULT 0,
+      cargo_limit INTEGER NOT NULL
+    );
   `);
 }
 
@@ -107,6 +115,7 @@ async function main() {
     await ensureSchema(client);
 
     // Clear existing universe data (CASCADE handles dependent tables)
+    await client.query('DELETE FROM player_ships');
     await client.query('DELETE FROM ship_cargo');
     await client.query('DELETE FROM players');
     await client.query('DELETE FROM ports');
@@ -150,6 +159,22 @@ async function main() {
         ],
       );
     }
+
+    // Seed Class 0 port in Sector 1
+    await client.query(`
+      INSERT INTO ports (sector_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price) 
+      VALUES (1, 0, 0, 0, 0, 0, 0, 0) 
+      ON CONFLICT (sector_id) DO UPDATE 
+      SET class = 0, fuel = 0, fuel_price = 0, organics = 0, org_price = 0, equipment = 0, equ_price = 0
+    `);
+
+    // Seed Class 9 port at Stardock
+    await client.query(`
+      INSERT INTO ports (sector_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price) 
+      SELECT id, 9, 0, 0, 0, 0, 0, 0 FROM sectors WHERE name = 'Stardock' 
+      ON CONFLICT (sector_id) DO UPDATE 
+      SET class = 9, fuel = 0, fuel_price = 0, organics = 0, org_price = 0, equipment = 0, equ_price = 0
+    `);
 
     await client.query('COMMIT');
     console.log(

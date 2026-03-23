@@ -2,6 +2,22 @@ import { WebSocket, WebSocketServer } from 'ws';
 import { connectDB, pool } from './db.js';
 import express from 'express';
 import { createServer, Server } from 'http';
+import fs from 'fs';
+import path from 'path';
+
+const shipConfigs: Record<string, any> = {};
+try {
+  const shipsDir = path.join(process.cwd(), 'config', 'ships');
+  const files = fs.readdirSync(shipsDir);
+  for (const file of files) {
+    if (file.endsWith('.json')) {
+      const data = JSON.parse(fs.readFileSync(path.join(shipsDir, file), 'utf-8'));
+      shipConfigs[data.name] = data;
+    }
+  }
+} catch (e) {
+  console.error("Could not load ship configs", e);
+}
 
 const app = express();
 app.use(express.json());
@@ -72,6 +88,15 @@ wss.on('connection', async (ws: WebSocket) => {
           ON CONFLICT (player_id) DO NOTHING
       `, [playerId]);
 
+      const merchant = shipConfigs['Merchant Freighter'];
+      if (merchant) {
+          await pool.query(`
+              INSERT INTO player_ships (player_id, ship_name, fighters, shields, cargo_limit)
+              VALUES ($1, $2, $3, $4, $5)
+              ON CONFLICT (player_id) DO NOTHING
+          `, [playerId, merchant.name, 0, 0, merchant.startingHolds]);
+      }
+
       players[playerId] = { ws, sector };
       ws.send(JSON.stringify({ type: 'welcome', playerId, sector }));
       console.log(`${playerId} connected.`);
@@ -81,6 +106,12 @@ wss.on('connection', async (ws: WebSocket) => {
         const data = JSON.parse(message.toString());
         
         if (data.type === 'move') {
+            const shipRes = await pool.query('SELECT player_id FROM player_ships WHERE player_id = $1', [playerId]);
+            if (shipRes.rows.length === 0) {
+                ws.send(JSON.stringify({ type: 'noShip' }));
+                return;
+            }
+
             if (players[playerId]) {
                 const currentSector = players[playerId].sector;
                 const targetSector = data.sector;
@@ -179,6 +210,11 @@ app.post('/api/move', async (req, res): Promise<any> => {
     const currentSector = player.sector;
     const warps = await getGraph();
     
+    const shipRes = await pool.query('SELECT player_id FROM player_ships WHERE player_id = $1', [pId]);
+    if (shipRes.rows.length === 0) {
+        return res.status(400).json({ error: "No ship" });
+    }
+
     if (!warps[currentSector] || !warps[currentSector].includes(ts)) {
         return res.status(400).json({ error: "Not adjacent" });
     }
@@ -280,6 +316,52 @@ app.get('/api/port/:sectorId', async (req, res): Promise<any> => {
     }
 });
 
+app.get('/api/ship/:playerId', async (req, res): Promise<any> => {
+    const playerId = parseInt(req.params.playerId, 10);
+    if (isNaN(playerId) || playerId <= 0) {
+        return res.status(400).json({ error: "Invalid player ID" });
+    }
+    
+    try {
+        const query = `
+            SELECT ps.ship_name, ps.fighters, ps.shields, ps.cargo_limit,
+                   sc.fuel, sc.organics, sc.equipment
+            FROM player_ships ps
+            JOIN ship_cargo sc ON ps.player_id = sc.player_id
+            WHERE ps.player_id = $1
+        `;
+        const result = await pool.query(query, [playerId]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "Player not found" });
+        }
+        
+        const row = result.rows[0];
+        const config = shipConfigs[row.ship_name];
+        if (!config) {
+            return res.status(500).json({ error: "Ship config missing" });
+        }
+
+        const holdsAvailable = row.cargo_limit - (row.fuel + row.organics + row.equipment);
+        
+        res.json({
+            playerId,
+            shipName: row.ship_name,
+            fighters: row.fighters,
+            shields: row.shields,
+            maxFighters: config.maxFighters,
+            maxShields: config.maxShields,
+            cargoLimit: row.cargo_limit,
+            maxHolds: config.maxHolds,
+            cargoFuel: row.fuel,
+            cargoOrganics: row.organics,
+            cargoEquipment: row.equipment,
+            holdsAvailable
+        });
+    } catch (error) {
+        res.status(500).json({ error: "Internal server error" });
+    }
+});
+
 app.get('/api/cargo/:playerId', async (req, res): Promise<any> => {
     const playerId = parseInt(req.params.playerId, 10);
     if (isNaN(playerId) || playerId <= 0) {
@@ -352,7 +434,12 @@ app.post('/api/trade', async (req, res): Promise<any> => {
 
         const price: number = port[priceColMap[good]];
 
-        const cargoRes = await client.query('SELECT fuel, organics, equipment, credits FROM ship_cargo WHERE player_id = $1 FOR UPDATE', [pId]);
+        const cargoRes = await client.query(`
+            SELECT sc.fuel, sc.organics, sc.equipment, sc.credits, ps.cargo_limit 
+            FROM ship_cargo sc
+            JOIN player_ships ps ON sc.player_id = ps.player_id
+            WHERE sc.player_id = $1 FOR UPDATE
+        `, [pId]);
         if (cargoRes.rows.length === 0) {
             await client.query('ROLLBACK');
             return res.status(404).json({ error: "Player not found" });
@@ -369,6 +456,10 @@ app.post('/api/trade', async (req, res): Promise<any> => {
             if (port[good] < qty) {
                 await client.query('ROLLBACK');
                 return res.status(400).json({ error: "Insufficient port inventory" });
+            }
+            if (cargo.fuel + cargo.organics + cargo.equipment + qty > cargo.cargo_limit) {
+                await client.query('ROLLBACK');
+                return res.status(400).json({ error: "Insufficient cargo holds" });
             }
 
             await client.query(`UPDATE ports SET ${good} = ${good} - $1 WHERE sector_id = $2`, [qty, currentSector]);
@@ -400,6 +491,271 @@ app.post('/api/trade', async (req, res): Promise<any> => {
     } catch (err) {
         await client.query('ROLLBACK');
         console.error("Trade error", err);
+        res.status(500).json({ error: "Internal server error" });
+    } finally {
+        client.release();
+    }
+});
+
+app.post('/api/port/buy-fighters', async (req, res): Promise<any> => {
+    const { playerId, quantity } = req.body;
+    const qty = parseInt(quantity, 10);
+    if (isNaN(qty) || qty <= 0) return res.status(400).json({ error: "Invalid quantity" });
+    const pId = parseInt(playerId, 10);
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const pRes = await client.query('SELECT current_sector FROM players WHERE id = $1', [pId]);
+        if (pRes.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: "Player not found" });
+        }
+        const currentSector = pRes.rows[0].current_sector;
+
+        const portRes = await client.query('SELECT class FROM ports WHERE sector_id = $1', [currentSector]);
+        if (portRes.rows.length === 0 || portRes.rows[0].class !== 0) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: "Not at a class 0 port" });
+        }
+
+        const cargoRes = await client.query(`
+            SELECT sc.credits, ps.ship_name, ps.fighters, ps.shields, ps.cargo_limit 
+            FROM ship_cargo sc
+            JOIN player_ships ps ON sc.player_id = ps.player_id
+            WHERE sc.player_id = $1 FOR UPDATE
+        `, [pId]);
+        
+        if (cargoRes.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: "Player not found" });
+        }
+
+        const data = cargoRes.rows[0];
+        const config = shipConfigs[data.ship_name];
+        if (data.fighters + qty > config.maxFighters) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: "Exceeds maximum" });
+        }
+
+        const cost = qty * 20;
+        if (data.credits < cost) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: "Insufficient credits" });
+        }
+
+        await client.query('UPDATE player_ships SET fighters = fighters + $1 WHERE player_id = $2', [qty, pId]);
+        await client.query('UPDATE ship_cargo SET credits = credits - $1 WHERE player_id = $2', [cost, pId]);
+        await client.query('COMMIT');
+
+        res.json({ success: true, credits: data.credits - cost, fighters: data.fighters + qty, shields: data.shields, cargoLimit: data.cargo_limit });
+    } catch (e) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ error: "Internal server error" });
+    } finally {
+        client.release();
+    }
+});
+
+app.post('/api/port/buy-shields', async (req, res): Promise<any> => {
+    const { playerId, quantity } = req.body;
+    const qty = parseInt(quantity, 10);
+    if (isNaN(qty) || qty <= 0) return res.status(400).json({ error: "Invalid quantity" });
+    const pId = parseInt(playerId, 10);
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const pRes = await client.query('SELECT current_sector FROM players WHERE id = $1', [pId]);
+        if (pRes.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: "Player not found" });
+        }
+        const currentSector = pRes.rows[0].current_sector;
+
+        const portRes = await client.query('SELECT class FROM ports WHERE sector_id = $1', [currentSector]);
+        if (portRes.rows.length === 0 || portRes.rows[0].class !== 0) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: "Not at a class 0 port" });
+        }
+
+        const cargoRes = await client.query(`
+            SELECT sc.credits, ps.ship_name, ps.fighters, ps.shields, ps.cargo_limit 
+            FROM ship_cargo sc
+            JOIN player_ships ps ON sc.player_id = ps.player_id
+            WHERE sc.player_id = $1 FOR UPDATE
+        `, [pId]);
+        
+        if (cargoRes.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: "Player not found" });
+        }
+
+        const data = cargoRes.rows[0];
+        const config = shipConfigs[data.ship_name];
+        if (data.shields + qty > config.maxShields) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: "Exceeds maximum" });
+        }
+
+        const cost = qty * 10;
+        if (data.credits < cost) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: "Insufficient credits" });
+        }
+
+        await client.query('UPDATE player_ships SET shields = shields + $1 WHERE player_id = $2', [qty, pId]);
+        await client.query('UPDATE ship_cargo SET credits = credits - $1 WHERE player_id = $2', [cost, pId]);
+        await client.query('COMMIT');
+
+        res.json({ success: true, credits: data.credits - cost, fighters: data.fighters, shields: data.shields + qty, cargoLimit: data.cargo_limit });
+    } catch (e) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ error: "Internal server error" });
+    } finally {
+        client.release();
+    }
+});
+
+app.post('/api/port/buy-holds', async (req, res): Promise<any> => {
+    const { playerId, quantity } = req.body;
+    const qty = parseInt(quantity, 10);
+    if (isNaN(qty) || qty <= 0) return res.status(400).json({ error: "Invalid quantity" });
+    const pId = parseInt(playerId, 10);
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const pRes = await client.query('SELECT current_sector FROM players WHERE id = $1', [pId]);
+        if (pRes.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: "Player not found" });
+        }
+        const currentSector = pRes.rows[0].current_sector;
+
+        const portRes = await client.query('SELECT class FROM ports WHERE sector_id = $1', [currentSector]);
+        if (portRes.rows.length === 0 || portRes.rows[0].class !== 0) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: "Not at a class 0 port" });
+        }
+
+        const cargoRes = await client.query(`
+            SELECT sc.credits, ps.ship_name, ps.fighters, ps.shields, ps.cargo_limit 
+            FROM ship_cargo sc
+            JOIN player_ships ps ON sc.player_id = ps.player_id
+            WHERE sc.player_id = $1 FOR UPDATE
+        `, [pId]);
+        
+        if (cargoRes.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: "Player not found" });
+        }
+
+        const data = cargoRes.rows[0];
+        const config = shipConfigs[data.ship_name];
+        if (data.cargo_limit + qty > config.maxHolds) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: "Exceeds maximum" });
+        }
+
+        const cost = qty * 50;
+        if (data.credits < cost) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: "Insufficient credits" });
+        }
+
+        await client.query('UPDATE player_ships SET cargo_limit = cargo_limit + $1 WHERE player_id = $2', [qty, pId]);
+        await client.query('UPDATE ship_cargo SET credits = credits - $1 WHERE player_id = $2', [cost, pId]);
+        await client.query('COMMIT');
+
+        res.json({ success: true, credits: data.credits - cost, fighters: data.fighters, shields: data.shields, cargoLimit: data.cargo_limit + qty });
+    } catch (e) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ error: "Internal server error" });
+    } finally {
+        client.release();
+    }
+});
+
+app.post('/api/ship/exchange', async (req, res): Promise<any> => {
+    const { playerId, targetShipName } = req.body;
+    const pId = parseInt(playerId, 10);
+
+    const targetConfig = shipConfigs[targetShipName];
+    if (!targetConfig) {
+        return res.status(400).json({ error: "Unknown ship" });
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const pRes = await client.query(`
+            SELECT p.current_sector, s.name as sector_name 
+            FROM players p 
+            JOIN sectors s ON p.current_sector = s.id 
+            WHERE p.id = $1
+        `, [pId]);
+        
+        if (pRes.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: "Player not found" });
+        }
+        if (pRes.rows[0].sector_name !== 'Stardock') {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: "Not at Stardock" });
+        }
+
+        const cargoRes = await client.query(`
+            SELECT sc.credits, sc.fuel, sc.organics, sc.equipment, ps.ship_name 
+            FROM ship_cargo sc
+            JOIN player_ships ps ON sc.player_id = ps.player_id
+            WHERE sc.player_id = $1 FOR UPDATE
+        `, [pId]);
+        
+        if (cargoRes.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: "Player not found" });
+        }
+
+        const data = cargoRes.rows[0];
+        if (data.ship_name === targetShipName) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: "Already on that ship" });
+        }
+
+        const currentConfig = shipConfigs[data.ship_name];
+        const cost = targetConfig.price - currentConfig.price;
+        if (cost > 0 && data.credits < cost) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: "Insufficient credits" });
+        }
+
+        const newCargoLimit = targetConfig.startingHolds;
+        const currentCargo = data.fuel + data.organics + data.equipment;
+        if (newCargoLimit < currentCargo) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: "New ship has insufficient holds for current cargo" });
+        }
+
+        await client.query(`
+            UPDATE player_ships 
+            SET ship_name = $1, fighters = 0, shields = 0, cargo_limit = $2 
+            WHERE player_id = $3
+        `, [targetShipName, newCargoLimit, pId]);
+        
+        await client.query('UPDATE ship_cargo SET credits = credits - $1 WHERE player_id = $2', [cost, pId]);
+        await client.query('COMMIT');
+
+        res.json({ 
+            success: true, 
+            shipName: targetShipName, 
+            credits: data.credits - cost, 
+            maxFighters: targetConfig.maxFighters, 
+            maxShields: targetConfig.maxShields, 
+            cargoLimit: newCargoLimit 
+        });
+    } catch (e) {
+        await client.query('ROLLBACK');
         res.status(500).json({ error: "Internal server error" });
     } finally {
         client.release();

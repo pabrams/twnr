@@ -592,7 +592,7 @@ describe('Trading System', () => {
     assert.equal(status, 200);
     assert.equal(body.sectorId, portSector.sectorId);
     assert.ok(typeof body.class === 'number', 'class should be a number');
-    assert.ok(body.class >= 1 && body.class <= 8, `class ${body.class} out of range`);
+    assert.ok(body.class >= 0 && body.class <= 9, `class ${body.class} out of range`);
     assert.ok(typeof body.fuel === 'number');
     assert.ok(typeof body.fuelPrice === 'number');
     assert.ok(typeof body.organics === 'number');

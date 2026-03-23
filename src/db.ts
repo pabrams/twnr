@@ -53,6 +53,14 @@ export const connectDB = async (): Promise<void> => {
         equipment INTEGER NOT NULL DEFAULT 0,
         credits INTEGER NOT NULL DEFAULT 10000
       );
+
+      CREATE TABLE IF NOT EXISTS player_ships (
+        player_id INTEGER PRIMARY KEY REFERENCES players(id) ON DELETE CASCADE,
+        ship_name VARCHAR(255) NOT NULL,
+        fighters INTEGER NOT NULL DEFAULT 0,
+        shields INTEGER NOT NULL DEFAULT 0,
+        cargo_limit INTEGER NOT NULL
+      );
     `);
     
     client.release();
