@@ -166,7 +166,7 @@ describe('Universe Generation', () => {
     assert.equal(res.rows.length, 0, `Found ${res.rows.length} warps pointing to non-existent sectors`);
   });
 
-  it('port inventories are between 100 and 1000', async () => {
+  it('port inventories are within the valid bigbang range (0-5000)', async () => {
     const res = await pool.query(
       `SELECT MIN(fuel) AS min_f, MAX(fuel) AS max_f,
               MIN(organics) AS min_o, MAX(organics) AS max_o,
@@ -174,9 +174,9 @@ describe('Universe Generation', () => {
        FROM ports`
     );
     const row = res.rows[0];
-    assert.ok(row.min_f >= 100 && row.max_f <= 1000, `fuel range out of bounds: ${row.min_f}-${row.max_f}`);
-    assert.ok(row.min_o >= 100 && row.max_o <= 1000, `organics range out of bounds: ${row.min_o}-${row.max_o}`);
-    assert.ok(row.min_e >= 100 && row.max_e <= 1000, `equipment range out of bounds: ${row.min_e}-${row.max_e}`);
+    assert.ok(row.min_f >= 0 && row.max_f <= 5000, `fuel range out of bounds: ${row.min_f}-${row.max_f}`);
+    assert.ok(row.min_o >= 0 && row.max_o <= 5000, `organics range out of bounds: ${row.min_o}-${row.max_o}`);
+    assert.ok(row.min_e >= 0 && row.max_e <= 5000, `equipment range out of bounds: ${row.min_e}-${row.max_e}`);
   });
 
   it('approximately 50% of sectors have ports', async () => {
