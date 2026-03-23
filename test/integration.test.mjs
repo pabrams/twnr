@@ -15,6 +15,8 @@ import {
   httpGet,
   httpPost,
   findPortSector,
+  findPortSelling,
+  findPortBuying,
   movePlayerTo,
 } from './helpers.mjs';
 
@@ -35,21 +37,18 @@ before(async () => {
     ], { encoding: 'utf8', cwd: PROJECT_ROOT });
     if (gen.status !== 0) throw new Error(`bigbang failed: ${gen.stderr}`);
 
-    // Drop all tables so the server recreates a clean schema on startup
     pool = createPool();
     await pool.query('SELECT 1'); // verify connectivity
     await pool.query('DROP TABLE IF EXISTS ship_cargo, ports, warps, players, sectors CASCADE');
     await pool.end();
 
-    // Start server — connectDB() creates fresh empty tables
-    serverProc = await startServer();
-
-    // Import the generated universe into the fresh schema
     const imp = spawnSync(process.execPath, [
       join(PROJECT_ROOT, 'scripts', 'importUniverse.js'),
-      universeDir,
+      universeDir, '--force',
     ], { encoding: 'utf8', cwd: PROJECT_ROOT, env: process.env });
     if (imp.status !== 0) throw new Error(`importUniverse failed: ${imp.stderr}`);
+
+    serverProc = await startServer();
   } finally {
     rmSync(universeDir, { recursive: true, force: true });
   }
@@ -564,9 +563,13 @@ describe('Trading System', () => {
     );
     const cols = res.rows.map(r => r.column_name);
     assert.ok(cols.includes('sector_id'), 'missing sector_id');
+    assert.ok(cols.includes('class'), 'missing class');
     assert.ok(cols.includes('fuel'), 'missing fuel');
+    assert.ok(cols.includes('fuel_price'), 'missing fuel_price');
     assert.ok(cols.includes('organics'), 'missing organics');
+    assert.ok(cols.includes('org_price'), 'missing org_price');
     assert.ok(cols.includes('equipment'), 'missing equipment');
+    assert.ok(cols.includes('equ_price'), 'missing equ_price');
   });
 
   it('ship_cargo table exists with correct columns', async () => {
@@ -588,9 +591,14 @@ describe('Trading System', () => {
     const { status, body } = await httpGet(`/api/port/${portSector.sectorId}`);
     assert.equal(status, 200);
     assert.equal(body.sectorId, portSector.sectorId);
+    assert.ok(typeof body.class === 'number', 'class should be a number');
+    assert.ok(body.class >= 1 && body.class <= 8, `class ${body.class} out of range`);
     assert.ok(typeof body.fuel === 'number');
+    assert.ok(typeof body.fuelPrice === 'number');
     assert.ok(typeof body.organics === 'number');
+    assert.ok(typeof body.orgPrice === 'number');
     assert.ok(typeof body.equipment === 'number');
+    assert.ok(typeof body.equPrice === 'number');
   });
 
   it('GET /api/port returns 404 for sector without port', async () => {
@@ -630,48 +638,45 @@ describe('Trading System', () => {
   });
 
   it('POST /api/trade buy succeeds and updates cargo and credits', async () => {
-    const portSector = await findPortSector();
-    assert.ok(portSector, 'No ports found');
+    const portSector = await findPortSelling('fuel');
+    assert.ok(portSector, 'No port found selling fuel');
 
     const { ws, welcome } = await connectWS();
     const reached = await movePlayerTo(ws, portSector.sectorId);
     assert.ok(reached, `Could not reach port sector ${portSector.sectorId}`);
 
     const portBefore = (await httpGet(`/api/port/${portSector.sectorId}`)).body;
+    const qty = 5;
     const { status, body } = await httpPost('/api/trade', {
       playerId: welcome.playerId,
       good: 'fuel',
-      quantity: 5,
+      quantity: qty,
       action: 'buy',
     });
     assert.equal(status, 200);
     assert.equal(body.success, true);
-    assert.equal(body.credits, 10000 - 50); // 5 * 10
-    assert.equal(body.cargo.fuel, 5);
+    assert.equal(body.credits, 10000 - qty * portBefore.fuelPrice);
+    assert.equal(body.cargo.fuel, qty);
 
     const portAfter = (await httpGet(`/api/port/${portSector.sectorId}`)).body;
-    assert.equal(portAfter.fuel, portBefore.fuel - 5);
+    assert.equal(portAfter.fuel, portBefore.fuel - qty);
 
     await closeWS(ws);
   });
 
   it('POST /api/trade sell succeeds and updates cargo and credits', async () => {
-    const portSector = await findPortSector();
-    assert.ok(portSector, 'No ports found');
+    const portSector = await findPortBuying('organics');
+    assert.ok(portSector, 'No port found buying organics');
 
     const { ws, welcome } = await connectWS();
     const reached = await movePlayerTo(ws, portSector.sectorId);
     assert.ok(reached, `Could not reach port sector ${portSector.sectorId}`);
 
-    // Buy some first so we have cargo to sell
-    await httpPost('/api/trade', {
-      playerId: welcome.playerId,
-      good: 'organics',
-      quantity: 10,
-      action: 'buy',
-    });
+    // Give the player organics directly so we don't need a separate buy port
+    await pool.query('UPDATE ship_cargo SET organics = 10 WHERE player_id = $1', [welcome.playerId]);
 
     const portBefore = (await httpGet(`/api/port/${portSector.sectorId}`)).body;
+    const price = portBefore.orgPrice;
     const { status, body } = await httpPost('/api/trade', {
       playerId: welcome.playerId,
       good: 'organics',
@@ -680,8 +685,8 @@ describe('Trading System', () => {
     });
     assert.equal(status, 200);
     assert.equal(body.success, true);
-    assert.equal(body.cargo.organics, 7); // bought 10, sold 3
-    assert.equal(body.credits, 10000 - 100 + 24); // bought 10*10=100, sold 3*8=24
+    assert.equal(body.cargo.organics, 7); // had 10, sold 3
+    assert.equal(body.credits, 10000 + 3 * price);
 
     const portAfter = (await httpGet(`/api/port/${portSector.sectorId}`)).body;
     assert.equal(portAfter.organics, portBefore.organics + 3);
@@ -690,12 +695,16 @@ describe('Trading System', () => {
   });
 
   it('POST /api/trade returns 400 for insufficient credits', async () => {
-    const portSector = await findPortSector();
-    assert.ok(portSector, 'No ports found');
+    const portSector = await findPortSelling('fuel');
+    assert.ok(portSector, 'No port found selling fuel');
 
     const { ws, welcome } = await connectWS();
     const reached = await movePlayerTo(ws, portSector.sectorId);
     assert.ok(reached);
+
+    // Ensure the port has enough inventory so we hit credits check first.
+    // Port sell prices are 10-50; at min price 10, buying 1001 costs 10010 > 10000 credits.
+    await pool.query('UPDATE ports SET fuel = 2000 WHERE sector_id = $1', [portSector.sectorId]);
 
     const { status, body } = await httpPost('/api/trade', {
       playerId: welcome.playerId,
@@ -710,24 +719,22 @@ describe('Trading System', () => {
   });
 
   it('POST /api/trade returns 400 for insufficient port inventory on buy', async () => {
-    const portSector = await findPortSector();
-    assert.ok(portSector, 'No ports found');
+    const portSector = await findPortSelling('fuel');
+    assert.ok(portSector, 'No port found selling fuel');
 
     const { ws, welcome } = await connectWS();
     const reached = await movePlayerTo(ws, portSector.sectorId);
     assert.ok(reached);
 
+    // Give player enough credits so we hit inventory check, not credits check
+    await pool.query('UPDATE ship_cargo SET credits = 9999999 WHERE player_id = $1', [welcome.playerId]);
+
     const portInfo = (await httpGet(`/api/port/${portSector.sectorId}`)).body;
-    let good = 'equipment';
-    let amount = portInfo.equipment + 1;
-    if (amount * 10 > 10000) {
-      good = 'fuel';
-      amount = portInfo.fuel + 1;
-    }
+    const amount = portInfo.fuel + 1; // one more than available
 
     const { status, body } = await httpPost('/api/trade', {
       playerId: welcome.playerId,
-      good,
+      good: 'fuel',
       quantity: amount,
       action: 'buy',
     });
@@ -737,8 +744,8 @@ describe('Trading System', () => {
   });
 
   it('POST /api/trade returns 400 for insufficient cargo on sell', async () => {
-    const portSector = await findPortSector();
-    assert.ok(portSector, 'No ports found');
+    const portSector = await findPortBuying('fuel');
+    assert.ok(portSector, 'No port found buying fuel');
 
     const { ws, welcome } = await connectWS();
     const reached = await movePlayerTo(ws, portSector.sectorId);
@@ -752,6 +759,28 @@ describe('Trading System', () => {
     });
     assert.equal(status, 400);
     assert.equal(body.error, 'Insufficient cargo');
+
+    await closeWS(ws);
+  });
+
+  it('POST /api/trade returns 400 when port does not trade the commodity', async () => {
+    // Find a port that buys fuel (player can sell but NOT buy)
+    const portSector = await findPortBuying('fuel');
+    assert.ok(portSector, 'No port found buying fuel');
+
+    const { ws, welcome } = await connectWS();
+    const reached = await movePlayerTo(ws, portSector.sectorId);
+    assert.ok(reached);
+
+    // Try to BUY fuel from a port that only BUYS fuel
+    const { status, body } = await httpPost('/api/trade', {
+      playerId: welcome.playerId,
+      good: 'fuel',
+      quantity: 1,
+      action: 'buy',
+    });
+    assert.equal(status, 400);
+    assert.equal(body.error, 'Port does not trade this commodity');
 
     await closeWS(ws);
   });

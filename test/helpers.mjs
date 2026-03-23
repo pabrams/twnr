@@ -121,10 +121,43 @@ export async function httpPost(path, data) {
   return { status: res.status, body: await res.json() };
 }
 
+const PORT_CLASS_ACTIONS = {
+  1: { fuel: 'B', organics: 'B', equipment: 'S' },
+  2: { fuel: 'B', organics: 'S', equipment: 'B' },
+  3: { fuel: 'S', organics: 'B', equipment: 'B' },
+  4: { fuel: 'S', organics: 'S', equipment: 'B' },
+  5: { fuel: 'B', organics: 'S', equipment: 'S' },
+  6: { fuel: 'S', organics: 'B', equipment: 'S' },
+  7: { fuel: 'S', organics: 'S', equipment: 'S' },
+  8: { fuel: 'B', organics: 'B', equipment: 'B' },
+};
+
 export async function findPortSector() {
   for (let i = 1; i <= 100; i++) {
     const res = await httpGet(`/api/port/${i}`);
     if (res.status === 200) return { sectorId: i, port: res.body };
+  }
+  return null;
+}
+
+export async function findPortSelling(good) {
+  for (let i = 1; i <= 100; i++) {
+    const res = await httpGet(`/api/port/${i}`);
+    if (res.status === 200) {
+      const actions = PORT_CLASS_ACTIONS[res.body.class];
+      if (actions && actions[good] === 'S') return { sectorId: i, port: res.body };
+    }
+  }
+  return null;
+}
+
+export async function findPortBuying(good) {
+  for (let i = 1; i <= 100; i++) {
+    const res = await httpGet(`/api/port/${i}`);
+    if (res.status === 200) {
+      const actions = PORT_CLASS_ACTIONS[res.body.class];
+      if (actions && actions[good] === 'B') return { sectorId: i, port: res.body };
+    }
   }
   return null;
 }

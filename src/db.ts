@@ -37,9 +37,13 @@ export const connectDB = async (): Promise<void> => {
       CREATE TABLE IF NOT EXISTS ports (
         id SERIAL PRIMARY KEY,
         sector_id INTEGER NOT NULL UNIQUE REFERENCES sectors(id),
+        class INTEGER NOT NULL,
         fuel INTEGER NOT NULL DEFAULT 1000,
+        fuel_price INTEGER NOT NULL,
         organics INTEGER NOT NULL DEFAULT 1000,
-        equipment INTEGER NOT NULL DEFAULT 1000
+        org_price INTEGER NOT NULL,
+        equipment INTEGER NOT NULL DEFAULT 1000,
+        equ_price INTEGER NOT NULL
       );
 
       CREATE TABLE IF NOT EXISTS ship_cargo (

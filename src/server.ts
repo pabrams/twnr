@@ -14,6 +14,18 @@ interface Player {
 }
 const players: Record<number, Player> = {};
 
+// Port class trading rules: 'S' = port Sells to player (player buys), 'B' = port Buys from player (player sells)
+const PORT_CLASS_ACTIONS: Record<number, Record<string, 'B' | 'S'>> = {
+  1: { fuel: 'B', organics: 'B', equipment: 'S' },
+  2: { fuel: 'B', organics: 'S', equipment: 'B' },
+  3: { fuel: 'S', organics: 'B', equipment: 'B' },
+  4: { fuel: 'S', organics: 'S', equipment: 'B' },
+  5: { fuel: 'B', organics: 'S', equipment: 'S' },
+  6: { fuel: 'S', organics: 'B', equipment: 'S' },
+  7: { fuel: 'S', organics: 'S', equipment: 'S' },
+  8: { fuel: 'B', organics: 'B', equipment: 'B' },
+};
+
 export async function getGraph(): Promise<number[][]> {
     const sectorsRes = await pool.query('SELECT id FROM sectors ORDER BY id ASC');
     const size = sectorsRes.rows.length;
@@ -247,13 +259,22 @@ app.get('/api/port/:sectorId', async (req, res): Promise<any> => {
     }
     
     try {
-        const portRes = await pool.query('SELECT sector_id, fuel, organics, equipment FROM ports WHERE sector_id = $1', [sectorId]);
+        const portRes = await pool.query(
+            'SELECT sector_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price FROM ports WHERE sector_id = $1',
+            [sectorId],
+        );
         if (portRes.rows.length === 0) {
             return res.status(404).json({ error: "No port in this sector" });
         }
-        
+
         const p = portRes.rows[0];
-        res.json({ sectorId: p.sector_id, fuel: p.fuel, organics: p.organics, equipment: p.equipment });
+        res.json({
+            sectorId: p.sector_id,
+            class: p.class,
+            fuel: p.fuel, fuelPrice: p.fuel_price,
+            organics: p.organics, orgPrice: p.org_price,
+            equipment: p.equipment, equPrice: p.equ_price,
+        });
     } catch (error) {
         res.status(500).json({ error: "Internal server error" });
     }
@@ -310,24 +331,37 @@ app.post('/api/trade', async (req, res): Promise<any> => {
     try {
         await client.query('BEGIN');
         
-        const portRes = await client.query('SELECT fuel, organics, equipment FROM ports WHERE sector_id = $1 FOR UPDATE', [currentSector]);
+        const portRes = await client.query(
+            'SELECT class, fuel, fuel_price, organics, org_price, equipment, equ_price FROM ports WHERE sector_id = $1 FOR UPDATE',
+            [currentSector],
+        );
         if (portRes.rows.length === 0) {
             await client.query('ROLLBACK');
             return res.status(404).json({ error: "No port in this sector" });
         }
-        
+
         const port = portRes.rows[0];
-        
+
+        // Validate that this port's class supports the requested action on this commodity
+        const priceColMap: Record<string, string> = { fuel: 'fuel_price', organics: 'org_price', equipment: 'equ_price' };
+        const portActions = PORT_CLASS_ACTIONS[port.class];
+        if (!portActions || (action === 'buy' && portActions[good] !== 'S') || (action === 'sell' && portActions[good] !== 'B')) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: "Port does not trade this commodity" });
+        }
+
+        const price: number = port[priceColMap[good]];
+
         const cargoRes = await client.query('SELECT fuel, organics, equipment, credits FROM ship_cargo WHERE player_id = $1 FOR UPDATE', [pId]);
         if (cargoRes.rows.length === 0) {
             await client.query('ROLLBACK');
             return res.status(404).json({ error: "Player not found" });
         }
-        
+
         const cargo = cargoRes.rows[0];
-        
+
         if (action === "buy") {
-            const cost = qty * 10;
+            const cost = qty * price;
             if (cargo.credits < cost) {
                 await client.query('ROLLBACK');
                 return res.status(400).json({ error: "Insufficient credits" });
@@ -336,28 +370,28 @@ app.post('/api/trade', async (req, res): Promise<any> => {
                 await client.query('ROLLBACK');
                 return res.status(400).json({ error: "Insufficient port inventory" });
             }
-            
+
             await client.query(`UPDATE ports SET ${good} = ${good} - $1 WHERE sector_id = $2`, [qty, currentSector]);
             await client.query(`UPDATE ship_cargo SET ${good} = ${good} + $1, credits = credits - $2 WHERE player_id = $3`, [qty, cost, pId]);
-            
+
             await client.query('COMMIT');
-            
+
             cargo[good] += qty;
             cargo.credits -= cost;
             res.json({ success: true, credits: cargo.credits, cargo: { fuel: cargo.fuel, organics: cargo.organics, equipment: cargo.equipment } });
-            
+
         } else if (action === "sell") {
-            const revenue = qty * 8;
+            const revenue = qty * price;
             if (cargo[good] < qty) {
                 await client.query('ROLLBACK');
                 return res.status(400).json({ error: "Insufficient cargo" });
             }
-            
+
             await client.query(`UPDATE ports SET ${good} = ${good} + $1 WHERE sector_id = $2`, [qty, currentSector]);
             await client.query(`UPDATE ship_cargo SET ${good} = ${good} - $1, credits = credits + $2 WHERE player_id = $3`, [qty, revenue, pId]);
-            
+
             await client.query('COMMIT');
-            
+
             cargo[good] -= qty;
             cargo.credits += revenue;
             res.json({ success: true, credits: cargo.credits, cargo: { fuel: cargo.fuel, organics: cargo.organics, equipment: cargo.equipment } });

@@ -16,9 +16,17 @@ import pg from 'pg';
 
 const { Pool } = pg;
 
-const universeDir = process.argv[2];
+const args = process.argv.slice(2);
+const universeDir = args.find(a => !a.startsWith('--'));
+const force = args.includes('--force');
+
 if (!universeDir) {
-  console.error('Usage: node scripts/importUniverse.js <bigbang-output-dir>');
+  console.error('Usage: node scripts/importUniverse.js <bigbang-output-dir> [--force]');
+  process.exit(1);
+}
+
+if (!force) {
+  console.error('Error: this will wipe all existing universe data. Pass --force to proceed.');
   process.exit(1);
 }
 
@@ -71,11 +79,15 @@ async function ensureSchema(client) {
     );
 
     CREATE TABLE IF NOT EXISTS ports (
-      id        SERIAL PRIMARY KEY,
-      sector_id INTEGER NOT NULL UNIQUE REFERENCES sectors(id),
-      fuel      INTEGER NOT NULL DEFAULT 500,
-      organics  INTEGER NOT NULL DEFAULT 500,
-      equipment INTEGER NOT NULL DEFAULT 500
+      id         SERIAL PRIMARY KEY,
+      sector_id  INTEGER NOT NULL UNIQUE REFERENCES sectors(id),
+      class      INTEGER NOT NULL,
+      fuel       INTEGER NOT NULL DEFAULT 500,
+      fuel_price INTEGER NOT NULL,
+      organics   INTEGER NOT NULL DEFAULT 500,
+      org_price  INTEGER NOT NULL,
+      equipment  INTEGER NOT NULL DEFAULT 500,
+      equ_price  INTEGER NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS ship_cargo (
@@ -101,7 +113,7 @@ async function main() {
     await client.query('DELETE FROM warps');
     await client.query('DELETE FROM sectors');
 
-    // Import sectors (bigbang columns: id, name)
+    // Import sectors
     const { rows: sectorRows } = readCSV(join(universeDir, 'sectors.csv'));
     for (const row of sectorRows) {
       await client.query(
@@ -110,7 +122,7 @@ async function main() {
       );
     }
 
-    // Import warps (bigbang columns: sector_from, sector_to)
+    // Import warps
     const { rows: warpRows } = readCSV(join(universeDir, 'warps.csv'));
     for (const row of warpRows) {
       await client.query(
@@ -120,17 +132,21 @@ async function main() {
     }
 
     // Import ports
-    // bigbang columns: sector, class, fuel_qty, fuel_price, org_qty, org_price, equ_qty, equ_price
-    // server schema:   sector_id, fuel, organics, equipment
     const { rows: portRows } = readCSV(join(universeDir, 'ports.csv'));
     for (const row of portRows) {
       await client.query(
-        'INSERT INTO ports (sector_id, fuel, organics, equipment) VALUES ($1, $2, $3, $4)',
+        `INSERT INTO ports
+           (sector_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
         [
           parseInt(row[0], 10), // sector
+          parseInt(row[1], 10), // class
           parseInt(row[2], 10), // fuel_qty
+          parseInt(row[3], 10), // fuel_price
           parseInt(row[4], 10), // org_qty
+          parseInt(row[5], 10), // org_price
           parseInt(row[6], 10), // equ_qty
+          parseInt(row[7], 10), // equ_price
         ],
       );
     }

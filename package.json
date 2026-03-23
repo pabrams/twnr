@@ -19,6 +19,6 @@
         "dropDatabase": "node ./scripts/deleteDatabase.js",
         "bigbang": "node ./scripts/twnr-bigbang.js",
         "db:import": "node ./scripts/importUniverse.js",
-        "db:seed": "node ./scripts/twnr-bigbang.js ./data/universe --sectors 100 --seed 42 && node ./scripts/importUniverse.js ./data/universe"
+        "db:seed": "node ./scripts/twnr-bigbang.js ./data/universe --sectors 100 --seed 42 && node ./scripts/importUniverse.js ./data/universe --force"
     }
 }
