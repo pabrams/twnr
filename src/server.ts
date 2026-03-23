@@ -2,14 +2,11 @@ import { WebSocket, WebSocketServer } from 'ws';
 import { connectDB, pool } from './db.js';
 import express from 'express';
 import { createServer, Server } from 'http';
-import { getRandomInt } from './tools.js';
 
 const app = express();
 app.use(express.json());
 const server: Server = createServer(app);
 const wss = new WebSocketServer({ server });
-
-const numSectors = 100; // used only when no database exists
 
 interface Player {
   ws: WebSocket;
@@ -17,70 +14,12 @@ interface Player {
 }
 const players: Record<number, Player> = {};
 
-async function createGraph(size: number) {
-    if (size < 1) {
-        console.error("Number of sectors must be positive");
-    }
-
-    const client = await pool.connect();
-    try {
-        await client.query('BEGIN');
-        
-        // Ensure everything is deleted first (for safety)
-        await client.query('DELETE FROM ship_cargo');
-        await client.query('DELETE FROM ports');
-        await client.query('DELETE FROM players');
-        await client.query('DELETE FROM warps');
-        await client.query('DELETE FROM sectors');
-
-        for (let i = 1; i <= size; i++) {
-            await client.query('INSERT INTO sectors (id) VALUES ($1)', [i]);
-        }
-
-        for (let i = 1; i <= size; i++) {
-            const warps: number[] = [];
-            const rand = getRandomInt(1, 6);
-            while (warps.length < rand) {
-                const exit = getRandomInt(1, size);
-                if (exit !== i && !warps.includes(exit)) {
-                    warps.push(exit);
-                    await client.query(
-                        'INSERT INTO warps (sector_from, sector_to) VALUES ($1, $2)',
-                        [i, exit]
-                    );
-                }
-            }
-            
-            // Generate port 50% of the time
-            if (Math.random() < 0.5) {
-                const fuel = getRandomInt(100, 1000);
-                const organics = getRandomInt(100, 1000);
-                const equipment = getRandomInt(100, 1000);
-                await client.query(
-                    'INSERT INTO ports (sector_id, fuel, organics, equipment) VALUES ($1, $2, $3, $4)',
-                    [i, fuel, organics, equipment]
-                );
-            }
-        }
-        await client.query('COMMIT');
-        console.log(`Graph with ${size} nodes created.`);
-    } catch (err) {
-        await client.query('ROLLBACK');
-        console.error('Error creating graph', err);
-        throw err;
-    } finally {
-        client.release();
-    }
-}
-
 export async function getGraph(): Promise<number[][]> {
     const sectorsRes = await pool.query('SELECT id FROM sectors ORDER BY id ASC');
-    let size = sectorsRes.rows.length;
-    
+    const size = sectorsRes.rows.length;
+
     if (size === 0) {
-        console.log('No graph found in DB, creating a new one.');
-        await createGraph(numSectors);
-        size = numSectors;
+        throw new Error('No sectors found in database. Load universe data before starting the server.');
     }
 
     let adjacencyList: number[][] = [];
