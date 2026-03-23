@@ -9,7 +9,7 @@ app.use(express.json());
 const server: Server = createServer(app);
 const wss = new WebSocketServer({ server });
 
-const numSectors = 100;
+const numSectors = 100; // used only when no database exists
 
 interface Player {
   ws: WebSocket;
