@@ -406,13 +406,18 @@ app.post('/api/trade', async (req, res): Promise<any> => {
     if (!player) {
         return res.status(404).json({ error: "Player not found" });
     }
-    
-    const currentSector = player.sector;
-    
+
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
-        
+
+        const pRes = await client.query('SELECT current_sector FROM players WHERE id = $1', [pId]);
+        if (pRes.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: "Player not found" });
+        }
+        const currentSector = pRes.rows[0].current_sector;
+
         const portRes = await client.query(
             'SELECT class, fuel, fuel_price, organics, org_price, equipment, equ_price FROM ports WHERE sector_id = $1 FOR UPDATE',
             [currentSector],
@@ -429,7 +434,7 @@ app.post('/api/trade', async (req, res): Promise<any> => {
         const portActions = PORT_CLASS_ACTIONS[port.class];
         if (!portActions || (action === 'buy' && portActions[good] !== 'S') || (action === 'sell' && portActions[good] !== 'B')) {
             await client.query('ROLLBACK');
-            return res.status(400).json({ error: "Port does not trade this commodity" });
+            console.error("TRADE FAIL REASON:", portActions, action, good); return res.status(400).json({ error: "Port does not trade this commodity" });
         }
 
         const price: number = port[priceColMap[good]];
@@ -499,8 +504,8 @@ app.post('/api/trade', async (req, res): Promise<any> => {
 
 app.post('/api/port/buy-fighters', async (req, res): Promise<any> => {
     const { playerId, quantity } = req.body;
-    const qty = parseInt(quantity, 10);
-    if (isNaN(qty) || qty <= 0) return res.status(400).json({ error: "Invalid quantity" });
+    const qty = Number(quantity);
+    if (!Number.isInteger(qty) || qty <= 0) return res.status(400).json({ error: "Invalid quantity" });
     const pId = parseInt(playerId, 10);
 
     const client = await pool.connect();
@@ -559,8 +564,8 @@ app.post('/api/port/buy-fighters', async (req, res): Promise<any> => {
 
 app.post('/api/port/buy-shields', async (req, res): Promise<any> => {
     const { playerId, quantity } = req.body;
-    const qty = parseInt(quantity, 10);
-    if (isNaN(qty) || qty <= 0) return res.status(400).json({ error: "Invalid quantity" });
+    const qty = Number(quantity);
+    if (!Number.isInteger(qty) || qty <= 0) return res.status(400).json({ error: "Invalid quantity" });
     const pId = parseInt(playerId, 10);
 
     const client = await pool.connect();
@@ -619,8 +624,8 @@ app.post('/api/port/buy-shields', async (req, res): Promise<any> => {
 
 app.post('/api/port/buy-holds', async (req, res): Promise<any> => {
     const { playerId, quantity } = req.body;
-    const qty = parseInt(quantity, 10);
-    if (isNaN(qty) || qty <= 0) return res.status(400).json({ error: "Invalid quantity" });
+    const qty = Number(quantity);
+    if (!Number.isInteger(qty) || qty <= 0) return res.status(400).json({ error: "Invalid quantity" });
     const pId = parseInt(playerId, 10);
 
     const client = await pool.connect();
