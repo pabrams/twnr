@@ -5,10 +5,10 @@ const { Pool } = pg;
 
 export function createPool() {
   return new Pool({
-    host: 'localhost',
-    database: 'twnr',
-    user: 'twnr_user',
-    password: 'twnr_pass',
+    host:     process.env.PGHOST     || 'localhost',
+    database: process.env.PGDATABASE || 'twnr',
+    user:     process.env.PGUSER     || 'twnr_user',
+    password: process.env.PGPASSWORD || 'twnr_pass',
   });
 }
 

@@ -1,5 +1,10 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { tmpdir } from 'node:os';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import {
   createPool,
   startServer,
@@ -13,14 +18,43 @@ import {
   movePlayerTo,
 } from './helpers.mjs';
 
+const __filename = fileURLToPath(import.meta.url);
+const PROJECT_ROOT = join(dirname(__filename), '..');
+
 let pool;
 let serverProc;
 
 before(async () => {
+  // Generate a deterministic 100-sector test universe
+  const universeDir = mkdtempSync(join(tmpdir(), 'twnr_test_universe_'));
+  try {
+    rmSync(universeDir, { recursive: true, force: true });
+    const gen = spawnSync(process.execPath, [
+      join(PROJECT_ROOT, 'scripts', 'twnr-bigbang.js'),
+      universeDir, '--sectors', '100', '--seed', '42',
+    ], { encoding: 'utf8', cwd: PROJECT_ROOT });
+    if (gen.status !== 0) throw new Error(`bigbang failed: ${gen.stderr}`);
+
+    // Drop all tables so the server recreates a clean schema on startup
+    pool = createPool();
+    await pool.query('SELECT 1'); // verify connectivity
+    await pool.query('DROP TABLE IF EXISTS ship_cargo, ports, warps, players, sectors CASCADE');
+    await pool.end();
+
+    // Start server — connectDB() creates fresh empty tables
+    serverProc = await startServer();
+
+    // Import the generated universe into the fresh schema
+    const imp = spawnSync(process.execPath, [
+      join(PROJECT_ROOT, 'scripts', 'importUniverse.js'),
+      universeDir,
+    ], { encoding: 'utf8', cwd: PROJECT_ROOT, env: process.env });
+    if (imp.status !== 0) throw new Error(`importUniverse failed: ${imp.stderr}`);
+  } finally {
+    rmSync(universeDir, { recursive: true, force: true });
+  }
+
   pool = createPool();
-  await pool.query('SELECT 1'); // verify connectivity
-  await pool.query('DROP TABLE IF EXISTS ship_cargo, ports, warps, players, sectors CASCADE');
-  serverProc = await startServer();
 });
 
 after(async () => {

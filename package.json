@@ -12,7 +12,7 @@
         "typescript": "^5.0.0"
     },
     "scripts": {
-        "test": "tsc && node --test test/*.test.mjs",
+        "test": "tsc && PGDATABASE=twnr_test node --test test/*.test.mjs",
         "build": "tsc",
         "coldStart": "npm install && npm run build && npm run test && npm start",
         "start": "node ./dist/server.js",

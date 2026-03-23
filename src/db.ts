@@ -1,10 +1,10 @@
 import { Pool } from 'pg';
 
 export const pool = new Pool({
-  host: 'localhost',
-  database: 'twnr',
-  user: 'twnr_user',
-  password: 'twnr_pass',
+  host:     process.env.PGHOST     || 'localhost',
+  database: process.env.PGDATABASE || 'twnr',
+  user:     process.env.PGUSER     || 'twnr_user',
+  password: process.env.PGPASSWORD || 'twnr_pass',
 });
 
 let isConnected = false;
