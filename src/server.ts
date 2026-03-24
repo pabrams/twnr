@@ -191,7 +191,11 @@ function getWsSessionPayload(req: Request): AuthTokenPayload | null {
 function getRequestAuthPayload(req: Request): { payload: AuthTokenPayload | null; hadCredentials: boolean } {
   const jwtToken = getJwtToken(req);
   if (jwtToken) {
-    return { payload: verifyToken(jwtToken), hadCredentials: true };
+    try {
+      return { payload: verifyToken(jwtToken), hadCredentials: true };
+    } catch {
+      return { payload: null, hadCredentials: true };
+    }
   }
 
   const sessionPayload = getWsSessionPayload(req);
@@ -228,18 +232,14 @@ function resolveAuthorizedPlayerId(req: Request, res: Response, rawPlayerId: unk
 }
 
 function authenticateToken(req: Request, res: Response, next: NextFunction): void {
-  try {
-    const { payload, hadCredentials } = getRequestAuthPayload(req);
-    if (!payload) {
-      res.status(401).json({ error: 'Authentication required' });
-      return;
-    }
-
-    (req as any).player = payload;
-    next();
-  } catch {
-    res.status(403).json({ error: 'Invalid token' });
+  const { payload, hadCredentials } = getRequestAuthPayload(req);
+  if (!payload) {
+    res.status(hadCredentials ? 403 : 401).json({ error: hadCredentials ? 'Invalid token' : 'Authentication required' });
+    return;
   }
+
+  (req as any).player = payload;
+  next();
 }
 
 function authenticateAdmin(req: Request, res: Response, next: NextFunction): void {
