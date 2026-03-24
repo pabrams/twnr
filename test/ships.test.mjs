@@ -37,7 +37,7 @@ function makeAuthToken(playerId, role = 'player') {
   });
 }
 
-function getDefaultAuthHeaders(path, data) {
+function getDefaultAuthHeaders(path, authPlayerId) {
   if (path.startsWith('/api/ship/') || path.startsWith('/api/cargo/')) {
     const playerId = Number(path.split('/').pop());
     if (Number.isInteger(playerId) && playerId > 0) {
@@ -53,7 +53,7 @@ function getDefaultAuthHeaders(path, data) {
     path === '/api/port/buy-holds' ||
     path === '/api/ship/exchange'
   ) {
-    const playerId = Number(data?.playerId || 1);
+    const playerId = Number(authPlayerId || 1);
     if (Number.isInteger(playerId) && playerId > 0) {
       return { Authorization: `Bearer ${makeAuthToken(playerId)}` };
     }
@@ -145,7 +145,7 @@ async function httpGet(path) {
 async function httpPost(path, data, options = {}) {
   const headers = {
     'Content-Type': 'application/json',
-    ...getDefaultAuthHeaders(path, data),
+    ...getDefaultAuthHeaders(path, options.authPlayerId),
     ...(options.headers || {}),
   };
 
@@ -400,8 +400,8 @@ describe('POST /api/trade at class 0 port', () => {
     const playerId = welcome.playerId;
     try {
       const { status } = await httpPost('/api/trade', {
-        playerId, good: 'fuel', quantity: 1, action: 'buy',
-      });
+        good: 'fuel', quantity: 1, action: 'buy',
+      }, { authPlayerId: playerId });
       assert.equal(status, 400);
     } finally {
       await closeWS(ws);
@@ -414,8 +414,8 @@ describe('POST /api/trade at class 0 port', () => {
     try {
       await pool.query('UPDATE ship_cargo SET fuel = 3 WHERE player_id = $1', [playerId]);
       const { status } = await httpPost('/api/trade', {
-        playerId, good: 'fuel', quantity: 1, action: 'sell',
-      });
+        good: 'fuel', quantity: 1, action: 'sell',
+      }, { authPlayerId: playerId });
       assert.equal(status, 400);
     } finally {
       await closeWS(ws);
@@ -434,8 +434,8 @@ describe('Cargo Hold Enforcement (POST /api/trade)', () => {
       await navigateTo(ws, fuelSector);
       // cargo_limit is 5; try to buy 6
       const { status, body } = await httpPost('/api/trade', {
-        playerId, good: 'fuel', quantity: 6, action: 'buy',
-      });
+        good: 'fuel', quantity: 6, action: 'buy',
+      }, { authPlayerId: playerId });
       assert.equal(status, 400);
       assert.equal(body.error, 'Insufficient cargo holds');
     } finally {
@@ -452,8 +452,8 @@ describe('Cargo Hold Enforcement (POST /api/trade)', () => {
     try {
       await navigateTo(ws, fuelSector);
       const { status } = await httpPost('/api/trade', {
-        playerId, good: 'fuel', quantity: 5, action: 'buy',
-      });
+        good: 'fuel', quantity: 5, action: 'buy',
+      }, { authPlayerId: playerId });
       assert.equal(status, 200, 'buying exactly cargo_limit should succeed');
     } finally {
       await closeWS(ws);
@@ -468,10 +468,10 @@ describe('Cargo Hold Enforcement (POST /api/trade)', () => {
     const playerId = welcome.playerId;
     try {
       await navigateTo(ws, fuelSector);
-      await httpPost('/api/trade', { playerId, good: 'fuel', quantity: 5, action: 'buy' });
+      await httpPost('/api/trade', { good: 'fuel', quantity: 5, action: 'buy' }, { authPlayerId: playerId });
       const { status, body } = await httpPost('/api/trade', {
-        playerId, good: 'fuel', quantity: 1, action: 'buy',
-      });
+        good: 'fuel', quantity: 1, action: 'buy',
+      }, { authPlayerId: playerId });
       assert.equal(status, 400);
       assert.equal(body.error, 'Insufficient cargo holds');
     } finally {
@@ -490,7 +490,7 @@ describe('POST /api/port/buy-fighters — validation', () => {
     const playerId = welcome.playerId;
     try {
       await pool.query('UPDATE players SET current_sector = $1 WHERE id = $2', [otherSector, playerId]);
-      const { status, body } = await httpPost('/api/port/buy-fighters', { playerId, quantity: 1 });
+      const { status, body } = await httpPost('/api/port/buy-fighters', { quantity: 1 }, { authPlayerId: playerId });
       assert.equal(status, 400);
       assert.equal(body.error, 'Not at a class 0 port');
     } finally {
@@ -502,7 +502,7 @@ describe('POST /api/port/buy-fighters — validation', () => {
     const { ws, welcome } = await connectWS();
     const playerId = welcome.playerId;
     try {
-      const { status, body } = await httpPost('/api/port/buy-fighters', { playerId, quantity: 0 });
+      const { status, body } = await httpPost('/api/port/buy-fighters', { quantity: 0 }, { authPlayerId: playerId });
       assert.equal(status, 400);
       assert.equal(body.error, 'Invalid quantity');
     } finally {
@@ -514,7 +514,7 @@ describe('POST /api/port/buy-fighters — validation', () => {
     const { ws, welcome } = await connectWS();
     const playerId = welcome.playerId;
     try {
-      const { status, body } = await httpPost('/api/port/buy-fighters', { playerId, quantity: -1 });
+      const { status, body } = await httpPost('/api/port/buy-fighters', { quantity: -1 }, { authPlayerId: playerId });
       assert.equal(status, 400);
       assert.equal(body.error, 'Invalid quantity');
     } finally {
@@ -526,7 +526,7 @@ describe('POST /api/port/buy-fighters — validation', () => {
     const { ws, welcome } = await connectWS();
     const playerId = welcome.playerId;
     try {
-      const { status, body } = await httpPost('/api/port/buy-fighters', { playerId, quantity: 1.5 });
+      const { status, body } = await httpPost('/api/port/buy-fighters', { quantity: 1.5 }, { authPlayerId: playerId });
       assert.equal(status, 400);
       assert.equal(body.error, 'Invalid quantity');
     } finally {
@@ -535,7 +535,7 @@ describe('POST /api/port/buy-fighters — validation', () => {
   });
 
   it('returns 404 "Player not found" for a non-existent player', async () => {
-    const { status, body } = await httpPost('/api/port/buy-fighters', { playerId: 999999, quantity: 1 });
+    const { status, body } = await httpPost('/api/port/buy-fighters', { quantity: 1 }, { authPlayerId: 999999 });
     assert.equal(status, 404);
     assert.equal(body.error, 'Player not found');
   });
@@ -544,7 +544,7 @@ describe('POST /api/port/buy-fighters — validation', () => {
     const { ws, welcome } = await connectWS();
     const playerId = welcome.playerId;
     try {
-      const { status, body } = await httpPost('/api/port/buy-fighters', { playerId, quantity: merchantCfg.maxFighters + 1 });
+      const { status, body } = await httpPost('/api/port/buy-fighters', { quantity: merchantCfg.maxFighters + 1 }, { authPlayerId: playerId });
       assert.equal(status, 400);
       assert.equal(body.error, 'Exceeds maximum');
     } finally {
@@ -557,7 +557,7 @@ describe('POST /api/port/buy-fighters — validation', () => {
     const playerId = welcome.playerId;
     try {
       await pool.query('UPDATE ship_cargo SET credits = 0 WHERE player_id = $1', [playerId]);
-      const { status, body } = await httpPost('/api/port/buy-fighters', { playerId, quantity: 1 });
+      const { status, body } = await httpPost('/api/port/buy-fighters', { quantity: 1 }, { authPlayerId: playerId });
       assert.equal(status, 400);
       assert.equal(body.error, 'Insufficient credits');
     } finally {
@@ -571,7 +571,7 @@ describe('POST /api/port/buy-shields — validation', () => {
     const { ws, welcome } = await connectWS();
     const playerId = welcome.playerId;
     try {
-      const { status, body } = await httpPost('/api/port/buy-shields', { playerId, quantity: 0 });
+      const { status, body } = await httpPost('/api/port/buy-shields', { quantity: 0 }, { authPlayerId: playerId });
       assert.equal(status, 400);
       assert.equal(body.error, 'Invalid quantity');
     } finally {
@@ -583,7 +583,7 @@ describe('POST /api/port/buy-shields — validation', () => {
     const { ws, welcome } = await connectWS();
     const playerId = welcome.playerId;
     try {
-      const { status, body } = await httpPost('/api/port/buy-shields', { playerId, quantity: -1 });
+      const { status, body } = await httpPost('/api/port/buy-shields', { quantity: -1 }, { authPlayerId: playerId });
       assert.equal(status, 400);
       assert.equal(body.error, 'Invalid quantity');
     } finally {
@@ -595,7 +595,7 @@ describe('POST /api/port/buy-shields — validation', () => {
     const { ws, welcome } = await connectWS();
     const playerId = welcome.playerId;
     try {
-      const { status, body } = await httpPost('/api/port/buy-shields', { playerId, quantity: 2.9 });
+      const { status, body } = await httpPost('/api/port/buy-shields', { quantity: 2.9 }, { authPlayerId: playerId });
       assert.equal(status, 400);
       assert.equal(body.error, 'Invalid quantity');
     } finally {
@@ -604,7 +604,7 @@ describe('POST /api/port/buy-shields — validation', () => {
   });
 
   it('returns 404 "Player not found" for a non-existent player', async () => {
-    const { status, body } = await httpPost('/api/port/buy-shields', { playerId: 999999, quantity: 1 });
+    const { status, body } = await httpPost('/api/port/buy-shields', { quantity: 1 }, { authPlayerId: 999999 });
     assert.equal(status, 404);
     assert.equal(body.error, 'Player not found');
   });
@@ -618,7 +618,7 @@ describe('POST /api/port/buy-shields — validation', () => {
     const playerId = welcome.playerId;
     try {
       await pool.query('UPDATE players SET current_sector = $1 WHERE id = $2', [otherSector, playerId]);
-      const { status, body } = await httpPost('/api/port/buy-shields', { playerId, quantity: 1 });
+      const { status, body } = await httpPost('/api/port/buy-shields', { quantity: 1 }, { authPlayerId: playerId });
       assert.equal(status, 400);
       assert.equal(body.error, 'Not at a class 0 port');
     } finally {
@@ -630,7 +630,7 @@ describe('POST /api/port/buy-shields — validation', () => {
     const { ws, welcome } = await connectWS();
     const playerId = welcome.playerId;
     try {
-      const { status, body } = await httpPost('/api/port/buy-shields', { playerId, quantity: merchantCfg.maxShields + 1 });
+      const { status, body } = await httpPost('/api/port/buy-shields', { quantity: merchantCfg.maxShields + 1 }, { authPlayerId: playerId });
       assert.equal(status, 400);
       assert.equal(body.error, 'Exceeds maximum');
     } finally {
@@ -643,7 +643,7 @@ describe('POST /api/port/buy-shields — validation', () => {
     const playerId = welcome.playerId;
     try {
       await pool.query('UPDATE ship_cargo SET credits = 0 WHERE player_id = $1', [playerId]);
-      const { status, body } = await httpPost('/api/port/buy-shields', { playerId, quantity: 1 });
+      const { status, body } = await httpPost('/api/port/buy-shields', { quantity: 1 }, { authPlayerId: playerId });
       assert.equal(status, 400);
       assert.equal(body.error, 'Insufficient credits');
     } finally {
@@ -657,7 +657,7 @@ describe('POST /api/port/buy-holds — validation', () => {
     const { ws, welcome } = await connectWS();
     const playerId = welcome.playerId;
     try {
-      const { status, body } = await httpPost('/api/port/buy-holds', { playerId, quantity: 0 });
+      const { status, body } = await httpPost('/api/port/buy-holds', { quantity: 0 }, { authPlayerId: playerId });
       assert.equal(status, 400);
       assert.equal(body.error, 'Invalid quantity');
     } finally {
@@ -669,7 +669,7 @@ describe('POST /api/port/buy-holds — validation', () => {
     const { ws, welcome } = await connectWS();
     const playerId = welcome.playerId;
     try {
-      const { status, body } = await httpPost('/api/port/buy-holds', { playerId, quantity: -1 });
+      const { status, body } = await httpPost('/api/port/buy-holds', { quantity: -1 }, { authPlayerId: playerId });
       assert.equal(status, 400);
       assert.equal(body.error, 'Invalid quantity');
     } finally {
@@ -681,7 +681,7 @@ describe('POST /api/port/buy-holds — validation', () => {
     const { ws, welcome } = await connectWS();
     const playerId = welcome.playerId;
     try {
-      const { status, body } = await httpPost('/api/port/buy-holds', { playerId, quantity: 0.5 });
+      const { status, body } = await httpPost('/api/port/buy-holds', { quantity: 0.5 }, { authPlayerId: playerId });
       assert.equal(status, 400);
       assert.equal(body.error, 'Invalid quantity');
     } finally {
@@ -690,7 +690,7 @@ describe('POST /api/port/buy-holds — validation', () => {
   });
 
   it('returns 404 "Player not found" for a non-existent player', async () => {
-    const { status, body } = await httpPost('/api/port/buy-holds', { playerId: 999999, quantity: 1 });
+    const { status, body } = await httpPost('/api/port/buy-holds', { quantity: 1 }, { authPlayerId: 999999 });
     assert.equal(status, 404);
     assert.equal(body.error, 'Player not found');
   });
@@ -704,7 +704,7 @@ describe('POST /api/port/buy-holds — validation', () => {
     const playerId = welcome.playerId;
     try {
       await pool.query('UPDATE players SET current_sector = $1 WHERE id = $2', [otherSector, playerId]);
-      const { status, body } = await httpPost('/api/port/buy-holds', { playerId, quantity: 1 });
+      const { status, body } = await httpPost('/api/port/buy-holds', { quantity: 1 }, { authPlayerId: playerId });
       assert.equal(status, 400);
       assert.equal(body.error, 'Not at a class 0 port');
     } finally {
@@ -717,7 +717,7 @@ describe('POST /api/port/buy-holds — validation', () => {
     const playerId = welcome.playerId;
     try {
       await pool.query('UPDATE ship_cargo SET credits = 0 WHERE player_id = $1', [playerId]);
-      const { status, body } = await httpPost('/api/port/buy-holds', { playerId, quantity: 1 });
+      const { status, body } = await httpPost('/api/port/buy-holds', { quantity: 1 }, { authPlayerId: playerId });
       assert.equal(status, 400);
       assert.equal(body.error, 'Insufficient credits');
     } finally {
@@ -732,7 +732,7 @@ describe('Buy equipment — success', () => {
     const playerId = welcome.playerId;
     const qty = 3;
     try {
-      const { status, body } = await httpPost('/api/port/buy-fighters', { playerId, quantity: qty });
+      const { status, body } = await httpPost('/api/port/buy-fighters', { quantity: qty }, { authPlayerId: playerId });
       assert.equal(status, 200);
       assert.equal(body.success, true);
       assert.equal(body.fighters, qty);
@@ -749,7 +749,7 @@ describe('Buy equipment — success', () => {
     const playerId = welcome.playerId;
     const qty = 5;
     try {
-      const { status, body } = await httpPost('/api/port/buy-shields', { playerId, quantity: qty });
+      const { status, body } = await httpPost('/api/port/buy-shields', { quantity: qty }, { authPlayerId: playerId });
       assert.equal(status, 200);
       assert.equal(body.success, true);
       assert.equal(body.shields, qty);
@@ -766,7 +766,7 @@ describe('Buy equipment — success', () => {
     const playerId = welcome.playerId;
     const qty = 3;
     try {
-      const { status, body } = await httpPost('/api/port/buy-holds', { playerId, quantity: qty });
+      const { status, body } = await httpPost('/api/port/buy-holds', { quantity: qty }, { authPlayerId: playerId });
       assert.equal(status, 200);
       assert.equal(body.success, true);
       assert.equal(body.cargoLimit, merchantCfg.startingHolds + qty);
@@ -784,9 +784,9 @@ describe('Buy equipment — success', () => {
     const firstBuy = merchantCfg.maxFighters - 2;
     try {
       // Buy maxFighters-2 fighters first
-      await httpPost('/api/port/buy-fighters', { playerId, quantity: firstBuy });
+      await httpPost('/api/port/buy-fighters', { quantity: firstBuy }, { authPlayerId: playerId });
       // Then try to buy 3 more — would exceed cap by 1
-      const { status, body } = await httpPost('/api/port/buy-fighters', { playerId, quantity: 3 });
+      const { status, body } = await httpPost('/api/port/buy-fighters', { quantity: 3 }, { authPlayerId: playerId });
       assert.equal(status, 400);
       assert.equal(body.error, 'Exceeds maximum');
     } finally {
@@ -799,8 +799,8 @@ describe('Buy equipment — success', () => {
     const playerId = welcome.playerId;
     const firstBuy = merchantCfg.maxShields - 2;
     try {
-      await httpPost('/api/port/buy-shields', { playerId, quantity: firstBuy });
-      const { status, body } = await httpPost('/api/port/buy-shields', { playerId, quantity: 3 });
+      await httpPost('/api/port/buy-shields', { quantity: firstBuy }, { authPlayerId: playerId });
+      const { status, body } = await httpPost('/api/port/buy-shields', { quantity: 3 }, { authPlayerId: playerId });
       assert.equal(status, 400);
       assert.equal(body.error, 'Exceeds maximum');
     } finally {
@@ -818,14 +818,14 @@ describe('Buy equipment — success', () => {
     try {
       // Exchange to Warbird (startingHolds=1, maxHolds=5)
       await pool.query('UPDATE players SET current_sector = $1 WHERE id = $2', [stardockId, playerId]);
-      await httpPost('/api/ship/exchange', { playerId, targetShipName: warbirdCfg.name });
+      await httpPost('/api/ship/exchange', { targetShipName: warbirdCfg.name }, { authPlayerId: playerId });
 
       // Move to sector 1 (class 0 port) via DB
       await pool.query('UPDATE players SET current_sector = 1 WHERE id = $1', [playerId]);
 
       // Trying to buy maxHolds - startingHolds + 1 holds should fail
       const overLimit = warbirdCfg.maxHolds - warbirdCfg.startingHolds + 1;
-      const { status, body } = await httpPost('/api/port/buy-holds', { playerId, quantity: overLimit });
+      const { status, body } = await httpPost('/api/port/buy-holds', { quantity: overLimit }, { authPlayerId: playerId });
       assert.equal(status, 400);
       assert.equal(body.error, 'Exceeds maximum');
     } finally {
@@ -838,7 +838,7 @@ describe('Buy equipment — success', () => {
     const playerId = welcome.playerId;
     try {
       // one more than the room available
-      const { status, body } = await httpPost('/api/port/buy-holds', { playerId, quantity: merchantCfg.maxHolds - merchantCfg.startingHolds + 1 });
+      const { status, body } = await httpPost('/api/port/buy-holds', { quantity: merchantCfg.maxHolds - merchantCfg.startingHolds + 1 }, { authPlayerId: playerId });
       assert.equal(status, 400);
       assert.equal(body.error, 'Exceeds maximum');
     } finally {
@@ -851,7 +851,7 @@ describe('Buy equipment — success', () => {
     const playerId = welcome.playerId;
     try {
       const qty = merchantCfg.maxHolds - merchantCfg.startingHolds;
-      const { status, body } = await httpPost('/api/port/buy-holds', { playerId, quantity: qty });
+      const { status, body } = await httpPost('/api/port/buy-holds', { quantity: qty }, { authPlayerId: playerId });
       assert.equal(status, 200, 'buying exactly up to maxHolds should succeed');
       assert.equal(body.cargoLimit, merchantCfg.maxHolds);
     } finally {
@@ -871,8 +871,8 @@ describe('Buy equipment — success', () => {
       await navigateTo(ws, fuelSector);
       // Buying 2 more fuel: 2+2+2 = 6 > cargoLimit(5) — should fail
       const { status, body } = await httpPost('/api/trade', {
-        playerId, good: 'fuel', quantity: 2, action: 'buy',
-      });
+        good: 'fuel', quantity: 2, action: 'buy',
+      }, { authPlayerId: playerId });
       assert.equal(status, 400);
       assert.equal(body.error, 'Insufficient cargo holds');
     } finally {
@@ -892,13 +892,13 @@ describe('Buy equipment — success', () => {
     try {
       // Exchange to Warbird (startingHolds=1); cargoLimit becomes 1
       await pool.query('UPDATE players SET current_sector = $1 WHERE id = $2', [stardockId, playerId]);
-      await httpPost('/api/ship/exchange', { playerId, targetShipName: warbirdCfg.name });
+      await httpPost('/api/ship/exchange', { targetShipName: warbirdCfg.name }, { authPlayerId: playerId });
 
       // Navigate to fuel port and try to buy 2 fuel — exceeds new cargoLimit of 1
       await pool.query('UPDATE players SET current_sector = $1 WHERE id = $2', [fuelSector, playerId]);
       const { status, body } = await httpPost('/api/trade', {
-        playerId, good: 'fuel', quantity: 2, action: 'buy',
-      });
+        good: 'fuel', quantity: 2, action: 'buy',
+      }, { authPlayerId: playerId });
       assert.equal(status, 400);
       assert.equal(body.error, 'Insufficient cargo holds');
     } finally {
@@ -915,13 +915,13 @@ describe('Buy equipment — success', () => {
     const playerId = welcome.playerId;
     try {
       // Buy 3 holds → cargo_limit becomes 8
-      await httpPost('/api/port/buy-holds', { playerId, quantity: 3 });
+      await httpPost('/api/port/buy-holds', { quantity: 3 }, { authPlayerId: playerId });
 
       // Navigate to fuel seller and buy 8 units (should succeed now)
       await navigateTo(ws, fuelSector);
       const { status } = await httpPost('/api/trade', {
-        playerId, good: 'fuel', quantity: 8, action: 'buy',
-      });
+        good: 'fuel', quantity: 8, action: 'buy',
+      }, { authPlayerId: playerId });
       assert.equal(status, 200, 'should be able to buy 8 fuel after buying 3 extra holds');
     } finally {
       await closeWS(ws);
@@ -936,7 +936,7 @@ describe('POST /api/ship/exchange — validation', () => {
   }
 
   it('returns 404 "Player not found" for a non-existent player', async () => {
-    const { status, body } = await httpPost('/api/ship/exchange', { playerId: 999999, targetShipName: warbirdCfg.name });
+    const { status, body } = await httpPost('/api/ship/exchange', { targetShipName: warbirdCfg.name }, { authPlayerId: 999999 });
     assert.equal(status, 404);
     assert.equal(body.error, 'Player not found');
   });
@@ -946,8 +946,8 @@ describe('POST /api/ship/exchange — validation', () => {
     const playerId = welcome.playerId;
     try {
       const { status, body } = await httpPost('/api/ship/exchange', {
-        playerId, targetShipName: warbirdCfg.name,
-      });
+        targetShipName: warbirdCfg.name,
+      }, { authPlayerId: playerId });
       assert.equal(status, 400);
       assert.equal(body.error, 'Not at Stardock');
     } finally {
@@ -964,8 +964,8 @@ describe('POST /api/ship/exchange — validation', () => {
     try {
       await pool.query('UPDATE players SET current_sector = $1 WHERE id = $2', [stardockId, playerId]);
       const { status, body } = await httpPost('/api/ship/exchange', {
-        playerId, targetShipName: 'Galaxy Hauler',
-      });
+        targetShipName: 'Galaxy Hauler',
+      }, { authPlayerId: playerId });
       assert.equal(status, 400);
       assert.equal(body.error, 'Unknown ship');
     } finally {
@@ -982,8 +982,8 @@ describe('POST /api/ship/exchange — validation', () => {
     try {
       await pool.query('UPDATE players SET current_sector = $1 WHERE id = $2', [stardockId, playerId]);
       const { status, body } = await httpPost('/api/ship/exchange', {
-        playerId, targetShipName: merchantCfg.name,
-      });
+        targetShipName: merchantCfg.name,
+      }, { authPlayerId: playerId });
       assert.equal(status, 400);
       assert.equal(body.error, 'Already on that ship');
     } finally {
@@ -1002,8 +1002,8 @@ describe('POST /api/ship/exchange — validation', () => {
       const upgradeCost = warbirdCfg.price - merchantCfg.price;
       await pool.query('UPDATE ship_cargo SET credits = $1 WHERE player_id = $2', [upgradeCost - 1, playerId]);
       const { status, body } = await httpPost('/api/ship/exchange', {
-        playerId, targetShipName: warbirdCfg.name,
-      });
+        targetShipName: warbirdCfg.name,
+      }, { authPlayerId: playerId });
       assert.equal(status, 400);
       assert.equal(body.error, 'Insufficient credits');
     } finally {
@@ -1023,8 +1023,8 @@ describe('POST /api/ship/exchange — validation', () => {
 
       await pool.query('UPDATE players SET current_sector = $1 WHERE id = $2', [stardockId, playerId]);
       const { status, body } = await httpPost('/api/ship/exchange', {
-        playerId, targetShipName: warbirdCfg.name,
-      });
+        targetShipName: warbirdCfg.name,
+      }, { authPlayerId: playerId });
       assert.equal(status, 400);
       assert.equal(body.error, 'New ship has insufficient holds for current cargo');
     } finally {
@@ -1039,7 +1039,7 @@ describe('GET /api/ship/:playerId — dynamic state', () => {
     const playerId = welcome.playerId;
     const qty = 4;
     try {
-      await httpPost('/api/port/buy-holds', { playerId, quantity: qty });
+      await httpPost('/api/port/buy-holds', { quantity: qty }, { authPlayerId: playerId });
       const { status, body } = await httpGet(`/api/ship/${playerId}`);
       assert.equal(status, 200);
       assert.equal(body.cargoLimit, merchantCfg.startingHolds + qty);
@@ -1058,7 +1058,7 @@ describe('GET /api/ship/:playerId — dynamic state', () => {
     const fuelQty = 3;
     try {
       await navigateTo(ws, fuelSector);
-      await httpPost('/api/trade', { playerId, good: 'fuel', quantity: fuelQty, action: 'buy' });
+      await httpPost('/api/trade', { good: 'fuel', quantity: fuelQty, action: 'buy' }, { authPlayerId: playerId });
 
       const { status, body } = await httpGet(`/api/ship/${playerId}`);
       assert.equal(status, 200);
@@ -1086,8 +1086,8 @@ describe('POST /api/ship/exchange — success', () => {
     try {
       await pool.query('UPDATE players SET current_sector = $1 WHERE id = $2', [stardockId, playerId]);
       const { status, body } = await httpPost('/api/ship/exchange', {
-        playerId, targetShipName: warbirdCfg.name,
-      });
+        targetShipName: warbirdCfg.name,
+      }, { authPlayerId: playerId });
       assert.equal(status, 200);
       assert.equal(body.success, true);
       assert.equal(body.shipName, warbirdCfg.name);
@@ -1115,13 +1115,13 @@ describe('POST /api/ship/exchange — success', () => {
     const playerId = welcome.playerId;
     try {
       // Buy some fighters and shields first (player starts at sector 1, class 0 port)
-      await httpPost('/api/port/buy-fighters', { playerId, quantity: Math.min(5, merchantCfg.maxFighters) });
-      await httpPost('/api/port/buy-shields', { playerId, quantity: Math.min(4, merchantCfg.maxShields) });
+      await httpPost('/api/port/buy-fighters', { quantity: Math.min(5, merchantCfg.maxFighters) }, { authPlayerId: playerId });
+      await httpPost('/api/port/buy-shields', { quantity: Math.min(4, merchantCfg.maxShields) }, { authPlayerId: playerId });
 
       await pool.query('UPDATE players SET current_sector = $1 WHERE id = $2', [stardockId, playerId]);
       const { status } = await httpPost('/api/ship/exchange', {
-        playerId, targetShipName: warbirdCfg.name,
-      });
+        targetShipName: warbirdCfg.name,
+      }, { authPlayerId: playerId });
       assert.equal(status, 200);
 
       const shipRes = await pool.query('SELECT fighters, shields FROM player_ships WHERE player_id = $1', [playerId]);
@@ -1141,11 +1141,11 @@ describe('POST /api/ship/exchange — success', () => {
     try {
       await pool.query('UPDATE players SET current_sector = $1 WHERE id = $2', [stardockId, playerId]);
       // Upgrade first
-      await httpPost('/api/ship/exchange', { playerId, targetShipName: warbirdCfg.name });
+      await httpPost('/api/ship/exchange', { targetShipName: warbirdCfg.name }, { authPlayerId: playerId });
       // Now downgrade
       const { status, body } = await httpPost('/api/ship/exchange', {
-        playerId, targetShipName: merchantCfg.name,
-      });
+        targetShipName: merchantCfg.name,
+      }, { authPlayerId: playerId });
       assert.equal(status, 200);
       assert.equal(body.shipName, merchantCfg.name);
       assert.equal(body.credits, STARTING_CREDITS, 'credits restored after upgrade then downgrade');
@@ -1184,7 +1184,7 @@ describe('Movement Constraint', () => {
       const adjRes = await pool.query('SELECT sector_to FROM warps WHERE sector_from = 1 LIMIT 1');
       const target = adjRes.rows.length > 0 ? Number(adjRes.rows[0].sector_to) : 2;
 
-      const { status, body } = await httpPost('/api/move', { playerId, targetSector: target });
+      const { status, body } = await httpPost('/api/move', { targetSector: target }, { authPlayerId: playerId });
       assert.equal(status, 400);
       assert.equal(body.error, 'No ship');
     } finally {
@@ -1204,8 +1204,8 @@ describe('Existing feature regression', () => {
       await pool.query('UPDATE ship_cargo SET fuel = 3 WHERE player_id = $1', [playerId]);
       await navigateTo(ws, fuelSector);
       const { status, body } = await httpPost('/api/trade', {
-        playerId, good: 'fuel', quantity: 2, action: 'sell',
-      });
+        good: 'fuel', quantity: 2, action: 'sell',
+      }, { authPlayerId: playerId });
       assert.equal(status, 200);
       assert.ok(body.success);
     } finally {

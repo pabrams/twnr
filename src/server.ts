@@ -477,16 +477,13 @@ app.get('/api/players/online', (req, res) => {
 });
 
 app.post('/api/move', authenticateToken, async (req, res): Promise<any> => {
-    const { playerId, targetSector } = req.body;
-    
+    const { targetSector } = req.body;
+
     if (targetSector === undefined) {
         return res.status(400).json({ error: "Invalid request" });
     }
 
-    const pId = resolveAuthorizedPlayerId(req, res, playerId);
-    if (pId === null) {
-        return;
-    }
+    const pId = getAuthenticatedPlayer(req).playerId;
 
     const ts = parseInt(targetSector, 10);
     
@@ -670,29 +667,26 @@ app.get('/api/cargo/:playerId', authenticateToken, async (req, res): Promise<any
 });
 
 app.post('/api/trade', authenticateToken, async (req, res): Promise<any> => {
-    const { playerId, good, quantity, action } = req.body;
-    
+    const { good, quantity, action } = req.body;
+
     if (good === undefined || quantity === undefined || action === undefined) {
         return res.status(400).json({ error: "Invalid request" });
     }
-    
+
     if (!["fuel", "organics", "equipment"].includes(good)) {
         return res.status(400).json({ error: "Invalid request" });
     }
-    
+
     if (!["buy", "sell"].includes(action)) {
         return res.status(400).json({ error: "Invalid request" });
     }
-    
+
     const qty = parseInt(quantity, 10);
     if (isNaN(qty) || qty <= 0) {
         return res.status(400).json({ error: "Invalid request" });
     }
-    
-    const pId = resolveAuthorizedPlayerId(req, res, playerId);
-    if (pId === null) {
-        return;
-    }
+
+    const pId = getAuthenticatedPlayer(req).playerId;
 
     const player = players[pId];
     if (!player) {
@@ -795,13 +789,10 @@ app.post('/api/trade', authenticateToken, async (req, res): Promise<any> => {
 });
 
 app.post('/api/port/buy-fighters', authenticateToken, async (req, res): Promise<any> => {
-    const { playerId, quantity } = req.body;
+    const { quantity } = req.body;
     const qty = Number(quantity);
     if (!Number.isInteger(qty) || qty <= 0) return res.status(400).json({ error: "Invalid quantity" });
-    const pId = resolveAuthorizedPlayerId(req, res, playerId);
-    if (pId === null) {
-        return;
-    }
+    const pId = getAuthenticatedPlayer(req).playerId;
 
     const client = await pool.connect();
     try {
@@ -858,13 +849,10 @@ app.post('/api/port/buy-fighters', authenticateToken, async (req, res): Promise<
 });
 
 app.post('/api/port/buy-shields', authenticateToken, async (req, res): Promise<any> => {
-    const { playerId, quantity } = req.body;
+    const { quantity } = req.body;
     const qty = Number(quantity);
     if (!Number.isInteger(qty) || qty <= 0) return res.status(400).json({ error: "Invalid quantity" });
-    const pId = resolveAuthorizedPlayerId(req, res, playerId);
-    if (pId === null) {
-        return;
-    }
+    const pId = getAuthenticatedPlayer(req).playerId;
 
     const client = await pool.connect();
     try {
@@ -921,13 +909,10 @@ app.post('/api/port/buy-shields', authenticateToken, async (req, res): Promise<a
 });
 
 app.post('/api/port/buy-holds', authenticateToken, async (req, res): Promise<any> => {
-    const { playerId, quantity } = req.body;
+    const { quantity } = req.body;
     const qty = Number(quantity);
     if (!Number.isInteger(qty) || qty <= 0) return res.status(400).json({ error: "Invalid quantity" });
-    const pId = resolveAuthorizedPlayerId(req, res, playerId);
-    if (pId === null) {
-        return;
-    }
+    const pId = getAuthenticatedPlayer(req).playerId;
 
     const client = await pool.connect();
     try {
@@ -984,11 +969,8 @@ app.post('/api/port/buy-holds', authenticateToken, async (req, res): Promise<any
 });
 
 app.post('/api/ship/exchange', authenticateToken, async (req, res): Promise<any> => {
-    const { playerId, targetShipName } = req.body;
-    const pId = resolveAuthorizedPlayerId(req, res, playerId);
-    if (pId === null) {
-        return;
-    }
+    const { targetShipName } = req.body;
+    const pId = getAuthenticatedPlayer(req).playerId;
 
     const targetConfig = shipConfigs[targetShipName];
     if (!targetConfig) {

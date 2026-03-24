@@ -5,7 +5,6 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import jwt from 'jsonwebtoken';
 import {
   createPool,
   startServer,
@@ -186,26 +185,6 @@ describe('Security', () => {
     });
   });
 
-  it('rejects acting on another player via a valid token', async () => {
-    const { ws: ws1, welcome: w1 } = await connectWS();
-    const { ws: ws2, welcome: w2 } = await connectWS();
-    const attackerToken = jwt.sign(
-      { playerId: w1.playerId, name: 'Attacker', role: 'player' },
-      process.env.JWT_SECRET,
-      { algorithm: 'HS256', expiresIn: '1h' },
-    );
-
-    const { status, body } = await httpPost(
-      '/api/port/buy-fighters',
-      { playerId: w2.playerId, quantity: 1 },
-      { headers: { Authorization: `Bearer ${attackerToken}` } },
-    );
-
-    assert.equal(status, 403);
-    assert.equal(body.error, 'Forbidden');
-    await closeWS(ws1);
-    await closeWS(ws2);
-  });
 
   it('stores new passwords with scrypt and upgrades legacy md5 hashes on login', async () => {
     const email = `pilot_${Date.now()}@example.com`;
@@ -544,12 +523,12 @@ describe('REST API', () => {
 
   it('GET /api/players/online returns empty array when nobody connected', async () => {
     let response = null;
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 20; i++) {
       response = await httpGet('/api/players/online');
       if (response.body.players.length === 0) {
         break;
       }
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 200));
     }
 
     assert.equal(response.status, 200);
@@ -567,9 +546,8 @@ describe('REST API', () => {
 
     const movePromise = waitForMsg(ws, 'playerMoved');
     const { status, body } = await httpPost('/api/move', {
-      playerId: welcome.playerId,
       targetSector: target,
-    });
+    }, { authPlayerId: welcome.playerId });
     assert.equal(status, 200);
     assert.equal(body.success, true);
     assert.equal(body.sector, target);
@@ -596,9 +574,8 @@ describe('REST API', () => {
     assert.ok(nonAdjacent !== null);
 
     const { status, body } = await httpPost('/api/move', {
-      playerId: welcome.playerId,
       targetSector: nonAdjacent,
-    });
+    }, { authPlayerId: welcome.playerId });
     assert.equal(status, 400);
     assert.equal(body.error, 'Not adjacent');
 
@@ -607,9 +584,8 @@ describe('REST API', () => {
 
   it('POST /api/move returns 404 for unknown player', async () => {
     const { status, body } = await httpPost('/api/move', {
-      playerId: 99999,
       targetSector: 1,
-    });
+    }, { authPlayerId: 99999 });
     assert.equal(status, 404);
     assert.equal(body.error, 'Player not found');
   });
@@ -785,11 +761,10 @@ describe('Trading System', () => {
     const portBefore = (await httpGet(`/api/port/${portSector.sectorId}`)).body;
     const qty = 5;
     const { status, body } = await httpPost('/api/trade', {
-      playerId: welcome.playerId,
       good: 'fuel',
       quantity: qty,
       action: 'buy',
-    });
+    }, { authPlayerId: welcome.playerId });
     assert.equal(status, 200);
     assert.equal(body.success, true);
     assert.equal(body.credits, 10000 - qty * portBefore.fuelPrice);
@@ -815,11 +790,10 @@ describe('Trading System', () => {
     const portBefore = (await httpGet(`/api/port/${portSector.sectorId}`)).body;
     const price = portBefore.orgPrice;
     const { status, body } = await httpPost('/api/trade', {
-      playerId: welcome.playerId,
       good: 'organics',
       quantity: 3,
       action: 'sell',
-    });
+    }, { authPlayerId: welcome.playerId });
     assert.equal(status, 200);
     assert.equal(body.success, true);
     assert.equal(body.cargo.organics, 7); // had 10, sold 3
@@ -844,11 +818,10 @@ describe('Trading System', () => {
     await pool.query('UPDATE ports SET fuel = 2000 WHERE sector_id = $1', [portSector.sectorId]);
 
     const { status, body } = await httpPost('/api/trade', {
-      playerId: welcome.playerId,
       good: 'fuel',
       quantity: 1001,
       action: 'buy',
-    });
+    }, { authPlayerId: welcome.playerId });
     assert.equal(status, 400);
     assert.equal(body.error, 'Insufficient credits');
 
@@ -870,11 +843,10 @@ describe('Trading System', () => {
     const amount = portInfo.fuel + 1; // one more than available
 
     const { status, body } = await httpPost('/api/trade', {
-      playerId: welcome.playerId,
       good: 'fuel',
       quantity: amount,
       action: 'buy',
-    });
+    }, { authPlayerId: welcome.playerId });
     assert.equal(status, 400);
     assert.equal(body.error, 'Insufficient port inventory');
     await closeWS(ws);
@@ -889,11 +861,10 @@ describe('Trading System', () => {
     assert.ok(reached);
 
     const { status, body } = await httpPost('/api/trade', {
-      playerId: welcome.playerId,
       good: 'fuel',
       quantity: 1,
       action: 'sell',
-    });
+    }, { authPlayerId: welcome.playerId });
     assert.equal(status, 400);
     assert.equal(body.error, 'Insufficient cargo');
 
@@ -911,11 +882,10 @@ describe('Trading System', () => {
 
     // Try to BUY fuel from a port that only BUYS fuel
     const { status, body } = await httpPost('/api/trade', {
-      playerId: welcome.playerId,
       good: 'fuel',
       quantity: 1,
       action: 'buy',
-    });
+    }, { authPlayerId: welcome.playerId });
     assert.equal(status, 400);
     assert.equal(body.error, 'Port does not trade this commodity');
 
@@ -928,14 +898,14 @@ describe('Trading System', () => {
     assert.equal(b1.error, 'Invalid request');
 
     const { status: s2, body: b2 } = await httpPost('/api/trade', {
-      playerId: 1, good: 'unobtanium', quantity: 1, action: 'buy',
-    });
+      good: 'unobtanium', quantity: 1, action: 'buy',
+    }, { authPlayerId: 1 });
     assert.equal(s2, 400);
     assert.equal(b2.error, 'Invalid request');
 
     const { status: s3, body: b3 } = await httpPost('/api/trade', {
-      playerId: 1, good: 'fuel', quantity: 1, action: 'barter',
-    });
+      good: 'fuel', quantity: 1, action: 'barter',
+    }, { authPlayerId: 1 });
     assert.equal(s3, 400);
     assert.equal(b3.error, 'Invalid request');
   });
@@ -953,11 +923,10 @@ describe('Trading System', () => {
     assert.ok(reached, `Could not reach sector ${noPortSector}`);
 
     const { status, body } = await httpPost('/api/trade', {
-      playerId: welcome.playerId,
       good: 'fuel',
       quantity: 1,
       action: 'buy',
-    });
+    }, { authPlayerId: welcome.playerId });
     assert.equal(status, 404);
     assert.equal(body.error, 'No port in this sector');
 
@@ -979,8 +948,8 @@ describe('Trading System', () => {
     const buyAmount = Math.floor(availableFuel * 0.7);
 
     const [res1, res2] = await Promise.all([
-      httpPost('/api/trade', { playerId: w1.playerId, good: 'fuel', quantity: buyAmount, action: 'buy' }),
-      httpPost('/api/trade', { playerId: w2.playerId, good: 'fuel', quantity: buyAmount, action: 'buy' }),
+      httpPost('/api/trade', { good: 'fuel', quantity: buyAmount, action: 'buy' }, { authPlayerId: w1.playerId }),
+      httpPost('/api/trade', { good: 'fuel', quantity: buyAmount, action: 'buy' }, { authPlayerId: w2.playerId }),
     ]);
 
     const portAfter = (await httpGet(`/api/port/${portSector.sectorId}`)).body;

@@ -20,7 +20,7 @@ function makeAuthToken(playerId, role = 'player') {
   });
 }
 
-function getDefaultAuthHeaders(path, data) {
+function getDefaultAuthHeaders(path, authPlayerId) {
   if (path.startsWith('/api/ship/') || path.startsWith('/api/cargo/')) {
     const playerId = Number(path.split('/').pop());
     if (Number.isInteger(playerId) && playerId > 0) {
@@ -36,7 +36,7 @@ function getDefaultAuthHeaders(path, data) {
     path === '/api/port/buy-holds' ||
     path === '/api/ship/exchange'
   ) {
-    const playerId = Number(data?.playerId || 1);
+    const playerId = Number(authPlayerId || 1);
     if (Number.isInteger(playerId) && playerId > 0) {
       return { Authorization: `Bearer ${makeAuthToken(playerId)}` };
     }
@@ -161,7 +161,7 @@ export async function httpGet(path) {
 export async function httpPost(path, data, options = {}) {
   const headers = {
     'Content-Type': 'application/json',
-    ...getDefaultAuthHeaders(path, data),
+    ...getDefaultAuthHeaders(path, options.authPlayerId),
     ...(options.headers || {}),
   };
 
