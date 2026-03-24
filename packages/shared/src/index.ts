@@ -20,6 +20,7 @@ export type PlayerMovedMessage = {
   type: 'playerMoved';
   playerId: number;
   sector: number;
+  direction: 'in' | 'out';
 };
 
 export type SectorDisplayMessage = {

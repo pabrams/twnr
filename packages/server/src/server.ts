@@ -401,13 +401,18 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
                     players[playerId].sector = targetSector;
                     await pool.query('UPDATE players SET current_sector = $1 WHERE id = $2', [targetSector, playerId]);
                     
-                    const clientsToNotify = new Set<WebSocket>();
+                    const oldSectorClients = new Set<WebSocket>();
+                    const newSectorClients = new Set<WebSocket>();
                     for (const [idStr, p] of Object.entries(players)) {
-                        if (p.sector === currentSector || p.sector === targetSector) {
-                            clientsToNotify.add(p.ws);
-                        }
+                        if (Number(idStr) === playerId) continue;
+                        if (p.sector === currentSector) oldSectorClients.add(p.ws);
+                        else if (p.sector === targetSector) newSectorClients.add(p.ws);
                     }
-                    broadcastTo({ type: 'playerMoved', playerId, sector: targetSector }, clientsToNotify);
+                    broadcastTo({ type: 'playerMoved', playerId, sector: targetSector, direction: 'out' }, oldSectorClients);
+                    broadcastTo({ type: 'playerMoved', playerId, sector: targetSector, direction: 'in' }, newSectorClients);
+                    const displayWarps = warps[targetSector] || [];
+                    const playersInSector = Object.entries(players).filter(([, p]) => p.sector === targetSector).map(([id]) => Number(id));
+                    ws.send(JSON.stringify({ type: 'sectorDisplay', sector: targetSector, warps: displayWarps, players: playersInSector }));
                 } else {
                     ws.send(JSON.stringify({ type: 'nonAdjacentMoveRequested', playerId, sector: targetSector }));
                 }
@@ -418,7 +423,8 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
         } else if (data.type === 'display') {
             const currentSector = players[playerId].sector;
             const displayWarps = warps[currentSector] || [];
-            ws.send(JSON.stringify({ type: "sectorDisplay", sector: currentSector, warps: displayWarps }));
+            const playersInSector = Object.entries(players).filter(([, p]) => p.sector === currentSector).map(([id]) => Number(id));
+            ws.send(JSON.stringify({ type: 'sectorDisplay', sector: currentSector, warps: displayWarps, players: playersInSector }));
         }
       });
 
@@ -510,14 +516,21 @@ app.post('/api/move', authenticateToken, async (req, res): Promise<any> => {
         console.error("DB update error", e);
     }
     
-    const clientsToNotify = new Set<WebSocket>();
-    for (const p of Object.values(players)) {
-        if (p.sector === currentSector || p.sector === ts) {
-            clientsToNotify.add(p.ws);
-        }
+    const oldSectorClients = new Set<WebSocket>();
+    const newSectorClients = new Set<WebSocket>();
+    for (const [idStr, p] of Object.entries(players)) {
+        if (Number(idStr) === pId) continue;
+        if (p.sector === currentSector) oldSectorClients.add(p.ws);
+        else if (p.sector === ts) newSectorClients.add(p.ws);
     }
-    broadcastTo({ type: 'playerMoved', playerId: pId, sector: ts }, clientsToNotify);
-    
+    broadcastTo({ type: 'playerMoved', playerId: pId, sector: ts, direction: 'out' }, oldSectorClients);
+    broadcastTo({ type: 'playerMoved', playerId: pId, sector: ts, direction: 'in' }, newSectorClients);
+    if (player.ws) {
+        const displayWarps = warps[ts] || [];
+        const playersInSector = Object.entries(players).filter(([, p]) => p.sector === ts).map(([id]) => Number(id));
+        player.ws.send(JSON.stringify({ type: 'sectorDisplay', sector: ts, warps: displayWarps, players: playersInSector }));
+    }
+
     res.json({ success: true, sector: ts, warps: warps[ts] || [] });
 });
 

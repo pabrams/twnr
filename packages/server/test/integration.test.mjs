@@ -322,11 +322,11 @@ describe('WebSocket', () => {
     const disp = await dispPromise;
 
     const target = disp.warps[0];
-    const movePromise = waitForMsg(ws, 'playerMoved');
+    const movePromise = waitForMsg(ws, 'sectorDisplay');
     ws.send(JSON.stringify({ type: 'move', sector: target }));
     const moveMsg = await movePromise;
 
-    assert.equal(moveMsg.type, 'playerMoved');
+    assert.equal(moveMsg.type, 'sectorDisplay');
     assert.equal(moveMsg.sector, target);
     await closeWS(ws);
   });
@@ -346,6 +346,7 @@ describe('WebSocket', () => {
 
     assert.equal(msg.type, 'playerMoved');
     assert.equal(msg.sector, target);
+    assert.equal(msg.direction, 'out');
     await closeWS(ws1);
     await closeWS(ws2);
   });
@@ -359,16 +360,13 @@ describe('WebSocket', () => {
     ws1.send(JSON.stringify({ type: 'display' }));
     const disp1 = await disp1Promise;
     const ws1Target = disp1.warps[0];
-    const move1Promise = waitForMsg(ws1, 'playerMoved');
+    const move1Promise = waitForMsg(ws1, 'sectorDisplay');
     ws1.send(JSON.stringify({ type: 'move', sector: ws1Target }));
-    await move1Promise;
+    const disp1b = await move1Promise;
 
     // Move ws1 again so it's two hops away from sector 1
-    const disp2Promise = waitForMsg(ws1, 'sectorDisplay');
-    ws1.send(JSON.stringify({ type: 'display' }));
-    const disp2 = await disp2Promise;
-    const ws1Target2 = disp2.warps.find(w => w !== 1) || disp2.warps[0];
-    const move2Promise = waitForMsg(ws1, 'playerMoved');
+    const ws1Target2 = disp1b.warps.find(w => w !== 1) || disp1b.warps[0];
+    const move2Promise = waitForMsg(ws1, 'sectorDisplay');
     ws1.send(JSON.stringify({ type: 'move', sector: ws1Target2 }));
     await move2Promise;
 
@@ -420,7 +418,7 @@ describe('WebSocket', () => {
     ws2.send(JSON.stringify({ type: 'display' }));
     const disp = await dispPromise;
     const target = disp.warps[0];
-    const movePromise = waitForMsg(ws2, 'playerMoved');
+    const movePromise = waitForMsg(ws2, 'sectorDisplay');
     ws2.send(JSON.stringify({ type: 'move', sector: target }));
     await movePromise;
 
@@ -544,7 +542,7 @@ describe('REST API', () => {
     const disp = await dispPromise;
     const target = disp.warps[0];
 
-    const movePromise = waitForMsg(ws, 'playerMoved');
+    const movePromise = waitForMsg(ws, 'sectorDisplay');
     const { status, body } = await httpPost('/api/move', {
       targetSector: target,
     }, { authPlayerId: welcome.playerId });
@@ -554,7 +552,7 @@ describe('REST API', () => {
     assert.ok(Array.isArray(body.warps), 'response should include warps for new sector');
 
     const wsMsg = await movePromise;
-    assert.equal(wsMsg.type, 'playerMoved');
+    assert.equal(wsMsg.type, 'sectorDisplay');
     assert.equal(wsMsg.sector, target);
 
     await closeWS(ws);

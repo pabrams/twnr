@@ -22,6 +22,8 @@ window.addEventListener('resize', () => fitAddon.fit());
 
 const ws = new WebSocket(`ws://${location.host}/ws`);
 
+let myPlayerId: number | null = null;
+
 ws.addEventListener('open', () => {
   term.writeln('Connected to TWNR.');
 });
@@ -30,10 +32,15 @@ ws.addEventListener('message', (event) => {
   const msg: ServerMessage = JSON.parse(event.data);
   switch (msg.type) {
     case 'welcome':
+      myPlayerId = msg.playerId;
       term.writeln(`\r\nWelcome, ${msg.name}. You are in sector ${msg.sector}.`);
       break;
     case 'playerMoved':
-      term.writeln(`\r\nPlayer ${msg.playerId} moved to sector ${msg.sector}.`);
+      if (msg.direction === 'in') {
+        term.writeln(`\r\nPlayer ${msg.playerId} warped into the sector.`);
+      } else {
+        term.writeln(`\r\nPlayer ${msg.playerId} warped out of the sector.`);
+      }
       break;
     case 'sectorDisplay':
       term.writeln(`\r\nSector ${msg.sector} — warps: ${msg.warps.join(', ')}`);
@@ -49,7 +56,8 @@ ws.addEventListener('error', () => {
   term.writeln('\r\nConnection error.');
 });
 
-// Send raw input line by line
+const singleCharCommands = new Set(['d']);
+
 let inputBuffer = '';
 term.onKey(({ key, domEvent }) => {
   if (domEvent.key === 'Enter') {
@@ -62,8 +70,14 @@ term.onKey(({ key, domEvent }) => {
       term.write('\b \b');
     }
   } else {
-    inputBuffer += key;
-    term.write(key);
+    const lower = key.toLowerCase();
+    if (inputBuffer === '' && singleCharCommands.has(lower)) {
+      term.writeln(key);
+      handleInput(lower);
+    } else {
+      inputBuffer += key;
+      term.write(key);
+    }
   }
 });
 
@@ -75,7 +89,13 @@ function sendMsg(msg: ClientMessage) {
 
 function handleInput(line: string) {
   const [cmd, ...args] = line.split(/\s+/);
+  if (/^\d+$/.test(cmd)) {
+    const sector = parseInt(cmd, 10);
+    sendMsg({type: 'move', sector});
+    return;
+  }
   switch (cmd.toLowerCase()) {
+    case '':
     case 'd':
     case 'display':
       sendMsg({ type: 'display' });
