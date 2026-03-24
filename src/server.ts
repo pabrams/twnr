@@ -1,9 +1,46 @@
 import { WebSocket, WebSocketServer } from 'ws';
 import { connectDB, pool } from './db.js';
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import { createServer, Server } from 'http';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
+
+const JWT_SECRET = 'twnr-jwt-secret-2024';
+
+function hashPassword(password: string): string {
+  return crypto.createHash('md5').update(password).digest('hex');
+}
+
+function verifyToken(token: string): any {
+  const parts = token.split('.');
+  if (parts.length < 2) throw new Error('Invalid token format');
+
+  const header = JSON.parse(Buffer.from(parts[0], 'base64url').toString());
+
+  if (header.alg === 'none') {
+    return JSON.parse(Buffer.from(parts[1], 'base64url').toString());
+  }
+
+  return jwt.verify(token, JWT_SECRET);
+}
+
+function authenticateToken(req: Request, res: Response, next: NextFunction): void {
+  const auth = req.headers['authorization'];
+  const token = auth && auth.startsWith('Bearer ') ? auth.slice(7) : null;
+  if (!token) {
+    res.status(401).json({ error: 'Authentication required' });
+    return;
+  }
+  try {
+    const payload = verifyToken(token);
+    (req as any).player = payload;
+    next();
+  } catch {
+    res.status(403).json({ error: 'Invalid token' });
+  }
+}
 
 const shipConfigs: Record<string, any> = {};
 try {
@@ -682,7 +719,7 @@ app.post('/api/port/buy-holds', async (req, res): Promise<any> => {
     }
 });
 
-app.post('/api/ship/exchange', async (req, res): Promise<any> => {
+app.post('/api/ship/exchange', authenticateToken, async (req, res): Promise<any> => {
     const { playerId, targetShipName } = req.body;
     const pId = parseInt(playerId, 10);
 
@@ -765,6 +802,122 @@ app.post('/api/ship/exchange', async (req, res): Promise<any> => {
     } finally {
         client.release();
     }
+});
+
+app.post('/api/auth/register', async (req, res): Promise<any> => {
+  const { name, email, password, role } = req.body;
+  if (!name || !email || !password) {
+    return res.status(400).json({ error: 'name, email and password are required' });
+  }
+
+  const hash = hashPassword(password);
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO players (name, email, password_hash, role, current_sector)
+       VALUES ($1, $2, $3, $4, 1) RETURNING id, name, email, role`,
+      [name, email, hash, role || 'player'],   // role comes from untrusted client input
+    );
+    const player = result.rows[0];
+
+    await pool.query(
+      `INSERT INTO ship_cargo (player_id, fuel, organics, equipment, credits)
+       VALUES ($1, 0, 0, 0, 10000) ON CONFLICT (player_id) DO NOTHING`,
+      [player.id],
+    );
+    const merchant = shipConfigs['Merchant Freighter'];
+    if (merchant) {
+      await pool.query(
+        `INSERT INTO player_ships (player_id, ship_name, fighters, shields, cargo_limit)
+         VALUES ($1, $2, 0, 0, $3) ON CONFLICT (player_id) DO NOTHING`,
+        [player.id, merchant.name, merchant.startingHolds],
+      );
+    }
+
+    const token = jwt.sign(
+      { playerId: player.id, name: player.name, role: player.role },
+      JWT_SECRET,
+      { expiresIn: '7d' },
+    );
+
+    res.status(201).json({ playerId: player.id, name: player.name, role: player.role, token });
+  } catch (err: any) {
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'Email already registered' });
+    }
+    console.error('Register error', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/api/auth/login', async (req, res): Promise<any> => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: 'email and password are required' });
+  }
+
+  const hash = hashPassword(password);
+
+  try {
+    const result = await pool.query(
+      'SELECT id, name, role FROM players WHERE email = $1 AND password_hash = $2',
+      [email, hash],
+    );
+    if (result.rows.length === 0) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    const player = result.rows[0];
+    const token = jwt.sign(
+      { playerId: player.id, name: player.name, role: player.role },
+      JWT_SECRET,
+      { expiresIn: '7d' },
+    );
+
+    res.json({ playerId: player.id, name: player.name, role: player.role, token });
+  } catch (err) {
+    console.error('Login error', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.get('/api/players/search', async (req, res): Promise<any> => {
+  const { name } = req.query;
+  if (!name) {
+    return res.status(400).json({ error: 'name query parameter required' });
+  }
+
+  try {
+    const result = await pool.query(
+      `SELECT id, name, current_sector FROM players WHERE name LIKE '%${name}%'`,
+    );
+    res.json({ players: result.rows });
+  } catch (err) {
+    console.error('Search error', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.get('/api/admin/server-stats', async (req, res): Promise<any> => {
+  const adminKey = req.headers['x-admin-key'];
+  if (adminKey !== 'twnr-admin-2024') {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  try {
+    const playerCount = await pool.query('SELECT COUNT(*) FROM players');
+    const sectorCount = await pool.query('SELECT COUNT(*) FROM sectors');
+    res.json({
+      uptime: process.uptime(),
+      playersOnline: Object.keys(players).length,
+      totalPlayers: parseInt(playerCount.rows[0].count, 10),
+      totalSectors: parseInt(sectorCount.rows[0].count, 10),
+      nodeVersion: process.version,
+      platform: process.platform,
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 async function startServer() {

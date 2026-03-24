@@ -31,6 +31,9 @@ export const connectDB = async (): Promise<void> => {
       CREATE TABLE IF NOT EXISTS players (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255),
+        email VARCHAR(255) UNIQUE,
+        password_hash VARCHAR(255),
+        role VARCHAR(50) NOT NULL DEFAULT 'player',
         current_sector INTEGER REFERENCES sectors(id)
       );
 
