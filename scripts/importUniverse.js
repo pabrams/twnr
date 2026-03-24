@@ -54,8 +54,8 @@ function readCSV(filepath) {
 const pool = new Pool({
   host: process.env.PGHOST || 'localhost',
   database: process.env.PGDATABASE || 'twnr',
-  user: process.env.PGUSER || 'twnr_user',
-  password: process.env.PGPASSWORD || 'twnr_pass',
+  user: process.env.PGUSER,
+  password: process.env.PGPASSWORD,
 });
 
 async function ensureSchema(client) {
@@ -75,8 +75,15 @@ async function ensureSchema(client) {
     CREATE TABLE IF NOT EXISTS players (
       id             SERIAL PRIMARY KEY,
       name           VARCHAR(255),
+      email          VARCHAR(255) UNIQUE,
+      password_hash  VARCHAR(255),
+      role           VARCHAR(50) NOT NULL DEFAULT 'player',
       current_sector INTEGER REFERENCES sectors(id)
     );
+    ALTER TABLE players ADD COLUMN IF NOT EXISTS email VARCHAR(255);
+    ALTER TABLE players ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255);
+    ALTER TABLE players ADD COLUMN IF NOT EXISTS role VARCHAR(50) NOT NULL DEFAULT 'player';
+    CREATE UNIQUE INDEX IF NOT EXISTS players_email_unique_idx ON players (email) WHERE email IS NOT NULL;
 
     CREATE TABLE IF NOT EXISTS ports (
       id         SERIAL PRIMARY KEY,

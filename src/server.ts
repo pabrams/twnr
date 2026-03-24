@@ -7,28 +7,121 @@ import path from 'path';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = 'twnr-jwt-secret-2024';
+type AuthTokenPayload = {
+  playerId: number;
+  name?: string;
+  role?: string;
+};
+
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`${name} environment variable is required`);
+  }
+
+  return value;
+}
+
+const JWT_SECRET = requireEnv('JWT_SECRET');
+const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
 
 function hashPassword(password: string): string {
+  const salt = crypto.randomBytes(16);
+  const derivedKey = crypto.scryptSync(password, salt, 64);
+  return `scrypt$${salt.toString('base64url')}$${derivedKey.toString('base64url')}`;
+}
+
+function hashLegacyPassword(password: string): string {
   return crypto.createHash('md5').update(password).digest('hex');
 }
 
-function verifyToken(token: string): any {
-  const parts = token.split('.');
-  if (parts.length < 2) throw new Error('Invalid token format');
-
-  const header = JSON.parse(Buffer.from(parts[0], 'base64url').toString());
-
-  if (header.alg === 'none') {
-    return JSON.parse(Buffer.from(parts[1], 'base64url').toString());
+function verifyPassword(password: string, storedHash: string | null): boolean {
+  if (!storedHash) {
+    return false;
   }
 
-  return jwt.verify(token, JWT_SECRET);
+  if (!storedHash.startsWith('scrypt$')) {
+    return hashLegacyPassword(password) === storedHash;
+  }
+
+  const parts = storedHash.split('$');
+  if (parts.length !== 3) {
+    return false;
+  }
+
+  const salt = Buffer.from(parts[1], 'base64url');
+  const expected = Buffer.from(parts[2], 'base64url');
+  const actual = crypto.scryptSync(password, salt, expected.length);
+
+  return crypto.timingSafeEqual(actual, expected);
+}
+
+function needsPasswordRehash(storedHash: string | null): boolean {
+  return !storedHash || !storedHash.startsWith('scrypt$');
+}
+
+function signPlayerToken(payload: AuthTokenPayload): string {
+  return jwt.sign(payload, JWT_SECRET, {
+    algorithm: 'HS256',
+    expiresIn: '7d',
+  });
+}
+
+function verifyToken(token: string): AuthTokenPayload {
+  const payload = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
+
+  if (!payload || typeof payload !== 'object') {
+    throw new Error('Invalid token payload');
+  }
+
+  const playerId = Number((payload as jwt.JwtPayload).playerId);
+  if (!Number.isInteger(playerId) || playerId <= 0) {
+    throw new Error('Invalid token payload');
+  }
+
+  return {
+    playerId,
+    name: typeof (payload as jwt.JwtPayload).name === 'string' ? (payload as jwt.JwtPayload).name : undefined,
+    role: typeof (payload as jwt.JwtPayload).role === 'string' ? (payload as jwt.JwtPayload).role : undefined,
+  };
+}
+
+function getBearerToken(req: Request): string | null {
+  const auth = req.headers['authorization'];
+  if (typeof auth !== 'string' || !auth.startsWith('Bearer ')) {
+    return null;
+  }
+
+  return auth.slice(7);
+}
+
+function getAuthenticatedPlayer(req: Request): AuthTokenPayload {
+  return (req as any).player as AuthTokenPayload;
+}
+
+function resolveAuthorizedPlayerId(req: Request, res: Response, rawPlayerId: unknown): number | null {
+  const authPlayer = getAuthenticatedPlayer(req);
+
+  if (rawPlayerId === undefined || rawPlayerId === null || rawPlayerId === '') {
+    return authPlayer.playerId;
+  }
+
+  const playerId = Number.parseInt(String(rawPlayerId), 10);
+  if (!Number.isInteger(playerId) || playerId <= 0) {
+    res.status(400).json({ error: 'Invalid player ID' });
+    return null;
+  }
+
+  if (authPlayer.role !== 'admin' && authPlayer.playerId !== playerId) {
+    res.status(403).json({ error: 'Forbidden' });
+    return null;
+  }
+
+  return playerId;
 }
 
 function authenticateToken(req: Request, res: Response, next: NextFunction): void {
-  const auth = req.headers['authorization'];
-  const token = auth && auth.startsWith('Bearer ') ? auth.slice(7) : null;
+  const token = getBearerToken(req);
   if (!token) {
     res.status(401).json({ error: 'Authentication required' });
     return;
@@ -39,6 +132,32 @@ function authenticateToken(req: Request, res: Response, next: NextFunction): voi
     next();
   } catch {
     res.status(403).json({ error: 'Invalid token' });
+  }
+}
+
+function authenticateAdmin(req: Request, res: Response, next: NextFunction): void {
+  if (ADMIN_API_KEY && req.headers['x-admin-key'] === ADMIN_API_KEY) {
+    next();
+    return;
+  }
+
+  const token = getBearerToken(req);
+  if (!token) {
+    res.status(403).json({ error: 'Forbidden' });
+    return;
+  }
+
+  try {
+    const payload = verifyToken(token);
+    if (payload.role !== 'admin') {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
+
+    (req as any).player = payload;
+    next();
+  } catch {
+    res.status(403).json({ error: 'Forbidden' });
   }
 }
 
@@ -135,7 +254,12 @@ wss.on('connection', async (ws: WebSocket) => {
       }
 
       players[playerId] = { ws, sector };
-      ws.send(JSON.stringify({ type: 'welcome', playerId, sector }));
+      ws.send(JSON.stringify({
+        type: 'welcome',
+        playerId,
+        sector,
+        token: signPlayerToken({ playerId, name: 'Player', role: 'player' }),
+      }));
       console.log(`${playerId} connected.`);
 
       ws.on('message', async (message) => {
@@ -229,14 +353,18 @@ app.get('/api/players/online', (req, res) => {
     res.json({ players: online });
 });
 
-app.post('/api/move', async (req, res): Promise<any> => {
+app.post('/api/move', authenticateToken, async (req, res): Promise<any> => {
     const { playerId, targetSector } = req.body;
     
-    if (playerId === undefined || targetSector === undefined) {
+    if (targetSector === undefined) {
         return res.status(400).json({ error: "Invalid request" });
     }
-    
-    const pId = parseInt(playerId, 10);
+
+    const pId = resolveAuthorizedPlayerId(req, res, playerId);
+    if (pId === null) {
+        return;
+    }
+
     const ts = parseInt(targetSector, 10);
     
     const player = players[pId];
@@ -353,10 +481,10 @@ app.get('/api/port/:sectorId', async (req, res): Promise<any> => {
     }
 });
 
-app.get('/api/ship/:playerId', async (req, res): Promise<any> => {
-    const playerId = parseInt(req.params.playerId, 10);
-    if (isNaN(playerId) || playerId <= 0) {
-        return res.status(400).json({ error: "Invalid player ID" });
+app.get('/api/ship/:playerId', authenticateToken, async (req, res): Promise<any> => {
+    const playerId = resolveAuthorizedPlayerId(req, res, req.params.playerId);
+    if (playerId === null) {
+        return;
     }
     
     try {
@@ -399,10 +527,10 @@ app.get('/api/ship/:playerId', async (req, res): Promise<any> => {
     }
 });
 
-app.get('/api/cargo/:playerId', async (req, res): Promise<any> => {
-    const playerId = parseInt(req.params.playerId, 10);
-    if (isNaN(playerId) || playerId <= 0) {
-        return res.status(400).json({ error: "Invalid player ID" });
+app.get('/api/cargo/:playerId', authenticateToken, async (req, res): Promise<any> => {
+    const playerId = resolveAuthorizedPlayerId(req, res, req.params.playerId);
+    if (playerId === null) {
+        return;
     }
     
     try {
@@ -418,10 +546,10 @@ app.get('/api/cargo/:playerId', async (req, res): Promise<any> => {
     }
 });
 
-app.post('/api/trade', async (req, res): Promise<any> => {
+app.post('/api/trade', authenticateToken, async (req, res): Promise<any> => {
     const { playerId, good, quantity, action } = req.body;
     
-    if (playerId === undefined || good === undefined || quantity === undefined || action === undefined) {
+    if (good === undefined || quantity === undefined || action === undefined) {
         return res.status(400).json({ error: "Invalid request" });
     }
     
@@ -438,7 +566,11 @@ app.post('/api/trade', async (req, res): Promise<any> => {
         return res.status(400).json({ error: "Invalid request" });
     }
     
-    const pId = parseInt(playerId, 10);
+    const pId = resolveAuthorizedPlayerId(req, res, playerId);
+    if (pId === null) {
+        return;
+    }
+
     const player = players[pId];
     if (!player) {
         return res.status(404).json({ error: "Player not found" });
@@ -539,11 +671,14 @@ app.post('/api/trade', async (req, res): Promise<any> => {
     }
 });
 
-app.post('/api/port/buy-fighters', async (req, res): Promise<any> => {
+app.post('/api/port/buy-fighters', authenticateToken, async (req, res): Promise<any> => {
     const { playerId, quantity } = req.body;
     const qty = Number(quantity);
     if (!Number.isInteger(qty) || qty <= 0) return res.status(400).json({ error: "Invalid quantity" });
-    const pId = parseInt(playerId, 10);
+    const pId = resolveAuthorizedPlayerId(req, res, playerId);
+    if (pId === null) {
+        return;
+    }
 
     const client = await pool.connect();
     try {
@@ -599,11 +734,14 @@ app.post('/api/port/buy-fighters', async (req, res): Promise<any> => {
     }
 });
 
-app.post('/api/port/buy-shields', async (req, res): Promise<any> => {
+app.post('/api/port/buy-shields', authenticateToken, async (req, res): Promise<any> => {
     const { playerId, quantity } = req.body;
     const qty = Number(quantity);
     if (!Number.isInteger(qty) || qty <= 0) return res.status(400).json({ error: "Invalid quantity" });
-    const pId = parseInt(playerId, 10);
+    const pId = resolveAuthorizedPlayerId(req, res, playerId);
+    if (pId === null) {
+        return;
+    }
 
     const client = await pool.connect();
     try {
@@ -659,11 +797,14 @@ app.post('/api/port/buy-shields', async (req, res): Promise<any> => {
     }
 });
 
-app.post('/api/port/buy-holds', async (req, res): Promise<any> => {
+app.post('/api/port/buy-holds', authenticateToken, async (req, res): Promise<any> => {
     const { playerId, quantity } = req.body;
     const qty = Number(quantity);
     if (!Number.isInteger(qty) || qty <= 0) return res.status(400).json({ error: "Invalid quantity" });
-    const pId = parseInt(playerId, 10);
+    const pId = resolveAuthorizedPlayerId(req, res, playerId);
+    if (pId === null) {
+        return;
+    }
 
     const client = await pool.connect();
     try {
@@ -721,7 +862,10 @@ app.post('/api/port/buy-holds', async (req, res): Promise<any> => {
 
 app.post('/api/ship/exchange', authenticateToken, async (req, res): Promise<any> => {
     const { playerId, targetShipName } = req.body;
-    const pId = parseInt(playerId, 10);
+    const pId = resolveAuthorizedPlayerId(req, res, playerId);
+    if (pId === null) {
+        return;
+    }
 
     const targetConfig = shipConfigs[targetShipName];
     if (!targetConfig) {
@@ -805,18 +949,19 @@ app.post('/api/ship/exchange', authenticateToken, async (req, res): Promise<any>
 });
 
 app.post('/api/auth/register', async (req, res): Promise<any> => {
-  const { name, email, password, role } = req.body;
+  const { name, email, password } = req.body;
   if (!name || !email || !password) {
     return res.status(400).json({ error: 'name, email and password are required' });
   }
 
   const hash = hashPassword(password);
+  const role = 'player';
 
   try {
     const result = await pool.query(
       `INSERT INTO players (name, email, password_hash, role, current_sector)
        VALUES ($1, $2, $3, $4, 1) RETURNING id, name, email, role`,
-      [name, email, hash, role || 'player'],   // role comes from untrusted client input
+      [name, email, hash, role],
     );
     const player = result.rows[0];
 
@@ -834,11 +979,7 @@ app.post('/api/auth/register', async (req, res): Promise<any> => {
       );
     }
 
-    const token = jwt.sign(
-      { playerId: player.id, name: player.name, role: player.role },
-      JWT_SECRET,
-      { expiresIn: '7d' },
-    );
+    const token = signPlayerToken({ playerId: player.id, name: player.name, role: player.role });
 
     res.status(201).json({ playerId: player.id, name: player.name, role: player.role, token });
   } catch (err: any) {
@@ -856,23 +997,21 @@ app.post('/api/auth/login', async (req, res): Promise<any> => {
     return res.status(400).json({ error: 'email and password are required' });
   }
 
-  const hash = hashPassword(password);
-
   try {
     const result = await pool.query(
-      'SELECT id, name, role FROM players WHERE email = $1 AND password_hash = $2',
-      [email, hash],
+      'SELECT id, name, role, password_hash FROM players WHERE email = $1',
+      [email],
     );
-    if (result.rows.length === 0) {
+    if (result.rows.length === 0 || !verifyPassword(password, result.rows[0].password_hash)) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     const player = result.rows[0];
-    const token = jwt.sign(
-      { playerId: player.id, name: player.name, role: player.role },
-      JWT_SECRET,
-      { expiresIn: '7d' },
-    );
+    if (needsPasswordRehash(player.password_hash)) {
+      await pool.query('UPDATE players SET password_hash = $1 WHERE id = $2', [hashPassword(password), player.id]);
+    }
+
+    const token = signPlayerToken({ playerId: player.id, name: player.name, role: player.role });
 
     res.json({ playerId: player.id, name: player.name, role: player.role, token });
   } catch (err) {
@@ -883,13 +1022,14 @@ app.post('/api/auth/login', async (req, res): Promise<any> => {
 
 app.get('/api/players/search', async (req, res): Promise<any> => {
   const { name } = req.query;
-  if (!name) {
+  if (typeof name !== 'string' || !name) {
     return res.status(400).json({ error: 'name query parameter required' });
   }
 
   try {
     const result = await pool.query(
-      `SELECT id, name, current_sector FROM players WHERE name LIKE '%${name}%'`,
+      'SELECT id, name, current_sector FROM players WHERE name ILIKE $1',
+      [`%${name}%`],
     );
     res.json({ players: result.rows });
   } catch (err) {
@@ -898,12 +1038,7 @@ app.get('/api/players/search', async (req, res): Promise<any> => {
   }
 });
 
-app.get('/api/admin/server-stats', async (req, res): Promise<any> => {
-  const adminKey = req.headers['x-admin-key'];
-  if (adminKey !== 'twnr-admin-2024') {
-    return res.status(403).json({ error: 'Forbidden' });
-  }
-
+app.get('/api/admin/server-stats', authenticateAdmin, async (req, res): Promise<any> => {
   try {
     const playerCount = await pool.query('SELECT COUNT(*) FROM players');
     const sectorCount = await pool.query('SELECT COUNT(*) FROM sectors');

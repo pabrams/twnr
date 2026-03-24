@@ -5,6 +5,7 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import jwt from 'jsonwebtoken';
 import {
   createPool,
   startServer,
@@ -118,6 +119,87 @@ describe('Schema', () => {
     );
     const fkCols = res.rows.filter(r => r.foreign_table === 'sectors').map(r => r.column_name);
     assert.ok(fkCols.includes('current_sector'), 'players.current_sector should FK to sectors');
+  });
+});
+
+describe('Security', () => {
+  it('rejects unsigned JWTs on protected endpoints', async () => {
+    const { ws, welcome } = await connectWS();
+    const header = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64url');
+    const payload = Buffer.from(JSON.stringify({ playerId: welcome.playerId, role: 'player' })).toString('base64url');
+    const forgedToken = `${header}.${payload}.`;
+
+    const res = await fetch(`http://localhost:3000/api/ship/${welcome.playerId}`, {
+      headers: { Authorization: `Bearer ${forgedToken}` },
+    });
+    const body = await res.json();
+
+    assert.equal(res.status, 403);
+    assert.equal(body.error, 'Invalid token');
+    await closeWS(ws);
+  });
+
+  it('rejects acting on another player via a valid token', async () => {
+    const { ws: ws1, welcome: w1 } = await connectWS();
+    const { ws: ws2, welcome: w2 } = await connectWS();
+    const attackerToken = jwt.sign(
+      { playerId: w1.playerId, name: 'Attacker', role: 'player' },
+      process.env.JWT_SECRET,
+      { algorithm: 'HS256', expiresIn: '1h' },
+    );
+
+    const { status, body } = await httpPost(
+      '/api/port/buy-fighters',
+      { playerId: w2.playerId, quantity: 1 },
+      { headers: { Authorization: `Bearer ${attackerToken}` } },
+    );
+
+    assert.equal(status, 403);
+    assert.equal(body.error, 'Forbidden');
+    await closeWS(ws1);
+    await closeWS(ws2);
+  });
+
+  it('stores new passwords with scrypt and upgrades legacy md5 hashes on login', async () => {
+    const email = `pilot_${Date.now()}@example.com`;
+    const password = 'correct horse battery staple';
+
+    const registerRes = await httpPost('/api/auth/register', {
+      name: 'Pilot',
+      email,
+      password,
+      role: 'admin',
+    });
+    assert.equal(registerRes.status, 201);
+    assert.equal(registerRes.body.role, 'player');
+
+    const registered = await pool.query('SELECT password_hash, role FROM players WHERE email = $1', [email]);
+    assert.equal(registered.rows[0].role, 'player');
+    assert.ok(registered.rows[0].password_hash.startsWith('scrypt$'));
+
+    const legacyEmail = `legacy_${Date.now()}@example.com`;
+    const legacyHash = '5f4dcc3b5aa765d61d8327deb882cf99';
+    await pool.query(
+      'INSERT INTO players (name, email, password_hash, role, current_sector) VALUES ($1, $2, $3, $4, $5)',
+      ['Legacy Pilot', legacyEmail, legacyHash, 'player', 1],
+    );
+
+    const loginRes = await httpPost('/api/auth/login', { email: legacyEmail, password: 'password' });
+    assert.equal(loginRes.status, 200);
+
+    const upgraded = await pool.query('SELECT password_hash FROM players WHERE email = $1', [legacyEmail]);
+    assert.ok(upgraded.rows[0].password_hash.startsWith('scrypt$'));
+  });
+
+  it('treats player search input as data, not SQL', async () => {
+    await pool.query(
+      'INSERT INTO players (name, email, password_hash, role, current_sector) VALUES ($1, $2, $3, $4, $5)',
+      ['SearchTarget', `search_${Date.now()}@example.com`, 'irrelevant', 'player', 1],
+    );
+
+    const { status, body } = await httpGet("/api/players/search?name=' UNION SELECT id,password_hash,current_sector FROM players -- ");
+    assert.equal(status, 200);
+    assert.equal(body.players.length, 0);
   });
 });
 
@@ -414,10 +496,18 @@ describe('REST API', () => {
   });
 
   it('GET /api/players/online returns empty array when nobody connected', async () => {
-    const { status, body } = await httpGet('/api/players/online');
-    assert.equal(status, 200);
-    assert.ok(Array.isArray(body.players));
-    assert.equal(body.players.length, 0);
+    let response = null;
+    for (let i = 0; i < 10; i++) {
+      response = await httpGet('/api/players/online');
+      if (response.body.players.length === 0) {
+        break;
+      }
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    assert.equal(response.status, 200);
+    assert.ok(Array.isArray(response.body.players));
+    assert.equal(response.body.players.length, 0);
   });
 
   it('POST /api/move succeeds for valid adjacent move', async () => {

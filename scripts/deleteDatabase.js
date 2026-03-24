@@ -2,10 +2,10 @@ import { Pool } from 'pg';
 
 async function deleteDatabase() {
   const pool = new Pool({
-    host: 'localhost',
-    database: 'twnr',
-    user: 'twnr_user',
-    password: 'twnr_pass',
+    host: process.env.PGHOST || 'localhost',
+    database: process.env.PGDATABASE || 'twnr',
+    user: process.env.PGUSER,
+    password: process.env.PGPASSWORD,
   });
 
   try {
