@@ -115,6 +115,7 @@ function setAuthCookie(res: Response, token: string): void {
     sameSite: 'lax',
     path: '/',
     maxAge: 7 * 24 * 60 * 60 * 1000,
+    secure: process.env.NODE_ENV === 'production',
   });
 }
 
@@ -277,13 +278,26 @@ server.prependListener('upgrade', (req: IncomingMessage, socket: Socket) => {
   }
   if (!isAllowedWebSocketOrigin(req)) {
     rejectWebSocketUpgrade(socket);
+    return;
+  }
+  const cookies = parseCookies(req.headers.cookie);
+  const jwtToken = cookies[AUTH_COOKIE_NAME];
+  if (!jwtToken) {
+    rejectWebSocketUpgrade(socket);
+    return;
+  }
+  try {
+    verifyToken(jwtToken);
+  } catch {
+    rejectWebSocketUpgrade(socket);
   }
 });
 
 wss.on('headers', (headers, req) => {
   const sessionToken = crypto.randomBytes(32).toString('base64url');
   wsHandshakeSessions.set(req, sessionToken);
-  headers.push(`Set-Cookie: ${WS_SESSION_COOKIE_NAME}=${sessionToken}; HttpOnly; Path=/; SameSite=Lax`);
+  const secureFlag = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+  headers.push(`Set-Cookie: ${WS_SESSION_COOKIE_NAME}=${sessionToken}; HttpOnly; Path=/; SameSite=Lax${secureFlag}`);
 });
 
 interface Player {
@@ -292,7 +306,6 @@ interface Player {
 }
 const players: Record<number, Player> = {};
 
-// Port class trading rules: 'S' = port Sells to player (player buys), 'B' = port Buys from player (player sells)
 const PORT_CLASS_ACTIONS: Record<number, Record<string, 'B' | 'S'>> = {
   1: { fuel: 'B', organics: 'B', equipment: 'S' },
   2: { fuel: 'B', organics: 'S', equipment: 'B' },
@@ -313,7 +326,6 @@ export async function getGraph(): Promise<number[][]> {
     }
 
     let adjacencyList: number[][] = [];
-    // Initialize array with empty arrays
     for (let i = 0; i <= size; i++) {
         adjacencyList[i] = [];
     }
@@ -328,7 +340,6 @@ export async function getGraph(): Promise<number[][]> {
     return adjacencyList;
 }
 
-// Scoped broadcasts
 function broadcastTo(data: object, targetClients: Set<WebSocket> | WebSocket[]) {
     for (const client of targetClients) {
         if (client.readyState === 1) {
@@ -340,33 +351,38 @@ function broadcastTo(data: object, targetClients: Set<WebSocket> | WebSocket[]) 
 wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
   console.log('New WebSocket client connected');
   const sessionToken = wsHandshakeSessions.get(req) || crypto.randomBytes(32).toString('base64url');
+
+  const cookies = parseCookies(req.headers.cookie);
+  let authPayload: AuthTokenPayload;
   try {
-      const res = await pool.query('INSERT INTO players (name, current_sector) VALUES ($1, $2) RETURNING id', ['Player', 1]);
-      const playerId = res.rows[0].id;
-      const sector = 1;
+    authPayload = verifyToken(cookies[AUTH_COOKIE_NAME] || '');
+  } catch {
+    ws.close(1008, 'Authentication required');
+    return;
+  }
 
-      await pool.query(`
-          INSERT INTO ship_cargo (player_id, fuel, organics, equipment, credits) 
-          VALUES ($1, 0, 0, 0, 10000) 
-          ON CONFLICT (player_id) DO NOTHING
-      `, [playerId]);
+  const playerId = authPayload.playerId;
 
-      const merchant = shipConfigs['Merchant Freighter'];
-      if (merchant) {
-          await pool.query(`
-              INSERT INTO player_ships (player_id, ship_name, fighters, shields, cargo_limit)
-              VALUES ($1, $2, $3, $4, $5)
-              ON CONFLICT (player_id) DO NOTHING
-          `, [playerId, merchant.name, 0, 0, merchant.startingHolds]);
+  try {
+      const playerRes = await pool.query(
+        'SELECT id, name, current_sector FROM players WHERE id = $1',
+        [playerId],
+      );
+      if (playerRes.rows.length === 0) {
+        ws.close(1008, 'Player not found');
+        return;
       }
+      const playerRow = playerRes.rows[0];
+      const sector: number = playerRow.current_sector;
 
       players[playerId] = { ws, sector };
       wsSessionPlayers.set(sessionToken, playerId);
       ws.send(JSON.stringify({
         type: 'welcome',
         playerId,
+        name: playerRow.name,
         sector,
-        token: signPlayerToken({ playerId, name: 'Player', role: 'player' }),
+        token: signPlayerToken({ playerId, name: playerRow.name, role: authPayload.role }),
       }));
       console.log(`${playerId} connected.`);
 
@@ -421,10 +437,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
         const lastSector = players[playerId]?.sector;
         delete players[playerId];
         wsSessionPlayers.delete(sessionToken);
-        pool.query('DELETE FROM players WHERE id = $1', [playerId]).catch(err => {
-          console.error('Failed to clean up WS player', playerId, err);
-        });
-        
+
         if (lastSector) {
             const clientsToNotify = new Set<WebSocket>();
             for (const p of Object.values(players)) {

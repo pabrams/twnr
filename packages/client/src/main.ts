@@ -20,9 +20,8 @@ fitAddon.fit();
 
 window.addEventListener('resize', () => fitAddon.fit());
 
-const ws = new WebSocket(`ws://${location.host}/ws`);
-
-let myPlayerId: number | null = null;
+const wsProtocol = location.protocol === 'https:' ? 'wss' : 'ws';
+const ws = new WebSocket(`${wsProtocol}://${location.host}/ws`);
 
 ws.addEventListener('open', () => {
   term.writeln('Connected to TWNR.');
@@ -32,7 +31,6 @@ ws.addEventListener('message', (event) => {
   const msg: ServerMessage = JSON.parse(event.data);
   switch (msg.type) {
     case 'welcome':
-      myPlayerId = msg.playerId;
       term.writeln(`\r\nWelcome, ${msg.name}. You are in sector ${msg.sector}.`);
       break;
     case 'playerMoved':
