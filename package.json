@@ -1,29 +1,7 @@
 {
-    "type": "module",
-    "dependencies": {
-        "express": "^4.21.2",
-        "jsonwebtoken": "^9.0.2",
-        "pg": "^8.20.0",
-        "ws": "^8.18.1"
-    },
-    "devDependencies": {
-        "@types/express": "^5.0.0",
-        "@types/jsonwebtoken": "^9.0.0",
-        "@types/pg": "^8.20.0",
-        "@types/ws": "^8.18.0",
-        "typescript": "^5.0.0"
-    },
-    "scripts": {
-        "pretest": "node scripts/ensureTestPostgres.mjs",
-        "test": "tsc && PGDATABASE=twnr_test node --test --test-concurrency=1 test/*.test.mjs",
-        "pretest": "node scripts/ensureTestPostgres.mjs",
-        "test": "tsc && JWT_SECRET=test-jwt-secret ADMIN_API_KEY=test-admin-key PGDATABASE=twnr_test PGUSER=twnr_user PGPASSWORD=twnr_pass node --test --test-concurrency=1 test/*.test.mjs",
-        "build": "tsc",
-        "coldStart": "npm install && npm run build && npm run test && npm start",
-        "start": "node ./dist/server.js",
-        "dropDatabase": "node ./scripts/deleteDatabase.js",
-        "bigbang": "node ./scripts/twnr-bigbang.js",
-        "db:import": "node ./scripts/importUniverse.js",
-        "db:seed": "node ./scripts/twnr-bigbang.js ./data/universe --sectors 100 --seed 42 && node ./scripts/importUniverse.js ./data/universe --force"
-    }
+  "private": true,
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm --filter @twnr/server test"
+  }
 }

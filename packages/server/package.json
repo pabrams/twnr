@@ -1,0 +1,30 @@
+{
+  "name": "@twnr/server",
+  "version": "0.0.1",
+  "type": "module",
+  "dependencies": {
+    "@twnr/shared": "workspace:*",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.20.0",
+    "ws": "^8.18.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/jsonwebtoken": "^9.0.0",
+    "@types/pg": "^8.20.0",
+    "@types/ws": "^8.18.0",
+    "typescript": "^5.0.0"
+  },
+  "scripts": {
+    "pretest": "node scripts/ensureTestPostgres.mjs",
+    "test": "tsc && node --env-file=.env.test --test --test-concurrency=1 test/*.test.mjs",
+    "build": "tsc",
+    "generate-env": "node scripts/generate-env.mjs",
+    "start": "node --env-file=.env ./dist/server.js",
+    "dropDatabase": "node ./scripts/deleteDatabase.js",
+    "bigbang": "node ./scripts/twnr-bigbang.js data/universe/",
+    "db:import": "node ./scripts/importUniverse.js",
+    "db:seed": "node ./scripts/twnr-bigbang.js ./data/universe/ --sectors 100 --seed 42 && node ./scripts/importUniverse.js ./data/universe --force"
+  }
+}

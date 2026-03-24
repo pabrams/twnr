@@ -7,12 +7,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
-
-type AuthTokenPayload = {
-  playerId: number;
-  name?: string;
-  role?: string;
-};
+import type { AuthTokenPayload } from '@twnr/shared';
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -282,12 +277,16 @@ try {
   console.error("Could not load ship configs", e);
 }
 
-const app = express();
+const app: ReturnType<typeof express> = express();
 app.use(express.json());
 const server: Server = createServer(app);
 const wss = new WebSocketServer({ server });
 
 server.prependListener('upgrade', (req: IncomingMessage, socket: Socket) => {
+  if (req.url !== '/ws') {
+    rejectWebSocketUpgrade(socket);
+    return;
+  }
   if (!isAllowedWebSocketOrigin(req)) {
     rejectWebSocketUpgrade(socket);
   }
