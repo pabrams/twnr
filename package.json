@@ -12,7 +12,8 @@
         "typescript": "^5.0.0"
     },
     "scripts": {
-        "test": "tsc && PGDATABASE=twnr_test node --test test/*.test.mjs",
+        "pretest": "node scripts/ensureTestPostgres.mjs",
+        "test": "tsc && PGDATABASE=twnr_test node --test --test-concurrency=1 test/*.test.mjs",
         "build": "tsc",
         "coldStart": "npm install && npm run build && npm run test && npm start",
         "start": "node ./dist/server.js",
