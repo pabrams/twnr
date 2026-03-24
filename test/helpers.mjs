@@ -54,6 +54,7 @@ export function startServer() {
         ...process.env,
         JWT_SECRET: process.env.JWT_SECRET || 'test-jwt-secret',
         ADMIN_API_KEY: process.env.ADMIN_API_KEY || 'test-admin-key',
+        WS_ALLOWED_ORIGINS: process.env.WS_ALLOWED_ORIGINS || 'http://localhost:3000',
       },
     });
 
@@ -85,17 +86,22 @@ export function startServer() {
   });
 }
 
-export function connectWS() {
+export function connectWS(options = {}) {
   return import('ws').then(({ default: WebSocket }) => {
     return new Promise((resolve, reject) => {
-      const ws = new WebSocket('ws://localhost:3000');
+      const ws = new WebSocket('ws://localhost:3000', options);
       const timer = setTimeout(() => { ws.terminate(); reject(new Error('WS connect timeout')); }, 5000);
+      let cookies = [];
+
+      ws.on('upgrade', (res) => {
+        cookies = res.headers['set-cookie'] || [];
+      });
 
       ws.on('message', (data) => {
         const msg = JSON.parse(data.toString());
         if (msg.type === 'welcome') {
           clearTimeout(timer);
-          resolve({ ws, welcome: msg });
+          resolve({ ws, welcome: msg, cookies });
         }
       });
       ws.on('error', (err) => { clearTimeout(timer); reject(err); });

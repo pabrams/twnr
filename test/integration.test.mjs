@@ -139,6 +139,53 @@ describe('Security', () => {
     await closeWS(ws);
   });
 
+  it('accepts protected HTTP calls via WebSocket session cookie for compatibility', async () => {
+    const { ws, welcome, cookies } = await connectWS();
+    const sessionCookie = cookies.find(cookie => cookie.startsWith('twnr_session='));
+
+    assert.ok(sessionCookie, 'WebSocket handshake should set a compatibility session cookie');
+
+    const res = await fetch(`http://localhost:3000/api/cargo/${welcome.playerId}`, {
+      headers: {
+        Cookie: sessionCookie.split(';')[0],
+      },
+    });
+    const body = await res.json();
+
+    assert.equal(res.status, 200);
+    assert.equal(body.playerId, welcome.playerId);
+    await closeWS(ws);
+  });
+
+  it('allows WebSocket connections from configured origins', async () => {
+    const { ws, welcome } = await connectWS({ origin: 'http://localhost:3000' });
+
+    assert.equal(welcome.type, 'welcome');
+    await closeWS(ws);
+  });
+
+  it('rejects WebSocket connections from unapproved origins', async () => {
+    const { default: WebSocket } = await import('ws');
+
+    await new Promise((resolve, reject) => {
+      const ws = new WebSocket('ws://localhost:3000', { origin: 'https://evil.example' });
+      const timer = setTimeout(() => {
+        ws.terminate();
+        reject(new Error('WS connect timeout'));
+      }, 5000);
+
+      ws.on('open', () => {
+        clearTimeout(timer);
+        ws.close();
+        reject(new Error('Unexpectedly connected'));
+      });
+      ws.on('error', () => {
+        clearTimeout(timer);
+        resolve();
+      });
+    });
+  });
+
   it('rejects acting on another player via a valid token', async () => {
     const { ws: ws1, welcome: w1 } = await connectWS();
     const { ws: ws2, welcome: w2 } = await connectWS();

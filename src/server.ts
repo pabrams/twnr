@@ -1,7 +1,8 @@
 import { WebSocket, WebSocketServer } from 'ws';
 import { connectDB, pool } from './db.js';
 import express, { Request, Response, NextFunction } from 'express';
-import { createServer, Server } from 'http';
+import { createServer, Server, IncomingMessage } from 'http';
+import { Socket } from 'net';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
@@ -24,6 +25,14 @@ function requireEnv(name: string): string {
 
 const JWT_SECRET = requireEnv('JWT_SECRET');
 const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
+const AUTH_COOKIE_NAME = 'twnr_auth';
+const WS_SESSION_COOKIE_NAME = 'twnr_session';
+const CONFIGURED_WS_ALLOWED_ORIGINS = (process.env.WS_ALLOWED_ORIGINS || '')
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean);
+const wsHandshakeSessions = new WeakMap<IncomingMessage, string>();
+const wsSessionPlayers = new Map<string, number>();
 
 function hashPassword(password: string): string {
   const salt = crypto.randomBytes(16);
@@ -86,6 +95,72 @@ function verifyToken(token: string): AuthTokenPayload {
   };
 }
 
+function parseCookies(cookieHeader: string | undefined): Record<string, string> {
+  if (!cookieHeader) {
+    return {};
+  }
+
+  const cookies: Record<string, string> = {};
+  for (const part of cookieHeader.split(';')) {
+    const [rawName, ...rawValue] = part.trim().split('=');
+    if (!rawName || rawValue.length === 0) {
+      continue;
+    }
+
+    try {
+      cookies[rawName] = decodeURIComponent(rawValue.join('='));
+    } catch {
+      cookies[rawName] = rawValue.join('=');
+    }
+  }
+
+  return cookies;
+}
+
+function getCookie(req: Request | IncomingMessage, name: string): string | null {
+  const cookieHeader = req.headers.cookie;
+  if (typeof cookieHeader !== 'string') {
+    return null;
+  }
+
+  return parseCookies(cookieHeader)[name] || null;
+}
+
+function setAuthCookie(res: Response, token: string): void {
+  res.cookie(AUTH_COOKIE_NAME, token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+}
+
+function getAllowedWebSocketOrigins(req: IncomingMessage): string[] {
+  if (CONFIGURED_WS_ALLOWED_ORIGINS.length > 0) {
+    return CONFIGURED_WS_ALLOWED_ORIGINS;
+  }
+
+  if (typeof req.headers.host !== 'string' || !req.headers.host) {
+    return [];
+  }
+
+  return [`http://${req.headers.host}`, `https://${req.headers.host}`];
+}
+
+function isAllowedWebSocketOrigin(req: IncomingMessage): boolean {
+  const origin = req.headers.origin;
+  if (typeof origin !== 'string' || !origin) {
+    return true;
+  }
+
+  return getAllowedWebSocketOrigins(req).includes(origin);
+}
+
+function rejectWebSocketUpgrade(socket: Socket): void {
+  socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');
+  socket.destroy();
+}
+
 function getBearerToken(req: Request): string | null {
   const auth = req.headers['authorization'];
   if (typeof auth !== 'string' || !auth.startsWith('Bearer ')) {
@@ -93,6 +168,38 @@ function getBearerToken(req: Request): string | null {
   }
 
   return auth.slice(7);
+}
+
+function getJwtToken(req: Request): string | null {
+  return getBearerToken(req) || getCookie(req, AUTH_COOKIE_NAME);
+}
+
+function getWsSessionPayload(req: Request): AuthTokenPayload | null {
+  const sessionToken = getCookie(req, WS_SESSION_COOKIE_NAME);
+  if (!sessionToken) {
+    return null;
+  }
+
+  const playerId = wsSessionPlayers.get(sessionToken);
+  if (!playerId) {
+    throw new Error('Invalid session');
+  }
+
+  return { playerId, role: 'player' };
+}
+
+function getRequestAuthPayload(req: Request): { payload: AuthTokenPayload | null; hadCredentials: boolean } {
+  const jwtToken = getJwtToken(req);
+  if (jwtToken) {
+    return { payload: verifyToken(jwtToken), hadCredentials: true };
+  }
+
+  const sessionPayload = getWsSessionPayload(req);
+  if (sessionPayload) {
+    return { payload: sessionPayload, hadCredentials: true };
+  }
+
+  return { payload: null, hadCredentials: false };
 }
 
 function getAuthenticatedPlayer(req: Request): AuthTokenPayload {
@@ -121,13 +228,13 @@ function resolveAuthorizedPlayerId(req: Request, res: Response, rawPlayerId: unk
 }
 
 function authenticateToken(req: Request, res: Response, next: NextFunction): void {
-  const token = getBearerToken(req);
-  if (!token) {
-    res.status(401).json({ error: 'Authentication required' });
-    return;
-  }
   try {
-    const payload = verifyToken(token);
+    const { payload, hadCredentials } = getRequestAuthPayload(req);
+    if (!payload) {
+      res.status(401).json({ error: 'Authentication required' });
+      return;
+    }
+
     (req as any).player = payload;
     next();
   } catch {
@@ -141,7 +248,7 @@ function authenticateAdmin(req: Request, res: Response, next: NextFunction): voi
     return;
   }
 
-  const token = getBearerToken(req);
+  const token = getJwtToken(req);
   if (!token) {
     res.status(403).json({ error: 'Forbidden' });
     return;
@@ -179,6 +286,18 @@ const app = express();
 app.use(express.json());
 const server: Server = createServer(app);
 const wss = new WebSocketServer({ server });
+
+server.prependListener('upgrade', (req: IncomingMessage, socket: Socket) => {
+  if (!isAllowedWebSocketOrigin(req)) {
+    rejectWebSocketUpgrade(socket);
+  }
+});
+
+wss.on('headers', (headers, req) => {
+  const sessionToken = crypto.randomBytes(32).toString('base64url');
+  wsHandshakeSessions.set(req, sessionToken);
+  headers.push(`Set-Cookie: ${WS_SESSION_COOKIE_NAME}=${sessionToken}; HttpOnly; Path=/; SameSite=Lax`);
+});
 
 interface Player {
   ws: WebSocket;
@@ -231,8 +350,9 @@ function broadcastTo(data: object, targetClients: Set<WebSocket> | WebSocket[]) 
     }
 }
 
-wss.on('connection', async (ws: WebSocket) => {
+wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
   console.log('New WebSocket client connected');
+  const sessionToken = wsHandshakeSessions.get(req) || crypto.randomBytes(32).toString('base64url');
   try {
       const res = await pool.query('INSERT INTO players (name, current_sector) VALUES ($1, $2) RETURNING id', ['Player', 1]);
       const playerId = res.rows[0].id;
@@ -254,6 +374,7 @@ wss.on('connection', async (ws: WebSocket) => {
       }
 
       players[playerId] = { ws, sector };
+      wsSessionPlayers.set(sessionToken, playerId);
       ws.send(JSON.stringify({
         type: 'welcome',
         playerId,
@@ -306,6 +427,7 @@ wss.on('connection', async (ws: WebSocket) => {
         console.log(`${playerId} disconnected.`);
         const lastSector = players[playerId]?.sector;
         delete players[playerId];
+        wsSessionPlayers.delete(sessionToken);
         
         if (lastSector) {
             const clientsToNotify = new Set<WebSocket>();
@@ -318,6 +440,7 @@ wss.on('connection', async (ws: WebSocket) => {
         }
       });
   } catch (error) {
+      wsSessionPlayers.delete(sessionToken);
       console.error('Connection error:', error);
       ws.close();
   }
@@ -981,6 +1104,7 @@ app.post('/api/auth/register', async (req, res): Promise<any> => {
 
     const token = signPlayerToken({ playerId: player.id, name: player.name, role: player.role });
 
+    setAuthCookie(res, token);
     res.status(201).json({ playerId: player.id, name: player.name, role: player.role, token });
   } catch (err: any) {
     if (err.code === '23505') {
@@ -1013,6 +1137,7 @@ app.post('/api/auth/login', async (req, res): Promise<any> => {
 
     const token = signPlayerToken({ playerId: player.id, name: player.name, role: player.role });
 
+    setAuthCookie(res, token);
     res.json({ playerId: player.id, name: player.name, role: player.role, token });
   } catch (err) {
     console.error('Login error', err);
