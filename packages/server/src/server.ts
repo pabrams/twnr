@@ -7,6 +7,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
+import { rateLimit } from 'express-rate-limit';
 import type { AuthTokenPayload } from '@twnr/shared';
 
 function requireEnv(name: string): string {
@@ -386,7 +387,18 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
       }));
       console.log(`${playerId} connected.`);
 
+      let tokens = 50;
+      const refillInterval = setInterval(() => {
+        tokens = Math.min(50, tokens + 20);
+      }, 1000);
+
       ws.on('message', async (message) => {
+        if (tokens <= 0) {
+          ws.send(JSON.stringify({ type: 'rateLimited' }));
+          return;
+        }
+        tokens--;
+
         const warps = await getGraph();
         const data = JSON.parse(message.toString());
         
@@ -433,6 +445,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
       });
 
       ws.on('close', () => {
+        clearInterval(refillInterval);
         console.log(`${playerId} disconnected.`);
         const lastSector = players[playerId]?.sector;
         delete players[playerId];
@@ -453,6 +466,20 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
       console.error('Connection error:', error);
       ws.close();
   }
+});
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+});
+
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 5,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
 });
 
 // REST Endpoints
@@ -1069,7 +1096,7 @@ app.post('/api/ship/exchange', authenticateToken, async (req, res): Promise<any>
     }
 });
 
-app.post('/api/auth/register', async (req, res): Promise<any> => {
+app.post('/api/auth/register', registerLimiter, async (req, res): Promise<any> => {
   const { name, email, password } = req.body;
   if (!name || !email || !password) {
     return res.status(400).json({ error: 'name, email and password are required' });
@@ -1113,7 +1140,7 @@ app.post('/api/auth/register', async (req, res): Promise<any> => {
   }
 });
 
-app.post('/api/auth/login', async (req, res): Promise<any> => {
+app.post('/api/auth/login', loginLimiter, async (req, res): Promise<any> => {
   const { email, password } = req.body;
   if (!email || !password) {
     return res.status(400).json({ error: 'email and password are required' });
