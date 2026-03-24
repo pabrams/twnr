@@ -49,7 +49,6 @@ if (!existsSync(DATA_DIR)) {
   const init = run('initdb', ['-D', DATA_DIR, '--no-locale', '--encoding=UTF8', '-A', 'trust']);
   if (init.status !== 0) { console.error('initdb failed'); process.exit(1); }
 
-  // Allow password auth from localhost so the test user/password work.
   const hba = join(DATA_DIR, 'pg_hba.conf');
   const hbaLines = readFileSync(hba, 'utf8')
     .split('\n')

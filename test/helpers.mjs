@@ -1,5 +1,6 @@
 import pg from 'pg';
 import { spawn } from 'node:child_process';
+import jwt from 'jsonwebtoken';
 
 const { Pool } = pg;
 
@@ -7,9 +8,41 @@ export function createPool() {
   return new Pool({
     host:     process.env.PGHOST     || 'localhost',
     database: process.env.PGDATABASE || 'twnr',
-    user:     process.env.PGUSER     || 'twnr_user',
-    password: process.env.PGPASSWORD || 'twnr_pass',
+    user:     process.env.PGUSER,
+    password: process.env.PGPASSWORD,
   });
+}
+
+function makeAuthToken(playerId, role = 'player') {
+  return jwt.sign({ playerId, name: 'Test Player', role }, process.env.JWT_SECRET || 'test-jwt-secret', {
+    algorithm: 'HS256',
+    expiresIn: '1h',
+  });
+}
+
+function getDefaultAuthHeaders(path, data) {
+  if (path.startsWith('/api/ship/') || path.startsWith('/api/cargo/')) {
+    const playerId = Number(path.split('/').pop());
+    if (Number.isInteger(playerId) && playerId > 0) {
+      return { Authorization: `Bearer ${makeAuthToken(playerId)}` };
+    }
+  }
+
+  if (
+    path === '/api/move' ||
+    path === '/api/trade' ||
+    path === '/api/port/buy-fighters' ||
+    path === '/api/port/buy-shields' ||
+    path === '/api/port/buy-holds' ||
+    path === '/api/ship/exchange'
+  ) {
+    const playerId = Number(data?.playerId || 1);
+    if (Number.isInteger(playerId) && playerId > 0) {
+      return { Authorization: `Bearer ${makeAuthToken(playerId)}` };
+    }
+  }
+
+  return {};
 }
 
 export function startServer() {
@@ -17,6 +50,12 @@ export function startServer() {
     const proc = spawn('node', ['dist/server.js'], {
       cwd: process.cwd(),
       stdio: ['pipe', 'pipe', 'pipe'],
+      env: {
+        ...process.env,
+        JWT_SECRET: process.env.JWT_SECRET || 'test-jwt-secret',
+        ADMIN_API_KEY: process.env.ADMIN_API_KEY || 'test-admin-key',
+        WS_ALLOWED_ORIGINS: process.env.WS_ALLOWED_ORIGINS || 'http://localhost:3000',
+      },
     });
 
     let settled = false;
@@ -47,17 +86,22 @@ export function startServer() {
   });
 }
 
-export function connectWS() {
+export function connectWS(options = {}) {
   return import('ws').then(({ default: WebSocket }) => {
     return new Promise((resolve, reject) => {
-      const ws = new WebSocket('ws://localhost:3000');
+      const ws = new WebSocket('ws://localhost:3000', options);
       const timer = setTimeout(() => { ws.terminate(); reject(new Error('WS connect timeout')); }, 5000);
+      let cookies = [];
+
+      ws.on('upgrade', (res) => {
+        cookies = res.headers['set-cookie'] || [];
+      });
 
       ws.on('message', (data) => {
         const msg = JSON.parse(data.toString());
         if (msg.type === 'welcome') {
           clearTimeout(timer);
-          resolve({ ws, welcome: msg });
+          resolve({ ws, welcome: msg, cookies });
         }
       });
       ws.on('error', (err) => { clearTimeout(timer); reject(err); });
@@ -108,14 +152,22 @@ export function closeWS(ws) {
 }
 
 export async function httpGet(path) {
-  const res = await fetch(`http://localhost:3000${path}`);
+  const res = await fetch(`http://localhost:3000${path}`, {
+    headers: getDefaultAuthHeaders(path),
+  });
   return { status: res.status, body: await res.json() };
 }
 
-export async function httpPost(path, data) {
+export async function httpPost(path, data, options = {}) {
+  const headers = {
+    'Content-Type': 'application/json',
+    ...getDefaultAuthHeaders(path, data),
+    ...(options.headers || {}),
+  };
+
   const res = await fetch(`http://localhost:3000${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify(data),
   });
   return { status: res.status, body: await res.json() };

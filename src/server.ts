@@ -1,9 +1,272 @@
 import { WebSocket, WebSocketServer } from 'ws';
 import { connectDB, pool } from './db.js';
-import express from 'express';
-import { createServer, Server } from 'http';
+import express, { Request, Response, NextFunction } from 'express';
+import { createServer, Server, IncomingMessage } from 'http';
+import { Socket } from 'net';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
+
+type AuthTokenPayload = {
+  playerId: number;
+  name?: string;
+  role?: string;
+};
+
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`${name} environment variable is required`);
+  }
+
+  return value;
+}
+
+const JWT_SECRET = requireEnv('JWT_SECRET');
+const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
+const AUTH_COOKIE_NAME = 'twnr_auth';
+const WS_SESSION_COOKIE_NAME = 'twnr_session';
+const CONFIGURED_WS_ALLOWED_ORIGINS = (process.env.WS_ALLOWED_ORIGINS || '')
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean);
+const wsHandshakeSessions = new WeakMap<IncomingMessage, string>();
+const wsSessionPlayers = new Map<string, number>();
+
+function hashPassword(password: string): string {
+  const salt = crypto.randomBytes(16);
+  const derivedKey = crypto.scryptSync(password, salt, 64);
+  return `scrypt$${salt.toString('base64url')}$${derivedKey.toString('base64url')}`;
+}
+
+function hashLegacyPassword(password: string): string {
+  return crypto.createHash('md5').update(password).digest('hex');
+}
+
+function verifyPassword(password: string, storedHash: string | null): boolean {
+  if (!storedHash) {
+    return false;
+  }
+
+  if (!storedHash.startsWith('scrypt$')) {
+    return hashLegacyPassword(password) === storedHash;
+  }
+
+  const parts = storedHash.split('$');
+  if (parts.length !== 3) {
+    return false;
+  }
+
+  const salt = Buffer.from(parts[1], 'base64url');
+  const expected = Buffer.from(parts[2], 'base64url');
+  const actual = crypto.scryptSync(password, salt, expected.length);
+
+  return crypto.timingSafeEqual(actual, expected);
+}
+
+function needsPasswordRehash(storedHash: string | null): boolean {
+  return !storedHash || !storedHash.startsWith('scrypt$');
+}
+
+function signPlayerToken(payload: AuthTokenPayload): string {
+  return jwt.sign(payload, JWT_SECRET, {
+    algorithm: 'HS256',
+    expiresIn: '7d',
+  });
+}
+
+function verifyToken(token: string): AuthTokenPayload {
+  const payload = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
+
+  if (!payload || typeof payload !== 'object') {
+    throw new Error('Invalid token payload');
+  }
+
+  const playerId = Number((payload as jwt.JwtPayload).playerId);
+  if (!Number.isInteger(playerId) || playerId <= 0) {
+    throw new Error('Invalid token payload');
+  }
+
+  return {
+    playerId,
+    name: typeof (payload as jwt.JwtPayload).name === 'string' ? (payload as jwt.JwtPayload).name : undefined,
+    role: typeof (payload as jwt.JwtPayload).role === 'string' ? (payload as jwt.JwtPayload).role : undefined,
+  };
+}
+
+function parseCookies(cookieHeader: string | undefined): Record<string, string> {
+  if (!cookieHeader) {
+    return {};
+  }
+
+  const cookies: Record<string, string> = {};
+  for (const part of cookieHeader.split(';')) {
+    const [rawName, ...rawValue] = part.trim().split('=');
+    if (!rawName || rawValue.length === 0) {
+      continue;
+    }
+
+    try {
+      cookies[rawName] = decodeURIComponent(rawValue.join('='));
+    } catch {
+      cookies[rawName] = rawValue.join('=');
+    }
+  }
+
+  return cookies;
+}
+
+function getCookie(req: Request | IncomingMessage, name: string): string | null {
+  const cookieHeader = req.headers.cookie;
+  if (typeof cookieHeader !== 'string') {
+    return null;
+  }
+
+  return parseCookies(cookieHeader)[name] || null;
+}
+
+function setAuthCookie(res: Response, token: string): void {
+  res.cookie(AUTH_COOKIE_NAME, token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+}
+
+function getAllowedWebSocketOrigins(req: IncomingMessage): string[] {
+  if (CONFIGURED_WS_ALLOWED_ORIGINS.length > 0) {
+    return CONFIGURED_WS_ALLOWED_ORIGINS;
+  }
+
+  if (typeof req.headers.host !== 'string' || !req.headers.host) {
+    return [];
+  }
+
+  return [`http://${req.headers.host}`, `https://${req.headers.host}`];
+}
+
+function isAllowedWebSocketOrigin(req: IncomingMessage): boolean {
+  const origin = req.headers.origin;
+  if (typeof origin !== 'string' || !origin) {
+    return true;
+  }
+
+  return getAllowedWebSocketOrigins(req).includes(origin);
+}
+
+function rejectWebSocketUpgrade(socket: Socket): void {
+  socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');
+  socket.destroy();
+}
+
+function getBearerToken(req: Request): string | null {
+  const auth = req.headers['authorization'];
+  if (typeof auth !== 'string' || !auth.startsWith('Bearer ')) {
+    return null;
+  }
+
+  return auth.slice(7);
+}
+
+function getJwtToken(req: Request): string | null {
+  return getBearerToken(req) || getCookie(req, AUTH_COOKIE_NAME);
+}
+
+function getWsSessionPayload(req: Request): AuthTokenPayload | null {
+  const sessionToken = getCookie(req, WS_SESSION_COOKIE_NAME);
+  if (!sessionToken) {
+    return null;
+  }
+
+  const playerId = wsSessionPlayers.get(sessionToken);
+  if (!playerId) {
+    throw new Error('Invalid session');
+  }
+
+  return { playerId, role: 'player' };
+}
+
+function getRequestAuthPayload(req: Request): { payload: AuthTokenPayload | null; hadCredentials: boolean } {
+  const jwtToken = getJwtToken(req);
+  if (jwtToken) {
+    try {
+      return { payload: verifyToken(jwtToken), hadCredentials: true };
+    } catch {
+      return { payload: null, hadCredentials: true };
+    }
+  }
+
+  const sessionPayload = getWsSessionPayload(req);
+  if (sessionPayload) {
+    return { payload: sessionPayload, hadCredentials: true };
+  }
+
+  return { payload: null, hadCredentials: false };
+}
+
+function getAuthenticatedPlayer(req: Request): AuthTokenPayload {
+  return (req as any).player as AuthTokenPayload;
+}
+
+function resolveAuthorizedPlayerId(req: Request, res: Response, rawPlayerId: unknown): number | null {
+  const authPlayer = getAuthenticatedPlayer(req);
+
+  if (rawPlayerId === undefined || rawPlayerId === null || rawPlayerId === '') {
+    return authPlayer.playerId;
+  }
+
+  const playerId = Number.parseInt(String(rawPlayerId), 10);
+  if (!Number.isInteger(playerId) || playerId <= 0) {
+    res.status(400).json({ error: 'Invalid player ID' });
+    return null;
+  }
+
+  if (authPlayer.role !== 'admin' && authPlayer.playerId !== playerId) {
+    res.status(403).json({ error: 'Forbidden' });
+    return null;
+  }
+
+  return playerId;
+}
+
+function authenticateToken(req: Request, res: Response, next: NextFunction): void {
+  const { payload, hadCredentials } = getRequestAuthPayload(req);
+  if (!payload) {
+    res.status(hadCredentials ? 403 : 401).json({ error: hadCredentials ? 'Invalid token' : 'Authentication required' });
+    return;
+  }
+
+  (req as any).player = payload;
+  next();
+}
+
+function authenticateAdmin(req: Request, res: Response, next: NextFunction): void {
+  if (ADMIN_API_KEY && req.headers['x-admin-key'] === ADMIN_API_KEY) {
+    next();
+    return;
+  }
+
+  const token = getJwtToken(req);
+  if (!token) {
+    res.status(403).json({ error: 'Forbidden' });
+    return;
+  }
+
+  try {
+    const payload = verifyToken(token);
+    if (payload.role !== 'admin') {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
+
+    (req as any).player = payload;
+    next();
+  } catch {
+    res.status(403).json({ error: 'Forbidden' });
+  }
+}
 
 const shipConfigs: Record<string, any> = {};
 try {
@@ -23,6 +286,18 @@ const app = express();
 app.use(express.json());
 const server: Server = createServer(app);
 const wss = new WebSocketServer({ server });
+
+server.prependListener('upgrade', (req: IncomingMessage, socket: Socket) => {
+  if (!isAllowedWebSocketOrigin(req)) {
+    rejectWebSocketUpgrade(socket);
+  }
+});
+
+wss.on('headers', (headers, req) => {
+  const sessionToken = crypto.randomBytes(32).toString('base64url');
+  wsHandshakeSessions.set(req, sessionToken);
+  headers.push(`Set-Cookie: ${WS_SESSION_COOKIE_NAME}=${sessionToken}; HttpOnly; Path=/; SameSite=Lax`);
+});
 
 interface Player {
   ws: WebSocket;
@@ -75,8 +350,9 @@ function broadcastTo(data: object, targetClients: Set<WebSocket> | WebSocket[]) 
     }
 }
 
-wss.on('connection', async (ws: WebSocket) => {
+wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
   console.log('New WebSocket client connected');
+  const sessionToken = wsHandshakeSessions.get(req) || crypto.randomBytes(32).toString('base64url');
   try {
       const res = await pool.query('INSERT INTO players (name, current_sector) VALUES ($1, $2) RETURNING id', ['Player', 1]);
       const playerId = res.rows[0].id;
@@ -98,7 +374,13 @@ wss.on('connection', async (ws: WebSocket) => {
       }
 
       players[playerId] = { ws, sector };
-      ws.send(JSON.stringify({ type: 'welcome', playerId, sector }));
+      wsSessionPlayers.set(sessionToken, playerId);
+      ws.send(JSON.stringify({
+        type: 'welcome',
+        playerId,
+        sector,
+        token: signPlayerToken({ playerId, name: 'Player', role: 'player' }),
+      }));
       console.log(`${playerId} connected.`);
 
       ws.on('message', async (message) => {
@@ -145,6 +427,7 @@ wss.on('connection', async (ws: WebSocket) => {
         console.log(`${playerId} disconnected.`);
         const lastSector = players[playerId]?.sector;
         delete players[playerId];
+        wsSessionPlayers.delete(sessionToken);
         
         if (lastSector) {
             const clientsToNotify = new Set<WebSocket>();
@@ -157,6 +440,7 @@ wss.on('connection', async (ws: WebSocket) => {
         }
       });
   } catch (error) {
+      wsSessionPlayers.delete(sessionToken);
       console.error('Connection error:', error);
       ws.close();
   }
@@ -192,14 +476,18 @@ app.get('/api/players/online', (req, res) => {
     res.json({ players: online });
 });
 
-app.post('/api/move', async (req, res): Promise<any> => {
+app.post('/api/move', authenticateToken, async (req, res): Promise<any> => {
     const { playerId, targetSector } = req.body;
     
-    if (playerId === undefined || targetSector === undefined) {
+    if (targetSector === undefined) {
         return res.status(400).json({ error: "Invalid request" });
     }
-    
-    const pId = parseInt(playerId, 10);
+
+    const pId = resolveAuthorizedPlayerId(req, res, playerId);
+    if (pId === null) {
+        return;
+    }
+
     const ts = parseInt(targetSector, 10);
     
     const player = players[pId];
@@ -316,10 +604,10 @@ app.get('/api/port/:sectorId', async (req, res): Promise<any> => {
     }
 });
 
-app.get('/api/ship/:playerId', async (req, res): Promise<any> => {
-    const playerId = parseInt(req.params.playerId, 10);
-    if (isNaN(playerId) || playerId <= 0) {
-        return res.status(400).json({ error: "Invalid player ID" });
+app.get('/api/ship/:playerId', authenticateToken, async (req, res): Promise<any> => {
+    const playerId = resolveAuthorizedPlayerId(req, res, req.params.playerId);
+    if (playerId === null) {
+        return;
     }
     
     try {
@@ -362,10 +650,10 @@ app.get('/api/ship/:playerId', async (req, res): Promise<any> => {
     }
 });
 
-app.get('/api/cargo/:playerId', async (req, res): Promise<any> => {
-    const playerId = parseInt(req.params.playerId, 10);
-    if (isNaN(playerId) || playerId <= 0) {
-        return res.status(400).json({ error: "Invalid player ID" });
+app.get('/api/cargo/:playerId', authenticateToken, async (req, res): Promise<any> => {
+    const playerId = resolveAuthorizedPlayerId(req, res, req.params.playerId);
+    if (playerId === null) {
+        return;
     }
     
     try {
@@ -381,10 +669,10 @@ app.get('/api/cargo/:playerId', async (req, res): Promise<any> => {
     }
 });
 
-app.post('/api/trade', async (req, res): Promise<any> => {
+app.post('/api/trade', authenticateToken, async (req, res): Promise<any> => {
     const { playerId, good, quantity, action } = req.body;
     
-    if (playerId === undefined || good === undefined || quantity === undefined || action === undefined) {
+    if (good === undefined || quantity === undefined || action === undefined) {
         return res.status(400).json({ error: "Invalid request" });
     }
     
@@ -401,7 +689,11 @@ app.post('/api/trade', async (req, res): Promise<any> => {
         return res.status(400).json({ error: "Invalid request" });
     }
     
-    const pId = parseInt(playerId, 10);
+    const pId = resolveAuthorizedPlayerId(req, res, playerId);
+    if (pId === null) {
+        return;
+    }
+
     const player = players[pId];
     if (!player) {
         return res.status(404).json({ error: "Player not found" });
@@ -502,11 +794,14 @@ app.post('/api/trade', async (req, res): Promise<any> => {
     }
 });
 
-app.post('/api/port/buy-fighters', async (req, res): Promise<any> => {
+app.post('/api/port/buy-fighters', authenticateToken, async (req, res): Promise<any> => {
     const { playerId, quantity } = req.body;
     const qty = Number(quantity);
     if (!Number.isInteger(qty) || qty <= 0) return res.status(400).json({ error: "Invalid quantity" });
-    const pId = parseInt(playerId, 10);
+    const pId = resolveAuthorizedPlayerId(req, res, playerId);
+    if (pId === null) {
+        return;
+    }
 
     const client = await pool.connect();
     try {
@@ -562,11 +857,14 @@ app.post('/api/port/buy-fighters', async (req, res): Promise<any> => {
     }
 });
 
-app.post('/api/port/buy-shields', async (req, res): Promise<any> => {
+app.post('/api/port/buy-shields', authenticateToken, async (req, res): Promise<any> => {
     const { playerId, quantity } = req.body;
     const qty = Number(quantity);
     if (!Number.isInteger(qty) || qty <= 0) return res.status(400).json({ error: "Invalid quantity" });
-    const pId = parseInt(playerId, 10);
+    const pId = resolveAuthorizedPlayerId(req, res, playerId);
+    if (pId === null) {
+        return;
+    }
 
     const client = await pool.connect();
     try {
@@ -622,11 +920,14 @@ app.post('/api/port/buy-shields', async (req, res): Promise<any> => {
     }
 });
 
-app.post('/api/port/buy-holds', async (req, res): Promise<any> => {
+app.post('/api/port/buy-holds', authenticateToken, async (req, res): Promise<any> => {
     const { playerId, quantity } = req.body;
     const qty = Number(quantity);
     if (!Number.isInteger(qty) || qty <= 0) return res.status(400).json({ error: "Invalid quantity" });
-    const pId = parseInt(playerId, 10);
+    const pId = resolveAuthorizedPlayerId(req, res, playerId);
+    if (pId === null) {
+        return;
+    }
 
     const client = await pool.connect();
     try {
@@ -682,9 +983,12 @@ app.post('/api/port/buy-holds', async (req, res): Promise<any> => {
     }
 });
 
-app.post('/api/ship/exchange', async (req, res): Promise<any> => {
+app.post('/api/ship/exchange', authenticateToken, async (req, res): Promise<any> => {
     const { playerId, targetShipName } = req.body;
-    const pId = parseInt(playerId, 10);
+    const pId = resolveAuthorizedPlayerId(req, res, playerId);
+    if (pId === null) {
+        return;
+    }
 
     const targetConfig = shipConfigs[targetShipName];
     if (!targetConfig) {
@@ -765,6 +1069,115 @@ app.post('/api/ship/exchange', async (req, res): Promise<any> => {
     } finally {
         client.release();
     }
+});
+
+app.post('/api/auth/register', async (req, res): Promise<any> => {
+  const { name, email, password } = req.body;
+  if (!name || !email || !password) {
+    return res.status(400).json({ error: 'name, email and password are required' });
+  }
+
+  const hash = hashPassword(password);
+  const role = 'player';
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO players (name, email, password_hash, role, current_sector)
+       VALUES ($1, $2, $3, $4, 1) RETURNING id, name, email, role`,
+      [name, email, hash, role],
+    );
+    const player = result.rows[0];
+
+    await pool.query(
+      `INSERT INTO ship_cargo (player_id, fuel, organics, equipment, credits)
+       VALUES ($1, 0, 0, 0, 10000) ON CONFLICT (player_id) DO NOTHING`,
+      [player.id],
+    );
+    const merchant = shipConfigs['Merchant Freighter'];
+    if (merchant) {
+      await pool.query(
+        `INSERT INTO player_ships (player_id, ship_name, fighters, shields, cargo_limit)
+         VALUES ($1, $2, 0, 0, $3) ON CONFLICT (player_id) DO NOTHING`,
+        [player.id, merchant.name, merchant.startingHolds],
+      );
+    }
+
+    const token = signPlayerToken({ playerId: player.id, name: player.name, role: player.role });
+
+    setAuthCookie(res, token);
+    res.status(201).json({ playerId: player.id, name: player.name, role: player.role, token });
+  } catch (err: any) {
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'Email already registered' });
+    }
+    console.error('Register error', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/api/auth/login', async (req, res): Promise<any> => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: 'email and password are required' });
+  }
+
+  try {
+    const result = await pool.query(
+      'SELECT id, name, role, password_hash FROM players WHERE email = $1',
+      [email],
+    );
+    if (result.rows.length === 0 || !verifyPassword(password, result.rows[0].password_hash)) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    const player = result.rows[0];
+    if (needsPasswordRehash(player.password_hash)) {
+      await pool.query('UPDATE players SET password_hash = $1 WHERE id = $2', [hashPassword(password), player.id]);
+    }
+
+    const token = signPlayerToken({ playerId: player.id, name: player.name, role: player.role });
+
+    setAuthCookie(res, token);
+    res.json({ playerId: player.id, name: player.name, role: player.role, token });
+  } catch (err) {
+    console.error('Login error', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.get('/api/players/search', async (req, res): Promise<any> => {
+  const { name } = req.query;
+  if (typeof name !== 'string' || !name) {
+    return res.status(400).json({ error: 'name query parameter required' });
+  }
+
+  try {
+    const result = await pool.query(
+      'SELECT id, name, current_sector FROM players WHERE name ILIKE $1',
+      [`%${name}%`],
+    );
+    res.json({ players: result.rows });
+  } catch (err) {
+    console.error('Search error', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.get('/api/admin/server-stats', authenticateAdmin, async (req, res): Promise<any> => {
+  try {
+    const playerCount = await pool.query('SELECT COUNT(*) FROM players');
+    const sectorCount = await pool.query('SELECT COUNT(*) FROM sectors');
+    res.json({
+      uptime: process.uptime(),
+      playersOnline: Object.keys(players).length,
+      totalPlayers: parseInt(playerCount.rows[0].count, 10),
+      totalSectors: parseInt(sectorCount.rows[0].count, 10),
+      nodeVersion: process.version,
+      platform: process.platform,
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 async function startServer() {
