@@ -98,7 +98,7 @@ function startServer() {
 function connectWS(options = {}) {
   return import('ws').then(({ default: WebSocket }) => {
     return new Promise((resolve, reject) => {
-      const ws = new WebSocket('ws://localhost:3000', options);
+      const ws = new WebSocket('ws://localhost:3000/ws', options);
       const timer = setTimeout(() => { ws.terminate(); reject(new Error('WS connect timeout')); }, 6000);
       let cookies = [];
 
@@ -165,7 +165,7 @@ async function navigateTo(ws, targetSector) {
   const route = await httpGet(`/api/route/${disp.sector}/${targetSector}`);
   if (route.status !== 200) throw new Error(`No route from ${disp.sector} to ${targetSector}`);
   for (let i = 1; i < route.body.path.length; i++) {
-    const movePromise = waitForMsg(ws, 'playerMoved');
+    const movePromise = waitForMsg(ws, 'sectorDisplay');
     ws.send(JSON.stringify({ type: 'move', sector: route.body.path[i] }));
     await movePromise;
   }

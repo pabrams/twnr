@@ -35,17 +35,9 @@ function hashPassword(password: string): string {
   return `scrypt$${salt.toString('base64url')}$${derivedKey.toString('base64url')}`;
 }
 
-function hashLegacyPassword(password: string): string {
-  return crypto.createHash('md5').update(password).digest('hex');
-}
-
 function verifyPassword(password: string, storedHash: string | null): boolean {
-  if (!storedHash) {
+  if (!storedHash || !storedHash.startsWith('scrypt$')) {
     return false;
-  }
-
-  if (!storedHash.startsWith('scrypt$')) {
-    return hashLegacyPassword(password) === storedHash;
   }
 
   const parts = storedHash.split('$');
@@ -58,10 +50,6 @@ function verifyPassword(password: string, storedHash: string | null): boolean {
   const actual = crypto.scryptSync(password, salt, expected.length);
 
   return crypto.timingSafeEqual(actual, expected);
-}
-
-function needsPasswordRehash(storedHash: string | null): boolean {
-  return !storedHash || !storedHash.startsWith('scrypt$');
 }
 
 function signPlayerToken(payload: AuthTokenPayload): string {
@@ -433,6 +421,9 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
         const lastSector = players[playerId]?.sector;
         delete players[playerId];
         wsSessionPlayers.delete(sessionToken);
+        pool.query('DELETE FROM players WHERE id = $1', [playerId]).catch(err => {
+          console.error('Failed to clean up WS player', playerId, err);
+        });
         
         if (lastSector) {
             const clientsToNotify = new Set<WebSocket>();
@@ -473,7 +464,7 @@ app.get('/api/sector/:id', async (req, res): Promise<any> => {
     }
 });
 
-app.get('/api/players/online', (req, res) => {
+app.get('/api/players/online', authenticateToken, (req, res) => {
     const online = Object.entries(players).map(([idStr, p]) => ({
         playerId: parseInt(idStr, 10),
         sector: p.sector
@@ -1125,9 +1116,6 @@ app.post('/api/auth/login', async (req, res): Promise<any> => {
     }
 
     const player = result.rows[0];
-    if (needsPasswordRehash(player.password_hash)) {
-      await pool.query('UPDATE players SET password_hash = $1 WHERE id = $2', [hashPassword(password), player.id]);
-    }
 
     const token = signPlayerToken({ playerId: player.id, name: player.name, role: player.role });
 
@@ -1139,7 +1127,7 @@ app.post('/api/auth/login', async (req, res): Promise<any> => {
   }
 });
 
-app.get('/api/players/search', async (req, res): Promise<any> => {
+app.get('/api/players/search', authenticateToken, async (req, res): Promise<any> => {
   const { name } = req.query;
   if (typeof name !== 'string' || !name) {
     return res.status(400).json({ error: 'name query parameter required' });

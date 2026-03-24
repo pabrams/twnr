@@ -186,7 +186,7 @@ describe('Security', () => {
   });
 
 
-  it('stores new passwords with scrypt and upgrades legacy md5 hashes on login', async () => {
+  it('stores new passwords with scrypt and ignores role from request body', async () => {
     const email = `pilot_${Date.now()}@example.com`;
     const password = 'correct horse battery staple';
 
@@ -202,19 +202,18 @@ describe('Security', () => {
     const registered = await pool.query('SELECT password_hash, role FROM players WHERE email = $1', [email]);
     assert.equal(registered.rows[0].role, 'player');
     assert.ok(registered.rows[0].password_hash.startsWith('scrypt$'));
+  });
 
+  it('rejects login for accounts with legacy MD5 password hashes', async () => {
     const legacyEmail = `legacy_${Date.now()}@example.com`;
-    const legacyHash = '5f4dcc3b5aa765d61d8327deb882cf99';
+    const legacyHash = '5f4dcc3b5aa765d61d8327deb882cf99'; // md5('password')
     await pool.query(
       'INSERT INTO players (name, email, password_hash, role, current_sector) VALUES ($1, $2, $3, $4, $5)',
       ['Legacy Pilot', legacyEmail, legacyHash, 'player', 1],
     );
 
     const loginRes = await httpPost('/api/auth/login', { email: legacyEmail, password: 'password' });
-    assert.equal(loginRes.status, 200);
-
-    const upgraded = await pool.query('SELECT password_hash FROM players WHERE email = $1', [legacyEmail]);
-    assert.ok(upgraded.rows[0].password_hash.startsWith('scrypt$'));
+    assert.equal(loginRes.status, 401);
   });
 
   it('treats player search input as data, not SQL', async () => {

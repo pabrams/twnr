@@ -34,7 +34,9 @@ function getDefaultAuthHeaders(path, authPlayerId) {
     path === '/api/port/buy-fighters' ||
     path === '/api/port/buy-shields' ||
     path === '/api/port/buy-holds' ||
-    path === '/api/ship/exchange'
+    path === '/api/ship/exchange' ||
+    path === '/api/players/online' ||
+    path.startsWith('/api/players/search')
   ) {
     const playerId = Number(authPlayerId || 1);
     if (Number.isInteger(playerId) && playerId > 0) {
@@ -89,7 +91,7 @@ export function startServer() {
 export function connectWS(options = {}) {
   return import('ws').then(({ default: WebSocket }) => {
     return new Promise((resolve, reject) => {
-      const ws = new WebSocket('ws://localhost:3000', options);
+      const ws = new WebSocket('ws://localhost:3000/ws', options);
       const timer = setTimeout(() => { ws.terminate(); reject(new Error('WS connect timeout')); }, 5000);
       let cookies = [];
 
@@ -224,7 +226,7 @@ export async function movePlayerTo(ws, targetSector) {
   if (routeRes.status !== 200) return false;
 
   for (let i = 1; i < routeRes.body.path.length; i++) {
-    const movePromise = waitForMsg(ws, 'playerMoved');
+    const movePromise = waitForMsg(ws, 'sectorDisplay');
     ws.send(JSON.stringify({ type: 'move', sector: routeRes.body.path[i] }));
     await movePromise;
   }
