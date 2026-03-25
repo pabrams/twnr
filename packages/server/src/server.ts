@@ -306,6 +306,7 @@ wss.on('headers', (headers, req) => {
 interface Player {
   ws: WebSocket;
   sector: number;
+  name: string;
 }
 const players: Record<number, Player> = {};
 
@@ -378,7 +379,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
       const playerRow = playerRes.rows[0];
       const sector: number = playerRow.current_sector;
 
-      players[playerId] = { ws, sector };
+      players[playerId] = { ws, sector, name: playerRow.name };
       wsSessionPlayers.set(sessionToken, playerId);
       ws.send(JSON.stringify({
         type: 'welcome',
@@ -507,7 +508,10 @@ app.get('/api/sector/:id', async (req, res): Promise<any> => {
 });
 
 app.get('/api/players/online', (_req, res) => {
-    const online = Object.keys(players).map(idStr => parseInt(idStr, 10));
+    const online = Object.entries(players).map(([idStr, p]) => ({
+        playerId: parseInt(idStr, 10),
+        name: p.name,
+    }));
     res.json({ players: online });
 });
 
