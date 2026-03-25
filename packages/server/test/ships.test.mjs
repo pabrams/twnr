@@ -95,23 +95,55 @@ function startServer() {
   });
 }
 
-function connectWS(options = {}) {
-  return import('ws').then(({ default: WebSocket }) => {
-    return new Promise((resolve, reject) => {
-      const ws = new WebSocket('ws://localhost:3000/ws', options);
-      const timer = setTimeout(() => { ws.terminate(); reject(new Error('WS connect timeout')); }, 6000);
-      let cookies = [];
+async function connectWS(options = {}) {
+  const { default: WebSocket } = await import('ws');
+  const { token: providedToken, ...wsOptions } = options;
 
-      ws.on('upgrade', (res) => {
-        cookies = res.headers['set-cookie'] || [];
-      });
+  let token = providedToken;
+  if (!token) {
+    const tmpPool = createPool();
+    try {
+      const ts = Date.now();
+      const res = await tmpPool.query(
+        `INSERT INTO players (name, email, password_hash, role, current_sector)
+         VALUES ($1, $2, 'dummy', 'player', 1) RETURNING id`,
+        [`WSTest_${ts}`, `wstest_${ts}@example.com`],
+      );
+      const playerId = res.rows[0].id;
+      await tmpPool.query(
+        `INSERT INTO ship_cargo (player_id, fuel, organics, equipment, credits) VALUES ($1, 0, 0, 0, 10000)`,
+        [playerId],
+      );
+      await tmpPool.query(
+        `INSERT INTO player_ships (player_id, ship_name, fighters, shields, cargo_limit) VALUES ($1, $2, 0, 0, $3)`,
+        [playerId, merchantCfg.name, merchantCfg.startingHolds],
+      );
+      token = jwt.sign(
+        { playerId, name: 'WSTest', role: 'player' },
+        process.env.JWT_SECRET || 'test-jwt-secret',
+        { algorithm: 'HS256', expiresIn: '1h' },
+      );
+    } finally {
+      await tmpPool.end();
+    }
+  }
 
-      ws.on('message', (data) => {
-        const msg = JSON.parse(data.toString());
-        if (msg.type === 'welcome') { clearTimeout(timer); resolve({ ws, welcome: msg, cookies }); }
-      });
-      ws.on('error', (err) => { clearTimeout(timer); reject(err); });
+  const headers = { Cookie: `twnr_auth=${token}`, ...(wsOptions.headers || {}) };
+
+  return new Promise((resolve, reject) => {
+    const ws = new WebSocket('ws://localhost:3000/ws', { ...wsOptions, headers });
+    const timer = setTimeout(() => { ws.terminate(); reject(new Error('WS connect timeout')); }, 6000);
+    let cookies = [];
+
+    ws.on('upgrade', (res) => {
+      cookies = res.headers['set-cookie'] || [];
     });
+
+    ws.on('message', (data) => {
+      const msg = JSON.parse(data.toString());
+      if (msg.type === 'welcome') { clearTimeout(timer); resolve({ ws, welcome: msg, cookies }); }
+    });
+    ws.on('error', (err) => { clearTimeout(timer); reject(err); });
   });
 }
 
