@@ -3,13 +3,16 @@
   "type": "module",
   "scripts": {
     "build": "pnpm -r build",
-    "test": "pnpm lint && pnpm --filter @twnr/server test",
-    "lint": "eslint packages/*/src"
+    "test": "pnpm lint && pnpm format:check && pnpm --filter @twnr/server test",
+    "lint": "eslint packages/*/src",
+    "format": "prettier --write \"packages/*/src/**/*.ts\"",
+    "format:check": "prettier --check \"packages/*/src/**/*.ts\""
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.57.2",
     "@typescript-eslint/parser": "^8.57.2",
     "eslint": "^10.1.0",
-    "eslint-plugin-n": "^17.24.0"
+    "eslint-plugin-n": "^17.24.0",
+    "prettier": "^3.8.1"
   }
 }

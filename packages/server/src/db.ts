@@ -1,22 +1,22 @@
 import { Pool } from 'pg';
 
 export const pool = new Pool({
-  host:     process.env.PGHOST     || 'localhost',
-  database: process.env.PGDATABASE || 'twnr',
-  user:     process.env.PGUSER,
-  password: process.env.PGPASSWORD,
+    host: process.env.PGHOST || 'localhost',
+    database: process.env.PGDATABASE || 'twnr',
+    user: process.env.PGUSER,
+    password: process.env.PGPASSWORD,
 });
 
 let isConnected = false;
 
 export const connectDB = async (): Promise<void> => {
-  if (isConnected) return;
+    if (isConnected) return;
 
-  try {
-    const client = await pool.connect();
-    
-    // Create tables
-    await client.query(`
+    try {
+        const client = await pool.connect();
+
+        // Create tables
+        await client.query(`
       CREATE TABLE IF NOT EXISTS sectors (
         id INTEGER PRIMARY KEY,
         name VARCHAR(255)
@@ -70,12 +70,12 @@ export const connectDB = async (): Promise<void> => {
         cargo_limit INTEGER NOT NULL
       );
     `);
-    
-    client.release();
-    isConnected = true;
-    console.log("PostgreSQL connected and schema verified");
-  } catch (error) {
-    console.error("PostgreSQL connection error:", error);
-    process.exit(1);
-  }
+
+        client.release();
+        isConnected = true;
+        console.log('PostgreSQL connected and schema verified');
+    } catch (error) {
+        console.error('PostgreSQL connection error:', error);
+        process.exit(1);
+    }
 };
