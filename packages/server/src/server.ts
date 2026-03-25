@@ -892,6 +892,9 @@ app.post('/api/trade', authenticateToken, async (req, res): Promise<any> => {
         return res.status(400).json({ error: 'Invalid request' });
     }
 
+    const discountQty = parseInt(req.body.discountQty ?? '0', 10);
+    const effectiveQty = isNaN(discountQty) ? qty : qty + discountQty;
+
     const pId = getAuthenticatedPlayer(req).playerId;
 
     const player = players[pId];
@@ -957,32 +960,32 @@ app.post('/api/trade', authenticateToken, async (req, res): Promise<any> => {
         const cargo = cargoRes.rows[0];
 
         if (action === 'buy') {
-            const cost = qty * price;
+            const cost = effectiveQty * price;
             if (cargo.credits < cost) {
                 await client.query('ROLLBACK');
                 return res.status(400).json({ error: 'Insufficient credits' });
             }
-            if (port[good] < qty) {
+            if (port[good] < effectiveQty) {
                 await client.query('ROLLBACK');
                 return res.status(400).json({ error: 'Insufficient port inventory' });
             }
-            if (cargo.fuel + cargo.organics + cargo.equipment + qty > cargo.cargo_limit) {
+            if (cargo.fuel + cargo.organics + cargo.equipment + effectiveQty > cargo.cargo_limit) {
                 await client.query('ROLLBACK');
                 return res.status(400).json({ error: 'Insufficient cargo holds' });
             }
 
             await client.query(`UPDATE ports SET ${col} = ${col} - $1 WHERE sector_id = $2`, [
-                qty,
+                effectiveQty,
                 currentSector,
             ]);
             await client.query(
                 `UPDATE ship_cargo SET ${col} = ${col} + $1, credits = credits - $2 WHERE player_id = $3`,
-                [qty, cost, pId],
+                [effectiveQty, cost, pId],
             );
 
             await client.query('COMMIT');
 
-            cargo[good] += qty;
+            cargo[good] += effectiveQty;
             cargo.credits -= cost;
             const buyBody: TradeResponse = {
                 success: true,
@@ -991,24 +994,24 @@ app.post('/api/trade', authenticateToken, async (req, res): Promise<any> => {
             };
             res.json(buyBody);
         } else if (action === 'sell') {
-            const revenue = qty * price;
-            if (cargo[good] < qty) {
+            const revenue = effectiveQty * price;
+            if (cargo[good] < effectiveQty) {
                 await client.query('ROLLBACK');
                 return res.status(400).json({ error: 'Insufficient cargo' });
             }
 
             await client.query(`UPDATE ports SET ${col} = ${col} + $1 WHERE sector_id = $2`, [
-                qty,
+                effectiveQty,
                 currentSector,
             ]);
             await client.query(
                 `UPDATE ship_cargo SET ${col} = ${col} - $1, credits = credits + $2 WHERE player_id = $3`,
-                [qty, revenue, pId],
+                [effectiveQty, revenue, pId],
             );
 
             await client.query('COMMIT');
 
-            cargo[good] -= qty;
+            cargo[good] -= effectiveQty;
             cargo.credits += revenue;
             const sellBody: TradeResponse = {
                 success: true,
@@ -1023,6 +1026,106 @@ app.post('/api/trade', authenticateToken, async (req, res): Promise<any> => {
         res.status(500).json({ error: 'Internal server error' });
     } finally {
         client.release();
+    }
+});
+
+app.get('/api/trades', authenticateToken, async (req, res): Promise<any> => {
+    const pId = getAuthenticatedPlayer(req).playerId;
+    const { sort, order } = req.query;
+
+    const validSortColumns = ['created_at', 'quantity', 'total', 'good', 'action'];
+    const sortCol = validSortColumns.includes(sort as string) ? sort : 'created_at';
+
+    const sortOrder = typeof order === 'string' && order.length ? order : 'DESC';
+
+    try {
+        const result = await pool.query(
+            `SELECT id, good, action, quantity, price, total, sector_id, created_at
+             FROM trade_history WHERE player_id = $1 ORDER BY ${sortCol} ${sortOrder}`,
+            [pId],
+        );
+        res.json({ trades: result.rows });
+    } catch (err) {
+        console.error('Trade history error', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+app.get('/api/trades/:tradeId', authenticateToken, async (req, res): Promise<any> => {
+    const tradeId = parseInt(req.params.tradeId as string, 10);
+    if (isNaN(tradeId) || tradeId <= 0) {
+        return res.status(400).json({ error: 'Invalid trade ID' });
+    }
+
+    try {
+        const result = await pool.query(
+            'SELECT id, player_id, good, action, quantity, price, total, sector_id, created_at FROM trade_history WHERE id = $1',
+            [tradeId],
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Trade not found' });
+        }
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error('Trade lookup error', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+app.post('/api/trade/transfer', authenticateToken, async (req, res): Promise<any> => {
+    const { targetPlayerId, amount } = req.body;
+    const pId = getAuthenticatedPlayer(req).playerId;
+
+    const amt = parseInt(amount, 10);
+    if (isNaN(amt) || amt <= 0) {
+        return res.status(400).json({ error: 'Invalid amount' });
+    }
+
+    const targetId = parseInt(targetPlayerId, 10);
+    if (isNaN(targetId) || targetId <= 0 || targetId === pId) {
+        return res.status(400).json({ error: 'Invalid target player' });
+    }
+
+    try {
+        const targetPlayerRes = await pool.query('SELECT id, name FROM players WHERE id = $1', [
+            targetId,
+        ]);
+        if (targetPlayerRes.rows.length === 0) {
+            return res.status(404).json({ error: 'Target player not found' });
+        }
+
+        const playerCreditsRes = await pool.query(
+            'SELECT credits FROM ship_cargo WHERE player_id = $1',
+            [pId],
+        );
+        if (playerCreditsRes.rows.length === 0) {
+            return res.status(404).json({ error: 'Player not found' });
+        }
+        if (playerCreditsRes.rows[0].credits < amt) {
+            return res.status(400).json({ error: 'Insufficient credits' });
+        }
+
+        await pool.query('UPDATE ship_cargo SET credits = credits - $1 WHERE player_id = $2', [
+            amt,
+            pId,
+        ]);
+        await pool.query('UPDATE ship_cargo SET credits = credits + $1 WHERE player_id = $2', [
+            amt,
+            targetId,
+        ]);
+
+        const updatedRes = await pool.query('SELECT credits FROM ship_cargo WHERE player_id = $1', [
+            pId,
+        ]);
+        res.json({
+            success: true,
+            credits: updatedRes.rows[0].credits,
+            transferredTo: targetId,
+            amount: amt,
+        });
+    } catch (err: any) {
+        console.error('Transfer error', err);
+        res.status(500).json({ error: err.message });
     }
 });
 

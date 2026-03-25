@@ -69,6 +69,18 @@ export const connectDB = async (): Promise<void> => {
         shields INTEGER NOT NULL DEFAULT 0,
         cargo_limit INTEGER NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS trade_history (
+        id SERIAL PRIMARY KEY,
+        player_id INTEGER NOT NULL REFERENCES players(id),
+        good VARCHAR(20) NOT NULL,
+        action VARCHAR(10) NOT NULL,
+        quantity INTEGER NOT NULL,
+        price INTEGER NOT NULL,
+        total INTEGER NOT NULL,
+        sector_id INTEGER NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      );
     `);
 
         client.release();
