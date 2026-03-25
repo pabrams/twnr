@@ -17,7 +17,7 @@ let serverProc;
 let testPlayerToken;
 
 function makeToken(playerId) {
-  return jwt.sign({ playerId, name: 'Rate Test Player', role: 'player' }, JWT_SECRET, {
+  return jwt.sign({ playerId, name: 'Rate Test Player', role: 'player', tokenVersion: 1 }, JWT_SECRET, {
     algorithm: 'HS256',
     expiresIn: '1h',
   });

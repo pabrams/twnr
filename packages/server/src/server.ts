@@ -73,10 +73,16 @@ function verifyToken(token: string): AuthTokenPayload {
     throw new Error('Invalid token payload');
   }
 
+  const tokenVersion = (payload as jwt.JwtPayload).tokenVersion;
+  if (typeof tokenVersion !== 'number') {
+    throw new Error('Invalid token payload');
+  }
+
   return {
     playerId,
     name: typeof (payload as jwt.JwtPayload).name === 'string' ? (payload as jwt.JwtPayload).name : undefined,
     role: typeof (payload as jwt.JwtPayload).role === 'string' ? (payload as jwt.JwtPayload).role : undefined,
+    tokenVersion,
   };
 }
 
@@ -171,7 +177,7 @@ function getWsSessionPayload(req: Request): AuthTokenPayload | null {
     throw new Error('Invalid session');
   }
 
-  return { playerId, role: 'player' };
+  return { playerId, role: 'player', tokenVersion: 0 };
 }
 
 function getRequestAuthPayload(req: Request): { payload: AuthTokenPayload | null; hadCredentials: boolean } {
@@ -217,11 +223,25 @@ function resolveAuthorizedPlayerId(req: Request, res: Response, rawPlayerId: unk
   return playerId;
 }
 
-function authenticateToken(req: Request, res: Response, next: NextFunction): void {
+async function authenticateToken(req: Request, res: Response, next: NextFunction): Promise<void> {
   const { payload, hadCredentials } = getRequestAuthPayload(req);
   if (!payload) {
     res.status(hadCredentials ? 403 : 401).json({ error: hadCredentials ? 'Invalid token' : 'Authentication required' });
     return;
+  }
+
+  // For JWT tokens, verify the version in the DB hasn't been incremented (e.g. by logout)
+  if (getJwtToken(req)) {
+    try {
+      const result = await pool.query('SELECT token_version FROM players WHERE id = $1', [payload.playerId]);
+      if (result.rows.length === 0 || result.rows[0].token_version !== payload.tokenVersion) {
+        res.status(401).json({ error: 'Token has been revoked' });
+        return;
+      }
+    } catch {
+      res.status(500).json({ error: 'Internal server error' });
+      return;
+    }
   }
 
   (req as any).player = payload;
@@ -369,7 +389,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
 
   try {
       const playerRes = await pool.query(
-        'SELECT id, name, current_sector FROM players WHERE id = $1',
+        'SELECT id, name, current_sector, token_version FROM players WHERE id = $1',
         [playerId],
       );
       if (playerRes.rows.length === 0) {
@@ -377,6 +397,10 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
         return;
       }
       const playerRow = playerRes.rows[0];
+      if (playerRow.token_version !== authPayload.tokenVersion) {
+        ws.close(1008, 'Token has been revoked');
+        return;
+      }
       const sector: number = playerRow.current_sector;
 
       players[playerId] = { ws, sector, name: playerRow.name };
@@ -386,7 +410,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
         playerId,
         name: playerRow.name,
         sector,
-        token: signPlayerToken({ playerId, name: playerRow.name, role: authPayload.role }),
+        token: signPlayerToken({ playerId, name: playerRow.name, role: authPayload.role, tokenVersion: playerRow.token_version }),
       }));
       console.log(`${playerId} connected.`);
 
@@ -1099,6 +1123,18 @@ app.post('/api/ship/exchange', authenticateToken, async (req, res): Promise<any>
     }
 });
 
+app.post('/api/auth/logout', authenticateToken, async (req, res): Promise<any> => {
+  const { playerId } = getAuthenticatedPlayer(req);
+  try {
+    await pool.query('UPDATE players SET token_version = token_version + 1 WHERE id = $1', [playerId]);
+    res.clearCookie(AUTH_COOKIE_NAME, { path: '/' });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Logout error', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 app.post('/api/auth/register', registerLimiter, async (req, res): Promise<any> => {
   const { name, email, password } = req.body;
   if (!name || !email || !password) {
@@ -1111,7 +1147,7 @@ app.post('/api/auth/register', registerLimiter, async (req, res): Promise<any> =
   try {
     const result = await pool.query(
       `INSERT INTO players (name, email, password_hash, role, current_sector)
-       VALUES ($1, $2, $3, $4, 1) RETURNING id, name, email, role`,
+       VALUES ($1, $2, $3, $4, 1) RETURNING id, name, email, role, token_version`,
       [name, email, hash, role],
     );
     const player = result.rows[0];
@@ -1130,7 +1166,7 @@ app.post('/api/auth/register', registerLimiter, async (req, res): Promise<any> =
       );
     }
 
-    const token = signPlayerToken({ playerId: player.id, name: player.name, role: player.role });
+    const token = signPlayerToken({ playerId: player.id, name: player.name, role: player.role, tokenVersion: player.token_version });
 
     setAuthCookie(res, token);
     res.status(201).json({ playerId: player.id, name: player.name, role: player.role, token });
@@ -1151,7 +1187,7 @@ app.post('/api/auth/login', loginLimiter, async (req, res): Promise<any> => {
 
   try {
     const result = await pool.query(
-      'SELECT id, name, role, password_hash FROM players WHERE email = $1',
+      'SELECT id, name, role, password_hash, token_version FROM players WHERE email = $1',
       [email],
     );
     if (result.rows.length === 0 || !verifyPassword(password, result.rows[0].password_hash)) {
@@ -1160,7 +1196,7 @@ app.post('/api/auth/login', loginLimiter, async (req, res): Promise<any> => {
 
     const player = result.rows[0];
 
-    const token = signPlayerToken({ playerId: player.id, name: player.name, role: player.role });
+    const token = signPlayerToken({ playerId: player.id, name: player.name, role: player.role, tokenVersion: player.token_version });
 
     setAuthCookie(res, token);
     res.json({ playerId: player.id, name: player.name, role: player.role, token });

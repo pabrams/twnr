@@ -19,8 +19,8 @@ export function createPool() {
   });
 }
 
-function makeAuthToken(playerId, role = 'player') {
-  return jwt.sign({ playerId, name: 'Test Player', role }, process.env.JWT_SECRET || 'test-jwt-secret', {
+function makeAuthToken(playerId, role = 'player', tokenVersion = 1) {
+  return jwt.sign({ playerId, name: 'Test Player', role, tokenVersion }, process.env.JWT_SECRET || 'test-jwt-secret', {
     algorithm: 'HS256',
     expiresIn: '1h',
   });
@@ -119,7 +119,7 @@ export async function connectWS(options = {}) {
         [playerId, merchantCfg.name, merchantCfg.startingHolds],
       );
       token = jwt.sign(
-        { playerId, name: 'WSTest', role: 'player' },
+        { playerId, name: 'WSTest', role: 'player', tokenVersion: 1 },
         process.env.JWT_SECRET || 'test-jwt-secret',
         { algorithm: 'HS256', expiresIn: '1h' },
       );

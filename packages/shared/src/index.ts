@@ -4,6 +4,7 @@ export type AuthTokenPayload = {
   playerId: number;
   name?: string;
   role?: string;
+  tokenVersion: number;
 };
 
 // WebSocket messages (server → client)

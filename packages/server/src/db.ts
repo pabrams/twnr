@@ -39,6 +39,7 @@ export const connectDB = async (): Promise<void> => {
       ALTER TABLE players ADD COLUMN IF NOT EXISTS email VARCHAR(255);
       ALTER TABLE players ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255);
       ALTER TABLE players ADD COLUMN IF NOT EXISTS role VARCHAR(50) NOT NULL DEFAULT 'player';
+      ALTER TABLE players ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 1;
       CREATE UNIQUE INDEX IF NOT EXISTS players_email_unique_idx ON players (email) WHERE email IS NOT NULL;
 
       CREATE TABLE IF NOT EXISTS ports (
