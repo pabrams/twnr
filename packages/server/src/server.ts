@@ -775,7 +775,9 @@ app.post('/api/trade', authenticateToken, async (req, res): Promise<any> => {
         return res.status(400).json({ error: "Invalid request" });
     }
 
-    if (!["fuel", "organics", "equipment"].includes(good)) {
+    const VALID_GOODS: Record<string, string> = { fuel: 'fuel', organics: 'organics', equipment: 'equipment' };
+    const col = VALID_GOODS[good];
+    if (!col) {
         return res.status(400).json({ error: "Invalid request" });
     }
 
@@ -855,8 +857,8 @@ app.post('/api/trade', authenticateToken, async (req, res): Promise<any> => {
                 return res.status(400).json({ error: "Insufficient cargo holds" });
             }
 
-            await client.query(`UPDATE ports SET ${good} = ${good} - $1 WHERE sector_id = $2`, [qty, currentSector]);
-            await client.query(`UPDATE ship_cargo SET ${good} = ${good} + $1, credits = credits - $2 WHERE player_id = $3`, [qty, cost, pId]);
+            await client.query(`UPDATE ports SET ${col} = ${col} - $1 WHERE sector_id = $2`, [qty, currentSector]);
+            await client.query(`UPDATE ship_cargo SET ${col} = ${col} + $1, credits = credits - $2 WHERE player_id = $3`, [qty, cost, pId]);
 
             await client.query('COMMIT');
 
@@ -872,8 +874,8 @@ app.post('/api/trade', authenticateToken, async (req, res): Promise<any> => {
                 return res.status(400).json({ error: "Insufficient cargo" });
             }
 
-            await client.query(`UPDATE ports SET ${good} = ${good} + $1 WHERE sector_id = $2`, [qty, currentSector]);
-            await client.query(`UPDATE ship_cargo SET ${good} = ${good} - $1, credits = credits + $2 WHERE player_id = $3`, [qty, revenue, pId]);
+            await client.query(`UPDATE ports SET ${col} = ${col} + $1 WHERE sector_id = $2`, [qty, currentSector]);
+            await client.query(`UPDATE ship_cargo SET ${col} = ${col} - $1, credits = credits + $2 WHERE player_id = $3`, [qty, revenue, pId]);
 
             await client.query('COMMIT');
 
