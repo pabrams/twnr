@@ -419,9 +419,9 @@ describe('GET /api/ship/:playerId', () => {
     }
   });
 
-  it('returns 404 for a non-existent player', async () => {
+  it('returns 401 for a non-existent player', async () => {
     const { status } = await httpGet('/api/ship/999999');
-    assert.equal(status, 404);
+    assert.equal(status, 401);
   });
 });
 
@@ -566,10 +566,9 @@ describe('POST /api/port/buy-fighters — validation', () => {
     }
   });
 
-  it('returns 404 "Player not found" for a non-existent player', async () => {
-    const { status, body } = await httpPost('/api/port/buy-fighters', { quantity: 1 }, { authPlayerId: 999999 });
-    assert.equal(status, 404);
-    assert.equal(body.error, 'Player not found');
+  it('returns 401 for a non-existent player', async () => {
+    const { status } = await httpPost('/api/port/buy-fighters', { quantity: 1 }, { authPlayerId: 999999 });
+    assert.equal(status, 401);
   });
 
   it('returns 400 "Exceeds maximum" when fighters + quantity > maxFighters', async () => {
@@ -635,10 +634,9 @@ describe('POST /api/port/buy-shields — validation', () => {
     }
   });
 
-  it('returns 404 "Player not found" for a non-existent player', async () => {
-    const { status, body } = await httpPost('/api/port/buy-shields', { quantity: 1 }, { authPlayerId: 999999 });
-    assert.equal(status, 404);
-    assert.equal(body.error, 'Player not found');
+  it('returns 401 for a non-existent player', async () => {
+    const { status } = await httpPost('/api/port/buy-shields', { quantity: 1 }, { authPlayerId: 999999 });
+    assert.equal(status, 401);
   });
 
   it('returns 400 "Not at a class 0 port" when not in a class 0 sector', async () => {
@@ -721,10 +719,9 @@ describe('POST /api/port/buy-holds — validation', () => {
     }
   });
 
-  it('returns 404 "Player not found" for a non-existent player', async () => {
-    const { status, body } = await httpPost('/api/port/buy-holds', { quantity: 1 }, { authPlayerId: 999999 });
-    assert.equal(status, 404);
-    assert.equal(body.error, 'Player not found');
+  it('returns 401 for a non-existent player', async () => {
+    const { status } = await httpPost('/api/port/buy-holds', { quantity: 1 }, { authPlayerId: 999999 });
+    assert.equal(status, 401);
   });
 
   it('returns 400 "Not at a class 0 port" when not in a class 0 sector', async () => {
@@ -967,10 +964,9 @@ describe('POST /api/ship/exchange — validation', () => {
     return res.rows.length > 0 ? Number(res.rows[0].id) : null;
   }
 
-  it('returns 404 "Player not found" for a non-existent player', async () => {
-    const { status, body } = await httpPost('/api/ship/exchange', { targetShipName: warbirdCfg.name }, { authPlayerId: 999999 });
-    assert.equal(status, 404);
-    assert.equal(body.error, 'Player not found');
+  it('returns 401 for a non-existent player', async () => {
+    const { status } = await httpPost('/api/ship/exchange', { targetShipName: warbirdCfg.name }, { authPlayerId: 999999 });
+    assert.equal(status, 401);
   });
 
   it('returns 400 "Not at Stardock" when player is not in Stardock', async () => {

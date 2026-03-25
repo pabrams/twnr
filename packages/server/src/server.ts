@@ -9,7 +9,23 @@ import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { rateLimit } from 'express-rate-limit';
 import helmet from 'helmet';
-import type { AuthTokenPayload } from '@twnr/shared';
+import type {
+  AuthTokenPayload,
+  SectorResponse,
+  PlayersOnlineResponse,
+  RouteResponse,
+  PortResponse,
+  ShipResponse,
+  CargoResponse,
+  TradeResponse,
+  BuyResponse,
+  MoveResponse,
+  ShipExchangeResponse,
+  AuthResponse,
+  LogoutResponse,
+  ServerStatsResponse,
+  ServerMessage,
+} from '@twnr/shared';
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -364,7 +380,7 @@ export async function getGraph(): Promise<number[][]> {
     return adjacencyList;
 }
 
-function broadcastTo(data: object, targetClients: Set<WebSocket> | WebSocket[]) {
+function broadcastTo(data: ServerMessage, targetClients: Set<WebSocket> | WebSocket[]) {
     for (const client of targetClients) {
         if (client.readyState === 1) {
             client.send(JSON.stringify(data));
@@ -405,13 +421,14 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
 
       players[playerId] = { ws, sector, name: playerRow.name };
       wsSessionPlayers.set(sessionToken, playerId);
-      ws.send(JSON.stringify({
+      const welcomeMsg: ServerMessage = {
         type: 'welcome',
         playerId,
         name: playerRow.name,
         sector,
         token: signPlayerToken({ playerId, name: playerRow.name, role: authPayload.role, tokenVersion: playerRow.token_version }),
-      }));
+      };
+      ws.send(JSON.stringify(welcomeMsg));
       console.log(`${playerId} connected.`);
 
       let tokens = 50;
@@ -421,7 +438,8 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
 
       ws.on('message', async (message) => {
         if (tokens <= 0) {
-          ws.send(JSON.stringify({ type: 'rateLimited' }));
+          const msg: ServerMessage = { type: 'rateLimited' };
+          ws.send(JSON.stringify(msg));
           return;
         }
         tokens--;
@@ -432,7 +450,8 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
         if (data.type === 'move') {
             const shipRes = await pool.query('SELECT player_id FROM player_ships WHERE player_id = $1', [playerId]);
             if (shipRes.rows.length === 0) {
-                ws.send(JSON.stringify({ type: 'noShip' }));
+                const msg: ServerMessage = { type: 'noShip' };
+                ws.send(JSON.stringify(msg));
                 return;
             }
 
@@ -455,19 +474,23 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
                     broadcastTo({ type: 'playerMoved', playerId, sector: targetSector, direction: 'in' }, newSectorClients);
                     const displayWarps = warps[targetSector] || [];
                     const playersInSector = Object.entries(players).filter(([, p]) => p.sector === targetSector).map(([id]) => Number(id));
-                    ws.send(JSON.stringify({ type: 'sectorDisplay', sector: targetSector, warps: displayWarps, players: playersInSector }));
+                    const sectorMsg: ServerMessage = { type: 'sectorDisplay', sector: targetSector, warps: displayWarps, players: playersInSector };
+                    ws.send(JSON.stringify(sectorMsg));
                 } else {
-                    ws.send(JSON.stringify({ type: 'nonAdjacentMoveRequested', playerId, sector: targetSector }));
+                    const nonAdjMsg: ServerMessage = { type: 'nonAdjacentMoveRequested', playerId, sector: targetSector };
+                    ws.send(JSON.stringify(nonAdjMsg));
                 }
             }
         } else if (data.type === 'who') {
             const playersKeys = Object.keys(players).map(Number);
-            ws.send(JSON.stringify({ type: 'playersOnline', players: playersKeys }));
+            const whoMsg: ServerMessage = { type: 'playersOnline', players: playersKeys };
+            ws.send(JSON.stringify(whoMsg));
         } else if (data.type === 'display') {
             const currentSector = players[playerId].sector;
             const displayWarps = warps[currentSector] || [];
             const playersInSector = Object.entries(players).filter(([, p]) => p.sector === currentSector).map(([id]) => Number(id));
-            ws.send(JSON.stringify({ type: 'sectorDisplay', sector: currentSector, warps: displayWarps, players: playersInSector }));
+            const displayMsg: ServerMessage = { type: 'sectorDisplay', sector: currentSector, warps: displayWarps, players: playersInSector };
+            ws.send(JSON.stringify(displayMsg));
         }
       });
 
@@ -525,7 +548,8 @@ app.get('/api/sector/:id', async (req, res): Promise<any> => {
         const warpsRes = await pool.query('SELECT sector_to FROM warps WHERE sector_from = $1', [id]);
         const warps = warpsRes.rows.map(r => r.sector_to);
         
-        res.json({ id, warps });
+        const body: SectorResponse = { id, warps };
+        res.json(body);
     } catch (error) {
         res.status(500).json({ error: "Internal server error" });
     }
@@ -536,7 +560,8 @@ app.get('/api/players/online', (_req, res) => {
         playerId: parseInt(idStr, 10),
         name: p.name,
     }));
-    res.json({ players: online });
+    const body: PlayersOnlineResponse = { players: online };
+    res.json(body);
 });
 
 app.post('/api/move', authenticateToken, async (req, res): Promise<any> => {
@@ -586,10 +611,12 @@ app.post('/api/move', authenticateToken, async (req, res): Promise<any> => {
     if (player.ws) {
         const displayWarps = warps[ts] || [];
         const playersInSector = Object.entries(players).filter(([, p]) => p.sector === ts).map(([id]) => Number(id));
-        player.ws.send(JSON.stringify({ type: 'sectorDisplay', sector: ts, warps: displayWarps, players: playersInSector }));
+        const sectorMsg: ServerMessage = { type: 'sectorDisplay', sector: ts, warps: displayWarps, players: playersInSector };
+        player.ws.send(JSON.stringify(sectorMsg));
     }
 
-    res.json({ success: true, sector: ts, warps: warps[ts] || [] });
+    const body: MoveResponse = { success: true, sector: ts, warps: warps[ts] || [] };
+    res.json(body);
 });
 
 app.get('/api/route/:from/:to', async (req, res): Promise<any> => {
@@ -610,7 +637,8 @@ app.get('/api/route/:from/:to', async (req, res): Promise<any> => {
         }
         
         if (from === to) {
-            return res.json({ path: [from], hops: 0 });
+            const body: RouteResponse = { path: [from], hops: 0 };
+            return res.json(body);
         }
         
         const warps = await getGraph();
@@ -627,7 +655,8 @@ app.get('/api/route/:from/:to', async (req, res): Promise<any> => {
             for (const neighbor of neighbors) {
                 if (neighbor === to) {
                     const finalPath = [...path, neighbor];
-                    return res.json({ path: finalPath, hops: finalPath.length - 1 });
+                    const body: RouteResponse = { path: finalPath, hops: finalPath.length - 1 };
+                    return res.json(body);
                 }
                 if (!visited.has(neighbor)) {
                     visited.add(neighbor);
@@ -659,13 +688,14 @@ app.get('/api/port/:sectorId', async (req, res): Promise<any> => {
         }
 
         const p = portRes.rows[0];
-        res.json({
+        const body: PortResponse = {
             sectorId: p.sector_id,
             class: p.class,
             fuel: p.fuel, fuelPrice: p.fuel_price,
             organics: p.organics, orgPrice: p.org_price,
             equipment: p.equipment, equPrice: p.equ_price,
-        });
+        };
+        res.json(body);
     } catch (error) {
         res.status(500).json({ error: "Internal server error" });
     }
@@ -698,7 +728,7 @@ app.get('/api/ship/:playerId', authenticateToken, async (req, res): Promise<any>
 
         const holdsAvailable = row.cargo_limit - (row.fuel + row.organics + row.equipment);
         
-        res.json({
+        const body: ShipResponse = {
             playerId,
             shipName: row.ship_name,
             fighters: row.fighters,
@@ -710,8 +740,9 @@ app.get('/api/ship/:playerId', authenticateToken, async (req, res): Promise<any>
             cargoFuel: row.fuel,
             cargoOrganics: row.organics,
             cargoEquipment: row.equipment,
-            holdsAvailable
-        });
+            holdsAvailable,
+        };
+        res.json(body);
     } catch (error) {
         res.status(500).json({ error: "Internal server error" });
     }
@@ -730,7 +761,8 @@ app.get('/api/cargo/:playerId', authenticateToken, async (req, res): Promise<any
         }
         
         const c = cargoRes.rows[0];
-        res.json({ playerId: c.player_id, fuel: c.fuel, organics: c.organics, equipment: c.equipment, credits: c.credits });
+        const body: CargoResponse = { playerId: c.player_id, fuel: c.fuel, organics: c.organics, equipment: c.equipment, credits: c.credits };
+        res.json(body);
     } catch (error) {
         res.status(500).json({ error: "Internal server error" });
     }
@@ -830,7 +862,8 @@ app.post('/api/trade', authenticateToken, async (req, res): Promise<any> => {
 
             cargo[good] += qty;
             cargo.credits -= cost;
-            res.json({ success: true, credits: cargo.credits, cargo: { fuel: cargo.fuel, organics: cargo.organics, equipment: cargo.equipment } });
+            const buyBody: TradeResponse = { success: true, credits: cargo.credits, cargo: { fuel: cargo.fuel, organics: cargo.organics, equipment: cargo.equipment } };
+            res.json(buyBody);
 
         } else if (action === "sell") {
             const revenue = qty * price;
@@ -846,7 +879,8 @@ app.post('/api/trade', authenticateToken, async (req, res): Promise<any> => {
 
             cargo[good] -= qty;
             cargo.credits += revenue;
-            res.json({ success: true, credits: cargo.credits, cargo: { fuel: cargo.fuel, organics: cargo.organics, equipment: cargo.equipment } });
+            const sellBody: TradeResponse = { success: true, credits: cargo.credits, cargo: { fuel: cargo.fuel, organics: cargo.organics, equipment: cargo.equipment } };
+            res.json(sellBody);
         }
         
     } catch (err) {
@@ -909,7 +943,8 @@ app.post('/api/port/buy-fighters', authenticateToken, async (req, res): Promise<
         await client.query('UPDATE ship_cargo SET credits = credits - $1 WHERE player_id = $2', [cost, pId]);
         await client.query('COMMIT');
 
-        res.json({ success: true, credits: data.credits - cost, fighters: data.fighters + qty, shields: data.shields, cargoLimit: data.cargo_limit });
+        const body: BuyResponse = { success: true, credits: data.credits - cost, fighters: data.fighters + qty, shields: data.shields, cargoLimit: data.cargo_limit };
+        res.json(body);
     } catch (e) {
         await client.query('ROLLBACK');
         res.status(500).json({ error: "Internal server error" });
@@ -969,7 +1004,8 @@ app.post('/api/port/buy-shields', authenticateToken, async (req, res): Promise<a
         await client.query('UPDATE ship_cargo SET credits = credits - $1 WHERE player_id = $2', [cost, pId]);
         await client.query('COMMIT');
 
-        res.json({ success: true, credits: data.credits - cost, fighters: data.fighters, shields: data.shields + qty, cargoLimit: data.cargo_limit });
+        const body: BuyResponse = { success: true, credits: data.credits - cost, fighters: data.fighters, shields: data.shields + qty, cargoLimit: data.cargo_limit };
+        res.json(body);
     } catch (e) {
         await client.query('ROLLBACK');
         res.status(500).json({ error: "Internal server error" });
@@ -1029,7 +1065,8 @@ app.post('/api/port/buy-holds', authenticateToken, async (req, res): Promise<any
         await client.query('UPDATE ship_cargo SET credits = credits - $1 WHERE player_id = $2', [cost, pId]);
         await client.query('COMMIT');
 
-        res.json({ success: true, credits: data.credits - cost, fighters: data.fighters, shields: data.shields, cargoLimit: data.cargo_limit + qty });
+        const body: BuyResponse = { success: true, credits: data.credits - cost, fighters: data.fighters, shields: data.shields, cargoLimit: data.cargo_limit + qty };
+        res.json(body);
     } catch (e) {
         await client.query('ROLLBACK');
         res.status(500).json({ error: "Internal server error" });
@@ -1107,14 +1144,15 @@ app.post('/api/ship/exchange', authenticateToken, async (req, res): Promise<any>
         await client.query('UPDATE ship_cargo SET credits = credits - $1 WHERE player_id = $2', [cost, pId]);
         await client.query('COMMIT');
 
-        res.json({ 
-            success: true, 
-            shipName: targetShipName, 
-            credits: data.credits - cost, 
-            maxFighters: targetConfig.maxFighters, 
-            maxShields: targetConfig.maxShields, 
-            cargoLimit: newCargoLimit 
-        });
+        const body: ShipExchangeResponse = {
+            success: true,
+            shipName: targetShipName,
+            credits: data.credits - cost,
+            maxFighters: targetConfig.maxFighters,
+            maxShields: targetConfig.maxShields,
+            cargoLimit: newCargoLimit,
+        };
+        res.json(body);
     } catch (e) {
         await client.query('ROLLBACK');
         res.status(500).json({ error: "Internal server error" });
@@ -1128,7 +1166,8 @@ app.post('/api/auth/logout', authenticateToken, async (req, res): Promise<any> =
   try {
     await pool.query('UPDATE players SET token_version = token_version + 1 WHERE id = $1', [playerId]);
     res.clearCookie(AUTH_COOKIE_NAME, { path: '/' });
-    res.json({ success: true });
+    const body: LogoutResponse = { success: true };
+    res.json(body);
   } catch (err) {
     console.error('Logout error', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -1169,7 +1208,8 @@ app.post('/api/auth/register', registerLimiter, async (req, res): Promise<any> =
     const token = signPlayerToken({ playerId: player.id, name: player.name, role: player.role, tokenVersion: player.token_version });
 
     setAuthCookie(res, token);
-    res.status(201).json({ playerId: player.id, name: player.name, role: player.role, token });
+    const body: AuthResponse = { playerId: player.id, name: player.name, role: player.role, token };
+    res.status(201).json(body);
   } catch (err: any) {
     if (err.code === '23505') {
       return res.status(409).json({ error: 'Email already registered' });
@@ -1199,7 +1239,8 @@ app.post('/api/auth/login', loginLimiter, async (req, res): Promise<any> => {
     const token = signPlayerToken({ playerId: player.id, name: player.name, role: player.role, tokenVersion: player.token_version });
 
     setAuthCookie(res, token);
-    res.json({ playerId: player.id, name: player.name, role: player.role, token });
+    const body: AuthResponse = { playerId: player.id, name: player.name, role: player.role, token };
+    res.json(body);
   } catch (err) {
     console.error('Login error', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -1211,14 +1252,15 @@ app.get('/api/admin/server-stats', authenticateAdmin, async (req, res): Promise<
   try {
     const playerCount = await pool.query('SELECT COUNT(*) FROM players');
     const sectorCount = await pool.query('SELECT COUNT(*) FROM sectors');
-    res.json({
+    const body: ServerStatsResponse = {
       uptime: process.uptime(),
       playersOnline: Object.keys(players).length,
       totalPlayers: parseInt(playerCount.rows[0].count, 10),
       totalSectors: parseInt(sectorCount.rows[0].count, 10),
       nodeVersion: process.version,
       platform: process.platform,
-    });
+    };
+    res.json(body);
   } catch (err) {
     res.status(500).json({ error: 'Internal server error' });
   }

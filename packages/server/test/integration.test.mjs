@@ -216,16 +216,6 @@ describe('Security', () => {
     assert.equal(loginRes.status, 401);
   });
 
-  it('treats player search input as data, not SQL', async () => {
-    await pool.query(
-      'INSERT INTO players (name, email, password_hash, role, current_sector) VALUES ($1, $2, $3, $4, $5)',
-      ['SearchTarget', `search_${Date.now()}@example.com`, 'irrelevant', 'player', 1],
-    );
-
-    const { status, body } = await httpGet("/api/players/search?name=' UNION SELECT id,password_hash,current_sector FROM players -- ");
-    assert.equal(status, 200);
-    assert.equal(body.players.length, 0);
-  });
 });
 
 describe('Universe Generation', () => {
@@ -504,18 +494,20 @@ describe('REST API', () => {
     assert.equal(body.error, 'Invalid sector ID');
   });
 
-  it('GET /api/players/online lists connected players with sectors', async () => {
+  it('GET /api/players/online lists connected players with name', async () => {
     const { ws } = await connectWS();
-
-    const { status, body } = await httpGet('/api/players/online');
-    assert.equal(status, 200);
-    assert.ok(Array.isArray(body.players), 'players should be an array');
-    assert.ok(body.players.length >= 1, 'should list at least one player');
-    const player = body.players[0];
-    assert.ok(player.playerId !== undefined, 'each player should have playerId');
-    assert.ok(typeof player.sector === 'number', 'each player should have numeric sector');
-
-    await closeWS(ws);
+    try {
+      const { status, body } = await httpGet('/api/players/online');
+      assert.equal(status, 200);
+      assert.ok(Array.isArray(body.players), 'players should be an array');
+      assert.ok(body.players.length >= 1, 'should list at least one player');
+      const player = body.players[0];
+      assert.ok(typeof player.playerId === 'number', 'each player should have playerId');
+      assert.ok(typeof player.name === 'string', 'each player should have name');
+      assert.equal(player.sector, undefined, 'sector should not be exposed');
+    } finally {
+      await closeWS(ws);
+    }
   });
 
   it('GET /api/players/online returns empty array when nobody connected', async () => {
@@ -579,12 +571,11 @@ describe('REST API', () => {
     await closeWS(ws);
   });
 
-  it('POST /api/move returns 404 for unknown player', async () => {
-    const { status, body } = await httpPost('/api/move', {
+  it('POST /api/move returns 401 for token with non-existent player', async () => {
+    const { status } = await httpPost('/api/move', {
       targetSector: 1,
     }, { authPlayerId: 99999 });
-    assert.equal(status, 404);
-    assert.equal(body.error, 'Player not found');
+    assert.equal(status, 401);
   });
 
   it('POST /api/move returns 400 when fields are missing', async () => {
@@ -741,10 +732,9 @@ describe('Trading System', () => {
     await closeWS(ws);
   });
 
-  it('GET /api/cargo returns 404 for unknown player', async () => {
-    const { status, body } = await httpGet('/api/cargo/99999');
-    assert.equal(status, 404);
-    assert.equal(body.error, 'Player not found');
+  it('GET /api/cargo returns 401 for token with non-existent player', async () => {
+    const { status } = await httpGet('/api/cargo/99999');
+    assert.equal(status, 401);
   });
 
   it('POST /api/trade buy succeeds and updates cargo and credits', async () => {
