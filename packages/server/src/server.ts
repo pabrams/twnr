@@ -550,7 +550,7 @@ app.get('/api/sector/:id', async (req, res): Promise<any> => {
         
         const body: SectorResponse = { id, warps };
         res.json(body);
-    } catch (error) {
+    } catch {
         res.status(500).json({ error: "Internal server error" });
     }
 });
@@ -667,7 +667,7 @@ app.get('/api/route/:from/:to', async (req, res): Promise<any> => {
         
         res.status(404).json({ error: "No route found" });
         
-    } catch (error) {
+    } catch {
         res.status(500).json({ error: "Internal server error" });
     }
 });
@@ -696,7 +696,7 @@ app.get('/api/port/:sectorId', async (req, res): Promise<any> => {
             equipment: p.equipment, equPrice: p.equ_price,
         };
         res.json(body);
-    } catch (error) {
+    } catch {
         res.status(500).json({ error: "Internal server error" });
     }
 });
@@ -743,7 +743,7 @@ app.get('/api/ship/:playerId', authenticateToken, async (req, res): Promise<any>
             holdsAvailable,
         };
         res.json(body);
-    } catch (error) {
+    } catch {
         res.status(500).json({ error: "Internal server error" });
     }
 });
@@ -763,7 +763,7 @@ app.get('/api/cargo/:playerId', authenticateToken, async (req, res): Promise<any
         const c = cargoRes.rows[0];
         const body: CargoResponse = { playerId: c.player_id, fuel: c.fuel, organics: c.organics, equipment: c.equipment, credits: c.credits };
         res.json(body);
-    } catch (error) {
+    } catch {
         res.status(500).json({ error: "Internal server error" });
     }
 });
@@ -947,7 +947,7 @@ app.post('/api/port/buy-fighters', authenticateToken, async (req, res): Promise<
 
         const body: BuyResponse = { success: true, credits: data.credits - cost, fighters: data.fighters + qty, shields: data.shields, cargoLimit: data.cargo_limit };
         res.json(body);
-    } catch (e) {
+    } catch {
         await client.query('ROLLBACK');
         res.status(500).json({ error: "Internal server error" });
     } finally {
@@ -1008,7 +1008,7 @@ app.post('/api/port/buy-shields', authenticateToken, async (req, res): Promise<a
 
         const body: BuyResponse = { success: true, credits: data.credits - cost, fighters: data.fighters, shields: data.shields + qty, cargoLimit: data.cargo_limit };
         res.json(body);
-    } catch (e) {
+    } catch {
         await client.query('ROLLBACK');
         res.status(500).json({ error: "Internal server error" });
     } finally {
@@ -1069,7 +1069,7 @@ app.post('/api/port/buy-holds', authenticateToken, async (req, res): Promise<any
 
         const body: BuyResponse = { success: true, credits: data.credits - cost, fighters: data.fighters, shields: data.shields, cargoLimit: data.cargo_limit + qty };
         res.json(body);
-    } catch (e) {
+    } catch {
         await client.query('ROLLBACK');
         res.status(500).json({ error: "Internal server error" });
     } finally {
@@ -1155,7 +1155,7 @@ app.post('/api/ship/exchange', authenticateToken, async (req, res): Promise<any>
             cargoLimit: newCargoLimit,
         };
         res.json(body);
-    } catch (e) {
+    } catch {
         await client.query('ROLLBACK');
         res.status(500).json({ error: "Internal server error" });
     } finally {
@@ -1263,7 +1263,7 @@ app.get('/api/admin/server-stats', authenticateAdmin, async (req, res): Promise<
       platform: process.platform,
     };
     res.json(body);
-  } catch (err) {
+  } catch {
     res.status(500).json({ error: 'Internal server error' });
   }
 });

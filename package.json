@@ -1,7 +1,15 @@
 {
   "private": true,
+  "type": "module",
   "scripts": {
     "build": "pnpm -r build",
-    "test": "pnpm --filter @twnr/server test"
+    "test": "pnpm lint && pnpm --filter @twnr/server test",
+    "lint": "eslint packages/*/src"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.57.2",
+    "@typescript-eslint/parser": "^8.57.2",
+    "eslint": "^10.1.0",
+    "eslint-plugin-n": "^17.24.0"
   }
 }
