@@ -8,6 +8,7 @@ import path from 'path';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { rateLimit } from 'express-rate-limit';
+import helmet from 'helmet';
 import type { AuthTokenPayload } from '@twnr/shared';
 
 function requireEnv(name: string): string {
@@ -268,6 +269,7 @@ try {
 }
 
 const app: ReturnType<typeof express> = express();
+app.use(helmet());
 app.use(express.json());
 const server: Server = createServer(app);
 const wss = new WebSocketServer({ server });
