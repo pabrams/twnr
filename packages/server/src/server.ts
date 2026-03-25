@@ -506,11 +506,8 @@ app.get('/api/sector/:id', async (req, res): Promise<any> => {
     }
 });
 
-app.get('/api/players/online', authenticateToken, (req, res) => {
-    const online = Object.entries(players).map(([idStr, p]) => ({
-        playerId: parseInt(idStr, 10),
-        sector: p.sector
-    }));
+app.get('/api/players/online', (_req, res) => {
+    const online = Object.keys(players).map(idStr => parseInt(idStr, 10));
     res.json({ players: online });
 });
 
@@ -1169,23 +1166,6 @@ app.post('/api/auth/login', loginLimiter, async (req, res): Promise<any> => {
   }
 });
 
-app.get('/api/players/search', authenticateToken, async (req, res): Promise<any> => {
-  const { name } = req.query;
-  if (typeof name !== 'string' || !name) {
-    return res.status(400).json({ error: 'name query parameter required' });
-  }
-
-  try {
-    const result = await pool.query(
-      'SELECT id, name, current_sector FROM players WHERE name ILIKE $1',
-      [`%${name}%`],
-    );
-    res.json({ players: result.rows });
-  } catch (err) {
-    console.error('Search error', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
 
 app.get('/api/admin/server-stats', authenticateAdmin, async (req, res): Promise<any> => {
   try {
