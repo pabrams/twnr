@@ -300,7 +300,7 @@ async function handleMove(ws: WebSocket, playerId: number, targetSector: number)
     const warps = await getGraph();
     const currentSector = player.sector;
 
-    if (!warps[currentSector] || !warps[currentSector].includes(targetSector)) {
+    if (!warps[currentSector]?.includes(targetSector)) {
         send(ws, { type: ServerMsgType.NonAdjacentMoveRequested, playerId, sector: targetSector });
         return;
     }
