@@ -12,7 +12,6 @@ import {
   waitForMsg,
   expectNoMsg,
   closeWS,
-  httpGet,
   httpPost,
   wsRequest,
   findPortSector,
@@ -829,11 +828,7 @@ describe('Trading System', () => {
     const r1 = await movePlayerTo(ws1, portSector.sectorId);
     const r2 = await movePlayerTo(ws2, portSector.sectorId);
     assert.ok(r1 && r2, 'Could not move both players to port');
-
-    const portBefore = await wsRequest(ws1, { type: 'portInfo', sectorId: portSector.sectorId }, 'portInfo');
-    const availableFuel = portBefore.fuel;
-    const buyAmount = Math.floor(availableFuel * 0.7);
-
+  
     // Find a port that sells fuel for this test
     // The port found by findPortSector may not sell fuel, so find one that does
     const sellingPort = await findPortSelling(ws1, 'fuel');

@@ -86,7 +86,6 @@ export async function connectWS(options = {}) {
 
   let token = providedToken;
   if (!token) {
-    // Create a player directly in the DB so we never touch the register rate limit
     const tmpPool = createPool();
     try {
       const ts = Date.now();
