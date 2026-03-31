@@ -19,6 +19,7 @@ export const ServerMsgType = {
     ShipExchangeResult: 'shipExchangeResult',
     Error: 'error',
 } as const;
+type ServerMsgType = typeof ServerMsgType;
 
 export const ClientMsgType = {
     Move: 'move',
@@ -35,6 +36,7 @@ export const ClientMsgType = {
     BuyHolds: 'buyHolds',
     ShipExchange: 'shipExchange',
 } as const;
+type ClientMsgType = typeof ClientMsgType;
 
 // Auth
 
