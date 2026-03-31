@@ -2,7 +2,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "pnpm -r build && pnpm docs",
+    "build": "pnpm -r run build && pnpm run docs",
     "test": "pnpm lint && pnpm format:check && pnpm --filter @twnr/server test",
     "lint": "eslint packages/*/src",
     "format": "prettier --write \"packages/*/src/**/*.ts\"",
