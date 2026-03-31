@@ -265,11 +265,11 @@ export async function movePlayerTo(ws, targetSector) {
   const disp = await wsRequest(ws, { type: 'display' }, 'sectorDisplay');
   if (disp.sector === targetSector) return true;
 
-  const routeRes = await wsRequest(ws, { type: 'route', from: disp.sector, to: targetSector }, 'routeResult');
-  if (routeRes.type === 'error') return false;
+  const pathRes = await wsRequest(ws, { type: 'path', from: disp.sector, to: targetSector }, 'pathResult');
+  if (pathRes.type === 'error') return false;
 
-  for (let i = 1; i < routeRes.path.length; i++) {
-    const moveMsg = await wsRequest(ws, { type: 'move', sector: routeRes.path[i] }, 'sectorDisplay');
+  for (let i = 1; i < pathRes.path.length; i++) {
+    const moveMsg = await wsRequest(ws, { type: 'move', sector: pathRes.path[i] }, 'sectorDisplay');
     if (moveMsg.type === 'error') return false;
   }
   return true;

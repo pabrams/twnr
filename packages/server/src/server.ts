@@ -251,8 +251,8 @@ async function handleMessage(ws: WebSocket, playerId: number, data: any): Promis
             return handleWho(ws);
         case 'sector':
             return handleSector(ws, data.id);
-        case 'route':
-            return handleRoute(ws, data.from, data.to);
+        case 'path':
+            return handlePath(ws, data.from, data.to);
         case 'port':
             return handlePort(ws, data.sectorId);
         case 'ship':
@@ -392,7 +392,7 @@ async function handleSector(ws: WebSocket, id: number): Promise<void> {
  * @param from - Origin sector ID
  * @param to - Destination sector ID
  */
-async function handleRoute(ws: WebSocket, from: number, to: number): Promise<void> {
+async function handlePath(ws: WebSocket, from: number, to: number): Promise<void> {
     if (!Number.isInteger(from) || from <= 0 || !Number.isInteger(to) || to <= 0) {
         send(ws, { type: 'error', message: 'Invalid sector ID' });
         return;
@@ -408,7 +408,7 @@ async function handleRoute(ws: WebSocket, from: number, to: number): Promise<voi
     }
 
     if (from === to) {
-        send(ws, { type: 'routeResult', path: [from], hops: 0 });
+        send(ws, { type: 'pathResult', path: [from], hops: 0 });
         return;
     }
 
@@ -423,7 +423,7 @@ async function handleRoute(ws: WebSocket, from: number, to: number): Promise<voi
         for (const neighbor of neighbors) {
             if (neighbor === to) {
                 const finalPath = [...path, neighbor];
-                send(ws, { type: 'routeResult', path: finalPath, hops: finalPath.length - 1 });
+                send(ws, { type: 'pathResult', path: finalPath, hops: finalPath.length - 1 });
                 return;
             }
             if (!visited.has(neighbor)) {
@@ -433,7 +433,7 @@ async function handleRoute(ws: WebSocket, from: number, to: number): Promise<voi
         }
     }
 
-    send(ws, { type: 'error', message: 'No route found' });
+    send(ws, { type: 'error', message: 'No path found' });
 }
 
 /**

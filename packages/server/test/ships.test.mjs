@@ -55,10 +55,10 @@ function startServer() {
 async function navigateTo(ws, targetSector) {
   const disp = await wsRequest(ws, { type: 'display' }, 'sectorDisplay');
   if (disp.sector === targetSector) return;
-  const route = await wsRequest(ws, { type: 'route', from: disp.sector, to: targetSector }, 'routeResult');
-  if (route.type === 'error') throw new Error(`No route to ${targetSector}`);
-  for (let i = 1; i < route.path.length; i++) {
-    await wsRequest(ws, { type: 'move', sector: route.path[i] }, 'sectorDisplay');
+  const path = await wsRequest(ws, { type: 'path', from: disp.sector, to: targetSector }, 'pathResult');
+  if (path.type === 'error') throw new Error(`No path to ${targetSector}`);
+  for (let i = 1; i < path.path.length; i++) {
+    await wsRequest(ws, { type: 'move', sector: path.path[i] }, 'sectorDisplay');
   }
 }
 

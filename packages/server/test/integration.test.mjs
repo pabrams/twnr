@@ -438,7 +438,7 @@ describe('WebSocket', () => {
   });
 });
 
-describe('Sector & Route Queries', () => {
+describe('Sector & Path Queries', () => {
   it('sector query returns sector data with warps', async () => {
     const { ws } = await connectWS();
     const msg = await wsRequest(ws, { type: 'sector', id: 1 }, 'sectorInfo');
@@ -465,13 +465,13 @@ describe('Sector & Route Queries', () => {
     await closeWS(ws);
   });
 
-  it('route query returns shortest path between connected sectors', async () => {
+  it('path query returns shortest path between connected sectors', async () => {
     const { ws } = await connectWS();
     const sectorMsg = await wsRequest(ws, { type: 'sector', id: 1 }, 'sectorInfo');
     const target = sectorMsg.warps[0];
 
-    const msg = await wsRequest(ws, { type: 'route', from: 1, to: target }, 'routeResult');
-    assert.equal(msg.type, 'routeResult');
+    const msg = await wsRequest(ws, { type: 'path', from: 1, to: target }, 'pathResult');
+    assert.equal(msg.type, 'pathResult');
     assert.ok(Array.isArray(msg.path), 'path should be an array');
     assert.equal(msg.path[0], 1, 'path should start with origin sector');
     assert.equal(msg.path[msg.path.length - 1], target, 'path should end with target sector');
@@ -481,45 +481,45 @@ describe('Sector & Route Queries', () => {
     await closeWS(ws);
   });
 
-  it('route query with same start and end returns single-element path', async () => {
+  it('path query with same start and end returns single-element path', async () => {
     const { ws } = await connectWS();
-    const msg = await wsRequest(ws, { type: 'route', from: 1, to: 1 }, 'routeResult');
-    assert.equal(msg.type, 'routeResult');
+    const msg = await wsRequest(ws, { type: 'path', from: 1, to: 1 }, 'pathResult');
+    assert.equal(msg.type, 'pathResult');
     assert.deepStrictEqual(msg.path, [1]);
     assert.equal(msg.hops, 0);
     await closeWS(ws);
   });
 
-  it('route query returns error for invalid parameters', async () => {
+  it('path query returns error for invalid parameters', async () => {
     const { ws } = await connectWS();
-    const msg = await wsRequest(ws, { type: 'route', from: -1, to: 1 }, 'routeResult');
+    const msg = await wsRequest(ws, { type: 'path', from: -1, to: 1 }, 'pathResult');
     assert.equal(msg.type, 'error');
     assert.equal(msg.message, 'Invalid sector ID');
     await closeWS(ws);
   });
 
-  it('route query returns error for nonexistent sectors', async () => {
+  it('path query returns error for nonexistent sectors', async () => {
     const { ws } = await connectWS();
-    const msg = await wsRequest(ws, { type: 'route', from: 1, to: 9999 }, 'routeResult');
+    const msg = await wsRequest(ws, { type: 'path', from: 1, to: 9999 }, 'pathResult');
     assert.equal(msg.type, 'error');
     assert.equal(msg.message, 'Sector not found');
     await closeWS(ws);
   });
 
-  it('route query returns error when no path exists', async () => {
+  it('path query returns error when no path exists', async () => {
     await pool.query('INSERT INTO sectors (id) VALUES (999) ON CONFLICT DO NOTHING');
     await pool.query('DELETE FROM warps WHERE sector_from = 999 OR sector_to = 999');
 
     const { ws } = await connectWS();
-    const msg = await wsRequest(ws, { type: 'route', from: 1, to: 999 }, 'routeResult');
+    const msg = await wsRequest(ws, { type: 'path', from: 1, to: 999 }, 'pathResult');
     assert.equal(msg.type, 'error');
-    assert.equal(msg.message, 'No route found');
+    assert.equal(msg.message, 'No path found');
     await closeWS(ws);
 
     await pool.query('DELETE FROM sectors WHERE id = 999');
   });
 
-  it('route respects directed warps', async () => {
+  it('path respects directed warps', async () => {
     const { ws } = await connectWS();
     let found = false;
     for (let from = 1; from <= 100; from++) {
@@ -528,10 +528,10 @@ describe('Sector & Route Queries', () => {
       for (const to of res.warps) {
         const reverse = await wsRequest(ws, { type: 'sector', id: to }, 'sectorInfo');
         if (reverse.type === 'sectorInfo' && !reverse.warps.includes(from)) {
-          const route = await wsRequest(ws, { type: 'route', from: to, to: from }, 'routeResult');
-          if (route.type === 'routeResult') {
-            assert.ok(route.hops > 1,
-              `Route from ${to} to ${from} should not be 1 hop since no direct warp exists`);
+          const path = await wsRequest(ws, { type: 'path', from: to, to: from }, 'pathResult');
+          if (path.type === 'pathResult') {
+            assert.ok(path.hops > 1,
+              `Path from ${to} to ${from} should not be 1 hop since no direct warp exists`);
           }
           found = true;
           break;

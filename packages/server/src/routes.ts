@@ -1,7 +1,12 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import { pool } from './db.js';
-import type { AuthTokenPayload, AuthResponse, LogoutResponse, ServerStatsResponse } from '@twnr/shared';
+import type {
+    AuthTokenPayload,
+    AuthResponse,
+    LogoutResponse,
+    ServerStatsResponse,
+} from '@twnr/shared';
 
 interface RouteDeps {
     hashPassword: (password: string) => string;
@@ -45,7 +50,11 @@ export function createRoutes(deps: RouteDeps): Router {
      * with 401 (no credentials) or 403 (invalid/revoked token). Also checks the
      * token version against the database to detect revocations.
      */
-    async function authenticateToken(req: Request, res: Response, next: NextFunction): Promise<void> {
+    async function authenticateToken(
+        req: Request,
+        res: Response,
+        next: NextFunction,
+    ): Promise<void> {
         const jwtToken = getJwtToken(req);
         if (!jwtToken) {
             res.status(401).json({ error: 'Authentication required' });

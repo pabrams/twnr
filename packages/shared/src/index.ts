@@ -61,8 +61,8 @@ export type SectorInfoMessage = {
     warps: number[];
 };
 
-export type RouteResultMessage = {
-    type: 'routeResult';
+export type PathResultMessage = {
+    type: 'pathResult';
     path: number[];
     hops: number;
 };
@@ -142,7 +142,7 @@ export type ServerMessage =
     | NonAdjacentMoveMessage
     | RateLimitedMessage
     | SectorInfoMessage
-    | RouteResultMessage
+    | PathResultMessage
     | PortInfoMessage
     | ShipInfoMessage
     | CargoInfoMessage
@@ -171,8 +171,8 @@ export type SectorQueryMessage = {
     id: number;
 };
 
-export type RouteQueryMessage = {
-    type: 'route';
+export type PathQueryMessage = {
+    type: 'path';
     from: number;
     to: number;
 };
@@ -222,7 +222,7 @@ export type ClientMessage =
     | DisplayMessage
     | WhoMessage
     | SectorQueryMessage
-    | RouteQueryMessage
+    | PathQueryMessage
     | PortQueryMessage
     | ShipQueryMessage
     | CargoQueryMessage
