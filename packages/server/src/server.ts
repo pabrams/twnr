@@ -258,7 +258,7 @@ async function handleMessage(ws: WebSocket, playerId: number, data: any): Promis
             return handlePortInfo(ws, data.sectorId);
         case ClientMsgType.Ship:
             return handleShip(ws, playerId);
-        case ClientMsgType.Cargo:
+        case ClientMsgType.CargoInfo:
             return handleCargo(ws, playerId);
         case ClientMsgType.PortTransaction:
             return handlePortTransaction(ws, playerId, data.good, data.quantity, data.action);

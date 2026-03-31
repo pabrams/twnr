@@ -2,6 +2,12 @@
   "name": "@twnr/server",
   "version": "0.0.1",
   "type": "module",
+  "main": "./dist/server.js",
+  "exports": {
+    ".": {
+      "import": "./dist/server.js"
+    }
+  },
   "dependencies": {
     "@twnr/shared": "workspace:*",
     "express": "^5.2.1",

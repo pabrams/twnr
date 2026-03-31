@@ -615,7 +615,7 @@ describe('Trading System', () => {
 
   it('cargo query returns cargo and credits', async () => {
     const { ws, welcome } = await connectWS();
-    const msg = await wsRequest(ws, { type: 'cargo' }, 'cargoInfo');
+    const msg = await wsRequest(ws, { type: 'cargoInfo' }, 'cargoInfo');
     assert.equal(msg.type, 'cargoInfo');
     assert.equal(msg.playerId, welcome.playerId);
     assert.equal(msg.credits, 10000);

@@ -2,6 +2,12 @@
   "name": "@twnr/client",
   "version": "0.0.1",
   "type": "module",
+  "main": "./src/main.ts",
+  "exports": {
+    ".": {
+      "import": "./src/main.ts"
+    }
+  },
   "dependencies": {
     "@twnr/shared": "workspace:*",
     "@xterm/xterm": "^5.5.0",

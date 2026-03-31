@@ -28,7 +28,7 @@ export const ClientMsgType = {
     Path: 'path',
     PortInfo: 'portInfo',
     Ship: 'ship',
-    Cargo: 'cargo',
+    CargoInfo: 'cargoInfo',
     PortTransaction: 'portTransaction',
     BuyFighters: 'buyFighters',
     BuyShields: 'buyShields',
@@ -224,8 +224,8 @@ export type ShipQueryMessage = {
     type: typeof ClientMsgType.Ship;
 };
 
-export type CargoQueryMessage = {
-    type: typeof ClientMsgType.Cargo;
+export type CargoInfoQueryMessage = {
+    type: typeof ClientMsgType.CargoInfo;
 };
 
 export type TradeMessage = {
@@ -263,7 +263,7 @@ export type ClientMessage =
     | PathQueryMessage
     | PortQueryMessage
     | ShipQueryMessage
-    | CargoQueryMessage
+    | CargoInfoQueryMessage
     | TradeMessage
     | BuyFightersMessage
     | BuyShieldsMessage
