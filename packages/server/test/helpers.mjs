@@ -233,7 +233,7 @@ const PORT_CLASS_ACTIONS = {
 
 export async function findPortSector(ws) {
   for (let i = 1; i <= 100; i++) {
-    const res = await wsRequest(ws, { type: 'port', sectorId: i }, 'portInfo');
+    const res = await wsRequest(ws, { type: 'portInfo', sectorId: i }, 'portInfo');
     if (res.type === 'portInfo') return { sectorId: i, port: res };
   }
   return null;
@@ -241,7 +241,7 @@ export async function findPortSector(ws) {
 
 export async function findPortSelling(ws, good) {
   for (let i = 1; i <= 100; i++) {
-    const res = await wsRequest(ws, { type: 'port', sectorId: i }, 'portInfo');
+    const res = await wsRequest(ws, { type: 'portInfo', sectorId: i }, 'portInfo');
     if (res.type === 'portInfo') {
       const actions = PORT_CLASS_ACTIONS[res.class];
       if (actions && actions[good] === 'S') return { sectorId: i, port: res };
@@ -252,7 +252,7 @@ export async function findPortSelling(ws, good) {
 
 export async function findPortBuying(ws, good) {
   for (let i = 1; i <= 100; i++) {
-    const res = await wsRequest(ws, { type: 'port', sectorId: i }, 'portInfo');
+    const res = await wsRequest(ws, { type: 'portInfo', sectorId: i }, 'portInfo');
     if (res.type === 'portInfo') {
       const actions = PORT_CLASS_ACTIONS[res.class];
       if (actions && actions[good] === 'B') return { sectorId: i, port: res };

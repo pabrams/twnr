@@ -9,12 +9,12 @@ export const ServerMsgType = {
     NoShip: 'noShip',
     NonAdjacentMoveRequested: 'nonAdjacentMoveRequested',
     RateLimited: 'rateLimited',
-    SectorInfo: 'sectorInfo',
+    SectorWarps: 'sectorWarps',
     PathResult: 'pathResult',
     PortInfo: 'portInfo',
     ShipInfo: 'shipInfo',
     CargoInfo: 'cargoInfo',
-    TradeResult: 'tradeResult',
+    PortTransactionResult: 'portTransactionResult',
     BuyResult: 'buyResult',
     ShipExchangeResult: 'shipExchangeResult',
     Error: 'error',
@@ -24,12 +24,12 @@ export const ClientMsgType = {
     Move: 'move',
     Display: 'display',
     Who: 'who',
-    Sector: 'sector',
+    SectorWarps: 'sector',
     Path: 'path',
-    Port: 'port',
+    PortInfo: 'portInfo',
     Ship: 'ship',
     Cargo: 'cargo',
-    Trade: 'trade',
+    PortTransaction: 'portTransaction',
     BuyFighters: 'buyFighters',
     BuyShields: 'buyShields',
     BuyHolds: 'buyHolds',
@@ -93,8 +93,8 @@ export type RateLimitedMessage = {
     type: typeof ServerMsgType.RateLimited;
 };
 
-export type SectorInfoMessage = {
-    type: typeof ServerMsgType.SectorInfo;
+export type SectorWarpsMessage = {
+    type: typeof ServerMsgType.SectorWarps;
     id: number;
     warps: number[];
 };
@@ -142,8 +142,8 @@ export type CargoInfoMessage = {
     credits: number;
 };
 
-export type TradeResultMessage = {
-    type: typeof ServerMsgType.TradeResult;
+export type portTransactionResultMessage = {
+    type: typeof ServerMsgType.PortTransactionResult;
     credits: number;
     cargo: { fuel: number; organics: number; equipment: number };
 };
@@ -179,12 +179,12 @@ export type ServerMessage =
     | NoShipMessage
     | NonAdjacentMoveMessage
     | RateLimitedMessage
-    | SectorInfoMessage
+    | SectorWarpsMessage
     | PathResultMessage
     | PortInfoMessage
     | ShipInfoMessage
     | CargoInfoMessage
-    | TradeResultMessage
+    | portTransactionResultMessage
     | BuyResultMessage
     | ShipExchangeResultMessage
     | ErrorMessage;
@@ -205,7 +205,7 @@ export type WhoMessage = {
 };
 
 export type SectorQueryMessage = {
-    type: typeof ClientMsgType.Sector;
+    type: typeof ClientMsgType.SectorWarps;
     id: number;
 };
 
@@ -216,7 +216,7 @@ export type PathQueryMessage = {
 };
 
 export type PortQueryMessage = {
-    type: typeof ClientMsgType.Port;
+    type: typeof ClientMsgType.PortInfo;
     sectorId: number;
 };
 
@@ -229,7 +229,7 @@ export type CargoQueryMessage = {
 };
 
 export type TradeMessage = {
-    type: typeof ClientMsgType.Trade;
+    type: typeof ClientMsgType.PortTransaction;
     good: string;
     quantity: number;
     action: 'buy' | 'sell';

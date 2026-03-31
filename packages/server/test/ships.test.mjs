@@ -281,7 +281,7 @@ describe('Trade at class 0 port', () => {
     // New players start at sector 1, which has a class 0 port
     const { ws } = await connectWS();
     try {
-      const msg = await wsRequest(ws, { type: 'trade', good: 'fuel', quantity: 1, action: 'buy' }, 'tradeResult');
+      const msg = await wsRequest(ws, { type: 'portTransaction', good: 'fuel', quantity: 1, action: 'buy' }, 'portTransactionResult');
       assert.equal(msg.type, 'error');
     } finally {
       await closeWS(ws);
@@ -293,7 +293,7 @@ describe('Trade at class 0 port', () => {
     const playerId = welcome.playerId;
     try {
       await pool.query('UPDATE ship_cargo SET fuel = 3 WHERE player_id = $1', [playerId]);
-      const msg = await wsRequest(ws, { type: 'trade', good: 'fuel', quantity: 1, action: 'sell' }, 'tradeResult');
+      const msg = await wsRequest(ws, { type: 'portTransaction', good: 'fuel', quantity: 1, action: 'sell' }, 'portTransactionResult');
       assert.equal(msg.type, 'error');
     } finally {
       await closeWS(ws);
@@ -310,7 +310,7 @@ describe('Cargo hold enforcement', () => {
     try {
       await navigateTo(ws, fuelSector);
       // cargo_limit is 5; try to buy 6
-      const msg = await wsRequest(ws, { type: 'trade', good: 'fuel', quantity: 6, action: 'buy' }, 'tradeResult');
+      const msg = await wsRequest(ws, { type: 'portTransaction', good: 'fuel', quantity: 6, action: 'buy' }, 'portTransactionResult');
       assert.equal(msg.type, 'error');
       assert.equal(msg.message, 'Insufficient cargo holds');
     } finally {
@@ -325,8 +325,8 @@ describe('Cargo hold enforcement', () => {
     const { ws } = await connectWS();
     try {
       await navigateTo(ws, fuelSector);
-      const msg = await wsRequest(ws, { type: 'trade', good: 'fuel', quantity: 5, action: 'buy' }, 'tradeResult');
-      assert.equal(msg.type, 'tradeResult', 'buying exactly cargo_limit should succeed');
+      const msg = await wsRequest(ws, { type: 'portTransaction', good: 'fuel', quantity: 5, action: 'buy' }, 'portTransactionResult');
+      assert.equal(msg.type, 'portTransactionResult', 'buying exactly cargo_limit should succeed');
     } finally {
       await closeWS(ws);
     }
@@ -339,8 +339,8 @@ describe('Cargo hold enforcement', () => {
     const { ws } = await connectWS();
     try {
       await navigateTo(ws, fuelSector);
-      await wsRequest(ws, { type: 'trade', good: 'fuel', quantity: 5, action: 'buy' }, 'tradeResult');
-      const msg = await wsRequest(ws, { type: 'trade', good: 'fuel', quantity: 1, action: 'buy' }, 'tradeResult');
+      await wsRequest(ws, { type: 'portTransaction', good: 'fuel', quantity: 5, action: 'buy' }, 'portTransactionResult');
+      const msg = await wsRequest(ws, { type: 'portTransaction', good: 'fuel', quantity: 1, action: 'buy' }, 'portTransactionResult');
       assert.equal(msg.type, 'error');
       assert.equal(msg.message, 'Insufficient cargo holds');
     } finally {
@@ -700,7 +700,7 @@ describe('Buy equipment — success', () => {
       await pool.query('UPDATE ship_cargo SET fuel = 2, organics = 2 WHERE player_id = $1', [playerId]);
       await navigateTo(ws, fuelSector);
       // Buying 2 more fuel: 2+2+2 = 6 > cargoLimit(5) — should fail
-      const msg = await wsRequest(ws, { type: 'trade', good: 'fuel', quantity: 2, action: 'buy' }, 'tradeResult');
+      const msg = await wsRequest(ws, { type: 'portTransaction', good: 'fuel', quantity: 2, action: 'buy' }, 'portTransactionResult');
       assert.equal(msg.type, 'error');
       assert.equal(msg.message, 'Insufficient cargo holds');
     } finally {
@@ -724,7 +724,7 @@ describe('Buy equipment — success', () => {
 
       // Navigate to fuel port and try to buy 2 fuel — exceeds new cargoLimit of 1
       await navigateTo(ws, fuelSector);
-      const msg = await wsRequest(ws, { type: 'trade', good: 'fuel', quantity: 2, action: 'buy' }, 'tradeResult');
+      const msg = await wsRequest(ws, { type: 'portTransaction', good: 'fuel', quantity: 2, action: 'buy' }, 'portTransactionResult');
       assert.equal(msg.type, 'error');
       assert.equal(msg.message, 'Insufficient cargo holds');
     } finally {
@@ -745,8 +745,8 @@ describe('Buy equipment — success', () => {
 
       // Navigate to fuel seller and buy 8 units (should succeed now)
       await navigateTo(ws, fuelSector);
-      const msg = await wsRequest(ws, { type: 'trade', good: 'fuel', quantity: 8, action: 'buy' }, 'tradeResult');
-      assert.equal(msg.type, 'tradeResult', 'should be able to buy 8 fuel after buying 3 extra holds');
+      const msg = await wsRequest(ws, { type: 'portTransaction', good: 'fuel', quantity: 8, action: 'buy' }, 'portTransactionResult');
+      assert.equal(msg.type, 'portTransactionResult', 'should be able to buy 8 fuel after buying 3 extra holds');
     } finally {
       await closeWS(ws);
     }
@@ -861,7 +861,7 @@ describe('Ship info — dynamic state', () => {
     const fuelQty = 3;
     try {
       await navigateTo(ws, fuelSector);
-      await wsRequest(ws, { type: 'trade', good: 'fuel', quantity: fuelQty, action: 'buy' }, 'tradeResult');
+      await wsRequest(ws, { type: 'portTransaction', good: 'fuel', quantity: fuelQty, action: 'buy' }, 'portTransactionResult');
 
       const msg = await wsRequest(ws, { type: 'ship' }, 'shipInfo');
       assert.equal(msg.type, 'shipInfo');
@@ -979,8 +979,8 @@ describe('Existing feature regression', () => {
     try {
       await pool.query('UPDATE ship_cargo SET fuel = 3 WHERE player_id = $1', [playerId]);
       await navigateTo(ws, fuelSector);
-      const msg = await wsRequest(ws, { type: 'trade', good: 'fuel', quantity: 2, action: 'sell' }, 'tradeResult');
-      assert.equal(msg.type, 'tradeResult');
+      const msg = await wsRequest(ws, { type: 'portTransaction', good: 'fuel', quantity: 2, action: 'sell' }, 'portTransactionResult');
+      assert.equal(msg.type, 'portTransactionResult');
     } finally {
       await closeWS(ws);
     }

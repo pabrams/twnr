@@ -250,18 +250,18 @@ async function handleMessage(ws: WebSocket, playerId: number, data: any): Promis
             return handleDisplay(ws, playerId);
         case ClientMsgType.Who:
             return handleWho(ws);
-        case ClientMsgType.Sector:
-            return handleSector(ws, data.id);
+        case ClientMsgType.SectorWarps:
+            return handleSectorWarps(ws, data.id);
         case ClientMsgType.Path:
             return handlePath(ws, data.from, data.to);
-        case ClientMsgType.Port:
-            return handlePort(ws, data.sectorId);
+        case ClientMsgType.PortInfo:
+            return handlePortInfo(ws, data.sectorId);
         case ClientMsgType.Ship:
             return handleShip(ws, playerId);
         case ClientMsgType.Cargo:
             return handleCargo(ws, playerId);
-        case ClientMsgType.Trade:
-            return handleTrade(ws, playerId, data.good, data.quantity, data.action);
+        case ClientMsgType.PortTransaction:
+            return handlePortTransaction(ws, playerId, data.good, data.quantity, data.action);
         case ClientMsgType.BuyFighters:
             return handleBuyFighters(ws, playerId, data.quantity);
         case ClientMsgType.BuyShields:
@@ -273,6 +273,14 @@ async function handleMessage(ws: WebSocket, playerId: number, data: any): Promis
         default:
             send(ws, { type: ServerMsgType.Error, message: 'Unknown message type' });
     }
+}
+
+/**
+ * Sends a list of all currently connected player IDs.
+ */
+function handleWho(ws: WebSocket): void {
+    const playersKeys = Object.keys(players).map(Number);
+    send(ws, { type: ServerMsgType.PlayersOnline, players: playersKeys });
 }
 
 /**
@@ -360,18 +368,10 @@ async function handleDisplay(ws: WebSocket, playerId: number): Promise<void> {
 }
 
 /**
- * Sends a list of all currently connected player IDs.
- */
-function handleWho(ws: WebSocket): void {
-    const playersKeys = Object.keys(players).map(Number);
-    send(ws, { type: ServerMsgType.PlayersOnline, players: playersKeys });
-}
-
-/**
  * Returns a sector's outbound warp connections.
  * @param id - The sector ID to look up
  */
-async function handleSector(ws: WebSocket, id: number): Promise<void> {
+async function handleSectorWarps(ws: WebSocket, id: number): Promise<void> {
     if (!Number.isInteger(id) || id <= 0) {
         send(ws, { type: ServerMsgType.Error, message: 'Invalid sector ID' });
         return;
@@ -385,7 +385,7 @@ async function handleSector(ws: WebSocket, id: number): Promise<void> {
 
     const warpsRes = await pool.query('SELECT sector_to FROM warps WHERE sector_from = $1', [id]);
     const warps = warpsRes.rows.map((r) => r.sector_to);
-    send(ws, { type: ServerMsgType.SectorInfo, id, warps });
+    send(ws, { type: ServerMsgType.SectorWarps, id, warps });
 }
 
 /**
@@ -445,7 +445,7 @@ async function handlePath(ws: WebSocket, from: number, to: number): Promise<void
  * Returns port details for a sector, including class, inventory, and prices.
  * @param sectorId - The sector ID to look up
  */
-async function handlePort(ws: WebSocket, sectorId: number): Promise<void> {
+async function handlePortInfo(ws: WebSocket, sectorId: number): Promise<void> {
     if (!Number.isInteger(sectorId) || sectorId <= 0) {
         send(ws, { type: ServerMsgType.Error, message: 'Invalid sector ID' });
         return;
@@ -548,7 +548,7 @@ async function handleCargo(ws: WebSocket, playerId: number): Promise<void> {
  * @param quantity - Number of units to trade
  * @param action - `buy` (from port) or `sell` (to port)
  */
-async function handleTrade(
+async function handlePortTransaction(
     ws: WebSocket,
     playerId: number,
     good: string,
@@ -672,7 +672,7 @@ async function handleTrade(
             cargo[good] += qty;
             cargo.credits -= cost;
             send(ws, {
-                type: ServerMsgType.TradeResult,
+                type: ServerMsgType.PortTransactionResult,
                 credits: cargo.credits,
                 cargo: { fuel: cargo.fuel, organics: cargo.organics, equipment: cargo.equipment },
             });
@@ -697,7 +697,7 @@ async function handleTrade(
             cargo[good] -= qty;
             cargo.credits += revenue;
             send(ws, {
-                type: ServerMsgType.TradeResult,
+                type: ServerMsgType.PortTransactionResult,
                 credits: cargo.credits,
                 cargo: { fuel: cargo.fuel, organics: cargo.organics, equipment: cargo.equipment },
             });
