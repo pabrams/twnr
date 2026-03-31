@@ -1,3 +1,41 @@
+// Message type constants
+
+export const ServerMsgType = {
+    Welcome: 'welcome',
+    PlayerMoved: 'playerMoved',
+    SectorDisplay: 'sectorDisplay',
+    PlayerLeft: 'playerLeft',
+    PlayersOnline: 'playersOnline',
+    NoShip: 'noShip',
+    NonAdjacentMoveRequested: 'nonAdjacentMoveRequested',
+    RateLimited: 'rateLimited',
+    SectorInfo: 'sectorInfo',
+    PathResult: 'pathResult',
+    PortInfo: 'portInfo',
+    ShipInfo: 'shipInfo',
+    CargoInfo: 'cargoInfo',
+    TradeResult: 'tradeResult',
+    BuyResult: 'buyResult',
+    ShipExchangeResult: 'shipExchangeResult',
+    Error: 'error',
+} as const;
+
+export const ClientMsgType = {
+    Move: 'move',
+    Display: 'display',
+    Who: 'who',
+    Sector: 'sector',
+    Path: 'path',
+    Port: 'port',
+    Ship: 'ship',
+    Cargo: 'cargo',
+    Trade: 'trade',
+    BuyFighters: 'buyFighters',
+    BuyShields: 'buyShields',
+    BuyHolds: 'buyHolds',
+    ShipExchange: 'shipExchange',
+} as const;
+
 // Auth
 
 export type AuthTokenPayload = {
@@ -10,7 +48,7 @@ export type AuthTokenPayload = {
 // WebSocket messages (server → client)
 
 export type WelcomeMessage = {
-    type: 'welcome';
+    type: typeof ServerMsgType.Welcome;
     playerId: number;
     name: string;
     sector: number;
@@ -18,57 +56,57 @@ export type WelcomeMessage = {
 };
 
 export type PlayerMovedMessage = {
-    type: 'playerMoved';
+    type: typeof ServerMsgType.PlayerMoved;
     playerId: number;
     sector: number;
     direction: 'in' | 'out';
 };
 
 export type SectorDisplayMessage = {
-    type: 'sectorDisplay';
+    type: typeof ServerMsgType.SectorDisplay;
     sector: number;
     players: number[];
     warps: number[];
 };
 
 export type PlayerLeftMessage = {
-    type: 'playerLeft';
+    type: typeof ServerMsgType.PlayerLeft;
     playerId: number;
 };
 
 export type PlayersOnlineMessage = {
-    type: 'playersOnline';
+    type: typeof ServerMsgType.PlayersOnline;
     players: number[];
 };
 
 export type NoShipMessage = {
-    type: 'noShip';
+    type: typeof ServerMsgType.NoShip;
 };
 
 export type NonAdjacentMoveMessage = {
-    type: 'nonAdjacentMoveRequested';
+    type: typeof ServerMsgType.NonAdjacentMoveRequested;
     playerId: number;
     sector: number;
 };
 
 export type RateLimitedMessage = {
-    type: 'rateLimited';
+    type: typeof ServerMsgType.RateLimited;
 };
 
 export type SectorInfoMessage = {
-    type: 'sectorInfo';
+    type: typeof ServerMsgType.SectorInfo;
     id: number;
     warps: number[];
 };
 
 export type PathResultMessage = {
-    type: 'pathResult';
+    type: typeof ServerMsgType.PathResult;
     path: number[];
     hops: number;
 };
 
 export type PortInfoMessage = {
-    type: 'portInfo';
+    type: typeof ServerMsgType.PortInfo;
     sectorId: number;
     class: number;
     fuel: number;
@@ -80,7 +118,7 @@ export type PortInfoMessage = {
 };
 
 export type ShipInfoMessage = {
-    type: 'shipInfo';
+    type: typeof ServerMsgType.ShipInfo;
     playerId: number;
     shipName: string;
     fighters: number;
@@ -96,7 +134,7 @@ export type ShipInfoMessage = {
 };
 
 export type CargoInfoMessage = {
-    type: 'cargoInfo';
+    type: typeof ServerMsgType.CargoInfo;
     playerId: number;
     fuel: number;
     organics: number;
@@ -105,13 +143,13 @@ export type CargoInfoMessage = {
 };
 
 export type TradeResultMessage = {
-    type: 'tradeResult';
+    type: typeof ServerMsgType.TradeResult;
     credits: number;
     cargo: { fuel: number; organics: number; equipment: number };
 };
 
 export type BuyResultMessage = {
-    type: 'buyResult';
+    type: typeof ServerMsgType.BuyResult;
     credits: number;
     fighters: number;
     shields: number;
@@ -119,7 +157,7 @@ export type BuyResultMessage = {
 };
 
 export type ShipExchangeResultMessage = {
-    type: 'shipExchangeResult';
+    type: typeof ServerMsgType.ShipExchangeResult;
     shipName: string;
     credits: number;
     maxFighters: number;
@@ -128,7 +166,7 @@ export type ShipExchangeResultMessage = {
 };
 
 export type ErrorMessage = {
-    type: 'error';
+    type: typeof ServerMsgType.Error;
     message: string;
 };
 
@@ -154,66 +192,66 @@ export type ServerMessage =
 // WebSocket messages (client → server)
 
 export type MoveMessage = {
-    type: 'move';
+    type: typeof ClientMsgType.Move;
     sector: number;
 };
 
 export type DisplayMessage = {
-    type: 'display';
+    type: typeof ClientMsgType.Display;
 };
 
 export type WhoMessage = {
-    type: 'who';
+    type: typeof ClientMsgType.Who;
 };
 
 export type SectorQueryMessage = {
-    type: 'sector';
+    type: typeof ClientMsgType.Sector;
     id: number;
 };
 
 export type PathQueryMessage = {
-    type: 'path';
+    type: typeof ClientMsgType.Path;
     from: number;
     to: number;
 };
 
 export type PortQueryMessage = {
-    type: 'port';
+    type: typeof ClientMsgType.Port;
     sectorId: number;
 };
 
 export type ShipQueryMessage = {
-    type: 'ship';
+    type: typeof ClientMsgType.Ship;
 };
 
 export type CargoQueryMessage = {
-    type: 'cargo';
+    type: typeof ClientMsgType.Cargo;
 };
 
 export type TradeMessage = {
-    type: 'trade';
+    type: typeof ClientMsgType.Trade;
     good: string;
     quantity: number;
     action: 'buy' | 'sell';
 };
 
 export type BuyFightersMessage = {
-    type: 'buyFighters';
+    type: typeof ClientMsgType.BuyFighters;
     quantity: number;
 };
 
 export type BuyShieldsMessage = {
-    type: 'buyShields';
+    type: typeof ClientMsgType.BuyShields;
     quantity: number;
 };
 
 export type BuyHoldsMessage = {
-    type: 'buyHolds';
+    type: typeof ClientMsgType.BuyHolds;
     quantity: number;
 };
 
 export type ShipExchangeMessage = {
-    type: 'shipExchange';
+    type: typeof ClientMsgType.ShipExchange;
     targetShipName: string;
 };
 

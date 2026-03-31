@@ -1,6 +1,7 @@
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
+import { ServerMsgType, ClientMsgType } from '@twnr/shared';
 import type { ServerMessage, ClientMessage } from '@twnr/shared';
 
 const term = new Terminal({
@@ -30,17 +31,17 @@ ws.addEventListener('open', () => {
 ws.addEventListener('message', (event) => {
     const msg: ServerMessage = JSON.parse(event.data);
     switch (msg.type) {
-        case 'welcome':
+        case ServerMsgType.Welcome:
             term.writeln(`\r\nWelcome, ${msg.name}. You are in sector ${msg.sector}.`);
             break;
-        case 'playerMoved':
+        case ServerMsgType.PlayerMoved:
             if (msg.direction === 'in') {
                 term.writeln(`\r\nPlayer ${msg.playerId} warped into the sector.`);
             } else {
                 term.writeln(`\r\nPlayer ${msg.playerId} warped out of the sector.`);
             }
             break;
-        case 'sectorDisplay':
+        case ServerMsgType.SectorDisplay:
             term.writeln(`\r\nSector ${msg.sector} — warps: ${msg.warps.join(', ')}`);
             break;
     }
@@ -89,19 +90,19 @@ function handleInput(line: string) {
     const [cmd, ...args] = line.split(/\s+/);
     if (/^\d+$/.test(cmd)) {
         const sector = parseInt(cmd, 10);
-        sendMsg({ type: 'move', sector });
+        sendMsg({ type: ClientMsgType.Move, sector });
         return;
     }
     switch (cmd.toLowerCase()) {
         case '':
         case 'd':
         case 'display':
-            sendMsg({ type: 'display' });
+            sendMsg({ type: ClientMsgType.Display });
             break;
         case 'm':
         case 'move': {
             const sector = parseInt(args[0], 10);
-            if (!isNaN(sector)) sendMsg({ type: 'move', sector });
+            if (!isNaN(sector)) sendMsg({ type: ClientMsgType.Move, sector });
             else term.writeln('Usage: move <sector>');
             break;
         }
