@@ -256,10 +256,10 @@ export async function handleMessage(ws: WebSocket, playerId: number, data: any):
             return handlePath(ws, data.from, data.to);
         case ClientMsgType.PortInfo:
             return handlePortInfo(ws, data.sectorId);
-        case ClientMsgType.Ship:
-            return handleShip(ws, playerId);
+        case ClientMsgType.ShipInfo:
+            return handleShipInfo(ws, playerId);
         case ClientMsgType.CargoInfo:
-            return handleCargo(ws, playerId);
+            return handleCargoInfo(ws, playerId);
         case ClientMsgType.PortTransaction:
             return handlePortTransaction(ws, playerId, data.good, data.quantity, data.action);
         case ClientMsgType.BuyFighters:
@@ -288,7 +288,11 @@ function handleWho(ws: WebSocket): void {
  * Validates the player has a ship and the target sector is adjacent,
  * then broadcasts movement events to players in both sectors.
  */
-export async function handleMove(ws: WebSocket, playerId: number, targetSector: number): Promise<void> {
+export async function handleMove(
+    ws: WebSocket,
+    playerId: number,
+    targetSector: number,
+): Promise<void> {
     if (!Number.isInteger(targetSector) || targetSector <= 0) {
         send(ws, { type: ServerMsgType.Error, message: 'Invalid sector' });
         return;
@@ -477,7 +481,7 @@ export async function handlePortInfo(ws: WebSocket, sectorId: number): Promise<v
 /**
  * Returns ship status for the authenticated player, including armament, cargo, and config limits.
  */
-export async function handleShip(ws: WebSocket, playerId: number): Promise<void> {
+export async function handleShipInfo(ws: WebSocket, playerId: number): Promise<void> {
     const query = `
         SELECT ps.ship_name, ps.fighters, ps.shields, ps.cargo_limit,
                sc.fuel, sc.organics, sc.equipment
@@ -519,7 +523,7 @@ export async function handleShip(ws: WebSocket, playerId: number): Promise<void>
 /**
  * Returns the player's cargo hold contents and credit balance.
  */
-export async function handleCargo(ws: WebSocket, playerId: number): Promise<void> {
+export async function handleCargoInfo(ws: WebSocket, playerId: number): Promise<void> {
     const cargoRes = await pool.query(
         'SELECT player_id, fuel, organics, equipment, credits FROM ship_cargo WHERE player_id = $1',
         [playerId],
@@ -715,7 +719,11 @@ export async function handlePortTransaction(
  * Purchases fighters at a class 0 port. Cost: 20 credits each.
  * @param quantity - Number of fighters to buy
  */
-export async function handleBuyFighters(ws: WebSocket, playerId: number, quantity: number): Promise<void> {
+export async function handleBuyFighters(
+    ws: WebSocket,
+    playerId: number,
+    quantity: number,
+): Promise<void> {
     const qty = Number(quantity);
     if (!Number.isInteger(qty) || qty <= 0) {
         send(ws, { type: ServerMsgType.Error, message: 'Invalid quantity' });
@@ -803,7 +811,11 @@ export async function handleBuyFighters(ws: WebSocket, playerId: number, quantit
  * Purchases shields at a class 0 port. Cost: 10 credits each.
  * @param quantity - Number of shields to buy
  */
-export async function handleBuyShields(ws: WebSocket, playerId: number, quantity: number): Promise<void> {
+export async function handleBuyShields(
+    ws: WebSocket,
+    playerId: number,
+    quantity: number,
+): Promise<void> {
     const qty = Number(quantity);
     if (!Number.isInteger(qty) || qty <= 0) {
         send(ws, { type: ServerMsgType.Error, message: 'Invalid quantity' });
@@ -891,7 +903,11 @@ export async function handleBuyShields(ws: WebSocket, playerId: number, quantity
  * Purchases additional cargo holds at a class 0 port. Cost: 50 credits each.
  * @param quantity - Number of cargo holds to buy
  */
-export async function handleBuyHolds(ws: WebSocket, playerId: number, quantity: number): Promise<void> {
+export async function handleBuyHolds(
+    ws: WebSocket,
+    playerId: number,
+    quantity: number,
+): Promise<void> {
     const qty = Number(quantity);
     if (!Number.isInteger(qty) || qty <= 0) {
         send(ws, { type: ServerMsgType.Error, message: 'Invalid quantity' });

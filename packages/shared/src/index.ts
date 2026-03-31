@@ -28,7 +28,7 @@ export const ClientMsgType = {
     SectorWarps: 'sector',
     Path: 'path',
     PortInfo: 'portInfo',
-    Ship: 'ship',
+    ShipInfo: 'ship',
     CargoInfo: 'cargoInfo',
     PortTransaction: 'portTransaction',
     BuyFighters: 'buyFighters',
@@ -223,7 +223,7 @@ export type PortQueryMessage = {
 };
 
 export type ShipQueryMessage = {
-    type: typeof ClientMsgType.Ship;
+    type: typeof ClientMsgType.ShipInfo;
 };
 
 export type CargoInfoQueryMessage = {
