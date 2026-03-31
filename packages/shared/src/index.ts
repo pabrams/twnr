@@ -23,7 +23,7 @@ type ServerMsgType = typeof ServerMsgType;
 
 export const ClientMsgType = {
     Move: 'move',
-    Display: 'display',
+    SectorDisplay: 'sectorDisplay',
     Who: 'who',
     SectorWarps: 'sector',
     Path: 'path',
@@ -199,7 +199,7 @@ export type MoveMessage = {
 };
 
 export type DisplayMessage = {
-    type: typeof ClientMsgType.Display;
+    type: typeof ClientMsgType.SectorDisplay;
 };
 
 export type WhoMessage = {

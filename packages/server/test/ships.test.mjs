@@ -53,7 +53,7 @@ function startServer() {
 }
 
 async function navigateTo(ws, targetSector) {
-  const disp = await wsRequest(ws, { type: 'display' }, 'sectorDisplay');
+  const disp = await wsRequest(ws, { type: 'sectorDisplay' }, 'sectorDisplay');
   if (disp.sector === targetSector) return;
   const path = await wsRequest(ws, { type: 'path', from: disp.sector, to: targetSector }, 'pathResult');
   if (path.type === 'error') throw new Error(`No path to ${targetSector}`);

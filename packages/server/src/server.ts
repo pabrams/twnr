@@ -246,7 +246,7 @@ export async function handleMessage(ws: WebSocket, playerId: number, data: any):
     switch (data.type) {
         case ClientMsgType.Move:
             return handleMove(ws, playerId, data.sector);
-        case ClientMsgType.Display:
+        case ClientMsgType.SectorDisplay:
             return handleSectorDisplay(ws, playerId);
         case ClientMsgType.Who:
             return handleWho(ws);

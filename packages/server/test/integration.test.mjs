@@ -274,7 +274,7 @@ describe('WebSocket', () => {
 
   it('display returns sectorDisplay with sector and warps array', async () => {
     const { ws } = await connectWS();
-    const msg = await wsRequest(ws, { type: 'display' }, 'sectorDisplay');
+    const msg = await wsRequest(ws, { type: 'sectorDisplay' }, 'sectorDisplay');
     assert.equal(msg.type, 'sectorDisplay');
     assert.ok(typeof msg.sector === 'number', 'sector should be a number');
     assert.ok(Array.isArray(msg.warps), 'warps should be an array');
@@ -285,7 +285,7 @@ describe('WebSocket', () => {
   it('move to adjacent sector broadcasts playerMoved', async () => {
     const { ws } = await connectWS();
 
-    const disp = await wsRequest(ws, { type: 'display' }, 'sectorDisplay');
+    const disp = await wsRequest(ws, { type: 'sectorDisplay' }, 'sectorDisplay');
     const target = disp.warps[0];
     const moveMsg = await wsRequest(ws, { type: 'move', sector: target }, 'sectorDisplay');
 
@@ -298,7 +298,7 @@ describe('WebSocket', () => {
     const { ws: ws1 } = await connectWS();
     const { ws: ws2 } = await connectWS();
 
-    const disp = await wsRequest(ws2, { type: 'display' }, 'sectorDisplay');
+    const disp = await wsRequest(ws2, { type: 'sectorDisplay' }, 'sectorDisplay');
     const target = disp.warps[0];
     const broadcastPromise = waitForMsg(ws1, 'playerMoved');
     ws2.send(JSON.stringify({ type: 'move', sector: target }));
@@ -316,7 +316,7 @@ describe('WebSocket', () => {
     const { ws: ws2 } = await connectWS();
 
     // Move ws1 away from sector 1
-    const disp1 = await wsRequest(ws1, { type: 'display' }, 'sectorDisplay');
+    const disp1 = await wsRequest(ws1, { type: 'sectorDisplay' }, 'sectorDisplay');
     const ws1Target = disp1.warps[0];
     const disp1b = await wsRequest(ws1, { type: 'move', sector: ws1Target }, 'sectorDisplay');
 
@@ -325,7 +325,7 @@ describe('WebSocket', () => {
     await wsRequest(ws1, { type: 'move', sector: ws1Target2 }, 'sectorDisplay');
 
     // ws2 is still in sector 1 - ws1 should not receive this move
-    const disp3 = await wsRequest(ws2, { type: 'display' }, 'sectorDisplay');
+    const disp3 = await wsRequest(ws2, { type: 'sectorDisplay' }, 'sectorDisplay');
     const ws2Target = disp3.warps[0];
 
     const noMsgPromise = expectNoMsg(ws1, 'playerMoved');
@@ -340,7 +340,7 @@ describe('WebSocket', () => {
     const { ws: ws1 } = await connectWS();
     const { ws: ws2 } = await connectWS();
 
-    const disp = await wsRequest(ws2, { type: 'display' }, 'sectorDisplay');
+    const disp = await wsRequest(ws2, { type: 'sectorDisplay' }, 'sectorDisplay');
     const warpSet = new Set(disp.warps);
     let nonAdjacent = null;
     for (let i = 1; i <= 100; i++) {
@@ -364,7 +364,7 @@ describe('WebSocket', () => {
     const { ws: ws3 } = await connectWS();
 
     // Move ws2 away from sector 1
-    const disp = await wsRequest(ws2, { type: 'display' }, 'sectorDisplay');
+    const disp = await wsRequest(ws2, { type: 'sectorDisplay' }, 'sectorDisplay');
     const target = disp.warps[0];
     await wsRequest(ws2, { type: 'move', sector: target }, 'sectorDisplay');
 
@@ -383,7 +383,7 @@ describe('WebSocket', () => {
   it('move to non-adjacent sector returns nonAdjacentMoveRequested', async () => {
     const { ws } = await connectWS();
 
-    const disp = await wsRequest(ws, { type: 'display' }, 'sectorDisplay');
+    const disp = await wsRequest(ws, { type: 'sectorDisplay' }, 'sectorDisplay');
     const warpSet = new Set(disp.warps);
     let nonAdjacent = null;
     for (let i = 1; i <= 100; i++) {

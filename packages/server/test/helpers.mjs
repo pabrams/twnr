@@ -261,7 +261,7 @@ export async function findPortBuying(ws, good) {
 }
 
 export async function movePlayerTo(ws, targetSector) {
-  const disp = await wsRequest(ws, { type: 'display' }, 'sectorDisplay');
+  const disp = await wsRequest(ws, { type: 'sectorDisplay' }, 'sectorDisplay');
   if (disp.sector === targetSector) return true;
 
   const pathRes = await wsRequest(ws, { type: 'path', from: disp.sector, to: targetSector }, 'pathResult');

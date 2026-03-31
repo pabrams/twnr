@@ -136,7 +136,7 @@ describe('Rate Limiting', () => {
 
       // Send 55 display messages rapidly — burst cap is 50, so last 5 should be rate limited
       for (let i = 0; i < 55; i++) {
-        ws.send(JSON.stringify({ type: 'display' }));
+        ws.send(JSON.stringify({ type: 'sectorDisplay' }));
       }
 
       // Wait for responses to settle

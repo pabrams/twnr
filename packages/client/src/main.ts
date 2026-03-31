@@ -96,8 +96,8 @@ function handleInput(line: string) {
     switch (cmd.toLowerCase()) {
         case '':
         case 'd':
-        case 'display':
-            sendMsg({ type: ClientMsgType.Display });
+        case 'sectorDisplay':
+            sendMsg({ type: ClientMsgType.SectorDisplay });
             break;
         case 'm':
         case 'move': {
