@@ -242,12 +242,12 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
  * @param playerId - The authenticated player's ID
  * @param data - The parsed message object from the client
  */
-async function handleMessage(ws: WebSocket, playerId: number, data: any): Promise<void> {
+export async function handleMessage(ws: WebSocket, playerId: number, data: any): Promise<void> {
     switch (data.type) {
         case ClientMsgType.Move:
             return handleMove(ws, playerId, data.sector);
         case ClientMsgType.Display:
-            return handleDisplay(ws, playerId);
+            return handleSectorDisplay(ws, playerId);
         case ClientMsgType.Who:
             return handleWho(ws);
         case ClientMsgType.SectorWarps:
@@ -288,7 +288,7 @@ function handleWho(ws: WebSocket): void {
  * Validates the player has a ship and the target sector is adjacent,
  * then broadcasts movement events to players in both sectors.
  */
-async function handleMove(ws: WebSocket, playerId: number, targetSector: number): Promise<void> {
+export async function handleMove(ws: WebSocket, playerId: number, targetSector: number): Promise<void> {
     if (!Number.isInteger(targetSector) || targetSector <= 0) {
         send(ws, { type: ServerMsgType.Error, message: 'Invalid sector' });
         return;
@@ -350,7 +350,7 @@ async function handleMove(ws: WebSocket, playerId: number, targetSector: number)
 /**
  * Sends the player their current sector's display info (warps and players present).
  */
-async function handleDisplay(ws: WebSocket, playerId: number): Promise<void> {
+export async function handleSectorDisplay(ws: WebSocket, playerId: number): Promise<void> {
     const currentSector = players[playerId]?.sector;
     if (currentSector === undefined) return;
 
@@ -371,7 +371,7 @@ async function handleDisplay(ws: WebSocket, playerId: number): Promise<void> {
  * Returns a sector's outbound warp connections.
  * @param id - The sector ID to look up
  */
-async function handleSectorWarps(ws: WebSocket, id: number): Promise<void> {
+export async function handleSectorWarps(ws: WebSocket, id: number): Promise<void> {
     if (!Number.isInteger(id) || id <= 0) {
         send(ws, { type: ServerMsgType.Error, message: 'Invalid sector ID' });
         return;
@@ -393,7 +393,7 @@ async function handleSectorWarps(ws: WebSocket, id: number): Promise<void> {
  * @param from - Origin sector ID
  * @param to - Destination sector ID
  */
-async function handlePath(ws: WebSocket, from: number, to: number): Promise<void> {
+export async function handlePath(ws: WebSocket, from: number, to: number): Promise<void> {
     if (!Number.isInteger(from) || from <= 0 || !Number.isInteger(to) || to <= 0) {
         send(ws, { type: ServerMsgType.Error, message: 'Invalid sector ID' });
         return;
@@ -445,7 +445,7 @@ async function handlePath(ws: WebSocket, from: number, to: number): Promise<void
  * Returns port details for a sector, including class, inventory, and prices.
  * @param sectorId - The sector ID to look up
  */
-async function handlePortInfo(ws: WebSocket, sectorId: number): Promise<void> {
+export async function handlePortInfo(ws: WebSocket, sectorId: number): Promise<void> {
     if (!Number.isInteger(sectorId) || sectorId <= 0) {
         send(ws, { type: ServerMsgType.Error, message: 'Invalid sector ID' });
         return;
@@ -477,7 +477,7 @@ async function handlePortInfo(ws: WebSocket, sectorId: number): Promise<void> {
 /**
  * Returns ship status for the authenticated player, including armament, cargo, and config limits.
  */
-async function handleShip(ws: WebSocket, playerId: number): Promise<void> {
+export async function handleShip(ws: WebSocket, playerId: number): Promise<void> {
     const query = `
         SELECT ps.ship_name, ps.fighters, ps.shields, ps.cargo_limit,
                sc.fuel, sc.organics, sc.equipment
@@ -519,7 +519,7 @@ async function handleShip(ws: WebSocket, playerId: number): Promise<void> {
 /**
  * Returns the player's cargo hold contents and credit balance.
  */
-async function handleCargo(ws: WebSocket, playerId: number): Promise<void> {
+export async function handleCargo(ws: WebSocket, playerId: number): Promise<void> {
     const cargoRes = await pool.query(
         'SELECT player_id, fuel, organics, equipment, credits FROM ship_cargo WHERE player_id = $1',
         [playerId],
@@ -548,7 +548,7 @@ async function handleCargo(ws: WebSocket, playerId: number): Promise<void> {
  * @param quantity - Number of units to trade
  * @param action - `buy` (from port) or `sell` (to port)
  */
-async function handlePortTransaction(
+export async function handlePortTransaction(
     ws: WebSocket,
     playerId: number,
     good: string,
@@ -715,7 +715,7 @@ async function handlePortTransaction(
  * Purchases fighters at a class 0 port. Cost: 20 credits each.
  * @param quantity - Number of fighters to buy
  */
-async function handleBuyFighters(ws: WebSocket, playerId: number, quantity: number): Promise<void> {
+export async function handleBuyFighters(ws: WebSocket, playerId: number, quantity: number): Promise<void> {
     const qty = Number(quantity);
     if (!Number.isInteger(qty) || qty <= 0) {
         send(ws, { type: ServerMsgType.Error, message: 'Invalid quantity' });
@@ -803,7 +803,7 @@ async function handleBuyFighters(ws: WebSocket, playerId: number, quantity: numb
  * Purchases shields at a class 0 port. Cost: 10 credits each.
  * @param quantity - Number of shields to buy
  */
-async function handleBuyShields(ws: WebSocket, playerId: number, quantity: number): Promise<void> {
+export async function handleBuyShields(ws: WebSocket, playerId: number, quantity: number): Promise<void> {
     const qty = Number(quantity);
     if (!Number.isInteger(qty) || qty <= 0) {
         send(ws, { type: ServerMsgType.Error, message: 'Invalid quantity' });
@@ -891,7 +891,7 @@ async function handleBuyShields(ws: WebSocket, playerId: number, quantity: numbe
  * Purchases additional cargo holds at a class 0 port. Cost: 50 credits each.
  * @param quantity - Number of cargo holds to buy
  */
-async function handleBuyHolds(ws: WebSocket, playerId: number, quantity: number): Promise<void> {
+export async function handleBuyHolds(ws: WebSocket, playerId: number, quantity: number): Promise<void> {
     const qty = Number(quantity);
     if (!Number.isInteger(qty) || qty <= 0) {
         send(ws, { type: ServerMsgType.Error, message: 'Invalid quantity' });
@@ -981,7 +981,7 @@ async function handleBuyHolds(ws: WebSocket, playerId: number, quantity: number)
  * Fails if the new ship can't hold current cargo.
  * @param targetShipName - Name of the ship to switch to
  */
-async function handleShipExchange(
+export async function handleShipExchange(
     ws: WebSocket,
     playerId: number,
     targetShipName: string,
@@ -1093,7 +1093,7 @@ async function handleShipExchange(
  * Connects to the database, validates the universe data, and starts the HTTP/WebSocket server on port 3000.
  * @throws Exits the process with code 1 if startup fails
  */
-async function startServer() {
+export async function startServer() {
     try {
         await connectDB();
         await getGraph();
@@ -1112,4 +1112,4 @@ if (process.argv[1] && process.argv[1].endsWith('server.js')) {
     startServer();
 }
 
-export { app, server, wss, startServer };
+export { app, server, wss };
