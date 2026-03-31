@@ -27,22 +27,8 @@ function makeAuthToken(playerId, role = 'player', tokenVersion = 1) {
 }
 
 function getDefaultAuthHeaders(path, authPlayerId) {
-  if (path.startsWith('/api/ship/') || path.startsWith('/api/cargo/')) {
-    const playerId = Number(path.split('/').pop());
-    if (Number.isInteger(playerId) && playerId > 0) {
-      return { Authorization: `Bearer ${makeAuthToken(playerId)}` };
-    }
-  }
-
   if (
-    path === '/api/move' ||
-    path === '/api/trade' ||
-    path === '/api/port/buy-fighters' ||
-    path === '/api/port/buy-shields' ||
-    path === '/api/port/buy-holds' ||
-    path === '/api/ship/exchange' ||
-    path === '/api/players/online' ||
-    path.startsWith('/api/players/search')
+    path === '/api/auth/logout'
   ) {
     const playerId = Number(authPlayerId || 1);
     if (Number.isInteger(playerId) && playerId > 0) {
@@ -165,6 +151,26 @@ export function waitForMsg(ws, type, timeout = 5000) {
   });
 }
 
+/**
+ * Sends a WS message and waits for a response of the given type.
+ * Also accepts 'error' responses and returns them.
+ */
+export function wsRequest(ws, msg, responseType, timeout = 5000) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`Timeout waiting for "${responseType}"`)), timeout);
+    function handler(data) {
+      const parsed = JSON.parse(data.toString());
+      if (parsed.type === responseType || parsed.type === 'error') {
+        clearTimeout(timer);
+        ws.removeListener('message', handler);
+        resolve(parsed);
+      }
+    }
+    ws.on('message', handler);
+    ws.send(JSON.stringify(msg));
+  });
+}
+
 export function expectNoMsg(ws, type, timeout = 5000) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
@@ -225,49 +231,46 @@ const PORT_CLASS_ACTIONS = {
   8: { fuel: 'B', organics: 'B', equipment: 'B' },
 };
 
-export async function findPortSector() {
+export async function findPortSector(ws) {
   for (let i = 1; i <= 100; i++) {
-    const res = await httpGet(`/api/port/${i}`);
-    if (res.status === 200) return { sectorId: i, port: res.body };
+    const res = await wsRequest(ws, { type: 'port', sectorId: i }, 'portInfo');
+    if (res.type === 'portInfo') return { sectorId: i, port: res };
   }
   return null;
 }
 
-export async function findPortSelling(good) {
+export async function findPortSelling(ws, good) {
   for (let i = 1; i <= 100; i++) {
-    const res = await httpGet(`/api/port/${i}`);
-    if (res.status === 200) {
-      const actions = PORT_CLASS_ACTIONS[res.body.class];
-      if (actions && actions[good] === 'S') return { sectorId: i, port: res.body };
+    const res = await wsRequest(ws, { type: 'port', sectorId: i }, 'portInfo');
+    if (res.type === 'portInfo') {
+      const actions = PORT_CLASS_ACTIONS[res.class];
+      if (actions && actions[good] === 'S') return { sectorId: i, port: res };
     }
   }
   return null;
 }
 
-export async function findPortBuying(good) {
+export async function findPortBuying(ws, good) {
   for (let i = 1; i <= 100; i++) {
-    const res = await httpGet(`/api/port/${i}`);
-    if (res.status === 200) {
-      const actions = PORT_CLASS_ACTIONS[res.body.class];
-      if (actions && actions[good] === 'B') return { sectorId: i, port: res.body };
+    const res = await wsRequest(ws, { type: 'port', sectorId: i }, 'portInfo');
+    if (res.type === 'portInfo') {
+      const actions = PORT_CLASS_ACTIONS[res.class];
+      if (actions && actions[good] === 'B') return { sectorId: i, port: res };
     }
   }
   return null;
 }
 
 export async function movePlayerTo(ws, targetSector) {
-  const dispPromise = waitForMsg(ws, 'sectorDisplay');
-  ws.send(JSON.stringify({ type: 'display' }));
-  const disp = await dispPromise;
+  const disp = await wsRequest(ws, { type: 'display' }, 'sectorDisplay');
   if (disp.sector === targetSector) return true;
 
-  const routeRes = await httpGet(`/api/route/${disp.sector}/${targetSector}`);
-  if (routeRes.status !== 200) return false;
+  const routeRes = await wsRequest(ws, { type: 'route', from: disp.sector, to: targetSector }, 'routeResult');
+  if (routeRes.type === 'error') return false;
 
-  for (let i = 1; i < routeRes.body.path.length; i++) {
-    const movePromise = waitForMsg(ws, 'sectorDisplay');
-    ws.send(JSON.stringify({ type: 'move', sector: routeRes.body.path[i] }));
-    await movePromise;
+  for (let i = 1; i < routeRes.path.length; i++) {
+    const moveMsg = await wsRequest(ws, { type: 'move', sector: routeRes.path[i] }, 'sectorDisplay');
+    if (moveMsg.type === 'error') return false;
   }
   return true;
 }

@@ -5,12 +5,10 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync, spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import pg from 'pg';
-import jwt from 'jsonwebtoken';
+import { createPool, connectWS, closeWS, wsRequest } from './helpers.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const PROJECT_ROOT = join(dirname(__filename), '..');
-const { Pool } = pg;
 
 const merchantCfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', 'merchant.json'), 'utf8'));
 const warbirdCfg  = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', 'warbird.json'),  'utf8'));
@@ -19,48 +17,7 @@ const FIGHTER_PRICE = 20;
 const SHIELD_PRICE  = 10;
 const HOLD_PRICE    = 50;
 
-// ─── inline helpers ───────────────────────────────────────────────────────────
-
-function createPool() {
-  return new Pool({
-    host:     process.env.PGHOST     || 'localhost',
-    database: process.env.PGDATABASE || 'twnr',
-    user:     process.env.PGUSER,
-    password: process.env.PGPASSWORD,
-  });
-}
-
-function makeAuthToken(playerId, role = 'player', tokenVersion = 1) {
-  return jwt.sign({ playerId, name: 'Test Player', role, tokenVersion }, process.env.JWT_SECRET || 'test-jwt-secret', {
-    algorithm: 'HS256',
-    expiresIn: '1h',
-  });
-}
-
-function getDefaultAuthHeaders(path, authPlayerId) {
-  if (path.startsWith('/api/ship/') || path.startsWith('/api/cargo/')) {
-    const playerId = Number(path.split('/').pop());
-    if (Number.isInteger(playerId) && playerId > 0) {
-      return { Authorization: `Bearer ${makeAuthToken(playerId)}` };
-    }
-  }
-
-  if (
-    path === '/api/move' ||
-    path === '/api/trade' ||
-    path === '/api/port/buy-fighters' ||
-    path === '/api/port/buy-shields' ||
-    path === '/api/port/buy-holds' ||
-    path === '/api/ship/exchange'
-  ) {
-    const playerId = Number(authPlayerId || 1);
-    if (Number.isInteger(playerId) && playerId > 0) {
-      return { Authorization: `Bearer ${makeAuthToken(playerId)}` };
-    }
-  }
-
-  return {};
-}
+// ─── helpers ─────────────────────────────────────────────────────────────────
 
 function startServer() {
   return new Promise((resolve, reject) => {
@@ -95,111 +52,13 @@ function startServer() {
   });
 }
 
-async function connectWS(options = {}) {
-  const { default: WebSocket } = await import('ws');
-  const { token: providedToken, ...wsOptions } = options;
-
-  let token = providedToken;
-  if (!token) {
-    const tmpPool = createPool();
-    try {
-      const ts = Date.now();
-      const res = await tmpPool.query(
-        `INSERT INTO players (name, email, password_hash, role, current_sector)
-         VALUES ($1, $2, 'dummy', 'player', 1) RETURNING id`,
-        [`WSTest_${ts}`, `wstest_${ts}@example.com`],
-      );
-      const playerId = res.rows[0].id;
-      await tmpPool.query(
-        `INSERT INTO ship_cargo (player_id, fuel, organics, equipment, credits) VALUES ($1, 0, 0, 0, 10000)`,
-        [playerId],
-      );
-      await tmpPool.query(
-        `INSERT INTO player_ships (player_id, ship_name, fighters, shields, cargo_limit) VALUES ($1, $2, 0, 0, $3)`,
-        [playerId, merchantCfg.name, merchantCfg.startingHolds],
-      );
-      token = jwt.sign(
-        { playerId, name: 'WSTest', role: 'player', tokenVersion: 1 },
-        process.env.JWT_SECRET || 'test-jwt-secret',
-        { algorithm: 'HS256', expiresIn: '1h' },
-      );
-    } finally {
-      await tmpPool.end();
-    }
-  }
-
-  const headers = { Cookie: `twnr_auth=${token}`, ...(wsOptions.headers || {}) };
-
-  return new Promise((resolve, reject) => {
-    const ws = new WebSocket('ws://localhost:3000/ws', { ...wsOptions, headers });
-    const timer = setTimeout(() => { ws.terminate(); reject(new Error('WS connect timeout')); }, 6000);
-    let cookies = [];
-
-    ws.on('upgrade', (res) => {
-      cookies = res.headers['set-cookie'] || [];
-    });
-
-    ws.on('message', (data) => {
-      const msg = JSON.parse(data.toString());
-      if (msg.type === 'welcome') { clearTimeout(timer); resolve({ ws, welcome: msg, cookies }); }
-    });
-    ws.on('error', (err) => { clearTimeout(timer); reject(err); });
-  });
-}
-
-function waitForMsg(ws, type, timeout = 5000) {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`Timeout waiting for "${type}"`)), timeout);
-    function handler(data) {
-      const msg = JSON.parse(data.toString());
-      if (msg.type === type) { clearTimeout(timer); ws.removeListener('message', handler); resolve(msg); }
-    }
-    ws.on('message', handler);
-  });
-}
-
-function closeWS(ws) {
-  return new Promise((resolve) => {
-    if (!ws || ws.readyState > 1) { resolve(); return; }
-    ws.on('close', resolve);
-    ws.close();
-    setTimeout(resolve, 3000);
-  });
-}
-
-async function httpGet(path) {
-  const res = await fetch(`http://localhost:3000${path}`, {
-    headers: getDefaultAuthHeaders(path),
-  });
-  return { status: res.status, body: await res.json() };
-}
-
-async function httpPost(path, data, options = {}) {
-  const headers = {
-    'Content-Type': 'application/json',
-    ...getDefaultAuthHeaders(path, options.authPlayerId),
-    ...(options.headers || {}),
-  };
-
-  const res = await fetch(`http://localhost:3000${path}`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(data),
-  });
-  return { status: res.status, body: await res.json() };
-}
-
 async function navigateTo(ws, targetSector) {
-  const dispPromise = waitForMsg(ws, 'sectorDisplay');
-  ws.send(JSON.stringify({ type: 'display' }));
-  const disp = await dispPromise;
+  const disp = await wsRequest(ws, { type: 'display' }, 'sectorDisplay');
   if (disp.sector === targetSector) return;
-  const route = await httpGet(`/api/route/${disp.sector}/${targetSector}`);
-  if (route.status !== 200) throw new Error(`No route from ${disp.sector} to ${targetSector}`);
-  for (let i = 1; i < route.body.path.length; i++) {
-    const movePromise = waitForMsg(ws, 'sectorDisplay');
-    ws.send(JSON.stringify({ type: 'move', sector: route.body.path[i] }));
-    await movePromise;
+  const route = await wsRequest(ws, { type: 'route', from: disp.sector, to: targetSector }, 'routeResult');
+  if (route.type === 'error') throw new Error(`No route to ${targetSector}`);
+  for (let i = 1; i < route.path.length; i++) {
+    await wsRequest(ws, { type: 'move', sector: route.path[i] }, 'sectorDisplay');
   }
 }
 
@@ -217,7 +76,6 @@ async function findFuelBuyerSector() {
   const res = await pool.query('SELECT sector_id FROM ports WHERE class IN (1, 2, 5, 8) LIMIT 1');
   return res.rows.length > 0 ? Number(res.rows[0].sector_id) : null;
 }
-
 
 // ─── setup ────────────────────────────────────────────────────────────────────
 
@@ -373,103 +231,88 @@ describe('New Player Ship Assignment', () => {
   });
 });
 
-describe('GET /api/ship/:playerId', () => {
-  it('returns 200 with all required fields for a new player', async () => {
-    const { ws, welcome } = await connectWS();
-    const playerId = welcome.playerId;
+describe('Ship info query', () => {
+  it('returns all required fields for a new player', async () => {
+    const { ws } = await connectWS();
     try {
-      const { status, body } = await httpGet(`/api/ship/${playerId}`);
-      assert.equal(status, 200);
-      assert.equal(typeof body.playerId, 'number');
-      assert.equal(typeof body.shipName, 'string');
-      assert.equal(typeof body.fighters, 'number');
-      assert.equal(typeof body.shields, 'number');
-      assert.equal(typeof body.maxFighters, 'number');
-      assert.equal(typeof body.maxShields, 'number');
-      assert.equal(typeof body.maxHolds, 'number');
-      assert.equal(typeof body.cargoLimit, 'number');
-      assert.equal(typeof body.cargoFuel, 'number');
-      assert.equal(typeof body.cargoOrganics, 'number');
-      assert.equal(typeof body.cargoEquipment, 'number');
-      assert.equal(typeof body.holdsAvailable, 'number');
+      const msg = await wsRequest(ws, { type: 'ship' }, 'shipInfo');
+      assert.equal(msg.type, 'shipInfo');
+      assert.equal(typeof msg.playerId, 'number');
+      assert.equal(typeof msg.shipName, 'string');
+      assert.equal(typeof msg.fighters, 'number');
+      assert.equal(typeof msg.shields, 'number');
+      assert.equal(typeof msg.maxFighters, 'number');
+      assert.equal(typeof msg.maxShields, 'number');
+      assert.equal(typeof msg.maxHolds, 'number');
+      assert.equal(typeof msg.cargoLimit, 'number');
+      assert.equal(typeof msg.cargoFuel, 'number');
+      assert.equal(typeof msg.cargoOrganics, 'number');
+      assert.equal(typeof msg.cargoEquipment, 'number');
+      assert.equal(typeof msg.holdsAvailable, 'number');
     } finally {
       await closeWS(ws);
     }
   });
 
   it('returns correct values for a new Merchant Freighter player', async () => {
-    const { ws, welcome } = await connectWS();
-    const playerId = welcome.playerId;
+    const { ws } = await connectWS();
     try {
-      const { status, body } = await httpGet(`/api/ship/${playerId}`);
-      assert.equal(status, 200);
-      assert.equal(body.shipName, merchantCfg.name);
-      assert.equal(body.fighters, 0);
-      assert.equal(body.shields, 0);
-      assert.equal(body.maxFighters, merchantCfg.maxFighters);
-      assert.equal(body.maxShields, merchantCfg.maxShields);
-      assert.equal(body.maxHolds, merchantCfg.maxHolds);
-      assert.equal(body.cargoLimit, merchantCfg.startingHolds);
-      assert.equal(body.cargoFuel, 0);
-      assert.equal(body.cargoOrganics, 0);
-      assert.equal(body.cargoEquipment, 0);
-      assert.equal(body.holdsAvailable, merchantCfg.startingHolds);
+      const msg = await wsRequest(ws, { type: 'ship' }, 'shipInfo');
+      assert.equal(msg.type, 'shipInfo');
+      assert.equal(msg.shipName, merchantCfg.name);
+      assert.equal(msg.fighters, 0);
+      assert.equal(msg.shields, 0);
+      assert.equal(msg.maxFighters, merchantCfg.maxFighters);
+      assert.equal(msg.maxShields, merchantCfg.maxShields);
+      assert.equal(msg.maxHolds, merchantCfg.maxHolds);
+      assert.equal(msg.cargoLimit, merchantCfg.startingHolds);
+      assert.equal(msg.cargoFuel, 0);
+      assert.equal(msg.cargoOrganics, 0);
+      assert.equal(msg.cargoEquipment, 0);
+      assert.equal(msg.holdsAvailable, merchantCfg.startingHolds);
     } finally {
       await closeWS(ws);
     }
-  });
-
-  it('returns 401 for a non-existent player', async () => {
-    const { status } = await httpGet('/api/ship/999999');
-    assert.equal(status, 401);
   });
 });
 
-describe('POST /api/trade at class 0 port', () => {
-  it('returns 400 when buying a commodity at a class 0 port', async () => {
+describe('Trade at class 0 port', () => {
+  it('returns error when buying a commodity at a class 0 port', async () => {
     // New players start at sector 1, which has a class 0 port
-    const { ws, welcome } = await connectWS();
-    const playerId = welcome.playerId;
+    const { ws } = await connectWS();
     try {
-      const { status } = await httpPost('/api/trade', {
-        good: 'fuel', quantity: 1, action: 'buy',
-      }, { authPlayerId: playerId });
-      assert.equal(status, 400);
+      const msg = await wsRequest(ws, { type: 'trade', good: 'fuel', quantity: 1, action: 'buy' }, 'tradeResult');
+      assert.equal(msg.type, 'error');
     } finally {
       await closeWS(ws);
     }
   });
 
-  it('returns 400 when selling a commodity at a class 0 port', async () => {
+  it('returns error when selling a commodity at a class 0 port', async () => {
     const { ws, welcome } = await connectWS();
     const playerId = welcome.playerId;
     try {
       await pool.query('UPDATE ship_cargo SET fuel = 3 WHERE player_id = $1', [playerId]);
-      const { status } = await httpPost('/api/trade', {
-        good: 'fuel', quantity: 1, action: 'sell',
-      }, { authPlayerId: playerId });
-      assert.equal(status, 400);
+      const msg = await wsRequest(ws, { type: 'trade', good: 'fuel', quantity: 1, action: 'sell' }, 'tradeResult');
+      assert.equal(msg.type, 'error');
     } finally {
       await closeWS(ws);
     }
   });
 });
 
-describe('Cargo Hold Enforcement (POST /api/trade)', () => {
-  it('buying cargo exceeding cargo_limit returns 400 "Insufficient cargo holds"', async () => {
+describe('Cargo hold enforcement', () => {
+  it('buying cargo exceeding cargo_limit returns "Insufficient cargo holds"', async () => {
     const fuelSector = await findFuelSellerSector();
     assert.ok(fuelSector, 'Need a fuel-selling port for this test');
 
-    const { ws, welcome } = await connectWS();
-    const playerId = welcome.playerId;
+    const { ws } = await connectWS();
     try {
       await navigateTo(ws, fuelSector);
       // cargo_limit is 5; try to buy 6
-      const { status, body } = await httpPost('/api/trade', {
-        good: 'fuel', quantity: 6, action: 'buy',
-      }, { authPlayerId: playerId });
-      assert.equal(status, 400);
-      assert.equal(body.error, 'Insufficient cargo holds');
+      const msg = await wsRequest(ws, { type: 'trade', good: 'fuel', quantity: 6, action: 'buy' }, 'tradeResult');
+      assert.equal(msg.type, 'error');
+      assert.equal(msg.message, 'Insufficient cargo holds');
     } finally {
       await closeWS(ws);
     }
@@ -479,41 +322,35 @@ describe('Cargo Hold Enforcement (POST /api/trade)', () => {
     const fuelSector = await findFuelSellerSector();
     assert.ok(fuelSector, 'Need a fuel-selling port for this test');
 
-    const { ws, welcome } = await connectWS();
-    const playerId = welcome.playerId;
+    const { ws } = await connectWS();
     try {
       await navigateTo(ws, fuelSector);
-      const { status } = await httpPost('/api/trade', {
-        good: 'fuel', quantity: 5, action: 'buy',
-      }, { authPlayerId: playerId });
-      assert.equal(status, 200, 'buying exactly cargo_limit should succeed');
+      const msg = await wsRequest(ws, { type: 'trade', good: 'fuel', quantity: 5, action: 'buy' }, 'tradeResult');
+      assert.equal(msg.type, 'tradeResult', 'buying exactly cargo_limit should succeed');
     } finally {
       await closeWS(ws);
     }
   });
 
-  it('buying any cargo when holds are full returns 400', async () => {
+  it('buying any cargo when holds are full returns error', async () => {
     const fuelSector = await findFuelSellerSector();
     assert.ok(fuelSector, 'Need a fuel-selling port for this test');
 
-    const { ws, welcome } = await connectWS();
-    const playerId = welcome.playerId;
+    const { ws } = await connectWS();
     try {
       await navigateTo(ws, fuelSector);
-      await httpPost('/api/trade', { good: 'fuel', quantity: 5, action: 'buy' }, { authPlayerId: playerId });
-      const { status, body } = await httpPost('/api/trade', {
-        good: 'fuel', quantity: 1, action: 'buy',
-      }, { authPlayerId: playerId });
-      assert.equal(status, 400);
-      assert.equal(body.error, 'Insufficient cargo holds');
+      await wsRequest(ws, { type: 'trade', good: 'fuel', quantity: 5, action: 'buy' }, 'tradeResult');
+      const msg = await wsRequest(ws, { type: 'trade', good: 'fuel', quantity: 1, action: 'buy' }, 'tradeResult');
+      assert.equal(msg.type, 'error');
+      assert.equal(msg.message, 'Insufficient cargo holds');
     } finally {
       await closeWS(ws);
     }
   });
 });
 
-describe('POST /api/port/buy-fighters — validation', () => {
-  it('returns 400 "Not at a class 0 port" when not in a class 0 sector', async () => {
+describe('Buy fighters — validation', () => {
+  it('returns "Not at a class 0 port" when not in a class 0 sector', async () => {
     const res = await pool.query('SELECT sector_id FROM ports WHERE class != 0 LIMIT 1');
     assert.ok(res.rows.length > 0, 'Need a non-class-0 sector');
     const otherSector = Number(res.rows[0].sector_id);
@@ -522,124 +359,107 @@ describe('POST /api/port/buy-fighters — validation', () => {
     const playerId = welcome.playerId;
     try {
       await pool.query('UPDATE players SET current_sector = $1 WHERE id = $2', [otherSector, playerId]);
-      const { status, body } = await httpPost('/api/port/buy-fighters', { quantity: 1 }, { authPlayerId: playerId });
-      assert.equal(status, 400);
-      assert.equal(body.error, 'Not at a class 0 port');
+      const msg = await wsRequest(ws, { type: 'buyFighters', quantity: 1 }, 'buyResult');
+      assert.equal(msg.type, 'error');
+      assert.equal(msg.message, 'Not at a class 0 port');
     } finally {
       await closeWS(ws);
     }
   });
 
-  it('returns 400 "Invalid quantity" for quantity 0', async () => {
-    const { ws, welcome } = await connectWS();
-    const playerId = welcome.playerId;
+  it('returns "Invalid quantity" for quantity 0', async () => {
+    const { ws } = await connectWS();
     try {
-      const { status, body } = await httpPost('/api/port/buy-fighters', { quantity: 0 }, { authPlayerId: playerId });
-      assert.equal(status, 400);
-      assert.equal(body.error, 'Invalid quantity');
+      const msg = await wsRequest(ws, { type: 'buyFighters', quantity: 0 }, 'buyResult');
+      assert.equal(msg.type, 'error');
+      assert.equal(msg.message, 'Invalid quantity');
     } finally {
       await closeWS(ws);
     }
   });
 
-  it('returns 400 "Invalid quantity" for negative quantity', async () => {
-    const { ws, welcome } = await connectWS();
-    const playerId = welcome.playerId;
+  it('returns "Invalid quantity" for negative quantity', async () => {
+    const { ws } = await connectWS();
     try {
-      const { status, body } = await httpPost('/api/port/buy-fighters', { quantity: -1 }, { authPlayerId: playerId });
-      assert.equal(status, 400);
-      assert.equal(body.error, 'Invalid quantity');
+      const msg = await wsRequest(ws, { type: 'buyFighters', quantity: -1 }, 'buyResult');
+      assert.equal(msg.type, 'error');
+      assert.equal(msg.message, 'Invalid quantity');
     } finally {
       await closeWS(ws);
     }
   });
 
-  it('returns 400 "Invalid quantity" for a float quantity', async () => {
-    const { ws, welcome } = await connectWS();
-    const playerId = welcome.playerId;
+  it('returns "Invalid quantity" for a float quantity', async () => {
+    const { ws } = await connectWS();
     try {
-      const { status, body } = await httpPost('/api/port/buy-fighters', { quantity: 1.5 }, { authPlayerId: playerId });
-      assert.equal(status, 400);
-      assert.equal(body.error, 'Invalid quantity');
+      const msg = await wsRequest(ws, { type: 'buyFighters', quantity: 1.5 }, 'buyResult');
+      assert.equal(msg.type, 'error');
+      assert.equal(msg.message, 'Invalid quantity');
     } finally {
       await closeWS(ws);
     }
   });
 
-  it('returns 401 for a non-existent player', async () => {
-    const { status } = await httpPost('/api/port/buy-fighters', { quantity: 1 }, { authPlayerId: 999999 });
-    assert.equal(status, 401);
-  });
-
-  it('returns 400 "Exceeds maximum" when fighters + quantity > maxFighters', async () => {
-    const { ws, welcome } = await connectWS();
-    const playerId = welcome.playerId;
+  it('returns "Exceeds maximum" when fighters + quantity > maxFighters', async () => {
+    const { ws } = await connectWS();
     try {
-      const { status, body } = await httpPost('/api/port/buy-fighters', { quantity: merchantCfg.maxFighters + 1 }, { authPlayerId: playerId });
-      assert.equal(status, 400);
-      assert.equal(body.error, 'Exceeds maximum');
+      const msg = await wsRequest(ws, { type: 'buyFighters', quantity: merchantCfg.maxFighters + 1 }, 'buyResult');
+      assert.equal(msg.type, 'error');
+      assert.equal(msg.message, 'Exceeds maximum');
     } finally {
       await closeWS(ws);
     }
   });
 
-  it('returns 400 "Insufficient credits" when player cannot afford fighters', async () => {
+  it('returns "Insufficient credits" when player cannot afford fighters', async () => {
     const { ws, welcome } = await connectWS();
     const playerId = welcome.playerId;
     try {
       await pool.query('UPDATE ship_cargo SET credits = 0 WHERE player_id = $1', [playerId]);
-      const { status, body } = await httpPost('/api/port/buy-fighters', { quantity: 1 }, { authPlayerId: playerId });
-      assert.equal(status, 400);
-      assert.equal(body.error, 'Insufficient credits');
+      const msg = await wsRequest(ws, { type: 'buyFighters', quantity: 1 }, 'buyResult');
+      assert.equal(msg.type, 'error');
+      assert.equal(msg.message, 'Insufficient credits');
     } finally {
       await closeWS(ws);
     }
   });
 });
 
-describe('POST /api/port/buy-shields — validation', () => {
-  it('returns 400 "Invalid quantity" for quantity 0', async () => {
-    const { ws, welcome } = await connectWS();
-    const playerId = welcome.playerId;
+describe('Buy shields — validation', () => {
+  it('returns "Invalid quantity" for quantity 0', async () => {
+    const { ws } = await connectWS();
     try {
-      const { status, body } = await httpPost('/api/port/buy-shields', { quantity: 0 }, { authPlayerId: playerId });
-      assert.equal(status, 400);
-      assert.equal(body.error, 'Invalid quantity');
+      const msg = await wsRequest(ws, { type: 'buyShields', quantity: 0 }, 'buyResult');
+      assert.equal(msg.type, 'error');
+      assert.equal(msg.message, 'Invalid quantity');
     } finally {
       await closeWS(ws);
     }
   });
 
-  it('returns 400 "Invalid quantity" for negative quantity', async () => {
-    const { ws, welcome } = await connectWS();
-    const playerId = welcome.playerId;
+  it('returns "Invalid quantity" for negative quantity', async () => {
+    const { ws } = await connectWS();
     try {
-      const { status, body } = await httpPost('/api/port/buy-shields', { quantity: -1 }, { authPlayerId: playerId });
-      assert.equal(status, 400);
-      assert.equal(body.error, 'Invalid quantity');
+      const msg = await wsRequest(ws, { type: 'buyShields', quantity: -1 }, 'buyResult');
+      assert.equal(msg.type, 'error');
+      assert.equal(msg.message, 'Invalid quantity');
     } finally {
       await closeWS(ws);
     }
   });
 
-  it('returns 400 "Invalid quantity" for a float quantity', async () => {
-    const { ws, welcome } = await connectWS();
-    const playerId = welcome.playerId;
+  it('returns "Invalid quantity" for a float quantity', async () => {
+    const { ws } = await connectWS();
     try {
-      const { status, body } = await httpPost('/api/port/buy-shields', { quantity: 2.9 }, { authPlayerId: playerId });
-      assert.equal(status, 400);
-      assert.equal(body.error, 'Invalid quantity');
+      const msg = await wsRequest(ws, { type: 'buyShields', quantity: 2.9 }, 'buyResult');
+      assert.equal(msg.type, 'error');
+      assert.equal(msg.message, 'Invalid quantity');
     } finally {
       await closeWS(ws);
     }
   });
 
-  it('returns 401 for a non-existent player', async () => {
-    const { status } = await httpPost('/api/port/buy-shields', { quantity: 1 }, { authPlayerId: 999999 });
-    assert.equal(status, 401);
-  });
-
-  it('returns 400 "Not at a class 0 port" when not in a class 0 sector', async () => {
+  it('returns "Not at a class 0 port" when not in a class 0 sector', async () => {
     const res = await pool.query('SELECT sector_id FROM ports WHERE class != 0 LIMIT 1');
     assert.ok(res.rows.length > 0, 'Need a non-class-0 sector');
     const otherSector = Number(res.rows[0].sector_id);
@@ -648,83 +468,74 @@ describe('POST /api/port/buy-shields — validation', () => {
     const playerId = welcome.playerId;
     try {
       await pool.query('UPDATE players SET current_sector = $1 WHERE id = $2', [otherSector, playerId]);
-      const { status, body } = await httpPost('/api/port/buy-shields', { quantity: 1 }, { authPlayerId: playerId });
-      assert.equal(status, 400);
-      assert.equal(body.error, 'Not at a class 0 port');
+      const msg = await wsRequest(ws, { type: 'buyShields', quantity: 1 }, 'buyResult');
+      assert.equal(msg.type, 'error');
+      assert.equal(msg.message, 'Not at a class 0 port');
     } finally {
       await closeWS(ws);
     }
   });
 
-  it('returns 400 "Exceeds maximum" when shields + quantity > maxShields', async () => {
-    const { ws, welcome } = await connectWS();
-    const playerId = welcome.playerId;
+  it('returns "Exceeds maximum" when shields + quantity > maxShields', async () => {
+    const { ws } = await connectWS();
     try {
-      const { status, body } = await httpPost('/api/port/buy-shields', { quantity: merchantCfg.maxShields + 1 }, { authPlayerId: playerId });
-      assert.equal(status, 400);
-      assert.equal(body.error, 'Exceeds maximum');
+      const msg = await wsRequest(ws, { type: 'buyShields', quantity: merchantCfg.maxShields + 1 }, 'buyResult');
+      assert.equal(msg.type, 'error');
+      assert.equal(msg.message, 'Exceeds maximum');
     } finally {
       await closeWS(ws);
     }
   });
 
-  it('returns 400 "Insufficient credits" when player cannot afford shields', async () => {
+  it('returns "Insufficient credits" when player cannot afford shields', async () => {
     const { ws, welcome } = await connectWS();
     const playerId = welcome.playerId;
     try {
       await pool.query('UPDATE ship_cargo SET credits = 0 WHERE player_id = $1', [playerId]);
-      const { status, body } = await httpPost('/api/port/buy-shields', { quantity: 1 }, { authPlayerId: playerId });
-      assert.equal(status, 400);
-      assert.equal(body.error, 'Insufficient credits');
+      const msg = await wsRequest(ws, { type: 'buyShields', quantity: 1 }, 'buyResult');
+      assert.equal(msg.type, 'error');
+      assert.equal(msg.message, 'Insufficient credits');
     } finally {
       await closeWS(ws);
     }
   });
 });
 
-describe('POST /api/port/buy-holds — validation', () => {
-  it('returns 400 "Invalid quantity" for quantity 0', async () => {
-    const { ws, welcome } = await connectWS();
-    const playerId = welcome.playerId;
+describe('Buy holds — validation', () => {
+  it('returns "Invalid quantity" for quantity 0', async () => {
+    const { ws } = await connectWS();
     try {
-      const { status, body } = await httpPost('/api/port/buy-holds', { quantity: 0 }, { authPlayerId: playerId });
-      assert.equal(status, 400);
-      assert.equal(body.error, 'Invalid quantity');
+      const msg = await wsRequest(ws, { type: 'buyHolds', quantity: 0 }, 'buyResult');
+      assert.equal(msg.type, 'error');
+      assert.equal(msg.message, 'Invalid quantity');
     } finally {
       await closeWS(ws);
     }
   });
 
-  it('returns 400 "Invalid quantity" for negative quantity', async () => {
-    const { ws, welcome } = await connectWS();
-    const playerId = welcome.playerId;
+  it('returns "Invalid quantity" for negative quantity', async () => {
+    const { ws } = await connectWS();
     try {
-      const { status, body } = await httpPost('/api/port/buy-holds', { quantity: -1 }, { authPlayerId: playerId });
-      assert.equal(status, 400);
-      assert.equal(body.error, 'Invalid quantity');
+      const msg = await wsRequest(ws, { type: 'buyHolds', quantity: -1 }, 'buyResult');
+      assert.equal(msg.type, 'error');
+      assert.equal(msg.message, 'Invalid quantity');
     } finally {
       await closeWS(ws);
     }
   });
 
-  it('returns 400 "Invalid quantity" for a float quantity', async () => {
-    const { ws, welcome } = await connectWS();
-    const playerId = welcome.playerId;
+  it('returns "Invalid quantity" for a float quantity', async () => {
+    const { ws } = await connectWS();
     try {
-      const { status, body } = await httpPost('/api/port/buy-holds', { quantity: 0.5 }, { authPlayerId: playerId });
-      assert.equal(status, 400);
-      assert.equal(body.error, 'Invalid quantity');
+      const msg = await wsRequest(ws, { type: 'buyHolds', quantity: 0.5 }, 'buyResult');
+      assert.equal(msg.type, 'error');
+      assert.equal(msg.message, 'Invalid quantity');
     } finally {
       await closeWS(ws);
     }
   });
 
-  it('returns 401 for a non-existent player', async () => {
-    const { status } = await httpPost('/api/port/buy-holds', { quantity: 1 }, { authPlayerId: 999999 });
-    assert.equal(status, 401);
-  });
-
-  it('returns 400 "Not at a class 0 port" when not in a class 0 sector', async () => {
+  it('returns "Not at a class 0 port" when not in a class 0 sector', async () => {
     const res = await pool.query('SELECT sector_id FROM ports WHERE class != 0 LIMIT 1');
     assert.ok(res.rows.length > 0, 'Need a non-class-0 sector');
     const otherSector = Number(res.rows[0].sector_id);
@@ -733,22 +544,22 @@ describe('POST /api/port/buy-holds — validation', () => {
     const playerId = welcome.playerId;
     try {
       await pool.query('UPDATE players SET current_sector = $1 WHERE id = $2', [otherSector, playerId]);
-      const { status, body } = await httpPost('/api/port/buy-holds', { quantity: 1 }, { authPlayerId: playerId });
-      assert.equal(status, 400);
-      assert.equal(body.error, 'Not at a class 0 port');
+      const msg = await wsRequest(ws, { type: 'buyHolds', quantity: 1 }, 'buyResult');
+      assert.equal(msg.type, 'error');
+      assert.equal(msg.message, 'Not at a class 0 port');
     } finally {
       await closeWS(ws);
     }
   });
 
-  it('returns 400 "Insufficient credits" when player cannot afford holds', async () => {
+  it('returns "Insufficient credits" when player cannot afford holds', async () => {
     const { ws, welcome } = await connectWS();
     const playerId = welcome.playerId;
     try {
       await pool.query('UPDATE ship_cargo SET credits = 0 WHERE player_id = $1', [playerId]);
-      const { status, body } = await httpPost('/api/port/buy-holds', { quantity: 1 }, { authPlayerId: playerId });
-      assert.equal(status, 400);
-      assert.equal(body.error, 'Insufficient credits');
+      const msg = await wsRequest(ws, { type: 'buyHolds', quantity: 1 }, 'buyResult');
+      assert.equal(msg.type, 'error');
+      assert.equal(msg.message, 'Insufficient credits');
     } finally {
       await closeWS(ws);
     }
@@ -757,81 +568,73 @@ describe('POST /api/port/buy-holds — validation', () => {
 
 describe('Buy equipment — success', () => {
   it('buy-fighters deducts 20 credits per fighter and increases fighter count', async () => {
-    const { ws, welcome } = await connectWS();
-    const playerId = welcome.playerId;
+    const { ws } = await connectWS();
     const qty = 3;
     try {
-      const { status, body } = await httpPost('/api/port/buy-fighters', { quantity: qty }, { authPlayerId: playerId });
-      assert.equal(status, 200);
-      assert.equal(body.success, true);
-      assert.equal(body.fighters, qty);
-      assert.equal(body.credits, STARTING_CREDITS - qty * FIGHTER_PRICE);
-      assert.ok('shields' in body, 'response must include shields');
-      assert.ok('cargoLimit' in body, 'response must include cargoLimit');
+      const msg = await wsRequest(ws, { type: 'buyFighters', quantity: qty }, 'buyResult');
+      assert.equal(msg.type, 'buyResult');
+      assert.equal(msg.fighters, qty);
+      assert.equal(msg.credits, STARTING_CREDITS - qty * FIGHTER_PRICE);
+      assert.ok('shields' in msg, 'response must include shields');
+      assert.ok('cargoLimit' in msg, 'response must include cargoLimit');
     } finally {
       await closeWS(ws);
     }
   });
 
   it('buy-shields deducts 10 credits per shield and increases shield count', async () => {
-    const { ws, welcome } = await connectWS();
-    const playerId = welcome.playerId;
+    const { ws } = await connectWS();
     const qty = 5;
     try {
-      const { status, body } = await httpPost('/api/port/buy-shields', { quantity: qty }, { authPlayerId: playerId });
-      assert.equal(status, 200);
-      assert.equal(body.success, true);
-      assert.equal(body.shields, qty);
-      assert.equal(body.credits, STARTING_CREDITS - qty * SHIELD_PRICE);
-      assert.ok('fighters' in body, 'response must include fighters');
-      assert.ok('cargoLimit' in body, 'response must include cargoLimit');
+      const msg = await wsRequest(ws, { type: 'buyShields', quantity: qty }, 'buyResult');
+      assert.equal(msg.type, 'buyResult');
+      assert.equal(msg.shields, qty);
+      assert.equal(msg.credits, STARTING_CREDITS - qty * SHIELD_PRICE);
+      assert.ok('fighters' in msg, 'response must include fighters');
+      assert.ok('cargoLimit' in msg, 'response must include cargoLimit');
     } finally {
       await closeWS(ws);
     }
   });
 
   it('buy-holds deducts 50 credits per hold and increases cargoLimit', async () => {
-    const { ws, welcome } = await connectWS();
-    const playerId = welcome.playerId;
+    const { ws } = await connectWS();
     const qty = 3;
     try {
-      const { status, body } = await httpPost('/api/port/buy-holds', { quantity: qty }, { authPlayerId: playerId });
-      assert.equal(status, 200);
-      assert.equal(body.success, true);
-      assert.equal(body.cargoLimit, merchantCfg.startingHolds + qty);
-      assert.equal(body.credits, STARTING_CREDITS - qty * HOLD_PRICE);
-      assert.ok('fighters' in body, 'response must include fighters');
-      assert.ok('shields' in body, 'response must include shields');
+      const msg = await wsRequest(ws, { type: 'buyHolds', quantity: qty }, 'buyResult');
+      assert.equal(msg.type, 'buyResult');
+      assert.equal(msg.cargoLimit, merchantCfg.startingHolds + qty);
+      assert.equal(msg.credits, STARTING_CREDITS - qty * HOLD_PRICE);
+      assert.ok('fighters' in msg, 'response must include fighters');
+      assert.ok('shields' in msg, 'response must include shields');
     } finally {
       await closeWS(ws);
     }
   });
 
   it('cumulative fighter purchases respect maxFighters cap', async () => {
-    const { ws, welcome } = await connectWS();
-    const playerId = welcome.playerId;
+    const { ws } = await connectWS();
     const firstBuy = merchantCfg.maxFighters - 2;
     try {
       // Buy maxFighters-2 fighters first
-      await httpPost('/api/port/buy-fighters', { quantity: firstBuy }, { authPlayerId: playerId });
+      await wsRequest(ws, { type: 'buyFighters', quantity: firstBuy }, 'buyResult');
       // Then try to buy 3 more — would exceed cap by 1
-      const { status, body } = await httpPost('/api/port/buy-fighters', { quantity: 3 }, { authPlayerId: playerId });
-      assert.equal(status, 400);
-      assert.equal(body.error, 'Exceeds maximum');
+      const msg = await wsRequest(ws, { type: 'buyFighters', quantity: 3 }, 'buyResult');
+      assert.equal(msg.type, 'error');
+      assert.equal(msg.message, 'Exceeds maximum');
     } finally {
       await closeWS(ws);
     }
   });
 
   it('cumulative shield purchases respect maxShields cap', async () => {
-    const { ws, welcome } = await connectWS();
-    const playerId = welcome.playerId;
+    const { ws } = await connectWS();
     const firstBuy = merchantCfg.maxShields - 2;
     try {
-      await httpPost('/api/port/buy-shields', { quantity: firstBuy }, { authPlayerId: playerId });
-      const { status, body } = await httpPost('/api/port/buy-shields', { quantity: 3 }, { authPlayerId: playerId });
-      assert.equal(status, 400);
-      assert.equal(body.error, 'Exceeds maximum');
+      await wsRequest(ws, { type: 'buyShields', quantity: firstBuy }, 'buyResult');
+      const msg = await wsRequest(ws, { type: 'buyShields', quantity: 3 }, 'buyResult');
+      assert.equal(msg.type, 'error');
+      assert.equal(msg.message, 'Exceeds maximum');
     } finally {
       await closeWS(ws);
     }
@@ -843,46 +646,44 @@ describe('Buy equipment — success', () => {
     const stardockId = Number(stardockRes.rows[0].id);
 
     const { ws, welcome } = await connectWS();
-    const playerId = welcome.playerId;
     try {
-      // Exchange to Warbird (startingHolds=1, maxHolds=5)
-      await pool.query('UPDATE players SET current_sector = $1 WHERE id = $2', [stardockId, playerId]);
-      await httpPost('/api/ship/exchange', { targetShipName: warbirdCfg.name }, { authPlayerId: playerId });
+      // Exchange to Warbird at Stardock (navigate there first)
+      await navigateTo(ws, stardockId);
+      const exchMsg = await wsRequest(ws, { type: 'shipExchange', targetShipName: warbirdCfg.name }, 'shipExchangeResult');
+      assert.equal(exchMsg.type, 'shipExchangeResult');
 
-      // Move to sector 1 (class 0 port) via DB
-      await pool.query('UPDATE players SET current_sector = 1 WHERE id = $1', [playerId]);
+      // Teleport to sector 1 (class 0 port) via DB — buyHolds reads current_sector from DB
+      await pool.query('UPDATE players SET current_sector = 1 WHERE id = $1', [welcome.playerId]);
 
       // Trying to buy maxHolds - startingHolds + 1 holds should fail
       const overLimit = warbirdCfg.maxHolds - warbirdCfg.startingHolds + 1;
-      const { status, body } = await httpPost('/api/port/buy-holds', { quantity: overLimit }, { authPlayerId: playerId });
-      assert.equal(status, 400);
-      assert.equal(body.error, 'Exceeds maximum');
+      const msg = await wsRequest(ws, { type: 'buyHolds', quantity: overLimit }, 'buyResult');
+      assert.equal(msg.type, 'error');
+      assert.equal(msg.message, 'Exceeds maximum');
     } finally {
       await closeWS(ws);
     }
   });
 
-  it('buy-holds returns 400 "Exceeds maximum" when purchase would exceed maxHolds cap', async () => {
-    const { ws, welcome } = await connectWS();
-    const playerId = welcome.playerId;
+  it('buy-holds returns "Exceeds maximum" when purchase would exceed maxHolds cap', async () => {
+    const { ws } = await connectWS();
     try {
       // one more than the room available
-      const { status, body } = await httpPost('/api/port/buy-holds', { quantity: merchantCfg.maxHolds - merchantCfg.startingHolds + 1 }, { authPlayerId: playerId });
-      assert.equal(status, 400);
-      assert.equal(body.error, 'Exceeds maximum');
+      const msg = await wsRequest(ws, { type: 'buyHolds', quantity: merchantCfg.maxHolds - merchantCfg.startingHolds + 1 }, 'buyResult');
+      assert.equal(msg.type, 'error');
+      assert.equal(msg.message, 'Exceeds maximum');
     } finally {
       await closeWS(ws);
     }
   });
 
   it('buy-holds succeeds when purchase reaches exactly maxHolds cap', async () => {
-    const { ws, welcome } = await connectWS();
-    const playerId = welcome.playerId;
+    const { ws } = await connectWS();
     try {
       const qty = merchantCfg.maxHolds - merchantCfg.startingHolds;
-      const { status, body } = await httpPost('/api/port/buy-holds', { quantity: qty }, { authPlayerId: playerId });
-      assert.equal(status, 200, 'buying exactly up to maxHolds should succeed');
-      assert.equal(body.cargoLimit, merchantCfg.maxHolds);
+      const msg = await wsRequest(ws, { type: 'buyHolds', quantity: qty }, 'buyResult');
+      assert.equal(msg.type, 'buyResult', 'buying exactly up to maxHolds should succeed');
+      assert.equal(msg.cargoLimit, merchantCfg.maxHolds);
     } finally {
       await closeWS(ws);
     }
@@ -899,11 +700,9 @@ describe('Buy equipment — success', () => {
       await pool.query('UPDATE ship_cargo SET fuel = 2, organics = 2 WHERE player_id = $1', [playerId]);
       await navigateTo(ws, fuelSector);
       // Buying 2 more fuel: 2+2+2 = 6 > cargoLimit(5) — should fail
-      const { status, body } = await httpPost('/api/trade', {
-        good: 'fuel', quantity: 2, action: 'buy',
-      }, { authPlayerId: playerId });
-      assert.equal(status, 400);
-      assert.equal(body.error, 'Insufficient cargo holds');
+      const msg = await wsRequest(ws, { type: 'trade', good: 'fuel', quantity: 2, action: 'buy' }, 'tradeResult');
+      assert.equal(msg.type, 'error');
+      assert.equal(msg.message, 'Insufficient cargo holds');
     } finally {
       await closeWS(ws);
     }
@@ -916,20 +715,18 @@ describe('Buy equipment — success', () => {
     assert.ok(stardockRes.rows.length > 0, 'Stardock must exist');
     const stardockId = Number(stardockRes.rows[0].id);
 
-    const { ws, welcome } = await connectWS();
-    const playerId = welcome.playerId;
+    const { ws } = await connectWS();
     try {
-      // Exchange to Warbird (startingHolds=1); cargoLimit becomes 1
-      await pool.query('UPDATE players SET current_sector = $1 WHERE id = $2', [stardockId, playerId]);
-      await httpPost('/api/ship/exchange', { targetShipName: warbirdCfg.name }, { authPlayerId: playerId });
+      // Navigate to Stardock and exchange to Warbird (startingHolds=1)
+      await navigateTo(ws, stardockId);
+      const exchMsg = await wsRequest(ws, { type: 'shipExchange', targetShipName: warbirdCfg.name }, 'shipExchangeResult');
+      assert.equal(exchMsg.type, 'shipExchangeResult');
 
       // Navigate to fuel port and try to buy 2 fuel — exceeds new cargoLimit of 1
-      await pool.query('UPDATE players SET current_sector = $1 WHERE id = $2', [fuelSector, playerId]);
-      const { status, body } = await httpPost('/api/trade', {
-        good: 'fuel', quantity: 2, action: 'buy',
-      }, { authPlayerId: playerId });
-      assert.equal(status, 400);
-      assert.equal(body.error, 'Insufficient cargo holds');
+      await navigateTo(ws, fuelSector);
+      const msg = await wsRequest(ws, { type: 'trade', good: 'fuel', quantity: 2, action: 'buy' }, 'tradeResult');
+      assert.equal(msg.type, 'error');
+      assert.equal(msg.message, 'Insufficient cargo holds');
     } finally {
       await closeWS(ws);
     }
@@ -940,106 +737,88 @@ describe('Buy equipment — success', () => {
     assert.ok(fuelRes.rows.length > 0, 'Need a fuel-selling sector');
     const fuelSector = Number(fuelRes.rows[0].sector_id);
 
-    const { ws, welcome } = await connectWS();
-    const playerId = welcome.playerId;
+    const { ws } = await connectWS();
     try {
       // Buy 3 holds → cargo_limit becomes 8
-      await httpPost('/api/port/buy-holds', { quantity: 3 }, { authPlayerId: playerId });
+      const buyMsg = await wsRequest(ws, { type: 'buyHolds', quantity: 3 }, 'buyResult');
+      assert.equal(buyMsg.type, 'buyResult');
 
       // Navigate to fuel seller and buy 8 units (should succeed now)
       await navigateTo(ws, fuelSector);
-      const { status } = await httpPost('/api/trade', {
-        good: 'fuel', quantity: 8, action: 'buy',
-      }, { authPlayerId: playerId });
-      assert.equal(status, 200, 'should be able to buy 8 fuel after buying 3 extra holds');
+      const msg = await wsRequest(ws, { type: 'trade', good: 'fuel', quantity: 8, action: 'buy' }, 'tradeResult');
+      assert.equal(msg.type, 'tradeResult', 'should be able to buy 8 fuel after buying 3 extra holds');
     } finally {
       await closeWS(ws);
     }
   });
 });
 
-describe('POST /api/ship/exchange — validation', () => {
+describe('Ship exchange — validation', () => {
   async function getStardockSector() {
     const res = await pool.query(`SELECT id FROM sectors WHERE name = 'Stardock'`);
     return res.rows.length > 0 ? Number(res.rows[0].id) : null;
   }
 
-  it('returns 401 for a non-existent player', async () => {
-    const { status } = await httpPost('/api/ship/exchange', { targetShipName: warbirdCfg.name }, { authPlayerId: 999999 });
-    assert.equal(status, 401);
-  });
-
-  it('returns 400 "Not at Stardock" when player is not in Stardock', async () => {
-    const { ws, welcome } = await connectWS();
-    const playerId = welcome.playerId;
+  it('returns "Not at Stardock" when player is not in Stardock', async () => {
+    const { ws } = await connectWS();
     try {
-      const { status, body } = await httpPost('/api/ship/exchange', {
-        targetShipName: warbirdCfg.name,
-      }, { authPlayerId: playerId });
-      assert.equal(status, 400);
-      assert.equal(body.error, 'Not at Stardock');
+      const msg = await wsRequest(ws, { type: 'shipExchange', targetShipName: warbirdCfg.name }, 'shipExchangeResult');
+      assert.equal(msg.type, 'error');
+      assert.equal(msg.message, 'Not at Stardock');
     } finally {
       await closeWS(ws);
     }
   });
 
-  it('returns 400 "Unknown ship" for an unrecognized ship name', async () => {
+  it('returns "Unknown ship" for an unrecognized ship name', async () => {
     const stardockId = await getStardockSector();
     assert.ok(stardockId, 'Stardock sector must exist');
 
-    const { ws, welcome } = await connectWS();
-    const playerId = welcome.playerId;
+    const { ws } = await connectWS();
     try {
-      await pool.query('UPDATE players SET current_sector = $1 WHERE id = $2', [stardockId, playerId]);
-      const { status, body } = await httpPost('/api/ship/exchange', {
-        targetShipName: 'Galaxy Hauler',
-      }, { authPlayerId: playerId });
-      assert.equal(status, 400);
-      assert.equal(body.error, 'Unknown ship');
+      await navigateTo(ws, stardockId);
+      const msg = await wsRequest(ws, { type: 'shipExchange', targetShipName: 'Galaxy Hauler' }, 'shipExchangeResult');
+      assert.equal(msg.type, 'error');
+      assert.equal(msg.message, 'Unknown ship');
     } finally {
       await closeWS(ws);
     }
   });
 
-  it('returns 400 "Already on that ship" when targeting the current ship', async () => {
+  it('returns "Already on that ship" when targeting the current ship', async () => {
+    const stardockId = await getStardockSector();
+    assert.ok(stardockId);
+
+    const { ws } = await connectWS();
+    try {
+      await navigateTo(ws, stardockId);
+      const msg = await wsRequest(ws, { type: 'shipExchange', targetShipName: merchantCfg.name }, 'shipExchangeResult');
+      assert.equal(msg.type, 'error');
+      assert.equal(msg.message, 'Already on that ship');
+    } finally {
+      await closeWS(ws);
+    }
+  });
+
+  it('returns "Insufficient credits" when player cannot afford the upgrade', async () => {
     const stardockId = await getStardockSector();
     assert.ok(stardockId);
 
     const { ws, welcome } = await connectWS();
     const playerId = welcome.playerId;
     try {
-      await pool.query('UPDATE players SET current_sector = $1 WHERE id = $2', [stardockId, playerId]);
-      const { status, body } = await httpPost('/api/ship/exchange', {
-        targetShipName: merchantCfg.name,
-      }, { authPlayerId: playerId });
-      assert.equal(status, 400);
-      assert.equal(body.error, 'Already on that ship');
-    } finally {
-      await closeWS(ws);
-    }
-  });
-
-  it('returns 400 "Insufficient credits" when player cannot afford the upgrade', async () => {
-    const stardockId = await getStardockSector();
-    assert.ok(stardockId);
-
-    const { ws, welcome } = await connectWS();
-    const playerId = welcome.playerId;
-    try {
-      await pool.query('UPDATE players SET current_sector = $1 WHERE id = $2', [stardockId, playerId]);
+      await navigateTo(ws, stardockId);
       const upgradeCost = warbirdCfg.price - merchantCfg.price;
       await pool.query('UPDATE ship_cargo SET credits = $1 WHERE player_id = $2', [upgradeCost - 1, playerId]);
-      const { status, body } = await httpPost('/api/ship/exchange', {
-        targetShipName: warbirdCfg.name,
-      }, { authPlayerId: playerId });
-      assert.equal(status, 400);
-      assert.equal(body.error, 'Insufficient credits');
+      const msg = await wsRequest(ws, { type: 'shipExchange', targetShipName: warbirdCfg.name }, 'shipExchangeResult');
+      assert.equal(msg.type, 'error');
+      assert.equal(msg.message, 'Insufficient credits');
     } finally {
       await closeWS(ws);
     }
   });
 
-  it('returns 400 "New ship has insufficient holds for current cargo" when cargo exceeds new ship startingHolds', async () => {
+  it('returns "New ship has insufficient holds for current cargo" when cargo exceeds new ship startingHolds', async () => {
     const stardockId = await getStardockSector();
     assert.ok(stardockId);
 
@@ -1049,28 +828,25 @@ describe('POST /api/ship/exchange — validation', () => {
       // set fuel > warbird's startingHolds directly in ship_cargo to trigger the holds check on exchange
       await pool.query('UPDATE ship_cargo SET fuel = $1 WHERE player_id = $2', [warbirdCfg.startingHolds + 1, playerId]);
 
-      await pool.query('UPDATE players SET current_sector = $1 WHERE id = $2', [stardockId, playerId]);
-      const { status, body } = await httpPost('/api/ship/exchange', {
-        targetShipName: warbirdCfg.name,
-      }, { authPlayerId: playerId });
-      assert.equal(status, 400);
-      assert.equal(body.error, 'New ship has insufficient holds for current cargo');
+      await navigateTo(ws, stardockId);
+      const msg = await wsRequest(ws, { type: 'shipExchange', targetShipName: warbirdCfg.name }, 'shipExchangeResult');
+      assert.equal(msg.type, 'error');
+      assert.equal(msg.message, 'New ship has insufficient holds for current cargo');
     } finally {
       await closeWS(ws);
     }
   });
 });
 
-describe('GET /api/ship/:playerId — dynamic state', () => {
+describe('Ship info — dynamic state', () => {
   it('cargoLimit reflects cargo_limit after buying holds', async () => {
-    const { ws, welcome } = await connectWS();
-    const playerId = welcome.playerId;
+    const { ws } = await connectWS();
     const qty = 4;
     try {
-      await httpPost('/api/port/buy-holds', { quantity: qty }, { authPlayerId: playerId });
-      const { status, body } = await httpGet(`/api/ship/${playerId}`);
-      assert.equal(status, 200);
-      assert.equal(body.cargoLimit, merchantCfg.startingHolds + qty);
+      await wsRequest(ws, { type: 'buyHolds', quantity: qty }, 'buyResult');
+      const msg = await wsRequest(ws, { type: 'ship' }, 'shipInfo');
+      assert.equal(msg.type, 'shipInfo');
+      assert.equal(msg.cargoLimit, merchantCfg.startingHolds + qty);
     } finally {
       await closeWS(ws);
     }
@@ -1081,24 +857,23 @@ describe('GET /api/ship/:playerId — dynamic state', () => {
     assert.ok(fuelRes.rows.length > 0, 'Need a fuel-selling sector');
     const fuelSector = Number(fuelRes.rows[0].sector_id);
 
-    const { ws, welcome } = await connectWS();
-    const playerId = welcome.playerId;
+    const { ws } = await connectWS();
     const fuelQty = 3;
     try {
       await navigateTo(ws, fuelSector);
-      await httpPost('/api/trade', { good: 'fuel', quantity: fuelQty, action: 'buy' }, { authPlayerId: playerId });
+      await wsRequest(ws, { type: 'trade', good: 'fuel', quantity: fuelQty, action: 'buy' }, 'tradeResult');
 
-      const { status, body } = await httpGet(`/api/ship/${playerId}`);
-      assert.equal(status, 200);
-      assert.equal(body.cargoFuel, fuelQty);
-      assert.equal(body.holdsAvailable, merchantCfg.startingHolds - fuelQty);
+      const msg = await wsRequest(ws, { type: 'ship' }, 'shipInfo');
+      assert.equal(msg.type, 'shipInfo');
+      assert.equal(msg.cargoFuel, fuelQty);
+      assert.equal(msg.holdsAvailable, merchantCfg.startingHolds - fuelQty);
     } finally {
       await closeWS(ws);
     }
   });
 });
 
-describe('POST /api/ship/exchange — success', () => {
+describe('Ship exchange — success', () => {
   async function getStardockSector() {
     const res = await pool.query(`SELECT id FROM sectors WHERE name = 'Stardock'`);
     return res.rows.length > 0 ? Number(res.rows[0].id) : null;
@@ -1112,17 +887,14 @@ describe('POST /api/ship/exchange — success', () => {
     const { ws, welcome } = await connectWS();
     const playerId = welcome.playerId;
     try {
-      await pool.query('UPDATE players SET current_sector = $1 WHERE id = $2', [stardockId, playerId]);
-      const { status, body } = await httpPost('/api/ship/exchange', {
-        targetShipName: warbirdCfg.name,
-      }, { authPlayerId: playerId });
-      assert.equal(status, 200);
-      assert.equal(body.success, true);
-      assert.equal(body.shipName, warbirdCfg.name);
-      assert.equal(body.credits, STARTING_CREDITS - upgradeCost);
-      assert.equal(body.maxFighters, warbirdCfg.maxFighters);
-      assert.equal(body.maxShields, warbirdCfg.maxShields);
-      assert.equal(body.cargoLimit, warbirdCfg.startingHolds);
+      await navigateTo(ws, stardockId);
+      const msg = await wsRequest(ws, { type: 'shipExchange', targetShipName: warbirdCfg.name }, 'shipExchangeResult');
+      assert.equal(msg.type, 'shipExchangeResult');
+      assert.equal(msg.shipName, warbirdCfg.name);
+      assert.equal(msg.credits, STARTING_CREDITS - upgradeCost);
+      assert.equal(msg.maxFighters, warbirdCfg.maxFighters);
+      assert.equal(msg.maxShields, warbirdCfg.maxShields);
+      assert.equal(msg.cargoLimit, warbirdCfg.startingHolds);
 
       // Verify DB: fighters and shields reset to 0
       const shipRes = await pool.query('SELECT * FROM player_ships WHERE player_id = $1', [playerId]);
@@ -1143,14 +915,12 @@ describe('POST /api/ship/exchange — success', () => {
     const playerId = welcome.playerId;
     try {
       // Buy some fighters and shields first (player starts at sector 1, class 0 port)
-      await httpPost('/api/port/buy-fighters', { quantity: Math.min(5, merchantCfg.maxFighters) }, { authPlayerId: playerId });
-      await httpPost('/api/port/buy-shields', { quantity: Math.min(4, merchantCfg.maxShields) }, { authPlayerId: playerId });
+      await wsRequest(ws, { type: 'buyFighters', quantity: Math.min(5, merchantCfg.maxFighters) }, 'buyResult');
+      await wsRequest(ws, { type: 'buyShields', quantity: Math.min(4, merchantCfg.maxShields) }, 'buyResult');
 
-      await pool.query('UPDATE players SET current_sector = $1 WHERE id = $2', [stardockId, playerId]);
-      const { status } = await httpPost('/api/ship/exchange', {
-        targetShipName: warbirdCfg.name,
-      }, { authPlayerId: playerId });
-      assert.equal(status, 200);
+      await navigateTo(ws, stardockId);
+      const msg = await wsRequest(ws, { type: 'shipExchange', targetShipName: warbirdCfg.name }, 'shipExchangeResult');
+      assert.equal(msg.type, 'shipExchangeResult');
 
       const shipRes = await pool.query('SELECT fighters, shields FROM player_ships WHERE player_id = $1', [playerId]);
       assert.equal(Number(shipRes.rows[0].fighters), 0, 'fighters should be reset to 0 on exchange');
@@ -1164,20 +934,17 @@ describe('POST /api/ship/exchange — success', () => {
     const stardockId = await getStardockSector();
     assert.ok(stardockId);
 
-    const { ws, welcome } = await connectWS();
-    const playerId = welcome.playerId;
+    const { ws } = await connectWS();
     try {
-      await pool.query('UPDATE players SET current_sector = $1 WHERE id = $2', [stardockId, playerId]);
+      await navigateTo(ws, stardockId);
       // Upgrade first
-      await httpPost('/api/ship/exchange', { targetShipName: warbirdCfg.name }, { authPlayerId: playerId });
+      await wsRequest(ws, { type: 'shipExchange', targetShipName: warbirdCfg.name }, 'shipExchangeResult');
       // Now downgrade
-      const { status, body } = await httpPost('/api/ship/exchange', {
-        targetShipName: merchantCfg.name,
-      }, { authPlayerId: playerId });
-      assert.equal(status, 200);
-      assert.equal(body.shipName, merchantCfg.name);
-      assert.equal(body.credits, STARTING_CREDITS, 'credits restored after upgrade then downgrade');
-      assert.equal(body.cargoLimit, merchantCfg.startingHolds);
+      const msg = await wsRequest(ws, { type: 'shipExchange', targetShipName: merchantCfg.name }, 'shipExchangeResult');
+      assert.equal(msg.type, 'shipExchangeResult');
+      assert.equal(msg.shipName, merchantCfg.name);
+      assert.equal(msg.credits, STARTING_CREDITS, 'credits restored after upgrade then downgrade');
+      assert.equal(msg.cargoLimit, merchantCfg.startingHolds);
     } finally {
       await closeWS(ws);
     }
@@ -1191,30 +958,11 @@ describe('Movement Constraint', () => {
     try {
       await pool.query('DELETE FROM player_ships WHERE player_id = $1', [playerId]);
 
-      const msgPromise = waitForMsg(ws, 'noShip', 5000);
       const adjRes = await pool.query('SELECT sector_to FROM warps WHERE sector_from = 1 LIMIT 1');
       const target = adjRes.rows.length > 0 ? Number(adjRes.rows[0].sector_to) : 2;
-      ws.send(JSON.stringify({ type: 'move', sector: target }));
 
-      const msg = await msgPromise;
+      const msg = await wsRequest(ws, { type: 'move', sector: target }, 'noShip');
       assert.equal(msg.type, 'noShip');
-    } finally {
-      await closeWS(ws);
-    }
-  });
-
-  it('REST /api/move without a ship row returns 400 "No ship"', async () => {
-    const { ws, welcome } = await connectWS();
-    const playerId = welcome.playerId;
-    try {
-      await pool.query('DELETE FROM player_ships WHERE player_id = $1', [playerId]);
-
-      const adjRes = await pool.query('SELECT sector_to FROM warps WHERE sector_from = 1 LIMIT 1');
-      const target = adjRes.rows.length > 0 ? Number(adjRes.rows[0].sector_to) : 2;
-
-      const { status, body } = await httpPost('/api/move', { targetSector: target }, { authPlayerId: playerId });
-      assert.equal(status, 400);
-      assert.equal(body.error, 'No ship');
     } finally {
       await closeWS(ws);
     }
@@ -1231,11 +979,8 @@ describe('Existing feature regression', () => {
     try {
       await pool.query('UPDATE ship_cargo SET fuel = 3 WHERE player_id = $1', [playerId]);
       await navigateTo(ws, fuelSector);
-      const { status, body } = await httpPost('/api/trade', {
-        good: 'fuel', quantity: 2, action: 'sell',
-      }, { authPlayerId: playerId });
-      assert.equal(status, 200);
-      assert.ok(body.success);
+      const msg = await wsRequest(ws, { type: 'trade', good: 'fuel', quantity: 2, action: 'sell' }, 'tradeResult');
+      assert.equal(msg.type, 'tradeResult');
     } finally {
       await closeWS(ws);
     }

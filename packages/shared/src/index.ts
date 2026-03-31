@@ -55,6 +55,83 @@ export type RateLimitedMessage = {
     type: 'rateLimited';
 };
 
+export type SectorInfoMessage = {
+    type: 'sectorInfo';
+    id: number;
+    warps: number[];
+};
+
+export type RouteResultMessage = {
+    type: 'routeResult';
+    path: number[];
+    hops: number;
+};
+
+export type PortInfoMessage = {
+    type: 'portInfo';
+    sectorId: number;
+    class: number;
+    fuel: number;
+    fuelPrice: number;
+    organics: number;
+    orgPrice: number;
+    equipment: number;
+    equPrice: number;
+};
+
+export type ShipInfoMessage = {
+    type: 'shipInfo';
+    playerId: number;
+    shipName: string;
+    fighters: number;
+    shields: number;
+    maxFighters: number;
+    maxShields: number;
+    cargoLimit: number;
+    maxHolds: number;
+    cargoFuel: number;
+    cargoOrganics: number;
+    cargoEquipment: number;
+    holdsAvailable: number;
+};
+
+export type CargoInfoMessage = {
+    type: 'cargoInfo';
+    playerId: number;
+    fuel: number;
+    organics: number;
+    equipment: number;
+    credits: number;
+};
+
+export type TradeResultMessage = {
+    type: 'tradeResult';
+    credits: number;
+    cargo: { fuel: number; organics: number; equipment: number };
+};
+
+export type BuyResultMessage = {
+    type: 'buyResult';
+    credits: number;
+    fighters: number;
+    shields: number;
+    cargoLimit: number;
+};
+
+export type ShipExchangeResultMessage = {
+    type: 'shipExchangeResult';
+    shipName: string;
+    credits: number;
+    maxFighters: number;
+    maxShields: number;
+    cargoLimit: number;
+};
+
+export type ErrorMessage = {
+    type: 'error';
+    message: string;
+};
+
 export type ServerMessage =
     | WelcomeMessage
     | PlayerMovedMessage
@@ -63,7 +140,16 @@ export type ServerMessage =
     | PlayersOnlineMessage
     | NoShipMessage
     | NonAdjacentMoveMessage
-    | RateLimitedMessage;
+    | RateLimitedMessage
+    | SectorInfoMessage
+    | RouteResultMessage
+    | PortInfoMessage
+    | ShipInfoMessage
+    | CargoInfoMessage
+    | TradeResultMessage
+    | BuyResultMessage
+    | ShipExchangeResultMessage
+    | ErrorMessage;
 
 // WebSocket messages (client → server)
 
@@ -80,86 +166,73 @@ export type WhoMessage = {
     type: 'who';
 };
 
-export type ClientMessage = MoveMessage | DisplayMessage | WhoMessage;
-
-// HTTP API response shapes
-
-export type SectorResponse = {
+export type SectorQueryMessage = {
+    type: 'sector';
     id: number;
-    warps: number[];
 };
 
-export type PlayersOnlineResponse = {
-    players: { playerId: number; name: string }[];
+export type RouteQueryMessage = {
+    type: 'route';
+    from: number;
+    to: number;
 };
 
-export type RouteResponse = {
-    path: number[];
-    hops: number;
-};
-
-export type PortResponse = {
+export type PortQueryMessage = {
+    type: 'port';
     sectorId: number;
-    class: number;
-    fuel: number;
-    fuelPrice: number;
-    organics: number;
-    orgPrice: number;
-    equipment: number;
-    equPrice: number;
 };
 
-export type ShipResponse = {
-    playerId: number;
-    shipName: string;
-    fighters: number;
-    shields: number;
-    maxFighters: number;
-    maxShields: number;
-    cargoLimit: number;
-    maxHolds: number;
-    cargoFuel: number;
-    cargoOrganics: number;
-    cargoEquipment: number;
-    holdsAvailable: number;
+export type ShipQueryMessage = {
+    type: 'ship';
 };
 
-export type CargoResponse = {
-    playerId: number;
-    fuel: number;
-    organics: number;
-    equipment: number;
-    credits: number;
+export type CargoQueryMessage = {
+    type: 'cargo';
 };
 
-export type TradeResponse = {
-    success: boolean;
-    credits: number;
-    cargo: { fuel: number; organics: number; equipment: number };
+export type TradeMessage = {
+    type: 'trade';
+    good: string;
+    quantity: number;
+    action: 'buy' | 'sell';
 };
 
-export type BuyResponse = {
-    success: boolean;
-    credits: number;
-    fighters: number;
-    shields: number;
-    cargoLimit: number;
+export type BuyFightersMessage = {
+    type: 'buyFighters';
+    quantity: number;
 };
 
-export type MoveResponse = {
-    success: boolean;
-    sector: number;
-    warps: number[];
+export type BuyShieldsMessage = {
+    type: 'buyShields';
+    quantity: number;
 };
 
-export type ShipExchangeResponse = {
-    success: boolean;
-    shipName: string;
-    credits: number;
-    maxFighters: number;
-    maxShields: number;
-    cargoLimit: number;
+export type BuyHoldsMessage = {
+    type: 'buyHolds';
+    quantity: number;
 };
+
+export type ShipExchangeMessage = {
+    type: 'shipExchange';
+    targetShipName: string;
+};
+
+export type ClientMessage =
+    | MoveMessage
+    | DisplayMessage
+    | WhoMessage
+    | SectorQueryMessage
+    | RouteQueryMessage
+    | PortQueryMessage
+    | ShipQueryMessage
+    | CargoQueryMessage
+    | TradeMessage
+    | BuyFightersMessage
+    | BuyShieldsMessage
+    | BuyHoldsMessage
+    | ShipExchangeMessage;
+
+// HTTP API response shapes (auth & admin only)
 
 export type AuthResponse = {
     playerId: number;

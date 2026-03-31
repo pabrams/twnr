@@ -14,6 +14,7 @@ import {
   closeWS,
   httpGet,
   httpPost,
+  wsRequest,
   findPortSector,
   findPortSelling,
   findPortBuying,
@@ -122,38 +123,19 @@ describe('Schema', () => {
 });
 
 describe('Security', () => {
-  it('rejects unsigned JWTs on protected endpoints', async () => {
-    const { ws, welcome } = await connectWS();
+  it('rejects unsigned JWTs on protected REST endpoints', async () => {
     const header = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64url');
-    const payload = Buffer.from(JSON.stringify({ playerId: welcome.playerId, role: 'player' })).toString('base64url');
+    const payload = Buffer.from(JSON.stringify({ playerId: 1, role: 'player' })).toString('base64url');
     const forgedToken = `${header}.${payload}.`;
 
-    const res = await fetch(`http://localhost:3000/api/ship/${welcome.playerId}`, {
+    const res = await fetch('http://localhost:3000/api/auth/logout', {
+      method: 'POST',
       headers: { Authorization: `Bearer ${forgedToken}` },
     });
     const body = await res.json();
 
     assert.equal(res.status, 403);
     assert.equal(body.error, 'Invalid token');
-    await closeWS(ws);
-  });
-
-  it('accepts protected HTTP calls via WebSocket session cookie for compatibility', async () => {
-    const { ws, welcome, cookies } = await connectWS();
-    const sessionCookie = cookies.find(cookie => cookie.startsWith('twnr_session='));
-
-    assert.ok(sessionCookie, 'WebSocket handshake should set a compatibility session cookie');
-
-    const res = await fetch(`http://localhost:3000/api/cargo/${welcome.playerId}`, {
-      headers: {
-        Cookie: sessionCookie.split(';')[0],
-      },
-    });
-    const body = await res.json();
-
-    assert.equal(res.status, 200);
-    assert.equal(body.playerId, welcome.playerId);
-    await closeWS(ws);
   });
 
   it('allows WebSocket connections from configured origins', async () => {
@@ -293,9 +275,7 @@ describe('WebSocket', () => {
 
   it('display returns sectorDisplay with sector and warps array', async () => {
     const { ws } = await connectWS();
-    const promise = waitForMsg(ws, 'sectorDisplay');
-    ws.send(JSON.stringify({ type: 'display' }));
-    const msg = await promise;
+    const msg = await wsRequest(ws, { type: 'display' }, 'sectorDisplay');
     assert.equal(msg.type, 'sectorDisplay');
     assert.ok(typeof msg.sector === 'number', 'sector should be a number');
     assert.ok(Array.isArray(msg.warps), 'warps should be an array');
@@ -306,14 +286,9 @@ describe('WebSocket', () => {
   it('move to adjacent sector broadcasts playerMoved', async () => {
     const { ws } = await connectWS();
 
-    const dispPromise = waitForMsg(ws, 'sectorDisplay');
-    ws.send(JSON.stringify({ type: 'display' }));
-    const disp = await dispPromise;
-
+    const disp = await wsRequest(ws, { type: 'display' }, 'sectorDisplay');
     const target = disp.warps[0];
-    const movePromise = waitForMsg(ws, 'sectorDisplay');
-    ws.send(JSON.stringify({ type: 'move', sector: target }));
-    const moveMsg = await movePromise;
+    const moveMsg = await wsRequest(ws, { type: 'move', sector: target }, 'sectorDisplay');
 
     assert.equal(moveMsg.type, 'sectorDisplay');
     assert.equal(moveMsg.sector, target);
@@ -324,10 +299,7 @@ describe('WebSocket', () => {
     const { ws: ws1 } = await connectWS();
     const { ws: ws2 } = await connectWS();
 
-    const dispPromise = waitForMsg(ws2, 'sectorDisplay');
-    ws2.send(JSON.stringify({ type: 'display' }));
-    const disp = await dispPromise;
-
+    const disp = await wsRequest(ws2, { type: 'display' }, 'sectorDisplay');
     const target = disp.warps[0];
     const broadcastPromise = waitForMsg(ws1, 'playerMoved');
     ws2.send(JSON.stringify({ type: 'move', sector: target }));
@@ -345,24 +317,16 @@ describe('WebSocket', () => {
     const { ws: ws2 } = await connectWS();
 
     // Move ws1 away from sector 1
-    const disp1Promise = waitForMsg(ws1, 'sectorDisplay');
-    ws1.send(JSON.stringify({ type: 'display' }));
-    const disp1 = await disp1Promise;
+    const disp1 = await wsRequest(ws1, { type: 'display' }, 'sectorDisplay');
     const ws1Target = disp1.warps[0];
-    const move1Promise = waitForMsg(ws1, 'sectorDisplay');
-    ws1.send(JSON.stringify({ type: 'move', sector: ws1Target }));
-    const disp1b = await move1Promise;
+    const disp1b = await wsRequest(ws1, { type: 'move', sector: ws1Target }, 'sectorDisplay');
 
     // Move ws1 again so it's two hops away from sector 1
     const ws1Target2 = disp1b.warps.find(w => w !== 1) || disp1b.warps[0];
-    const move2Promise = waitForMsg(ws1, 'sectorDisplay');
-    ws1.send(JSON.stringify({ type: 'move', sector: ws1Target2 }));
-    await move2Promise;
+    await wsRequest(ws1, { type: 'move', sector: ws1Target2 }, 'sectorDisplay');
 
     // ws2 is still in sector 1 - ws1 should not receive this move
-    const disp3Promise = waitForMsg(ws2, 'sectorDisplay');
-    ws2.send(JSON.stringify({ type: 'display' }));
-    const disp3 = await disp3Promise;
+    const disp3 = await wsRequest(ws2, { type: 'display' }, 'sectorDisplay');
     const ws2Target = disp3.warps[0];
 
     const noMsgPromise = expectNoMsg(ws1, 'playerMoved');
@@ -377,9 +341,7 @@ describe('WebSocket', () => {
     const { ws: ws1 } = await connectWS();
     const { ws: ws2 } = await connectWS();
 
-    const dispPromise = waitForMsg(ws2, 'sectorDisplay');
-    ws2.send(JSON.stringify({ type: 'display' }));
-    const disp = await dispPromise;
+    const disp = await wsRequest(ws2, { type: 'display' }, 'sectorDisplay');
     const warpSet = new Set(disp.warps);
     let nonAdjacent = null;
     for (let i = 1; i <= 100; i++) {
@@ -403,13 +365,9 @@ describe('WebSocket', () => {
     const { ws: ws3 } = await connectWS();
 
     // Move ws2 away from sector 1
-    const dispPromise = waitForMsg(ws2, 'sectorDisplay');
-    ws2.send(JSON.stringify({ type: 'display' }));
-    const disp = await dispPromise;
+    const disp = await wsRequest(ws2, { type: 'display' }, 'sectorDisplay');
     const target = disp.warps[0];
-    const movePromise = waitForMsg(ws2, 'sectorDisplay');
-    ws2.send(JSON.stringify({ type: 'move', sector: target }));
-    await movePromise;
+    await wsRequest(ws2, { type: 'move', sector: target }, 'sectorDisplay');
 
     // ws1 and ws3 are in sector 1, ws2 is elsewhere
     // ws1 disconnects — ws3 should get playerLeft, ws2 should NOT
@@ -426,10 +384,7 @@ describe('WebSocket', () => {
   it('move to non-adjacent sector returns nonAdjacentMoveRequested', async () => {
     const { ws } = await connectWS();
 
-    const dispPromise = waitForMsg(ws, 'sectorDisplay');
-    ws.send(JSON.stringify({ type: 'display' }));
-    const disp = await dispPromise;
-
+    const disp = await wsRequest(ws, { type: 'display' }, 'sectorDisplay');
     const warpSet = new Set(disp.warps);
     let nonAdjacent = null;
     for (let i = 1; i <= 100; i++) {
@@ -437,10 +392,7 @@ describe('WebSocket', () => {
     }
     assert.ok(nonAdjacent !== null, 'Could not find a non-adjacent sector for test');
 
-    const failPromise = waitForMsg(ws, 'nonAdjacentMoveRequested');
-    ws.send(JSON.stringify({ type: 'move', sector: nonAdjacent }));
-    const failMsg = await failPromise;
-
+    const failMsg = await wsRequest(ws, { type: 'move', sector: nonAdjacent }, 'nonAdjacentMoveRequested');
     assert.equal(failMsg.type, 'nonAdjacentMoveRequested');
     assert.equal(failMsg.sector, nonAdjacent);
     await closeWS(ws);
@@ -449,10 +401,7 @@ describe('WebSocket', () => {
   it('who returns playersOnline with connected player IDs', async () => {
     const { ws } = await connectWS();
 
-    const promise = waitForMsg(ws, 'playersOnline');
-    ws.send(JSON.stringify({ type: 'who' }));
-    const msg = await promise;
-
+    const msg = await wsRequest(ws, { type: 'who' }, 'playersOnline');
     assert.equal(msg.type, 'playersOnline');
     assert.ok(Array.isArray(msg.players), 'players should be an array');
     assert.ok(msg.players.length >= 1, 'should list at least the current player');
@@ -471,179 +420,117 @@ describe('WebSocket', () => {
     assert.ok(msg.playerId !== undefined, 'playerLeft should include playerId');
     await closeWS(ws1);
   });
-});
 
-describe('REST API', () => {
-  it('GET /api/sector/:id returns sector data with warps', async () => {
-    const { status, body } = await httpGet('/api/sector/1');
-    assert.equal(status, 200);
-    assert.equal(body.id, 1);
-    assert.ok(Array.isArray(body.warps), 'warps should be an array');
-    assert.ok(body.warps.length >= 1, 'sector 1 should have at least 1 warp');
-  });
-
-  it('GET /api/sector/:id returns 404 for nonexistent sector', async () => {
-    const { status, body } = await httpGet('/api/sector/9999');
-    assert.equal(status, 404);
-    assert.equal(body.error, 'Sector not found');
-  });
-
-  it('GET /api/sector/:id returns 400 for invalid ID', async () => {
-    const { status, body } = await httpGet('/api/sector/abc');
-    assert.equal(status, 400);
-    assert.equal(body.error, 'Invalid sector ID');
-  });
-
-  it('GET /api/players/online lists connected players with name', async () => {
+  it('move with missing sector returns error', async () => {
     const { ws } = await connectWS();
-    try {
-      const { status, body } = await httpGet('/api/players/online');
-      assert.equal(status, 200);
-      assert.ok(Array.isArray(body.players), 'players should be an array');
-      assert.ok(body.players.length >= 1, 'should list at least one player');
-      const player = body.players[0];
-      assert.ok(typeof player.playerId === 'number', 'each player should have playerId');
-      assert.ok(typeof player.name === 'string', 'each player should have name');
-      assert.equal(player.sector, undefined, 'sector should not be exposed');
-    } finally {
-      await closeWS(ws);
-    }
-  });
-
-  it('GET /api/players/online returns empty array when nobody connected', async () => {
-    let response = null;
-    for (let i = 0; i < 20; i++) {
-      response = await httpGet('/api/players/online');
-      if (response.body.players.length === 0) {
-        break;
-      }
-      await new Promise(resolve => setTimeout(resolve, 200));
-    }
-
-    assert.equal(response.status, 200);
-    assert.ok(Array.isArray(response.body.players));
-    assert.equal(response.body.players.length, 0);
-  });
-
-  it('POST /api/move succeeds for valid adjacent move', async () => {
-    const { ws, welcome } = await connectWS();
-
-    const dispPromise = waitForMsg(ws, 'sectorDisplay');
-    ws.send(JSON.stringify({ type: 'display' }));
-    const disp = await dispPromise;
-    const target = disp.warps[0];
-
-    const movePromise = waitForMsg(ws, 'sectorDisplay');
-    const { status, body } = await httpPost('/api/move', {
-      targetSector: target,
-    }, { authPlayerId: welcome.playerId });
-    assert.equal(status, 200);
-    assert.equal(body.success, true);
-    assert.equal(body.sector, target);
-    assert.ok(Array.isArray(body.warps), 'response should include warps for new sector');
-
-    const wsMsg = await movePromise;
-    assert.equal(wsMsg.type, 'sectorDisplay');
-    assert.equal(wsMsg.sector, target);
-
+    const msg = await wsRequest(ws, { type: 'move' }, 'error');
+    assert.equal(msg.type, 'error');
+    assert.equal(msg.message, 'Invalid sector');
     await closeWS(ws);
   });
 
-  it('POST /api/move returns 400 for non-adjacent sector', async () => {
-    const { ws, welcome } = await connectWS();
-
-    const dispPromise = waitForMsg(ws, 'sectorDisplay');
-    ws.send(JSON.stringify({ type: 'display' }));
-    const disp = await dispPromise;
-    const warpSet = new Set(disp.warps);
-    let nonAdjacent = null;
-    for (let i = 1; i <= 100; i++) {
-      if (i !== disp.sector && !warpSet.has(i)) { nonAdjacent = i; break; }
-    }
-    assert.ok(nonAdjacent !== null);
-
-    const { status, body } = await httpPost('/api/move', {
-      targetSector: nonAdjacent,
-    }, { authPlayerId: welcome.playerId });
-    assert.equal(status, 400);
-    assert.equal(body.error, 'Not adjacent');
-
+  it('error returned for unknown message type', async () => {
+    const { ws } = await connectWS();
+    const msg = await wsRequest(ws, { type: 'foobar' }, 'error');
+    assert.equal(msg.type, 'error');
+    assert.equal(msg.message, 'Unknown message type');
     await closeWS(ws);
-  });
-
-  it('POST /api/move returns 401 for token with non-existent player', async () => {
-    const { status } = await httpPost('/api/move', {
-      targetSector: 1,
-    }, { authPlayerId: 99999 });
-    assert.equal(status, 401);
-  });
-
-  it('POST /api/move returns 400 when fields are missing', async () => {
-    const { status, body } = await httpPost('/api/move', {});
-    assert.equal(status, 400);
-    assert.equal(body.error, 'Invalid request');
   });
 });
 
-describe('Pathfinding', () => {
-  it('GET /api/route/:from/:to returns shortest path between connected sectors', async () => {
-    const sectorRes = await httpGet('/api/sector/1');
-    assert.equal(sectorRes.status, 200);
-    const target = sectorRes.body.warps[0];
-
-    const { status, body } = await httpGet(`/api/route/1/${target}`);
-    assert.equal(status, 200);
-    assert.ok(Array.isArray(body.path), 'path should be an array');
-    assert.equal(body.path[0], 1, 'path should start with origin sector');
-    assert.equal(body.path[body.path.length - 1], target, 'path should end with target sector');
-    assert.equal(body.hops, body.path.length - 1, 'hops should equal path length minus 1');
-    assert.equal(body.path.length, 2, 'direct neighbors should have a 2-element path');
-    assert.equal(body.hops, 1);
+describe('Sector & Route Queries', () => {
+  it('sector query returns sector data with warps', async () => {
+    const { ws } = await connectWS();
+    const msg = await wsRequest(ws, { type: 'sector', id: 1 }, 'sectorInfo');
+    assert.equal(msg.type, 'sectorInfo');
+    assert.equal(msg.id, 1);
+    assert.ok(Array.isArray(msg.warps), 'warps should be an array');
+    assert.ok(msg.warps.length >= 1, 'sector 1 should have at least 1 warp');
+    await closeWS(ws);
   });
 
-  it('GET /api/route/:from/:to with same start and end returns single-element path', async () => {
-    const { status, body } = await httpGet('/api/route/1/1');
-    assert.equal(status, 200);
-    assert.deepStrictEqual(body.path, [1]);
-    assert.equal(body.hops, 0);
+  it('sector query returns error for nonexistent sector', async () => {
+    const { ws } = await connectWS();
+    const msg = await wsRequest(ws, { type: 'sector', id: 9999 }, 'sectorInfo');
+    assert.equal(msg.type, 'error');
+    assert.equal(msg.message, 'Sector not found');
+    await closeWS(ws);
   });
 
-  it('GET /api/route/:from/:to returns 400 for non-integer parameters', async () => {
-    const { status, body } = await httpGet('/api/route/abc/1');
-    assert.equal(status, 400);
-    assert.equal(body.error, 'Invalid sector ID');
-
-    const res2 = await httpGet('/api/route/1/xyz');
-    assert.equal(res2.status, 400);
-    assert.equal(res2.body.error, 'Invalid sector ID');
+  it('sector query returns error for invalid ID', async () => {
+    const { ws } = await connectWS();
+    const msg = await wsRequest(ws, { type: 'sector', id: -1 }, 'sectorInfo');
+    assert.equal(msg.type, 'error');
+    assert.equal(msg.message, 'Invalid sector ID');
+    await closeWS(ws);
   });
 
-  it('GET /api/route/:from/:to returns 404 for nonexistent sectors', async () => {
-    const { status, body } = await httpGet('/api/route/1/9999');
-    assert.equal(status, 404);
-    assert.equal(body.error, 'Sector not found');
+  it('route query returns shortest path between connected sectors', async () => {
+    const { ws } = await connectWS();
+    const sectorMsg = await wsRequest(ws, { type: 'sector', id: 1 }, 'sectorInfo');
+    const target = sectorMsg.warps[0];
+
+    const msg = await wsRequest(ws, { type: 'route', from: 1, to: target }, 'routeResult');
+    assert.equal(msg.type, 'routeResult');
+    assert.ok(Array.isArray(msg.path), 'path should be an array');
+    assert.equal(msg.path[0], 1, 'path should start with origin sector');
+    assert.equal(msg.path[msg.path.length - 1], target, 'path should end with target sector');
+    assert.equal(msg.hops, msg.path.length - 1, 'hops should equal path length minus 1');
+    assert.equal(msg.path.length, 2, 'direct neighbors should have a 2-element path');
+    assert.equal(msg.hops, 1);
+    await closeWS(ws);
   });
 
-  it('GET /api/route returns 404 when no path exists', async () => {
+  it('route query with same start and end returns single-element path', async () => {
+    const { ws } = await connectWS();
+    const msg = await wsRequest(ws, { type: 'route', from: 1, to: 1 }, 'routeResult');
+    assert.equal(msg.type, 'routeResult');
+    assert.deepStrictEqual(msg.path, [1]);
+    assert.equal(msg.hops, 0);
+    await closeWS(ws);
+  });
+
+  it('route query returns error for invalid parameters', async () => {
+    const { ws } = await connectWS();
+    const msg = await wsRequest(ws, { type: 'route', from: -1, to: 1 }, 'routeResult');
+    assert.equal(msg.type, 'error');
+    assert.equal(msg.message, 'Invalid sector ID');
+    await closeWS(ws);
+  });
+
+  it('route query returns error for nonexistent sectors', async () => {
+    const { ws } = await connectWS();
+    const msg = await wsRequest(ws, { type: 'route', from: 1, to: 9999 }, 'routeResult');
+    assert.equal(msg.type, 'error');
+    assert.equal(msg.message, 'Sector not found');
+    await closeWS(ws);
+  });
+
+  it('route query returns error when no path exists', async () => {
     await pool.query('INSERT INTO sectors (id) VALUES (999) ON CONFLICT DO NOTHING');
     await pool.query('DELETE FROM warps WHERE sector_from = 999 OR sector_to = 999');
-    const { status, body } = await httpGet('/api/route/1/999');
-    assert.equal(status, 404);
-    assert.equal(body.error, 'No route found');
+
+    const { ws } = await connectWS();
+    const msg = await wsRequest(ws, { type: 'route', from: 1, to: 999 }, 'routeResult');
+    assert.equal(msg.type, 'error');
+    assert.equal(msg.message, 'No route found');
+    await closeWS(ws);
+
     await pool.query('DELETE FROM sectors WHERE id = 999');
   });
 
-  it('GET /api/route respects directed warps', async () => {
+  it('route respects directed warps', async () => {
+    const { ws } = await connectWS();
     let found = false;
     for (let from = 1; from <= 100; from++) {
-      const res = await httpGet(`/api/sector/${from}`);
-      if (res.status !== 200) continue;
-      for (const to of res.body.warps) {
-        const reverse = await httpGet(`/api/sector/${to}`);
-        if (reverse.status === 200 && !reverse.body.warps.includes(from)) {
-          const route = await httpGet(`/api/route/${to}/${from}`);
-          if (route.status === 200) {
-            assert.ok(route.body.hops > 1,
+      const res = await wsRequest(ws, { type: 'sector', id: from }, 'sectorInfo');
+      if (res.type !== 'sectorInfo') continue;
+      for (const to of res.warps) {
+        const reverse = await wsRequest(ws, { type: 'sector', id: to }, 'sectorInfo');
+        if (reverse.type === 'sectorInfo' && !reverse.warps.includes(from)) {
+          const route = await wsRequest(ws, { type: 'route', from: to, to: from }, 'routeResult');
+          if (route.type === 'routeResult') {
+            assert.ok(route.hops > 1,
               `Route from ${to} to ${from} should not be 1 hop since no direct warp exists`);
           }
           found = true;
@@ -653,6 +540,7 @@ describe('Pathfinding', () => {
       if (found) break;
     }
     assert.ok(found, 'Could not find an asymmetric warp pair to test directionality');
+    await closeWS(ws);
   });
 });
 
@@ -686,266 +574,295 @@ describe('Trading System', () => {
     assert.ok(cols.includes('credits'), 'missing credits');
   });
 
-  it('GET /api/port/:sectorId returns port data', async () => {
-    const portSector = await findPortSector();
+  it('port query returns port data', async () => {
+    const { ws } = await connectWS();
+    const portSector = await findPortSector(ws);
     assert.ok(portSector, 'No ports found in any sector');
-    const { status, body } = await httpGet(`/api/port/${portSector.sectorId}`);
-    assert.equal(status, 200);
-    assert.equal(body.sectorId, portSector.sectorId);
-    assert.ok(typeof body.class === 'number', 'class should be a number');
-    assert.ok(body.class >= 0 && body.class <= 9, `class ${body.class} out of range`);
-    assert.ok(typeof body.fuel === 'number');
-    assert.ok(typeof body.fuelPrice === 'number');
-    assert.ok(typeof body.organics === 'number');
-    assert.ok(typeof body.orgPrice === 'number');
-    assert.ok(typeof body.equipment === 'number');
-    assert.ok(typeof body.equPrice === 'number');
-  });
-
-  it('GET /api/port returns 404 for sector without port', async () => {
-    let noPortSector = null;
-    for (let i = 1; i <= 100; i++) {
-      const res = await httpGet(`/api/port/${i}`);
-      if (res.status === 404) { noPortSector = i; break; }
-    }
-    assert.ok(noPortSector, 'All sectors have ports — cannot test 404');
-    const { status, body } = await httpGet(`/api/port/${noPortSector}`);
-    assert.equal(status, 404);
-    assert.equal(body.error, 'No port in this sector');
-  });
-
-  it('GET /api/port returns 400 for invalid sector ID', async () => {
-    const { status, body } = await httpGet('/api/port/abc');
-    assert.equal(status, 400);
-    assert.equal(body.error, 'Invalid sector ID');
-  });
-
-  it('GET /api/cargo/:playerId returns cargo and credits', async () => {
-    const { ws, welcome } = await connectWS();
-    const { status, body } = await httpGet(`/api/cargo/${welcome.playerId}`);
-    assert.equal(status, 200);
-    assert.equal(body.playerId, welcome.playerId);
-    assert.equal(body.credits, 10000);
-    assert.equal(body.fuel, 0);
-    assert.equal(body.organics, 0);
-    assert.equal(body.equipment, 0);
+    const msg = portSector.port;
+    assert.equal(msg.type, 'portInfo');
+    assert.equal(msg.sectorId, portSector.sectorId);
+    assert.ok(typeof msg.class === 'number', 'class should be a number');
+    assert.ok(msg.class >= 0 && msg.class <= 9, `class ${msg.class} out of range`);
+    assert.ok(typeof msg.fuel === 'number');
+    assert.ok(typeof msg.fuelPrice === 'number');
+    assert.ok(typeof msg.organics === 'number');
+    assert.ok(typeof msg.orgPrice === 'number');
+    assert.ok(typeof msg.equipment === 'number');
+    assert.ok(typeof msg.equPrice === 'number');
     await closeWS(ws);
   });
 
-  it('GET /api/cargo returns 401 for token with non-existent player', async () => {
-    const { status } = await httpGet('/api/cargo/99999');
-    assert.equal(status, 401);
+  it('port query returns error for sector without port', async () => {
+    const { ws } = await connectWS();
+    let noPortSector = null;
+    for (let i = 1; i <= 100; i++) {
+      const res = await wsRequest(ws, { type: 'port', sectorId: i }, 'portInfo');
+      if (res.type === 'error') { noPortSector = i; break; }
+    }
+    assert.ok(noPortSector, 'All sectors have ports — cannot test error');
+    const msg = await wsRequest(ws, { type: 'port', sectorId: noPortSector }, 'portInfo');
+    assert.equal(msg.type, 'error');
+    assert.equal(msg.message, 'No port in this sector');
+    await closeWS(ws);
   });
 
-  it('POST /api/trade buy succeeds and updates cargo and credits', async () => {
-    const portSector = await findPortSelling('fuel');
+  it('port query returns error for invalid sector ID', async () => {
+    const { ws } = await connectWS();
+    const msg = await wsRequest(ws, { type: 'port', sectorId: -1 }, 'portInfo');
+    assert.equal(msg.type, 'error');
+    assert.equal(msg.message, 'Invalid sector ID');
+    await closeWS(ws);
+  });
+
+  it('cargo query returns cargo and credits', async () => {
+    const { ws, welcome } = await connectWS();
+    const msg = await wsRequest(ws, { type: 'cargo' }, 'cargoInfo');
+    assert.equal(msg.type, 'cargoInfo');
+    assert.equal(msg.playerId, welcome.playerId);
+    assert.equal(msg.credits, 10000);
+    assert.equal(msg.fuel, 0);
+    assert.equal(msg.organics, 0);
+    assert.equal(msg.equipment, 0);
+    await closeWS(ws);
+  });
+
+  it('trade buy succeeds and updates cargo and credits', async () => {
+    const { ws, welcome } = await connectWS();
+    const portSector = await findPortSelling(ws, 'fuel');
     assert.ok(portSector, 'No port found selling fuel');
 
-    const { ws, welcome } = await connectWS();
     const reached = await movePlayerTo(ws, portSector.sectorId);
     assert.ok(reached, `Could not reach port sector ${portSector.sectorId}`);
 
-    const portBefore = (await httpGet(`/api/port/${portSector.sectorId}`)).body;
+    const portBefore = await wsRequest(ws, { type: 'port', sectorId: portSector.sectorId }, 'portInfo');
     const qty = 5;
-    const { status, body } = await httpPost('/api/trade', {
+    const msg = await wsRequest(ws, {
+      type: 'trade',
       good: 'fuel',
       quantity: qty,
       action: 'buy',
-    }, { authPlayerId: welcome.playerId });
-    assert.equal(status, 200);
-    assert.equal(body.success, true);
-    assert.equal(body.credits, 10000 - qty * portBefore.fuelPrice);
-    assert.equal(body.cargo.fuel, qty);
+    }, 'tradeResult');
+    assert.equal(msg.type, 'tradeResult');
+    assert.equal(msg.credits, 10000 - qty * portBefore.fuelPrice);
+    assert.equal(msg.cargo.fuel, qty);
 
-    const portAfter = (await httpGet(`/api/port/${portSector.sectorId}`)).body;
+    const portAfter = await wsRequest(ws, { type: 'port', sectorId: portSector.sectorId }, 'portInfo');
     assert.equal(portAfter.fuel, portBefore.fuel - qty);
 
     await closeWS(ws);
   });
 
-  it('POST /api/trade sell succeeds and updates cargo and credits', async () => {
-    const portSector = await findPortBuying('organics');
+  it('trade sell succeeds and updates cargo and credits', async () => {
+    const { ws, welcome } = await connectWS();
+    const portSector = await findPortBuying(ws, 'organics');
     assert.ok(portSector, 'No port found buying organics');
 
-    const { ws, welcome } = await connectWS();
     const reached = await movePlayerTo(ws, portSector.sectorId);
     assert.ok(reached, `Could not reach port sector ${portSector.sectorId}`);
 
     // Give the player organics directly so we don't need a separate buy port
     await pool.query('UPDATE ship_cargo SET organics = 10 WHERE player_id = $1', [welcome.playerId]);
 
-    const portBefore = (await httpGet(`/api/port/${portSector.sectorId}`)).body;
+    const portBefore = await wsRequest(ws, { type: 'port', sectorId: portSector.sectorId }, 'portInfo');
     const price = portBefore.orgPrice;
-    const { status, body } = await httpPost('/api/trade', {
+    const msg = await wsRequest(ws, {
+      type: 'trade',
       good: 'organics',
       quantity: 3,
       action: 'sell',
-    }, { authPlayerId: welcome.playerId });
-    assert.equal(status, 200);
-    assert.equal(body.success, true);
-    assert.equal(body.cargo.organics, 7); // had 10, sold 3
-    assert.equal(body.credits, 10000 + 3 * price);
+    }, 'tradeResult');
+    assert.equal(msg.type, 'tradeResult');
+    assert.equal(msg.cargo.organics, 7); // had 10, sold 3
+    assert.equal(msg.credits, 10000 + 3 * price);
 
-    const portAfter = (await httpGet(`/api/port/${portSector.sectorId}`)).body;
+    const portAfter = await wsRequest(ws, { type: 'port', sectorId: portSector.sectorId }, 'portInfo');
     assert.equal(portAfter.organics, portBefore.organics + 3);
 
     await closeWS(ws);
   });
 
-  it('POST /api/trade returns 400 for insufficient credits', async () => {
-    const portSector = await findPortSelling('fuel');
+  it('trade returns error for insufficient credits', async () => {
+    const { ws } = await connectWS();
+    const portSector = await findPortSelling(ws, 'fuel');
     assert.ok(portSector, 'No port found selling fuel');
 
-    const { ws, welcome } = await connectWS();
     const reached = await movePlayerTo(ws, portSector.sectorId);
     assert.ok(reached);
 
     // Ensure the port has enough inventory so we hit credits check first.
-    // Port sell prices are 10-50; at min price 10, buying 1001 costs 10010 > 10000 credits.
     await pool.query('UPDATE ports SET fuel = 2000 WHERE sector_id = $1', [portSector.sectorId]);
 
-    const { status, body } = await httpPost('/api/trade', {
+    const msg = await wsRequest(ws, {
+      type: 'trade',
       good: 'fuel',
       quantity: 1001,
       action: 'buy',
-    }, { authPlayerId: welcome.playerId });
-    assert.equal(status, 400);
-    assert.equal(body.error, 'Insufficient credits');
+    }, 'tradeResult');
+    assert.equal(msg.type, 'error');
+    assert.equal(msg.message, 'Insufficient credits');
 
     await closeWS(ws);
   });
 
-  it('POST /api/trade returns 400 for insufficient port inventory on buy', async () => {
-    const portSector = await findPortSelling('fuel');
+  it('trade returns error for insufficient port inventory on buy', async () => {
+    const { ws, welcome } = await connectWS();
+    const portSector = await findPortSelling(ws, 'fuel');
     assert.ok(portSector, 'No port found selling fuel');
 
-    const { ws, welcome } = await connectWS();
     const reached = await movePlayerTo(ws, portSector.sectorId);
     assert.ok(reached);
 
     // Give player enough credits so we hit inventory check, not credits check
     await pool.query('UPDATE ship_cargo SET credits = 9999999 WHERE player_id = $1', [welcome.playerId]);
 
-    const portInfo = (await httpGet(`/api/port/${portSector.sectorId}`)).body;
+    const portInfo = await wsRequest(ws, { type: 'port', sectorId: portSector.sectorId }, 'portInfo');
     const amount = portInfo.fuel + 1; // one more than available
 
-    const { status, body } = await httpPost('/api/trade', {
+    const msg = await wsRequest(ws, {
+      type: 'trade',
       good: 'fuel',
       quantity: amount,
       action: 'buy',
-    }, { authPlayerId: welcome.playerId });
-    assert.equal(status, 400);
-    assert.equal(body.error, 'Insufficient port inventory');
+    }, 'tradeResult');
+    assert.equal(msg.type, 'error');
+    assert.equal(msg.message, 'Insufficient port inventory');
     await closeWS(ws);
   });
 
-  it('POST /api/trade returns 400 for insufficient cargo on sell', async () => {
-    const portSector = await findPortBuying('fuel');
+  it('trade returns error for insufficient cargo on sell', async () => {
+    const { ws } = await connectWS();
+    const portSector = await findPortBuying(ws, 'fuel');
     assert.ok(portSector, 'No port found buying fuel');
 
-    const { ws, welcome } = await connectWS();
     const reached = await movePlayerTo(ws, portSector.sectorId);
     assert.ok(reached);
 
-    const { status, body } = await httpPost('/api/trade', {
+    const msg = await wsRequest(ws, {
+      type: 'trade',
       good: 'fuel',
       quantity: 1,
       action: 'sell',
-    }, { authPlayerId: welcome.playerId });
-    assert.equal(status, 400);
-    assert.equal(body.error, 'Insufficient cargo');
+    }, 'tradeResult');
+    assert.equal(msg.type, 'error');
+    assert.equal(msg.message, 'Insufficient cargo');
 
     await closeWS(ws);
   });
 
-  it('POST /api/trade returns 400 when port does not trade the commodity', async () => {
+  it('trade returns error when port does not trade the commodity', async () => {
+    const { ws } = await connectWS();
     // Find a port that buys fuel (player can sell but NOT buy)
-    const portSector = await findPortBuying('fuel');
+    const portSector = await findPortBuying(ws, 'fuel');
     assert.ok(portSector, 'No port found buying fuel');
 
-    const { ws, welcome } = await connectWS();
     const reached = await movePlayerTo(ws, portSector.sectorId);
     assert.ok(reached);
 
     // Try to BUY fuel from a port that only BUYS fuel
-    const { status, body } = await httpPost('/api/trade', {
+    const msg = await wsRequest(ws, {
+      type: 'trade',
       good: 'fuel',
       quantity: 1,
       action: 'buy',
-    }, { authPlayerId: welcome.playerId });
-    assert.equal(status, 400);
-    assert.equal(body.error, 'Port does not trade this commodity');
+    }, 'tradeResult');
+    assert.equal(msg.type, 'error');
+    assert.equal(msg.message, 'Port does not trade this commodity');
 
     await closeWS(ws);
   });
 
-  it('POST /api/trade returns 400 for invalid fields', async () => {
-    const { status: s1, body: b1 } = await httpPost('/api/trade', {});
-    assert.equal(s1, 400);
-    assert.equal(b1.error, 'Invalid request');
+  it('trade returns error for invalid fields', async () => {
+    const { ws } = await connectWS();
 
-    const { status: s2, body: b2 } = await httpPost('/api/trade', {
-      good: 'unobtanium', quantity: 1, action: 'buy',
-    }, { authPlayerId: 1 });
-    assert.equal(s2, 400);
-    assert.equal(b2.error, 'Invalid request');
+    const msg1 = await wsRequest(ws, {
+      type: 'trade',
+      good: 'unobtanium',
+      quantity: 1,
+      action: 'buy',
+    }, 'tradeResult');
+    assert.equal(msg1.type, 'error');
+    assert.equal(msg1.message, 'Invalid good');
 
-    const { status: s3, body: b3 } = await httpPost('/api/trade', {
-      good: 'fuel', quantity: 1, action: 'barter',
-    }, { authPlayerId: 1 });
-    assert.equal(s3, 400);
-    assert.equal(b3.error, 'Invalid request');
+    const msg2 = await wsRequest(ws, {
+      type: 'trade',
+      good: 'fuel',
+      quantity: 1,
+      action: 'barter',
+    }, 'tradeResult');
+    assert.equal(msg2.type, 'error');
+    assert.equal(msg2.message, 'Invalid action');
+
+    await closeWS(ws);
   });
 
-  it('POST /api/trade returns 404 when not at a port', async () => {
+  it('trade returns error when not at a port', async () => {
+    const { ws } = await connectWS();
     let noPortSector = null;
     for (let i = 1; i <= 100; i++) {
-      const res = await httpGet(`/api/port/${i}`);
-      if (res.status === 404) { noPortSector = i; break; }
+      const res = await wsRequest(ws, { type: 'port', sectorId: i }, 'portInfo');
+      if (res.type === 'error') { noPortSector = i; break; }
     }
     assert.ok(noPortSector, 'All sectors have ports');
 
-    const { ws, welcome } = await connectWS();
     const reached = await movePlayerTo(ws, noPortSector);
     assert.ok(reached, `Could not reach sector ${noPortSector}`);
 
-    const { status, body } = await httpPost('/api/trade', {
+    const msg = await wsRequest(ws, {
+      type: 'trade',
       good: 'fuel',
       quantity: 1,
       action: 'buy',
-    }, { authPlayerId: welcome.playerId });
-    assert.equal(status, 404);
-    assert.equal(body.error, 'No port in this sector');
+    }, 'tradeResult');
+    assert.equal(msg.type, 'error');
+    assert.equal(msg.message, 'No port in this sector');
 
     await closeWS(ws);
   });
 
   it('concurrent trades do not corrupt port inventory', async () => {
-    const portSector = await findPortSector();
-    assert.ok(portSector, 'No ports found');
-
     const { ws: ws1, welcome: w1 } = await connectWS();
     const { ws: ws2, welcome: w2 } = await connectWS();
+
+    const portSector = await findPortSector(ws1);
+    assert.ok(portSector, 'No ports found');
+
     const r1 = await movePlayerTo(ws1, portSector.sectorId);
     const r2 = await movePlayerTo(ws2, portSector.sectorId);
     assert.ok(r1 && r2, 'Could not move both players to port');
 
-    const portBefore = (await httpGet(`/api/port/${portSector.sectorId}`)).body;
+    const portBefore = await wsRequest(ws1, { type: 'port', sectorId: portSector.sectorId }, 'portInfo');
     const availableFuel = portBefore.fuel;
     const buyAmount = Math.floor(availableFuel * 0.7);
 
+    // Find a port that sells fuel for this test
+    // The port found by findPortSector may not sell fuel, so find one that does
+    const sellingPort = await findPortSelling(ws1, 'fuel');
+    if (!sellingPort) {
+      // Skip if no port sells fuel — can't test concurrent buys
+      await closeWS(ws1);
+      await closeWS(ws2);
+      return;
+    }
+
+    await movePlayerTo(ws1, sellingPort.sectorId);
+    await movePlayerTo(ws2, sellingPort.sectorId);
+
+    const portBeforeTrade = await wsRequest(ws1, { type: 'port', sectorId: sellingPort.sectorId }, 'portInfo');
+    const availFuel = portBeforeTrade.fuel;
+    const buyAmt = Math.floor(availFuel * 0.7);
+
     const [res1, res2] = await Promise.all([
-      httpPost('/api/trade', { good: 'fuel', quantity: buyAmount, action: 'buy' }, { authPlayerId: w1.playerId }),
-      httpPost('/api/trade', { good: 'fuel', quantity: buyAmount, action: 'buy' }, { authPlayerId: w2.playerId }),
+      wsRequest(ws1, { type: 'trade', good: 'fuel', quantity: buyAmt, action: 'buy' }, 'tradeResult'),
+      wsRequest(ws2, { type: 'trade', good: 'fuel', quantity: buyAmt, action: 'buy' }, 'tradeResult'),
     ]);
 
-    const portAfter = (await httpGet(`/api/port/${portSector.sectorId}`)).body;
+    const portAfter = await wsRequest(ws1, { type: 'port', sectorId: sellingPort.sectorId }, 'portInfo');
     assert.ok(portAfter.fuel >= 0, `Port fuel went negative: ${portAfter.fuel}`);
 
-    if (buyAmount * 2 > availableFuel) {
-      const successes = [res1, res2].filter(r => r.status === 200).length;
+    if (buyAmt * 2 > availFuel) {
+      const successes = [res1, res2].filter(r => r.type === 'tradeResult').length;
       assert.ok(successes <= 1,
-        `Both trades succeeded but combined quantity (${buyAmount * 2}) exceeds available (${availableFuel})`);
+        `Both trades succeeded but combined quantity (${buyAmt * 2}) exceeds available (${availFuel})`);
     }
 
     await closeWS(ws1);
