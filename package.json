@@ -2,6 +2,10 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "delete:buildinfo": "find . -name '*.tsbuildinfo' -delete",
+    "delete:dist": "find . -name 'dist' -type d -exec rm -rf {} +",
+    "clean": "pnpm delete:buildinfo && pnpm delete:dist",
+    "rebuild": "pnpm clean && pnpm build",
     "build": "pnpm -r run build && pnpm run docs",
     "test": "pnpm lint && pnpm format:check && pnpm --filter @twnr/server test",
     "lint": "eslint packages/*/src",
