@@ -17,6 +17,7 @@ export const ServerMsgType = {
     PortTransactionResult: 'portTransactionResult',
     BuyResult: 'buyResult',
     ShipExchangeResult: 'shipExchangeResult',
+    AttackResult: 'attackResult',
     Error: 'error',
 } as const;
 type ServerMsgType = typeof ServerMsgType;
@@ -35,6 +36,7 @@ export const ClientMsgType = {
     BuyShields: 'buyShields',
     BuyHolds: 'buyHolds',
     ShipExchange: 'shipExchange',
+    Attack: 'attack',
 } as const;
 type ClientMsgType = typeof ClientMsgType;
 
@@ -167,6 +169,15 @@ export type ShipExchangeResultMessage = {
     cargoLimit: number;
 };
 
+export type AttackResultMessage = {
+    type: typeof ServerMsgType.AttackResult;
+    destroyed: boolean;
+    attackerFightersLost: number;
+    defenderShieldsLost: number;
+    defenderFightersLost: number;
+    message?: string;
+};
+
 export type ErrorMessage = {
     type: typeof ServerMsgType.Error;
     message: string;
@@ -189,6 +200,7 @@ export type ServerMessage =
     | portTransactionResultMessage
     | BuyResultMessage
     | ShipExchangeResultMessage
+    | AttackResultMessage
     | ErrorMessage;
 
 // WebSocket messages (client → server)
@@ -256,6 +268,12 @@ export type ShipExchangeMessage = {
     type: typeof ClientMsgType.ShipExchange;
     targetShipName: string;
 };
+export type AttackMessage = {
+    type: typeof ClientMsgType.Attack;
+    targetPlayerId: number;
+    fighters: number;
+};
+
 
 export type ClientMessage =
     | MoveMessage
@@ -270,7 +288,8 @@ export type ClientMessage =
     | BuyFightersMessage
     | BuyShieldsMessage
     | BuyHoldsMessage
-    | ShipExchangeMessage;
+    | ShipExchangeMessage
+    | AttackMessage;
 
 // HTTP API response shapes (auth & admin only)
 

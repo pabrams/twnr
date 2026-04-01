@@ -238,7 +238,7 @@ export function createRoutes(deps: RouteDeps): Router {
 
         try {
             const result = await pool.query(
-                'SELECT id, name, role, password_hash, token_version FROM players WHERE email = $1',
+                'SELECT id, name, role, password_hash, token_version, ship_destroyed_date FROM players WHERE email = $1',
                 [email],
             );
             if (
@@ -249,6 +249,43 @@ export function createRoutes(deps: RouteDeps): Router {
             }
 
             const player = result.rows[0];
+
+            if (player.ship_destroyed_date) {
+                const delaySecs = parseInt(
+                    process.env.SHIP_DESTROYED_LOGIN_DELAY_SECONDS || '0',
+                    10,
+                );
+                const elapsedSecs =
+                    (Date.now() - new Date(player.ship_destroyed_date).getTime()) / 1000;
+
+                if (elapsedSecs < delaySecs) {
+                    const remaining = Math.ceil(delaySecs - elapsedSecs);
+                    return res.status(403).json({
+                        error: `Your ship was destroyed. You can login in ${remaining} seconds.`,
+                    });
+                }
+
+                // Delay passed — clear destroyed date and give new ship
+                await pool.query(
+                    'UPDATE players SET ship_destroyed_date = NULL, current_sector = 1 WHERE id = $1',
+                    [player.id],
+                );
+                await pool.query('DELETE FROM player_ships WHERE player_id = $1', [player.id]);
+                await pool.query('DELETE FROM ship_cargo WHERE player_id = $1', [player.id]);
+                const merchant = shipConfigs['Merchant Freighter'];
+                if (merchant) {
+                    await pool.query(
+                        `INSERT INTO player_ships (player_id, ship_name, fighters, shields, cargo_limit)
+                         VALUES ($1, $2, 0, 0, $3)`,
+                        [player.id, merchant.name, merchant.startingHolds],
+                    );
+                }
+                await pool.query(
+                    `INSERT INTO ship_cargo (player_id, fuel, organics, equipment, credits)
+                     VALUES ($1, 0, 0, 0, 10000)`,
+                    [player.id],
+                );
+            }
 
             const token = signPlayerToken({
                 playerId: player.id,
