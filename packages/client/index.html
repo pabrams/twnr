@@ -6,11 +6,37 @@
   <title>TWNR</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { width: 100%; height: 100%; background: #000; }
-    #terminal { width: 100%; height: 100%; }
+    html, body { width: 100%; height: 100%; background: #000; color: #c0c0c0; font-family: 'Courier New', Courier, monospace; }
+    #terminal { width: 100%; height: 100%; display: none; }
+    #auth {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      height: 100%; gap: 12px;
+    }
+    #auth h1 { color: #c0c0c0; margin-bottom: 8px; }
+    #auth input {
+      background: #111; color: #c0c0c0; border: 1px solid #444; padding: 8px 12px;
+      font-family: inherit; font-size: 14px; width: 260px;
+    }
+    #auth button {
+      background: #333; color: #c0c0c0; border: 1px solid #555; padding: 8px 16px;
+      font-family: inherit; font-size: 14px; cursor: pointer; width: 260px;
+    }
+    #auth button:hover { background: #444; }
+    #auth .toggle { background: none; border: none; color: #888; font-size: 12px; cursor: pointer; }
+    #auth .toggle:hover { color: #c0c0c0; }
+    #auth .error { color: #f44; font-size: 13px; min-height: 1em; }
   </style>
 </head>
 <body>
+  <div id="auth">
+    <h1>TWNR</h1>
+    <input id="auth-name" type="text" placeholder="Name" />
+    <input id="auth-email" type="text" placeholder="Email" />
+    <input id="auth-password" type="password" placeholder="Password" />
+    <div class="error" id="auth-error"></div>
+    <button id="auth-submit">Register</button>
+    <button class="toggle" id="auth-toggle">Already have an account? Log in</button>
+  </div>
   <div id="terminal"></div>
   <script type="module" src="/src/main.ts"></script>
 </body>

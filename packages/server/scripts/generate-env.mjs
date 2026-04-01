@@ -15,6 +15,7 @@ ADMIN_API_KEY=${randomBytes(16).toString('hex')}
 PGDATABASE=twnr
 PGUSER=twnr_user
 PGPASSWORD=twnr_pass
+PGHOST=/run/postgresql
 `;
 
 writeFileSync(envPath, env, { mode: 0o600 });
