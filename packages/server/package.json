@@ -26,6 +26,8 @@
     "typescript": "^5.0.0"
   },
   "scripts": {
+    "clean": "find . -name '*.tsbuildinfo' -delete",
+    "prebuild": "pnpm clean",
     "pretest": "node scripts/ensureTestPostgres.mjs",
     "test": "tsc && node --env-file=.env.test --test --test-concurrency=1 test/*.test.mjs",
     "build": "tsc",
