@@ -274,7 +274,6 @@ export type AttackMessage = {
     fighters: number;
 };
 
-
 export type ClientMessage =
     | MoveMessage
     | DisplayMessage
