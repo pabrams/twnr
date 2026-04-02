@@ -18,7 +18,7 @@ const BASE = 'http://localhost:3000';
 function createPool() {
   return new Pool({
     host: process.env.PGHOST || 'localhost',
-    database: process.env.PGDATABASE || 'twnr',
+    database: process.env.PGDATABASE || 'twnr_test',
     user: process.env.PGUSER,
     password: process.env.PGPASSWORD,
   });
@@ -31,6 +31,7 @@ function startServer() {
       stdio: ['pipe', 'pipe', 'pipe'],
       env: {
         ...process.env,
+        PGDATABASE: process.env.PGDATABASE || 'twnr_test',
         JWT_SECRET,
         ADMIN_API_KEY: process.env.ADMIN_API_KEY || 'test-admin-key',
         WS_ALLOWED_ORIGINS: process.env.WS_ALLOWED_ORIGINS || 'http://localhost:3000',
@@ -685,7 +686,7 @@ describe('importUniverse.js --universe-id flag', () => {
     const env = {
       ...process.env,
       PGHOST: process.env.PGHOST || 'localhost',
-      PGDATABASE: process.env.PGDATABASE || 'twnr',
+      PGDATABASE: process.env.PGDATABASE || 'twnr_test',
       PGUSER: process.env.PGUSER,
       PGPASSWORD: process.env.PGPASSWORD,
     };
@@ -729,7 +730,7 @@ describe('importUniverse.js --universe-id flag', () => {
     const env = {
       ...process.env,
       PGHOST: process.env.PGHOST || 'localhost',
-      PGDATABASE: process.env.PGDATABASE || 'twnr',
+      PGDATABASE: process.env.PGDATABASE || 'twnr_test',
       PGUSER: process.env.PGUSER,
       PGPASSWORD: process.env.PGPASSWORD,
     };

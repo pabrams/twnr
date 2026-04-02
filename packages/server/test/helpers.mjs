@@ -15,7 +15,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret';
 export function createPool() {
   return new Pool({
     host:     process.env.PGHOST     || 'localhost',
-    database: process.env.PGDATABASE || 'twnr',
+    database: process.env.PGDATABASE || 'twnr_test',
     user:     process.env.PGUSER,
     password: process.env.PGPASSWORD,
   });
@@ -77,6 +77,7 @@ export function startServer() {
       stdio: ['pipe', 'pipe', 'pipe'],
       env: {
         ...process.env,
+        PGDATABASE: process.env.PGDATABASE || 'twnr_test',
         JWT_SECRET,
         ADMIN_API_KEY: process.env.ADMIN_API_KEY || 'test-admin-key',
         WS_ALLOWED_ORIGINS: process.env.WS_ALLOWED_ORIGINS || 'http://localhost:3000',
