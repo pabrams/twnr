@@ -32,7 +32,8 @@ const server: Server = createServer(app);
 const wss = new WebSocketServer({ server });
 
 server.prependListener('upgrade', (req: IncomingMessage, socket: Socket) => {
-    if (req.url !== '/ws') {
+    const url = new URL(req.url || '', `http://${req.headers.host}`);
+    if (url.pathname !== '/ws') {
         auth.rejectWebSocketUpgrade(socket);
         return;
     }
@@ -48,6 +49,13 @@ server.prependListener('upgrade', (req: IncomingMessage, socket: Socket) => {
     }
     try {
         auth.verifyToken(jwtToken);
+
+        // Require universe parameter
+        const universeParam = url.searchParams.get('universe');
+        if (!universeParam) {
+            auth.rejectWebSocketUpgrade(socket);
+            return;
+        }
     } catch {
         auth.rejectWebSocketUpgrade(socket);
     }
@@ -57,6 +65,7 @@ interface Player {
     ws: WebSocket;
     sector: number;
     name: string;
+    universeId: number;
 }
 const players: Record<number, Player> = {};
 
@@ -88,27 +97,29 @@ const PORT_CLASS_ACTIONS: Record<number, Record<string, 'B' | 'S'>> = {
 };
 
 /**
- * Builds the sector warp adjacency list from the database.
- * Index `i` contains an array of sector IDs reachable from sector `i`.
- * @returns A sparse adjacency list indexed by sector ID
- * @throws {Error} If no sectors exist in the database
+ * Builds the sector warp adjacency list for a specific universe.
  */
-export async function getGraph(): Promise<number[][]> {
-    const sectorsRes = await pool.query('SELECT id FROM sectors ORDER BY id ASC');
+export async function getGraph(universeId: number): Promise<number[][]> {
+    const sectorsRes = await pool.query(
+        'SELECT id FROM sectors WHERE universe_id = $1 ORDER BY id ASC',
+        [universeId],
+    );
     const size = sectorsRes.rows.length;
 
     if (size === 0) {
-        throw new Error(
-            'No sectors found in database. Load universe data before starting the server.',
-        );
+        return [];
     }
 
+    const maxId = sectorsRes.rows[size - 1].id;
     let adjacencyList: number[][] = [];
-    for (let i = 0; i <= size; i++) {
+    for (let i = 0; i <= maxId; i++) {
         adjacencyList[i] = [];
     }
 
-    const warpsRes = await pool.query('SELECT sector_from, sector_to FROM warps');
+    const warpsRes = await pool.query(
+        'SELECT sector_from, sector_to FROM warps WHERE universe_id = $1',
+        [universeId],
+    );
     for (const row of warpsRes.rows) {
         if (adjacencyList[row.sector_from]) {
             adjacencyList[row.sector_from].push(row.sector_to);
@@ -118,12 +129,6 @@ export async function getGraph(): Promise<number[][]> {
     return adjacencyList;
 }
 
-/**
- * Sends a JSON-serialized message to all open WebSocket clients in the given set.
- * Silently skips clients that are not in the OPEN ready state.
- * @param data - The server message to broadcast
- * @param targetClients - The set or array of WebSocket clients to send to
- */
 function broadcastTo(data: ServerMessage, targetClients: Set<WebSocket> | WebSocket[]) {
     for (const client of targetClients) {
         if (client.readyState === 1) {
@@ -132,11 +137,6 @@ function broadcastTo(data: ServerMessage, targetClients: Set<WebSocket> | WebSoc
     }
 }
 
-/**
- * Sends a typed server message to a single WebSocket client as JSON.
- * @param ws - The WebSocket client to send to
- * @param data - The server message to send
- */
 function send(ws: WebSocket, data: ServerMessage) {
     ws.send(JSON.stringify(data));
 }
@@ -152,35 +152,60 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
         return;
     }
 
-    const playerId = authPayload.playerId;
+    const userId = authPayload.userId;
+
+    // Parse universe from query string
+    const url = new URL(req.url || '', `http://${req.headers.host}`);
+    const universeParam = url.searchParams.get('universe');
+    if (!universeParam) {
+        ws.close(1008, 'Universe parameter required');
+        return;
+    }
+    const universeId = parseInt(universeParam, 10);
+    if (isNaN(universeId)) {
+        ws.close(1008, 'Invalid universe parameter');
+        return;
+    }
 
     try {
-        const playerRes = await pool.query(
-            'SELECT id, name, current_sector, token_version FROM players WHERE id = $1',
-            [playerId],
+        // Look up user's token version
+        const userRes = await pool.query(
+            'SELECT token_version FROM users WHERE id = $1',
+            [userId],
         );
-        if (playerRes.rows.length === 0) {
-            ws.close(1008, 'Player not found');
+        if (userRes.rows.length === 0) {
+            ws.close(1008, 'User not found');
             return;
         }
-        const playerRow = playerRes.rows[0];
-        if (playerRow.token_version !== authPayload.tokenVersion) {
+        if (userRes.rows[0].token_version !== authPayload.tokenVersion) {
             ws.close(1008, 'Token has been revoked');
             return;
         }
+
+        // Look up player for this user in this universe
+        const playerRes = await pool.query(
+            'SELECT id, name, current_sector FROM players WHERE user_id = $1 AND universe_id = $2',
+            [userId, universeId],
+        );
+        if (playerRes.rows.length === 0) {
+            ws.close(1008, 'No player in this universe');
+            return;
+        }
+        const playerRow = playerRes.rows[0];
+        const playerId = playerRow.id;
         const sector: number = playerRow.current_sector;
 
-        players[playerId] = { ws, sector, name: playerRow.name };
+        players[playerId] = { ws, sector, name: playerRow.name, universeId };
         const welcomeMsg: ServerMessage = {
             type: ServerMsgType.Welcome,
             playerId,
             name: playerRow.name,
             sector,
             token: auth.signPlayerToken({
-                playerId,
+                userId,
                 name: playerRow.name,
                 role: authPayload.role,
-                tokenVersion: playerRow.token_version,
+                tokenVersion: userRes.rows[0].token_version,
             }),
         };
         ws.send(JSON.stringify(welcomeMsg));
@@ -218,12 +243,13 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             clearInterval(refillInterval);
             console.log(`${playerId} disconnected.`);
             const lastSector = players[playerId]?.sector;
+            const lastUniverse = players[playerId]?.universeId;
             delete players[playerId];
 
-            if (lastSector) {
+            if (lastSector && lastUniverse) {
                 const clientsToNotify = new Set<WebSocket>();
                 for (const p of Object.values(players)) {
-                    if (p.sector === lastSector) {
+                    if (p.sector === lastSector && p.universeId === lastUniverse) {
                         clientsToNotify.add(p.ws);
                     }
                 }
@@ -236,12 +262,6 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
     }
 });
 
-/**
- * Routes an incoming WebSocket message to the appropriate handler based on its `type` field.
- * @param ws - The client's WebSocket connection
- * @param playerId - The authenticated player's ID
- * @param data - The parsed message object from the client
- */
 export async function handleMessage(ws: WebSocket, playerId: number, data: any): Promise<void> {
     switch (data.type) {
         case ClientMsgType.Move:
@@ -251,11 +271,11 @@ export async function handleMessage(ws: WebSocket, playerId: number, data: any):
         case ClientMsgType.Who:
             return handleWho(ws);
         case ClientMsgType.SectorWarps:
-            return handleSectorWarps(ws, data.id);
+            return handleSectorWarps(ws, playerId, data.id);
         case ClientMsgType.Path:
-            return handlePath(ws, data.from, data.to);
+            return handlePath(ws, playerId, data.from, data.to);
         case ClientMsgType.PortInfo:
-            return handlePortInfo(ws, data.sectorId);
+            return handlePortInfo(ws, playerId, data.sectorId);
         case ClientMsgType.ShipInfo:
             return handleShipInfo(ws, playerId);
         case ClientMsgType.CargoInfo:
@@ -277,19 +297,15 @@ export async function handleMessage(ws: WebSocket, playerId: number, data: any):
     }
 }
 
-/**
- * Sends a list of all currently connected player IDs.
- */
+function getPlayerUniverseId(playerId: number): number | undefined {
+    return players[playerId]?.universeId;
+}
+
 function handleWho(ws: WebSocket): void {
     const playersKeys = Object.keys(players).map(Number);
     send(ws, { type: ServerMsgType.PlayersOnline, players: playersKeys });
 }
 
-/**
- * Handles a player movement request to an adjacent sector.
- * Validates the player has a ship and the target sector is adjacent,
- * then broadcasts movement events to players in both sectors.
- */
 export async function handleMove(
     ws: WebSocket,
     playerId: number,
@@ -311,7 +327,8 @@ export async function handleMove(
     const player = players[playerId];
     if (!player) return;
 
-    const warps = await getGraph();
+    const universeId = player.universeId;
+    const warps = await getGraph(universeId);
     const currentSector = player.sector;
 
     if (!warps[currentSector]?.includes(targetSector)) {
@@ -329,6 +346,7 @@ export async function handleMove(
     const newSectorClients = new Set<WebSocket>();
     for (const [idStr, p] of Object.entries(players)) {
         if (Number(idStr) === playerId) continue;
+        if (p.universeId !== universeId) continue;
         if (p.sector === currentSector) oldSectorClients.add(p.ws);
         else if (p.sector === targetSector) newSectorClients.add(p.ws);
     }
@@ -343,7 +361,7 @@ export async function handleMove(
 
     const displayWarps = warps[targetSector] || [];
     const playersInSector = Object.entries(players)
-        .filter(([, p]) => p.sector === targetSector)
+        .filter(([, p]) => p.sector === targetSector && p.universeId === universeId)
         .map(([id]) => Number(id));
     send(ws, {
         type: ServerMsgType.SectorDisplay,
@@ -353,17 +371,16 @@ export async function handleMove(
     });
 }
 
-/**
- * Sends the player their current sector's display info (warps and players present).
- */
 export async function handleSectorDisplay(ws: WebSocket, playerId: number): Promise<void> {
-    const currentSector = players[playerId]?.sector;
-    if (currentSector === undefined) return;
+    const player = players[playerId];
+    if (!player) return;
+    const currentSector = player.sector;
+    const universeId = player.universeId;
 
-    const warps = await getGraph();
+    const warps = await getGraph(universeId);
     const displayWarps = warps[currentSector] || [];
     const playersInSector = Object.entries(players)
-        .filter(([, p]) => p.sector === currentSector)
+        .filter(([, p]) => p.sector === currentSector && p.universeId === universeId)
         .map(([id]) => Number(id));
     send(ws, {
         type: ServerMsgType.SectorDisplay,
@@ -373,39 +390,45 @@ export async function handleSectorDisplay(ws: WebSocket, playerId: number): Prom
     });
 }
 
-/**
- * Returns a sector's outbound warp connections.
- * @param id - The sector ID to look up
- */
-export async function handleSectorWarps(ws: WebSocket, id: number): Promise<void> {
+export async function handleSectorWarps(ws: WebSocket, playerId: number, id: number): Promise<void> {
     if (!Number.isInteger(id) || id <= 0) {
         send(ws, { type: ServerMsgType.Error, message: 'Invalid sector ID' });
         return;
     }
 
-    const sectorRes = await pool.query('SELECT id FROM sectors WHERE id = $1', [id]);
+    const universeId = getPlayerUniverseId(playerId);
+    if (universeId === undefined) return;
+
+    const sectorRes = await pool.query(
+        'SELECT id FROM sectors WHERE id = $1 AND universe_id = $2',
+        [id, universeId],
+    );
     if (sectorRes.rows.length === 0) {
         send(ws, { type: ServerMsgType.Error, message: 'Sector not found' });
         return;
     }
 
-    const warpsRes = await pool.query('SELECT sector_to FROM warps WHERE sector_from = $1', [id]);
+    const warpsRes = await pool.query(
+        'SELECT sector_to FROM warps WHERE sector_from = $1 AND universe_id = $2',
+        [id, universeId],
+    );
     const warps = warpsRes.rows.map((r) => r.sector_to);
     send(ws, { type: ServerMsgType.SectorWarps, id, warps });
 }
 
-/**
- * Finds the shortest path between two sectors using BFS.
- * @param from - Origin sector ID
- * @param to - Destination sector ID
- */
-export async function handlePath(ws: WebSocket, from: number, to: number): Promise<void> {
+export async function handlePath(ws: WebSocket, playerId: number, from: number, to: number): Promise<void> {
     if (!Number.isInteger(from) || from <= 0 || !Number.isInteger(to) || to <= 0) {
         send(ws, { type: ServerMsgType.Error, message: 'Invalid sector ID' });
         return;
     }
 
-    const sectorRes = await pool.query('SELECT id FROM sectors WHERE id IN ($1, $2)', [from, to]);
+    const universeId = getPlayerUniverseId(playerId);
+    if (universeId === undefined) return;
+
+    const sectorRes = await pool.query(
+        'SELECT id FROM sectors WHERE id IN ($1, $2) AND universe_id = $3',
+        [from, to, universeId],
+    );
     if (sectorRes.rows.length !== (from === to ? 1 : 2)) {
         const foundIds = new Set(sectorRes.rows.map((r: any) => r.id));
         if (!foundIds.has(from) || !foundIds.has(to)) {
@@ -419,7 +442,7 @@ export async function handlePath(ws: WebSocket, from: number, to: number): Promi
         return;
     }
 
-    const warps = await getGraph();
+    const warps = await getGraph(universeId);
     const queue: { sector: number; path: number[] }[] = [{ sector: from, path: [from] }];
     const visited = new Set<number>();
     visited.add(from);
@@ -447,19 +470,18 @@ export async function handlePath(ws: WebSocket, from: number, to: number): Promi
     send(ws, { type: ServerMsgType.Error, message: 'No path found' });
 }
 
-/**
- * Returns port details for a sector, including class, inventory, and prices.
- * @param sectorId - The sector ID to look up
- */
-export async function handlePortInfo(ws: WebSocket, sectorId: number): Promise<void> {
+export async function handlePortInfo(ws: WebSocket, playerId: number, sectorId: number): Promise<void> {
     if (!Number.isInteger(sectorId) || sectorId <= 0) {
         send(ws, { type: ServerMsgType.Error, message: 'Invalid sector ID' });
         return;
     }
 
+    const universeId = getPlayerUniverseId(playerId);
+    if (universeId === undefined) return;
+
     const portRes = await pool.query(
-        'SELECT sector_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price FROM ports WHERE sector_id = $1',
-        [sectorId],
+        'SELECT sector_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price FROM ports WHERE sector_id = $1 AND universe_id = $2',
+        [sectorId, universeId],
     );
     if (portRes.rows.length === 0) {
         send(ws, { type: ServerMsgType.Error, message: 'No port in this sector' });
@@ -480,9 +502,6 @@ export async function handlePortInfo(ws: WebSocket, sectorId: number): Promise<v
     });
 }
 
-/**
- * Returns ship status for the authenticated player, including armament, cargo, and config limits.
- */
 export async function handleShipInfo(ws: WebSocket, playerId: number): Promise<void> {
     const query = `
         SELECT ps.ship_name, ps.fighters, ps.shields, ps.cargo_limit,
@@ -522,9 +541,6 @@ export async function handleShipInfo(ws: WebSocket, playerId: number): Promise<v
     });
 }
 
-/**
- * Returns the player's cargo hold contents and credit balance.
- */
 export async function handleCargoInfo(ws: WebSocket, playerId: number): Promise<void> {
     const cargoRes = await pool.query(
         'SELECT player_id, fuel, organics, equipment, credits FROM ship_cargo WHERE player_id = $1',
@@ -546,14 +562,6 @@ export async function handleCargoInfo(ws: WebSocket, playerId: number): Promise<
     });
 }
 
-/**
- * Buys or sells a commodity at the port in the player's current sector.
- * Validates port class compatibility, inventory, cargo capacity, and credits.
- * Executed as a database transaction.
- * @param good - The commodity to trade (`fuel`, `organics`, or `equipment`)
- * @param quantity - Number of units to trade
- * @param action - `buy` (from port) or `sell` (to port)
- */
 export async function handlePortTransaction(
     ws: WebSocket,
     playerId: number,
@@ -585,6 +593,7 @@ export async function handlePortTransaction(
 
     const player = players[playerId];
     if (!player) return;
+    const universeId = player.universeId;
 
     const client = await pool.connect();
     try {
@@ -601,8 +610,8 @@ export async function handlePortTransaction(
         const currentSector = pRes.rows[0].current_sector;
 
         const portRes = await client.query(
-            'SELECT class, fuel, fuel_price, organics, org_price, equipment, equ_price FROM ports WHERE sector_id = $1 FOR UPDATE',
-            [currentSector],
+            'SELECT class, fuel, fuel_price, organics, org_price, equipment, equ_price FROM ports WHERE sector_id = $1 AND universe_id = $2 FOR UPDATE',
+            [currentSector, universeId],
         );
         if (portRes.rows.length === 0) {
             await client.query('ROLLBACK');
@@ -665,10 +674,10 @@ export async function handlePortTransaction(
                 return;
             }
 
-            await client.query(`UPDATE ports SET ${col} = ${col} - $1 WHERE sector_id = $2`, [
-                qty,
-                currentSector,
-            ]);
+            await client.query(
+                `UPDATE ports SET ${col} = ${col} - $1 WHERE sector_id = $2 AND universe_id = $3`,
+                [qty, currentSector, universeId],
+            );
             await client.query(
                 `UPDATE ship_cargo SET ${col} = ${col} + $1, credits = credits - $2 WHERE player_id = $3`,
                 [qty, cost, playerId],
@@ -690,10 +699,10 @@ export async function handlePortTransaction(
                 return;
             }
 
-            await client.query(`UPDATE ports SET ${col} = ${col} + $1 WHERE sector_id = $2`, [
-                qty,
-                currentSector,
-            ]);
+            await client.query(
+                `UPDATE ports SET ${col} = ${col} + $1 WHERE sector_id = $2 AND universe_id = $3`,
+                [qty, currentSector, universeId],
+            );
             await client.query(
                 `UPDATE ship_cargo SET ${col} = ${col} - $1, credits = credits + $2 WHERE player_id = $3`,
                 [qty, revenue, playerId],
@@ -717,10 +726,6 @@ export async function handlePortTransaction(
     }
 }
 
-/**
- * Purchases fighters at a class 0 port. Cost: 20 credits each.
- * @param quantity - Number of fighters to buy
- */
 export async function handleBuyFighters(
     ws: WebSocket,
     playerId: number,
@@ -731,6 +736,9 @@ export async function handleBuyFighters(
         send(ws, { type: ServerMsgType.Error, message: 'Invalid quantity' });
         return;
     }
+
+    const universeId = getPlayerUniverseId(playerId);
+    if (universeId === undefined) return;
 
     const client = await pool.connect();
     try {
@@ -745,9 +753,10 @@ export async function handleBuyFighters(
         }
         const currentSector = pRes.rows[0].current_sector;
 
-        const portRes = await client.query('SELECT class FROM ports WHERE sector_id = $1', [
-            currentSector,
-        ]);
+        const portRes = await client.query(
+            'SELECT class FROM ports WHERE sector_id = $1 AND universe_id = $2',
+            [currentSector, universeId],
+        );
         if (portRes.rows.length === 0 || portRes.rows[0].class !== 0) {
             await client.query('ROLLBACK');
             send(ws, { type: ServerMsgType.Error, message: 'Not at a class 0 port' });
@@ -809,10 +818,6 @@ export async function handleBuyFighters(
     }
 }
 
-/**
- * Purchases shields at a class 0 port. Cost: 10 credits each.
- * @param quantity - Number of shields to buy
- */
 export async function handleBuyShields(
     ws: WebSocket,
     playerId: number,
@@ -823,6 +828,9 @@ export async function handleBuyShields(
         send(ws, { type: ServerMsgType.Error, message: 'Invalid quantity' });
         return;
     }
+
+    const universeId = getPlayerUniverseId(playerId);
+    if (universeId === undefined) return;
 
     const client = await pool.connect();
     try {
@@ -837,9 +845,10 @@ export async function handleBuyShields(
         }
         const currentSector = pRes.rows[0].current_sector;
 
-        const portRes = await client.query('SELECT class FROM ports WHERE sector_id = $1', [
-            currentSector,
-        ]);
+        const portRes = await client.query(
+            'SELECT class FROM ports WHERE sector_id = $1 AND universe_id = $2',
+            [currentSector, universeId],
+        );
         if (portRes.rows.length === 0 || portRes.rows[0].class !== 0) {
             await client.query('ROLLBACK');
             send(ws, { type: ServerMsgType.Error, message: 'Not at a class 0 port' });
@@ -901,10 +910,6 @@ export async function handleBuyShields(
     }
 }
 
-/**
- * Purchases additional cargo holds at a class 0 port. Cost: 50 credits each.
- * @param quantity - Number of cargo holds to buy
- */
 export async function handleBuyHolds(
     ws: WebSocket,
     playerId: number,
@@ -915,6 +920,9 @@ export async function handleBuyHolds(
         send(ws, { type: ServerMsgType.Error, message: 'Invalid quantity' });
         return;
     }
+
+    const universeId = getPlayerUniverseId(playerId);
+    if (universeId === undefined) return;
 
     const client = await pool.connect();
     try {
@@ -929,9 +937,10 @@ export async function handleBuyHolds(
         }
         const currentSector = pRes.rows[0].current_sector;
 
-        const portRes = await client.query('SELECT class FROM ports WHERE sector_id = $1', [
-            currentSector,
-        ]);
+        const portRes = await client.query(
+            'SELECT class FROM ports WHERE sector_id = $1 AND universe_id = $2',
+            [currentSector, universeId],
+        );
         if (portRes.rows.length === 0 || portRes.rows[0].class !== 0) {
             await client.query('ROLLBACK');
             send(ws, { type: ServerMsgType.Error, message: 'Not at a class 0 port' });
@@ -993,12 +1002,6 @@ export async function handleBuyHolds(
     }
 }
 
-/**
- * Exchanges the player's current ship for a different one at Stardock.
- * The price difference is charged (or refunded). Fighters and shields reset to 0.
- * Fails if the new ship can't hold current cargo.
- * @param targetShipName - Name of the ship to switch to
- */
 export async function handleShipExchange(
     ws: WebSocket,
     playerId: number,
@@ -1010,6 +1013,9 @@ export async function handleShipExchange(
         return;
     }
 
+    const universeId = getPlayerUniverseId(playerId);
+    if (universeId === undefined) return;
+
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
@@ -1017,7 +1023,7 @@ export async function handleShipExchange(
             `
             SELECT p.current_sector, s.name as sector_name
             FROM players p
-            JOIN sectors s ON p.current_sector = s.id
+            JOIN sectors s ON p.current_sector = s.id AND p.universe_id = s.universe_id
             WHERE p.id = $1
         `,
             [playerId],
@@ -1107,10 +1113,6 @@ export async function handleShipExchange(
     }
 }
 
-/**
- * Connects to the database, validates the universe data, and starts the HTTP/WebSocket server on port 3000.
- * @throws Exits the process with code 1 if startup fails
- */
 async function handleAttack(
     ws: WebSocket,
     attackerId: number,
@@ -1130,7 +1132,7 @@ async function handleAttack(
     const attacker = players[attackerId];
     const target = players[targetPlayerId];
 
-    if (!attacker || !target || attacker.sector !== target.sector) {
+    if (!attacker || !target || attacker.sector !== target.sector || attacker.universeId !== target.universeId) {
         send(ws, { type: ServerMsgType.Error, message: 'Target is not in this sector' });
         return;
     }
@@ -1168,13 +1170,11 @@ async function handleAttack(
         let shieldsLost = 0;
         let defenderFightersLost = 0;
 
-        // Shields absorb first at 1:1
         const shieldAbsorb = Math.min(targetShields, remainingAttack);
         shieldsLost = shieldAbsorb;
         targetShields -= shieldAbsorb;
         remainingAttack -= shieldAbsorb;
 
-        // Then fighters at 1:1 (mutual destruction)
         if (remainingAttack > 0) {
             const fighterAbsorb = Math.min(targetFighters, remainingAttack);
             defenderFightersLost = fighterAbsorb;
@@ -1241,7 +1241,6 @@ async function handleAttack(
 export async function startServer() {
     try {
         await connectDB();
-        await getGraph();
 
         server.listen(3000, () => {
             console.log('Server listening on port 3000');

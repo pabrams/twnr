@@ -43,7 +43,7 @@ type ClientMsgType = typeof ClientMsgType;
 // Auth
 
 export type AuthTokenPayload = {
-    playerId: number;
+    userId: number;
     name?: string;
     role?: string;
     tokenVersion: number;
@@ -293,8 +293,8 @@ export type ClientMessage =
 // HTTP API response shapes (auth & admin only)
 
 export type AuthResponse = {
-    playerId: number;
-    name: string;
+    userId: number;
+    name?: string;
     role: string;
     token: string;
 };

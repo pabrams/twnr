@@ -22,11 +22,6 @@ interface RouteDeps {
     ADMIN_API_KEY: string | undefined;
 }
 
-/**
- * Creates an Express Router with all REST endpoints (auth and admin).
- * @param deps - Shared dependencies from the main server module
- * @returns Configured Express Router
- */
 export function createRoutes(deps: RouteDeps): Router {
     const router = Router();
 
@@ -44,12 +39,6 @@ export function createRoutes(deps: RouteDeps): Router {
         ADMIN_API_KEY,
     } = deps;
 
-    /**
-     * Express middleware that authenticates a request via JWT.
-     * On success, attaches the player payload to `req.player`. On failure, responds
-     * with 401 (no credentials) or 403 (invalid/revoked token). Also checks the
-     * token version against the database to detect revocations.
-     */
     async function authenticateToken(
         req: Request,
         res: Response,
@@ -70,8 +59,8 @@ export function createRoutes(deps: RouteDeps): Router {
         }
 
         try {
-            const result = await pool.query('SELECT token_version FROM players WHERE id = $1', [
-                payload.playerId,
+            const result = await pool.query('SELECT token_version FROM users WHERE id = $1', [
+                payload.userId,
             ]);
             if (result.rows.length === 0 || result.rows[0].token_version !== payload.tokenVersion) {
                 res.status(401).json({ error: 'Token has been revoked' });
@@ -86,11 +75,6 @@ export function createRoutes(deps: RouteDeps): Router {
         next();
     }
 
-    /**
-     * Express middleware that restricts access to admin users. Accepts either an
-     * `x-admin-key` header matching the `ADMIN_API_KEY` env var, or a JWT with
-     * `role: 'admin'`. Responds with 403 on failure.
-     */
     function authenticateAdmin(req: Request, res: Response, next: NextFunction): void {
         if (ADMIN_API_KEY && req.headers['x-admin-key'] === ADMIN_API_KEY) {
             next();
@@ -131,18 +115,13 @@ export function createRoutes(deps: RouteDeps): Router {
         legacyHeaders: false,
     });
 
-    /**
-     * @route POST /api/auth/logout
-     * @description Logs out the player by incrementing their token version (invalidating all
-     *              existing JWTs) and clearing the auth cookie.
-     * @auth Required
-     * @returns {LogoutResponse} 200 - `{ success: true }`
-     */
+    // ─── Logout ────────────────────────────────────────────────────────
+
     router.post('/api/auth/logout', authenticateToken, async (req, res): Promise<any> => {
-        const { playerId } = getAuthenticatedPlayer(req);
+        const { userId } = getAuthenticatedPlayer(req);
         try {
-            await pool.query('UPDATE players SET token_version = token_version + 1 WHERE id = $1', [
-                playerId,
+            await pool.query('UPDATE users SET token_version = token_version + 1 WHERE id = $1', [
+                userId,
             ]);
             res.clearCookie(AUTH_COOKIE_NAME, { path: '/' });
             const body: LogoutResponse = { success: true };
@@ -153,18 +132,8 @@ export function createRoutes(deps: RouteDeps): Router {
         }
     });
 
-    /**
-     * @route POST /api/auth/register
-     * @description Registers a new player account. Creates the player, assigns a default
-     *              Merchant Freighter ship with 10,000 starting credits, and returns a JWT.
-     * @rateLimit 5 requests per hour
-     * @body {string} name - Player display name
-     * @body {string} email - Player email (must be unique)
-     * @body {string} password - Plaintext password (hashed with scrypt before storage)
-     * @returns {AuthResponse} 201 - Player info and JWT (also set as HttpOnly cookie)
-     * @returns 400 - Missing required fields
-     * @returns 409 - Email already registered
-     */
+    // ─── Register ──────────────────────────────────────────────────────
+
     router.post('/api/auth/register', registerLimiter, async (req, res): Promise<any> => {
         const { name, email, password } = req.body;
         if (!name || !email || !password) {
@@ -176,38 +145,24 @@ export function createRoutes(deps: RouteDeps): Router {
 
         try {
             const result = await pool.query(
-                `INSERT INTO players (name, email, password_hash, role, current_sector)
-           VALUES ($1, $2, $3, $4, 1) RETURNING id, name, email, role, token_version`,
-                [name, email, hash, role],
+                `INSERT INTO users (email, password_hash, role)
+           VALUES ($1, $2, $3) RETURNING id, email, role, token_version`,
+                [email, hash, role],
             );
-            const player = result.rows[0];
-
-            await pool.query(
-                `INSERT INTO ship_cargo (player_id, fuel, organics, equipment, credits)
-           VALUES ($1, 0, 0, 0, 10000) ON CONFLICT (player_id) DO NOTHING`,
-                [player.id],
-            );
-            const merchant = shipConfigs['Merchant Freighter'];
-            if (merchant) {
-                await pool.query(
-                    `INSERT INTO player_ships (player_id, ship_name, fighters, shields, cargo_limit)
-             VALUES ($1, $2, 0, 0, $3) ON CONFLICT (player_id) DO NOTHING`,
-                    [player.id, merchant.name, merchant.startingHolds],
-                );
-            }
+            const user = result.rows[0];
 
             const token = signPlayerToken({
-                playerId: player.id,
-                name: player.name,
-                role: player.role,
-                tokenVersion: player.token_version,
+                userId: user.id,
+                name,
+                role: user.role,
+                tokenVersion: user.token_version,
             });
 
             setAuthCookie(res, token);
             const body: AuthResponse = {
-                playerId: player.id,
-                name: player.name,
-                role: player.role,
+                userId: user.id,
+                name,
+                role: user.role,
                 token,
             };
             res.status(201).json(body);
@@ -220,16 +175,8 @@ export function createRoutes(deps: RouteDeps): Router {
         }
     });
 
-    /**
-     * @route POST /api/auth/login
-     * @description Authenticates a player by email and password. Returns a JWT on success.
-     * @rateLimit 10 requests per 15 minutes
-     * @body {string} email - Player email
-     * @body {string} password - Plaintext password
-     * @returns {AuthResponse} 200 - Player info and JWT (also set as HttpOnly cookie)
-     * @returns 400 - Missing email or password
-     * @returns 401 - Invalid credentials
-     */
+    // ─── Login ─────────────────────────────────────────────────────────
+
     router.post('/api/auth/login', loginLimiter, async (req, res): Promise<any> => {
         const { email, password } = req.body;
         if (!email || !password) {
@@ -238,7 +185,7 @@ export function createRoutes(deps: RouteDeps): Router {
 
         try {
             const result = await pool.query(
-                'SELECT id, name, role, password_hash, token_version, ship_destroyed_date FROM players WHERE email = $1',
+                'SELECT id, role, password_hash, token_version FROM users WHERE email = $1',
                 [email],
             );
             if (
@@ -248,57 +195,62 @@ export function createRoutes(deps: RouteDeps): Router {
                 return res.status(401).json({ error: 'Invalid credentials' });
             }
 
-            const player = result.rows[0];
+            const user = result.rows[0];
 
-            if (player.ship_destroyed_date) {
-                const delaySecs = parseInt(
-                    process.env.SHIP_DESTROYED_LOGIN_DELAY_SECONDS || '0',
-                    10,
-                );
-                const elapsedSecs =
-                    (Date.now() - new Date(player.ship_destroyed_date).getTime()) / 1000;
+            // Check ship_destroyed_date for any player of this user
+            const playersRes = await pool.query(
+                'SELECT id, ship_destroyed_date, universe_id FROM players WHERE user_id = $1',
+                [user.id],
+            );
+            for (const player of playersRes.rows) {
+                if (player.ship_destroyed_date) {
+                    const delaySecs = parseInt(
+                        process.env.SHIP_DESTROYED_LOGIN_DELAY_SECONDS || '0',
+                        10,
+                    );
+                    const elapsedSecs =
+                        (Date.now() - new Date(player.ship_destroyed_date).getTime()) / 1000;
 
-                if (elapsedSecs < delaySecs) {
-                    const remaining = Math.ceil(delaySecs - elapsedSecs);
-                    return res.status(403).json({
-                        error: `Your ship was destroyed. You can login in ${remaining} seconds.`,
-                    });
-                }
+                    if (elapsedSecs < delaySecs) {
+                        const remaining = Math.ceil(delaySecs - elapsedSecs);
+                        return res.status(403).json({
+                            error: `Your ship was destroyed. You can login in ${remaining} seconds.`,
+                        });
+                    }
 
-                // Delay passed — clear destroyed date and give new ship
-                await pool.query(
-                    'UPDATE players SET ship_destroyed_date = NULL, current_sector = 1 WHERE id = $1',
-                    [player.id],
-                );
-                await pool.query('DELETE FROM player_ships WHERE player_id = $1', [player.id]);
-                await pool.query('DELETE FROM ship_cargo WHERE player_id = $1', [player.id]);
-                const merchant = shipConfigs['Merchant Freighter'];
-                if (merchant) {
+                    // Delay passed — clear destroyed date and give new ship
                     await pool.query(
-                        `INSERT INTO player_ships (player_id, ship_name, fighters, shields, cargo_limit)
-                         VALUES ($1, $2, 0, 0, $3)`,
-                        [player.id, merchant.name, merchant.startingHolds],
+                        'UPDATE players SET ship_destroyed_date = NULL, current_sector = 1 WHERE id = $1',
+                        [player.id],
+                    );
+                    await pool.query('DELETE FROM player_ships WHERE player_id = $1', [player.id]);
+                    await pool.query('DELETE FROM ship_cargo WHERE player_id = $1', [player.id]);
+                    const merchant = shipConfigs['Merchant Freighter'];
+                    if (merchant) {
+                        await pool.query(
+                            `INSERT INTO player_ships (player_id, ship_name, fighters, shields, cargo_limit)
+                             VALUES ($1, $2, 0, 0, $3)`,
+                            [player.id, merchant.name, merchant.startingHolds],
+                        );
+                    }
+                    await pool.query(
+                        `INSERT INTO ship_cargo (player_id, fuel, organics, equipment, credits)
+                         VALUES ($1, 0, 0, 0, 10000)`,
+                        [player.id],
                     );
                 }
-                await pool.query(
-                    `INSERT INTO ship_cargo (player_id, fuel, organics, equipment, credits)
-                     VALUES ($1, 0, 0, 0, 10000)`,
-                    [player.id],
-                );
             }
 
             const token = signPlayerToken({
-                playerId: player.id,
-                name: player.name,
-                role: player.role,
-                tokenVersion: player.token_version,
+                userId: user.id,
+                role: user.role,
+                tokenVersion: user.token_version,
             });
 
             setAuthCookie(res, token);
             const body: AuthResponse = {
-                playerId: player.id,
-                name: player.name,
-                role: player.role,
+                userId: user.id,
+                role: user.role,
                 token,
             };
             res.json(body);
@@ -308,12 +260,97 @@ export function createRoutes(deps: RouteDeps): Router {
         }
     });
 
-    /**
-     * @route GET /api/admin/server-stats
-     * @description Returns server statistics including uptime, player counts, and system info.
-     * @auth Admin required (admin JWT or `x-admin-key` header)
-     * @returns {ServerStatsResponse} 200 - Server statistics
-     */
+    // ─── Universe Management ───────────────────────────────────────────
+
+    router.post('/api/universes', authenticateToken, async (req, res): Promise<any> => {
+        const { name } = req.body;
+        if (!name || !name.trim()) {
+            return res.status(400).json({ error: 'name is required' });
+        }
+
+        try {
+            const result = await pool.query(
+                'INSERT INTO universes (name) VALUES ($1) RETURNING id, name',
+                [name],
+            );
+            const universe = result.rows[0];
+            res.status(201).json({ universeId: universe.id, name: universe.name });
+        } catch (err) {
+            console.error('Create universe error', err);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    });
+
+    router.get('/api/universes', authenticateToken, async (_req, res): Promise<any> => {
+        try {
+            const result = await pool.query(
+                'SELECT id, name, created_at FROM universes ORDER BY id',
+            );
+            const universes = result.rows.map(r => ({
+                id: r.id,
+                name: r.name,
+                createdAt: r.created_at,
+            }));
+            res.json(universes);
+        } catch (err) {
+            console.error('List universes error', err);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    });
+
+    router.post('/api/universes/:id/join', authenticateToken, async (req, res): Promise<any> => {
+        const { userId } = getAuthenticatedPlayer(req);
+        const universeId = parseInt(req.params.id as string, 10);
+        const { name } = req.body;
+
+        if (!name || !name.trim()) {
+            return res.status(400).json({ error: 'name is required' });
+        }
+
+        try {
+            // Check universe exists
+            const univRes = await pool.query('SELECT id FROM universes WHERE id = $1', [universeId]);
+            if (univRes.rows.length === 0) {
+                return res.status(404).json({ error: 'Universe not found' });
+            }
+
+            // Create player row
+            const playerRes = await pool.query(
+                `INSERT INTO players (name, user_id, universe_id, current_sector)
+                 VALUES ($1, $2, $3, 1) RETURNING id`,
+                [name, userId, universeId],
+            );
+            const playerId = playerRes.rows[0].id;
+
+            // Create ship
+            const merchant = shipConfigs['Merchant Freighter'];
+            if (merchant) {
+                await pool.query(
+                    `INSERT INTO player_ships (player_id, ship_name, fighters, shields, cargo_limit)
+                     VALUES ($1, $2, 0, 0, $3)`,
+                    [playerId, merchant.name, merchant.startingHolds],
+                );
+            }
+
+            // Create cargo
+            await pool.query(
+                `INSERT INTO ship_cargo (player_id, fuel, organics, equipment, credits)
+                 VALUES ($1, 0, 0, 0, 10000)`,
+                [playerId],
+            );
+
+            res.status(201).json({ playerId, universeId });
+        } catch (err: any) {
+            if (err.code === '23505') {
+                return res.status(409).json({ error: 'Already joined this universe' });
+            }
+            console.error('Join universe error', err);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    });
+
+    // ─── Admin ─────────────────────────────────────────────────────────
+
     router.get('/api/admin/server-stats', authenticateAdmin, async (_req, res): Promise<any> => {
         try {
             const playerCount = await pool.query('SELECT COUNT(*) FROM players');

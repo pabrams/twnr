@@ -89,8 +89,8 @@ export function verifyToken(token: string): AuthTokenPayload {
         throw new Error('Invalid token payload');
     }
 
-    const playerId = Number((payload as jwt.JwtPayload).playerId);
-    if (!Number.isInteger(playerId) || playerId <= 0) {
+    const userId = Number((payload as jwt.JwtPayload).userId);
+    if (!Number.isInteger(userId) || userId <= 0) {
         throw new Error('Invalid token payload');
     }
 
@@ -100,7 +100,7 @@ export function verifyToken(token: string): AuthTokenPayload {
     }
 
     return {
-        playerId,
+        userId,
         name:
             typeof (payload as jwt.JwtPayload).name === 'string'
                 ? (payload as jwt.JwtPayload).name

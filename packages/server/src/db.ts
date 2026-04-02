@@ -17,42 +17,57 @@ export const connectDB = async (): Promise<void> => {
 
         // Create tables
         await client.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        role VARCHAR(50) NOT NULL DEFAULT 'player',
+        token_version INTEGER NOT NULL DEFAULT 1
+      );
+
+      CREATE TABLE IF NOT EXISTS universes (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        seed INTEGER,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
       CREATE TABLE IF NOT EXISTS sectors (
-        id INTEGER PRIMARY KEY,
-        name VARCHAR(255)
+        id INTEGER NOT NULL,
+        universe_id INTEGER NOT NULL REFERENCES universes(id),
+        name VARCHAR(255),
+        PRIMARY KEY (id, universe_id)
       );
-      
+
       CREATE TABLE IF NOT EXISTS warps (
-        sector_from INTEGER NOT NULL REFERENCES sectors(id),
-        sector_to INTEGER NOT NULL REFERENCES sectors(id),
-        PRIMARY KEY (sector_from, sector_to)
+        sector_from INTEGER NOT NULL,
+        sector_to INTEGER NOT NULL,
+        universe_id INTEGER NOT NULL REFERENCES universes(id),
+        PRIMARY KEY (sector_from, sector_to, universe_id)
       );
-      
+
       CREATE TABLE IF NOT EXISTS players (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255),
-        email VARCHAR(255) UNIQUE,
-        password_hash VARCHAR(255),
-        role VARCHAR(50) NOT NULL DEFAULT 'player',
-        current_sector INTEGER REFERENCES sectors(id)
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        universe_id INTEGER NOT NULL REFERENCES universes(id),
+        current_sector INTEGER,
+        ship_destroyed_date TIMESTAMPTZ,
+        UNIQUE (user_id, universe_id)
       );
-      ALTER TABLE players ADD COLUMN IF NOT EXISTS email VARCHAR(255);
-      ALTER TABLE players ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255);
-      ALTER TABLE players ADD COLUMN IF NOT EXISTS role VARCHAR(50) NOT NULL DEFAULT 'player';
-      ALTER TABLE players ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 1;
-      ALTER TABLE players ADD COLUMN IF NOT EXISTS ship_destroyed_date TIMESTAMPTZ;
-      CREATE UNIQUE INDEX IF NOT EXISTS players_email_unique_idx ON players (email) WHERE email IS NOT NULL;
 
       CREATE TABLE IF NOT EXISTS ports (
         id SERIAL PRIMARY KEY,
-        sector_id INTEGER NOT NULL UNIQUE REFERENCES sectors(id),
+        sector_id INTEGER NOT NULL,
+        universe_id INTEGER NOT NULL REFERENCES universes(id),
         class INTEGER NOT NULL,
         fuel INTEGER NOT NULL DEFAULT 1000,
         fuel_price INTEGER NOT NULL,
         organics INTEGER NOT NULL DEFAULT 1000,
         org_price INTEGER NOT NULL,
         equipment INTEGER NOT NULL DEFAULT 1000,
-        equ_price INTEGER NOT NULL
+        equ_price INTEGER NOT NULL,
+        UNIQUE (sector_id, universe_id)
       );
 
       CREATE TABLE IF NOT EXISTS ship_cargo (
