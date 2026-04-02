@@ -179,6 +179,24 @@ async function joinUniverse() {
     }
 }
 
+// Bold colors use FF, non-bold use 99
+const colors = {
+    red:        (s: string) => `\x1b[38;2;153;0;0m${s}\x1b[0m`,
+    green:      (s: string) => `\x1b[38;2;0;153;0m${s}\x1b[0m`,
+    blue:       (s: string) => `\x1b[38;2;0;0;153m${s}\x1b[0m`,
+    cyan:       (s: string) => `\x1b[38;2;0;153;153m${s}\x1b[0m`,
+    magenta:    (s: string) => `\x1b[38;2;153;0;153m${s}\x1b[0m`,
+    yellow:     (s: string) => `\x1b[38;2;153;153;0m${s}\x1b[0m`,
+    boldRed:    (s: string) => `\x1b[38;2;255;0;0m${s}\x1b[0m`,
+    boldGreen:  (s: string) => `\x1b[38;2;0;255;0m${s}\x1b[0m`,
+    boldBlue:   (s: string) => `\x1b[38;2;0;0;255m${s}\x1b[0m`,
+    boldCyan:   (s: string) => `\x1b[38;2;0;255;255m${s}\x1b[0m`,
+    boldMagenta:(s: string) => `\x1b[38;2;255;0;255m${s}\x1b[0m`,
+    boldYellow: (s: string) => `\x1b[38;2;255;255;0m${s}\x1b[0m`,
+    white:      (s: string) => `\x1b[38;2;192;192;192m${s}\x1b[0m`,
+    boldWhite:  (s: string) => `\x1b[38;2;255;255;255m${s}\x1b[0m`,
+};
+
 const PORT_CLASS_LABELS: Record<number, string> = {
     0: 'Special',
     1: 'BBS', 2: 'BSB', 3: 'SBB', 4: 'SSB',
@@ -208,7 +226,7 @@ function startGame(universeId: number) {
         fontSize: 14,
         theme: {
             background: '#000000',
-            foreground: '#c0c0c0',
+            foreground: '#ffffff',
         },
     });
 
@@ -233,54 +251,55 @@ function startGame(universeId: number) {
         }
     }
 
+    const mg = colors.magenta; // shorthand for brackets, "Class", etc.
+
     function showSectorDisplay(sector: number, warps: number[], players: { id: number; name: string }[], port?: { class: number; name: string } | null) {
         currentSector = sector;
         currentPort = port ?? null;
         term.writeln('');
-        term.writeln(`Sector ${sector}`);
+        const cl = colors.boldYellow(':');
+        term.writeln(`${colors.boldGreen('Sector')}  ${cl} ${colors.boldCyan(String(sector))}`);
         if (port) {
             const label = PORT_CLASS_LABELS[port.class] ?? '???';
-            term.writeln(`  Port ${port.name}, Class ${port.class} (${label})`);
+            term.writeln(`${mg('Port')}    ${cl} ${colors.boldCyan(port.name)}${colors.boldYellow(',')} ${mg('Class')} ${colors.boldCyan(String(port.class))} ${mg('(')}${colors.boldWhite(label)}${mg(')')}`);
         }
         if (warps.length > 0) {
-            term.writeln(`  Warps to: ${warps.join(', ')}`);
+            term.writeln(`${colors.boldGreen('Warps')}   ${cl} ${warps.map(w => colors.boldCyan(String(w))).join(` ${mg('-')} `)}`);
         }
         if (players.length > 0) {
-            for (const p of players) {
-                term.writeln(`  ${p.name} is in this sector`);
-            }
+            term.writeln(`${mg('Players')} ${cl} ${players.map(p => colors.boldYellow(p.name)).join(colors.boldYellow(', '))}`);
         }
         showPrompt();
     }
 
     function showPrompt() {
-        term.write(`\r\nCommand [${currentSector}] (?=Help) : `);
+        term.write(`\r\n${mg('Command')} ${mg('[')}${colors.boldCyan(String(currentSector))}${mg(']')} ${mg('(')}${colors.boldYellow('?')}=${colors.boldYellow('Help')}${mg(')')} ${colors.boldYellow(':')} `);
     }
 
     function showHelp() {
         mode = 'help';
         term.writeln('');
-        term.writeln('Commands:');
-        term.writeln('  <number>  Move to sector');
-        term.writeln('  D         Display current sector');
-        term.writeln('  P         Port menu (if port in sector)');
-        term.writeln('  I         Ship & cargo info');
-        term.writeln('  ?         This help');
-        term.writeln('  Q         Return to game');
+        term.writeln(colors.cyan('Help Menu:'));
+        term.writeln(`${colors.cyan('Command:')} Move to a sector by typing its number.`);
+        term.writeln(`${colors.cyan('Display:')} Type ${colors.boldYellow("'d'")} to refresh the sector display.`);
+        term.writeln(`${colors.cyan('Port:')} Type ${colors.boldYellow("'p'")} to access a port ${mg('(')}if one exists${mg(')')}.`);
+        term.writeln(`${colors.cyan('Ship Info:')} Type ${colors.boldYellow("'i'")} to view your ship and cargo.`);
+        term.writeln(`${colors.cyan('Help:')} Type ${colors.boldYellow("'?'")} to view this help menu.`);
+        term.writeln(`${colors.cyan('Exit Help:')} Press ${colors.boldYellow("'q'")} to return to the game.`);
     }
 
     function showPortMenu() {
         if (!currentPort) {
-            term.writeln('\r\nNo port in this sector.');
+            term.writeln(`\r\n${colors.boldRed('No port in this sector.')}`);
             showPrompt();
             return;
         }
         mode = 'port';
         const label = PORT_CLASS_LABELS[currentPort.class] ?? '???';
         term.writeln('');
-        term.writeln(`Port ${currentPort.name}, Class ${currentPort.class} (${label})`);
-        term.writeln('  T  Trade at this port');
-        term.writeln('  Q  Never mind');
+        term.writeln(`${colors.boldCyan(currentPort.name)}${colors.boldYellow(',')} ${mg('Class')} ${colors.boldCyan(String(currentPort.class))} ${mg('(')}${colors.boldWhite(label)}${mg(')')}`);
+        term.writeln(`  ${colors.cyan('T')}  Trade at this port`);
+        term.writeln(`  ${colors.cyan('Q')}  Never mind`);
     }
 
     function showDockedMenu() {
@@ -288,9 +307,9 @@ function startGame(universeId: number) {
         const p = dockedPortInfo;
         const actions = PORT_CLASS_ACTIONS[p.class];
         term.writeln('');
-        term.writeln(`Docked at Port ${p.sectorId}, Class ${p.class}`);
+        term.writeln(`${colors.boldGreen('Docked')} at ${colors.boldCyan(`Port ${p.sectorId}`)}${colors.boldYellow(',')} ${mg('Class')} ${colors.boldCyan(String(p.class))}`);
         if (actions) {
-            term.writeln('  Commodity     Price   Stock   Port');
+            term.writeln(`  ${colors.boldWhite('Commodity'.padEnd(14))} ${colors.boldWhite('Price'.padStart(5))}   ${colors.boldWhite('Stock'.padStart(5))}   ${colors.boldWhite('Port')}`);
             const goods = [
                 { name: 'Fuel', key: 'fuel', price: p.fuelPrice, stock: p.fuel },
                 { name: 'Organics', key: 'organics', price: p.orgPrice, stock: p.organics },
@@ -298,16 +317,16 @@ function startGame(universeId: number) {
             ];
             for (const g of goods) {
                 const action = actions[g.key];
-                const dir = action === 'B' ? 'Buying' : 'Selling';
-                term.writeln(`  ${g.name.padEnd(14)} ${String(g.price).padStart(5)}   ${String(g.stock).padStart(5)}   ${dir}`);
+                const dir = action === 'B' ? colors.boldGreen('Buying') : colors.boldRed('Selling');
+                term.writeln(`  ${colors.boldYellow(g.name.padEnd(14))} ${colors.white(String(g.price).padStart(5))}   ${colors.white(String(g.stock).padStart(5))}   ${dir}`);
             }
             term.writeln('');
-            term.writeln('  B <good> <qty>  Buy from port');
-            term.writeln('  S <good> <qty>  Sell to port');
+            term.writeln(`  ${colors.cyan('B')} <good> <qty>  Buy from port`);
+            term.writeln(`  ${colors.cyan('S')} <good> <qty>  Sell to port`);
         } else {
-            term.writeln('  This is a special port.');
+            term.writeln(`  ${colors.cyan('This is a special port.')}`);
         }
-        term.writeln('  Q  Leave port');
+        term.writeln(`  ${colors.cyan('Q')}  Leave port`);
     }
 
     function showShipInfo() {
@@ -317,21 +336,21 @@ function startGame(universeId: number) {
     }
 
     ws.addEventListener('open', () => {
-        term.writeln('Connected to TWNR.');
+        term.writeln(colors.green('Connected to TWNR.'));
     });
 
     ws.addEventListener('message', (event) => {
         const msg: ServerMessage = JSON.parse(event.data);
         switch (msg.type) {
             case ServerMsgType.Welcome:
-                term.writeln(`\r\nWelcome, ${msg.name}.`);
+                term.writeln(`\r\n${colors.boldGreen(`Welcome, ${msg.name}.`)}`);
                 sendMsg({ type: ClientMsgType.SectorDisplay });
                 break;
             case ServerMsgType.PlayerMoved:
                 if (msg.direction === 'in') {
-                    term.writeln(`\r\nPlayer warped into the sector.`);
+                    term.writeln(`\r\n${colors.boldYellow('Player warped into the sector.')}`);
                 } else {
-                    term.writeln(`\r\nPlayer warped out of the sector.`);
+                    term.writeln(`\r\n${colors.white('Player warped out of the sector.')}`);
                 }
                 break;
             case ServerMsgType.SectorDisplay:
@@ -345,36 +364,36 @@ function startGame(universeId: number) {
                 } else {
                     dockedPortInfo = null;
                     mode = 'sector';
-                    term.writeln('\r\nYou undock from the port.');
+                    term.writeln(`\r\n${colors.white('You undock from the port.')}`);
                     sendMsg({ type: ClientMsgType.SectorDisplay });
                 }
                 break;
             case ServerMsgType.PortTransactionResult:
-                term.writeln(`\r\nTransaction complete. Credits: ${msg.credits}`);
-                term.writeln(`  Cargo — Fuel: ${msg.cargo.fuel}, Organics: ${msg.cargo.organics}, Equipment: ${msg.cargo.equipment}`);
+                term.writeln(`\r\n${colors.boldGreen('Transaction complete.')} Credits: ${colors.boldYellow(String(msg.credits))}`);
+                term.writeln(`  Cargo — ${colors.boldYellow('Fuel')}: ${msg.cargo.fuel}, ${colors.boldYellow('Organics')}: ${msg.cargo.organics}, ${colors.boldYellow('Equipment')}: ${msg.cargo.equipment}`);
                 if (mode === 'docked') showDockedMenu();
                 break;
             case ServerMsgType.ShipInfo:
                 term.writeln('');
-                term.writeln(`Ship: ${msg.shipName}`);
-                term.writeln(`  Fighters: ${msg.fighters}/${msg.maxFighters}  Shields: ${msg.shields}/${msg.maxShields}`);
-                term.writeln(`  Cargo holds: ${msg.holdsAvailable} free / ${msg.cargoLimit} total (max ${msg.maxHolds})`);
-                term.writeln(`  Fuel: ${msg.cargoFuel}  Organics: ${msg.cargoOrganics}  Equipment: ${msg.cargoEquipment}`);
+                term.writeln(`${colors.white('Ship:')} ${colors.boldCyan(msg.shipName)}`);
+                term.writeln(`  ${colors.boldYellow('Fighters')}: ${colors.white(`${msg.fighters}`)}/${colors.cyan(`${msg.maxFighters}`)}  ${colors.boldYellow('Shields')}: ${colors.white(`${msg.shields}`)}/${colors.cyan(`${msg.maxShields}`)}`);
+                term.writeln(`  ${colors.boldYellow('Cargo holds')}: ${colors.boldGreen(`${msg.holdsAvailable} free`)} / ${colors.white(`${msg.cargoLimit} total`)} ${mg('(')}max ${msg.maxHolds}${mg(')')}`);
+                term.writeln(`  ${colors.boldYellow('Fuel')}: ${msg.cargoFuel}  ${colors.boldYellow('Organics')}: ${msg.cargoOrganics}  ${colors.boldYellow('Equipment')}: ${msg.cargoEquipment}`);
                 break;
             case ServerMsgType.CargoInfo:
-                term.writeln(`  Credits: ${msg.credits}`);
+                term.writeln(`  ${colors.boldYellow('Credits')}: ${colors.boldYellow(String(msg.credits))}`);
                 if (mode === 'shipInfo') {
                     mode = 'sector';
                     term.writeln('');
-                    term.writeln('Press Q to return.');
+                    term.writeln(`Press ${colors.boldYellow("'q'")} to return.`);
                 }
                 break;
             case ServerMsgType.NonAdjacentMoveRequested:
-                term.writeln(`\r\nCannot move to sector ${msg.sector} — not adjacent.`);
+                term.writeln(`\r\n${colors.boldRed(`Cannot move to sector ${msg.sector} — not adjacent.`)}`);
                 showPrompt();
                 break;
             case ServerMsgType.Error:
-                term.writeln(`\r\nError: ${msg.message}`);
+                term.writeln(`\r\n${colors.boldRed('Error:')} ${colors.red(msg.message)}`);
                 if (mode === 'docked') showDockedMenu();
                 else if (mode === 'sector') showPrompt();
                 break;
@@ -382,11 +401,11 @@ function startGame(universeId: number) {
     });
 
     ws.addEventListener('close', () => {
-        term.writeln('\r\nDisconnected.');
+        term.writeln(`\r\n${colors.boldRed('Disconnected.')}`);
     });
 
     ws.addEventListener('error', () => {
-        term.writeln('\r\nConnection error.');
+        term.writeln(`\r\n${colors.boldRed('Connection error.')}`);
     });
 
     const singleCharCommands = new Set(['d', 'p', 'i', '?', 'q', 't']);
