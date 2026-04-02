@@ -266,10 +266,17 @@ function startGame(universeId: number) {
         term.writeln(`${colors.boldGreen('Sector')}  ${cl} ${colors.boldCyan(String(sector))}`);
         if (port) {
             const label = PORT_CLASS_LABELS[port.class] ?? '???';
-            term.writeln(`${mg('Port')}    ${cl} ${colors.boldCyan(port.name)}${colors.boldYellow(',')} ${mg('Class')} ${colors.boldCyan(String(port.class))} ${mg('(')}${colors.boldWhite(label)}${mg(')')}`);
+            const coloredLabel = label === 'Special'
+                ? colors.boldCyan(label)
+                : label.split('').map(ch => ch === 'B' ? colors.green(ch) : colors.boldCyan(ch)).join('');
+            term.writeln(`${mg('Port')}    ${cl} ${colors.boldCyan(port.name)}${colors.boldYellow(',')} ${mg('Class')} ${colors.boldCyan(String(port.class))} ${mg('(')}${coloredLabel}${mg(')')}`);
         }
         if (warps.length > 0) {
-            term.writeln(`${colors.boldGreen('Warps')}   ${cl} ${warps.map(w => visitedSet.has(w) ? colors.boldCyan(String(w)) : colors.boldRed(String(w))).join(` ${mg('-')} `)}`);
+            term.writeln(`${colors.boldGreen('Warps')}   ${cl} ${warps.map(w => {
+                const num = String(w);
+                if (visitedSet.has(w)) return colors.boldCyan(num);
+                return `${mg('(')}${colors.boldRed(num)}${mg(')')}`;
+            }).join(` ${colors.green('-')} `)}`);
         }
         if (players.length > 0) {
             term.writeln(`${mg('Players')} ${cl} ${players.map(p => colors.boldYellow(p.name)).join(colors.boldYellow(', '))}`);
