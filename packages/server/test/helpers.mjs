@@ -173,6 +173,11 @@ export function wsRequest(ws, msg, responseType, timeout = 5000) {
     const timer = setTimeout(() => reject(new Error(`Timeout waiting for "${responseType}"`)), timeout);
     function handler(data) {
       const parsed = JSON.parse(data.toString());
+      if (parsed.type === 'rateLimited') {
+        // Wait for token bucket to refill, then resend
+        setTimeout(() => ws.send(JSON.stringify(msg)), 200);
+        return;
+      }
       if (parsed.type === responseType || parsed.type === 'error') {
         clearTimeout(timer);
         ws.removeListener('message', handler);
