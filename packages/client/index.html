@@ -25,6 +25,34 @@
     #auth .toggle { background: none; border: none; color: #888; font-size: 12px; cursor: pointer; }
     #auth .toggle:hover { color: #c0c0c0; }
     #auth .error { color: #f44; font-size: 13px; min-height: 1em; }
+    #universe-select {
+      display: none; flex-direction: column; align-items: center; justify-content: center;
+      height: 100%; gap: 12px;
+    }
+    #universe-select h1 { color: #c0c0c0; margin-bottom: 8px; }
+    #universe-list { list-style: none; width: 300px; }
+    #universe-list li {
+      background: #111; border: 1px solid #444; padding: 10px 14px; margin-bottom: 6px;
+      cursor: pointer; font-family: inherit; font-size: 14px; color: #c0c0c0;
+    }
+    #universe-list li:hover { background: #222; border-color: #666; }
+    #universe-list li .player-status { color: #888; font-size: 12px; }
+    #universe-select .error { color: #f44; font-size: 13px; min-height: 1em; }
+    #player-name-prompt {
+      display: none; flex-direction: column; align-items: center; justify-content: center;
+      height: 100%; gap: 12px;
+    }
+    #player-name-prompt h1 { color: #c0c0c0; margin-bottom: 8px; }
+    #player-name-prompt input {
+      background: #111; color: #c0c0c0; border: 1px solid #444; padding: 8px 12px;
+      font-family: inherit; font-size: 14px; width: 260px;
+    }
+    #player-name-prompt button {
+      background: #333; color: #c0c0c0; border: 1px solid #555; padding: 8px 16px;
+      font-family: inherit; font-size: 14px; cursor: pointer; width: 260px;
+    }
+    #player-name-prompt button:hover { background: #444; }
+    #player-name-prompt .error { color: #f44; font-size: 13px; min-height: 1em; }
   </style>
 </head>
 <body>
@@ -36,6 +64,18 @@
     <div class="error" id="auth-error"></div>
     <button id="auth-submit">Register</button>
     <button class="toggle" id="auth-toggle">Already have an account? Log in</button>
+  </div>
+  <div id="universe-select">
+    <h1>Select Universe</h1>
+    <ul id="universe-list"></ul>
+    <div class="error" id="universe-error"></div>
+  </div>
+  <div id="player-name-prompt">
+    <h1>New Player</h1>
+    <p style="color:#888; font-size:13px;">Enter a name for your character in this universe:</p>
+    <input id="player-name-input" type="text" placeholder="Player name" />
+    <div class="error" id="player-name-error"></div>
+    <button id="player-name-submit">Join Universe</button>
   </div>
   <div id="terminal"></div>
   <script type="module" src="/src/main.ts"></script>

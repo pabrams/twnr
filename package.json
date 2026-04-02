@@ -4,7 +4,9 @@
   "scripts": {
     "delete:buildinfo": "find . -name '*.tsbuildinfo' -delete",
     "delete:dist": "find . -name 'dist' -type d -exec rm -rf {} +",
-    "clean": "pnpm delete:buildinfo && pnpm delete:dist",
+    "delete:nm": "find . -name node_modules -type d -prune -exec rm -rf {} +",
+    "clean:install": "pnpm delete:dist && pnpm delete:buildinfo && pnpm delete:nm",
+    "clean:build": "pnpm delete:buildinfo && pnpm delete:dist",
     "rebuild": "pnpm clean && pnpm build",
     "build": "pnpm -r run build && pnpm run docs",
     "test": "pnpm lint && pnpm format:check && pnpm --filter @twnr/server test",

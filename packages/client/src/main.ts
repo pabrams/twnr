@@ -13,6 +13,15 @@ const submitBtn = document.getElementById('auth-submit') as HTMLButtonElement;
 const toggleBtn = document.getElementById('auth-toggle') as HTMLButtonElement;
 const errorDiv = document.getElementById('auth-error')!;
 
+const universeDiv = document.getElementById('universe-select')!;
+const universeList = document.getElementById('universe-list')!;
+const universeError = document.getElementById('universe-error')!;
+
+const playerNameDiv = document.getElementById('player-name-prompt')!;
+const playerNameInput = document.getElementById('player-name-input') as HTMLInputElement;
+const playerNameError = document.getElementById('player-name-error')!;
+const playerNameSubmit = document.getElementById('player-name-submit') as HTMLButtonElement;
+
 let isLogin = false;
 
 function updateAuthMode() {
@@ -28,6 +37,13 @@ toggleBtn.addEventListener('click', () => {
     isLogin = !isLogin;
     updateAuthMode();
 });
+
+function showScreen(screen: 'auth' | 'universes' | 'playerName' | 'game') {
+    authDiv.style.display = screen === 'auth' ? 'flex' : 'none';
+    universeDiv.style.display = screen === 'universes' ? 'flex' : 'none';
+    playerNameDiv.style.display = screen === 'playerName' ? 'flex' : 'none';
+    termDiv.style.display = screen === 'game' ? 'block' : 'none';
+}
 
 async function handleAuth() {
     errorDiv.textContent = '';
@@ -54,7 +70,7 @@ async function handleAuth() {
             errorDiv.textContent = data.error || 'Something went wrong.';
             return;
         }
-        startGame();
+        showUniverseSelect();
     } catch {
         errorDiv.textContent = 'Could not reach server.';
     }
@@ -65,9 +81,106 @@ passwordInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') handleAuth();
 });
 
-function startGame() {
-    authDiv.style.display = 'none';
-    termDiv.style.display = 'block';
+interface UniverseInfo {
+    id: number;
+    name: string;
+    playerId: number | null;
+    playerName: string | null;
+}
+
+async function showUniverseSelect() {
+    universeError.textContent = '';
+    universeList.innerHTML = '';
+
+    try {
+        const res = await fetch('/api/universes');
+        if (!res.ok) {
+            universeError.textContent = 'Failed to load universes.';
+            showScreen('universes');
+            return;
+        }
+        const universes: UniverseInfo[] = await res.json();
+
+        if (universes.length === 0) {
+            universeError.textContent = 'No universes available.';
+            showScreen('universes');
+            return;
+        }
+
+        for (const u of universes) {
+            const li = document.createElement('li');
+            const nameSpan = document.createElement('div');
+            nameSpan.textContent = u.name;
+            li.appendChild(nameSpan);
+
+            if (u.playerName) {
+                const status = document.createElement('div');
+                status.className = 'player-status';
+                status.textContent = `Playing as: ${u.playerName}`;
+                li.appendChild(status);
+            } else {
+                const status = document.createElement('div');
+                status.className = 'player-status';
+                status.textContent = 'New player';
+                li.appendChild(status);
+            }
+
+            li.addEventListener('click', () => selectUniverse(u));
+            universeList.appendChild(li);
+        }
+
+        showScreen('universes');
+    } catch {
+        universeError.textContent = 'Could not reach server.';
+        showScreen('universes');
+    }
+}
+
+let selectedUniverse: UniverseInfo | null = null;
+
+function selectUniverse(u: UniverseInfo) {
+    if (u.playerId) {
+        startGame(u.id);
+    } else {
+        selectedUniverse = u;
+        playerNameInput.value = '';
+        playerNameError.textContent = '';
+        showScreen('playerName');
+    }
+}
+
+playerNameSubmit.addEventListener('click', joinUniverse);
+playerNameInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') joinUniverse();
+});
+
+async function joinUniverse() {
+    if (!selectedUniverse) return;
+    const name = playerNameInput.value.trim();
+    if (!name) {
+        playerNameError.textContent = 'Name is required.';
+        return;
+    }
+
+    try {
+        const res = await fetch(`/api/universes/${selectedUniverse.id}/join`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            playerNameError.textContent = data.error || 'Failed to join.';
+            return;
+        }
+        startGame(selectedUniverse.id);
+    } catch {
+        playerNameError.textContent = 'Could not reach server.';
+    }
+}
+
+function startGame(universeId: number) {
+    showScreen('game');
 
     const term = new Terminal({
         cursorBlink: true,
@@ -87,7 +200,7 @@ function startGame() {
     window.addEventListener('resize', () => fitAddon.fit());
 
     const wsProtocol = location.protocol === 'https:' ? 'wss' : 'ws';
-    const ws = new WebSocket(`${wsProtocol}://${location.host}/ws`);
+    const ws = new WebSocket(`${wsProtocol}://${location.host}/ws?universe=${universeId}`);
 
     ws.addEventListener('open', () => {
         term.writeln('Connected to TWNR.');

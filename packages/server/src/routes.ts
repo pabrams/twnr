@@ -281,15 +281,22 @@ export function createRoutes(deps: RouteDeps): Router {
         }
     });
 
-    router.get('/api/universes', authenticateToken, async (_req, res): Promise<any> => {
+    router.get('/api/universes', authenticateToken, async (req, res): Promise<any> => {
+        const { userId } = getAuthenticatedPlayer(req);
         try {
             const result = await pool.query(
-                'SELECT id, name, created_at FROM universes ORDER BY id',
+                `SELECT u.id, u.name, u.created_at, p.id AS player_id, p.name AS player_name
+                 FROM universes u
+                 LEFT JOIN players p ON p.universe_id = u.id AND p.user_id = $1
+                 ORDER BY u.id`,
+                [userId],
             );
             const universes = result.rows.map((r) => ({
                 id: r.id,
                 name: r.name,
                 createdAt: r.created_at,
+                playerId: r.player_id ?? null,
+                playerName: r.player_name ?? null,
             }));
             res.json(universes);
         } catch (err) {
