@@ -179,6 +179,26 @@ async function joinUniverse() {
     }
 }
 
+const PORT_CLASS_LABELS: Record<number, string> = {
+    0: 'Special',
+    1: 'BBS', 2: 'BSB', 3: 'SBB', 4: 'SSB',
+    5: 'BSS', 6: 'SBS', 7: 'SSS', 8: 'BBB',
+    9: 'Special',
+};
+
+const PORT_CLASS_ACTIONS: Record<number, Record<string, 'B' | 'S'>> = {
+    1: { fuel: 'B', organics: 'B', equipment: 'S' },
+    2: { fuel: 'B', organics: 'S', equipment: 'B' },
+    3: { fuel: 'S', organics: 'B', equipment: 'B' },
+    4: { fuel: 'S', organics: 'S', equipment: 'B' },
+    5: { fuel: 'B', organics: 'S', equipment: 'S' },
+    6: { fuel: 'S', organics: 'B', equipment: 'S' },
+    7: { fuel: 'S', organics: 'S', equipment: 'S' },
+    8: { fuel: 'B', organics: 'B', equipment: 'B' },
+};
+
+type MenuMode = 'sector' | 'port' | 'docked' | 'help' | 'shipInfo';
+
 function startGame(universeId: number) {
     showScreen('game');
 
@@ -202,6 +222,100 @@ function startGame(universeId: number) {
     const wsProtocol = location.protocol === 'https:' ? 'wss' : 'ws';
     const ws = new WebSocket(`${wsProtocol}://${location.host}/ws?universe=${universeId}`);
 
+    let mode: MenuMode = 'sector';
+    let currentSector = 0;
+    let currentPort: { class: number; name: string } | null = null;
+    let dockedPortInfo: import('@twnr/shared').PortInfoMessage | null = null;
+
+    function sendMsg(msg: ClientMessage) {
+        if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify(msg));
+        }
+    }
+
+    function showSectorDisplay(sector: number, warps: number[], players: { id: number; name: string }[], port?: { class: number; name: string } | null) {
+        currentSector = sector;
+        currentPort = port ?? null;
+        term.writeln('');
+        term.writeln(`Sector ${sector}`);
+        if (port) {
+            const label = PORT_CLASS_LABELS[port.class] ?? '???';
+            term.writeln(`  Port ${port.name}, Class ${port.class} (${label})`);
+        }
+        if (warps.length > 0) {
+            term.writeln(`  Warps to: ${warps.join(', ')}`);
+        }
+        if (players.length > 0) {
+            for (const p of players) {
+                term.writeln(`  ${p.name} is in this sector`);
+            }
+        }
+        showPrompt();
+    }
+
+    function showPrompt() {
+        term.write(`\r\nCommand [${currentSector}] (?=Help) : `);
+    }
+
+    function showHelp() {
+        mode = 'help';
+        term.writeln('');
+        term.writeln('Commands:');
+        term.writeln('  <number>  Move to sector');
+        term.writeln('  D         Display current sector');
+        term.writeln('  P         Port menu (if port in sector)');
+        term.writeln('  I         Ship & cargo info');
+        term.writeln('  ?         This help');
+        term.writeln('  Q         Return to game');
+    }
+
+    function showPortMenu() {
+        if (!currentPort) {
+            term.writeln('\r\nNo port in this sector.');
+            showPrompt();
+            return;
+        }
+        mode = 'port';
+        const label = PORT_CLASS_LABELS[currentPort.class] ?? '???';
+        term.writeln('');
+        term.writeln(`Port ${currentPort.name}, Class ${currentPort.class} (${label})`);
+        term.writeln('  T  Trade at this port');
+        term.writeln('  Q  Never mind');
+    }
+
+    function showDockedMenu() {
+        if (!dockedPortInfo) return;
+        const p = dockedPortInfo;
+        const actions = PORT_CLASS_ACTIONS[p.class];
+        term.writeln('');
+        term.writeln(`Docked at Port ${p.sectorId}, Class ${p.class}`);
+        if (actions) {
+            term.writeln('  Commodity     Price   Stock   Port');
+            const goods = [
+                { name: 'Fuel', key: 'fuel', price: p.fuelPrice, stock: p.fuel },
+                { name: 'Organics', key: 'organics', price: p.orgPrice, stock: p.organics },
+                { name: 'Equipment', key: 'equipment', price: p.equPrice, stock: p.equipment },
+            ];
+            for (const g of goods) {
+                const action = actions[g.key];
+                const dir = action === 'B' ? 'Buying' : 'Selling';
+                term.writeln(`  ${g.name.padEnd(14)} ${String(g.price).padStart(5)}   ${String(g.stock).padStart(5)}   ${dir}`);
+            }
+            term.writeln('');
+            term.writeln('  B <good> <qty>  Buy from port');
+            term.writeln('  S <good> <qty>  Sell to port');
+        } else {
+            term.writeln('  This is a special port.');
+        }
+        term.writeln('  Q  Leave port');
+    }
+
+    function showShipInfo() {
+        mode = 'shipInfo';
+        sendMsg({ type: ClientMsgType.ShipInfo });
+        sendMsg({ type: ClientMsgType.CargoInfo });
+    }
+
     ws.addEventListener('open', () => {
         term.writeln('Connected to TWNR.');
     });
@@ -210,17 +324,59 @@ function startGame(universeId: number) {
         const msg: ServerMessage = JSON.parse(event.data);
         switch (msg.type) {
             case ServerMsgType.Welcome:
-                term.writeln(`\r\nWelcome, ${msg.name}. You are in sector ${msg.sector}.`);
+                term.writeln(`\r\nWelcome, ${msg.name}.`);
+                sendMsg({ type: ClientMsgType.SectorDisplay });
                 break;
             case ServerMsgType.PlayerMoved:
                 if (msg.direction === 'in') {
-                    term.writeln(`\r\nPlayer ${msg.playerId} warped into the sector.`);
+                    term.writeln(`\r\nPlayer warped into the sector.`);
                 } else {
-                    term.writeln(`\r\nPlayer ${msg.playerId} warped out of the sector.`);
+                    term.writeln(`\r\nPlayer warped out of the sector.`);
                 }
                 break;
             case ServerMsgType.SectorDisplay:
-                term.writeln(`\r\nSector ${msg.sector} — warps: ${msg.warps.join(', ')}`);
+                showSectorDisplay(msg.sector, msg.warps, msg.players, msg.port);
+                break;
+            case ServerMsgType.DockResult:
+                if (msg.docked && msg.port) {
+                    dockedPortInfo = msg.port;
+                    mode = 'docked';
+                    showDockedMenu();
+                } else {
+                    dockedPortInfo = null;
+                    mode = 'sector';
+                    term.writeln('\r\nYou undock from the port.');
+                    sendMsg({ type: ClientMsgType.SectorDisplay });
+                }
+                break;
+            case ServerMsgType.PortTransactionResult:
+                term.writeln(`\r\nTransaction complete. Credits: ${msg.credits}`);
+                term.writeln(`  Cargo — Fuel: ${msg.cargo.fuel}, Organics: ${msg.cargo.organics}, Equipment: ${msg.cargo.equipment}`);
+                if (mode === 'docked') showDockedMenu();
+                break;
+            case ServerMsgType.ShipInfo:
+                term.writeln('');
+                term.writeln(`Ship: ${msg.shipName}`);
+                term.writeln(`  Fighters: ${msg.fighters}/${msg.maxFighters}  Shields: ${msg.shields}/${msg.maxShields}`);
+                term.writeln(`  Cargo holds: ${msg.holdsAvailable} free / ${msg.cargoLimit} total (max ${msg.maxHolds})`);
+                term.writeln(`  Fuel: ${msg.cargoFuel}  Organics: ${msg.cargoOrganics}  Equipment: ${msg.cargoEquipment}`);
+                break;
+            case ServerMsgType.CargoInfo:
+                term.writeln(`  Credits: ${msg.credits}`);
+                if (mode === 'shipInfo') {
+                    mode = 'sector';
+                    term.writeln('');
+                    term.writeln('Press Q to return.');
+                }
+                break;
+            case ServerMsgType.NonAdjacentMoveRequested:
+                term.writeln(`\r\nCannot move to sector ${msg.sector} — not adjacent.`);
+                showPrompt();
+                break;
+            case ServerMsgType.Error:
+                term.writeln(`\r\nError: ${msg.message}`);
+                if (mode === 'docked') showDockedMenu();
+                else if (mode === 'sector') showPrompt();
                 break;
         }
     });
@@ -233,7 +389,7 @@ function startGame(universeId: number) {
         term.writeln('\r\nConnection error.');
     });
 
-    const singleCharCommands = new Set(['d']);
+    const singleCharCommands = new Set(['d', 'p', 'i', '?', 'q', 't']);
 
     let inputBuffer = '';
     term.onKey(({ key, domEvent }) => {
@@ -258,24 +414,42 @@ function startGame(universeId: number) {
         }
     });
 
-    function sendMsg(msg: ClientMessage) {
-        if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify(msg));
-        }
-    }
-
     function handleInput(line: string) {
+        switch (mode) {
+            case 'help':
+            case 'shipInfo':
+                if (line.toLowerCase() === 'q') {
+                    mode = 'sector';
+                    showPrompt();
+                }
+                return;
+            case 'port':
+                handlePortInput(line);
+                return;
+            case 'docked':
+                handleDockedInput(line);
+                return;
+        }
+
+        // Sector mode
         const [cmd, ...args] = line.split(/\s+/);
         if (/^\d+$/.test(cmd)) {
-            const sector = parseInt(cmd, 10);
-            sendMsg({ type: ClientMsgType.Move, sector });
+            sendMsg({ type: ClientMsgType.Move, sector: parseInt(cmd, 10) });
             return;
         }
         switch (cmd.toLowerCase()) {
             case '':
             case 'd':
-            case 'sectorDisplay':
                 sendMsg({ type: ClientMsgType.SectorDisplay });
+                break;
+            case 'p':
+                showPortMenu();
+                break;
+            case 'i':
+                showShipInfo();
+                break;
+            case '?':
+                showHelp();
                 break;
             case 'm':
             case 'move': {
@@ -286,6 +460,56 @@ function startGame(universeId: number) {
             }
             default:
                 if (line) term.writeln(`Unknown command: ${cmd}`);
+                showPrompt();
+        }
+    }
+
+    function handlePortInput(line: string) {
+        switch (line.toLowerCase()) {
+            case 't':
+                sendMsg({ type: ClientMsgType.Dock });
+                break;
+            case 'q':
+                mode = 'sector';
+                showPrompt();
+                break;
+            default:
+                term.writeln('  T  Trade at this port');
+                term.writeln('  Q  Never mind');
+        }
+    }
+
+    function handleDockedInput(line: string) {
+        const [cmd, ...args] = line.split(/\s+/);
+        switch (cmd.toLowerCase()) {
+            case 'b':
+            case 'buy': {
+                const good = args[0]?.toLowerCase();
+                const qty = parseInt(args[1], 10);
+                if (!good || isNaN(qty) || qty <= 0) {
+                    term.writeln('Usage: b <fuel|organics|equipment> <quantity>');
+                    return;
+                }
+                sendMsg({ type: ClientMsgType.PortTransaction, good, quantity: qty, action: 'buy' });
+                break;
+            }
+            case 's':
+            case 'sell': {
+                const good = args[0]?.toLowerCase();
+                const qty = parseInt(args[1], 10);
+                if (!good || isNaN(qty) || qty <= 0) {
+                    term.writeln('Usage: s <fuel|organics|equipment> <quantity>');
+                    return;
+                }
+                sendMsg({ type: ClientMsgType.PortTransaction, good, quantity: qty, action: 'sell' });
+                break;
+            }
+            case 'q':
+            case 'leave':
+                sendMsg({ type: ClientMsgType.Undock });
+                break;
+            default:
+                showDockedMenu();
         }
     }
 }

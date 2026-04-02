@@ -11,6 +11,11 @@ const __filename = fileURLToPath(import.meta.url);
 const PROJECT_ROOT = join(dirname(__filename), '..');
 const merchantCfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', 'merchant.json'), 'utf8'));
 const JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret';
+export const TEST_DB = process.env.PGDATABASE || 'twnr_test';
+
+export function testEnv() {
+  return { ...process.env, PGDATABASE: TEST_DB };
+}
 
 export function createPool() {
   return new Pool({

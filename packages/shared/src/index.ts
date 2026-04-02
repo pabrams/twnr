@@ -18,6 +18,7 @@ export const ServerMsgType = {
     BuyResult: 'buyResult',
     ShipExchangeResult: 'shipExchangeResult',
     AttackResult: 'attackResult',
+    DockResult: 'dockResult',
     Error: 'error',
 } as const;
 type ServerMsgType = typeof ServerMsgType;
@@ -37,6 +38,8 @@ export const ClientMsgType = {
     BuyHolds: 'buyHolds',
     ShipExchange: 'shipExchange',
     Attack: 'attack',
+    Dock: 'dock',
+    Undock: 'undock',
 } as const;
 type ClientMsgType = typeof ClientMsgType;
 
@@ -69,8 +72,9 @@ export type PlayerMovedMessage = {
 export type SectorDisplayMessage = {
     type: typeof ServerMsgType.SectorDisplay;
     sector: number;
-    players: number[];
+    players: { id: number; name: string }[];
     warps: number[];
+    port?: { class: number; name: string } | null;
 };
 
 export type PlayerLeftMessage = {
@@ -178,6 +182,12 @@ export type AttackResultMessage = {
     message?: string;
 };
 
+export type DockResultMessage = {
+    type: typeof ServerMsgType.DockResult;
+    docked: boolean;
+    port?: PortInfoMessage;
+};
+
 export type ErrorMessage = {
     type: typeof ServerMsgType.Error;
     message: string;
@@ -201,6 +211,7 @@ export type ServerMessage =
     | BuyResultMessage
     | ShipExchangeResultMessage
     | AttackResultMessage
+    | DockResultMessage
     | ErrorMessage;
 
 // WebSocket messages (client → server)
@@ -274,6 +285,14 @@ export type AttackMessage = {
     fighters: number;
 };
 
+export type DockMessage = {
+    type: typeof ClientMsgType.Dock;
+};
+
+export type UndockMessage = {
+    type: typeof ClientMsgType.Undock;
+};
+
 export type ClientMessage =
     | MoveMessage
     | DisplayMessage
@@ -288,7 +307,9 @@ export type ClientMessage =
     | BuyShieldsMessage
     | BuyHoldsMessage
     | ShipExchangeMessage
-    | AttackMessage;
+    | AttackMessage
+    | DockMessage
+    | UndockMessage;
 
 // HTTP API response shapes (auth & admin only)
 

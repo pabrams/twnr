@@ -5,12 +5,10 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import jwt from 'jsonwebtoken';
-import { createPool, startServer, createTestUser, createTestPlayer } from './helpers.mjs';
+import { createPool, startServer, createTestUser, createTestPlayer, testEnv } from './helpers.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const PROJECT_ROOT = join(dirname(__filename), '..');
-const JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret';
 const UNIVERSE_ID = 1;
 
 let pool;
@@ -43,7 +41,7 @@ before(async () => {
     const imp = spawnSync(process.execPath, [
       join(PROJECT_ROOT, 'scripts', 'importUniverse.js'),
       universeDir, '--force',
-    ], { encoding: 'utf8', cwd: PROJECT_ROOT, env: process.env });
+    ], { encoding: 'utf8', cwd: PROJECT_ROOT, env: testEnv() });
     if (imp.status !== 0) throw new Error(`importUniverse failed: ${imp.stderr}`);
 
     serverProc = await startServer();

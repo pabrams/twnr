@@ -18,6 +18,7 @@ import {
   findPortSelling,
   findPortBuying,
   movePlayerTo,
+  testEnv,
 } from './helpers.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -50,7 +51,7 @@ before(async () => {
     const imp = spawnSync(process.execPath, [
       join(PROJECT_ROOT, 'scripts', 'importUniverse.js'),
       universeDir, '--force',
-    ], { encoding: 'utf8', cwd: PROJECT_ROOT, env: process.env });
+    ], { encoding: 'utf8', cwd: PROJECT_ROOT, env: testEnv() });
     if (imp.status !== 0) throw new Error(`importUniverse failed: ${imp.stderr}`);
 
     serverProc = await startServer();

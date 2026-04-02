@@ -5,7 +5,7 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { createPool, connectWS as _connectWS, closeWS, wsRequest, startServer } from './helpers.mjs';
+import { createPool, connectWS as _connectWS, closeWS, wsRequest, startServer, testEnv } from './helpers.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const PROJECT_ROOT = join(dirname(__filename), '..');
@@ -75,7 +75,7 @@ before(async () => {
   const imp = spawnSync(process.execPath, [
     join(PROJECT_ROOT, 'scripts', 'importUniverse.js'),
     universeDir, '--force',
-  ], { encoding: 'utf8', cwd: PROJECT_ROOT, env: process.env });
+  ], { encoding: 'utf8', cwd: PROJECT_ROOT, env: testEnv() });
   if (imp.status !== 0) throw new Error(`importUniverse failed: ${imp.stderr}\n${imp.stdout}`);
 
   serverProc = await startServer();

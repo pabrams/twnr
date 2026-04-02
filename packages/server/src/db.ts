@@ -53,6 +53,7 @@ export const connectDB = async (): Promise<void> => {
         universe_id INTEGER NOT NULL REFERENCES universes(id),
         current_sector INTEGER,
         ship_destroyed_date TIMESTAMPTZ,
+        docked BOOLEAN NOT NULL DEFAULT FALSE,
         UNIQUE (user_id, universe_id)
       );
 
