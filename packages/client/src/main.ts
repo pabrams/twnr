@@ -253,7 +253,12 @@ function startGame(universeId: number) {
 
     const mg = colors.magenta; // shorthand for brackets, "Class", etc.
 
-    function showSectorDisplay(sector: number, warps: number[], players: { id: number; name: string }[], port?: { class: number; name: string } | null) {
+    let visitedSet = new Set<number>();
+
+    function showSectorDisplay(sector: number, warps: number[], players: { id: number; name: string }[], port?: { class: number; name: string } | null, visitedSectors?: number[]) {
+        if (visitedSectors) {
+            visitedSet = new Set(visitedSectors);
+        }
         currentSector = sector;
         currentPort = port ?? null;
         term.writeln('');
@@ -264,7 +269,7 @@ function startGame(universeId: number) {
             term.writeln(`${mg('Port')}    ${cl} ${colors.boldCyan(port.name)}${colors.boldYellow(',')} ${mg('Class')} ${colors.boldCyan(String(port.class))} ${mg('(')}${colors.boldWhite(label)}${mg(')')}`);
         }
         if (warps.length > 0) {
-            term.writeln(`${colors.boldGreen('Warps')}   ${cl} ${warps.map(w => colors.boldCyan(String(w))).join(` ${mg('-')} `)}`);
+            term.writeln(`${colors.boldGreen('Warps')}   ${cl} ${warps.map(w => visitedSet.has(w) ? colors.boldCyan(String(w)) : colors.boldRed(String(w))).join(` ${mg('-')} `)}`);
         }
         if (players.length > 0) {
             term.writeln(`${mg('Players')} ${cl} ${players.map(p => colors.boldYellow(p.name)).join(colors.boldYellow(', '))}`);
@@ -354,7 +359,7 @@ function startGame(universeId: number) {
                 }
                 break;
             case ServerMsgType.SectorDisplay:
-                showSectorDisplay(msg.sector, msg.warps, msg.players, msg.port);
+                showSectorDisplay(msg.sector, msg.warps, msg.players, msg.port, msg.visitedSectors);
                 break;
             case ServerMsgType.DockResult:
                 if (msg.docked && msg.port) {

@@ -348,6 +348,12 @@ export function createRoutes(deps: RouteDeps): Router {
                 [playerId],
             );
 
+            // Mark starting sector as visited
+            await pool.query(
+                'INSERT INTO visited_sectors (player_id, sector_id) VALUES ($1, 1) ON CONFLICT DO NOTHING',
+                [playerId],
+            );
+
             res.status(201).json({ playerId, universeId });
         } catch (err: any) {
             if (err.code === '23505') {

@@ -75,6 +75,7 @@ export type SectorDisplayMessage = {
     players: { id: number; name: string }[];
     warps: number[];
     port?: { class: number; name: string } | null;
+    visitedSectors: number[];
 };
 
 export type PlayerLeftMessage = {

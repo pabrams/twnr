@@ -111,6 +111,11 @@ function portName(sectorId: number): string {
     return `Port ${sectorId}`;
 }
 
+async function getVisitedSectors(playerId: number): Promise<number[]> {
+    const res = await pool.query('SELECT sector_id FROM visited_sectors WHERE player_id = $1', [playerId]);
+    return res.rows.map((r: any) => r.sector_id);
+}
+
 async function getPortForSector(sectorId: number, universeId: number): Promise<{ class: number; name: string } | null> {
     const res = await pool.query(
         'SELECT class FROM ports WHERE sector_id = $1 AND universe_id = $2',
@@ -218,6 +223,11 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
 
         // Undock on connect (in case of prior disconnect while docked)
         await pool.query('UPDATE players SET docked = FALSE WHERE id = $1', [playerId]);
+        // Mark current sector as visited
+        await pool.query(
+            'INSERT INTO visited_sectors (player_id, sector_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+            [playerId, sector],
+        );
         players[playerId] = { ws, sector, name: playerRow.name, universeId, docked: false };
         const welcomeMsg: ServerMessage = {
             type: ServerMsgType.Welcome,
@@ -370,9 +380,9 @@ export async function handleMove(
     }
 
     player.sector = targetSector;
-    await pool.query('UPDATE players SET current_sector = $1 WHERE id = $2', [
-        targetSector,
-        playerId,
+    await Promise.all([
+        pool.query('UPDATE players SET current_sector = $1 WHERE id = $2', [targetSector, playerId]),
+        pool.query('INSERT INTO visited_sectors (player_id, sector_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [playerId, targetSector]),
     ]);
 
     const oldSectorClients = new Set<WebSocket>();
@@ -393,7 +403,10 @@ export async function handleMove(
         newSectorClients,
     );
 
-    const port = await getPortForSector(targetSector, universeId);
+    const [port, visitedSectors] = await Promise.all([
+        getPortForSector(targetSector, universeId),
+        getVisitedSectors(playerId),
+    ]);
     const displayWarps = warps[targetSector] || [];
     const playersInSector = Object.entries(players)
         .filter(([id, p]) => p.sector === targetSector && p.universeId === universeId && !p.docked && Number(id) !== playerId)
@@ -404,6 +417,7 @@ export async function handleMove(
         warps: displayWarps,
         players: playersInSector,
         port,
+        visitedSectors,
     });
 }
 
@@ -413,9 +427,10 @@ export async function handleSectorDisplay(ws: WebSocket, playerId: number): Prom
     const currentSector = player.sector;
     const universeId = player.universeId;
 
-    const [warps, port] = await Promise.all([
+    const [warps, port, visitedSectors] = await Promise.all([
         getGraph(universeId),
         getPortForSector(currentSector, universeId),
+        getVisitedSectors(playerId),
     ]);
     const displayWarps = warps[currentSector] || [];
     const playersInSector = Object.entries(players)
@@ -427,6 +442,7 @@ export async function handleSectorDisplay(ws: WebSocket, playerId: number): Prom
         warps: displayWarps,
         players: playersInSector,
         port,
+        visitedSectors,
     });
 }
 

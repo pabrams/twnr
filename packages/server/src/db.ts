@@ -79,6 +79,12 @@ export const connectDB = async (): Promise<void> => {
         credits INTEGER NOT NULL DEFAULT 10000
       );
 
+      CREATE TABLE IF NOT EXISTS visited_sectors (
+        player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+        sector_id INTEGER NOT NULL,
+        PRIMARY KEY (player_id, sector_id)
+      );
+
       CREATE TABLE IF NOT EXISTS player_ships (
         player_id INTEGER PRIMARY KEY REFERENCES players(id) ON DELETE CASCADE,
         ship_name VARCHAR(255) NOT NULL,
