@@ -286,7 +286,7 @@ export function createRoutes(deps: RouteDeps): Router {
             const result = await pool.query(
                 'SELECT id, name, created_at FROM universes ORDER BY id',
             );
-            const universes = result.rows.map(r => ({
+            const universes = result.rows.map((r) => ({
                 id: r.id,
                 name: r.name,
                 createdAt: r.created_at,
@@ -309,7 +309,9 @@ export function createRoutes(deps: RouteDeps): Router {
 
         try {
             // Check universe exists
-            const univRes = await pool.query('SELECT id FROM universes WHERE id = $1', [universeId]);
+            const univRes = await pool.query('SELECT id FROM universes WHERE id = $1', [
+                universeId,
+            ]);
             if (univRes.rows.length === 0) {
                 return res.status(404).json({ error: 'Universe not found' });
             }

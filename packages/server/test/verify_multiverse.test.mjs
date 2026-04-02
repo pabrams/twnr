@@ -17,8 +17,8 @@ const BASE = 'http://localhost:3000';
 
 function createPool() {
   return new Pool({
-    host: process.env.PGHOST || '/var/run/postgresql',
-    database: process.env.PGDATABASE || 'twnr_test',
+    host: process.env.PGHOST || 'localhost',
+    database: process.env.PGDATABASE || 'twnr',
     user: process.env.PGUSER,
     password: process.env.PGPASSWORD,
   });
@@ -401,6 +401,31 @@ describe('Universe-scoped tables', () => {
     assert.ok(pkCols.includes('id'), 'sectors PK should include id');
     assert.ok(pkCols.includes('universe_id'), 'sectors PK should include universe_id');
   });
+
+  it('warps primary key includes universe_id', async () => {
+    const res = await pool.query(`
+      SELECT kcu.column_name
+      FROM information_schema.table_constraints tc
+      JOIN information_schema.key_column_usage kcu
+        ON tc.constraint_name = kcu.constraint_name
+      WHERE tc.table_name = 'warps' AND tc.constraint_type = 'PRIMARY KEY'
+      ORDER BY kcu.ordinal_position
+    `);
+    const pkCols = res.rows.map(r => r.column_name);
+    assert.ok(pkCols.includes('universe_id'), 'warps PK should include universe_id');
+  });
+
+  it('ports has unique constraint on (sector_id, universe_id)', async () => {
+    const res = await pool.query(`
+      SELECT tc.constraint_name
+      FROM information_schema.table_constraints tc
+      JOIN information_schema.constraint_column_usage ccu ON tc.constraint_name = ccu.constraint_name
+      WHERE tc.table_name = 'ports' AND tc.constraint_type = 'UNIQUE'
+      GROUP BY tc.constraint_name
+      HAVING array_agg(ccu.column_name::text ORDER BY ccu.column_name) @> ARRAY['sector_id', 'universe_id']
+    `);
+    assert.ok(res.rows.length > 0, 'ports should have unique constraint on (sector_id, universe_id)');
+  });
 });
 
 // ─── 5. Registration and Login ──────────────────────────────────────────────
@@ -659,8 +684,8 @@ describe('importUniverse.js --universe-id flag', () => {
     // Run importUniverse.js with --universe-id
     const env = {
       ...process.env,
-      PGHOST: process.env.PGHOST || '/var/run/postgresql',
-      PGDATABASE: process.env.PGDATABASE || 'twnr_test',
+      PGHOST: process.env.PGHOST || 'localhost',
+      PGDATABASE: process.env.PGDATABASE || 'twnr',
       PGUSER: process.env.PGUSER,
       PGPASSWORD: process.env.PGPASSWORD,
     };
@@ -703,8 +728,8 @@ describe('importUniverse.js --universe-id flag', () => {
 
     const env = {
       ...process.env,
-      PGHOST: process.env.PGHOST || '/var/run/postgresql',
-      PGDATABASE: process.env.PGDATABASE || 'twnr_test',
+      PGHOST: process.env.PGHOST || 'localhost',
+      PGDATABASE: process.env.PGDATABASE || 'twnr',
       PGUSER: process.env.PGUSER,
       PGPASSWORD: process.env.PGPASSWORD,
     };
@@ -826,6 +851,55 @@ describe('WebSocket universe scoping', () => {
       assert.ok(w >= 1 && w <= 3, `Universe B sector 1 warp ${w} should be within sectors 1-3`);
     }
     await closeWS(wsB);
+  });
+
+  it('player broadcasts are isolated to the same universe and sector', async () => {
+    const ts = Date.now();
+
+    // Create two users
+    const user1 = await createTestUser(`bcast1_${ts}`, `bcast1_${ts}@test.com`, 'pass123');
+    const user2 = await createTestUser(`bcast2_${ts}`, `bcast2_${ts}@test.com`, 'pass123');
+    const user3 = await createTestUser(`bcast3_${ts}`, `bcast3_${ts}@test.com`, 'pass123');
+
+    // Create two universes
+    const univA = await createUniverse(user1.token, `BcastA ${ts}`);
+    const univB = await createUniverse(user1.token, `BcastB ${ts}`);
+    await seedUniverseSectors(pool, univA.body.universeId, 5);
+    await seedUniverseSectors(pool, univB.body.universeId, 5);
+
+    // user1 and user2 join universe A; user3 joins universe B
+    await joinUniverse(user1.token, univA.body.universeId, 'Player1A');
+    await joinUniverse(user2.token, univA.body.universeId, 'Player2A');
+    await joinUniverse(user3.token, univB.body.universeId, 'Player3B');
+
+    // All start in sector 1. Connect all three.
+    const { ws: ws1 } = await connectWS(user1.token, univA.body.universeId);
+    const { ws: ws2 } = await connectWS(user2.token, univA.body.universeId);
+    const { ws: ws3 } = await connectWS(user3.token, univB.body.universeId);
+
+    // Collect messages on ws2 (same universe as ws1) and ws3 (different universe)
+    const ws2Messages = [];
+    const ws3Messages = [];
+    ws2.on('message', (data) => ws2Messages.push(JSON.parse(data.toString())));
+    ws3.on('message', (data) => ws3Messages.push(JSON.parse(data.toString())));
+
+    // user1 moves from sector 1 to sector 2 in universe A
+    await wsRequest(ws1, { type: 'move', sector: 2 }, 'sectorDisplay');
+
+    // Give time for broadcasts to propagate
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // ws2 (same universe, was in same sector) should have received a broadcast
+    const ws2Relevant = ws2Messages.filter(m => m.type === 'playerLeft' || m.type === 'playerMoved');
+    assert.ok(ws2Relevant.length > 0, 'Player in same universe+sector should receive movement broadcast');
+
+    // ws3 (different universe) should NOT have received any movement broadcast
+    const ws3Relevant = ws3Messages.filter(m => m.type === 'playerLeft' || m.type === 'playerMoved');
+    assert.equal(ws3Relevant.length, 0, 'Player in different universe should NOT receive movement broadcast');
+
+    await closeWS(ws1);
+    await closeWS(ws2);
+    await closeWS(ws3);
   });
 });
 

@@ -144,6 +144,12 @@ async function main() {
     await client.query('BEGIN');
     await ensureSchema(client);
 
+    // Ensure universe row exists
+    await client.query(
+      `INSERT INTO universes (id, name) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING`,
+      [universeId, `Universe ${universeId}`],
+    );
+
     // Clear existing data for this universe
     await client.query('DELETE FROM player_ships WHERE player_id IN (SELECT id FROM players WHERE universe_id = $1)', [universeId]);
     await client.query('DELETE FROM ship_cargo WHERE player_id IN (SELECT id FROM players WHERE universe_id = $1)', [universeId]);

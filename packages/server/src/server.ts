@@ -169,10 +169,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
 
     try {
         // Look up user's token version
-        const userRes = await pool.query(
-            'SELECT token_version FROM users WHERE id = $1',
-            [userId],
-        );
+        const userRes = await pool.query('SELECT token_version FROM users WHERE id = $1', [userId]);
         if (userRes.rows.length === 0) {
             ws.close(1008, 'User not found');
             return;
@@ -390,7 +387,11 @@ export async function handleSectorDisplay(ws: WebSocket, playerId: number): Prom
     });
 }
 
-export async function handleSectorWarps(ws: WebSocket, playerId: number, id: number): Promise<void> {
+export async function handleSectorWarps(
+    ws: WebSocket,
+    playerId: number,
+    id: number,
+): Promise<void> {
     if (!Number.isInteger(id) || id <= 0) {
         send(ws, { type: ServerMsgType.Error, message: 'Invalid sector ID' });
         return;
@@ -416,7 +417,12 @@ export async function handleSectorWarps(ws: WebSocket, playerId: number, id: num
     send(ws, { type: ServerMsgType.SectorWarps, id, warps });
 }
 
-export async function handlePath(ws: WebSocket, playerId: number, from: number, to: number): Promise<void> {
+export async function handlePath(
+    ws: WebSocket,
+    playerId: number,
+    from: number,
+    to: number,
+): Promise<void> {
     if (!Number.isInteger(from) || from <= 0 || !Number.isInteger(to) || to <= 0) {
         send(ws, { type: ServerMsgType.Error, message: 'Invalid sector ID' });
         return;
@@ -470,7 +476,11 @@ export async function handlePath(ws: WebSocket, playerId: number, from: number, 
     send(ws, { type: ServerMsgType.Error, message: 'No path found' });
 }
 
-export async function handlePortInfo(ws: WebSocket, playerId: number, sectorId: number): Promise<void> {
+export async function handlePortInfo(
+    ws: WebSocket,
+    playerId: number,
+    sectorId: number,
+): Promise<void> {
     if (!Number.isInteger(sectorId) || sectorId <= 0) {
         send(ws, { type: ServerMsgType.Error, message: 'Invalid sector ID' });
         return;
@@ -1132,7 +1142,12 @@ async function handleAttack(
     const attacker = players[attackerId];
     const target = players[targetPlayerId];
 
-    if (!attacker || !target || attacker.sector !== target.sector || attacker.universeId !== target.universeId) {
+    if (
+        !attacker ||
+        !target ||
+        attacker.sector !== target.sector ||
+        attacker.universeId !== target.universeId
+    ) {
         send(ws, { type: ServerMsgType.Error, message: 'Target is not in this sector' });
         return;
     }
