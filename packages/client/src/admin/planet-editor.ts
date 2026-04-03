@@ -1,5 +1,5 @@
-import { createPlanet, updatePlanet } from './api.js';
-import type { PlanetConfig } from './api.js';
+import { createPlanet, updatePlanet } from './api-planets.js';
+import type { PlanetConfig } from './api-planets.js';
 
 function makeField(
     label: string,

@@ -1,16 +1,10 @@
 import { ServerMsgType, ClientMsgType } from '@twnr/shared';
 import type { ServerMessage } from '@twnr/shared';
-import type { GameContext } from './display.js';
-import {
-    showSectorDisplay,
-    showDockedMenu,
-    showPrompt,
-    showClass0Menu,
-    showAutopilotPrompt,
-    colorSector,
-    showPlanetMenu,
-    showNoPlanet,
-} from './display.js';
+import type { GameContext } from './types.js';
+import { colorSector } from './types.js';
+import { showSectorDisplay, showDockedMenu, showPrompt } from './display.js';
+import { showClass0Menu, showAutopilotPrompt } from './display-port.js';
+import { showPlanetMenu, showNoPlanet } from './display-planet.js';
 import { colors } from './constants.js';
 
 const mg = colors.magenta;

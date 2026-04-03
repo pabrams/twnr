@@ -2,7 +2,7 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import type { ClientMessage, PortInfoMessage } from '@twnr/shared';
 import type { MenuMode } from './constants.js';
-import type { GameContext } from './display.js';
+import type { GameContext } from './types.js';
 import { setupConnection } from './connection.js';
 import { setupInput } from './input.js';
 

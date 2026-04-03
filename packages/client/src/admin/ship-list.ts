@@ -1,5 +1,5 @@
-import { listShips, deleteShip } from './api.js';
-import type { ShipConfig } from './api.js';
+import { listShips, deleteShip } from './api-ships.js';
+import type { ShipConfig } from './api-ships.js';
 import { renderShipEditor } from './ship-editor.js';
 
 export function renderShipList(container: HTMLElement): void {

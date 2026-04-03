@@ -1,4 +1,4 @@
-import { listPorts, deletePort } from './api.js';
+import { listPorts, deletePort } from './api-ports.js';
 import { renderPortEditor } from './port-editor.js';
 
 export function renderPortList(container: HTMLElement, universeId: number): void {

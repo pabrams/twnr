@@ -1,5 +1,5 @@
-import { createShip, updateShip } from './api.js';
-import type { ShipConfig } from './api.js';
+import { createShip, updateShip } from './api-ships.js';
+import type { ShipConfig } from './api-ships.js';
 
 function makeField(
     label: string,

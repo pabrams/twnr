@@ -26,14 +26,9 @@ export {
     handleDock,
     handleUndock,
 } from './handlers/port.js';
-export {
-    handleShipInfo,
-    handleCargoInfo,
-    handleBuyFighters,
-    handleBuyShields,
-    handleBuyHolds,
-    handleShipExchange,
-} from './handlers/ship.js';
+export { handleShipInfo, handleCargoInfo } from './handlers/ship-info.js';
+export { handleBuyFighters, handleBuyShields, handleBuyHolds } from './handlers/ship-upgrades.js';
+export { handleShipExchange } from './handlers/ship-exchange.js';
 export { getGraph } from './game-state.js';
 
 const app: ReturnType<typeof express> = express();

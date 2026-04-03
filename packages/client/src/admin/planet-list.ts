@@ -1,5 +1,5 @@
-import { listPlanets, deletePlanet } from './api.js';
-import type { PlanetConfig } from './api.js';
+import { listPlanets, deletePlanet } from './api-planets.js';
+import type { PlanetConfig } from './api-planets.js';
 import { renderPlanetEditor } from './planet-editor.js';
 
 export function renderPlanetList(container: HTMLElement): void {

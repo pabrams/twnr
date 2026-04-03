@@ -3,15 +3,10 @@ import { ClientMsgType, ServerMsgType } from '@twnr/shared';
 import { players, send } from '../game-state.js';
 import { handleMove, handleSectorDisplay, handleSectorWarps, handlePath } from './movement.js';
 import { handlePortInfo, handleDock, handleUndock, handlePortTransaction } from './port.js';
-import {
-    handleShipInfo,
-    handleCargoInfo,
-    handleBuyFighters,
-    handleBuyShields,
-    handleBuyHolds,
-    handleShipExchange,
-    handleJettison,
-} from './ship.js';
+import { handleShipInfo, handleCargoInfo } from './ship-info.js';
+import { handleBuyFighters, handleBuyShields, handleBuyHolds } from './ship-upgrades.js';
+import { handleShipExchange } from './ship-exchange.js';
+import { handleJettison } from './ship-cargo.js';
 import { handleAttack } from './combat.js';
 import { handleLand, handleTakeColonists, handleLeaveColonists } from './planet.js';
 

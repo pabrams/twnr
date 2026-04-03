@@ -1,5 +1,5 @@
-import { createPort, updatePort } from './api.js';
-import type { PortInfo } from './api.js';
+import { createPort, updatePort } from './api-ports.js';
+import type { PortInfo } from './api-ports.js';
 
 function makeField(
     label: string,

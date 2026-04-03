@@ -1,0 +1,129 @@
+import { ClientMsgType } from '@twnr/shared';
+import type { GameContext } from './types.js';
+import { showPrompt } from './display.js';
+import { showClass0Menu, showClass0QtyPrompt } from './display-port.js';
+import { showPlanetTakePrompt, showPlanetLeavePrompt } from './display-planet.js';
+import { colors } from './constants.js';
+
+export function handleClass0Input(ctx: GameContext, line: string) {
+    switch (line.toLowerCase()) {
+        case 'f':
+            ctx.setClass0BuyType('fighters');
+            showClass0QtyPrompt(ctx, 'fighters');
+            break;
+        case 's':
+            ctx.setClass0BuyType('shields');
+            showClass0QtyPrompt(ctx, 'shields');
+            break;
+        case 'h':
+            ctx.setClass0BuyType('holds');
+            showClass0QtyPrompt(ctx, 'holds');
+            break;
+        case 'q':
+            ctx.sendMsg({ type: ClientMsgType.Undock });
+            break;
+        default:
+            showClass0Menu(ctx);
+    }
+}
+
+export function handleClass0QtyInput(ctx: GameContext, line: string) {
+    if (line.toLowerCase() === 'q') {
+        ctx.setMode('class0');
+        showClass0Menu(ctx);
+        return;
+    }
+    const qty = parseInt(line, 10);
+    if (isNaN(qty) || qty <= 0) {
+        ctx.term.writeln('Enter a positive number.');
+        return;
+    }
+    switch (ctx.class0BuyType) {
+        case 'fighters':
+            ctx.sendMsg({ type: ClientMsgType.BuyFighters, quantity: qty });
+            break;
+        case 'shields':
+            ctx.sendMsg({ type: ClientMsgType.BuyShields, quantity: qty });
+            break;
+        case 'holds':
+            ctx.sendMsg({ type: ClientMsgType.BuyHolds, quantity: qty });
+            break;
+    }
+}
+
+export function handleAutopilotPromptInput(ctx: GameContext, line: string) {
+    switch (line.toLowerCase()) {
+        case 'y': {
+            ctx.setMode('autopilot');
+            ctx.term.writeln(`\r\n${colors.boldGreen('Autopilot engaged.')}`);
+            // Start moving along the path (step 1 is the first hop, step 0 is current sector)
+            const nextSector = ctx.autopilotPath[ctx.autopilotStep];
+            ctx.setAutopilotStep(ctx.autopilotStep + 1);
+            ctx.sendMsg({ type: ClientMsgType.Move, sector: nextSector });
+            break;
+        }
+        case 'n':
+            ctx.setMode('sector');
+            showPrompt(ctx);
+            break;
+    }
+}
+
+export function handleJettisonConfirmInput(ctx: GameContext, line: string) {
+    switch (line.toLowerCase()) {
+        case 'y':
+            ctx.sendMsg({ type: ClientMsgType.Jettison });
+            ctx.setMode('sector');
+            break;
+        case 'n':
+            ctx.setMode('sector');
+            showPrompt(ctx);
+            break;
+    }
+}
+
+export function handlePlanetInput(ctx: GameContext, line: string) {
+    switch (line.toLowerCase()) {
+        case 't':
+            showPlanetTakePrompt(ctx);
+            break;
+        case 'l':
+            showPlanetLeavePrompt(ctx);
+            break;
+        case 'q':
+            ctx.term.writeln(
+                `\r\n${colors.white('You return to your ship and leave the planet.')}`,
+            );
+            ctx.setMode('sector');
+            showPrompt(ctx);
+            break;
+    }
+}
+
+export function handlePlanetTakeQtyInput(ctx: GameContext, line: string) {
+    if (line.toLowerCase() === 'q') {
+        ctx.setMode('sector');
+        showPrompt(ctx);
+        return;
+    }
+    const qty = parseInt(line, 10);
+    if (isNaN(qty) || qty <= 0) {
+        ctx.term.writeln('Enter a positive number.');
+        return;
+    }
+    ctx.sendMsg({ type: ClientMsgType.TakeColonists, quantity: qty });
+}
+
+export function handlePlanetLeaveQtyInput(ctx: GameContext, line: string) {
+    if (line.toLowerCase() === 'q') {
+        ctx.setMode('sector');
+        showPrompt(ctx);
+        return;
+    }
+    const qty = parseInt(line, 10);
+    if (isNaN(qty) || qty <= 0) {
+        ctx.term.writeln('Enter a positive number.');
+        return;
+    }
+    ctx.sendMsg({ type: ClientMsgType.LeaveColonists, quantity: qty });
+}
