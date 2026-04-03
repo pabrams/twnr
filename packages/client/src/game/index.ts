@@ -41,6 +41,8 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
     let shipConfigs: any[] | null = null;
     let planetConfigs: any[] | null = null;
     let currentShipName = '';
+    let autopilotPath: number[] = [];
+    let autopilotStep = 0;
 
     function sendMsg(msg: ClientMessage) {
         if (ws.readyState === WebSocket.OPEN) {
@@ -93,6 +95,12 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
         get currentShipName() {
             return currentShipName;
         },
+        get autopilotPath() {
+            return autopilotPath;
+        },
+        get autopilotStep() {
+            return autopilotStep;
+        },
         sendMsg,
         setMode: (m) => {
             mode = m;
@@ -135,6 +143,12 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
         },
         setCurrentShipName: (n) => {
             currentShipName = n;
+        },
+        setAutopilotPath: (p) => {
+            autopilotPath = p;
+        },
+        setAutopilotStep: (s) => {
+            autopilotStep = s;
         },
     };
 

@@ -35,9 +35,35 @@ export interface GameContext {
     setShipConfigs: (configs: any[]) => void;
     setPlanetConfigs: (configs: any[]) => void;
     setCurrentShipName: (name: string) => void;
+    autopilotPath: number[];
+    autopilotStep: number;
+    setAutopilotPath: (path: number[]) => void;
+    setAutopilotStep: (step: number) => void;
 }
 
 const mg = colors.magenta;
+
+export function colorSector(sector: number, visitedSet: Set<number>): string {
+    const num = String(sector);
+    if (visitedSet.has(sector)) return colors.boldCyan(num);
+    return `${mg('(')}${colors.boldRed(num)}${mg(')')}`;
+}
+
+export function showAutopilotPrompt(ctx: GameContext, path: number[], hops: number) {
+    ctx.setAutopilotPath(path);
+    ctx.setAutopilotStep(1);
+    ctx.setMode('autopilotPrompt');
+    ctx.term.writeln('');
+    ctx.term.writeln(
+        `${colors.boldYellow('That sector is not adjacent.')} Shortest path ${mg('(')}${colors.boldCyan(String(hops))} hops${mg(')')}:`,
+    );
+    ctx.term.writeln(
+        `  ${path.map((s) => colorSector(s, ctx.visitedSet)).join(` ${colors.green('>')} `)}`,
+    );
+    ctx.term.write(
+        `\r\n${colors.cyan('Engage autopilot?')} ${mg('(')}${colors.boldYellow('Y')}/${colors.boldYellow('N')}${mg(')')} `,
+    );
+}
 
 export function showSectorDisplay(
     ctx: GameContext,
@@ -70,13 +96,7 @@ export function showSectorDisplay(
     }
     if (warps.length > 0) {
         ctx.term.writeln(
-            `${colors.boldGreen('Warps')}   ${cl} ${warps
-                .map((w) => {
-                    const num = String(w);
-                    if (ctx.visitedSet.has(w)) return colors.boldCyan(num);
-                    return `${mg('(')}${colors.boldRed(num)}${mg(')')}`;
-                })
-                .join(` ${colors.green('-')} `)}`,
+            `${colors.boldGreen('Warps')}   ${cl} ${warps.map((w) => colorSector(w, ctx.visitedSet)).join(` ${colors.green('-')} `)}`,
         );
     }
     if (players.length > 0) {
@@ -242,7 +262,7 @@ export function showExploredSectors(ctx: GameContext) {
     const explored = Array.from(ctx.visitedSet).sort((a, b) => a - b);
     ctx.term.writeln('');
     ctx.term.writeln(`${colors.boldCyan('Explored sectors')} (${explored.length}):`);
-    ctx.term.writeln(colors.white(explored.join(' ')));
+    ctx.term.writeln(explored.map((s) => colors.boldCyan(String(s))).join(' '));
 }
 
 export function showUnexploredSectors(ctx: GameContext) {
@@ -252,7 +272,7 @@ export function showUnexploredSectors(ctx: GameContext) {
     }
     ctx.term.writeln('');
     ctx.term.writeln(`${colors.boldCyan('Unexplored sectors')} (${unexplored.length}):`);
-    ctx.term.writeln(colors.white(unexplored.join(' ')));
+    ctx.term.writeln(unexplored.map((s) => colors.boldRed(String(s))).join(' '));
 }
 
 export async function showShipCatalog(ctx: GameContext) {

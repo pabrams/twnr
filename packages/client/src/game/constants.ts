@@ -40,4 +40,6 @@ export type MenuMode =
     | 'planetSpecs'
     | 'class0'
     | 'class0Qty'
-    | 'playerInfo';
+    | 'playerInfo'
+    | 'autopilotPrompt'
+    | 'autopilot';

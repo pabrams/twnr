@@ -41,6 +41,8 @@ export function setupInput(term: Terminal, ctx: GameContext) {
         'u',
         ';',
         's',
+        'y',
+        'n',
     ]);
 
     let inputBuffer = '';
@@ -106,6 +108,12 @@ function handleInput(ctx: GameContext, line: string) {
             return;
         case 'class0Qty':
             handleClass0QtyInput(ctx, line);
+            return;
+        case 'autopilotPrompt':
+            handleAutopilotPromptInput(ctx, line);
+            return;
+        case 'autopilot':
+            // Ignore input during autopilot
             return;
     }
 
@@ -324,6 +332,24 @@ function handleClass0Input(ctx: GameContext, line: string) {
             break;
         default:
             showClass0Menu(ctx);
+    }
+}
+
+function handleAutopilotPromptInput(ctx: GameContext, line: string) {
+    switch (line.toLowerCase()) {
+        case 'y': {
+            ctx.setMode('autopilot');
+            ctx.term.writeln(`\r\n${colors.boldGreen('Autopilot engaged.')}`);
+            // Start moving along the path (step 1 is the first hop, step 0 is current sector)
+            const nextSector = ctx.autopilotPath[ctx.autopilotStep];
+            ctx.setAutopilotStep(ctx.autopilotStep + 1);
+            ctx.sendMsg({ type: ClientMsgType.Move, sector: nextSector });
+            break;
+        }
+        case 'n':
+            ctx.setMode('sector');
+            showPrompt(ctx);
+            break;
     }
 }
 

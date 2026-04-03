@@ -1,7 +1,13 @@
 import { ServerMsgType, ClientMsgType } from '@twnr/shared';
 import type { ServerMessage } from '@twnr/shared';
 import type { GameContext } from './display.js';
-import { showSectorDisplay, showDockedMenu, showPrompt, showClass0Menu } from './display.js';
+import {
+    showSectorDisplay,
+    showDockedMenu,
+    showPrompt,
+    showClass0Menu,
+    showAutopilotPrompt,
+} from './display.js';
 import { colors } from './constants.js';
 
 const mg = colors.magenta;
@@ -38,6 +44,15 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     msg.port,
                     msg.visitedSectors,
                 );
+                // Advance autopilot if in progress
+                if (ctx.mode === 'autopilot' && ctx.autopilotStep < ctx.autopilotPath.length) {
+                    const nextSector = ctx.autopilotPath[ctx.autopilotStep];
+                    ctx.setAutopilotStep(ctx.autopilotStep + 1);
+                    ctx.sendMsg({ type: ClientMsgType.Move, sector: nextSector });
+                } else if (ctx.mode === 'autopilot') {
+                    // Arrived at destination
+                    ctx.setMode('sector');
+                }
                 break;
             case ServerMsgType.DockResult:
                 if (msg.docked && msg.port) {
@@ -89,10 +104,20 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 }
                 break;
             case ServerMsgType.NonAdjacentMoveRequested:
-                ctx.term.writeln(
-                    `\r\n${colors.boldRed(`Cannot move to sector ${msg.sector} — not adjacent.`)}`,
-                );
-                showPrompt(ctx);
+                // Request shortest path from server for express warp
+                ctx.sendMsg({
+                    type: ClientMsgType.Path,
+                    from: ctx.currentSector,
+                    to: msg.sector,
+                });
+                break;
+            case ServerMsgType.PathResult:
+                if (msg.path.length > 1) {
+                    showAutopilotPrompt(ctx, msg.path, msg.hops);
+                } else {
+                    ctx.term.writeln(`\r\n${colors.boldRed('No path found to that sector.')}`);
+                    showPrompt(ctx);
+                }
                 break;
             case ServerMsgType.BuyResult:
                 ctx.term.writeln(`\r\n${colors.boldGreen('Purchase complete.')}`);
