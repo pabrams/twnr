@@ -26,4 +26,18 @@ export const PORT_CLASS_ACTIONS: Record<number, Record<string, 'B' | 'S'>> = {
     8: { fuel: 'B', organics: 'B', equipment: 'B' },
 };
 
-export type MenuMode = 'sector' | 'port' | 'docked' | 'help' | 'shipInfo';
+export type MenuMode =
+    | 'sector'
+    | 'port'
+    | 'docked'
+    | 'help'
+    | 'shipInfo'
+    | 'attack'
+    | 'attackFighters'
+    | 'computer'
+    | 'knownUniverse'
+    | 'shipCatalog'
+    | 'planetSpecs'
+    | 'class0'
+    | 'class0Qty'
+    | 'playerInfo';

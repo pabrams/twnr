@@ -1,7 +1,7 @@
 import { ServerMsgType, ClientMsgType } from '@twnr/shared';
 import type { ServerMessage } from '@twnr/shared';
 import type { GameContext } from './display.js';
-import { showSectorDisplay, showDockedMenu, showPrompt } from './display.js';
+import { showSectorDisplay, showDockedMenu, showPrompt, showClass0Menu } from './display.js';
 import { colors } from './constants.js';
 
 const mg = colors.magenta;
@@ -15,6 +15,9 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
         const msg: ServerMessage = JSON.parse(event.data);
         switch (msg.type) {
             case ServerMsgType.Welcome:
+                ctx.setPlayerName(msg.name);
+                ctx.setPlayerId(msg.playerId);
+                ctx.setTotalSectors(msg.totalSectors);
                 ctx.term.writeln(`\r\n${colors.boldGreen(`Welcome, ${msg.name}.`)}`);
                 ctx.sendMsg({ type: ClientMsgType.SectorDisplay });
                 break;
@@ -26,6 +29,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 }
                 break;
             case ServerMsgType.SectorDisplay:
+                ctx.setSectorPlayers(msg.players);
                 showSectorDisplay(
                     ctx,
                     msg.sector,
@@ -38,8 +42,13 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
             case ServerMsgType.DockResult:
                 if (msg.docked && msg.port) {
                     ctx.setDockedPortInfo(msg.port);
-                    ctx.setMode('docked');
-                    showDockedMenu(ctx);
+                    if (msg.port.class === 0) {
+                        ctx.setMode('class0');
+                        showClass0Menu(ctx);
+                    } else {
+                        ctx.setMode('docked');
+                        showDockedMenu(ctx);
+                    }
                 } else {
                     ctx.setDockedPortInfo(null);
                     ctx.setMode('sector');
@@ -57,6 +66,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 if (ctx.mode === 'docked') showDockedMenu(ctx);
                 break;
             case ServerMsgType.ShipInfo:
+                ctx.setCurrentShipName(msg.shipName);
                 ctx.term.writeln('');
                 ctx.term.writeln(`${colors.white('Ship:')} ${colors.boldCyan(msg.shipName)}`);
                 ctx.term.writeln(
@@ -73,8 +83,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 ctx.term.writeln(
                     `  ${colors.boldYellow('Credits')}: ${colors.boldYellow(String(msg.credits))}`,
                 );
-                if (ctx.mode === 'shipInfo') {
-                    ctx.setMode('sector');
+                if (ctx.mode === 'shipInfo' || ctx.mode === 'playerInfo') {
                     ctx.term.writeln('');
                     ctx.term.writeln(`Press ${colors.boldYellow("'q'")} to return.`);
                 }
@@ -84,6 +93,42 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     `\r\n${colors.boldRed(`Cannot move to sector ${msg.sector} — not adjacent.`)}`,
                 );
                 showPrompt(ctx);
+                break;
+            case ServerMsgType.BuyResult:
+                ctx.term.writeln(`\r\n${colors.boldGreen('Purchase complete.')}`);
+                ctx.term.writeln(
+                    `  ${colors.boldYellow('Credits')}: ${msg.credits}  ${colors.boldYellow('Fighters')}: ${msg.fighters}  ${colors.boldYellow('Shields')}: ${msg.shields}  ${colors.boldYellow('Holds')}: ${msg.cargoLimit}`,
+                );
+                if (ctx.mode === 'class0Qty') {
+                    ctx.setMode('class0');
+                    showClass0Menu(ctx);
+                }
+                break;
+            case ServerMsgType.AttackResult:
+                ctx.term.writeln('');
+                if (msg.destroyed) {
+                    ctx.term.writeln(colors.boldRed(msg.message || 'Target destroyed!'));
+                } else {
+                    ctx.term.writeln(colors.boldYellow(msg.message || 'Attack completed.'));
+                }
+                ctx.term.writeln(
+                    `  ${colors.boldYellow('Your fighters lost')}: ${msg.attackerFightersLost}`,
+                );
+                ctx.term.writeln(
+                    `  ${colors.boldYellow('Defender shields lost')}: ${msg.defenderShieldsLost}`,
+                );
+                ctx.term.writeln(
+                    `  ${colors.boldYellow('Defender fighters lost')}: ${msg.defenderFightersLost}`,
+                );
+                ctx.setMode('sector');
+                showPrompt(ctx);
+                break;
+            case ServerMsgType.ShipExchangeResult:
+                ctx.term.writeln(
+                    `\r\n${colors.boldGreen('Ship exchanged!')} Now flying: ${colors.boldCyan(msg.shipName)}`,
+                );
+                ctx.term.writeln(`  ${colors.boldYellow('Credits')}: ${msg.credits}`);
+                if (ctx.mode === 'docked') showDockedMenu(ctx);
                 break;
             case ServerMsgType.Error:
                 ctx.term.writeln(`\r\n${colors.boldRed('Error:')} ${colors.red(msg.message)}`);

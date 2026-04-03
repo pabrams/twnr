@@ -147,11 +147,17 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             [playerId, sector],
         );
         players[playerId] = { ws, sector, name: playerRow.name, universeId, docked: false };
+        const sectorCountRes = await pool.query(
+            'SELECT COUNT(*) FROM sectors WHERE universe_id = $1',
+            [universeId],
+        );
+        const totalSectors = parseInt(sectorCountRes.rows[0].count, 10);
         const welcomeMsg: ServerMessage = {
             type: ServerMsgType.Welcome,
             playerId,
             name: playerRow.name,
             sector,
+            totalSectors,
             token: auth.signPlayerToken({
                 userId,
                 name: playerRow.name,

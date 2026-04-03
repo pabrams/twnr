@@ -32,6 +32,15 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
     let currentPort: { class: number; name: string } | null = null;
     let dockedPortInfo: PortInfoMessage | null = null;
     let visitedSet = new Set<number>();
+    let playerName = '';
+    let playerId = 0;
+    let totalSectors = 0;
+    let sectorPlayers: { id: number; name: string }[] = [];
+    let attackTarget: number | null = null;
+    let class0BuyType: 'fighters' | 'shields' | 'holds' | null = null;
+    let shipConfigs: any[] | null = null;
+    let planetConfigs: any[] | null = null;
+    let currentShipName = '';
 
     function sendMsg(msg: ClientMessage) {
         if (ws.readyState === WebSocket.OPEN) {
@@ -41,6 +50,7 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
 
     const ctx: GameContext = {
         term,
+        ws,
         get currentSector() {
             return currentSector;
         },
@@ -55,6 +65,33 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
         },
         get visitedSet() {
             return visitedSet;
+        },
+        get playerName() {
+            return playerName;
+        },
+        get playerId() {
+            return playerId;
+        },
+        get totalSectors() {
+            return totalSectors;
+        },
+        get sectorPlayers() {
+            return sectorPlayers;
+        },
+        get attackTarget() {
+            return attackTarget;
+        },
+        get class0BuyType() {
+            return class0BuyType;
+        },
+        get shipConfigs() {
+            return shipConfigs;
+        },
+        get planetConfigs() {
+            return planetConfigs;
+        },
+        get currentShipName() {
+            return currentShipName;
         },
         sendMsg,
         setMode: (m) => {
@@ -71,6 +108,33 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
         },
         setDockedPortInfo: (p) => {
             dockedPortInfo = p;
+        },
+        setPlayerName: (n) => {
+            playerName = n;
+        },
+        setPlayerId: (id) => {
+            playerId = id;
+        },
+        setTotalSectors: (n) => {
+            totalSectors = n;
+        },
+        setSectorPlayers: (p) => {
+            sectorPlayers = p;
+        },
+        setAttackTarget: (id) => {
+            attackTarget = id;
+        },
+        setClass0BuyType: (t) => {
+            class0BuyType = t;
+        },
+        setShipConfigs: (c) => {
+            shipConfigs = c;
+        },
+        setPlanetConfigs: (c) => {
+            planetConfigs = c;
+        },
+        setCurrentShipName: (n) => {
+            currentShipName = n;
         },
     };
 

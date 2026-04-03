@@ -8,6 +8,7 @@ export type WelcomeMessage = {
     name: string;
     sector: number;
     token: string;
+    totalSectors: number;
 };
 
 export type PlayerMovedMessage = {
