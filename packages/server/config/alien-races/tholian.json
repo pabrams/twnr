@@ -1,0 +1,13 @@
+{
+  "race": "Tholian",
+  "startingAliens": 3,
+  "startingCreditsPerAlien": 60000,
+  "names": [
+    "Loskene", "Nostrene", "Tezrene", "Kasrene", "Azerene",
+    "Veskene", "Thosrene", "Nulkene", "Briskene", "Ozrene",
+    "Falkene", "Xelkene", "Tolvene", "Raskene", "Yilkene",
+    "Dreskene", "Molvene", "Kivrene", "Solkene", "Pelrene",
+    "Wexrene", "Turvene", "Heskene", "Celvene", "Gorrene",
+    "Zivkene", "Norrene", "Belvene", "Eskene", "Quelvene"
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "race": "Cardassian",
+  "startingAliens": 3,
+  "startingCreditsPerAlien": 45000,
+  "names": [
+    "Dukat", "Garak", "Damar", "Enabran Tain", "Tekeny Ghemor",
+    "Madred", "Evek", "Ocett", "Lemec", "Macet",
+    "Revok", "Broca", "Rusot", "Corat Damar", "Legate Parn",
+    "Toran", "Seska", "Dolak", "Jasad", "Surjak",
+    "Gul Ranor", "Aman Jevek", "Kotan Pa'Dar", "Natima Lang", "Aamin Marritza",
+    "Gilora Rejal", "Ulani Belor", "Skrain", "Ari", "Corak"
+  ]
+}

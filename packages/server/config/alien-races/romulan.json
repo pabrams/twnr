@@ -1,0 +1,13 @@
+{
+  "race": "Romulan",
+  "startingAliens": 3,
+  "startingCreditsPerAlien": 50000,
+  "names": [
+    "Tomalak", "Sela", "Donatra", "Shinzon", "Tal'Aura", "Valdore",
+    "Alidar Jarok", "Bochra", "Tebok", "Keras", "Nanclus",
+    "Kimara Cretak", "Letant", "Neral", "Koval", "Rekar",
+    "Sirol", "Movar", "Vreenak", "Toreth", "Taibak",
+    "Nevala", "Almak", "Thei", "Velal", "Taris",
+    "Selveth", "Ruanek", "Charvanek", "Tokath"
+  ]
+}
