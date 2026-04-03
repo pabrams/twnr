@@ -119,4 +119,27 @@ export function createUniverseRoutes(
             res.status(500).json({ error: 'Internal server error' });
         }
     });
+
+    router.get('/api/universes/:id/players', authenticateToken, async (req, res): Promise<any> => {
+        const universeId = parseInt(req.params.id as string, 10);
+        try {
+            const result = await pool.query(
+                `SELECT p.name, COALESCE(ps.ship_name, 'No ship') AS ship_name
+                     FROM players p
+                     LEFT JOIN player_ships ps ON p.id = ps.player_id
+                     WHERE p.universe_id = $1
+                     ORDER BY p.name`,
+                [universeId],
+            );
+            res.json(
+                result.rows.map((r: any) => ({
+                    name: r.name,
+                    shipName: r.ship_name,
+                })),
+            );
+        } catch (err) {
+            console.error('List players error', err);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    });
 }

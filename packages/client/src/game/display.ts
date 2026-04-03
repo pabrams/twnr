@@ -19,6 +19,7 @@ export interface GameContext {
     shipConfigs: any[] | null;
     planetConfigs: any[] | null;
     currentShipName: string;
+    universeId: number;
     ws: WebSocket;
     sendMsg: (msg: ClientMessage) => void;
     setMode: (mode: MenuMode) => void;
@@ -261,6 +262,7 @@ export function showComputerMenu(ctx: GameContext) {
     ctx.term.writeln('');
     ctx.term.writeln(colors.boldCyan('=== Ship Computer ==='));
     ctx.term.writeln(`  ${colors.cyan('K')}  Known Universe`);
+    ctx.term.writeln(`  ${colors.cyan('L')}  List Traders`);
     ctx.term.writeln(`  ${colors.cyan('C')}  Ship Catalog`);
     ctx.term.writeln(`  ${colors.cyan('J')}  Planetary Specs`);
     ctx.term.writeln(`  ${colors.cyan(';')}  Current Ship Specs`);
@@ -291,6 +293,24 @@ export function showUnexploredSectors(ctx: GameContext) {
     ctx.term.writeln('');
     ctx.term.writeln(`${colors.boldCyan('Unexplored sectors')} (${unexplored.length}):`);
     ctx.term.writeln(unexplored.map((s) => colors.boldRed(String(s))).join(' '));
+}
+
+export async function showTraderList(ctx: GameContext) {
+    ctx.term.writeln(`\r\n${colors.white('Loading traders...')}`);
+    try {
+        const res = await fetch(`/api/universes/${ctx.universeId}/players`);
+        const traders: { name: string; shipName: string }[] = await res.json();
+        ctx.term.writeln('');
+        ctx.term.writeln(colors.boldCyan('=== Traders in Universe ==='));
+        ctx.term.writeln(`  ${colors.boldWhite('Name'.padEnd(24))} ${colors.boldWhite('Ship')}`);
+        for (const t of traders) {
+            ctx.term.writeln(
+                `  ${colors.boldYellow(t.name.padEnd(24))} ${colors.white(t.shipName)}`,
+            );
+        }
+    } catch {
+        ctx.term.writeln(colors.boldRed('Failed to load trader list.'));
+    }
 }
 
 export async function showShipCatalog(ctx: GameContext) {

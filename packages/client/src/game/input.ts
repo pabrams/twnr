@@ -20,6 +20,7 @@ import {
     showPlanetSpecs,
     showPlanetDetail,
     showCurrentShipSpecs,
+    showTraderList,
 } from './display.js';
 import { colors } from './constants.js';
 
@@ -37,6 +38,7 @@ export function setupInput(term: Terminal, ctx: GameContext) {
         'h',
         'k',
         'j',
+        'l',
         'e',
         'u',
         ';',
@@ -256,6 +258,9 @@ function handleComputerInput(ctx: GameContext, line: string) {
     switch (line.toLowerCase()) {
         case 'k':
             showKnownUniverseMenu(ctx);
+            break;
+        case 'l':
+            showTraderList(ctx);
             break;
         case 'c':
             showShipCatalog(ctx);

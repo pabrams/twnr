@@ -97,6 +97,7 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
         get currentShipName() {
             return currentShipName;
         },
+        universeId,
         get class0Prices() {
             return class0Prices;
         },
