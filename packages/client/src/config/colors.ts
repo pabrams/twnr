@@ -45,8 +45,7 @@ export type Colors = Record<keyof ColorPalette, ColorFn>;
 export function buildColors(palette: ColorPalette): Colors {
     const result = {} as Colors;
     for (const [name, { r, g, b }] of Object.entries(palette)) {
-        result[name as keyof ColorPalette] = (s: string) =>
-            `\x1b[38;2;${r};${g};${b}m${s}\x1b[0m`;
+        result[name as keyof ColorPalette] = (s: string) => `\x1b[38;2;${r};${g};${b}m${s}\x1b[0m`;
     }
     return result;
 }

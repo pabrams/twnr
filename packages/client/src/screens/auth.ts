@@ -7,7 +7,7 @@ export function setupAuthScreen(
         toggleBtn: HTMLButtonElement;
         errorDiv: HTMLElement;
     },
-    onSuccess: () => void,
+    onSuccess: (data: { userId?: number; role?: string }) => void,
 ) {
     let isLogin = false;
 
@@ -45,7 +45,7 @@ export function setupAuthScreen(
                 elements.errorDiv.textContent = data.error || 'Something went wrong.';
                 return;
             }
-            onSuccess();
+            onSuccess(data);
         } catch {
             elements.errorDiv.textContent = 'Could not reach server.';
         }

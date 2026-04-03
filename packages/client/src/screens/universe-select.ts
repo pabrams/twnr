@@ -14,7 +14,7 @@ export function setupUniverseScreen(
         playerNameError: HTMLElement;
         playerNameSubmit: HTMLButtonElement;
     },
-    showScreen: (screen: 'auth' | 'universes' | 'playerName' | 'game') => void,
+    showScreen: (screen: 'auth' | 'universes' | 'playerName' | 'game' | 'admin') => void,
     onStart: (universeId: number) => void,
 ) {
     let selectedUniverse: UniverseInfo | null = null;
