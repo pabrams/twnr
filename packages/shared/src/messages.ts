@@ -40,5 +40,6 @@ export const ClientMsgType = {
     Attack: 'attack',
     Dock: 'dock',
     Undock: 'undock',
+    Jettison: 'jettison',
 } as const;
 type ClientMsgType = typeof ClientMsgType;

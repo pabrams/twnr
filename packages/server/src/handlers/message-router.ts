@@ -10,6 +10,7 @@ import {
     handleBuyShields,
     handleBuyHolds,
     handleShipExchange,
+    handleJettison,
 } from './ship.js';
 import { handleAttack } from './combat.js';
 
@@ -47,6 +48,8 @@ export async function handleMessage(ws: WebSocket, playerId: number, data: any):
             return handleDock(ws, playerId);
         case ClientMsgType.Undock:
             return handleUndock(ws, playerId);
+        case ClientMsgType.Jettison:
+            return handleJettison(ws, playerId);
         default:
             send(ws, { type: ServerMsgType.Error, message: 'Unknown message type' });
     }

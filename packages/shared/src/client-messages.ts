@@ -79,6 +79,10 @@ export type UndockMessage = {
     type: typeof ClientMsgType.Undock;
 };
 
+export type JettisonMessage = {
+    type: typeof ClientMsgType.Jettison;
+};
+
 export type ClientMessage =
     | MoveMessage
     | DisplayMessage
@@ -95,4 +99,5 @@ export type ClientMessage =
     | ShipExchangeMessage
     | AttackMessage
     | DockMessage
-    | UndockMessage;
+    | UndockMessage
+    | JettisonMessage;

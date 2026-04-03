@@ -21,6 +21,7 @@ import {
     showPlanetDetail,
     showCurrentShipSpecs,
     showTraderList,
+    showJettisonConfirm,
 } from './display.js';
 import { colors } from './constants.js';
 
@@ -118,6 +119,9 @@ function handleInput(ctx: GameContext, line: string) {
         case 'autopilot':
             // Ignore input during autopilot
             return;
+        case 'jettisonConfirm':
+            handleJettisonConfirmInput(ctx, line);
+            return;
     }
 
     // Sector mode
@@ -145,6 +149,9 @@ function handleInput(ctx: GameContext, line: string) {
             break;
         case 'c':
             showComputerMenu(ctx);
+            break;
+        case 'j':
+            showJettisonConfirm(ctx);
             break;
         case 'q':
             ctx.term.writeln(`\r\n${colors.white('Goodbye!')}`);
@@ -382,6 +389,19 @@ function handleClass0QtyInput(ctx: GameContext, line: string) {
             break;
         case 'holds':
             ctx.sendMsg({ type: ClientMsgType.BuyHolds, quantity: qty });
+            break;
+    }
+}
+
+function handleJettisonConfirmInput(ctx: GameContext, line: string) {
+    switch (line.toLowerCase()) {
+        case 'y':
+            ctx.sendMsg({ type: ClientMsgType.Jettison });
+            ctx.setMode('sector');
+            break;
+        case 'n':
+            ctx.setMode('sector');
+            showPrompt(ctx);
             break;
     }
 }

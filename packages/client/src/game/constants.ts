@@ -42,4 +42,5 @@ export type MenuMode =
     | 'class0Qty'
     | 'playerInfo'
     | 'autopilotPrompt'
-    | 'autopilot';
+    | 'autopilot'
+    | 'jettisonConfirm';

@@ -131,6 +131,7 @@ export function showHelp(ctx: GameContext) {
     ctx.term.writeln(
         `${colors.cyan('Attack:')} ${colors.boldYellow("'A'")} attack a player in your sector.`,
     );
+    ctx.term.writeln(`${colors.cyan('Jettison:')} ${colors.boldYellow("'J'")} jettison all cargo.`);
     ctx.term.writeln(`${colors.cyan('Computer:')} ${colors.boldYellow("'C'")} ship computer.`);
     ctx.term.writeln(`${colors.cyan('Who:')} ${colors.boldYellow("'#'")} players online.`);
     ctx.term.writeln(`${colors.cyan('Help:')} ${colors.boldYellow("'?'")} this menu.`);
@@ -293,6 +294,13 @@ export function showUnexploredSectors(ctx: GameContext) {
     ctx.term.writeln('');
     ctx.term.writeln(`${colors.boldCyan('Unexplored sectors')} (${unexplored.length}):`);
     ctx.term.writeln(unexplored.map((s) => colors.boldRed(String(s))).join(' '));
+}
+
+export function showJettisonConfirm(ctx: GameContext) {
+    ctx.setMode('jettisonConfirm');
+    ctx.term.write(
+        `\r\n${colors.boldYellow('Jettison all cargo?')} This cannot be undone. ${mg('(')}${colors.boldYellow('Y')}/${colors.boldYellow('N')}${mg(')')} `,
+    );
 }
 
 export async function showTraderList(ctx: GameContext) {
