@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import { pool } from './db.js';
+import { generateUniverse } from './bigbang.js';
 import type {
     AuthTokenPayload,
     AuthResponse,
@@ -383,6 +384,789 @@ export function createRoutes(deps: RouteDeps): Router {
             res.status(500).json({ error: 'Internal server error' });
         }
     });
+
+    // ─── Admin Universe Lifecycle ──────────────────────────────────────
+
+    router.post(
+        '/api/admin/universes/generate',
+        authenticateAdmin,
+        async (req, res): Promise<any> => {
+            const { name, sectors, seed, portDensity, twoWayPct } = req.body;
+
+            if (!name || !String(name).trim()) {
+                return res.status(400).json({ error: 'name is required' });
+            }
+            const sectorCount = parseInt(sectors, 10);
+            if (!sectors || isNaN(sectorCount) || sectorCount < 20 || sectorCount > 500) {
+                return res
+                    .status(400)
+                    .json({ error: 'sectors is required and must be between 20 and 500' });
+            }
+
+            try {
+                const result = generateUniverse({
+                    sectors: sectorCount,
+                    seed: seed != null ? Math.floor(Number(seed)) : undefined,
+                    portDensity: portDensity != null ? Number(portDensity) : undefined,
+                    twoWayPct: twoWayPct != null ? Number(twoWayPct) : undefined,
+                });
+
+                const client = await pool.connect();
+                try {
+                    await client.query('BEGIN');
+
+                    // Create universe row
+                    const univRes = await client.query(
+                        'INSERT INTO universes (name, seed) VALUES ($1, $2) RETURNING id',
+                        [name, result.seed],
+                    );
+                    const universeId = univRes.rows[0].id;
+
+                    // Insert sectors
+                    for (const s of result.sectors) {
+                        await client.query(
+                            'INSERT INTO sectors (id, universe_id, name) VALUES ($1, $2, $3)',
+                            [s.id, universeId, s.name],
+                        );
+                    }
+
+                    // Insert warps
+                    for (const w of result.warps) {
+                        await client.query(
+                            'INSERT INTO warps (sector_from, sector_to, universe_id) VALUES ($1, $2, $3)',
+                            [w.from, w.to, universeId],
+                        );
+                    }
+
+                    // Insert trading ports
+                    for (const p of result.ports) {
+                        await client.query(
+                            `INSERT INTO ports (sector_id, universe_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
+                             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+                            [
+                                p.sector,
+                                universeId,
+                                p.class,
+                                p.fuel_qty,
+                                p.fuel_price,
+                                p.org_qty,
+                                p.org_price,
+                                p.equ_qty,
+                                p.equ_price,
+                            ],
+                        );
+                    }
+
+                    // Seed Class 0 port in Sector 1
+                    await client.query(
+                        `INSERT INTO ports (sector_id, universe_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
+                         VALUES (1, $1, 0, 0, 0, 0, 0, 0, 0)
+                         ON CONFLICT (sector_id, universe_id) DO UPDATE
+                         SET class = 0, fuel = 0, fuel_price = 0, organics = 0, org_price = 0, equipment = 0, equ_price = 0`,
+                        [universeId],
+                    );
+
+                    // Seed Class 9 port at Stardock
+                    await client.query(
+                        `INSERT INTO ports (sector_id, universe_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
+                         SELECT id, $1, 9, 0, 0, 0, 0, 0, 0
+                         FROM sectors WHERE name = 'Stardock' AND universe_id = $1
+                         ON CONFLICT (sector_id, universe_id) DO UPDATE
+                         SET class = 9, fuel = 0, fuel_price = 0, organics = 0, org_price = 0, equipment = 0, equ_price = 0`,
+                        [universeId],
+                    );
+
+                    await client.query('COMMIT');
+
+                    // Count actual data
+                    const warpCountRes = await pool.query(
+                        'SELECT COUNT(*) FROM warps WHERE universe_id = $1',
+                        [universeId],
+                    );
+                    const portCountRes = await pool.query(
+                        'SELECT COUNT(*) FROM ports WHERE universe_id = $1',
+                        [universeId],
+                    );
+
+                    res.status(201).json({
+                        id: universeId,
+                        name,
+                        seed: result.seed,
+                        sectorCount: result.sectors.length,
+                        warpCount: parseInt(warpCountRes.rows[0].count, 10),
+                        portCount: parseInt(portCountRes.rows[0].count, 10),
+                    });
+                } catch (err) {
+                    await client.query('ROLLBACK');
+                    throw err;
+                } finally {
+                    client.release();
+                }
+            } catch (err) {
+                console.error('Generate universe error', err);
+                res.status(500).json({ error: 'Internal server error' });
+            }
+        },
+    );
+
+    router.get(
+        '/api/admin/universes/:id/stats',
+        authenticateAdmin,
+        async (req, res): Promise<any> => {
+            const universeId = parseInt(req.params.id as string, 10);
+
+            try {
+                const univRes = await pool.query(
+                    'SELECT id, name, seed, created_at FROM universes WHERE id = $1',
+                    [universeId],
+                );
+                if (univRes.rows.length === 0) {
+                    return res.status(404).json({ error: 'Universe not found' });
+                }
+
+                const univ = univRes.rows[0];
+                const sectorCount = await pool.query(
+                    'SELECT COUNT(*) FROM sectors WHERE universe_id = $1',
+                    [universeId],
+                );
+                const warpCount = await pool.query(
+                    'SELECT COUNT(*) FROM warps WHERE universe_id = $1',
+                    [universeId],
+                );
+                const portCount = await pool.query(
+                    'SELECT COUNT(*) FROM ports WHERE universe_id = $1',
+                    [universeId],
+                );
+                const playerCount = await pool.query(
+                    'SELECT COUNT(*) FROM players WHERE universe_id = $1',
+                    [universeId],
+                );
+
+                res.json({
+                    id: univ.id,
+                    name: univ.name,
+                    seed: univ.seed,
+                    createdAt: univ.created_at,
+                    sectorCount: parseInt(sectorCount.rows[0].count, 10),
+                    warpCount: parseInt(warpCount.rows[0].count, 10),
+                    portCount: parseInt(portCount.rows[0].count, 10),
+                    playerCount: parseInt(playerCount.rows[0].count, 10),
+                });
+            } catch (err) {
+                console.error('Universe stats error', err);
+                res.status(500).json({ error: 'Internal server error' });
+            }
+        },
+    );
+
+    router.delete('/api/admin/universes/:id', authenticateAdmin, async (req, res): Promise<any> => {
+        const universeId = parseInt(req.params.id as string, 10);
+
+        try {
+            // Check universe exists
+            const univRes = await pool.query('SELECT id FROM universes WHERE id = $1', [
+                universeId,
+            ]);
+            if (univRes.rows.length === 0) {
+                return res.status(404).json({ error: 'Universe not found' });
+            }
+
+            const client = await pool.connect();
+            try {
+                await client.query('BEGIN');
+
+                // Get player IDs for this universe
+                const playerRes = await client.query(
+                    'SELECT id FROM players WHERE universe_id = $1',
+                    [universeId],
+                );
+                const playerIds = playerRes.rows.map((r: { id: number }) => r.id);
+
+                if (playerIds.length > 0) {
+                    // Delete player-related data
+                    await client.query(
+                        'DELETE FROM visited_sectors WHERE player_id = ANY($1::int[])',
+                        [playerIds],
+                    );
+                    await client.query('DELETE FROM ship_cargo WHERE player_id = ANY($1::int[])', [
+                        playerIds,
+                    ]);
+                    await client.query(
+                        'DELETE FROM player_ships WHERE player_id = ANY($1::int[])',
+                        [playerIds],
+                    );
+                    await client.query('DELETE FROM players WHERE universe_id = $1', [universeId]);
+                }
+
+                // Delete universe data
+                await client.query('DELETE FROM ports WHERE universe_id = $1', [universeId]);
+                await client.query('DELETE FROM warps WHERE universe_id = $1', [universeId]);
+                await client.query('DELETE FROM sectors WHERE universe_id = $1', [universeId]);
+                await client.query('DELETE FROM universes WHERE id = $1', [universeId]);
+
+                await client.query('COMMIT');
+
+                res.json({ deleted: true, id: universeId });
+            } catch (err) {
+                await client.query('ROLLBACK');
+                throw err;
+            } finally {
+                client.release();
+            }
+        } catch (err) {
+            console.error('Delete universe error', err);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    });
+
+    router.put('/api/admin/universes/:id', authenticateAdmin, async (req, res): Promise<any> => {
+        const universeId = parseInt(req.params.id as string, 10);
+        const { name } = req.body;
+
+        if (!name || !String(name).trim()) {
+            return res.status(400).json({ error: 'name is required' });
+        }
+
+        try {
+            const result = await pool.query(
+                'UPDATE universes SET name = $1 WHERE id = $2 RETURNING id, name',
+                [name, universeId],
+            );
+            if (result.rows.length === 0) {
+                return res.status(404).json({ error: 'Universe not found' });
+            }
+
+            res.json({ id: result.rows[0].id, name: result.rows[0].name });
+        } catch (err) {
+            console.error('Rename universe error', err);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    });
+
+    router.post(
+        '/api/admin/universes/:id/clone',
+        authenticateAdmin,
+        async (req, res): Promise<any> => {
+            const sourceId = parseInt(req.params.id as string, 10);
+            const { name } = req.body;
+
+            if (!name || !String(name).trim()) {
+                return res.status(400).json({ error: 'name is required' });
+            }
+
+            try {
+                // Check source exists
+                const srcRes = await pool.query('SELECT id, seed FROM universes WHERE id = $1', [
+                    sourceId,
+                ]);
+                if (srcRes.rows.length === 0) {
+                    return res.status(404).json({ error: 'Universe not found' });
+                }
+
+                const client = await pool.connect();
+                try {
+                    await client.query('BEGIN');
+
+                    // Create new universe row
+                    const newUnivRes = await client.query(
+                        'INSERT INTO universes (name, seed) VALUES ($1, $2) RETURNING id',
+                        [name, srcRes.rows[0].seed],
+                    );
+                    const newId = newUnivRes.rows[0].id;
+
+                    // Copy sectors
+                    await client.query(
+                        `INSERT INTO sectors (id, universe_id, name)
+                         SELECT id, $1, name FROM sectors WHERE universe_id = $2`,
+                        [newId, sourceId],
+                    );
+
+                    // Copy warps
+                    await client.query(
+                        `INSERT INTO warps (sector_from, sector_to, universe_id)
+                         SELECT sector_from, sector_to, $1 FROM warps WHERE universe_id = $2`,
+                        [newId, sourceId],
+                    );
+
+                    // Copy ports
+                    await client.query(
+                        `INSERT INTO ports (sector_id, universe_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
+                         SELECT sector_id, $1, class, fuel, fuel_price, organics, org_price, equipment, equ_price
+                         FROM ports WHERE universe_id = $2`,
+                        [newId, sourceId],
+                    );
+
+                    await client.query('COMMIT');
+
+                    // Get counts
+                    const sectorCount = await pool.query(
+                        'SELECT COUNT(*) FROM sectors WHERE universe_id = $1',
+                        [newId],
+                    );
+                    const warpCount = await pool.query(
+                        'SELECT COUNT(*) FROM warps WHERE universe_id = $1',
+                        [newId],
+                    );
+                    const portCount = await pool.query(
+                        'SELECT COUNT(*) FROM ports WHERE universe_id = $1',
+                        [newId],
+                    );
+
+                    res.status(201).json({
+                        id: newId,
+                        name,
+                        seed: srcRes.rows[0].seed,
+                        sectorCount: parseInt(sectorCount.rows[0].count, 10),
+                        warpCount: parseInt(warpCount.rows[0].count, 10),
+                        portCount: parseInt(portCount.rows[0].count, 10),
+                    });
+                } catch (err) {
+                    await client.query('ROLLBACK');
+                    throw err;
+                } finally {
+                    client.release();
+                }
+            } catch (err) {
+                console.error('Clone universe error', err);
+                res.status(500).json({ error: 'Internal server error' });
+            }
+        },
+    );
+
+    router.get(
+        '/api/admin/universes/:id/topology',
+        authenticateAdmin,
+        async (req, res): Promise<any> => {
+            const universeId = parseInt(req.params.id as string, 10);
+
+            try {
+                const univRes = await pool.query('SELECT id FROM universes WHERE id = $1', [
+                    universeId,
+                ]);
+                if (univRes.rows.length === 0) {
+                    return res.status(404).json({ error: 'Universe not found' });
+                }
+
+                const sectorRes = await pool.query(
+                    'SELECT COUNT(*) FROM sectors WHERE universe_id = $1',
+                    [universeId],
+                );
+                const totalSectors = parseInt(sectorRes.rows[0].count, 10);
+
+                const warpRes = await pool.query(
+                    'SELECT sector_from, sector_to FROM warps WHERE universe_id = $1',
+                    [universeId],
+                );
+                const totalWarps = warpRes.rows.length;
+
+                // Count bidirectional pairs (each pair counted once)
+                const warpSet = new Set(
+                    warpRes.rows.map(
+                        (w: { sector_from: number; sector_to: number }) =>
+                            `${w.sector_from},${w.sector_to}`,
+                    ),
+                );
+                const counted = new Set<string>();
+                let bidirectionalPairs = 0;
+                for (const w of warpRes.rows) {
+                    const a = Math.min(w.sector_from, w.sector_to);
+                    const b = Math.max(w.sector_from, w.sector_to);
+                    const key = `${a},${b}`;
+                    if (!counted.has(key) && warpSet.has(`${w.sector_to},${w.sector_from}`)) {
+                        bidirectionalPairs++;
+                        counted.add(key);
+                    }
+                }
+
+                // Compute out-degree per sector
+                const outDeg = new Map<number, number>();
+                for (const w of warpRes.rows) {
+                    outDeg.set(w.sector_from, (outDeg.get(w.sector_from) || 0) + 1);
+                }
+                const avgOut =
+                    totalSectors > 0 ? Math.round((totalWarps / totalSectors) * 100) / 100 : 0;
+
+                // Dead-end sectors: exactly 1 outgoing warp
+                const deadEndSectors: number[] = [];
+                for (const [sector, deg] of outDeg) {
+                    if (deg === 1) deadEndSectors.push(sector);
+                }
+                deadEndSectors.sort((a, b) => a - b);
+
+                // BFS connectivity from sector 1
+                const adj = new Map<number, number[]>();
+                for (const w of warpRes.rows) {
+                    if (!adj.has(w.sector_from)) adj.set(w.sector_from, []);
+                    adj.get(w.sector_from)!.push(w.sector_to);
+                }
+                const visited = new Set<number>();
+                const queue = [1];
+                visited.add(1);
+                while (queue.length > 0) {
+                    const node = queue.shift()!;
+                    for (const next of adj.get(node) || []) {
+                        if (!visited.has(next)) {
+                            visited.add(next);
+                            queue.push(next);
+                        }
+                    }
+                }
+                const isConnected = visited.size === totalSectors;
+
+                res.json({
+                    totalSectors,
+                    totalWarps,
+                    bidirectionalPairs,
+                    averageOutDegree: avgOut,
+                    deadEndSectors,
+                    isConnected,
+                });
+            } catch (err) {
+                console.error('Topology error', err);
+                res.status(500).json({ error: 'Internal server error' });
+            }
+        },
+    );
+
+    // ─── Port Management ───────────────────────────────────────────────
+
+    const PORT_CLASS_ACTIONS: Record<number, [string, string, string]> = {
+        1: ['B', 'B', 'S'],
+        2: ['B', 'S', 'B'],
+        3: ['S', 'B', 'B'],
+        4: ['S', 'S', 'B'],
+        5: ['B', 'S', 'S'],
+        6: ['S', 'B', 'S'],
+        7: ['S', 'S', 'S'],
+        8: ['B', 'B', 'B'],
+    };
+
+    function validatePortPrices(
+        portClass: number,
+        fuelPrice: number,
+        orgPrice: number,
+        equPrice: number,
+    ): string | null {
+        const actions = PORT_CLASS_ACTIONS[portClass];
+        if (!actions) return null;
+
+        const commodities = [
+            { name: 'fuel', action: actions[0], price: fuelPrice },
+            { name: 'organics', action: actions[1], price: orgPrice },
+            { name: 'equipment', action: actions[2], price: equPrice },
+        ];
+
+        for (const c of commodities) {
+            if (c.action === 'S' && (c.price < 10 || c.price > 50)) {
+                return `${c.name} is a selling commodity for class ${portClass} and price must be 10-50, got ${c.price}`;
+            }
+            if (c.action === 'B' && (c.price < 51 || c.price > 100)) {
+                return `${c.name} is a buying commodity for class ${portClass} and price must be 51-100, got ${c.price}`;
+            }
+        }
+        return null;
+    }
+
+    router.get(
+        '/api/admin/universes/:id/ports',
+        authenticateAdmin,
+        async (req, res): Promise<any> => {
+            const universeId = parseInt(req.params.id as string, 10);
+
+            try {
+                const univRes = await pool.query('SELECT id FROM universes WHERE id = $1', [
+                    universeId,
+                ]);
+                if (univRes.rows.length === 0) {
+                    return res.status(404).json({ error: 'Universe not found' });
+                }
+
+                const portRes = await pool.query(
+                    `SELECT sector_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price
+                     FROM ports WHERE universe_id = $1 ORDER BY sector_id ASC`,
+                    [universeId],
+                );
+
+                const ports = portRes.rows.map((r: any) => ({
+                    sectorId: r.sector_id,
+                    class: r.class,
+                    fuel: r.fuel,
+                    fuelPrice: r.fuel_price,
+                    organics: r.organics,
+                    orgPrice: r.org_price,
+                    equipment: r.equipment,
+                    equPrice: r.equ_price,
+                }));
+
+                res.json(ports);
+            } catch (err) {
+                console.error('List ports error', err);
+                res.status(500).json({ error: 'Internal server error' });
+            }
+        },
+    );
+
+    router.put(
+        '/api/admin/universes/:id/ports/:sectorId',
+        authenticateAdmin,
+        async (req, res): Promise<any> => {
+            const universeId = parseInt(req.params.id as string, 10);
+            const sectorId = parseInt(req.params.sectorId as string, 10);
+
+            try {
+                // Check universe exists
+                const univRes = await pool.query('SELECT id FROM universes WHERE id = $1', [
+                    universeId,
+                ]);
+                if (univRes.rows.length === 0) {
+                    return res.status(404).json({ error: 'Universe not found' });
+                }
+
+                // Check port exists
+                const portRes = await pool.query(
+                    'SELECT * FROM ports WHERE sector_id = $1 AND universe_id = $2',
+                    [sectorId, universeId],
+                );
+                if (portRes.rows.length === 0) {
+                    return res.status(404).json({ error: 'Port not found' });
+                }
+
+                const existing = portRes.rows[0];
+
+                // Reject special ports
+                if (existing.class === 0 || existing.class === 9) {
+                    return res.status(403).json({ error: 'Cannot modify special port' });
+                }
+
+                // Merge updates with existing values
+                const newClass =
+                    req.body.class !== undefined ? parseInt(req.body.class, 10) : existing.class;
+                const newFuel =
+                    req.body.fuel !== undefined ? parseInt(req.body.fuel, 10) : existing.fuel;
+                const newFuelPrice =
+                    req.body.fuelPrice !== undefined
+                        ? parseInt(req.body.fuelPrice, 10)
+                        : existing.fuel_price;
+                const newOrganics =
+                    req.body.organics !== undefined
+                        ? parseInt(req.body.organics, 10)
+                        : existing.organics;
+                const newOrgPrice =
+                    req.body.orgPrice !== undefined
+                        ? parseInt(req.body.orgPrice, 10)
+                        : existing.org_price;
+                const newEquipment =
+                    req.body.equipment !== undefined
+                        ? parseInt(req.body.equipment, 10)
+                        : existing.equipment;
+                const newEquPrice =
+                    req.body.equPrice !== undefined
+                        ? parseInt(req.body.equPrice, 10)
+                        : existing.equ_price;
+
+                // Validate class
+                if (newClass < 1 || newClass > 8) {
+                    return res.status(400).json({ error: 'class must be 1-8' });
+                }
+
+                // Validate quantities
+                for (const [name, val] of [
+                    ['fuel', newFuel],
+                    ['organics', newOrganics],
+                    ['equipment', newEquipment],
+                ] as const) {
+                    if (val < 0 || val > 5000) {
+                        return res.status(400).json({ error: `${name} must be 0-5000` });
+                    }
+                }
+
+                // Validate prices against class
+                const priceError = validatePortPrices(
+                    newClass,
+                    newFuelPrice,
+                    newOrgPrice,
+                    newEquPrice,
+                );
+                if (priceError) {
+                    return res.status(400).json({ error: priceError });
+                }
+
+                await pool.query(
+                    `UPDATE ports SET class = $1, fuel = $2, fuel_price = $3, organics = $4, org_price = $5, equipment = $6, equ_price = $7
+                     WHERE sector_id = $8 AND universe_id = $9`,
+                    [
+                        newClass,
+                        newFuel,
+                        newFuelPrice,
+                        newOrganics,
+                        newOrgPrice,
+                        newEquipment,
+                        newEquPrice,
+                        sectorId,
+                        universeId,
+                    ],
+                );
+
+                res.json({
+                    sectorId,
+                    class: newClass,
+                    fuel: newFuel,
+                    fuelPrice: newFuelPrice,
+                    organics: newOrganics,
+                    orgPrice: newOrgPrice,
+                    equipment: newEquipment,
+                    equPrice: newEquPrice,
+                });
+            } catch (err) {
+                console.error('Update port error', err);
+                res.status(500).json({ error: 'Internal server error' });
+            }
+        },
+    );
+
+    router.post(
+        '/api/admin/universes/:id/ports/:sectorId',
+        authenticateAdmin,
+        async (req, res): Promise<any> => {
+            const universeId = parseInt(req.params.id as string, 10);
+            const sectorId = parseInt(req.params.sectorId as string, 10);
+
+            try {
+                // Check universe exists
+                const univRes = await pool.query('SELECT id FROM universes WHERE id = $1', [
+                    universeId,
+                ]);
+                if (univRes.rows.length === 0) {
+                    return res.status(404).json({ error: 'Universe not found' });
+                }
+
+                // Check sector exists
+                const sectorRes = await pool.query(
+                    'SELECT id FROM sectors WHERE id = $1 AND universe_id = $2',
+                    [sectorId, universeId],
+                );
+                if (sectorRes.rows.length === 0) {
+                    return res.status(404).json({ error: 'Sector not found' });
+                }
+
+                // Check no existing port
+                const existingPort = await pool.query(
+                    'SELECT id FROM ports WHERE sector_id = $1 AND universe_id = $2',
+                    [sectorId, universeId],
+                );
+                if (existingPort.rows.length > 0) {
+                    return res.status(409).json({ error: 'Port already exists' });
+                }
+
+                const {
+                    class: portClass,
+                    fuel,
+                    fuelPrice,
+                    organics,
+                    orgPrice,
+                    equipment,
+                    equPrice,
+                } = req.body;
+
+                // Validate class
+                const cls = parseInt(portClass, 10);
+                if (isNaN(cls) || cls < 1 || cls > 8) {
+                    return res.status(400).json({ error: 'class must be 1-8 for trading ports' });
+                }
+
+                // Validate quantities
+                const fuelQty = parseInt(fuel, 10);
+                const orgQty = parseInt(organics, 10);
+                const equQty = parseInt(equipment, 10);
+                for (const [name, val] of [
+                    ['fuel', fuelQty],
+                    ['organics', orgQty],
+                    ['equipment', equQty],
+                ] as const) {
+                    if (isNaN(val) || val < 0 || val > 5000) {
+                        return res.status(400).json({ error: `${name} must be 0-5000` });
+                    }
+                }
+
+                const fp = parseInt(fuelPrice, 10);
+                const op = parseInt(orgPrice, 10);
+                const ep = parseInt(equPrice, 10);
+
+                if (isNaN(fp) || isNaN(op) || isNaN(ep)) {
+                    return res.status(400).json({ error: 'all price fields are required' });
+                }
+
+                // Validate prices
+                const priceError = validatePortPrices(cls, fp, op, ep);
+                if (priceError) {
+                    return res.status(400).json({ error: priceError });
+                }
+
+                await pool.query(
+                    `INSERT INTO ports (sector_id, universe_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+                    [sectorId, universeId, cls, fuelQty, fp, orgQty, op, equQty, ep],
+                );
+
+                res.status(201).json({
+                    sectorId,
+                    class: cls,
+                    fuel: fuelQty,
+                    fuelPrice: fp,
+                    organics: orgQty,
+                    orgPrice: op,
+                    equipment: equQty,
+                    equPrice: ep,
+                });
+            } catch (err) {
+                console.error('Create port error', err);
+                res.status(500).json({ error: 'Internal server error' });
+            }
+        },
+    );
+
+    router.delete(
+        '/api/admin/universes/:id/ports/:sectorId',
+        authenticateAdmin,
+        async (req, res): Promise<any> => {
+            const universeId = parseInt(req.params.id as string, 10);
+            const sectorId = parseInt(req.params.sectorId as string, 10);
+
+            try {
+                // Check universe exists
+                const univRes = await pool.query('SELECT id FROM universes WHERE id = $1', [
+                    universeId,
+                ]);
+                if (univRes.rows.length === 0) {
+                    return res.status(404).json({ error: 'Universe not found' });
+                }
+
+                // Check port exists
+                const portRes = await pool.query(
+                    'SELECT class FROM ports WHERE sector_id = $1 AND universe_id = $2',
+                    [sectorId, universeId],
+                );
+                if (portRes.rows.length === 0) {
+                    return res.status(404).json({ error: 'Port not found' });
+                }
+
+                // Reject special ports
+                if (portRes.rows[0].class === 0 || portRes.rows[0].class === 9) {
+                    return res.status(403).json({ error: 'Cannot delete special port' });
+                }
+
+                await pool.query('DELETE FROM ports WHERE sector_id = $1 AND universe_id = $2', [
+                    sectorId,
+                    universeId,
+                ]);
+
+                res.json({ deleted: true, sectorId });
+            } catch (err) {
+                console.error('Delete port error', err);
+                res.status(500).json({ error: 'Internal server error' });
+            }
+        },
+    );
 
     return router;
 }

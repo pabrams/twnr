@@ -181,26 +181,32 @@ async function joinUniverse() {
 
 // Bold colors use FF, non-bold use 99
 const colors = {
-    red:        (s: string) => `\x1b[38;2;153;0;0m${s}\x1b[0m`,
-    green:      (s: string) => `\x1b[38;2;0;153;0m${s}\x1b[0m`,
-    blue:       (s: string) => `\x1b[38;2;0;0;153m${s}\x1b[0m`,
-    cyan:       (s: string) => `\x1b[38;2;0;153;153m${s}\x1b[0m`,
-    magenta:    (s: string) => `\x1b[38;2;153;0;153m${s}\x1b[0m`,
-    yellow:     (s: string) => `\x1b[38;2;153;153;0m${s}\x1b[0m`,
-    boldRed:    (s: string) => `\x1b[38;2;255;0;0m${s}\x1b[0m`,
-    boldGreen:  (s: string) => `\x1b[38;2;0;255;0m${s}\x1b[0m`,
-    boldBlue:   (s: string) => `\x1b[38;2;0;0;255m${s}\x1b[0m`,
-    boldCyan:   (s: string) => `\x1b[38;2;0;255;255m${s}\x1b[0m`,
-    boldMagenta:(s: string) => `\x1b[38;2;255;0;255m${s}\x1b[0m`,
+    red: (s: string) => `\x1b[38;2;153;0;0m${s}\x1b[0m`,
+    green: (s: string) => `\x1b[38;2;0;153;0m${s}\x1b[0m`,
+    blue: (s: string) => `\x1b[38;2;0;0;153m${s}\x1b[0m`,
+    cyan: (s: string) => `\x1b[38;2;0;153;153m${s}\x1b[0m`,
+    magenta: (s: string) => `\x1b[38;2;153;0;153m${s}\x1b[0m`,
+    yellow: (s: string) => `\x1b[38;2;153;153;0m${s}\x1b[0m`,
+    boldRed: (s: string) => `\x1b[38;2;255;0;0m${s}\x1b[0m`,
+    boldGreen: (s: string) => `\x1b[38;2;0;255;0m${s}\x1b[0m`,
+    boldBlue: (s: string) => `\x1b[38;2;0;0;255m${s}\x1b[0m`,
+    boldCyan: (s: string) => `\x1b[38;2;0;255;255m${s}\x1b[0m`,
+    boldMagenta: (s: string) => `\x1b[38;2;255;0;255m${s}\x1b[0m`,
     boldYellow: (s: string) => `\x1b[38;2;255;255;0m${s}\x1b[0m`,
-    white:      (s: string) => `\x1b[38;2;192;192;192m${s}\x1b[0m`,
-    boldWhite:  (s: string) => `\x1b[38;2;255;255;255m${s}\x1b[0m`,
+    white: (s: string) => `\x1b[38;2;192;192;192m${s}\x1b[0m`,
+    boldWhite: (s: string) => `\x1b[38;2;255;255;255m${s}\x1b[0m`,
 };
 
 const PORT_CLASS_LABELS: Record<number, string> = {
     0: 'Special',
-    1: 'BBS', 2: 'BSB', 3: 'SBB', 4: 'SSB',
-    5: 'BSS', 6: 'SBS', 7: 'SSS', 8: 'BBB',
+    1: 'BBS',
+    2: 'BSB',
+    3: 'SBB',
+    4: 'SSB',
+    5: 'BSS',
+    6: 'SBS',
+    7: 'SSS',
+    8: 'BBB',
     9: 'Special',
 };
 
@@ -255,7 +261,13 @@ function startGame(universeId: number) {
 
     let visitedSet = new Set<number>();
 
-    function showSectorDisplay(sector: number, warps: number[], players: { id: number; name: string }[], port?: { class: number; name: string } | null, visitedSectors?: number[]) {
+    function showSectorDisplay(
+        sector: number,
+        warps: number[],
+        players: { id: number; name: string }[],
+        port?: { class: number; name: string } | null,
+        visitedSectors?: number[],
+    ) {
         if (visitedSectors) {
             visitedSet = new Set(visitedSectors);
         }
@@ -266,26 +278,40 @@ function startGame(universeId: number) {
         term.writeln(`${colors.boldGreen('Sector')}  ${cl} ${colors.boldCyan(String(sector))}`);
         if (port) {
             const label = PORT_CLASS_LABELS[port.class] ?? '???';
-            const coloredLabel = label === 'Special'
-                ? colors.boldCyan(label)
-                : label.split('').map(ch => ch === 'B' ? colors.green(ch) : colors.boldCyan(ch)).join('');
-            term.writeln(`${mg('Port')}    ${cl} ${colors.boldCyan(port.name)}${colors.boldYellow(',')} ${mg('Class')} ${colors.boldCyan(String(port.class))} ${mg('(')}${coloredLabel}${mg(')')}`);
+            const coloredLabel =
+                label === 'Special'
+                    ? colors.boldCyan(label)
+                    : label
+                          .split('')
+                          .map((ch) => (ch === 'B' ? colors.green(ch) : colors.boldCyan(ch)))
+                          .join('');
+            term.writeln(
+                `${mg('Port')}    ${cl} ${colors.boldCyan(port.name)}${colors.boldYellow(',')} ${mg('Class')} ${colors.boldCyan(String(port.class))} ${mg('(')}${coloredLabel}${mg(')')}`,
+            );
         }
         if (warps.length > 0) {
-            term.writeln(`${colors.boldGreen('Warps')}   ${cl} ${warps.map(w => {
-                const num = String(w);
-                if (visitedSet.has(w)) return colors.boldCyan(num);
-                return `${mg('(')}${colors.boldRed(num)}${mg(')')}`;
-            }).join(` ${colors.green('-')} `)}`);
+            term.writeln(
+                `${colors.boldGreen('Warps')}   ${cl} ${warps
+                    .map((w) => {
+                        const num = String(w);
+                        if (visitedSet.has(w)) return colors.boldCyan(num);
+                        return `${mg('(')}${colors.boldRed(num)}${mg(')')}`;
+                    })
+                    .join(` ${colors.green('-')} `)}`,
+            );
         }
         if (players.length > 0) {
-            term.writeln(`${mg('Players')} ${cl} ${players.map(p => colors.boldYellow(p.name)).join(colors.boldYellow(', '))}`);
+            term.writeln(
+                `${mg('Players')} ${cl} ${players.map((p) => colors.boldYellow(p.name)).join(colors.boldYellow(', '))}`,
+            );
         }
         showPrompt();
     }
 
     function showPrompt() {
-        term.write(`\r\n${mg('Command')} ${mg('[')}${colors.boldCyan(String(currentSector))}${mg(']')} ${mg('(')}${colors.boldYellow('?')}=${colors.boldYellow('Help')}${mg(')')} ${colors.boldYellow(':')} `);
+        term.write(
+            `\r\n${mg('Command')} ${mg('[')}${colors.boldCyan(String(currentSector))}${mg(']')} ${mg('(')}${colors.boldYellow('?')}=${colors.boldYellow('Help')}${mg(')')} ${colors.boldYellow(':')} `,
+        );
     }
 
     function showHelp() {
@@ -293,11 +319,21 @@ function startGame(universeId: number) {
         term.writeln('');
         term.writeln(colors.cyan('Help Menu:'));
         term.writeln(`${colors.cyan('Command:')} Move to a sector by typing its number.`);
-        term.writeln(`${colors.cyan('Display:')} Type ${colors.boldYellow("'d'")} to refresh the sector display.`);
-        term.writeln(`${colors.cyan('Port:')} Type ${colors.boldYellow("'p'")} to access a port ${mg('(')}if one exists${mg(')')}.`);
-        term.writeln(`${colors.cyan('Ship Info:')} Type ${colors.boldYellow("'i'")} to view your ship and cargo.`);
-        term.writeln(`${colors.cyan('Help:')} Type ${colors.boldYellow("'?'")} to view this help menu.`);
-        term.writeln(`${colors.cyan('Exit Help:')} Press ${colors.boldYellow("'q'")} to return to the game.`);
+        term.writeln(
+            `${colors.cyan('Display:')} Type ${colors.boldYellow("'d'")} to refresh the sector display.`,
+        );
+        term.writeln(
+            `${colors.cyan('Port:')} Type ${colors.boldYellow("'p'")} to access a port ${mg('(')}if one exists${mg(')')}.`,
+        );
+        term.writeln(
+            `${colors.cyan('Ship Info:')} Type ${colors.boldYellow("'i'")} to view your ship and cargo.`,
+        );
+        term.writeln(
+            `${colors.cyan('Help:')} Type ${colors.boldYellow("'?'")} to view this help menu.`,
+        );
+        term.writeln(
+            `${colors.cyan('Exit Help:')} Press ${colors.boldYellow("'q'")} to return to the game.`,
+        );
     }
 
     function showPortMenu() {
@@ -309,7 +345,9 @@ function startGame(universeId: number) {
         mode = 'port';
         const label = PORT_CLASS_LABELS[currentPort.class] ?? '???';
         term.writeln('');
-        term.writeln(`${colors.boldCyan(currentPort.name)}${colors.boldYellow(',')} ${mg('Class')} ${colors.boldCyan(String(currentPort.class))} ${mg('(')}${colors.boldWhite(label)}${mg(')')}`);
+        term.writeln(
+            `${colors.boldCyan(currentPort.name)}${colors.boldYellow(',')} ${mg('Class')} ${colors.boldCyan(String(currentPort.class))} ${mg('(')}${colors.boldWhite(label)}${mg(')')}`,
+        );
         term.writeln(`  ${colors.cyan('T')}  Trade at this port`);
         term.writeln(`  ${colors.cyan('Q')}  Never mind`);
     }
@@ -319,9 +357,13 @@ function startGame(universeId: number) {
         const p = dockedPortInfo;
         const actions = PORT_CLASS_ACTIONS[p.class];
         term.writeln('');
-        term.writeln(`${colors.boldGreen('Docked')} at ${colors.boldCyan(`Port ${p.sectorId}`)}${colors.boldYellow(',')} ${mg('Class')} ${colors.boldCyan(String(p.class))}`);
+        term.writeln(
+            `${colors.boldGreen('Docked')} at ${colors.boldCyan(`Port ${p.sectorId}`)}${colors.boldYellow(',')} ${mg('Class')} ${colors.boldCyan(String(p.class))}`,
+        );
         if (actions) {
-            term.writeln(`  ${colors.boldWhite('Commodity'.padEnd(14))} ${colors.boldWhite('Price'.padStart(5))}   ${colors.boldWhite('Stock'.padStart(5))}   ${colors.boldWhite('Port')}`);
+            term.writeln(
+                `  ${colors.boldWhite('Commodity'.padEnd(14))} ${colors.boldWhite('Price'.padStart(5))}   ${colors.boldWhite('Stock'.padStart(5))}   ${colors.boldWhite('Port')}`,
+            );
             const goods = [
                 { name: 'Fuel', key: 'fuel', price: p.fuelPrice, stock: p.fuel },
                 { name: 'Organics', key: 'organics', price: p.orgPrice, stock: p.organics },
@@ -330,7 +372,9 @@ function startGame(universeId: number) {
             for (const g of goods) {
                 const action = actions[g.key];
                 const dir = action === 'B' ? colors.boldGreen('Buying') : colors.boldRed('Selling');
-                term.writeln(`  ${colors.boldYellow(g.name.padEnd(14))} ${colors.white(String(g.price).padStart(5))}   ${colors.white(String(g.stock).padStart(5))}   ${dir}`);
+                term.writeln(
+                    `  ${colors.boldYellow(g.name.padEnd(14))} ${colors.white(String(g.price).padStart(5))}   ${colors.white(String(g.stock).padStart(5))}   ${dir}`,
+                );
             }
             term.writeln('');
             term.writeln(`  ${colors.cyan('B')} <good> <qty>  Buy from port`);
@@ -381,19 +425,31 @@ function startGame(universeId: number) {
                 }
                 break;
             case ServerMsgType.PortTransactionResult:
-                term.writeln(`\r\n${colors.boldGreen('Transaction complete.')} Credits: ${colors.boldYellow(String(msg.credits))}`);
-                term.writeln(`  Cargo — ${colors.boldYellow('Fuel')}: ${msg.cargo.fuel}, ${colors.boldYellow('Organics')}: ${msg.cargo.organics}, ${colors.boldYellow('Equipment')}: ${msg.cargo.equipment}`);
+                term.writeln(
+                    `\r\n${colors.boldGreen('Transaction complete.')} Credits: ${colors.boldYellow(String(msg.credits))}`,
+                );
+                term.writeln(
+                    `  Cargo — ${colors.boldYellow('Fuel')}: ${msg.cargo.fuel}, ${colors.boldYellow('Organics')}: ${msg.cargo.organics}, ${colors.boldYellow('Equipment')}: ${msg.cargo.equipment}`,
+                );
                 if (mode === 'docked') showDockedMenu();
                 break;
             case ServerMsgType.ShipInfo:
                 term.writeln('');
                 term.writeln(`${colors.white('Ship:')} ${colors.boldCyan(msg.shipName)}`);
-                term.writeln(`  ${colors.boldYellow('Fighters')}: ${colors.white(`${msg.fighters}`)}/${colors.cyan(`${msg.maxFighters}`)}  ${colors.boldYellow('Shields')}: ${colors.white(`${msg.shields}`)}/${colors.cyan(`${msg.maxShields}`)}`);
-                term.writeln(`  ${colors.boldYellow('Cargo holds')}: ${colors.boldGreen(`${msg.holdsAvailable} free`)} / ${colors.white(`${msg.cargoLimit} total`)} ${mg('(')}max ${msg.maxHolds}${mg(')')}`);
-                term.writeln(`  ${colors.boldYellow('Fuel')}: ${msg.cargoFuel}  ${colors.boldYellow('Organics')}: ${msg.cargoOrganics}  ${colors.boldYellow('Equipment')}: ${msg.cargoEquipment}`);
+                term.writeln(
+                    `  ${colors.boldYellow('Fighters')}: ${colors.white(`${msg.fighters}`)}/${colors.cyan(`${msg.maxFighters}`)}  ${colors.boldYellow('Shields')}: ${colors.white(`${msg.shields}`)}/${colors.cyan(`${msg.maxShields}`)}`,
+                );
+                term.writeln(
+                    `  ${colors.boldYellow('Cargo holds')}: ${colors.boldGreen(`${msg.holdsAvailable} free`)} / ${colors.white(`${msg.cargoLimit} total`)} ${mg('(')}max ${msg.maxHolds}${mg(')')}`,
+                );
+                term.writeln(
+                    `  ${colors.boldYellow('Fuel')}: ${msg.cargoFuel}  ${colors.boldYellow('Organics')}: ${msg.cargoOrganics}  ${colors.boldYellow('Equipment')}: ${msg.cargoEquipment}`,
+                );
                 break;
             case ServerMsgType.CargoInfo:
-                term.writeln(`  ${colors.boldYellow('Credits')}: ${colors.boldYellow(String(msg.credits))}`);
+                term.writeln(
+                    `  ${colors.boldYellow('Credits')}: ${colors.boldYellow(String(msg.credits))}`,
+                );
                 if (mode === 'shipInfo') {
                     mode = 'sector';
                     term.writeln('');
@@ -401,7 +457,9 @@ function startGame(universeId: number) {
                 }
                 break;
             case ServerMsgType.NonAdjacentMoveRequested:
-                term.writeln(`\r\n${colors.boldRed(`Cannot move to sector ${msg.sector} — not adjacent.`)}`);
+                term.writeln(
+                    `\r\n${colors.boldRed(`Cannot move to sector ${msg.sector} — not adjacent.`)}`,
+                );
                 showPrompt();
                 break;
             case ServerMsgType.Error:
@@ -521,7 +579,12 @@ function startGame(universeId: number) {
                     term.writeln('Usage: b <fuel|organics|equipment> <quantity>');
                     return;
                 }
-                sendMsg({ type: ClientMsgType.PortTransaction, good, quantity: qty, action: 'buy' });
+                sendMsg({
+                    type: ClientMsgType.PortTransaction,
+                    good,
+                    quantity: qty,
+                    action: 'buy',
+                });
                 break;
             }
             case 's':
@@ -532,7 +595,12 @@ function startGame(universeId: number) {
                     term.writeln('Usage: s <fuel|organics|equipment> <quantity>');
                     return;
                 }
-                sendMsg({ type: ClientMsgType.PortTransaction, good, quantity: qty, action: 'sell' });
+                sendMsg({
+                    type: ClientMsgType.PortTransaction,
+                    good,
+                    quantity: qty,
+                    action: 'sell',
+                });
                 break;
             }
             case 'q':
