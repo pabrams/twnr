@@ -35,6 +35,8 @@ export interface GameContext {
     setShipConfigs: (configs: any[]) => void;
     setPlanetConfigs: (configs: any[]) => void;
     setCurrentShipName: (name: string) => void;
+    class0Prices: { fighterPrice: number; shieldPrice: number; holdPrice: number } | null;
+    setClass0Prices: (p: { fighterPrice: number; shieldPrice: number; holdPrice: number }) => void;
     autopilotPath: number[];
     autopilotStep: number;
     setAutopilotPath: (path: number[]) => void;
@@ -222,15 +224,30 @@ export function showAttackFightersPrompt(ctx: GameContext) {
     ctx.term.write(`\r\n${colors.cyan('How many fighters to attack with?')} `);
 }
 
-export function showClass0Menu(ctx: GameContext) {
+export async function showClass0Menu(ctx: GameContext) {
     ctx.setMode('class0');
+    if (!ctx.class0Prices) {
+        try {
+            const res = await fetch('/api/class0-prices');
+            ctx.setClass0Prices(await res.json());
+        } catch {
+            ctx.setClass0Prices({ fighterPrice: 20, shieldPrice: 10, holdPrice: 50 });
+        }
+    }
+    const p = ctx.class0Prices!;
     ctx.term.writeln('');
     ctx.term.writeln(
         `${colors.boldGreen('Docked')} at ${colors.boldCyan('Stardock Supply Depot')}`,
     );
-    ctx.term.writeln(`  ${colors.cyan('F')}  Buy Fighters ${colors.white('(20 credits each)')}`);
-    ctx.term.writeln(`  ${colors.cyan('S')}  Buy Shields ${colors.white('(10 credits each)')}`);
-    ctx.term.writeln(`  ${colors.cyan('H')}  Buy Holds ${colors.white('(50 credits each)')}`);
+    ctx.term.writeln(
+        `  ${colors.cyan('F')}  Buy Fighters ${colors.white(`(${p.fighterPrice} credits each)`)}`,
+    );
+    ctx.term.writeln(
+        `  ${colors.cyan('S')}  Buy Shields ${colors.white(`(${p.shieldPrice} credits each)`)}`,
+    );
+    ctx.term.writeln(
+        `  ${colors.cyan('H')}  Buy Holds ${colors.white(`(${p.holdPrice} credits each)`)}`,
+    );
     ctx.term.writeln(`  ${colors.cyan('Q')}  Leave port`);
 }
 

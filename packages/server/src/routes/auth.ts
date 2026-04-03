@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { pool } from '../db/index.js';
 import type { AuthResponse, LogoutResponse } from '@twnr/shared';
 import type { RouteDeps, Middleware } from './middleware.js';
+import { newPlayerConfig } from '../game-config.js';
 
 export function createAuthRoutes(router: Router, deps: RouteDeps, middleware: Middleware): void {
     const {
@@ -119,24 +120,30 @@ export function createAuthRoutes(router: Router, deps: RouteDeps, middleware: Mi
                     }
 
                     // Delay passed — clear destroyed date and give new ship
+                    const startShip = shipConfigs[newPlayerConfig.startingShip];
                     await pool.query(
-                        'UPDATE players SET ship_destroyed_date = NULL, current_sector = 1 WHERE id = $1',
-                        [player.id],
+                        'UPDATE players SET ship_destroyed_date = NULL, current_sector = $2 WHERE id = $1',
+                        [player.id, newPlayerConfig.startingSector],
                     );
                     await pool.query('DELETE FROM player_ships WHERE player_id = $1', [player.id]);
                     await pool.query('DELETE FROM ship_cargo WHERE player_id = $1', [player.id]);
-                    const merchant = shipConfigs['Merchant Freighter'];
-                    if (merchant) {
+                    if (startShip) {
                         await pool.query(
                             `INSERT INTO player_ships (player_id, ship_name, fighters, shields, cargo_limit)
-                             VALUES ($1, $2, 0, 0, $3)`,
-                            [player.id, merchant.name, merchant.startingHolds],
+                             VALUES ($1, $2, $3, $4, $5)`,
+                            [
+                                player.id,
+                                startShip.name,
+                                newPlayerConfig.startingFighters,
+                                newPlayerConfig.startingShields,
+                                startShip.startingHolds,
+                            ],
                         );
                     }
                     await pool.query(
                         `INSERT INTO ship_cargo (player_id, fuel, organics, equipment, credits)
-                         VALUES ($1, 0, 0, 0, 10000)`,
-                        [player.id],
+                         VALUES ($1, 0, 0, 0, $2)`,
+                        [player.id, newPlayerConfig.startingCredits],
                     );
                 }
             }

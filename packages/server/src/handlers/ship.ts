@@ -3,6 +3,7 @@ import { ServerMsgType } from '@twnr/shared';
 import { shipConfigs } from '../ship-config.js';
 import { send, getPlayerUniverseId } from '../game-state.js';
 import { pool } from '../db/index.js';
+import { class0Prices } from '../game-config.js';
 
 export async function handleShipInfo(ws: WebSocket, playerId: number): Promise<void> {
     const query = `
@@ -124,7 +125,7 @@ export async function handleBuyFighters(
             return;
         }
 
-        const cost = qty * 20;
+        const cost = qty * class0Prices.fighterPrice;
         if (data.credits < cost) {
             await client.query('ROLLBACK');
             send(ws, { type: ServerMsgType.Error, message: 'Insufficient credits' });
@@ -216,7 +217,7 @@ export async function handleBuyShields(
             return;
         }
 
-        const cost = qty * 10;
+        const cost = qty * class0Prices.shieldPrice;
         if (data.credits < cost) {
             await client.query('ROLLBACK');
             send(ws, { type: ServerMsgType.Error, message: 'Insufficient credits' });
@@ -308,7 +309,7 @@ export async function handleBuyHolds(
             return;
         }
 
-        const cost = qty * 50;
+        const cost = qty * class0Prices.holdPrice;
         if (data.credits < cost) {
             await client.query('ROLLBACK');
             send(ws, { type: ServerMsgType.Error, message: 'Insufficient credits' });

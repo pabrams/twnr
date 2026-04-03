@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { shipConfigs, SHIPS_DIR, reloadShipConfigs } from '../ship-config.js';
 import { planetConfigs, PLANETS_DIR, reloadPlanetConfigs } from '../planet-config.js';
+import { class0Prices } from '../game-config.js';
 import type { Middleware } from './middleware.js';
 
 function slugify(name: string): string {
@@ -16,6 +17,10 @@ export function createCatalogRoutes(router: Router, middleware: Middleware): voi
     const { authenticateAdmin } = middleware;
 
     // ─── Public: list configs ──────────────────────────────────────
+
+    router.get('/api/class0-prices', (_req, res) => {
+        res.json(class0Prices);
+    });
 
     router.get('/api/ships', (_req, res) => {
         const ships = Object.values(shipConfigs).sort((a: any, b: any) => a.price - b.price);

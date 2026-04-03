@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { pool } from '../db/index.js';
 import type { RouteDeps, Middleware } from './middleware.js';
+import { newPlayerConfig } from '../game-config.js';
 
 export function createUniverseRoutes(
     router: Router,
@@ -72,34 +73,41 @@ export function createUniverseRoutes(
             }
 
             // Create player row
+            const startSector = newPlayerConfig.startingSector;
             const playerRes = await pool.query(
                 `INSERT INTO players (name, user_id, universe_id, current_sector)
-                 VALUES ($1, $2, $3, 1) RETURNING id`,
-                [name, userId, universeId],
+                 VALUES ($1, $2, $3, $4) RETURNING id`,
+                [name, userId, universeId, startSector],
             );
             const playerId = playerRes.rows[0].id;
 
             // Create ship
-            const merchant = shipConfigs['Merchant Freighter'];
-            if (merchant) {
+            const startShip = shipConfigs[newPlayerConfig.startingShip];
+            if (startShip) {
                 await pool.query(
                     `INSERT INTO player_ships (player_id, ship_name, fighters, shields, cargo_limit)
-                     VALUES ($1, $2, 0, 0, $3)`,
-                    [playerId, merchant.name, merchant.startingHolds],
+                     VALUES ($1, $2, $3, $4, $5)`,
+                    [
+                        playerId,
+                        startShip.name,
+                        newPlayerConfig.startingFighters,
+                        newPlayerConfig.startingShields,
+                        startShip.startingHolds,
+                    ],
                 );
             }
 
             // Create cargo
             await pool.query(
                 `INSERT INTO ship_cargo (player_id, fuel, organics, equipment, credits)
-                 VALUES ($1, 0, 0, 0, 10000)`,
-                [playerId],
+                 VALUES ($1, 0, 0, 0, $2)`,
+                [playerId, newPlayerConfig.startingCredits],
             );
 
             // Mark starting sector as visited
             await pool.query(
-                'INSERT INTO visited_sectors (player_id, sector_id) VALUES ($1, 1) ON CONFLICT DO NOTHING',
-                [playerId],
+                'INSERT INTO visited_sectors (player_id, sector_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+                [playerId, startSector],
             );
 
             res.status(201).json({ playerId, universeId });

@@ -41,6 +41,8 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
     let shipConfigs: any[] | null = null;
     let planetConfigs: any[] | null = null;
     let currentShipName = '';
+    let class0Prices: { fighterPrice: number; shieldPrice: number; holdPrice: number } | null =
+        null;
     let autopilotPath: number[] = [];
     let autopilotStep = 0;
 
@@ -95,6 +97,9 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
         get currentShipName() {
             return currentShipName;
         },
+        get class0Prices() {
+            return class0Prices;
+        },
         get autopilotPath() {
             return autopilotPath;
         },
@@ -143,6 +148,9 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
         },
         setCurrentShipName: (n) => {
             currentShipName = n;
+        },
+        setClass0Prices: (p) => {
+            class0Prices = p;
         },
         setAutopilotPath: (p) => {
             autopilotPath = p;

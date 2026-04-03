@@ -1,0 +1,7 @@
+{
+  "startingShip": "Merchant Freighter",
+  "startingCredits": 10000,
+  "startingFighters": 0,
+  "startingShields": 0,
+  "startingSector": 1
+}
