@@ -121,11 +121,22 @@ async function ensureSchema(client) {
       UNIQUE (sector_id, universe_id)
     );
 
+    CREATE TABLE IF NOT EXISTS planets (
+      id SERIAL PRIMARY KEY,
+      sector_id INTEGER NOT NULL,
+      universe_id INTEGER NOT NULL REFERENCES universes(id),
+      name VARCHAR(255) NOT NULL,
+      type VARCHAR(255) NOT NULL DEFAULT 'Terran',
+      colonists INTEGER NOT NULL DEFAULT 0,
+      UNIQUE (sector_id, universe_id)
+    );
+
     CREATE TABLE IF NOT EXISTS ship_cargo (
       player_id INTEGER PRIMARY KEY,
       fuel INTEGER NOT NULL DEFAULT 0,
       organics INTEGER NOT NULL DEFAULT 0,
       equipment INTEGER NOT NULL DEFAULT 0,
+      colonists INTEGER NOT NULL DEFAULT 0,
       credits INTEGER NOT NULL DEFAULT 10000
     );
 
@@ -202,6 +213,24 @@ async function main() {
           parseInt(row[7], 10), // equ_price
         ],
       );
+    }
+
+    // Import planets (if planets.csv exists)
+    // Only import the first planet per sector since the schema enforces one planet per sector
+    try {
+      const { rows: planetRows } = readCSV(join(universeDir, 'planets.csv'));
+      const seenSectors = new Set();
+      for (const row of planetRows) {
+        const sectorId = parseInt(row[0], 10);
+        if (seenSectors.has(sectorId)) continue;
+        seenSectors.add(sectorId);
+        await client.query(
+          'INSERT INTO planets (sector_id, universe_id, name, type) VALUES ($1, $2, $3, $4)',
+          [sectorId, universeId, row[1], row[2]],
+        );
+      }
+    } catch {
+      // planets.csv may not exist in older bigbang outputs
     }
 
     // Seed Class 0 port in Sector 1

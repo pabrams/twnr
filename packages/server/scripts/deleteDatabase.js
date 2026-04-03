@@ -14,11 +14,16 @@ async function deleteDatabase() {
     console.log("connected");
     
     await client.query(`
+      DROP TABLE IF EXISTS planets CASCADE;
+      DROP TABLE IF EXISTS visited_sectors CASCADE;
       DROP TABLE IF EXISTS ship_cargo CASCADE;
+      DROP TABLE IF EXISTS player_ships CASCADE;
       DROP TABLE IF EXISTS ports CASCADE;
       DROP TABLE IF EXISTS players CASCADE;
       DROP TABLE IF EXISTS warps CASCADE;
       DROP TABLE IF EXISTS sectors CASCADE;
+      DROP TABLE IF EXISTS universes CASCADE;
+      DROP TABLE IF EXISTS users CASCADE;
     `);
     
     console.log('Database tables deleted successfully');

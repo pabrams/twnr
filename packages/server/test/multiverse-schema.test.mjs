@@ -74,6 +74,8 @@ before(async () => {
   // Drop all tables to start fresh
   await pool.query(`
     DROP TABLE IF EXISTS ship_cargo CASCADE;
+    DROP TABLE IF EXISTS planets CASCADE;
+    DROP TABLE IF EXISTS visited_sectors CASCADE;
     DROP TABLE IF EXISTS player_ships CASCADE;
     DROP TABLE IF EXISTS ports CASCADE;
     DROP TABLE IF EXISTS warps CASCADE;

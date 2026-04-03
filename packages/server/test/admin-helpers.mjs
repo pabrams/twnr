@@ -249,11 +249,21 @@ export const SCHEMA_SQL = `
     equ_price INTEGER NOT NULL,
     UNIQUE (sector_id, universe_id)
   );
+  CREATE TABLE IF NOT EXISTS planets (
+    id SERIAL PRIMARY KEY,
+    sector_id INTEGER NOT NULL,
+    universe_id INTEGER NOT NULL REFERENCES universes(id),
+    name VARCHAR(255) NOT NULL,
+    type VARCHAR(255) NOT NULL DEFAULT 'Terran',
+    colonists INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (sector_id, universe_id)
+  );
   CREATE TABLE IF NOT EXISTS ship_cargo (
     player_id INTEGER PRIMARY KEY,
     fuel INTEGER NOT NULL DEFAULT 0,
     organics INTEGER NOT NULL DEFAULT 0,
     equipment INTEGER NOT NULL DEFAULT 0,
+    colonists INTEGER NOT NULL DEFAULT 0,
     credits INTEGER NOT NULL DEFAULT 10000
   );
   CREATE TABLE IF NOT EXISTS visited_sectors (

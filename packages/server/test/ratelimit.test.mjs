@@ -35,7 +35,7 @@ before(async () => {
     if (gen.status !== 0) throw new Error(`bigbang failed: ${gen.stderr}`);
 
     pool = createPool();
-    await pool.query('DROP TABLE IF EXISTS ship_cargo, player_ships, ports, warps, players, sectors, universes, users CASCADE');
+    await pool.query('DROP TABLE IF EXISTS planets, visited_sectors, ship_cargo, player_ships, ports, warps, players, sectors, universes, users CASCADE');
     await pool.end();
 
     const imp = spawnSync(process.execPath, [
