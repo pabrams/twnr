@@ -1,0 +1,141 @@
+import { describe, it, before, after } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { tmpdir } from 'node:os';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { createPool, connectWS as _connectWS, closeWS, wsRequest, startServer, testEnv } from './helpers.mjs';
+
+const __filename = fileURLToPath(import.meta.url);
+const PROJECT_ROOT = join(dirname(__filename), '..');
+
+const merchantCfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', 'merchant.json'), 'utf8'));
+const UNIVERSE_ID = 1;
+
+// ─── globals ──────────────────────────────────────────────────────────────────
+
+let pool;
+let serverProc;
+
+function connectWS(opts = {}) {
+  return _connectWS({ pool, universeId: UNIVERSE_ID, ...opts });
+}
+
+// ─── setup ────────────────────────────────────────────────────────────────────
+
+before(async () => {
+  const universeDir = join(tmpdir(), `twnr_ships_test_${Date.now()}`);
+
+  const gen = spawnSync(process.execPath, [
+    join(PROJECT_ROOT, 'scripts', 'twnr-bigbang.js'),
+    universeDir, '--sectors', '100', '--seed', '42',
+  ], { encoding: 'utf8', cwd: PROJECT_ROOT });
+  if (gen.status !== 0) throw new Error(`bigbang failed: ${gen.stderr}`);
+
+  pool = createPool();
+  await pool.query('SELECT 1');
+  await pool.query(`
+    DROP TABLE IF EXISTS player_ships CASCADE;
+    DROP TABLE IF EXISTS ship_cargo CASCADE;
+    DROP TABLE IF EXISTS ports CASCADE;
+    DROP TABLE IF EXISTS warps CASCADE;
+    DROP TABLE IF EXISTS players CASCADE;
+    DROP TABLE IF EXISTS sectors CASCADE;
+    DROP TABLE IF EXISTS universes CASCADE;
+    DROP TABLE IF EXISTS users CASCADE;
+  `);
+  await pool.end();
+
+  const imp = spawnSync(process.execPath, [
+    join(PROJECT_ROOT, 'scripts', 'importUniverse.js'),
+    universeDir, '--force',
+  ], { encoding: 'utf8', cwd: PROJECT_ROOT, env: testEnv() });
+  if (imp.status !== 0) throw new Error(`importUniverse failed: ${imp.stderr}\n${imp.stdout}`);
+
+  serverProc = await startServer();
+  pool = createPool();
+});
+
+after(async () => {
+  if (serverProc) serverProc.kill();
+  if (pool) await pool.end();
+});
+
+// ─── tests ────────────────────────────────────────────────────────────────────
+
+describe('Buy shields — validation', () => {
+  it('returns "Invalid quantity" for quantity 0', async () => {
+    const { ws } = await connectWS();
+    try {
+      const msg = await wsRequest(ws, { type: 'buyShields', quantity: 0 }, 'buyResult');
+      assert.equal(msg.type, 'error');
+      assert.equal(msg.message, 'Invalid quantity');
+    } finally {
+      await closeWS(ws);
+    }
+  });
+
+  it('returns "Invalid quantity" for negative quantity', async () => {
+    const { ws } = await connectWS();
+    try {
+      const msg = await wsRequest(ws, { type: 'buyShields', quantity: -1 }, 'buyResult');
+      assert.equal(msg.type, 'error');
+      assert.equal(msg.message, 'Invalid quantity');
+    } finally {
+      await closeWS(ws);
+    }
+  });
+
+  it('returns "Invalid quantity" for a float quantity', async () => {
+    const { ws } = await connectWS();
+    try {
+      const msg = await wsRequest(ws, { type: 'buyShields', quantity: 2.9 }, 'buyResult');
+      assert.equal(msg.type, 'error');
+      assert.equal(msg.message, 'Invalid quantity');
+    } finally {
+      await closeWS(ws);
+    }
+  });
+
+  it('returns "Not at a class 0 port" when not in a class 0 sector', async () => {
+    const res = await pool.query('SELECT sector_id FROM ports WHERE class != 0 AND universe_id = $1 LIMIT 1', [UNIVERSE_ID]);
+    assert.ok(res.rows.length > 0, 'Need a non-class-0 sector');
+    const otherSector = Number(res.rows[0].sector_id);
+
+    const { ws, welcome } = await connectWS();
+    const playerId = welcome.playerId;
+    try {
+      await pool.query('UPDATE players SET current_sector = $1 WHERE id = $2', [otherSector, playerId]);
+      const msg = await wsRequest(ws, { type: 'buyShields', quantity: 1 }, 'buyResult');
+      assert.equal(msg.type, 'error');
+      assert.equal(msg.message, 'Not at a class 0 port');
+    } finally {
+      await closeWS(ws);
+    }
+  });
+
+  it('returns "Exceeds maximum" when shields + quantity > maxShields', async () => {
+    const { ws } = await connectWS();
+    try {
+      const msg = await wsRequest(ws, { type: 'buyShields', quantity: merchantCfg.maxShields + 1 }, 'buyResult');
+      assert.equal(msg.type, 'error');
+      assert.equal(msg.message, 'Exceeds maximum');
+    } finally {
+      await closeWS(ws);
+    }
+  });
+
+  it('returns "Insufficient credits" when player cannot afford shields', async () => {
+    const { ws, welcome } = await connectWS();
+    const playerId = welcome.playerId;
+    try {
+      await pool.query('UPDATE ship_cargo SET credits = 0 WHERE player_id = $1', [playerId]);
+      const msg = await wsRequest(ws, { type: 'buyShields', quantity: 1 }, 'buyResult');
+      assert.equal(msg.type, 'error');
+      assert.equal(msg.message, 'Insufficient credits');
+    } finally {
+      await closeWS(ws);
+    }
+  });
+});
