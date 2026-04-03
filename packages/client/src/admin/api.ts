@@ -165,3 +165,76 @@ export function deletePort(
 ): Promise<{ deleted: boolean; sectorId: number }> {
     return adminFetch(`/api/admin/universes/${universeId}/ports/${sectorId}`, { method: 'DELETE' });
 }
+
+// Ship config management
+export interface ShipConfig {
+    name: string;
+    maxFighters: number;
+    maxShields: number;
+    startingHolds: number;
+    maxHolds: number;
+    price: number;
+}
+
+export function listShips(): Promise<ShipConfig[]> {
+    return adminFetch('/api/ships');
+}
+
+export function getShip(name: string): Promise<ShipConfig> {
+    return adminFetch(`/api/admin/ships/${encodeURIComponent(name)}`);
+}
+
+export function createShip(ship: ShipConfig): Promise<ShipConfig> {
+    return adminFetch('/api/admin/ships', {
+        method: 'POST',
+        body: JSON.stringify(ship),
+    });
+}
+
+export function updateShip(name: string, params: Partial<ShipConfig>): Promise<ShipConfig> {
+    return adminFetch(`/api/admin/ships/${encodeURIComponent(name)}`, {
+        method: 'PUT',
+        body: JSON.stringify(params),
+    });
+}
+
+export function deleteShip(name: string): Promise<{ deleted: boolean; name: string }> {
+    return adminFetch(`/api/admin/ships/${encodeURIComponent(name)}`, { method: 'DELETE' });
+}
+
+// Planet config management
+export interface PlanetConfig {
+    type: string;
+    description: string;
+    maxColonists: number;
+    maxCitadel: number;
+    fuelProduction: number;
+    organicsProduction: number;
+    equipmentProduction: number;
+}
+
+export function listPlanets(): Promise<PlanetConfig[]> {
+    return adminFetch('/api/planets');
+}
+
+export function getPlanet(type: string): Promise<PlanetConfig> {
+    return adminFetch(`/api/admin/planets/${encodeURIComponent(type)}`);
+}
+
+export function createPlanet(planet: PlanetConfig): Promise<PlanetConfig> {
+    return adminFetch('/api/admin/planets', {
+        method: 'POST',
+        body: JSON.stringify(planet),
+    });
+}
+
+export function updatePlanet(type: string, params: Partial<PlanetConfig>): Promise<PlanetConfig> {
+    return adminFetch(`/api/admin/planets/${encodeURIComponent(type)}`, {
+        method: 'PUT',
+        body: JSON.stringify(params),
+    });
+}
+
+export function deletePlanet(type: string): Promise<{ deleted: boolean; type: string }> {
+    return adminFetch(`/api/admin/planets/${encodeURIComponent(type)}`, { method: 'DELETE' });
+}

@@ -19,7 +19,7 @@ export function createRoutes(deps: RouteDeps): Router {
     createAdminStatsRoutes(router, deps, middleware);
     createAdminLifecycleRoutes(router, deps, middleware);
     createAdminPortRoutes(router, deps, middleware);
-    createCatalogRoutes(router);
+    createCatalogRoutes(router, middleware);
 
     return router;
 }
