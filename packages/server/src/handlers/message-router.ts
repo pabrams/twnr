@@ -20,7 +20,7 @@ export async function handleMessage(ws: WebSocket, playerId: number, data: any):
         case ClientMsgType.SectorDisplay:
             return handleSectorDisplay(ws, playerId);
         case ClientMsgType.Who:
-            return handleWho(ws);
+            return handleWho(ws, playerId);
         case ClientMsgType.SectorWarps:
             return handleSectorWarps(ws, playerId, data.id);
         case ClientMsgType.Path:
@@ -52,7 +52,10 @@ export async function handleMessage(ws: WebSocket, playerId: number, data: any):
     }
 }
 
-function handleWho(ws: WebSocket): void {
-    const playersKeys = Object.keys(players).map(Number);
-    send(ws, { type: ServerMsgType.PlayersOnline, players: playersKeys });
+function handleWho(ws: WebSocket, playerId: number): void {
+    const callerUniverse = players[playerId]?.universeId;
+    const online = Object.entries(players)
+        .filter(([, p]) => p.universeId === callerUniverse)
+        .map(([id, p]) => ({ id: Number(id), name: p.name, sector: p.sector }));
+    send(ws, { type: ServerMsgType.PlayersOnline, players: online });
 }

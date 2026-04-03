@@ -34,7 +34,7 @@ export type PlayerLeftMessage = {
 
 export type PlayersOnlineMessage = {
     type: typeof ServerMsgType.PlayersOnline;
-    players: number[];
+    players: { id: number; name: string; sector: number }[];
 };
 
 export type NoShipMessage = {

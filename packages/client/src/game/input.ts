@@ -43,6 +43,7 @@ export function setupInput(term: Terminal, ctx: GameContext) {
         's',
         'y',
         'n',
+        '#',
     ]);
 
     let inputBuffer = '';
@@ -147,6 +148,9 @@ function handleInput(ctx: GameContext, line: string) {
             ctx.term.writeln(`\r\n${colors.white('Goodbye!')}`);
             ctx.ws.close();
             return;
+        case '#':
+            ctx.sendMsg({ type: ClientMsgType.Who });
+            break;
         case 'm':
         case 'move': {
             const sector = parseInt(args[0], 10);

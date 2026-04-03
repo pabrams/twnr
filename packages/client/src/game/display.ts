@@ -129,6 +129,7 @@ export function showHelp(ctx: GameContext) {
         `${colors.cyan('Attack:')} ${colors.boldYellow("'A'")} attack a player in your sector.`,
     );
     ctx.term.writeln(`${colors.cyan('Computer:')} ${colors.boldYellow("'C'")} ship computer.`);
+    ctx.term.writeln(`${colors.cyan('Who:')} ${colors.boldYellow("'#'")} players online.`);
     ctx.term.writeln(`${colors.cyan('Help:')} ${colors.boldYellow("'?'")} this menu.`);
     ctx.term.writeln(`${colors.cyan('Quit:')} ${colors.boldYellow("'Q'")} quit the game.`);
     ctx.term.writeln('');

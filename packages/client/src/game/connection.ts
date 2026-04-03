@@ -7,6 +7,7 @@ import {
     showPrompt,
     showClass0Menu,
     showAutopilotPrompt,
+    colorSector,
 } from './display.js';
 import { colors } from './constants.js';
 
@@ -103,6 +104,18 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     ctx.term.writeln(`Press ${colors.boldYellow("'q'")} to return.`);
                 }
                 break;
+            case ServerMsgType.PlayersOnline: {
+                ctx.term.writeln('');
+                ctx.term.writeln(`${colors.boldCyan('Players Online')} (${msg.players.length}):`);
+                for (const p of msg.players) {
+                    const tag = p.id === ctx.playerId ? colors.boldGreen(' (you)') : '';
+                    ctx.term.writeln(
+                        `  ${colors.boldYellow(p.name)} in sector ${colorSector(p.sector, ctx.visitedSet)}${tag}`,
+                    );
+                }
+                showPrompt(ctx);
+                break;
+            }
             case ServerMsgType.NonAdjacentMoveRequested:
                 // Request shortest path from server for express warp
                 ctx.sendMsg({
