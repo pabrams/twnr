@@ -1,0 +1,1 @@
+{ "type": "Gas Giant", "description": "Massive gas world with orbital platform colonies", "maxColonists": 10000, "maxCitadel": 1, "fuelProduction": 25, "organicsProduction": 0, "equipmentProduction": 2 }

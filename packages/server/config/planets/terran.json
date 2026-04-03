@@ -1,0 +1,1 @@
+{ "type": "Terran", "description": "Earth-like world with breathable atmosphere", "maxColonists": 50000, "maxCitadel": 3, "fuelProduction": 5, "organicsProduction": 15, "equipmentProduction": 8 }

@@ -1,0 +1,1 @@
+{ "type": "Agricultural", "description": "Fertile plains world ideal for large-scale farming", "maxColonists": 45000, "maxCitadel": 2, "fuelProduction": 2, "organicsProduction": 25, "equipmentProduction": 3 }

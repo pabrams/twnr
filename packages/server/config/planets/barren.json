@@ -1,0 +1,1 @@
+{ "type": "Barren", "description": "Lifeless rock useful only for mining operations", "maxColonists": 8000, "maxCitadel": 1, "fuelProduction": 10, "organicsProduction": 0, "equipmentProduction": 14 }

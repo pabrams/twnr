@@ -1,0 +1,1 @@
+{ "type": "Volcanic", "description": "Geologically active world rich in minerals", "maxColonists": 15000, "maxCitadel": 2, "fuelProduction": 18, "organicsProduction": 1, "equipmentProduction": 12 }

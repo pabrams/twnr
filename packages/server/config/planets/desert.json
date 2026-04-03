@@ -1,0 +1,1 @@
+{ "type": "Desert", "description": "Arid world with vast mineral deposits", "maxColonists": 25000, "maxCitadel": 3, "fuelProduction": 14, "organicsProduction": 2, "equipmentProduction": 10 }

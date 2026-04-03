@@ -1,0 +1,1 @@
+{ "type": "Glacial", "description": "Frozen world with subsurface oceans", "maxColonists": 20000, "maxCitadel": 2, "fuelProduction": 8, "organicsProduction": 6, "equipmentProduction": 4 }
