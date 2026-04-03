@@ -19,6 +19,8 @@ export const ServerMsgType = {
     ShipExchangeResult: 'shipExchangeResult',
     AttackResult: 'attackResult',
     DockResult: 'dockResult',
+    PlanetInfo: 'planetInfo',
+    ColonistResult: 'colonistResult',
     Error: 'error',
 } as const;
 type ServerMsgType = typeof ServerMsgType;
@@ -41,5 +43,8 @@ export const ClientMsgType = {
     Dock: 'dock',
     Undock: 'undock',
     Jettison: 'jettison',
+    Land: 'land',
+    TakeColonists: 'takeColonists',
+    LeaveColonists: 'leaveColonists',
 } as const;
 type ClientMsgType = typeof ClientMsgType;

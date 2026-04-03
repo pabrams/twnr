@@ -8,7 +8,7 @@ import { class0Prices } from '../game-config.js';
 export async function handleShipInfo(ws: WebSocket, playerId: number): Promise<void> {
     const query = `
         SELECT ps.ship_name, ps.fighters, ps.shields, ps.cargo_limit,
-               sc.fuel, sc.organics, sc.equipment
+               sc.fuel, sc.organics, sc.equipment, sc.colonists
         FROM player_ships ps
         JOIN ship_cargo sc ON ps.player_id = sc.player_id
         WHERE ps.player_id = $1
@@ -26,7 +26,8 @@ export async function handleShipInfo(ws: WebSocket, playerId: number): Promise<v
         return;
     }
 
-    const holdsAvailable = row.cargo_limit - (row.fuel + row.organics + row.equipment);
+    const holdsAvailable =
+        row.cargo_limit - (row.fuel + row.organics + row.equipment + row.colonists);
     send(ws, {
         type: ServerMsgType.ShipInfo,
         playerId,
@@ -40,13 +41,14 @@ export async function handleShipInfo(ws: WebSocket, playerId: number): Promise<v
         cargoFuel: row.fuel,
         cargoOrganics: row.organics,
         cargoEquipment: row.equipment,
+        cargoColonists: row.colonists,
         holdsAvailable,
     });
 }
 
 export async function handleCargoInfo(ws: WebSocket, playerId: number): Promise<void> {
     const cargoRes = await pool.query(
-        'SELECT player_id, fuel, organics, equipment, credits FROM ship_cargo WHERE player_id = $1',
+        'SELECT player_id, fuel, organics, equipment, colonists, credits FROM ship_cargo WHERE player_id = $1',
         [playerId],
     );
     if (cargoRes.rows.length === 0) {
@@ -61,6 +63,7 @@ export async function handleCargoInfo(ws: WebSocket, playerId: number): Promise<
         fuel: c.fuel,
         organics: c.organics,
         equipment: c.equipment,
+        colonists: c.colonists,
         credits: c.credits,
     });
 }
@@ -381,7 +384,7 @@ export async function handleShipExchange(
 
         const cargoRes = await client.query(
             `
-            SELECT sc.credits, sc.fuel, sc.organics, sc.equipment, ps.ship_name
+            SELECT sc.credits, sc.fuel, sc.organics, sc.equipment, sc.colonists, ps.ship_name
             FROM ship_cargo sc
             JOIN player_ships ps ON sc.player_id = ps.player_id
             WHERE sc.player_id = $1 FOR UPDATE
@@ -411,7 +414,7 @@ export async function handleShipExchange(
         }
 
         const newCargoLimit = targetConfig.startingHolds;
-        const currentCargo = data.fuel + data.organics + data.equipment;
+        const currentCargo = data.fuel + data.organics + data.equipment + data.colonists;
         if (newCargoLimit < currentCargo) {
             await client.query('ROLLBACK');
             send(ws, {
@@ -454,7 +457,7 @@ export async function handleShipExchange(
 
 export async function handleJettison(ws: WebSocket, playerId: number): Promise<void> {
     const result = await pool.query(
-        'UPDATE ship_cargo SET fuel = 0, organics = 0, equipment = 0 WHERE player_id = $1 RETURNING credits',
+        'UPDATE ship_cargo SET fuel = 0, organics = 0, equipment = 0, colonists = 0 WHERE player_id = $1 RETURNING credits',
         [playerId],
     );
     if (result.rows.length === 0) {
@@ -464,6 +467,6 @@ export async function handleJettison(ws: WebSocket, playerId: number): Promise<v
     send(ws, {
         type: ServerMsgType.PortTransactionResult,
         credits: result.rows[0].credits,
-        cargo: { fuel: 0, organics: 0, equipment: 0 },
+        cargo: { fuel: 0, organics: 0, equipment: 0, colonists: 0 },
     });
 }

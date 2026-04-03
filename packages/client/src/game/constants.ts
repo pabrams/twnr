@@ -43,4 +43,7 @@ export type MenuMode =
     | 'playerInfo'
     | 'autopilotPrompt'
     | 'autopilot'
-    | 'jettisonConfirm';
+    | 'jettisonConfirm'
+    | 'planet'
+    | 'planetTakeQty'
+    | 'planetLeaveQty';

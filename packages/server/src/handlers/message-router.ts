@@ -13,6 +13,7 @@ import {
     handleJettison,
 } from './ship.js';
 import { handleAttack } from './combat.js';
+import { handleLand, handleTakeColonists, handleLeaveColonists } from './planet.js';
 
 export async function handleMessage(ws: WebSocket, playerId: number, data: any): Promise<void> {
     switch (data.type) {
@@ -50,6 +51,12 @@ export async function handleMessage(ws: WebSocket, playerId: number, data: any):
             return handleUndock(ws, playerId);
         case ClientMsgType.Jettison:
             return handleJettison(ws, playerId);
+        case ClientMsgType.Land:
+            return handleLand(ws, playerId);
+        case ClientMsgType.TakeColonists:
+            return handleTakeColonists(ws, playerId, data.quantity);
+        case ClientMsgType.LeaveColonists:
+            return handleLeaveColonists(ws, playerId, data.quantity);
         default:
             send(ws, { type: ServerMsgType.Error, message: 'Unknown message type' });
     }

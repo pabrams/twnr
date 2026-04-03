@@ -88,6 +88,7 @@ export type ShipInfoMessage = {
     cargoFuel: number;
     cargoOrganics: number;
     cargoEquipment: number;
+    cargoColonists: number;
     holdsAvailable: number;
 };
 
@@ -97,13 +98,14 @@ export type CargoInfoMessage = {
     fuel: number;
     organics: number;
     equipment: number;
+    colonists: number;
     credits: number;
 };
 
 export type portTransactionResultMessage = {
     type: typeof ServerMsgType.PortTransactionResult;
     credits: number;
-    cargo: { fuel: number; organics: number; equipment: number };
+    cargo: { fuel: number; organics: number; equipment: number; colonists: number };
 };
 
 export type BuyResultMessage = {
@@ -138,6 +140,24 @@ export type DockResultMessage = {
     port?: PortInfoMessage;
 };
 
+export type PlanetInfoMessage = {
+    type: typeof ServerMsgType.PlanetInfo;
+    sectorId: number;
+    name: string;
+    planetType: string;
+    colonists: number;
+    hasPlanet: boolean;
+};
+
+export type ColonistResultMessage = {
+    type: typeof ServerMsgType.ColonistResult;
+    action: 'take' | 'leave';
+    quantity: number;
+    planetColonists: number;
+    holdsUsed: number;
+    holdsFree: number;
+};
+
 export type ErrorMessage = {
     type: typeof ServerMsgType.Error;
     message: string;
@@ -162,4 +182,6 @@ export type ServerMessage =
     | ShipExchangeResultMessage
     | AttackResultMessage
     | DockResultMessage
+    | PlanetInfoMessage
+    | ColonistResultMessage
     | ErrorMessage;

@@ -132,6 +132,7 @@ export function showHelp(ctx: GameContext) {
         `${colors.cyan('Attack:')} ${colors.boldYellow("'A'")} attack a player in your sector.`,
     );
     ctx.term.writeln(`${colors.cyan('Jettison:')} ${colors.boldYellow("'J'")} jettison all cargo.`);
+    ctx.term.writeln(`${colors.cyan('Land:')} ${colors.boldYellow("'L'")} land on a planet.`);
     ctx.term.writeln(`${colors.cyan('Computer:')} ${colors.boldYellow("'C'")} ship computer.`);
     ctx.term.writeln(`${colors.cyan('Who:')} ${colors.boldYellow("'#'")} players online.`);
     ctx.term.writeln(`${colors.cyan('Help:')} ${colors.boldYellow("'?'")} this menu.`);
@@ -301,6 +302,41 @@ export function showJettisonConfirm(ctx: GameContext) {
     ctx.term.write(
         `\r\n${colors.boldYellow('Jettison all cargo?')} This cannot be undone. ${mg('(')}${colors.boldYellow('Y')}/${colors.boldYellow('N')}${mg(')')} `,
     );
+}
+
+export function showPlanetMenu(ctx: GameContext, name: string, colonists: number) {
+    ctx.setMode('planet');
+    ctx.term.writeln('');
+    ctx.term.writeln(
+        `${colors.boldGreen('Landing on')} ${colors.boldCyan(name)}${colors.boldYellow('...')}`,
+    );
+    ctx.term.writeln(
+        `  ${colors.boldYellow('Colonists')}: ${colors.white(colonists.toLocaleString())}`,
+    );
+    ctx.term.writeln('');
+    ctx.term.writeln(`  ${colors.cyan('T')}  Take colonists aboard`);
+    ctx.term.writeln(`  ${colors.cyan('L')}  Leave colonists on planet`);
+    ctx.term.writeln(`  ${colors.cyan('Q')}  Return to ship`);
+}
+
+export function showPlanetTakePrompt(ctx: GameContext) {
+    ctx.setMode('planetTakeQty');
+    ctx.term.write(`\r\n${colors.cyan('How many colonists to take?')} `);
+}
+
+export function showPlanetLeavePrompt(ctx: GameContext) {
+    ctx.setMode('planetLeaveQty');
+    ctx.term.write(`\r\n${colors.cyan('How many colonists to leave?')} `);
+}
+
+export function showNoPlanet(ctx: GameContext) {
+    ctx.term.writeln('');
+    ctx.term.writeln(
+        colors.white(
+            'There is no planet in this sector. You could create one with a Genesis Torpedo.',
+        ),
+    );
+    showPrompt(ctx);
 }
 
 export async function showTraderList(ctx: GameContext) {

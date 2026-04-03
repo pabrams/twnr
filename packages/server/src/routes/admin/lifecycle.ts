@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { pool } from '../../db/index.js';
 import { generateUniverse } from '../../bigbang/index.js';
 import type { RouteDeps, Middleware } from '../middleware.js';
+import { initialValues } from '../../game-config.js';
 
 export function createAdminLifecycleRoutes(
     router: Router,
@@ -97,6 +98,14 @@ export function createAdminLifecycleRoutes(
                          ON CONFLICT (sector_id, universe_id) DO UPDATE
                          SET class = 9, fuel = 0, fuel_price = 0, organics = 0, org_price = 0, equipment = 0, equ_price = 0`,
                         [universeId],
+                    );
+
+                    // Seed Earth in Sector 1
+                    await client.query(
+                        `INSERT INTO planets (sector_id, universe_id, name, type, colonists)
+                         VALUES (1, $1, 'Earth', 'Terran', $2)
+                         ON CONFLICT (sector_id, universe_id) DO NOTHING`,
+                        [universeId, initialValues.earthColonists],
                     );
 
                     await client.query('COMMIT');
@@ -222,6 +231,7 @@ export function createAdminLifecycleRoutes(
                 }
 
                 // Delete universe data
+                await client.query('DELETE FROM planets WHERE universe_id = $1', [universeId]);
                 await client.query('DELETE FROM ports WHERE universe_id = $1', [universeId]);
                 await client.query('DELETE FROM warps WHERE universe_id = $1', [universeId]);
                 await client.query('DELETE FROM sectors WHERE universe_id = $1', [universeId]);
@@ -316,6 +326,14 @@ export function createAdminLifecycleRoutes(
                         `INSERT INTO ports (sector_id, universe_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
                          SELECT sector_id, $1, class, fuel, fuel_price, organics, org_price, equipment, equ_price
                          FROM ports WHERE universe_id = $2`,
+                        [newId, sourceId],
+                    );
+
+                    // Copy planets
+                    await client.query(
+                        `INSERT INTO planets (sector_id, universe_id, name, type, colonists)
+                         SELECT sector_id, $1, name, type, colonists
+                         FROM planets WHERE universe_id = $2`,
                         [newId, sourceId],
                     );
 

@@ -83,6 +83,20 @@ export type JettisonMessage = {
     type: typeof ClientMsgType.Jettison;
 };
 
+export type LandMessage = {
+    type: typeof ClientMsgType.Land;
+};
+
+export type TakeColonistsMessage = {
+    type: typeof ClientMsgType.TakeColonists;
+    quantity: number;
+};
+
+export type LeaveColonistsMessage = {
+    type: typeof ClientMsgType.LeaveColonists;
+    quantity: number;
+};
+
 export type ClientMessage =
     | MoveMessage
     | DisplayMessage
@@ -100,4 +114,7 @@ export type ClientMessage =
     | AttackMessage
     | DockMessage
     | UndockMessage
-    | JettisonMessage;
+    | JettisonMessage
+    | LandMessage
+    | TakeColonistsMessage
+    | LeaveColonistsMessage;

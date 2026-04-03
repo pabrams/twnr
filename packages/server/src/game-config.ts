@@ -25,3 +25,7 @@ export const class0Prices = loadJson('class0-prices.json', {
     shieldPrice: 10,
     holdPrice: 50,
 });
+
+export const initialValues = loadJson('initial-values.json', {
+    earthColonists: 1000000,
+});

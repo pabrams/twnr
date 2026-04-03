@@ -172,7 +172,7 @@ export async function handlePortTransaction(
 
         const cargoRes = await client.query(
             `
-            SELECT sc.fuel, sc.organics, sc.equipment, sc.credits, ps.cargo_limit
+            SELECT sc.fuel, sc.organics, sc.equipment, sc.colonists, sc.credits, ps.cargo_limit
             FROM ship_cargo sc
             JOIN player_ships ps ON sc.player_id = ps.player_id
             WHERE sc.player_id = $1 FOR UPDATE
@@ -199,7 +199,10 @@ export async function handlePortTransaction(
                 send(ws, { type: ServerMsgType.Error, message: 'Insufficient port inventory' });
                 return;
             }
-            if (cargo.fuel + cargo.organics + cargo.equipment + qty > cargo.cargo_limit) {
+            if (
+                cargo.fuel + cargo.organics + cargo.equipment + cargo.colonists + qty >
+                cargo.cargo_limit
+            ) {
                 await client.query('ROLLBACK');
                 send(ws, { type: ServerMsgType.Error, message: 'Insufficient cargo holds' });
                 return;
@@ -220,7 +223,12 @@ export async function handlePortTransaction(
             send(ws, {
                 type: ServerMsgType.PortTransactionResult,
                 credits: cargo.credits,
-                cargo: { fuel: cargo.fuel, organics: cargo.organics, equipment: cargo.equipment },
+                cargo: {
+                    fuel: cargo.fuel,
+                    organics: cargo.organics,
+                    equipment: cargo.equipment,
+                    colonists: cargo.colonists,
+                },
             });
         } else {
             const revenue = qty * price;
@@ -245,7 +253,12 @@ export async function handlePortTransaction(
             send(ws, {
                 type: ServerMsgType.PortTransactionResult,
                 credits: cargo.credits,
-                cargo: { fuel: cargo.fuel, organics: cargo.organics, equipment: cargo.equipment },
+                cargo: {
+                    fuel: cargo.fuel,
+                    organics: cargo.organics,
+                    equipment: cargo.equipment,
+                    colonists: cargo.colonists,
+                },
             });
         }
     } catch (err) {

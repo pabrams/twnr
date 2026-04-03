@@ -8,6 +8,8 @@ import {
     showClass0Menu,
     showAutopilotPrompt,
     colorSector,
+    showPlanetMenu,
+    showNoPlanet,
 } from './display.js';
 import { colors } from './constants.js';
 
@@ -77,7 +79,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     `\r\n${colors.boldGreen('Transaction complete.')} Credits: ${colors.boldYellow(String(msg.credits))}`,
                 );
                 ctx.term.writeln(
-                    `  Cargo — ${colors.boldYellow('Fuel')}: ${msg.cargo.fuel}, ${colors.boldYellow('Organics')}: ${msg.cargo.organics}, ${colors.boldYellow('Equipment')}: ${msg.cargo.equipment}`,
+                    `  Cargo — ${colors.boldYellow('Fuel')}: ${msg.cargo.fuel}, ${colors.boldYellow('Organics')}: ${msg.cargo.organics}, ${colors.boldYellow('Equipment')}: ${msg.cargo.equipment}, ${colors.boldYellow('Colonists')}: ${msg.cargo.colonists}`,
                 );
                 if (ctx.mode === 'docked') showDockedMenu(ctx);
                 break;
@@ -92,7 +94,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     `  ${colors.boldYellow('Cargo holds')}: ${colors.boldGreen(`${msg.holdsAvailable} free`)} / ${colors.white(`${msg.cargoLimit} total`)} ${mg('(')}max ${msg.maxHolds}${mg(')')}`,
                 );
                 ctx.term.writeln(
-                    `  ${colors.boldYellow('Fuel')}: ${msg.cargoFuel}  ${colors.boldYellow('Organics')}: ${msg.cargoOrganics}  ${colors.boldYellow('Equipment')}: ${msg.cargoEquipment}`,
+                    `  ${colors.boldYellow('Fuel')}: ${msg.cargoFuel}  ${colors.boldYellow('Organics')}: ${msg.cargoOrganics}  ${colors.boldYellow('Equipment')}: ${msg.cargoEquipment}  ${colors.boldYellow('Colonists')}: ${msg.cargoColonists}`,
                 );
                 break;
             case ServerMsgType.CargoInfo:
@@ -168,6 +170,29 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 ctx.term.writeln(`  ${colors.boldYellow('Credits')}: ${msg.credits}`);
                 if (ctx.mode === 'docked') showDockedMenu(ctx);
                 break;
+            case ServerMsgType.PlanetInfo:
+                if (msg.hasPlanet) {
+                    showPlanetMenu(ctx, msg.name, msg.colonists);
+                } else {
+                    showNoPlanet(ctx);
+                }
+                break;
+            case ServerMsgType.ColonistResult: {
+                const verb = msg.action === 'take' ? 'took' : 'left';
+                ctx.term.writeln('');
+                ctx.term.writeln(
+                    `${colors.boldGreen(`You ${verb} ${msg.quantity.toLocaleString()} colonists.`)}`,
+                );
+                ctx.term.writeln(
+                    `  ${colors.boldYellow('Planet colonists')}: ${colors.white(msg.planetColonists.toLocaleString())}`,
+                );
+                ctx.term.writeln(
+                    `\r\n${colors.white('You return to your ship and leave the planet.')}`,
+                );
+                ctx.setMode('sector');
+                showPrompt(ctx);
+                break;
+            }
             case ServerMsgType.Error:
                 ctx.term.writeln(`\r\n${colors.boldRed('Error:')} ${colors.red(msg.message)}`);
                 if (ctx.mode === 'docked') showDockedMenu(ctx);

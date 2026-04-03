@@ -22,6 +22,8 @@ import {
     showCurrentShipSpecs,
     showTraderList,
     showJettisonConfirm,
+    showPlanetTakePrompt,
+    showPlanetLeavePrompt,
 } from './display.js';
 import { colors } from './constants.js';
 
@@ -122,6 +124,15 @@ function handleInput(ctx: GameContext, line: string) {
         case 'jettisonConfirm':
             handleJettisonConfirmInput(ctx, line);
             return;
+        case 'planet':
+            handlePlanetInput(ctx, line);
+            return;
+        case 'planetTakeQty':
+            handlePlanetTakeQtyInput(ctx, line);
+            return;
+        case 'planetLeaveQty':
+            handlePlanetLeaveQtyInput(ctx, line);
+            return;
     }
 
     // Sector mode
@@ -152,6 +163,9 @@ function handleInput(ctx: GameContext, line: string) {
             break;
         case 'j':
             showJettisonConfirm(ctx);
+            break;
+        case 'l':
+            ctx.sendMsg({ type: ClientMsgType.Land });
             break;
         case 'q':
             ctx.term.writeln(`\r\n${colors.white('Goodbye!')}`);
@@ -404,4 +418,50 @@ function handleJettisonConfirmInput(ctx: GameContext, line: string) {
             showPrompt(ctx);
             break;
     }
+}
+
+function handlePlanetInput(ctx: GameContext, line: string) {
+    switch (line.toLowerCase()) {
+        case 't':
+            showPlanetTakePrompt(ctx);
+            break;
+        case 'l':
+            showPlanetLeavePrompt(ctx);
+            break;
+        case 'q':
+            ctx.term.writeln(
+                `\r\n${colors.white('You return to your ship and leave the planet.')}`,
+            );
+            ctx.setMode('sector');
+            showPrompt(ctx);
+            break;
+    }
+}
+
+function handlePlanetTakeQtyInput(ctx: GameContext, line: string) {
+    if (line.toLowerCase() === 'q') {
+        ctx.setMode('sector');
+        showPrompt(ctx);
+        return;
+    }
+    const qty = parseInt(line, 10);
+    if (isNaN(qty) || qty <= 0) {
+        ctx.term.writeln('Enter a positive number.');
+        return;
+    }
+    ctx.sendMsg({ type: ClientMsgType.TakeColonists, quantity: qty });
+}
+
+function handlePlanetLeaveQtyInput(ctx: GameContext, line: string) {
+    if (line.toLowerCase() === 'q') {
+        ctx.setMode('sector');
+        showPrompt(ctx);
+        return;
+    }
+    const qty = parseInt(line, 10);
+    if (isNaN(qty) || qty <= 0) {
+        ctx.term.writeln('Enter a positive number.');
+        return;
+    }
+    ctx.sendMsg({ type: ClientMsgType.LeaveColonists, quantity: qty });
 }
