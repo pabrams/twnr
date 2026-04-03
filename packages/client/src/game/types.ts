@@ -40,8 +40,12 @@ export interface GameContext {
     setClass0Prices: (p: { fighterPrice: number; shieldPrice: number; holdPrice: number }) => void;
     autopilotPath: number[];
     autopilotStep: number;
+    autopilotPaused: boolean;
+    encounterOwnerName: string;
     setAutopilotPath: (path: number[]) => void;
     setAutopilotStep: (step: number) => void;
+    setAutopilotPaused: (paused: boolean) => void;
+    setEncounterOwnerName: (name: string) => void;
 }
 
 const mg = colors.magenta;

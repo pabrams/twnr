@@ -7,6 +7,11 @@ export async function handleLand(ws: WebSocket, playerId: number): Promise<void>
     const player = players[playerId];
     if (!player) return;
 
+    if (player.pendingEncounter) {
+        send(ws, { type: ServerMsgType.Error, message: 'Resolve fighter encounter first' });
+        return;
+    }
+
     const planetRes = await pool.query(
         'SELECT name, type, colonists FROM planets WHERE sector_id = $1 AND universe_id = $2',
         [player.sector, player.universeId],

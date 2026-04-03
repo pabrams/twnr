@@ -45,6 +45,8 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
         null;
     let autopilotPath: number[] = [];
     let autopilotStep = 0;
+    let autopilotPaused = false;
+    let encounterOwnerName = '';
 
     function sendMsg(msg: ClientMessage) {
         if (ws.readyState === WebSocket.OPEN) {
@@ -107,6 +109,12 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
         get autopilotStep() {
             return autopilotStep;
         },
+        get autopilotPaused() {
+            return autopilotPaused;
+        },
+        get encounterOwnerName() {
+            return encounterOwnerName;
+        },
         sendMsg,
         setMode: (m) => {
             mode = m;
@@ -158,6 +166,12 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
         },
         setAutopilotStep: (s) => {
             autopilotStep = s;
+        },
+        setAutopilotPaused: (p) => {
+            autopilotPaused = p;
+        },
+        setEncounterOwnerName: (n) => {
+            encounterOwnerName = n;
         },
     };
 

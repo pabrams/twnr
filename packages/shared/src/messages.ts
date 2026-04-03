@@ -21,6 +21,12 @@ export const ServerMsgType = {
     DockResult: 'dockResult',
     PlanetInfo: 'planetInfo',
     ColonistResult: 'colonistResult',
+    FighterEncounter: 'fighterEncounter',
+    DeployFightersInfo: 'deployFightersInfo',
+    DeployFightersResult: 'deployFightersResult',
+    SectorFighterCombatResult: 'sectorFighterCombatResult',
+    RetreatResult: 'retreatResult',
+    SectorFightersAlert: 'sectorFightersAlert',
     Error: 'error',
 } as const;
 type ServerMsgType = typeof ServerMsgType;
@@ -46,5 +52,9 @@ export const ClientMsgType = {
     Land: 'land',
     TakeColonists: 'takeColonists',
     LeaveColonists: 'leaveColonists',
+    DeployFightersInfo: 'deployFightersInfo',
+    DeployFighters: 'deployFighters',
+    AttackSectorFighters: 'attackSectorFighters',
+    RetreatFromFighters: 'retreatFromFighters',
 } as const;
 type ClientMsgType = typeof ClientMsgType;

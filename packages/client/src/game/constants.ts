@@ -46,4 +46,7 @@ export type MenuMode =
     | 'jettisonConfirm'
     | 'planet'
     | 'planetTakeQty'
-    | 'planetLeaveQty';
+    | 'planetLeaveQty'
+    | 'deployFightersQty'
+    | 'fighterEncounter'
+    | 'fighterAttackQty';

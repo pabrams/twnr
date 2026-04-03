@@ -97,6 +97,24 @@ export type LeaveColonistsMessage = {
     quantity: number;
 };
 
+export type DeployFightersInfoQueryMessage = {
+    type: typeof ClientMsgType.DeployFightersInfo;
+};
+
+export type DeployFightersMessage = {
+    type: typeof ClientMsgType.DeployFighters;
+    quantity: number;
+};
+
+export type AttackSectorFightersMessage = {
+    type: typeof ClientMsgType.AttackSectorFighters;
+    fighters: number;
+};
+
+export type RetreatFromFightersMessage = {
+    type: typeof ClientMsgType.RetreatFromFighters;
+};
+
 export type ClientMessage =
     | MoveMessage
     | DisplayMessage
@@ -117,4 +135,8 @@ export type ClientMessage =
     | JettisonMessage
     | LandMessage
     | TakeColonistsMessage
-    | LeaveColonistsMessage;
+    | LeaveColonistsMessage
+    | DeployFightersInfoQueryMessage
+    | DeployFightersMessage
+    | AttackSectorFightersMessage
+    | RetreatFromFightersMessage;

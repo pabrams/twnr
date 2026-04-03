@@ -48,6 +48,11 @@ export async function handleDock(ws: WebSocket, playerId: number): Promise<void>
         return;
     }
 
+    if (player.pendingEncounter) {
+        send(ws, { type: ServerMsgType.Error, message: 'Resolve fighter encounter first' });
+        return;
+    }
+
     const portRes = await pool.query(
         'SELECT class, fuel, fuel_price, organics, org_price, equipment, equ_price FROM ports WHERE sector_id = $1 AND universe_id = $2',
         [player.sector, player.universeId],

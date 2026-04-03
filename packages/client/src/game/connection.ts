@@ -5,6 +5,7 @@ import { colorSector } from './types.js';
 import { showSectorDisplay, showDockedMenu, showPrompt } from './display.js';
 import { showClass0Menu, showAutopilotPrompt } from './display-port.js';
 import { showPlanetMenu, showNoPlanet } from './display-planet.js';
+import { showFighterEncounter } from './display-combat.js';
 import { colors } from './constants.js';
 
 const mg = colors.magenta;
@@ -40,6 +41,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     msg.players,
                     msg.port,
                     msg.visitedSectors,
+                    msg.sectorFighters,
                 );
                 // Advance autopilot if in progress
                 if (ctx.mode === 'autopilot' && ctx.autopilotStep < ctx.autopilotPath.length) {
@@ -187,10 +189,99 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 showPrompt(ctx);
                 break;
             }
+            case ServerMsgType.FighterEncounter: {
+                ctx.setSectorPlayers(msg.players);
+                if (msg.visitedSectors) ctx.setVisitedSet(new Set(msg.visitedSectors));
+                ctx.setCurrentSector(msg.sector);
+                ctx.setCurrentPort(msg.port ?? null);
+                ctx.setEncounterOwnerName(msg.ownerName);
+
+                // Show sector info first
+                showSectorDisplay(ctx, msg.sector, msg.warps, msg.players, msg.port, msg.visitedSectors);
+
+                if (ctx.mode === 'autopilot') {
+                    ctx.setAutopilotPaused(true);
+                    ctx.term.writeln(`\r\n${colors.boldRed('Autopilot disengaged — hostile fighters!')}`);
+                }
+
+                showFighterEncounter(ctx, msg.sectorFighters, msg.ownerName, msg.shipFighters);
+                break;
+            }
+            case ServerMsgType.DeployFightersInfo:
+                ctx.term.writeln('');
+                ctx.term.writeln(
+                    `${colors.boldYellow('Deploy Fighters')} — Sector: ${colors.white(String(msg.sectorFighters))}, Ship: ${colors.white(String(msg.shipFighters))}/${colors.cyan(String(msg.shipMaxFighters))}`,
+                );
+                ctx.term.write(
+                    `${colors.cyan('How many fighters to leave in sector?')} ${colors.white('(Q to cancel)')} `,
+                );
+                ctx.setMode('deployFightersQty');
+                break;
+            case ServerMsgType.DeployFightersResult:
+                ctx.term.writeln(
+                    `\r\n${colors.boldGreen('Deployed.')} Sector: ${colors.white(String(msg.sectorFighters))}, Ship: ${colors.white(String(msg.shipFighters))}`,
+                );
+                ctx.setMode('sector');
+                showPrompt(ctx);
+                break;
+            case ServerMsgType.SectorFighterCombatResult:
+                ctx.term.writeln('');
+                ctx.term.writeln(
+                    `${colors.boldYellow('Combat:')} Lost ${colors.boldRed(String(msg.fightersLost))} fighters. Sector fighters remaining: ${colors.boldRed(String(msg.sectorFightersRemaining))}. Ship fighters: ${colors.white(String(msg.shipFighters))}`,
+                );
+                if (msg.victory) {
+                    ctx.term.writeln(colors.boldGreen('Sector cleared!'));
+                    if (ctx.autopilotPaused) {
+                        ctx.term.writeln(colors.boldCyan('Autopilot resuming...'));
+                        ctx.setMode('autopilot');
+                        ctx.setAutopilotPaused(false);
+                        // Server will send SectorDisplay which triggers autopilot advance
+                        ctx.sendMsg({ type: ClientMsgType.SectorDisplay });
+                    } else {
+                        ctx.setMode('sector');
+                        showPrompt(ctx);
+                    }
+                } else {
+                    // Re-show encounter with updated numbers
+                    showFighterEncounter(ctx, msg.sectorFightersRemaining, ctx.encounterOwnerName, msg.shipFighters);
+                }
+                break;
+            case ServerMsgType.RetreatResult:
+                ctx.term.writeln(`\r\n${colors.boldYellow('Retreated to sector')} ${colors.boldCyan(String(msg.sector))}`);
+                if (ctx.autopilotPaused) {
+                    ctx.setAutopilotPath([]);
+                    ctx.setAutopilotStep(0);
+                    ctx.setAutopilotPaused(false);
+                    ctx.term.writeln(colors.boldRed('Autopilot cancelled.'));
+                }
+                ctx.setMode('sector');
+                // SectorDisplay follows from server
+                break;
+            case ServerMsgType.SectorFightersAlert:
+                ctx.term.writeln('');
+                if (msg.event === 'intrusion') {
+                    ctx.term.writeln(
+                        `${colors.boldYellow('Alert:')} ${colors.boldRed(msg.intruderName)} entered sector ${colors.boldCyan(String(msg.sector))} with your fighters!`,
+                    );
+                } else if (msg.event === 'attacked') {
+                    ctx.term.writeln(
+                        `${colors.boldRed('Alert:')} ${colors.boldRed(msg.intruderName)} attacked your fighters in sector ${colors.boldCyan(String(msg.sector))}! Lost: ${msg.fightersLost}, remaining: ${msg.fightersRemaining}`,
+                    );
+                } else if (msg.event === 'destroyed') {
+                    ctx.term.writeln(
+                        `${colors.boldRed('Alert:')} ${colors.boldRed(msg.intruderName)} destroyed all your fighters in sector ${colors.boldCyan(String(msg.sector))}!`,
+                    );
+                }
+                break;
             case ServerMsgType.Error:
                 ctx.term.writeln(`\r\n${colors.boldRed('Error:')} ${colors.red(msg.message)}`);
                 if (ctx.mode === 'docked') showDockedMenu(ctx);
-                else if (ctx.mode === 'sector') showPrompt(ctx);
+                else if (ctx.mode === 'deployFightersQty') {
+                    ctx.setMode('sector');
+                    showPrompt(ctx);
+                } else if (ctx.mode === 'fighterEncounter' || ctx.mode === 'fighterAttackQty') {
+                    // Stay in encounter mode — re-prompt
+                } else if (ctx.mode === 'sector') showPrompt(ctx);
                 break;
         }
     });

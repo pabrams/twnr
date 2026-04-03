@@ -9,6 +9,12 @@ import { handleShipExchange } from './ship-exchange.js';
 import { handleJettison } from './ship-cargo.js';
 import { handleAttack } from './combat.js';
 import { handleLand, handleTakeColonists, handleLeaveColonists } from './planet.js';
+import {
+    handleDeployFightersInfo,
+    handleDeployFighters,
+    handleAttackSectorFighters,
+    handleRetreatFromFighters,
+} from './sector-fighters.js';
 
 export async function handleMessage(ws: WebSocket, playerId: number, data: any): Promise<void> {
     switch (data.type) {
@@ -52,6 +58,14 @@ export async function handleMessage(ws: WebSocket, playerId: number, data: any):
             return handleTakeColonists(ws, playerId, data.quantity);
         case ClientMsgType.LeaveColonists:
             return handleLeaveColonists(ws, playerId, data.quantity);
+        case ClientMsgType.DeployFightersInfo:
+            return handleDeployFightersInfo(ws, playerId);
+        case ClientMsgType.DeployFighters:
+            return handleDeployFighters(ws, playerId, data.quantity);
+        case ClientMsgType.AttackSectorFighters:
+            return handleAttackSectorFighters(ws, playerId, data.fighters);
+        case ClientMsgType.RetreatFromFighters:
+            return handleRetreatFromFighters(ws, playerId);
         default:
             send(ws, { type: ServerMsgType.Error, message: 'Unknown message type' });
     }

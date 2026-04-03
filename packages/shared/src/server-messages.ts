@@ -18,6 +18,12 @@ export type PlayerMovedMessage = {
     direction: 'in' | 'out';
 };
 
+export type SectorFighterInfo = {
+    quantity: number;
+    ownerId: number;
+    ownerName: string;
+};
+
 export type SectorDisplayMessage = {
     type: typeof ServerMsgType.SectorDisplay;
     sector: number;
@@ -25,6 +31,7 @@ export type SectorDisplayMessage = {
     warps: number[];
     port?: { class: number; name: string } | null;
     visitedSectors: number[];
+    sectorFighters?: SectorFighterInfo | null;
 };
 
 export type PlayerLeftMessage = {
@@ -158,6 +165,56 @@ export type ColonistResultMessage = {
     holdsFree: number;
 };
 
+// FighterEncounter embeds full sector display data (Oak's design) to avoid message ordering issues
+export type FighterEncounterMessage = {
+    type: typeof ServerMsgType.FighterEncounter;
+    sector: number;
+    warps: number[];
+    players: { id: number; name: string }[];
+    port?: { class: number; name: string } | null;
+    visitedSectors: number[];
+    sectorFighters: number;
+    ownerId: number;
+    ownerName: string;
+    shipFighters: number;
+    retreatSector: number;
+};
+
+export type DeployFightersInfoMessage = {
+    type: typeof ServerMsgType.DeployFightersInfo;
+    sectorFighters: number;
+    shipFighters: number;
+    shipMaxFighters: number;
+};
+
+export type DeployFightersResultMessage = {
+    type: typeof ServerMsgType.DeployFightersResult;
+    sectorFighters: number;
+    shipFighters: number;
+};
+
+export type SectorFighterCombatResultMessage = {
+    type: typeof ServerMsgType.SectorFighterCombatResult;
+    victory: boolean;
+    fightersLost: number;
+    sectorFightersRemaining: number;
+    shipFighters: number;
+};
+
+export type RetreatResultMessage = {
+    type: typeof ServerMsgType.RetreatResult;
+    sector: number;
+};
+
+export type SectorFightersAlertMessage = {
+    type: typeof ServerMsgType.SectorFightersAlert;
+    event: 'intrusion' | 'attacked' | 'destroyed';
+    sector: number;
+    fightersLost: number;
+    fightersRemaining: number;
+    intruderName: string;
+};
+
 export type ErrorMessage = {
     type: typeof ServerMsgType.Error;
     message: string;
@@ -184,4 +241,10 @@ export type ServerMessage =
     | DockResultMessage
     | PlanetInfoMessage
     | ColonistResultMessage
+    | FighterEncounterMessage
+    | DeployFightersInfoMessage
+    | DeployFightersResultMessage
+    | SectorFighterCombatResultMessage
+    | RetreatResultMessage
+    | SectorFightersAlertMessage
     | ErrorMessage;

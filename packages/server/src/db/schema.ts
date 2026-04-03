@@ -96,6 +96,14 @@ export const connectDB = async (): Promise<void> => {
         shields INTEGER NOT NULL DEFAULT 0,
         cargo_limit INTEGER NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS sector_fighters (
+        sector_id INTEGER NOT NULL,
+        universe_id INTEGER NOT NULL REFERENCES universes(id),
+        owner_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+        quantity INTEGER NOT NULL,
+        PRIMARY KEY (sector_id, universe_id)
+      );
     `);
 
         client.release();

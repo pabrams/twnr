@@ -16,6 +16,7 @@ export function showSectorDisplay(
     players: { id: number; name: string }[],
     port?: { class: number; name: string } | null,
     visitedSectors?: number[],
+    sectorFighters?: { quantity: number; ownerId: number; ownerName: string } | null,
 ) {
     if (visitedSectors) {
         ctx.setVisitedSet(new Set(visitedSectors));
@@ -37,6 +38,13 @@ export function showSectorDisplay(
         ctx.term.writeln(
             `${mg('Port')}    ${cl} ${colors.boldCyan(port.name)}${colors.boldYellow(',')} ${mg('Class')} ${colors.boldCyan(String(port.class))} ${mg('(')}${coloredLabel}${mg(')')}`,
         );
+    }
+    if (sectorFighters && sectorFighters.quantity > 0) {
+        const label =
+            sectorFighters.ownerId === ctx.playerId
+                ? colors.boldGreen(String(sectorFighters.quantity))
+                : `${colors.boldRed(String(sectorFighters.quantity))} ${mg('(owned by')} ${colors.boldYellow(sectorFighters.ownerName)}${mg(')')}`;
+        ctx.term.writeln(`${mg('Figs')}    ${cl} ${label}`);
     }
     if (warps.length > 0) {
         ctx.term.writeln(
@@ -73,6 +81,7 @@ export function showHelp(ctx: GameContext) {
         `${colors.cyan('Attack:')} ${colors.boldYellow("'A'")} attack a player in your sector.`,
     );
     ctx.term.writeln(`${colors.cyan('Jettison:')} ${colors.boldYellow("'J'")} jettison all cargo.`);
+    ctx.term.writeln(`${colors.cyan('Fighters:')} ${colors.boldYellow("'F'")} deploy sector fighters.`);
     ctx.term.writeln(`${colors.cyan('Land:')} ${colors.boldYellow("'L'")} land on a planet.`);
     ctx.term.writeln(`${colors.cyan('Computer:')} ${colors.boldYellow("'C'")} ship computer.`);
     ctx.term.writeln(`${colors.cyan('Who:')} ${colors.boldYellow("'#'")} players online.`);

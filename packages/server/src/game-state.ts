@@ -8,6 +8,7 @@ export interface Player {
     name: string;
     universeId: number;
     docked: boolean;
+    pendingEncounter?: { retreatSector: number };
 }
 
 export const players: Record<number, Player> = {};
@@ -93,4 +94,23 @@ export function send(ws: WebSocket, data: ServerMessage) {
 
 export function getPlayerUniverseId(playerId: number): number | undefined {
     return players[playerId]?.universeId;
+}
+
+export async function getSectorFighters(
+    sectorId: number,
+    universeId: number,
+): Promise<{ quantity: number; ownerId: number; ownerName: string } | null> {
+    const res = await pool.query(
+        `SELECT sf.quantity, sf.owner_id, p.name as owner_name
+         FROM sector_fighters sf
+         JOIN players p ON sf.owner_id = p.id
+         WHERE sf.sector_id = $1 AND sf.universe_id = $2 AND sf.quantity > 0`,
+        [sectorId, universeId],
+    );
+    if (res.rows.length === 0) return null;
+    return {
+        quantity: res.rows[0].quantity,
+        ownerId: res.rows[0].owner_id,
+        ownerName: res.rows[0].owner_name,
+    };
 }

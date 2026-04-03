@@ -8,6 +8,7 @@ import {
     getPortForSector,
     getVisitedSectors,
     getPlayerUniverseId,
+    getSectorFighters,
 } from '../game-state.js';
 import { pool } from '../db/index.js';
 
@@ -31,6 +32,12 @@ export async function handleMove(
 
     const player = players[playerId];
     if (!player) return;
+
+    // Block movement during pending fighter encounter
+    if (player.pendingEncounter) {
+        send(ws, { type: ServerMsgType.Error, message: 'Resolve fighter encounter first' });
+        return;
+    }
 
     const universeId = player.universeId;
     const warps = await getGraph(universeId);
@@ -77,9 +84,10 @@ export async function handleMove(
         newSectorClients,
     );
 
-    const [port, visitedSectors] = await Promise.all([
+    const [port, visitedSectors, sectorFighters] = await Promise.all([
         getPortForSector(targetSector, universeId),
         getVisitedSectors(playerId),
+        getSectorFighters(targetSector, universeId),
     ]);
     const displayWarps = warps[targetSector] || [];
     const playersInSector = Object.entries(players)
@@ -91,6 +99,45 @@ export async function handleMove(
                 Number(id) !== playerId,
         )
         .map(([id, p]) => ({ id: Number(id), name: p.name }));
+
+    // Hostile fighter encounter — send FighterEncounter with embedded sector data (Oak's design)
+    if (sectorFighters && sectorFighters.ownerId !== playerId) {
+        player.pendingEncounter = { retreatSector: currentSector };
+
+        const shipRes = await pool.query(
+            'SELECT fighters FROM player_ships WHERE player_id = $1',
+            [playerId],
+        );
+
+        send(ws, {
+            type: ServerMsgType.FighterEncounter,
+            sector: targetSector,
+            warps: displayWarps,
+            players: playersInSector,
+            port,
+            visitedSectors,
+            sectorFighters: sectorFighters.quantity,
+            ownerId: sectorFighters.ownerId,
+            ownerName: sectorFighters.ownerName,
+            shipFighters: shipRes.rows[0]?.fighters ?? 0,
+            retreatSector: currentSector,
+        });
+
+        // Alert the owner about the intrusion
+        const owner = players[sectorFighters.ownerId];
+        if (owner && owner.ws.readyState === 1) {
+            send(owner.ws, {
+                type: ServerMsgType.SectorFightersAlert,
+                event: 'intrusion',
+                sector: targetSector,
+                fightersLost: 0,
+                fightersRemaining: sectorFighters.quantity,
+                intruderName: player.name,
+            });
+        }
+        return;
+    }
+
     send(ws, {
         type: ServerMsgType.SectorDisplay,
         sector: targetSector,
@@ -98,6 +145,7 @@ export async function handleMove(
         players: playersInSector,
         port,
         visitedSectors,
+        sectorFighters,
     });
 }
 
@@ -107,10 +155,11 @@ export async function handleSectorDisplay(ws: WebSocket, playerId: number): Prom
     const currentSector = player.sector;
     const universeId = player.universeId;
 
-    const [warps, port, visitedSectors] = await Promise.all([
+    const [warps, port, visitedSectors, sectorFighters] = await Promise.all([
         getGraph(universeId),
         getPortForSector(currentSector, universeId),
         getVisitedSectors(playerId),
+        getSectorFighters(currentSector, universeId),
     ]);
     const displayWarps = warps[currentSector] || [];
     const playersInSector = Object.entries(players)
@@ -129,6 +178,7 @@ export async function handleSectorDisplay(ws: WebSocket, playerId: number): Prom
         players: playersInSector,
         port,
         visitedSectors,
+        sectorFighters,
     });
 }
 

@@ -5,7 +5,13 @@ import { showPrompt, showPortMenu, showHelp, showDockedMenu, showPlayerInfo } fr
 import { showAttackMenu } from './display-combat.js';
 import { showComputerMenu } from './display-computer.js';
 import { showJettisonConfirm } from './display-port.js';
-import { handleAttackInput, handleAttackFightersInput } from './input-combat.js';
+import {
+    handleAttackInput,
+    handleAttackFightersInput,
+    handleDeployFightersQtyInput,
+    handleFighterEncounterInput,
+    handleFighterAttackQtyInput,
+} from './input-combat.js';
 import {
     handleComputerInput,
     handleKnownUniverseInput,
@@ -129,6 +135,15 @@ function handleInput(ctx: GameContext, line: string) {
         case 'planetLeaveQty':
             handlePlanetLeaveQtyInput(ctx, line);
             return;
+        case 'deployFightersQty':
+            handleDeployFightersQtyInput(ctx, line);
+            return;
+        case 'fighterEncounter':
+            handleFighterEncounterInput(ctx, line);
+            return;
+        case 'fighterAttackQty':
+            handleFighterAttackQtyInput(ctx, line);
+            return;
     }
 
     // Sector mode
@@ -156,6 +171,9 @@ function handleInput(ctx: GameContext, line: string) {
             break;
         case 'c':
             showComputerMenu(ctx);
+            break;
+        case 'f':
+            ctx.sendMsg({ type: ClientMsgType.DeployFightersInfo });
             break;
         case 'j':
             showJettisonConfirm(ctx);
