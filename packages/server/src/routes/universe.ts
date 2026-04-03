@@ -1,0 +1,114 @@
+import { Router } from 'express';
+import { pool } from '../db/index.js';
+import type { RouteDeps, Middleware } from './middleware.js';
+
+export function createUniverseRoutes(
+    router: Router,
+    deps: RouteDeps,
+    middleware: Middleware,
+): void {
+    const { getAuthenticatedPlayer, shipConfigs } = deps;
+    const { authenticateToken } = middleware;
+
+    router.post('/api/universes', authenticateToken, async (req, res): Promise<any> => {
+        const { name } = req.body;
+        if (!name || !name.trim()) {
+            return res.status(400).json({ error: 'name is required' });
+        }
+
+        try {
+            const result = await pool.query(
+                'INSERT INTO universes (name) VALUES ($1) RETURNING id, name',
+                [name],
+            );
+            const universe = result.rows[0];
+            res.status(201).json({ universeId: universe.id, name: universe.name });
+        } catch (err) {
+            console.error('Create universe error', err);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    });
+
+    router.get('/api/universes', authenticateToken, async (req, res): Promise<any> => {
+        const { userId } = getAuthenticatedPlayer(req);
+        try {
+            const result = await pool.query(
+                `SELECT u.id, u.name, u.created_at, p.id AS player_id, p.name AS player_name
+                 FROM universes u
+                 LEFT JOIN players p ON p.universe_id = u.id AND p.user_id = $1
+                 ORDER BY u.id`,
+                [userId],
+            );
+            const universes = result.rows.map((r) => ({
+                id: r.id,
+                name: r.name,
+                createdAt: r.created_at,
+                playerId: r.player_id ?? null,
+                playerName: r.player_name ?? null,
+            }));
+            res.json(universes);
+        } catch (err) {
+            console.error('List universes error', err);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    });
+
+    router.post('/api/universes/:id/join', authenticateToken, async (req, res): Promise<any> => {
+        const { userId } = getAuthenticatedPlayer(req);
+        const universeId = parseInt(req.params.id as string, 10);
+        const { name } = req.body;
+
+        if (!name || !name.trim()) {
+            return res.status(400).json({ error: 'name is required' });
+        }
+
+        try {
+            // Check universe exists
+            const univRes = await pool.query('SELECT id FROM universes WHERE id = $1', [
+                universeId,
+            ]);
+            if (univRes.rows.length === 0) {
+                return res.status(404).json({ error: 'Universe not found' });
+            }
+
+            // Create player row
+            const playerRes = await pool.query(
+                `INSERT INTO players (name, user_id, universe_id, current_sector)
+                 VALUES ($1, $2, $3, 1) RETURNING id`,
+                [name, userId, universeId],
+            );
+            const playerId = playerRes.rows[0].id;
+
+            // Create ship
+            const merchant = shipConfigs['Merchant Freighter'];
+            if (merchant) {
+                await pool.query(
+                    `INSERT INTO player_ships (player_id, ship_name, fighters, shields, cargo_limit)
+                     VALUES ($1, $2, 0, 0, $3)`,
+                    [playerId, merchant.name, merchant.startingHolds],
+                );
+            }
+
+            // Create cargo
+            await pool.query(
+                `INSERT INTO ship_cargo (player_id, fuel, organics, equipment, credits)
+                 VALUES ($1, 0, 0, 0, 10000)`,
+                [playerId],
+            );
+
+            // Mark starting sector as visited
+            await pool.query(
+                'INSERT INTO visited_sectors (player_id, sector_id) VALUES ($1, 1) ON CONFLICT DO NOTHING',
+                [playerId],
+            );
+
+            res.status(201).json({ playerId, universeId });
+        } catch (err: any) {
+            if (err.code === '23505') {
+                return res.status(409).json({ error: 'Already joined this universe' });
+            }
+            console.error('Join universe error', err);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    });
+}
