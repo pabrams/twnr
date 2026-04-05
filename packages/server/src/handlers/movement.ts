@@ -88,7 +88,10 @@ export async function handleMove(
         getPortForSector(targetSector, universeId),
         getVisitedSectors(playerId),
         getSectorFighters(targetSector, universeId),
-        pool.query('SELECT id, name, type FROM planets WHERE sector_id = $1 AND universe_id = $2 ORDER BY id', [targetSector, universeId]),
+        pool.query(
+            'SELECT id, name, type FROM planets WHERE sector_id = $1 AND universe_id = $2 ORDER BY id',
+            [targetSector, universeId],
+        ),
     ]);
     const planets = planetsRes.rows;
     const displayWarps = warps[targetSector] || [];
@@ -106,10 +109,9 @@ export async function handleMove(
     if (sectorFighters && sectorFighters.ownerId !== playerId) {
         player.pendingEncounter = { retreatSector: currentSector };
 
-        const shipRes = await pool.query(
-            'SELECT fighters FROM player_ships WHERE player_id = $1',
-            [playerId],
-        );
+        const shipRes = await pool.query('SELECT fighters FROM player_ships WHERE player_id = $1', [
+            playerId,
+        ]);
 
         send(ws, {
             type: ServerMsgType.FighterEncounter,
@@ -163,7 +165,10 @@ export async function handleSectorDisplay(ws: WebSocket, playerId: number): Prom
         getPortForSector(currentSector, universeId),
         getVisitedSectors(playerId),
         getSectorFighters(currentSector, universeId),
-        pool.query('SELECT id, name, type FROM planets WHERE sector_id = $1 AND universe_id = $2 ORDER BY id', [currentSector, universeId]),
+        pool.query(
+            'SELECT id, name, type FROM planets WHERE sector_id = $1 AND universe_id = $2 ORDER BY id',
+            [currentSector, universeId],
+        ),
     ]);
     const planets = planetsRes.rows;
     const displayWarps = warps[currentSector] || [];

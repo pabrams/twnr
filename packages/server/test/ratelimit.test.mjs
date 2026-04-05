@@ -1,12 +1,8 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { createTestUser, createTestPlayer } from './helpers.mjs';
 import { ensureServer, createPool } from './global-setup.mjs';
 
-const __filename = fileURLToPath(import.meta.url);
-const PROJECT_ROOT = join(dirname(__filename), '..');
 const UNIVERSE_ID = 1;
 
 let pool;
@@ -24,6 +20,9 @@ async function post(path, body) {
 before(async () => {
   await ensureServer();
   pool = createPool();
+  const { userId, token } = await createTestUser(pool);
+  await createTestPlayer(pool, userId, UNIVERSE_ID, `RateLimitTest_${Date.now()}`);
+  testPlayerToken = token;
 });
 
 after(async () => {

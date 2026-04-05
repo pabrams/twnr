@@ -197,11 +197,20 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 ctx.setEncounterOwnerName(msg.ownerName);
 
                 // Show sector info first
-                showSectorDisplay(ctx, msg.sector, msg.warps, msg.players, msg.port, msg.visitedSectors);
+                showSectorDisplay(
+                    ctx,
+                    msg.sector,
+                    msg.warps,
+                    msg.players,
+                    msg.port,
+                    msg.visitedSectors,
+                );
 
                 if (ctx.mode === 'autopilot') {
                     ctx.setAutopilotPaused(true);
-                    ctx.term.writeln(`\r\n${colors.boldRed('Autopilot disengaged — hostile fighters!')}`);
+                    ctx.term.writeln(
+                        `\r\n${colors.boldRed('Autopilot disengaged — hostile fighters!')}`,
+                    );
                 }
 
                 showFighterEncounter(ctx, msg.sectorFighters, msg.ownerName, msg.shipFighters);
@@ -243,11 +252,18 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     }
                 } else {
                     // Re-show encounter with updated numbers
-                    showFighterEncounter(ctx, msg.sectorFightersRemaining, ctx.encounterOwnerName, msg.shipFighters);
+                    showFighterEncounter(
+                        ctx,
+                        msg.sectorFightersRemaining,
+                        ctx.encounterOwnerName,
+                        msg.shipFighters,
+                    );
                 }
                 break;
             case ServerMsgType.RetreatResult:
-                ctx.term.writeln(`\r\n${colors.boldYellow('Retreated to sector')} ${colors.boldCyan(String(msg.sector))}`);
+                ctx.term.writeln(
+                    `\r\n${colors.boldYellow('Retreated to sector')} ${colors.boldCyan(String(msg.sector))}`,
+                );
                 if (ctx.autopilotPaused) {
                     ctx.setAutopilotPath([]);
                     ctx.setAutopilotStep(0);
