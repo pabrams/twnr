@@ -89,11 +89,14 @@ export function createMiddleware(deps: RouteDeps): Middleware {
         }
     }
 
+    const skipRateLimit = process.env.DISABLE_RATE_LIMIT === '1';
+
     const loginLimiter = rateLimit({
         windowMs: 15 * 60 * 1000,
         limit: 10,
         standardHeaders: 'draft-7',
         legacyHeaders: false,
+        skip: () => skipRateLimit,
     });
 
     const registerLimiter = rateLimit({
@@ -101,6 +104,7 @@ export function createMiddleware(deps: RouteDeps): Middleware {
         limit: 5,
         standardHeaders: 'draft-7',
         legacyHeaders: false,
+        skip: () => skipRateLimit,
     });
 
     return { authenticateToken, authenticateAdmin, loginLimiter, registerLimiter };
