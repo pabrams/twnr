@@ -1,1 +1,10 @@
-{ "name": "Tholian Clipper", "maxFighters": 8, "maxShields": 12, "startingHolds": 8, "maxHolds": 30, "price": 6000 }
+{
+  "name": "Tholian Clipper",
+  "maxFighters": 8,
+  "maxShields": 12,
+  "startingHolds": 8,
+  "maxHolds": 30,
+  "price": 6000,
+  "maxPlanetBusters": 11,
+  "maxTerraformDevices": 8
+}

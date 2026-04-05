@@ -14,6 +14,7 @@ async function deleteDatabase() {
     console.log("connected");
     
     await client.query(`
+      DROP TABLE IF EXISTS planet_collisions CASCADE;
       DROP TABLE IF EXISTS planets CASCADE;
       DROP TABLE IF EXISTS visited_sectors CASCADE;
       DROP TABLE IF EXISTS ship_cargo CASCADE;

@@ -6,7 +6,7 @@ import { pool } from '../db/index.js';
 
 export async function handleShipInfo(ws: WebSocket, playerId: number): Promise<void> {
     const query = `
-        SELECT ps.ship_name, ps.fighters, ps.shields, ps.cargo_limit,
+        SELECT ps.ship_name, ps.fighters, ps.shields, ps.cargo_limit, ps.planet_busters, ps.terraform_devices,
                sc.fuel, sc.organics, sc.equipment, sc.colonists
         FROM player_ships ps
         JOIN ship_cargo sc ON ps.player_id = sc.player_id
@@ -42,6 +42,10 @@ export async function handleShipInfo(ws: WebSocket, playerId: number): Promise<v
         cargoEquipment: row.equipment,
         cargoColonists: row.colonists,
         holdsAvailable,
+        planetBusters: row.planet_busters,
+        terraformDevices: row.terraform_devices,
+        maxPlanetBusters: config.maxPlanetBusters || 0,
+        maxTerraformDevices: config.maxTerraformDevices || 0,
     });
 }
 

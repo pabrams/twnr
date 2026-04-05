@@ -115,6 +115,45 @@ export type RetreatFromFightersMessage = {
     type: typeof ClientMsgType.RetreatFromFighters;
 };
 
+export type UseTerraformDeviceMessage = {
+    type: typeof ClientMsgType.UseTerraformDevice;
+};
+
+export type LandOnPlanetMessage = {
+    type: typeof ClientMsgType.LandOnPlanet;
+    planetId: number;
+};
+
+export type PlanetDisplayMessage = {
+    type: typeof ClientMsgType.PlanetDisplay;
+};
+
+export type DestroyPlanetMessage = {
+    type: typeof ClientMsgType.DestroyPlanet;
+};
+
+export type LeavePlanetMessage = {
+    type: typeof ClientMsgType.LeavePlanet;
+};
+
+export type BuyPlanetBustersMessage = {
+    type: typeof ClientMsgType.BuyPlanetBusters;
+    quantity: number;
+};
+
+export type BuyTerraformDevicesMessage = {
+    type: typeof ClientMsgType.BuyTerraformDevices;
+    quantity: number;
+};
+
+export type DockStardockMessage = {
+    type: typeof ClientMsgType.DockStardock;
+};
+
+export type LeaveStardockMessage = {
+    type: typeof ClientMsgType.LeaveStardock;
+};
+
 export type ClientMessage =
     | MoveMessage
     | DisplayMessage
@@ -139,4 +178,13 @@ export type ClientMessage =
     | DeployFightersInfoQueryMessage
     | DeployFightersMessage
     | AttackSectorFightersMessage
-    | RetreatFromFightersMessage;
+    | RetreatFromFightersMessage
+    | UseTerraformDeviceMessage
+    | LandOnPlanetMessage
+    | PlanetDisplayMessage
+    | DestroyPlanetMessage
+    | LeavePlanetMessage
+    | BuyPlanetBustersMessage
+    | BuyTerraformDevicesMessage
+    | DockStardockMessage
+    | LeaveStardockMessage;

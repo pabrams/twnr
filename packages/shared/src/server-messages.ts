@@ -32,6 +32,7 @@ export type SectorDisplayMessage = {
     port?: { class: number; name: string } | null;
     visitedSectors: number[];
     sectorFighters?: SectorFighterInfo | null;
+    planets: { id: number; name: string; type: string }[];
 };
 
 export type PlayerLeftMessage = {
@@ -97,6 +98,10 @@ export type ShipInfoMessage = {
     cargoEquipment: number;
     cargoColonists: number;
     holdsAvailable: number;
+    planetBusters: number;
+    terraformDevices: number;
+    maxPlanetBusters: number;
+    maxTerraformDevices: number;
 };
 
 export type CargoInfoMessage = {
@@ -154,6 +159,56 @@ export type PlanetInfoMessage = {
     planetType: string;
     colonists: number;
     hasPlanet: boolean;
+};
+
+export type TerraformResultMessage = {
+    type: typeof ServerMsgType.TerraformResult;
+    success: boolean;
+    reason?: string;
+    planet?: { id: number; name: string; type: string; sectorId: number };
+    collision?: boolean;
+    terraformDevices?: number;
+};
+
+export type PlanetListMessage = {
+    type: typeof ServerMsgType.PlanetList;
+    planets: { id: number; name: string; type: string }[];
+};
+
+export type PlanetDisplayResultMessage = {
+    type: typeof ServerMsgType.PlanetDisplayResult;
+    id: number;
+    sector_id: number;
+    name: string;
+    planetType: string;
+    fighters: number;
+    fuel: number;
+    organics: number;
+    equipment: number;
+    colonists_fuel: number;
+    colonists_organics: number;
+    colonists_equipment: number;
+    created_at: Date | string;
+    updated_at?: Date | string | null;
+};
+
+export type DestroyPlanetResultMessage = {
+    type: typeof ServerMsgType.DestroyPlanetResult;
+    destroyed: boolean;
+    planetId: number;
+    planetName: string;
+};
+
+export type BuyHardwareResultMessage = {
+    type: typeof ServerMsgType.BuyHardwareResult;
+    item: string;
+    quantity: number;
+    totalOnShip: number;
+    credits: number;
+};
+
+export type StardockMenuMessage = {
+    type: typeof ServerMsgType.StardockMenu;
 };
 
 export type ColonistResultMessage = {
@@ -247,4 +302,10 @@ export type ServerMessage =
     | SectorFighterCombatResultMessage
     | RetreatResultMessage
     | SectorFightersAlertMessage
+    | TerraformResultMessage
+    | PlanetListMessage
+    | PlanetDisplayResultMessage
+    | DestroyPlanetResultMessage
+    | BuyHardwareResultMessage
+    | StardockMenuMessage
     | ErrorMessage;

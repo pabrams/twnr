@@ -1,1 +1,10 @@
-{ "name": "Colonial Frigate", "maxFighters": 25, "maxShields": 20, "startingHolds": 4, "maxHolds": 15, "price": 9000 }
+{
+  "name": "Colonial Frigate",
+  "maxFighters": 25,
+  "maxShields": 20,
+  "startingHolds": 4,
+  "maxHolds": 15,
+  "price": 9000,
+  "maxPlanetBusters": 12,
+  "maxTerraformDevices": 15
+}

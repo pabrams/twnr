@@ -1,1 +1,10 @@
-{ "name": "Interceptor", "maxFighters": 35, "maxShields": 15, "startingHolds": 1, "maxHolds": 4, "price": 10000 }
+{
+  "name": "Interceptor",
+  "maxFighters": 35,
+  "maxShields": 15,
+  "startingHolds": 1,
+  "maxHolds": 4,
+  "price": 10000,
+  "maxPlanetBusters": 0,
+  "maxTerraformDevices": 0
+}

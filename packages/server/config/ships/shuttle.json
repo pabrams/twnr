@@ -1,1 +1,10 @@
-{ "name": "Federation Shuttle", "maxFighters": 2, "maxShields": 3, "startingHolds": 2, "maxHolds": 5, "price": 500 }
+{
+  "name": "Federation Shuttle",
+  "maxFighters": 2,
+  "maxShields": 3,
+  "startingHolds": 2,
+  "maxHolds": 5,
+  "price": 500,
+  "maxPlanetBusters": 0,
+  "maxTerraformDevices": 0
+}

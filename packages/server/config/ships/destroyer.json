@@ -1,1 +1,10 @@
-{ "name": "Destroyer", "maxFighters": 40, "maxShields": 35, "startingHolds": 2, "maxHolds": 7, "price": 18000 }
+{
+  "name": "Destroyer",
+  "maxFighters": 40,
+  "maxShields": 35,
+  "startingHolds": 2,
+  "maxHolds": 7,
+  "price": 18000,
+  "maxPlanetBusters": 8,
+  "maxTerraformDevices": 3
+}

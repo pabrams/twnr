@@ -1,1 +1,10 @@
-{ "name": "Star Trader", "maxFighters": 12, "maxShields": 10, "startingHolds": 7, "maxHolds": 25, "price": 5500 }
+{
+  "name": "Star Trader",
+  "maxFighters": 12,
+  "maxShields": 10,
+  "startingHolds": 7,
+  "maxHolds": 25,
+  "price": 5500,
+  "maxPlanetBusters": 0,
+  "maxTerraformDevices": 0
+}

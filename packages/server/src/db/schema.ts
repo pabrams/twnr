@@ -22,8 +22,17 @@ export const connectDB = async (): Promise<void> => {
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         seed INTEGER,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        max_planets_per_sector SMALLINT NOT NULL DEFAULT 2,
+        planet_collision_likelihood SMALLINT NOT NULL DEFAULT 50,
+        planet_collision_min_hours SMALLINT NOT NULL DEFAULT 24,
+        planet_collision_max_hours SMALLINT NOT NULL DEFAULT 24
       );
+
+      ALTER TABLE universes ADD COLUMN IF NOT EXISTS max_planets_per_sector SMALLINT NOT NULL DEFAULT 2;
+      ALTER TABLE universes ADD COLUMN IF NOT EXISTS planet_collision_likelihood SMALLINT NOT NULL DEFAULT 50;
+      ALTER TABLE universes ADD COLUMN IF NOT EXISTS planet_collision_min_hours SMALLINT NOT NULL DEFAULT 24;
+      ALTER TABLE universes ADD COLUMN IF NOT EXISTS planet_collision_max_hours SMALLINT NOT NULL DEFAULT 24;
 
       CREATE TABLE IF NOT EXISTS sectors (
         id INTEGER NOT NULL,
@@ -47,8 +56,11 @@ export const connectDB = async (): Promise<void> => {
         current_sector INTEGER,
         ship_destroyed_date TIMESTAMPTZ,
         docked BOOLEAN NOT NULL DEFAULT FALSE,
+        on_planet_id INTEGER DEFAULT NULL,
         UNIQUE (user_id, universe_id)
       );
+
+      ALTER TABLE players ADD COLUMN IF NOT EXISTS on_planet_id INTEGER DEFAULT NULL;
 
       CREATE TABLE IF NOT EXISTS ports (
         id SERIAL PRIMARY KEY,
@@ -64,14 +76,64 @@ export const connectDB = async (): Promise<void> => {
         UNIQUE (sector_id, universe_id)
       );
 
+      DO $$ 
+      BEGIN
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='planets' AND column_name='colonists') THEN
+          DROP TABLE planets CASCADE;
+        END IF;
+      END $$;
+
       CREATE TABLE IF NOT EXISTS planets (
-        id SERIAL PRIMARY KEY,
+        id INTEGER NOT NULL,
         sector_id INTEGER NOT NULL,
-        universe_id INTEGER NOT NULL REFERENCES universes(id),
+        universe_id INTEGER NOT NULL REFERENCES universes(id) ON DELETE CASCADE,
         name VARCHAR(255) NOT NULL,
         type VARCHAR(255) NOT NULL DEFAULT 'Terran',
-        colonists INTEGER NOT NULL DEFAULT 0,
-        UNIQUE (sector_id, universe_id)
+        fighters SMALLINT NOT NULL DEFAULT 0,
+        fuel SMALLINT NOT NULL DEFAULT 0,
+        organics SMALLINT NOT NULL DEFAULT 0,
+        equipment SMALLINT NOT NULL DEFAULT 0,
+        colonists_fuel SMALLINT NOT NULL DEFAULT 0,
+        colonists_organics SMALLINT NOT NULL DEFAULT 0,
+        colonists_equipment SMALLINT NOT NULL DEFAULT 0,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ,
+        PRIMARY KEY (id, universe_id),
+        FOREIGN KEY (sector_id, universe_id) REFERENCES sectors(id, universe_id) ON DELETE CASCADE
+      );
+
+      CREATE OR REPLACE FUNCTION trigger_set_timestamp()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        NEW.updated_at = NOW();
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+
+      DROP TRIGGER IF EXISTS set_timestamp_planets ON planets;
+      CREATE TRIGGER set_timestamp_planets
+      BEFORE UPDATE ON planets
+      FOR EACH ROW
+      EXECUTE FUNCTION trigger_set_timestamp();
+
+      DO $$ 
+      BEGIN
+        IF NOT EXISTS (
+            SELECT 1 FROM information_schema.table_constraints 
+            WHERE table_name='planet_collisions' AND constraint_name='planet_collisions_collision_planet_universe_id_fkey'
+        ) THEN
+            DROP TABLE IF EXISTS planet_collisions CASCADE;
+        END IF;
+      END $$;
+
+      CREATE TABLE IF NOT EXISTS planet_collisions (
+        collision_planet INTEGER NOT NULL,
+        colliding_with INTEGER NOT NULL,
+        universe_id INTEGER NOT NULL REFERENCES universes(id) ON DELETE CASCADE,
+        collision_at TIMESTAMPTZ NOT NULL,
+        PRIMARY KEY (collision_planet, colliding_with, universe_id),
+        FOREIGN KEY (collision_planet, universe_id) REFERENCES planets(id, universe_id) ON DELETE CASCADE,
+        FOREIGN KEY (colliding_with, universe_id) REFERENCES planets(id, universe_id) ON DELETE CASCADE
       );
 
       CREATE TABLE IF NOT EXISTS ship_cargo (
@@ -94,8 +156,13 @@ export const connectDB = async (): Promise<void> => {
         ship_name VARCHAR(255) NOT NULL,
         fighters INTEGER NOT NULL DEFAULT 0,
         shields INTEGER NOT NULL DEFAULT 0,
-        cargo_limit INTEGER NOT NULL
+        cargo_limit INTEGER NOT NULL,
+        planet_busters SMALLINT NOT NULL DEFAULT 0,
+        terraform_devices SMALLINT NOT NULL DEFAULT 0
       );
+
+      ALTER TABLE player_ships ADD COLUMN IF NOT EXISTS planet_busters SMALLINT NOT NULL DEFAULT 0;
+      ALTER TABLE player_ships ADD COLUMN IF NOT EXISTS terraform_devices SMALLINT NOT NULL DEFAULT 0;
 
       CREATE TABLE IF NOT EXISTS sector_fighters (
         sector_id INTEGER NOT NULL,

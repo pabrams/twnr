@@ -84,11 +84,13 @@ export async function handleMove(
         newSectorClients,
     );
 
-    const [port, visitedSectors, sectorFighters] = await Promise.all([
+    const [port, visitedSectors, sectorFighters, planetsRes] = await Promise.all([
         getPortForSector(targetSector, universeId),
         getVisitedSectors(playerId),
         getSectorFighters(targetSector, universeId),
+        pool.query('SELECT id, name, type FROM planets WHERE sector_id = $1 AND universe_id = $2 ORDER BY id', [targetSector, universeId]),
     ]);
+    const planets = planetsRes.rows;
     const displayWarps = warps[targetSector] || [];
     const playersInSector = Object.entries(players)
         .filter(
@@ -146,6 +148,7 @@ export async function handleMove(
         port,
         visitedSectors,
         sectorFighters,
+        planets,
     });
 }
 
@@ -155,12 +158,14 @@ export async function handleSectorDisplay(ws: WebSocket, playerId: number): Prom
     const currentSector = player.sector;
     const universeId = player.universeId;
 
-    const [warps, port, visitedSectors, sectorFighters] = await Promise.all([
+    const [warps, port, visitedSectors, sectorFighters, planetsRes] = await Promise.all([
         getGraph(universeId),
         getPortForSector(currentSector, universeId),
         getVisitedSectors(playerId),
         getSectorFighters(currentSector, universeId),
+        pool.query('SELECT id, name, type FROM planets WHERE sector_id = $1 AND universe_id = $2 ORDER BY id', [currentSector, universeId]),
     ]);
+    const planets = planetsRes.rows;
     const displayWarps = warps[currentSector] || [];
     const playersInSector = Object.entries(players)
         .filter(
@@ -179,6 +184,7 @@ export async function handleSectorDisplay(ws: WebSocket, playerId: number): Prom
         port,
         visitedSectors,
         sectorFighters,
+        planets,
     });
 }
 

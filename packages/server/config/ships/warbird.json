@@ -1,1 +1,10 @@
-{ "name": "Warbird", "maxFighters": 30, "maxShields": 25, "startingHolds": 1, "maxHolds": 5, "price": 8000 }
+{
+  "name": "Warbird",
+  "maxFighters": 30,
+  "maxShields": 25,
+  "startingHolds": 1,
+  "maxHolds": 5,
+  "price": 8000,
+  "maxPlanetBusters": 0,
+  "maxTerraformDevices": 9
+}

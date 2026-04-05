@@ -15,7 +15,7 @@ export function createAdminLifecycleRoutes(
         '/api/admin/universes/generate',
         authenticateAdmin,
         async (req, res): Promise<any> => {
-            const { name, sectors, seed, portDensity, twoWayPct } = req.body;
+            const { name, sectors, seed, portDensity, twoWayPct, max_planets_per_sector = 2 } = req.body;
 
             if (!name || !String(name).trim()) {
                 return res.status(400).json({ error: 'name is required' });
@@ -25,6 +25,10 @@ export function createAdminLifecycleRoutes(
                 return res
                     .status(400)
                     .json({ error: 'sectors is required and must be between 20 and 500' });
+            }
+            const maxPlanets = parseInt(String(max_planets_per_sector), 10);
+            if (isNaN(maxPlanets) || maxPlanets < 0 || maxPlanets > 25) {
+                return res.status(400).json({ error: 'max_planets_per_sector must be between 0 and 25' });
             }
 
             try {
@@ -41,8 +45,8 @@ export function createAdminLifecycleRoutes(
 
                     // Create universe row
                     const univRes = await client.query(
-                        'INSERT INTO universes (name, seed) VALUES ($1, $2) RETURNING id',
-                        [name, result.seed],
+                        'INSERT INTO universes (name, seed, max_planets_per_sector) VALUES ($1, $2, $3) RETURNING id',
+                        [name, result.seed, maxPlanets],
                     );
                     const universeId = univRes.rows[0].id;
 
@@ -102,10 +106,10 @@ export function createAdminLifecycleRoutes(
 
                     // Seed Earth in Sector 1
                     await client.query(
-                        `INSERT INTO planets (sector_id, universe_id, name, type, colonists)
-                         VALUES (1, $1, 'Earth', 'Terran', $2)
-                         ON CONFLICT (sector_id, universe_id) DO NOTHING`,
-                        [universeId, initialValues.earthColonists],
+                        `INSERT INTO planets (id, sector_id, universe_id, name, type)
+                         VALUES (1, 1, $1, 'Earth', 'Terran')
+                         ON CONFLICT (id, universe_id) DO NOTHING`,
+                        [universeId],
                     );
 
                     await client.query('COMMIT');
@@ -289,7 +293,7 @@ export function createAdminLifecycleRoutes(
 
             try {
                 // Check source exists
-                const srcRes = await pool.query('SELECT id, seed FROM universes WHERE id = $1', [
+                const srcRes = await pool.query('SELECT id, seed, max_planets_per_sector, planet_collision_likelihood, planet_collision_min_hours, planet_collision_max_hours FROM universes WHERE id = $1', [
                     sourceId,
                 ]);
                 if (srcRes.rows.length === 0) {
@@ -302,8 +306,8 @@ export function createAdminLifecycleRoutes(
 
                     // Create new universe row
                     const newUnivRes = await client.query(
-                        'INSERT INTO universes (name, seed) VALUES ($1, $2) RETURNING id',
-                        [name, srcRes.rows[0].seed],
+                        'INSERT INTO universes (name, seed, max_planets_per_sector, planet_collision_likelihood, planet_collision_min_hours, planet_collision_max_hours) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
+                        [name, srcRes.rows[0].seed, srcRes.rows[0].max_planets_per_sector, srcRes.rows[0].planet_collision_likelihood, srcRes.rows[0].planet_collision_min_hours, srcRes.rows[0].planet_collision_max_hours],
                     );
                     const newId = newUnivRes.rows[0].id;
 
@@ -331,8 +335,8 @@ export function createAdminLifecycleRoutes(
 
                     // Copy planets
                     await client.query(
-                        `INSERT INTO planets (sector_id, universe_id, name, type, colonists)
-                         SELECT sector_id, $1, name, type, colonists
+                        `INSERT INTO planets (id, sector_id, universe_id, name, type, fighters, fuel, organics, equipment, colonists_fuel, colonists_organics, colonists_equipment)
+                         SELECT id, sector_id, $1, name, type, fighters, fuel, organics, equipment, colonists_fuel, colonists_organics, colonists_equipment
                          FROM planets WHERE universe_id = $2`,
                         [newId, sourceId],
                     );

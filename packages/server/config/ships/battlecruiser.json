@@ -1,1 +1,10 @@
-{ "name": "Battlecruiser", "maxFighters": 50, "maxShields": 40, "startingHolds": 2, "maxHolds": 8, "price": 15000 }
+{
+  "name": "Battlecruiser",
+  "maxFighters": 50,
+  "maxShields": 40,
+  "startingHolds": 2,
+  "maxHolds": 8,
+  "price": 15000,
+  "maxPlanetBusters": 14,
+  "maxTerraformDevices": 1
+}

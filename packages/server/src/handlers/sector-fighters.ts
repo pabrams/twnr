@@ -331,12 +331,14 @@ export async function handleRetreatFromFighters(
     send(ws, { type: ServerMsgType.RetreatResult, sector: retreatSector });
 
     // Send sector display for the retreat sector
-    const [warps, port, visitedSectors, sectorFighters] = await Promise.all([
+    const [warps, port, visitedSectors, sectorFighters, planetsRes] = await Promise.all([
         getGraph(universeId),
         getPortForSector(retreatSector, universeId),
         getVisitedSectors(playerId),
         getSectorFighters(retreatSector, universeId),
+        pool.query('SELECT id, name, type FROM planets WHERE sector_id = $1 AND universe_id = $2 ORDER BY id', [retreatSector, universeId]),
     ]);
+    const planets = planetsRes.rows;
     const displayWarps = warps[retreatSector] || [];
     const playersInSector = Object.entries(players)
         .filter(
@@ -355,5 +357,6 @@ export async function handleRetreatFromFighters(
         port,
         visitedSectors,
         sectorFighters,
+        planets,
     });
 }

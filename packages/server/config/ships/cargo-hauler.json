@@ -1,1 +1,10 @@
-{ "name": "Cargo Hauler", "maxFighters": 5, "maxShields": 8, "startingHolds": 10, "maxHolds": 40, "price": 7500 }
+{
+  "name": "Cargo Hauler",
+  "maxFighters": 5,
+  "maxShields": 8,
+  "startingHolds": 10,
+  "maxHolds": 40,
+  "price": 7500,
+  "maxPlanetBusters": 8,
+  "maxTerraformDevices": 9
+}

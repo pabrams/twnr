@@ -28,6 +28,12 @@ export const ServerMsgType = {
     RetreatResult: 'retreatResult',
     SectorFightersAlert: 'sectorFightersAlert',
     Error: 'error',
+    TerraformResult: 'terraformResult',
+    PlanetList: 'planetList',
+    PlanetDisplayResult: 'planetDisplayResult',
+    DestroyPlanetResult: 'destroyPlanetResult',
+    BuyHardwareResult: 'buyHardwareResult',
+    StardockMenu: 'stardockMenu',
 } as const;
 type ServerMsgType = typeof ServerMsgType;
 
@@ -56,5 +62,14 @@ export const ClientMsgType = {
     DeployFighters: 'deployFighters',
     AttackSectorFighters: 'attackSectorFighters',
     RetreatFromFighters: 'retreatFromFighters',
+    UseTerraformDevice: 'useTerraformDevice',
+    LandOnPlanet: 'landOnPlanet',
+    PlanetDisplay: 'planetDisplay',
+    DestroyPlanet: 'destroyPlanet',
+    LeavePlanet: 'leavePlanet',
+    BuyPlanetBusters: 'buyPlanetBusters',
+    BuyTerraformDevices: 'buyTerraformDevices',
+    DockStardock: 'dockStardock',
+    LeaveStardock: 'leaveStardock',
 } as const;
 type ClientMsgType = typeof ClientMsgType;
