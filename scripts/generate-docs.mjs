@@ -1,8 +1,179 @@
 #!/usr/bin/env node
 import { readFileSync, writeFileSync } from 'fs';
+import { join } from 'path';
 
 const clientSchema = JSON.parse(readFileSync('docs/client-messages.schema.json', 'utf8'));
 const serverSchema = JSON.parse(readFileSync('docs/server-messages.schema.json', 'utf8'));
+
+const HANDLERS_DIR = 'packages/server/src/handlers';
+const routerSrc = readFileSync(join(HANDLERS_DIR, 'message-router.ts'), 'utf8');
+const messagesSrc = readFileSync('packages/shared/src/messages.ts', 'utf8');
+const serverMsgSrc = readFileSync('packages/shared/src/server-messages.ts', 'utf8');
+const clientMsgSrc = readFileSync('packages/shared/src/client-messages.ts', 'utf8');
+
+// --- 1. Parse enum mappings ---
+
+// ClientMsgType key -> wire value (e.g. Move -> "move")
+const clientKeyToWire = {};
+for (const m of messagesSrc.matchAll(/(\w+):\s*'([^']+)'/g)) {
+    clientKeyToWire[m[1]] = m[2];
+}
+
+// ServerMsgType key -> wire value (e.g. SectorDisplay -> "sectorDisplay")
+const serverKeyToWire = {};
+for (const m of messagesSrc.matchAll(/(\w+):\s*'([^']+)'/g)) {
+    serverKeyToWire[m[1]] = m[2];
+}
+
+// ServerMsgType key -> TypeScript type name (e.g. SectorDisplay -> SectorDisplayMessage)
+const serverKeyToTypeName = {};
+for (const m of serverMsgSrc.matchAll(/export\s+type\s+(\w+)\s*=\s*\{[^}]*typeof\s+ServerMsgType\.(\w+)/gs)) {
+    serverKeyToTypeName[m[2]] = m[1];
+}
+
+// Client wire -> TypeScript type name
+const clientWireToTypeName = {};
+for (const m of clientMsgSrc.matchAll(/export\s+type\s+(\w+)\s*=\s*\{[^}]*typeof\s+ClientMsgType\.(\w+)/gs)) {
+    const wire = clientKeyToWire[m[2]];
+    if (wire) clientWireToTypeName[wire] = m[1];
+}
+
+// --- 2. Parse router imports: function name -> source file ---
+
+const importMap = {};
+for (const m of routerSrc.matchAll(/import\s*\{([^}]+)\}\s*from\s*'\.\/([^']+)'/g)) {
+    const file = m[2].replace('.js', '.ts');
+    for (const fn of m[1].split(',').map(s => s.trim()).filter(Boolean)) {
+        importMap[fn] = file;
+    }
+}
+
+// --- 3. Parse all handler source files, extract functions and their ServerMsgType refs ---
+
+const handlerFiles = new Set(Object.values(importMap));
+handlerFiles.add('message-router.ts');
+
+// fnName -> { file, serverKeys: Set<string>, calls: Set<string> }
+const fnInfo = {};
+
+for (const file of handlerFiles) {
+    const src = readFileSync(join(HANDLERS_DIR, file), 'utf8');
+    // Split into functions by matching export (async)? function name
+    const fnRegex = /(?:export\s+)?(?:async\s+)?function\s+(\w+)\s*\([^)]*\)[^{]*\{/g;
+    let match;
+    const fnStarts = [];
+    while ((match = fnRegex.exec(src)) !== null) {
+        fnStarts.push({ name: match[1], start: match.index });
+    }
+
+    for (let i = 0; i < fnStarts.length; i++) {
+        const start = fnStarts[i].start;
+        const end = i + 1 < fnStarts.length ? fnStarts[i + 1].start : src.length;
+        const body = src.slice(start, end);
+        const name = fnStarts[i].name;
+
+        const serverKeys = new Set();
+        for (const m of body.matchAll(/ServerMsgType\.(\w+)/g)) {
+            serverKeys.add(m[1]);
+        }
+
+        // Detect calls to other handler functions
+        const calls = new Set();
+        for (const m of body.matchAll(/\b(handle\w+)\s*\(/g)) {
+            if (m[1] !== name) calls.add(m[1]);
+        }
+
+        fnInfo[name] = { file, serverKeys, calls };
+    }
+}
+
+// Resolve transitive calls (one level deep is enough for this codebase)
+function resolveServerKeys(fnName, visited = new Set()) {
+    const info = fnInfo[fnName];
+    if (!info) return new Set();
+    visited.add(fnName);
+    const keys = new Set(info.serverKeys);
+    for (const callee of info.calls) {
+        if (!visited.has(callee)) {
+            for (const k of resolveServerKeys(callee, visited)) {
+                keys.add(k);
+            }
+        }
+    }
+    return keys;
+}
+
+// --- 4. Parse switch statement to build dispatch: clientWire -> { handlerFn, file } ---
+
+const dispatch = {}; // wire -> { fn, file }
+let currentCases = [];
+for (const line of routerSrc.split('\n')) {
+    const caseMatch = line.match(/case\s+ClientMsgType\.(\w+)\s*:/);
+    if (caseMatch) currentCases.push(caseMatch[1]);
+
+    const handlerMatch = line.match(/return\s+(handle\w+)\s*\(/);
+    const inlineMatch = line.match(/send\s*\(\s*ws\s*,\s*\{/);
+    if ((handlerMatch || inlineMatch) && currentCases.length > 0) {
+        const fn = handlerMatch ? handlerMatch[1] : null;
+        const file = fn ? (importMap[fn] || 'message-router.ts') : 'message-router.ts';
+        for (const key of currentCases) {
+            const wire = clientKeyToWire[key];
+            if (wire) dispatch[wire] = { fn, file };
+        }
+        currentCases = [];
+    }
+}
+
+// --- 5. Build the mapping table rows ---
+
+const tableRows = [];
+const clientDefs = clientSchema.definitions ?? {};
+const clientUnion = clientSchema.$ref?.replace('#/definitions/', '');
+const clientMembers = (clientDefs[clientUnion]?.anyOf ?? [])
+    .map(r => r.$ref?.replace('#/definitions/', '')).filter(Boolean);
+
+for (const typeName of clientMembers) {
+    const def = clientDefs[typeName];
+    const wire = def?.properties?.type?.const;
+    if (!wire) continue;
+
+    const d = dispatch[wire];
+    const handlerFn = d?.fn || '(inline)';
+    const handlerFile = d?.file || 'message-router.ts';
+
+    // Get server message type keys this handler sends (excluding Error)
+    let serverKeys;
+    if (d?.fn) {
+        serverKeys = resolveServerKeys(d.fn);
+    } else {
+        // inline — extract from switch case directly
+        serverKeys = new Set();
+        const inlineBlock = routerSrc.slice(
+            routerSrc.indexOf(`ClientMsgType.${Object.entries(clientKeyToWire).find(([, v]) => v === wire)?.[0]}`),
+        );
+        const blockEnd = inlineBlock.indexOf('return;');
+        const block = inlineBlock.slice(0, blockEnd > 0 ? blockEnd : 200);
+        for (const m of block.matchAll(/ServerMsgType\.(\w+)/g)) {
+            serverKeys.add(m[1]);
+        }
+    }
+
+    // Separate error from primary responses
+    const primaryKeys = [...serverKeys].filter(k => k !== 'Error');
+    const responseTypes = primaryKeys
+        .map(k => ({ key: k, wire: serverKeyToWire[k], typeName: serverKeyToTypeName[k] }))
+        .filter(r => r.typeName);
+
+    tableRows.push({
+        clientTypeName: typeName,
+        clientWire: wire,
+        handlerFn,
+        handlerFile,
+        responseTypes,
+    });
+}
+
+// --- Schema-based message card rendering (unchanged) ---
 
 function renderType(prop) {
     if (prop.const) return `"${prop.const}"`;
@@ -17,8 +188,12 @@ function renderType(prop) {
 function getMessages(schema) {
     const defs = schema.definitions ?? {};
     const unionName = schema.$ref?.replace('#/definitions/', '');
+    const unionDef = defs[unionName];
+    const unionMembers = new Set(
+        (unionDef?.anyOf ?? []).map(ref => ref.$ref?.replace('#/definitions/', '')).filter(Boolean)
+    );
     return Object.entries(defs)
-        .filter(([name]) => name !== unionName)
+        .filter(([name]) => unionMembers.has(name))
         .sort(([, a], [, b]) => {
             const aType = a.properties?.type?.const ?? '';
             const bType = b.properties?.type?.const ?? '';
@@ -46,7 +221,7 @@ ${items}
       </li>`;
 }
 
-function renderMessageCard(name, def) {
+function renderMessageCard(name, def, isClient) {
     const wireType = def.properties?.type?.const ?? '?';
     const required = new Set(def.required ?? []);
     const props = Object.entries(def.properties ?? {})
@@ -56,19 +231,65 @@ function renderMessageCard(name, def) {
         })
         .join('\n');
 
+    let handlerHtml = '';
+    if (isClient) {
+        const d = dispatch[wireType];
+        if (d) {
+            const label = d.fn ? d.fn : 'inline';
+            const file = d.file || 'message-router.ts';
+            handlerHtml = `\n<div class="handler">Handler: <code>${label}</code> <span class="handler-file">${file}</span></div>`;
+        }
+    }
+
     return `<section class="message" id="${name}">
-<h3><a href="#${name}">${name}</a> <code class="wire-type">"${wireType}"</code></h3>
+<h3><a href="#${name}">${name}</a> <code class="wire-type">"${wireType}"</code></h3>${handlerHtml}
 <pre>{
 ${props}
 }</pre>
 </section>`;
 }
 
-function renderMainSection(title, id, messages) {
-    const cards = messages.map(([name, def]) => renderMessageCard(name, def)).join('\n');
+function renderMainSection(title, id, messages, isClient) {
+    const cards = messages.map(([name, def]) => renderMessageCard(name, def, isClient)).join('\n');
     return `<section class="group" id="${id}-section">
   <h2>${title}</h2>
   ${cards}
+</section>`;
+}
+
+// --- Render mapping table ---
+
+function renderMappingTable() {
+    const rows = tableRows.map(r => {
+        const responses = r.responseTypes.length > 0
+            ? r.responseTypes.map(rt =>
+                `<a href="#${rt.typeName}" class="response-link">${rt.typeName}</a>`
+            ).join(', ')
+            : '<span class="dim">none</span>';
+        const handler = r.handlerFn === '(inline)'
+            ? '<span class="dim">inline</span>'
+            : `<code class="fn">${r.handlerFn}</code>`;
+        return `      <tr>
+        <td><a href="#${r.clientTypeName}">${r.clientTypeName}</a></td>
+        <td><code class="wire">${r.clientWire}</code></td>
+        <td>${handler}</td>
+        <td>${responses}</td>
+      </tr>`;
+    }).join('\n');
+
+    return `<section class="group" id="mapping-section">
+  <h2>Message Flow</h2>
+  <p class="table-subtitle">Client request &rarr; handler &rarr; server response (excludes <code>ErrorMessage</code> which any handler can send)</p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Client Type</th><th>Wire</th><th>Handler</th><th>Server Response Types</th></tr>
+      </thead>
+      <tbody>
+${rows}
+      </tbody>
+    </table>
+  </div>
 </section>`;
 }
 
@@ -96,6 +317,7 @@ const html = `<!DOCTYPE html>
     --wire: #ce9178;
     --hover: #1e2d4d;
     --active: #253555;
+    --fn: #dcdcaa;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html { scroll-behavior: smooth; scroll-padding-top: 1rem; }
@@ -165,7 +387,6 @@ const html = `<!DOCTYPE html>
     list-style: none;
     padding-left: 0;
   }
-  .tree-children li { }
   .nav-link {
     display: flex;
     align-items: baseline;
@@ -181,10 +402,6 @@ const html = `<!DOCTYPE html>
     color: var(--wire);
     font-size: 0.7rem;
     flex-shrink: 0;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
   .nav-name {
     overflow: hidden;
@@ -197,7 +414,7 @@ const html = `<!DOCTYPE html>
     margin-left: var(--sidebar-w);
     flex: 1;
     padding: 2rem 2.5rem;
-    max-width: 750px;
+    max-width: 900px;
   }
   h1 { color: var(--accent); margin-bottom: 0.25rem; font-size: 1.4rem; }
   .subtitle { color: var(--fg-dim); margin-bottom: 2.5rem; font-size: 0.85rem; }
@@ -212,6 +429,13 @@ const html = `<!DOCTYPE html>
   h3 a { color: var(--fg); text-decoration: none; }
   h3 a:hover { text-decoration: underline; }
   .wire-type { color: var(--wire); font-size: 0.8rem; font-weight: normal; }
+  .handler {
+    font-size: 0.78rem;
+    color: var(--fg-dim);
+    margin-bottom: 0.4rem;
+  }
+  .handler code { color: var(--fn); font-size: 0.78rem; }
+  .handler-file { color: #6a7a8a; font-size: 0.72rem; }
   .message {
     background: var(--card);
     border: 1px solid var(--border);
@@ -222,6 +446,38 @@ const html = `<!DOCTYPE html>
   pre { font-size: 0.8rem; line-height: 1.75; white-space: pre-wrap; }
   .key { color: var(--key); }
   .type { color: var(--type); }
+
+  /* Mapping table */
+  .table-subtitle { color: var(--fg-dim); font-size: 0.8rem; margin-bottom: 1rem; }
+  .table-subtitle code { color: var(--wire); font-size: 0.78rem; }
+  .table-wrap { overflow-x: auto; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.78rem;
+    line-height: 1.5;
+  }
+  th {
+    text-align: left;
+    padding: 0.5rem 0.6rem;
+    border-bottom: 2px solid var(--border);
+    color: var(--fg-dim);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  td {
+    padding: 0.4rem 0.6rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  tr:hover td { background: var(--hover); }
+  td a { color: var(--fg); text-decoration: none; }
+  td a:hover { text-decoration: underline; }
+  .response-link { color: var(--type); }
+  .response-link:hover { color: var(--fg); }
+  code.wire { color: var(--wire); }
+  code.fn { color: var(--fn); }
+  .dim { color: #555; font-style: italic; }
 </style>
 </head>
 <body>
@@ -229,6 +485,9 @@ const html = `<!DOCTYPE html>
 <nav class="sidebar">
   <div class="sidebar-title">twnr Protocol</div>
   <ul class="tree">
+    <li class="tree-branch">
+      <a href="#mapping-section" class="nav-link" style="padding-left:1rem; font-weight:600; color:var(--fg);">Message Flow</a>
+    </li>
 ${renderSidebarTree('Client &rarr; Server', 'nav-client', clientMessages)}
 ${renderSidebarTree('Server &rarr; Client', 'nav-server', serverMessages)}
   </ul>
@@ -237,12 +496,12 @@ ${renderSidebarTree('Server &rarr; Client', 'nav-server', serverMessages)}
 <main class="main">
   <h1>Protocol Reference</h1>
   <p class="subtitle">WebSocket message types &mdash; generated from TypeScript source</p>
-  ${renderMainSection('Client &rarr; Server', 'client', clientMessages)}
-  ${renderMainSection('Server &rarr; Client', 'server', serverMessages)}
+  ${renderMappingTable()}
+  ${renderMainSection('Client &rarr; Server', 'client', clientMessages, true)}
+  ${renderMainSection('Server &rarr; Client', 'server', serverMessages, false)}
 </main>
 
 <script>
-// Highlight active sidebar link on scroll
 const links = document.querySelectorAll('.nav-link');
 const sections = [...links].map(l => document.getElementById(l.dataset.target)).filter(Boolean);
 
