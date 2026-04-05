@@ -69,4 +69,11 @@ pnpm run dev
 
 Visit http://localhost:5173 and register.
 
+## Documentation
 
+The `docs/` folder is generated during `pnpm build` (or directly via `pnpm docs`). It contains:
+
+- **`index.html`** — Protocol reference with every WebSocket message type, showing the exact wire-format JSON including resolved string literal `type` discriminators. Has a sidebar treeview for client and server messages.
+- **`client-messages.schema.json`** / **`server-messages.schema.json`** — JSON Schema files generated from the TypeScript source types in `packages/shared/`.
+
+Do not edit these files by hand — they are regenerated from the TypeScript source on every build.

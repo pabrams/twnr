@@ -1,6 +1,0 @@
-{
-  "$schema": "https://typedoc.org/schema.json",
-  "entryPointStrategy": "packages",
-  "entryPoints": ["packages/shared", "packages/server", "packages/client"],
-  "out": "docs"
-}
