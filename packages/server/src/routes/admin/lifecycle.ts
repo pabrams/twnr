@@ -2,7 +2,6 @@ import { Router } from 'express';
 import { pool } from '../../db/index.js';
 import { generateUniverse } from '../../bigbang/index.js';
 import type { RouteDeps, Middleware } from '../middleware.js';
-import { initialValues } from '../../game-config.js';
 
 export function createAdminLifecycleRoutes(
     router: Router,
@@ -15,7 +14,14 @@ export function createAdminLifecycleRoutes(
         '/api/admin/universes/generate',
         authenticateAdmin,
         async (req, res): Promise<any> => {
-            const { name, sectors, seed, portDensity, twoWayPct, max_planets_per_sector = 2 } = req.body;
+            const {
+                name,
+                sectors,
+                seed,
+                portDensity,
+                twoWayPct,
+                max_planets_per_sector = 2,
+            } = req.body;
 
             if (!name || !String(name).trim()) {
                 return res.status(400).json({ error: 'name is required' });
@@ -28,7 +34,9 @@ export function createAdminLifecycleRoutes(
             }
             const maxPlanets = parseInt(String(max_planets_per_sector), 10);
             if (isNaN(maxPlanets) || maxPlanets < 0 || maxPlanets > 25) {
-                return res.status(400).json({ error: 'max_planets_per_sector must be between 0 and 25' });
+                return res
+                    .status(400)
+                    .json({ error: 'max_planets_per_sector must be between 0 and 25' });
             }
 
             try {
@@ -293,9 +301,10 @@ export function createAdminLifecycleRoutes(
 
             try {
                 // Check source exists
-                const srcRes = await pool.query('SELECT id, seed, max_planets_per_sector, planet_collision_likelihood, planet_collision_min_hours, planet_collision_max_hours FROM universes WHERE id = $1', [
-                    sourceId,
-                ]);
+                const srcRes = await pool.query(
+                    'SELECT id, seed, max_planets_per_sector, planet_collision_likelihood, planet_collision_min_hours, planet_collision_max_hours FROM universes WHERE id = $1',
+                    [sourceId],
+                );
                 if (srcRes.rows.length === 0) {
                     return res.status(404).json({ error: 'Universe not found' });
                 }
@@ -307,7 +316,14 @@ export function createAdminLifecycleRoutes(
                     // Create new universe row
                     const newUnivRes = await client.query(
                         'INSERT INTO universes (name, seed, max_planets_per_sector, planet_collision_likelihood, planet_collision_min_hours, planet_collision_max_hours) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
-                        [name, srcRes.rows[0].seed, srcRes.rows[0].max_planets_per_sector, srcRes.rows[0].planet_collision_likelihood, srcRes.rows[0].planet_collision_min_hours, srcRes.rows[0].planet_collision_max_hours],
+                        [
+                            name,
+                            srcRes.rows[0].seed,
+                            srcRes.rows[0].max_planets_per_sector,
+                            srcRes.rows[0].planet_collision_likelihood,
+                            srcRes.rows[0].planet_collision_min_hours,
+                            srcRes.rows[0].planet_collision_max_hours,
+                        ],
                     );
                     const newId = newUnivRes.rows[0].id;
 

@@ -314,7 +314,11 @@ export async function handleLeaveStardock(ws: WebSocket, playerId: number): Prom
     });
 }
 
-export async function handleBuyPlanetBusters(ws: WebSocket, playerId: number, quantity: number): Promise<void> {
+export async function handleBuyPlanetBusters(
+    ws: WebSocket,
+    playerId: number,
+    quantity: number,
+): Promise<void> {
     const qty = Number.isInteger(quantity) ? quantity : 0;
     if (qty <= 0) {
         send(ws, { type: ServerMsgType.Error, message: 'Invalid quantity' });
@@ -335,14 +339,20 @@ export async function handleBuyPlanetBusters(ws: WebSocket, playerId: number, qu
     try {
         await client.query('BEGIN');
 
-        const shipRes = await client.query('SELECT ship_name, planet_busters FROM player_ships WHERE player_id = $1 FOR UPDATE', [playerId]);
+        const shipRes = await client.query(
+            'SELECT ship_name, planet_busters FROM player_ships WHERE player_id = $1 FOR UPDATE',
+            [playerId],
+        );
         if (shipRes.rows.length === 0) {
             await client.query('ROLLBACK');
             send(ws, { type: ServerMsgType.Error, message: 'Ship not found' });
             return;
         }
 
-        const cargoRes = await client.query('SELECT credits FROM ship_cargo WHERE player_id = $1 FOR UPDATE', [playerId]);
+        const cargoRes = await client.query(
+            'SELECT credits FROM ship_cargo WHERE player_id = $1 FOR UPDATE',
+            [playerId],
+        );
         if (cargoRes.rows.length === 0 || cargoRes.rows[0].credits < cost) {
             await client.query('ROLLBACK');
             send(ws, { type: ServerMsgType.Error, message: 'Insufficient credits' });
@@ -355,12 +365,21 @@ export async function handleBuyPlanetBusters(ws: WebSocket, playerId: number, qu
 
             if (shipRes.rows[0].planet_busters + qty > maxPlanetBusters) {
                 await client.query('ROLLBACK');
-                send(ws, { type: ServerMsgType.Error, message: 'Cannot hold that many Planet Busters' });
+                send(ws, {
+                    type: ServerMsgType.Error,
+                    message: 'Cannot hold that many Planet Busters',
+                });
                 return;
             }
 
-            await client.query('UPDATE ship_cargo SET credits = credits - $1 WHERE player_id = $2', [cost, playerId]);
-            await client.query('UPDATE player_ships SET planet_busters = planet_busters + $1 WHERE player_id = $2', [qty, playerId]);
+            await client.query(
+                'UPDATE ship_cargo SET credits = credits - $1 WHERE player_id = $2',
+                [cost, playerId],
+            );
+            await client.query(
+                'UPDATE player_ships SET planet_busters = planet_busters + $1 WHERE player_id = $2',
+                [qty, playerId],
+            );
             await client.query('COMMIT');
 
             send(ws, {
@@ -368,7 +387,7 @@ export async function handleBuyPlanetBusters(ws: WebSocket, playerId: number, qu
                 item: 'planet_busters',
                 quantity: qty,
                 totalOnShip: shipRes.rows[0].planet_busters + qty,
-                credits: cargoRes.rows[0].credits - cost
+                credits: cargoRes.rows[0].credits - cost,
             });
         });
     } catch (err) {
@@ -380,7 +399,11 @@ export async function handleBuyPlanetBusters(ws: WebSocket, playerId: number, qu
     }
 }
 
-export async function handleBuyTerraformDevices(ws: WebSocket, playerId: number, quantity: number): Promise<void> {
+export async function handleBuyTerraformDevices(
+    ws: WebSocket,
+    playerId: number,
+    quantity: number,
+): Promise<void> {
     const qty = Number.isInteger(quantity) ? quantity : 0;
     if (qty <= 0) {
         send(ws, { type: ServerMsgType.Error, message: 'Invalid quantity' });
@@ -401,14 +424,20 @@ export async function handleBuyTerraformDevices(ws: WebSocket, playerId: number,
     try {
         await client.query('BEGIN');
 
-        const shipRes = await client.query('SELECT ship_name, terraform_devices FROM player_ships WHERE player_id = $1 FOR UPDATE', [playerId]);
+        const shipRes = await client.query(
+            'SELECT ship_name, terraform_devices FROM player_ships WHERE player_id = $1 FOR UPDATE',
+            [playerId],
+        );
         if (shipRes.rows.length === 0) {
             await client.query('ROLLBACK');
             send(ws, { type: ServerMsgType.Error, message: 'Ship not found' });
             return;
         }
 
-        const cargoRes = await client.query('SELECT credits FROM ship_cargo WHERE player_id = $1 FOR UPDATE', [playerId]);
+        const cargoRes = await client.query(
+            'SELECT credits FROM ship_cargo WHERE player_id = $1 FOR UPDATE',
+            [playerId],
+        );
         if (cargoRes.rows.length === 0 || cargoRes.rows[0].credits < cost) {
             await client.query('ROLLBACK');
             send(ws, { type: ServerMsgType.Error, message: 'Insufficient credits' });
@@ -421,12 +450,21 @@ export async function handleBuyTerraformDevices(ws: WebSocket, playerId: number,
 
             if (shipRes.rows[0].terraform_devices + qty > maxTerraformDevices) {
                 await client.query('ROLLBACK');
-                send(ws, { type: ServerMsgType.Error, message: 'Cannot hold that many Terraform Devices' });
+                send(ws, {
+                    type: ServerMsgType.Error,
+                    message: 'Cannot hold that many Terraform Devices',
+                });
                 return;
             }
 
-            await client.query('UPDATE ship_cargo SET credits = credits - $1 WHERE player_id = $2', [cost, playerId]);
-            await client.query('UPDATE player_ships SET terraform_devices = terraform_devices + $1 WHERE player_id = $2', [qty, playerId]);
+            await client.query(
+                'UPDATE ship_cargo SET credits = credits - $1 WHERE player_id = $2',
+                [cost, playerId],
+            );
+            await client.query(
+                'UPDATE player_ships SET terraform_devices = terraform_devices + $1 WHERE player_id = $2',
+                [qty, playerId],
+            );
             await client.query('COMMIT');
 
             send(ws, {
@@ -434,7 +472,7 @@ export async function handleBuyTerraformDevices(ws: WebSocket, playerId: number,
                 item: 'terraform_devices',
                 quantity: qty,
                 totalOnShip: shipRes.rows[0].terraform_devices + qty,
-                credits: cargoRes.rows[0].credits - cost
+                credits: cargoRes.rows[0].credits - cost,
             });
         });
     } catch (err) {

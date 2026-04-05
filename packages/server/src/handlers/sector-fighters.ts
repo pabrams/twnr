@@ -1,13 +1,18 @@
 import { WebSocket } from 'ws';
 import { ServerMsgType } from '@twnr/shared';
-import { players, send, getSectorFighters, getPortForSector, getVisitedSectors, getGraph, broadcastTo } from '../game-state.js';
+import {
+    players,
+    send,
+    getSectorFighters,
+    getPortForSector,
+    getVisitedSectors,
+    getGraph,
+    broadcastTo,
+} from '../game-state.js';
 import { pool } from '../db/index.js';
 import { shipConfigs } from '../ship-config.js';
 
-export async function handleDeployFightersInfo(
-    ws: WebSocket,
-    playerId: number,
-): Promise<void> {
+export async function handleDeployFightersInfo(ws: WebSocket, playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
@@ -101,7 +106,10 @@ export async function handleDeployFighters(
         if (sfRes.rows.length > 0) {
             if (sfRes.rows[0].owner_id !== playerId) {
                 await client.query('ROLLBACK');
-                send(ws, { type: ServerMsgType.Error, message: 'Sector contains hostile fighters' });
+                send(ws, {
+                    type: ServerMsgType.Error,
+                    message: 'Sector contains hostile fighters',
+                });
                 return;
             }
             currentInSector = sfRes.rows[0].quantity;
@@ -112,7 +120,10 @@ export async function handleDeployFighters(
         // Deploying more fighters
         if (delta > 0 && delta > shipFighters) {
             await client.query('ROLLBACK');
-            send(ws, { type: ServerMsgType.Error, message: `Cannot deploy ${delta} fighters; only ${shipFighters} on ship` });
+            send(ws, {
+                type: ServerMsgType.Error,
+                message: `Cannot deploy ${delta} fighters; only ${shipFighters} on ship`,
+            });
             return;
         }
 
@@ -121,7 +132,10 @@ export async function handleDeployFighters(
             const returning = -delta;
             if (shipFighters + returning > maxFighters) {
                 await client.query('ROLLBACK');
-                send(ws, { type: ServerMsgType.Error, message: `Ship can hold only ${maxFighters - shipFighters} more fighters` });
+                send(ws, {
+                    type: ServerMsgType.Error,
+                    message: `Ship can hold only ${maxFighters - shipFighters} more fighters`,
+                });
                 return;
             }
         }
@@ -129,10 +143,10 @@ export async function handleDeployFighters(
         const newShipFighters = shipFighters - delta;
 
         // Update ship
-        await client.query(
-            'UPDATE player_ships SET fighters = $1 WHERE player_id = $2',
-            [newShipFighters, playerId],
-        );
+        await client.query('UPDATE player_ships SET fighters = $1 WHERE player_id = $2', [
+            newShipFighters,
+            playerId,
+        ]);
 
         // Update sector fighters
         if (target === 0 && sfRes.rows.length > 0) {
@@ -206,7 +220,10 @@ export async function handleAttackSectorFighters(
         const shipFighters = shipRes.rows[0].fighters;
         if (fightersToAttack > shipFighters) {
             await client.query('ROLLBACK');
-            send(ws, { type: ServerMsgType.Error, message: `Not enough fighters on ship (have ${shipFighters})` });
+            send(ws, {
+                type: ServerMsgType.Error,
+                message: `Not enough fighters on ship (have ${shipFighters})`,
+            });
             return;
         }
 
@@ -231,10 +248,10 @@ export async function handleAttackSectorFighters(
         const victory = fightersToAttack >= sectorFighterQty;
 
         // Update ship fighters
-        await client.query(
-            'UPDATE player_ships SET fighters = $1 WHERE player_id = $2',
-            [newShipFighters, playerId],
-        );
+        await client.query('UPDATE player_ships SET fighters = $1 WHERE player_id = $2', [
+            newShipFighters,
+            playerId,
+        ]);
 
         // Update or delete sector fighters
         if (newSectorFighters <= 0) {
@@ -284,10 +301,7 @@ export async function handleAttackSectorFighters(
     }
 }
 
-export async function handleRetreatFromFighters(
-    ws: WebSocket,
-    playerId: number,
-): Promise<void> {
+export async function handleRetreatFromFighters(ws: WebSocket, playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
@@ -336,7 +350,10 @@ export async function handleRetreatFromFighters(
         getPortForSector(retreatSector, universeId),
         getVisitedSectors(playerId),
         getSectorFighters(retreatSector, universeId),
-        pool.query('SELECT id, name, type FROM planets WHERE sector_id = $1 AND universe_id = $2 ORDER BY id', [retreatSector, universeId]),
+        pool.query(
+            'SELECT id, name, type FROM planets WHERE sector_id = $1 AND universe_id = $2 ORDER BY id',
+            [retreatSector, universeId],
+        ),
     ]);
     const planets = planetsRes.rows;
     const displayWarps = warps[retreatSector] || [];

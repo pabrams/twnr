@@ -11,6 +11,7 @@ export PGPASSWORD="${PGPASSWORD:-}"
 export JWT_SECRET="test-jwt-secret"
 export ADMIN_API_KEY="test-admin-key"
 export WS_ALLOWED_ORIGINS="http://localhost:3000"
+export DISABLE_RATE_LIMIT=1
 
 PROJECT_ROOT="$(pwd)"
 
@@ -29,6 +30,7 @@ node scripts/twnr-bigbang.js "$UNIVERSE_DIR" --sectors 100 --seed 42
 echo "==> Importing universe..."
 # Drop old tables
 psql -h "${PGHOST:-localhost}" -d "$PGDATABASE" -U "$PGUSER" -c "
+  DROP TABLE IF EXISTS sector_fighters CASCADE;
   DROP TABLE IF EXISTS planet_collisions CASCADE;
   DROP TABLE IF EXISTS planets CASCADE;
   DROP TABLE IF EXISTS visited_sectors CASCADE;
@@ -62,4 +64,23 @@ for i in $(seq 1 30); do
 done
 
 echo "==> Running tests..."
-node --test --test-concurrency=1 "$@" test/*.test.mjs
+node --test --test-concurrency=1 "$@" $(ls test/*.test.mjs | grep -v ratelimit)
+
+# Run rate-limit tests in a second pass with rate limiting enabled
+echo "==> Restarting server with rate limiting enabled..."
+kill "$SERVER_PID" 2>/dev/null || true
+wait "$SERVER_PID" 2>/dev/null || true
+unset DISABLE_RATE_LIMIT
+
+node dist/server.js &
+SERVER_PID=$!
+
+for i in $(seq 1 30); do
+  if curl -s http://localhost:3000/api/ships >/dev/null 2>&1; then
+    break
+  fi
+  sleep 1
+done
+
+echo "==> Running rate-limit tests..."
+node --test --test-concurrency=1 "$@" test/ratelimit.test.mjs
