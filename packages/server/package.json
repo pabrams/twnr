@@ -33,6 +33,6 @@
     "bigbang": "node ./scripts/twnr-bigbang.js data/universe/",
     "db:import": "node ./scripts/importUniverse.js",
     "db:seed": "node ./scripts/twnr-bigbang.js ./data/universe/ --sectors 100 --seed 42 && node ./scripts/importUniverse.js ./data/universe --force",
-    "test": "node --test --test-concurrency=1 test/*.test.mjs"
+    "test": "bash test/run-tests.sh"
   }
 }
