@@ -12,25 +12,6 @@ import { shipConfigs } from './ship-config.js';
 import { players, send, broadcastTo } from './game-state.js';
 import { handleMessage } from './handlers/message-router.js';
 
-// Re-export handler functions for backwards compatibility
-export { handleMessage } from './handlers/message-router.js';
-export {
-    handleMove,
-    handleSectorDisplay,
-    handleSectorWarps,
-    handlePath,
-} from './handlers/movement.js';
-export {
-    handlePortInfo,
-    handlePortTransaction,
-    handleDock,
-    handleUndock,
-} from './handlers/port.js';
-export { handleShipInfo, handleCargoInfo } from './handlers/ship-info.js';
-export { handleBuyFighters, handleBuyShields, handleBuyHolds } from './handlers/ship-upgrades.js';
-export { handleShipExchange } from './handlers/ship-exchange.js';
-export { getGraph } from './game-state.js';
-
 const app: ReturnType<typeof express> = express();
 app.use(helmet());
 app.use(express.json());
