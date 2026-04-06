@@ -38,7 +38,7 @@ async function connectWS(token, universeId) {
 
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(url, { headers });
-    const timer = setTimeout(() => { ws.terminate(); reject(new Error('WS connect timeout')); }, 5000);
+    const timer = setTimeout(() => { ws.terminate(); reject(new Error('WS connect timeout')); }, 2000);
 
     ws.on('message', (data) => {
       const msg = JSON.parse(data.toString());
@@ -60,11 +60,11 @@ function closeWS(ws) {
     if (!ws || ws.readyState > 1) { resolve(); return; }
     ws.on('close', resolve);
     ws.close();
-    setTimeout(resolve, 5000);
+    setTimeout(resolve, 1000);
   });
 }
 
-function wsRequest(ws, msg, responseType, timeout = 5000) {
+function wsRequest(ws, msg, responseType, timeout = 2000) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(`Timeout waiting for "${responseType}"`)), timeout);
     function handler(data) {
@@ -166,11 +166,11 @@ describe('WebSocket universe scoping', () => {
     const result = await new Promise((resolve) => {
       ws.on('open', () => {
         // If it opens but then closes, that's also a rejection
-        setTimeout(() => { ws.terminate(); resolve('stayed_open'); }, 2000);
+        setTimeout(() => { ws.terminate(); resolve('stayed_open'); }, 500);
       });
       ws.on('close', (code) => resolve(`closed_${code}`));
       ws.on('error', () => resolve('error'));
-      setTimeout(() => { ws.terminate(); resolve('timeout'); }, 3000);
+      setTimeout(() => { ws.terminate(); resolve('timeout'); }, 1500);
     });
 
     assert.notEqual(result, 'stayed_open', 'WebSocket should be rejected without universe parameter');
@@ -189,11 +189,11 @@ describe('WebSocket universe scoping', () => {
 
     const result = await new Promise((resolve) => {
       ws.on('open', () => {
-        setTimeout(() => { ws.terminate(); resolve('stayed_open'); }, 2000);
+        setTimeout(() => { ws.terminate(); resolve('stayed_open'); }, 500);
       });
       ws.on('close', (code) => resolve(`closed_${code}`));
       ws.on('error', () => resolve('error'));
-      setTimeout(() => { ws.terminate(); resolve('timeout'); }, 3000);
+      setTimeout(() => { ws.terminate(); resolve('timeout'); }, 1500);
     });
 
     assert.notEqual(result, 'stayed_open', 'WebSocket should be rejected when user has no player in universe');
@@ -270,7 +270,7 @@ describe('WebSocket universe scoping', () => {
     await wsRequest(ws1, { type: ClientMsgType.Move, sector: 2 }, ServerMsgType.MoveResult);
 
     // Give time for broadcasts to propagate
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     // ws2 (same universe, was in same sector) should have received a broadcast
     const ws2Relevant = ws2Messages.filter(m => m.type === ServerMsgType.PlayerLeft || m.type === ServerMsgType.PlayerMoved);

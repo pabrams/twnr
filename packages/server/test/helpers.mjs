@@ -141,7 +141,7 @@ export async function connectWS(options = {}) {
 
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(url, { ...wsOptions, headers });
-    const timer = setTimeout(() => { ws.terminate(); reject(new Error('WS connect timeout')); }, 5000);
+    const timer = setTimeout(() => { ws.terminate(); reject(new Error('WS connect timeout')); }, 2000);
     let cookies = [];
 
     ws.on('upgrade', (res) => {
@@ -159,7 +159,7 @@ export async function connectWS(options = {}) {
   });
 }
 
-export function waitForMsg(ws, type, timeout = 5000) {
+export function waitForMsg(ws, type, timeout = 2000) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(`Timeout waiting for message type "${type}"`)), timeout);
     function handler(data) {
@@ -174,7 +174,7 @@ export function waitForMsg(ws, type, timeout = 5000) {
   });
 }
 
-export function wsRequest(ws, msg, responseType, timeout = 5000) {
+export function wsRequest(ws, msg, responseType, timeout = 2000) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(`Timeout waiting for "${responseType}"`)), timeout);
     function handler(data) {
@@ -195,7 +195,7 @@ export function wsRequest(ws, msg, responseType, timeout = 5000) {
   });
 }
 
-export function expectNoMsg(ws, type, timeout = 5000) {
+export function expectNoMsg(ws, type, timeout = 500) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       ws.removeListener('message', handler);
@@ -218,7 +218,7 @@ export function closeWS(ws) {
     if (!ws || ws.readyState > 1) { resolve(); return; }
     ws.on('close', resolve);
     ws.close();
-    setTimeout(resolve, 5000);
+    setTimeout(resolve, 1000);
   });
 }
 

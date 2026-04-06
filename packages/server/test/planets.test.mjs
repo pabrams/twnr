@@ -55,7 +55,7 @@ async function createTestPlayer(universeId) {
   const waiters = [];
 
   await new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => reject(new Error('WS connect timeout')), 5000);
+    const timeout = setTimeout(() => reject(new Error('WS connect timeout')), 2000);
     ws.on('open', () => { clearTimeout(timeout); resolve(); });
     ws.on('error', (err) => { clearTimeout(timeout); reject(err); });
   });

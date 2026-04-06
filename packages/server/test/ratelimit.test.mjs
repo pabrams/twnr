@@ -74,7 +74,7 @@ describe('Rate Limiting', () => {
         const conn = new WebSocket(`ws://localhost:3000/ws?universe=${UNIVERSE_ID}`, {
           headers: { Cookie: `twnr_auth=${testPlayerToken}` },
         });
-        const timer = setTimeout(() => { conn.terminate(); reject(new Error('WS connect timeout')); }, 5000);
+        const timer = setTimeout(() => { conn.terminate(); reject(new Error('WS connect timeout')); }, 2000);
         conn.on('message', (data) => {
           const msg = JSON.parse(data.toString());
           if (msg.type === ServerMsgType.Welcome) { clearTimeout(timer); resolve(conn); }
@@ -91,7 +91,7 @@ describe('Rate Limiting', () => {
       }
 
       // Wait for responses to settle
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
       ws.close();
 
       const rateLimited = responses.some((r) => r.type === ServerMsgType.RateLimited);
