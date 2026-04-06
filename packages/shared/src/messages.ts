@@ -28,6 +28,7 @@ export const ServerMsgType = {
     RetreatResult: 'retreatResult',
     SectorFightersAlert: 'sectorFightersAlert',
     Error: 'error',
+    MoveResult: 'moveResult',
     TerraformResult: 'terraformResult',
     PlanetList: 'planetList',
     PlanetDisplayResult: 'planetDisplayResult',

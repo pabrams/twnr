@@ -268,7 +268,7 @@ describe('WebSocket universe scoping', () => {
     ws3.on('message', (data) => ws3Messages.push(JSON.parse(data.toString())));
 
     // user1 moves from sector 1 to sector 2 in universe A
-    await wsRequest(ws1, { type: 'move', sector: 2 }, 'sectorDisplay');
+    await wsRequest(ws1, { type: 'move', sector: 2 }, 'moveResult');
 
     // Give time for broadcasts to propagate
     await new Promise((resolve) => setTimeout(resolve, 500));

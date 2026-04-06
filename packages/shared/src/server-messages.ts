@@ -24,8 +24,7 @@ export type SectorFighterInfo = {
     ownerName: string;
 };
 
-export type SectorDisplayMessage = {
-    type: typeof ServerMsgType.SectorDisplay;
+export type SectorDisplayData = {
     sector: number;
     players: { id: number; name: string }[];
     warps: number[];
@@ -34,6 +33,30 @@ export type SectorDisplayMessage = {
     sectorFighters?: SectorFighterInfo | null;
     planets: { id: number; name: string; type: string }[];
 };
+
+export type SectorDisplayMessage = {
+    type: typeof ServerMsgType.SectorDisplay;
+} & SectorDisplayData;
+
+export type MoveResultObject =
+    | ({ type: typeof ServerMsgType.MoveResult; outcome: 'success' } & SectorDisplayData)
+    | {
+          type: typeof ServerMsgType.MoveResult;
+          outcome: 'encounter';
+          sector: number;
+          warps: number[];
+          players: { id: number; name: string }[];
+          port?: { class: number; name: string } | null;
+          visitedSectors: number[];
+          sectorFighters: number;
+          ownerId: number;
+          ownerName: string;
+          shipFighters: number;
+          retreatSector: number;
+      }
+    | { type: typeof ServerMsgType.MoveResult; outcome: 'nonAdjacent'; sector: number }
+    | { type: typeof ServerMsgType.MoveResult; outcome: 'noShip' }
+    | { type: typeof ServerMsgType.MoveResult; outcome: 'error'; message: string };
 
 export type PlayerLeftMessage = {
     type: typeof ServerMsgType.PlayerLeft;
@@ -279,6 +302,7 @@ export type ServerMessage =
     | WelcomeMessage
     | PlayerMovedMessage
     | SectorDisplayMessage
+    | MoveResultObject
     | PlayerLeftMessage
     | PlayersOnlineMessage
     | NoShipMessage

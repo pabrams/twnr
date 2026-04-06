@@ -114,8 +114,79 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 showPrompt(ctx);
                 break;
             }
+            case ServerMsgType.MoveResult:
+                switch (msg.outcome) {
+                    case 'success':
+                        ctx.setSectorPlayers(msg.players);
+                        showSectorDisplay(
+                            ctx,
+                            msg.sector,
+                            msg.warps,
+                            msg.players,
+                            msg.port,
+                            msg.visitedSectors,
+                            msg.sectorFighters,
+                        );
+                        if (
+                            ctx.mode === 'autopilot' &&
+                            ctx.autopilotStep < ctx.autopilotPath.length
+                        ) {
+                            const nextSector = ctx.autopilotPath[ctx.autopilotStep];
+                            ctx.setAutopilotStep(ctx.autopilotStep + 1);
+                            ctx.sendMsg({ type: ClientMsgType.Move, sector: nextSector });
+                        } else if (ctx.mode === 'autopilot') {
+                            ctx.setMode('sector');
+                        }
+                        break;
+                    case 'encounter': {
+                        ctx.setSectorPlayers(msg.players);
+                        if (msg.visitedSectors) ctx.setVisitedSet(new Set(msg.visitedSectors));
+                        ctx.setCurrentSector(msg.sector);
+                        ctx.setCurrentPort(msg.port ?? null);
+                        ctx.setEncounterOwnerName(msg.ownerName);
+                        showSectorDisplay(
+                            ctx,
+                            msg.sector,
+                            msg.warps,
+                            msg.players,
+                            msg.port,
+                            msg.visitedSectors,
+                        );
+                        if (ctx.mode === 'autopilot') {
+                            ctx.setAutopilotPaused(true);
+                            ctx.term.writeln(
+                                `\r\n${colors.boldRed('Autopilot disengaged — hostile fighters!')}`,
+                            );
+                        }
+                        showFighterEncounter(
+                            ctx,
+                            msg.sectorFighters,
+                            msg.ownerName,
+                            msg.shipFighters,
+                        );
+                        break;
+                    }
+                    case 'nonAdjacent':
+                        ctx.sendMsg({
+                            type: ClientMsgType.Path,
+                            from: ctx.currentSector,
+                            to: msg.sector,
+                        });
+                        break;
+                    case 'noShip':
+                        ctx.term.writeln(`\r\n${colors.boldRed('You do not have a ship.')}`);
+                        showPrompt(ctx);
+                        break;
+                    case 'error':
+                        ctx.term.writeln(
+                            `\r\n${colors.boldRed('Error:')} ${colors.red(msg.message)}`,
+                        );
+                        showPrompt(ctx);
+                        break;
+                }
+                break;
             case ServerMsgType.NonAdjacentMoveRequested:
-                // Request shortest path from server for express warp
+                // Legacy — kept for backwards compatibility during refactor
                 ctx.sendMsg({
                     type: ClientMsgType.Path,
                     from: ctx.currentSector,

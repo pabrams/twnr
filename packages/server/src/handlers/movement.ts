@@ -18,7 +18,7 @@ export async function handleMove(
     targetSector: number,
 ): Promise<void> {
     if (!Number.isInteger(targetSector) || targetSector <= 0) {
-        send(ws, { type: ServerMsgType.Error, message: 'Invalid sector' });
+        send(ws, { type: ServerMsgType.MoveResult, outcome: 'error', message: 'Invalid sector' });
         return;
     }
 
@@ -26,7 +26,7 @@ export async function handleMove(
         playerId,
     ]);
     if (shipRes.rows.length === 0) {
-        send(ws, { type: ServerMsgType.NoShip });
+        send(ws, { type: ServerMsgType.MoveResult, outcome: 'noShip' });
         return;
     }
 
@@ -35,7 +35,11 @@ export async function handleMove(
 
     // Block movement during pending fighter encounter
     if (player.pendingEncounter) {
-        send(ws, { type: ServerMsgType.Error, message: 'Resolve fighter encounter first' });
+        send(ws, {
+            type: ServerMsgType.MoveResult,
+            outcome: 'error',
+            message: 'Resolve fighter encounter first',
+        });
         return;
     }
 
@@ -44,7 +48,11 @@ export async function handleMove(
     const currentSector = player.sector;
 
     if (!warps[currentSector]?.includes(targetSector)) {
-        send(ws, { type: ServerMsgType.NonAdjacentMoveRequested, playerId, sector: targetSector });
+        send(ws, {
+            type: ServerMsgType.MoveResult,
+            outcome: 'nonAdjacent',
+            sector: targetSector,
+        });
         return;
     }
 
@@ -114,7 +122,8 @@ export async function handleMove(
         ]);
 
         send(ws, {
-            type: ServerMsgType.FighterEncounter,
+            type: ServerMsgType.MoveResult,
+            outcome: 'encounter',
             sector: targetSector,
             warps: displayWarps,
             players: playersInSector,
@@ -143,7 +152,8 @@ export async function handleMove(
     }
 
     send(ws, {
-        type: ServerMsgType.SectorDisplay,
+        type: ServerMsgType.MoveResult,
+        outcome: 'success',
         sector: targetSector,
         warps: displayWarps,
         players: playersInSector,
