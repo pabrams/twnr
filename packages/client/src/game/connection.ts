@@ -63,12 +63,48 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                         ctx.setMode('docked');
                         showDockedMenu(ctx);
                     }
-                } else {
+                }
+                break;
+            case ServerMsgType.UndockResult:
+                if (msg.outcome === 'success') {
                     ctx.setDockedPortInfo(null);
                     ctx.setMode('sector');
                     ctx.term.writeln(`\r\n${colors.white('You undock from the port.')}`);
-                    ctx.sendMsg({ type: ClientMsgType.SectorDisplay });
+                    ctx.setSectorPlayers(msg.players);
+                    showSectorDisplay(
+                        ctx,
+                        msg.sector,
+                        msg.warps,
+                        msg.players,
+                        msg.port,
+                        msg.visitedSectors,
+                        msg.sectorFighters,
+                    );
+                } else {
+                    ctx.term.writeln(
+                        `\r\n${colors.boldRed('Error:')} ${colors.red(msg.message)}`,
+                    );
                 }
+                break;
+            case ServerMsgType.JettisonResult:
+                if (msg.outcome === 'success') {
+                    const j = msg.jettisoned;
+                    const items = [
+                        j.fuel > 0 ? `${j.fuel} fuel` : '',
+                        j.organics > 0 ? `${j.organics} organics` : '',
+                        j.equipment > 0 ? `${j.equipment} equipment` : '',
+                        j.colonists > 0 ? `${j.colonists} colonists` : '',
+                    ].filter(Boolean).join(', ');
+                    ctx.term.writeln(
+                        `\r\n${colors.boldYellow('Jettisoned:')} ${items || 'nothing'}`,
+                    );
+                } else {
+                    ctx.term.writeln(
+                        `\r\n${colors.boldRed('Error:')} ${colors.red(msg.message)}`,
+                    );
+                }
+                ctx.setMode('sector');
+                showPrompt(ctx);
                 break;
             case ServerMsgType.PortTransactionResult:
                 ctx.term.writeln(
