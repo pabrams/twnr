@@ -6,7 +6,7 @@ import { showSectorDisplay, showDockedMenu, showPrompt } from './display.js';
 import { showClass0Menu, showAutopilotPrompt } from './display-port.js';
 import { showPlanetMenu, showNoPlanet } from './display-planet.js';
 import { showFighterEncounter } from './display-combat.js';
-import { colors } from './constants.js';
+import { colors, MenuMode } from './constants.js';
 
 const mg = colors.magenta;
 
@@ -44,23 +44,23 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     msg.sectorFighters,
                 );
                 // Advance autopilot if in progress
-                if (ctx.mode === 'autopilot' && ctx.autopilotStep < ctx.autopilotPath.length) {
+                if (ctx.mode === MenuMode.Autopilot && ctx.autopilotStep < ctx.autopilotPath.length) {
                     const nextSector = ctx.autopilotPath[ctx.autopilotStep];
                     ctx.setAutopilotStep(ctx.autopilotStep + 1);
                     ctx.sendMsg({ type: ClientMsgType.Move, sector: nextSector });
-                } else if (ctx.mode === 'autopilot') {
+                } else if (ctx.mode === MenuMode.Autopilot) {
                     // Arrived at destination
-                    ctx.setMode('sector');
+                    ctx.setMode(MenuMode.Sector);
                 }
                 break;
             case ServerMsgType.DockResult:
                 if (msg.docked && msg.port) {
                     ctx.setDockedPortInfo(msg.port);
                     if (msg.port.class === 0) {
-                        ctx.setMode('class0');
+                        ctx.setMode(MenuMode.Class0);
                         showClass0Menu(ctx);
                     } else {
-                        ctx.setMode('docked');
+                        ctx.setMode(MenuMode.Docked);
                         showDockedMenu(ctx);
                     }
                 }
@@ -68,7 +68,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
             case ServerMsgType.UndockResult:
                 if (msg.outcome === 'success') {
                     ctx.setDockedPortInfo(null);
-                    ctx.setMode('sector');
+                    ctx.setMode(MenuMode.Sector);
                     ctx.term.writeln(`\r\n${colors.white('You undock from the port.')}`);
                     ctx.setSectorPlayers(msg.players);
                     showSectorDisplay(
@@ -101,7 +101,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 } else {
                     ctx.term.writeln(`\r\n${colors.boldRed('Error:')} ${colors.red(msg.message)}`);
                 }
-                ctx.setMode('sector');
+                ctx.setMode(MenuMode.Sector);
                 showPrompt(ctx);
                 break;
             case ServerMsgType.PortTransactionResult:
@@ -111,7 +111,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 ctx.term.writeln(
                     `  Cargo — ${colors.boldYellow('Fuel')}: ${msg.cargo.fuel}, ${colors.boldYellow('Organics')}: ${msg.cargo.organics}, ${colors.boldYellow('Equipment')}: ${msg.cargo.equipment}, ${colors.boldYellow('Colonists')}: ${msg.cargo.colonists}`,
                 );
-                if (ctx.mode === 'docked') showDockedMenu(ctx);
+                if (ctx.mode === MenuMode.Docked) showDockedMenu(ctx);
                 break;
             case ServerMsgType.ShipInfoResult:
                 ctx.setCurrentShipName(msg.shipName);
@@ -131,7 +131,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 ctx.term.writeln(
                     `  ${colors.boldYellow('Credits')}: ${colors.boldYellow(String(msg.credits))}`,
                 );
-                if (ctx.mode === 'shipInfo' || ctx.mode === 'playerInfo') {
+                if (ctx.mode === MenuMode.ShipInfo || ctx.mode === MenuMode.PlayerInfo) {
                     ctx.term.writeln('');
                     ctx.term.writeln(`Press ${colors.boldYellow("'q'")} to return.`);
                 }
@@ -162,14 +162,14 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                             msg.sectorFighters,
                         );
                         if (
-                            ctx.mode === 'autopilot' &&
+                            ctx.mode === MenuMode.Autopilot &&
                             ctx.autopilotStep < ctx.autopilotPath.length
                         ) {
                             const nextSector = ctx.autopilotPath[ctx.autopilotStep];
                             ctx.setAutopilotStep(ctx.autopilotStep + 1);
                             ctx.sendMsg({ type: ClientMsgType.Move, sector: nextSector });
-                        } else if (ctx.mode === 'autopilot') {
-                            ctx.setMode('sector');
+                        } else if (ctx.mode === MenuMode.Autopilot) {
+                            ctx.setMode(MenuMode.Sector);
                         }
                         break;
                     case 'encounter': {
@@ -186,7 +186,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                             msg.port,
                             msg.visitedSectors,
                         );
-                        if (ctx.mode === 'autopilot') {
+                        if (ctx.mode === MenuMode.Autopilot) {
                             ctx.setAutopilotPaused(true);
                             ctx.term.writeln(
                                 `\r\n${colors.boldRed('Autopilot disengaged — hostile fighters!')}`,
@@ -240,8 +240,8 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 ctx.term.writeln(
                     `  ${colors.boldYellow('Credits')}: ${msg.credits}  ${colors.boldYellow('Fighters')}: ${msg.fighters}`,
                 );
-                if (ctx.mode === 'class0Qty') {
-                    ctx.setMode('class0');
+                if (ctx.mode === MenuMode.Class0Qty) {
+                    ctx.setMode(MenuMode.Class0);
                     showClass0Menu(ctx);
                 }
                 break;
@@ -250,8 +250,8 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 ctx.term.writeln(
                     `  ${colors.boldYellow('Credits')}: ${msg.credits}  ${colors.boldYellow('Shields')}: ${msg.shields}`,
                 );
-                if (ctx.mode === 'class0Qty') {
-                    ctx.setMode('class0');
+                if (ctx.mode === MenuMode.Class0Qty) {
+                    ctx.setMode(MenuMode.Class0);
                     showClass0Menu(ctx);
                 }
                 break;
@@ -260,8 +260,8 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 ctx.term.writeln(
                     `  ${colors.boldYellow('Credits')}: ${msg.credits}  ${colors.boldYellow('Holds')}: ${msg.cargoLimit}`,
                 );
-                if (ctx.mode === 'class0Qty') {
-                    ctx.setMode('class0');
+                if (ctx.mode === MenuMode.Class0Qty) {
+                    ctx.setMode(MenuMode.Class0);
                     showClass0Menu(ctx);
                 }
                 break;
@@ -281,7 +281,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 ctx.term.writeln(
                     `  ${colors.boldYellow('Defender fighters lost')}: ${msg.defenderFightersLost}`,
                 );
-                ctx.setMode('sector');
+                ctx.setMode(MenuMode.Sector);
                 showPrompt(ctx);
                 break;
             case ServerMsgType.BuyShipTradeinResult:
@@ -289,7 +289,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     `\r\n${colors.boldGreen('Ship exchanged!')} Now flying: ${colors.boldCyan(msg.shipName)}`,
                 );
                 ctx.term.writeln(`  ${colors.boldYellow('Credits')}: ${msg.credits}`);
-                if (ctx.mode === 'docked') showDockedMenu(ctx);
+                if (ctx.mode === MenuMode.Docked) showDockedMenu(ctx);
                 break;
             case ServerMsgType.PlanetInfoResult:
                 if (msg.hasPlanet) {
@@ -309,7 +309,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 ctx.term.writeln(
                     `\r\n${colors.white('You return to your ship and leave the planet.')}`,
                 );
-                ctx.setMode('sector');
+                ctx.setMode(MenuMode.Sector);
                 showPrompt(ctx);
                 break;
             }
@@ -324,7 +324,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 ctx.term.writeln(
                     `\r\n${colors.white('You return to your ship and leave the planet.')}`,
                 );
-                ctx.setMode('sector');
+                ctx.setMode(MenuMode.Sector);
                 showPrompt(ctx);
                 break;
             }
@@ -345,7 +345,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     msg.visitedSectors,
                 );
 
-                if (ctx.mode === 'autopilot') {
+                if (ctx.mode === MenuMode.Autopilot) {
                     ctx.setAutopilotPaused(true);
                     ctx.term.writeln(
                         `\r\n${colors.boldRed('Autopilot disengaged — hostile fighters!')}`,
@@ -363,13 +363,13 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 ctx.term.write(
                     `${colors.cyan('How many fighters to leave in sector?')} ${colors.white('(Q to cancel)')} `,
                 );
-                ctx.setMode('deployFightersQty');
+                ctx.setMode(MenuMode.DeployFightersQty);
                 break;
             case ServerMsgType.DeployFightersResult:
                 ctx.term.writeln(
                     `\r\n${colors.boldGreen('Deployed.')} Sector: ${colors.white(String(msg.sectorFighters))}, Ship: ${colors.white(String(msg.shipFighters))}`,
                 );
-                ctx.setMode('sector');
+                ctx.setMode(MenuMode.Sector);
                 showPrompt(ctx);
                 break;
             case ServerMsgType.AttackSectorFightersResult:
@@ -381,12 +381,12 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     ctx.term.writeln(colors.boldGreen('Sector cleared!'));
                     if (ctx.autopilotPaused) {
                         ctx.term.writeln(colors.boldCyan('Autopilot resuming...'));
-                        ctx.setMode('autopilot');
+                        ctx.setMode(MenuMode.Autopilot);
                         ctx.setAutopilotPaused(false);
                         // Server will send SectorDisplay which triggers autopilot advance
                         ctx.sendMsg({ type: ClientMsgType.SectorDisplay });
                     } else {
-                        ctx.setMode('sector');
+                        ctx.setMode(MenuMode.Sector);
                         showPrompt(ctx);
                     }
                 } else {
@@ -409,7 +409,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     ctx.setAutopilotPaused(false);
                     ctx.term.writeln(colors.boldRed('Autopilot cancelled.'));
                 }
-                ctx.setMode('sector');
+                ctx.setMode(MenuMode.Sector);
                 // SectorDisplay follows from server
                 break;
             case ServerMsgType.SectorFightersAlert:
@@ -430,13 +430,13 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 break;
             case ServerMsgType.Error:
                 ctx.term.writeln(`\r\n${colors.boldRed('Error:')} ${colors.red(msg.message)}`);
-                if (ctx.mode === 'docked') showDockedMenu(ctx);
-                else if (ctx.mode === 'deployFightersQty') {
-                    ctx.setMode('sector');
+                if (ctx.mode === MenuMode.Docked) showDockedMenu(ctx);
+                else if (ctx.mode === MenuMode.DeployFightersQty) {
+                    ctx.setMode(MenuMode.Sector);
                     showPrompt(ctx);
-                } else if (ctx.mode === 'fighterEncounter' || ctx.mode === 'fighterAttackQty') {
+                } else if (ctx.mode === MenuMode.FighterEncounter || ctx.mode === MenuMode.FighterAttackQty) {
                     // Stay in encounter mode — re-prompt
-                } else if (ctx.mode === 'sector') showPrompt(ctx);
+                } else if (ctx.mode === MenuMode.Sector) showPrompt(ctx);
                 break;
         }
     });

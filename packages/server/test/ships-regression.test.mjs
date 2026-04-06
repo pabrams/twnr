@@ -10,7 +10,7 @@ const UNIVERSE_ID = 1;
 async function navigateTo(ws, targetSector) {
   const disp = await wsRequest(ws, { type: 'sectorDisplay' }, 'sectorDisplayResult');
   if (disp.sector === targetSector) return;
-  const path = await wsRequest(ws, { type: 'path', from: disp.sector, to: targetSector }, 'shortestPathResult');
+  const path = await wsRequest(ws, { type: ClientMsgType.ShortestPath, from: disp.sector, to: targetSector }, 'shortestPathResult');
   if (path.type === 'error') throw new Error(`No path to ${targetSector}`);
   for (let i = 1; i < path.path.length; i++) {
     await wsRequest(ws, { type: 'move', sector: path.path[i] }, 'moveResult');

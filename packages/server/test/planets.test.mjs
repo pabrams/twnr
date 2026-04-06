@@ -945,7 +945,7 @@ describe('WS: use terraform device', () => {
     const currentSector = (await pool.query('SELECT current_sector FROM players WHERE id = $1', [player.playerId])).rows[0].current_sector;
     if (currentSector !== 1) {
       // Navigate back — find a path
-      player.sendMsg({ type: 'path', from: currentSector, to: 1 });
+      player.sendMsg({ type: ClientMsgType.ShortestPath, from: currentSector, to: 1 });
       const pathMsg = await player.waitForMessage('shortestPathResult');
       for (const sector of pathMsg.path.slice(1)) {
         player.sendMsg({ type: 'move', sector });
@@ -1029,7 +1029,7 @@ describe('WS: stardock and hardware store', () => {
     player = await createTestPlayer(universeId);
 
     // Navigate to stardock
-    player.sendMsg({ type: 'path', from: 1, to: stardockSector });
+    player.sendMsg({ type: ClientMsgType.ShortestPath, from: 1, to: stardockSector });
     const pathMsg = await player.waitForMessage('shortestPathResult');
     for (const sector of pathMsg.path.slice(1)) {
       player.sendMsg({ type: 'move', sector });
@@ -1159,7 +1159,7 @@ describe('WS: destroy planet', () => {
     player.sendMsg({ type: ClientMsgType.LeavePlanet });
     await player.waitForMessage('leavePlanetResult').catch(() => null);
 
-    player.sendMsg({ type: 'path', from: 1, to: targetSector });
+    player.sendMsg({ type: ClientMsgType.ShortestPath, from: 1, to: targetSector });
     const pathMsg = await player.waitForMessage('shortestPathResult');
     for (const sector of pathMsg.path.slice(1)) {
       player.sendMsg({ type: 'move', sector });
@@ -1258,7 +1258,7 @@ describe('WS: buy hardware exceeds ship maximum', () => {
     player = await createTestPlayer(universeId);
 
     // Navigate to stardock
-    player.sendMsg({ type: 'path', from: 1, to: stardockSector });
+    player.sendMsg({ type: ClientMsgType.ShortestPath, from: 1, to: stardockSector });
     const pathMsg = await player.waitForMessage('shortestPathResult');
     for (const sector of pathMsg.path.slice(1)) {
       player.sendMsg({ type: 'move', sector });
@@ -1324,7 +1324,7 @@ describe('WS: buy hardware exceeds ship maximum', () => {
     await player.waitForMessage('leaveStardockResult').catch(() => null);
 
     // Move to sector 1 (which has class 0 port, not class 9)
-    player.sendMsg({ type: 'path', from: stardockSector, to: 1 });
+    player.sendMsg({ type: ClientMsgType.ShortestPath, from: stardockSector, to: 1 });
     const pathMsg = await player.waitForMessage('shortestPathResult');
     for (const sector of pathMsg.path.slice(1)) {
       player.sendMsg({ type: 'move', sector });
@@ -1360,7 +1360,7 @@ describe('WS: buy hardware requires stardock docking', () => {
     player = await createTestPlayer(universeId);
 
     // Navigate to stardock sector but do NOT call dockStardock
-    player.sendMsg({ type: 'path', from: 1, to: stardockSector });
+    player.sendMsg({ type: ClientMsgType.ShortestPath, from: 1, to: stardockSector });
     const pathMsg = await player.waitForMessage('shortestPathResult');
     for (const sector of pathMsg.path.slice(1)) {
       player.sendMsg({ type: 'move', sector });
@@ -1421,7 +1421,7 @@ describe('WS: buy hardware credit deduction', () => {
     const allConfigs = readdirSync(CONFIG_SHIPS_DIR).filter(f => f.endsWith('.json')).map(f => JSON.parse(readFileSync(join(CONFIG_SHIPS_DIR, f), 'utf8')));
 
     // Navigate to stardock
-    player.sendMsg({ type: 'path', from: 1, to: stardockSector });
+    player.sendMsg({ type: ClientMsgType.ShortestPath, from: 1, to: stardockSector });
     const pathMsg = await player.waitForMessage('shortestPathResult');
     for (const sector of pathMsg.path.slice(1)) {
       player.sendMsg({ type: 'move', sector });
@@ -1608,7 +1608,7 @@ describe('WS: terraform in Stardock sector returns restricted_sector', () => {
     player = await createTestPlayer(universeId);
 
     // Navigate to stardock sector
-    player.sendMsg({ type: 'path', from: 1, to: stardockSector });
+    player.sendMsg({ type: ClientMsgType.ShortestPath, from: 1, to: stardockSector });
     const pathMsg = await player.waitForMessage('shortestPathResult');
     for (const sector of pathMsg.path.slice(1)) {
       player.sendMsg({ type: 'move', sector });
@@ -1667,7 +1667,7 @@ describe('WS: on_planet_id cleared after destroyPlanet', () => {
     );
 
     // Move to that sector
-    player.sendMsg({ type: 'path', from: 1, to: targetSector });
+    player.sendMsg({ type: ClientMsgType.ShortestPath, from: 1, to: targetSector });
     const pathMsg = await player.waitForMessage('shortestPathResult');
     for (const sector of pathMsg.path.slice(1)) {
       player.sendMsg({ type: 'move', sector });

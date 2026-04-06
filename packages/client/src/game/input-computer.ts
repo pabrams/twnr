@@ -12,7 +12,7 @@ import {
     showCurrentShipSpecs,
     showTraderList,
 } from './display-computer.js';
-import { colors } from './constants.js';
+import { colors, MenuMode } from './constants.js';
 
 export function handleComputerInput(ctx: GameContext, line: string) {
     switch (line.toLowerCase()) {
@@ -32,7 +32,7 @@ export function handleComputerInput(ctx: GameContext, line: string) {
             showCurrentShipSpecs(ctx);
             break;
         case 'q':
-            ctx.setMode('sector');
+            ctx.setMode(MenuMode.Sector);
             showPrompt(ctx);
             break;
         default:

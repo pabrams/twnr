@@ -26,27 +26,28 @@ export const PORT_CLASS_ACTIONS: Record<number, Record<string, 'B' | 'S'>> = {
     8: { fuel: 'B', organics: 'B', equipment: 'B' },
 };
 
-export type MenuMode =
-    | 'sector'
-    | 'port'
-    | 'docked'
-    | 'help'
-    | 'shipInfo'
-    | 'attack'
-    | 'attackFighters'
-    | 'computer'
-    | 'knownUniverse'
-    | 'shipCatalog'
-    | 'planetSpecs'
-    | 'class0'
-    | 'class0Qty'
-    | 'playerInfo'
-    | 'autopilotPrompt'
-    | 'autopilot'
-    | 'jettisonConfirm'
-    | 'planet'
-    | 'planetTakeQty'
-    | 'planetLeaveQty'
-    | 'deployFightersQty'
-    | 'fighterEncounter'
-    | 'fighterAttackQty';
+export enum MenuMode {
+    Sector = 'sector',
+    Port = 'port',
+    Docked = 'docked',
+    Help = 'help',
+    ShipInfo = 'shipInfo',
+    Attack = 'attack',
+    AttackFighters = 'attackFighters',
+    Computer = 'computer',
+    KnownUniverse = 'knownUniverse',
+    ShipCatalog = 'shipCatalog',
+    PlanetSpecs = 'planetSpecs',
+    Class0 = 'class0',
+    Class0Qty = 'class0Qty',
+    PlayerInfo = 'playerInfo',
+    AutopilotPrompt = 'autopilotPrompt',
+    Autopilot = 'autopilot',
+    JettisonConfirm = 'jettisonConfirm',
+    Planet = 'planet',
+    PlanetTakeQty = 'planetTakeQty',
+    PlanetLeaveQty = 'planetLeaveQty',
+    DeployFightersQty = 'deployFightersQty',
+    FighterEncounter = 'fighterEncounter',
+    FighterAttackQty = 'fighterAttackQty',
+}

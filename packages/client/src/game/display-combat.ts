@@ -1,5 +1,5 @@
 import type { GameContext } from './types.js';
-import { colors } from './constants.js';
+import { colors, MenuMode } from './constants.js';
 import { showPrompt } from './display.js';
 
 export function showAttackMenu(ctx: GameContext) {
@@ -8,7 +8,7 @@ export function showAttackMenu(ctx: GameContext) {
         showPrompt(ctx);
         return;
     }
-    ctx.setMode('attack');
+    ctx.setMode(MenuMode.Attack);
     ctx.term.writeln('');
     ctx.term.writeln(colors.cyan('Attack — Select target:'));
     ctx.sectorPlayers.forEach((p, i) => {
@@ -18,7 +18,7 @@ export function showAttackMenu(ctx: GameContext) {
 }
 
 export function showAttackFightersPrompt(ctx: GameContext) {
-    ctx.setMode('attackFighters');
+    ctx.setMode(MenuMode.AttackFighters);
     ctx.term.write(`\r\n${colors.cyan('How many fighters to attack with?')} `);
 }
 
@@ -28,7 +28,7 @@ export function showFighterEncounter(
     ownerName: string,
     shipFighters: number,
 ) {
-    ctx.setMode('fighterEncounter');
+    ctx.setMode(MenuMode.FighterEncounter);
     ctx.term.writeln('');
     ctx.term.writeln(colors.boldRed('=== HOSTILE FIGHTERS DETECTED ==='));
     ctx.term.writeln(
@@ -45,6 +45,6 @@ export function showFighterEncounter(
 }
 
 export function showFighterAttackQtyPrompt(ctx: GameContext) {
-    ctx.setMode('fighterAttackQty');
+    ctx.setMode(MenuMode.FighterAttackQty);
     ctx.term.write(`\r\n${colors.cyan('How many fighters to send?')} `);
 }
