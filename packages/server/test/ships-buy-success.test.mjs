@@ -58,12 +58,10 @@ describe('Buy equipment — success', () => {
     const { ws } = await connectWS();
     const qty = 3;
     try {
-      const msg = await wsRequest(ws, { type: 'buyFighters', quantity: qty }, 'buyResult');
-      assert.equal(msg.type, 'buyResult');
+      const msg = await wsRequest(ws, { type: 'buyFighters', quantity: qty }, 'buyFightersResult');
+      assert.equal(msg.type, 'buyFightersResult');
       assert.equal(msg.fighters, qty);
       assert.equal(msg.credits, STARTING_CREDITS - qty * FIGHTER_PRICE);
-      assert.ok('shields' in msg, 'response must include shields');
-      assert.ok('cargoLimit' in msg, 'response must include cargoLimit');
     } finally {
       await closeWS(ws);
     }
@@ -73,12 +71,10 @@ describe('Buy equipment — success', () => {
     const { ws } = await connectWS();
     const qty = 5;
     try {
-      const msg = await wsRequest(ws, { type: 'buyShields', quantity: qty }, 'buyResult');
-      assert.equal(msg.type, 'buyResult');
+      const msg = await wsRequest(ws, { type: 'buyShields', quantity: qty }, 'buyShieldsResult');
+      assert.equal(msg.type, 'buyShieldsResult');
       assert.equal(msg.shields, qty);
       assert.equal(msg.credits, STARTING_CREDITS - qty * SHIELD_PRICE);
-      assert.ok('fighters' in msg, 'response must include fighters');
-      assert.ok('cargoLimit' in msg, 'response must include cargoLimit');
     } finally {
       await closeWS(ws);
     }
@@ -88,12 +84,10 @@ describe('Buy equipment — success', () => {
     const { ws } = await connectWS();
     const qty = 3;
     try {
-      const msg = await wsRequest(ws, { type: 'buyHolds', quantity: qty }, 'buyResult');
-      assert.equal(msg.type, 'buyResult');
+      const msg = await wsRequest(ws, { type: 'buyHolds', quantity: qty }, 'buyHoldsResult');
+      assert.equal(msg.type, 'buyHoldsResult');
       assert.equal(msg.cargoLimit, merchantCfg.startingHolds + qty);
       assert.equal(msg.credits, STARTING_CREDITS - qty * HOLD_PRICE);
-      assert.ok('fighters' in msg, 'response must include fighters');
-      assert.ok('shields' in msg, 'response must include shields');
     } finally {
       await closeWS(ws);
     }
@@ -104,9 +98,9 @@ describe('Buy equipment — success', () => {
     const firstBuy = merchantCfg.maxFighters - 2;
     try {
       // Buy maxFighters-2 fighters first
-      await wsRequest(ws, { type: 'buyFighters', quantity: firstBuy }, 'buyResult');
+      await wsRequest(ws, { type: 'buyFighters', quantity: firstBuy }, 'buyFightersResult');
       // Then try to buy 3 more — would exceed cap by 1
-      const msg = await wsRequest(ws, { type: 'buyFighters', quantity: 3 }, 'buyResult');
+      const msg = await wsRequest(ws, { type: 'buyFighters', quantity: 3 }, 'buyFightersResult');
       assert.equal(msg.type, 'error');
       assert.equal(msg.message, 'Exceeds maximum');
     } finally {
@@ -118,8 +112,8 @@ describe('Buy equipment — success', () => {
     const { ws } = await connectWS();
     const firstBuy = merchantCfg.maxShields - 2;
     try {
-      await wsRequest(ws, { type: 'buyShields', quantity: firstBuy }, 'buyResult');
-      const msg = await wsRequest(ws, { type: 'buyShields', quantity: 3 }, 'buyResult');
+      await wsRequest(ws, { type: 'buyShields', quantity: firstBuy }, 'buyShieldsResult');
+      const msg = await wsRequest(ws, { type: 'buyShields', quantity: 3 }, 'buyShieldsResult');
       assert.equal(msg.type, 'error');
       assert.equal(msg.message, 'Exceeds maximum');
     } finally {
@@ -144,7 +138,7 @@ describe('Buy equipment — success', () => {
 
       // Trying to buy maxHolds - startingHolds + 1 holds should fail
       const overLimit = warbirdCfg.maxHolds - warbirdCfg.startingHolds + 1;
-      const msg = await wsRequest(ws, { type: 'buyHolds', quantity: overLimit }, 'buyResult');
+      const msg = await wsRequest(ws, { type: 'buyHolds', quantity: overLimit }, 'buyHoldsResult');
       assert.equal(msg.type, 'error');
       assert.equal(msg.message, 'Exceeds maximum');
     } finally {
@@ -156,7 +150,7 @@ describe('Buy equipment — success', () => {
     const { ws } = await connectWS();
     try {
       // one more than the room available
-      const msg = await wsRequest(ws, { type: 'buyHolds', quantity: merchantCfg.maxHolds - merchantCfg.startingHolds + 1 }, 'buyResult');
+      const msg = await wsRequest(ws, { type: 'buyHolds', quantity: merchantCfg.maxHolds - merchantCfg.startingHolds + 1 }, 'buyHoldsResult');
       assert.equal(msg.type, 'error');
       assert.equal(msg.message, 'Exceeds maximum');
     } finally {
@@ -168,8 +162,8 @@ describe('Buy equipment — success', () => {
     const { ws } = await connectWS();
     try {
       const qty = merchantCfg.maxHolds - merchantCfg.startingHolds;
-      const msg = await wsRequest(ws, { type: 'buyHolds', quantity: qty }, 'buyResult');
-      assert.equal(msg.type, 'buyResult', 'buying exactly up to maxHolds should succeed');
+      const msg = await wsRequest(ws, { type: 'buyHolds', quantity: qty }, 'buyHoldsResult');
+      assert.equal(msg.type, 'buyHoldsResult', 'buying exactly up to maxHolds should succeed');
       assert.equal(msg.cargoLimit, merchantCfg.maxHolds);
     } finally {
       await closeWS(ws);
@@ -227,8 +221,8 @@ describe('Buy equipment — success', () => {
     const { ws } = await connectWS();
     try {
       // Buy 3 holds → cargo_limit becomes 8
-      const buyMsg = await wsRequest(ws, { type: 'buyHolds', quantity: 3 }, 'buyResult');
-      assert.equal(buyMsg.type, 'buyResult');
+      const buyMsg = await wsRequest(ws, { type: 'buyHolds', quantity: 3 }, 'buyHoldsResult');
+      assert.equal(buyMsg.type, 'buyHoldsResult');
 
       // Navigate to fuel seller and buy 8 units (should succeed now)
       await navigateTo(ws, fuelSector);

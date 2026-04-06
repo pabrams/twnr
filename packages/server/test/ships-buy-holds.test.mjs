@@ -37,7 +37,7 @@ describe('Buy holds — validation', () => {
   it('returns "Invalid quantity" for quantity 0', async () => {
     const { ws } = await connectWS();
     try {
-      const msg = await wsRequest(ws, { type: 'buyHolds', quantity: 0 }, 'buyResult');
+      const msg = await wsRequest(ws, { type: 'buyHolds', quantity: 0 }, 'buyHoldsResult');
       assert.equal(msg.type, 'error');
       assert.equal(msg.message, 'Invalid quantity');
     } finally {
@@ -48,7 +48,7 @@ describe('Buy holds — validation', () => {
   it('returns "Invalid quantity" for negative quantity', async () => {
     const { ws } = await connectWS();
     try {
-      const msg = await wsRequest(ws, { type: 'buyHolds', quantity: -1 }, 'buyResult');
+      const msg = await wsRequest(ws, { type: 'buyHolds', quantity: -1 }, 'buyHoldsResult');
       assert.equal(msg.type, 'error');
       assert.equal(msg.message, 'Invalid quantity');
     } finally {
@@ -59,7 +59,7 @@ describe('Buy holds — validation', () => {
   it('returns "Invalid quantity" for a float quantity', async () => {
     const { ws } = await connectWS();
     try {
-      const msg = await wsRequest(ws, { type: 'buyHolds', quantity: 0.5 }, 'buyResult');
+      const msg = await wsRequest(ws, { type: 'buyHolds', quantity: 0.5 }, 'buyHoldsResult');
       assert.equal(msg.type, 'error');
       assert.equal(msg.message, 'Invalid quantity');
     } finally {
@@ -76,7 +76,7 @@ describe('Buy holds — validation', () => {
     const playerId = welcome.playerId;
     try {
       await pool.query('UPDATE players SET current_sector = $1 WHERE id = $2', [otherSector, playerId]);
-      const msg = await wsRequest(ws, { type: 'buyHolds', quantity: 1 }, 'buyResult');
+      const msg = await wsRequest(ws, { type: 'buyHolds', quantity: 1 }, 'buyHoldsResult');
       assert.equal(msg.type, 'error');
       assert.equal(msg.message, 'Not at a class 0 port');
     } finally {
@@ -89,7 +89,7 @@ describe('Buy holds — validation', () => {
     const playerId = welcome.playerId;
     try {
       await pool.query('UPDATE ship_cargo SET credits = 0 WHERE player_id = $1', [playerId]);
-      const msg = await wsRequest(ws, { type: 'buyHolds', quantity: 1 }, 'buyResult');
+      const msg = await wsRequest(ws, { type: 'buyHolds', quantity: 1 }, 'buyHoldsResult');
       assert.equal(msg.type, 'error');
       assert.equal(msg.message, 'Insufficient credits');
     } finally {

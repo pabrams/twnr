@@ -93,7 +93,7 @@ describe('Ship info — dynamic state', () => {
     const { ws } = await connectWS();
     const qty = 4;
     try {
-      await wsRequest(ws, { type: 'buyHolds', quantity: qty }, 'buyResult');
+      await wsRequest(ws, { type: 'buyHolds', quantity: qty }, 'buyHoldsResult');
       const msg = await wsRequest(ws, { type: 'ship' }, 'shipInfo');
       assert.equal(msg.type, 'shipInfo');
       assert.equal(msg.cargoLimit, merchantCfg.startingHolds + qty);

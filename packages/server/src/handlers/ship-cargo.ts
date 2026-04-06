@@ -9,7 +9,11 @@ export async function handleJettison(ws: WebSocket, playerId: number): Promise<v
         [playerId],
     );
     if (cargoRes.rows.length === 0) {
-        send(ws, { type: ServerMsgType.JettisonResult, outcome: 'error', message: 'Player not found' });
+        send(ws, {
+            type: ServerMsgType.JettisonResult,
+            outcome: 'error',
+            message: 'Player not found',
+        });
         return;
     }
 

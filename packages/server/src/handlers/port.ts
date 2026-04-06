@@ -458,8 +458,7 @@ export async function handleBuyPlanetBusters(
             await client.query('COMMIT');
 
             send(ws, {
-                type: ServerMsgType.BuyHardwareResult,
-                item: 'planet_busters',
+                type: ServerMsgType.BuyPlanetBustersResult,
                 quantity: qty,
                 totalOnShip: shipRes.rows[0].planet_busters + qty,
                 credits: cargoRes.rows[0].credits - cost,
@@ -543,8 +542,7 @@ export async function handleBuyTerraformDevices(
             await client.query('COMMIT');
 
             send(ws, {
-                type: ServerMsgType.BuyHardwareResult,
-                item: 'terraform_devices',
+                type: ServerMsgType.BuyTerraformDevicesResult,
                 quantity: qty,
                 totalOnShip: shipRes.rows[0].terraform_devices + qty,
                 credits: cargoRes.rows[0].credits - cost,

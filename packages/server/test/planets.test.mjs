@@ -646,7 +646,7 @@ describe('shared TypeScript types', () => {
 
   it('ServerMsgType has new planet-related message types', () => {
     const lower = msgContent.toLowerCase();
-    const requiredServerTypes = ['terraformresult', 'planetlist', 'planetdisplayresult', 'destroyplanetresult', 'buyhardwareresult', 'stardockmenu'];
+    const requiredServerTypes = ['terraformresult', 'planetlist', 'planetdisplayresult', 'destroyplanetresult', 'buyplanetbustersresult', 'buyterraformdevicesresult', 'stardockmenu'];
     for (const typeName of requiredServerTypes) {
       assert.ok(lower.includes(typeName), `ServerMsgType missing ${typeName}`);
     }
@@ -666,7 +666,8 @@ describe('shared TypeScript types', () => {
     assert.ok(lower.includes('planetlist'), 'PlanetList type definition missing');
     assert.ok(lower.includes('planetdisplayresult'), 'PlanetDisplayResult type definition missing');
     assert.ok(lower.includes('destroyplanetresult'), 'DestroyPlanetResult type definition missing');
-    assert.ok(lower.includes('buyhardwareresult'), 'BuyHardwareResult type definition missing');
+    assert.ok(lower.includes('buyplanetbustersresult'), 'BuyPlanetBustersResult type definition missing');
+    assert.ok(lower.includes('buyterraformdevicesresult'), 'BuyTerraformDevicesResult type definition missing');
     assert.ok(lower.includes('stardockmenu'), 'StardockMenu type definition missing');
   });
 
@@ -855,7 +856,7 @@ describe('WS: land on planet, display, leave', () => {
     const earthId = planets.rows[0].id;
 
     player.sendMsg({ type: 'landOnPlanet', planetId: earthId });
-    const msg = await player.waitForMessage('planetDisplayResult');
+    const msg = await player.waitForMessage('landOnPlanetResult');
     assert.ok(msg, 'should receive planetDisplayResult');
     assert.equal(msg.id, earthId);
     assert.equal(msg.name, 'Earth');
@@ -1068,9 +1069,9 @@ describe('WS: stardock and hardware store', () => {
     }
 
     player.sendMsg({ type: 'buyPlanetBusters', quantity: 1 });
-    const msg = await player.waitForMessage('buyHardwareResult');
+    const msg = await player.waitForMessage('buyPlanetBustersResult');
     assert.ok(msg, 'should receive buyHardwareResult');
-    assert.equal(msg.item, 'planet_busters');
+    assert.equal(msg.type, 'buyPlanetBustersResult');
     assert.equal(msg.quantity, 1);
     assert.ok('totalOnShip' in msg, 'should include totalOnShip');
     assert.ok('credits' in msg, 'should include remaining credits');
@@ -1084,9 +1085,9 @@ describe('WS: stardock and hardware store', () => {
     assert.ok(terraShip, 'at least one ship config must have maxTerraformDevices > 0');
     await pool.query('UPDATE player_ships SET ship_name = $1 WHERE player_id = $2', [terraShip.name, player.playerId]);
     player.sendMsg({ type: 'buyTerraformDevices', quantity: 1 });
-    const msg = await player.waitForMessage('buyHardwareResult');
+    const msg = await player.waitForMessage('buyTerraformDevicesResult');
     assert.ok(msg, 'should receive buyHardwareResult');
-    assert.equal(msg.item, 'terraform_devices');
+    assert.equal(msg.type, 'buyTerraformDevicesResult');
     assert.equal(msg.quantity, 1);
   });
 
@@ -1127,7 +1128,7 @@ describe('WS: destroy planet', () => {
     );
     const earthId = planets.rows[0].id;
     player.sendMsg({ type: 'landOnPlanet', planetId: earthId });
-    await player.waitForMessage('planetDisplayResult');
+    await player.waitForMessage('landOnPlanetResult');
 
     // Make sure no planet busters
     await pool.query('UPDATE player_ships SET planet_busters = 0 WHERE player_id = $1', [player.playerId]);
@@ -1166,7 +1167,7 @@ describe('WS: destroy planet', () => {
 
     // Land on the doomed planet
     player.sendMsg({ type: 'landOnPlanet', planetId: newPlanetId });
-    await player.waitForMessage('planetDisplayResult');
+    await player.waitForMessage('landOnPlanetResult');
 
     // Give planet buster
     await pool.query('UPDATE player_ships SET planet_busters = 1 WHERE player_id = $1', [player.playerId]);
@@ -1441,8 +1442,8 @@ describe('WS: buy hardware credit deduction', () => {
     await pool.query('UPDATE ship_cargo SET credits = 100000 WHERE player_id = $1', [player.playerId]);
 
     player.sendMsg({ type: 'buyPlanetBusters', quantity: 2 });
-    const msg = await player.waitForMessage('buyHardwareResult');
-    assert.equal(msg.item, 'planet_busters');
+    const msg = await player.waitForMessage('buyPlanetBustersResult');
+    assert.equal(msg.type, 'buyPlanetBustersResult');
     assert.equal(msg.quantity, 2);
     assert.equal(msg.credits, 60000, 'should deduct 40000 (2 * 20000) from 100000');
     assert.equal(msg.totalOnShip, 2);
@@ -1457,8 +1458,8 @@ describe('WS: buy hardware credit deduction', () => {
     await pool.query('UPDATE ship_cargo SET credits = 100000 WHERE player_id = $1', [player.playerId]);
 
     player.sendMsg({ type: 'buyTerraformDevices', quantity: 2 });
-    const msg = await player.waitForMessage('buyHardwareResult');
-    assert.equal(msg.item, 'terraform_devices');
+    const msg = await player.waitForMessage('buyTerraformDevicesResult');
+    assert.equal(msg.type, 'buyTerraformDevicesResult');
     assert.equal(msg.quantity, 2);
     assert.equal(msg.credits, 90000, 'should deduct 10000 (2 * 5000) from 100000');
     assert.equal(msg.totalOnShip, 2);
@@ -1674,7 +1675,7 @@ describe('WS: on_planet_id cleared after destroyPlanet', () => {
 
     // Land on the planet
     player.sendMsg({ type: 'landOnPlanet', planetId: newPlanetId });
-    await player.waitForMessage('planetDisplayResult');
+    await player.waitForMessage('landOnPlanetResult');
 
     // Verify on_planet_id is set
     const beforeRes = await pool.query('SELECT on_planet_id FROM players WHERE id = $1', [player.playerId]);
