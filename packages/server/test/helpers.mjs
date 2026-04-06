@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
+import { ClientMsgType, ServerMsgType } from '@twnr/shared';
 
 const { Pool } = pg;
 const __filename = fileURLToPath(import.meta.url);
@@ -254,16 +255,16 @@ const PORT_CLASS_ACTIONS = {
 
 export async function findPortSector(ws) {
   for (let i = 1; i <= 100; i++) {
-    const res = await wsRequest(ws, { type: 'portInfo', sectorId: i }, 'portInfoResult');
-    if (res.type === 'portInfoResult') return { sectorId: i, port: res };
+    const res = await wsRequest(ws, { type: ClientMsgType.PortInfo, sectorId: i }, ServerMsgType.PortInfoResult);
+    if (res.type === ServerMsgType.PortInfoResult) return { sectorId: i, port: res };
   }
   return null;
 }
 
 export async function findPortSelling(ws, good) {
   for (let i = 1; i <= 100; i++) {
-    const res = await wsRequest(ws, { type: 'portInfo', sectorId: i }, 'portInfoResult');
-    if (res.type === 'portInfoResult') {
+    const res = await wsRequest(ws, { type: ClientMsgType.PortInfo, sectorId: i }, ServerMsgType.PortInfoResult);
+    if (res.type === ServerMsgType.PortInfoResult) {
       const actions = PORT_CLASS_ACTIONS[res.class];
       if (actions && actions[good] === 'S') return { sectorId: i, port: res };
     }
@@ -273,8 +274,8 @@ export async function findPortSelling(ws, good) {
 
 export async function findPortBuying(ws, good) {
   for (let i = 1; i <= 100; i++) {
-    const res = await wsRequest(ws, { type: 'portInfo', sectorId: i }, 'portInfoResult');
-    if (res.type === 'portInfoResult') {
+    const res = await wsRequest(ws, { type: ClientMsgType.PortInfo, sectorId: i }, ServerMsgType.PortInfoResult);
+    if (res.type === ServerMsgType.PortInfoResult) {
       const actions = PORT_CLASS_ACTIONS[res.class];
       if (actions && actions[good] === 'B') return { sectorId: i, port: res };
     }
@@ -283,15 +284,15 @@ export async function findPortBuying(ws, good) {
 }
 
 export async function movePlayerTo(ws, targetSector) {
-  const disp = await wsRequest(ws, { type: 'sectorDisplay' }, 'sectorDisplayResult');
+  const disp = await wsRequest(ws, { type: ClientMsgType.SectorDisplay }, ServerMsgType.SectorDisplayResult);
   if (disp.sector === targetSector) return true;
 
-  const pathRes = await wsRequest(ws, { type: ClientMsgType.ShortestPath, from: disp.sector, to: targetSector }, 'shortestPathResult');
-  if (pathRes.type === 'error') return false;
+  const pathRes = await wsRequest(ws, { type: ClientMsgType.ShortestPath, from: disp.sector, to: targetSector }, ServerMsgType.ShortestPathResult);
+  if (pathRes.type === ServerMsgType.Error) return false;
 
   for (let i = 1; i < pathRes.path.length; i++) {
-    const moveMsg = await wsRequest(ws, { type: 'move', sector: pathRes.path[i] }, 'moveResult');
-    if (moveMsg.type === 'error' || moveMsg.outcome === 'error') return false;
+    const moveMsg = await wsRequest(ws, { type: ClientMsgType.Move, sector: pathRes.path[i] }, ServerMsgType.MoveResult);
+    if (moveMsg.type === ServerMsgType.Error || moveMsg.outcome === 'error') return false;
   }
   return true;
 }
