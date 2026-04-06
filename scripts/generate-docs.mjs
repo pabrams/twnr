@@ -13,104 +13,63 @@ const clientMsgSrc = readFileSync('packages/shared/src/client-messages.ts', 'utf
 
 // --- 1. Parse enum mappings ---
 
-// ClientMsgType key -> wire value (e.g. Move -> "move")
 const clientKeyToWire = {};
-for (const m of messagesSrc.matchAll(/(\w+):\s*'([^']+)'/g)) {
-    clientKeyToWire[m[1]] = m[2];
-}
-
-// ServerMsgType key -> wire value (e.g. SectorDisplay -> "sectorDisplay")
 const serverKeyToWire = {};
-for (const m of messagesSrc.matchAll(/(\w+):\s*'([^']+)'/g)) {
-    serverKeyToWire[m[1]] = m[2];
-}
+const serverBlock = messagesSrc.slice(0, messagesSrc.indexOf('} as const;'));
+for (const m of serverBlock.matchAll(/(\w+):\s*'([^']+)'/g)) serverKeyToWire[m[1]] = m[2];
+const clientBlock = messagesSrc.slice(messagesSrc.indexOf('ClientMsgType'));
+for (const m of clientBlock.matchAll(/(\w+):\s*'([^']+)'/g)) clientKeyToWire[m[1]] = m[2];
 
-// ServerMsgType key -> TypeScript type name (e.g. SectorDisplay -> SectorDisplayMessage)
 const serverKeyToTypeName = {};
 for (const m of serverMsgSrc.matchAll(/export\s+type\s+(\w+)\s*=\s*\{[^}]*typeof\s+ServerMsgType\.(\w+)/gs)) {
     serverKeyToTypeName[m[2]] = m[1];
 }
 
-// Client wire -> TypeScript type name
-const clientWireToTypeName = {};
-for (const m of clientMsgSrc.matchAll(/export\s+type\s+(\w+)\s*=\s*\{[^}]*typeof\s+ClientMsgType\.(\w+)/gs)) {
-    const wire = clientKeyToWire[m[2]];
-    if (wire) clientWireToTypeName[wire] = m[1];
-}
-
-// --- 2. Parse router imports: function name -> source file ---
+// --- 2. Parse server router and handlers ---
 
 const importMap = {};
 for (const m of routerSrc.matchAll(/import\s*\{([^}]+)\}\s*from\s*'\.\/([^']+)'/g)) {
     const file = m[2].replace('.js', '.ts');
-    for (const fn of m[1].split(',').map(s => s.trim()).filter(Boolean)) {
-        importMap[fn] = file;
-    }
+    for (const fn of m[1].split(',').map(s => s.trim()).filter(Boolean)) importMap[fn] = file;
 }
-
-// --- 3. Parse all handler source files, extract functions and their ServerMsgType refs ---
 
 const handlerFiles = new Set(Object.values(importMap));
 handlerFiles.add('message-router.ts');
-
-// fnName -> { file, serverKeys: Set<string>, calls: Set<string> }
 const fnInfo = {};
-
 for (const file of handlerFiles) {
     const src = readFileSync(join(HANDLERS_DIR, file), 'utf8');
-    // Split into functions by matching export (async)? function name
     const fnRegex = /(?:export\s+)?(?:async\s+)?function\s+(\w+)\s*\([^)]*\)[^{]*\{/g;
     let match;
     const fnStarts = [];
-    while ((match = fnRegex.exec(src)) !== null) {
-        fnStarts.push({ name: match[1], start: match.index });
-    }
-
+    while ((match = fnRegex.exec(src)) !== null) fnStarts.push({ name: match[1], start: match.index });
     for (let i = 0; i < fnStarts.length; i++) {
         const start = fnStarts[i].start;
         const end = i + 1 < fnStarts.length ? fnStarts[i + 1].start : src.length;
         const body = src.slice(start, end);
-        const name = fnStarts[i].name;
-
         const serverKeys = new Set();
-        for (const m of body.matchAll(/ServerMsgType\.(\w+)/g)) {
-            serverKeys.add(m[1]);
-        }
-
-        // Detect calls to other handler functions
+        for (const m of body.matchAll(/ServerMsgType\.(\w+)/g)) serverKeys.add(m[1]);
         const calls = new Set();
-        for (const m of body.matchAll(/\b(handle\w+)\s*\(/g)) {
-            if (m[1] !== name) calls.add(m[1]);
-        }
-
-        fnInfo[name] = { file, serverKeys, calls };
+        for (const m of body.matchAll(/\b(handle\w+)\s*\(/g)) { if (m[1] !== fnStarts[i].name) calls.add(m[1]); }
+        fnInfo[fnStarts[i].name] = { file, serverKeys, calls };
     }
 }
 
-// Resolve transitive calls (one level deep is enough for this codebase)
 function resolveServerKeys(fnName, visited = new Set()) {
     const info = fnInfo[fnName];
     if (!info) return new Set();
     visited.add(fnName);
     const keys = new Set(info.serverKeys);
     for (const callee of info.calls) {
-        if (!visited.has(callee)) {
-            for (const k of resolveServerKeys(callee, visited)) {
-                keys.add(k);
-            }
-        }
+        if (!visited.has(callee)) for (const k of resolveServerKeys(callee, visited)) keys.add(k);
     }
     return keys;
 }
 
-// --- 4. Parse switch statement to build dispatch: clientWire -> { handlerFn, file } ---
-
-const dispatch = {}; // wire -> { fn, file }
+const dispatch = {};
 let currentCases = [];
 for (const line of routerSrc.split('\n')) {
     const caseMatch = line.match(/case\s+ClientMsgType\.(\w+)\s*:/);
     if (caseMatch) currentCases.push(caseMatch[1]);
-
     const handlerMatch = line.match(/return\s+(handle\w+)\s*\(/);
     const inlineMatch = line.match(/send\s*\(\s*ws\s*,\s*\{/);
     if ((handlerMatch || inlineMatch) && currentCases.length > 0) {
@@ -124,14 +83,57 @@ for (const line of routerSrc.split('\n')) {
     }
 }
 
-// --- 5. Build the mapping table rows ---
+// --- 3. Client input mapping (manually maintained — derived from input.ts, input-combat.ts, input-misc.ts) ---
+// Each entry: ClientMsgType key -> [{ mode, key }]
+// key uses HTML entities for special chars: ⏎ = &#9166;, <> for placeholders
+const S = '&lt;sector&gt;&#9166;';
+const Q = '&lt;qty&gt;&#9166;';
+const N = '&lt;#&gt;&#9166;';
 
-const tableRows = [];
+const clientInputMap = {
+    Move:                [{ mode: 'sector', key: S }, { mode: 'sector', key: `m ${S}` }, { mode: 'autopilotPrompt', key: 'y' }],
+    SectorDisplay:       [{ mode: 'sector', key: 'd' }],
+    Who:                 [{ mode: 'sector', key: '#' }],
+    SectorWarps:         [],  // no client UI
+    Path:                [{ mode: '(auto)', key: 'non-adjacent move' }],
+    PortInfo:            [],  // no client UI
+    ShipInfo:            [{ mode: 'sector', key: 'i (auto)' }],
+    CargoInfo:           [{ mode: 'sector', key: 'i (auto)' }],
+    PortTransaction:     [{ mode: 'docked', key: `b &lt;good&gt; ${Q}` }, { mode: 'docked', key: `s &lt;good&gt; ${Q}` }],
+    BuyFighters:         [{ mode: 'class0Qty', key: Q }],
+    BuyShields:          [{ mode: 'class0Qty', key: Q }],
+    BuyHolds:            [{ mode: 'class0Qty', key: Q }],
+    ShipExchange:        [],  // no client UI
+    Attack:              [{ mode: 'attackFighters', key: Q }],
+    Dock:                [{ mode: 'port', key: 't' }],
+    Undock:              [{ mode: 'docked', key: 'q' }, { mode: 'class0', key: 'q' }],
+    Jettison:            [{ mode: 'jettisonConfirm', key: 'y' }],
+    Land:                [{ mode: 'sector', key: 'l' }],
+    TakeColonists:       [{ mode: 'planetTakeQty', key: Q }],
+    LeaveColonists:      [{ mode: 'planetLeaveQty', key: Q }],
+    DeployFightersInfo:  [{ mode: 'sector', key: 'f' }],
+    DeployFighters:      [{ mode: 'deployFightersQty', key: Q }],
+    AttackSectorFighters:[{ mode: 'fighterAttackQty', key: Q }],
+    RetreatFromFighters: [{ mode: 'fighterEncounter', key: 'r' }],
+    UseTerraformDevice:  [],  // no client UI
+    LandOnPlanet:        [],  // no client UI
+    PlanetDisplay:       [],  // no client UI
+    DestroyPlanet:       [],  // no client UI
+    LeavePlanet:         [],  // no client UI
+    BuyPlanetBusters:    [],  // no client UI
+    BuyTerraformDevices: [],  // no client UI
+    DockStardock:        [],  // no client UI
+    LeaveStardock:       [],  // no client UI
+};
+
+// --- 4. Build the mapping table rows ---
+
 const clientDefs = clientSchema.definitions ?? {};
 const clientUnion = clientSchema.$ref?.replace('#/definitions/', '');
 const clientMembers = (clientDefs[clientUnion]?.anyOf ?? [])
     .map(r => r.$ref?.replace('#/definitions/', '')).filter(Boolean);
 
+const tableRows = [];
 for (const typeName of clientMembers) {
     const def = clientDefs[typeName];
     const wire = def?.properties?.type?.const;
@@ -139,41 +141,34 @@ for (const typeName of clientMembers) {
 
     const d = dispatch[wire];
     const handlerFn = d?.fn || '(inline)';
-    const handlerFile = d?.file || 'message-router.ts';
 
-    // Get server message type keys this handler sends (excluding Error)
     let serverKeys;
     if (d?.fn) {
         serverKeys = resolveServerKeys(d.fn);
     } else {
-        // inline — extract from switch case directly
         serverKeys = new Set();
-        const inlineBlock = routerSrc.slice(
-            routerSrc.indexOf(`ClientMsgType.${Object.entries(clientKeyToWire).find(([, v]) => v === wire)?.[0]}`),
-        );
-        const blockEnd = inlineBlock.indexOf('return;');
-        const block = inlineBlock.slice(0, blockEnd > 0 ? blockEnd : 200);
-        for (const m of block.matchAll(/ServerMsgType\.(\w+)/g)) {
-            serverKeys.add(m[1]);
+        const searchKey = Object.entries(clientKeyToWire).find(([, v]) => v === wire)?.[0];
+        if (searchKey) {
+            const inlineBlock = routerSrc.slice(routerSrc.indexOf(`ClientMsgType.${searchKey}`));
+            const blockEnd = inlineBlock.indexOf('return;');
+            const block = inlineBlock.slice(0, blockEnd > 0 ? blockEnd : 200);
+            for (const m of block.matchAll(/ServerMsgType\.(\w+)/g)) serverKeys.add(m[1]);
         }
     }
 
-    // Separate error from primary responses
     const primaryKeys = [...serverKeys].filter(k => k !== 'Error');
     const responseTypes = primaryKeys
         .map(k => ({ key: k, wire: serverKeyToWire[k], typeName: serverKeyToTypeName[k] }))
         .filter(r => r.typeName);
 
-    tableRows.push({
-        clientTypeName: typeName,
-        clientWire: wire,
-        handlerFn,
-        handlerFile,
-        responseTypes,
-    });
+    // Find ClientMsgType key from wire
+    const msgTypeKey = Object.entries(clientKeyToWire).find(([, v]) => v === wire)?.[0];
+    const inputEntries = msgTypeKey ? (clientInputMap[msgTypeKey] || []) : [];
+
+    tableRows.push({ clientTypeName: typeName, clientWire: wire, handlerFn, responseTypes, inputEntries });
 }
 
-// --- Schema-based message card rendering (unchanged) ---
+// --- Rendering helpers ---
 
 function renderType(prop) {
     if (prop.const) return `"${prop.const}"`;
@@ -194,21 +189,14 @@ function getMessages(schema) {
     );
     return Object.entries(defs)
         .filter(([name]) => unionMembers.has(name))
-        .sort(([, a], [, b]) => {
-            const aType = a.properties?.type?.const ?? '';
-            const bType = b.properties?.type?.const ?? '';
-            return aType.localeCompare(bType);
-        });
+        .sort(([, a], [, b]) => (a.properties?.type?.const ?? '').localeCompare(b.properties?.type?.const ?? ''));
 }
 
 function renderSidebarTree(label, id, messages) {
-    const items = messages
-        .map(([name, def]) => {
-            const wire = def.properties?.type?.const ?? '?';
-            return `        <li><a href="#${name}" class="nav-link" data-target="${name}"><code>${wire}</code> <span class="nav-name">${name.replace('Message', '')}</span></a></li>`;
-        })
-        .join('\n');
-
+    const items = messages.map(([name, def]) => {
+        const wire = def.properties?.type?.const ?? '?';
+        return `        <li><a href="#${name}" class="nav-link" data-target="${name}"><code>${wire}</code> <span class="nav-name">${name.replace('Message', '')}</span></a></li>`;
+    }).join('\n');
     return `      <li class="tree-branch">
         <button class="tree-toggle" aria-expanded="true" onclick="this.setAttribute('aria-expanded', this.getAttribute('aria-expanded')==='true'?'false':'true')">
           <svg class="chevron" width="12" height="12" viewBox="0 0 12 12"><path d="M4 2l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
@@ -228,9 +216,7 @@ function renderMessageCard(name, def, isClient) {
         .map(([key, prop]) => {
             const opt = required.has(key) ? '' : '?';
             return `  <span class="key">${key}${opt}</span>: <span class="type">${renderType(prop)}</span>`;
-        })
-        .join('\n');
-
+        }).join('\n');
     let handlerHtml = '';
     if (isClient) {
         const d = dispatch[wireType];
@@ -240,7 +226,6 @@ function renderMessageCard(name, def, isClient) {
             handlerHtml = `\n<div class="handler">Handler: <code>${label}</code> <span class="handler-file">${file}</span></div>`;
         }
     }
-
     return `<section class="message" id="${name}">
 <h3><a href="#${name}">${name}</a> <code class="wire-type">"${wireType}"</code></h3>${handlerHtml}
 <pre>{
@@ -257,19 +242,27 @@ function renderMainSection(title, id, messages, isClient) {
 </section>`;
 }
 
-// --- Render mapping table ---
-
 function renderMappingTable() {
     const rows = tableRows.map(r => {
         const responses = r.responseTypes.length > 0
-            ? r.responseTypes.map(rt =>
-                `<a href="#${rt.typeName}" class="response-link">${rt.typeName}</a>`
-            ).join(', ')
+            ? r.responseTypes.map(rt => `<a href="#${rt.typeName}" class="response-link">${rt.typeName}</a>`).join(', ')
             : '<span class="dim">none</span>';
         const handler = r.handlerFn === '(inline)'
             ? '<span class="dim">inline</span>'
             : `<code class="fn">${r.handlerFn}</code>`;
+
+        let menuCell, keyCell;
+        if (r.inputEntries.length > 0) {
+            menuCell = r.inputEntries.map(e => `<code class="mode">${e.mode}</code>`).join('<br>');
+            keyCell = r.inputEntries.map(e => `<kbd>${e.key}</kbd>`).join('<br>');
+        } else {
+            menuCell = '<span class="dim">no UI</span>';
+            keyCell = '<span class="dim">&mdash;</span>';
+        }
+
         return `      <tr>
+        <td>${menuCell}</td>
+        <td>${keyCell}</td>
         <td><a href="#${r.clientTypeName}">${r.clientTypeName}</a></td>
         <td><code class="wire">${r.clientWire}</code></td>
         <td>${handler}</td>
@@ -279,11 +272,11 @@ function renderMappingTable() {
 
     return `<section class="group" id="mapping-section">
   <h2>Message Flow</h2>
-  <p class="table-subtitle">Client request &rarr; handler &rarr; server response (excludes <code>ErrorMessage</code> which any handler can send)</p>
+  <p class="table-subtitle">User input &rarr; client message &rarr; handler &rarr; server response (excludes <code>ErrorMessage</code> which any handler can send)</p>
   <div class="table-wrap">
     <table>
       <thead>
-        <tr><th>Client Type</th><th>Wire</th><th>Handler</th><th>Server Response Types</th></tr>
+        <tr><th>Menu</th><th>Key</th><th>Client Type</th><th>Wire</th><th>Handler</th><th>Server Response Types</th></tr>
       </thead>
       <tbody>
 ${rows}
@@ -304,172 +297,71 @@ const html = `<!DOCTYPE html>
 <title>twnr Protocol Reference</title>
 <style>
   :root {
-    --bg: #1a1a2e;
-    --fg: #e0e0e0;
-    --fg-dim: #888;
-    --accent: #e94560;
-    --card: #16213e;
-    --border: #0f3460;
-    --sidebar-bg: #121a30;
-    --sidebar-w: 260px;
-    --key: #e94560;
-    --type: #4ec9b0;
-    --wire: #ce9178;
-    --hover: #1e2d4d;
-    --active: #253555;
-    --fn: #dcdcaa;
+    --bg: #1a1a2e; --fg: #e0e0e0; --fg-dim: #888; --accent: #e94560;
+    --card: #16213e; --border: #0f3460; --sidebar-bg: #121a30; --sidebar-w: 260px;
+    --key: #e94560; --type: #4ec9b0; --wire: #ce9178;
+    --hover: #1e2d4d; --active: #253555; --fn: #dcdcaa;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html { scroll-behavior: smooth; scroll-padding-top: 1rem; }
   body {
     font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
-    background: var(--bg);
-    color: var(--fg);
-    line-height: 1.6;
-    display: flex;
-    min-height: 100vh;
+    background: var(--bg); color: var(--fg); line-height: 1.6;
+    display: flex; min-height: 100vh;
   }
-
-  /* Sidebar */
   .sidebar {
-    position: fixed;
-    top: 0; left: 0;
-    width: var(--sidebar-w);
-    height: 100vh;
-    background: var(--sidebar-bg);
-    border-right: 1px solid var(--border);
-    overflow-y: auto;
-    padding: 1.25rem 0;
-    font-size: 0.8rem;
-    z-index: 10;
-    scrollbar-width: thin;
-    scrollbar-color: var(--border) transparent;
+    position: fixed; top: 0; left: 0; width: var(--sidebar-w); height: 100vh;
+    background: var(--sidebar-bg); border-right: 1px solid var(--border);
+    overflow-y: auto; padding: 1.25rem 0; font-size: 0.8rem; z-index: 10;
+    scrollbar-width: thin; scrollbar-color: var(--border) transparent;
   }
   .sidebar-title {
-    color: var(--accent);
-    font-size: 0.95rem;
-    font-weight: 700;
-    padding: 0 1rem 0.75rem;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 0.5rem;
+    color: var(--accent); font-size: 0.95rem; font-weight: 700;
+    padding: 0 1rem 0.75rem; border-bottom: 1px solid var(--border); margin-bottom: 0.5rem;
   }
   .tree { list-style: none; }
   .tree-branch { margin-bottom: 0.25rem; }
   .tree-toggle {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    width: 100%;
-    padding: 0.35rem 1rem;
-    background: none;
-    border: none;
-    color: var(--fg);
-    font: inherit;
-    font-weight: 600;
-    font-size: 0.8rem;
-    cursor: pointer;
-    text-align: left;
+    display: flex; align-items: center; gap: 0.4rem; width: 100%;
+    padding: 0.35rem 1rem; background: none; border: none; color: var(--fg);
+    font: inherit; font-weight: 600; font-size: 0.8rem; cursor: pointer; text-align: left;
   }
   .tree-toggle:hover { background: var(--hover); }
-  .chevron {
-    transition: transform 0.15s ease;
-    flex-shrink: 0;
-  }
+  .chevron { transition: transform 0.15s ease; flex-shrink: 0; }
   .tree-toggle[aria-expanded="true"] .chevron { transform: rotate(90deg); }
   .tree-toggle[aria-expanded="false"] + .tree-children { display: none; }
-  .tree-count {
-    color: var(--fg-dim);
-    font-weight: normal;
-    margin-left: auto;
-    font-size: 0.75rem;
-  }
-  .tree-children {
-    list-style: none;
-    padding-left: 0;
-  }
+  .tree-count { color: var(--fg-dim); font-weight: normal; margin-left: auto; font-size: 0.75rem; }
+  .tree-children { list-style: none; padding-left: 0; }
   .nav-link {
-    display: flex;
-    align-items: baseline;
-    gap: 0.5rem;
-    padding: 0.2rem 1rem 0.2rem 2rem;
-    color: var(--fg-dim);
-    text-decoration: none;
+    display: flex; align-items: baseline; gap: 0.5rem;
+    padding: 0.2rem 1rem 0.2rem 2rem; color: var(--fg-dim); text-decoration: none;
     transition: background 0.1s, color 0.1s;
   }
   .nav-link:hover { background: var(--hover); color: var(--fg); }
   .nav-link.active { background: var(--active); color: var(--fg); }
-  .nav-link code {
-    color: var(--wire);
-    font-size: 0.7rem;
-    flex-shrink: 0;
-  }
-  .nav-name {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  /* Main content */
-  .main {
-    margin-left: var(--sidebar-w);
-    flex: 1;
-    padding: 2rem 2.5rem;
-    max-width: 900px;
-  }
+  .nav-link code { color: var(--wire); font-size: 0.7rem; flex-shrink: 0; }
+  .nav-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .main { margin-left: var(--sidebar-w); flex: 1; padding: 2rem 2.5rem; max-width: 1000px; }
   h1 { color: var(--accent); margin-bottom: 0.25rem; font-size: 1.4rem; }
   .subtitle { color: var(--fg-dim); margin-bottom: 2.5rem; font-size: 0.85rem; }
-  h2 {
-    color: var(--fg);
-    margin: 2.5rem 0 1rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 2px solid var(--border);
-    font-size: 1.1rem;
-  }
+  h2 { color: var(--fg); margin: 2.5rem 0 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--border); font-size: 1.1rem; }
   h3 { font-size: 0.95rem; margin-bottom: 0.4rem; }
   h3 a { color: var(--fg); text-decoration: none; }
   h3 a:hover { text-decoration: underline; }
   .wire-type { color: var(--wire); font-size: 0.8rem; font-weight: normal; }
-  .handler {
-    font-size: 0.78rem;
-    color: var(--fg-dim);
-    margin-bottom: 0.4rem;
-  }
+  .handler { font-size: 0.78rem; color: var(--fg-dim); margin-bottom: 0.4rem; }
   .handler code { color: var(--fn); font-size: 0.78rem; }
   .handler-file { color: #6a7a8a; font-size: 0.72rem; }
-  .message {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 0.9rem 1.1rem;
-    margin-bottom: 0.75rem;
-  }
+  .message { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 0.9rem 1.1rem; margin-bottom: 0.75rem; }
   pre { font-size: 0.8rem; line-height: 1.75; white-space: pre-wrap; }
   .key { color: var(--key); }
   .type { color: var(--type); }
-
-  /* Mapping table */
   .table-subtitle { color: var(--fg-dim); font-size: 0.8rem; margin-bottom: 1rem; }
   .table-subtitle code { color: var(--wire); font-size: 0.78rem; }
   .table-wrap { overflow-x: auto; }
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.78rem;
-    line-height: 1.5;
-  }
-  th {
-    text-align: left;
-    padding: 0.5rem 0.6rem;
-    border-bottom: 2px solid var(--border);
-    color: var(--fg-dim);
-    font-weight: 600;
-    white-space: nowrap;
-  }
-  td {
-    padding: 0.4rem 0.6rem;
-    border-bottom: 1px solid var(--border);
-    vertical-align: top;
-  }
+  table { width: 100%; border-collapse: collapse; font-size: 0.75rem; line-height: 1.5; }
+  th { text-align: left; padding: 0.5rem 0.5rem; border-bottom: 2px solid var(--border); color: var(--fg-dim); font-weight: 600; white-space: nowrap; }
+  td { padding: 0.35rem 0.5rem; border-bottom: 1px solid var(--border); vertical-align: top; }
   tr:hover td { background: var(--hover); }
   td a { color: var(--fg); text-decoration: none; }
   td a:hover { text-decoration: underline; }
@@ -477,6 +369,8 @@ const html = `<!DOCTYPE html>
   .response-link:hover { color: var(--fg); }
   code.wire { color: var(--wire); }
   code.fn { color: var(--fn); }
+  code.mode { color: #569cd6; font-size: 0.73rem; }
+  kbd { color: var(--fg); background: #1e2d4d; border: 1px solid var(--border); border-radius: 3px; padding: 0.05rem 0.35rem; font-family: inherit; font-size: 0.73rem; white-space: nowrap; }
   .dim { color: #555; font-style: italic; }
 </style>
 </head>
@@ -504,7 +398,6 @@ ${renderSidebarTree('Server &rarr; Client', 'nav-server', serverMessages)}
 <script>
 const links = document.querySelectorAll('.nav-link');
 const sections = [...links].map(l => document.getElementById(l.dataset.target)).filter(Boolean);
-
 const observer = new IntersectionObserver(entries => {
   for (const entry of entries) {
     if (entry.isIntersecting) {
@@ -512,7 +405,6 @@ const observer = new IntersectionObserver(entries => {
     }
   }
 }, { rootMargin: '-10% 0px -80% 0px' });
-
 sections.forEach(s => observer.observe(s));
 </script>
 </body>
