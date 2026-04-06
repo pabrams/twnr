@@ -44,6 +44,9 @@ export const ServerMsgType = {
     BuyPlanetBustersResult: 'buyPlanetBustersResult',
     BuyTerraformDevicesResult: 'buyTerraformDevicesResult',
     DockStardockResult: 'dockStardockResult',
+    BuyHyperwarpDriveResult: 'buyHyperwarpDriveResult',
+    ListDeployedFightersResult: 'listDeployedFightersResult',
+    HyperspaceJumpResult: 'hyperspaceJumpResult',
 } as const;
 type ServerMsgType = typeof ServerMsgType;
 
@@ -81,5 +84,8 @@ export const ClientMsgType = {
     BuyTerraformDevices: 'buyTerraformDevices',
     DockStardock: 'dockStardock',
     LeaveStardock: 'leaveStardock',
+    BuyHyperwarpDrive: 'buyHyperwarpDrive',
+    ListDeployedFighters: 'listDeployedFighters',
+    HyperspaceJump: 'hyperspaceJump',
 } as const;
 type ClientMsgType = typeof ClientMsgType;

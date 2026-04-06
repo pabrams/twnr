@@ -84,13 +84,14 @@ export async function handleBuyShipTradein(
             return;
         }
 
+        const turnsPerWarp = targetConfig.turnsPerWarp ?? 1;
         await client.query(
             `
             UPDATE player_ships
-            SET ship_name = $1, fighters = 0, shields = 0, cargo_limit = $2
-            WHERE player_id = $3
+            SET ship_name = $1, fighters = 0, shields = 0, cargo_limit = $2, turns_per_warp = $3, has_hyperwarp_drive = FALSE
+            WHERE player_id = $4
         `,
-            [targetShipName, newCargoLimit, playerId],
+            [targetShipName, newCargoLimit, turnsPerWarp, playerId],
         );
 
         await client.query('UPDATE ship_cargo SET credits = credits - $1 WHERE player_id = $2', [

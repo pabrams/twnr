@@ -11,6 +11,7 @@ import {
     getSectorFighters,
 } from '../game-state.js';
 import { pool } from '../db/index.js';
+import { checkAndDeductTurns } from '../turn-logic.js';
 
 export async function handleMove(
     ws: WebSocket,
@@ -52,6 +53,22 @@ export async function handleMove(
             type: ServerMsgType.MoveResult,
             outcome: 'nonAdjacent',
             sector: targetSector,
+        });
+        return;
+    }
+
+    // Check turns
+    const turnsPerWarpRes = await pool.query(
+        'SELECT turns_per_warp FROM player_ships WHERE player_id = $1',
+        [playerId],
+    );
+    const turnsPerWarp = turnsPerWarpRes.rows[0]?.turns_per_warp ?? 1;
+    const turnResult = await checkAndDeductTurns(playerId, universeId, turnsPerWarp);
+    if (!turnResult.allowed) {
+        send(ws, {
+            type: ServerMsgType.MoveResult,
+            outcome: 'error',
+            message: 'Insufficient turns',
         });
         return;
     }
@@ -134,6 +151,7 @@ export async function handleMove(
             ownerName: sectorFighters.ownerName,
             shipFighters: shipRes.rows[0]?.fighters ?? 0,
             retreatSector: currentSector,
+            turnsUsed: turnResult.turnsUsed,
         });
 
         // Alert the owner about the intrusion
@@ -161,6 +179,7 @@ export async function handleMove(
         visitedSectors,
         sectorFighters,
         planets,
+        turnsUsed: turnResult.turnsUsed,
     });
 }
 

@@ -65,7 +65,7 @@ export function createUniverseRoutes(
 
         try {
             // Check universe exists
-            const univRes = await pool.query('SELECT id FROM universes WHERE id = $1', [
+            const univRes = await pool.query('SELECT id, starting_turns FROM universes WHERE id = $1', [
                 universeId,
             ]);
             if (univRes.rows.length === 0) {
@@ -74,10 +74,11 @@ export function createUniverseRoutes(
 
             // Create player row
             const startSector = newPlayerConfig.startingSector;
+            const startingTurns = univRes.rows[0].starting_turns;
             const playerRes = await pool.query(
-                `INSERT INTO players (name, user_id, universe_id, current_sector)
-                 VALUES ($1, $2, $3, $4) RETURNING id`,
-                [name, userId, universeId, startSector],
+                `INSERT INTO players (name, user_id, universe_id, current_sector, turns, last_turns_granted_at)
+                 VALUES ($1, $2, $3, $4, $5, NOW()) RETURNING id`,
+                [name, userId, universeId, startSector, startingTurns],
             );
             const playerId = playerRes.rows[0].id;
 
@@ -85,14 +86,15 @@ export function createUniverseRoutes(
             const startShip = shipConfigs[newPlayerConfig.startingShip];
             if (startShip) {
                 await pool.query(
-                    `INSERT INTO player_ships (player_id, ship_name, fighters, shields, cargo_limit)
-                     VALUES ($1, $2, $3, $4, $5)`,
+                    `INSERT INTO player_ships (player_id, ship_name, fighters, shields, cargo_limit, turns_per_warp)
+                     VALUES ($1, $2, $3, $4, $5, $6)`,
                     [
                         playerId,
                         startShip.name,
                         newPlayerConfig.startingFighters,
                         newPlayerConfig.startingShields,
                         startShip.startingHolds,
+                        startShip.turnsPerWarp ?? 1,
                     ],
                 );
             }

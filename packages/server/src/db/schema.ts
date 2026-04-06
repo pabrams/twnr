@@ -26,13 +26,19 @@ export const connectDB = async (): Promise<void> => {
         max_planets_per_sector SMALLINT NOT NULL DEFAULT 2,
         planet_collision_likelihood SMALLINT NOT NULL DEFAULT 50,
         planet_collision_min_hours SMALLINT NOT NULL DEFAULT 24,
-        planet_collision_max_hours SMALLINT NOT NULL DEFAULT 24
+        planet_collision_max_hours SMALLINT NOT NULL DEFAULT 24,
+        turns_per_day INTEGER NOT NULL DEFAULT 500,
+        starting_turns INTEGER NOT NULL DEFAULT 500,
+        max_turns INTEGER NOT NULL DEFAULT 2000
       );
 
       ALTER TABLE universes ADD COLUMN IF NOT EXISTS max_planets_per_sector SMALLINT NOT NULL DEFAULT 2;
       ALTER TABLE universes ADD COLUMN IF NOT EXISTS planet_collision_likelihood SMALLINT NOT NULL DEFAULT 50;
       ALTER TABLE universes ADD COLUMN IF NOT EXISTS planet_collision_min_hours SMALLINT NOT NULL DEFAULT 24;
       ALTER TABLE universes ADD COLUMN IF NOT EXISTS planet_collision_max_hours SMALLINT NOT NULL DEFAULT 24;
+      ALTER TABLE universes ADD COLUMN IF NOT EXISTS turns_per_day INTEGER NOT NULL DEFAULT 500;
+      ALTER TABLE universes ADD COLUMN IF NOT EXISTS starting_turns INTEGER NOT NULL DEFAULT 500;
+      ALTER TABLE universes ADD COLUMN IF NOT EXISTS max_turns INTEGER NOT NULL DEFAULT 2000;
 
       CREATE TABLE IF NOT EXISTS sectors (
         id INTEGER NOT NULL,
@@ -57,10 +63,14 @@ export const connectDB = async (): Promise<void> => {
         ship_destroyed_date TIMESTAMPTZ,
         docked BOOLEAN NOT NULL DEFAULT FALSE,
         on_planet_id INTEGER DEFAULT NULL,
+        turns INTEGER NOT NULL DEFAULT 0,
+        last_turns_granted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         UNIQUE (user_id, universe_id)
       );
 
       ALTER TABLE players ADD COLUMN IF NOT EXISTS on_planet_id INTEGER DEFAULT NULL;
+      ALTER TABLE players ADD COLUMN IF NOT EXISTS turns INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE players ADD COLUMN IF NOT EXISTS last_turns_granted_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
       CREATE TABLE IF NOT EXISTS ports (
         id SERIAL PRIMARY KEY,
@@ -158,11 +168,15 @@ export const connectDB = async (): Promise<void> => {
         shields INTEGER NOT NULL DEFAULT 0,
         cargo_limit INTEGER NOT NULL,
         planet_busters SMALLINT NOT NULL DEFAULT 0,
-        terraform_devices SMALLINT NOT NULL DEFAULT 0
+        terraform_devices SMALLINT NOT NULL DEFAULT 0,
+        turns_per_warp INTEGER NOT NULL DEFAULT 1,
+        has_hyperwarp_drive BOOLEAN NOT NULL DEFAULT FALSE
       );
 
       ALTER TABLE player_ships ADD COLUMN IF NOT EXISTS planet_busters SMALLINT NOT NULL DEFAULT 0;
       ALTER TABLE player_ships ADD COLUMN IF NOT EXISTS terraform_devices SMALLINT NOT NULL DEFAULT 0;
+      ALTER TABLE player_ships ADD COLUMN IF NOT EXISTS turns_per_warp INTEGER NOT NULL DEFAULT 1;
+      ALTER TABLE player_ships ADD COLUMN IF NOT EXISTS has_hyperwarp_drive BOOLEAN NOT NULL DEFAULT FALSE;
 
       CREATE TABLE IF NOT EXISTS sector_fighters (
         sector_id INTEGER NOT NULL,
