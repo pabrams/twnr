@@ -21,8 +21,14 @@ const clientBlock = messagesSrc.slice(messagesSrc.indexOf('ClientMsgType'));
 for (const m of clientBlock.matchAll(/(\w+):\s*'([^']+)'/g)) clientKeyToWire[m[1]] = m[2];
 
 const serverKeyToTypeName = {};
-for (const m of serverMsgSrc.matchAll(/export\s+type\s+(\w+)\s*=\s*\{[^}]*typeof\s+ServerMsgType\.(\w+)/gs)) {
-    serverKeyToTypeName[m[2]] = m[1];
+// Match both simple types: export type Foo = { type: typeof ServerMsgType.Bar; ... }
+// and union types: export type Foo = | { type: typeof ServerMsgType.Bar; ... } | ...
+// and intersection types: export type Foo = { type: typeof ServerMsgType.Bar } & ...
+for (const m of serverMsgSrc.matchAll(/export\s+type\s+(\w+)\s*=[\s\S]*?typeof\s+ServerMsgType\.(\w+)/g)) {
+    // Only take the first ServerMsgType reference per type (the primary discriminator)
+    if (!serverKeyToTypeName[m[2]]) {
+        serverKeyToTypeName[m[2]] = m[1];
+    }
 }
 
 // --- 2. Parse server router and handlers ---
@@ -93,9 +99,9 @@ const N = '&lt;#&gt;&#9166;';
 const clientInputMap = {
     Move:                [{ mode: 'sector', key: S }, { mode: 'sector', key: `m ${S}` }, { mode: 'autopilotPrompt', key: 'y' }],
     SectorDisplay:       [{ mode: 'sector', key: 'd' }],
-    Who:                 [{ mode: 'sector', key: '#' }],
-    SectorWarps:         [],  // no client UI
-    Path:                [{ mode: '(auto)', key: 'non-adjacent move' }],
+    PlayersOnline:       [{ mode: 'sector', key: '#' }],
+    WarpsOut:            [],  // no client UI
+    ShortestPath:        [{ mode: '(auto)', key: 'non-adjacent move' }],
     PortInfo:            [],  // no client UI
     ShipInfo:            [{ mode: 'sector', key: 'i (auto)' }],
     CargoInfo:           [{ mode: 'sector', key: 'i (auto)' }],
@@ -103,8 +109,8 @@ const clientInputMap = {
     BuyFighters:         [{ mode: 'class0Qty', key: Q }],
     BuyShields:          [{ mode: 'class0Qty', key: Q }],
     BuyHolds:            [{ mode: 'class0Qty', key: Q }],
-    ShipExchange:        [],  // no client UI
-    Attack:              [{ mode: 'attackFighters', key: Q }],
+    BuyShipTradein:      [],  // no client UI
+    AttackShip:          [{ mode: 'attackFighters', key: Q }],
     Dock:                [{ mode: 'port', key: 't' }],
     Undock:              [{ mode: 'docked', key: 'q' }, { mode: 'class0', key: 'q' }],
     Jettison:            [{ mode: 'jettisonConfirm', key: 'y' }],
@@ -136,7 +142,7 @@ const clientMembers = (clientDefs[clientUnion]?.anyOf ?? [])
 const tableRows = [];
 for (const typeName of clientMembers) {
     const def = clientDefs[typeName];
-    const wire = def?.properties?.type?.const;
+    const wire = getWireType(def);
     if (!wire) continue;
 
     const d = dispatch[wire];
@@ -170,6 +176,18 @@ for (const typeName of clientMembers) {
 
 // --- Rendering helpers ---
 
+function getWireType(def) {
+    // Simple type: { properties: { type: { const: "foo" } } }
+    if (def.properties?.type?.const) return def.properties.type.const;
+    // Compound type (union): { anyOf: [{ properties: { type: { const: "foo" } } }, ...] }
+    if (def.anyOf) {
+        for (const variant of def.anyOf) {
+            if (variant.properties?.type?.const) return variant.properties.type.const;
+        }
+    }
+    return null;
+}
+
 function renderType(prop) {
     if (prop.const) return `"${prop.const}"`;
     if (prop.enum) return prop.enum.map(v => `"${v}"`).join(' | ');
@@ -189,12 +207,12 @@ function getMessages(schema) {
     );
     return Object.entries(defs)
         .filter(([name]) => unionMembers.has(name))
-        .sort(([, a], [, b]) => (a.properties?.type?.const ?? '').localeCompare(b.properties?.type?.const ?? ''));
+        .sort(([, a], [, b]) => (getWireType(a) ?? '').localeCompare(getWireType(b) ?? ''));
 }
 
 function renderSidebarTree(label, id, messages) {
     const items = messages.map(([name, def]) => {
-        const wire = def.properties?.type?.const ?? '?';
+        const wire = getWireType(def) ?? '?';
         return `        <li><a href="#${name}" class="nav-link" data-target="${name}"><code>${wire}</code> <span class="nav-name">${name.replace('Message', '')}</span></a></li>`;
     }).join('\n');
     return `      <li class="tree-branch">
@@ -210,7 +228,7 @@ ${items}
 }
 
 function renderMessageCard(name, def, isClient) {
-    const wireType = def.properties?.type?.const ?? '?';
+    const wireType = getWireType(def) ?? '?';
     const required = new Set(def.required ?? []);
     const props = Object.entries(def.properties ?? {})
         .map(([key, prop]) => {
