@@ -48,9 +48,10 @@ describe('WebSocket', () => {
 
     const disp = await wsRequest(wsConn, { type: 'sectorDisplay' }, 'sectorDisplay');
     const target = disp.warps[0];
-    const moveMsg = await wsRequest(wsConn, { type: 'move', sector: target }, 'sectorDisplay');
+    const moveMsg = await wsRequest(wsConn, { type: 'move', sector: target }, 'moveResult');
 
-    assert.equal(moveMsg.type, 'sectorDisplay');
+    assert.equal(moveMsg.type, 'moveResult');
+    assert.equal(moveMsg.outcome, 'success');
     assert.equal(moveMsg.sector, target);
     await closeWS(wsConn);
   });
@@ -79,11 +80,11 @@ describe('WebSocket', () => {
     // Move ws1 away from sector 1
     const disp1 = await wsRequest(ws1, { type: 'sectorDisplay' }, 'sectorDisplay');
     const ws1Target = disp1.warps[0];
-    const disp1b = await wsRequest(ws1, { type: 'move', sector: ws1Target }, 'sectorDisplay');
+    const disp1b = await wsRequest(ws1, { type: 'move', sector: ws1Target }, 'moveResult');
 
     // Move ws1 again so it's two hops away from sector 1
     const ws1Target2 = disp1b.warps.find(w => w !== 1) || disp1b.warps[0];
-    await wsRequest(ws1, { type: 'move', sector: ws1Target2 }, 'sectorDisplay');
+    await wsRequest(ws1, { type: 'move', sector: ws1Target2 }, 'moveResult');
 
     // ws2 is still in sector 1 - ws1 should not receive this move
     const disp3 = await wsRequest(ws2, { type: 'sectorDisplay' }, 'sectorDisplay');
@@ -109,10 +110,11 @@ describe('WebSocket', () => {
     }
     assert.ok(nonAdjacent !== null, 'Could not find a non-adjacent sector');
 
-    const noMsgPromise = expectNoMsg(ws1, 'nonAdjacentMoveRequested');
-    const failPromise = waitForMsg(ws2, 'nonAdjacentMoveRequested');
+    const noMsgPromise = expectNoMsg(ws1, 'moveResult');
+    const failPromise = waitForMsg(ws2, 'moveResult');
     ws2.send(JSON.stringify({ type: 'move', sector: nonAdjacent }));
-    await failPromise;
+    const failMsg = await failPromise;
+    assert.equal(failMsg.outcome, 'nonAdjacent');
     await noMsgPromise;
 
     await closeWS(ws1);
@@ -127,7 +129,7 @@ describe('WebSocket', () => {
     // Move ws2 away from sector 1
     const disp = await wsRequest(ws2, { type: 'sectorDisplay' }, 'sectorDisplay');
     const target = disp.warps[0];
-    await wsRequest(ws2, { type: 'move', sector: target }, 'sectorDisplay');
+    await wsRequest(ws2, { type: 'move', sector: target }, 'moveResult');
 
     // ws1 and ws3 are in sector 1, ws2 is elsewhere
     // ws1 disconnects — ws3 should get playerLeft, ws2 should NOT
@@ -152,8 +154,9 @@ describe('WebSocket', () => {
     }
     assert.ok(nonAdjacent !== null, 'Could not find a non-adjacent sector for test');
 
-    const failMsg = await wsRequest(wsConn, { type: 'move', sector: nonAdjacent }, 'nonAdjacentMoveRequested');
-    assert.equal(failMsg.type, 'nonAdjacentMoveRequested');
+    const failMsg = await wsRequest(wsConn, { type: 'move', sector: nonAdjacent }, 'moveResult');
+    assert.equal(failMsg.type, 'moveResult');
+    assert.equal(failMsg.outcome, 'nonAdjacent');
     assert.equal(failMsg.sector, nonAdjacent);
     await closeWS(wsConn);
   });
@@ -181,10 +184,11 @@ describe('WebSocket', () => {
     await closeWS(ws1);
   });
 
-  it('move with missing sector returns error', async () => {
+  it('move with missing sector returns moveResult error', async () => {
     const { ws: wsConn } = await ws();
-    const msg = await wsRequest(wsConn, { type: 'move' }, 'error');
-    assert.equal(msg.type, 'error');
+    const msg = await wsRequest(wsConn, { type: 'move' }, 'moveResult');
+    assert.equal(msg.type, 'moveResult');
+    assert.equal(msg.outcome, 'error');
     assert.equal(msg.message, 'Invalid sector');
     await closeWS(wsConn);
   });

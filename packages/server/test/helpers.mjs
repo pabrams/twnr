@@ -290,8 +290,8 @@ export async function movePlayerTo(ws, targetSector) {
   if (pathRes.type === 'error') return false;
 
   for (let i = 1; i < pathRes.path.length; i++) {
-    const moveMsg = await wsRequest(ws, { type: 'move', sector: pathRes.path[i] }, 'sectorDisplay');
-    if (moveMsg.type === 'error') return false;
+    const moveMsg = await wsRequest(ws, { type: 'move', sector: pathRes.path[i] }, 'moveResult');
+    if (moveMsg.type === 'error' || moveMsg.outcome === 'error') return false;
   }
   return true;
 }

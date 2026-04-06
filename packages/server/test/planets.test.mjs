@@ -112,14 +112,14 @@ async function createTestPlayer(universeId) {
     const pathMsg = await waitForMessage('pathResult');
     for (const sector of pathMsg.path.slice(1)) {
       sendMsg({ type: 'move', sector });
-      // Drain messages until we get sectorDisplay, handling fighter encounters
+      // Drain messages until we get moveResult success, handling fighter encounters
       let moved = false;
       for (let attempt = 0; attempt < 5 && !moved; attempt++) {
         try {
           const msg = await waitForAny(3000);
-          if (msg.type === 'sectorDisplay') {
+          if (msg.type === 'moveResult' && msg.outcome === 'success') {
             moved = true;
-          } else if (msg.type === 'fighterEncounter') {
+          } else if (msg.type === 'moveResult' && msg.outcome === 'encounter') {
             // Retreat from fighters
             sendMsg({ type: 'retreatFromFighters' });
           }
@@ -614,12 +614,12 @@ describe('shared TypeScript types', () => {
     }
   });
 
-  it('SectorDisplayMessage type includes planets field', () => {
-    // Find the type/interface block by matching from declaration to the next export or end
-    const match = serverMsgContent.match(/(?:type|interface)\s+SectorDisplayMessage\b[\s\S]*?(?=\nexport\s|\n\/\/\s*=|$)/);
-    assert.ok(match, 'SectorDisplayMessage type definition not found');
+  it('SectorDisplayData type includes planets field', () => {
+    // SectorDisplayMessage composes SectorDisplayData which contains the planets field
+    const match = serverMsgContent.match(/(?:type|interface)\s+SectorDisplayData\b[\s\S]*?(?=\nexport\s|\n\/\/\s*=|$)/);
+    assert.ok(match, 'SectorDisplayData type definition not found');
     const block = match[0].toLowerCase();
-    assert.ok(block.includes('planet'), 'SectorDisplayMessage should include a planets field');
+    assert.ok(block.includes('planet'), 'SectorDisplayData should include a planets field');
   });
 
   it('ShipInfoMessage type includes planet buster and terraform device fields', () => {
@@ -731,7 +731,7 @@ describe('WS: sector display includes planets', () => {
     await pool.query('DELETE FROM planets WHERE sector_id = $1 AND universe_id = $2', [targetSector, universeId]);
 
     player.sendMsg({ type: 'move', sector: targetSector });
-    await player.waitForMessage('sectorDisplay');
+    await player.waitForMessage('moveResult');
 
     player.sendMsg({ type: 'sectorDisplay' });
     const msg = await player.waitForMessage('sectorDisplay');
@@ -819,7 +819,7 @@ describe('WS: land command returns planet list', () => {
     await pool.query('DELETE FROM planets WHERE sector_id = $1 AND universe_id = $2', [targetSector, universeId]);
 
     player.sendMsg({ type: 'move', sector: targetSector });
-    await player.waitForMessage('sectorDisplay');
+    await player.waitForMessage('moveResult');
 
     player.sendMsg({ type: 'land' });
     const msg = await player.waitForMessage('planetList');
@@ -924,7 +924,7 @@ describe('WS: use terraform device', () => {
     if (warps.rows.length > 0) {
       const target = warps.rows[0].sector_to;
       player.sendMsg({ type: 'move', sector: target });
-      await player.waitForMessage('sectorDisplay');
+      await player.waitForMessage('moveResult');
     }
 
     player.sendMsg({ type: 'useTerraformDevice' });
@@ -947,7 +947,7 @@ describe('WS: use terraform device', () => {
       const pathMsg = await player.waitForMessage('pathResult');
       for (const sector of pathMsg.path.slice(1)) {
         player.sendMsg({ type: 'move', sector });
-        await player.waitForMessage('sectorDisplay');
+        await player.waitForMessage('moveResult');
       }
     }
 
@@ -971,7 +971,7 @@ describe('WS: use terraform device', () => {
     const targetSector = warps.rows[0].sector_to;
 
     player.sendMsg({ type: 'move', sector: targetSector });
-    await player.waitForMessage('sectorDisplay');
+    await player.waitForMessage('moveResult');
 
     // Give the player a terraform device
     await pool.query('UPDATE player_ships SET terraform_devices = 1 WHERE player_id = $1', [player.playerId]);
@@ -1031,8 +1031,8 @@ describe('WS: stardock and hardware store', () => {
     const pathMsg = await player.waitForMessage('pathResult');
     for (const sector of pathMsg.path.slice(1)) {
       player.sendMsg({ type: 'move', sector });
-      // Consume whatever comes back (sectorDisplay or fighterEncounter)
-      await player.waitForMessage('sectorDisplay').catch(() => null);
+      // Consume whatever comes back (moveResult success or encounter)
+      await player.waitForMessage('moveResult').catch(() => null);
     }
   });
 
@@ -1161,7 +1161,7 @@ describe('WS: destroy planet', () => {
     const pathMsg = await player.waitForMessage('pathResult');
     for (const sector of pathMsg.path.slice(1)) {
       player.sendMsg({ type: 'move', sector });
-      await player.waitForMessage('sectorDisplay');
+      await player.waitForMessage('moveResult');
     }
 
     // Land on the doomed planet
@@ -1260,7 +1260,7 @@ describe('WS: buy hardware exceeds ship maximum', () => {
     const pathMsg = await player.waitForMessage('pathResult');
     for (const sector of pathMsg.path.slice(1)) {
       player.sendMsg({ type: 'move', sector });
-      await player.waitForMessage('sectorDisplay').catch(() => null);
+      await player.waitForMessage('moveResult').catch(() => null);
     }
 
     // Dock at stardock
@@ -1326,7 +1326,7 @@ describe('WS: buy hardware exceeds ship maximum', () => {
     const pathMsg = await player.waitForMessage('pathResult');
     for (const sector of pathMsg.path.slice(1)) {
       player.sendMsg({ type: 'move', sector });
-      await player.waitForMessage('sectorDisplay').catch(() => null);
+      await player.waitForMessage('moveResult').catch(() => null);
     }
 
     player.sendMsg({ type: 'dockStardock' });
@@ -1362,7 +1362,7 @@ describe('WS: buy hardware requires stardock docking', () => {
     const pathMsg = await player.waitForMessage('pathResult');
     for (const sector of pathMsg.path.slice(1)) {
       player.sendMsg({ type: 'move', sector });
-      await player.waitForMessage('sectorDisplay').catch(() => null);
+      await player.waitForMessage('moveResult').catch(() => null);
     }
 
     // Give credits and a ship that can carry busters
@@ -1423,7 +1423,7 @@ describe('WS: buy hardware credit deduction', () => {
     const pathMsg = await player.waitForMessage('pathResult');
     for (const sector of pathMsg.path.slice(1)) {
       player.sendMsg({ type: 'move', sector });
-      await player.waitForMessage('sectorDisplay').catch(() => null);
+      await player.waitForMessage('moveResult').catch(() => null);
     }
 
     player.sendMsg({ type: 'dockStardock' });
@@ -1509,7 +1509,7 @@ describe('WS: terraform collision logic', () => {
 
     // Move to that sector
     player.sendMsg({ type: 'move', sector: targetSector });
-    await player.waitForMessage('sectorDisplay');
+    await player.waitForMessage('moveResult');
 
     // Seed an existing planet in the sector so it already has 1 (which equals max)
     const maxId = await pool.query('SELECT COALESCE(MAX(id), 0)::int as m FROM planets WHERE universe_id = $1', [universeId]);
@@ -1610,7 +1610,7 @@ describe('WS: terraform in Stardock sector returns restricted_sector', () => {
     const pathMsg = await player.waitForMessage('pathResult');
     for (const sector of pathMsg.path.slice(1)) {
       player.sendMsg({ type: 'move', sector });
-      await player.waitForMessage('sectorDisplay').catch(() => null);
+      await player.waitForMessage('moveResult').catch(() => null);
     }
 
     // Give the player a terraform device
@@ -1669,7 +1669,7 @@ describe('WS: on_planet_id cleared after destroyPlanet', () => {
     const pathMsg = await player.waitForMessage('pathResult');
     for (const sector of pathMsg.path.slice(1)) {
       player.sendMsg({ type: 'move', sector });
-      await player.waitForMessage('sectorDisplay');
+      await player.waitForMessage('moveResult');
     }
 
     // Land on the planet
@@ -1721,7 +1721,7 @@ describe('WS: terraform success response completeness', () => {
     await pool.query('DELETE FROM planets WHERE sector_id = $1 AND universe_id = $2', [targetSector, universeId]);
 
     player.sendMsg({ type: 'move', sector: targetSector });
-    await player.waitForMessage('sectorDisplay');
+    await player.waitForMessage('moveResult');
 
     // Give 2 terraform devices
     await pool.query('UPDATE player_ships SET terraform_devices = 2 WHERE player_id = $1', [player.playerId]);
@@ -1789,7 +1789,7 @@ describe('WS: terraform planet ID sequencing', () => {
     );
     const targetSector = warps.rows[0].sector_to;
     player.sendMsg({ type: 'move', sector: targetSector });
-    await player.waitForMessage('sectorDisplay');
+    await player.waitForMessage('moveResult');
 
     // Give 2 terraform devices
     await pool.query('UPDATE player_ships SET terraform_devices = 2 WHERE player_id = $1', [player.playerId]);

@@ -16,7 +16,7 @@ async function navigateTo(ws, targetSector) {
   const path = await wsRequest(ws, { type: 'path', from: disp.sector, to: targetSector }, 'pathResult');
   if (path.type === 'error') throw new Error(`No path to ${targetSector}`);
   for (let i = 1; i < path.path.length; i++) {
-    await wsRequest(ws, { type: 'move', sector: path.path[i] }, 'sectorDisplay');
+    await wsRequest(ws, { type: 'move', sector: path.path[i] }, 'moveResult');
   }
 }
 
@@ -56,8 +56,9 @@ describe('Movement Constraint', () => {
       const adjRes = await pool.query('SELECT sector_to FROM warps WHERE sector_from = 1 AND universe_id = $1 LIMIT 1', [UNIVERSE_ID]);
       const target = adjRes.rows.length > 0 ? Number(adjRes.rows[0].sector_to) : 2;
 
-      const msg = await wsRequest(ws, { type: 'move', sector: target }, 'noShip');
-      assert.equal(msg.type, 'noShip');
+      const msg = await wsRequest(ws, { type: 'move', sector: target }, 'moveResult');
+      assert.equal(msg.type, 'moveResult');
+      assert.equal(msg.outcome, 'noShip');
     } finally {
       await closeWS(ws);
     }
