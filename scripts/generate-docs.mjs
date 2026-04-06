@@ -21,13 +21,15 @@ const clientBlock = messagesSrc.slice(messagesSrc.indexOf('ClientMsgType'));
 for (const m of clientBlock.matchAll(/(\w+):\s*'([^']+)'/g)) clientKeyToWire[m[1]] = m[2];
 
 const serverKeyToTypeName = {};
-// Match both simple types: export type Foo = { type: typeof ServerMsgType.Bar; ... }
-// and union types: export type Foo = | { type: typeof ServerMsgType.Bar; ... } | ...
-// and intersection types: export type Foo = { type: typeof ServerMsgType.Bar } & ...
-for (const m of serverMsgSrc.matchAll(/export\s+type\s+(\w+)\s*=[\s\S]*?typeof\s+ServerMsgType\.(\w+)/g)) {
-    // Only take the first ServerMsgType reference per type (the primary discriminator)
-    if (!serverKeyToTypeName[m[2]]) {
-        serverKeyToTypeName[m[2]] = m[1];
+// Split source into individual type blocks, then find ServerMsgType references within each
+const typeBlocks = serverMsgSrc.split(/(?=export\s+type\s+)/);
+for (const block of typeBlocks) {
+    const nameMatch = block.match(/^export\s+type\s+(\w+)/);
+    if (!nameMatch) continue;
+    const typeName = nameMatch[1];
+    const msgMatch = block.match(/typeof\s+ServerMsgType\.(\w+)/);
+    if (msgMatch && !serverKeyToTypeName[msgMatch[1]]) {
+        serverKeyToTypeName[msgMatch[1]] = typeName;
     }
 }
 
