@@ -27,7 +27,7 @@ import {
     handlePlanetTakeQtyInput,
     handlePlanetLeaveQtyInput,
 } from './input-misc.js';
-import { colors } from './constants.js';
+import { colors, MenuMode } from './constants.js';
 
 export function setupInput(term: Terminal, ctx: GameContext) {
     const singleCharCommands = new Set([
@@ -79,69 +79,69 @@ export function setupInput(term: Terminal, ctx: GameContext) {
 
 function handleInput(ctx: GameContext, line: string) {
     switch (ctx.mode) {
-        case 'help':
-        case 'shipInfo':
-        case 'playerInfo':
+        case MenuMode.Help:
+        case MenuMode.ShipInfo:
+        case MenuMode.PlayerInfo:
             if (line.toLowerCase() === 'q') {
-                ctx.setMode('sector');
+                ctx.setMode(MenuMode.Sector);
                 showPrompt(ctx);
             }
             return;
-        case 'port':
+        case MenuMode.Port:
             handlePortInput(ctx, line);
             return;
-        case 'docked':
+        case MenuMode.Docked:
             handleDockedInput(ctx, line);
             return;
-        case 'attack':
+        case MenuMode.Attack:
             handleAttackInput(ctx, line);
             return;
-        case 'attackFighters':
+        case MenuMode.AttackFighters:
             handleAttackFightersInput(ctx, line);
             return;
-        case 'computer':
+        case MenuMode.Computer:
             handleComputerInput(ctx, line);
             return;
-        case 'knownUniverse':
+        case MenuMode.KnownUniverse:
             handleKnownUniverseInput(ctx, line);
             return;
-        case 'shipCatalog':
+        case MenuMode.ShipCatalog:
             handleShipCatalogInput(ctx, line);
             return;
-        case 'planetSpecs':
+        case MenuMode.PlanetSpecs:
             handlePlanetSpecsInput(ctx, line);
             return;
-        case 'class0':
+        case MenuMode.Class0:
             handleClass0Input(ctx, line);
             return;
-        case 'class0Qty':
+        case MenuMode.Class0Qty:
             handleClass0QtyInput(ctx, line);
             return;
-        case 'autopilotPrompt':
+        case MenuMode.AutopilotPrompt:
             handleAutopilotPromptInput(ctx, line);
             return;
-        case 'autopilot':
+        case MenuMode.Autopilot:
             // Ignore input during autopilot
             return;
-        case 'jettisonConfirm':
+        case MenuMode.JettisonConfirm:
             handleJettisonConfirmInput(ctx, line);
             return;
-        case 'planet':
+        case MenuMode.Planet:
             handlePlanetInput(ctx, line);
             return;
-        case 'planetTakeQty':
+        case MenuMode.PlanetTakeQty:
             handlePlanetTakeQtyInput(ctx, line);
             return;
-        case 'planetLeaveQty':
+        case MenuMode.PlanetLeaveQty:
             handlePlanetLeaveQtyInput(ctx, line);
             return;
-        case 'deployFightersQty':
+        case MenuMode.DeployFightersQty:
             handleDeployFightersQtyInput(ctx, line);
             return;
-        case 'fighterEncounter':
+        case MenuMode.FighterEncounter:
             handleFighterEncounterInput(ctx, line);
             return;
-        case 'fighterAttackQty':
+        case MenuMode.FighterAttackQty:
             handleFighterAttackQtyInput(ctx, line);
             return;
     }
@@ -207,7 +207,7 @@ function handlePortInput(ctx: GameContext, line: string) {
             ctx.sendMsg({ type: ClientMsgType.Dock });
             break;
         case 'q':
-            ctx.setMode('sector');
+            ctx.setMode(MenuMode.Sector);
             showPrompt(ctx);
             break;
         default:

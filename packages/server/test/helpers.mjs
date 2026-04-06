@@ -286,7 +286,7 @@ export async function movePlayerTo(ws, targetSector) {
   const disp = await wsRequest(ws, { type: 'sectorDisplay' }, 'sectorDisplayResult');
   if (disp.sector === targetSector) return true;
 
-  const pathRes = await wsRequest(ws, { type: 'path', from: disp.sector, to: targetSector }, 'shortestPathResult');
+  const pathRes = await wsRequest(ws, { type: ClientMsgType.ShortestPath, from: disp.sector, to: targetSector }, 'shortestPathResult');
   if (pathRes.type === 'error') return false;
 
   for (let i = 1; i < pathRes.path.length; i++) {

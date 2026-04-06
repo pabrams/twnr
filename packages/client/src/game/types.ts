@@ -1,6 +1,6 @@
 import type { Terminal } from '@xterm/xterm';
 import type { ClientCommand, PortInfoResultObject } from '@twnr/shared';
-import type { MenuMode } from './constants.js';
+import { MenuMode } from './constants.js';
 import { colors } from './constants.js';
 
 export interface GameContext {

@@ -52,7 +52,7 @@ export const ClientMsgType = {
     SectorDisplay: 'sectorDisplay',
     PlayersOnline: 'playersOnline',
     WarpsOut: 'warpsOut',
-    ShortestPath: 'path',
+    ShortestPath: 'shortestPath',
     PortInfo: 'portInfo',
     ShipInfo: 'ship',
     CargoInfo: 'cargoInfo',
