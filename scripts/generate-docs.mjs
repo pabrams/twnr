@@ -341,7 +341,7 @@ const html = `<!DOCTYPE html>
   .nav-link.active { background: var(--active); color: var(--fg); }
   .nav-link code { color: var(--wire); font-size: 0.7rem; flex-shrink: 0; }
   .nav-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .main { margin-left: var(--sidebar-w); flex: 1; padding: 2rem 2.5rem; max-width: 1000px; }
+  .main { margin-left: var(--sidebar-w); flex: 1; padding: 2rem 2.5rem; min-width: 0; }
   h1 { color: var(--accent); margin-bottom: 0.25rem; font-size: 1.4rem; }
   .subtitle { color: var(--fg-dim); margin-bottom: 2.5rem; font-size: 0.85rem; }
   h2 { color: var(--fg); margin: 2.5rem 0 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--border); font-size: 1.1rem; }
