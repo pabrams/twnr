@@ -81,9 +81,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                         msg.sectorFighters,
                     );
                 } else {
-                    ctx.term.writeln(
-                        `\r\n${colors.boldRed('Error:')} ${colors.red(msg.message)}`,
-                    );
+                    ctx.term.writeln(`\r\n${colors.boldRed('Error:')} ${colors.red(msg.message)}`);
                 }
                 break;
             case ServerMsgType.JettisonResult:
@@ -94,14 +92,14 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                         j.organics > 0 ? `${j.organics} organics` : '',
                         j.equipment > 0 ? `${j.equipment} equipment` : '',
                         j.colonists > 0 ? `${j.colonists} colonists` : '',
-                    ].filter(Boolean).join(', ');
+                    ]
+                        .filter(Boolean)
+                        .join(', ');
                     ctx.term.writeln(
                         `\r\n${colors.boldYellow('Jettisoned:')} ${items || 'nothing'}`,
                     );
                 } else {
-                    ctx.term.writeln(
-                        `\r\n${colors.boldRed('Error:')} ${colors.red(msg.message)}`,
-                    );
+                    ctx.term.writeln(`\r\n${colors.boldRed('Error:')} ${colors.red(msg.message)}`);
                 }
                 ctx.setMode('sector');
                 showPrompt(ctx);
@@ -237,10 +235,30 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     showPrompt(ctx);
                 }
                 break;
-            case ServerMsgType.BuyResult:
+            case ServerMsgType.BuyFightersResult:
                 ctx.term.writeln(`\r\n${colors.boldGreen('Purchase complete.')}`);
                 ctx.term.writeln(
-                    `  ${colors.boldYellow('Credits')}: ${msg.credits}  ${colors.boldYellow('Fighters')}: ${msg.fighters}  ${colors.boldYellow('Shields')}: ${msg.shields}  ${colors.boldYellow('Holds')}: ${msg.cargoLimit}`,
+                    `  ${colors.boldYellow('Credits')}: ${msg.credits}  ${colors.boldYellow('Fighters')}: ${msg.fighters}`,
+                );
+                if (ctx.mode === 'class0Qty') {
+                    ctx.setMode('class0');
+                    showClass0Menu(ctx);
+                }
+                break;
+            case ServerMsgType.BuyShieldsResult:
+                ctx.term.writeln(`\r\n${colors.boldGreen('Purchase complete.')}`);
+                ctx.term.writeln(
+                    `  ${colors.boldYellow('Credits')}: ${msg.credits}  ${colors.boldYellow('Shields')}: ${msg.shields}`,
+                );
+                if (ctx.mode === 'class0Qty') {
+                    ctx.setMode('class0');
+                    showClass0Menu(ctx);
+                }
+                break;
+            case ServerMsgType.BuyHoldsResult:
+                ctx.term.writeln(`\r\n${colors.boldGreen('Purchase complete.')}`);
+                ctx.term.writeln(
+                    `  ${colors.boldYellow('Credits')}: ${msg.credits}  ${colors.boldYellow('Holds')}: ${msg.cargoLimit}`,
                 );
                 if (ctx.mode === 'class0Qty') {
                     ctx.setMode('class0');
@@ -280,11 +298,25 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     showNoPlanet(ctx);
                 }
                 break;
-            case ServerMsgType.ColonistResult: {
-                const verb = msg.action === 'take' ? 'took' : 'left';
+            case ServerMsgType.TakeColonistsResult: {
                 ctx.term.writeln('');
                 ctx.term.writeln(
-                    `${colors.boldGreen(`You ${verb} ${msg.quantity.toLocaleString()} colonists.`)}`,
+                    `${colors.boldGreen(`You took ${msg.quantity.toLocaleString()} colonists.`)}`,
+                );
+                ctx.term.writeln(
+                    `  ${colors.boldYellow('Planet colonists')}: ${colors.white(msg.planetColonists.toLocaleString())}`,
+                );
+                ctx.term.writeln(
+                    `\r\n${colors.white('You return to your ship and leave the planet.')}`,
+                );
+                ctx.setMode('sector');
+                showPrompt(ctx);
+                break;
+            }
+            case ServerMsgType.LeaveColonistsResult: {
+                ctx.term.writeln('');
+                ctx.term.writeln(
+                    `${colors.boldGreen(`You left ${msg.quantity.toLocaleString()} colonists.`)}`,
                 );
                 ctx.term.writeln(
                     `  ${colors.boldYellow('Planet colonists')}: ${colors.white(msg.planetColonists.toLocaleString())}`,

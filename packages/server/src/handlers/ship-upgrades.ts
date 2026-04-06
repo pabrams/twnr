@@ -83,11 +83,9 @@ export async function handleBuyFighters(
         await client.query('COMMIT');
 
         send(ws, {
-            type: ServerMsgType.BuyResult,
+            type: ServerMsgType.BuyFightersResult,
             credits: data.credits - cost,
             fighters: data.fighters + qty,
-            shields: data.shields,
-            cargoLimit: data.cargo_limit,
         });
     } catch {
         await client.query('ROLLBACK');
@@ -175,11 +173,9 @@ export async function handleBuyShields(
         await client.query('COMMIT');
 
         send(ws, {
-            type: ServerMsgType.BuyResult,
+            type: ServerMsgType.BuyShieldsResult,
             credits: data.credits - cost,
-            fighters: data.fighters,
             shields: data.shields + qty,
-            cargoLimit: data.cargo_limit,
         });
     } catch {
         await client.query('ROLLBACK');
@@ -267,10 +263,8 @@ export async function handleBuyHolds(
         await client.query('COMMIT');
 
         send(ws, {
-            type: ServerMsgType.BuyResult,
+            type: ServerMsgType.BuyHoldsResult,
             credits: data.credits - cost,
-            fighters: data.fighters,
-            shields: data.shields,
             cargoLimit: data.cargo_limit + qty,
         });
     } catch {

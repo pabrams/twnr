@@ -172,8 +172,8 @@ describe('Ship exchange — success', () => {
     const playerId = welcome.playerId;
     try {
       // Buy some fighters and shields first (player starts at sector 1, class 0 port)
-      await wsRequest(ws, { type: 'buyFighters', quantity: Math.min(5, merchantCfg.maxFighters) }, 'buyResult');
-      await wsRequest(ws, { type: 'buyShields', quantity: Math.min(4, merchantCfg.maxShields) }, 'buyResult');
+      await wsRequest(ws, { type: 'buyFighters', quantity: Math.min(5, merchantCfg.maxFighters) }, 'buyFightersResult');
+      await wsRequest(ws, { type: 'buyShields', quantity: Math.min(4, merchantCfg.maxShields) }, 'buyShieldsResult');
 
       await navigateTo(ws, stardockId);
       const msg = await wsRequest(ws, { type: 'shipExchange', targetShipName: warbirdCfg.name }, 'shipExchangeResult');

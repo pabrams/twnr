@@ -9,7 +9,6 @@ import {
     getSectorFighters,
 } from '../game-state.js';
 import { pool } from '../db/index.js';
-import { handleSectorDisplay } from './movement.js';
 import { planetConfigs } from '../planet-config.js';
 
 export async function handleLand(ws: WebSocket, playerId: number): Promise<void> {
@@ -62,7 +61,12 @@ export async function handleLandOnPlanet(
 
     await pool.query('UPDATE players SET on_planet_id = $1 WHERE id = $2', [planetId, playerId]);
 
-    handlePlanetDisplay(ws, playerId);
+    const data = await queryPlanetDisplayData(playerId);
+    if (!data) {
+        send(ws, { type: ServerMsgType.Error, message: 'Planet no longer exists' });
+        return;
+    }
+    send(ws, { type: ServerMsgType.LandOnPlanetResult, ...data });
 }
 
 export async function handlePlanetDisplay(ws: WebSocket, playerId: number): Promise<void> {
@@ -72,30 +76,37 @@ export async function handlePlanetDisplay(ws: WebSocket, playerId: number): Prom
     const playerRes = await pool.query('SELECT on_planet_id FROM players WHERE id = $1', [
         playerId,
     ]);
-    const onPlanetId = playerRes.rows[0]?.on_planet_id;
-
-    if (!onPlanetId) {
+    if (!playerRes.rows[0]?.on_planet_id) {
         send(ws, { type: ServerMsgType.Error, message: 'Not on a planet' });
         return;
     }
+
+    const data = await queryPlanetDisplayData(playerId);
+    if (!data) {
+        send(ws, { type: ServerMsgType.Error, message: 'Planet no longer exists' });
+        return;
+    }
+    send(ws, { type: ServerMsgType.PlanetDisplayResult, ...data });
+}
+
+async function queryPlanetDisplayData(playerId: number) {
+    const player = players[playerId];
+    if (!player) return null;
+
+    const playerRes = await pool.query('SELECT on_planet_id FROM players WHERE id = $1', [
+        playerId,
+    ]);
+    const onPlanetId = playerRes.rows[0]?.on_planet_id;
+    if (!onPlanetId) return null;
 
     const planetRes = await pool.query(
         'SELECT id, sector_id, name, type, fighters, fuel, organics, equipment, colonists_fuel, colonists_organics, colonists_equipment, created_at, updated_at FROM planets WHERE id = $1 AND universe_id = $2',
         [onPlanetId, player.universeId],
     );
-
-    if (planetRes.rows.length === 0) {
-        send(ws, { type: ServerMsgType.Error, message: 'Planet no longer exists' });
-        return;
-    }
+    if (planetRes.rows.length === 0) return null;
 
     const { type: planetType, ...rest } = planetRes.rows[0];
-
-    send(ws, {
-        type: ServerMsgType.PlanetDisplayResult,
-        planetType,
-        ...rest,
-    });
+    return { planetType, ...rest };
 }
 
 async function buildSectorDisplayData(playerId: number) {
