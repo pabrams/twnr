@@ -8,12 +8,12 @@ import { ClientMsgType, ServerMsgType } from '@twnr/shared';
 const UNIVERSE_ID = 1;
 
 async function navigateTo(ws, targetSector) {
-  const disp = await wsRequest(ws, { type: 'sectorDisplay' }, 'sectorDisplayResult');
+  const disp = await wsRequest(ws, { type: ClientMsgType.SectorDisplay }, ServerMsgType.SectorDisplayResult);
   if (disp.sector === targetSector) return;
-  const path = await wsRequest(ws, { type: ClientMsgType.ShortestPath, from: disp.sector, to: targetSector }, 'shortestPathResult');
-  if (path.type === 'error') throw new Error(`No path to ${targetSector}`);
+  const path = await wsRequest(ws, { type: ClientMsgType.ShortestPath, from: disp.sector, to: targetSector }, ServerMsgType.ShortestPathResult);
+  if (path.type === ServerMsgType.Error) throw new Error(`No path to ${targetSector}`);
   for (let i = 1; i < path.path.length; i++) {
-    await wsRequest(ws, { type: 'move', sector: path.path[i] }, 'moveResult');
+    await wsRequest(ws, { type: ClientMsgType.Move, sector: path.path[i] }, ServerMsgType.MoveResult);
   }
 }
 
@@ -53,8 +53,8 @@ describe('Movement Constraint', () => {
       const adjRes = await pool.query('SELECT sector_to FROM warps WHERE sector_from = 1 AND universe_id = $1 LIMIT 1', [UNIVERSE_ID]);
       const target = adjRes.rows.length > 0 ? Number(adjRes.rows[0].sector_to) : 2;
 
-      const msg = await wsRequest(ws, { type: 'move', sector: target }, 'moveResult');
-      assert.equal(msg.type, 'moveResult');
+      const msg = await wsRequest(ws, { type: ClientMsgType.Move, sector: target }, ServerMsgType.MoveResult);
+      assert.equal(msg.type, ServerMsgType.MoveResult);
       assert.equal(msg.outcome, 'noShip');
     } finally {
       await closeWS(ws);
@@ -72,8 +72,8 @@ describe('Existing feature regression', () => {
     try {
       await pool.query('UPDATE ship_cargo SET fuel = 3 WHERE player_id = $1', [playerId]);
       await navigateTo(ws, fuelSector);
-      const msg = await wsRequest(ws, { type: 'portTransaction', good: 'fuel', quantity: 2, action: 'sell' }, 'portTransactionResult');
-      assert.equal(msg.type, 'portTransactionResult');
+      const msg = await wsRequest(ws, { type: ClientMsgType.PortTransaction, good: 'fuel', quantity: 2, action: 'sell' }, ServerMsgType.PortTransactionResult);
+      assert.equal(msg.type,  ServerMsgType.PortTransactionResult);
     } finally {
       await closeWS(ws);
     }
