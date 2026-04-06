@@ -1,5 +1,5 @@
 import type { Terminal } from '@xterm/xterm';
-import type { ClientMessage, PortInfoMessage } from '@twnr/shared';
+import type { ClientCommand, PortInfoResultObject } from '@twnr/shared';
 import type { MenuMode } from './constants.js';
 import { colors } from './constants.js';
 
@@ -7,7 +7,7 @@ export interface GameContext {
     term: Terminal;
     currentSector: number;
     currentPort: { class: number; name: string } | null;
-    dockedPortInfo: PortInfoMessage | null;
+    dockedPortInfo: PortInfoResultObject | null;
     mode: MenuMode;
     visitedSet: Set<number>;
     playerName: string;
@@ -21,12 +21,12 @@ export interface GameContext {
     currentShipName: string;
     universeId: number;
     ws: WebSocket;
-    sendMsg: (msg: ClientMessage) => void;
+    sendMsg: (msg: ClientCommand) => void;
     setMode: (mode: MenuMode) => void;
     setCurrentSector: (sector: number) => void;
     setCurrentPort: (port: { class: number; name: string } | null) => void;
     setVisitedSet: (set: Set<number>) => void;
-    setDockedPortInfo: (p: PortInfoMessage | null) => void;
+    setDockedPortInfo: (p: PortInfoResultObject | null) => void;
     setPlayerName: (name: string) => void;
     setPlayerId: (id: number) => void;
     setTotalSectors: (n: number) => void;

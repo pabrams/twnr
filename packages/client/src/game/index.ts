@@ -1,6 +1,6 @@
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
-import type { ClientMessage, PortInfoMessage } from '@twnr/shared';
+import type { ClientCommand, PortInfoResultObject } from '@twnr/shared';
 import type { MenuMode } from './constants.js';
 import type { GameContext } from './types.js';
 import { setupConnection } from './connection.js';
@@ -30,7 +30,7 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
     let mode: MenuMode = 'sector';
     let currentSector = 0;
     let currentPort: { class: number; name: string } | null = null;
-    let dockedPortInfo: PortInfoMessage | null = null;
+    let dockedPortInfo: PortInfoResultObject | null = null;
     let visitedSet = new Set<number>();
     let playerName = '';
     let playerId = 0;
@@ -48,7 +48,7 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
     let autopilotPaused = false;
     let encounterOwnerName = '';
 
-    function sendMsg(msg: ClientMessage) {
+    function sendMsg(msg: ClientCommand) {
         if (ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify(msg));
         }

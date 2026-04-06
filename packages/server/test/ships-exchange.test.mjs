@@ -15,9 +15,9 @@ const STARTING_CREDITS = 10000;
 const UNIVERSE_ID = 1;
 
 async function navigateTo(ws, targetSector) {
-  const disp = await wsRequest(ws, { type: 'sectorDisplay' }, 'sectorDisplay');
+  const disp = await wsRequest(ws, { type: 'sectorDisplay' }, 'sectorDisplayResult');
   if (disp.sector === targetSector) return;
-  const path = await wsRequest(ws, { type: 'path', from: disp.sector, to: targetSector }, 'pathResult');
+  const path = await wsRequest(ws, { type: 'path', from: disp.sector, to: targetSector }, 'shortestPathResult');
   if (path.type === 'error') throw new Error(`No path to ${targetSector}`);
   for (let i = 1; i < path.path.length; i++) {
     await wsRequest(ws, { type: 'move', sector: path.path[i] }, 'moveResult');
@@ -54,7 +54,7 @@ describe('Ship exchange — validation', () => {
   it('returns "Not at Stardock" when player is not in Stardock', async () => {
     const { ws } = await connectWS();
     try {
-      const msg = await wsRequest(ws, { type: 'shipExchange', targetShipName: warbirdCfg.name }, 'shipExchangeResult');
+      const msg = await wsRequest(ws, { type: 'shipExchange', targetShipName: warbirdCfg.name }, 'buyShipTradeinResult');
       assert.equal(msg.type, 'error');
       assert.equal(msg.message, 'Not at Stardock');
     } finally {
@@ -69,7 +69,7 @@ describe('Ship exchange — validation', () => {
     const { ws } = await connectWS();
     try {
       await navigateTo(ws, stardockId);
-      const msg = await wsRequest(ws, { type: 'shipExchange', targetShipName: 'Galaxy Hauler' }, 'shipExchangeResult');
+      const msg = await wsRequest(ws, { type: 'shipExchange', targetShipName: 'Galaxy Hauler' }, 'buyShipTradeinResult');
       assert.equal(msg.type, 'error');
       assert.equal(msg.message, 'Unknown ship');
     } finally {
@@ -84,7 +84,7 @@ describe('Ship exchange — validation', () => {
     const { ws } = await connectWS();
     try {
       await navigateTo(ws, stardockId);
-      const msg = await wsRequest(ws, { type: 'shipExchange', targetShipName: merchantCfg.name }, 'shipExchangeResult');
+      const msg = await wsRequest(ws, { type: 'shipExchange', targetShipName: merchantCfg.name }, 'buyShipTradeinResult');
       assert.equal(msg.type, 'error');
       assert.equal(msg.message, 'Already on that ship');
     } finally {
@@ -102,7 +102,7 @@ describe('Ship exchange — validation', () => {
       await navigateTo(ws, stardockId);
       const upgradeCost = warbirdCfg.price - merchantCfg.price;
       await pool.query('UPDATE ship_cargo SET credits = $1 WHERE player_id = $2', [upgradeCost - 1, playerId]);
-      const msg = await wsRequest(ws, { type: 'shipExchange', targetShipName: warbirdCfg.name }, 'shipExchangeResult');
+      const msg = await wsRequest(ws, { type: 'shipExchange', targetShipName: warbirdCfg.name }, 'buyShipTradeinResult');
       assert.equal(msg.type, 'error');
       assert.equal(msg.message, 'Insufficient credits');
     } finally {
@@ -121,7 +121,7 @@ describe('Ship exchange — validation', () => {
       await pool.query('UPDATE ship_cargo SET fuel = $1 WHERE player_id = $2', [warbirdCfg.startingHolds + 1, playerId]);
 
       await navigateTo(ws, stardockId);
-      const msg = await wsRequest(ws, { type: 'shipExchange', targetShipName: warbirdCfg.name }, 'shipExchangeResult');
+      const msg = await wsRequest(ws, { type: 'shipExchange', targetShipName: warbirdCfg.name }, 'buyShipTradeinResult');
       assert.equal(msg.type, 'error');
       assert.equal(msg.message, 'New ship has insufficient holds for current cargo');
     } finally {
@@ -145,8 +145,8 @@ describe('Ship exchange — success', () => {
     const playerId = welcome.playerId;
     try {
       await navigateTo(ws, stardockId);
-      const msg = await wsRequest(ws, { type: 'shipExchange', targetShipName: warbirdCfg.name }, 'shipExchangeResult');
-      assert.equal(msg.type, 'shipExchangeResult');
+      const msg = await wsRequest(ws, { type: 'shipExchange', targetShipName: warbirdCfg.name }, 'buyShipTradeinResult');
+      assert.equal(msg.type, 'buyShipTradeinResult');
       assert.equal(msg.shipName, warbirdCfg.name);
       assert.equal(msg.credits, STARTING_CREDITS - upgradeCost);
       assert.equal(msg.maxFighters, warbirdCfg.maxFighters);
@@ -176,8 +176,8 @@ describe('Ship exchange — success', () => {
       await wsRequest(ws, { type: 'buyShields', quantity: Math.min(4, merchantCfg.maxShields) }, 'buyShieldsResult');
 
       await navigateTo(ws, stardockId);
-      const msg = await wsRequest(ws, { type: 'shipExchange', targetShipName: warbirdCfg.name }, 'shipExchangeResult');
-      assert.equal(msg.type, 'shipExchangeResult');
+      const msg = await wsRequest(ws, { type: 'shipExchange', targetShipName: warbirdCfg.name }, 'buyShipTradeinResult');
+      assert.equal(msg.type, 'buyShipTradeinResult');
 
       const shipRes = await pool.query('SELECT fighters, shields FROM player_ships WHERE player_id = $1', [playerId]);
       assert.equal(Number(shipRes.rows[0].fighters), 0, 'fighters should be reset to 0 on exchange');
@@ -195,10 +195,10 @@ describe('Ship exchange — success', () => {
     try {
       await navigateTo(ws, stardockId);
       // Upgrade first
-      await wsRequest(ws, { type: 'shipExchange', targetShipName: warbirdCfg.name }, 'shipExchangeResult');
+      await wsRequest(ws, { type: 'shipExchange', targetShipName: warbirdCfg.name }, 'buyShipTradeinResult');
       // Now downgrade
-      const msg = await wsRequest(ws, { type: 'shipExchange', targetShipName: merchantCfg.name }, 'shipExchangeResult');
-      assert.equal(msg.type, 'shipExchangeResult');
+      const msg = await wsRequest(ws, { type: 'shipExchange', targetShipName: merchantCfg.name }, 'buyShipTradeinResult');
+      assert.equal(msg.type, 'buyShipTradeinResult');
       assert.equal(msg.shipName, merchantCfg.name);
       assert.equal(msg.credits, STARTING_CREDITS, 'credits restored after upgrade then downgrade');
       assert.equal(msg.cargoLimit, merchantCfg.startingHolds);

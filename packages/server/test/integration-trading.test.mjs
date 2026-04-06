@@ -59,7 +59,7 @@ describe('Trading System', () => {
     const portSector = await findPortSector(wsConn);
     assert.ok(portSector, 'No ports found in any sector');
     const msg = portSector.port;
-    assert.equal(msg.type, 'portInfo');
+    assert.equal(msg.type, 'portInfoResult');
     assert.equal(msg.sectorId, portSector.sectorId);
     assert.ok(typeof msg.class === 'number', 'class should be a number');
     assert.ok(msg.class >= 0 && msg.class <= 9, `class ${msg.class} out of range`);
@@ -76,11 +76,11 @@ describe('Trading System', () => {
     const { ws: wsConn } = await ws();
     let noPortSector = null;
     for (let i = 1; i <= 100; i++) {
-      const res = await wsRequest(wsConn, { type: 'portInfo', sectorId: i }, 'portInfo');
+      const res = await wsRequest(wsConn, { type: 'portInfo', sectorId: i }, 'portInfoResult');
       if (res.type === 'error') { noPortSector = i; break; }
     }
     assert.ok(noPortSector, 'All sectors have ports — cannot test error');
-    const msg = await wsRequest(wsConn, { type: 'portInfo', sectorId: noPortSector }, 'portInfo');
+    const msg = await wsRequest(wsConn, { type: 'portInfo', sectorId: noPortSector }, 'portInfoResult');
     assert.equal(msg.type, 'error');
     assert.equal(msg.message, 'No port in this sector');
     await closeWS(wsConn);
@@ -88,7 +88,7 @@ describe('Trading System', () => {
 
   it('port query returns error for invalid sector ID', async () => {
     const { ws: wsConn } = await ws();
-    const msg = await wsRequest(wsConn, { type: 'portInfo', sectorId: -1 }, 'portInfo');
+    const msg = await wsRequest(wsConn, { type: 'portInfo', sectorId: -1 }, 'portInfoResult');
     assert.equal(msg.type, 'error');
     assert.equal(msg.message, 'Invalid sector ID');
     await closeWS(wsConn);
@@ -96,8 +96,8 @@ describe('Trading System', () => {
 
   it('cargo query returns cargo and credits', async () => {
     const { ws: wsConn, welcome } = await ws();
-    const msg = await wsRequest(wsConn, { type: 'cargoInfo' }, 'cargoInfo');
-    assert.equal(msg.type, 'cargoInfo');
+    const msg = await wsRequest(wsConn, { type: 'cargoInfo' }, 'cargoInfoResult');
+    assert.equal(msg.type, 'cargoInfoResult');
     assert.equal(msg.playerId, welcome.playerId);
     assert.equal(msg.credits, 10000);
     assert.equal(msg.fuel, 0);
@@ -114,7 +114,7 @@ describe('Trading System', () => {
     const reached = await movePlayerTo(wsConn, portSector.sectorId);
     assert.ok(reached, `Could not reach port sector ${portSector.sectorId}`);
 
-    const portBefore = await wsRequest(wsConn, { type: 'portInfo', sectorId: portSector.sectorId }, 'portInfo');
+    const portBefore = await wsRequest(wsConn, { type: 'portInfo', sectorId: portSector.sectorId }, 'portInfoResult');
     const qty = 5;
     const msg = await wsRequest(wsConn, {
       type: 'portTransaction',
@@ -126,7 +126,7 @@ describe('Trading System', () => {
     assert.equal(msg.credits, 10000 - qty * portBefore.fuelPrice);
     assert.equal(msg.cargo.fuel, qty);
 
-    const portAfter = await wsRequest(wsConn, { type: 'portInfo', sectorId: portSector.sectorId }, 'portInfo');
+    const portAfter = await wsRequest(wsConn, { type: 'portInfo', sectorId: portSector.sectorId }, 'portInfoResult');
     assert.equal(portAfter.fuel, portBefore.fuel - qty);
 
     await closeWS(wsConn);
@@ -143,7 +143,7 @@ describe('Trading System', () => {
     // Give the player organics directly so we don't need a separate buy port
     await pool.query('UPDATE ship_cargo SET organics = 10 WHERE player_id = $1', [welcome.playerId]);
 
-    const portBefore = await wsRequest(wsConn, { type: 'portInfo', sectorId: portSector.sectorId }, 'portInfo');
+    const portBefore = await wsRequest(wsConn, { type: 'portInfo', sectorId: portSector.sectorId }, 'portInfoResult');
     const price = portBefore.orgPrice;
     const msg = await wsRequest(wsConn, {
       type: 'portTransaction',
@@ -155,7 +155,7 @@ describe('Trading System', () => {
     assert.equal(msg.cargo.organics, 7); // had 10, sold 3
     assert.equal(msg.credits, 10000 + 3 * price);
 
-    const portAfter = await wsRequest(wsConn, { type: 'portInfo', sectorId: portSector.sectorId }, 'portInfo');
+    const portAfter = await wsRequest(wsConn, { type: 'portInfo', sectorId: portSector.sectorId }, 'portInfoResult');
     assert.equal(portAfter.organics, portBefore.organics + 3);
 
     await closeWS(wsConn);
@@ -195,7 +195,7 @@ describe('Trading System', () => {
     // Give player enough credits so we hit inventory check, not credits check
     await pool.query('UPDATE ship_cargo SET credits = 9999999 WHERE player_id = $1', [welcome.playerId]);
 
-    const portInfo = await wsRequest(wsConn, { type: 'portInfo', sectorId: portSector.sectorId }, 'portInfo');
+    const portInfo = await wsRequest(wsConn, { type: 'portInfo', sectorId: portSector.sectorId }, 'portInfoResult');
     const amount = portInfo.fuel + 1; // one more than available
 
     const msg = await wsRequest(wsConn, {
@@ -279,7 +279,7 @@ describe('Trading System', () => {
     const { ws: wsConn } = await ws();
     let noPortSector = null;
     for (let i = 1; i <= 100; i++) {
-      const res = await wsRequest(wsConn, { type: 'portInfo', sectorId: i }, 'portInfo');
+      const res = await wsRequest(wsConn, { type: 'portInfo', sectorId: i }, 'portInfoResult');
       if (res.type === 'error') { noPortSector = i; break; }
     }
     assert.ok(noPortSector, 'All sectors have ports');
@@ -322,7 +322,7 @@ describe('Trading System', () => {
     await movePlayerTo(ws1, sellingPort.sectorId);
     await movePlayerTo(ws2, sellingPort.sectorId);
 
-    const portBeforeTrade = await wsRequest(ws1, { type: 'portInfo', sectorId: sellingPort.sectorId }, 'portInfo');
+    const portBeforeTrade = await wsRequest(ws1, { type: 'portInfo', sectorId: sellingPort.sectorId }, 'portInfoResult');
     const availFuel = portBeforeTrade.fuel;
     const buyAmt = Math.floor(availFuel * 0.7);
 
@@ -331,7 +331,7 @@ describe('Trading System', () => {
       wsRequest(ws2, { type: 'portTransaction', good: 'fuel', quantity: buyAmt, action: 'buy' }, 'portTransactionResult'),
     ]);
 
-    const portAfter = await wsRequest(ws1, { type: 'portInfo', sectorId: sellingPort.sectorId }, 'portInfo');
+    const portAfter = await wsRequest(ws1, { type: 'portInfo', sectorId: sellingPort.sectorId }, 'portInfoResult');
     assert.ok(portAfter.fuel >= 0, `Port fuel went negative: ${portAfter.fuel}`);
 
     if (buyAmt * 2 > availFuel) {

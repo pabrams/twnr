@@ -1,5 +1,5 @@
 import { WebSocket } from 'ws';
-import type { ServerMessage } from '@twnr/shared';
+import type { ServerResult } from '@twnr/shared';
 import { pool } from './db/index.js';
 
 export interface Player {
@@ -81,7 +81,7 @@ export async function getGraph(universeId: number): Promise<number[][]> {
     return adjacencyList;
 }
 
-export function broadcastTo(data: ServerMessage, targetClients: Set<WebSocket> | WebSocket[]) {
+export function broadcastTo(data: ServerResult, targetClients: Set<WebSocket> | WebSocket[]) {
     for (const client of targetClients) {
         if (client.readyState === 1) {
             client.send(JSON.stringify(data));
@@ -89,7 +89,7 @@ export function broadcastTo(data: ServerMessage, targetClients: Set<WebSocket> |
     }
 }
 
-export function send(ws: WebSocket, data: ServerMessage) {
+export function send(ws: WebSocket, data: ServerResult) {
     ws.send(JSON.stringify(data));
 }
 

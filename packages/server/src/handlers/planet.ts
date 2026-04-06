@@ -26,7 +26,7 @@ export async function handleLand(ws: WebSocket, playerId: number): Promise<void>
     );
 
     send(ws, {
-        type: ServerMsgType.PlanetList,
+        type: ServerMsgType.LandResult,
         planets: planetRes.rows,
     });
 }
@@ -224,7 +224,7 @@ export async function handleDestroyPlanet(ws: WebSocket, playerId: number): Prom
 
     // Follow up with sector display so client sees updated sector
     const data = await buildSectorDisplayData(playerId);
-    if (data) send(ws, { type: ServerMsgType.SectorDisplay, ...data });
+    if (data) send(ws, { type: ServerMsgType.SectorDisplayResult, ...data });
 }
 
 export async function handleUseTerraformDevice(ws: WebSocket, playerId: number): Promise<void> {
@@ -247,7 +247,7 @@ export async function handleUseTerraformDevice(ws: WebSocket, playerId: number):
 
     if (sectorId === 1 || sectorName === 'Stardock') {
         send(ws, {
-            type: ServerMsgType.TerraformResult,
+            type: ServerMsgType.UseTerraformDeviceResult,
             success: false,
             reason: 'restricted_sector',
         });
@@ -260,7 +260,7 @@ export async function handleUseTerraformDevice(ws: WebSocket, playerId: number):
     );
     if (shipRes.rows.length === 0 || shipRes.rows[0].terraform_devices < 1) {
         send(ws, {
-            type: ServerMsgType.TerraformResult,
+            type: ServerMsgType.UseTerraformDeviceResult,
             success: false,
             reason: 'no_devices',
             terraformDevices: 0,
@@ -326,7 +326,7 @@ export async function handleUseTerraformDevice(ws: WebSocket, playerId: number):
         await client.query('COMMIT');
 
         send(ws, {
-            type: ServerMsgType.TerraformResult,
+            type: ServerMsgType.UseTerraformDeviceResult,
             success: true,
             planet: { id: newPlanetId, name: randomName, type: randomType, sectorId },
             collision,

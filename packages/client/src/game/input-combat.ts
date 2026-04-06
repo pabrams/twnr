@@ -30,7 +30,11 @@ export function handleAttackFightersInput(ctx: GameContext, line: string) {
         ctx.term.writeln('Enter a positive number.');
         return;
     }
-    ctx.sendMsg({ type: ClientMsgType.Attack, targetPlayerId: ctx.attackTarget!, fighters: qty });
+    ctx.sendMsg({
+        type: ClientMsgType.AttackShip,
+        targetPlayerId: ctx.attackTarget!,
+        fighters: qty,
+    });
 }
 
 export function handleDeployFightersQtyInput(ctx: GameContext, line: string) {

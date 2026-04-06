@@ -45,7 +45,7 @@ export async function handleDeployFightersInfo(ws: WebSocket, playerId: number):
     }
 
     send(ws, {
-        type: ServerMsgType.DeployFightersInfo,
+        type: ServerMsgType.DeployFightersInfoResult,
         sectorFighters: sectorFighters?.quantity ?? 0,
         shipFighters: shipRes.rows[0].fighters,
         shipMaxFighters: shipCfg?.maxFighters ?? 0,
@@ -273,7 +273,7 @@ export async function handleAttackSectorFighters(
         }
 
         send(ws, {
-            type: ServerMsgType.SectorFighterCombatResult,
+            type: ServerMsgType.AttackSectorFightersResult,
             victory,
             fightersLost: k,
             sectorFightersRemaining: newSectorFighters,
@@ -342,7 +342,7 @@ export async function handleRetreatFromFighters(ws: WebSocket, playerId: number)
 
     player.pendingEncounter = undefined;
 
-    send(ws, { type: ServerMsgType.RetreatResult, sector: retreatSector });
+    send(ws, { type: ServerMsgType.RetreatFromFightersResult, sector: retreatSector });
 
     // Send sector display for the retreat sector
     const [warps, port, visitedSectors, sectorFighters, planetsRes] = await Promise.all([
@@ -367,7 +367,7 @@ export async function handleRetreatFromFighters(ws: WebSocket, playerId: number)
         )
         .map(([id, p]) => ({ id: Number(id), name: p.name }));
     send(ws, {
-        type: ServerMsgType.SectorDisplay,
+        type: ServerMsgType.SectorDisplayResult,
         sector: retreatSector,
         warps: displayWarps,
         players: playersInSector,

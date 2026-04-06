@@ -1,7 +1,7 @@
 import { WebSocket } from 'ws';
 import { ClientMsgType, ServerMsgType } from '@twnr/shared';
 import { players, send } from '../game-state.js';
-import { handleMove, handleSectorDisplay, handleSectorWarps, handlePath } from './movement.js';
+import { handleMove, handleSectorDisplay, handleWarpsOut, handleShortestPath } from './movement.js';
 import {
     handlePortInfo,
     handleDock,
@@ -14,9 +14,9 @@ import {
 } from './port.js';
 import { handleShipInfo, handleCargoInfo } from './ship-info.js';
 import { handleBuyFighters, handleBuyShields, handleBuyHolds } from './ship-upgrades.js';
-import { handleShipExchange } from './ship-exchange.js';
+import { handleBuyShipTradein } from './ship-exchange.js';
 import { handleJettison } from './ship-cargo.js';
-import { handleAttack } from './combat.js';
+import { handleAttackShip } from './combat.js';
 import {
     handleLand,
     handleLandOnPlanet,
@@ -38,12 +38,12 @@ export async function handleMessage(ws: WebSocket, playerId: number, data: any):
             return handleMove(ws, playerId, data.sector);
         case ClientMsgType.SectorDisplay:
             return handleSectorDisplay(ws, playerId);
-        case ClientMsgType.Who:
-            return handleWho(ws, playerId);
-        case ClientMsgType.SectorWarps:
-            return handleSectorWarps(ws, playerId, data.id);
-        case ClientMsgType.Path:
-            return handlePath(ws, playerId, data.from, data.to);
+        case ClientMsgType.PlayersOnline:
+            return handlePlayersOnline(ws, playerId);
+        case ClientMsgType.WarpsOut:
+            return handleWarpsOut(ws, playerId, data.id);
+        case ClientMsgType.ShortestPath:
+            return handleShortestPath(ws, playerId, data.from, data.to);
         case ClientMsgType.PortInfo:
             return handlePortInfo(ws, playerId, data.sectorId);
         case ClientMsgType.ShipInfo:
@@ -58,10 +58,10 @@ export async function handleMessage(ws: WebSocket, playerId: number, data: any):
             return handleBuyShields(ws, playerId, data.quantity);
         case ClientMsgType.BuyHolds:
             return handleBuyHolds(ws, playerId, data.quantity);
-        case ClientMsgType.ShipExchange:
-            return handleShipExchange(ws, playerId, data.targetShipName);
-        case ClientMsgType.Attack:
-            return handleAttack(ws, playerId, data.targetPlayerId, data.fighters);
+        case ClientMsgType.BuyShipTradein:
+            return handleBuyShipTradein(ws, playerId, data.targetShipName);
+        case ClientMsgType.AttackShip:
+            return handleAttackShip(ws, playerId, data.targetPlayerId, data.fighters);
         case ClientMsgType.Dock:
             return handleDock(ws, playerId);
         case ClientMsgType.Undock:
@@ -105,10 +105,10 @@ export async function handleMessage(ws: WebSocket, playerId: number, data: any):
     }
 }
 
-function handleWho(ws: WebSocket, playerId: number): void {
+function handlePlayersOnline(ws: WebSocket, playerId: number): void {
     const callerUniverse = players[playerId]?.universeId;
     const online = Object.entries(players)
         .filter(([, p]) => p.universeId === callerUniverse)
         .map(([id, p]) => ({ id: Number(id), name: p.name, sector: p.sector }));
-    send(ws, { type: ServerMsgType.PlayersOnline, players: online });
+    send(ws, { type: ServerMsgType.PlayersOnlineResult, players: online });
 }

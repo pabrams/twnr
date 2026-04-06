@@ -35,8 +35,8 @@ describe('WebSocket', () => {
 
   it('display returns sectorDisplay with sector and warps array', async () => {
     const { ws: wsConn } = await ws();
-    const msg = await wsRequest(wsConn, { type: 'sectorDisplay' }, 'sectorDisplay');
-    assert.equal(msg.type, 'sectorDisplay');
+    const msg = await wsRequest(wsConn, { type: 'sectorDisplay' }, 'sectorDisplayResult');
+    assert.equal(msg.type, 'sectorDisplayResult');
     assert.ok(typeof msg.sector === 'number', 'sector should be a number');
     assert.ok(Array.isArray(msg.warps), 'warps should be an array');
     assert.ok(msg.warps.length >= 1, 'warps should have at least 1 entry');
@@ -46,7 +46,7 @@ describe('WebSocket', () => {
   it('move to adjacent sector broadcasts playerMoved', async () => {
     const { ws: wsConn } = await ws();
 
-    const disp = await wsRequest(wsConn, { type: 'sectorDisplay' }, 'sectorDisplay');
+    const disp = await wsRequest(wsConn, { type: 'sectorDisplay' }, 'sectorDisplayResult');
     const target = disp.warps[0];
     const moveMsg = await wsRequest(wsConn, { type: 'move', sector: target }, 'moveResult');
 
@@ -60,7 +60,7 @@ describe('WebSocket', () => {
     const { ws: ws1 } = await ws();
     const { ws: ws2 } = await ws();
 
-    const disp = await wsRequest(ws2, { type: 'sectorDisplay' }, 'sectorDisplay');
+    const disp = await wsRequest(ws2, { type: 'sectorDisplay' }, 'sectorDisplayResult');
     const target = disp.warps[0];
     const broadcastPromise = waitForMsg(ws1, 'playerMoved');
     ws2.send(JSON.stringify({ type: 'move', sector: target }));
@@ -78,7 +78,7 @@ describe('WebSocket', () => {
     const { ws: ws2 } = await ws();
 
     // Move ws1 away from sector 1
-    const disp1 = await wsRequest(ws1, { type: 'sectorDisplay' }, 'sectorDisplay');
+    const disp1 = await wsRequest(ws1, { type: 'sectorDisplay' }, 'sectorDisplayResult');
     const ws1Target = disp1.warps[0];
     const disp1b = await wsRequest(ws1, { type: 'move', sector: ws1Target }, 'moveResult');
 
@@ -87,7 +87,7 @@ describe('WebSocket', () => {
     await wsRequest(ws1, { type: 'move', sector: ws1Target2 }, 'moveResult');
 
     // ws2 is still in sector 1 - ws1 should not receive this move
-    const disp3 = await wsRequest(ws2, { type: 'sectorDisplay' }, 'sectorDisplay');
+    const disp3 = await wsRequest(ws2, { type: 'sectorDisplay' }, 'sectorDisplayResult');
     const ws2Target = disp3.warps[0];
 
     const noMsgPromise = expectNoMsg(ws1, 'playerMoved');
@@ -102,7 +102,7 @@ describe('WebSocket', () => {
     const { ws: ws1 } = await ws();
     const { ws: ws2 } = await ws();
 
-    const disp = await wsRequest(ws2, { type: 'sectorDisplay' }, 'sectorDisplay');
+    const disp = await wsRequest(ws2, { type: 'sectorDisplay' }, 'sectorDisplayResult');
     const warpSet = new Set(disp.warps);
     let nonAdjacent = null;
     for (let i = 1; i <= 100; i++) {
@@ -127,7 +127,7 @@ describe('WebSocket', () => {
     const { ws: ws3 } = await ws();
 
     // Move ws2 away from sector 1
-    const disp = await wsRequest(ws2, { type: 'sectorDisplay' }, 'sectorDisplay');
+    const disp = await wsRequest(ws2, { type: 'sectorDisplay' }, 'sectorDisplayResult');
     const target = disp.warps[0];
     await wsRequest(ws2, { type: 'move', sector: target }, 'moveResult');
 
@@ -146,7 +146,7 @@ describe('WebSocket', () => {
   it('move to non-adjacent sector returns nonAdjacentMoveRequested', async () => {
     const { ws: wsConn } = await ws();
 
-    const disp = await wsRequest(wsConn, { type: 'sectorDisplay' }, 'sectorDisplay');
+    const disp = await wsRequest(wsConn, { type: 'sectorDisplay' }, 'sectorDisplayResult');
     const warpSet = new Set(disp.warps);
     let nonAdjacent = null;
     for (let i = 1; i <= 100; i++) {
@@ -164,8 +164,8 @@ describe('WebSocket', () => {
   it('who returns playersOnline with connected player IDs', async () => {
     const { ws: wsConn } = await ws();
 
-    const msg = await wsRequest(wsConn, { type: 'who' }, 'playersOnline');
-    assert.equal(msg.type, 'playersOnline');
+    const msg = await wsRequest(wsConn, { type: 'who' }, 'playersOnlineResult');
+    assert.equal(msg.type, 'playersOnlineResult');
     assert.ok(Array.isArray(msg.players), 'players should be an array');
     assert.ok(msg.players.length >= 1, 'should list at least the current player');
     await closeWS(wsConn);

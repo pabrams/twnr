@@ -28,7 +28,7 @@ export async function handleShipInfo(ws: WebSocket, playerId: number): Promise<v
     const holdsAvailable =
         row.cargo_limit - (row.fuel + row.organics + row.equipment + row.colonists);
     send(ws, {
-        type: ServerMsgType.ShipInfo,
+        type: ServerMsgType.ShipInfoResult,
         playerId,
         shipName: row.ship_name,
         fighters: row.fighters,
@@ -61,7 +61,7 @@ export async function handleCargoInfo(ws: WebSocket, playerId: number): Promise<
 
     const c = cargoRes.rows[0];
     send(ws, {
-        type: ServerMsgType.CargoInfo,
+        type: ServerMsgType.CargoInfoResult,
         playerId: c.player_id,
         fuel: c.fuel,
         organics: c.organics,

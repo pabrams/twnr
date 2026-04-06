@@ -218,8 +218,8 @@ describe('WebSocket universe scoping', () => {
 
     // Connect to universe A and check warps
     const { ws: wsA } = await connectWS(reg.token, univA.body.universeId);
-    const dispA = await wsRequest(wsA, { type: 'sectorDisplay' }, 'sectorDisplay');
-    assert.equal(dispA.type, 'sectorDisplay');
+    const dispA = await wsRequest(wsA, { type: 'sectorDisplay' }, 'sectorDisplayResult');
+    assert.equal(dispA.type, 'sectorDisplayResult');
     assert.equal(dispA.sector, 1, 'Should be in sector 1');
     // Universe A has sector 2 as a warp from sector 1
     assert.ok(dispA.warps.includes(2), 'Universe A sector 1 should have warp to sector 2');
@@ -227,8 +227,8 @@ describe('WebSocket universe scoping', () => {
 
     // Connect to universe B and verify it sees universe B's warps, not A's
     const { ws: wsB } = await connectWS(reg.token, univB.body.universeId);
-    const dispB = await wsRequest(wsB, { type: 'sectorDisplay' }, 'sectorDisplay');
-    assert.equal(dispB.type, 'sectorDisplay');
+    const dispB = await wsRequest(wsB, { type: 'sectorDisplay' }, 'sectorDisplayResult');
+    assert.equal(dispB.type, 'sectorDisplayResult');
     assert.equal(dispB.sector, 1);
     // Universe B has sectors 1-3, so sector 1 should NOT have warp to sector 4 or 5
     for (const w of dispB.warps) {

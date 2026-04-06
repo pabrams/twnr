@@ -36,7 +36,7 @@ export async function handlePortInfo(
 
     const p = portRes.rows[0];
     send(ws, {
-        type: ServerMsgType.PortInfo,
+        type: ServerMsgType.PortInfoResult,
         sectorId: p.sector_id,
         class: p.class,
         fuel: p.fuel,
@@ -79,7 +79,7 @@ export async function handleDock(ws: WebSocket, playerId: number): Promise<void>
         type: ServerMsgType.DockResult,
         docked: true,
         port: {
-            type: ServerMsgType.PortInfo,
+            type: ServerMsgType.PortInfoResult,
             sectorId: player.sector,
             class: p.class,
             fuel: p.fuel,
@@ -339,7 +339,7 @@ export async function handleDockStardock(ws: WebSocket, playerId: number): Promi
 
     player.at_stardock = true;
 
-    send(ws, { type: ServerMsgType.StardockMenu });
+    send(ws, { type: ServerMsgType.DockStardockResult });
 }
 
 export async function handleLeaveStardock(ws: WebSocket, playerId: number): Promise<void> {

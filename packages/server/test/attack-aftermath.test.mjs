@@ -201,8 +201,8 @@ describe('Attack result message', () => {
     const { ws: ws1 } = await connectPlayer(atk.token);
     const { ws: ws2 } = await connectPlayer(def.token);
     try {
-      const res = await wsRequest(ws1, { type: 'attack', targetPlayerId: def.id, fighters: 2 }, 'attackResult');
-      assert.equal(res.type, 'attackResult', 'Should receive an attackResult message');
+      const res = await wsRequest(ws1, { type: 'attack', targetPlayerId: def.id, fighters: 2 }, 'attackShipResult');
+      assert.equal(res.type, 'attackShipResult', 'Should receive an attackResult message');
       assert.notEqual(res.type, 'error', 'Should not be an error');
     } finally {
       await closeWS(ws1);
