@@ -1,12 +1,8 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { connectWS, closeWS, httpPost } from './helpers.mjs';
 import { ensureServer, createPool } from './global-setup.mjs';
-
-const __filename = fileURLToPath(import.meta.url);
-const PROJECT_ROOT = join(dirname(__filename), '..');
+import { ServerMsgType } from '@twnr/shared';
 const UNIVERSE_ID = 1;
 
 let pool;
@@ -43,7 +39,7 @@ describe('Security', () => {
   it('allows WebSocket connections from configured origins', async () => {
     const { ws: wsConn, welcome } = await ws({ origin: 'http://localhost:3000' });
 
-    assert.equal(welcome.type, 'welcome');
+    assert.equal(welcome.type, ServerMsgType.Welcome);
     await closeWS(wsConn);
   });
 

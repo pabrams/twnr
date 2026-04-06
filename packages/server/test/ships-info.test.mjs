@@ -5,6 +5,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { connectWS as _connectWS, closeWS, wsRequest } from './helpers.mjs';
 import { ensureServer, createPool } from './global-setup.mjs';
+import { ClientMsgType, ServerMsgType } from '@twnr/shared';
 
 const __filename = fileURLToPath(import.meta.url);
 const PROJECT_ROOT = join(dirname(__filename), '..');
@@ -13,12 +14,12 @@ const merchantCfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships'
 const UNIVERSE_ID = 1;
 
 async function navigateTo(ws, targetSector) {
-  const disp = await wsRequest(ws, { type: 'sectorDisplay' }, 'sectorDisplayResult');
+  const disp = await wsRequest(ws, { type: ClientMsgType.SectorDisplay }, ServerMsgType.SectorDisplayResult);
   if (disp.sector === targetSector) return;
-  const path = await wsRequest(ws, { type: 'path', from: disp.sector, to: targetSector }, 'shortestPathResult');
-  if (path.type === 'error') throw new Error(`No path to ${targetSector}`);
+  const path = await wsRequest(ws, { type: ClientMsgType.ShortestPath, from: disp.sector, to: targetSector }, ServerMsgType.ShortestPathResult);
+  if (path.type === ServerMsgType.Error) throw new Error(`No path to ${targetSector}`);
   for (let i = 1; i < path.path.length; i++) {
-    await wsRequest(ws, { type: 'move', sector: path.path[i] }, 'moveResult');
+    await wsRequest(ws, { type: ClientMsgType.Move, sector: path.path[i] }, ServerMsgType.MoveResult);
   }
 }
 
@@ -47,8 +48,8 @@ describe('Ship info query', () => {
   it('returns all required fields for a new player', async () => {
     const { ws } = await connectWS();
     try {
-      const msg = await wsRequest(ws, { type: 'ship' }, 'shipInfoResult');
-      assert.equal(msg.type, 'shipInfoResult');
+      const msg = await wsRequest(ws, { type: ClientMsgType.ShipInfo }, ServerMsgType.ShipInfoResult);
+      assert.equal(msg.type, ServerMsgType.ShipInfoResult);
       assert.equal(typeof msg.playerId, 'number');
       assert.equal(typeof msg.shipName, 'string');
       assert.equal(typeof msg.fighters, 'number');
@@ -69,8 +70,8 @@ describe('Ship info query', () => {
   it('returns correct values for a new Merchant Freighter player', async () => {
     const { ws } = await connectWS();
     try {
-      const msg = await wsRequest(ws, { type: 'ship' }, 'shipInfoResult');
-      assert.equal(msg.type, 'shipInfoResult');
+      const msg = await wsRequest(ws, { type: ClientMsgType.ShipInfo }, ServerMsgType.ShipInfoResult);
+      assert.equal(msg.type, ServerMsgType.ShipInfoResult);
       assert.equal(msg.shipName, merchantCfg.name);
       assert.equal(msg.fighters, 0);
       assert.equal(msg.shields, 0);
@@ -93,9 +94,9 @@ describe('Ship info — dynamic state', () => {
     const { ws } = await connectWS();
     const qty = 4;
     try {
-      await wsRequest(ws, { type: 'buyHolds', quantity: qty }, 'buyHoldsResult');
-      const msg = await wsRequest(ws, { type: 'ship' }, 'shipInfoResult');
-      assert.equal(msg.type, 'shipInfoResult');
+      await wsRequest(ws, { type: ClientMsgType.BuyHolds, quantity: qty }, ServerMsgType.BuyHoldsResult);
+      const msg = await wsRequest(ws, { type: ClientMsgType.ShipInfo }, ServerMsgType.ShipInfoResult);
+      assert.equal(msg.type, ServerMsgType.ShipInfoResult);
       assert.equal(msg.cargoLimit, merchantCfg.startingHolds + qty);
     } finally {
       await closeWS(ws);
@@ -111,10 +112,10 @@ describe('Ship info — dynamic state', () => {
     const fuelQty = 3;
     try {
       await navigateTo(ws, fuelSector);
-      await wsRequest(ws, { type: 'portTransaction', good: 'fuel', quantity: fuelQty, action: 'buy' }, 'portTransactionResult');
+      await wsRequest(ws, { type: ClientMsgType.PortTransaction, good: 'fuel', quantity: fuelQty, action: 'buy' }, ServerMsgType.PortTransactionResult);
 
-      const msg = await wsRequest(ws, { type: 'ship' }, 'shipInfoResult');
-      assert.equal(msg.type, 'shipInfoResult');
+      const msg = await wsRequest(ws, { type: ClientMsgType.ShipInfo }, ServerMsgType.ShipInfoResult);
+      assert.equal(msg.type, ServerMsgType.ShipInfoResult);
       assert.equal(msg.cargoFuel, fuelQty);
       assert.equal(msg.holdsAvailable, merchantCfg.startingHolds - fuelQty);
     } finally {

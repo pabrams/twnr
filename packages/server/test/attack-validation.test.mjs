@@ -1,12 +1,9 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { createTestUser, createTestPlayer, connectWS, closeWS, wsRequest } from './helpers.mjs';
 import { ensureServer, createPool } from './global-setup.mjs';
+import { ClientMsgType, ServerMsgType } from '@twnr/shared';
 
-const __filename = fileURLToPath(import.meta.url);
-const PROJECT_ROOT = join(dirname(__filename), '..');
 const UNIVERSE_ID = 1;
 
 let pool;
@@ -69,8 +66,8 @@ describe('Attack validation', () => {
     const p = await createPlayer('self_atk', 1, 5, 0);
     const { ws } = await connectPlayer(p.token);
     try {
-      const res = await wsRequest(ws, { type: 'attack', targetPlayerId: p.id, fighters: 1 }, 'attackShipResult');
-      assert.equal(res.type, 'error', 'Should return error for self-attack');
+      const res = await wsRequest(ws, { type: ClientMsgType.AttackShip, targetPlayerId: p.id, fighters: 1 }, ServerMsgType.AttackShipResult);
+      assert.equal(res.type, ServerMsgType.Error, 'Should return error for self-attack');
     } finally {
       await closeWS(ws);
     }
@@ -82,8 +79,8 @@ describe('Attack validation', () => {
     const { ws: ws1 } = await connectPlayer(atk.token);
     const { ws: ws2 } = await connectPlayer(def.token);
     try {
-      const res = await wsRequest(ws1, { type: 'attack', targetPlayerId: def.id, fighters: 0 }, 'attackShipResult');
-      assert.equal(res.type, 'error');
+      const res = await wsRequest(ws1, { type: ClientMsgType.AttackShip, targetPlayerId: def.id, fighters: 0 }, ServerMsgType.AttackShipResult);
+      assert.equal(res.type, ServerMsgType.Error);
     } finally {
       await closeWS(ws1);
       await closeWS(ws2);
@@ -96,8 +93,8 @@ describe('Attack validation', () => {
     const { ws: ws1 } = await connectPlayer(atk.token);
     const { ws: ws2 } = await connectPlayer(def.token);
     try {
-      const res = await wsRequest(ws1, { type: 'attack', targetPlayerId: def.id, fighters: -1 }, 'attackShipResult');
-      assert.equal(res.type, 'error');
+      const res = await wsRequest(ws1, { type: ClientMsgType.AttackShip, targetPlayerId: def.id, fighters: -1 }, ServerMsgType.AttackShipResult);
+      assert.equal(res.type, ServerMsgType.Error);
     } finally {
       await closeWS(ws1);
       await closeWS(ws2);
@@ -110,8 +107,8 @@ describe('Attack validation', () => {
     const { ws: ws1 } = await connectPlayer(atk.token);
     const { ws: ws2 } = await connectPlayer(def.token);
     try {
-      const res = await wsRequest(ws1, { type: 'attack', targetPlayerId: def.id, fighters: 5 }, 'attackShipResult');
-      assert.equal(res.type, 'error');
+      const res = await wsRequest(ws1, { type: ClientMsgType.AttackShip, targetPlayerId: def.id, fighters: 5 }, ServerMsgType.AttackShipResult);
+      assert.equal(res.type, ServerMsgType.Error);
     } finally {
       await closeWS(ws1);
       await closeWS(ws2);
@@ -124,8 +121,8 @@ describe('Attack validation', () => {
     const { ws: ws1 } = await connectPlayer(atk.token);
     const { ws: ws2 } = await connectPlayer(def.token);
     try {
-      const res = await wsRequest(ws1, { type: 'attack', targetPlayerId: def.id, fighters: 1 }, 'attackShipResult');
-      assert.equal(res.type, 'error');
+      const res = await wsRequest(ws1, { type: ClientMsgType.AttackShip, targetPlayerId: def.id, fighters: 1 }, ServerMsgType.AttackShipResult);
+      assert.equal(res.type, ServerMsgType.Error);
     } finally {
       await closeWS(ws1);
       await closeWS(ws2);

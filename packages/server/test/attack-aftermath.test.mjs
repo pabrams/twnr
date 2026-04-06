@@ -1,14 +1,10 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { createTestUser, createTestPlayer, connectWS, closeWS, wsRequest } from './helpers.mjs';
 import { ensureServer, createPool } from './global-setup.mjs';
+import { ClientMsgType, ServerMsgType } from '@twnr/shared';
 
-const __filename = fileURLToPath(import.meta.url);
-const PROJECT_ROOT = join(dirname(__filename), '..');
 const UNIVERSE_ID = 1;
-
 let pool;
 
 async function createPlayer(name, sector = 1, fighters = 0, shields = 0) {
@@ -44,7 +40,6 @@ describe('Login restriction after ship destruction', () => {
       body: JSON.stringify({ name: 'DestroyedPlayer', email, password }),
     });
     assert.equal(regRes.status, 201);
-    const { userId } = await regRes.json();
 
     // Join universe to create a player
     const regCookies = regRes.headers.getSetCookie?.() || [];
@@ -201,9 +196,9 @@ describe('Attack result message', () => {
     const { ws: ws1 } = await connectPlayer(atk.token);
     const { ws: ws2 } = await connectPlayer(def.token);
     try {
-      const res = await wsRequest(ws1, { type: 'attack', targetPlayerId: def.id, fighters: 2 }, 'attackShipResult');
-      assert.equal(res.type, 'attackShipResult', 'Should receive an attackResult message');
-      assert.notEqual(res.type, 'error', 'Should not be an error');
+      const res = await wsRequest(ws1, { type: ClientMsgType.AttackShip, targetPlayerId: def.id, fighters: 2 }, ServerMsgType.AttackShipResult);
+      assert.equal(res.type, ServerMsgType.AttackShipResult, 'Should receive an attackResult message');
+      assert.notEqual(res.type, ServerMsgType.Error, 'Should not be an error');
     } finally {
       await closeWS(ws1);
       await closeWS(ws2);

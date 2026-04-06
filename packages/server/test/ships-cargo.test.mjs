@@ -1,22 +1,19 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { connectWS as _connectWS, closeWS, wsRequest } from './helpers.mjs';
 import { ensureServer, createPool } from './global-setup.mjs';
+import { ClientMsgType, ServerMsgType } from '@twnr/shared';
 
-const __filename = fileURLToPath(import.meta.url);
-const PROJECT_ROOT = join(dirname(__filename), '..');
 
 const UNIVERSE_ID = 1;
 
 async function navigateTo(ws, targetSector) {
-  const disp = await wsRequest(ws, { type: 'sectorDisplay' }, 'sectorDisplayResult');
+  const disp = await wsRequest(ws, { type: ClientMsgType.SectorDisplay }, ServerMsgType.SectorDisplayResult);
   if (disp.sector === targetSector) return;
-  const path = await wsRequest(ws, { type: 'path', from: disp.sector, to: targetSector }, 'shortestPathResult');
-  if (path.type === 'error') throw new Error(`No path to ${targetSector}`);
+  const path = await wsRequest(ws, { type: ClientMsgType.ShortestPath, from: disp.sector, to: targetSector }, ServerMsgType.ShortestPathResult);
+  if (path.type === ServerMsgType.Error) throw new Error(`No path to ${targetSector}`);
   for (let i = 1; i < path.path.length; i++) {
-    await wsRequest(ws, { type: 'move', sector: path.path[i] }, 'moveResult');
+    await wsRequest(ws, { type: ClientMsgType.Move, sector: path.path[i] }, 'moveResult');
   }
 }
 
