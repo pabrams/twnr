@@ -885,11 +885,11 @@ describe('WS: land on planet, display, leave', () => {
     assert.equal(msg.name, 'Earth');
   });
 
-  it('leavePlanet returns sectorDisplay', async () => {
+  it('leavePlanet returns leavePlanetResult', async () => {
     player.sendMsg({ type: 'leavePlanet' });
-    const msg = await player.waitForMessage('sectorDisplay');
-    assert.ok(msg, 'should receive sectorDisplay after leaving planet');
-    assert.ok('planets' in msg, 'sectorDisplay should include planets');
+    const msg = await player.waitForMessage('leavePlanetResult');
+    assert.ok(msg, 'should receive leavePlanetResult after leaving planet');
+    assert.ok('planets' in msg, 'leavePlanetResult should include planets');
   });
 
   it('on_planet_id is cleared after leaving planet', async () => {
@@ -1090,9 +1090,9 @@ describe('WS: stardock and hardware store', () => {
     assert.equal(msg.quantity, 1);
   });
 
-  it('leaveStardock responds with sectorDisplay', async () => {
+  it('leaveStardock responds with leaveStardockResult', async () => {
     player.sendMsg({ type: 'leaveStardock' });
-    const msg = await player.waitForMessage('sectorDisplay');
+    const msg = await player.waitForMessage('leaveStardockResult');
     assert.ok(msg, 'should receive sectorDisplay after leaving stardock');
   });
 });
@@ -1155,7 +1155,7 @@ describe('WS: destroy planet', () => {
 
     // Move to that sector
     player.sendMsg({ type: 'leavePlanet' });
-    await player.waitForMessage('sectorDisplay').catch(() => null);
+    await player.waitForMessage('leavePlanetResult').catch(() => null);
 
     player.sendMsg({ type: 'path', from: 1, to: targetSector });
     const pathMsg = await player.waitForMessage('pathResult');
@@ -1319,7 +1319,7 @@ describe('WS: buy hardware exceeds ship maximum', () => {
   it('dockStardock in non-class-9 sector returns error', async () => {
     // Leave stardock first
     player.sendMsg({ type: 'leaveStardock' });
-    await player.waitForMessage('sectorDisplay').catch(() => null);
+    await player.waitForMessage('leaveStardockResult').catch(() => null);
 
     // Move to sector 1 (which has class 0 port, not class 9)
     player.sendMsg({ type: 'path', from: stardockSector, to: 1 });
@@ -1467,7 +1467,7 @@ describe('WS: buy hardware credit deduction', () => {
   it('buyPlanetBusters when not at stardock returns error', async () => {
     // Leave stardock
     player.sendMsg({ type: 'leaveStardock' });
-    await player.waitForMessage('sectorDisplay').catch(() => null);
+    await player.waitForMessage('leaveStardockResult').catch(() => null);
 
     player.sendMsg({ type: 'buyPlanetBusters', quantity: 1 });
     const msg = await player.waitForMessage('error');

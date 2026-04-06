@@ -293,6 +293,26 @@ export type SectorFightersAlertMessage = {
     intruderName: string;
 };
 
+export type JettisonResultObject =
+    | {
+          type: typeof ServerMsgType.JettisonResult;
+          outcome: 'success';
+          jettisoned: { fuel: number; organics: number; equipment: number; colonists: number };
+      }
+    | { type: typeof ServerMsgType.JettisonResult; outcome: 'error'; message: string };
+
+export type UndockResultObject =
+    | ({ type: typeof ServerMsgType.UndockResult; outcome: 'success' } & SectorDisplayData)
+    | { type: typeof ServerMsgType.UndockResult; outcome: 'error'; message: string };
+
+export type LeavePlanetResultObject = {
+    type: typeof ServerMsgType.LeavePlanetResult;
+} & SectorDisplayData;
+
+export type LeaveStardockResultObject = {
+    type: typeof ServerMsgType.LeaveStardockResult;
+} & SectorDisplayData;
+
 export type ErrorMessage = {
     type: typeof ServerMsgType.Error;
     message: string;
@@ -303,6 +323,10 @@ export type ServerMessage =
     | PlayerMovedMessage
     | SectorDisplayMessage
     | MoveResultObject
+    | UndockResultObject
+    | JettisonResultObject
+    | LeavePlanetResultObject
+    | LeaveStardockResultObject
     | PlayerLeftMessage
     | PlayersOnlineMessage
     | NoShipMessage

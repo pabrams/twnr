@@ -1,6 +1,13 @@
 import { WebSocket } from 'ws';
 import { ServerMsgType } from '@twnr/shared';
-import { players, send } from '../game-state.js';
+import {
+    players,
+    send,
+    getGraph,
+    getPortForSector,
+    getVisitedSectors,
+    getSectorFighters,
+} from '../game-state.js';
 import { pool } from '../db/index.js';
 import { handleSectorDisplay } from './movement.js';
 import { planetConfigs } from '../planet-config.js';
@@ -91,12 +98,53 @@ export async function handlePlanetDisplay(ws: WebSocket, playerId: number): Prom
     });
 }
 
+async function buildSectorDisplayData(playerId: number) {
+    const player = players[playerId];
+    if (!player) return null;
+    const currentSector = player.sector;
+    const universeId = player.universeId;
+
+    const [warps, port, visitedSectors, sectorFighters, planetsRes] = await Promise.all([
+        getGraph(universeId),
+        getPortForSector(currentSector, universeId),
+        getVisitedSectors(playerId),
+        getSectorFighters(currentSector, universeId),
+        pool.query(
+            'SELECT id, name, type FROM planets WHERE sector_id = $1 AND universe_id = $2 ORDER BY id',
+            [currentSector, universeId],
+        ),
+    ]);
+    const displayWarps = warps[currentSector] || [];
+    const playersInSector = Object.entries(players)
+        .filter(
+            ([id, p]) =>
+                p.sector === currentSector &&
+                p.universeId === universeId &&
+                !p.docked &&
+                Number(id) !== playerId,
+        )
+        .map(([id, p]) => ({ id: Number(id), name: p.name }));
+
+    return {
+        sector: currentSector,
+        warps: displayWarps,
+        players: playersInSector,
+        port,
+        visitedSectors,
+        sectorFighters,
+        planets: planetsRes.rows,
+    };
+}
+
 export async function handleLeavePlanet(ws: WebSocket, playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
     await pool.query('UPDATE players SET on_planet_id = NULL WHERE id = $1', [playerId]);
-    handleSectorDisplay(ws, playerId);
+
+    const data = await buildSectorDisplayData(playerId);
+    if (!data) return;
+    send(ws, { type: ServerMsgType.LeavePlanetResult, ...data });
 }
 
 export async function handleDestroyPlanet(ws: WebSocket, playerId: number): Promise<void> {
@@ -163,7 +211,9 @@ export async function handleDestroyPlanet(ws: WebSocket, playerId: number): Prom
         planetName,
     });
 
-    handleSectorDisplay(ws, playerId);
+    // Follow up with sector display so client sees updated sector
+    const data = await buildSectorDisplayData(playerId);
+    if (data) send(ws, { type: ServerMsgType.SectorDisplay, ...data });
 }
 
 export async function handleUseTerraformDevice(ws: WebSocket, playerId: number): Promise<void> {

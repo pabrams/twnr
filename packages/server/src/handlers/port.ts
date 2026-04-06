@@ -1,6 +1,15 @@
 import { WebSocket } from 'ws';
 import { ServerMsgType } from '@twnr/shared';
-import { players, send, getPlayerUniverseId, PORT_CLASS_ACTIONS } from '../game-state.js';
+import {
+    players,
+    send,
+    getPlayerUniverseId,
+    PORT_CLASS_ACTIONS,
+    getGraph,
+    getPortForSector,
+    getVisitedSectors,
+    getSectorFighters,
+} from '../game-state.js';
 import { pool } from '../db/index.js';
 
 export async function handlePortInfo(
@@ -88,14 +97,49 @@ export async function handleUndock(ws: WebSocket, playerId: number): Promise<voi
     if (!player) return;
 
     if (!player.docked) {
-        send(ws, { type: ServerMsgType.Error, message: 'Not docked' });
+        send(ws, { type: ServerMsgType.UndockResult, outcome: 'error', message: 'Not docked' });
         return;
     }
 
     player.docked = false;
     await pool.query('UPDATE players SET docked = FALSE WHERE id = $1', [playerId]);
 
-    send(ws, { type: ServerMsgType.DockResult, docked: false });
+    const currentSector = player.sector;
+    const universeId = player.universeId;
+
+    const [warps, port, visitedSectors, sectorFighters, planetsRes] = await Promise.all([
+        getGraph(universeId),
+        getPortForSector(currentSector, universeId),
+        getVisitedSectors(playerId),
+        getSectorFighters(currentSector, universeId),
+        pool.query(
+            'SELECT id, name, type FROM planets WHERE sector_id = $1 AND universe_id = $2 ORDER BY id',
+            [currentSector, universeId],
+        ),
+    ]);
+    const planets = planetsRes.rows;
+    const displayWarps = warps[currentSector] || [];
+    const playersInSector = Object.entries(players)
+        .filter(
+            ([id, p]) =>
+                p.sector === currentSector &&
+                p.universeId === universeId &&
+                !p.docked &&
+                Number(id) !== playerId,
+        )
+        .map(([id, p]) => ({ id: Number(id), name: p.name }));
+
+    send(ws, {
+        type: ServerMsgType.UndockResult,
+        outcome: 'success',
+        sector: currentSector,
+        warps: displayWarps,
+        players: playersInSector,
+        port,
+        visitedSectors,
+        sectorFighters,
+        planets,
+    });
 }
 
 export async function handlePortTransaction(
@@ -309,8 +353,39 @@ export async function handleLeaveStardock(ws: WebSocket, playerId: number): Prom
 
     player.at_stardock = false;
 
-    import('./movement.js').then(({ handleSectorDisplay }) => {
-        handleSectorDisplay(ws, playerId);
+    const currentSector = player.sector;
+    const universeId = player.universeId;
+
+    const [warps, port, visitedSectors, sectorFighters, planetsRes] = await Promise.all([
+        getGraph(universeId),
+        getPortForSector(currentSector, universeId),
+        getVisitedSectors(playerId),
+        getSectorFighters(currentSector, universeId),
+        pool.query(
+            'SELECT id, name, type FROM planets WHERE sector_id = $1 AND universe_id = $2 ORDER BY id',
+            [currentSector, universeId],
+        ),
+    ]);
+    const displayWarps = warps[currentSector] || [];
+    const playersInSector = Object.entries(players)
+        .filter(
+            ([id, p]) =>
+                p.sector === currentSector &&
+                p.universeId === universeId &&
+                !p.docked &&
+                Number(id) !== playerId,
+        )
+        .map(([id, p]) => ({ id: Number(id), name: p.name }));
+
+    send(ws, {
+        type: ServerMsgType.LeaveStardockResult,
+        sector: currentSector,
+        warps: displayWarps,
+        players: playersInSector,
+        port,
+        visitedSectors,
+        sectorFighters,
+        planets: planetsRes.rows,
     });
 }
 
