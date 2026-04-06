@@ -1,12 +1,9 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { connectWS, closeWS, wsRequest, findPortSector, findPortSelling, findPortBuying, movePlayerTo } from './helpers.mjs';
 import { ensureServer, createPool } from './global-setup.mjs';
+import { ClientMsgType, ServerMsgType } from '@twnr/shared';
 
-const __filename = fileURLToPath(import.meta.url);
-const PROJECT_ROOT = join(dirname(__filename), '..');
 const UNIVERSE_ID = 1;
 
 let pool;
@@ -59,7 +56,7 @@ describe('Trading System', () => {
     const portSector = await findPortSector(wsConn);
     assert.ok(portSector, 'No ports found in any sector');
     const msg = portSector.port;
-    assert.equal(msg.type, 'portInfoResult');
+    assert.equal(msg.type, ServerMsgType.PortInfoResult);
     assert.equal(msg.sectorId, portSector.sectorId);
     assert.ok(typeof msg.class === 'number', 'class should be a number');
     assert.ok(msg.class >= 0 && msg.class <= 9, `class ${msg.class} out of range`);
@@ -76,28 +73,28 @@ describe('Trading System', () => {
     const { ws: wsConn } = await ws();
     let noPortSector = null;
     for (let i = 1; i <= 100; i++) {
-      const res = await wsRequest(wsConn, { type: 'portInfo', sectorId: i }, 'portInfoResult');
-      if (res.type === 'error') { noPortSector = i; break; }
+      const res = await wsRequest(wsConn, { type: ClientMsgType.PortInfo, sectorId: i }, ServerMsgType.PortInfoResult);
+      if (res.type === ServerMsgType.Error) { noPortSector = i; break; }
     }
     assert.ok(noPortSector, 'All sectors have ports — cannot test error');
-    const msg = await wsRequest(wsConn, { type: 'portInfo', sectorId: noPortSector }, 'portInfoResult');
-    assert.equal(msg.type, 'error');
+    const msg = await wsRequest(wsConn, { type: ClientMsgType.PortInfo, sectorId: noPortSector }, ServerMsgType.PortInfoResult);
+    assert.equal(msg.type, ServerMsgType.Error);
     assert.equal(msg.message, 'No port in this sector');
     await closeWS(wsConn);
   });
 
   it('port query returns error for invalid sector ID', async () => {
     const { ws: wsConn } = await ws();
-    const msg = await wsRequest(wsConn, { type: 'portInfo', sectorId: -1 }, 'portInfoResult');
-    assert.equal(msg.type, 'error');
+    const msg = await wsRequest(wsConn, { type: ClientMsgType.PortInfo, sectorId: -1 }, ServerMsgType.PortInfoResult);
+    assert.equal(msg.type, ServerMsgType.Error);
     assert.equal(msg.message, 'Invalid sector ID');
     await closeWS(wsConn);
   });
 
   it('cargo query returns cargo and credits', async () => {
     const { ws: wsConn, welcome } = await ws();
-    const msg = await wsRequest(wsConn, { type: 'cargoInfo' }, 'cargoInfoResult');
-    assert.equal(msg.type, 'cargoInfoResult');
+    const msg = await wsRequest(wsConn, { type: ClientMsgType.CargoInfo }, ServerMsgType.CargoInfoResult);
+    assert.equal(msg.type, ServerMsgType.CargoInfoResult);
     assert.equal(msg.playerId, welcome.playerId);
     assert.equal(msg.credits, 10000);
     assert.equal(msg.fuel, 0);
@@ -114,19 +111,19 @@ describe('Trading System', () => {
     const reached = await movePlayerTo(wsConn, portSector.sectorId);
     assert.ok(reached, `Could not reach port sector ${portSector.sectorId}`);
 
-    const portBefore = await wsRequest(wsConn, { type: 'portInfo', sectorId: portSector.sectorId }, 'portInfoResult');
+    const portBefore = await wsRequest(wsConn, { type: ClientMsgType.PortInfo, sectorId: portSector.sectorId }, ServerMsgType.PortInfoResult);
     const qty = 5;
     const msg = await wsRequest(wsConn, {
-      type: 'portTransaction',
+      type: ClientMsgType.PortTransaction,
       good: 'fuel',
       quantity: qty,
       action: 'buy',
-    }, 'portTransactionResult');
-    assert.equal(msg.type, 'portTransactionResult');
+    }, ServerMsgType.PortTransactionResult);
+    assert.equal(msg.type, ServerMsgType.PortTransactionResult);
     assert.equal(msg.credits, 10000 - qty * portBefore.fuelPrice);
     assert.equal(msg.cargo.fuel, qty);
 
-    const portAfter = await wsRequest(wsConn, { type: 'portInfo', sectorId: portSector.sectorId }, 'portInfoResult');
+    const portAfter = await wsRequest(wsConn, { type: ClientMsgType.PortInfo, sectorId: portSector.sectorId }, ServerMsgType.PortInfoResult);
     assert.equal(portAfter.fuel, portBefore.fuel - qty);
 
     await closeWS(wsConn);
@@ -143,19 +140,19 @@ describe('Trading System', () => {
     // Give the player organics directly so we don't need a separate buy port
     await pool.query('UPDATE ship_cargo SET organics = 10 WHERE player_id = $1', [welcome.playerId]);
 
-    const portBefore = await wsRequest(wsConn, { type: 'portInfo', sectorId: portSector.sectorId }, 'portInfoResult');
+    const portBefore = await wsRequest(wsConn, { type: ClientMsgType.PortInfo, sectorId: portSector.sectorId }, ServerMsgType.PortInfoResult);
     const price = portBefore.orgPrice;
     const msg = await wsRequest(wsConn, {
-      type: 'portTransaction',
+      type: ClientMsgType.PortTransaction,
       good: 'organics',
       quantity: 3,
       action: 'sell',
-    }, 'portTransactionResult');
-    assert.equal(msg.type, 'portTransactionResult');
+    }, ServerMsgType.PortTransactionResult);
+    assert.equal(msg.type, ServerMsgType.PortTransactionResult);
     assert.equal(msg.cargo.organics, 7); // had 10, sold 3
     assert.equal(msg.credits, 10000 + 3 * price);
 
-    const portAfter = await wsRequest(wsConn, { type: 'portInfo', sectorId: portSector.sectorId }, 'portInfoResult');
+    const portAfter = await wsRequest(wsConn, { type: ClientMsgType.PortInfo, sectorId: portSector.sectorId }, ServerMsgType.PortInfoResult);
     assert.equal(portAfter.organics, portBefore.organics + 3);
 
     await closeWS(wsConn);
@@ -173,12 +170,12 @@ describe('Trading System', () => {
     await pool.query('UPDATE ports SET fuel = 2000 WHERE sector_id = $1 AND universe_id = $2', [portSector.sectorId, UNIVERSE_ID]);
 
     const msg = await wsRequest(wsConn, {
-      type: 'portTransaction',
+      type: ClientMsgType.PortTransaction,
       good: 'fuel',
       quantity: 1001,
       action: 'buy',
-    }, 'portTransactionResult');
-    assert.equal(msg.type, 'error');
+    }, ServerMsgType.PortTransactionResult);
+    assert.equal(msg.type, ServerMsgType.Error);
     assert.equal(msg.message, 'Insufficient credits');
 
     await closeWS(wsConn);
@@ -195,16 +192,16 @@ describe('Trading System', () => {
     // Give player enough credits so we hit inventory check, not credits check
     await pool.query('UPDATE ship_cargo SET credits = 9999999 WHERE player_id = $1', [welcome.playerId]);
 
-    const portInfo = await wsRequest(wsConn, { type: 'portInfo', sectorId: portSector.sectorId }, 'portInfoResult');
+    const portInfo = await wsRequest(wsConn, { type: ClientMsgType.PortInfo, sectorId: portSector.sectorId }, ServerMsgType.PortInfoResult);
     const amount = portInfo.fuel + 1; // one more than available
 
     const msg = await wsRequest(wsConn, {
-      type: 'portTransaction',
+      type: ClientMsgType.PortTransaction,
       good: 'fuel',
       quantity: amount,
       action: 'buy',
-    }, 'portTransactionResult');
-    assert.equal(msg.type, 'error');
+    }, ServerMsgType.PortTransactionResult);
+    assert.equal(msg.type, ServerMsgType.Error);
     assert.equal(msg.message, 'Insufficient port inventory');
     await closeWS(wsConn);
   });
@@ -218,12 +215,12 @@ describe('Trading System', () => {
     assert.ok(reached);
 
     const msg = await wsRequest(wsConn, {
-      type: 'portTransaction',
+      type: ClientMsgType.PortTransaction,
       good: 'fuel',
       quantity: 1,
       action: 'sell',
-    }, 'portTransactionResult');
-    assert.equal(msg.type, 'error');
+    }, ServerMsgType.PortTransactionResult);
+    assert.equal(msg.type, ServerMsgType.Error);
     assert.equal(msg.message, 'Insufficient cargo');
 
     await closeWS(wsConn);
@@ -240,12 +237,12 @@ describe('Trading System', () => {
 
     // Try to BUY fuel from a port that only BUYS fuel
     const msg = await wsRequest(wsConn, {
-      type: 'portTransaction',
+      type: ClientMsgType.PortTransaction,
       good: 'fuel',
       quantity: 1,
       action: 'buy',
-    }, 'portTransactionResult');
-    assert.equal(msg.type, 'error');
+    }, ServerMsgType.PortTransactionResult);
+    assert.equal(msg.type, ServerMsgType.Error);
     assert.equal(msg.message, 'Port does not trade this commodity');
 
     await closeWS(wsConn);
@@ -255,21 +252,21 @@ describe('Trading System', () => {
     const { ws: wsConn } = await ws();
 
     const msg1 = await wsRequest(wsConn, {
-      type: 'portTransaction',
+      type: ClientMsgType.PortTransaction,
       good: 'unobtanium',
       quantity: 1,
       action: 'buy',
-    }, 'portTransactionResult');
-    assert.equal(msg1.type, 'error');
+    }, ServerMsgType.PortTransactionResult);
+    assert.equal(msg1.type, ServerMsgType.Error);
     assert.equal(msg1.message, 'Invalid good');
 
     const msg2 = await wsRequest(wsConn, {
-      type: 'portTransaction',
+      type: ClientMsgType.PortTransaction,
       good: 'fuel',
       quantity: 1,
       action: 'barter',
-    }, 'portTransactionResult');
-    assert.equal(msg2.type, 'error');
+    }, ServerMsgType.PortTransactionResult);
+    assert.equal(msg2.type, ServerMsgType.Error);
     assert.equal(msg2.message, 'Invalid action');
 
     await closeWS(wsConn);
@@ -279,8 +276,8 @@ describe('Trading System', () => {
     const { ws: wsConn } = await ws();
     let noPortSector = null;
     for (let i = 1; i <= 100; i++) {
-      const res = await wsRequest(wsConn, { type: 'portInfo', sectorId: i }, 'portInfoResult');
-      if (res.type === 'error') { noPortSector = i; break; }
+      const res = await wsRequest(wsConn, { type: ClientMsgType.PortInfo, sectorId: i }, ServerMsgType.PortInfoResult);
+      if (res.type === ServerMsgType.Error) { noPortSector = i; break; }
     }
     assert.ok(noPortSector, 'All sectors have ports');
 
@@ -288,12 +285,12 @@ describe('Trading System', () => {
     assert.ok(reached, `Could not reach sector ${noPortSector}`);
 
     const msg = await wsRequest(wsConn, {
-      type: 'portTransaction',
+      type: ClientMsgType.PortTransaction,
       good: 'fuel',
       quantity: 1,
       action: 'buy',
-    }, 'portTransactionResult');
-    assert.equal(msg.type, 'error');
+    }, ServerMsgType.PortTransactionResult);
+    assert.equal(msg.type, ServerMsgType.Error);
     assert.equal(msg.message, 'No port in this sector');
 
     await closeWS(wsConn);
@@ -322,20 +319,20 @@ describe('Trading System', () => {
     await movePlayerTo(ws1, sellingPort.sectorId);
     await movePlayerTo(ws2, sellingPort.sectorId);
 
-    const portBeforeTrade = await wsRequest(ws1, { type: 'portInfo', sectorId: sellingPort.sectorId }, 'portInfoResult');
+    const portBeforeTrade = await wsRequest(ws1, { type: ClientMsgType.PortInfo, sectorId: sellingPort.sectorId }, ServerMsgType.PortInfoResult);
     const availFuel = portBeforeTrade.fuel;
     const buyAmt = Math.floor(availFuel * 0.7);
 
     const [res1, res2] = await Promise.all([
-      wsRequest(ws1, { type: 'portTransaction', good: 'fuel', quantity: buyAmt, action: 'buy' }, 'portTransactionResult'),
-      wsRequest(ws2, { type: 'portTransaction', good: 'fuel', quantity: buyAmt, action: 'buy' }, 'portTransactionResult'),
+      wsRequest(ws1, { type: ClientMsgType.PortTransaction, good: 'fuel', quantity: buyAmt, action: 'buy' }, ServerMsgType.PortTransactionResult),
+      wsRequest(ws2, { type: ClientMsgType.PortTransaction, good: 'fuel', quantity: buyAmt, action: 'buy' }, ServerMsgType.PortTransactionResult),
     ]);
 
-    const portAfter = await wsRequest(ws1, { type: 'portInfo', sectorId: sellingPort.sectorId }, 'portInfoResult');
+    const portAfter = await wsRequest(ws1, { type: ClientMsgType.PortInfo, sectorId: sellingPort.sectorId }, ServerMsgType.PortInfoResult);
     assert.ok(portAfter.fuel >= 0, `Port fuel went negative: ${portAfter.fuel}`);
 
     if (buyAmt * 2 > availFuel) {
-      const successes = [res1, res2].filter(r => r.type === 'portTransactionResult').length;
+      const successes = [res1, res2].filter(r => r.type === ServerMsgType.PortTransactionResult).length;
       assert.ok(successes <= 1,
         `Both trades succeeded but combined quantity (${buyAmt * 2}) exceeds available (${availFuel})`);
     }

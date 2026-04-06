@@ -5,6 +5,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { connectWS as _connectWS, closeWS, wsRequest } from './helpers.mjs';
 import { ensureServer, createPool } from './global-setup.mjs';
+import { ClientMsgType, ServerMsgType } from '@twnr/shared';
 
 const __filename = fileURLToPath(import.meta.url);
 const PROJECT_ROOT = join(dirname(__filename), '..');
@@ -37,8 +38,8 @@ describe('Buy shields — validation', () => {
   it('returns "Invalid quantity" for quantity 0', async () => {
     const { ws } = await connectWS();
     try {
-      const msg = await wsRequest(ws, { type: 'buyShields', quantity: 0 }, 'buyShieldsResult');
-      assert.equal(msg.type, 'error');
+      const msg = await wsRequest(ws, { type: ClientMsgType.BuyShields, quantity: 0 }, ServerMsgType.BuyShieldsResult);
+      assert.equal(msg.type, ServerMsgType.Error);
       assert.equal(msg.message, 'Invalid quantity');
     } finally {
       await closeWS(ws);
@@ -48,8 +49,8 @@ describe('Buy shields — validation', () => {
   it('returns "Invalid quantity" for negative quantity', async () => {
     const { ws } = await connectWS();
     try {
-      const msg = await wsRequest(ws, { type: 'buyShields', quantity: -1 }, 'buyShieldsResult');
-      assert.equal(msg.type, 'error');
+      const msg = await wsRequest(ws, { type: ClientMsgType.BuyShields, quantity: -1 }, ServerMsgType.BuyShieldsResult);
+      assert.equal(msg.type, ServerMsgType.Error);
       assert.equal(msg.message, 'Invalid quantity');
     } finally {
       await closeWS(ws);
@@ -59,8 +60,8 @@ describe('Buy shields — validation', () => {
   it('returns "Invalid quantity" for a float quantity', async () => {
     const { ws } = await connectWS();
     try {
-      const msg = await wsRequest(ws, { type: 'buyShields', quantity: 2.9 }, 'buyShieldsResult');
-      assert.equal(msg.type, 'error');
+      const msg = await wsRequest(ws, { type: ClientMsgType.BuyShields, quantity: 2.9 }, ServerMsgType.BuyShieldsResult);
+      assert.equal(msg.type, ServerMsgType.Error);
       assert.equal(msg.message, 'Invalid quantity');
     } finally {
       await closeWS(ws);
@@ -76,8 +77,8 @@ describe('Buy shields — validation', () => {
     const playerId = welcome.playerId;
     try {
       await pool.query('UPDATE players SET current_sector = $1 WHERE id = $2', [otherSector, playerId]);
-      const msg = await wsRequest(ws, { type: 'buyShields', quantity: 1 }, 'buyShieldsResult');
-      assert.equal(msg.type, 'error');
+      const msg = await wsRequest(ws, { type: ClientMsgType.BuyShields, quantity: 1 }, ServerMsgType.BuyShieldsResult);
+      assert.equal(msg.type, ServerMsgType.Error);
       assert.equal(msg.message, 'Not at a class 0 port');
     } finally {
       await closeWS(ws);
@@ -87,8 +88,8 @@ describe('Buy shields — validation', () => {
   it('returns "Exceeds maximum" when shields + quantity > maxShields', async () => {
     const { ws } = await connectWS();
     try {
-      const msg = await wsRequest(ws, { type: 'buyShields', quantity: merchantCfg.maxShields + 1 }, 'buyShieldsResult');
-      assert.equal(msg.type, 'error');
+      const msg = await wsRequest(ws, { type: ClientMsgType.BuyShields, quantity: merchantCfg.maxShields + 1 }, ServerMsgType.BuyShieldsResult);
+      assert.equal(msg.type, ServerMsgType.Error);
       assert.equal(msg.message, 'Exceeds maximum');
     } finally {
       await closeWS(ws);
@@ -100,8 +101,8 @@ describe('Buy shields — validation', () => {
     const playerId = welcome.playerId;
     try {
       await pool.query('UPDATE ship_cargo SET credits = 0 WHERE player_id = $1', [playerId]);
-      const msg = await wsRequest(ws, { type: 'buyShields', quantity: 1 }, 'buyShieldsResult');
-      assert.equal(msg.type, 'error');
+      const msg = await wsRequest(ws, { type: ClientMsgType.BuyShields, quantity: 1 }, ServerMsgType.BuyShieldsResult);
+      assert.equal(msg.type, ServerMsgType.Error);
       assert.equal(msg.message, 'Insufficient credits');
     } finally {
       await closeWS(ws);

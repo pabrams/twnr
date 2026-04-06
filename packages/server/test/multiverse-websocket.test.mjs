@@ -2,10 +2,9 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import jwt from 'jsonwebtoken';
-import pg from 'pg';
 import { ensureServer, createPool as _gsCreatePool } from './global-setup.mjs';
+import { ClientMsgType, ServerMsgType } from '@twnr/shared';
 
-const { Pool } = pg;
 const JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret';
 const BASE = 'http://localhost:3000';
 
@@ -43,7 +42,7 @@ async function connectWS(token, universeId) {
 
     ws.on('message', (data) => {
       const msg = JSON.parse(data.toString());
-      if (msg.type === 'welcome') {
+      if (msg.type === ServerMsgType.Welcome) {
         clearTimeout(timer);
         resolve({ ws, welcome: msg });
       }
@@ -70,7 +69,7 @@ function wsRequest(ws, msg, responseType, timeout = 5000) {
     const timer = setTimeout(() => reject(new Error(`Timeout waiting for "${responseType}"`)), timeout);
     function handler(data) {
       const parsed = JSON.parse(data.toString());
-      if (parsed.type === responseType || parsed.type === 'error') {
+      if (parsed.type === responseType || parsed.type === ServerMsgType.Error) {
         clearTimeout(timer);
         ws.removeListener('message', handler);
         resolve(parsed);
@@ -151,7 +150,7 @@ describe('WebSocket universe scoping', () => {
 
     const { ws, welcome } = await connectWS(reg.token, univ.body.universeId);
     assert.ok(welcome, 'Should receive welcome message');
-    assert.equal(welcome.type, 'welcome');
+    assert.equal(welcome.type, ServerMsgType.Welcome);
     await closeWS(ws);
   });
 
@@ -218,8 +217,8 @@ describe('WebSocket universe scoping', () => {
 
     // Connect to universe A and check warps
     const { ws: wsA } = await connectWS(reg.token, univA.body.universeId);
-    const dispA = await wsRequest(wsA, { type: 'sectorDisplay' }, 'sectorDisplayResult');
-    assert.equal(dispA.type, 'sectorDisplayResult');
+    const dispA = await wsRequest(wsA, { type: ClientMsgType.SectorDisplay }, ServerMsgType.SectorDisplayResult);
+    assert.equal(dispA.type, ServerMsgType.SectorDisplayResult);
     assert.equal(dispA.sector, 1, 'Should be in sector 1');
     // Universe A has sector 2 as a warp from sector 1
     assert.ok(dispA.warps.includes(2), 'Universe A sector 1 should have warp to sector 2');
@@ -227,8 +226,8 @@ describe('WebSocket universe scoping', () => {
 
     // Connect to universe B and verify it sees universe B's warps, not A's
     const { ws: wsB } = await connectWS(reg.token, univB.body.universeId);
-    const dispB = await wsRequest(wsB, { type: 'sectorDisplay' }, 'sectorDisplayResult');
-    assert.equal(dispB.type, 'sectorDisplayResult');
+    const dispB = await wsRequest(wsB, { type: ClientMsgType.SectorDisplay }, ServerMsgType.SectorDisplayResult);
+    assert.equal(dispB.type, ServerMsgType.SectorDisplayResult);
     assert.equal(dispB.sector, 1);
     // Universe B has sectors 1-3, so sector 1 should NOT have warp to sector 4 or 5
     for (const w of dispB.warps) {
@@ -268,17 +267,17 @@ describe('WebSocket universe scoping', () => {
     ws3.on('message', (data) => ws3Messages.push(JSON.parse(data.toString())));
 
     // user1 moves from sector 1 to sector 2 in universe A
-    await wsRequest(ws1, { type: 'move', sector: 2 }, 'moveResult');
+    await wsRequest(ws1, { type: ClientMsgType.Move, sector: 2 }, ServerMsgType.MoveResult);
 
     // Give time for broadcasts to propagate
     await new Promise((resolve) => setTimeout(resolve, 500));
 
     // ws2 (same universe, was in same sector) should have received a broadcast
-    const ws2Relevant = ws2Messages.filter(m => m.type === 'playerLeft' || m.type === 'playerMoved');
+    const ws2Relevant = ws2Messages.filter(m => m.type === ServerMsgType.PlayerLeft || m.type === ServerMsgType.PlayerMoved);
     assert.ok(ws2Relevant.length > 0, 'Player in same universe+sector should receive movement broadcast');
 
     // ws3 (different universe) should NOT have received any movement broadcast
-    const ws3Relevant = ws3Messages.filter(m => m.type === 'playerLeft' || m.type === 'playerMoved');
+    const ws3Relevant = ws3Messages.filter(m => m.type === ServerMsgType.PlayerLeft || m.type === ServerMsgType.PlayerMoved);
     assert.equal(ws3Relevant.length, 0, 'Player in different universe should NOT receive movement broadcast');
 
     await closeWS(ws1);

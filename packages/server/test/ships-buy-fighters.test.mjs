@@ -5,6 +5,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { connectWS as _connectWS, closeWS, wsRequest } from './helpers.mjs';
 import { ensureServer, createPool } from './global-setup.mjs';
+import { ClientMsgType, ServerMsgType } from '@twnr/shared';
 
 const __filename = fileURLToPath(import.meta.url);
 const PROJECT_ROOT = join(dirname(__filename), '..');
@@ -43,8 +44,8 @@ describe('Buy fighters — validation', () => {
     const playerId = welcome.playerId;
     try {
       await pool.query('UPDATE players SET current_sector = $1 WHERE id = $2', [otherSector, playerId]);
-      const msg = await wsRequest(ws, { type: 'buyFighters', quantity: 1 }, 'buyFightersResult');
-      assert.equal(msg.type, 'error');
+      const msg = await wsRequest(ws, { type: ClientMsgType.BuyFighters, quantity: 1 }, ServerMsgType.BuyFightersResult);
+      assert.equal(msg.type, ServerMsgType.Error);
       assert.equal(msg.message, 'Not at a class 0 port');
     } finally {
       await closeWS(ws);
@@ -54,8 +55,8 @@ describe('Buy fighters — validation', () => {
   it('returns "Invalid quantity" for quantity 0', async () => {
     const { ws } = await connectWS();
     try {
-      const msg = await wsRequest(ws, { type: 'buyFighters', quantity: 0 }, 'buyFightersResult');
-      assert.equal(msg.type, 'error');
+      const msg = await wsRequest(ws, { type: ClientMsgType.BuyFighters, quantity: 0 }, ServerMsgType.BuyFightersResult);
+      assert.equal(msg.type, ServerMsgType.Error);
       assert.equal(msg.message, 'Invalid quantity');
     } finally {
       await closeWS(ws);
@@ -65,8 +66,8 @@ describe('Buy fighters — validation', () => {
   it('returns "Invalid quantity" for negative quantity', async () => {
     const { ws } = await connectWS();
     try {
-      const msg = await wsRequest(ws, { type: 'buyFighters', quantity: -1 }, 'buyFightersResult');
-      assert.equal(msg.type, 'error');
+      const msg = await wsRequest(ws, { type: ClientMsgType.BuyFighters, quantity: -1 }, ServerMsgType.BuyFightersResult);
+      assert.equal(msg.type, ServerMsgType.Error);
       assert.equal(msg.message, 'Invalid quantity');
     } finally {
       await closeWS(ws);
@@ -76,8 +77,8 @@ describe('Buy fighters — validation', () => {
   it('returns "Invalid quantity" for a float quantity', async () => {
     const { ws } = await connectWS();
     try {
-      const msg = await wsRequest(ws, { type: 'buyFighters', quantity: 1.5 }, 'buyFightersResult');
-      assert.equal(msg.type, 'error');
+      const msg = await wsRequest(ws, { type: ClientMsgType.BuyFighters, quantity: 1.5 }, ServerMsgType.BuyFightersResult);
+      assert.equal(msg.type, ServerMsgType.Error);
       assert.equal(msg.message, 'Invalid quantity');
     } finally {
       await closeWS(ws);
@@ -87,8 +88,8 @@ describe('Buy fighters — validation', () => {
   it('returns "Exceeds maximum" when fighters + quantity > maxFighters', async () => {
     const { ws } = await connectWS();
     try {
-      const msg = await wsRequest(ws, { type: 'buyFighters', quantity: merchantCfg.maxFighters + 1 }, 'buyFightersResult');
-      assert.equal(msg.type, 'error');
+      const msg = await wsRequest(ws, { type: ClientMsgType.BuyFighters, quantity: merchantCfg.maxFighters + 1 }, ServerMsgType.BuyFightersResult);
+      assert.equal(msg.type, ServerMsgType.Error);
       assert.equal(msg.message, 'Exceeds maximum');
     } finally {
       await closeWS(ws);
@@ -100,8 +101,8 @@ describe('Buy fighters — validation', () => {
     const playerId = welcome.playerId;
     try {
       await pool.query('UPDATE ship_cargo SET credits = 0 WHERE player_id = $1', [playerId]);
-      const msg = await wsRequest(ws, { type: 'buyFighters', quantity: 1 }, 'buyFightersResult');
-      assert.equal(msg.type, 'error');
+      const msg = await wsRequest(ws, { type: ClientMsgType.BuyFighters, quantity: 1 }, ServerMsgType.BuyFightersResult);
+      assert.equal(msg.type, ServerMsgType.Error);
       assert.equal(msg.message, 'Insufficient credits');
     } finally {
       await closeWS(ws);

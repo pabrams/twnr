@@ -2,6 +2,7 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createTestUser, createTestPlayer } from './helpers.mjs';
 import { ensureServer, createPool } from './global-setup.mjs';
+import { ClientMsgType, ServerMsgType } from '@twnr/shared';
 
 const UNIVERSE_ID = 1;
 
@@ -76,7 +77,7 @@ describe('Rate Limiting', () => {
         const timer = setTimeout(() => { conn.terminate(); reject(new Error('WS connect timeout')); }, 5000);
         conn.on('message', (data) => {
           const msg = JSON.parse(data.toString());
-          if (msg.type === 'welcome') { clearTimeout(timer); resolve(conn); }
+          if (msg.type === ServerMsgType.Welcome) { clearTimeout(timer); resolve(conn); }
         });
         conn.on('error', (err) => { clearTimeout(timer); reject(err); });
       });
@@ -86,14 +87,14 @@ describe('Rate Limiting', () => {
 
       // Send 55 display messages rapidly — burst cap is 50, so last 5 should be rate limited
       for (let i = 0; i < 55; i++) {
-        ws.send(JSON.stringify({ type: 'sectorDisplay' }));
+        ws.send(JSON.stringify({ type: ClientMsgType.SectorDisplay }));
       }
 
       // Wait for responses to settle
       await new Promise((resolve) => setTimeout(resolve, 1500));
       ws.close();
 
-      const rateLimited = responses.some((r) => r.type === 'rateLimited');
+      const rateLimited = responses.some((r) => r.type === ServerMsgType.RateLimited);
       assert.ok(rateLimited, `Expected a rateLimited message after 55 rapid messages, got: ${JSON.stringify(responses.map(r => r.type))}`);
     });
   });

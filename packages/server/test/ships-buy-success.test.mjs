@@ -5,6 +5,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { connectWS as _connectWS, closeWS, wsRequest } from './helpers.mjs';
 import { ensureServer, createPool } from './global-setup.mjs';
+import { ClientMsgType, ServerMsgType } from '@twnr/shared';
 
 const __filename = fileURLToPath(import.meta.url);
 const PROJECT_ROOT = join(dirname(__filename), '..');
@@ -18,12 +19,12 @@ const HOLD_PRICE    = 50;
 const UNIVERSE_ID = 1;
 
 async function navigateTo(ws, targetSector) {
-  const disp = await wsRequest(ws, { type: 'sectorDisplay' }, 'sectorDisplayResult');
+  const disp = await wsRequest(ws, { type: ClientMsgType.SectorDisplay }, ServerMsgType.SectorDisplayResult);
   if (disp.sector === targetSector) return;
-  const path = await wsRequest(ws, { type: 'path', from: disp.sector, to: targetSector }, 'shortestPathResult');
-  if (path.type === 'error') throw new Error(`No path to ${targetSector}`);
+  const path = await wsRequest(ws, { type: ClientMsgType.ShortestPath, from: disp.sector, to: targetSector }, ServerMsgType.ShortestPathResult);
+  if (path.type === ServerMsgType.Error) throw new Error(`No path to ${targetSector}`);
   for (let i = 1; i < path.path.length; i++) {
-    await wsRequest(ws, { type: 'move', sector: path.path[i] }, 'moveResult');
+    await wsRequest(ws, { type: ClientMsgType.Move, sector: path.path[i] }, ServerMsgType.MoveResult);
   }
 }
 
@@ -58,8 +59,8 @@ describe('Buy equipment — success', () => {
     const { ws } = await connectWS();
     const qty = 3;
     try {
-      const msg = await wsRequest(ws, { type: 'buyFighters', quantity: qty }, 'buyFightersResult');
-      assert.equal(msg.type, 'buyFightersResult');
+      const msg = await wsRequest(ws, { type: ClientMsgType.BuyFighters, quantity: qty }, ServerMsgType.BuyFightersResult);
+      assert.equal(msg.type, ServerMsgType.BuyFightersResult);
       assert.equal(msg.fighters, qty);
       assert.equal(msg.credits, STARTING_CREDITS - qty * FIGHTER_PRICE);
     } finally {
@@ -71,8 +72,8 @@ describe('Buy equipment — success', () => {
     const { ws } = await connectWS();
     const qty = 5;
     try {
-      const msg = await wsRequest(ws, { type: 'buyShields', quantity: qty }, 'buyShieldsResult');
-      assert.equal(msg.type, 'buyShieldsResult');
+      const msg = await wsRequest(ws, { type: ClientMsgType.BuyShields, quantity: qty }, ServerMsgType.BuyShieldsResult);
+      assert.equal(msg.type, ServerMsgType.BuyShieldsResult);
       assert.equal(msg.shields, qty);
       assert.equal(msg.credits, STARTING_CREDITS - qty * SHIELD_PRICE);
     } finally {
@@ -84,8 +85,8 @@ describe('Buy equipment — success', () => {
     const { ws } = await connectWS();
     const qty = 3;
     try {
-      const msg = await wsRequest(ws, { type: 'buyHolds', quantity: qty }, 'buyHoldsResult');
-      assert.equal(msg.type, 'buyHoldsResult');
+      const msg = await wsRequest(ws, { type: ClientMsgType.BuyHolds, quantity: qty }, ServerMsgType.BuyHoldsResult);
+      assert.equal(msg.type, ServerMsgType.BuyHoldsResult);
       assert.equal(msg.cargoLimit, merchantCfg.startingHolds + qty);
       assert.equal(msg.credits, STARTING_CREDITS - qty * HOLD_PRICE);
     } finally {
@@ -98,10 +99,10 @@ describe('Buy equipment — success', () => {
     const firstBuy = merchantCfg.maxFighters - 2;
     try {
       // Buy maxFighters-2 fighters first
-      await wsRequest(ws, { type: 'buyFighters', quantity: firstBuy }, 'buyFightersResult');
+      await wsRequest(ws, { type: ClientMsgType.BuyFighters, quantity: firstBuy }, ServerMsgType.BuyFightersResult);
       // Then try to buy 3 more — would exceed cap by 1
-      const msg = await wsRequest(ws, { type: 'buyFighters', quantity: 3 }, 'buyFightersResult');
-      assert.equal(msg.type, 'error');
+      const msg = await wsRequest(ws, { type: ClientMsgType.BuyFighters, quantity: 3 }, ServerMsgType.BuyFightersResult);
+      assert.equal(msg.type, ServerMsgType.Error);
       assert.equal(msg.message, 'Exceeds maximum');
     } finally {
       await closeWS(ws);
@@ -112,9 +113,9 @@ describe('Buy equipment — success', () => {
     const { ws } = await connectWS();
     const firstBuy = merchantCfg.maxShields - 2;
     try {
-      await wsRequest(ws, { type: 'buyShields', quantity: firstBuy }, 'buyShieldsResult');
-      const msg = await wsRequest(ws, { type: 'buyShields', quantity: 3 }, 'buyShieldsResult');
-      assert.equal(msg.type, 'error');
+      await wsRequest(ws, { type: ClientMsgType.BuyShields, quantity: firstBuy }, ServerMsgType.BuyShieldsResult);
+      const msg = await wsRequest(ws, { type: ClientMsgType.BuyShields, quantity: 3 }, ServerMsgType.BuyShieldsResult);
+      assert.equal(msg.type, ServerMsgType.Error);
       assert.equal(msg.message, 'Exceeds maximum');
     } finally {
       await closeWS(ws);
@@ -130,16 +131,16 @@ describe('Buy equipment — success', () => {
     try {
       // Exchange to Warbird at Stardock (navigate there first)
       await navigateTo(ws, stardockId);
-      const exchMsg = await wsRequest(ws, { type: 'shipExchange', targetShipName: warbirdCfg.name }, 'buyShipTradeinResult');
-      assert.equal(exchMsg.type, 'buyShipTradeinResult');
+      const exchMsg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: warbirdCfg.name }, ServerMsgType.BuyShipTradeinResult);
+      assert.equal(exchMsg.type, ServerMsgType.BuyShipTradeinResult);
 
       // Teleport to sector 1 (class 0 port) via DB — buyHolds reads current_sector from DB
       await pool.query('UPDATE players SET current_sector = 1 WHERE id = $1', [welcome.playerId]);
 
       // Trying to buy maxHolds - startingHolds + 1 holds should fail
       const overLimit = warbirdCfg.maxHolds - warbirdCfg.startingHolds + 1;
-      const msg = await wsRequest(ws, { type: 'buyHolds', quantity: overLimit }, 'buyHoldsResult');
-      assert.equal(msg.type, 'error');
+      const msg = await wsRequest(ws, { type: ClientMsgType.BuyHolds, quantity: overLimit }, ServerMsgType.BuyHoldsResult);
+      assert.equal(msg.type, ServerMsgType.Error);
       assert.equal(msg.message, 'Exceeds maximum');
     } finally {
       await closeWS(ws);
@@ -150,8 +151,8 @@ describe('Buy equipment — success', () => {
     const { ws } = await connectWS();
     try {
       // one more than the room available
-      const msg = await wsRequest(ws, { type: 'buyHolds', quantity: merchantCfg.maxHolds - merchantCfg.startingHolds + 1 }, 'buyHoldsResult');
-      assert.equal(msg.type, 'error');
+      const msg = await wsRequest(ws, { type: ClientMsgType.BuyHolds, quantity: merchantCfg.maxHolds - merchantCfg.startingHolds + 1 }, ServerMsgType.BuyHoldsResult);
+      assert.equal(msg.type, ServerMsgType.Error);
       assert.equal(msg.message, 'Exceeds maximum');
     } finally {
       await closeWS(ws);
@@ -162,8 +163,8 @@ describe('Buy equipment — success', () => {
     const { ws } = await connectWS();
     try {
       const qty = merchantCfg.maxHolds - merchantCfg.startingHolds;
-      const msg = await wsRequest(ws, { type: 'buyHolds', quantity: qty }, 'buyHoldsResult');
-      assert.equal(msg.type, 'buyHoldsResult', 'buying exactly up to maxHolds should succeed');
+      const msg = await wsRequest(ws, { type: ClientMsgType.BuyHolds, quantity: qty }, ServerMsgType.BuyHoldsResult);
+      assert.equal(msg.type, ServerMsgType.BuyHoldsResult, 'buying exactly up to maxHolds should succeed');
       assert.equal(msg.cargoLimit, merchantCfg.maxHolds);
     } finally {
       await closeWS(ws);
@@ -181,8 +182,8 @@ describe('Buy equipment — success', () => {
       await pool.query('UPDATE ship_cargo SET fuel = 2, organics = 2 WHERE player_id = $1', [playerId]);
       await navigateTo(ws, fuelSector);
       // Buying 2 more fuel: 2+2+2 = 6 > cargoLimit(5) — should fail
-      const msg = await wsRequest(ws, { type: 'portTransaction', good: 'fuel', quantity: 2, action: 'buy' }, 'portTransactionResult');
-      assert.equal(msg.type, 'error');
+      const msg = await wsRequest(ws, { type: ClientMsgType.PortTransaction, good: 'fuel', quantity: 2, action: 'buy' }, ServerMsgType.PortTransactionResult);
+      assert.equal(msg.type, ServerMsgType.Error);
       assert.equal(msg.message, 'Insufficient cargo holds');
     } finally {
       await closeWS(ws);
@@ -200,13 +201,13 @@ describe('Buy equipment — success', () => {
     try {
       // Navigate to Stardock and exchange to Warbird (startingHolds=1)
       await navigateTo(ws, stardockId);
-      const exchMsg = await wsRequest(ws, { type: 'shipExchange', targetShipName: warbirdCfg.name }, 'buyShipTradeinResult');
-      assert.equal(exchMsg.type, 'buyShipTradeinResult');
+      const exchMsg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: warbirdCfg.name }, ServerMsgType.BuyShipTradeinResult);
+      assert.equal(exchMsg.type, ServerMsgType.BuyShipTradeinResult);
 
       // Navigate to fuel port and try to buy 2 fuel — exceeds new cargoLimit of 1
       await navigateTo(ws, fuelSector);
-      const msg = await wsRequest(ws, { type: 'portTransaction', good: 'fuel', quantity: 2, action: 'buy' }, 'portTransactionResult');
-      assert.equal(msg.type, 'error');
+      const msg = await wsRequest(ws, { type: ClientMsgType.PortTransaction, good: 'fuel', quantity: 2, action: 'buy' }, ServerMsgType.PortTransactionResult);
+      assert.equal(msg.type, ServerMsgType.Error);
       assert.equal(msg.message, 'Insufficient cargo holds');
     } finally {
       await closeWS(ws);
@@ -221,13 +222,13 @@ describe('Buy equipment — success', () => {
     const { ws } = await connectWS();
     try {
       // Buy 3 holds → cargo_limit becomes 8
-      const buyMsg = await wsRequest(ws, { type: 'buyHolds', quantity: 3 }, 'buyHoldsResult');
-      assert.equal(buyMsg.type, 'buyHoldsResult');
+      const buyMsg = await wsRequest(ws, { type: ClientMsgType.BuyHolds, quantity: 3 }, ServerMsgType.BuyHoldsResult);
+      assert.equal(buyMsg.type, ServerMsgType.BuyHoldsResult);
 
       // Navigate to fuel seller and buy 8 units (should succeed now)
       await navigateTo(ws, fuelSector);
-      const msg = await wsRequest(ws, { type: 'portTransaction', good: 'fuel', quantity: 8, action: 'buy' }, 'portTransactionResult');
-      assert.equal(msg.type, 'portTransactionResult', 'should be able to buy 8 fuel after buying 3 extra holds');
+      const msg = await wsRequest(ws, { type: ClientMsgType.PortTransaction, good: 'fuel', quantity: 8, action: 'buy' }, ServerMsgType.PortTransactionResult);
+      assert.equal(msg.type, ServerMsgType.PortTransactionResult, 'should be able to buy 8 fuel after buying 3 extra holds');
     } finally {
       await closeWS(ws);
     }

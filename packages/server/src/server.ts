@@ -174,7 +174,6 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
 
         ws.on('close', () => {
             clearInterval(refillInterval);
-            console.log(`${playerId} disconnected.`);
             const lastSector = players[playerId]?.sector;
             const lastUniverse = players[playerId]?.universeId;
             delete players[playerId];

@@ -440,11 +440,6 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 break;
         }
     });
-
-    ws.addEventListener('close', () => {
-        ctx.term.writeln(`\r\n${colors.boldRed('Disconnected.')}`);
-    });
-
     ws.addEventListener('error', () => {
         ctx.term.writeln(`\r\n${colors.boldRed('Connection error.')}`);
     });
