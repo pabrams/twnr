@@ -39,8 +39,8 @@ describe('Combat resolution', () => {
     const { ws: ws1 } = await connectPlayer(atk.token);
     const { ws: ws2 } = await connectPlayer(def.token);
     try {
-      const res = await wsRequest(ws1, { type: 'attack', targetPlayerId: def.id, fighters: 3 }, 'attackResult');
-      assert.equal(res.type, 'attackResult');
+      const res = await wsRequest(ws1, { type: 'attack', targetPlayerId: def.id, fighters: 3 }, 'attackShipResult');
+      assert.equal(res.type, 'attackShipResult');
 
       const atkShip = await pool.query('SELECT fighters FROM player_ships WHERE player_id = $1', [atk.id]);
       assert.equal(atkShip.rows[0].fighters, 7, 'Attacker should have 7 fighters remaining');
@@ -59,8 +59,8 @@ describe('Combat resolution', () => {
     const { ws: ws1 } = await connectPlayer(atk.token);
     const { ws: ws2 } = await connectPlayer(def.token);
     try {
-      const res = await wsRequest(ws1, { type: 'attack', targetPlayerId: def.id, fighters: 4 }, 'attackResult');
-      assert.equal(res.type, 'attackResult');
+      const res = await wsRequest(ws1, { type: 'attack', targetPlayerId: def.id, fighters: 4 }, 'attackShipResult');
+      assert.equal(res.type, 'attackShipResult');
 
       const atkShip = await pool.query('SELECT fighters FROM player_ships WHERE player_id = $1', [atk.id]);
       assert.equal(atkShip.rows[0].fighters, 6, 'Attacker should have 6 fighters remaining');
@@ -79,8 +79,8 @@ describe('Combat resolution', () => {
     const { ws: ws1 } = await connectPlayer(atk.token);
     const { ws: ws2 } = await connectPlayer(def.token);
     try {
-      const res = await wsRequest(ws1, { type: 'attack', targetPlayerId: def.id, fighters: 5 }, 'attackResult');
-      assert.equal(res.type, 'attackResult');
+      const res = await wsRequest(ws1, { type: 'attack', targetPlayerId: def.id, fighters: 5 }, 'attackShipResult');
+      assert.equal(res.type, 'attackShipResult');
 
       const atkShip = await pool.query('SELECT fighters FROM player_ships WHERE player_id = $1', [atk.id]);
       assert.equal(atkShip.rows[0].fighters, 5, 'Attacker should have 5 fighters remaining');
@@ -104,8 +104,8 @@ describe('Ship destruction', () => {
     const { ws: ws1 } = await connectPlayer(atk.token);
     const { ws: ws2 } = await connectPlayer(def.token);
     try {
-      const res = await wsRequest(ws1, { type: 'attack', targetPlayerId: def.id, fighters: 5 }, 'attackResult');
-      assert.equal(res.type, 'attackResult');
+      const res = await wsRequest(ws1, { type: 'attack', targetPlayerId: def.id, fighters: 5 }, 'attackShipResult');
+      assert.equal(res.type, 'attackShipResult');
 
       const atkShip = await pool.query('SELECT fighters FROM player_ships WHERE player_id = $1', [atk.id]);
       assert.equal(atkShip.rows[0].fighters, 8, 'Attacker should have 8 fighters remaining');
@@ -129,8 +129,8 @@ describe('Ship destruction', () => {
     const { ws: ws1 } = await connectPlayer(atk.token);
     const { ws: ws2 } = await connectPlayer(def.token);
     try {
-      const res = await wsRequest(ws1, { type: 'attack', targetPlayerId: def.id, fighters: 1 }, 'attackResult');
-      assert.equal(res.type, 'attackResult');
+      const res = await wsRequest(ws1, { type: 'attack', targetPlayerId: def.id, fighters: 1 }, 'attackShipResult');
+      assert.equal(res.type, 'attackShipResult');
 
       const atkShip = await pool.query('SELECT fighters FROM player_ships WHERE player_id = $1', [atk.id]);
       assert.equal(atkShip.rows[0].fighters, 5, 'Attacker should still have 5 fighters');

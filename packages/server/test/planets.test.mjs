@@ -109,7 +109,7 @@ async function createTestPlayer(universeId) {
   // Navigate to a sector, handling fighter encounters along the way
   async function navigateTo(targetSector, fromSector) {
     sendMsg({ type: 'path', from: fromSector, to: targetSector });
-    const pathMsg = await waitForMessage('pathResult');
+    const pathMsg = await waitForMessage('shortestPathResult');
     for (const sector of pathMsg.path.slice(1)) {
       sendMsg({ type: 'move', sector });
       // Drain messages until we get moveResult success, handling fighter encounters
@@ -622,31 +622,31 @@ describe('shared TypeScript types', () => {
     assert.ok(block.includes('planet'), 'SectorDisplayData should include a planets field');
   });
 
-  it('ShipInfoMessage type includes planet buster and terraform device fields', () => {
-    const match = serverMsgContent.match(/(?:type|interface)\s+ShipInfoMessage\b[\s\S]*?(?=\nexport\s|\n\/\/\s*=|$)/);
-    assert.ok(match, 'ShipInfoMessage type definition not found');
+  it('ShipInfoResultObject type includes planet buster and terraform device fields', () => {
+    const match = serverMsgContent.match(/(?:type|interface)\s+ShipInfoResultObject\b[\s\S]*?(?=\nexport\s|\n\/\/\s*=|$)/);
+    assert.ok(match, 'ShipInfoResultObject type definition not found');
     const block = match[0].toLowerCase();
     assert.ok(
       block.includes('maxplanetbusters') || block.includes('max_planet_busters'),
-      'ShipInfoMessage should include maxPlanetBusters',
+      'ShipInfoResultObject should include maxPlanetBusters',
     );
     assert.ok(
       block.includes('maxterraformdevices') || block.includes('max_terraform_devices'),
-      'ShipInfoMessage should include maxTerraformDevices',
+      'ShipInfoResultObject should include maxTerraformDevices',
     );
     assert.ok(
       block.includes('planetbusters') || block.includes('planet_busters'),
-      'ShipInfoMessage should include planetBusters (current count)',
+      'ShipInfoResultObject should include planetBusters (current count)',
     );
     assert.ok(
       block.includes('terraformdevices') || block.includes('terraform_devices'),
-      'ShipInfoMessage should include terraformDevices (current count)',
+      'ShipInfoResultObject should include terraformDevices (current count)',
     );
   });
 
   it('ServerMsgType has new planet-related message types', () => {
     const lower = msgContent.toLowerCase();
-    const requiredServerTypes = ['terraformresult', 'planetlist', 'planetdisplayresult', 'destroyplanetresult', 'buyplanetbustersresult', 'buyterraformdevicesresult', 'stardockmenu'];
+    const requiredServerTypes = ['useterraformdeviceresult', 'landresult', 'planetdisplayresult', 'destroyplanetresult', 'buyplanetbustersresult', 'buyterraformdevicesresult', 'dockstardockresult'];
     for (const typeName of requiredServerTypes) {
       assert.ok(lower.includes(typeName), `ServerMsgType missing ${typeName}`);
     }
@@ -662,13 +662,13 @@ describe('shared TypeScript types', () => {
 
   it('server message type definitions exist for new types', () => {
     const lower = serverMsgContent.toLowerCase();
-    assert.ok(lower.includes('terraformresult'), 'TerraformResult type definition missing');
-    assert.ok(lower.includes('planetlist'), 'PlanetList type definition missing');
-    assert.ok(lower.includes('planetdisplayresult'), 'PlanetDisplayResult type definition missing');
-    assert.ok(lower.includes('destroyplanetresult'), 'DestroyPlanetResult type definition missing');
-    assert.ok(lower.includes('buyplanetbustersresult'), 'BuyPlanetBustersResult type definition missing');
-    assert.ok(lower.includes('buyterraformdevicesresult'), 'BuyTerraformDevicesResult type definition missing');
-    assert.ok(lower.includes('stardockmenu'), 'StardockMenu type definition missing');
+    assert.ok(lower.includes('useterraformdeviceresultobject'), 'UseTerraformDeviceResultObject type definition missing');
+    assert.ok(lower.includes('landresultobject'), 'LandResultObject type definition missing');
+    assert.ok(lower.includes('planetdisplayresultobject'), 'PlanetDisplayResultObject type definition missing');
+    assert.ok(lower.includes('destroyplanetresultobject'), 'DestroyPlanetResultObject type definition missing');
+    assert.ok(lower.includes('buyplanetbustersresultobject'), 'BuyPlanetBustersResultObject type definition missing');
+    assert.ok(lower.includes('buyterraformdevicesresultobject'), 'BuyTerraformDevicesResultObject type definition missing');
+    assert.ok(lower.includes('dockstardockresultobject'), 'DockStardockResultObject type definition missing');
   });
 
   it('client message type definitions exist in client-messages.ts', () => {
@@ -701,7 +701,7 @@ describe('WS: sector display includes planets', () => {
 
   it('sectorDisplay message includes planets array', async () => {
     player.sendMsg({ type: 'sectorDisplay' });
-    const msg = await player.waitForMessage('sectorDisplay');
+    const msg = await player.waitForMessage('sectorDisplayResult');
     assert.ok('planets' in msg, 'sectorDisplay should include planets field');
     assert.ok(Array.isArray(msg.planets), 'planets should be an array');
   });
@@ -709,7 +709,7 @@ describe('WS: sector display includes planets', () => {
   it('sector 1 planets array contains Earth with id, name, type', async () => {
     // Player starts in sector 1 which has Earth
     player.sendMsg({ type: 'sectorDisplay' });
-    const msg = await player.waitForMessage('sectorDisplay');
+    const msg = await player.waitForMessage('sectorDisplayResult');
     assert.ok(msg.planets.length >= 1, 'sector 1 should have at least Earth');
     const earth = msg.planets.find(p => p.name === 'Earth');
     assert.ok(earth, 'Earth should be in sector 1 planets');
@@ -735,7 +735,7 @@ describe('WS: sector display includes planets', () => {
     await player.waitForMessage('moveResult');
 
     player.sendMsg({ type: 'sectorDisplay' });
-    const msg = await player.waitForMessage('sectorDisplay');
+    const msg = await player.waitForMessage('sectorDisplayResult');
     assert.ok('planets' in msg, 'sectorDisplay should include planets field');
     assert.ok(Array.isArray(msg.planets), 'planets should be an array');
     assert.equal(msg.planets.length, 0, 'sector with no planets should return empty array');
@@ -761,7 +761,7 @@ describe('WS: ship info includes new fields', () => {
 
   it('shipInfo message includes maxPlanetBusters, maxTerraformDevices, planetBusters, terraformDevices', async () => {
     player.sendMsg({ type: 'ship' });
-    const msg = await player.waitForMessage('shipInfo');
+    const msg = await player.waitForMessage('shipInfoResult');
     assert.ok('maxPlanetBusters' in msg, 'shipInfo should include maxPlanetBusters');
     assert.ok('maxTerraformDevices' in msg, 'shipInfo should include maxTerraformDevices');
     assert.ok('planetBusters' in msg, 'shipInfo should include planetBusters');
@@ -792,14 +792,14 @@ describe('WS: land command returns planet list', () => {
 
   it('land command responds with planetList message', async () => {
     player.sendMsg({ type: 'land' });
-    const msg = await player.waitForMessage('planetList');
+    const msg = await player.waitForMessage('landResult');
     assert.ok('planets' in msg, 'planetList should include planets field');
     assert.ok(Array.isArray(msg.planets), 'planets should be an array');
   });
 
   it('planetList in sector 1 includes Earth', async () => {
     player.sendMsg({ type: 'land' });
-    const msg = await player.waitForMessage('planetList');
+    const msg = await player.waitForMessage('landResult');
     assert.ok(msg.planets.length >= 1, 'sector 1 should have Earth');
     const earth = msg.planets.find(p => p.name === 'Earth');
     assert.ok(earth, 'Earth should be in planet list');
@@ -823,7 +823,7 @@ describe('WS: land command returns planet list', () => {
     await player.waitForMessage('moveResult');
 
     player.sendMsg({ type: 'land' });
-    const msg = await player.waitForMessage('planetList');
+    const msg = await player.waitForMessage('landResult');
     assert.ok('planets' in msg, 'planetList should include planets field');
     assert.ok(Array.isArray(msg.planets), 'planets should be an array');
     assert.equal(msg.planets.length, 0, 'land in sector with no planets should return empty array');
@@ -929,7 +929,7 @@ describe('WS: use terraform device', () => {
     }
 
     player.sendMsg({ type: 'useTerraformDevice' });
-    const msg = await player.waitForMessage('terraformResult');
+    const msg = await player.waitForMessage('useTerraformDeviceResult');
     assert.equal(msg.success, false);
     assert.equal(msg.reason, 'no_devices');
     assert.ok('terraformDevices' in msg, 'no_devices response should include terraformDevices count');
@@ -945,7 +945,7 @@ describe('WS: use terraform device', () => {
     if (currentSector !== 1) {
       // Navigate back — find a path
       player.sendMsg({ type: 'path', from: currentSector, to: 1 });
-      const pathMsg = await player.waitForMessage('pathResult');
+      const pathMsg = await player.waitForMessage('shortestPathResult');
       for (const sector of pathMsg.path.slice(1)) {
         player.sendMsg({ type: 'move', sector });
         await player.waitForMessage('moveResult');
@@ -953,7 +953,7 @@ describe('WS: use terraform device', () => {
     }
 
     player.sendMsg({ type: 'useTerraformDevice' });
-    const msg = await player.waitForMessage('terraformResult');
+    const msg = await player.waitForMessage('useTerraformDeviceResult');
     assert.equal(msg.success, false);
     assert.equal(msg.reason, 'restricted_sector');
 
@@ -983,7 +983,7 @@ describe('WS: use terraform device', () => {
     );
 
     player.sendMsg({ type: 'useTerraformDevice' });
-    const msg = await player.waitForMessage('terraformResult');
+    const msg = await player.waitForMessage('useTerraformDeviceResult');
     assert.equal(msg.success, true, 'terraform should succeed');
     assert.ok(msg.planet, 'should include planet info');
     assert.ok(msg.planet.id, 'planet should have id');
@@ -1029,7 +1029,7 @@ describe('WS: stardock and hardware store', () => {
 
     // Navigate to stardock
     player.sendMsg({ type: 'path', from: 1, to: stardockSector });
-    const pathMsg = await player.waitForMessage('pathResult');
+    const pathMsg = await player.waitForMessage('shortestPathResult');
     for (const sector of pathMsg.path.slice(1)) {
       player.sendMsg({ type: 'move', sector });
       // Consume whatever comes back (moveResult success or encounter)
@@ -1041,7 +1041,7 @@ describe('WS: stardock and hardware store', () => {
 
   it('dockStardock at class 9 port responds with stardockMenu', async () => {
     player.sendMsg({ type: 'dockStardock' });
-    const msg = await player.waitForMessage('stardockMenu');
+    const msg = await player.waitForMessage('dockStardockResult');
     assert.ok(msg, 'should receive stardockMenu');
   });
 
@@ -1159,7 +1159,7 @@ describe('WS: destroy planet', () => {
     await player.waitForMessage('leavePlanetResult').catch(() => null);
 
     player.sendMsg({ type: 'path', from: 1, to: targetSector });
-    const pathMsg = await player.waitForMessage('pathResult');
+    const pathMsg = await player.waitForMessage('shortestPathResult');
     for (const sector of pathMsg.path.slice(1)) {
       player.sendMsg({ type: 'move', sector });
       await player.waitForMessage('moveResult');
@@ -1188,7 +1188,7 @@ describe('WS: destroy planet', () => {
     assert.equal(shipRes.rows[0].planet_busters, 0, 'planet buster should be consumed');
 
     // Should also receive a sectorDisplay after destruction
-    const sectorMsg = await player.waitForMessage('sectorDisplay');
+    const sectorMsg = await player.waitForMessage('sectorDisplayResult');
     assert.ok(sectorMsg, 'should receive sectorDisplay after planet destruction');
   });
 });
@@ -1258,7 +1258,7 @@ describe('WS: buy hardware exceeds ship maximum', () => {
 
     // Navigate to stardock
     player.sendMsg({ type: 'path', from: 1, to: stardockSector });
-    const pathMsg = await player.waitForMessage('pathResult');
+    const pathMsg = await player.waitForMessage('shortestPathResult');
     for (const sector of pathMsg.path.slice(1)) {
       player.sendMsg({ type: 'move', sector });
       await player.waitForMessage('moveResult').catch(() => null);
@@ -1266,7 +1266,7 @@ describe('WS: buy hardware exceeds ship maximum', () => {
 
     // Dock at stardock
     player.sendMsg({ type: 'dockStardock' });
-    await player.waitForMessage('stardockMenu');
+    await player.waitForMessage('dockStardockResult');
   });
 
   after(() => { player?.close(); });
@@ -1324,7 +1324,7 @@ describe('WS: buy hardware exceeds ship maximum', () => {
 
     // Move to sector 1 (which has class 0 port, not class 9)
     player.sendMsg({ type: 'path', from: stardockSector, to: 1 });
-    const pathMsg = await player.waitForMessage('pathResult');
+    const pathMsg = await player.waitForMessage('shortestPathResult');
     for (const sector of pathMsg.path.slice(1)) {
       player.sendMsg({ type: 'move', sector });
       await player.waitForMessage('moveResult').catch(() => null);
@@ -1360,7 +1360,7 @@ describe('WS: buy hardware requires stardock docking', () => {
 
     // Navigate to stardock sector but do NOT call dockStardock
     player.sendMsg({ type: 'path', from: 1, to: stardockSector });
-    const pathMsg = await player.waitForMessage('pathResult');
+    const pathMsg = await player.waitForMessage('shortestPathResult');
     for (const sector of pathMsg.path.slice(1)) {
       player.sendMsg({ type: 'move', sector });
       await player.waitForMessage('moveResult').catch(() => null);
@@ -1421,14 +1421,14 @@ describe('WS: buy hardware credit deduction', () => {
 
     // Navigate to stardock
     player.sendMsg({ type: 'path', from: 1, to: stardockSector });
-    const pathMsg = await player.waitForMessage('pathResult');
+    const pathMsg = await player.waitForMessage('shortestPathResult');
     for (const sector of pathMsg.path.slice(1)) {
       player.sendMsg({ type: 'move', sector });
       await player.waitForMessage('moveResult').catch(() => null);
     }
 
     player.sendMsg({ type: 'dockStardock' });
-    await player.waitForMessage('stardockMenu');
+    await player.waitForMessage('dockStardockResult');
   });
 
   after(() => { player?.close(); });
@@ -1527,7 +1527,7 @@ describe('WS: terraform collision logic', () => {
     await pool.query('UPDATE player_ships SET terraform_devices = 1 WHERE player_id = $1', [player.playerId]);
 
     player.sendMsg({ type: 'useTerraformDevice' });
-    const msg = await player.waitForMessage('terraformResult');
+    const msg = await player.waitForMessage('useTerraformDeviceResult');
     assert.equal(msg.success, true, 'terraform should still succeed even at capacity');
     assert.ok('collision' in msg, 'terraformResult should include collision field');
   });
@@ -1537,7 +1537,7 @@ describe('WS: terraform collision logic', () => {
     await pool.query('UPDATE player_ships SET terraform_devices = 1 WHERE player_id = $1', [player.playerId]);
 
     player.sendMsg({ type: 'useTerraformDevice' });
-    const msg = await player.waitForMessage('terraformResult');
+    const msg = await player.waitForMessage('useTerraformDeviceResult');
     assert.equal(msg.success, true, 'terraform should succeed');
     assert.ok(msg.planet, 'should include planet info');
     assert.ok(msg.planet.name, 'planet should have a name');
@@ -1576,7 +1576,7 @@ describe('WS: terraform collision logic', () => {
     await pool.query('UPDATE player_ships SET terraform_devices = 2 WHERE player_id = $1', [player.playerId]);
 
     player.sendMsg({ type: 'useTerraformDevice' });
-    const msg = await player.waitForMessage('terraformResult');
+    const msg = await player.waitForMessage('useTerraformDeviceResult');
     assert.equal(msg.success, true);
     assert.ok('terraformDevices' in msg, 'should include terraformDevices remaining count');
     assert.equal(msg.terraformDevices, 1, 'should have 1 remaining after using 1 of 2');
@@ -1608,7 +1608,7 @@ describe('WS: terraform in Stardock sector returns restricted_sector', () => {
 
     // Navigate to stardock sector
     player.sendMsg({ type: 'path', from: 1, to: stardockSector });
-    const pathMsg = await player.waitForMessage('pathResult');
+    const pathMsg = await player.waitForMessage('shortestPathResult');
     for (const sector of pathMsg.path.slice(1)) {
       player.sendMsg({ type: 'move', sector });
       await player.waitForMessage('moveResult').catch(() => null);
@@ -1622,7 +1622,7 @@ describe('WS: terraform in Stardock sector returns restricted_sector', () => {
 
   it('useTerraformDevice in Stardock sector returns restricted_sector', async () => {
     player.sendMsg({ type: 'useTerraformDevice' });
-    const msg = await player.waitForMessage('terraformResult');
+    const msg = await player.waitForMessage('useTerraformDeviceResult');
     assert.equal(msg.success, false);
     assert.equal(msg.reason, 'restricted_sector');
 
@@ -1667,7 +1667,7 @@ describe('WS: on_planet_id cleared after destroyPlanet', () => {
 
     // Move to that sector
     player.sendMsg({ type: 'path', from: 1, to: targetSector });
-    const pathMsg = await player.waitForMessage('pathResult');
+    const pathMsg = await player.waitForMessage('shortestPathResult');
     for (const sector of pathMsg.path.slice(1)) {
       player.sendMsg({ type: 'move', sector });
       await player.waitForMessage('moveResult');
@@ -1685,7 +1685,7 @@ describe('WS: on_planet_id cleared after destroyPlanet', () => {
     await pool.query('UPDATE player_ships SET planet_busters = 1 WHERE player_id = $1', [player.playerId]);
     player.sendMsg({ type: 'destroyPlanet' });
     await player.waitForMessage('destroyPlanetResult');
-    await player.waitForMessage('sectorDisplay');
+    await player.waitForMessage('sectorDisplayResult');
 
     // Verify on_planet_id is cleared
     const afterRes = await pool.query('SELECT on_planet_id FROM players WHERE id = $1', [player.playerId]);
@@ -1728,7 +1728,7 @@ describe('WS: terraform success response completeness', () => {
     await pool.query('UPDATE player_ships SET terraform_devices = 2 WHERE player_id = $1', [player.playerId]);
 
     player.sendMsg({ type: 'useTerraformDevice' });
-    const msg = await player.waitForMessage('terraformResult');
+    const msg = await player.waitForMessage('useTerraformDeviceResult');
     assert.equal(msg.success, true);
     assert.ok('collision' in msg, 'terraformResult should include collision field');
     assert.equal(msg.collision, false, 'collision should be false when sector is below max capacity');
@@ -1797,13 +1797,13 @@ describe('WS: terraform planet ID sequencing', () => {
 
     // Create first planet
     player.sendMsg({ type: 'useTerraformDevice' });
-    const msg1 = await player.waitForMessage('terraformResult');
+    const msg1 = await player.waitForMessage('useTerraformDeviceResult');
     assert.equal(msg1.success, true);
     assert.equal(msg1.planet.id, expectedFirstId, `first terraform planet should have id=${expectedFirstId}`);
 
     // Create second planet
     player.sendMsg({ type: 'useTerraformDevice' });
-    const msg2 = await player.waitForMessage('terraformResult');
+    const msg2 = await player.waitForMessage('useTerraformDeviceResult');
     assert.equal(msg2.success, true);
     assert.equal(msg2.planet.id, expectedFirstId + 1, `second terraform planet should have id=${expectedFirstId + 1}`);
   });

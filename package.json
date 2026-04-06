@@ -13,7 +13,7 @@
     "lint": "eslint packages/*/src",
     "format": "prettier --write \"packages/*/src/**/*.ts\"",
     "format:check": "prettier --check \"packages/*/src/**/*.ts\"",
-    "docs": "ts-json-schema-generator --path packages/shared/src/client-messages.ts --type ClientMessage -o docs/client-messages.schema.json && ts-json-schema-generator --path packages/shared/src/server-messages.ts --type ServerMessage -o docs/server-messages.schema.json && node scripts/generate-docs.mjs"
+    "docs": "ts-json-schema-generator --path packages/shared/src/client-messages.ts --type ClientCommand -o docs/client-messages.schema.json && ts-json-schema-generator --path packages/shared/src/server-messages.ts --type ServerResult -o docs/server-messages.schema.json && node scripts/generate-docs.mjs"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.57.2",

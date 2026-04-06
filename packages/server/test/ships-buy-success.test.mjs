@@ -18,9 +18,9 @@ const HOLD_PRICE    = 50;
 const UNIVERSE_ID = 1;
 
 async function navigateTo(ws, targetSector) {
-  const disp = await wsRequest(ws, { type: 'sectorDisplay' }, 'sectorDisplay');
+  const disp = await wsRequest(ws, { type: 'sectorDisplay' }, 'sectorDisplayResult');
   if (disp.sector === targetSector) return;
-  const path = await wsRequest(ws, { type: 'path', from: disp.sector, to: targetSector }, 'pathResult');
+  const path = await wsRequest(ws, { type: 'path', from: disp.sector, to: targetSector }, 'shortestPathResult');
   if (path.type === 'error') throw new Error(`No path to ${targetSector}`);
   for (let i = 1; i < path.path.length; i++) {
     await wsRequest(ws, { type: 'move', sector: path.path[i] }, 'moveResult');
@@ -130,8 +130,8 @@ describe('Buy equipment — success', () => {
     try {
       // Exchange to Warbird at Stardock (navigate there first)
       await navigateTo(ws, stardockId);
-      const exchMsg = await wsRequest(ws, { type: 'shipExchange', targetShipName: warbirdCfg.name }, 'shipExchangeResult');
-      assert.equal(exchMsg.type, 'shipExchangeResult');
+      const exchMsg = await wsRequest(ws, { type: 'shipExchange', targetShipName: warbirdCfg.name }, 'buyShipTradeinResult');
+      assert.equal(exchMsg.type, 'buyShipTradeinResult');
 
       // Teleport to sector 1 (class 0 port) via DB — buyHolds reads current_sector from DB
       await pool.query('UPDATE players SET current_sector = 1 WHERE id = $1', [welcome.playerId]);
@@ -200,8 +200,8 @@ describe('Buy equipment — success', () => {
     try {
       // Navigate to Stardock and exchange to Warbird (startingHolds=1)
       await navigateTo(ws, stardockId);
-      const exchMsg = await wsRequest(ws, { type: 'shipExchange', targetShipName: warbirdCfg.name }, 'shipExchangeResult');
-      assert.equal(exchMsg.type, 'shipExchangeResult');
+      const exchMsg = await wsRequest(ws, { type: 'shipExchange', targetShipName: warbirdCfg.name }, 'buyShipTradeinResult');
+      assert.equal(exchMsg.type, 'buyShipTradeinResult');
 
       // Navigate to fuel port and try to buy 2 fuel — exceeds new cargoLimit of 1
       await navigateTo(ws, fuelSector);

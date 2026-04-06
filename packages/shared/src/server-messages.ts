@@ -34,8 +34,8 @@ export type SectorDisplayData = {
     planets: { id: number; name: string; type: string }[];
 };
 
-export type SectorDisplayMessage = {
-    type: typeof ServerMsgType.SectorDisplay;
+export type SectorDisplayResultObject = {
+    type: typeof ServerMsgType.SectorDisplayResult;
 } & SectorDisplayData;
 
 export type MoveResultObject =
@@ -63,16 +63,16 @@ export type PlayerLeftEvent = {
     playerId: number;
 };
 
-export type PlayersOnlineMessage = {
-    type: typeof ServerMsgType.PlayersOnline;
+export type PlayersOnlineResultObject = {
+    type: typeof ServerMsgType.PlayersOnlineResult;
     players: { id: number; name: string; sector: number }[];
 };
 
-export type NoShipMessage = {
+export type NoShipResultObject = {
     type: typeof ServerMsgType.NoShip;
 };
 
-export type NonAdjacentMoveMessage = {
+export type NonAdjacentMoveResultObject = {
     type: typeof ServerMsgType.NonAdjacentMoveRequested;
     playerId: number;
     sector: number;
@@ -82,20 +82,20 @@ export type RateLimitedEvent = {
     type: typeof ServerMsgType.RateLimited;
 };
 
-export type SectorWarpsMessage = {
-    type: typeof ServerMsgType.SectorWarps;
+export type WarpsOutResultObject = {
+    type: typeof ServerMsgType.WarpsOutResult;
     id: number;
     warps: number[];
 };
 
-export type PathResultMessage = {
-    type: typeof ServerMsgType.PathResult;
+export type ShortestPathResultObject = {
+    type: typeof ServerMsgType.ShortestPathResult;
     path: number[];
     hops: number;
 };
 
-export type PortInfoMessage = {
-    type: typeof ServerMsgType.PortInfo;
+export type PortInfoResultObject = {
+    type: typeof ServerMsgType.PortInfoResult;
     sectorId: number;
     class: number;
     fuel: number;
@@ -106,8 +106,8 @@ export type PortInfoMessage = {
     equPrice: number;
 };
 
-export type ShipInfoMessage = {
-    type: typeof ServerMsgType.ShipInfo;
+export type ShipInfoResultObject = {
+    type: typeof ServerMsgType.ShipInfoResult;
     playerId: number;
     shipName: string;
     fighters: number;
@@ -127,8 +127,8 @@ export type ShipInfoMessage = {
     maxTerraformDevices: number;
 };
 
-export type CargoInfoMessage = {
-    type: typeof ServerMsgType.CargoInfo;
+export type CargoInfoResultObject = {
+    type: typeof ServerMsgType.CargoInfoResult;
     playerId: number;
     fuel: number;
     organics: number;
@@ -137,32 +137,32 @@ export type CargoInfoMessage = {
     credits: number;
 };
 
-export type PortTransactionResultMessage = {
+export type PortTransactionResultObject = {
     type: typeof ServerMsgType.PortTransactionResult;
     credits: number;
     cargo: { fuel: number; organics: number; equipment: number; colonists: number };
 };
 
-export type BuyFightersResultMessage = {
+export type BuyFightersResultObject = {
     type: typeof ServerMsgType.BuyFightersResult;
     credits: number;
     fighters: number;
 };
 
-export type BuyShieldsResultMessage = {
+export type BuyShieldsResultObject = {
     type: typeof ServerMsgType.BuyShieldsResult;
     credits: number;
     shields: number;
 };
 
-export type BuyHoldsResultMessage = {
+export type BuyHoldsResultObject = {
     type: typeof ServerMsgType.BuyHoldsResult;
     credits: number;
     cargoLimit: number;
 };
 
-export type ShipExchangeResultMessage = {
-    type: typeof ServerMsgType.ShipExchangeResult;
+export type BuyShipTradeinResultObject = {
+    type: typeof ServerMsgType.BuyShipTradeinResult;
     shipName: string;
     credits: number;
     maxFighters: number;
@@ -170,8 +170,8 @@ export type ShipExchangeResultMessage = {
     cargoLimit: number;
 };
 
-export type AttackResultMessage = {
-    type: typeof ServerMsgType.AttackResult;
+export type AttackShipResultObject = {
+    type: typeof ServerMsgType.AttackShipResult;
     destroyed: boolean;
     attackerFightersLost: number;
     defenderShieldsLost: number;
@@ -179,14 +179,14 @@ export type AttackResultMessage = {
     message?: string;
 };
 
-export type DockResultMessage = {
+export type DockResultObject = {
     type: typeof ServerMsgType.DockResult;
     docked: boolean;
-    port?: PortInfoMessage;
+    port?: PortInfoResultObject;
 };
 
-export type PlanetInfoMessage = {
-    type: typeof ServerMsgType.PlanetInfo;
+export type PlanetInfoResultObject = {
+    type: typeof ServerMsgType.PlanetInfoResult;
     sectorId: number;
     name: string;
     planetType: string;
@@ -194,8 +194,8 @@ export type PlanetInfoMessage = {
     hasPlanet: boolean;
 };
 
-export type TerraformResultMessage = {
-    type: typeof ServerMsgType.TerraformResult;
+export type UseTerraformDeviceResultObject = {
+    type: typeof ServerMsgType.UseTerraformDeviceResult;
     success: boolean;
     reason?: string;
     planet?: { id: number; name: string; type: string; sectorId: number };
@@ -203,8 +203,8 @@ export type TerraformResultMessage = {
     terraformDevices?: number;
 };
 
-export type PlanetListMessage = {
-    type: typeof ServerMsgType.PlanetList;
+export type LandResultObject = {
+    type: typeof ServerMsgType.LandResult;
     planets: { id: number; name: string; type: string }[];
 };
 
@@ -224,40 +224,40 @@ export type PlanetDisplayData = {
     updated_at?: Date | string | null;
 };
 
-export type LandOnPlanetResultMessage = {
+export type LandOnPlanetResultObject = {
     type: typeof ServerMsgType.LandOnPlanetResult;
 } & PlanetDisplayData;
 
-export type PlanetDisplayResultMessage = {
+export type PlanetDisplayResultObject = {
     type: typeof ServerMsgType.PlanetDisplayResult;
 } & PlanetDisplayData;
 
-export type DestroyPlanetResultMessage = {
+export type DestroyPlanetResultObject = {
     type: typeof ServerMsgType.DestroyPlanetResult;
     destroyed: boolean;
     planetId: number;
     planetName: string;
 };
 
-export type BuyPlanetBustersResultMessage = {
+export type BuyPlanetBustersResultObject = {
     type: typeof ServerMsgType.BuyPlanetBustersResult;
     quantity: number;
     totalOnShip: number;
     credits: number;
 };
 
-export type BuyTerraformDevicesResultMessage = {
+export type BuyTerraformDevicesResultObject = {
     type: typeof ServerMsgType.BuyTerraformDevicesResult;
     quantity: number;
     totalOnShip: number;
     credits: number;
 };
 
-export type StardockMenuMessage = {
-    type: typeof ServerMsgType.StardockMenu;
+export type DockStardockResultObject = {
+    type: typeof ServerMsgType.DockStardockResult;
 };
 
-export type TakeColonistsResultMessage = {
+export type TakeColonistsResultObject = {
     type: typeof ServerMsgType.TakeColonistsResult;
     quantity: number;
     planetColonists: number;
@@ -265,7 +265,7 @@ export type TakeColonistsResultMessage = {
     holdsFree: number;
 };
 
-export type LeaveColonistsResultMessage = {
+export type LeaveColonistsResultObject = {
     type: typeof ServerMsgType.LeaveColonistsResult;
     quantity: number;
     planetColonists: number;
@@ -274,7 +274,7 @@ export type LeaveColonistsResultMessage = {
 };
 
 // FighterEncounter embeds full sector display data (Oak's design) to avoid message ordering issues
-export type FighterEncounterMessage = {
+export type FighterEncounterResultObject = {
     type: typeof ServerMsgType.FighterEncounter;
     sector: number;
     warps: number[];
@@ -288,29 +288,29 @@ export type FighterEncounterMessage = {
     retreatSector: number;
 };
 
-export type DeployFightersInfoMessage = {
-    type: typeof ServerMsgType.DeployFightersInfo;
+export type DeployFightersInfoResultObject = {
+    type: typeof ServerMsgType.DeployFightersInfoResult;
     sectorFighters: number;
     shipFighters: number;
     shipMaxFighters: number;
 };
 
-export type DeployFightersResultMessage = {
+export type DeployFightersResultObject = {
     type: typeof ServerMsgType.DeployFightersResult;
     sectorFighters: number;
     shipFighters: number;
 };
 
-export type SectorFighterCombatResultMessage = {
-    type: typeof ServerMsgType.SectorFighterCombatResult;
+export type AttackSectorFightersResultObject = {
+    type: typeof ServerMsgType.AttackSectorFightersResult;
     victory: boolean;
     fightersLost: number;
     sectorFightersRemaining: number;
     shipFighters: number;
 };
 
-export type RetreatResultMessage = {
-    type: typeof ServerMsgType.RetreatResult;
+export type RetreatFromFightersResultObject = {
+    type: typeof ServerMsgType.RetreatFromFightersResult;
     sector: number;
 };
 
@@ -343,52 +343,52 @@ export type LeaveStardockResultObject = {
     type: typeof ServerMsgType.LeaveStardockResult;
 } & SectorDisplayData;
 
-export type ErrorMessage = {
+export type ErrorResultObject = {
     type: typeof ServerMsgType.Error;
     message: string;
 };
 
-export type ServerMessage =
+export type ServerResult =
     | WelcomeEvent
     | PlayerMovedEvent
-    | SectorDisplayMessage
+    | SectorDisplayResultObject
     | MoveResultObject
     | UndockResultObject
     | JettisonResultObject
     | LeavePlanetResultObject
     | LeaveStardockResultObject
     | PlayerLeftEvent
-    | PlayersOnlineMessage
-    | NoShipMessage
-    | NonAdjacentMoveMessage
+    | PlayersOnlineResultObject
+    | NoShipResultObject
+    | NonAdjacentMoveResultObject
     | RateLimitedEvent
-    | SectorWarpsMessage
-    | PathResultMessage
-    | PortInfoMessage
-    | ShipInfoMessage
-    | CargoInfoMessage
-    | PortTransactionResultMessage
-    | BuyFightersResultMessage
-    | BuyShieldsResultMessage
-    | BuyHoldsResultMessage
-    | ShipExchangeResultMessage
-    | AttackResultMessage
-    | DockResultMessage
-    | PlanetInfoMessage
-    | TakeColonistsResultMessage
-    | LeaveColonistsResultMessage
-    | FighterEncounterMessage
-    | DeployFightersInfoMessage
-    | DeployFightersResultMessage
-    | SectorFighterCombatResultMessage
-    | RetreatResultMessage
+    | WarpsOutResultObject
+    | ShortestPathResultObject
+    | PortInfoResultObject
+    | ShipInfoResultObject
+    | CargoInfoResultObject
+    | PortTransactionResultObject
+    | BuyFightersResultObject
+    | BuyShieldsResultObject
+    | BuyHoldsResultObject
+    | BuyShipTradeinResultObject
+    | AttackShipResultObject
+    | DockResultObject
+    | PlanetInfoResultObject
+    | TakeColonistsResultObject
+    | LeaveColonistsResultObject
+    | FighterEncounterResultObject
+    | DeployFightersInfoResultObject
+    | DeployFightersResultObject
+    | AttackSectorFightersResultObject
+    | RetreatFromFightersResultObject
     | SectorFightersAlertEvent
-    | TerraformResultMessage
-    | PlanetListMessage
-    | LandOnPlanetResultMessage
-    | PlanetDisplayResultMessage
-    | DestroyPlanetResultMessage
-    | BuyPlanetBustersResultMessage
-    | BuyTerraformDevicesResultMessage
-    | StardockMenuMessage
-    | ErrorMessage;
+    | UseTerraformDeviceResultObject
+    | LandResultObject
+    | LandOnPlanetResultObject
+    | PlanetDisplayResultObject
+    | DestroyPlanetResultObject
+    | BuyPlanetBustersResultObject
+    | BuyTerraformDevicesResultObject
+    | DockStardockResultObject
+    | ErrorResultObject;

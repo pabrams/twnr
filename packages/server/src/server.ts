@@ -7,7 +7,7 @@ import { connectDB, pool } from './db/index.js';
 import { createRoutes } from './routes/index.js';
 import * as auth from './auth/index.js';
 import { ServerMsgType } from '@twnr/shared';
-import type { AuthTokenPayload, ServerMessage } from '@twnr/shared';
+import type { AuthTokenPayload, ServerResult } from '@twnr/shared';
 import { shipConfigs } from './ship-config.js';
 import { players, send, broadcastTo } from './game-state.js';
 import { handleMessage } from './handlers/message-router.js';
@@ -128,7 +128,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             [universeId],
         );
         const totalSectors = parseInt(sectorCountRes.rows[0].count, 10);
-        const welcomeMsg: ServerMessage = {
+        const welcomeMsg: ServerResult = {
             type: ServerMsgType.Welcome,
             playerId,
             name: playerRow.name,

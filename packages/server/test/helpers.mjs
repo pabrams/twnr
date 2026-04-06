@@ -254,16 +254,16 @@ const PORT_CLASS_ACTIONS = {
 
 export async function findPortSector(ws) {
   for (let i = 1; i <= 100; i++) {
-    const res = await wsRequest(ws, { type: 'portInfo', sectorId: i }, 'portInfo');
-    if (res.type === 'portInfo') return { sectorId: i, port: res };
+    const res = await wsRequest(ws, { type: 'portInfo', sectorId: i }, 'portInfoResult');
+    if (res.type === 'portInfoResult') return { sectorId: i, port: res };
   }
   return null;
 }
 
 export async function findPortSelling(ws, good) {
   for (let i = 1; i <= 100; i++) {
-    const res = await wsRequest(ws, { type: 'portInfo', sectorId: i }, 'portInfo');
-    if (res.type === 'portInfo') {
+    const res = await wsRequest(ws, { type: 'portInfo', sectorId: i }, 'portInfoResult');
+    if (res.type === 'portInfoResult') {
       const actions = PORT_CLASS_ACTIONS[res.class];
       if (actions && actions[good] === 'S') return { sectorId: i, port: res };
     }
@@ -273,8 +273,8 @@ export async function findPortSelling(ws, good) {
 
 export async function findPortBuying(ws, good) {
   for (let i = 1; i <= 100; i++) {
-    const res = await wsRequest(ws, { type: 'portInfo', sectorId: i }, 'portInfo');
-    if (res.type === 'portInfo') {
+    const res = await wsRequest(ws, { type: 'portInfo', sectorId: i }, 'portInfoResult');
+    if (res.type === 'portInfoResult') {
       const actions = PORT_CLASS_ACTIONS[res.class];
       if (actions && actions[good] === 'B') return { sectorId: i, port: res };
     }
@@ -283,10 +283,10 @@ export async function findPortBuying(ws, good) {
 }
 
 export async function movePlayerTo(ws, targetSector) {
-  const disp = await wsRequest(ws, { type: 'sectorDisplay' }, 'sectorDisplay');
+  const disp = await wsRequest(ws, { type: 'sectorDisplay' }, 'sectorDisplayResult');
   if (disp.sector === targetSector) return true;
 
-  const pathRes = await wsRequest(ws, { type: 'path', from: disp.sector, to: targetSector }, 'pathResult');
+  const pathRes = await wsRequest(ws, { type: 'path', from: disp.sector, to: targetSector }, 'shortestPathResult');
   if (pathRes.type === 'error') return false;
 
   for (let i = 1; i < pathRes.path.length; i++) {

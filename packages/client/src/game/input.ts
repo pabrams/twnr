@@ -186,7 +186,7 @@ function handleInput(ctx: GameContext, line: string) {
             ctx.ws.close();
             return;
         case '#':
-            ctx.sendMsg({ type: ClientMsgType.Who });
+            ctx.sendMsg({ type: ClientMsgType.PlayersOnline });
             break;
         case 'm':
         case 'move': {

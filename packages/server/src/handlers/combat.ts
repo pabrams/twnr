@@ -1,10 +1,10 @@
 import { WebSocket } from 'ws';
 import { ServerMsgType } from '@twnr/shared';
-import type { ServerMessage } from '@twnr/shared';
+import type { ServerResult } from '@twnr/shared';
 import { players, send } from '../game-state.js';
 import { pool } from '../db/index.js';
 
-export async function handleAttack(
+export async function handleAttackShip(
     ws: WebSocket,
     attackerId: number,
     targetPlayerId: number,
@@ -107,8 +107,8 @@ export async function handleAttack(
 
         await client.query('COMMIT');
 
-        const resultMsg: ServerMessage = {
-            type: ServerMsgType.AttackResult,
+        const resultMsg: ServerResult = {
+            type: ServerMsgType.AttackShipResult,
             destroyed,
             attackerFightersLost,
             defenderFightersLost,
@@ -119,7 +119,7 @@ export async function handleAttack(
 
         if (target.ws && target.ws.readyState === 1) {
             send(target.ws, {
-                type: ServerMsgType.AttackResult,
+                type: ServerMsgType.AttackShipResult,
                 destroyed,
                 attackerFightersLost,
                 defenderFightersLost,

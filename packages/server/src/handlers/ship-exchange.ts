@@ -4,7 +4,7 @@ import { shipConfigs } from '../ship-config.js';
 import { send, getPlayerUniverseId } from '../game-state.js';
 import { pool } from '../db/index.js';
 
-export async function handleShipExchange(
+export async function handleBuyShipTradein(
     ws: WebSocket,
     playerId: number,
     targetShipName: string,
@@ -100,7 +100,7 @@ export async function handleShipExchange(
         await client.query('COMMIT');
 
         send(ws, {
-            type: ServerMsgType.ShipExchangeResult,
+            type: ServerMsgType.BuyShipTradeinResult,
             shipName: targetShipName,
             credits: data.credits - cost,
             maxFighters: targetConfig.maxFighters,
