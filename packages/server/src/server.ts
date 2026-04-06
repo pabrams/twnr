@@ -65,7 +65,6 @@ app.use(
 );
 
 wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
-    console.log('New WebSocket client connected');
     const cookies = auth.parseCookies(req.headers.cookie);
     let authPayload: AuthTokenPayload;
     try {
@@ -142,7 +141,6 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             }),
         };
         ws.send(JSON.stringify(welcomeMsg));
-        console.log(`${playerId} connected.`);
 
         let tokens = 50;
         const refillInterval = setInterval(() => {
