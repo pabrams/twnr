@@ -4,6 +4,7 @@ import { shipConfigs } from '../ship-config.js';
 import { send, getPlayerUniverseId } from '../game-state.js';
 import { pool } from '../db/index.js';
 import { class0Prices } from '../game-config.js';
+import { checkAndDeductTurns } from '../turn-logic.js';
 
 export async function handleBuyFighters(
     ws: WebSocket,
@@ -222,6 +223,14 @@ export async function handleBuyHolds(
             return;
         }
 
+        // Check turns
+        const turnResult = await checkAndDeductTurns(playerId, universeId, 1);
+        if (!turnResult.allowed) {
+            await client.query('ROLLBACK');
+            send(ws, { type: ServerMsgType.Error, message: 'Insufficient turns' });
+            return;
+        }
+
         const cargoRes = await client.query(
             `
             SELECT sc.credits, ps.ship_name, ps.fighters, ps.shields, ps.cargo_limit
@@ -266,6 +275,7 @@ export async function handleBuyHolds(
             type: ServerMsgType.BuyHoldsResult,
             credits: data.credits - cost,
             cargoLimit: data.cargo_limit + qty,
+            turnsUsed: turnResult.turnsUsed,
         });
     } catch {
         await client.query('ROLLBACK');

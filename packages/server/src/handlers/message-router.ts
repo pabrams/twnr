@@ -31,6 +31,11 @@ import {
     handleAttackSectorFighters,
     handleRetreatFromFighters,
 } from './sector-fighters.js';
+import {
+    handleBuyHyperwarpDrive,
+    handleListDeployedFighters,
+    handleHyperspaceJump,
+} from './hyperwarp.js';
 
 export async function handleMessage(ws: WebSocket, playerId: number, data: any): Promise<void> {
     switch (data.type) {
@@ -100,6 +105,12 @@ export async function handleMessage(ws: WebSocket, playerId: number, data: any):
             return handleAttackSectorFighters(ws, playerId, data.fighters);
         case ClientMsgType.RetreatFromFighters:
             return handleRetreatFromFighters(ws, playerId);
+        case ClientMsgType.BuyHyperwarpDrive:
+            return handleBuyHyperwarpDrive(ws, playerId);
+        case ClientMsgType.ListDeployedFighters:
+            return handleListDeployedFighters(ws, playerId);
+        case ClientMsgType.HyperspaceJump:
+            return handleHyperspaceJump(ws, playerId, data.targetSector);
         default:
             send(ws, { type: ServerMsgType.Error, message: 'Unknown message type' });
     }

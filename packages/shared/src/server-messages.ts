@@ -39,7 +39,7 @@ export type SectorDisplayResultObject = {
 } & SectorDisplayData;
 
 export type MoveResultObject =
-    | ({ type: typeof ServerMsgType.MoveResult; outcome: 'success' } & SectorDisplayData)
+    | ({ type: typeof ServerMsgType.MoveResult; outcome: 'success'; turnsUsed?: number } & SectorDisplayData)
     | {
           type: typeof ServerMsgType.MoveResult;
           outcome: 'encounter';
@@ -53,6 +53,7 @@ export type MoveResultObject =
           ownerName: string;
           shipFighters: number;
           retreatSector: number;
+          turnsUsed?: number;
       }
     | { type: typeof ServerMsgType.MoveResult; outcome: 'nonAdjacent'; sector: number }
     | { type: typeof ServerMsgType.MoveResult; outcome: 'noShip' }
@@ -125,6 +126,9 @@ export type ShipInfoResultObject = {
     terraformDevices: number;
     maxPlanetBusters: number;
     maxTerraformDevices: number;
+    turnsPerWarp: number;
+    hasHyperwarpDrive: boolean;
+    turns: number;
 };
 
 export type CargoInfoResultObject = {
@@ -141,6 +145,7 @@ export type PortTransactionResultObject = {
     type: typeof ServerMsgType.PortTransactionResult;
     credits: number;
     cargo: { fuel: number; organics: number; equipment: number; colonists: number };
+    turnsUsed?: number;
 };
 
 export type BuyFightersResultObject = {
@@ -159,6 +164,7 @@ export type BuyHoldsResultObject = {
     type: typeof ServerMsgType.BuyHoldsResult;
     credits: number;
     cargoLimit: number;
+    turnsUsed?: number;
 };
 
 export type BuyShipTradeinResultObject = {
@@ -337,11 +343,29 @@ export type UndockResultObject =
 
 export type LeavePlanetResultObject = {
     type: typeof ServerMsgType.LeavePlanetResult;
+    turnsUsed?: number;
 } & SectorDisplayData;
 
 export type LeaveStardockResultObject = {
     type: typeof ServerMsgType.LeaveStardockResult;
 } & SectorDisplayData;
+
+export type BuyHyperwarpDriveResultObject = {
+    type: typeof ServerMsgType.BuyHyperwarpDriveResult;
+    credits: number;
+};
+
+export type ListDeployedFightersResultObject = {
+    type: typeof ServerMsgType.ListDeployedFightersResult;
+    fighters: { sectorId: number; quantity: number }[];
+};
+
+export type HyperspaceJumpResultObject = {
+    type: typeof ServerMsgType.HyperspaceJumpResult;
+    targetSector: number;
+    fuelUsed: number;
+    turnsUsed: number;
+};
 
 export type ErrorResultObject = {
     type: typeof ServerMsgType.Error;
@@ -391,4 +415,7 @@ export type ServerResult =
     | BuyPlanetBustersResultObject
     | BuyTerraformDevicesResultObject
     | DockStardockResultObject
+    | BuyHyperwarpDriveResultObject
+    | ListDeployedFightersResultObject
+    | HyperspaceJumpResultObject
     | ErrorResultObject;

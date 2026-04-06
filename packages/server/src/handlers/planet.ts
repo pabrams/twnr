@@ -10,6 +10,7 @@ import {
 } from '../game-state.js';
 import { pool } from '../db/index.js';
 import { planetConfigs } from '../planet-config.js';
+import { checkAndDeductTurns } from '../turn-logic.js';
 
 export async function handleLand(ws: WebSocket, playerId: number): Promise<void> {
     const player = players[playerId];
@@ -151,11 +152,17 @@ export async function handleLeavePlanet(ws: WebSocket, playerId: number): Promis
     const player = players[playerId];
     if (!player) return;
 
+    const turnResult = await checkAndDeductTurns(playerId, player.universeId, 1);
+    if (!turnResult.allowed) {
+        send(ws, { type: ServerMsgType.Error, message: 'Insufficient turns' });
+        return;
+    }
+
     await pool.query('UPDATE players SET on_planet_id = NULL WHERE id = $1', [playerId]);
 
     const data = await buildSectorDisplayData(playerId);
     if (!data) return;
-    send(ws, { type: ServerMsgType.LeavePlanetResult, ...data });
+    send(ws, { type: ServerMsgType.LeavePlanetResult, ...data, turnsUsed: turnResult.turnsUsed });
 }
 
 export async function handleDestroyPlanet(ws: WebSocket, playerId: number): Promise<void> {

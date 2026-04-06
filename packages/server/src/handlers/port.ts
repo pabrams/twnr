@@ -11,6 +11,7 @@ import {
     getSectorFighters,
 } from '../game-state.js';
 import { pool } from '../db/index.js';
+import { checkAndDeductTurns } from '../turn-logic.js';
 
 export async function handlePortInfo(
     ws: WebSocket,
@@ -237,6 +238,14 @@ export async function handlePortTransaction(
         const cargo = cargoRes.rows[0];
 
         if (action === 'buy') {
+            // Check turns for buying
+            const turnResult = await checkAndDeductTurns(playerId, universeId, 1);
+            if (!turnResult.allowed) {
+                await client.query('ROLLBACK');
+                send(ws, { type: ServerMsgType.Error, message: 'Insufficient turns' });
+                return;
+            }
+
             const cost = qty * price;
             if (cargo.credits < cost) {
                 await client.query('ROLLBACK');
@@ -278,6 +287,7 @@ export async function handlePortTransaction(
                     equipment: cargo.equipment,
                     colonists: cargo.colonists,
                 },
+                turnsUsed: turnResult.turnsUsed,
             });
         } else {
             const revenue = qty * price;

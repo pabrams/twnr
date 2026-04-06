@@ -6,5 +6,7 @@
   "maxHolds": 40,
   "price": 7500,
   "maxPlanetBusters": 8,
-  "maxTerraformDevices": 9
+  "maxTerraformDevices": 9,
+  "turnsPerWarp": 2,
+  "canHaveHyperwarp": false
 }
