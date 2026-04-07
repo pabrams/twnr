@@ -4,6 +4,7 @@ import path from 'path';
 import { shipConfigs, SHIPS_DIR, reloadShipConfigs } from '../ship-config.js';
 import { planetConfigs, PLANETS_DIR, reloadPlanetConfigs } from '../planet-config.js';
 import { class0Prices } from '../game-config.js';
+import { pool } from '../db/pool.js';
 import type { Middleware } from './middleware.js';
 
 function slugify(name: string): string {
@@ -32,6 +33,51 @@ export function createCatalogRoutes(router: Router, middleware: Middleware): voi
             a.type.localeCompare(b.type),
         );
         res.json(planets);
+    });
+
+    // Menu registry: menus + commands, cached by client for the session
+    router.get('/api/menu-registry', async (_req, res) => {
+        try {
+            const { rows: menus } = await pool.query(
+                `SELECT id, name, label, parent_menu_id FROM menu ORDER BY id`,
+            );
+            const { rows: commands } = await pool.query(
+                `SELECT mc.menu_id, mc.command_id, mc.key_pattern, mc.label as mc_label,
+                        mc.action_type, mc.client_msg_type, mc.target_menu_id, mc.sort_order,
+                        c.name as command_name, c.label as command_label
+                 FROM menu_command mc
+                 JOIN command c ON mc.command_id = c.id
+                 ORDER BY mc.menu_id, mc.sort_order`,
+            );
+
+            // Build a map of menu_name -> commands
+            const menuMap = new Map(menus.map((m: any) => [m.id, m]));
+            const registry = menus.map((m: any) => ({
+                name: m.name,
+                label: m.label,
+                parentMenu: m.parent_menu_id
+                    ? (menuMap.get(m.parent_menu_id) as any)?.name ?? null
+                    : null,
+                commands: commands
+                    .filter((c: any) => c.menu_id === m.id)
+                    .map((c: any) => ({
+                        command: c.command_name,
+                        keyPattern: c.key_pattern,
+                        label: c.mc_label || c.command_label,
+                        actionType: c.action_type,
+                        clientMsgType: c.client_msg_type || null,
+                        targetMenu: c.target_menu_id
+                            ? (menuMap.get(c.target_menu_id) as any)?.name ?? null
+                            : null,
+                        sortOrder: c.sort_order,
+                    })),
+            }));
+
+            res.json(registry);
+        } catch (err) {
+            console.error('Menu registry error:', err);
+            res.status(500).json({ error: 'Failed to load menu registry' });
+        }
     });
 
     // ─── Admin: ship CRUD ──────────────────────────────────────────

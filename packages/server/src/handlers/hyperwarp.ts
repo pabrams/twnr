@@ -1,6 +1,6 @@
 import { WebSocket } from 'ws';
 import { ServerMsgType } from '@twnr/shared';
-import { players, send, getGraph } from '../game-state.js';
+import { players, sendEnvelope, getGraph } from '../game-state.js';
 import { pool } from '../db/index.js';
 import { shipConfigs } from '../ship-config.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
@@ -10,7 +10,7 @@ export async function handleBuyHyperwarpDrive(ws: WebSocket, playerId: number): 
     if (!player) return;
 
     if (!player.at_stardock) {
-        send(ws, { type: ServerMsgType.Error, message: 'Not at Stardock' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not at Stardock' });
         return;
     }
 
@@ -24,20 +24,20 @@ export async function handleBuyHyperwarpDrive(ws: WebSocket, playerId: number): 
         );
         if (shipRes.rows.length === 0) {
             await client.query('ROLLBACK');
-            send(ws, { type: ServerMsgType.Error, message: 'Ship not found' });
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Ship not found' });
             return;
         }
 
         const config = shipConfigs[shipRes.rows[0].ship_name];
         if (!config || config.canHaveHyperwarp === false) {
             await client.query('ROLLBACK');
-            send(ws, { type: ServerMsgType.Error, message: 'Ship incapable of hyperwarp drive' });
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Ship incapable of hyperwarp drive' });
             return;
         }
 
         if (shipRes.rows[0].has_hyperwarp_drive) {
             await client.query('ROLLBACK');
-            send(ws, { type: ServerMsgType.Error, message: 'Ship already has hyperwarp drive' });
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Ship already has hyperwarp drive' });
             return;
         }
 
@@ -47,7 +47,7 @@ export async function handleBuyHyperwarpDrive(ws: WebSocket, playerId: number): 
         );
         if (cargoRes.rows.length === 0 || cargoRes.rows[0].credits < 50000) {
             await client.query('ROLLBACK');
-            send(ws, { type: ServerMsgType.Error, message: 'Insufficient credits' });
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient credits' });
             return;
         }
 
@@ -60,13 +60,13 @@ export async function handleBuyHyperwarpDrive(ws: WebSocket, playerId: number): 
         ]);
         await client.query('COMMIT');
 
-        send(ws, {
+        sendEnvelope(playerId, {
             type: ServerMsgType.BuyHyperwarpDriveResult,
             credits: cargoRes.rows[0].credits - 50000,
         });
     } catch {
         await client.query('ROLLBACK');
-        send(ws, { type: ServerMsgType.Error, message: 'Internal server error' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Internal server error' });
     } finally {
         client.release();
     }
@@ -77,7 +77,7 @@ export async function handleListDeployedFighters(ws: WebSocket, playerId: number
     if (!player) return;
 
     if (player.docked || player.at_stardock) {
-        send(ws, { type: ServerMsgType.Error, message: 'Cannot use this command while docked' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Cannot use this command while docked' });
         return;
     }
 
@@ -85,7 +85,7 @@ export async function handleListDeployedFighters(ws: WebSocket, playerId: number
         playerId,
     ]);
     if (playerRes.rows[0]?.on_planet_id) {
-        send(ws, {
+        sendEnvelope(playerId, {
             type: ServerMsgType.Error,
             message: 'Cannot use this command while on a planet',
         });
@@ -100,7 +100,7 @@ export async function handleListDeployedFighters(ws: WebSocket, playerId: number
         [playerId],
     );
 
-    send(ws, {
+    sendEnvelope(playerId, {
         type: ServerMsgType.ListDeployedFightersResult,
         fighters: res.rows.map((r: any) => ({ sectorId: r.sector_id, quantity: r.quantity })),
     });
@@ -115,7 +115,7 @@ export async function handleHyperspaceJump(
     if (!player) return;
 
     if (player.docked || player.at_stardock) {
-        send(ws, { type: ServerMsgType.Error, message: 'Cannot use this command while docked' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Cannot use this command while docked' });
         return;
     }
 
@@ -123,7 +123,7 @@ export async function handleHyperspaceJump(
         playerId,
     ]);
     if (playerRes.rows[0]?.on_planet_id) {
-        send(ws, {
+        sendEnvelope(playerId, {
             type: ServerMsgType.Error,
             message: 'Cannot use this command while on a planet',
         });
@@ -136,11 +136,11 @@ export async function handleHyperspaceJump(
         [playerId],
     );
     if (shipRes.rows.length === 0) {
-        send(ws, { type: ServerMsgType.Error, message: 'Ship not found' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Ship not found' });
         return;
     }
     if (!shipRes.rows[0].has_hyperwarp_drive) {
-        send(ws, { type: ServerMsgType.Error, message: 'Hyperwarp drive not equipped' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Hyperwarp drive not equipped' });
         return;
     }
 
@@ -154,7 +154,7 @@ export async function handleHyperspaceJump(
         [targetSector, universeId, playerId],
     );
     if (fighterRes.rows.length === 0) {
-        send(ws, {
+        sendEnvelope(playerId, {
             type: ServerMsgType.Error,
             message: 'No signal from fighters in target sector',
         });
@@ -166,7 +166,7 @@ export async function handleHyperspaceJump(
     const currentSector = player.sector;
 
     if (currentSector === targetSector) {
-        send(ws, {
+        sendEnvelope(playerId, {
             type: ServerMsgType.HyperspaceJumpResult,
             targetSector,
             fuelUsed: 0,
@@ -197,7 +197,7 @@ export async function handleHyperspaceJump(
     }
 
     if (pathHops < 0) {
-        send(ws, { type: ServerMsgType.Error, message: 'No path to target sector' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'No path to target sector' });
         return;
     }
 
@@ -208,7 +208,7 @@ export async function handleHyperspaceJump(
         playerId,
     ]);
     if (cargoRes.rows.length === 0 || cargoRes.rows[0].fuel < fuelCost) {
-        send(ws, { type: ServerMsgType.Error, message: 'Insufficient fuel for hyperspace jump' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient fuel for hyperspace jump' });
         return;
     }
 
@@ -216,7 +216,7 @@ export async function handleHyperspaceJump(
     const turnsPerWarp = shipRes.rows[0].turns_per_warp;
     const turnResult = await checkAndDeductTurns(playerId, universeId, turnsPerWarp);
     if (!turnResult.allowed) {
-        send(ws, { type: ServerMsgType.Error, message: 'Insufficient turns' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient turns' });
         return;
     }
 
@@ -237,7 +237,7 @@ export async function handleHyperspaceJump(
         ),
     ]);
 
-    send(ws, {
+    sendEnvelope(playerId, {
         type: ServerMsgType.HyperspaceJumpResult,
         targetSector,
         fuelUsed: fuelCost,

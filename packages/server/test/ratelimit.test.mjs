@@ -76,14 +76,15 @@ describe('Rate Limiting', () => {
         });
         const timer = setTimeout(() => { conn.terminate(); reject(new Error('WS connect timeout')); }, 2000);
         conn.on('message', (data) => {
-          const msg = JSON.parse(data.toString());
+          const raw = JSON.parse(data.toString());
+          const msg = raw.payload ?? raw;
           if (msg.type === ServerMsgType.Welcome) { clearTimeout(timer); resolve(conn); }
         });
         conn.on('error', (err) => { clearTimeout(timer); reject(err); });
       });
 
       const responses = [];
-      ws.on('message', (data) => responses.push(JSON.parse(data.toString())));
+      ws.on('message', (data) => { const raw = JSON.parse(data.toString()); responses.push(raw.payload ?? raw); });
 
       // Send 55 display messages rapidly — burst cap is 50, so last 5 should be rate limited
       for (let i = 0; i < 55; i++) {

@@ -1,6 +1,6 @@
 import { WebSocket } from 'ws';
 import { ServerMsgType } from '@twnr/shared';
-import { send } from '../game-state.js';
+import { sendEnvelope } from '../game-state.js';
 import { pool } from '../db/index.js';
 
 export async function handleJettison(ws: WebSocket, playerId: number): Promise<void> {
@@ -9,7 +9,7 @@ export async function handleJettison(ws: WebSocket, playerId: number): Promise<v
         [playerId],
     );
     if (cargoRes.rows.length === 0) {
-        send(ws, {
+        sendEnvelope(playerId, {
             type: ServerMsgType.JettisonResult,
             outcome: 'error',
             message: 'Player not found',
@@ -29,7 +29,7 @@ export async function handleJettison(ws: WebSocket, playerId: number): Promise<v
         [playerId],
     );
 
-    send(ws, {
+    sendEnvelope(playerId, {
         type: ServerMsgType.JettisonResult,
         outcome: 'success',
         jettisoned,

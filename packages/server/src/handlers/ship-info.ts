@@ -1,7 +1,7 @@
 import { WebSocket } from 'ws';
 import { ServerMsgType } from '@twnr/shared';
 import { shipConfigs } from '../ship-config.js';
-import { send } from '../game-state.js';
+import { sendEnvelope } from '../game-state.js';
 import { pool } from '../db/index.js';
 
 export async function handleShipInfo(ws: WebSocket, playerId: number): Promise<void> {
@@ -17,20 +17,20 @@ export async function handleShipInfo(ws: WebSocket, playerId: number): Promise<v
     `;
     const result = await pool.query(query, [playerId]);
     if (result.rows.length === 0) {
-        send(ws, { type: ServerMsgType.Error, message: 'Ship not found' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Ship not found' });
         return;
     }
 
     const row = result.rows[0];
     const config = shipConfigs[row.ship_name];
     if (!config) {
-        send(ws, { type: ServerMsgType.Error, message: 'Ship config missing' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Ship config missing' });
         return;
     }
 
     const holdsAvailable =
         row.cargo_limit - (row.fuel + row.organics + row.equipment + row.colonists);
-    send(ws, {
+    sendEnvelope(playerId, {
         type: ServerMsgType.ShipInfoResult,
         playerId,
         shipName: row.ship_name,
@@ -61,12 +61,12 @@ export async function handleCargoInfo(ws: WebSocket, playerId: number): Promise<
         [playerId],
     );
     if (cargoRes.rows.length === 0) {
-        send(ws, { type: ServerMsgType.Error, message: 'Player not found' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
         return;
     }
 
     const c = cargoRes.rows[0];
-    send(ws, {
+    sendEnvelope(playerId, {
         type: ServerMsgType.CargoInfoResult,
         playerId: c.player_id,
         fuel: c.fuel,

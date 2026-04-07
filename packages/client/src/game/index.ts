@@ -1,6 +1,6 @@
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
-import type { ClientCommand, PortInfoResultObject } from '@twnr/shared';
+import type { ClientCommand, PortInfoResultObject, MenuEntry } from '@twnr/shared';
 import { MenuMode } from './constants.js';
 import type { GameContext } from './types.js';
 import { setupConnection } from './connection.js';
@@ -47,6 +47,7 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
     let autopilotStep = 0;
     let autopilotPaused = false;
     let encounterOwnerName = '';
+    let menuRegistry = new Map<string, MenuEntry>();
 
     function sendMsg(msg: ClientCommand) {
         if (ws.readyState === WebSocket.OPEN) {
@@ -173,7 +174,23 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
         setEncounterOwnerName: (n) => {
             encounterOwnerName = n;
         },
+        get menuRegistry() {
+            return menuRegistry;
+        },
+        setMenuRegistry: (r) => {
+            menuRegistry = r;
+        },
     };
+
+    // Fetch menu registry and cache for the session
+    fetch('/api/menu-registry')
+        .then((res) => res.json())
+        .then((entries: MenuEntry[]) => {
+            const map = new Map<string, MenuEntry>();
+            for (const entry of entries) map.set(entry.name, entry);
+            ctx.setMenuRegistry(map);
+        })
+        .catch((err) => console.error('Failed to fetch menu registry:', err));
 
     setupConnection(ws, ctx);
     setupInput(term, ctx);

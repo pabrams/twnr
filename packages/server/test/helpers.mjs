@@ -152,7 +152,8 @@ export async function connectWS(options = {}) {
     });
 
     ws.on('message', (data) => {
-      const msg = JSON.parse(data.toString());
+      const raw = JSON.parse(data.toString());
+      const msg = raw.payload ?? raw;
       if (msg.type === 'welcome') {
         clearTimeout(timer);
         resolve({ ws, welcome: msg, cookies });
@@ -166,7 +167,8 @@ export function waitForMsg(ws, type, timeout = 2000) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(`Timeout waiting for message type "${type}"`)), timeout);
     function handler(data) {
-      const msg = JSON.parse(data.toString());
+      const raw = JSON.parse(data.toString());
+      const msg = raw.payload ?? raw;
       if (msg.type === type) {
         clearTimeout(timer);
         ws.removeListener('message', handler);
@@ -181,7 +183,8 @@ export function wsRequest(ws, msg, responseType, timeout = 2000) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(`Timeout waiting for "${responseType}"`)), timeout);
     function handler(data) {
-      const parsed = JSON.parse(data.toString());
+      const raw = JSON.parse(data.toString());
+      const parsed = raw.payload ?? raw;
       if (parsed.type === 'rateLimited') {
         // Wait for token bucket to refill, then resend
         setTimeout(() => ws.send(JSON.stringify(msg)), 200);
@@ -205,7 +208,8 @@ export function expectNoMsg(ws, type, timeout = 500) {
       resolve();
     }, timeout);
     function handler(data) {
-      const msg = JSON.parse(data.toString());
+      const raw = JSON.parse(data.toString());
+      const msg = raw.payload ?? raw;
       if (msg.type === type) {
         clearTimeout(timer);
         ws.removeListener('message', handler);

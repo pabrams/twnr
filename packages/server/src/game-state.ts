@@ -10,6 +10,7 @@ export interface Player {
     docked: boolean;
     at_stardock?: boolean;
     pendingEncounter?: { retreatSector: number };
+    currentMenu: string;
 }
 
 export const players: Record<number, Player> = {};
@@ -90,13 +91,40 @@ export async function getGraph(universeId: number): Promise<number[][]> {
 export function broadcastTo(data: ServerResult, targetClients: Set<WebSocket> | WebSocket[]) {
     for (const client of targetClients) {
         if (client.readyState === 1) {
-            client.send(JSON.stringify(data));
+            // Find the player's current menu for the envelope
+            const entry = Object.values(players).find(p => p.ws === client);
+            const menu = entry?.currentMenu ?? 'sector';
+            client.send(JSON.stringify({ menu, payload: data }));
         }
     }
 }
 
 export function send(ws: WebSocket, data: ServerResult) {
     ws.send(JSON.stringify(data));
+}
+
+export function sendEnvelope(playerId: number, data: ServerResult) {
+    const player = players[playerId];
+    if (!player || player.ws.readyState !== 1) return;
+    player.ws.send(JSON.stringify({ menu: player.currentMenu, payload: data }));
+}
+
+export function broadcastEnvelope(data: ServerResult, targetPlayerIds: number[]) {
+    for (const pid of targetPlayerIds) {
+        const player = players[pid];
+        if (player && player.ws.readyState === 1) {
+            player.ws.send(JSON.stringify({ menu: player.currentMenu, payload: data }));
+        }
+    }
+}
+
+export async function setPlayerMenu(playerId: number, menuName: string): Promise<void> {
+    const player = players[playerId];
+    if (player) player.currentMenu = menuName;
+    await pool.query(
+        `UPDATE players SET current_menu_id = (SELECT id FROM menu WHERE name = $1) WHERE id = $2`,
+        [menuName, playerId],
+    );
 }
 
 export function getPlayerUniverseId(playerId: number): number | undefined {

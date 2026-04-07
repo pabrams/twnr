@@ -41,7 +41,8 @@ async function connectWS(token, universeId) {
     const timer = setTimeout(() => { ws.terminate(); reject(new Error('WS connect timeout')); }, 2000);
 
     ws.on('message', (data) => {
-      const msg = JSON.parse(data.toString());
+      const raw = JSON.parse(data.toString());
+      const msg = raw.payload ?? raw;
       if (msg.type === ServerMsgType.Welcome) {
         clearTimeout(timer);
         resolve({ ws, welcome: msg });
@@ -68,7 +69,8 @@ function wsRequest(ws, msg, responseType, timeout = 2000) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(`Timeout waiting for "${responseType}"`)), timeout);
     function handler(data) {
-      const parsed = JSON.parse(data.toString());
+      const raw = JSON.parse(data.toString());
+      const parsed = raw.payload ?? raw;
       if (parsed.type === responseType || parsed.type === ServerMsgType.Error) {
         clearTimeout(timer);
         ws.removeListener('message', handler);
@@ -265,8 +267,8 @@ describe('WebSocket universe scoping', () => {
     // Collect messages on ws2 (same universe as ws1) and ws3 (different universe)
     const ws2Messages = [];
     const ws3Messages = [];
-    ws2.on('message', (data) => ws2Messages.push(JSON.parse(data.toString())));
-    ws3.on('message', (data) => ws3Messages.push(JSON.parse(data.toString())));
+    ws2.on('message', (data) => { const raw = JSON.parse(data.toString()); ws2Messages.push(raw.payload ?? raw); });
+    ws3.on('message', (data) => { const raw = JSON.parse(data.toString()); ws3Messages.push(raw.payload ?? raw); });
 
     // user1 moves from sector 1 to sector 2 in universe A
     await wsRequest(ws1, { type: ClientMsgType.Move, sector: 2 }, ServerMsgType.MoveResult);

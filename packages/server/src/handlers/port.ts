@@ -2,13 +2,14 @@ import { WebSocket } from 'ws';
 import { ServerMsgType } from '@twnr/shared';
 import {
     players,
-    send,
+    sendEnvelope,
     getPlayerUniverseId,
     PORT_CLASS_ACTIONS,
     getGraph,
     getPortForSector,
     getVisitedSectors,
     getSectorFighters,
+    setPlayerMenu,
 } from '../game-state.js';
 import { pool } from '../db/index.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
@@ -19,7 +20,7 @@ export async function handlePortInfo(
     sectorId: number,
 ): Promise<void> {
     if (!Number.isInteger(sectorId) || sectorId <= 0) {
-        send(ws, { type: ServerMsgType.Error, message: 'Invalid sector ID' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid sector ID' });
         return;
     }
 
@@ -33,12 +34,12 @@ export async function handlePortInfo(
         [sectorId, universeId],
     );
     if (portRes.rows.length === 0) {
-        send(ws, { type: ServerMsgType.Error, message: 'No port in this sector' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'No port in this sector' });
         return;
     }
 
     const p = portRes.rows[0];
-    send(ws, {
+    sendEnvelope(playerId, {
         type: ServerMsgType.PortInfoResult,
         sectorId: p.sector_id,
         class: p.class,
@@ -56,12 +57,12 @@ export async function handleDock(ws: WebSocket, playerId: number): Promise<void>
     if (!player) return;
 
     if (player.docked) {
-        send(ws, { type: ServerMsgType.Error, message: 'Already docked' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Already docked' });
         return;
     }
 
     if (player.pendingEncounter) {
-        send(ws, { type: ServerMsgType.Error, message: 'Resolve fighter encounter first' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Resolve fighter encounter first' });
         return;
     }
 
@@ -72,7 +73,7 @@ export async function handleDock(ws: WebSocket, playerId: number): Promise<void>
         [player.sector, player.universeId],
     );
     if (portRes.rows.length === 0) {
-        send(ws, { type: ServerMsgType.Error, message: 'No port in this sector' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'No port in this sector' });
         return;
     }
 
@@ -80,7 +81,8 @@ export async function handleDock(ws: WebSocket, playerId: number): Promise<void>
     await pool.query('UPDATE players SET docked = TRUE WHERE id = $1', [playerId]);
 
     const p = portRes.rows[0];
-    send(ws, {
+    await setPlayerMenu(playerId, p.class === 0 ? 'class0' : 'docked');
+    sendEnvelope(playerId, {
         type: ServerMsgType.DockResult,
         docked: true,
         port: {
@@ -102,12 +104,13 @@ export async function handleUndock(ws: WebSocket, playerId: number): Promise<voi
     if (!player) return;
 
     if (!player.docked) {
-        send(ws, { type: ServerMsgType.UndockResult, outcome: 'error', message: 'Not docked' });
+        sendEnvelope(playerId, { type: ServerMsgType.UndockResult, outcome: 'error', message: 'Not docked' });
         return;
     }
 
     player.docked = false;
     await pool.query('UPDATE players SET docked = FALSE WHERE id = $1', [playerId]);
+    await setPlayerMenu(playerId, 'sector');
 
     const currentSector = player.sector;
     const universeId = player.universeId;
@@ -136,7 +139,7 @@ export async function handleUndock(ws: WebSocket, playerId: number): Promise<voi
         )
         .map(([id, p]) => ({ id: Number(id), name: p.name }));
 
-    send(ws, {
+    sendEnvelope(playerId, {
         type: ServerMsgType.UndockResult,
         outcome: 'success',
         sector: currentSector,
@@ -163,18 +166,18 @@ export async function handlePortTransaction(
     };
     const col = VALID_GOODS[good];
     if (!col) {
-        send(ws, { type: ServerMsgType.Error, message: 'Invalid good' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid good' });
         return;
     }
 
     if (!['buy', 'sell'].includes(action)) {
-        send(ws, { type: ServerMsgType.Error, message: 'Invalid action' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid action' });
         return;
     }
 
     const qty = Number.isInteger(quantity) ? quantity : parseInt(String(quantity), 10);
     if (isNaN(qty) || qty <= 0) {
-        send(ws, { type: ServerMsgType.Error, message: 'Invalid quantity' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid quantity' });
         return;
     }
 
@@ -191,7 +194,7 @@ export async function handlePortTransaction(
         ]);
         if (pRes.rows.length === 0) {
             await client.query('ROLLBACK');
-            send(ws, { type: ServerMsgType.Error, message: 'Player not found' });
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
             return;
         }
         const currentSector = pRes.rows[0].current_sector;
@@ -204,7 +207,7 @@ export async function handlePortTransaction(
         );
         if (portRes.rows.length === 0) {
             await client.query('ROLLBACK');
-            send(ws, { type: ServerMsgType.Error, message: 'No port in this sector' });
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'No port in this sector' });
             return;
         }
 
@@ -222,7 +225,7 @@ export async function handlePortTransaction(
             (action === 'sell' && portActions[good] !== 'B')
         ) {
             await client.query('ROLLBACK');
-            send(ws, { type: ServerMsgType.Error, message: 'Port does not trade this commodity' });
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Port does not trade this commodity' });
             return;
         }
 
@@ -239,7 +242,7 @@ export async function handlePortTransaction(
         );
         if (cargoRes.rows.length === 0) {
             await client.query('ROLLBACK');
-            send(ws, { type: ServerMsgType.Error, message: 'Player not found' });
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
             return;
         }
 
@@ -250,19 +253,19 @@ export async function handlePortTransaction(
             const turnResult = await checkAndDeductTurns(playerId, universeId, 1);
             if (!turnResult.allowed) {
                 await client.query('ROLLBACK');
-                send(ws, { type: ServerMsgType.Error, message: 'Insufficient turns' });
+                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient turns' });
                 return;
             }
 
             const cost = qty * price;
             if (cargo.credits < cost) {
                 await client.query('ROLLBACK');
-                send(ws, { type: ServerMsgType.Error, message: 'Insufficient credits' });
+                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient credits' });
                 return;
             }
             if (port[good] < qty) {
                 await client.query('ROLLBACK');
-                send(ws, { type: ServerMsgType.Error, message: 'Insufficient port inventory' });
+                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient port inventory' });
                 return;
             }
             if (
@@ -270,7 +273,7 @@ export async function handlePortTransaction(
                 cargo.cargo_limit
             ) {
                 await client.query('ROLLBACK');
-                send(ws, { type: ServerMsgType.Error, message: 'Insufficient cargo holds' });
+                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient cargo holds' });
                 return;
             }
 
@@ -286,7 +289,7 @@ export async function handlePortTransaction(
 
             cargo[good] += qty;
             cargo.credits -= cost;
-            send(ws, {
+            sendEnvelope(playerId, {
                 type: ServerMsgType.PortTransactionResult,
                 credits: cargo.credits,
                 cargo: {
@@ -301,7 +304,7 @@ export async function handlePortTransaction(
             const revenue = qty * price;
             if (cargo[good] < qty) {
                 await client.query('ROLLBACK');
-                send(ws, { type: ServerMsgType.Error, message: 'Insufficient cargo' });
+                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient cargo' });
                 return;
             }
 
@@ -317,7 +320,7 @@ export async function handlePortTransaction(
 
             cargo[good] -= qty;
             cargo.credits += revenue;
-            send(ws, {
+            sendEnvelope(playerId, {
                 type: ServerMsgType.PortTransactionResult,
                 credits: cargo.credits,
                 cargo: {
@@ -331,7 +334,7 @@ export async function handlePortTransaction(
     } catch (err) {
         await client.query('ROLLBACK');
         console.error('Trade error', err);
-        send(ws, { type: ServerMsgType.Error, message: 'Internal server error' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Internal server error' });
     } finally {
         client.release();
     }
@@ -342,7 +345,7 @@ export async function handleDockStardock(ws: WebSocket, playerId: number): Promi
     if (!player) return;
 
     if (player.pendingEncounter) {
-        send(ws, { type: ServerMsgType.Error, message: 'Resolve fighter encounter first' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Resolve fighter encounter first' });
         return;
     }
 
@@ -352,13 +355,13 @@ export async function handleDockStardock(ws: WebSocket, playerId: number): Promi
         [player.sector, player.universeId],
     );
     if (portRes.rows.length === 0 || portRes.rows[0].class !== 9) {
-        send(ws, { type: ServerMsgType.Error, message: 'Stardock not found in this sector' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Stardock not found in this sector' });
         return;
     }
 
     player.at_stardock = true;
 
-    send(ws, { type: ServerMsgType.DockStardockResult });
+    sendEnvelope(playerId, { type: ServerMsgType.DockStardockResult });
 }
 
 export async function handleLeaveStardock(ws: WebSocket, playerId: number): Promise<void> {
@@ -366,7 +369,7 @@ export async function handleLeaveStardock(ws: WebSocket, playerId: number): Prom
     if (!player) return;
 
     if (!player.at_stardock) {
-        send(ws, { type: ServerMsgType.Error, message: 'Not at Stardock' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not at Stardock' });
         return;
     }
 
@@ -398,7 +401,7 @@ export async function handleLeaveStardock(ws: WebSocket, playerId: number): Prom
         )
         .map(([id, p]) => ({ id: Number(id), name: p.name }));
 
-    send(ws, {
+    sendEnvelope(playerId, {
         type: ServerMsgType.LeaveStardockResult,
         sector: currentSector,
         warps: displayWarps,
@@ -417,7 +420,7 @@ export async function handleBuyPlanetBusters(
 ): Promise<void> {
     const qty = Number.isInteger(quantity) ? quantity : 0;
     if (qty <= 0) {
-        send(ws, { type: ServerMsgType.Error, message: 'Invalid quantity' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid quantity' });
         return;
     }
 
@@ -425,7 +428,7 @@ export async function handleBuyPlanetBusters(
     if (!player) return;
 
     if (!player.at_stardock) {
-        send(ws, { type: ServerMsgType.Error, message: 'Not at Stardock' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not at Stardock' });
         return;
     }
 
@@ -441,7 +444,7 @@ export async function handleBuyPlanetBusters(
         );
         if (shipRes.rows.length === 0) {
             await client.query('ROLLBACK');
-            send(ws, { type: ServerMsgType.Error, message: 'Ship not found' });
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Ship not found' });
             return;
         }
 
@@ -451,7 +454,7 @@ export async function handleBuyPlanetBusters(
         );
         if (cargoRes.rows.length === 0 || cargoRes.rows[0].credits < cost) {
             await client.query('ROLLBACK');
-            send(ws, { type: ServerMsgType.Error, message: 'Insufficient credits' });
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient credits' });
             return;
         }
 
@@ -461,7 +464,7 @@ export async function handleBuyPlanetBusters(
 
             if (shipRes.rows[0].planet_busters + qty > maxPlanetBusters) {
                 await client.query('ROLLBACK');
-                send(ws, {
+                sendEnvelope(playerId, {
                     type: ServerMsgType.Error,
                     message: 'Cannot hold that many Planet Busters',
                 });
@@ -478,7 +481,7 @@ export async function handleBuyPlanetBusters(
             );
             await client.query('COMMIT');
 
-            send(ws, {
+            sendEnvelope(playerId, {
                 type: ServerMsgType.BuyPlanetBustersResult,
                 quantity: qty,
                 totalOnShip: shipRes.rows[0].planet_busters + qty,
@@ -488,7 +491,7 @@ export async function handleBuyPlanetBusters(
     } catch (err) {
         await client.query('ROLLBACK');
         console.error('Buy hardware error', err);
-        send(ws, { type: ServerMsgType.Error, message: 'Internal server error' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Internal server error' });
     } finally {
         client.release();
     }
@@ -501,7 +504,7 @@ export async function handleBuyTerraformDevices(
 ): Promise<void> {
     const qty = Number.isInteger(quantity) ? quantity : 0;
     if (qty <= 0) {
-        send(ws, { type: ServerMsgType.Error, message: 'Invalid quantity' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid quantity' });
         return;
     }
 
@@ -509,7 +512,7 @@ export async function handleBuyTerraformDevices(
     if (!player) return;
 
     if (!player.at_stardock) {
-        send(ws, { type: ServerMsgType.Error, message: 'Not at Stardock' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not at Stardock' });
         return;
     }
 
@@ -525,7 +528,7 @@ export async function handleBuyTerraformDevices(
         );
         if (shipRes.rows.length === 0) {
             await client.query('ROLLBACK');
-            send(ws, { type: ServerMsgType.Error, message: 'Ship not found' });
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Ship not found' });
             return;
         }
 
@@ -535,7 +538,7 @@ export async function handleBuyTerraformDevices(
         );
         if (cargoRes.rows.length === 0 || cargoRes.rows[0].credits < cost) {
             await client.query('ROLLBACK');
-            send(ws, { type: ServerMsgType.Error, message: 'Insufficient credits' });
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient credits' });
             return;
         }
 
@@ -545,7 +548,7 @@ export async function handleBuyTerraformDevices(
 
             if (shipRes.rows[0].terraform_devices + qty > maxTerraformDevices) {
                 await client.query('ROLLBACK');
-                send(ws, {
+                sendEnvelope(playerId, {
                     type: ServerMsgType.Error,
                     message: 'Cannot hold that many Terraform Devices',
                 });
@@ -562,7 +565,7 @@ export async function handleBuyTerraformDevices(
             );
             await client.query('COMMIT');
 
-            send(ws, {
+            sendEnvelope(playerId, {
                 type: ServerMsgType.BuyTerraformDevicesResult,
                 quantity: qty,
                 totalOnShip: shipRes.rows[0].terraform_devices + qty,
@@ -572,7 +575,7 @@ export async function handleBuyTerraformDevices(
     } catch (err) {
         await client.query('ROLLBACK');
         console.error('Buy hardware error', err);
-        send(ws, { type: ServerMsgType.Error, message: 'Internal server error' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Internal server error' });
     } finally {
         client.release();
     }

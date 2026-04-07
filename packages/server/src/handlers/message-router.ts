@@ -1,6 +1,6 @@
 import { WebSocket } from 'ws';
 import { ClientMsgType, ServerMsgType } from '@twnr/shared';
-import { players, send } from '../game-state.js';
+import { players, sendEnvelope } from '../game-state.js';
 import { handleMove, handleSectorDisplay, handleWarpsOut, handleShortestPath } from './movement.js';
 import {
     handlePortInfo,
@@ -95,7 +95,7 @@ export async function handleMessage(ws: WebSocket, playerId: number, data: any):
             return handleBuyTerraformDevices(ws, playerId, data.quantity);
         case ClientMsgType.TakeColonists:
         case ClientMsgType.LeaveColonists:
-            send(ws, { type: ServerMsgType.Error, message: 'Not implemented' });
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not implemented' });
             return;
         case ClientMsgType.DeployFightersInfo:
             return handleDeployFightersInfo(ws, playerId);
@@ -112,7 +112,7 @@ export async function handleMessage(ws: WebSocket, playerId: number, data: any):
         case ClientMsgType.HyperspaceJump:
             return handleHyperspaceJump(ws, playerId, data.targetSector);
         default:
-            send(ws, { type: ServerMsgType.Error, message: 'Unknown message type' });
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Unknown message type' });
     }
 }
 
@@ -121,5 +121,5 @@ function handlePlayersOnline(ws: WebSocket, playerId: number): void {
     const online = Object.entries(players)
         .filter(([, p]) => p.universeId === callerUniverse)
         .map(([id, p]) => ({ id: Number(id), name: p.name, sector: p.sector }));
-    send(ws, { type: ServerMsgType.PlayersOnlineResult, players: online });
+    sendEnvelope(playerId, { type: ServerMsgType.PlayersOnlineResult, players: online });
 }

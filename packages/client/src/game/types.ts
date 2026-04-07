@@ -1,5 +1,5 @@
 import type { Terminal } from '@xterm/xterm';
-import type { ClientCommand, PortInfoResultObject } from '@twnr/shared';
+import type { ClientCommand, PortInfoResultObject, MenuEntry } from '@twnr/shared';
 import { MenuMode } from './constants.js';
 import { colors } from './constants.js';
 
@@ -46,6 +46,8 @@ export interface GameContext {
     setAutopilotStep: (step: number) => void;
     setAutopilotPaused: (paused: boolean) => void;
     setEncounterOwnerName: (name: string) => void;
+    menuRegistry: Map<string, MenuEntry>;
+    setMenuRegistry: (registry: Map<string, MenuEntry>) => void;
 }
 
 const mg = colors.magenta;

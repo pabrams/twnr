@@ -29,30 +29,44 @@ import {
 } from './input-misc.js';
 import { colors, MenuMode } from './constants.js';
 
-export function setupInput(term: Terminal, ctx: GameContext) {
-    const singleCharCommands = new Set([
-        'd',
-        'p',
-        'i',
-        '?',
-        'q',
-        't',
-        'a',
-        'c',
-        'f',
-        'h',
-        'k',
-        'j',
-        'l',
-        'e',
-        'u',
-        ';',
-        's',
-        'y',
-        'n',
-        '#',
-    ]);
+/**
+ * Check if a key is valid for the current menu based on the cached registry.
+ * Returns 'single' for immediate single-char commands, 'buffered' for keys
+ * that begin or continue a multi-char input, or false to reject.
+ */
+function isValidKeyForMenu(ctx: GameContext, key: string): 'single' | 'buffered' | false {
+    const menu = ctx.menuRegistry.get(ctx.mode);
+    if (!menu) return 'single'; // Registry not loaded yet — permissive fallback
 
+    const lower = key.toLowerCase();
+    const hasNumberCmd = menu.commands.some((c) => c.keyPattern === '<number>');
+    const hasLetterCmd = menu.commands.some((c) => c.keyPattern === '<letter>');
+    const hasMultiWordCmd = menu.commands.some((c) => c.keyPattern.includes(' '));
+
+    for (const cmd of menu.commands) {
+        const kp = cmd.keyPattern;
+        // Exact single-char match (e.g. 'q', 'd', 'p')
+        if (kp.length === 1 && kp === lower) return 'single';
+    }
+
+    // Number input — digits start/continue buffer
+    if (hasNumberCmd && /\d/.test(key)) return 'buffered';
+    // Letter selection (ship catalog, planet specs)
+    if (hasLetterCmd && /[a-zA-Z]/.test(key)) return 'single';
+    // Multi-word command first char (e.g. 'b' for 'b <good> <qty>') or 'm' for 'move <sector>'
+    if (hasMultiWordCmd || hasNumberCmd) {
+        // Allow letters that start multi-word patterns
+        for (const cmd of menu.commands) {
+            if (cmd.keyPattern.includes(' ') && cmd.keyPattern[0] === lower) return 'buffered';
+        }
+        // Allow 'm' as alias prefix for move in menus with <number> commands
+        if (hasNumberCmd && lower === 'm') return 'buffered';
+    }
+
+    return false;
+}
+
+export function setupInput(term: Terminal, ctx: GameContext) {
     let inputBuffer = '';
     term.onKey(({ key, domEvent }) => {
         if (domEvent.key === 'Enter') {
@@ -65,10 +79,14 @@ export function setupInput(term: Terminal, ctx: GameContext) {
                 term.write('\b \b');
             }
         } else {
-            const lower = key.toLowerCase();
-            if (inputBuffer === '' && singleCharCommands.has(lower)) {
+            const validity = isValidKeyForMenu(ctx, key);
+            if (validity === false) {
+                // Invalid key for current menu — reject silently
+                return;
+            }
+            if (inputBuffer === '' && validity === 'single') {
                 term.writeln(key);
-                handleInput(ctx, lower);
+                handleInput(ctx, key.toLowerCase());
             } else {
                 inputBuffer += key;
                 term.write(key);
