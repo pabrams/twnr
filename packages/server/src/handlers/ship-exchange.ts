@@ -95,15 +95,24 @@ export async function handleBuyShipTradein(
             VALUES ($1, $2, $3, 0, 0, $4, 0, 0, $5, FALSE, $6, $7, $8, $9)
             RETURNING id
         `,
-            [playerId, targetType.id, pRes.rows[0].current_sector_id, newCargoLimit, targetType.turns_per_warp, data.fuel, data.organics, data.equipment, data.colonists],
+            [
+                playerId,
+                targetType.id,
+                pRes.rows[0].current_sector_id,
+                newCargoLimit,
+                targetType.turns_per_warp,
+                data.fuel,
+                data.organics,
+                data.equipment,
+                data.colonists,
+            ],
         );
 
         // Update player to point to new ship and deduct credits
-        await client.query('UPDATE players SET ship_id = $1, credits = credits - $2 WHERE id = $3', [
-            newShipRes.rows[0].id,
-            cost,
-            playerId,
-        ]);
+        await client.query(
+            'UPDATE players SET ship_id = $1, credits = credits - $2 WHERE id = $3',
+            [newShipRes.rows[0].id, cost, playerId],
+        );
 
         // Delete old ship (no multiple active ships yet)
         await client.query('DELETE FROM ships WHERE id = $1', [data.ship_id]);

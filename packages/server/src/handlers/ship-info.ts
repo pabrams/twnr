@@ -22,8 +22,7 @@ export async function handleShipInfo(playerId: number): Promise<void> {
 
     const row = result.rows[0];
 
-    const holdsAvailable =
-        row.holds - (row.fuel + row.organics + row.equipment + row.colonists);
+    const holdsAvailable = row.holds - (row.fuel + row.organics + row.equipment + row.colonists);
     sendEnvelope(playerId, {
         type: ServerMsgType.ShipInfoResult,
         playerId,

@@ -98,16 +98,17 @@ export async function handleAttackShip(
         const attackerDronesLost = shieldsLost + defenderDronesLost;
         const newAttackerDrones = attackerDrones - attackerDronesLost;
 
-        await client.query('UPDATE ships SET drones = $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)', [
-            newAttackerDrones,
-            attackerId,
-        ]);
+        await client.query(
+            'UPDATE ships SET drones = $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)',
+            [newAttackerDrones, attackerId],
+        );
 
         if (destroyed) {
             await client.query('DELETE FROM ships WHERE owner_id = $1', [targetPlayerId]);
-            await client.query('UPDATE players SET ship_id = NULL, ship_destroyed_date = NOW() WHERE id = $1', [
-                targetPlayerId,
-            ]);
+            await client.query(
+                'UPDATE players SET ship_id = NULL, ship_destroyed_date = NOW() WHERE id = $1',
+                [targetPlayerId],
+            );
         } else {
             await client.query(
                 'UPDATE ships SET drones = $1, shields = $2 WHERE id = (SELECT ship_id FROM players WHERE id = $3)',

@@ -56,10 +56,9 @@ export async function handleBuyHyperwarpDrive(playerId: number): Promise<void> {
             return;
         }
 
-        await client.query(
-            'UPDATE ships SET has_hyperwarp_drive = TRUE WHERE id = $1',
-            [shipRes.rows[0].ship_id],
-        );
+        await client.query('UPDATE ships SET has_hyperwarp_drive = TRUE WHERE id = $1', [
+            shipRes.rows[0].ship_id,
+        ]);
         await client.query('UPDATE players SET credits = credits - 50000 WHERE id = $1', [
             playerId,
         ]);
@@ -238,10 +237,11 @@ export async function handleHyperspaceJump(playerId: number, targetSector: numbe
 
     // Deduct fuel and move
     const targetSectorId = await resolveSectorId(targetSector, universeId);
-    await pool.query(
-        'UPDATE ships SET fuel = fuel - $1, sector_id = $2 WHERE id = $3',
-        [fuelCost, targetSectorId, shipRes.rows[0].ship_id],
-    );
+    await pool.query('UPDATE ships SET fuel = fuel - $1, sector_id = $2 WHERE id = $3', [
+        fuelCost,
+        targetSectorId,
+        shipRes.rows[0].ship_id,
+    ]);
     player.sector = targetSector;
     player.sectorId = targetSectorId;
     await Promise.all([

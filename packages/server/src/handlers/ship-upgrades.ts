@@ -69,10 +69,10 @@ export async function handleBuyDrones(playerId: number, quantity: number): Promi
             return;
         }
 
-        await client.query('UPDATE ships SET drones = drones + $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)', [
-            qty,
-            playerId,
-        ]);
+        await client.query(
+            'UPDATE ships SET drones = drones + $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)',
+            [qty, playerId],
+        );
         await client.query('UPDATE players SET credits = credits - $1 WHERE id = $2', [
             cost,
             playerId,
@@ -158,10 +158,10 @@ export async function handleBuyShields(playerId: number, quantity: number): Prom
             return;
         }
 
-        await client.query('UPDATE ships SET shields = shields + $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)', [
-            qty,
-            playerId,
-        ]);
+        await client.query(
+            'UPDATE ships SET shields = shields + $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)',
+            [qty, playerId],
+        );
         await client.query('UPDATE players SET credits = credits - $1 WHERE id = $2', [
             cost,
             playerId,

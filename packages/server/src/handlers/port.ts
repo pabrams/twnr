@@ -305,10 +305,10 @@ export async function handlePortTransaction(
                 `UPDATE ships SET ${col} = ${col} + $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)`,
                 [qty, playerId],
             );
-            await client.query(
-                `UPDATE players SET credits = credits - $1 WHERE id = $2`,
-                [cost, playerId],
-            );
+            await client.query(`UPDATE players SET credits = credits - $1 WHERE id = $2`, [
+                cost,
+                playerId,
+            ]);
             await client.query('COMMIT');
 
             cargo[good] += qty;
@@ -343,10 +343,10 @@ export async function handlePortTransaction(
                 `UPDATE ships SET ${col} = ${col} - $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)`,
                 [qty, playerId],
             );
-            await client.query(
-                `UPDATE players SET credits = credits + $1 WHERE id = $2`,
-                [revenue, playerId],
-            );
+            await client.query(`UPDATE players SET credits = credits + $1 WHERE id = $2`, [
+                revenue,
+                playerId,
+            ]);
             await client.query('COMMIT');
 
             cargo[good] -= qty;
@@ -504,14 +504,14 @@ export async function handleBuyPlanetBusters(playerId: number, quantity: number)
             return;
         }
 
-        await client.query(
-            'UPDATE players SET credits = credits - $1 WHERE id = $2',
-            [cost, playerId],
-        );
-        await client.query(
-            'UPDATE ships SET planet_busters = planet_busters + $1 WHERE id = $2',
-            [qty, shipRes.rows[0].ship_id],
-        );
+        await client.query('UPDATE players SET credits = credits - $1 WHERE id = $2', [
+            cost,
+            playerId,
+        ]);
+        await client.query('UPDATE ships SET planet_busters = planet_busters + $1 WHERE id = $2', [
+            qty,
+            shipRes.rows[0].ship_id,
+        ]);
         await client.query('COMMIT');
 
         sendEnvelope(playerId, {
@@ -583,10 +583,10 @@ export async function handleBuyTerraformDevices(playerId: number, quantity: numb
             return;
         }
 
-        await client.query(
-            'UPDATE players SET credits = credits - $1 WHERE id = $2',
-            [cost, playerId],
-        );
+        await client.query('UPDATE players SET credits = credits - $1 WHERE id = $2', [
+            cost,
+            playerId,
+        ]);
         await client.query(
             'UPDATE ships SET terraform_devices = terraform_devices + $1 WHERE id = $2',
             [qty, shipRes.rows[0].ship_id],

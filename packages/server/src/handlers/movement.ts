@@ -87,10 +87,10 @@ export async function handleMove(playerId: number, targetSector: number): Promis
             targetSectorId,
             playerId,
         ]),
-        pool.query('UPDATE ships SET sector_id = $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)', [
-            targetSectorId,
-            playerId,
-        ]),
+        pool.query(
+            'UPDATE ships SET sector_id = $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)',
+            [targetSectorId, playerId],
+        ),
         pool.query(
             'INSERT INTO visited_sectors (player_id, sector_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
             [playerId, targetSectorId],
@@ -143,9 +143,10 @@ export async function handleMove(playerId: number, targetSector: number): Promis
         player.pendingEncounter = { retreatSector: currentSector };
         await setPlayerMenu(playerId, 'droneEncounter');
 
-        const shipRes = await pool.query('SELECT drones FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [
-            playerId,
-        ]);
+        const shipRes = await pool.query(
+            'SELECT drones FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)',
+            [playerId],
+        );
 
         sendEnvelope(playerId, {
             type: ServerMsgType.MoveResult,

@@ -251,10 +251,9 @@ export function createAdminLifecycleRoutes(
                         'UPDATE players SET ship_id = NULL WHERE id = ANY($1::int[])',
                         [playerIds],
                     );
-                    await client.query(
-                        'DELETE FROM ships WHERE owner_id = ANY($1::int[])',
-                        [playerIds],
-                    );
+                    await client.query('DELETE FROM ships WHERE owner_id = ANY($1::int[])', [
+                        playerIds,
+                    ]);
                     await client.query('DELETE FROM players WHERE universe_id = $1', [universeId]);
                 }
 
