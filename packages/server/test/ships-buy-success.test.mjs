@@ -123,14 +123,14 @@ describe('Buy equipment — success', () => {
   });
 
   it('buy-holds cap is enforced using the current ship type (Warbird has lower maxHolds)', async () => {
-    const stardockRes = await pool.query(`SELECT sector_number FROM sectors WHERE name = 'Stardock' AND universe_id = $1`, [UNIVERSE_ID]);
-    assert.ok(stardockRes.rows.length > 0, 'Stardock must exist');
-    const stardockId = Number(stardockRes.rows[0].sector_number);
+    const starbaseRes = await pool.query(`SELECT sector_number FROM sectors WHERE name = 'Starbase' AND universe_id = $1`, [UNIVERSE_ID]);
+    assert.ok(starbaseRes.rows.length > 0, 'Starbase must exist');
+    const starbaseId = Number(starbaseRes.rows[0].sector_number);
 
     const { ws, welcome } = await connectWS();
     try {
-      // Exchange to Warbird at Stardock (navigate there first)
-      await navigateTo(ws, stardockId);
+      // Exchange to Warbird at Starbase (navigate there first)
+      await navigateTo(ws, starbaseId);
       const exchMsg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: warbirdCfg.name }, ServerMsgType.BuyShipTradeinResult);
       assert.equal(exchMsg.type, ServerMsgType.BuyShipTradeinResult);
 
@@ -193,14 +193,14 @@ describe('Buy equipment — success', () => {
   it('cargo limit is enforced after ship exchange reduces cargoLimit', async () => {
     const fuelSector = await findFuelSellerSector();
     assert.ok(fuelSector, 'Need a fuel-selling port for this test');
-    const stardockRes = await pool.query(`SELECT sector_number FROM sectors WHERE name = 'Stardock' AND universe_id = $1`, [UNIVERSE_ID]);
-    assert.ok(stardockRes.rows.length > 0, 'Stardock must exist');
-    const stardockId = Number(stardockRes.rows[0].sector_number);
+    const starbaseRes = await pool.query(`SELECT sector_number FROM sectors WHERE name = 'Starbase' AND universe_id = $1`, [UNIVERSE_ID]);
+    assert.ok(starbaseRes.rows.length > 0, 'Starbase must exist');
+    const starbaseId = Number(starbaseRes.rows[0].sector_number);
 
     const { ws } = await connectWS();
     try {
-      // Navigate to Stardock and exchange to Warbird (startingHolds=1)
-      await navigateTo(ws, stardockId);
+      // Navigate to Starbase and exchange to Warbird (startingHolds=1)
+      await navigateTo(ws, starbaseId);
       const exchMsg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: warbirdCfg.name }, ServerMsgType.BuyShipTradeinResult);
       assert.equal(exchMsg.type, ServerMsgType.BuyShipTradeinResult);
 

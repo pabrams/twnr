@@ -8,7 +8,7 @@ export interface Player {
     name: string;
     universeId: number;
     docked: boolean;
-    at_stardock?: boolean;
+    at_starbase?: boolean;
     pendingEncounter?: { retreatSector: number };
     currentMenu: string;
 }

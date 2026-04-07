@@ -277,7 +277,7 @@ export async function handleUseTerraformDevice(playerId: number): Promise<void> 
     const sectorName = sectorRes.rows[0]?.name;
     const sectorDbId = sectorRes.rows[0]?.id;
 
-    if (sectorId === 1 || sectorName === 'Stardock') {
+    if (sectorId === 1 || sectorName === 'Starbase') {
         sendEnvelope(playerId, {
             type: ServerMsgType.UseTerraformDeviceResult,
             success: false,

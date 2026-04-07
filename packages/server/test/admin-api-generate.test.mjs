@@ -142,23 +142,23 @@ describe('Admin API - Generate Universe', () => {
     assert.equal(portRes.rows[0].equ_price, 0);
   });
 
-  it('creates a Stardock sector with Class 9 port', async () => {
-    const res = await adminKeyPost('/api/admin/universes/generate', { name: 'StardockTest', sectors: 20, seed: 42 });
+  it('creates a Starbase sector with Class 9 port', async () => {
+    const res = await adminKeyPost('/api/admin/universes/generate', { name: 'StarbaseTest', sectors: 20, seed: 42 });
     assert.equal(res.status, 201);
     const uid = res.body.id;
 
-    // Check Stardock exists
+    // Check Starbase exists
     const sectorRes = await pool.query(
-      'SELECT id, sector_number FROM sectors WHERE name = $1 AND universe_id = $2', ['Stardock', uid]
+      'SELECT id, sector_number FROM sectors WHERE name = $1 AND universe_id = $2', ['Starbase', uid]
     );
-    assert.equal(sectorRes.rows.length, 1, 'Should have exactly one Stardock sector');
-    const stardockSectorNumber = sectorRes.rows[0].sector_number;
-    const stardockId = sectorRes.rows[0].id;
-    assert.ok(stardockSectorNumber >= 2, 'Stardock should not be sector 1');
+    assert.equal(sectorRes.rows.length, 1, 'Should have exactly one Starbase sector');
+    const starbaseSectorNumber = sectorRes.rows[0].sector_number;
+    const starbaseId = sectorRes.rows[0].id;
+    assert.ok(starbaseSectorNumber >= 2, 'Starbase should not be sector 1');
 
-    // Check Class 9 port at Stardock with all quantities and prices 0
+    // Check Class 9 port at Starbase with all quantities and prices 0
     const portRes = await pool.query(
-      'SELECT p.class, p.fuel, p.fuel_price, p.organics, p.org_price, p.equipment, p.equ_price FROM ports p WHERE p.sector_id = $1', [stardockId]
+      'SELECT p.class, p.fuel, p.fuel_price, p.organics, p.org_price, p.equipment, p.equ_price FROM ports p WHERE p.sector_id = $1', [starbaseId]
     );
     assert.equal(portRes.rows.length, 1);
     assert.equal(portRes.rows[0].class, 9);
@@ -217,7 +217,7 @@ describe('Admin API - Generate Universe', () => {
       'SELECT COUNT(*) as cnt FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE s.universe_id = $1 AND p.class BETWEEN 1 AND 8', [uid]
     );
     const tradingPorts = parseInt(portRes.rows[0].cnt, 10);
-    // With 50% density on 40 sectors, expect ~20 trading ports (minus stardock which gets class 9)
+    // With 50% density on 40 sectors, expect ~20 trading ports (minus starbase which gets class 9)
     const expected = Math.round(40 * 50 / 100) - 1;
     assert.ok(tradingPorts >= expected - 3 && tradingPorts <= expected + 3,
       `Expected ~${expected} trading ports with 50% density, got ${tradingPorts}`);

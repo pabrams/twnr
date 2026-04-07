@@ -416,14 +416,14 @@ describe('Ship trade-in resets ship-specific fields', () => {
     await pool.query('UPDATE players SET turns = 9999 WHERE id = $1', [playerId]);
     const { ws } = await connectWS(token);
 
-    // Navigate to Stardock
-    const stardockRes = await pool.query('SELECT sector_id FROM ports WHERE universe_id = $1 AND class = 9 LIMIT 1', [UNIVERSE_ID]);
-    assert.ok(stardockRes.rows.length > 0, 'Stardock must exist');
-    const stardockSector = stardockRes.rows[0].sector_id;
-    const moved = await movePlayerTo(ws, stardockSector);
-    assert.ok(moved, 'Must reach Stardock');
+    // Navigate to Starbase
+    const starbaseRes = await pool.query('SELECT sector_id FROM ports WHERE universe_id = $1 AND class = 9 LIMIT 1', [UNIVERSE_ID]);
+    assert.ok(starbaseRes.rows.length > 0, 'Starbase must exist');
+    const starbaseSector = starbaseRes.rows[0].sector_id;
+    const moved = await movePlayerTo(ws, starbaseSector);
+    assert.ok(moved, 'Must reach Starbase');
 
-    await wsRequest(ws, { type: 'dockStardock' }, 'dockStardockResult');
+    await wsRequest(ws, { type: 'dockStarbase' }, 'dockStarbaseResult');
 
     // Give enough credits for any ship
     await pool.query('UPDATE ship_cargo SET credits = 999999 WHERE player_id = $1', [playerId]);
@@ -445,11 +445,11 @@ describe('Ship trade-in resets ship-specific fields', () => {
     await pool.query('UPDATE players SET turns = 9999 WHERE id = $1', [playerId]);
     const { ws } = await connectWS(token);
 
-    // Navigate to Stardock
-    const stardockRes = await pool.query('SELECT sector_id FROM ports WHERE universe_id = $1 AND class = 9 LIMIT 1', [UNIVERSE_ID]);
-    const stardockSector = stardockRes.rows[0].sector_id;
-    await movePlayerTo(ws, stardockSector);
-    await wsRequest(ws, { type: 'dockStardock' }, 'dockStardockResult');
+    // Navigate to Starbase
+    const starbaseRes = await pool.query('SELECT sector_id FROM ports WHERE universe_id = $1 AND class = 9 LIMIT 1', [UNIVERSE_ID]);
+    const starbaseSector = starbaseRes.rows[0].sector_id;
+    await movePlayerTo(ws, starbaseSector);
+    await wsRequest(ws, { type: 'dockStarbase' }, 'dockStarbaseResult');
 
     // Give the player a hyperwarp drive, then trade ships
     await pool.query('UPDATE player_ships SET has_hyperwarp_drive = true WHERE player_id = $1', [playerId]);
@@ -983,27 +983,27 @@ describe('Grant turns script', () => {
 // HYPERSPACE JUMP SYSTEM TESTS
 // ============================================================
 
-/** Find the Stardock sector (port class 9) */
-async function findStardockSector() {
+/** Find the Starbase sector (port class 9) */
+async function findStarbaseSector() {
   const res = await pool.query('SELECT sector_id FROM ports WHERE universe_id = $1 AND class = 9 LIMIT 1', [UNIVERSE_ID]);
   return res.rows.length > 0 ? res.rows[0].sector_id : null;
 }
 
-/** Move player to stardock, dock, and return ws + player info */
-async function goToStardock(pool) {
+/** Move player to starbase, dock, and return ws + player info */
+async function goToStarbase(pool) {
   const { token, playerId } = await joinUniverse(pool);
   // Give plenty of turns for navigation
   await pool.query('UPDATE players SET turns = 9999 WHERE id = $1', [playerId]);
   const { ws } = await connectWS(token);
 
-  const stardockSector = await findStardockSector();
-  assert.ok(stardockSector, 'Stardock sector must exist');
+  const starbaseSector = await findStarbaseSector();
+  assert.ok(starbaseSector, 'Starbase sector must exist');
 
-  const moved = await movePlayerTo(ws, stardockSector);
-  assert.ok(moved, 'Must be able to reach Stardock');
+  const moved = await movePlayerTo(ws, starbaseSector);
+  assert.ok(moved, 'Must be able to reach Starbase');
 
-  await wsRequest(ws, { type: 'dockStardock' }, 'dockStardockResult');
-  return { ws, token, playerId, stardockSector };
+  await wsRequest(ws, { type: 'dockStarbase' }, 'dockStarbaseResult');
+  return { ws, token, playerId, starbaseSector };
 }
 
 /** Deploy drones in a sector for a player (directly via DB) */
@@ -1061,8 +1061,8 @@ describe('Schema - has_hyperwarp_drive', () => {
 // --- BuyHyperwarpDrive ---
 
 describe('BuyHyperwarpDrive', () => {
-  it('Successfully buys hyperwarp drive at Stardock', async () => {
-    const { ws, playerId } = await goToStardock(pool);
+  it('Successfully buys hyperwarp drive at Starbase', async () => {
+    const { ws, playerId } = await goToStarbase(pool);
     // Give credits and ensure ship can equip (use scout which has canHaveHyperwarp: true)
     // Player starts with default ship; we need to check if it can equip
     const shipRes = await pool.query('SELECT ship_name FROM player_ships WHERE player_id = $1', [playerId]);
@@ -1094,7 +1094,7 @@ describe('BuyHyperwarpDrive', () => {
     await closeWS(ws);
   });
 
-  it('Rejected when not at Stardock', async () => {
+  it('Rejected when not at Starbase', async () => {
     const { token, playerId } = await joinUniverse(pool);
     const { ws } = await connectWS(token);
     await pool.query("UPDATE player_ships SET ship_name = 'Scout Marauder', has_hyperwarp_drive = false WHERE player_id = $1", [playerId]);
@@ -1107,7 +1107,7 @@ describe('BuyHyperwarpDrive', () => {
   });
 
   it('Rejected when ship cannot equip hyperwarp', async () => {
-    const { ws, playerId } = await goToStardock(pool);
+    const { ws, playerId } = await goToStarbase(pool);
     // Merchant Freighter has canHaveHyperwarp: false
     await pool.query("UPDATE player_ships SET ship_name = 'Merchant Freighter' WHERE player_id = $1", [playerId]);
     await pool.query('UPDATE ship_cargo SET credits = 100000 WHERE player_id = $1', [playerId]);
@@ -1120,7 +1120,7 @@ describe('BuyHyperwarpDrive', () => {
   });
 
   it('Rejected when already have hyperwarp drive', async () => {
-    const { ws, playerId } = await goToStardock(pool);
+    const { ws, playerId } = await goToStarbase(pool);
     await pool.query("UPDATE player_ships SET ship_name = 'Scout Marauder', has_hyperwarp_drive = true WHERE player_id = $1", [playerId]);
     await pool.query('UPDATE ship_cargo SET credits = 100000 WHERE player_id = $1', [playerId]);
 
@@ -1132,7 +1132,7 @@ describe('BuyHyperwarpDrive', () => {
   });
 
   it('Rejected when insufficient credits', async () => {
-    const { ws, playerId } = await goToStardock(pool);
+    const { ws, playerId } = await goToStarbase(pool);
     await pool.query("UPDATE player_ships SET ship_name = 'Scout Marauder', has_hyperwarp_drive = false WHERE player_id = $1", [playerId]);
     await pool.query('UPDATE ship_cargo SET credits = 100 WHERE player_id = $1', [playerId]);
 
@@ -1144,7 +1144,7 @@ describe('BuyHyperwarpDrive', () => {
   });
 
   it('Buying hyperwarp drive costs 0 turns', async () => {
-    const { ws, playerId } = await goToStardock(pool);
+    const { ws, playerId } = await goToStarbase(pool);
     await pool.query("UPDATE player_ships SET ship_name = 'Scout Marauder', has_hyperwarp_drive = false WHERE player_id = $1", [playerId]);
     await pool.query('UPDATE ship_cargo SET credits = 100000 WHERE player_id = $1', [playerId]);
     await pool.query('UPDATE players SET turns = 50 WHERE id = $1', [playerId]);
@@ -1456,8 +1456,8 @@ describe('HyperspaceJump', () => {
     await closeWS(ws);
   });
 
-  it('Rejected when player is at Stardock', async () => {
-    const { ws, playerId, stardockSector } = await goToStardock(pool);
+  it('Rejected when player is at Starbase', async () => {
+    const { ws, playerId, starbaseSector } = await goToStarbase(pool);
     await pool.query('UPDATE ship_cargo SET fuel = 100 WHERE player_id = $1', [playerId]);
 
     // Find a sector to jump to
@@ -1531,8 +1531,8 @@ describe('ListDeployedDrones - sector command mode', () => {
     await closeWS(ws);
   });
 
-  it('Rejected when player is at Stardock', async () => {
-    const { ws, playerId } = await goToStardock(pool);
+  it('Rejected when player is at Starbase', async () => {
+    const { ws, playerId } = await goToStarbase(pool);
 
     const result = await wsRequest(ws, { type: 'listDeployedDrones' }, 'listDeployedDronesResult');
     assert.equal(result.type, 'error');

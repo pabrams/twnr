@@ -99,8 +99,8 @@ function randomInt(min, max) {
 const N = sectors;
 const sectorNames = new Array(N + 1).fill("");
 sectorNames[1] = "Federation Space";
-const stardockId = randomInt(2, N);
-sectorNames[stardockId] = "Stardock";
+const starbaseId = randomInt(2, N);
+sectorNames[starbaseId] = "Starbase";
 
 function generateGraph(N, T, rng) {
     let bestW = -1, bestE_bi = -1, bestE_uni = -1, minDiff = 100;
@@ -279,7 +279,7 @@ function generatePort(sectorId, portClass) {
     };
 }
 
-ports.push(generatePort(stardockId, 8));
+ports.push(generatePort(starbaseId, 8));
 
 let numOtherPorts = totalPortsTarget - 1;
 if (numOtherPorts > N - 2) {
@@ -288,7 +288,7 @@ if (numOtherPorts > N - 2) {
 
 let availableSectorsForPorts = [];
 for (let i = 2; i <= N; i++) {
-    if (i !== stardockId) {
+    if (i !== starbaseId) {
         availableSectorsForPorts.push(i);
     }
 }
