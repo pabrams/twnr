@@ -1,5 +1,5 @@
 import { ClientMsgType, ServerMsgType } from '@twnr/shared';
-import { players, sendEnvelope, setPlayerMenu } from '../game-state.js';
+import { players, sendEnvelope } from '../game-state.js';
 import { handleChangeMenu } from './menu.js';
 import { handleMove, handleSectorDisplay, handleWarpsOut, handleShortestPath } from './movement.js';
 import {
