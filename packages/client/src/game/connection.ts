@@ -16,7 +16,13 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
     });
 
     ws.addEventListener('message', (event) => {
-        const msg: ServerResult = JSON.parse(event.data);
+        const raw = JSON.parse(event.data);
+        // Support envelope format: { menu, payload } or legacy bare messages
+        const msg: ServerResult = raw.payload ?? raw;
+        if (raw.menu) {
+            // Server is authoritative on menu state
+            ctx.setMode(raw.menu as MenuMode);
+        }
         switch (msg.type) {
             case ServerMsgType.Welcome:
                 ctx.setPlayerName(msg.name);

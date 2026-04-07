@@ -1,7 +1,7 @@
 import { WebSocket } from 'ws';
 import { ServerMsgType } from '@twnr/shared';
 import type { ServerResult } from '@twnr/shared';
-import { players, send } from '../game-state.js';
+import { players, sendEnvelope, setPlayerMenu } from '../game-state.js';
 import { pool } from '../db/index.js';
 
 export async function handleAttackShip(
@@ -11,12 +11,12 @@ export async function handleAttackShip(
     fighters: number,
 ): Promise<void> {
     if (!Number.isInteger(fighters) || fighters <= 0) {
-        send(ws, { type: ServerMsgType.Error, message: 'Invalid number of fighters' });
+        sendEnvelope(attackerId,{ type: ServerMsgType.Error, message: 'Invalid number of fighters' });
         return;
     }
 
     if (attackerId === targetPlayerId) {
-        send(ws, { type: ServerMsgType.Error, message: 'You cannot attack yourself' });
+        sendEnvelope(attackerId,{ type: ServerMsgType.Error, message: 'You cannot attack yourself' });
         return;
     }
 
@@ -29,12 +29,12 @@ export async function handleAttackShip(
         attacker.sector !== target.sector ||
         attacker.universeId !== target.universeId
     ) {
-        send(ws, { type: ServerMsgType.Error, message: 'Target is not in this sector' });
+        sendEnvelope(attackerId,{ type: ServerMsgType.Error, message: 'Target is not in this sector' });
         return;
     }
 
     if (target.docked) {
-        send(ws, { type: ServerMsgType.Error, message: 'Target is docked at a port' });
+        sendEnvelope(attackerId,{ type: ServerMsgType.Error, message: 'Target is docked at a port' });
         return;
     }
 
@@ -53,7 +53,7 @@ export async function handleAttackShip(
 
         if (attackerShipRes.rows.length === 0 || targetShipRes.rows.length === 0) {
             await client.query('ROLLBACK');
-            send(ws, { type: ServerMsgType.Error, message: 'Ship not found' });
+            sendEnvelope(attackerId,{ type: ServerMsgType.Error, message: 'Ship not found' });
             return;
         }
 
@@ -63,7 +63,7 @@ export async function handleAttackShip(
 
         if (fighters > attackerFighters) {
             await client.query('ROLLBACK');
-            send(ws, { type: ServerMsgType.Error, message: 'Not enough fighters' });
+            sendEnvelope(attackerId,{ type: ServerMsgType.Error, message: 'Not enough fighters' });
             return;
         }
 
@@ -107,6 +107,7 @@ export async function handleAttackShip(
 
         await client.query('COMMIT');
 
+        await setPlayerMenu(attackerId, 'sector');
         const resultMsg: ServerResult = {
             type: ServerMsgType.AttackShipResult,
             destroyed,
@@ -115,10 +116,10 @@ export async function handleAttackShip(
             defenderShieldsLost: shieldsLost,
             message: destroyed ? 'Target destroyed!' : 'Attack completed.',
         };
-        send(ws, resultMsg);
+        sendEnvelope(attackerId,resultMsg);
 
         if (target.ws && target.ws.readyState === 1) {
-            send(target.ws, {
+            sendEnvelope(targetPlayerId, {
                 type: ServerMsgType.AttackShipResult,
                 destroyed,
                 attackerFightersLost,
@@ -133,7 +134,7 @@ export async function handleAttackShip(
     } catch (e) {
         await client.query('ROLLBACK');
         console.error('Attack error', e);
-        send(ws, { type: ServerMsgType.Error, message: 'Internal server error' });
+        sendEnvelope(attackerId,{ type: ServerMsgType.Error, message: 'Internal server error' });
     } finally {
         client.release();
     }

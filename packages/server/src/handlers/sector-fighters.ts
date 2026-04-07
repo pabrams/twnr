@@ -2,12 +2,13 @@ import { WebSocket } from 'ws';
 import { ServerMsgType } from '@twnr/shared';
 import {
     players,
-    send,
+    sendEnvelope,
     getSectorFighters,
     getPortForSector,
     getVisitedSectors,
     getGraph,
     broadcastTo,
+    setPlayerMenu,
 } from '../game-state.js';
 import { pool } from '../db/index.js';
 import { shipConfigs } from '../ship-config.js';
@@ -17,12 +18,12 @@ export async function handleDeployFightersInfo(ws: WebSocket, playerId: number):
     if (!player) return;
 
     if (player.docked) {
-        send(ws, { type: ServerMsgType.Error, message: 'Cannot deploy while docked' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Cannot deploy while docked' });
         return;
     }
 
     if (player.pendingEncounter) {
-        send(ws, { type: ServerMsgType.Error, message: 'Resolve fighter encounter first' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Resolve fighter encounter first' });
         return;
     }
 
@@ -31,7 +32,7 @@ export async function handleDeployFightersInfo(ws: WebSocket, playerId: number):
         [playerId],
     );
     if (shipRes.rows.length === 0) {
-        send(ws, { type: ServerMsgType.NoShip });
+        sendEnvelope(playerId, { type: ServerMsgType.NoShip });
         return;
     }
 
@@ -40,11 +41,12 @@ export async function handleDeployFightersInfo(ws: WebSocket, playerId: number):
 
     // Only show own fighters or no fighters; can't deploy into hostile sector
     if (sectorFighters && sectorFighters.ownerId !== playerId) {
-        send(ws, { type: ServerMsgType.Error, message: 'Sector contains hostile fighters' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Sector contains hostile fighters' });
         return;
     }
 
-    send(ws, {
+    await setPlayerMenu(playerId, 'deployFightersQty');
+    sendEnvelope(playerId, {
         type: ServerMsgType.DeployFightersInfoResult,
         sectorFighters: sectorFighters?.quantity ?? 0,
         shipFighters: shipRes.rows[0].fighters,
@@ -58,7 +60,7 @@ export async function handleDeployFighters(
     target: number,
 ): Promise<void> {
     if (!Number.isInteger(target) || target < 0) {
-        send(ws, { type: ServerMsgType.Error, message: 'Invalid target quantity' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid target quantity' });
         return;
     }
 
@@ -66,12 +68,12 @@ export async function handleDeployFighters(
     if (!player) return;
 
     if (player.docked) {
-        send(ws, { type: ServerMsgType.Error, message: 'Cannot deploy while docked' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Cannot deploy while docked' });
         return;
     }
 
     if (player.pendingEncounter) {
-        send(ws, { type: ServerMsgType.Error, message: 'Resolve fighter encounter first' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Resolve fighter encounter first' });
         return;
     }
 
@@ -88,7 +90,7 @@ export async function handleDeployFighters(
         );
         if (shipRes.rows.length === 0) {
             await client.query('ROLLBACK');
-            send(ws, { type: ServerMsgType.NoShip });
+            sendEnvelope(playerId, { type: ServerMsgType.NoShip });
             return;
         }
 
@@ -103,7 +105,7 @@ export async function handleDeployFighters(
         );
         if (sectorLookup.rows.length === 0) {
             await client.query('ROLLBACK');
-            send(ws, { type: ServerMsgType.Error, message: 'Sector not found' });
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Sector not found' });
             return;
         }
         const sectorDbId = sectorLookup.rows[0].id;
@@ -118,7 +120,7 @@ export async function handleDeployFighters(
         if (sfRes.rows.length > 0) {
             if (sfRes.rows[0].owner_id !== playerId) {
                 await client.query('ROLLBACK');
-                send(ws, {
+                sendEnvelope(playerId, {
                     type: ServerMsgType.Error,
                     message: 'Sector contains hostile fighters',
                 });
@@ -132,7 +134,7 @@ export async function handleDeployFighters(
         // Deploying more fighters
         if (delta > 0 && delta > shipFighters) {
             await client.query('ROLLBACK');
-            send(ws, {
+            sendEnvelope(playerId, {
                 type: ServerMsgType.Error,
                 message: `Cannot deploy ${delta} fighters; only ${shipFighters} on ship`,
             });
@@ -144,7 +146,7 @@ export async function handleDeployFighters(
             const returning = -delta;
             if (shipFighters + returning > maxFighters) {
                 await client.query('ROLLBACK');
-                send(ws, {
+                sendEnvelope(playerId, {
                     type: ServerMsgType.Error,
                     message: `Ship can hold only ${maxFighters - shipFighters} more fighters`,
                 });
@@ -180,7 +182,8 @@ export async function handleDeployFighters(
 
         await client.query('COMMIT');
 
-        send(ws, {
+        await setPlayerMenu(playerId, 'sector');
+        sendEnvelope(playerId, {
             type: ServerMsgType.DeployFightersResult,
             sectorFighters: target,
             shipFighters: newShipFighters,
@@ -188,7 +191,7 @@ export async function handleDeployFighters(
     } catch (err) {
         await client.query('ROLLBACK');
         console.error('Deploy fighters error', err);
-        send(ws, { type: ServerMsgType.Error, message: 'Internal server error' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Internal server error' });
     } finally {
         client.release();
     }
@@ -200,7 +203,7 @@ export async function handleAttackSectorFighters(
     fightersToAttack: number,
 ): Promise<void> {
     if (!Number.isInteger(fightersToAttack) || fightersToAttack <= 0) {
-        send(ws, { type: ServerMsgType.Error, message: 'Invalid number of fighters' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid number of fighters' });
         return;
     }
 
@@ -208,7 +211,7 @@ export async function handleAttackSectorFighters(
     if (!player) return;
 
     if (!player.pendingEncounter) {
-        send(ws, { type: ServerMsgType.Error, message: 'No fighter encounter pending' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'No fighter encounter pending' });
         return;
     }
 
@@ -232,14 +235,14 @@ export async function handleAttackSectorFighters(
         );
         if (shipRes.rows.length === 0) {
             await client.query('ROLLBACK');
-            send(ws, { type: ServerMsgType.NoShip });
+            sendEnvelope(playerId, { type: ServerMsgType.NoShip });
             return;
         }
 
         const shipFighters = shipRes.rows[0].fighters;
         if (fightersToAttack > shipFighters) {
             await client.query('ROLLBACK');
-            send(ws, {
+            sendEnvelope(playerId, {
                 type: ServerMsgType.Error,
                 message: `Not enough fighters on ship (have ${shipFighters})`,
             });
@@ -253,7 +256,7 @@ export async function handleAttackSectorFighters(
         if (sfRes.rows.length === 0 || sfRes.rows[0].quantity <= 0) {
             await client.query('ROLLBACK');
             player.pendingEncounter = undefined;
-            send(ws, { type: ServerMsgType.Error, message: 'No hostile fighters in sector' });
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'No hostile fighters in sector' });
             return;
         }
 
@@ -289,9 +292,10 @@ export async function handleAttackSectorFighters(
 
         if (victory) {
             player.pendingEncounter = undefined;
+            await setPlayerMenu(playerId, 'sector');
         }
 
-        send(ws, {
+        sendEnvelope(playerId, {
             type: ServerMsgType.AttackSectorFightersResult,
             victory,
             fightersLost: k,
@@ -302,7 +306,7 @@ export async function handleAttackSectorFighters(
         // Alert the owner
         const owner = players[ownerId];
         if (owner && owner.ws.readyState === 1) {
-            send(owner.ws, {
+            sendEnvelope(ownerId, {
                 type: ServerMsgType.SectorFightersAlert,
                 event: victory ? 'destroyed' : 'attacked',
                 sector: sectorId,
@@ -314,7 +318,7 @@ export async function handleAttackSectorFighters(
     } catch (err) {
         await client.query('ROLLBACK');
         console.error('Attack sector fighters error', err);
-        send(ws, { type: ServerMsgType.Error, message: 'Internal server error' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Internal server error' });
     } finally {
         client.release();
     }
@@ -325,7 +329,7 @@ export async function handleRetreatFromFighters(ws: WebSocket, playerId: number)
     if (!player) return;
 
     if (!player.pendingEncounter) {
-        send(ws, { type: ServerMsgType.Error, message: 'No fighter encounter pending' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'No fighter encounter pending' });
         return;
     }
 
@@ -360,8 +364,9 @@ export async function handleRetreatFromFighters(ws: WebSocket, playerId: number)
     );
 
     player.pendingEncounter = undefined;
+    await setPlayerMenu(playerId, 'sector');
 
-    send(ws, { type: ServerMsgType.RetreatFromFightersResult, sector: retreatSector });
+    sendEnvelope(playerId, { type: ServerMsgType.RetreatFromFightersResult, sector: retreatSector });
 
     // Send sector display for the retreat sector
     const [warps, port, visitedSectors, sectorFighters, planetsRes] = await Promise.all([
@@ -387,7 +392,7 @@ export async function handleRetreatFromFighters(ws: WebSocket, playerId: number)
                 Number(id) !== playerId,
         )
         .map(([id, p]) => ({ id: Number(id), name: p.name }));
-    send(ws, {
+    sendEnvelope(playerId, {
         type: ServerMsgType.SectorDisplayResult,
         sector: retreatSector,
         warps: displayWarps,

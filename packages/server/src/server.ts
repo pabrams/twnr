@@ -9,7 +9,7 @@ import * as auth from './auth/index.js';
 import { ServerMsgType } from '@twnr/shared';
 import type { AuthTokenPayload, ServerResult } from '@twnr/shared';
 import { shipConfigs } from './ship-config.js';
-import { players, send, broadcastTo } from './game-state.js';
+import { players, send, sendEnvelope, broadcastTo } from './game-state.js';
 import { handleMessage } from './handlers/message-router.js';
 
 const app: ReturnType<typeof express> = express();
@@ -121,7 +121,12 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             'INSERT INTO visited_sectors (player_id, sector_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
             [playerId, sector],
         );
-        players[playerId] = { ws, sector, name: playerRow.name, universeId, docked: false };
+        // Set initial menu to sector
+        await pool.query(
+            `UPDATE players SET current_menu_id = (SELECT id FROM menu WHERE name = 'sector') WHERE id = $1`,
+            [playerId],
+        );
+        players[playerId] = { ws, sector, name: playerRow.name, universeId, docked: false, currentMenu: 'sector' };
         const sectorCountRes = await pool.query(
             'SELECT COUNT(*) FROM sectors WHERE universe_id = $1',
             [universeId],
@@ -140,7 +145,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
                 tokenVersion: userRes.rows[0].token_version,
             }),
         };
-        ws.send(JSON.stringify(welcomeMsg));
+        ws.send(JSON.stringify({ menu: 'sector', payload: welcomeMsg }));
 
         let tokens = 50;
         const refillInterval = setInterval(() => {
@@ -149,7 +154,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
 
         ws.on('message', async (message) => {
             if (tokens <= 0) {
-                send(ws, { type: ServerMsgType.RateLimited });
+                sendEnvelope(playerId, { type: ServerMsgType.RateLimited });
                 return;
             }
             tokens--;
@@ -158,7 +163,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             try {
                 data = JSON.parse(message.toString());
             } catch {
-                send(ws, { type: ServerMsgType.Error, message: 'Invalid JSON' });
+                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid JSON' });
                 return;
             }
 
@@ -166,7 +171,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
                 await handleMessage(ws, playerId, data);
             } catch (err) {
                 console.error('Message handler error:', err);
-                send(ws, { type: ServerMsgType.Error, message: 'Internal server error' });
+                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Internal server error' });
             }
         });
 

@@ -2,13 +2,14 @@ import { WebSocket } from 'ws';
 import { ServerMsgType } from '@twnr/shared';
 import {
     players,
-    send,
+    sendEnvelope,
     broadcastTo,
     getGraph,
     getPortForSector,
     getVisitedSectors,
     getPlayerUniverseId,
     getSectorFighters,
+    setPlayerMenu,
 } from '../game-state.js';
 import { pool } from '../db/index.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
@@ -19,7 +20,7 @@ export async function handleMove(
     targetSector: number,
 ): Promise<void> {
     if (!Number.isInteger(targetSector) || targetSector <= 0) {
-        send(ws, { type: ServerMsgType.MoveResult, outcome: 'error', message: 'Invalid sector' });
+        sendEnvelope(playerId, { type: ServerMsgType.MoveResult, outcome: 'error', message: 'Invalid sector' });
         return;
     }
 
@@ -27,7 +28,7 @@ export async function handleMove(
         playerId,
     ]);
     if (shipRes.rows.length === 0) {
-        send(ws, { type: ServerMsgType.MoveResult, outcome: 'noShip' });
+        sendEnvelope(playerId, { type: ServerMsgType.MoveResult, outcome: 'noShip' });
         return;
     }
 
@@ -36,7 +37,7 @@ export async function handleMove(
 
     // Block movement during pending fighter encounter
     if (player.pendingEncounter) {
-        send(ws, {
+        sendEnvelope(playerId, {
             type: ServerMsgType.MoveResult,
             outcome: 'error',
             message: 'Resolve fighter encounter first',
@@ -49,7 +50,7 @@ export async function handleMove(
     const currentSector = player.sector;
 
     if (!warps[currentSector]?.includes(targetSector)) {
-        send(ws, {
+        sendEnvelope(playerId, {
             type: ServerMsgType.MoveResult,
             outcome: 'nonAdjacent',
             sector: targetSector,
@@ -65,7 +66,7 @@ export async function handleMove(
     const turnsPerWarp = turnsPerWarpRes.rows[0]?.turns_per_warp ?? 1;
     const turnResult = await checkAndDeductTurns(playerId, universeId, turnsPerWarp);
     if (!turnResult.allowed) {
-        send(ws, {
+        sendEnvelope(playerId, {
             type: ServerMsgType.MoveResult,
             outcome: 'error',
             message: 'Insufficient turns',
@@ -135,12 +136,13 @@ export async function handleMove(
     // Hostile fighter encounter — send FighterEncounter with embedded sector data (Oak's design)
     if (sectorFighters && sectorFighters.ownerId !== playerId) {
         player.pendingEncounter = { retreatSector: currentSector };
+        await setPlayerMenu(playerId, 'fighterEncounter');
 
         const shipRes = await pool.query('SELECT fighters FROM player_ships WHERE player_id = $1', [
             playerId,
         ]);
 
-        send(ws, {
+        sendEnvelope(playerId, {
             type: ServerMsgType.MoveResult,
             outcome: 'encounter',
             sector: targetSector,
@@ -159,7 +161,7 @@ export async function handleMove(
         // Alert the owner about the intrusion
         const owner = players[sectorFighters.ownerId];
         if (owner && owner.ws.readyState === 1) {
-            send(owner.ws, {
+            sendEnvelope(sectorFighters.ownerId, {
                 type: ServerMsgType.SectorFightersAlert,
                 event: 'intrusion',
                 sector: targetSector,
@@ -171,7 +173,7 @@ export async function handleMove(
         return;
     }
 
-    send(ws, {
+    sendEnvelope(playerId, {
         type: ServerMsgType.MoveResult,
         outcome: 'success',
         sector: targetSector,
@@ -214,7 +216,7 @@ export async function handleSectorDisplay(ws: WebSocket, playerId: number): Prom
                 Number(id) !== playerId,
         )
         .map(([id, p]) => ({ id: Number(id), name: p.name }));
-    send(ws, {
+    sendEnvelope(playerId, {
         type: ServerMsgType.SectorDisplayResult,
         sector: currentSector,
         warps: displayWarps,
@@ -228,7 +230,7 @@ export async function handleSectorDisplay(ws: WebSocket, playerId: number): Prom
 
 export async function handleWarpsOut(ws: WebSocket, playerId: number, id: number): Promise<void> {
     if (!Number.isInteger(id) || id <= 0) {
-        send(ws, { type: ServerMsgType.Error, message: 'Invalid sector ID' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid sector ID' });
         return;
     }
 
@@ -240,7 +242,7 @@ export async function handleWarpsOut(ws: WebSocket, playerId: number, id: number
         [id, universeId],
     );
     if (sectorRes.rows.length === 0) {
-        send(ws, { type: ServerMsgType.Error, message: 'Sector not found' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Sector not found' });
         return;
     }
 
@@ -253,7 +255,7 @@ export async function handleWarpsOut(ws: WebSocket, playerId: number, id: number
         [id, universeId],
     );
     const warps = warpsRes.rows.map((r) => r.sector_to);
-    send(ws, { type: ServerMsgType.WarpsOutResult, id, warps });
+    sendEnvelope(playerId, { type: ServerMsgType.WarpsOutResult, id, warps });
 }
 
 export async function handleShortestPath(
@@ -263,7 +265,7 @@ export async function handleShortestPath(
     to: number,
 ): Promise<void> {
     if (!Number.isInteger(from) || from <= 0 || !Number.isInteger(to) || to <= 0) {
-        send(ws, { type: ServerMsgType.Error, message: 'Invalid sector ID' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid sector ID' });
         return;
     }
 
@@ -277,13 +279,13 @@ export async function handleShortestPath(
     if (sectorRes.rows.length !== (from === to ? 1 : 2)) {
         const foundIds = new Set(sectorRes.rows.map((r: any) => r.sector_number));
         if (!foundIds.has(from) || !foundIds.has(to)) {
-            send(ws, { type: ServerMsgType.Error, message: 'Sector not found' });
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Sector not found' });
             return;
         }
     }
 
     if (from === to) {
-        send(ws, { type: ServerMsgType.ShortestPathResult, path: [from], hops: 0 });
+        sendEnvelope(playerId, { type: ServerMsgType.ShortestPathResult, path: [from], hops: 0 });
         return;
     }
 
@@ -298,7 +300,7 @@ export async function handleShortestPath(
         for (const neighbor of neighbors) {
             if (neighbor === to) {
                 const finalPath = [...path, neighbor];
-                send(ws, {
+                sendEnvelope(playerId, {
                     type: ServerMsgType.ShortestPathResult,
                     path: finalPath,
                     hops: finalPath.length - 1,
@@ -312,5 +314,5 @@ export async function handleShortestPath(
         }
     }
 
-    send(ws, { type: ServerMsgType.Error, message: 'No path found' });
+    sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'No path found' });
 }

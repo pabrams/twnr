@@ -1,7 +1,7 @@
 import { WebSocket } from 'ws';
 import { ServerMsgType } from '@twnr/shared';
 import { shipConfigs } from '../ship-config.js';
-import { send, getPlayerUniverseId } from '../game-state.js';
+import { sendEnvelope, getPlayerUniverseId } from '../game-state.js';
 import { pool } from '../db/index.js';
 import { class0Prices } from '../game-config.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
@@ -13,7 +13,7 @@ export async function handleBuyFighters(
 ): Promise<void> {
     const qty = Number(quantity);
     if (!Number.isInteger(qty) || qty <= 0) {
-        send(ws, { type: ServerMsgType.Error, message: 'Invalid quantity' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid quantity' });
         return;
     }
 
@@ -28,7 +28,7 @@ export async function handleBuyFighters(
         ]);
         if (pRes.rows.length === 0) {
             await client.query('ROLLBACK');
-            send(ws, { type: ServerMsgType.Error, message: 'Player not found' });
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
             return;
         }
         const currentSector = pRes.rows[0].current_sector;
@@ -40,7 +40,7 @@ export async function handleBuyFighters(
         );
         if (portRes.rows.length === 0 || portRes.rows[0].class !== 0) {
             await client.query('ROLLBACK');
-            send(ws, { type: ServerMsgType.Error, message: 'Not at a class 0 port' });
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not at a class 0 port' });
             return;
         }
 
@@ -55,7 +55,7 @@ export async function handleBuyFighters(
         );
         if (cargoRes.rows.length === 0) {
             await client.query('ROLLBACK');
-            send(ws, { type: ServerMsgType.Error, message: 'Player not found' });
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
             return;
         }
 
@@ -63,14 +63,14 @@ export async function handleBuyFighters(
         const config = shipConfigs[data.ship_name];
         if (data.fighters + qty > config.maxFighters) {
             await client.query('ROLLBACK');
-            send(ws, { type: ServerMsgType.Error, message: 'Exceeds maximum' });
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Exceeds maximum' });
             return;
         }
 
         const cost = qty * class0Prices.fighterPrice;
         if (data.credits < cost) {
             await client.query('ROLLBACK');
-            send(ws, { type: ServerMsgType.Error, message: 'Insufficient credits' });
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient credits' });
             return;
         }
 
@@ -84,14 +84,14 @@ export async function handleBuyFighters(
         ]);
         await client.query('COMMIT');
 
-        send(ws, {
+        sendEnvelope(playerId, {
             type: ServerMsgType.BuyFightersResult,
             credits: data.credits - cost,
             fighters: data.fighters + qty,
         });
     } catch {
         await client.query('ROLLBACK');
-        send(ws, { type: ServerMsgType.Error, message: 'Internal server error' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Internal server error' });
     } finally {
         client.release();
     }
@@ -104,7 +104,7 @@ export async function handleBuyShields(
 ): Promise<void> {
     const qty = Number(quantity);
     if (!Number.isInteger(qty) || qty <= 0) {
-        send(ws, { type: ServerMsgType.Error, message: 'Invalid quantity' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid quantity' });
         return;
     }
 
@@ -119,7 +119,7 @@ export async function handleBuyShields(
         ]);
         if (pRes.rows.length === 0) {
             await client.query('ROLLBACK');
-            send(ws, { type: ServerMsgType.Error, message: 'Player not found' });
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
             return;
         }
         const currentSector = pRes.rows[0].current_sector;
@@ -131,7 +131,7 @@ export async function handleBuyShields(
         );
         if (portRes.rows.length === 0 || portRes.rows[0].class !== 0) {
             await client.query('ROLLBACK');
-            send(ws, { type: ServerMsgType.Error, message: 'Not at a class 0 port' });
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not at a class 0 port' });
             return;
         }
 
@@ -146,7 +146,7 @@ export async function handleBuyShields(
         );
         if (cargoRes.rows.length === 0) {
             await client.query('ROLLBACK');
-            send(ws, { type: ServerMsgType.Error, message: 'Player not found' });
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
             return;
         }
 
@@ -154,14 +154,14 @@ export async function handleBuyShields(
         const config = shipConfigs[data.ship_name];
         if (data.shields + qty > config.maxShields) {
             await client.query('ROLLBACK');
-            send(ws, { type: ServerMsgType.Error, message: 'Exceeds maximum' });
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Exceeds maximum' });
             return;
         }
 
         const cost = qty * class0Prices.shieldPrice;
         if (data.credits < cost) {
             await client.query('ROLLBACK');
-            send(ws, { type: ServerMsgType.Error, message: 'Insufficient credits' });
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient credits' });
             return;
         }
 
@@ -175,14 +175,14 @@ export async function handleBuyShields(
         ]);
         await client.query('COMMIT');
 
-        send(ws, {
+        sendEnvelope(playerId, {
             type: ServerMsgType.BuyShieldsResult,
             credits: data.credits - cost,
             shields: data.shields + qty,
         });
     } catch {
         await client.query('ROLLBACK');
-        send(ws, { type: ServerMsgType.Error, message: 'Internal server error' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Internal server error' });
     } finally {
         client.release();
     }
@@ -195,7 +195,7 @@ export async function handleBuyHolds(
 ): Promise<void> {
     const qty = Number(quantity);
     if (!Number.isInteger(qty) || qty <= 0) {
-        send(ws, { type: ServerMsgType.Error, message: 'Invalid quantity' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid quantity' });
         return;
     }
 
@@ -210,7 +210,7 @@ export async function handleBuyHolds(
         ]);
         if (pRes.rows.length === 0) {
             await client.query('ROLLBACK');
-            send(ws, { type: ServerMsgType.Error, message: 'Player not found' });
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
             return;
         }
         const currentSector = pRes.rows[0].current_sector;
@@ -222,7 +222,7 @@ export async function handleBuyHolds(
         );
         if (portRes.rows.length === 0 || portRes.rows[0].class !== 0) {
             await client.query('ROLLBACK');
-            send(ws, { type: ServerMsgType.Error, message: 'Not at a class 0 port' });
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not at a class 0 port' });
             return;
         }
 
@@ -230,7 +230,7 @@ export async function handleBuyHolds(
         const turnResult = await checkAndDeductTurns(playerId, universeId, 1);
         if (!turnResult.allowed) {
             await client.query('ROLLBACK');
-            send(ws, { type: ServerMsgType.Error, message: 'Insufficient turns' });
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient turns' });
             return;
         }
 
@@ -245,7 +245,7 @@ export async function handleBuyHolds(
         );
         if (cargoRes.rows.length === 0) {
             await client.query('ROLLBACK');
-            send(ws, { type: ServerMsgType.Error, message: 'Player not found' });
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
             return;
         }
 
@@ -253,14 +253,14 @@ export async function handleBuyHolds(
         const config = shipConfigs[data.ship_name];
         if (data.cargo_limit + qty > config.maxHolds) {
             await client.query('ROLLBACK');
-            send(ws, { type: ServerMsgType.Error, message: 'Exceeds maximum' });
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Exceeds maximum' });
             return;
         }
 
         const cost = qty * class0Prices.holdPrice;
         if (data.credits < cost) {
             await client.query('ROLLBACK');
-            send(ws, { type: ServerMsgType.Error, message: 'Insufficient credits' });
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient credits' });
             return;
         }
 
@@ -274,7 +274,7 @@ export async function handleBuyHolds(
         ]);
         await client.query('COMMIT');
 
-        send(ws, {
+        sendEnvelope(playerId, {
             type: ServerMsgType.BuyHoldsResult,
             credits: data.credits - cost,
             cargoLimit: data.cargo_limit + qty,
@@ -282,7 +282,7 @@ export async function handleBuyHolds(
         });
     } catch {
         await client.query('ROLLBACK');
-        send(ws, { type: ServerMsgType.Error, message: 'Internal server error' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Internal server error' });
     } finally {
         client.release();
     }

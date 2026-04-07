@@ -2,11 +2,12 @@ import { WebSocket } from 'ws';
 import { ServerMsgType } from '@twnr/shared';
 import {
     players,
-    send,
+    sendEnvelope,
     getGraph,
     getPortForSector,
     getVisitedSectors,
     getSectorFighters,
+    setPlayerMenu,
 } from '../game-state.js';
 import { pool } from '../db/index.js';
 import { planetConfigs } from '../planet-config.js';
@@ -17,7 +18,7 @@ export async function handleLand(ws: WebSocket, playerId: number): Promise<void>
     if (!player) return;
 
     if (player.pendingEncounter) {
-        send(ws, { type: ServerMsgType.Error, message: 'Resolve fighter encounter first' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Resolve fighter encounter first' });
         return;
     }
 
@@ -28,7 +29,7 @@ export async function handleLand(ws: WebSocket, playerId: number): Promise<void>
         [player.sector, player.universeId],
     );
 
-    send(ws, {
+    sendEnvelope(playerId, {
         type: ServerMsgType.LandResult,
         planets: planetRes.rows,
     });
@@ -43,7 +44,7 @@ export async function handleLandOnPlanet(
     if (!player) return;
 
     if (player.pendingEncounter) {
-        send(ws, { type: ServerMsgType.Error, message: 'Resolve fighter encounter first' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Resolve fighter encounter first' });
         return;
     }
 
@@ -55,7 +56,7 @@ export async function handleLandOnPlanet(
     );
 
     if (planetRes.rows.length === 0) {
-        send(ws, { type: ServerMsgType.Error, message: 'Planet not found in this sector' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Planet not found in this sector' });
         return;
     }
 
@@ -65,13 +66,14 @@ export async function handleLandOnPlanet(
     }
 
     await pool.query('UPDATE players SET on_planet_id = $1 WHERE id = $2', [planetId, playerId]);
+    await setPlayerMenu(playerId, 'planet');
 
     const data = await queryPlanetDisplayData(playerId);
     if (!data) {
-        send(ws, { type: ServerMsgType.Error, message: 'Planet no longer exists' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Planet no longer exists' });
         return;
     }
-    send(ws, { type: ServerMsgType.LandOnPlanetResult, ...data });
+    sendEnvelope(playerId, { type: ServerMsgType.LandOnPlanetResult, ...data });
 }
 
 export async function handlePlanetDisplay(ws: WebSocket, playerId: number): Promise<void> {
@@ -82,16 +84,16 @@ export async function handlePlanetDisplay(ws: WebSocket, playerId: number): Prom
         playerId,
     ]);
     if (!playerRes.rows[0]?.on_planet_id) {
-        send(ws, { type: ServerMsgType.Error, message: 'Not on a planet' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not on a planet' });
         return;
     }
 
     const data = await queryPlanetDisplayData(playerId);
     if (!data) {
-        send(ws, { type: ServerMsgType.Error, message: 'Planet no longer exists' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Planet no longer exists' });
         return;
     }
-    send(ws, { type: ServerMsgType.PlanetDisplayResult, ...data });
+    sendEnvelope(playerId, { type: ServerMsgType.PlanetDisplayResult, ...data });
 }
 
 async function queryPlanetDisplayData(playerId: number) {
@@ -160,15 +162,16 @@ export async function handleLeavePlanet(ws: WebSocket, playerId: number): Promis
 
     const turnResult = await checkAndDeductTurns(playerId, player.universeId, 1);
     if (!turnResult.allowed) {
-        send(ws, { type: ServerMsgType.Error, message: 'Insufficient turns' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient turns' });
         return;
     }
 
     await pool.query('UPDATE players SET on_planet_id = NULL WHERE id = $1', [playerId]);
+    await setPlayerMenu(playerId, 'sector');
 
     const data = await buildSectorDisplayData(playerId);
     if (!data) return;
-    send(ws, { type: ServerMsgType.LeavePlanetResult, ...data, turnsUsed: turnResult.turnsUsed });
+    sendEnvelope(playerId, { type: ServerMsgType.LeavePlanetResult, ...data, turnsUsed: turnResult.turnsUsed });
 }
 
 export async function handleDestroyPlanet(ws: WebSocket, playerId: number): Promise<void> {
@@ -181,7 +184,7 @@ export async function handleDestroyPlanet(ws: WebSocket, playerId: number): Prom
     const onPlanetId = playerRes.rows[0]?.on_planet_id;
 
     if (!onPlanetId) {
-        send(ws, { type: ServerMsgType.Error, message: 'Not on a planet' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not on a planet' });
         return;
     }
 
@@ -190,7 +193,7 @@ export async function handleDestroyPlanet(ws: WebSocket, playerId: number): Prom
         [playerId],
     );
     if (shipRes.rows.length === 0 || shipRes.rows[0].planet_busters < 1) {
-        send(ws, { type: ServerMsgType.Error, message: 'You do not have a planet buster.' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'You do not have a planet buster.' });
         return;
     }
 
@@ -199,7 +202,7 @@ export async function handleDestroyPlanet(ws: WebSocket, playerId: number): Prom
         [onPlanetId, player.universeId],
     );
     if (planetRes.rows.length === 0) {
-        send(ws, { type: ServerMsgType.Error, message: 'Planet not found.' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Planet not found.' });
         return;
     }
     const planetName = planetRes.rows[0].name;
@@ -222,13 +225,13 @@ export async function handleDestroyPlanet(ws: WebSocket, playerId: number): Prom
     } catch (err) {
         await client.query('ROLLBACK');
         console.error('Destroy planet error', err);
-        send(ws, { type: ServerMsgType.Error, message: 'Failed to destroy planet.' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Failed to destroy planet.' });
         return;
     } finally {
         client.release();
     }
 
-    send(ws, {
+    sendEnvelope(playerId, {
         type: ServerMsgType.DestroyPlanetResult,
         destroyed: true,
         planetId: onPlanetId,
@@ -237,7 +240,7 @@ export async function handleDestroyPlanet(ws: WebSocket, playerId: number): Prom
 
     // Follow up with sector display so client sees updated sector
     const data = await buildSectorDisplayData(playerId);
-    if (data) send(ws, { type: ServerMsgType.SectorDisplayResult, ...data });
+    if (data) sendEnvelope(playerId, { type: ServerMsgType.SectorDisplayResult, ...data });
 }
 
 export async function handleUseTerraformDevice(ws: WebSocket, playerId: number): Promise<void> {
@@ -248,7 +251,7 @@ export async function handleUseTerraformDevice(ws: WebSocket, playerId: number):
     const universeId = player.universeId;
 
     if (player.pendingEncounter) {
-        send(ws, { type: ServerMsgType.Error, message: 'Resolve fighter encounter first' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Resolve fighter encounter first' });
         return;
     }
 
@@ -260,7 +263,7 @@ export async function handleUseTerraformDevice(ws: WebSocket, playerId: number):
     const sectorDbId = sectorRes.rows[0]?.id;
 
     if (sectorId === 1 || sectorName === 'Stardock') {
-        send(ws, {
+        sendEnvelope(playerId, {
             type: ServerMsgType.UseTerraformDeviceResult,
             success: false,
             reason: 'restricted_sector',
@@ -273,7 +276,7 @@ export async function handleUseTerraformDevice(ws: WebSocket, playerId: number):
         [playerId],
     );
     if (shipRes.rows.length === 0 || shipRes.rows[0].terraform_devices < 1) {
-        send(ws, {
+        sendEnvelope(playerId, {
             type: ServerMsgType.UseTerraformDeviceResult,
             success: false,
             reason: 'no_devices',
@@ -339,7 +342,7 @@ export async function handleUseTerraformDevice(ws: WebSocket, playerId: number):
 
         await client.query('COMMIT');
 
-        send(ws, {
+        sendEnvelope(playerId, {
             type: ServerMsgType.UseTerraformDeviceResult,
             success: true,
             planet: { id: newPlanetId, name: randomName, type: randomType, sectorId },
@@ -349,7 +352,7 @@ export async function handleUseTerraformDevice(ws: WebSocket, playerId: number):
     } catch (err) {
         await client.query('ROLLBACK');
         console.error('Use terraform device error', err);
-        send(ws, { type: ServerMsgType.Error, message: 'Failed to use terraform device.' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Failed to use terraform device.' });
     } finally {
         client.release();
     }

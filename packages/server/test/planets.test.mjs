@@ -61,7 +61,8 @@ async function createTestPlayer(universeId) {
   });
 
   ws.on('message', (data) => {
-    const msg = JSON.parse(data.toString());
+    const raw = JSON.parse(data.toString());
+    const msg = raw.payload ?? raw;
     // Check if any pending waiter wants this message
     let consumed = false;
     for (let i = waiters.length - 1; i >= 0; i--) {

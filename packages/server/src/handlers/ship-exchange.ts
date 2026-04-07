@@ -1,7 +1,7 @@
 import { WebSocket } from 'ws';
 import { ServerMsgType } from '@twnr/shared';
 import { shipConfigs } from '../ship-config.js';
-import { send, getPlayerUniverseId } from '../game-state.js';
+import { sendEnvelope, getPlayerUniverseId } from '../game-state.js';
 import { pool } from '../db/index.js';
 
 export async function handleBuyShipTradein(
@@ -11,7 +11,7 @@ export async function handleBuyShipTradein(
 ): Promise<void> {
     const targetConfig = shipConfigs[targetShipName];
     if (!targetConfig) {
-        send(ws, { type: ServerMsgType.Error, message: 'Unknown ship' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Unknown ship' });
         return;
     }
 
@@ -33,12 +33,12 @@ export async function handleBuyShipTradein(
 
         if (pRes.rows.length === 0) {
             await client.query('ROLLBACK');
-            send(ws, { type: ServerMsgType.Error, message: 'Player not found' });
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
             return;
         }
         if (pRes.rows[0].sector_name !== 'Stardock') {
             await client.query('ROLLBACK');
-            send(ws, { type: ServerMsgType.Error, message: 'Not at Stardock' });
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not at Stardock' });
             return;
         }
 
@@ -54,14 +54,14 @@ export async function handleBuyShipTradein(
 
         if (cargoRes.rows.length === 0) {
             await client.query('ROLLBACK');
-            send(ws, { type: ServerMsgType.Error, message: 'Player not found' });
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
             return;
         }
 
         const data = cargoRes.rows[0];
         if (data.ship_name === targetShipName) {
             await client.query('ROLLBACK');
-            send(ws, { type: ServerMsgType.Error, message: 'Already on that ship' });
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Already on that ship' });
             return;
         }
 
@@ -69,7 +69,7 @@ export async function handleBuyShipTradein(
         const cost = targetConfig.price - currentConfig.price;
         if (cost > 0 && data.credits < cost) {
             await client.query('ROLLBACK');
-            send(ws, { type: ServerMsgType.Error, message: 'Insufficient credits' });
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient credits' });
             return;
         }
 
@@ -77,7 +77,7 @@ export async function handleBuyShipTradein(
         const currentCargo = data.fuel + data.organics + data.equipment + data.colonists;
         if (newCargoLimit < currentCargo) {
             await client.query('ROLLBACK');
-            send(ws, {
+            sendEnvelope(playerId, {
                 type: ServerMsgType.Error,
                 message: 'New ship has insufficient holds for current cargo',
             });
@@ -100,7 +100,7 @@ export async function handleBuyShipTradein(
         ]);
         await client.query('COMMIT');
 
-        send(ws, {
+        sendEnvelope(playerId, {
             type: ServerMsgType.BuyShipTradeinResult,
             shipName: targetShipName,
             credits: data.credits - cost,
@@ -110,7 +110,7 @@ export async function handleBuyShipTradein(
         });
     } catch {
         await client.query('ROLLBACK');
-        send(ws, { type: ServerMsgType.Error, message: 'Internal server error' });
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Internal server error' });
     } finally {
         client.release();
     }

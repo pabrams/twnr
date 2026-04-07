@@ -30,6 +30,8 @@ node scripts/twnr-bigbang.js "$UNIVERSE_DIR" --sectors 100 --seed 42
 echo "==> Importing universe..."
 # Drop old tables
 psql -h "${PGHOST:-localhost}" -d "$PGDATABASE" -U "$PGUSER" -c "
+  DROP TABLE IF EXISTS menu_command CASCADE;
+  DROP TABLE IF EXISTS command CASCADE;
   DROP TABLE IF EXISTS sector_fighters CASCADE;
   DROP TABLE IF EXISTS planet_collisions CASCADE;
   DROP TABLE IF EXISTS planets CASCADE;
@@ -42,6 +44,7 @@ psql -h "${PGHOST:-localhost}" -d "$PGDATABASE" -U "$PGUSER" -c "
   DROP TABLE IF EXISTS sectors CASCADE;
   DROP TABLE IF EXISTS universes CASCADE;
   DROP TABLE IF EXISTS users CASCADE;
+  DROP TABLE IF EXISTS menu CASCADE;
 " >/dev/null 2>&1
 
 node scripts/importUniverse.js "$UNIVERSE_DIR" --force
