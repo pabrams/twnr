@@ -27,48 +27,59 @@ describe('Universe Generation', () => {
 
   it('every sector has between 1 and 6 warps', async () => {
     const res = await pool.query(
-      `SELECT sector_from, COUNT(*)::int AS warp_count
-       FROM warps WHERE universe_id = $1 GROUP BY sector_from`, [UNIVERSE_ID]
+      `SELECT s.sector_number, COUNT(*)::int AS warp_count
+       FROM warps w
+       JOIN sectors s ON w.from_sector_id = s.id
+       WHERE s.universe_id = $1
+       GROUP BY s.sector_number`, [UNIVERSE_ID]
     );
     assert.ok(res.rows.length > 0, 'warps table is empty');
     for (const row of res.rows) {
       assert.ok(
         row.warp_count >= 1 && row.warp_count <= 6,
-        `Sector ${row.sector_from} has ${row.warp_count} warps (expected 1-6)`
+        `Sector ${row.sector_number} has ${row.warp_count} warps (expected 1-6)`
       );
     }
   });
 
   it('no self-referential warps exist', async () => {
     const res = await pool.query(
-      'SELECT COUNT(*)::int AS count FROM warps WHERE sector_from = sector_to AND universe_id = $1', [UNIVERSE_ID]
+      `SELECT COUNT(*)::int AS count FROM warps w
+       JOIN sectors s ON w.from_sector_id = s.id
+       WHERE w.from_sector_id = w.to_sector_id AND s.universe_id = $1`, [UNIVERSE_ID]
     );
     assert.equal(res.rows[0].count, 0, 'Found self-referential warps');
   });
 
   it('no duplicate warps from the same sector', async () => {
     const res = await pool.query(
-      `SELECT sector_from, sector_to, COUNT(*)::int AS cnt
-       FROM warps WHERE universe_id = $1 GROUP BY sector_from, sector_to HAVING COUNT(*) > 1`, [UNIVERSE_ID]
+      `SELECT w.from_sector_id, w.to_sector_id, COUNT(*)::int AS cnt
+       FROM warps w
+       JOIN sectors s ON w.from_sector_id = s.id
+       WHERE s.universe_id = $1
+       GROUP BY w.from_sector_id, w.to_sector_id HAVING COUNT(*) > 1`, [UNIVERSE_ID]
     );
     assert.equal(res.rows.length, 0, `Found ${res.rows.length} duplicate warp entries`);
   });
 
   it('all warp targets reference valid sectors', async () => {
     const res = await pool.query(
-      `SELECT wl.sector_to FROM warps wl
-       LEFT JOIN sectors s ON wl.sector_to = s.id AND wl.universe_id = s.universe_id
-       WHERE s.id IS NULL AND wl.universe_id = $1`, [UNIVERSE_ID]
+      `SELECT w.to_sector_id FROM warps w
+       JOIN sectors sf ON w.from_sector_id = sf.id
+       LEFT JOIN sectors st ON w.to_sector_id = st.id
+       WHERE st.id IS NULL AND sf.universe_id = $1`, [UNIVERSE_ID]
     );
     assert.equal(res.rows.length, 0, `Found ${res.rows.length} warps pointing to non-existent sectors`);
   });
 
   it('port inventories are within the valid bigbang range (0-5000)', async () => {
     const res = await pool.query(
-      `SELECT MIN(fuel) AS min_f, MAX(fuel) AS max_f,
-              MIN(organics) AS min_o, MAX(organics) AS max_o,
-              MIN(equipment) AS min_e, MAX(equipment) AS max_e
-       FROM ports WHERE universe_id = $1`, [UNIVERSE_ID]
+      `SELECT MIN(p.fuel) AS min_f, MAX(p.fuel) AS max_f,
+              MIN(p.organics) AS min_o, MAX(p.organics) AS max_o,
+              MIN(p.equipment) AS min_e, MAX(p.equipment) AS max_e
+       FROM ports p
+       JOIN sectors s ON p.sector_id = s.id
+       WHERE s.universe_id = $1`, [UNIVERSE_ID]
     );
     const row = res.rows[0];
     assert.ok(row.min_f >= 0 && row.max_f <= 5000, `fuel range out of bounds: ${row.min_f}-${row.max_f}`);
@@ -77,7 +88,11 @@ describe('Universe Generation', () => {
   });
 
   it('approximately 50% of sectors have ports', async () => {
-    const res = await pool.query('SELECT COUNT(*)::int AS count FROM ports WHERE universe_id = $1', [UNIVERSE_ID]);
+    const res = await pool.query(
+      `SELECT COUNT(*)::int AS count FROM ports p
+       JOIN sectors s ON p.sector_id = s.id
+       WHERE s.universe_id = $1`, [UNIVERSE_ID]
+    );
     const count = res.rows[0].count;
     assert.ok(count >= 20 && count <= 80, `Expected roughly 50 ports, got ${count}`);
   });

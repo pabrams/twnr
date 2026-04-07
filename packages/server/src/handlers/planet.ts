@@ -22,7 +22,9 @@ export async function handleLand(ws: WebSocket, playerId: number): Promise<void>
     }
 
     const planetRes = await pool.query(
-        'SELECT id, name, type FROM planets WHERE sector_id = $1 AND universe_id = $2 ORDER BY id',
+        `SELECT pl.id, pl.name, pl.type FROM planets pl
+         JOIN sectors s ON pl.sector_id = s.id
+         WHERE s.sector_number = $1 AND s.universe_id = $2 ORDER BY pl.id`,
         [player.sector, player.universeId],
     );
 
@@ -46,7 +48,9 @@ export async function handleLandOnPlanet(
     }
 
     const planetRes = await pool.query(
-        'SELECT * FROM planets WHERE id = $1 AND sector_id = $2 AND universe_id = $3',
+        `SELECT pl.* FROM planets pl
+         JOIN sectors s ON pl.sector_id = s.id
+         WHERE pl.id = $1 AND s.sector_number = $2 AND s.universe_id = $3`,
         [planetId, player.sector, player.universeId],
     );
 
@@ -122,7 +126,9 @@ async function buildSectorDisplayData(playerId: number) {
         getVisitedSectors(playerId),
         getSectorFighters(currentSector, universeId),
         pool.query(
-            'SELECT id, name, type FROM planets WHERE sector_id = $1 AND universe_id = $2 ORDER BY id',
+            `SELECT pl.id, pl.name, pl.type FROM planets pl
+             JOIN sectors s ON pl.sector_id = s.id
+             WHERE s.sector_number = $1 AND s.universe_id = $2 ORDER BY pl.id`,
             [currentSector, universeId],
         ),
     ]);
@@ -247,10 +253,11 @@ export async function handleUseTerraformDevice(ws: WebSocket, playerId: number):
     }
 
     const sectorRes = await pool.query(
-        'SELECT name FROM sectors WHERE id = $1 AND universe_id = $2',
+        'SELECT id, name FROM sectors WHERE sector_number = $1 AND universe_id = $2',
         [sectorId, universeId],
     );
     const sectorName = sectorRes.rows[0]?.name;
+    const sectorDbId = sectorRes.rows[0]?.id;
 
     if (sectorId === 1 || sectorName === 'Stardock') {
         send(ws, {
@@ -287,7 +294,7 @@ export async function handleUseTerraformDevice(ws: WebSocket, playerId: number):
 
         const planetsRes = await client.query(
             'SELECT id FROM planets WHERE sector_id = $1 AND universe_id = $2 FOR UPDATE',
-            [sectorId, universeId],
+            [sectorDbId, universeId],
         );
 
         await client.query(
@@ -307,7 +314,7 @@ export async function handleUseTerraformDevice(ws: WebSocket, playerId: number):
 
         await client.query(
             'INSERT INTO planets (id, sector_id, universe_id, name, type) VALUES ($1, $2, $3, $4, $5)',
-            [newPlanetId, sectorId, universeId, randomName, randomType],
+            [newPlanetId, sectorDbId, universeId, randomName, randomType],
         );
 
         let collision = false;

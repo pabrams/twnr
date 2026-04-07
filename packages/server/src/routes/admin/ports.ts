@@ -61,8 +61,10 @@ export function createAdminPortRoutes(
                 }
 
                 const portRes = await pool.query(
-                    `SELECT sector_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price
-                     FROM ports WHERE universe_id = $1 ORDER BY sector_id ASC`,
+                    `SELECT s.sector_number as sector_id, p.class, p.fuel, p.fuel_price, p.organics, p.org_price, p.equipment, p.equ_price
+                     FROM ports p
+                     JOIN sectors s ON p.sector_id = s.id
+                     WHERE s.universe_id = $1 ORDER BY s.sector_number ASC`,
                     [universeId],
                 );
 
@@ -103,7 +105,9 @@ export function createAdminPortRoutes(
 
                 // Check port exists
                 const portRes = await pool.query(
-                    'SELECT * FROM ports WHERE sector_id = $1 AND universe_id = $2',
+                    `SELECT p.* FROM ports p
+                     JOIN sectors s ON p.sector_id = s.id
+                     WHERE s.sector_number = $1 AND s.universe_id = $2`,
                     [sectorId, universeId],
                 );
                 if (portRes.rows.length === 0) {
@@ -172,7 +176,7 @@ export function createAdminPortRoutes(
 
                 await pool.query(
                     `UPDATE ports SET class = $1, fuel = $2, fuel_price = $3, organics = $4, org_price = $5, equipment = $6, equ_price = $7
-                     WHERE sector_id = $8 AND universe_id = $9`,
+                     WHERE id = $8`,
                     [
                         newClass,
                         newFuel,
@@ -181,8 +185,7 @@ export function createAdminPortRoutes(
                         newOrgPrice,
                         newEquipment,
                         newEquPrice,
-                        sectorId,
-                        universeId,
+                        existing.id,
                     ],
                 );
 
@@ -221,17 +224,18 @@ export function createAdminPortRoutes(
 
                 // Check sector exists
                 const sectorRes = await pool.query(
-                    'SELECT id FROM sectors WHERE id = $1 AND universe_id = $2',
+                    'SELECT id FROM sectors WHERE sector_number = $1 AND universe_id = $2',
                     [sectorId, universeId],
                 );
                 if (sectorRes.rows.length === 0) {
                     return res.status(404).json({ error: 'Sector not found' });
                 }
+                const sectorDbId = sectorRes.rows[0].id;
 
                 // Check no existing port
                 const existingPort = await pool.query(
-                    'SELECT id FROM ports WHERE sector_id = $1 AND universe_id = $2',
-                    [sectorId, universeId],
+                    'SELECT id FROM ports WHERE sector_id = $1',
+                    [sectorDbId],
                 );
                 if (existingPort.rows.length > 0) {
                     return res.status(409).json({ error: 'Port already exists' });
@@ -282,9 +286,9 @@ export function createAdminPortRoutes(
                 }
 
                 await pool.query(
-                    `INSERT INTO ports (sector_id, universe_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-                    [sectorId, universeId, cls, fuelQty, fp, orgQty, op, equQty, ep],
+                    `INSERT INTO ports (sector_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+                    [sectorDbId, cls, fuelQty, fp, orgQty, op, equQty, ep],
                 );
 
                 res.status(201).json({
@@ -322,7 +326,9 @@ export function createAdminPortRoutes(
 
                 // Check port exists
                 const portRes = await pool.query(
-                    'SELECT class FROM ports WHERE sector_id = $1 AND universe_id = $2',
+                    `SELECT p.id, p.class FROM ports p
+                     JOIN sectors s ON p.sector_id = s.id
+                     WHERE s.sector_number = $1 AND s.universe_id = $2`,
                     [sectorId, universeId],
                 );
                 if (portRes.rows.length === 0) {
@@ -334,10 +340,7 @@ export function createAdminPortRoutes(
                     return res.status(403).json({ error: 'Cannot delete special port' });
                 }
 
-                await pool.query('DELETE FROM ports WHERE sector_id = $1 AND universe_id = $2', [
-                    sectorId,
-                    universeId,
-                ]);
+                await pool.query('DELETE FROM ports WHERE id = $1', [portRes.rows[0].id]);
 
                 res.json({ deleted: true, sectorId });
             } catch (err) {

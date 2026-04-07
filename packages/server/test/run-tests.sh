@@ -49,7 +49,9 @@ rm -rf "$UNIVERSE_DIR"
 
 # Fix sequences
 psql -h "${PGHOST:-localhost}" -d "$PGDATABASE" -U "$PGUSER" -c \
-  "SELECT setval('universes_id_seq', COALESCE((SELECT MAX(id) FROM universes), 0) + 1)" >/dev/null 2>&1
+  "SELECT setval('universes_id_seq', COALESCE((SELECT MAX(id) FROM universes), 0) + 1);
+   SELECT setval('sectors_id_seq', COALESCE((SELECT MAX(id) FROM sectors), 0) + 1);
+   SELECT setval('ports_id_seq', COALESCE((SELECT MAX(id) FROM ports), 0) + 1)" >/dev/null 2>&1
 
 echo "==> Starting server..."
 node dist/server.js &

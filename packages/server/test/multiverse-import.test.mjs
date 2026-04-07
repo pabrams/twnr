@@ -95,7 +95,7 @@ describe('importUniverse.js --universe-id flag', () => {
 
     // Verify sectors were imported with the correct universe_id
     const sectorRes = await pool.query(
-      'SELECT id, universe_id FROM sectors WHERE universe_id = $1 ORDER BY id',
+      'SELECT id, universe_id, sector_number FROM sectors WHERE universe_id = $1 ORDER BY sector_number',
       [uid],
     );
     assert.ok(sectorRes.rows.length >= 2, `Should have imported at least 2 sectors for universe ${uid}`);
@@ -103,16 +103,16 @@ describe('importUniverse.js --universe-id flag', () => {
       assert.equal(row.universe_id, uid, `Sector should have universe_id = ${uid}`);
     }
 
-    // Verify warps were imported with the correct universe_id
+    // Verify warps were imported (joined through sectors)
     const warpRes = await pool.query(
-      'SELECT universe_id FROM warps WHERE universe_id = $1',
+      'SELECT w.from_sector_id, w.to_sector_id FROM warps w JOIN sectors s ON w.from_sector_id = s.id WHERE s.universe_id = $1',
       [uid],
     );
     assert.ok(warpRes.rows.length >= 2, 'Should have imported warps');
 
-    // Verify ports were imported with the correct universe_id
+    // Verify ports were imported (joined through sectors)
     const portRes = await pool.query(
-      'SELECT universe_id FROM ports WHERE universe_id = $1',
+      'SELECT p.sector_id FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE s.universe_id = $1',
       [uid],
     );
     assert.ok(portRes.rows.length >= 1, 'Should have imported ports');

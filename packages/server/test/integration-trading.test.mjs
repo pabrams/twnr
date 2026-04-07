@@ -167,7 +167,10 @@ describe('Trading System', () => {
     assert.ok(reached);
 
     // Ensure the port has enough inventory so we hit credits check first.
-    await pool.query('UPDATE ports SET fuel = 2000 WHERE sector_id = $1 AND universe_id = $2', [portSector.sectorId, UNIVERSE_ID]);
+    await pool.query(
+      'UPDATE ports SET fuel = 2000 WHERE sector_id = (SELECT id FROM sectors WHERE sector_number = $1 AND universe_id = $2)',
+      [portSector.sectorId, UNIVERSE_ID]
+    );
 
     const msg = await wsRequest(wsConn, {
       type: ClientMsgType.PortTransaction,

@@ -93,7 +93,10 @@ export async function handleListDeployedFighters(ws: WebSocket, playerId: number
     }
 
     const res = await pool.query(
-        'SELECT sector_id, quantity FROM sector_fighters WHERE owner_id = $1 AND quantity > 0',
+        `SELECT s.sector_number as sector_id, sf.quantity
+         FROM sector_fighters sf
+         JOIN sectors s ON sf.sector_id = s.id
+         WHERE sf.owner_id = $1 AND sf.quantity > 0`,
         [playerId],
     );
 
@@ -145,7 +148,9 @@ export async function handleHyperspaceJump(
 
     // Check fighters in target sector
     const fighterRes = await pool.query(
-        'SELECT quantity FROM sector_fighters WHERE sector_id = $1 AND universe_id = $2 AND owner_id = $3 AND quantity > 0',
+        `SELECT sf.quantity FROM sector_fighters sf
+         JOIN sectors s ON sf.sector_id = s.id
+         WHERE s.sector_number = $1 AND s.universe_id = $2 AND sf.owner_id = $3 AND sf.quantity > 0`,
         [targetSector, universeId, playerId],
     );
     if (fighterRes.rows.length === 0) {

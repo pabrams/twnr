@@ -209,9 +209,9 @@ describe('CSV Formatting', () => {
     assert.equal(first, 'id,name');
   });
 
-  it('warps.csv first line is "sector_from,sector_to"', () => {
+  it('warps.csv first line is "from_sector_id,to_sector_id"', () => {
     const first = readFileSync(join(outdir, 'warps.csv'), 'utf8').split('\n')[0].trim();
-    assert.equal(first, 'sector_from,sector_to');
+    assert.equal(first, 'from_sector_id,to_sector_id');
   });
 
   it('ports.csv first line is correct header', () => {

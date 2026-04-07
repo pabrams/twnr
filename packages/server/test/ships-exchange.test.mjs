@@ -48,8 +48,8 @@ after(async () => {
 
 describe('Ship exchange — validation', () => {
   async function getStardockSector() {
-    const res = await pool.query(`SELECT id FROM sectors WHERE name = 'Stardock' AND universe_id = $1`, [UNIVERSE_ID]);
-    return res.rows.length > 0 ? Number(res.rows[0].id) : null;
+    const res = await pool.query(`SELECT sector_number FROM sectors WHERE name = 'Stardock' AND universe_id = $1`, [UNIVERSE_ID]);
+    return res.rows.length > 0 ? Number(res.rows[0].sector_number) : null;
   }
 
   it('returns "Not at Stardock" when player is not in Stardock', async () => {
@@ -133,8 +133,8 @@ describe('Ship exchange — validation', () => {
 
 describe('Ship exchange — success', () => {
   async function getStardockSector() {
-    const res = await pool.query(`SELECT id FROM sectors WHERE name = 'Stardock' AND universe_id = $1`, [UNIVERSE_ID]);
-    return res.rows.length > 0 ? Number(res.rows[0].id) : null;
+    const res = await pool.query(`SELECT sector_number FROM sectors WHERE name = 'Stardock' AND universe_id = $1`, [UNIVERSE_ID]);
+    return res.rows.length > 0 ? Number(res.rows[0].sector_number) : null;
   }
 
   it('upgrade to Warbird costs correct credits, resets fighters/shields, sets cargoLimit to startingHolds', async () => {

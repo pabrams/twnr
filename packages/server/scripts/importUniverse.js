@@ -83,17 +83,17 @@ async function ensureSchema(client) {
     );
 
     CREATE TABLE IF NOT EXISTS sectors (
-      id INTEGER NOT NULL,
-      universe_id INTEGER NOT NULL REFERENCES universes(id),
+      id SERIAL PRIMARY KEY,
+      universe_id INTEGER NOT NULL REFERENCES universes(id) ON DELETE CASCADE,
+      sector_number INTEGER NOT NULL,
       name VARCHAR(255),
-      PRIMARY KEY (id, universe_id)
+      UNIQUE (universe_id, sector_number)
     );
 
     CREATE TABLE IF NOT EXISTS warps (
-      sector_from INTEGER NOT NULL,
-      sector_to INTEGER NOT NULL,
-      universe_id INTEGER NOT NULL REFERENCES universes(id),
-      PRIMARY KEY (sector_from, sector_to, universe_id)
+      from_sector_id INTEGER NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
+      to_sector_id INTEGER NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
+      PRIMARY KEY (from_sector_id, to_sector_id)
     );
 
     CREATE TABLE IF NOT EXISTS players (
@@ -109,26 +109,23 @@ async function ensureSchema(client) {
 
     CREATE TABLE IF NOT EXISTS ports (
       id SERIAL PRIMARY KEY,
-      sector_id INTEGER NOT NULL,
-      universe_id INTEGER NOT NULL REFERENCES universes(id),
+      sector_id INTEGER NOT NULL UNIQUE REFERENCES sectors(id) ON DELETE CASCADE,
       class INTEGER NOT NULL,
       fuel INTEGER NOT NULL DEFAULT 500,
       fuel_price INTEGER NOT NULL,
       organics INTEGER NOT NULL DEFAULT 500,
       org_price INTEGER NOT NULL,
       equipment INTEGER NOT NULL DEFAULT 500,
-      equ_price INTEGER NOT NULL,
-      UNIQUE (sector_id, universe_id)
+      equ_price INTEGER NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS planets (
       id SERIAL PRIMARY KEY,
-      sector_id INTEGER NOT NULL,
-      universe_id INTEGER NOT NULL REFERENCES universes(id),
+      sector_id INTEGER NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
+      universe_id INTEGER NOT NULL REFERENCES universes(id) ON DELETE CASCADE,
       name VARCHAR(255) NOT NULL,
       type VARCHAR(255) NOT NULL DEFAULT 'Terran',
-      colonists INTEGER NOT NULL DEFAULT 0,
-      UNIQUE (sector_id, universe_id)
+      colonists INTEGER NOT NULL DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS ship_cargo (
@@ -168,42 +165,45 @@ async function main() {
       [universeId, `Universe ${universeId}`],
     );
 
-    // Clear existing data for this universe
+    // Clear existing data for this universe (CASCADE from sectors handles warps, ports, etc.)
     await client.query('DELETE FROM player_ships WHERE player_id IN (SELECT id FROM players WHERE universe_id = $1)', [universeId]);
     await client.query('DELETE FROM ship_cargo WHERE player_id IN (SELECT id FROM players WHERE universe_id = $1)', [universeId]);
     await client.query('DELETE FROM players WHERE universe_id = $1', [universeId]);
-    await client.query('DELETE FROM ports WHERE universe_id = $1', [universeId]);
-    await client.query('DELETE FROM warps WHERE universe_id = $1', [universeId]);
     await client.query('DELETE FROM sectors WHERE universe_id = $1', [universeId]);
 
-    // Import sectors
+    // Import sectors and build sector_number → id map
+    const sectorIdMap = new Map();
     const { rows: sectorRows } = readCSV(join(universeDir, 'sectors.csv'));
     for (const row of sectorRows) {
-      await client.query(
-        'INSERT INTO sectors (id, universe_id, name) VALUES ($1, $2, $3)',
-        [parseInt(row[0], 10), universeId, row[1]],
+      const sectorNumber = parseInt(row[0], 10);
+      const res = await client.query(
+        'INSERT INTO sectors (universe_id, sector_number, name) VALUES ($1, $2, $3) RETURNING id',
+        [universeId, sectorNumber, row[1]],
       );
+      sectorIdMap.set(sectorNumber, res.rows[0].id);
     }
 
     // Import warps
     const { rows: warpRows } = readCSV(join(universeDir, 'warps.csv'));
     for (const row of warpRows) {
+      const fromId = sectorIdMap.get(parseInt(row[0], 10));
+      const toId = sectorIdMap.get(parseInt(row[1], 10));
       await client.query(
-        'INSERT INTO warps (sector_from, sector_to, universe_id) VALUES ($1, $2, $3)',
-        [parseInt(row[0], 10), parseInt(row[1], 10), universeId],
+        'INSERT INTO warps (from_sector_id, to_sector_id) VALUES ($1, $2)',
+        [fromId, toId],
       );
     }
 
     // Import ports
     const { rows: portRows } = readCSV(join(universeDir, 'ports.csv'));
     for (const row of portRows) {
+      const sectorDbId = sectorIdMap.get(parseInt(row[0], 10));
       await client.query(
         `INSERT INTO ports
-           (sector_id, universe_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+           (sector_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
         [
-          parseInt(row[0], 10), // sector
-          universeId,
+          sectorDbId,
           parseInt(row[1], 10), // class
           parseInt(row[2], 10), // fuel_qty
           parseInt(row[3], 10), // fuel_price
@@ -216,17 +216,17 @@ async function main() {
     }
 
     // Import planets (if planets.csv exists)
-    // Only import the first planet per sector since the schema enforces one planet per sector
     try {
       const { rows: planetRows } = readCSV(join(universeDir, 'planets.csv'));
       const seenSectors = new Set();
       for (const row of planetRows) {
-        const sectorId = parseInt(row[0], 10);
-        if (seenSectors.has(sectorId)) continue;
-        seenSectors.add(sectorId);
+        const sectorNumber = parseInt(row[0], 10);
+        if (seenSectors.has(sectorNumber)) continue;
+        seenSectors.add(sectorNumber);
+        const sectorDbId = sectorIdMap.get(sectorNumber);
         await client.query(
           'INSERT INTO planets (sector_id, universe_id, name, type) VALUES ($1, $2, $3, $4)',
-          [sectorId, universeId, row[1], row[2]],
+          [sectorDbId, universeId, row[1], row[2]],
         );
       }
     } catch {
@@ -234,20 +234,34 @@ async function main() {
     }
 
     // Seed Class 0 port in Sector 1
+    const sector1Id = sectorIdMap.get(1);
     await client.query(`
-      INSERT INTO ports (sector_id, universe_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
-      VALUES (1, $1, 0, 0, 0, 0, 0, 0, 0)
-      ON CONFLICT (sector_id, universe_id) DO UPDATE
+      INSERT INTO ports (sector_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
+      VALUES ($1, 0, 0, 0, 0, 0, 0, 0)
+      ON CONFLICT (sector_id) DO UPDATE
       SET class = 0, fuel = 0, fuel_price = 0, organics = 0, org_price = 0, equipment = 0, equ_price = 0
-    `, [universeId]);
+    `, [sector1Id]);
+
+    // Seed Earth in Sector 1
+    await client.query(`
+      INSERT INTO planets (id, sector_id, universe_id, name, type)
+      VALUES (1, $1, $2, 'Earth', 'Terran')
+      ON CONFLICT DO NOTHING
+    `, [sector1Id, universeId]);
 
     // Seed Class 9 port at Stardock
-    await client.query(`
-      INSERT INTO ports (sector_id, universe_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
-      SELECT id, $1, 9, 0, 0, 0, 0, 0, 0 FROM sectors WHERE name = 'Stardock' AND universe_id = $1
-      ON CONFLICT (sector_id, universe_id) DO UPDATE
-      SET class = 9, fuel = 0, fuel_price = 0, organics = 0, org_price = 0, equipment = 0, equ_price = 0
-    `, [universeId]);
+    const stardockRes = await client.query(
+      `SELECT id FROM sectors WHERE name = 'Stardock' AND universe_id = $1`,
+      [universeId],
+    );
+    if (stardockRes.rows.length > 0) {
+      await client.query(`
+        INSERT INTO ports (sector_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
+        VALUES ($1, 9, 0, 0, 0, 0, 0, 0)
+        ON CONFLICT (sector_id) DO UPDATE
+        SET class = 9, fuel = 0, fuel_price = 0, organics = 0, org_price = 0, equipment = 0, equ_price = 0
+      `, [stardockRes.rows[0].id]);
+    }
 
     await client.query('COMMIT');
     console.log(

@@ -70,9 +70,9 @@ describe('Admin API - Delete Universe', () => {
     // Verify all data is gone
     const sectorsAfter = await pool.query('SELECT COUNT(*) FROM sectors WHERE universe_id = $1', [uid]);
     assert.equal(parseInt(sectorsAfter.rows[0].count, 10), 0, 'Sectors should be deleted');
-    const warpsAfter = await pool.query('SELECT COUNT(*) FROM warps WHERE universe_id = $1', [uid]);
+    const warpsAfter = await pool.query('SELECT COUNT(*) FROM warps w JOIN sectors s ON w.from_sector_id = s.id WHERE s.universe_id = $1', [uid]);
     assert.equal(parseInt(warpsAfter.rows[0].count, 10), 0, 'Warps should be deleted');
-    const portsAfter = await pool.query('SELECT COUNT(*) FROM ports WHERE universe_id = $1', [uid]);
+    const portsAfter = await pool.query('SELECT COUNT(*) FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE s.universe_id = $1', [uid]);
     assert.equal(parseInt(portsAfter.rows[0].count, 10), 0, 'Ports should be deleted');
     const univAfter = await pool.query('SELECT COUNT(*) FROM universes WHERE id = $1', [uid]);
     assert.equal(parseInt(univAfter.rows[0].count, 10), 0, 'Universe row should be deleted');
@@ -206,20 +206,20 @@ describe('Admin API - Clone Universe', () => {
 
     // Check Federation Space exists at sector 1
     const fedRes = await pool.query(
-      'SELECT name FROM sectors WHERE id = 1 AND universe_id = $1', [cloneId]
+      'SELECT name FROM sectors WHERE sector_number = 1 AND universe_id = $1', [cloneId]
     );
     assert.equal(fedRes.rows[0].name, 'Federation Space');
 
     // Check Class 0 port at sector 1
     const port0 = await pool.query(
-      'SELECT class FROM ports WHERE sector_id = 1 AND universe_id = $1', [cloneId]
+      'SELECT p.class FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE s.sector_number = 1 AND s.universe_id = $1', [cloneId]
     );
     assert.equal(port0.rows.length, 1);
     assert.equal(port0.rows[0].class, 0);
 
     // Check Stardock with Class 9
     const sdRes = await pool.query(
-      'SELECT s.id FROM sectors s JOIN ports p ON p.sector_id = s.id AND p.universe_id = s.universe_id WHERE s.name = $1 AND s.universe_id = $2 AND p.class = 9',
+      'SELECT s.id FROM sectors s JOIN ports p ON p.sector_id = s.id WHERE s.name = $1 AND s.universe_id = $2 AND p.class = 9',
       ['Stardock', cloneId]
     );
     assert.equal(sdRes.rows.length, 1, 'Cloned universe must have Stardock with Class 9 port');
@@ -244,7 +244,7 @@ describe('Admin API - Clone Universe', () => {
   it('clone copies actual DB data, not re-generated data', async () => {
     // Modify a port in the source universe before cloning
     const tradingPort = await pool.query(
-      'SELECT sector_id, class FROM ports WHERE universe_id = $1 AND class BETWEEN 1 AND 8 LIMIT 1',
+      'SELECT p.sector_id, p.class FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE s.universe_id = $1 AND p.class BETWEEN 1 AND 8 LIMIT 1',
       [sourceId],
     );
     assert.ok(tradingPort.rows.length > 0);
@@ -252,8 +252,8 @@ describe('Admin API - Clone Universe', () => {
 
     // Set a distinctive quantity that wouldn't come from generation
     await pool.query(
-      'UPDATE ports SET fuel = 4999 WHERE sector_id = $1 AND universe_id = $2',
-      [modSector, sourceId],
+      'UPDATE ports SET fuel = 4999 WHERE sector_id = $1',
+      [modSector],
     );
 
     const res = await adminKeyPost(`/api/admin/universes/${sourceId}/clone`, { name: 'ModifiedClone' });
@@ -262,7 +262,7 @@ describe('Admin API - Clone Universe', () => {
 
     // The cloned port must have the modified value, not the original generated value
     const clonedPort = await pool.query(
-      'SELECT fuel FROM ports WHERE sector_id = $1 AND universe_id = $2',
+      'SELECT p.fuel FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE s.sector_number = (SELECT sector_number FROM sectors WHERE id = $1) AND s.universe_id = $2',
       [modSector, cloneId],
     );
     assert.equal(clonedPort.rows.length, 1);

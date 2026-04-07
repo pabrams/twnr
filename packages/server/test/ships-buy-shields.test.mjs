@@ -69,7 +69,7 @@ describe('Buy shields — validation', () => {
   });
 
   it('returns "Not at a class 0 port" when not in a class 0 sector', async () => {
-    const res = await pool.query('SELECT sector_id FROM ports WHERE class != 0 AND universe_id = $1 LIMIT 1', [UNIVERSE_ID]);
+    const res = await pool.query('SELECT s.sector_number AS sector_id FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE p.class != 0 AND s.universe_id = $1 LIMIT 1', [UNIVERSE_ID]);
     assert.ok(res.rows.length > 0, 'Need a non-class-0 sector');
     const otherSector = Number(res.rows[0].sector_id);
 

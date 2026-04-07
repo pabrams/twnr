@@ -42,7 +42,7 @@ describe('Admin API - Generate Universe', () => {
 
     // Default portDensity=50: expect ~50% of sectors to have trading ports
     const portRes = await pool.query(
-      'SELECT COUNT(*) as cnt FROM ports WHERE universe_id = $1 AND class BETWEEN 1 AND 8', [uid]
+      'SELECT COUNT(*) as cnt FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE s.universe_id = $1 AND p.class BETWEEN 1 AND 8', [uid]
     );
     const tradingPorts = parseInt(portRes.rows[0].cnt, 10);
     assert.ok(tradingPorts >= 15 && tradingPorts <= 25,
@@ -50,7 +50,7 @@ describe('Admin API - Generate Universe', () => {
 
     // Default twoWayPct=90: expect ~90% bidirectional warps
     const warpRes = await pool.query(
-      'SELECT sector_from, sector_to FROM warps WHERE universe_id = $1', [uid]
+      'SELECT s_from.sector_number as sector_from, s_to.sector_number as sector_to FROM warps w JOIN sectors s_from ON w.from_sector_id = s_from.id JOIN sectors s_to ON w.to_sector_id = s_to.id WHERE s_from.universe_id = $1', [uid]
     );
     const warpSet = new Set(warpRes.rows.map(w => `${w.sector_from},${w.sector_to}`));
     let biCount = 0;
@@ -123,14 +123,14 @@ describe('Admin API - Generate Universe', () => {
 
     // Check sector 1 is Federation Space
     const sectorRes = await pool.query(
-      'SELECT name FROM sectors WHERE id = 1 AND universe_id = $1', [uid]
+      'SELECT name FROM sectors WHERE sector_number = 1 AND universe_id = $1', [uid]
     );
     assert.equal(sectorRes.rows.length, 1);
     assert.equal(sectorRes.rows[0].name, 'Federation Space');
 
     // Check Class 0 port at sector 1
     const portRes = await pool.query(
-      'SELECT class, fuel, fuel_price, organics, org_price, equipment, equ_price FROM ports WHERE sector_id = 1 AND universe_id = $1', [uid]
+      'SELECT p.class, p.fuel, p.fuel_price, p.organics, p.org_price, p.equipment, p.equ_price FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE s.sector_number = 1 AND s.universe_id = $1', [uid]
     );
     assert.equal(portRes.rows.length, 1);
     assert.equal(portRes.rows[0].class, 0);
@@ -149,15 +149,16 @@ describe('Admin API - Generate Universe', () => {
 
     // Check Stardock exists
     const sectorRes = await pool.query(
-      'SELECT id FROM sectors WHERE name = $1 AND universe_id = $2', ['Stardock', uid]
+      'SELECT id, sector_number FROM sectors WHERE name = $1 AND universe_id = $2', ['Stardock', uid]
     );
     assert.equal(sectorRes.rows.length, 1, 'Should have exactly one Stardock sector');
+    const stardockSectorNumber = sectorRes.rows[0].sector_number;
     const stardockId = sectorRes.rows[0].id;
-    assert.ok(stardockId >= 2, 'Stardock should not be sector 1');
+    assert.ok(stardockSectorNumber >= 2, 'Stardock should not be sector 1');
 
     // Check Class 9 port at Stardock with all quantities and prices 0
     const portRes = await pool.query(
-      'SELECT class, fuel, fuel_price, organics, org_price, equipment, equ_price FROM ports WHERE sector_id = $1 AND universe_id = $2', [stardockId, uid]
+      'SELECT p.class, p.fuel, p.fuel_price, p.organics, p.org_price, p.equipment, p.equ_price FROM ports p WHERE p.sector_id = $1', [stardockId]
     );
     assert.equal(portRes.rows.length, 1);
     assert.equal(portRes.rows[0].class, 9);
@@ -175,7 +176,7 @@ describe('Admin API - Generate Universe', () => {
     const uid = res.body.id;
 
     const warpRes = await pool.query(
-      'SELECT sector_from, sector_to FROM warps WHERE universe_id = $1', [uid]
+      'SELECT s_from.sector_number as sector_from, s_to.sector_number as sector_to FROM warps w JOIN sectors s_from ON w.from_sector_id = s_from.id JOIN sectors s_to ON w.to_sector_id = s_to.id WHERE s_from.universe_id = $1', [uid]
     );
     assert.ok(isConnected(30, warpRes.rows), 'All sectors must be reachable from sector 1');
   });
@@ -186,7 +187,7 @@ describe('Admin API - Generate Universe', () => {
     const uid = res.body.id;
 
     const warpRes = await pool.query(
-      'SELECT sector_from, sector_to FROM warps WHERE universe_id = $1', [uid]
+      'SELECT s_from.sector_number as sector_from, s_to.sector_number as sector_to FROM warps w JOIN sectors s_from ON w.from_sector_id = s_from.id JOIN sectors s_to ON w.to_sector_id = s_to.id WHERE s_from.universe_id = $1', [uid]
     );
 
     const outDeg = new Map();
@@ -213,7 +214,7 @@ describe('Admin API - Generate Universe', () => {
 
     // Count trading ports (class 1-8), excluding class 0 and class 9
     const portRes = await pool.query(
-      'SELECT COUNT(*) as cnt FROM ports WHERE universe_id = $1 AND class BETWEEN 1 AND 8', [uid]
+      'SELECT COUNT(*) as cnt FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE s.universe_id = $1 AND p.class BETWEEN 1 AND 8', [uid]
     );
     const tradingPorts = parseInt(portRes.rows[0].cnt, 10);
     // With 50% density on 40 sectors, expect ~20 trading ports (minus stardock which gets class 9)
@@ -230,7 +231,7 @@ describe('Admin API - Generate Universe', () => {
     const uid = res.body.id;
 
     const warpRes = await pool.query(
-      'SELECT sector_from, sector_to FROM warps WHERE universe_id = $1', [uid]
+      'SELECT s_from.sector_number as sector_from, s_to.sector_number as sector_to FROM warps w JOIN sectors s_from ON w.from_sector_id = s_from.id JOIN sectors s_to ON w.to_sector_id = s_to.id WHERE s_from.universe_id = $1', [uid]
     );
     const warpSet = new Set(warpRes.rows.map(w => `${w.sector_from},${w.sector_to}`));
     let biCount = 0;
@@ -256,7 +257,7 @@ describe('Admin API - Generate Universe', () => {
     const uid = res.body.id;
 
     const portRes = await pool.query(
-      'SELECT * FROM ports WHERE universe_id = $1 AND class BETWEEN 1 AND 8', [uid]
+      'SELECT p.* FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE s.universe_id = $1 AND p.class BETWEEN 1 AND 8', [uid]
     );
     assert.ok(portRes.rows.length > 0, 'Should have trading ports');
 

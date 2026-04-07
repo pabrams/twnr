@@ -37,15 +37,17 @@ export async function getVisitedSectors(playerId: number): Promise<number[]> {
 }
 
 export async function getPortForSector(
-    sectorId: number,
+    sectorNumber: number,
     universeId: number,
 ): Promise<{ class: number; name: string } | null> {
     const res = await pool.query(
-        'SELECT class FROM ports WHERE sector_id = $1 AND universe_id = $2',
-        [sectorId, universeId],
+        `SELECT p.class FROM ports p
+         JOIN sectors s ON p.sector_id = s.id
+         WHERE s.sector_number = $1 AND s.universe_id = $2`,
+        [sectorNumber, universeId],
     );
     if (res.rows.length === 0) return null;
-    return { class: res.rows[0].class, name: portName(sectorId) };
+    return { class: res.rows[0].class, name: portName(sectorNumber) };
 }
 
 /**
@@ -53,7 +55,7 @@ export async function getPortForSector(
  */
 export async function getGraph(universeId: number): Promise<number[][]> {
     const sectorsRes = await pool.query(
-        'SELECT id FROM sectors WHERE universe_id = $1 ORDER BY id ASC',
+        'SELECT sector_number FROM sectors WHERE universe_id = $1 ORDER BY sector_number ASC',
         [universeId],
     );
     const size = sectorsRes.rows.length;
@@ -62,14 +64,18 @@ export async function getGraph(universeId: number): Promise<number[][]> {
         return [];
     }
 
-    const maxId = sectorsRes.rows[size - 1].id;
+    const maxId = sectorsRes.rows[size - 1].sector_number;
     let adjacencyList: number[][] = [];
     for (let i = 0; i <= maxId; i++) {
         adjacencyList[i] = [];
     }
 
     const warpsRes = await pool.query(
-        'SELECT sector_from, sector_to FROM warps WHERE universe_id = $1',
+        `SELECT s_from.sector_number as sector_from, s_to.sector_number as sector_to
+         FROM warps w
+         JOIN sectors s_from ON w.from_sector_id = s_from.id
+         JOIN sectors s_to ON w.to_sector_id = s_to.id
+         WHERE s_from.universe_id = $1`,
         [universeId],
     );
     for (const row of warpsRes.rows) {
@@ -98,15 +104,16 @@ export function getPlayerUniverseId(playerId: number): number | undefined {
 }
 
 export async function getSectorFighters(
-    sectorId: number,
+    sectorNumber: number,
     universeId: number,
 ): Promise<{ quantity: number; ownerId: number; ownerName: string } | null> {
     const res = await pool.query(
         `SELECT sf.quantity, sf.owner_id, p.name as owner_name
          FROM sector_fighters sf
+         JOIN sectors s ON sf.sector_id = s.id
          JOIN players p ON sf.owner_id = p.id
-         WHERE sf.sector_id = $1 AND sf.universe_id = $2 AND sf.quantity > 0`,
-        [sectorId, universeId],
+         WHERE s.sector_number = $1 AND s.universe_id = $2 AND sf.quantity > 0`,
+        [sectorNumber, universeId],
     );
     if (res.rows.length === 0) return null;
     return {

@@ -41,17 +41,17 @@ export const connectDB = async (): Promise<void> => {
       ALTER TABLE universes ADD COLUMN IF NOT EXISTS max_turns INTEGER NOT NULL DEFAULT 2000;
 
       CREATE TABLE IF NOT EXISTS sectors (
-        id INTEGER NOT NULL,
-        universe_id INTEGER NOT NULL REFERENCES universes(id),
+        id SERIAL PRIMARY KEY,
+        universe_id INTEGER NOT NULL REFERENCES universes(id) ON DELETE CASCADE,
+        sector_number INTEGER NOT NULL,
         name VARCHAR(255),
-        PRIMARY KEY (id, universe_id)
+        UNIQUE (universe_id, sector_number)
       );
 
       CREATE TABLE IF NOT EXISTS warps (
-        sector_from INTEGER NOT NULL,
-        sector_to INTEGER NOT NULL,
-        universe_id INTEGER NOT NULL REFERENCES universes(id),
-        PRIMARY KEY (sector_from, sector_to, universe_id)
+        from_sector_id INTEGER NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
+        to_sector_id INTEGER NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
+        PRIMARY KEY (from_sector_id, to_sector_id)
       );
 
       CREATE TABLE IF NOT EXISTS players (
@@ -74,16 +74,14 @@ export const connectDB = async (): Promise<void> => {
 
       CREATE TABLE IF NOT EXISTS ports (
         id SERIAL PRIMARY KEY,
-        sector_id INTEGER NOT NULL,
-        universe_id INTEGER NOT NULL REFERENCES universes(id),
+        sector_id INTEGER NOT NULL UNIQUE REFERENCES sectors(id) ON DELETE CASCADE,
         class INTEGER NOT NULL,
         fuel INTEGER NOT NULL DEFAULT 1000,
         fuel_price INTEGER NOT NULL,
         organics INTEGER NOT NULL DEFAULT 1000,
         org_price INTEGER NOT NULL,
         equipment INTEGER NOT NULL DEFAULT 1000,
-        equ_price INTEGER NOT NULL,
-        UNIQUE (sector_id, universe_id)
+        equ_price INTEGER NOT NULL
       );
 
       DO $$ 
@@ -95,7 +93,7 @@ export const connectDB = async (): Promise<void> => {
 
       CREATE TABLE IF NOT EXISTS planets (
         id INTEGER NOT NULL,
-        sector_id INTEGER NOT NULL,
+        sector_id INTEGER NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
         universe_id INTEGER NOT NULL REFERENCES universes(id) ON DELETE CASCADE,
         name VARCHAR(255) NOT NULL,
         type VARCHAR(255) NOT NULL DEFAULT 'Terran',
@@ -108,8 +106,7 @@ export const connectDB = async (): Promise<void> => {
         colonists_equipment SMALLINT NOT NULL DEFAULT 0,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ,
-        PRIMARY KEY (id, universe_id),
-        FOREIGN KEY (sector_id, universe_id) REFERENCES sectors(id, universe_id) ON DELETE CASCADE
+        PRIMARY KEY (id, universe_id)
       );
 
       CREATE OR REPLACE FUNCTION trigger_set_timestamp()
@@ -179,11 +176,10 @@ export const connectDB = async (): Promise<void> => {
       ALTER TABLE player_ships ADD COLUMN IF NOT EXISTS has_hyperwarp_drive BOOLEAN NOT NULL DEFAULT FALSE;
 
       CREATE TABLE IF NOT EXISTS sector_fighters (
-        sector_id INTEGER NOT NULL,
-        universe_id INTEGER NOT NULL REFERENCES universes(id),
+        sector_id INTEGER NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
         owner_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
         quantity INTEGER NOT NULL,
-        PRIMARY KEY (sector_id, universe_id)
+        PRIMARY KEY (sector_id)
       );
     `);
 

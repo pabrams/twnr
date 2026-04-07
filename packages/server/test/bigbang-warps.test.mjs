@@ -135,8 +135,8 @@ describe('Warp Generation', () => {
   });
   after(() => { rmSync(outdir, { recursive: true, force: true }); });
 
-  it('warps.csv has header: sector_from, sector_to', () => {
-    assert.deepStrictEqual(header, ['sector_from', 'sector_to']);
+  it('warps.csv has header: from_sector_id, to_sector_id', () => {
+    assert.deepStrictEqual(header, ['from_sector_id', 'to_sector_id']);
   });
 
   it('each sector has 1-6 outbound warps', () => {

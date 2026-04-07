@@ -375,7 +375,7 @@ for (let i = 1; i <= N; i++) {
 fs.writeFileSync(path.join(outDir, 'sectors.csv'), 'id,name\n' + sectorsRows.join('\n') + '\n');
 
 const warpsRows = warps.map(w => toCSVLine([w.from, w.to]));
-fs.writeFileSync(path.join(outDir, 'warps.csv'), 'sector_from,sector_to\n' + warpsRows.join('\n') + '\n');
+fs.writeFileSync(path.join(outDir, 'warps.csv'), 'from_sector_id,to_sector_id\n' + warpsRows.join('\n') + '\n');
 
 const portsRows = ports.map(p => toCSVLine([
     p.sector, p.class, 
@@ -396,8 +396,9 @@ CREATE TABLE sectors (
 );
 
 CREATE TABLE warps (
-    sector_from INTEGER,
-    sector_to INTEGER
+    from_sector_id INTEGER NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
+    to_sector_id INTEGER NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
+    PRIMARY KEY (from_sector_id, to_sector_id)
 );
 
 CREATE TABLE ports (

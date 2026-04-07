@@ -58,30 +58,31 @@ export function createAdminLifecycleRoutes(
                     );
                     const universeId = univRes.rows[0].id;
 
-                    // Insert sectors
+                    // Insert sectors and build sector_number → id map
+                    const sectorIdMap = new Map<number, number>();
                     for (const s of result.sectors) {
-                        await client.query(
-                            'INSERT INTO sectors (id, universe_id, name) VALUES ($1, $2, $3)',
-                            [s.id, universeId, s.name],
+                        const sRes = await client.query(
+                            'INSERT INTO sectors (universe_id, sector_number, name) VALUES ($1, $2, $3) RETURNING id',
+                            [universeId, s.id, s.name],
                         );
+                        sectorIdMap.set(s.id, sRes.rows[0].id);
                     }
 
                     // Insert warps
                     for (const w of result.warps) {
                         await client.query(
-                            'INSERT INTO warps (sector_from, sector_to, universe_id) VALUES ($1, $2, $3)',
-                            [w.from, w.to, universeId],
+                            'INSERT INTO warps (from_sector_id, to_sector_id) VALUES ($1, $2)',
+                            [sectorIdMap.get(w.from), sectorIdMap.get(w.to)],
                         );
                     }
 
                     // Insert trading ports
                     for (const p of result.ports) {
                         await client.query(
-                            `INSERT INTO ports (sector_id, universe_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
-                             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+                            `INSERT INTO ports (sector_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
+                             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
                             [
-                                p.sector,
-                                universeId,
+                                sectorIdMap.get(p.sector),
                                 p.class,
                                 p.fuel_qty,
                                 p.fuel_price,
@@ -94,41 +95,51 @@ export function createAdminLifecycleRoutes(
                     }
 
                     // Seed Class 0 port in Sector 1
+                    const sector1Id = sectorIdMap.get(1)!;
                     await client.query(
-                        `INSERT INTO ports (sector_id, universe_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
-                         VALUES (1, $1, 0, 0, 0, 0, 0, 0, 0)
-                         ON CONFLICT (sector_id, universe_id) DO UPDATE
+                        `INSERT INTO ports (sector_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
+                         VALUES ($1, 0, 0, 0, 0, 0, 0, 0)
+                         ON CONFLICT (sector_id) DO UPDATE
                          SET class = 0, fuel = 0, fuel_price = 0, organics = 0, org_price = 0, equipment = 0, equ_price = 0`,
-                        [universeId],
+                        [sector1Id],
                     );
 
                     // Seed Class 9 port at Stardock
-                    await client.query(
-                        `INSERT INTO ports (sector_id, universe_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
-                         SELECT id, $1, 9, 0, 0, 0, 0, 0, 0
-                         FROM sectors WHERE name = 'Stardock' AND universe_id = $1
-                         ON CONFLICT (sector_id, universe_id) DO UPDATE
-                         SET class = 9, fuel = 0, fuel_price = 0, organics = 0, org_price = 0, equipment = 0, equ_price = 0`,
+                    const stardockRes = await client.query(
+                        `SELECT id FROM sectors WHERE name = 'Stardock' AND universe_id = $1`,
                         [universeId],
                     );
+                    if (stardockRes.rows.length > 0) {
+                        await client.query(
+                            `INSERT INTO ports (sector_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
+                             VALUES ($1, 9, 0, 0, 0, 0, 0, 0)
+                             ON CONFLICT (sector_id) DO UPDATE
+                             SET class = 9, fuel = 0, fuel_price = 0, organics = 0, org_price = 0, equipment = 0, equ_price = 0`,
+                            [stardockRes.rows[0].id],
+                        );
+                    }
 
                     // Seed Earth in Sector 1
                     await client.query(
                         `INSERT INTO planets (id, sector_id, universe_id, name, type)
-                         VALUES (1, 1, $1, 'Earth', 'Terran')
+                         VALUES (1, $1, $2, 'Earth', 'Terran')
                          ON CONFLICT (id, universe_id) DO NOTHING`,
-                        [universeId],
+                        [sector1Id, universeId],
                     );
 
                     await client.query('COMMIT');
 
                     // Count actual data
                     const warpCountRes = await pool.query(
-                        'SELECT COUNT(*) FROM warps WHERE universe_id = $1',
+                        `SELECT COUNT(*) FROM warps w
+                         JOIN sectors s ON w.from_sector_id = s.id
+                         WHERE s.universe_id = $1`,
                         [universeId],
                     );
                     const portCountRes = await pool.query(
-                        'SELECT COUNT(*) FROM ports WHERE universe_id = $1',
+                        `SELECT COUNT(*) FROM ports p
+                         JOIN sectors s ON p.sector_id = s.id
+                         WHERE s.universe_id = $1`,
                         [universeId],
                     );
 
@@ -174,11 +185,15 @@ export function createAdminLifecycleRoutes(
                     [universeId],
                 );
                 const warpCount = await pool.query(
-                    'SELECT COUNT(*) FROM warps WHERE universe_id = $1',
+                    `SELECT COUNT(*) FROM warps w
+                     JOIN sectors s ON w.from_sector_id = s.id
+                     WHERE s.universe_id = $1`,
                     [universeId],
                 );
                 const portCount = await pool.query(
-                    'SELECT COUNT(*) FROM ports WHERE universe_id = $1',
+                    `SELECT COUNT(*) FROM ports p
+                     JOIN sectors s ON p.sector_id = s.id
+                     WHERE s.universe_id = $1`,
                     [universeId],
                 );
                 const playerCount = await pool.query(
@@ -242,11 +257,7 @@ export function createAdminLifecycleRoutes(
                     await client.query('DELETE FROM players WHERE universe_id = $1', [universeId]);
                 }
 
-                // Delete universe data
-                await client.query('DELETE FROM planets WHERE universe_id = $1', [universeId]);
-                await client.query('DELETE FROM ports WHERE universe_id = $1', [universeId]);
-                await client.query('DELETE FROM warps WHERE universe_id = $1', [universeId]);
-                await client.query('DELETE FROM sectors WHERE universe_id = $1', [universeId]);
+                // Delete universe — CASCADE handles sectors, warps, ports, planets, sector_fighters
                 await client.query('DELETE FROM universes WHERE id = $1', [universeId]);
 
                 await client.query('COMMIT');
@@ -327,33 +338,45 @@ export function createAdminLifecycleRoutes(
                     );
                     const newId = newUnivRes.rows[0].id;
 
-                    // Copy sectors
+                    // Copy sectors into new universe
                     await client.query(
-                        `INSERT INTO sectors (id, universe_id, name)
-                         SELECT id, $1, name FROM sectors WHERE universe_id = $2`,
+                        `INSERT INTO sectors (universe_id, sector_number, name)
+                         SELECT $1, sector_number, name FROM sectors WHERE universe_id = $2`,
                         [newId, sourceId],
                     );
 
-                    // Copy warps
+                    // Copy warps (map old sector IDs to new ones via sector_number)
                     await client.query(
-                        `INSERT INTO warps (sector_from, sector_to, universe_id)
-                         SELECT sector_from, sector_to, $1 FROM warps WHERE universe_id = $2`,
+                        `INSERT INTO warps (from_sector_id, to_sector_id)
+                         SELECT new_from.id, new_to.id
+                         FROM warps w
+                         JOIN sectors old_from ON w.from_sector_id = old_from.id
+                         JOIN sectors new_from ON new_from.sector_number = old_from.sector_number AND new_from.universe_id = $1
+                         JOIN sectors old_to ON w.to_sector_id = old_to.id
+                         JOIN sectors new_to ON new_to.sector_number = old_to.sector_number AND new_to.universe_id = $1
+                         WHERE old_from.universe_id = $2`,
                         [newId, sourceId],
                     );
 
                     // Copy ports
                     await client.query(
-                        `INSERT INTO ports (sector_id, universe_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
-                         SELECT sector_id, $1, class, fuel, fuel_price, organics, org_price, equipment, equ_price
-                         FROM ports WHERE universe_id = $2`,
+                        `INSERT INTO ports (sector_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
+                         SELECT new_s.id, p.class, p.fuel, p.fuel_price, p.organics, p.org_price, p.equipment, p.equ_price
+                         FROM ports p
+                         JOIN sectors old_s ON p.sector_id = old_s.id
+                         JOIN sectors new_s ON new_s.sector_number = old_s.sector_number AND new_s.universe_id = $1
+                         WHERE old_s.universe_id = $2`,
                         [newId, sourceId],
                     );
 
                     // Copy planets
                     await client.query(
                         `INSERT INTO planets (id, sector_id, universe_id, name, type, fighters, fuel, organics, equipment, colonists_fuel, colonists_organics, colonists_equipment)
-                         SELECT id, sector_id, $1, name, type, fighters, fuel, organics, equipment, colonists_fuel, colonists_organics, colonists_equipment
-                         FROM planets WHERE universe_id = $2`,
+                         SELECT pl.id, new_s.id, $1, pl.name, pl.type, pl.fighters, pl.fuel, pl.organics, pl.equipment, pl.colonists_fuel, pl.colonists_organics, pl.colonists_equipment
+                         FROM planets pl
+                         JOIN sectors old_s ON pl.sector_id = old_s.id
+                         JOIN sectors new_s ON new_s.sector_number = old_s.sector_number AND new_s.universe_id = $1
+                         WHERE pl.universe_id = $2`,
                         [newId, sourceId],
                     );
 
@@ -365,11 +388,15 @@ export function createAdminLifecycleRoutes(
                         [newId],
                     );
                     const warpCount = await pool.query(
-                        'SELECT COUNT(*) FROM warps WHERE universe_id = $1',
+                        `SELECT COUNT(*) FROM warps w
+                         JOIN sectors s ON w.from_sector_id = s.id
+                         WHERE s.universe_id = $1`,
                         [newId],
                     );
                     const portCount = await pool.query(
-                        'SELECT COUNT(*) FROM ports WHERE universe_id = $1',
+                        `SELECT COUNT(*) FROM ports p
+                         JOIN sectors s ON p.sector_id = s.id
+                         WHERE s.universe_id = $1`,
                         [newId],
                     );
 
@@ -415,7 +442,11 @@ export function createAdminLifecycleRoutes(
                 const totalSectors = parseInt(sectorRes.rows[0].count, 10);
 
                 const warpRes = await pool.query(
-                    'SELECT sector_from, sector_to FROM warps WHERE universe_id = $1',
+                    `SELECT s_from.sector_number as sector_from, s_to.sector_number as sector_to
+                     FROM warps w
+                     JOIN sectors s_from ON w.from_sector_id = s_from.id
+                     JOIN sectors s_to ON w.to_sector_id = s_to.id
+                     WHERE s_from.universe_id = $1`,
                     [universeId],
                 );
                 const totalWarps = warpRes.rows.length;
