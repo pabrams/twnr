@@ -10,6 +10,7 @@ import {
     getPlayerUniverseId,
     getSectorDrones,
     setPlayerMenu,
+    resolveSectorId,
 } from '../game-state.js';
 import { pool } from '../db/index.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
@@ -80,15 +81,17 @@ export async function handleMove(playerId: number, targetSector: number): Promis
         await pool.query('UPDATE players SET docked = FALSE WHERE id = $1', [playerId]);
     }
 
+    const targetSectorId = await resolveSectorId(targetSector, universeId);
     player.sector = targetSector;
+    player.sectorId = targetSectorId;
     await Promise.all([
-        pool.query('UPDATE players SET current_sector = $1 WHERE id = $2', [
-            targetSector,
+        pool.query('UPDATE players SET current_sector_id = $1 WHERE id = $2', [
+            targetSectorId,
             playerId,
         ]),
         pool.query(
             'INSERT INTO visited_sectors (player_id, sector_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-            [playerId, targetSector],
+            [playerId, targetSectorId],
         ),
     ]);
 

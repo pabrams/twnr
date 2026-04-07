@@ -121,10 +121,10 @@ export function createAdminLifecycleRoutes(
 
                     // Seed Earth in Sector 1
                     await client.query(
-                        `INSERT INTO planets (id, sector_id, universe_id, name, type)
-                         VALUES (1, $1, $2, 'Earth', 'Terran')
-                         ON CONFLICT (id, universe_id) DO NOTHING`,
-                        [sector1Id, universeId],
+                        `INSERT INTO planets (sector_id, name, type)
+                         VALUES ($1, 'Earth', 'Terran')
+                         ON CONFLICT DO NOTHING`,
+                        [sector1Id],
                     );
 
                     await client.query('COMMIT');
@@ -298,128 +298,6 @@ export function createAdminLifecycleRoutes(
             res.status(500).json({ error: 'Internal server error' });
         }
     });
-
-    router.post(
-        '/api/admin/universes/:id/clone',
-        authenticateAdmin,
-        async (req, res): Promise<any> => {
-            const sourceId = parseInt(req.params.id as string, 10);
-            const { name } = req.body;
-
-            if (!name || !String(name).trim()) {
-                return res.status(400).json({ error: 'name is required' });
-            }
-
-            try {
-                // Check source exists
-                const srcRes = await pool.query(
-                    'SELECT id, seed, max_planets_per_sector, planet_collision_likelihood, planet_collision_min_hours, planet_collision_max_hours FROM universes WHERE id = $1',
-                    [sourceId],
-                );
-                if (srcRes.rows.length === 0) {
-                    return res.status(404).json({ error: 'Universe not found' });
-                }
-
-                const client = await pool.connect();
-                try {
-                    await client.query('BEGIN');
-
-                    // Create new universe row
-                    const newUnivRes = await client.query(
-                        'INSERT INTO universes (name, seed, max_planets_per_sector, planet_collision_likelihood, planet_collision_min_hours, planet_collision_max_hours) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
-                        [
-                            name,
-                            srcRes.rows[0].seed,
-                            srcRes.rows[0].max_planets_per_sector,
-                            srcRes.rows[0].planet_collision_likelihood,
-                            srcRes.rows[0].planet_collision_min_hours,
-                            srcRes.rows[0].planet_collision_max_hours,
-                        ],
-                    );
-                    const newId = newUnivRes.rows[0].id;
-
-                    // Copy sectors into new universe
-                    await client.query(
-                        `INSERT INTO sectors (universe_id, sector_number, name)
-                         SELECT $1, sector_number, name FROM sectors WHERE universe_id = $2`,
-                        [newId, sourceId],
-                    );
-
-                    // Copy warps (map old sector IDs to new ones via sector_number)
-                    await client.query(
-                        `INSERT INTO warps (from_sector_id, to_sector_id)
-                         SELECT new_from.id, new_to.id
-                         FROM warps w
-                         JOIN sectors old_from ON w.from_sector_id = old_from.id
-                         JOIN sectors new_from ON new_from.sector_number = old_from.sector_number AND new_from.universe_id = $1
-                         JOIN sectors old_to ON w.to_sector_id = old_to.id
-                         JOIN sectors new_to ON new_to.sector_number = old_to.sector_number AND new_to.universe_id = $1
-                         WHERE old_from.universe_id = $2`,
-                        [newId, sourceId],
-                    );
-
-                    // Copy ports
-                    await client.query(
-                        `INSERT INTO ports (sector_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
-                         SELECT new_s.id, p.class, p.fuel, p.fuel_price, p.organics, p.org_price, p.equipment, p.equ_price
-                         FROM ports p
-                         JOIN sectors old_s ON p.sector_id = old_s.id
-                         JOIN sectors new_s ON new_s.sector_number = old_s.sector_number AND new_s.universe_id = $1
-                         WHERE old_s.universe_id = $2`,
-                        [newId, sourceId],
-                    );
-
-                    // Copy planets
-                    await client.query(
-                        `INSERT INTO planets (id, sector_id, universe_id, name, type, drones, fuel, organics, equipment, colonists_fuel, colonists_organics, colonists_equipment)
-                         SELECT pl.id, new_s.id, $1, pl.name, pl.type, pl.drones, pl.fuel, pl.organics, pl.equipment, pl.colonists_fuel, pl.colonists_organics, pl.colonists_equipment
-                         FROM planets pl
-                         JOIN sectors old_s ON pl.sector_id = old_s.id
-                         JOIN sectors new_s ON new_s.sector_number = old_s.sector_number AND new_s.universe_id = $1
-                         WHERE pl.universe_id = $2`,
-                        [newId, sourceId],
-                    );
-
-                    await client.query('COMMIT');
-
-                    // Get counts
-                    const sectorCount = await pool.query(
-                        'SELECT COUNT(*) FROM sectors WHERE universe_id = $1',
-                        [newId],
-                    );
-                    const warpCount = await pool.query(
-                        `SELECT COUNT(*) FROM warps w
-                         JOIN sectors s ON w.from_sector_id = s.id
-                         WHERE s.universe_id = $1`,
-                        [newId],
-                    );
-                    const portCount = await pool.query(
-                        `SELECT COUNT(*) FROM ports p
-                         JOIN sectors s ON p.sector_id = s.id
-                         WHERE s.universe_id = $1`,
-                        [newId],
-                    );
-
-                    res.status(201).json({
-                        id: newId,
-                        name,
-                        seed: srcRes.rows[0].seed,
-                        sectorCount: parseInt(sectorCount.rows[0].count, 10),
-                        warpCount: parseInt(warpCount.rows[0].count, 10),
-                        portCount: parseInt(portCount.rows[0].count, 10),
-                    });
-                } catch (err) {
-                    await client.query('ROLLBACK');
-                    throw err;
-                } finally {
-                    client.release();
-                }
-            } catch (err) {
-                console.error('Clone universe error', err);
-                res.status(500).json({ error: 'Internal server error' });
-            }
-        },
-    );
 
     router.get(
         '/api/admin/universes/:id/topology',

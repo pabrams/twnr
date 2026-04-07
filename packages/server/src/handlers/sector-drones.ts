@@ -9,6 +9,7 @@ import {
     getGraph,
     broadcastTo,
     setPlayerMenu,
+    resolveSectorId,
 } from '../game-state.js';
 import { pool } from '../db/index.js';
 import { shipConfigs } from '../ship-config.js';
@@ -360,9 +361,11 @@ export async function handleRetreatFromDrones(playerId: number): Promise<void> {
     const currentSector = player.sector;
 
     // Move player back
+    const retreatSectorId = await resolveSectorId(retreatSector, universeId);
     player.sector = retreatSector;
-    await pool.query('UPDATE players SET current_sector = $1 WHERE id = $2', [
-        retreatSector,
+    player.sectorId = retreatSectorId;
+    await pool.query('UPDATE players SET current_sector_id = $1 WHERE id = $2', [
+        retreatSectorId,
         playerId,
     ]);
 

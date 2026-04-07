@@ -121,9 +121,13 @@ export function createAuthRoutes(router: Router, deps: RouteDeps, middleware: Mi
 
                     // Delay passed — clear destroyed date and give new ship
                     const startShip = shipConfigs[newPlayerConfig.startingShip];
+                    const sectorIdRes = await pool.query(
+                        'SELECT id FROM sectors WHERE sector_number = $1 AND universe_id = $2',
+                        [newPlayerConfig.startingSector, player.universe_id],
+                    );
                     await pool.query(
-                        'UPDATE players SET ship_destroyed_date = NULL, current_sector = $2 WHERE id = $1',
-                        [player.id, newPlayerConfig.startingSector],
+                        'UPDATE players SET ship_destroyed_date = NULL, current_sector_id = $2 WHERE id = $1',
+                        [player.id, sectorIdRes.rows[0]?.id],
                     );
                     await pool.query('DELETE FROM player_ships WHERE player_id = $1', [player.id]);
                     await pool.query('DELETE FROM ship_cargo WHERE player_id = $1', [player.id]);

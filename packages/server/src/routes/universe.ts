@@ -76,10 +76,15 @@ export function createUniverseRoutes(
             // Create player row
             const startSector = newPlayerConfig.startingSector;
             const startingTurns = univRes.rows[0].starting_turns;
+            const sectorIdRes = await pool.query(
+                'SELECT id FROM sectors WHERE sector_number = $1 AND universe_id = $2',
+                [startSector, universeId],
+            );
+            const startSectorId = sectorIdRes.rows[0]?.id;
             const playerRes = await pool.query(
-                `INSERT INTO players (name, user_id, universe_id, current_sector, turns, last_turns_granted_at)
+                `INSERT INTO players (name, user_id, universe_id, current_sector_id, turns, last_turns_granted_at)
                  VALUES ($1, $2, $3, $4, $5, NOW()) RETURNING id`,
-                [name, userId, universeId, startSector, startingTurns],
+                [name, userId, universeId, startSectorId, startingTurns],
             );
             const playerId = playerRes.rows[0].id;
 

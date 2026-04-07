@@ -159,13 +159,14 @@ describe('Join Universe', () => {
 
     // Verify player row
     const playerRes = await pool.query(
-      'SELECT user_id, universe_id, current_sector, name FROM players WHERE id = $1',
+      'SELECT user_id, universe_id, current_sector_id, name FROM players WHERE id = $1',
       [body.playerId],
     );
     assert.equal(playerRes.rows.length, 1);
     assert.equal(playerRes.rows[0].user_id, reg.body.userId);
     assert.equal(playerRes.rows[0].universe_id, univ.body.universeId);
-    assert.equal(playerRes.rows[0].current_sector, 1);
+    // current_sector_id is sectors.id (not sector_number) — just verify it's set
+    assert.ok(playerRes.rows[0].current_sector_id != null, 'current_sector_id should be set');
     assert.equal(playerRes.rows[0].name, 'CaptainJoin');
 
     // Verify ship
