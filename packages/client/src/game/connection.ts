@@ -44,7 +44,10 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     msg.sectorFighters,
                 );
                 // Advance autopilot if in progress
-                if (ctx.mode === MenuMode.Autopilot && ctx.autopilotStep < ctx.autopilotPath.length) {
+                if (
+                    ctx.mode === MenuMode.Autopilot &&
+                    ctx.autopilotStep < ctx.autopilotPath.length
+                ) {
                     const nextSector = ctx.autopilotPath[ctx.autopilotStep];
                     ctx.setAutopilotStep(ctx.autopilotStep + 1);
                     ctx.sendMsg({ type: ClientMsgType.Move, sector: nextSector });
@@ -434,7 +437,10 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 else if (ctx.mode === MenuMode.DeployFightersQty) {
                     ctx.setMode(MenuMode.Sector);
                     showPrompt(ctx);
-                } else if (ctx.mode === MenuMode.FighterEncounter || ctx.mode === MenuMode.FighterAttackQty) {
+                } else if (
+                    ctx.mode === MenuMode.FighterEncounter ||
+                    ctx.mode === MenuMode.FighterAttackQty
+                ) {
                     // Stay in encounter mode — re-prompt
                 } else if (ctx.mode === MenuMode.Sector) showPrompt(ctx);
                 break;

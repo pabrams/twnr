@@ -39,7 +39,11 @@ export type SectorDisplayResultObject = {
 } & SectorDisplayData;
 
 export type MoveResultObject =
-    | ({ type: typeof ServerMsgType.MoveResult; outcome: 'success'; turnsUsed?: number } & SectorDisplayData)
+    | ({
+          type: typeof ServerMsgType.MoveResult;
+          outcome: 'success';
+          turnsUsed?: number;
+      } & SectorDisplayData)
     | {
           type: typeof ServerMsgType.MoveResult;
           outcome: 'encounter';
