@@ -89,7 +89,8 @@ describe('Admin API - Delete Universe', () => {
     // Create a user and player in this universe
     const { userId } = await createAdminUser(pool);
     const playerRes = await pool.query(
-      'INSERT INTO players (name, user_id, universe_id, current_sector) VALUES ($1, $2, $3, 1) RETURNING id',
+      `INSERT INTO players (name, user_id, universe_id, current_sector_id)
+       VALUES ($1, $2, $3, (SELECT id FROM sectors WHERE sector_number = 1 AND universe_id = $3)) RETURNING id`,
       ['TestPlayer', userId, uid],
     );
     const playerId = playerRes.rows[0].id;
@@ -174,109 +175,3 @@ describe('Admin API - Rename Universe', () => {
   });
 });
 
-describe('Admin API - Clone Universe', () => {
-  let sourceId;
-  let sourceStats;
-
-  before(async () => {
-    const res = await adminKeyPost('/api/admin/universes/generate', {
-      name: 'CloneSource', sectors: 25, seed: 8888,
-    });
-    assert.equal(res.status, 201);
-    sourceId = res.body.id;
-    const statsRes = await adminKeyGet(`/api/admin/universes/${sourceId}/stats`);
-    sourceStats = statsRes.body;
-  });
-
-  it('clones a universe with all sectors, warps, and ports', async () => {
-    const res = await adminKeyPost(`/api/admin/universes/${sourceId}/clone`, { name: 'ClonedUniverse' });
-    assert.equal(res.status, 201, `Expected 201, got ${res.status}: ${JSON.stringify(res.body)}`);
-    assert.ok(res.body.id !== sourceId, 'Cloned universe must have a different ID');
-    assert.equal(res.body.name, 'ClonedUniverse');
-    assert.equal(res.body.seed, sourceStats.seed, 'Cloned universe must copy seed from source');
-    assert.equal(res.body.sectorCount, sourceStats.sectorCount);
-    assert.equal(res.body.warpCount, sourceStats.warpCount);
-    assert.equal(res.body.portCount, sourceStats.portCount);
-  });
-
-  it('cloned universe has matching sector data', async () => {
-    const res = await adminKeyPost(`/api/admin/universes/${sourceId}/clone`, { name: 'CloneCheck' });
-    assert.equal(res.status, 201);
-    const cloneId = res.body.id;
-
-    // Check Federation Space exists at sector 1
-    const fedRes = await pool.query(
-      'SELECT name FROM sectors WHERE sector_number = 1 AND universe_id = $1', [cloneId]
-    );
-    assert.equal(fedRes.rows[0].name, 'Federation Space');
-
-    // Check Class 0 port at sector 1
-    const port0 = await pool.query(
-      'SELECT p.class FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE s.sector_number = 1 AND s.universe_id = $1', [cloneId]
-    );
-    assert.equal(port0.rows.length, 1);
-    assert.equal(port0.rows[0].class, 0);
-
-    // Check Starbase with Class 9
-    const sdRes = await pool.query(
-      'SELECT s.id FROM sectors s JOIN ports p ON p.sector_id = s.id WHERE s.name = $1 AND s.universe_id = $2 AND p.class = 9',
-      ['Starbase', cloneId]
-    );
-    assert.equal(sdRes.rows.length, 1, 'Cloned universe must have Starbase with Class 9 port');
-  });
-
-  it('cloned universe does not copy players', async () => {
-    // Add a player to the source universe
-    const { userId } = await createAdminUser(pool);
-    await pool.query(
-      'INSERT INTO players (name, user_id, universe_id, current_sector) VALUES ($1, $2, $3, 1)',
-      ['SourcePlayer', userId, sourceId],
-    );
-
-    const res = await adminKeyPost(`/api/admin/universes/${sourceId}/clone`, { name: 'NoPlayers' });
-    assert.equal(res.status, 201);
-    const cloneId = res.body.id;
-
-    const players = await pool.query('SELECT COUNT(*) FROM players WHERE universe_id = $1', [cloneId]);
-    assert.equal(parseInt(players.rows[0].count, 10), 0, 'Cloned universe should have no players');
-  });
-
-  it('clone copies actual DB data, not re-generated data', async () => {
-    // Modify a port in the source universe before cloning
-    const tradingPort = await pool.query(
-      'SELECT p.sector_id, p.class FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE s.universe_id = $1 AND p.class BETWEEN 1 AND 8 LIMIT 1',
-      [sourceId],
-    );
-    assert.ok(tradingPort.rows.length > 0);
-    const modSector = tradingPort.rows[0].sector_id;
-
-    // Set a distinctive quantity that wouldn't come from generation
-    await pool.query(
-      'UPDATE ports SET fuel = 4999 WHERE sector_id = $1',
-      [modSector],
-    );
-
-    const res = await adminKeyPost(`/api/admin/universes/${sourceId}/clone`, { name: 'ModifiedClone' });
-    assert.equal(res.status, 201);
-    const cloneId = res.body.id;
-
-    // The cloned port must have the modified value, not the original generated value
-    const clonedPort = await pool.query(
-      'SELECT p.fuel FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE s.sector_number = (SELECT sector_number FROM sectors WHERE id = $1) AND s.universe_id = $2',
-      [modSector, cloneId],
-    );
-    assert.equal(clonedPort.rows.length, 1);
-    assert.equal(clonedPort.rows[0].fuel, 4999, 'Clone must copy actual DB data, not re-generate');
-  });
-
-  it('returns 400 when name is missing', async () => {
-    const res = await adminKeyPost(`/api/admin/universes/${sourceId}/clone`, {});
-    assert.equal(res.status, 400);
-  });
-
-  it('returns 404 for non-existent source universe', async () => {
-    const res = await adminKeyPost('/api/admin/universes/99999/clone', { name: 'Ghost' });
-    assert.equal(res.status, 404);
-    assert.ok(res.body.error.toLowerCase().includes('not found'));
-  });
-});

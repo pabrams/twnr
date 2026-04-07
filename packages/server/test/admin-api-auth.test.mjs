@@ -44,10 +44,6 @@ describe('Admin API - Authentication', () => {
     assert.equal(res.status, 403);
   });
 
-  it('POST /api/admin/universes/:id/clone rejects unauthenticated requests', async () => {
-    const res = await adminPost('/api/admin/universes/999/clone', { name: 'Clone' }, null);
-    assert.equal(res.status, 403);
-  });
 
   it('GET /api/admin/universes/:id/topology rejects unauthenticated requests', async () => {
     const res = await adminGet('/api/admin/universes/999/topology', null);

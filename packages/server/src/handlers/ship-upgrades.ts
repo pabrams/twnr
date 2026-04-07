@@ -18,9 +18,10 @@ export async function handleBuyDrones(playerId: number, quantity: number): Promi
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
-        const pRes = await client.query('SELECT current_sector FROM players WHERE id = $1', [
-            playerId,
-        ]);
+        const pRes = await client.query(
+            'SELECT s.sector_number as current_sector FROM players p JOIN sectors s ON p.current_sector_id = s.id WHERE p.id = $1',
+            [playerId],
+        );
         if (pRes.rows.length === 0) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
@@ -106,9 +107,10 @@ export async function handleBuyShields(playerId: number, quantity: number): Prom
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
-        const pRes = await client.query('SELECT current_sector FROM players WHERE id = $1', [
-            playerId,
-        ]);
+        const pRes = await client.query(
+            'SELECT s.sector_number as current_sector FROM players p JOIN sectors s ON p.current_sector_id = s.id WHERE p.id = $1',
+            [playerId],
+        );
         if (pRes.rows.length === 0) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
@@ -194,9 +196,10 @@ export async function handleBuyHolds(playerId: number, quantity: number): Promis
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
-        const pRes = await client.query('SELECT current_sector FROM players WHERE id = $1', [
-            playerId,
-        ]);
+        const pRes = await client.query(
+            'SELECT s.sector_number as current_sector FROM players p JOIN sectors s ON p.current_sector_id = s.id WHERE p.id = $1',
+            [playerId],
+        );
         if (pRes.rows.length === 0) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });

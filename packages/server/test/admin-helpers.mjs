@@ -231,7 +231,7 @@ export const SCHEMA_SQL = `
     name VARCHAR(255),
     user_id INTEGER NOT NULL REFERENCES users(id),
     universe_id INTEGER NOT NULL REFERENCES universes(id),
-    current_sector INTEGER,
+    current_sector_id INTEGER,
     ship_destroyed_date TIMESTAMPTZ,
     docked BOOLEAN NOT NULL DEFAULT FALSE,
     UNIQUE (user_id, universe_id)
@@ -250,11 +250,17 @@ export const SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS planets (
     id SERIAL PRIMARY KEY,
     sector_id INTEGER NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
-    universe_id INTEGER NOT NULL REFERENCES universes(id),
     name VARCHAR(255) NOT NULL,
     type VARCHAR(255) NOT NULL DEFAULT 'Terran',
-    colonists INTEGER NOT NULL DEFAULT 0,
-    UNIQUE (sector_id, universe_id)
+    drones SMALLINT NOT NULL DEFAULT 0,
+    fuel SMALLINT NOT NULL DEFAULT 0,
+    organics SMALLINT NOT NULL DEFAULT 0,
+    equipment SMALLINT NOT NULL DEFAULT 0,
+    colonists_fuel SMALLINT NOT NULL DEFAULT 0,
+    colonists_organics SMALLINT NOT NULL DEFAULT 0,
+    colonists_equipment SMALLINT NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ
   );
   CREATE TABLE IF NOT EXISTS ship_cargo (
     player_id INTEGER PRIMARY KEY,

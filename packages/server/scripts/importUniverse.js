@@ -101,7 +101,7 @@ async function ensureSchema(client) {
       name VARCHAR(255),
       user_id INTEGER NOT NULL REFERENCES users(id),
       universe_id INTEGER NOT NULL REFERENCES universes(id),
-      current_sector INTEGER,
+      current_sector_id INTEGER REFERENCES sectors(id),
       ship_destroyed_date TIMESTAMPTZ,
       docked BOOLEAN NOT NULL DEFAULT FALSE,
       UNIQUE (user_id, universe_id)
@@ -122,10 +122,17 @@ async function ensureSchema(client) {
     CREATE TABLE IF NOT EXISTS planets (
       id SERIAL PRIMARY KEY,
       sector_id INTEGER NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
-      universe_id INTEGER NOT NULL REFERENCES universes(id) ON DELETE CASCADE,
       name VARCHAR(255) NOT NULL,
       type VARCHAR(255) NOT NULL DEFAULT 'Terran',
-      colonists INTEGER NOT NULL DEFAULT 0
+      drones SMALLINT NOT NULL DEFAULT 0,
+      fuel SMALLINT NOT NULL DEFAULT 0,
+      organics SMALLINT NOT NULL DEFAULT 0,
+      equipment SMALLINT NOT NULL DEFAULT 0,
+      colonists_fuel SMALLINT NOT NULL DEFAULT 0,
+      colonists_organics SMALLINT NOT NULL DEFAULT 0,
+      colonists_equipment SMALLINT NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ
     );
 
     CREATE TABLE IF NOT EXISTS ship_cargo (
@@ -225,8 +232,8 @@ async function main() {
         seenSectors.add(sectorNumber);
         const sectorDbId = sectorIdMap.get(sectorNumber);
         await client.query(
-          'INSERT INTO planets (sector_id, universe_id, name, type) VALUES ($1, $2, $3, $4)',
-          [sectorDbId, universeId, row[1], row[2]],
+          'INSERT INTO planets (sector_id, name, type) VALUES ($1, $2, $3)',
+          [sectorDbId, row[1], row[2]],
         );
       }
     } catch {
@@ -244,10 +251,10 @@ async function main() {
 
     // Seed Earth in Sector 1
     await client.query(`
-      INSERT INTO planets (id, sector_id, universe_id, name, type)
-      VALUES (1, $1, $2, 'Earth', 'Terran')
+      INSERT INTO planets (sector_id, name, type)
+      VALUES ($1, 'Earth', 'Terran')
       ON CONFLICT DO NOTHING
-    `, [sector1Id, universeId]);
+    `, [sector1Id]);
 
     // Seed Class 9 port at Starbase
     const starbaseRes = await client.query(

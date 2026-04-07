@@ -21,9 +21,9 @@ export async function handleBuyShipTradein(
         await client.query('BEGIN');
         const pRes = await client.query(
             `
-            SELECT p.current_sector, s.name as sector_name
+            SELECT s.sector_number as current_sector, s.name as sector_name
             FROM players p
-            JOIN sectors s ON p.current_sector = s.id AND p.universe_id = s.universe_id
+            JOIN sectors s ON p.current_sector_id = s.id
             WHERE p.id = $1
         `,
             [playerId],

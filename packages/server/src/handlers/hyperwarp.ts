@@ -1,5 +1,5 @@
 import { ServerMsgType } from '@twnr/shared';
-import { players, sendEnvelope, getGraph } from '../game-state.js';
+import { players, sendEnvelope, getGraph, resolveSectorId } from '../game-state.js';
 import { pool } from '../db/index.js';
 import { shipConfigs } from '../ship-config.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
@@ -238,10 +238,12 @@ export async function handleHyperspaceJump(playerId: number, targetSector: numbe
         fuelCost,
         playerId,
     ]);
+    const targetSectorId = await resolveSectorId(targetSector, universeId);
     player.sector = targetSector;
+    player.sectorId = targetSectorId;
     await Promise.all([
-        pool.query('UPDATE players SET current_sector = $1 WHERE id = $2', [
-            targetSector,
+        pool.query('UPDATE players SET current_sector_id = $1 WHERE id = $2', [
+            targetSectorId,
             playerId,
         ]),
         pool.query(

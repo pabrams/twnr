@@ -220,20 +220,19 @@ describe('planets table schema', () => {
     assert.ok(cols.updated_at.data_type.includes('timestamp'), `expected timestamp, got ${cols.updated_at.data_type}`);
   });
 
-  it('id is plain INTEGER with no sequence (not SERIAL)', () => {
+  it('id is SERIAL (has nextval sequence)', () => {
     assert.ok(cols.id, 'id column missing');
     const def = cols.id.column_default || '';
-    assert.ok(!def.includes('nextval'), `id should not use a sequence, got default: ${def}`);
+    assert.ok(def.includes('nextval'), `id should use a sequence (SERIAL), got default: ${def}`);
   });
 
-  it('primary key is (id, universe_id)', async () => {
+  it('primary key is (id)', async () => {
     const pk = await getPKColumns('planets');
-    assert.deepStrictEqual(pk, new Set(['id', 'universe_id']));
+    assert.deepStrictEqual(pk, new Set(['id']));
   });
 
-  it('old UNIQUE(sector_id, universe_id) is removed', async () => {
-    const has = await hasUniqueConstraint('planets', new Set(['sector_id', 'universe_id']));
-    assert.ok(!has, 'UNIQUE(sector_id, universe_id) should be removed');
+  it('universe_id column does not exist', () => {
+    assert.ok(!cols.universe_id, 'universe_id column should not exist on planets');
   });
 
   it('colonists column is removed', () => {
@@ -272,24 +271,27 @@ describe('planets triggers', () => {
   });
 
   after(async () => {
-    await pool.query('DELETE FROM planets WHERE universe_id = $1', [univId]);
+    await pool.query('DELETE FROM planets WHERE sector_id IN (SELECT id FROM sectors WHERE universe_id = $1)', [univId]);
     await pool.query('DELETE FROM sectors WHERE universe_id = $1', [univId]);
     await pool.query('DELETE FROM universes WHERE id = $1', [univId]);
   });
 
   it('sets created_at on INSERT', async () => {
-    await pool.query(
-      "INSERT INTO planets (id, sector_id, universe_id, name, type) VALUES (1, $1, $2, 'TriggerWorld', 'Terran')",
-      [sectorDbId, univId],
+    const ins = await pool.query(
+      "INSERT INTO planets (sector_id, name, type) VALUES ($1, 'TriggerWorld', 'Terran') RETURNING id",
+      [sectorDbId],
     );
-    const res = await pool.query('SELECT created_at FROM planets WHERE id = 1 AND universe_id = $1', [univId]);
+    const planetId = ins.rows[0].id;
+    const res = await pool.query('SELECT created_at FROM planets WHERE id = $1', [planetId]);
     assert.ok(res.rows[0].created_at, 'created_at should be set on insert');
   });
 
   it('sets updated_at on UPDATE', async () => {
+    const existing = await pool.query('SELECT id FROM planets WHERE sector_id = $1 LIMIT 1', [sectorDbId]);
+    const planetId = existing.rows[0].id;
     await new Promise(r => setTimeout(r, 100));
-    await pool.query("UPDATE planets SET name = 'TriggerWorld2' WHERE id = 1 AND universe_id = $1", [univId]);
-    const res = await pool.query('SELECT updated_at, created_at FROM planets WHERE id = 1 AND universe_id = $1', [univId]);
+    await pool.query("UPDATE planets SET name = 'TriggerWorld2' WHERE id = $1", [planetId]);
+    const res = await pool.query('SELECT updated_at, created_at FROM planets WHERE id = $1', [planetId]);
     assert.ok(res.rows[0].updated_at, 'updated_at should be set on update');
     assert.ok(res.rows[0].updated_at >= res.rows[0].created_at, 'updated_at should be >= created_at');
   });
@@ -303,12 +305,12 @@ describe('multiple planets per sector', () => {
     const uid = res.rows[0].id;
     const sRes = await pool.query('INSERT INTO sectors (universe_id, sector_number, name) VALUES ($1, 1, $2) RETURNING id', [uid, 'S1']);
     const secId = sRes.rows[0].id;
-    await pool.query("INSERT INTO planets (id, sector_id, universe_id, name, type) VALUES (1, $1, $2, 'P1', 'Terran')", [secId, uid]);
-    await pool.query("INSERT INTO planets (id, sector_id, universe_id, name, type) VALUES (2, $1, $2, 'P2', 'Oceanic')", [secId, uid]);
-    const count = await pool.query('SELECT COUNT(*)::int as cnt FROM planets WHERE sector_id = $1 AND universe_id = $2', [secId, uid]);
+    await pool.query("INSERT INTO planets (sector_id, name, type) VALUES ($1, 'P1', 'Terran')", [secId]);
+    await pool.query("INSERT INTO planets (sector_id, name, type) VALUES ($1, 'P2', 'Oceanic')", [secId]);
+    const count = await pool.query('SELECT COUNT(*)::int as cnt FROM planets WHERE sector_id = $1', [secId]);
     assert.equal(count.rows[0].cnt, 2);
 
-    await pool.query('DELETE FROM planets WHERE universe_id = $1', [uid]);
+    await pool.query('DELETE FROM planets WHERE sector_id IN (SELECT id FROM sectors WHERE universe_id = $1)', [uid]);
     await pool.query('DELETE FROM sectors WHERE universe_id = $1', [uid]);
     await pool.query('DELETE FROM universes WHERE id = $1', [uid]);
   });
@@ -366,15 +368,15 @@ describe('planet_collisions table', () => {
   it('exists with required columns', () => {
     assert.ok(cols.collision_planet, 'collision_planet missing');
     assert.ok(cols.colliding_with, 'colliding_with missing');
-    assert.ok(cols.universe_id, 'universe_id missing');
+    assert.ok(!cols.universe_id, 'universe_id should not exist on planet_collisions');
     assert.ok(cols.collision_at, 'collision_at missing');
     assert.ok(cols.collision_at.data_type.includes('timestamp'));
     assert.equal(cols.collision_at.is_nullable, 'NO');
   });
 
-  it('primary key is (collision_planet, colliding_with, universe_id)', async () => {
+  it('primary key is (collision_planet, colliding_with)', async () => {
     const pk = await getPKColumns('planet_collisions');
-    assert.deepStrictEqual(pk, new Set(['collision_planet', 'colliding_with', 'universe_id']));
+    assert.deepStrictEqual(pk, new Set(['collision_planet', 'colliding_with']));
   });
 
   it('cascade deletes when collision_planet is deleted', async () => {
@@ -383,20 +385,21 @@ describe('planet_collisions table', () => {
     const s1Res = await pool.query('INSERT INTO sectors (universe_id, sector_number, name) VALUES ($1, 1, $2) RETURNING id', [uid, 'S1']);
     const s2Res = await pool.query('INSERT INTO sectors (universe_id, sector_number, name) VALUES ($1, 2, $2) RETURNING id', [uid, 'S2']);
     const sec1 = s1Res.rows[0].id, sec2 = s2Res.rows[0].id;
-    await pool.query("INSERT INTO planets (id, sector_id, universe_id, name, type) VALUES (1, $1, $2, 'P1', 'Terran')", [sec1, uid]);
-    await pool.query("INSERT INTO planets (id, sector_id, universe_id, name, type) VALUES (2, $1, $2, 'P2', 'Oceanic')", [sec2, uid]);
+    const p1 = await pool.query("INSERT INTO planets (sector_id, name, type) VALUES ($1, 'P1', 'Terran') RETURNING id", [sec1]);
+    const p2 = await pool.query("INSERT INTO planets (sector_id, name, type) VALUES ($1, 'P2', 'Oceanic') RETURNING id", [sec2]);
+    const p1Id = p1.rows[0].id, p2Id = p2.rows[0].id;
     await pool.query(
-      "INSERT INTO planet_collisions (collision_planet, colliding_with, universe_id, collision_at) VALUES (1, 2, $1, NOW() + interval '24 hours')",
-      [uid],
+      "INSERT INTO planet_collisions (collision_planet, colliding_with, collision_at) VALUES ($1, $2, NOW() + interval '24 hours')",
+      [p1Id, p2Id],
     );
-    const before = await pool.query('SELECT COUNT(*)::int as cnt FROM planet_collisions WHERE universe_id = $1', [uid]);
+    const before = await pool.query('SELECT COUNT(*)::int as cnt FROM planet_collisions WHERE collision_planet = $1', [p1Id]);
     assert.equal(before.rows[0].cnt, 1);
 
-    await pool.query('DELETE FROM planets WHERE id = 1 AND universe_id = $1', [uid]);
-    const afterDel = await pool.query('SELECT COUNT(*)::int as cnt FROM planet_collisions WHERE universe_id = $1', [uid]);
+    await pool.query('DELETE FROM planets WHERE id = $1', [p1Id]);
+    const afterDel = await pool.query('SELECT COUNT(*)::int as cnt FROM planet_collisions WHERE collision_planet = $1', [p1Id]);
     assert.equal(afterDel.rows[0].cnt, 0, 'collision row should be deleted when collision_planet is deleted');
 
-    await pool.query('DELETE FROM planets WHERE universe_id = $1', [uid]);
+    await pool.query('DELETE FROM planets WHERE sector_id IN (SELECT id FROM sectors WHERE universe_id = $1)', [uid]);
     await pool.query('DELETE FROM sectors WHERE universe_id = $1', [uid]);
     await pool.query('DELETE FROM universes WHERE id = $1', [uid]);
   });
@@ -406,18 +409,19 @@ describe('planet_collisions table', () => {
     const uid = res.rows[0].id;
     const sRes = await pool.query('INSERT INTO sectors (universe_id, sector_number, name) VALUES ($1, 1, $2) RETURNING id', [uid, 'S1']);
     const secId = sRes.rows[0].id;
-    await pool.query("INSERT INTO planets (id, sector_id, universe_id, name, type) VALUES (1, $1, $2, 'PA', 'Terran')", [secId, uid]);
-    await pool.query("INSERT INTO planets (id, sector_id, universe_id, name, type) VALUES (2, $1, $2, 'PB', 'Oceanic')", [secId, uid]);
+    const pA = await pool.query("INSERT INTO planets (sector_id, name, type) VALUES ($1, 'PA', 'Terran') RETURNING id", [secId]);
+    const pB = await pool.query("INSERT INTO planets (sector_id, name, type) VALUES ($1, 'PB', 'Oceanic') RETURNING id", [secId]);
+    const pAId = pA.rows[0].id, pBId = pB.rows[0].id;
     await pool.query(
-      "INSERT INTO planet_collisions (collision_planet, colliding_with, universe_id, collision_at) VALUES (1, 2, $1, NOW() + interval '24 hours')",
-      [uid],
+      "INSERT INTO planet_collisions (collision_planet, colliding_with, collision_at) VALUES ($1, $2, NOW() + interval '24 hours')",
+      [pAId, pBId],
     );
 
-    await pool.query('DELETE FROM planets WHERE id = 2 AND universe_id = $1', [uid]);
-    const afterDel = await pool.query('SELECT COUNT(*)::int as cnt FROM planet_collisions WHERE universe_id = $1', [uid]);
+    await pool.query('DELETE FROM planets WHERE id = $1', [pBId]);
+    const afterDel = await pool.query('SELECT COUNT(*)::int as cnt FROM planet_collisions WHERE collision_planet = $1', [pAId]);
     assert.equal(afterDel.rows[0].cnt, 0, 'collision row should be deleted when colliding_with planet is deleted');
 
-    await pool.query('DELETE FROM planets WHERE universe_id = $1', [uid]);
+    await pool.query('DELETE FROM planets WHERE sector_id IN (SELECT id FROM sectors WHERE universe_id = $1)', [uid]);
     await pool.query('DELETE FROM sectors WHERE universe_id = $1', [uid]);
     await pool.query('DELETE FROM universes WHERE id = $1', [uid]);
   });
@@ -571,23 +575,22 @@ describe('admin API max_planets_per_sector', () => {
 // ==================== Planet ID calculation ====================
 
 describe('planet ID calculation during universe creation', () => {
-  it('Earth gets id=1 when a universe is created', async () => {
+  it('Earth exists when a universe is created', async () => {
     const res = await adminKeyPost('/api/admin/universes/generate', {
       name: 'PlanetIdTest', sectors: 20, seed: 60001,
     });
     assert.equal(res.status, 201);
     const uid = res.body.id;
     const planets = await pool.query(
-      'SELECT id, name FROM planets WHERE universe_id = $1 ORDER BY id',
+      'SELECT p.id, p.name FROM planets p JOIN sectors s ON p.sector_id = s.id WHERE s.universe_id = $1 ORDER BY p.id',
       [uid],
     );
     assert.ok(planets.rows.length >= 1, 'should have at least one planet (Earth)');
     const earth = planets.rows.find(p => p.name === 'Earth');
     assert.ok(earth, 'Earth planet should exist');
-    assert.equal(earth.id, 1, 'Earth should have id=1');
   });
 
-  it('two universes each have independent planet IDs starting at 1', async () => {
+  it('two universes each have planets (IDs are globally unique via SERIAL)', async () => {
     const res1 = await adminKeyPost('/api/admin/universes/generate', {
       name: 'IdIndep1', sectors: 20, seed: 60002,
     });
@@ -597,10 +600,10 @@ describe('planet ID calculation during universe creation', () => {
     assert.equal(res1.status, 201);
     assert.equal(res2.status, 201);
 
-    const p1 = await pool.query('SELECT id FROM planets WHERE universe_id = $1 AND name = $2', [res1.body.id, 'Earth']);
-    const p2 = await pool.query('SELECT id FROM planets WHERE universe_id = $1 AND name = $2', [res2.body.id, 'Earth']);
-    assert.equal(p1.rows[0].id, 1, 'Earth in universe 1 should have id=1');
-    assert.equal(p2.rows[0].id, 1, 'Earth in universe 2 should have id=1');
+    const p1 = await pool.query('SELECT p.id FROM planets p JOIN sectors s ON p.sector_id = s.id WHERE s.universe_id = $1 AND p.name = $2', [res1.body.id, 'Earth']);
+    const p2 = await pool.query('SELECT p.id FROM planets p JOIN sectors s ON p.sector_id = s.id WHERE s.universe_id = $1 AND p.name = $2', [res2.body.id, 'Earth']);
+    assert.ok(p1.rows.length > 0, 'Earth in universe 1 should exist');
+    assert.ok(p2.rows.length > 0, 'Earth in universe 2 should exist');
   });
 });
 
@@ -723,7 +726,7 @@ describe('WS: sector display includes planets', () => {
     assert.ok('id' in earth, 'planet should have id');
     assert.ok('name' in earth, 'planet should have name');
     assert.ok('type' in earth, 'planet should have type');
-    assert.equal(earth.id, 1, 'Earth should have id=1');
+    assert.ok(typeof earth.id === 'number', 'Earth should have a numeric id');
   });
 
   it('sector with no planets returns empty planets array', async () => {
@@ -741,7 +744,7 @@ describe('WS: sector display includes planets', () => {
     const targetSectorDbId = warps.rows[0].sector_db_id;
 
     // Ensure no planets in that sector
-    await pool.query('DELETE FROM planets WHERE sector_id = $1 AND universe_id = $2', [targetSectorDbId, universeId]);
+    await pool.query('DELETE FROM planets WHERE sector_id = $1', [targetSectorDbId]);
 
     player.sendMsg({ type: ClientMsgType.Move, sector: targetSector });
     await player.waitForMessage(ServerMsgType.MoveResult);
@@ -834,7 +837,7 @@ describe('WS: land command returns planet list', () => {
     const targetSectorDbId = warps.rows[0].sector_db_id;
 
     // Ensure no planets in that sector
-    await pool.query('DELETE FROM planets WHERE sector_id = $1 AND universe_id = $2', [targetSectorDbId, universeId]);
+    await pool.query('DELETE FROM planets WHERE sector_id = $1', [targetSectorDbId]);
 
     player.sendMsg({ type: ClientMsgType.Move, sector: targetSector });
     await player.waitForMessage(ServerMsgType.MoveResult);
@@ -867,7 +870,7 @@ describe('WS: land on planet, display, leave', () => {
   it('landOnPlanet with valid planetId responds with planetDisplayResult', async () => {
     // Get the planet id for Earth
     const planets = await pool.query(
-      "SELECT id FROM planets WHERE universe_id = $1 AND name = 'Earth'",
+      "SELECT p.id FROM planets p JOIN sectors s ON p.sector_id = s.id WHERE s.universe_id = $1 AND p.name = 'Earth'",
       [universeId],
     );
     const earthId = planets.rows[0].id;
@@ -962,7 +965,7 @@ describe('WS: use terraform device', () => {
     await pool.query('UPDATE player_ships SET terraform_devices = 1 WHERE player_id = $1', [player.playerId]);
 
     // Move back to sector 1
-    const currentSector = (await pool.query('SELECT current_sector FROM players WHERE id = $1', [player.playerId])).rows[0].current_sector;
+    const currentSector = (await pool.query('SELECT s.sector_number FROM players p JOIN sectors s ON p.current_sector_id = s.id WHERE p.id = $1', [player.playerId])).rows[0].sector_number;
     if (currentSector !== 1) {
       // Navigate back — find a path
       player.sendMsg({ type: ClientMsgType.ShortestPath, from: currentSector, to: 1 });
@@ -1004,8 +1007,8 @@ describe('WS: use terraform device', () => {
     await pool.query('UPDATE player_ships SET terraform_devices = 1 WHERE player_id = $1', [player.playerId]);
 
     const planetsBefore = await pool.query(
-      'SELECT COUNT(*)::int as cnt FROM planets WHERE sector_id = $1 AND universe_id = $2',
-      [targetSectorDbId, universeId],
+      'SELECT COUNT(*)::int as cnt FROM planets WHERE sector_id = $1',
+      [targetSectorDbId],
     );
 
     player.sendMsg({ type: ClientMsgType.UseTerraformDevice });
@@ -1018,8 +1021,8 @@ describe('WS: use terraform device', () => {
     assert.ok('sectorId' in msg.planet || 'sector_id' in msg.planet, 'planet should have sectorId');
 
     const planetsAfter = await pool.query(
-      'SELECT COUNT(*)::int as cnt FROM planets WHERE sector_id = $1 AND universe_id = $2',
-      [targetSectorDbId, universeId],
+      'SELECT COUNT(*)::int as cnt FROM planets WHERE sector_id = $1',
+      [targetSectorDbId],
     );
     assert.equal(planetsAfter.rows[0].cnt, planetsBefore.rows[0].cnt + 1, 'should have one more planet');
 
@@ -1150,7 +1153,7 @@ describe('WS: destroy planet', () => {
   it('destroyPlanet without planet busters returns error', async () => {
     // Land on Earth first
     const planets = await pool.query(
-      "SELECT id FROM planets WHERE universe_id = $1 AND name = 'Earth'", [universeId],
+      "SELECT p.id FROM planets p JOIN sectors s ON p.sector_id = s.id WHERE s.universe_id = $1 AND p.name = 'Earth'", [universeId],
     );
     const earthId = planets.rows[0].id;
     player.sendMsg({ type: ClientMsgType.LandOnPlanet, planetId: earthId });
@@ -1178,12 +1181,11 @@ describe('WS: destroy planet', () => {
     const targetSectorDbId = sectorRes.rows[0].sector_db_id;
 
     // Insert a test planet
-    const maxId = await pool.query('SELECT COALESCE(MAX(id), 0)::int as m FROM planets WHERE universe_id = $1', [universeId]);
-    const newPlanetId = maxId.rows[0].m + 1;
-    await pool.query(
-      "INSERT INTO planets (id, sector_id, universe_id, name, type) VALUES ($1, $2, $3, 'Doomed', 'Barren')",
-      [newPlanetId, targetSectorDbId, universeId],
+    const ins = await pool.query(
+      "INSERT INTO planets (sector_id, name, type) VALUES ($1, 'Doomed', 'Barren') RETURNING id",
+      [targetSectorDbId],
     );
+    const newPlanetId = ins.rows[0].id;
 
     // Move to that sector
     player.sendMsg({ type: ClientMsgType.LeavePlanet });
@@ -1211,7 +1213,7 @@ describe('WS: destroy planet', () => {
     assert.equal(msg.planetName, 'Doomed', 'planetName should match the destroyed planet');
 
     // Verify planet is gone from DB
-    const check = await pool.query('SELECT COUNT(*)::int as cnt FROM planets WHERE id = $1 AND universe_id = $2', [newPlanetId, universeId]);
+    const check = await pool.query('SELECT COUNT(*)::int as cnt FROM planets WHERE id = $1', [newPlanetId]);
     assert.equal(check.rows[0].cnt, 0, 'planet should be deleted from DB');
 
     // Verify planet buster was consumed
@@ -1253,12 +1255,11 @@ describe('WS: landOnPlanet validation', () => {
     );
     const otherSector = warps.rows[0].sector_to;
     const otherSectorDbId = warps.rows[0].sector_db_id;
-    const maxId = await pool.query('SELECT COALESCE(MAX(id), 0)::int as m FROM planets WHERE universe_id = $1', [universeId]);
-    const planetId = maxId.rows[0].m + 1;
-    await pool.query(
-      "INSERT INTO planets (id, sector_id, universe_id, name, type) VALUES ($1, $2, $3, 'FarPlanet', 'Barren')",
-      [planetId, otherSectorDbId, universeId],
+    const ins = await pool.query(
+      "INSERT INTO planets (sector_id, name, type) VALUES ($1, 'FarPlanet', 'Barren') RETURNING id",
+      [otherSectorDbId],
     );
+    const planetId = ins.rows[0].id;
 
     // Player is in sector 1, try to land on planet in otherSector
     player.sendMsg({ type: ClientMsgType.LandOnPlanet, planetId });
@@ -1266,7 +1267,7 @@ describe('WS: landOnPlanet validation', () => {
     assert.ok(msg.message, 'should receive error for planet not in current sector');
 
     // cleanup
-    await pool.query('DELETE FROM planets WHERE id = $1 AND universe_id = $2', [planetId, universeId]);
+    await pool.query('DELETE FROM planets WHERE id = $1', [planetId]);
   });
 });
 
@@ -1554,10 +1555,9 @@ describe('WS: terraform collision logic', () => {
     await player.waitForMessage(ServerMsgType.MoveResult);
 
     // Seed an existing planet in the sector so it already has 1 (which equals max)
-    const maxId = await pool.query('SELECT COALESCE(MAX(id), 0)::int as m FROM planets WHERE universe_id = $1', [universeId]);
     await pool.query(
-      "INSERT INTO planets (id, sector_id, universe_id, name, type) VALUES ($1, $2, $3, 'ExistingP', 'Terran')",
-      [maxId.rows[0].m + 1, targetSectorDbId, universeId],
+      "INSERT INTO planets (sector_id, name, type) VALUES ($1, 'ExistingP', 'Terran')",
+      [targetSectorDbId],
     );
   });
 
@@ -1588,8 +1588,8 @@ describe('WS: terraform collision logic', () => {
 
     // Verify a collision row exists in the DB for this specific planet
     const collisionRes = await pool.query(
-      'SELECT collision_planet, colliding_with, collision_at FROM planet_collisions WHERE universe_id = $1 AND collision_planet = $2',
-      [universeId, msg.planet.id],
+      'SELECT collision_planet, colliding_with, collision_at FROM planet_collisions WHERE collision_planet = $1',
+      [msg.planet.id],
     );
     assert.ok(collisionRes.rows.length >= 1, 'should have a collision row for the new planet');
     const collision = collisionRes.rows[0];
@@ -1597,8 +1597,8 @@ describe('WS: terraform collision logic', () => {
 
     // Verify colliding_with is a planet in the same sector
     const collidingPlanet = await pool.query(
-      `SELECT s.sector_number FROM planets p JOIN sectors s ON p.sector_id = s.id WHERE p.id = $1 AND p.universe_id = $2`,
-      [collision.colliding_with, universeId],
+      `SELECT s.sector_number FROM planets p JOIN sectors s ON p.sector_id = s.id WHERE p.id = $1`,
+      [collision.colliding_with],
     );
     assert.ok(collidingPlanet.rows.length > 0, 'colliding_with should reference an existing planet');
     assert.equal(collidingPlanet.rows[0].sector_number, targetSector, 'colliding_with planet should be in the same sector');
@@ -1704,12 +1704,11 @@ describe('WS: on_planet_id cleared after destroyPlanet', () => {
     const targetSectorDbId = warps.rows[0].sector_db_id;
 
     // Insert a disposable planet
-    const maxId = await pool.query('SELECT COALESCE(MAX(id), 0)::int as m FROM planets WHERE universe_id = $1', [universeId]);
-    const newPlanetId = maxId.rows[0].m + 1;
-    await pool.query(
-      "INSERT INTO planets (id, sector_id, universe_id, name, type) VALUES ($1, $2, $3, 'DestroyMe', 'Barren')",
-      [newPlanetId, targetSectorDbId, universeId],
+    const ins = await pool.query(
+      "INSERT INTO planets (sector_id, name, type) VALUES ($1, 'DestroyMe', 'Barren') RETURNING id",
+      [targetSectorDbId],
     );
+    const newPlanetId = ins.rows[0].id;
 
     // Move to that sector
     player.sendMsg({ type: ClientMsgType.ShortestPath, from: 1, to: targetSector });
@@ -1770,7 +1769,7 @@ describe('WS: terraform success response completeness', () => {
     const targetSectorDbId = warps.rows[0].sector_db_id;
 
     // Remove any existing planets from that sector
-    await pool.query('DELETE FROM planets WHERE sector_id = $1 AND universe_id = $2', [targetSectorDbId, universeId]);
+    await pool.query('DELETE FROM planets WHERE sector_id = $1', [targetSectorDbId]);
 
     player.sendMsg({ type: ClientMsgType.Move, sector: targetSector });
     await player.waitForMessage(ServerMsgType.MoveResult);
@@ -1829,11 +1828,7 @@ describe('WS: terraform planet ID sequencing', () => {
 
   after(() => { player?.close(); });
 
-  it('terraform-created planets get sequential IDs (MAX+1)', async () => {
-    // Get current max planet ID in this universe
-    const maxBefore = await pool.query('SELECT COALESCE(MAX(id), 0)::int as m FROM planets WHERE universe_id = $1', [universeId]);
-    const expectedFirstId = maxBefore.rows[0].m + 1;
-
+  it('terraform-created planets get sequential SERIAL IDs', async () => {
     // Move to a non-restricted sector
     const warps = await pool.query(
       `SELECT s_to.sector_number AS sector_to, s_to.id AS sector_db_id
@@ -1854,13 +1849,14 @@ describe('WS: terraform planet ID sequencing', () => {
     player.sendMsg({ type: ClientMsgType.UseTerraformDevice });
     const msg1 = await player.waitForMessage('useTerraformDeviceResult');
     assert.equal(msg1.success, true);
-    assert.equal(msg1.planet.id, expectedFirstId, `first terraform planet should have id=${expectedFirstId}`);
+    assert.ok(msg1.planet.id, 'first terraform planet should have an id');
 
     // Create second planet
     player.sendMsg({ type: ClientMsgType.UseTerraformDevice });
     const msg2 = await player.waitForMessage('useTerraformDeviceResult');
     assert.equal(msg2.success, true);
-    assert.equal(msg2.planet.id, expectedFirstId + 1, `second terraform planet should have id=${expectedFirstId + 1}`);
+    assert.ok(msg2.planet.id, 'second terraform planet should have an id');
+    assert.equal(msg2.planet.id, msg1.planet.id + 1, 'second planet id should be first + 1 (sequential SERIAL)');
   });
 });
 

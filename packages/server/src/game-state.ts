@@ -5,6 +5,7 @@ import { pool } from './db/index.js';
 export interface Player {
     ws: WebSocket;
     sector: number;
+    sectorId: number;
     name: string;
     universeId: number;
     docked: boolean;
@@ -125,6 +126,14 @@ export async function setPlayerMenu(playerId: number, menuName: string): Promise
 
 export function getPlayerUniverseId(playerId: number): number | undefined {
     return players[playerId]?.universeId;
+}
+
+export async function resolveSectorId(sectorNumber: number, universeId: number): Promise<number> {
+    const res = await pool.query(
+        'SELECT id FROM sectors WHERE sector_number = $1 AND universe_id = $2',
+        [sectorNumber, universeId],
+    );
+    return res.rows[0]?.id;
 }
 
 export async function getSectorDrones(

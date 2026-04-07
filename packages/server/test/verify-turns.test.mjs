@@ -106,15 +106,13 @@ async function goToStarbase(pool) {
 /** Ensure a planet exists in the given sector, creating one if needed. Returns planet id. */
 async function ensurePlanetInSector(sectorNumber, universeId = UNIVERSE_ID) {
   const dbId = await sectorDbId(sectorNumber, universeId);
-  const existing = await pool.query('SELECT id FROM planets WHERE sector_id = $1 AND universe_id = $2 LIMIT 1', [dbId, universeId]);
+  const existing = await pool.query('SELECT id FROM planets WHERE sector_id = $1 LIMIT 1', [dbId]);
   if (existing.rows.length > 0) return existing.rows[0].id;
-  const maxId = await pool.query('SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM planets WHERE universe_id = $1', [universeId]);
-  const nextId = maxId.rows[0].next_id;
-  await pool.query(
-    `INSERT INTO planets (id, sector_id, universe_id, name, type) VALUES ($1, $2, $3, 'TestPlanet', 'H')`,
-    [nextId, dbId, universeId],
+  const ins = await pool.query(
+    `INSERT INTO planets (sector_id, name, type) VALUES ($1, 'TestPlanet', 'H') RETURNING id`,
+    [dbId],
   );
-  return nextId;
+  return ins.rows[0].id;
 }
 
 /** Deploy drones in a sector for a player (directly via DB) */

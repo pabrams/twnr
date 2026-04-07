@@ -134,8 +134,8 @@ describe('Buy equipment — success', () => {
       const exchMsg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: warbirdCfg.name }, ServerMsgType.BuyShipTradeinResult);
       assert.equal(exchMsg.type, ServerMsgType.BuyShipTradeinResult);
 
-      // Teleport to sector 1 (class 0 port) via DB — buyHolds reads current_sector from DB
-      await pool.query('UPDATE players SET current_sector = 1 WHERE id = $1', [welcome.playerId]);
+      // Teleport to sector 1 (class 0 port) via DB — buyHolds reads current_sector_id from DB
+      await pool.query(`UPDATE players SET current_sector_id = (SELECT id FROM sectors WHERE sector_number = 1 AND universe_id = ${UNIVERSE_ID}) WHERE id = $1`, [welcome.playerId]);
 
       // Trying to buy maxHolds - startingHolds + 1 holds should fail
       const overLimit = warbirdCfg.maxHolds - warbirdCfg.startingHolds + 1;

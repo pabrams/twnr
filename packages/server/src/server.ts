@@ -103,7 +103,10 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
 
         // Look up player for this user in this universe
         const playerRes = await pool.query(
-            'SELECT id, name, current_sector FROM players WHERE user_id = $1 AND universe_id = $2',
+            `SELECT p.id, p.name, p.current_sector_id, s.sector_number
+             FROM players p
+             JOIN sectors s ON p.current_sector_id = s.id
+             WHERE p.user_id = $1 AND p.universe_id = $2`,
             [userId, universeId],
         );
         if (playerRes.rows.length === 0) {
@@ -112,14 +115,15 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
         }
         const playerRow = playerRes.rows[0];
         const playerId = playerRow.id;
-        const sector: number = playerRow.current_sector;
+        const sectorId: number = playerRow.current_sector_id;
+        const sector: number = playerRow.sector_number;
 
         // Undock on connect (in case of prior disconnect while docked)
         await pool.query('UPDATE players SET docked = FALSE WHERE id = $1', [playerId]);
         // Mark current sector as visited
         await pool.query(
             'INSERT INTO visited_sectors (player_id, sector_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-            [playerId, sector],
+            [playerId, sectorId],
         );
         // Set initial menu to sector
         await pool.query(
@@ -129,6 +133,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
         players[playerId] = {
             ws,
             sector,
+            sectorId,
             name: playerRow.name,
             universeId,
             docked: false,

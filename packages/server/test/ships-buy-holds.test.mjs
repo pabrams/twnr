@@ -69,14 +69,14 @@ describe('Buy holds — validation', () => {
   });
 
   it('returns "Not at a class 0 port" when not in a class 0 sector', async () => {
-    const res = await pool.query('SELECT s.sector_number AS sector_id FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE p.class != 0 AND s.universe_id = $1 LIMIT 1', [UNIVERSE_ID]);
+    const res = await pool.query('SELECT s.id AS sector_id FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE p.class != 0 AND s.universe_id = $1 LIMIT 1', [UNIVERSE_ID]);
     assert.ok(res.rows.length > 0, 'Need a non-class-0 sector');
     const otherSector = Number(res.rows[0].sector_id);
 
     const { ws, welcome } = await connectWS();
     const playerId = welcome.playerId;
     try {
-      await pool.query('UPDATE players SET current_sector = $1 WHERE id = $2', [otherSector, playerId]);
+      await pool.query('UPDATE players SET current_sector_id = $1 WHERE id = $2', [otherSector, playerId]);
       const msg = await wsRequest(ws, { type: ClientMsgType.BuyHolds, quantity: 1 }, ServerMsgType.BuyHoldsResult);
       assert.equal(msg.type, ServerMsgType.Error);
       assert.equal(msg.message, 'Not at a class 0 port');

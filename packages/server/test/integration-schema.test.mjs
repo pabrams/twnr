@@ -42,7 +42,7 @@ describe('Schema', () => {
     assert.ok(cols.includes('to_sector_id'), 'missing to_sector_id column');
   });
 
-  it('players table has id, name, and current_sector columns', async () => {
+  it('players table has id, name, and current_sector_id columns', async () => {
     const res = await pool.query(
       `SELECT column_name FROM information_schema.columns
        WHERE table_name = 'players' ORDER BY column_name`
@@ -50,7 +50,7 @@ describe('Schema', () => {
     const cols = res.rows.map(r => r.column_name);
     assert.ok(cols.includes('id'), 'missing id column');
     assert.ok(cols.includes('name'), 'missing name column');
-    assert.ok(cols.includes('current_sector'), 'missing current_sector column');
+    assert.ok(cols.includes('current_sector_id'), 'missing current_sector_id column');
   });
 
   it('warps table has foreign keys referencing sectors', async () => {

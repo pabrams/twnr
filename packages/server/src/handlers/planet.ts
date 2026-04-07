@@ -111,8 +111,8 @@ async function queryPlanetDisplayData(playerId: number) {
     if (!onPlanetId) return null;
 
     const planetRes = await pool.query(
-        'SELECT id, sector_id, name, type, drones, fuel, organics, equipment, colonists_fuel, colonists_organics, colonists_equipment, created_at, updated_at FROM planets WHERE id = $1 AND universe_id = $2',
-        [onPlanetId, player.universeId],
+        'SELECT id, sector_id, name, type, drones, fuel, organics, equipment, colonists_fuel, colonists_organics, colonists_equipment, created_at, updated_at FROM planets WHERE id = $1',
+        [onPlanetId],
     );
     if (planetRes.rows.length === 0) return null;
 
@@ -208,10 +208,7 @@ export async function handleDestroyPlanet(playerId: number): Promise<void> {
         return;
     }
 
-    const planetRes = await pool.query(
-        'SELECT name FROM planets WHERE id = $1 AND universe_id = $2',
-        [onPlanetId, player.universeId],
-    );
+    const planetRes = await pool.query('SELECT name FROM planets WHERE id = $1', [onPlanetId]);
     if (planetRes.rows.length === 0) {
         sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Planet not found.' });
         return;
@@ -227,10 +224,7 @@ export async function handleDestroyPlanet(playerId: number): Promise<void> {
             [playerId],
         );
         await client.query('UPDATE players SET on_planet_id = NULL WHERE id = $1', [playerId]);
-        await client.query('DELETE FROM planets WHERE id = $1 AND universe_id = $2', [
-            onPlanetId,
-            player.universeId,
-        ]);
+        await client.query('DELETE FROM planets WHERE id = $1', [onPlanetId]);
 
         await client.query('COMMIT');
     } catch (err) {
@@ -311,8 +305,8 @@ export async function handleUseTerraformDevice(playerId: number): Promise<void> 
         const universeInfo = univRes.rows[0];
 
         const planetsRes = await client.query(
-            'SELECT id FROM planets WHERE sector_id = $1 AND universe_id = $2 FOR UPDATE',
-            [sectorDbId, universeId],
+            'SELECT id FROM planets WHERE sector_id = $1 FOR UPDATE',
+            [sectorDbId],
         );
 
         await client.query(
@@ -320,20 +314,15 @@ export async function handleUseTerraformDevice(playerId: number): Promise<void> 
             [playerId],
         );
 
-        const maxIdRes = await client.query(
-            'SELECT COALESCE(MAX(id), 0) as max_id FROM planets WHERE universe_id = $1',
-            [universeId],
-        );
-        const newPlanetId = parseInt(maxIdRes.rows[0].max_id, 10) + 1;
-
         const types = Object.keys(planetConfigs);
         const randomType = types[Math.floor(Math.random() * types.length)] || 'Terran';
         const randomName = 'Planet-' + Math.random().toString(36).substring(2, 8).toUpperCase();
 
-        await client.query(
-            'INSERT INTO planets (id, sector_id, universe_id, name, type) VALUES ($1, $2, $3, $4, $5)',
-            [newPlanetId, sectorDbId, universeId, randomName, randomType],
+        const insertRes = await client.query(
+            'INSERT INTO planets (sector_id, name, type) VALUES ($1, $2, $3) RETURNING id',
+            [sectorDbId, randomName, randomType],
         );
+        const newPlanetId = insertRes.rows[0].id;
 
         let collision = false;
         if (planetsRes.rows.length >= universeInfo.max_planets_per_sector) {
@@ -348,9 +337,9 @@ export async function handleUseTerraformDevice(playerId: number): Promise<void> 
                 const hours = Math.floor(Math.random() * (maxH - minH + 1)) + minH;
 
                 await client.query(
-                    `INSERT INTO planet_collisions (collision_planet, colliding_with, universe_id, collision_at) 
-                     VALUES ($1, $2, $3, NOW() + interval '${hours} hours')`,
-                    [newPlanetId, collidingWithId, universeId],
+                    `INSERT INTO planet_collisions (collision_planet, colliding_with, collision_at)
+                     VALUES ($1, $2, NOW() + interval '${hours} hours')`,
+                    [newPlanetId, collidingWithId],
                 );
             }
         }
