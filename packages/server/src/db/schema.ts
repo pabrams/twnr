@@ -201,7 +201,6 @@ export const connectDB = async (): Promise<void> => {
         command_id INTEGER NOT NULL REFERENCES command(id) ON DELETE CASCADE,
         key_pattern VARCHAR(50) NOT NULL,
         label VARCHAR(255),
-        action_type VARCHAR(10) NOT NULL CHECK (action_type IN ('local', 'server', 'mixed')),
         client_msg_type VARCHAR(100),
         target_menu_id INTEGER REFERENCES menu(id) ON DELETE SET NULL,
         sort_order SMALLINT NOT NULL DEFAULT 0,
@@ -314,151 +313,151 @@ export const connectDB = async (): Promise<void> => {
       -- Helper: m(menu_name), c(command_name), t(target_menu_name) via subqueries
 
       -- === Sector ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, action_type, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='move'), '<number>', 'Move to sector', 'server', 'move', NULL, 10),
-        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='display_sector'), 'd', 'Display sector', 'server', 'sectorDisplay', NULL, 20),
-        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='port_menu'), 'p', 'Port', 'server', NULL, (SELECT id FROM menu WHERE name='port'), 30),
-        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='player_info'), 'i', 'Player info', 'server', NULL, (SELECT id FROM menu WHERE name='playerInfo'), 40),
-        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='help_menu'), '?', 'Help', 'server', NULL, (SELECT id FROM menu WHERE name='help'), 50),
-        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='attack_menu'), 'a', 'Attack', 'server', NULL, (SELECT id FROM menu WHERE name='attack'), 60),
-        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='computer_menu'), 'c', 'Computer', 'server', NULL, (SELECT id FROM menu WHERE name='computer'), 70),
-        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='deploy_drones_info'), 'f', 'Deploy drones', 'server', 'deployDronesInfo', NULL, 80),
-        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='jettison_menu'), 'j', 'Jettison cargo', 'server', NULL, (SELECT id FROM menu WHERE name='jettisonConfirm'), 90),
-        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='land'), 'l', 'Land', 'server', 'land', NULL, 100),
-        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='quit_game'), 'q', 'Quit', 'local', NULL, NULL, 110),
-        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='players_online'), '#', 'Players online', 'server', 'playersOnline', NULL, 120)
+      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
+        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='move'), '<number>', 'Move to sector','move', NULL, 10),
+        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='display_sector'), 'd', 'Display sector','sectorDisplay', NULL, 20),
+        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='port_menu'), 'p', 'Port',NULL, (SELECT id FROM menu WHERE name='port'), 30),
+        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='player_info'), 'i', 'Player info',NULL, (SELECT id FROM menu WHERE name='playerInfo'), 40),
+        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='help_menu'), '?', 'Help',NULL, (SELECT id FROM menu WHERE name='help'), 50),
+        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='attack_menu'), 'a', 'Attack',NULL, (SELECT id FROM menu WHERE name='attack'), 60),
+        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='computer_menu'), 'c', 'Computer',NULL, (SELECT id FROM menu WHERE name='computer'), 70),
+        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='deploy_drones_info'), 'f', 'Deploy drones','deployDronesInfo', NULL, 80),
+        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='jettison_menu'), 'j', 'Jettison cargo',NULL, (SELECT id FROM menu WHERE name='jettisonConfirm'), 90),
+        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='land'), 'l', 'Land','land', NULL, 100),
+        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='quit_game'), 'q', 'Quit',NULL, NULL, 110),
+        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='players_online'), '#', 'Players online','playersOnline', NULL, 120)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === Port ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, action_type, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='port'), (SELECT id FROM command WHERE name='trade_at_port'), 't', 'Trade at port', 'server', 'dock', NULL, 10),
-        ((SELECT id FROM menu WHERE name='port'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', 'server', NULL, (SELECT id FROM menu WHERE name='sector'), 20)
+      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
+        ((SELECT id FROM menu WHERE name='port'), (SELECT id FROM command WHERE name='trade_at_port'), 't', 'Trade at port','dock', NULL, 10),
+        ((SELECT id FROM menu WHERE name='port'), (SELECT id FROM command WHERE name='back'), 'q', 'Back',NULL, (SELECT id FROM menu WHERE name='sector'), 20)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === Docked ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, action_type, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='docked'), (SELECT id FROM command WHERE name='buy_goods'), 'b', 'Buy goods', 'server', 'portTransaction', NULL, 10),
-        ((SELECT id FROM menu WHERE name='docked'), (SELECT id FROM command WHERE name='sell_goods'), 's', 'Sell goods', 'server', 'portTransaction', NULL, 20),
-        ((SELECT id FROM menu WHERE name='docked'), (SELECT id FROM command WHERE name='leave_port'), 'q', 'Leave port', 'server', 'undock', NULL, 30)
+      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
+        ((SELECT id FROM menu WHERE name='docked'), (SELECT id FROM command WHERE name='buy_goods'), 'b', 'Buy goods','portTransaction', NULL, 10),
+        ((SELECT id FROM menu WHERE name='docked'), (SELECT id FROM command WHERE name='sell_goods'), 's', 'Sell goods','portTransaction', NULL, 20),
+        ((SELECT id FROM menu WHERE name='docked'), (SELECT id FROM command WHERE name='leave_port'), 'q', 'Leave port','undock', NULL, 30)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === Class0 ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, action_type, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='class0'), (SELECT id FROM command WHERE name='choose_drones'), 'f', 'Buy drones', 'server', NULL, (SELECT id FROM menu WHERE name='class0Qty'), 10),
-        ((SELECT id FROM menu WHERE name='class0'), (SELECT id FROM command WHERE name='choose_shields'), 's', 'Buy shields', 'server', NULL, (SELECT id FROM menu WHERE name='class0Qty'), 20),
-        ((SELECT id FROM menu WHERE name='class0'), (SELECT id FROM command WHERE name='choose_holds'), 'h', 'Buy holds', 'server', NULL, (SELECT id FROM menu WHERE name='class0Qty'), 30),
-        ((SELECT id FROM menu WHERE name='class0'), (SELECT id FROM command WHERE name='leave_port'), 'q', 'Leave', 'server', 'undock', NULL, 40)
+      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
+        ((SELECT id FROM menu WHERE name='class0'), (SELECT id FROM command WHERE name='choose_drones'), 'f', 'Buy drones',NULL, (SELECT id FROM menu WHERE name='class0Qty'), 10),
+        ((SELECT id FROM menu WHERE name='class0'), (SELECT id FROM command WHERE name='choose_shields'), 's', 'Buy shields',NULL, (SELECT id FROM menu WHERE name='class0Qty'), 20),
+        ((SELECT id FROM menu WHERE name='class0'), (SELECT id FROM command WHERE name='choose_holds'), 'h', 'Buy holds',NULL, (SELECT id FROM menu WHERE name='class0Qty'), 30),
+        ((SELECT id FROM menu WHERE name='class0'), (SELECT id FROM command WHERE name='leave_port'), 'q', 'Leave','undock', NULL, 40)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === Class0Qty ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, action_type, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='class0Qty'), (SELECT id FROM command WHERE name='enter_quantity'), '<number>', 'Enter quantity', 'server', NULL, NULL, 10),
-        ((SELECT id FROM menu WHERE name='class0Qty'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', 'server', NULL, (SELECT id FROM menu WHERE name='class0'), 20)
+      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
+        ((SELECT id FROM menu WHERE name='class0Qty'), (SELECT id FROM command WHERE name='enter_quantity'), '<number>', 'Enter quantity',NULL, NULL, 10),
+        ((SELECT id FROM menu WHERE name='class0Qty'), (SELECT id FROM command WHERE name='back'), 'q', 'Back',NULL, (SELECT id FROM menu WHERE name='class0'), 20)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === Help ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, action_type, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='help'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', 'server', NULL, (SELECT id FROM menu WHERE name='sector'), 10)
+      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
+        ((SELECT id FROM menu WHERE name='help'), (SELECT id FROM command WHERE name='back'), 'q', 'Back',NULL, (SELECT id FROM menu WHERE name='sector'), 10)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === ShipInfo ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, action_type, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='shipInfo'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', 'server', NULL, (SELECT id FROM menu WHERE name='sector'), 10)
+      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
+        ((SELECT id FROM menu WHERE name='shipInfo'), (SELECT id FROM command WHERE name='back'), 'q', 'Back',NULL, (SELECT id FROM menu WHERE name='sector'), 10)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === PlayerInfo ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, action_type, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='playerInfo'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', 'server', NULL, (SELECT id FROM menu WHERE name='sector'), 10)
+      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
+        ((SELECT id FROM menu WHERE name='playerInfo'), (SELECT id FROM command WHERE name='back'), 'q', 'Back',NULL, (SELECT id FROM menu WHERE name='sector'), 10)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === Attack ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, action_type, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='attack'), (SELECT id FROM command WHERE name='select_target'), '<number>', 'Select target', 'server', NULL, (SELECT id FROM menu WHERE name='attackDrones'), 10),
-        ((SELECT id FROM menu WHERE name='attack'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', 'server', NULL, (SELECT id FROM menu WHERE name='sector'), 20)
+      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
+        ((SELECT id FROM menu WHERE name='attack'), (SELECT id FROM command WHERE name='select_target'), '<number>', 'Select target',NULL, (SELECT id FROM menu WHERE name='attackDrones'), 10),
+        ((SELECT id FROM menu WHERE name='attack'), (SELECT id FROM command WHERE name='back'), 'q', 'Back',NULL, (SELECT id FROM menu WHERE name='sector'), 20)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === AttackDrones ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, action_type, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='attackDrones'), (SELECT id FROM command WHERE name='enter_quantity'), '<number>', 'Drones to send', 'server', 'attackShip', NULL, 10),
-        ((SELECT id FROM menu WHERE name='attackDrones'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', 'server', NULL, (SELECT id FROM menu WHERE name='sector'), 20)
+      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
+        ((SELECT id FROM menu WHERE name='attackDrones'), (SELECT id FROM command WHERE name='enter_quantity'), '<number>', 'Drones to send','attackShip', NULL, 10),
+        ((SELECT id FROM menu WHERE name='attackDrones'), (SELECT id FROM command WHERE name='back'), 'q', 'Back',NULL, (SELECT id FROM menu WHERE name='sector'), 20)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === Computer ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, action_type, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='known_universe'), 'k', 'Known Universe', 'server', NULL, (SELECT id FROM menu WHERE name='knownUniverse'), 10),
-        ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='trader_list'), 'l', 'List Traders', 'server', NULL, NULL, 20),
-        ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='ship_catalog'), 'c', 'Ship Catalog', 'server', NULL, (SELECT id FROM menu WHERE name='shipCatalog'), 30),
-        ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='planet_specs'), 'j', 'Planetary Specs', 'server', NULL, (SELECT id FROM menu WHERE name='planetSpecs'), 40),
-        ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='current_ship_specs'), ';', 'Current Ship', 'server', NULL, NULL, 50),
-        ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='back'), 'q', 'Exit Computer', 'server', NULL, (SELECT id FROM menu WHERE name='sector'), 60)
+      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
+        ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='known_universe'), 'k', 'Known Universe',NULL, (SELECT id FROM menu WHERE name='knownUniverse'), 10),
+        ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='trader_list'), 'l', 'List Traders',NULL, NULL, 20),
+        ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='ship_catalog'), 'c', 'Ship Catalog',NULL, (SELECT id FROM menu WHERE name='shipCatalog'), 30),
+        ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='planet_specs'), 'j', 'Planetary Specs',NULL, (SELECT id FROM menu WHERE name='planetSpecs'), 40),
+        ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='current_ship_specs'), ';', 'Current Ship',NULL, NULL, 50),
+        ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='back'), 'q', 'Exit Computer',NULL, (SELECT id FROM menu WHERE name='sector'), 60)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === KnownUniverse ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, action_type, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='knownUniverse'), (SELECT id FROM command WHERE name='explored_sectors'), 'e', 'Explored sectors', 'server', NULL, NULL, 10),
-        ((SELECT id FROM menu WHERE name='knownUniverse'), (SELECT id FROM command WHERE name='unexplored_sectors'), 'u', 'Unexplored sectors', 'server', NULL, NULL, 20),
-        ((SELECT id FROM menu WHERE name='knownUniverse'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', 'server', NULL, (SELECT id FROM menu WHERE name='computer'), 30)
+      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
+        ((SELECT id FROM menu WHERE name='knownUniverse'), (SELECT id FROM command WHERE name='explored_sectors'), 'e', 'Explored sectors',NULL, NULL, 10),
+        ((SELECT id FROM menu WHERE name='knownUniverse'), (SELECT id FROM command WHERE name='unexplored_sectors'), 'u', 'Unexplored sectors',NULL, NULL, 20),
+        ((SELECT id FROM menu WHERE name='knownUniverse'), (SELECT id FROM command WHERE name='back'), 'q', 'Back',NULL, (SELECT id FROM menu WHERE name='computer'), 30)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === ShipCatalog ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, action_type, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='shipCatalog'), (SELECT id FROM command WHERE name='view_detail'), '<letter>', 'View ship detail', 'server', NULL, NULL, 10),
-        ((SELECT id FROM menu WHERE name='shipCatalog'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', 'server', NULL, (SELECT id FROM menu WHERE name='computer'), 20)
+      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
+        ((SELECT id FROM menu WHERE name='shipCatalog'), (SELECT id FROM command WHERE name='view_detail'), '<letter>', 'View ship detail',NULL, NULL, 10),
+        ((SELECT id FROM menu WHERE name='shipCatalog'), (SELECT id FROM command WHERE name='back'), 'q', 'Back',NULL, (SELECT id FROM menu WHERE name='computer'), 20)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === PlanetSpecs ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, action_type, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='planetSpecs'), (SELECT id FROM command WHERE name='view_detail'), '<letter>', 'View planet detail', 'server', NULL, NULL, 10),
-        ((SELECT id FROM menu WHERE name='planetSpecs'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', 'server', NULL, (SELECT id FROM menu WHERE name='computer'), 20)
+      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
+        ((SELECT id FROM menu WHERE name='planetSpecs'), (SELECT id FROM command WHERE name='view_detail'), '<letter>', 'View planet detail',NULL, NULL, 10),
+        ((SELECT id FROM menu WHERE name='planetSpecs'), (SELECT id FROM command WHERE name='back'), 'q', 'Back',NULL, (SELECT id FROM menu WHERE name='computer'), 20)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === JettisonConfirm ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, action_type, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='jettisonConfirm'), (SELECT id FROM command WHERE name='confirm_yes'), 'y', 'Yes, jettison', 'server', 'jettison', (SELECT id FROM menu WHERE name='sector'), 10),
-        ((SELECT id FROM menu WHERE name='jettisonConfirm'), (SELECT id FROM command WHERE name='confirm_no'), 'n', 'Cancel', 'server', NULL, (SELECT id FROM menu WHERE name='sector'), 20)
+      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
+        ((SELECT id FROM menu WHERE name='jettisonConfirm'), (SELECT id FROM command WHERE name='confirm_yes'), 'y', 'Yes, jettison','jettison', (SELECT id FROM menu WHERE name='sector'), 10),
+        ((SELECT id FROM menu WHERE name='jettisonConfirm'), (SELECT id FROM command WHERE name='confirm_no'), 'n', 'Cancel',NULL, (SELECT id FROM menu WHERE name='sector'), 20)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === Planet ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, action_type, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='planet'), (SELECT id FROM command WHERE name='take_colonists'), 't', 'Take colonists', 'server', NULL, (SELECT id FROM menu WHERE name='planetTakeQty'), 10),
-        ((SELECT id FROM menu WHERE name='planet'), (SELECT id FROM command WHERE name='leave_colonists'), 'l', 'Leave colonists', 'server', NULL, (SELECT id FROM menu WHERE name='planetLeaveQty'), 20),
-        ((SELECT id FROM menu WHERE name='planet'), (SELECT id FROM command WHERE name='back'), 'q', 'Leave planet', 'server', NULL, (SELECT id FROM menu WHERE name='sector'), 30)
+      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
+        ((SELECT id FROM menu WHERE name='planet'), (SELECT id FROM command WHERE name='take_colonists'), 't', 'Take colonists',NULL, (SELECT id FROM menu WHERE name='planetTakeQty'), 10),
+        ((SELECT id FROM menu WHERE name='planet'), (SELECT id FROM command WHERE name='leave_colonists'), 'l', 'Leave colonists',NULL, (SELECT id FROM menu WHERE name='planetLeaveQty'), 20),
+        ((SELECT id FROM menu WHERE name='planet'), (SELECT id FROM command WHERE name='back'), 'q', 'Leave planet',NULL, (SELECT id FROM menu WHERE name='sector'), 30)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === PlanetTakeQty ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, action_type, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='planetTakeQty'), (SELECT id FROM command WHERE name='enter_quantity'), '<number>', 'Quantity to take', 'server', 'takeColonists', NULL, 10),
-        ((SELECT id FROM menu WHERE name='planetTakeQty'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', 'server', NULL, (SELECT id FROM menu WHERE name='sector'), 20)
+      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
+        ((SELECT id FROM menu WHERE name='planetTakeQty'), (SELECT id FROM command WHERE name='enter_quantity'), '<number>', 'Quantity to take','takeColonists', NULL, 10),
+        ((SELECT id FROM menu WHERE name='planetTakeQty'), (SELECT id FROM command WHERE name='back'), 'q', 'Back',NULL, (SELECT id FROM menu WHERE name='sector'), 20)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === PlanetLeaveQty ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, action_type, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='planetLeaveQty'), (SELECT id FROM command WHERE name='enter_quantity'), '<number>', 'Quantity to leave', 'server', 'leaveColonists', NULL, 10),
-        ((SELECT id FROM menu WHERE name='planetLeaveQty'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', 'server', NULL, (SELECT id FROM menu WHERE name='sector'), 20)
+      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
+        ((SELECT id FROM menu WHERE name='planetLeaveQty'), (SELECT id FROM command WHERE name='enter_quantity'), '<number>', 'Quantity to leave','leaveColonists', NULL, 10),
+        ((SELECT id FROM menu WHERE name='planetLeaveQty'), (SELECT id FROM command WHERE name='back'), 'q', 'Back',NULL, (SELECT id FROM menu WHERE name='sector'), 20)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === DeployDronesQty ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, action_type, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='deployDronesQty'), (SELECT id FROM command WHERE name='enter_quantity'), '<number>', 'Drones to deploy', 'server', 'deployDrones', NULL, 10),
-        ((SELECT id FROM menu WHERE name='deployDronesQty'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', 'server', NULL, (SELECT id FROM menu WHERE name='sector'), 20)
+      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
+        ((SELECT id FROM menu WHERE name='deployDronesQty'), (SELECT id FROM command WHERE name='enter_quantity'), '<number>', 'Drones to deploy','deployDrones', NULL, 10),
+        ((SELECT id FROM menu WHERE name='deployDronesQty'), (SELECT id FROM command WHERE name='back'), 'q', 'Back',NULL, (SELECT id FROM menu WHERE name='sector'), 20)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === DroneEncounter ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, action_type, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='droneEncounter'), (SELECT id FROM command WHERE name='attack_encounter'), 'a', 'Attack', 'server', NULL, (SELECT id FROM menu WHERE name='droneAttackQty'), 10),
-        ((SELECT id FROM menu WHERE name='droneEncounter'), (SELECT id FROM command WHERE name='retreat'), 'r', 'Retreat', 'server', 'retreatFromDrones', NULL, 20)
+      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
+        ((SELECT id FROM menu WHERE name='droneEncounter'), (SELECT id FROM command WHERE name='attack_encounter'), 'a', 'Attack',NULL, (SELECT id FROM menu WHERE name='droneAttackQty'), 10),
+        ((SELECT id FROM menu WHERE name='droneEncounter'), (SELECT id FROM command WHERE name='retreat'), 'r', 'Retreat','retreatFromDrones', NULL, 20)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === DroneAttackQty ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, action_type, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='droneAttackQty'), (SELECT id FROM command WHERE name='enter_quantity'), '<number>', 'Drones to send', 'server', 'attackSectorDrones', NULL, 10),
-        ((SELECT id FROM menu WHERE name='droneAttackQty'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', 'server', NULL, (SELECT id FROM menu WHERE name='droneEncounter'), 20)
+      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
+        ((SELECT id FROM menu WHERE name='droneAttackQty'), (SELECT id FROM command WHERE name='enter_quantity'), '<number>', 'Drones to send','attackSectorDrones', NULL, 10),
+        ((SELECT id FROM menu WHERE name='droneAttackQty'), (SELECT id FROM command WHERE name='back'), 'q', 'Back',NULL, (SELECT id FROM menu WHERE name='droneEncounter'), 20)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === AutopilotPrompt ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, action_type, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='autopilotPrompt'), (SELECT id FROM command WHERE name='confirm_yes'), 'y', 'Engage autopilot', 'mixed', 'move', (SELECT id FROM menu WHERE name='autopilot'), 10),
-        ((SELECT id FROM menu WHERE name='autopilotPrompt'), (SELECT id FROM command WHERE name='confirm_no'), 'n', 'Cancel', 'server', NULL, (SELECT id FROM menu WHERE name='sector'), 20)
+      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
+        ((SELECT id FROM menu WHERE name='autopilotPrompt'), (SELECT id FROM command WHERE name='confirm_yes'), 'y', 'Engage autopilot','move', (SELECT id FROM menu WHERE name='autopilot'), 10),
+        ((SELECT id FROM menu WHERE name='autopilotPrompt'), (SELECT id FROM command WHERE name='confirm_no'), 'n', 'Cancel',NULL, (SELECT id FROM menu WHERE name='sector'), 20)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- Autopilot has no commands (input ignored during autopilot)

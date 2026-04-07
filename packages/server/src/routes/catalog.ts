@@ -43,7 +43,7 @@ export function createCatalogRoutes(router: Router, middleware: Middleware): voi
             );
             const { rows: commands } = await pool.query(
                 `SELECT mc.menu_id, mc.command_id, mc.key_pattern, mc.label as mc_label,
-                        mc.action_type, mc.client_msg_type, mc.target_menu_id, mc.sort_order,
+                        mc.client_msg_type, mc.target_menu_id, mc.sort_order,
                         c.name as command_name, c.label as command_label
                  FROM menu_command mc
                  JOIN command c ON mc.command_id = c.id
@@ -64,7 +64,6 @@ export function createCatalogRoutes(router: Router, middleware: Middleware): voi
                         command: c.command_name,
                         keyPattern: c.key_pattern,
                         label: c.mc_label || c.command_label,
-                        actionType: c.action_type,
                         clientMsgType: c.client_msg_type || null,
                         targetMenu: c.target_menu_id
                             ? ((menuMap.get(c.target_menu_id) as any)?.name ?? null)

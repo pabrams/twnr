@@ -324,7 +324,7 @@ function renderMenuRegistry() {
         const cmds = menu.commands || [];
         if (cmds.length === 0) {
             // Menu with no commands (e.g. autopilot)
-            rows.push(`        <tr><td rowspan="1"><a href="#menu-${menu.name}" id="menu-${menu.name}"><code class="mode">${menu.name}</code></a></td><td colspan="5" class="dim">no commands (input ignored)</td></tr>`);
+            rows.push(`        <tr><td rowspan="1"><a href="#menu-${menu.name}" id="menu-${menu.name}"><code class="mode">${menu.name}</code></a></td><td colspan="4" class="dim">no commands (input ignored)</td></tr>`);
             continue;
         }
         totalCmds += cmds.length;
@@ -333,15 +333,13 @@ function renderMenuRegistry() {
                 ? `<td rowspan="${cmds.length}"><a href="#menu-${menu.name}" id="menu-${menu.name}"><code class="mode">${menu.name}</code></a>${menu.parent_menu ? `<br><span class="dim">&larr; ${menu.parent_menu}</span>` : ''}</td>`
                 : '';
             const keyHtml = `<kbd>${cmd.key_pattern}</kbd>`;
-            const actionClass = cmd.action_type === 'server' ? 'type' : cmd.action_type === 'mixed' ? 'fn' : 'dim';
-            const actionHtml = `<span class="${actionClass}">${cmd.action_type}</span>`;
             const msgHtml = cmd.client_msg_type
                 ? `<code class="wire">${cmd.client_msg_type}</code>`
                 : '<span class="dim">&mdash;</span>';
             const targetHtml = cmd.target_menu
                 ? `<a href="#menu-${cmd.target_menu}"><code class="mode">${cmd.target_menu}</code></a>`
                 : '<span class="dim">&mdash;</span>';
-            rows.push(`        <tr>${menuCell}<td>${keyHtml}</td><td>${cmd.label}</td><td>${actionHtml}</td><td>${msgHtml}</td><td>${targetHtml}</td></tr>`);
+            rows.push(`        <tr>${menuCell}<td>${keyHtml}</td><td>${cmd.label}</td><td>${msgHtml}</td><td>${targetHtml}</td></tr>`);
         });
     }
 
@@ -350,7 +348,7 @@ function renderMenuRegistry() {
   <p class="table-subtitle">${menuRegistry.length} menus, ${totalCmds} commands &mdash; server-authoritative, fetched by client at connect time</p>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Menu</th><th>Key</th><th>Label</th><th>Action</th><th>Message</th><th>Target Menu</th></tr></thead>
+      <thead><tr><th>Menu</th><th>Key</th><th>Label</th><th>Message</th><th>Target Menu</th></tr></thead>
       <tbody>
 ${rows.join('\n')}
       </tbody>
