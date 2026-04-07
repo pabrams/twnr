@@ -170,12 +170,12 @@ describe('Join Universe', () => {
 
     // Verify ship
     const shipRes = await pool.query(
-      'SELECT ship_name, fighters, shields, cargo_limit FROM player_ships WHERE player_id = $1',
+      'SELECT ship_name, drones, shields, cargo_limit FROM player_ships WHERE player_id = $1',
       [body.playerId],
     );
     assert.equal(shipRes.rows.length, 1);
     assert.equal(shipRes.rows[0].ship_name, 'Merchant Freighter');
-    assert.equal(shipRes.rows[0].fighters, 0);
+    assert.equal(shipRes.rows[0].drones, 0);
     assert.equal(shipRes.rows[0].shields, 0);
 
     // Verify cargo_limit matches merchant.json startingHolds (5)

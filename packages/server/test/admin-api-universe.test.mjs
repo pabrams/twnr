@@ -94,7 +94,7 @@ describe('Admin API - Delete Universe', () => {
     );
     const playerId = playerRes.rows[0].id;
     await pool.query(
-      'INSERT INTO player_ships (player_id, ship_name, fighters, shields, cargo_limit) VALUES ($1, $2, 0, 0, 5)',
+      'INSERT INTO player_ships (player_id, ship_name, drones, shields, cargo_limit) VALUES ($1, $2, 0, 0, 5)',
       [playerId, 'Merchant Freighter'],
     );
     await pool.query(

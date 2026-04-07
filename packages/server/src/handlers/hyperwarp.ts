@@ -77,7 +77,7 @@ export async function handleBuyHyperwarpDrive(playerId: number): Promise<void> {
     }
 }
 
-export async function handleListDeployedFighters(playerId: number): Promise<void> {
+export async function handleListDeployedDrones(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
@@ -102,15 +102,15 @@ export async function handleListDeployedFighters(playerId: number): Promise<void
 
     const res = await pool.query(
         `SELECT s.sector_number as sector_id, sf.quantity
-         FROM sector_fighters sf
+         FROM sector_drones sf
          JOIN sectors s ON sf.sector_id = s.id
          WHERE sf.owner_id = $1 AND sf.quantity > 0`,
         [playerId],
     );
 
     sendEnvelope(playerId, {
-        type: ServerMsgType.ListDeployedFightersResult,
-        fighters: res.rows.map((r: any) => ({ sectorId: r.sector_id, quantity: r.quantity })),
+        type: ServerMsgType.ListDeployedDronesResult,
+        drones: res.rows.map((r: any) => ({ sectorId: r.sector_id, quantity: r.quantity })),
     });
 }
 
@@ -156,17 +156,17 @@ export async function handleHyperspaceJump(playerId: number, targetSector: numbe
 
     const universeId = player.universeId;
 
-    // Check fighters in target sector
-    const fighterRes = await pool.query(
-        `SELECT sf.quantity FROM sector_fighters sf
+    // Check drones in target sector
+    const droneRes = await pool.query(
+        `SELECT sf.quantity FROM sector_drones sf
          JOIN sectors s ON sf.sector_id = s.id
          WHERE s.sector_number = $1 AND s.universe_id = $2 AND sf.owner_id = $3 AND sf.quantity > 0`,
         [targetSector, universeId, playerId],
     );
-    if (fighterRes.rows.length === 0) {
+    if (droneRes.rows.length === 0) {
         sendEnvelope(playerId, {
             type: ServerMsgType.Error,
-            message: 'No signal from fighters in target sector',
+            message: 'No signal from drones in target sector',
         });
         return;
     }

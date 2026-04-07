@@ -13,7 +13,7 @@ const PROJECT_ROOT = join(dirname(__filename), '..');
 const merchantCfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', 'merchant.json'), 'utf8'));
 const warbirdCfg  = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', 'warbird.json'),  'utf8'));
 const STARTING_CREDITS = 10000;
-const FIGHTER_PRICE = 20;
+const DRONE_PRICE = 20;
 const SHIELD_PRICE  = 10;
 const HOLD_PRICE    = 50;
 const UNIVERSE_ID = 1;
@@ -55,14 +55,14 @@ after(async () => {
 // ─── tests ────────────────────────────────────────────────────────────────────
 
 describe('Buy equipment — success', () => {
-  it('buy-fighters deducts 20 credits per fighter and increases fighter count', async () => {
+  it('buy-drones deducts 20 credits per drone and increases drone count', async () => {
     const { ws } = await connectWS();
     const qty = 3;
     try {
-      const msg = await wsRequest(ws, { type: ClientMsgType.BuyFighters, quantity: qty }, ServerMsgType.BuyFightersResult);
-      assert.equal(msg.type, ServerMsgType.BuyFightersResult);
-      assert.equal(msg.fighters, qty);
-      assert.equal(msg.credits, STARTING_CREDITS - qty * FIGHTER_PRICE);
+      const msg = await wsRequest(ws, { type: ClientMsgType.BuyDrones, quantity: qty }, ServerMsgType.BuyDronesResult);
+      assert.equal(msg.type, ServerMsgType.BuyDronesResult);
+      assert.equal(msg.drones, qty);
+      assert.equal(msg.credits, STARTING_CREDITS - qty * DRONE_PRICE);
     } finally {
       await closeWS(ws);
     }
@@ -94,14 +94,14 @@ describe('Buy equipment — success', () => {
     }
   });
 
-  it('cumulative fighter purchases respect maxFighters cap', async () => {
+  it('cumulative drone purchases respect maxDrones cap', async () => {
     const { ws } = await connectWS();
-    const firstBuy = merchantCfg.maxFighters - 2;
+    const firstBuy = merchantCfg.maxDrones - 2;
     try {
-      // Buy maxFighters-2 fighters first
-      await wsRequest(ws, { type: ClientMsgType.BuyFighters, quantity: firstBuy }, ServerMsgType.BuyFightersResult);
+      // Buy maxDrones-2 drones first
+      await wsRequest(ws, { type: ClientMsgType.BuyDrones, quantity: firstBuy }, ServerMsgType.BuyDronesResult);
       // Then try to buy 3 more — would exceed cap by 1
-      const msg = await wsRequest(ws, { type: ClientMsgType.BuyFighters, quantity: 3 }, ServerMsgType.BuyFightersResult);
+      const msg = await wsRequest(ws, { type: ClientMsgType.BuyDrones, quantity: 3 }, ServerMsgType.BuyDronesResult);
       assert.equal(msg.type, ServerMsgType.Error);
       assert.equal(msg.message, 'Exceeds maximum');
     } finally {

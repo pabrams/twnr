@@ -97,7 +97,7 @@ export const connectDB = async (): Promise<void> => {
         universe_id INTEGER NOT NULL REFERENCES universes(id) ON DELETE CASCADE,
         name VARCHAR(255) NOT NULL,
         type VARCHAR(255) NOT NULL DEFAULT 'Terran',
-        fighters SMALLINT NOT NULL DEFAULT 0,
+        drones SMALLINT NOT NULL DEFAULT 0,
         fuel SMALLINT NOT NULL DEFAULT 0,
         organics SMALLINT NOT NULL DEFAULT 0,
         equipment SMALLINT NOT NULL DEFAULT 0,
@@ -161,7 +161,7 @@ export const connectDB = async (): Promise<void> => {
       CREATE TABLE IF NOT EXISTS player_ships (
         player_id INTEGER PRIMARY KEY REFERENCES players(id) ON DELETE CASCADE,
         ship_name VARCHAR(255) NOT NULL,
-        fighters INTEGER NOT NULL DEFAULT 0,
+        drones INTEGER NOT NULL DEFAULT 0,
         shields INTEGER NOT NULL DEFAULT 0,
         cargo_limit INTEGER NOT NULL,
         planet_busters SMALLINT NOT NULL DEFAULT 0,
@@ -175,7 +175,7 @@ export const connectDB = async (): Promise<void> => {
       ALTER TABLE player_ships ADD COLUMN IF NOT EXISTS turns_per_warp INTEGER NOT NULL DEFAULT 1;
       ALTER TABLE player_ships ADD COLUMN IF NOT EXISTS has_hyperwarp_drive BOOLEAN NOT NULL DEFAULT FALSE;
 
-      CREATE TABLE IF NOT EXISTS sector_fighters (
+      CREATE TABLE IF NOT EXISTS sector_drones (
         sector_id INTEGER NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
         owner_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
         quantity INTEGER NOT NULL,
@@ -224,7 +224,7 @@ export const connectDB = async (): Promise<void> => {
         ('shipInfo', 'Ship Info'),
         ('playerInfo', 'Player Info'),
         ('attack', 'Attack'),
-        ('attackFighters', 'Attack Fighters'),
+        ('attackDrones', 'Attack Drones'),
         ('computer', 'Computer'),
         ('knownUniverse', 'Known Universe'),
         ('shipCatalog', 'Ship Catalog'),
@@ -235,14 +235,14 @@ export const connectDB = async (): Promise<void> => {
         ('planet', 'Planet'),
         ('planetTakeQty', 'Take Colonists'),
         ('planetLeaveQty', 'Leave Colonists'),
-        ('deployFightersQty', 'Deploy Fighters'),
-        ('fighterEncounter', 'Fighter Encounter'),
-        ('fighterAttackQty', 'Fighter Attack')
+        ('deployDronesQty', 'Deploy Drones'),
+        ('droneEncounter', 'Drone Encounter'),
+        ('droneAttackQty', 'Drone Attack')
       ON CONFLICT (name) DO NOTHING;
 
       -- Set parent menu relationships
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'sector')
-        WHERE name IN ('port', 'help', 'shipInfo', 'playerInfo', 'attack', 'computer', 'jettisonConfirm', 'planet', 'deployFightersQty');
+        WHERE name IN ('port', 'help', 'shipInfo', 'playerInfo', 'attack', 'computer', 'jettisonConfirm', 'planet', 'deployDronesQty');
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'port')
         WHERE name = 'docked';
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'docked')
@@ -250,15 +250,15 @@ export const connectDB = async (): Promise<void> => {
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'class0')
         WHERE name = 'class0Qty';
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'attack')
-        WHERE name = 'attackFighters';
+        WHERE name = 'attackDrones';
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'computer')
         WHERE name IN ('knownUniverse', 'shipCatalog', 'planetSpecs', 'autopilotPrompt');
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'autopilotPrompt')
         WHERE name = 'autopilot';
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'planet')
         WHERE name IN ('planetTakeQty', 'planetLeaveQty');
-      UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'fighterEncounter')
-        WHERE name = 'fighterAttackQty';
+      UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'droneEncounter')
+        WHERE name = 'droneAttackQty';
 
       -- Seed commands (abstract identities, reusable across menus)
       INSERT INTO command (name, label) VALUES
@@ -277,7 +277,7 @@ export const connectDB = async (): Promise<void> => {
         ('help_menu', 'Help'),
         ('attack_menu', 'Attack'),
         ('computer_menu', 'Computer'),
-        ('deploy_fighters_info', 'Deploy fighters'),
+        ('deploy_drones_info', 'Deploy drones'),
         ('jettison_menu', 'Jettison cargo'),
         ('land', 'Land on planet'),
         ('quit_game', 'Quit'),
@@ -288,7 +288,7 @@ export const connectDB = async (): Promise<void> => {
         ('sell_goods', 'Sell goods'),
         ('leave_port', 'Leave port'),
         -- Class0 commands
-        ('choose_fighters', 'Buy fighters'),
+        ('choose_drones', 'Buy drones'),
         ('choose_shields', 'Buy shields'),
         ('choose_holds', 'Buy holds'),
         -- Attack commands
@@ -305,7 +305,7 @@ export const connectDB = async (): Promise<void> => {
         -- Planet commands
         ('take_colonists', 'Take colonists'),
         ('leave_colonists', 'Leave colonists'),
-        -- FighterEncounter commands
+        -- DroneEncounter commands
         ('attack_encounter', 'Attack'),
         ('retreat', 'Retreat')
       ON CONFLICT (name) DO NOTHING;
@@ -322,7 +322,7 @@ export const connectDB = async (): Promise<void> => {
         ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='help_menu'), '?', 'Help', 'server', NULL, (SELECT id FROM menu WHERE name='help'), 50),
         ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='attack_menu'), 'a', 'Attack', 'server', NULL, (SELECT id FROM menu WHERE name='attack'), 60),
         ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='computer_menu'), 'c', 'Computer', 'server', NULL, (SELECT id FROM menu WHERE name='computer'), 70),
-        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='deploy_fighters_info'), 'f', 'Deploy fighters', 'server', 'deployFightersInfo', NULL, 80),
+        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='deploy_drones_info'), 'f', 'Deploy drones', 'server', 'deployDronesInfo', NULL, 80),
         ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='jettison_menu'), 'j', 'Jettison cargo', 'server', NULL, (SELECT id FROM menu WHERE name='jettisonConfirm'), 90),
         ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='land'), 'l', 'Land', 'server', 'land', NULL, 100),
         ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='quit_game'), 'q', 'Quit', 'local', NULL, NULL, 110),
@@ -344,7 +344,7 @@ export const connectDB = async (): Promise<void> => {
 
       -- === Class0 ===
       INSERT INTO menu_command (menu_id, command_id, key_pattern, label, action_type, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='class0'), (SELECT id FROM command WHERE name='choose_fighters'), 'f', 'Buy fighters', 'server', NULL, (SELECT id FROM menu WHERE name='class0Qty'), 10),
+        ((SELECT id FROM menu WHERE name='class0'), (SELECT id FROM command WHERE name='choose_drones'), 'f', 'Buy drones', 'server', NULL, (SELECT id FROM menu WHERE name='class0Qty'), 10),
         ((SELECT id FROM menu WHERE name='class0'), (SELECT id FROM command WHERE name='choose_shields'), 's', 'Buy shields', 'server', NULL, (SELECT id FROM menu WHERE name='class0Qty'), 20),
         ((SELECT id FROM menu WHERE name='class0'), (SELECT id FROM command WHERE name='choose_holds'), 'h', 'Buy holds', 'server', NULL, (SELECT id FROM menu WHERE name='class0Qty'), 30),
         ((SELECT id FROM menu WHERE name='class0'), (SELECT id FROM command WHERE name='leave_port'), 'q', 'Leave', 'server', 'undock', NULL, 40)
@@ -373,14 +373,14 @@ export const connectDB = async (): Promise<void> => {
 
       -- === Attack ===
       INSERT INTO menu_command (menu_id, command_id, key_pattern, label, action_type, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='attack'), (SELECT id FROM command WHERE name='select_target'), '<number>', 'Select target', 'server', NULL, (SELECT id FROM menu WHERE name='attackFighters'), 10),
+        ((SELECT id FROM menu WHERE name='attack'), (SELECT id FROM command WHERE name='select_target'), '<number>', 'Select target', 'server', NULL, (SELECT id FROM menu WHERE name='attackDrones'), 10),
         ((SELECT id FROM menu WHERE name='attack'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', 'server', NULL, (SELECT id FROM menu WHERE name='sector'), 20)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
-      -- === AttackFighters ===
+      -- === AttackDrones ===
       INSERT INTO menu_command (menu_id, command_id, key_pattern, label, action_type, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='attackFighters'), (SELECT id FROM command WHERE name='enter_quantity'), '<number>', 'Fighters to send', 'server', 'attackShip', NULL, 10),
-        ((SELECT id FROM menu WHERE name='attackFighters'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', 'server', NULL, (SELECT id FROM menu WHERE name='sector'), 20)
+        ((SELECT id FROM menu WHERE name='attackDrones'), (SELECT id FROM command WHERE name='enter_quantity'), '<number>', 'Drones to send', 'server', 'attackShip', NULL, 10),
+        ((SELECT id FROM menu WHERE name='attackDrones'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', 'server', NULL, (SELECT id FROM menu WHERE name='sector'), 20)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === Computer ===
@@ -437,22 +437,22 @@ export const connectDB = async (): Promise<void> => {
         ((SELECT id FROM menu WHERE name='planetLeaveQty'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', 'server', NULL, (SELECT id FROM menu WHERE name='sector'), 20)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
-      -- === DeployFightersQty ===
+      -- === DeployDronesQty ===
       INSERT INTO menu_command (menu_id, command_id, key_pattern, label, action_type, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='deployFightersQty'), (SELECT id FROM command WHERE name='enter_quantity'), '<number>', 'Fighters to deploy', 'server', 'deployFighters', NULL, 10),
-        ((SELECT id FROM menu WHERE name='deployFightersQty'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', 'server', NULL, (SELECT id FROM menu WHERE name='sector'), 20)
+        ((SELECT id FROM menu WHERE name='deployDronesQty'), (SELECT id FROM command WHERE name='enter_quantity'), '<number>', 'Drones to deploy', 'server', 'deployDrones', NULL, 10),
+        ((SELECT id FROM menu WHERE name='deployDronesQty'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', 'server', NULL, (SELECT id FROM menu WHERE name='sector'), 20)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
-      -- === FighterEncounter ===
+      -- === DroneEncounter ===
       INSERT INTO menu_command (menu_id, command_id, key_pattern, label, action_type, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='fighterEncounter'), (SELECT id FROM command WHERE name='attack_encounter'), 'a', 'Attack', 'server', NULL, (SELECT id FROM menu WHERE name='fighterAttackQty'), 10),
-        ((SELECT id FROM menu WHERE name='fighterEncounter'), (SELECT id FROM command WHERE name='retreat'), 'r', 'Retreat', 'server', 'retreatFromFighters', NULL, 20)
+        ((SELECT id FROM menu WHERE name='droneEncounter'), (SELECT id FROM command WHERE name='attack_encounter'), 'a', 'Attack', 'server', NULL, (SELECT id FROM menu WHERE name='droneAttackQty'), 10),
+        ((SELECT id FROM menu WHERE name='droneEncounter'), (SELECT id FROM command WHERE name='retreat'), 'r', 'Retreat', 'server', 'retreatFromDrones', NULL, 20)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
-      -- === FighterAttackQty ===
+      -- === DroneAttackQty ===
       INSERT INTO menu_command (menu_id, command_id, key_pattern, label, action_type, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='fighterAttackQty'), (SELECT id FROM command WHERE name='enter_quantity'), '<number>', 'Fighters to send', 'server', 'attackSectorFighters', NULL, 10),
-        ((SELECT id FROM menu WHERE name='fighterAttackQty'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', 'server', NULL, (SELECT id FROM menu WHERE name='fighterEncounter'), 20)
+        ((SELECT id FROM menu WHERE name='droneAttackQty'), (SELECT id FROM command WHERE name='enter_quantity'), '<number>', 'Drones to send', 'server', 'attackSectorDrones', NULL, 10),
+        ((SELECT id FROM menu WHERE name='droneAttackQty'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', 'server', NULL, (SELECT id FROM menu WHERE name='droneEncounter'), 20)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === AutopilotPrompt ===

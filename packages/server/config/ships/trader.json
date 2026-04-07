@@ -1,6 +1,6 @@
 {
   "name": "Star Trader",
-  "maxFighters": 12,
+  "maxDrones": 12,
   "maxShields": 10,
   "startingHolds": 7,
   "maxHolds": 25,

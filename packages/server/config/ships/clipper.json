@@ -1,6 +1,6 @@
 {
   "name": "Tholian Clipper",
-  "maxFighters": 8,
+  "maxDrones": 8,
   "maxShields": 12,
   "startingHolds": 8,
   "maxHolds": 30,

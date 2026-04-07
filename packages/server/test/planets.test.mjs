@@ -108,13 +108,13 @@ async function createTestPlayer(universeId) {
     });
   }
 
-  // Navigate to a sector, handling fighter encounters along the way
+  // Navigate to a sector, handling drone encounters along the way
   async function navigateTo(targetSector, fromSector) {
     sendMsg({ type: ClientMsgType.ShortestPath, from: fromSector, to: targetSector });
     const pathMsg = await waitForMessage(ServerMsgType.ShortestPathResult);
     for (const sector of pathMsg.path.slice(1)) {
       sendMsg({ type: ClientMsgType.Move, sector });
-      // Drain messages until we get moveResult success, handling fighter encounters
+      // Drain messages until we get moveResult success, handling drone encounters
       let moved = false;
       for (let attempt = 0; attempt < 5 && !moved; attempt++) {
         try {
@@ -122,8 +122,8 @@ async function createTestPlayer(universeId) {
           if (msg.type === ServerMsgType.MoveResult && msg.outcome === 'success') {
             moved = true;
           } else if (msg.type === ServerMsgType.MoveResult && msg.outcome === 'encounter') {
-            // Retreat from fighters
-            sendMsg({ type: ClientMsgType.RetreatFromFighters });
+            // Retreat from drones
+            sendMsg({ type: ClientMsgType.RetreatFromDrones });
           }
           // Ignore other message types, keep draining
         } catch {
@@ -240,8 +240,8 @@ describe('planets table schema', () => {
     assert.ok(!cols.colonists, 'colonists column should be removed');
   });
 
-  it('has new SMALLINT columns: fighters, fuel, organics, equipment, colonists_fuel, colonists_organics, colonists_equipment', () => {
-    const expected = ['fighters', 'fuel', 'organics', 'equipment', 'colonists_fuel', 'colonists_organics', 'colonists_equipment'];
+  it('has new SMALLINT columns: drones, fuel, organics, equipment, colonists_fuel, colonists_organics, colonists_equipment', () => {
+    const expected = ['drones', 'fuel', 'organics', 'equipment', 'colonists_fuel', 'colonists_organics', 'colonists_equipment'];
     for (const name of expected) {
       assert.ok(cols[name], `column ${name} missing`);
       assert.ok(cols[name].data_type.includes('smallint'), `${name} should be smallint, got ${cols[name].data_type}`);
@@ -250,7 +250,7 @@ describe('planets table schema', () => {
   });
 
   it('new SMALLINT columns default to 0', () => {
-    const expected = ['fighters', 'fuel', 'organics', 'equipment', 'colonists_fuel', 'colonists_organics', 'colonists_equipment'];
+    const expected = ['drones', 'fuel', 'organics', 'equipment', 'colonists_fuel', 'colonists_organics', 'colonists_equipment'];
     for (const name of expected) {
       assert.ok(cols[name].column_default !== null, `${name} should have a default`);
       assert.ok(cols[name].column_default.includes('0'), `${name} default should be 0, got ${cols[name].column_default}`);
@@ -878,7 +878,7 @@ describe('WS: land on planet, display, leave', () => {
     assert.equal(msg.id, earthId);
     assert.equal(msg.name, 'Earth');
     assert.ok('type' in msg, 'should include type');
-    assert.ok('fighters' in msg, 'should include fighters');
+    assert.ok('drones' in msg, 'should include drones');
     assert.ok('fuel' in msg, 'should include fuel');
     assert.ok('organics' in msg, 'should include organics');
     assert.ok('equipment' in msg, 'should include equipment');

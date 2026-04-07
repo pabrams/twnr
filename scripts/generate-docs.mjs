@@ -108,21 +108,21 @@ const clientInputMap = {
     ShipInfo:            [{ mode: 'sector', key: 'i (auto)' }],
     CargoInfo:           [{ mode: 'sector', key: 'i (auto)' }],
     PortTransaction:     [{ mode: 'docked', key: `b &lt;good&gt; ${Q}` }, { mode: 'docked', key: `s &lt;good&gt; ${Q}` }],
-    BuyFighters:         [{ mode: 'class0Qty', key: Q }],
+    BuyDrones:         [{ mode: 'class0Qty', key: Q }],
     BuyShields:          [{ mode: 'class0Qty', key: Q }],
     BuyHolds:            [{ mode: 'class0Qty', key: Q }],
     BuyShipTradein:      [],  // no client UI
-    AttackShip:          [{ mode: 'attackFighters', key: Q }],
+    AttackShip:          [{ mode: 'attackDrones', key: Q }],
     Dock:                [{ mode: 'port', key: 't' }],
     Undock:              [{ mode: 'docked', key: 'q' }, { mode: 'class0', key: 'q' }],
     Jettison:            [{ mode: 'jettisonConfirm', key: 'y' }],
     Land:                [{ mode: 'sector', key: 'l' }],
     TakeColonists:       [{ mode: 'planetTakeQty', key: Q }],
     LeaveColonists:      [{ mode: 'planetLeaveQty', key: Q }],
-    DeployFightersInfo:  [{ mode: 'sector', key: 'f' }],
-    DeployFighters:      [{ mode: 'deployFightersQty', key: Q }],
-    AttackSectorFighters:[{ mode: 'fighterAttackQty', key: Q }],
-    RetreatFromFighters: [{ mode: 'fighterEncounter', key: 'r' }],
+    DeployDronesInfo:  [{ mode: 'sector', key: 'f' }],
+    DeployDrones:      [{ mode: 'deployDronesQty', key: Q }],
+    AttackSectorDrones:[{ mode: 'droneAttackQty', key: Q }],
+    RetreatFromDrones: [{ mode: 'droneEncounter', key: 'r' }],
     UseTerraformDevice:  [],  // no client UI
     LandOnPlanet:        [],  // no client UI
     PlanetDisplay:       [],  // no client UI

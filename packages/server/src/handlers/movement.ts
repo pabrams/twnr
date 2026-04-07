@@ -8,7 +8,7 @@ import {
     getPortForSector,
     getVisitedSectors,
     getPlayerUniverseId,
-    getSectorFighters,
+    getSectorDrones,
     setPlayerMenu,
 } from '../game-state.js';
 import { pool } from '../db/index.js';
@@ -35,12 +35,12 @@ export async function handleMove(playerId: number, targetSector: number): Promis
     const player = players[playerId];
     if (!player) return;
 
-    // Block movement during pending fighter encounter
+    // Block movement during pending drone encounter
     if (player.pendingEncounter) {
         sendEnvelope(playerId, {
             type: ServerMsgType.MoveResult,
             outcome: 'error',
-            message: 'Resolve fighter encounter first',
+            message: 'Resolve drone encounter first',
         });
         return;
     }
@@ -110,10 +110,10 @@ export async function handleMove(playerId: number, targetSector: number): Promis
         newSectorClients,
     );
 
-    const [port, visitedSectors, sectorFighters, planetsRes] = await Promise.all([
+    const [port, visitedSectors, sectorDrones, planetsRes] = await Promise.all([
         getPortForSector(targetSector, universeId),
         getVisitedSectors(playerId),
-        getSectorFighters(targetSector, universeId),
+        getSectorDrones(targetSector, universeId),
         pool.query(
             `SELECT pl.id, pl.name, pl.type FROM planets pl
              JOIN sectors s ON pl.sector_id = s.id
@@ -133,12 +133,12 @@ export async function handleMove(playerId: number, targetSector: number): Promis
         )
         .map(([id, p]) => ({ id: Number(id), name: p.name }));
 
-    // Hostile fighter encounter — send FighterEncounter with embedded sector data (Oak's design)
-    if (sectorFighters && sectorFighters.ownerId !== playerId) {
+    // Hostile drone encounter — send DroneEncounter with embedded sector data (Oak's design)
+    if (sectorDrones && sectorDrones.ownerId !== playerId) {
         player.pendingEncounter = { retreatSector: currentSector };
-        await setPlayerMenu(playerId, 'fighterEncounter');
+        await setPlayerMenu(playerId, 'droneEncounter');
 
-        const shipRes = await pool.query('SELECT fighters FROM player_ships WHERE player_id = $1', [
+        const shipRes = await pool.query('SELECT drones FROM player_ships WHERE player_id = $1', [
             playerId,
         ]);
 
@@ -150,23 +150,23 @@ export async function handleMove(playerId: number, targetSector: number): Promis
             players: playersInSector,
             port,
             visitedSectors,
-            sectorFighters: sectorFighters.quantity,
-            ownerId: sectorFighters.ownerId,
-            ownerName: sectorFighters.ownerName,
-            shipFighters: shipRes.rows[0]?.fighters ?? 0,
+            sectorDrones: sectorDrones.quantity,
+            ownerId: sectorDrones.ownerId,
+            ownerName: sectorDrones.ownerName,
+            shipDrones: shipRes.rows[0]?.drones ?? 0,
             retreatSector: currentSector,
             turnsUsed: turnResult.turnsUsed,
         });
 
         // Alert the owner about the intrusion
-        const owner = players[sectorFighters.ownerId];
+        const owner = players[sectorDrones.ownerId];
         if (owner && owner.ws.readyState === 1) {
-            sendEnvelope(sectorFighters.ownerId, {
-                type: ServerMsgType.SectorFightersAlert,
+            sendEnvelope(sectorDrones.ownerId, {
+                type: ServerMsgType.SectorDronesAlert,
                 event: 'intrusion',
                 sector: targetSector,
-                fightersLost: 0,
-                fightersRemaining: sectorFighters.quantity,
+                dronesLost: 0,
+                dronesRemaining: sectorDrones.quantity,
                 intruderName: player.name,
             });
         }
@@ -181,7 +181,7 @@ export async function handleMove(playerId: number, targetSector: number): Promis
         players: playersInSector,
         port,
         visitedSectors,
-        sectorFighters,
+        sectorDrones,
         planets,
         turnsUsed: turnResult.turnsUsed,
     });
@@ -193,11 +193,11 @@ export async function handleSectorDisplay(playerId: number): Promise<void> {
     const currentSector = player.sector;
     const universeId = player.universeId;
 
-    const [warps, port, visitedSectors, sectorFighters, planetsRes] = await Promise.all([
+    const [warps, port, visitedSectors, sectorDrones, planetsRes] = await Promise.all([
         getGraph(universeId),
         getPortForSector(currentSector, universeId),
         getVisitedSectors(playerId),
-        getSectorFighters(currentSector, universeId),
+        getSectorDrones(currentSector, universeId),
         pool.query(
             `SELECT pl.id, pl.name, pl.type FROM planets pl
              JOIN sectors s ON pl.sector_id = s.id
@@ -223,7 +223,7 @@ export async function handleSectorDisplay(playerId: number): Promise<void> {
         players: playersInSector,
         port,
         visitedSectors,
-        sectorFighters,
+        sectorDrones,
         planets,
     });
 }

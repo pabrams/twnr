@@ -1,6 +1,6 @@
 {
   "name": "Colonial Frigate",
-  "maxFighters": 25,
+  "maxDrones": 25,
   "maxShields": 20,
   "startingHolds": 4,
   "maxHolds": 15,

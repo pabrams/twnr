@@ -17,7 +17,7 @@ PROJECT_ROOT="$(pwd)"
 
 cleanup() {
   if [ -n "$SERVER_PID" ]; then
-    kill "$SERVER_PID" 2>/dev/null || true
+    kill -9 "$SERVER_PID" 2>/dev/null || true
     wait "$SERVER_PID" 2>/dev/null || true
   fi
 }
@@ -32,7 +32,7 @@ echo "==> Importing universe..."
 psql -h "${PGHOST:-localhost}" -d "$PGDATABASE" -U "$PGUSER" -c "
   DROP TABLE IF EXISTS menu_command CASCADE;
   DROP TABLE IF EXISTS command CASCADE;
-  DROP TABLE IF EXISTS sector_fighters CASCADE;
+  DROP TABLE IF EXISTS sector_drones CASCADE;
   DROP TABLE IF EXISTS planet_collisions CASCADE;
   DROP TABLE IF EXISTS planets CASCADE;
   DROP TABLE IF EXISTS visited_sectors CASCADE;
@@ -73,8 +73,10 @@ node --test --test-concurrency=1 "$@" $(ls test/*.test.mjs | grep -v ratelimit)
 
 # Run rate-limit tests in a second pass with rate limiting enabled
 echo "==> Restarting server with rate limiting enabled..."
-kill "$SERVER_PID" 2>/dev/null || true
+kill -9 "$SERVER_PID" 2>/dev/null || true
 wait "$SERVER_PID" 2>/dev/null || true
+sleep 1
+
 unset DISABLE_RATE_LIMIT
 
 node dist/server.js &

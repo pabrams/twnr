@@ -7,12 +7,12 @@ import { pool } from '../db/index.js';
 export async function handleAttackShip(
     attackerId: number,
     targetPlayerId: number,
-    fighters: number,
+    drones: number,
 ): Promise<void> {
-    if (!Number.isInteger(fighters) || fighters <= 0) {
+    if (!Number.isInteger(drones) || drones <= 0) {
         sendEnvelope(attackerId, {
             type: ServerMsgType.Error,
-            message: 'Invalid number of fighters',
+            message: 'Invalid number of drones',
         });
         return;
     }
@@ -54,11 +54,11 @@ export async function handleAttackShip(
         await client.query('BEGIN');
 
         const attackerShipRes = await client.query(
-            'SELECT fighters FROM player_ships WHERE player_id = $1 FOR UPDATE',
+            'SELECT drones FROM player_ships WHERE player_id = $1 FOR UPDATE',
             [attackerId],
         );
         const targetShipRes = await client.query(
-            'SELECT fighters, shields FROM player_ships WHERE player_id = $1 FOR UPDATE',
+            'SELECT drones, shields FROM player_ships WHERE player_id = $1 FOR UPDATE',
             [targetPlayerId],
         );
 
@@ -68,19 +68,19 @@ export async function handleAttackShip(
             return;
         }
 
-        const attackerFighters = attackerShipRes.rows[0].fighters;
+        const attackerDrones = attackerShipRes.rows[0].drones;
         let targetShields = targetShipRes.rows[0].shields;
-        let targetFighters = targetShipRes.rows[0].fighters;
+        let targetDrones = targetShipRes.rows[0].drones;
 
-        if (fighters > attackerFighters) {
+        if (drones > attackerDrones) {
             await client.query('ROLLBACK');
-            sendEnvelope(attackerId, { type: ServerMsgType.Error, message: 'Not enough fighters' });
+            sendEnvelope(attackerId, { type: ServerMsgType.Error, message: 'Not enough drones' });
             return;
         }
 
-        let remainingAttack = fighters;
+        let remainingAttack = drones;
         let shieldsLost = 0;
-        let defenderFightersLost = 0;
+        let defenderDronesLost = 0;
 
         const shieldAbsorb = Math.min(targetShields, remainingAttack);
         shieldsLost = shieldAbsorb;
@@ -88,18 +88,18 @@ export async function handleAttackShip(
         remainingAttack -= shieldAbsorb;
 
         if (remainingAttack > 0) {
-            const fighterAbsorb = Math.min(targetFighters, remainingAttack);
-            defenderFightersLost = fighterAbsorb;
-            targetFighters -= fighterAbsorb;
-            remainingAttack -= fighterAbsorb;
+            const droneAbsorb = Math.min(targetDrones, remainingAttack);
+            defenderDronesLost = droneAbsorb;
+            targetDrones -= droneAbsorb;
+            remainingAttack -= droneAbsorb;
         }
 
         const destroyed = remainingAttack > 0;
-        const attackerFightersLost = shieldsLost + defenderFightersLost;
-        const newAttackerFighters = attackerFighters - attackerFightersLost;
+        const attackerDronesLost = shieldsLost + defenderDronesLost;
+        const newAttackerDrones = attackerDrones - attackerDronesLost;
 
-        await client.query('UPDATE player_ships SET fighters = $1 WHERE player_id = $2', [
-            newAttackerFighters,
+        await client.query('UPDATE player_ships SET drones = $1 WHERE player_id = $2', [
+            newAttackerDrones,
             attackerId,
         ]);
 
@@ -111,8 +111,8 @@ export async function handleAttackShip(
             await client.query('DELETE FROM ship_cargo WHERE player_id = $1', [targetPlayerId]);
         } else {
             await client.query(
-                'UPDATE player_ships SET fighters = $1, shields = $2 WHERE player_id = $3',
-                [targetFighters, targetShields, targetPlayerId],
+                'UPDATE player_ships SET drones = $1, shields = $2 WHERE player_id = $3',
+                [targetDrones, targetShields, targetPlayerId],
             );
         }
 
@@ -122,8 +122,8 @@ export async function handleAttackShip(
         const resultMsg: ServerResult = {
             type: ServerMsgType.AttackShipResult,
             destroyed,
-            attackerFightersLost,
-            defenderFightersLost,
+            attackerDronesLost,
+            defenderDronesLost,
             defenderShieldsLost: shieldsLost,
             message: destroyed ? 'Target destroyed!' : 'Attack completed.',
         };
@@ -133,8 +133,8 @@ export async function handleAttackShip(
             sendEnvelope(targetPlayerId, {
                 type: ServerMsgType.AttackShipResult,
                 destroyed,
-                attackerFightersLost,
-                defenderFightersLost,
+                attackerDronesLost,
+                defenderDronesLost,
                 defenderShieldsLost: shieldsLost,
                 message: destroyed ? 'Your ship was destroyed!' : 'You were attacked!',
             });

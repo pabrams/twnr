@@ -1,6 +1,6 @@
 {
   "name": "Warbird",
-  "maxFighters": 30,
+  "maxDrones": 30,
   "maxShields": 25,
   "startingHolds": 1,
   "maxHolds": 5,

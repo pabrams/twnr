@@ -1,1 +1,1 @@
-{ "name": "Breen Warship", "race": "Breen", "maxFighters": 60, "maxShields": 45, "startingHolds": 3, "maxHolds": 10, "price": 25000 }
+{ "name": "Breen Warship", "race": "Breen", "maxDrones": 60, "maxShields": 45, "startingHolds": 3, "maxHolds": 10, "price": 25000 }

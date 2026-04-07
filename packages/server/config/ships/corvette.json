@@ -1,6 +1,6 @@
 {
   "name": "Corvette",
-  "maxFighters": 20,
+  "maxDrones": 20,
   "maxShields": 15,
   "startingHolds": 3,
   "maxHolds": 12,

@@ -129,12 +129,12 @@ export function createAuthRoutes(router: Router, deps: RouteDeps, middleware: Mi
                     await pool.query('DELETE FROM ship_cargo WHERE player_id = $1', [player.id]);
                     if (startShip) {
                         await pool.query(
-                            `INSERT INTO player_ships (player_id, ship_name, fighters, shields, cargo_limit)
+                            `INSERT INTO player_ships (player_id, ship_name, drones, shields, cargo_limit)
                              VALUES ($1, $2, $3, $4, $5)`,
                             [
                                 player.id,
                                 startShip.name,
-                                newPlayerConfig.startingFighters,
+                                newPlayerConfig.startingDrones,
                                 newPlayerConfig.startingShields,
                                 startShip.startingHolds,
                             ],

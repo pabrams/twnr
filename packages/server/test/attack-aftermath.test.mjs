@@ -7,9 +7,9 @@ import { ClientMsgType, ServerMsgType } from '@twnr/shared';
 const UNIVERSE_ID = 1;
 let pool;
 
-async function createPlayer(name, sector = 1, fighters = 0, shields = 0) {
+async function createPlayer(name, sector = 1, drones = 0, shields = 0) {
   const { userId, token } = await createTestUser(pool);
-  const playerId = await createTestPlayer(pool, userId, UNIVERSE_ID, name, sector, fighters, shields);
+  const playerId = await createTestPlayer(pool, userId, UNIVERSE_ID, name, sector, drones, shields);
   return { id: playerId, token };
 }
 
@@ -70,10 +70,10 @@ describe('Login restriction after ship destruction', () => {
     const playerRes = await pool.query('SELECT ship_destroyed_date FROM players WHERE id = $1', [playerId]);
     assert.equal(playerRes.rows[0].ship_destroyed_date, null, 'ship_destroyed_date should be cleared');
 
-    const shipRes = await pool.query('SELECT ship_name, fighters, shields, cargo_limit FROM player_ships WHERE player_id = $1', [playerId]);
+    const shipRes = await pool.query('SELECT ship_name, drones, shields, cargo_limit FROM player_ships WHERE player_id = $1', [playerId]);
     assert.equal(shipRes.rows.length, 1, 'Should have a new ship');
     assert.equal(shipRes.rows[0].ship_name, 'Merchant Freighter');
-    assert.equal(shipRes.rows[0].fighters, 0);
+    assert.equal(shipRes.rows[0].drones, 0);
     assert.equal(shipRes.rows[0].shields, 0);
 
     const cargoRes = await pool.query('SELECT credits FROM ship_cargo WHERE player_id = $1', [playerId]);
@@ -170,12 +170,12 @@ describe('Login restriction after ship destruction', () => {
     assert.equal(loginRes.status, 200);
 
     const ship = await pool.query(
-      'SELECT ship_name, fighters, shields, cargo_limit FROM player_ships WHERE player_id = $1',
+      'SELECT ship_name, drones, shields, cargo_limit FROM player_ships WHERE player_id = $1',
       [playerId],
     );
     assert.equal(ship.rows.length, 1);
     assert.equal(ship.rows[0].ship_name, 'Merchant Freighter');
-    assert.equal(ship.rows[0].fighters, 0);
+    assert.equal(ship.rows[0].drones, 0);
     assert.equal(ship.rows[0].shields, 0);
 
     const cargo = await pool.query('SELECT credits FROM ship_cargo WHERE player_id = $1', [playerId]);
@@ -196,7 +196,7 @@ describe('Attack result message', () => {
     const { ws: ws1 } = await connectPlayer(atk.token);
     const { ws: ws2 } = await connectPlayer(def.token);
     try {
-      const res = await wsRequest(ws1, { type: ClientMsgType.AttackShip, targetPlayerId: def.id, fighters: 2 }, ServerMsgType.AttackShipResult);
+      const res = await wsRequest(ws1, { type: ClientMsgType.AttackShip, targetPlayerId: def.id, drones: 2 }, ServerMsgType.AttackShipResult);
       assert.equal(res.type, ServerMsgType.AttackShipResult, 'Should receive an attackResult message');
       assert.notEqual(res.type, ServerMsgType.Error, 'Should not be an error');
     } finally {

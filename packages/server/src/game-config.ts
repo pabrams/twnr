@@ -15,13 +15,13 @@ function loadJson<T>(file: string, fallback: T): T {
 export const newPlayerConfig = loadJson('new-player.json', {
     startingShip: 'Merchant Freighter',
     startingCredits: 10000,
-    startingFighters: 0,
+    startingDrones: 0,
     startingShields: 0,
     startingSector: 1,
 });
 
 export const class0Prices = loadJson('class0-prices.json', {
-    fighterPrice: 20,
+    dronePrice: 20,
     shieldPrice: 10,
     holdPrice: 50,
 });

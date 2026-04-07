@@ -137,7 +137,7 @@ describe('Ship exchange — success', () => {
     return res.rows.length > 0 ? Number(res.rows[0].sector_number) : null;
   }
 
-  it('upgrade to Warbird costs correct credits, resets fighters/shields, sets cargoLimit to startingHolds', async () => {
+  it('upgrade to Warbird costs correct credits, resets drones/shields, sets cargoLimit to startingHolds', async () => {
     const stardockId = await getStardockSector();
     assert.ok(stardockId);
 
@@ -150,14 +150,14 @@ describe('Ship exchange — success', () => {
       assert.equal(msg.type, ServerMsgType.BuyShipTradeinResult);
       assert.equal(msg.shipName, warbirdCfg.name);
       assert.equal(msg.credits, STARTING_CREDITS - upgradeCost);
-      assert.equal(msg.maxFighters, warbirdCfg.maxFighters);
+      assert.equal(msg.maxDrones, warbirdCfg.maxDrones);
       assert.equal(msg.maxShields, warbirdCfg.maxShields);
       assert.equal(msg.cargoLimit, warbirdCfg.startingHolds);
 
-      // Verify DB: fighters and shields reset to 0
+      // Verify DB: drones and shields reset to 0
       const shipRes = await pool.query('SELECT * FROM player_ships WHERE player_id = $1', [playerId]);
       assert.equal(shipRes.rows[0].ship_name, warbirdCfg.name);
-      assert.equal(Number(shipRes.rows[0].fighters), 0);
+      assert.equal(Number(shipRes.rows[0].drones), 0);
       assert.equal(Number(shipRes.rows[0].shields), 0);
       assert.equal(Number(shipRes.rows[0].cargo_limit), warbirdCfg.startingHolds);
     } finally {
@@ -165,23 +165,23 @@ describe('Ship exchange — success', () => {
     }
   });
 
-  it('exchange resets previously purchased fighters and shields to 0', async () => {
+  it('exchange resets previously purchased drones and shields to 0', async () => {
     const stardockId = await getStardockSector();
     assert.ok(stardockId);
 
     const { ws, welcome } = await connectWS();
     const playerId = welcome.playerId;
     try {
-      // Buy some fighters and shields first (player starts at sector 1, class 0 port)
-      await wsRequest(ws, { type: ClientMsgType.BuyFighters, quantity: Math.min(5, merchantCfg.maxFighters) }, ServerMsgType.BuyFightersResult);
+      // Buy some drones and shields first (player starts at sector 1, class 0 port)
+      await wsRequest(ws, { type: ClientMsgType.BuyDrones, quantity: Math.min(5, merchantCfg.maxDrones) }, ServerMsgType.BuyDronesResult);
       await wsRequest(ws, { type: ClientMsgType.BuyShields, quantity: Math.min(4, merchantCfg.maxShields) }, ServerMsgType.BuyShieldsResult);
 
       await navigateTo(ws, stardockId);
       const msg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: warbirdCfg.name }, ServerMsgType.BuyShipTradeinResult);
       assert.equal(msg.type, ServerMsgType.BuyShipTradeinResult);
 
-      const shipRes = await pool.query('SELECT fighters, shields FROM player_ships WHERE player_id = $1', [playerId]);
-      assert.equal(Number(shipRes.rows[0].fighters), 0, 'fighters should be reset to 0 on exchange');
+      const shipRes = await pool.query('SELECT drones, shields FROM player_ships WHERE player_id = $1', [playerId]);
+      assert.equal(Number(shipRes.rows[0].drones), 0, 'drones should be reset to 0 on exchange');
       assert.equal(Number(shipRes.rows[0].shields), 0, 'shields should be reset to 0 on exchange');
     } finally {
       await closeWS(ws);

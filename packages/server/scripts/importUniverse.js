@@ -146,7 +146,7 @@ async function ensureSchema(client) {
     CREATE TABLE IF NOT EXISTS player_ships (
       player_id INTEGER PRIMARY KEY REFERENCES players(id) ON DELETE CASCADE,
       ship_name VARCHAR(255) NOT NULL,
-      fighters INTEGER NOT NULL DEFAULT 0,
+      drones INTEGER NOT NULL DEFAULT 0,
       shields INTEGER NOT NULL DEFAULT 0,
       cargo_limit INTEGER NOT NULL
     );

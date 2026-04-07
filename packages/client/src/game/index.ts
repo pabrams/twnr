@@ -37,12 +37,11 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
     let totalSectors = 0;
     let sectorPlayers: { id: number; name: string }[] = [];
     let attackTarget: number | null = null;
-    let class0BuyType: 'fighters' | 'shields' | 'holds' | null = null;
+    let class0BuyType: 'drones' | 'shields' | 'holds' | null = null;
     let shipConfigs: any[] | null = null;
     let planetConfigs: any[] | null = null;
     let currentShipName = '';
-    let class0Prices: { fighterPrice: number; shieldPrice: number; holdPrice: number } | null =
-        null;
+    let class0Prices: { dronePrice: number; shieldPrice: number; holdPrice: number } | null = null;
     let autopilotPath: number[] = [];
     let autopilotStep = 0;
     let autopilotPaused = false;

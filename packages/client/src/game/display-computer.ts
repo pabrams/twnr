@@ -69,7 +69,7 @@ export function showShipDetail(ctx: GameContext, ship: any) {
         `  ${colors.boldYellow('Price'.padEnd(16))} ${colors.white(String(ship.price))}`,
     );
     ctx.term.writeln(
-        `  ${colors.boldYellow('Max Fighters'.padEnd(16))} ${colors.white(String(ship.maxFighters))}`,
+        `  ${colors.boldYellow('Max Drones'.padEnd(16))} ${colors.white(String(ship.maxDrones))}`,
     );
     ctx.term.writeln(
         `  ${colors.boldYellow('Max Shields'.padEnd(16))} ${colors.white(String(ship.maxShields))}`,

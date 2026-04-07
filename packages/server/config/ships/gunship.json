@@ -1,6 +1,6 @@
 {
   "name": "Havoc Gunship",
-  "maxFighters": 45,
+  "maxDrones": 45,
   "maxShields": 30,
   "startingHolds": 2,
   "maxHolds": 6,

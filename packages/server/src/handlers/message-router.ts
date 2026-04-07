@@ -13,7 +13,7 @@ import {
     handleBuyTerraformDevices,
 } from './port.js';
 import { handleShipInfo, handleCargoInfo } from './ship-info.js';
-import { handleBuyFighters, handleBuyShields, handleBuyHolds } from './ship-upgrades.js';
+import { handleBuyDrones, handleBuyShields, handleBuyHolds } from './ship-upgrades.js';
 import { handleBuyShipTradein } from './ship-exchange.js';
 import { handleJettison } from './ship-cargo.js';
 import { handleAttackShip } from './combat.js';
@@ -26,14 +26,14 @@ import {
     handleUseTerraformDevice,
 } from './planet.js';
 import {
-    handleDeployFightersInfo,
-    handleDeployFighters,
-    handleAttackSectorFighters,
-    handleRetreatFromFighters,
-} from './sector-fighters.js';
+    handleDeployDronesInfo,
+    handleDeployDrones,
+    handleAttackSectorDrones,
+    handleRetreatFromDrones,
+} from './sector-drones.js';
 import {
     handleBuyHyperwarpDrive,
-    handleListDeployedFighters,
+    handleListDeployedDrones,
     handleHyperspaceJump,
 } from './hyperwarp.js';
 
@@ -57,8 +57,8 @@ export async function handleMessage(playerId: number, data: any): Promise<void> 
             return handleCargoInfo(playerId);
         case ClientMsgType.PortTransaction:
             return handlePortTransaction(playerId, data.good, data.quantity, data.action);
-        case ClientMsgType.BuyFighters:
-            return handleBuyFighters(playerId, data.quantity);
+        case ClientMsgType.BuyDrones:
+            return handleBuyDrones(playerId, data.quantity);
         case ClientMsgType.BuyShields:
             return handleBuyShields(playerId, data.quantity);
         case ClientMsgType.BuyHolds:
@@ -66,7 +66,7 @@ export async function handleMessage(playerId: number, data: any): Promise<void> 
         case ClientMsgType.BuyShipTradein:
             return handleBuyShipTradein(playerId, data.targetShipName);
         case ClientMsgType.AttackShip:
-            return handleAttackShip(playerId, data.targetPlayerId, data.fighters);
+            return handleAttackShip(playerId, data.targetPlayerId, data.drones);
         case ClientMsgType.Dock:
             return handleDock(playerId);
         case ClientMsgType.Undock:
@@ -97,18 +97,18 @@ export async function handleMessage(playerId: number, data: any): Promise<void> 
         case ClientMsgType.LeaveColonists:
             sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not implemented' });
             return;
-        case ClientMsgType.DeployFightersInfo:
-            return handleDeployFightersInfo(playerId);
-        case ClientMsgType.DeployFighters:
-            return handleDeployFighters(playerId, data.quantity);
-        case ClientMsgType.AttackSectorFighters:
-            return handleAttackSectorFighters(playerId, data.fighters);
-        case ClientMsgType.RetreatFromFighters:
-            return handleRetreatFromFighters(playerId);
+        case ClientMsgType.DeployDronesInfo:
+            return handleDeployDronesInfo(playerId);
+        case ClientMsgType.DeployDrones:
+            return handleDeployDrones(playerId, data.quantity);
+        case ClientMsgType.AttackSectorDrones:
+            return handleAttackSectorDrones(playerId, data.drones);
+        case ClientMsgType.RetreatFromDrones:
+            return handleRetreatFromDrones(playerId);
         case ClientMsgType.BuyHyperwarpDrive:
             return handleBuyHyperwarpDrive(playerId);
-        case ClientMsgType.ListDeployedFighters:
-            return handleListDeployedFighters(playerId);
+        case ClientMsgType.ListDeployedDrones:
+            return handleListDeployedDrones(playerId);
         case ClientMsgType.HyperspaceJump:
             return handleHyperspaceJump(playerId, data.targetSector);
         case ClientMsgType.ChangeMenu:

@@ -1,1 +1,1 @@
-{ "name": "Romulan Scout Ship", "race": "Romulan", "maxFighters": 20, "maxShields": 25, "startingHolds": 4, "maxHolds": 12, "price": 9000 }
+{ "name": "Romulan Scout Ship", "race": "Romulan", "maxDrones": 20, "maxShields": 25, "startingHolds": 4, "maxHolds": 12, "price": 9000 }

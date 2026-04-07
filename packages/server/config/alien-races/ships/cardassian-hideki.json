@@ -1,1 +1,1 @@
-{ "name": "Cardassian Hideki Patrol", "race": "Cardassian", "maxFighters": 20, "maxShields": 15, "startingHolds": 3, "maxHolds": 8, "price": 6000 }
+{ "name": "Cardassian Hideki Patrol", "race": "Cardassian", "maxDrones": 20, "maxShields": 15, "startingHolds": 3, "maxHolds": 8, "price": 6000 }

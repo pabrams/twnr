@@ -1,6 +1,6 @@
 {
   "name": "Federation Shuttle",
-  "maxFighters": 2,
+  "maxDrones": 2,
   "maxShields": 3,
   "startingHolds": 2,
   "maxHolds": 5,
