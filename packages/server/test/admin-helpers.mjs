@@ -13,8 +13,8 @@ export function createPool() {
   return new Pool({
     host: process.env.PGHOST || 'localhost',
     database: TEST_DB,
-    user: process.env.PGUSER || 'postgres',
-    password: process.env.PGPASSWORD || '',
+    user: process.env.PGUSER || 'twnr_user',
+    password: process.env.PGPASSWORD || 'twnr_pass',
   });
 }
 
@@ -64,8 +64,8 @@ export function startServer() {
       env: {
         ...process.env,
         PGDATABASE: TEST_DB,
-        PGUSER: process.env.PGUSER || 'postgres',
-        PGPASSWORD: process.env.PGPASSWORD || 'postgres',
+        PGUSER: process.env.PGUSER || 'twnr_user',
+        PGPASSWORD: process.env.PGPASSWORD || 'twnr_pass',
         JWT_SECRET,
         ADMIN_API_KEY,
         WS_ALLOWED_ORIGINS: 'http://localhost:3000',

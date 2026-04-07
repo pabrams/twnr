@@ -6,8 +6,8 @@ set -e
 cd "$(dirname "$0")/.."
 
 export PGDATABASE="${PGDATABASE:-twnr_test}"
-export PGUSER="${PGUSER:-postgres}"
-export PGPASSWORD="${PGPASSWORD:-}"
+export PGUSER="${PGUSER:-twnr_user}"
+export PGPASSWORD="${PGPASSWORD:-twnr_pass}"
 export JWT_SECRET="test-jwt-secret"
 export ADMIN_API_KEY="test-admin-key"
 export WS_ALLOWED_ORIGINS="http://localhost:3000"
