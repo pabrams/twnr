@@ -6,6 +6,7 @@ import { showSectorDisplay, showDockedMenu, showPrompt } from './display.js';
 import { showClass0Menu, showAutopilotPrompt } from './display-port.js';
 import { showPlanetMenu, showNoPlanet } from './display-planet.js';
 import { showDroneEncounter } from './display-combat.js';
+import { showStarbaseMenu, showHardwareMenu, showPlanetSelectMenu } from './display-starbase.js';
 import { colors } from './constants.js';
 
 const mg = colors.magenta;
@@ -420,6 +421,134 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                         `${colors.boldRed('Alert:')} ${colors.boldRed(msg.intruderName)} destroyed all your drones in sector ${colors.boldCyan(String(msg.sector))}!`,
                     );
                 }
+                break;
+            case ServerMsgType.DockStarbaseResult:
+                showStarbaseMenu(ctx);
+                break;
+            case ServerMsgType.LeaveStarbaseResult:
+                ctx.setSectorPlayers(msg.players);
+                showSectorDisplay(
+                    ctx,
+                    msg.sector,
+                    msg.warps,
+                    msg.players,
+                    msg.port,
+                    msg.visitedSectors,
+                    msg.sectorDrones,
+                );
+                break;
+            case ServerMsgType.LandResult:
+                if (msg.planets.length > 0) {
+                    (ctx as any).landablePlanets = msg.planets;
+                    showPlanetSelectMenu(ctx, msg.planets);
+                } else {
+                    ctx.term.writeln(`\r\n${colors.white('No planets in this sector.')}`);
+                    showPrompt(ctx);
+                }
+                break;
+            case ServerMsgType.LandOnPlanetResult:
+                ctx.term.writeln('');
+                ctx.term.writeln(`${colors.boldGreen('Landed on')} ${colors.boldCyan(msg.name)}`);
+                ctx.term.writeln(`  ${colors.boldYellow('Type')}: ${msg.planetType}`);
+                ctx.term.writeln(
+                    `  ${colors.boldYellow('Drones')}: ${msg.drones}  ${colors.boldYellow('Fuel')}: ${msg.fuel}  ${colors.boldYellow('Organics')}: ${msg.organics}  ${colors.boldYellow('Equipment')}: ${msg.equipment}`,
+                );
+                break;
+            case ServerMsgType.PlanetDisplayResult:
+                ctx.term.writeln('');
+                ctx.term.writeln(`${colors.boldCyan(msg.name)} (${msg.planetType})`);
+                ctx.term.writeln(
+                    `  ${colors.boldYellow('Drones')}: ${msg.drones}  ${colors.boldYellow('Fuel')}: ${msg.fuel}  ${colors.boldYellow('Organics')}: ${msg.organics}  ${colors.boldYellow('Equipment')}: ${msg.equipment}`,
+                );
+                ctx.term.writeln(
+                    `  ${colors.boldYellow('Colonists')}: Fuel=${msg.colonists_fuel}, Org=${msg.colonists_organics}, Equ=${msg.colonists_equipment}`,
+                );
+                break;
+            case ServerMsgType.DestroyPlanetResult:
+                if (msg.destroyed) {
+                    ctx.term.writeln(
+                        `\r\n${colors.boldRed(`Planet ${msg.planetName} destroyed!`)}`,
+                    );
+                }
+                showPrompt(ctx);
+                break;
+            case ServerMsgType.UseTerraformDeviceResult:
+                if (msg.success && msg.planet) {
+                    ctx.term.writeln(
+                        `\r\n${colors.boldGreen('Terraform successful!')} Created ${colors.boldCyan(msg.planet.name)} (${msg.planet.type})`,
+                    );
+                    if (msg.collision)
+                        ctx.term.writeln(
+                            colors.boldYellow('Warning: planetary collision detected!'),
+                        );
+                    ctx.term.writeln(
+                        `  ${colors.boldYellow('Terraform devices remaining')}: ${msg.terraformDevices}`,
+                    );
+                } else {
+                    const reason =
+                        msg.reason === 'no_devices'
+                            ? 'No terraform devices on ship.'
+                            : msg.reason === 'restricted_sector'
+                              ? 'Cannot terraform in this sector.'
+                              : 'Terraform failed.';
+                    ctx.term.writeln(`\r\n${colors.boldRed(reason)}`);
+                }
+                showPrompt(ctx);
+                break;
+            case ServerMsgType.BuyPlanetBustersResult:
+                ctx.term.writeln(
+                    `\r\n${colors.boldGreen('Purchase complete.')} Planet Busters: ${msg.totalOnShip}, Credits: ${msg.credits}`,
+                );
+                showHardwareMenu(ctx);
+                break;
+            case ServerMsgType.BuyTerraformDevicesResult:
+                ctx.term.writeln(
+                    `\r\n${colors.boldGreen('Purchase complete.')} Terraform Devices: ${msg.totalOnShip}, Credits: ${msg.credits}`,
+                );
+                showHardwareMenu(ctx);
+                break;
+            case ServerMsgType.BuyHyperwarpDriveResult:
+                ctx.term.writeln(
+                    `\r\n${colors.boldGreen('Hyperwarp drive installed!')} Credits: ${msg.credits}`,
+                );
+                showHardwareMenu(ctx);
+                break;
+            case ServerMsgType.ListDeployedDronesResult:
+                ctx.term.writeln('');
+                if (msg.drones.length === 0) {
+                    ctx.term.writeln(colors.white('No drones deployed.'));
+                } else {
+                    ctx.term.writeln(colors.boldCyan('Deployed Drones:'));
+                    for (const d of msg.drones) {
+                        ctx.term.writeln(
+                            `  Sector ${colors.boldYellow(String(d.sectorId))}: ${colors.white(String(d.quantity))} drones`,
+                        );
+                    }
+                }
+                break;
+            case ServerMsgType.HyperspaceJumpResult:
+                ctx.term.writeln(
+                    `\r\n${colors.boldGreen('Hyperspace jump!')} Arrived at sector ${colors.boldCyan(String(msg.targetSector))}. Fuel used: ${msg.fuelUsed}, Turns: ${msg.turnsUsed}`,
+                );
+                ctx.sendMsg({ type: ClientMsgType.SectorDisplay });
+                break;
+            case ServerMsgType.LeavePlanetResult:
+                ctx.term.writeln(
+                    `\r\n${colors.white('You return to your ship and leave the planet.')}`,
+                );
+                ctx.setSectorPlayers(msg.players);
+                showSectorDisplay(
+                    ctx,
+                    msg.sector,
+                    msg.warps,
+                    msg.players,
+                    msg.port,
+                    msg.visitedSectors,
+                    msg.sectorDrones,
+                );
+                break;
+            case ServerMsgType.MenuChanged:
+                // Acknowledged by server, menu already set via envelope
                 break;
             case ServerMsgType.Error:
                 ctx.term.writeln(`\r\n${colors.boldRed('Error:')} ${colors.red(msg.message)}`);

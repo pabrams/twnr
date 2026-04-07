@@ -90,12 +90,14 @@ export function handlePlanetInput(ctx: GameContext, line: string) {
         case 'l':
             showPlanetLeavePrompt(ctx);
             break;
+        case 'd':
+            ctx.sendMsg({ type: ClientMsgType.PlanetDisplay });
+            break;
+        case 'x':
+            ctx.sendMsg({ type: ClientMsgType.DestroyPlanet });
+            break;
         case 'q':
-            ctx.term.writeln(
-                `\r\n${colors.white('You return to your ship and leave the planet.')}`,
-            );
-            ctx.changeMenu('sector');
-            showPrompt(ctx);
+            ctx.sendMsg({ type: ClientMsgType.LeavePlanet });
             break;
     }
 }
