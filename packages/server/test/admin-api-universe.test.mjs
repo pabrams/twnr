@@ -94,14 +94,16 @@ describe('Admin API - Delete Universe', () => {
       ['TestPlayer', userId, uid],
     );
     const playerId = playerRes.rows[0].id;
-    await pool.query(
-      'INSERT INTO player_ships (player_id, ship_name, drones, shields, cargo_limit) VALUES ($1, $2, 0, 0, 5)',
-      [playerId, 'Merchant Freighter'],
+    const shipTypeRes = await pool.query(
+      `SELECT id FROM ship_types WHERE name = 'Merchant Freighter'`
     );
-    await pool.query(
-      'INSERT INTO ship_cargo (player_id, fuel, organics, equipment, credits) VALUES ($1, 0, 0, 0, 10000)',
-      [playerId],
+    const shipTypeId = shipTypeRes.rows[0].id;
+    const sectorId = (await pool.query('SELECT id FROM sectors WHERE sector_number = 1 AND universe_id = $1', [uid])).rows[0].id;
+    const shipRes2 = await pool.query(
+      'INSERT INTO ships (owner_id, ship_type_id, sector_id, drones, shields, holds) VALUES ($1, $2, $3, 0, 0, 5) RETURNING id',
+      [playerId, shipTypeId, sectorId],
     );
+    await pool.query('UPDATE players SET ship_id = $1, credits = 10000 WHERE id = $2', [shipRes2.rows[0].id, playerId]);
     await pool.query(
       'INSERT INTO visited_sectors (player_id, sector_id) VALUES ($1, 1) ON CONFLICT DO NOTHING',
       [playerId],
@@ -121,10 +123,8 @@ describe('Admin API - Delete Universe', () => {
     // Verify player data is gone
     const players = await pool.query('SELECT COUNT(*) FROM players WHERE universe_id = $1', [uid]);
     assert.equal(parseInt(players.rows[0].count, 10), 0, 'Players should be deleted');
-    const ships = await pool.query('SELECT COUNT(*) FROM player_ships WHERE player_id = $1', [playerId]);
-    assert.equal(parseInt(ships.rows[0].count, 10), 0, 'Player ships should be deleted');
-    const cargo = await pool.query('SELECT COUNT(*) FROM ship_cargo WHERE player_id = $1', [playerId]);
-    assert.equal(parseInt(cargo.rows[0].count, 10), 0, 'Ship cargo should be deleted');
+    const ships = await pool.query('SELECT COUNT(*) FROM ships WHERE owner_id = $1', [playerId]);
+    assert.equal(parseInt(ships.rows[0].count, 10), 0, 'Ships should be deleted');
     const visited = await pool.query('SELECT COUNT(*) FROM visited_sectors WHERE player_id = $1', [playerId]);
     assert.equal(parseInt(visited.rows[0].count, 10), 0, 'Visited sectors should be deleted');
   });

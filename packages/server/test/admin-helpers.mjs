@@ -232,6 +232,8 @@ export const SCHEMA_SQL = `
     user_id INTEGER NOT NULL REFERENCES users(id),
     universe_id INTEGER NOT NULL REFERENCES universes(id),
     current_sector_id INTEGER,
+    ship_id INTEGER,
+    credits INTEGER NOT NULL DEFAULT 10000,
     ship_destroyed_date TIMESTAMPTZ,
     docked BOOLEAN NOT NULL DEFAULT FALSE,
     UNIQUE (user_id, universe_id)
@@ -262,25 +264,40 @@ export const SCHEMA_SQL = `
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ
   );
-  CREATE TABLE IF NOT EXISTS ship_cargo (
-    player_id INTEGER PRIMARY KEY,
+  CREATE TABLE IF NOT EXISTS ship_types (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) UNIQUE NOT NULL,
+    max_drones INTEGER NOT NULL DEFAULT 0,
+    max_shields INTEGER NOT NULL DEFAULT 0,
+    starting_holds INTEGER NOT NULL DEFAULT 5,
+    max_holds INTEGER NOT NULL DEFAULT 20,
+    price INTEGER NOT NULL DEFAULT 0,
+    max_planet_busters INTEGER NOT NULL DEFAULT 0,
+    max_terraform_devices INTEGER NOT NULL DEFAULT 0,
+    turns_per_warp INTEGER NOT NULL DEFAULT 2,
+    can_have_hyperwarp BOOLEAN NOT NULL DEFAULT false
+  );
+  CREATE TABLE IF NOT EXISTS ships (
+    id SERIAL PRIMARY KEY,
+    owner_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+    ship_type_id INTEGER NOT NULL REFERENCES ship_types(id),
+    sector_id INTEGER REFERENCES sectors(id),
+    drones INTEGER NOT NULL DEFAULT 0,
+    shields INTEGER NOT NULL DEFAULT 0,
+    holds INTEGER NOT NULL,
+    planet_busters SMALLINT NOT NULL DEFAULT 0,
+    terraform_devices SMALLINT NOT NULL DEFAULT 0,
+    turns_per_warp INTEGER NOT NULL DEFAULT 2,
+    has_hyperwarp_drive BOOLEAN NOT NULL DEFAULT FALSE,
     fuel INTEGER NOT NULL DEFAULT 0,
     organics INTEGER NOT NULL DEFAULT 0,
     equipment INTEGER NOT NULL DEFAULT 0,
-    colonists INTEGER NOT NULL DEFAULT 0,
-    credits INTEGER NOT NULL DEFAULT 10000
+    colonists INTEGER NOT NULL DEFAULT 0
   );
   CREATE TABLE IF NOT EXISTS visited_sectors (
     player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
     sector_id INTEGER NOT NULL,
     PRIMARY KEY (player_id, sector_id)
-  );
-  CREATE TABLE IF NOT EXISTS player_ships (
-    player_id INTEGER PRIMARY KEY REFERENCES players(id) ON DELETE CASCADE,
-    ship_name VARCHAR(255) NOT NULL,
-    drones INTEGER NOT NULL DEFAULT 0,
-    shields INTEGER NOT NULL DEFAULT 0,
-    cargo_limit INTEGER NOT NULL
   );
 `;
 

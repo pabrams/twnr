@@ -120,9 +120,8 @@ describe('Login after ship destruction', () => {
     const join = await joinUniverse(reg.token, univ.body.universeId, 'Destroyed');
 
     // Simulate destruction
-    await pool.query('UPDATE players SET ship_destroyed_date = NOW() WHERE id = $1', [join.body.playerId]);
-    await pool.query('DELETE FROM player_ships WHERE player_id = $1', [join.body.playerId]);
-    await pool.query('DELETE FROM ship_cargo WHERE player_id = $1', [join.body.playerId]);
+    await pool.query('UPDATE players SET ship_destroyed_date = NOW(), ship_id = NULL WHERE id = $1', [join.body.playerId]);
+    await pool.query('DELETE FROM ships WHERE owner_id = $1', [join.body.playerId]);
 
     const login = await loginUser(email, 'pass123');
     assert.equal(login.status, 200);
@@ -130,13 +129,12 @@ describe('Login after ship destruction', () => {
     const playerRes = await pool.query('SELECT ship_destroyed_date FROM players WHERE id = $1', [join.body.playerId]);
     assert.equal(playerRes.rows[0].ship_destroyed_date, null, 'ship_destroyed_date should be cleared');
 
-    const shipRes = await pool.query('SELECT ship_name FROM player_ships WHERE player_id = $1', [join.body.playerId]);
+    const shipRes = await pool.query('SELECT st.name as ship_name FROM ships s JOIN ship_types st ON s.ship_type_id = st.id WHERE s.id = (SELECT ship_id FROM players WHERE id = $1)', [join.body.playerId]);
     assert.equal(shipRes.rows.length, 1, 'New ship should be created');
     assert.equal(shipRes.rows[0].ship_name, 'Merchant Freighter');
 
-    const cargoRes = await pool.query('SELECT credits FROM ship_cargo WHERE player_id = $1', [join.body.playerId]);
-    assert.equal(cargoRes.rows.length, 1);
-    assert.equal(cargoRes.rows[0].credits, 10000);
+    const creditsRes = await pool.query('SELECT credits FROM players WHERE id = $1', [join.body.playerId]);
+    assert.equal(creditsRes.rows[0].credits, 10000);
   });
 
   it('returns 403 when delay has not passed', async () => {

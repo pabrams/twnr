@@ -1,7 +1,6 @@
 import { ServerMsgType } from '@twnr/shared';
 import { players, sendEnvelope, getGraph, resolveSectorId } from '../game-state.js';
 import { pool } from '../db/index.js';
-import { shipConfigs } from '../ship-config.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 
 export async function handleBuyHyperwarpDrive(playerId: number): Promise<void> {
@@ -18,7 +17,9 @@ export async function handleBuyHyperwarpDrive(playerId: number): Promise<void> {
         await client.query('BEGIN');
 
         const shipRes = await client.query(
-            'SELECT ship_name, has_hyperwarp_drive FROM player_ships WHERE player_id = $1 FOR UPDATE',
+            `SELECT s.id as ship_id, st.name as ship_name, s.has_hyperwarp_drive, st.can_have_hyperwarp, s.turns_per_warp
+             FROM ships s JOIN ship_types st ON s.ship_type_id = st.id
+             WHERE s.id = (SELECT ship_id FROM players WHERE id = $1) FOR UPDATE OF s`,
             [playerId],
         );
         if (shipRes.rows.length === 0) {
@@ -27,8 +28,7 @@ export async function handleBuyHyperwarpDrive(playerId: number): Promise<void> {
             return;
         }
 
-        const config = shipConfigs[shipRes.rows[0].ship_name];
-        if (!config || config.canHaveHyperwarp === false) {
+        if (!shipRes.rows[0].can_have_hyperwarp) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, {
                 type: ServerMsgType.Error,
@@ -47,7 +47,7 @@ export async function handleBuyHyperwarpDrive(playerId: number): Promise<void> {
         }
 
         const cargoRes = await client.query(
-            'SELECT credits FROM ship_cargo WHERE player_id = $1 FOR UPDATE',
+            'SELECT credits FROM players WHERE id = $1 FOR UPDATE',
             [playerId],
         );
         if (cargoRes.rows.length === 0 || cargoRes.rows[0].credits < 50000) {
@@ -57,10 +57,10 @@ export async function handleBuyHyperwarpDrive(playerId: number): Promise<void> {
         }
 
         await client.query(
-            'UPDATE player_ships SET has_hyperwarp_drive = TRUE WHERE player_id = $1',
-            [playerId],
+            'UPDATE ships SET has_hyperwarp_drive = TRUE WHERE id = $1',
+            [shipRes.rows[0].ship_id],
         );
-        await client.query('UPDATE ship_cargo SET credits = credits - 50000 WHERE player_id = $1', [
+        await client.query('UPDATE players SET credits = credits - 50000 WHERE id = $1', [
             playerId,
         ]);
         await client.query('COMMIT');
@@ -139,7 +139,9 @@ export async function handleHyperspaceJump(playerId: number, targetSector: numbe
 
     // Check has hyperwarp drive
     const shipRes = await pool.query(
-        'SELECT has_hyperwarp_drive, turns_per_warp FROM player_ships WHERE player_id = $1',
+        `SELECT s.id as ship_id, s.has_hyperwarp_drive, s.turns_per_warp
+         FROM ships s JOIN players p ON p.ship_id = s.id
+         WHERE p.id = $1`,
         [playerId],
     );
     if (shipRes.rows.length === 0) {
@@ -214,9 +216,10 @@ export async function handleHyperspaceJump(playerId: number, targetSector: numbe
     const fuelCost = pathHops * 3;
 
     // Check fuel
-    const cargoRes = await pool.query('SELECT fuel FROM ship_cargo WHERE player_id = $1', [
-        playerId,
-    ]);
+    const cargoRes = await pool.query(
+        'SELECT fuel FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)',
+        [playerId],
+    );
     if (cargoRes.rows.length === 0 || cargoRes.rows[0].fuel < fuelCost) {
         sendEnvelope(playerId, {
             type: ServerMsgType.Error,
@@ -234,11 +237,11 @@ export async function handleHyperspaceJump(playerId: number, targetSector: numbe
     }
 
     // Deduct fuel and move
-    await pool.query('UPDATE ship_cargo SET fuel = fuel - $1 WHERE player_id = $2', [
-        fuelCost,
-        playerId,
-    ]);
     const targetSectorId = await resolveSectorId(targetSector, universeId);
+    await pool.query(
+        'UPDATE ships SET fuel = fuel - $1, sector_id = $2 WHERE id = $3',
+        [fuelCost, targetSectorId, shipRes.rows[0].ship_id],
+    );
     player.sector = targetSector;
     player.sectorId = targetSectorId;
     await Promise.all([

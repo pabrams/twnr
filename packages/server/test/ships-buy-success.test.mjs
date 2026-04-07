@@ -179,7 +179,7 @@ describe('Buy equipment — success', () => {
     const playerId = welcome.playerId;
     try {
       // Set fuel=2, organics=2 directly (4 holds used, 1 remaining out of cargoLimit=5)
-      await pool.query('UPDATE ship_cargo SET fuel = 2, organics = 2 WHERE player_id = $1', [playerId]);
+      await pool.query('UPDATE ships SET fuel = 2, organics = 2 WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
       await navigateTo(ws, fuelSector);
       // Buying 2 more fuel: 2+2+2 = 6 > cargoLimit(5) — should fail
       const msg = await wsRequest(ws, { type: ClientMsgType.PortTransaction, good: 'fuel', quantity: 2, action: 'buy' }, ServerMsgType.PortTransactionResult);
@@ -214,14 +214,14 @@ describe('Buy equipment — success', () => {
     }
   });
 
-  it('after buying holds the new cargo_limit is enforced in trade', async () => {
+  it('after buying holds the new holds value is enforced in trade', async () => {
     const fuelRes = await pool.query('SELECT s.sector_number AS sector_id FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE p.class IN (3,4,6,7) AND s.universe_id = $1 LIMIT 1', [UNIVERSE_ID]);
     assert.ok(fuelRes.rows.length > 0, 'Need a fuel-selling sector');
     const fuelSector = Number(fuelRes.rows[0].sector_id);
 
     const { ws } = await connectWS();
     try {
-      // Buy 3 holds → cargo_limit becomes 8
+      // Buy 3 holds → holds becomes 8
       const buyMsg = await wsRequest(ws, { type: ClientMsgType.BuyHolds, quantity: 3 }, ServerMsgType.BuyHoldsResult);
       assert.equal(buyMsg.type, ServerMsgType.BuyHoldsResult);
 

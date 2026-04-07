@@ -241,10 +241,10 @@ export async function handlePortTransaction(
 
         const cargoRes = await client.query(
             `
-            SELECT sc.fuel, sc.organics, sc.equipment, sc.colonists, sc.credits, ps.cargo_limit
-            FROM ship_cargo sc
-            JOIN player_ships ps ON sc.player_id = ps.player_id
-            WHERE sc.player_id = $1 FOR UPDATE
+            SELECT s.fuel, s.organics, s.equipment, s.colonists, p.credits, s.holds as cargo_limit
+            FROM players p
+            JOIN ships s ON p.ship_id = s.id
+            WHERE p.id = $1 FOR UPDATE OF s, p
         `,
             [playerId],
         );
@@ -302,8 +302,12 @@ export async function handlePortTransaction(
                 port.port_id,
             ]);
             await client.query(
-                `UPDATE ship_cargo SET ${col} = ${col} + $1, credits = credits - $2 WHERE player_id = $3`,
-                [qty, cost, playerId],
+                `UPDATE ships SET ${col} = ${col} + $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)`,
+                [qty, playerId],
+            );
+            await client.query(
+                `UPDATE players SET credits = credits - $1 WHERE id = $2`,
+                [cost, playerId],
             );
             await client.query('COMMIT');
 
@@ -336,8 +340,12 @@ export async function handlePortTransaction(
                 port.port_id,
             ]);
             await client.query(
-                `UPDATE ship_cargo SET ${col} = ${col} - $1, credits = credits + $2 WHERE player_id = $3`,
-                [qty, revenue, playerId],
+                `UPDATE ships SET ${col} = ${col} - $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)`,
+                [qty, playerId],
+            );
+            await client.query(
+                `UPDATE players SET credits = credits + $1 WHERE id = $2`,
+                [revenue, playerId],
             );
             await client.query('COMMIT');
 
@@ -464,7 +472,9 @@ export async function handleBuyPlanetBusters(playerId: number, quantity: number)
         await client.query('BEGIN');
 
         const shipRes = await client.query(
-            'SELECT ship_name, planet_busters FROM player_ships WHERE player_id = $1 FOR UPDATE',
+            `SELECT s.id as ship_id, st.name as ship_name, s.planet_busters, st.max_planet_busters
+             FROM ships s JOIN ship_types st ON s.ship_type_id = st.id
+             WHERE s.id = (SELECT ship_id FROM players WHERE id = $1) FOR UPDATE OF s`,
             [playerId],
         );
         if (shipRes.rows.length === 0) {
@@ -474,7 +484,7 @@ export async function handleBuyPlanetBusters(playerId: number, quantity: number)
         }
 
         const cargoRes = await client.query(
-            'SELECT credits FROM ship_cargo WHERE player_id = $1 FOR UPDATE',
+            'SELECT credits FROM players WHERE id = $1 FOR UPDATE',
             [playerId],
         );
         if (cargoRes.rows.length === 0 || cargoRes.rows[0].credits < cost) {
@@ -483,35 +493,32 @@ export async function handleBuyPlanetBusters(playerId: number, quantity: number)
             return;
         }
 
-        import('../ship-config.js').then(async ({ shipConfigs }) => {
-            const config = shipConfigs[shipRes.rows[0].ship_name];
-            const maxPlanetBusters = config?.maxPlanetBusters || 0;
+        const maxPlanetBusters = shipRes.rows[0].max_planet_busters || 0;
 
-            if (shipRes.rows[0].planet_busters + qty > maxPlanetBusters) {
-                await client.query('ROLLBACK');
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.Error,
-                    message: 'Cannot hold that many Planet Busters',
-                });
-                return;
-            }
-
-            await client.query(
-                'UPDATE ship_cargo SET credits = credits - $1 WHERE player_id = $2',
-                [cost, playerId],
-            );
-            await client.query(
-                'UPDATE player_ships SET planet_busters = planet_busters + $1 WHERE player_id = $2',
-                [qty, playerId],
-            );
-            await client.query('COMMIT');
-
+        if (shipRes.rows[0].planet_busters + qty > maxPlanetBusters) {
+            await client.query('ROLLBACK');
             sendEnvelope(playerId, {
-                type: ServerMsgType.BuyPlanetBustersResult,
-                quantity: qty,
-                totalOnShip: shipRes.rows[0].planet_busters + qty,
-                credits: cargoRes.rows[0].credits - cost,
+                type: ServerMsgType.Error,
+                message: 'Cannot hold that many Planet Busters',
             });
+            return;
+        }
+
+        await client.query(
+            'UPDATE players SET credits = credits - $1 WHERE id = $2',
+            [cost, playerId],
+        );
+        await client.query(
+            'UPDATE ships SET planet_busters = planet_busters + $1 WHERE id = $2',
+            [qty, shipRes.rows[0].ship_id],
+        );
+        await client.query('COMMIT');
+
+        sendEnvelope(playerId, {
+            type: ServerMsgType.BuyPlanetBustersResult,
+            quantity: qty,
+            totalOnShip: shipRes.rows[0].planet_busters + qty,
+            credits: cargoRes.rows[0].credits - cost,
         });
     } catch (err) {
         await client.query('ROLLBACK');
@@ -544,7 +551,9 @@ export async function handleBuyTerraformDevices(playerId: number, quantity: numb
         await client.query('BEGIN');
 
         const shipRes = await client.query(
-            'SELECT ship_name, terraform_devices FROM player_ships WHERE player_id = $1 FOR UPDATE',
+            `SELECT s.id as ship_id, st.name as ship_name, s.terraform_devices, st.max_terraform_devices
+             FROM ships s JOIN ship_types st ON s.ship_type_id = st.id
+             WHERE s.id = (SELECT ship_id FROM players WHERE id = $1) FOR UPDATE OF s`,
             [playerId],
         );
         if (shipRes.rows.length === 0) {
@@ -554,7 +563,7 @@ export async function handleBuyTerraformDevices(playerId: number, quantity: numb
         }
 
         const cargoRes = await client.query(
-            'SELECT credits FROM ship_cargo WHERE player_id = $1 FOR UPDATE',
+            'SELECT credits FROM players WHERE id = $1 FOR UPDATE',
             [playerId],
         );
         if (cargoRes.rows.length === 0 || cargoRes.rows[0].credits < cost) {
@@ -563,35 +572,32 @@ export async function handleBuyTerraformDevices(playerId: number, quantity: numb
             return;
         }
 
-        import('../ship-config.js').then(async ({ shipConfigs }) => {
-            const config = shipConfigs[shipRes.rows[0].ship_name];
-            const maxTerraformDevices = config?.maxTerraformDevices || 0;
+        const maxTerraformDevices = shipRes.rows[0].max_terraform_devices || 0;
 
-            if (shipRes.rows[0].terraform_devices + qty > maxTerraformDevices) {
-                await client.query('ROLLBACK');
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.Error,
-                    message: 'Cannot hold that many Terraform Devices',
-                });
-                return;
-            }
-
-            await client.query(
-                'UPDATE ship_cargo SET credits = credits - $1 WHERE player_id = $2',
-                [cost, playerId],
-            );
-            await client.query(
-                'UPDATE player_ships SET terraform_devices = terraform_devices + $1 WHERE player_id = $2',
-                [qty, playerId],
-            );
-            await client.query('COMMIT');
-
+        if (shipRes.rows[0].terraform_devices + qty > maxTerraformDevices) {
+            await client.query('ROLLBACK');
             sendEnvelope(playerId, {
-                type: ServerMsgType.BuyTerraformDevicesResult,
-                quantity: qty,
-                totalOnShip: shipRes.rows[0].terraform_devices + qty,
-                credits: cargoRes.rows[0].credits - cost,
+                type: ServerMsgType.Error,
+                message: 'Cannot hold that many Terraform Devices',
             });
+            return;
+        }
+
+        await client.query(
+            'UPDATE players SET credits = credits - $1 WHERE id = $2',
+            [cost, playerId],
+        );
+        await client.query(
+            'UPDATE ships SET terraform_devices = terraform_devices + $1 WHERE id = $2',
+            [qty, shipRes.rows[0].ship_id],
+        );
+        await client.query('COMMIT');
+
+        sendEnvelope(playerId, {
+            type: ServerMsgType.BuyTerraformDevicesResult,
+            quantity: qty,
+            totalOnShip: shipRes.rows[0].terraform_devices + qty,
+            credits: cargoRes.rows[0].credits - cost,
         });
     } catch (err) {
         await client.query('ROLLBACK');

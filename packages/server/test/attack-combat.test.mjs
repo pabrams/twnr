@@ -39,9 +39,9 @@ describe('Combat resolution', () => {
       const res = await wsRequest(ws1, { type: ClientMsgType.AttackShip, targetPlayerId: def.id, drones: 3 }, ServerMsgType.AttackShipResult);
       assert.equal(res.type, ServerMsgType.AttackShipResult);
 
-      const atkShip = await pool.query('SELECT drones FROM player_ships WHERE player_id = $1', [atk.id]);
+      const atkShip = await pool.query('SELECT drones FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [atk.id]);
       assert.equal(atkShip.rows[0].drones, 7, 'Attacker should have 7 drones remaining');
-      const defShip = await pool.query('SELECT shields, drones FROM player_ships WHERE player_id = $1', [def.id]);
+      const defShip = await pool.query('SELECT shields, drones FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [def.id]);
       assert.equal(defShip.rows[0].shields, 2, 'Defender should have 2 shields remaining');
       assert.equal(defShip.rows[0].drones, 0, 'Defender drones should be unchanged at 0');
     } finally {
@@ -59,9 +59,9 @@ describe('Combat resolution', () => {
       const res = await wsRequest(ws1, { type: ClientMsgType.AttackShip, targetPlayerId: def.id, drones: 4 }, ServerMsgType.AttackShipResult);
       assert.equal(res.type, ServerMsgType.AttackShipResult);
 
-      const atkShip = await pool.query('SELECT drones FROM player_ships WHERE player_id = $1', [atk.id]);
+      const atkShip = await pool.query('SELECT drones FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [atk.id]);
       assert.equal(atkShip.rows[0].drones, 6, 'Attacker should have 6 drones remaining');
-      const defShip = await pool.query('SELECT drones, shields FROM player_ships WHERE player_id = $1', [def.id]);
+      const defShip = await pool.query('SELECT drones, shields FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [def.id]);
       assert.equal(defShip.rows[0].drones, 1, 'Defender should have 1 drone remaining');
       assert.equal(defShip.rows[0].shields, 0, 'Defender should have 0 shields remaining');
     } finally {
@@ -79,9 +79,9 @@ describe('Combat resolution', () => {
       const res = await wsRequest(ws1, { type: ClientMsgType.AttackShip, targetPlayerId: def.id, drones: 5 }, ServerMsgType.AttackShipResult);
       assert.equal(res.type, ServerMsgType.AttackShipResult);
 
-      const atkShip = await pool.query('SELECT drones FROM player_ships WHERE player_id = $1', [atk.id]);
+      const atkShip = await pool.query('SELECT drones FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [atk.id]);
       assert.equal(atkShip.rows[0].drones, 5, 'Attacker should have 5 drones remaining');
-      const defShip = await pool.query('SELECT drones, shields FROM player_ships WHERE player_id = $1', [def.id]);
+      const defShip = await pool.query('SELECT drones, shields FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [def.id]);
       assert.equal(defShip.rows.length, 1, 'Defender ship should still exist (exact tie, no remaining attackers)');
       assert.equal(defShip.rows[0].drones, 0, 'Defender should have 0 drones');
       assert.equal(defShip.rows[0].shields, 0, 'Defender should have 0 shields');
@@ -104,12 +104,12 @@ describe('Ship destruction', () => {
       const res = await wsRequest(ws1, { type: ClientMsgType.AttackShip, targetPlayerId: def.id, drones: 5 }, ServerMsgType.AttackShipResult);
       assert.equal(res.type, ServerMsgType.AttackShipResult);
 
-      const atkShip = await pool.query('SELECT drones FROM player_ships WHERE player_id = $1', [atk.id]);
+      const atkShip = await pool.query('SELECT drones FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [atk.id]);
       assert.equal(atkShip.rows[0].drones, 8, 'Attacker should have 8 drones remaining');
 
-      const defShip = await pool.query('SELECT * FROM player_ships WHERE player_id = $1', [def.id]);
+      const defShip = await pool.query('SELECT * FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [def.id]);
       assert.equal(defShip.rows.length, 0, 'Defender ship should be deleted');
-      const defCargo = await pool.query('SELECT * FROM ship_cargo WHERE player_id = $1', [def.id]);
+      const defCargo = await pool.query('SELECT * FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [def.id]);
       assert.equal(defCargo.rows.length, 0, 'Defender cargo should be deleted');
 
       const defPlayer = await pool.query('SELECT ship_destroyed_date FROM players WHERE id = $1', [def.id]);
@@ -129,10 +129,10 @@ describe('Ship destruction', () => {
       const res = await wsRequest(ws1, { type: ClientMsgType.AttackShip, targetPlayerId: def.id, drones: 1 }, ServerMsgType.AttackShipResult);
       assert.equal(res.type, ServerMsgType.AttackShipResult);
 
-      const atkShip = await pool.query('SELECT drones FROM player_ships WHERE player_id = $1', [atk.id]);
+      const atkShip = await pool.query('SELECT drones FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [atk.id]);
       assert.equal(atkShip.rows[0].drones, 5, 'Attacker should still have 5 drones');
 
-      const defShip = await pool.query('SELECT * FROM player_ships WHERE player_id = $1', [def.id]);
+      const defShip = await pool.query('SELECT * FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [def.id]);
       assert.equal(defShip.rows.length, 0, 'Defender ship should be deleted');
 
       const defPlayer = await pool.query('SELECT ship_destroyed_date FROM players WHERE id = $1', [def.id]);

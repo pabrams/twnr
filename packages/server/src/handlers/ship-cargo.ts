@@ -4,7 +4,7 @@ import { pool } from '../db/index.js';
 
 export async function handleJettison(playerId: number): Promise<void> {
     const cargoRes = await pool.query(
-        'SELECT fuel, organics, equipment, colonists FROM ship_cargo WHERE player_id = $1',
+        'SELECT s.fuel, s.organics, s.equipment, s.colonists FROM players p JOIN ships s ON p.ship_id = s.id WHERE p.id = $1',
         [playerId],
     );
     if (cargoRes.rows.length === 0) {
@@ -24,7 +24,7 @@ export async function handleJettison(playerId: number): Promise<void> {
     };
 
     await pool.query(
-        'UPDATE ship_cargo SET fuel = 0, organics = 0, equipment = 0, colonists = 0 WHERE player_id = $1',
+        'UPDATE ships SET fuel = 0, organics = 0, equipment = 0, colonists = 0 WHERE id = (SELECT ship_id FROM players WHERE id = $1)',
         [playerId],
     );
 

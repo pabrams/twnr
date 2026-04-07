@@ -89,7 +89,7 @@ describe('Buy holds — validation', () => {
     const { ws, welcome } = await connectWS();
     const playerId = welcome.playerId;
     try {
-      await pool.query('UPDATE ship_cargo SET credits = 0 WHERE player_id = $1', [playerId]);
+      await pool.query('UPDATE players SET credits = 0 WHERE id = $1', [playerId]);
       const msg = await wsRequest(ws, { type: ClientMsgType.BuyHolds, quantity: 1 }, ServerMsgType.BuyHoldsResult);
       assert.equal(msg.type, ServerMsgType.Error);
       assert.equal(msg.message, 'Insufficient credits');

@@ -1,5 +1,4 @@
 import { ServerMsgType } from '@twnr/shared';
-import { shipConfigs } from '../ship-config.js';
 import { sendEnvelope, getPlayerUniverseId } from '../game-state.js';
 import { pool } from '../db/index.js';
 
@@ -7,21 +6,28 @@ export async function handleBuyShipTradein(
     playerId: number,
     targetShipName: string,
 ): Promise<void> {
-    const targetConfig = shipConfigs[targetShipName];
-    if (!targetConfig) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Unknown ship' });
-        return;
-    }
-
     const universeId = getPlayerUniverseId(playerId);
     if (universeId === undefined) return;
 
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
+
+        // Look up the target ship type
+        const targetTypeRes = await client.query(
+            'SELECT id, name, starting_holds, max_holds, max_drones, max_shields, price, turns_per_warp, can_have_hyperwarp, max_planet_busters, max_terraform_devices FROM ship_types WHERE name = $1',
+            [targetShipName],
+        );
+        if (targetTypeRes.rows.length === 0) {
+            await client.query('ROLLBACK');
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Unknown ship' });
+            return;
+        }
+        const targetType = targetTypeRes.rows[0];
+
         const pRes = await client.query(
             `
-            SELECT s.sector_number as current_sector, s.name as sector_name
+            SELECT s.sector_number as current_sector, s.name as sector_name, p.current_sector_id
             FROM players p
             JOIN sectors s ON p.current_sector_id = s.id
             WHERE p.id = $1
@@ -42,10 +48,11 @@ export async function handleBuyShipTradein(
 
         const cargoRes = await client.query(
             `
-            SELECT sc.credits, sc.fuel, sc.organics, sc.equipment, sc.colonists, ps.ship_name
-            FROM ship_cargo sc
-            JOIN player_ships ps ON sc.player_id = ps.player_id
-            WHERE sc.player_id = $1 FOR UPDATE
+            SELECT p.credits, s.fuel, s.organics, s.equipment, s.colonists, st.name AS ship_name, st.price AS current_price, s.id AS ship_id
+            FROM players p
+            JOIN ships s ON p.ship_id = s.id
+            JOIN ship_types st ON s.ship_type_id = st.id
+            WHERE p.id = $1 FOR UPDATE
         `,
             [playerId],
         );
@@ -63,15 +70,14 @@ export async function handleBuyShipTradein(
             return;
         }
 
-        const currentConfig = shipConfigs[data.ship_name];
-        const cost = targetConfig.price - currentConfig.price;
+        const cost = targetType.price - data.current_price;
         if (cost > 0 && data.credits < cost) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient credits' });
             return;
         }
 
-        const newCargoLimit = targetConfig.startingHolds;
+        const newCargoLimit = targetType.starting_holds;
         const currentCargo = data.fuel + data.organics + data.equipment + data.colonists;
         if (newCargoLimit < currentCargo) {
             await client.query('ROLLBACK');
@@ -82,28 +88,34 @@ export async function handleBuyShipTradein(
             return;
         }
 
-        const turnsPerWarp = targetConfig.turnsPerWarp ?? 1;
-        await client.query(
+        // Create new ship, transferring cargo
+        const newShipRes = await client.query(
             `
-            UPDATE player_ships
-            SET ship_name = $1, drones = 0, shields = 0, cargo_limit = $2, turns_per_warp = $3, has_hyperwarp_drive = FALSE
-            WHERE player_id = $4
+            INSERT INTO ships (owner_id, ship_type_id, sector_id, drones, shields, holds, planet_busters, terraform_devices, turns_per_warp, has_hyperwarp_drive, fuel, organics, equipment, colonists)
+            VALUES ($1, $2, $3, 0, 0, $4, 0, 0, $5, FALSE, $6, $7, $8, $9)
+            RETURNING id
         `,
-            [targetShipName, newCargoLimit, turnsPerWarp, playerId],
+            [playerId, targetType.id, pRes.rows[0].current_sector_id, newCargoLimit, targetType.turns_per_warp, data.fuel, data.organics, data.equipment, data.colonists],
         );
 
-        await client.query('UPDATE ship_cargo SET credits = credits - $1 WHERE player_id = $2', [
+        // Update player to point to new ship and deduct credits
+        await client.query('UPDATE players SET ship_id = $1, credits = credits - $2 WHERE id = $3', [
+            newShipRes.rows[0].id,
             cost,
             playerId,
         ]);
+
+        // Delete old ship (no multiple active ships yet)
+        await client.query('DELETE FROM ships WHERE id = $1', [data.ship_id]);
+
         await client.query('COMMIT');
 
         sendEnvelope(playerId, {
             type: ServerMsgType.BuyShipTradeinResult,
             shipName: targetShipName,
             credits: data.credits - cost,
-            maxDrones: targetConfig.maxDrones,
-            maxShields: targetConfig.maxShields,
+            maxDrones: targetType.max_drones,
+            maxShields: targetType.max_shields,
             cargoLimit: newCargoLimit,
         });
     } catch {

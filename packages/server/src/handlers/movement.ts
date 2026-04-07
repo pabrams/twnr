@@ -25,10 +25,8 @@ export async function handleMove(playerId: number, targetSector: number): Promis
         return;
     }
 
-    const shipRes = await pool.query('SELECT player_id FROM player_ships WHERE player_id = $1', [
-        playerId,
-    ]);
-    if (shipRes.rows.length === 0) {
+    const shipCheck = await pool.query('SELECT ship_id FROM players WHERE id = $1', [playerId]);
+    if (!shipCheck.rows[0]?.ship_id) {
         sendEnvelope(playerId, { type: ServerMsgType.MoveResult, outcome: 'noShip' });
         return;
     }
@@ -61,7 +59,7 @@ export async function handleMove(playerId: number, targetSector: number): Promis
 
     // Check turns
     const turnsPerWarpRes = await pool.query(
-        'SELECT turns_per_warp FROM player_ships WHERE player_id = $1',
+        'SELECT s.turns_per_warp FROM ships s WHERE s.id = (SELECT ship_id FROM players WHERE id = $1)',
         [playerId],
     );
     const turnsPerWarp = turnsPerWarpRes.rows[0]?.turns_per_warp ?? 1;
@@ -86,6 +84,10 @@ export async function handleMove(playerId: number, targetSector: number): Promis
     player.sectorId = targetSectorId;
     await Promise.all([
         pool.query('UPDATE players SET current_sector_id = $1 WHERE id = $2', [
+            targetSectorId,
+            playerId,
+        ]),
+        pool.query('UPDATE ships SET sector_id = $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)', [
             targetSectorId,
             playerId,
         ]),
@@ -141,7 +143,7 @@ export async function handleMove(playerId: number, targetSector: number): Promis
         player.pendingEncounter = { retreatSector: currentSector };
         await setPlayerMenu(playerId, 'droneEncounter');
 
-        const shipRes = await pool.query('SELECT drones FROM player_ships WHERE player_id = $1', [
+        const shipRes = await pool.query('SELECT drones FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [
             playerId,
         ]);
 

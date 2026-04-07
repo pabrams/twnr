@@ -440,11 +440,11 @@ describe('players table on_planet_id', () => {
   });
 });
 
-// ==================== player_ships table ====================
+// ==================== ships table ====================
 
-describe('player_ships table', () => {
+describe('ships table', () => {
   let cols;
-  before(async () => { cols = await getColumns('player_ships'); });
+  before(async () => { cols = await getColumns('ships'); });
 
   it('has planet_busters (SMALLINT NOT NULL DEFAULT 0)', () => {
     assert.ok(cols.planet_busters, 'planet_busters missing');
@@ -962,7 +962,7 @@ describe('WS: use terraform device', () => {
 
   it('useTerraformDevice in sector 1 returns restricted_sector', async () => {
     // Give the player a terraform device via DB
-    await pool.query('UPDATE player_ships SET terraform_devices = 1 WHERE player_id = $1', [player.playerId]);
+    await pool.query('UPDATE ships SET terraform_devices = 1 WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [player.playerId]);
 
     // Move back to sector 1
     const currentSector = (await pool.query('SELECT s.sector_number FROM players p JOIN sectors s ON p.current_sector_id = s.id WHERE p.id = $1', [player.playerId])).rows[0].sector_number;
@@ -982,7 +982,7 @@ describe('WS: use terraform device', () => {
     assert.equal(msg.reason, 'restricted_sector');
 
     // Terraform device should NOT have been consumed
-    const shipRes = await pool.query('SELECT terraform_devices FROM player_ships WHERE player_id = $1', [player.playerId]);
+    const shipRes = await pool.query('SELECT terraform_devices FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [player.playerId]);
     assert.equal(shipRes.rows[0].terraform_devices, 1, 'device should not be consumed on restricted sector');
   });
 
@@ -1004,7 +1004,7 @@ describe('WS: use terraform device', () => {
     await player.waitForMessage(ServerMsgType.MoveResult);
 
     // Give the player a terraform device
-    await pool.query('UPDATE player_ships SET terraform_devices = 1 WHERE player_id = $1', [player.playerId]);
+    await pool.query('UPDATE ships SET terraform_devices = 1 WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [player.playerId]);
 
     const planetsBefore = await pool.query(
       'SELECT COUNT(*)::int as cnt FROM planets WHERE sector_id = $1',
@@ -1027,7 +1027,7 @@ describe('WS: use terraform device', () => {
     assert.equal(planetsAfter.rows[0].cnt, planetsBefore.rows[0].cnt + 1, 'should have one more planet');
 
     // Terraform device should be consumed
-    const shipRes = await pool.query('SELECT terraform_devices FROM player_ships WHERE player_id = $1', [player.playerId]);
+    const shipRes = await pool.query('SELECT terraform_devices FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [player.playerId]);
     assert.equal(shipRes.rows[0].terraform_devices, 0, 'device should be consumed');
   });
 });
@@ -1076,7 +1076,7 @@ describe('WS: starbase and hardware store', () => {
 
   it('buyPlanetBusters with insufficient credits returns error', async () => {
     // Drain credits
-    await pool.query('UPDATE ship_cargo SET credits = 0 WHERE player_id = $1', [player.playerId]);
+    await pool.query('UPDATE players SET credits = 0 WHERE id = $1', [player.playerId]);
     player.sendMsg({ type: ClientMsgType.BuyPlanetBusters, quantity: 1 });
     const msg = await player.waitForMessage('error');
     assert.ok(msg.message, 'should have error message');
@@ -1084,9 +1084,9 @@ describe('WS: starbase and hardware store', () => {
 
   it('buyPlanetBusters with sufficient credits succeeds', async () => {
     // Give credits and ensure ship can carry busters
-    await pool.query('UPDATE ship_cargo SET credits = 100000 WHERE player_id = $1', [player.playerId]);
+    await pool.query('UPDATE players SET credits = 100000 WHERE id = $1', [player.playerId]);
     // Check ship max
-    const shipRes = await pool.query('SELECT ship_name FROM player_ships WHERE player_id = $1', [player.playerId]);
+    const shipRes = await pool.query('SELECT st.name as ship_name FROM ships s JOIN ship_types st ON s.ship_type_id = st.id WHERE s.id = (SELECT ship_id FROM players WHERE id = $1)', [player.playerId]);
     const shipConfig = JSON.parse(readFileSync(join(CONFIG_SHIPS_DIR, '..', '..', 'config', 'ships', 'merchant.json'), 'utf8'));
 
     // If merchant freighter can't carry busters, give them a different ship
@@ -1094,7 +1094,7 @@ describe('WS: starbase and hardware store', () => {
       const allConfigs = readdirSync(CONFIG_SHIPS_DIR).filter(f => f.endsWith('.json')).map(f => JSON.parse(readFileSync(join(CONFIG_SHIPS_DIR, f), 'utf8')));
       const busterShip = allConfigs.find(c => c.maxPlanetBusters > 0);
       assert.ok(busterShip, 'at least one ship config must have maxPlanetBusters > 0');
-      await pool.query('UPDATE player_ships SET ship_name = $1 WHERE player_id = $2', [busterShip.name, player.playerId]);
+      await pool.query('UPDATE ships SET ship_type_id = (SELECT id FROM ship_types WHERE name = $1) WHERE id = (SELECT ship_id FROM players WHERE id = $2)', [busterShip.name, player.playerId]);
     }
 
     player.sendMsg({ type: ClientMsgType.BuyPlanetBusters, quantity: 1 });
@@ -1107,12 +1107,12 @@ describe('WS: starbase and hardware store', () => {
   });
 
   it('buyTerraformDevices succeeds', async () => {
-    await pool.query('UPDATE ship_cargo SET credits = 100000 WHERE player_id = $1', [player.playerId]);
+    await pool.query('UPDATE players SET credits = 100000 WHERE id = $1', [player.playerId]);
     // Ensure ship supports terraform devices (previous test may have switched to a buster-only ship)
     const allConfigs = readdirSync(CONFIG_SHIPS_DIR).filter(f => f.endsWith('.json')).map(f => JSON.parse(readFileSync(join(CONFIG_SHIPS_DIR, f), 'utf8')));
     const terraShip = allConfigs.find(c => c.maxTerraformDevices > 0);
     assert.ok(terraShip, 'at least one ship config must have maxTerraformDevices > 0');
-    await pool.query('UPDATE player_ships SET ship_name = $1 WHERE player_id = $2', [terraShip.name, player.playerId]);
+    await pool.query('UPDATE ships SET ship_type_id = (SELECT id FROM ship_types WHERE name = $1) WHERE id = (SELECT ship_id FROM players WHERE id = $2)', [terraShip.name, player.playerId]);
     player.sendMsg({ type: ClientMsgType.BuyTerraformDevices, quantity: 1 });
     const msg = await player.waitForMessage('buyTerraformDevicesResult');
     assert.ok(msg, 'should receive buyHardwareResult');
@@ -1160,7 +1160,7 @@ describe('WS: destroy planet', () => {
     await player.waitForMessage(ServerMsgType.LandOnPlanetResult);
 
     // Make sure no planet busters
-    await pool.query('UPDATE player_ships SET planet_busters = 0 WHERE player_id = $1', [player.playerId]);
+    await pool.query('UPDATE ships SET planet_busters = 0 WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [player.playerId]);
 
     player.sendMsg({ type: ClientMsgType.DestroyPlanet });
     const msg = await player.waitForMessage('error');
@@ -1203,7 +1203,7 @@ describe('WS: destroy planet', () => {
     await player.waitForMessage(ServerMsgType.LandOnPlanetResult);
 
     // Give planet buster
-    await pool.query('UPDATE player_ships SET planet_busters = 1 WHERE player_id = $1', [player.playerId]);
+    await pool.query('UPDATE ships SET planet_busters = 1 WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [player.playerId]);
 
     player.sendMsg({ type: ClientMsgType.DestroyPlanet });
     const msg = await player.waitForMessage('destroyPlanetResult');
@@ -1217,7 +1217,7 @@ describe('WS: destroy planet', () => {
     assert.equal(check.rows[0].cnt, 0, 'planet should be deleted from DB');
 
     // Verify planet buster was consumed
-    const shipRes = await pool.query('SELECT planet_busters FROM player_ships WHERE player_id = $1', [player.playerId]);
+    const shipRes = await pool.query('SELECT planet_busters FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [player.playerId]);
     assert.equal(shipRes.rows[0].planet_busters, 0, 'planet buster should be consumed');
 
     // Should also receive a sectorDisplay after destruction
@@ -1309,10 +1309,10 @@ describe('WS: buy hardware exceeds ship maximum', () => {
   after(() => { player?.close(); });
 
   it('buyPlanetBusters exceeding ship max returns error', async () => {
-    await pool.query('UPDATE ship_cargo SET credits = 10000000 WHERE player_id = $1', [player.playerId]);
+    await pool.query('UPDATE players SET credits = 10000000 WHERE id = $1', [player.playerId]);
 
     // Find ship max
-    const shipRes = await pool.query('SELECT ship_name FROM player_ships WHERE player_id = $1', [player.playerId]);
+    const shipRes = await pool.query('SELECT st.name as ship_name FROM ships s JOIN ship_types st ON s.ship_type_id = st.id WHERE s.id = (SELECT ship_id FROM players WHERE id = $1)', [player.playerId]);
     const allConfigs = readdirSync(CONFIG_SHIPS_DIR).filter(f => f.endsWith('.json')).map(f => JSON.parse(readFileSync(join(CONFIG_SHIPS_DIR, f), 'utf8')));
     const shipConfig = allConfigs.find(c => c.name === shipRes.rows[0].ship_name);
 
@@ -1324,14 +1324,14 @@ describe('WS: buy hardware exceeds ship maximum', () => {
   });
 
   it('buyPlanetBusters exceeding ship max cumulatively returns error', async () => {
-    await pool.query('UPDATE ship_cargo SET credits = 10000000 WHERE player_id = $1', [player.playerId]);
+    await pool.query('UPDATE players SET credits = 10000000 WHERE id = $1', [player.playerId]);
 
-    const shipRes = await pool.query('SELECT ship_name FROM player_ships WHERE player_id = $1', [player.playerId]);
+    const shipRes = await pool.query('SELECT st.name as ship_name FROM ships s JOIN ship_types st ON s.ship_type_id = st.id WHERE s.id = (SELECT ship_id FROM players WHERE id = $1)', [player.playerId]);
     const allConfigs = readdirSync(CONFIG_SHIPS_DIR).filter(f => f.endsWith('.json')).map(f => JSON.parse(readFileSync(join(CONFIG_SHIPS_DIR, f), 'utf8')));
     const busterShip = allConfigs.find(c => c.maxPlanetBusters >= 2);
     if (busterShip) {
       // Set current inventory to max - 1
-      await pool.query('UPDATE player_ships SET ship_name = $1, planet_busters = $2 WHERE player_id = $3',
+      await pool.query('UPDATE ships SET ship_type_id = (SELECT id FROM ship_types WHERE name = $1), planet_busters = $2 WHERE id = (SELECT ship_id FROM players WHERE id = $3)',
         [busterShip.name, busterShip.maxPlanetBusters - 1, player.playerId]);
 
       // Try buying 2 more, which should exceed max
@@ -1342,9 +1342,9 @@ describe('WS: buy hardware exceeds ship maximum', () => {
   });
 
   it('buyTerraformDevices exceeding ship max returns error', async () => {
-    await pool.query('UPDATE ship_cargo SET credits = 10000000 WHERE player_id = $1', [player.playerId]);
+    await pool.query('UPDATE players SET credits = 10000000 WHERE id = $1', [player.playerId]);
 
-    const shipRes = await pool.query('SELECT ship_name FROM player_ships WHERE player_id = $1', [player.playerId]);
+    const shipRes = await pool.query('SELECT st.name as ship_name FROM ships s JOIN ship_types st ON s.ship_type_id = st.id WHERE s.id = (SELECT ship_id FROM players WHERE id = $1)', [player.playerId]);
     const allConfigs = readdirSync(CONFIG_SHIPS_DIR).filter(f => f.endsWith('.json')).map(f => JSON.parse(readFileSync(join(CONFIG_SHIPS_DIR, f), 'utf8')));
     const shipConfig = allConfigs.find(c => c.name === shipRes.rows[0].ship_name);
 
@@ -1404,11 +1404,11 @@ describe('WS: buy hardware requires starbase docking', () => {
     }
 
     // Give credits and a ship that can carry busters
-    await pool.query('UPDATE ship_cargo SET credits = 100000 WHERE player_id = $1', [player.playerId]);
+    await pool.query('UPDATE players SET credits = 100000 WHERE id = $1', [player.playerId]);
     const allConfigs = readdirSync(CONFIG_SHIPS_DIR).filter(f => f.endsWith('.json')).map(f => JSON.parse(readFileSync(join(CONFIG_SHIPS_DIR, f), 'utf8')));
     const busterShip = allConfigs.find(c => c.maxPlanetBusters > 0);
     if (busterShip) {
-      await pool.query('UPDATE player_ships SET ship_name = $1 WHERE player_id = $2', [busterShip.name, player.playerId]);
+      await pool.query('UPDATE ships SET ship_type_id = (SELECT id FROM ship_types WHERE name = $1) WHERE id = (SELECT ship_id FROM players WHERE id = $2)', [busterShip.name, player.playerId]);
     }
   });
 
@@ -1424,7 +1424,7 @@ describe('WS: buy hardware requires starbase docking', () => {
     const allConfigs = readdirSync(CONFIG_SHIPS_DIR).filter(f => f.endsWith('.json')).map(f => JSON.parse(readFileSync(join(CONFIG_SHIPS_DIR, f), 'utf8')));
     const terraShip = allConfigs.find(c => c.maxTerraformDevices > 0);
     if (terraShip) {
-      await pool.query('UPDATE player_ships SET ship_name = $1 WHERE player_id = $2', [terraShip.name, player.playerId]);
+      await pool.query('UPDATE ships SET ship_type_id = (SELECT id FROM ship_types WHERE name = $1) WHERE id = (SELECT ship_id FROM players WHERE id = $2)', [terraShip.name, player.playerId]);
     }
     player.sendMsg({ type: ClientMsgType.BuyTerraformDevices, quantity: 1 });
     const msg = await player.waitForMessage('error');
@@ -1475,8 +1475,8 @@ describe('WS: buy hardware credit deduction', () => {
     const allConfigs = readdirSync(CONFIG_SHIPS_DIR).filter(f => f.endsWith('.json')).map(f => JSON.parse(readFileSync(join(CONFIG_SHIPS_DIR, f), 'utf8')));
     const busterShip = allConfigs.find(c => c.maxPlanetBusters >= 2);
     assert.ok(busterShip, 'need at least one ship config with maxPlanetBusters >= 2');
-    await pool.query('UPDATE player_ships SET ship_name = $1, planet_busters = 0 WHERE player_id = $2', [busterShip.name, player.playerId]);
-    await pool.query('UPDATE ship_cargo SET credits = 100000 WHERE player_id = $1', [player.playerId]);
+    await pool.query('UPDATE ships SET ship_type_id = (SELECT id FROM ship_types WHERE name = $1), planet_busters = 0 WHERE id = (SELECT ship_id FROM players WHERE id = $2)', [busterShip.name, player.playerId]);
+    await pool.query('UPDATE players SET credits = 100000 WHERE id = $1', [player.playerId]);
 
     player.sendMsg({ type: ClientMsgType.BuyPlanetBusters, quantity: 2 });
     const msg = await player.waitForMessage('buyPlanetBustersResult');
@@ -1491,8 +1491,8 @@ describe('WS: buy hardware credit deduction', () => {
     const allConfigs = readdirSync(CONFIG_SHIPS_DIR).filter(f => f.endsWith('.json')).map(f => JSON.parse(readFileSync(join(CONFIG_SHIPS_DIR, f), 'utf8')));
     const terraShip = allConfigs.find(c => c.maxTerraformDevices >= 2);
     assert.ok(terraShip, 'need at least one ship config with maxTerraformDevices >= 2');
-    await pool.query('UPDATE player_ships SET ship_name = $1, terraform_devices = 0 WHERE player_id = $2', [terraShip.name, player.playerId]);
-    await pool.query('UPDATE ship_cargo SET credits = 100000 WHERE player_id = $1', [player.playerId]);
+    await pool.query('UPDATE ships SET ship_type_id = (SELECT id FROM ship_types WHERE name = $1), terraform_devices = 0 WHERE id = (SELECT ship_id FROM players WHERE id = $2)', [terraShip.name, player.playerId]);
+    await pool.query('UPDATE players SET credits = 100000 WHERE id = $1', [player.playerId]);
 
     player.sendMsg({ type: ClientMsgType.BuyTerraformDevices, quantity: 2 });
     const msg = await player.waitForMessage('buyTerraformDevicesResult');
@@ -1565,7 +1565,7 @@ describe('WS: terraform collision logic', () => {
 
   it('terraformResult succeeds even when sector is at max capacity', async () => {
     // Sector already has 1 planet and max_planets_per_sector=1, so it's at capacity
-    await pool.query('UPDATE player_ships SET terraform_devices = 1 WHERE player_id = $1', [player.playerId]);
+    await pool.query('UPDATE ships SET terraform_devices = 1 WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [player.playerId]);
 
     player.sendMsg({ type: ClientMsgType.UseTerraformDevice });
     const msg = await player.waitForMessage('useTerraformDeviceResult');
@@ -1575,7 +1575,7 @@ describe('WS: terraform collision logic', () => {
 
   it('terraform in sector at max capacity creates planet and collision row', async () => {
     // Give terraform device
-    await pool.query('UPDATE player_ships SET terraform_devices = 1 WHERE player_id = $1', [player.playerId]);
+    await pool.query('UPDATE ships SET terraform_devices = 1 WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [player.playerId]);
 
     player.sendMsg({ type: ClientMsgType.UseTerraformDevice });
     const msg = await player.waitForMessage('useTerraformDeviceResult');
@@ -1614,7 +1614,7 @@ describe('WS: terraform collision logic', () => {
 
   it('terraformResult includes remaining terraformDevices count', async () => {
     // Give 2 devices, use 1
-    await pool.query('UPDATE player_ships SET terraform_devices = 2 WHERE player_id = $1', [player.playerId]);
+    await pool.query('UPDATE ships SET terraform_devices = 2 WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [player.playerId]);
 
     player.sendMsg({ type: ClientMsgType.UseTerraformDevice });
     const msg = await player.waitForMessage('useTerraformDeviceResult');
@@ -1656,7 +1656,7 @@ describe('WS: terraform in Starbase sector returns restricted_sector', () => {
     }
 
     // Give the player a terraform device
-    await pool.query('UPDATE player_ships SET terraform_devices = 1 WHERE player_id = $1', [player.playerId]);
+    await pool.query('UPDATE ships SET terraform_devices = 1 WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [player.playerId]);
   });
 
   after(() => { player?.close(); });
@@ -1668,7 +1668,7 @@ describe('WS: terraform in Starbase sector returns restricted_sector', () => {
     assert.equal(msg.reason, 'restricted_sector');
 
     // Device should not be consumed
-    const shipRes = await pool.query('SELECT terraform_devices FROM player_ships WHERE player_id = $1', [player.playerId]);
+    const shipRes = await pool.query('SELECT terraform_devices FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [player.playerId]);
     assert.equal(shipRes.rows[0].terraform_devices, 1, 'device should not be consumed on restricted sector');
   });
 });
@@ -1727,7 +1727,7 @@ describe('WS: on_planet_id cleared after destroyPlanet', () => {
     assert.equal(beforeRes.rows[0].on_planet_id, newPlanetId, 'on_planet_id should be set before destroy');
 
     // Give planet buster and destroy
-    await pool.query('UPDATE player_ships SET planet_busters = 1 WHERE player_id = $1', [player.playerId]);
+    await pool.query('UPDATE ships SET planet_busters = 1 WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [player.playerId]);
     player.sendMsg({ type: ClientMsgType.DestroyPlanet });
     await player.waitForMessage('destroyPlanetResult');
     await player.waitForMessage(ServerMsgType.SectorDisplayResult);
@@ -1775,7 +1775,7 @@ describe('WS: terraform success response completeness', () => {
     await player.waitForMessage(ServerMsgType.MoveResult);
 
     // Give 2 terraform devices
-    await pool.query('UPDATE player_ships SET terraform_devices = 2 WHERE player_id = $1', [player.playerId]);
+    await pool.query('UPDATE ships SET terraform_devices = 2 WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [player.playerId]);
 
     player.sendMsg({ type: ClientMsgType.UseTerraformDevice });
     const msg = await player.waitForMessage('useTerraformDeviceResult');
@@ -1843,7 +1843,7 @@ describe('WS: terraform planet ID sequencing', () => {
     await player.waitForMessage(ServerMsgType.MoveResult);
 
     // Give 2 terraform devices
-    await pool.query('UPDATE player_ships SET terraform_devices = 2 WHERE player_id = $1', [player.playerId]);
+    await pool.query('UPDATE ships SET terraform_devices = 2 WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [player.playerId]);
 
     // Create first planet
     player.sendMsg({ type: ClientMsgType.UseTerraformDevice });

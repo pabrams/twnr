@@ -54,11 +54,11 @@ export async function handleAttackShip(
         await client.query('BEGIN');
 
         const attackerShipRes = await client.query(
-            'SELECT drones FROM player_ships WHERE player_id = $1 FOR UPDATE',
+            'SELECT drones FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1) FOR UPDATE',
             [attackerId],
         );
         const targetShipRes = await client.query(
-            'SELECT drones, shields FROM player_ships WHERE player_id = $1 FOR UPDATE',
+            'SELECT drones, shields FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1) FOR UPDATE',
             [targetPlayerId],
         );
 
@@ -98,20 +98,19 @@ export async function handleAttackShip(
         const attackerDronesLost = shieldsLost + defenderDronesLost;
         const newAttackerDrones = attackerDrones - attackerDronesLost;
 
-        await client.query('UPDATE player_ships SET drones = $1 WHERE player_id = $2', [
+        await client.query('UPDATE ships SET drones = $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)', [
             newAttackerDrones,
             attackerId,
         ]);
 
         if (destroyed) {
-            await client.query('UPDATE players SET ship_destroyed_date = NOW() WHERE id = $1', [
+            await client.query('DELETE FROM ships WHERE owner_id = $1', [targetPlayerId]);
+            await client.query('UPDATE players SET ship_id = NULL, ship_destroyed_date = NOW() WHERE id = $1', [
                 targetPlayerId,
             ]);
-            await client.query('DELETE FROM player_ships WHERE player_id = $1', [targetPlayerId]);
-            await client.query('DELETE FROM ship_cargo WHERE player_id = $1', [targetPlayerId]);
         } else {
             await client.query(
-                'UPDATE player_ships SET drones = $1, shields = $2 WHERE player_id = $3',
+                'UPDATE ships SET drones = $1, shields = $2 WHERE id = (SELECT ship_id FROM players WHERE id = $3)',
                 [targetDrones, targetShields, targetPlayerId],
             );
         }

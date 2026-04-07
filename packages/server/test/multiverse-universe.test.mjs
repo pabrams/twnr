@@ -171,7 +171,7 @@ describe('Join Universe', () => {
 
     // Verify ship
     const shipRes = await pool.query(
-      'SELECT ship_name, drones, shields, cargo_limit FROM player_ships WHERE player_id = $1',
+      'SELECT s.drones, s.shields, s.holds, s.fuel, s.organics, s.equipment, st.name as ship_name FROM ships s JOIN ship_types st ON s.ship_type_id = st.id WHERE s.id = (SELECT ship_id FROM players WHERE id = $1)',
       [body.playerId],
     );
     assert.equal(shipRes.rows.length, 1);
@@ -179,19 +179,20 @@ describe('Join Universe', () => {
     assert.equal(shipRes.rows[0].drones, 0);
     assert.equal(shipRes.rows[0].shields, 0);
 
-    // Verify cargo_limit matches merchant.json startingHolds (5)
-    assert.equal(shipRes.rows[0].cargo_limit, 5, 'cargo_limit should match merchant.json startingHolds');
+    // Verify holds matches merchant.json startingHolds (5)
+    assert.equal(shipRes.rows[0].holds, 5, 'holds should match merchant.json startingHolds');
 
     // Verify cargo
-    const cargoRes = await pool.query(
-      'SELECT credits, fuel, organics, equipment FROM ship_cargo WHERE player_id = $1',
+    assert.equal(shipRes.rows[0].fuel, 0, 'fuel should be 0 on join');
+    assert.equal(shipRes.rows[0].organics, 0, 'organics should be 0 on join');
+    assert.equal(shipRes.rows[0].equipment, 0, 'equipment should be 0 on join');
+
+    // Verify credits on player
+    const creditsRes = await pool.query(
+      'SELECT credits FROM players WHERE id = $1',
       [body.playerId],
     );
-    assert.equal(cargoRes.rows.length, 1);
-    assert.equal(cargoRes.rows[0].credits, 10000);
-    assert.equal(cargoRes.rows[0].fuel, 0, 'fuel should be 0 on join');
-    assert.equal(cargoRes.rows[0].organics, 0, 'organics should be 0 on join');
-    assert.equal(cargoRes.rows[0].equipment, 0, 'equipment should be 0 on join');
+    assert.equal(creditsRes.rows[0].credits, 10000);
   });
 
   it('POST /api/universes/:id/join returns 409 if already joined', async () => {
