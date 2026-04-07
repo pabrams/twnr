@@ -1,4 +1,3 @@
-import { WebSocket } from 'ws';
 import { ServerMsgType } from '@twnr/shared';
 import {
     players,
@@ -14,11 +13,7 @@ import {
 import { pool } from '../db/index.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 
-export async function handlePortInfo(
-    ws: WebSocket,
-    playerId: number,
-    sectorId: number,
-): Promise<void> {
+export async function handlePortInfo(playerId: number, sectorId: number): Promise<void> {
     if (!Number.isInteger(sectorId) || sectorId <= 0) {
         sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid sector ID' });
         return;
@@ -52,7 +47,7 @@ export async function handlePortInfo(
     });
 }
 
-export async function handleDock(ws: WebSocket, playerId: number): Promise<void> {
+export async function handleDock(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
@@ -102,7 +97,7 @@ export async function handleDock(ws: WebSocket, playerId: number): Promise<void>
     });
 }
 
-export async function handleUndock(ws: WebSocket, playerId: number): Promise<void> {
+export async function handleUndock(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
@@ -160,7 +155,6 @@ export async function handleUndock(ws: WebSocket, playerId: number): Promise<voi
 }
 
 export async function handlePortTransaction(
-    ws: WebSocket,
     playerId: number,
     good: string,
     quantity: number,
@@ -368,7 +362,7 @@ export async function handlePortTransaction(
     }
 }
 
-export async function handleDockStardock(ws: WebSocket, playerId: number): Promise<void> {
+export async function handleDockStardock(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
@@ -398,7 +392,7 @@ export async function handleDockStardock(ws: WebSocket, playerId: number): Promi
     sendEnvelope(playerId, { type: ServerMsgType.DockStardockResult });
 }
 
-export async function handleLeaveStardock(ws: WebSocket, playerId: number): Promise<void> {
+export async function handleLeaveStardock(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
@@ -447,11 +441,7 @@ export async function handleLeaveStardock(ws: WebSocket, playerId: number): Prom
     });
 }
 
-export async function handleBuyPlanetBusters(
-    ws: WebSocket,
-    playerId: number,
-    quantity: number,
-): Promise<void> {
+export async function handleBuyPlanetBusters(playerId: number, quantity: number): Promise<void> {
     const qty = Number.isInteger(quantity) ? quantity : 0;
     if (qty <= 0) {
         sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid quantity' });
@@ -531,11 +521,7 @@ export async function handleBuyPlanetBusters(
     }
 }
 
-export async function handleBuyTerraformDevices(
-    ws: WebSocket,
-    playerId: number,
-    quantity: number,
-): Promise<void> {
+export async function handleBuyTerraformDevices(playerId: number, quantity: number): Promise<void> {
     const qty = Number.isInteger(quantity) ? quantity : 0;
     if (qty <= 0) {
         sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid quantity' });

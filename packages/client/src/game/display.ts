@@ -1,7 +1,7 @@
 import { ClientMsgType } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { colorSector } from './types.js';
-import { colors, MenuMode, PORT_CLASS_LABELS, PORT_CLASS_ACTIONS } from './constants.js';
+import { colors, PORT_CLASS_LABELS, PORT_CLASS_ACTIONS } from './constants.js';
 
 // Re-export GameContext and colorSector so existing imports from './display.js' still work
 export type { GameContext } from './types.js';
@@ -66,7 +66,7 @@ export function showPrompt(ctx: GameContext) {
 }
 
 export function showHelp(ctx: GameContext) {
-    ctx.setMode(MenuMode.Help);
+    ctx.setMode('help');
     ctx.term.writeln('');
     ctx.term.writeln(colors.cyan('Help Menu:'));
     ctx.term.writeln(`${colors.cyan('Command:')} Move to a sector by typing its number.`);
@@ -99,7 +99,7 @@ export function showPortMenu(ctx: GameContext) {
         showPrompt(ctx);
         return;
     }
-    ctx.setMode(MenuMode.Port);
+    ctx.setMode('port');
     const label = PORT_CLASS_LABELS[ctx.currentPort.class] ?? '???';
     ctx.term.writeln('');
     ctx.term.writeln(
@@ -143,13 +143,13 @@ export function showDockedMenu(ctx: GameContext) {
 }
 
 export function showShipInfo(ctx: GameContext) {
-    ctx.setMode(MenuMode.ShipInfo);
+    ctx.setMode('shipInfo');
     ctx.sendMsg({ type: ClientMsgType.ShipInfo });
     ctx.sendMsg({ type: ClientMsgType.CargoInfo });
 }
 
 export function showPlayerInfo(ctx: GameContext) {
-    ctx.setMode(MenuMode.PlayerInfo);
+    ctx.setMode('playerInfo');
     ctx.term.writeln('');
     ctx.term.writeln(`${colors.boldGreen('Player')}: ${colors.boldCyan(ctx.playerName)}`);
     ctx.term.writeln(

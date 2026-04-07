@@ -1,4 +1,3 @@
-import { WebSocket } from 'ws';
 import { ServerMsgType } from '@twnr/shared';
 import {
     players,
@@ -13,7 +12,7 @@ import { pool } from '../db/index.js';
 import { planetConfigs } from '../planet-config.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 
-export async function handleLand(ws: WebSocket, playerId: number): Promise<void> {
+export async function handleLand(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
@@ -38,11 +37,7 @@ export async function handleLand(ws: WebSocket, playerId: number): Promise<void>
     });
 }
 
-export async function handleLandOnPlanet(
-    ws: WebSocket,
-    playerId: number,
-    planetId: number,
-): Promise<void> {
+export async function handleLandOnPlanet(playerId: number, planetId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
@@ -85,7 +80,7 @@ export async function handleLandOnPlanet(
     sendEnvelope(playerId, { type: ServerMsgType.LandOnPlanetResult, ...data });
 }
 
-export async function handlePlanetDisplay(ws: WebSocket, playerId: number): Promise<void> {
+export async function handlePlanetDisplay(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
@@ -165,7 +160,7 @@ async function buildSectorDisplayData(playerId: number) {
     };
 }
 
-export async function handleLeavePlanet(ws: WebSocket, playerId: number): Promise<void> {
+export async function handleLeavePlanet(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
@@ -187,7 +182,7 @@ export async function handleLeavePlanet(ws: WebSocket, playerId: number): Promis
     });
 }
 
-export async function handleDestroyPlanet(ws: WebSocket, playerId: number): Promise<void> {
+export async function handleDestroyPlanet(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
@@ -259,7 +254,7 @@ export async function handleDestroyPlanet(ws: WebSocket, playerId: number): Prom
     if (data) sendEnvelope(playerId, { type: ServerMsgType.SectorDisplayResult, ...data });
 }
 
-export async function handleUseTerraformDevice(ws: WebSocket, playerId: number): Promise<void> {
+export async function handleUseTerraformDevice(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 

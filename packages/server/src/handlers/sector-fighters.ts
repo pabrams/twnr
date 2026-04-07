@@ -13,7 +13,7 @@ import {
 import { pool } from '../db/index.js';
 import { shipConfigs } from '../ship-config.js';
 
-export async function handleDeployFightersInfo(ws: WebSocket, playerId: number): Promise<void> {
+export async function handleDeployFightersInfo(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
@@ -63,11 +63,7 @@ export async function handleDeployFightersInfo(ws: WebSocket, playerId: number):
     });
 }
 
-export async function handleDeployFighters(
-    ws: WebSocket,
-    playerId: number,
-    target: number,
-): Promise<void> {
+export async function handleDeployFighters(playerId: number, target: number): Promise<void> {
     if (!Number.isInteger(target) || target < 0) {
         sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid target quantity' });
         return;
@@ -213,7 +209,6 @@ export async function handleDeployFighters(
 }
 
 export async function handleAttackSectorFighters(
-    ws: WebSocket,
     playerId: number,
     fightersToAttack: number,
 ): Promise<void> {
@@ -348,7 +343,7 @@ export async function handleAttackSectorFighters(
     }
 }
 
-export async function handleRetreatFromFighters(ws: WebSocket, playerId: number): Promise<void> {
+export async function handleRetreatFromFighters(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 

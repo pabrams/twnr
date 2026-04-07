@@ -114,6 +114,8 @@ async function doSetup() {
   let pool = createPool();
   await pool.query('SELECT 1');
   await pool.query(`
+    DROP TABLE IF EXISTS menu_command CASCADE;
+    DROP TABLE IF EXISTS command CASCADE;
     DROP TABLE IF EXISTS planet_collisions CASCADE;
     DROP TABLE IF EXISTS planets CASCADE;
     DROP TABLE IF EXISTS visited_sectors CASCADE;
@@ -125,6 +127,7 @@ async function doSetup() {
     DROP TABLE IF EXISTS sectors CASCADE;
     DROP TABLE IF EXISTS universes CASCADE;
     DROP TABLE IF EXISTS users CASCADE;
+    DROP TABLE IF EXISTS menu CASCADE;
   `);
   await pool.end();
 

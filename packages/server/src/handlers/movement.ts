@@ -14,11 +14,7 @@ import {
 import { pool } from '../db/index.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 
-export async function handleMove(
-    ws: WebSocket,
-    playerId: number,
-    targetSector: number,
-): Promise<void> {
+export async function handleMove(playerId: number, targetSector: number): Promise<void> {
     if (!Number.isInteger(targetSector) || targetSector <= 0) {
         sendEnvelope(playerId, {
             type: ServerMsgType.MoveResult,
@@ -191,7 +187,7 @@ export async function handleMove(
     });
 }
 
-export async function handleSectorDisplay(ws: WebSocket, playerId: number): Promise<void> {
+export async function handleSectorDisplay(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
     const currentSector = player.sector;
@@ -232,7 +228,7 @@ export async function handleSectorDisplay(ws: WebSocket, playerId: number): Prom
     });
 }
 
-export async function handleWarpsOut(ws: WebSocket, playerId: number, id: number): Promise<void> {
+export async function handleWarpsOut(playerId: number, id: number): Promise<void> {
     if (!Number.isInteger(id) || id <= 0) {
         sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid sector ID' });
         return;
@@ -263,7 +259,6 @@ export async function handleWarpsOut(ws: WebSocket, playerId: number, id: number
 }
 
 export async function handleShortestPath(
-    ws: WebSocket,
     playerId: number,
     from: number,
     to: number,

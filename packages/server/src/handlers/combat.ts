@@ -1,11 +1,10 @@
-import { WebSocket } from 'ws';
 import { ServerMsgType } from '@twnr/shared';
 import type { ServerResult } from '@twnr/shared';
+
 import { players, sendEnvelope, setPlayerMenu } from '../game-state.js';
 import { pool } from '../db/index.js';
 
 export async function handleAttackShip(
-    ws: WebSocket,
     attackerId: number,
     targetPlayerId: number,
     fighters: number,
