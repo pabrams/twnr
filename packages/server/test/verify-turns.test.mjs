@@ -15,7 +15,7 @@ import { ClientMsgType, ServerMsgType } from '@twnr/shared';
 
 const __filename = fileURLToPath(import.meta.url);
 const PROJECT_ROOT = join(dirname(__filename), '..');
-const SHIPS_DIR = SHIPS_DIR;
+const SHIPS_DIR = join(PROJECT_ROOT, 'config', 'ships');
 
 const merchantCfg = JSON.parse(readFileSync(join(SHIPS_DIR, 'merchant.json'), 'utf8'));
 const scoutCfg = JSON.parse(readFileSync(join(SHIPS_DIR, 'scout.json'), 'utf8'));
@@ -186,10 +186,10 @@ describe('Schema - Player columns', () => {
 });
 
 describe('Schema - Ship columns', () => {
-  it('ships.turns_per_warp exists (integer, NOT NULL, default 1)', async () => {
+  it('ships.turns_per_warp exists (integer, NOT NULL, default 2)', async () => {
     const res = await pool.query(`SELECT data_type, column_default, is_nullable FROM information_schema.columns WHERE table_name = 'ships' AND column_name = 'turns_per_warp'`);
     assert.equal(res.rows.length, 1); assert.match(res.rows[0].data_type, /int/i);
-    assert.equal(res.rows[0].is_nullable, 'NO'); assert.match(res.rows[0].column_default, /1/);
+    assert.equal(res.rows[0].is_nullable, 'NO'); assert.match(res.rows[0].column_default, /2/);
   });
 });
 
