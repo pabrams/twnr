@@ -16,7 +16,7 @@ export function showSectorDisplay(
     players: { id: number; name: string }[],
     port?: { class: number; name: string } | null,
     visitedSectors?: number[],
-    sectorDrones?: { quantity: number; ownerId: number; ownerName: string } | null,
+    sectorDrones?: { quantity: number; ownerId: number | null; ownerName: string } | null,
 ) {
     if (visitedSectors) {
         ctx.setVisitedSet(new Set(visitedSectors));

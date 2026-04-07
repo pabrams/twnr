@@ -282,7 +282,7 @@ export const SCHEMA_SQL = `
   );
   CREATE TABLE IF NOT EXISTS ships (
     id SERIAL PRIMARY KEY,
-    owner_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+    owner_id INTEGER REFERENCES players(id) ON DELETE SET NULL,
     ship_type_id INTEGER NOT NULL REFERENCES ship_types(id),
     sector_id INTEGER REFERENCES sectors(id),
     drones INTEGER NOT NULL DEFAULT 0,
@@ -299,7 +299,7 @@ export const SCHEMA_SQL = `
   );
   CREATE TABLE IF NOT EXISTS visited_sectors (
     player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
-    sector_id INTEGER NOT NULL,
+    sector_id INTEGER NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
     PRIMARY KEY (player_id, sector_id)
   );
 `;

@@ -164,9 +164,9 @@ export async function handleMove(playerId: number, targetSector: number): Promis
             turnsUsed: turnResult.turnsUsed,
         });
 
-        // Alert the owner about the intrusion
-        const owner = players[sectorDrones.ownerId];
-        if (owner && owner.ws.readyState === 1) {
+        // Alert the owner about the intrusion (skip for rogue drones)
+        const owner = sectorDrones.ownerId != null ? players[sectorDrones.ownerId] : undefined;
+        if (owner && owner.ws.readyState === 1 && sectorDrones.ownerId != null) {
             sendEnvelope(sectorDrones.ownerId, {
                 type: ServerMsgType.SectorDronesAlert,
                 event: 'intrusion',

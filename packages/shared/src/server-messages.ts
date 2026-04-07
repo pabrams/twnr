@@ -20,7 +20,7 @@ export type PlayerMovedEvent = {
 
 export type SectorDroneInfo = {
     quantity: number;
-    ownerId: number;
+    ownerId: number | null;
     ownerName: string;
 };
 
@@ -53,7 +53,7 @@ export type MoveResultObject =
           port?: { class: number; name: string } | null;
           visitedSectors: number[];
           sectorDrones: number;
-          ownerId: number;
+          ownerId: number | null;
           ownerName: string;
           shipDrones: number;
           retreatSector: number;
@@ -292,7 +292,7 @@ export type DroneEncounterResultObject = {
     port?: { class: number; name: string } | null;
     visitedSectors: number[];
     sectorDrones: number;
-    ownerId: number;
+    ownerId: number | null;
     ownerName: string;
     shipDrones: number;
     retreatSector: number;
