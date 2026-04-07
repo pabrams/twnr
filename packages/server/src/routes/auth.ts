@@ -125,7 +125,9 @@ export function createAuthRoutes(router: Router, deps: RouteDeps, middleware: Mi
                     );
                     const startSectorId = sectorIdRes.rows[0]?.id;
                     // Delete old ships
-                    await pool.query('UPDATE players SET ship_id = NULL WHERE id = $1', [player.id]);
+                    await pool.query('UPDATE players SET ship_id = NULL WHERE id = $1', [
+                        player.id,
+                    ]);
                     await pool.query('DELETE FROM ships WHERE owner_id = $1', [player.id]);
                     // Create new ship
                     const startShipType = await pool.query(
@@ -137,11 +139,24 @@ export function createAuthRoutes(router: Router, deps: RouteDeps, middleware: Mi
                         const shipRes = await pool.query(
                             `INSERT INTO ships (owner_id, ship_type_id, sector_id, drones, shields, holds, turns_per_warp)
                              VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-                            [player.id, st.id, startSectorId, newPlayerConfig.startingDrones, newPlayerConfig.startingShields, st.starting_holds, st.turns_per_warp],
+                            [
+                                player.id,
+                                st.id,
+                                startSectorId,
+                                newPlayerConfig.startingDrones,
+                                newPlayerConfig.startingShields,
+                                st.starting_holds,
+                                st.turns_per_warp,
+                            ],
                         );
                         await pool.query(
                             'UPDATE players SET ship_destroyed_date = NULL, current_sector_id = $2, ship_id = $3, credits = $4 WHERE id = $1',
-                            [player.id, startSectorId, shipRes.rows[0].id, newPlayerConfig.startingCredits],
+                            [
+                                player.id,
+                                startSectorId,
+                                shipRes.rows[0].id,
+                                newPlayerConfig.startingCredits,
+                            ],
                         );
                     } else {
                         await pool.query(

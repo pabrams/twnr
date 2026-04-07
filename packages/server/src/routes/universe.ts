@@ -8,7 +8,7 @@ export function createUniverseRoutes(
     deps: RouteDeps,
     middleware: Middleware,
 ): void {
-    const { getAuthenticatedPlayer, shipConfigs } = deps;
+    const { getAuthenticatedPlayer } = deps;
     const { authenticateToken } = middleware;
 
     router.post('/api/universes', authenticateToken, async (req, res): Promise<any> => {
@@ -84,7 +84,14 @@ export function createUniverseRoutes(
             const playerRes = await pool.query(
                 `INSERT INTO players (name, user_id, universe_id, current_sector_id, credits, turns, last_turns_granted_at)
                  VALUES ($1, $2, $3, $4, $5, $6, NOW()) RETURNING id`,
-                [name, userId, universeId, startSectorId, newPlayerConfig.startingCredits, startingTurns],
+                [
+                    name,
+                    userId,
+                    universeId,
+                    startSectorId,
+                    newPlayerConfig.startingCredits,
+                    startingTurns,
+                ],
             );
             const playerId = playerRes.rows[0].id;
 
@@ -98,9 +105,20 @@ export function createUniverseRoutes(
                 const shipRes = await pool.query(
                     `INSERT INTO ships (owner_id, ship_type_id, sector_id, drones, shields, holds, turns_per_warp)
                      VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-                    [playerId, st.id, startSectorId, newPlayerConfig.startingDrones, newPlayerConfig.startingShields, st.starting_holds, st.turns_per_warp],
+                    [
+                        playerId,
+                        st.id,
+                        startSectorId,
+                        newPlayerConfig.startingDrones,
+                        newPlayerConfig.startingShields,
+                        st.starting_holds,
+                        st.turns_per_warp,
+                    ],
                 );
-                await pool.query('UPDATE players SET ship_id = $1 WHERE id = $2', [shipRes.rows[0].id, playerId]);
+                await pool.query('UPDATE players SET ship_id = $1 WHERE id = $2', [
+                    shipRes.rows[0].id,
+                    playerId,
+                ]);
             }
 
             // Mark starting sector as visited

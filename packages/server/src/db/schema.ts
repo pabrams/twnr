@@ -469,8 +469,18 @@ export const connectDB = async (): Promise<void> => {
                    price = EXCLUDED.price, max_planet_busters = EXCLUDED.max_planet_busters,
                    max_terraform_devices = EXCLUDED.max_terraform_devices,
                    turns_per_warp = EXCLUDED.turns_per_warp, can_have_hyperwarp = EXCLUDED.can_have_hyperwarp`,
-                [s.name, s.maxDrones, s.maxShields, s.startingHolds, s.maxHolds, s.price,
-                 s.maxPlanetBusters || 0, s.maxTerraformDevices || 0, s.turnsPerWarp || 2, s.canHaveHyperwarp ?? false],
+                [
+                    s.name,
+                    s.maxDrones,
+                    s.maxShields,
+                    s.startingHolds,
+                    s.maxHolds,
+                    s.price,
+                    s.maxPlanetBusters || 0,
+                    s.maxTerraformDevices || 0,
+                    s.turnsPerWarp || 2,
+                    s.canHaveHyperwarp ?? false,
+                ],
             );
         }
 
