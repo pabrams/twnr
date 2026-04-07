@@ -318,12 +318,20 @@ try {
 function renderMenuRegistry() {
     if (menuRegistry.length === 0) return '';
 
-    const menuCards = menuRegistry.map(menu => {
-        const parentHtml = menu.parent_menu
-            ? ` <span class="dim">&larr; <a href="#menu-${menu.parent_menu}">${menu.parent_menu}</a></span>`
-            : '';
-
-        const cmdRows = (menu.commands || []).map(cmd => {
+    let totalCmds = 0;
+    const rows = [];
+    for (const menu of menuRegistry) {
+        const cmds = menu.commands || [];
+        if (cmds.length === 0) {
+            // Menu with no commands (e.g. autopilot)
+            rows.push(`        <tr><td rowspan="1"><a href="#menu-${menu.name}" id="menu-${menu.name}"><code class="mode">${menu.name}</code></a></td><td colspan="5" class="dim">no commands (input ignored)</td></tr>`);
+            continue;
+        }
+        totalCmds += cmds.length;
+        cmds.forEach((cmd, i) => {
+            const menuCell = i === 0
+                ? `<td rowspan="${cmds.length}"><a href="#menu-${menu.name}" id="menu-${menu.name}"><code class="mode">${menu.name}</code></a>${menu.parent_menu ? `<br><span class="dim">&larr; ${menu.parent_menu}</span>` : ''}</td>`
+                : '';
             const keyHtml = `<kbd>${cmd.key_pattern}</kbd>`;
             const actionClass = cmd.action_type === 'server' ? 'type' : cmd.action_type === 'mixed' ? 'fn' : 'dim';
             const actionHtml = `<span class="${actionClass}">${cmd.action_type}</span>`;
@@ -333,43 +341,28 @@ function renderMenuRegistry() {
             const targetHtml = cmd.target_menu
                 ? `<a href="#menu-${cmd.target_menu}"><code class="mode">${cmd.target_menu}</code></a>`
                 : '<span class="dim">&mdash;</span>';
-            return `        <tr><td>${keyHtml}</td><td>${cmd.label}</td><td>${actionHtml}</td><td>${msgHtml}</td><td>${targetHtml}</td></tr>`;
-        }).join('\n');
-
-        return `<section class="message" id="menu-${menu.name}">
-<h3><a href="#menu-${menu.name}">${menu.label}</a> <code class="wire-type">${menu.name}</code>${parentHtml}</h3>
-<div class="table-wrap">
-  <table>
-    <thead><tr><th>Key</th><th>Label</th><th>Action</th><th>Message</th><th>Target Menu</th></tr></thead>
-    <tbody>
-${cmdRows}
-    </tbody>
-  </table>
-</div>
-</section>`;
-    }).join('\n');
+            rows.push(`        <tr>${menuCell}<td>${keyHtml}</td><td>${cmd.label}</td><td>${actionHtml}</td><td>${msgHtml}</td><td>${targetHtml}</td></tr>`);
+        });
+    }
 
     return `<section class="group" id="menus-section">
   <h2>Menu Registry</h2>
-  <p class="table-subtitle">${menuRegistry.length} menus &mdash; server-authoritative, fetched by client at connect time</p>
-  ${menuCards}
+  <p class="table-subtitle">${menuRegistry.length} menus, ${totalCmds} commands &mdash; server-authoritative, fetched by client at connect time</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Menu</th><th>Key</th><th>Label</th><th>Action</th><th>Message</th><th>Target Menu</th></tr></thead>
+      <tbody>
+${rows.join('\n')}
+      </tbody>
+    </table>
+  </div>
 </section>`;
 }
 
 function renderMenuSidebar() {
     if (menuRegistry.length === 0) return '';
-    const items = menuRegistry.map(m =>
-        `        <li><a href="#menu-${m.name}" class="nav-link" data-target="menu-${m.name}"><code>${m.name}</code> <span class="nav-name">${m.label}</span></a></li>`
-    ).join('\n');
     return `      <li class="tree-branch">
-        <button class="tree-toggle" aria-expanded="true" onclick="this.setAttribute('aria-expanded', this.getAttribute('aria-expanded')==='true'?'false':'true')">
-          <svg class="chevron" width="12" height="12" viewBox="0 0 12 12"><path d="M4 2l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-          <span class="tree-label">Menu Registry</span>
-          <span class="tree-count">${menuRegistry.length}</span>
-        </button>
-        <ul class="tree-children" id="nav-menus">
-${items}
-        </ul>
+        <a href="#menus-section" class="nav-link" style="padding-left:1rem; font-weight:600; color:var(--fg);">Menu Registry <span class="tree-count">${menuRegistry.length}</span></a>
       </li>`;
 }
 
