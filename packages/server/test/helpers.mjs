@@ -57,10 +57,12 @@ export async function createTestUser(pool) {
  * Creates a player in a universe for the given user. Returns playerId.
  */
 export async function createTestPlayer(pool, userId, universeId, name, sector = 1, fighters = 0, shields = 0) {
+  const univRes = await pool.query('SELECT starting_turns FROM universes WHERE id = $1', [universeId]);
+  const startingTurns = univRes.rows[0]?.starting_turns ?? 500;
   const res = await pool.query(
-    `INSERT INTO players (name, user_id, universe_id, current_sector)
-     VALUES ($1, $2, $3, $4) RETURNING id`,
-    [name, userId, universeId, sector],
+    `INSERT INTO players (name, user_id, universe_id, current_sector, turns)
+     VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+    [name, userId, universeId, sector, startingTurns],
   );
   const playerId = res.rows[0].id;
 

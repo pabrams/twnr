@@ -88,6 +88,19 @@ async function goToStardock(pool) {
   return { ws: wsConn, token, playerId, stardockSector };
 }
 
+/** Ensure a planet exists in the given sector, creating one if needed. Returns planet id. */
+async function ensurePlanetInSector(sectorId, universeId = UNIVERSE_ID) {
+  const existing = await pool.query('SELECT id FROM planets WHERE sector_id = $1 AND universe_id = $2 LIMIT 1', [sectorId, universeId]);
+  if (existing.rows.length > 0) return existing.rows[0].id;
+  const maxId = await pool.query('SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM planets WHERE universe_id = $1', [universeId]);
+  const nextId = maxId.rows[0].next_id;
+  await pool.query(
+    `INSERT INTO planets (id, sector_id, universe_id, name, type) VALUES ($1, $2, $3, 'TestPlanet', 'H')`,
+    [nextId, sectorId, universeId],
+  );
+  return nextId;
+}
+
 /** Deploy fighters in a sector for a player (directly via DB) */
 async function deployFightersInSector(pool, playerId, sectorId, quantity, universeId = UNIVERSE_ID) {
   await pool.query(`
@@ -492,11 +505,10 @@ describe('Leave planet turn costs', () => {
     await pool.query('UPDATE players SET turns = 9999 WHERE id = $1', [playerId]);
     const { ws: wsConn } = await ws(token);
 
-    const planetRes = await pool.query('SELECT id FROM planets WHERE sector_id = 1 AND universe_id = $1 LIMIT 1', [UNIVERSE_ID]);
-    assert.ok(planetRes.rows.length > 0, 'No planet in sector 1');
+    const planetId = await ensurePlanetInSector(1);
 
     await pool.query('UPDATE players SET turns = 50 WHERE id = $1', [playerId]);
-    await wsRequest(wsConn, { type: ClientMsgType.LandOnPlanet, planetId: planetRes.rows[0].id }, ServerMsgType.LandOnPlanetResult);
+    await wsRequest(wsConn, { type: ClientMsgType.LandOnPlanet, planetId }, ServerMsgType.LandOnPlanetResult);
     assert.equal((await pool.query('SELECT turns FROM players WHERE id = $1', [playerId])).rows[0].turns, 50);
 
     await closeWS(wsConn);
@@ -507,8 +519,8 @@ describe('Leave planet turn costs', () => {
     await pool.query('UPDATE players SET turns = 9999 WHERE id = $1', [playerId]);
     const { ws: wsConn } = await ws(token);
 
-    const planetRes = await pool.query('SELECT id FROM planets WHERE sector_id = 1 AND universe_id = $1 LIMIT 1', [UNIVERSE_ID]);
-    await wsRequest(wsConn, { type: ClientMsgType.LandOnPlanet, planetId: planetRes.rows[0].id }, ServerMsgType.LandOnPlanetResult);
+    const planetId = await ensurePlanetInSector(1);
+    await wsRequest(wsConn, { type: ClientMsgType.LandOnPlanet, planetId }, ServerMsgType.LandOnPlanetResult);
     await pool.query('UPDATE players SET turns = 50 WHERE id = $1', [playerId]);
 
     const result = await wsRequest(wsConn, { type: ClientMsgType.LeavePlanet }, ServerMsgType.LeavePlanetResult);
@@ -524,8 +536,8 @@ describe('Leave planet turn costs', () => {
     await pool.query('UPDATE players SET turns = 9999 WHERE id = $1', [playerId]);
     const { ws: wsConn } = await ws(token);
 
-    const planetRes = await pool.query('SELECT id FROM planets WHERE sector_id = 1 AND universe_id = $1 LIMIT 1', [UNIVERSE_ID]);
-    await wsRequest(wsConn, { type: ClientMsgType.LandOnPlanet, planetId: planetRes.rows[0].id }, ServerMsgType.LandOnPlanetResult);
+    const planetId = await ensurePlanetInSector(1);
+    await wsRequest(wsConn, { type: ClientMsgType.LandOnPlanet, planetId }, ServerMsgType.LandOnPlanetResult);
     await pool.query('UPDATE players SET turns = 0 WHERE id = $1', [playerId]);
 
     const result = await wsRequest(wsConn, { type: ClientMsgType.LeavePlanet }, ServerMsgType.LeavePlanetResult);
@@ -638,9 +650,8 @@ describe('Unlimited universe - non-warp', () => {
     const { token, playerId } = await joinUniverse(pool);
     const { ws: wsConn } = await ws(token);
 
-    const planetRes = await pool.query('SELECT id FROM planets WHERE sector_id = 1 AND universe_id = $1 LIMIT 1', [UNIVERSE_ID]);
-    assert.ok(planetRes.rows.length > 0);
-    await wsRequest(wsConn, { type: ClientMsgType.LandOnPlanet, planetId: planetRes.rows[0].id }, ServerMsgType.LandOnPlanetResult);
+    const planetId = await ensurePlanetInSector(1);
+    await wsRequest(wsConn, { type: ClientMsgType.LandOnPlanet, planetId }, ServerMsgType.LandOnPlanetResult);
     await pool.query('UPDATE players SET turns = 5 WHERE id = $1', [playerId]);
 
     const result = await wsRequest(wsConn, { type: ClientMsgType.LeavePlanet }, ServerMsgType.LeavePlanetResult);
@@ -685,9 +696,8 @@ describe('Unlimited universe - non-warp', () => {
     const { token, playerId } = await joinUniverse(pool);
     const { ws: wsConn } = await ws(token);
 
-    const planetRes = await pool.query('SELECT id FROM planets WHERE sector_id = 1 AND universe_id = $1 LIMIT 1', [UNIVERSE_ID]);
-    assert.ok(planetRes.rows.length > 0);
-    await wsRequest(wsConn, { type: ClientMsgType.LandOnPlanet, planetId: planetRes.rows[0].id }, ServerMsgType.LandOnPlanetResult);
+    const planetId = await ensurePlanetInSector(1);
+    await wsRequest(wsConn, { type: ClientMsgType.LandOnPlanet, planetId }, ServerMsgType.LandOnPlanetResult);
     await pool.query('UPDATE players SET turns = 0 WHERE id = $1', [playerId]);
 
     const result = await wsRequest(wsConn, { type: ClientMsgType.LeavePlanet }, ServerMsgType.LeavePlanetResult);
@@ -1251,10 +1261,9 @@ describe('HyperspaceJump', () => {
   it('Rejected when player is on a planet', async () => {
     const { ws: wsConn, playerId } = await setupJumpPlayer();
 
-    const planetRes = await pool.query('SELECT id FROM planets WHERE sector_id = 1 AND universe_id = $1 LIMIT 1', [UNIVERSE_ID]);
-    assert.ok(planetRes.rows.length > 0, 'No planet in sector 1');
+    const planetId = await ensurePlanetInSector(1);
 
-    await wsRequest(wsConn, { type: ClientMsgType.LandOnPlanet, planetId: planetRes.rows[0].id }, ServerMsgType.LandOnPlanetResult);
+    await wsRequest(wsConn, { type: ClientMsgType.LandOnPlanet, planetId }, ServerMsgType.LandOnPlanetResult);
     await pool.query('UPDATE ship_cargo SET fuel = 100 WHERE player_id = $1', [playerId]);
 
     const adj = await getAdjacentSector(wsConn);
@@ -1320,9 +1329,8 @@ describe('ListDeployedFighters - sector command mode', () => {
     await pool.query('UPDATE players SET turns = 9999 WHERE id = $1', [playerId]);
     const { ws: wsConn } = await ws(token);
 
-    const planetRes = await pool.query('SELECT id FROM planets WHERE sector_id = 1 AND universe_id = $1 LIMIT 1', [UNIVERSE_ID]);
-    assert.ok(planetRes.rows.length > 0);
-    await wsRequest(wsConn, { type: ClientMsgType.LandOnPlanet, planetId: planetRes.rows[0].id }, ServerMsgType.LandOnPlanetResult);
+    const planetId = await ensurePlanetInSector(1);
+    await wsRequest(wsConn, { type: ClientMsgType.LandOnPlanet, planetId }, ServerMsgType.LandOnPlanetResult);
 
     const result = await wsRequest(wsConn, { type: ClientMsgType.ListDeployedFighters }, ServerMsgType.ListDeployedFightersResult);
     assert.equal(result.type, ServerMsgType.Error);
