@@ -653,7 +653,7 @@ describe('shared TypeScript types', () => {
 
   it('ServerMsgType has new planet-related message types', () => {
     const lower = msgContent.toLowerCase();
-    const requiredServerTypes = ['useterraformdeviceresult', 'landresult', 'planetdisplayresult', 'destroyplanetresult', 'buyplanetbustersresult', 'buyterraformdevicesresult', 'dockstardockresult'];
+    const requiredServerTypes = ['useterraformdeviceresult', 'landresult', 'planetdisplayresult', 'destroyplanetresult', 'buyplanetbustersresult', 'buyterraformdevicesresult', 'dockstarbaseresult'];
     for (const typeName of requiredServerTypes) {
       assert.ok(lower.includes(typeName), `ServerMsgType missing ${typeName}`);
     }
@@ -661,7 +661,7 @@ describe('shared TypeScript types', () => {
 
   it('ClientMsgType has new planet-related message types', () => {
     const lower = msgContent.toLowerCase();
-    const requiredClientTypes = ['useterraformdevice', 'landonplanet', 'planetdisplay', 'destroyplanet', 'leaveplanet', 'buyplanetbusters', 'buyterraformdevices', 'dockstardock', 'leavestardock'];
+    const requiredClientTypes = ['useterraformdevice', 'landonplanet', 'planetdisplay', 'destroyplanet', 'leaveplanet', 'buyplanetbusters', 'buyterraformdevices', 'dockstarbase', 'leavestarbase'];
     for (const typeName of requiredClientTypes) {
       assert.ok(lower.includes(typeName), `ClientMsgType missing ${typeName}`);
     }
@@ -675,13 +675,13 @@ describe('shared TypeScript types', () => {
     assert.ok(lower.includes('destroyplanetresultobject'), 'DestroyPlanetResultObject type definition missing');
     assert.ok(lower.includes('buyplanetbustersresultobject'), 'BuyPlanetBustersResultObject type definition missing');
     assert.ok(lower.includes('buyterraformdevicesresultobject'), 'BuyTerraformDevicesResultObject type definition missing');
-    assert.ok(lower.includes('dockstardockresultobject'), 'DockStardockResultObject type definition missing');
+    assert.ok(lower.includes('dockstarbaseresultobject'), 'DockStarbaseResultObject type definition missing');
   });
 
   it('client message type definitions exist in client-messages.ts', () => {
     assert.ok(clientMsgContent, 'client-messages.ts should exist');
     const lower = clientMsgContent.toLowerCase();
-    const requiredTypes = ['useterraformdevice', 'landonplanet', 'planetdisplay', 'destroyplanet', 'leaveplanet', 'buyplanetbusters', 'buyterraformdevices', 'dockstardock', 'leavestardock'];
+    const requiredTypes = ['useterraformdevice', 'landonplanet', 'planetdisplay', 'destroyplanet', 'leaveplanet', 'buyplanetbusters', 'buyterraformdevices', 'dockstarbase', 'leavestarbase'];
     for (const typeName of requiredTypes) {
       assert.ok(lower.includes(typeName), `client-messages.ts missing type definition for ${typeName}`);
     }
@@ -984,13 +984,13 @@ describe('WS: use terraform device', () => {
   });
 
   it('useTerraformDevice in a valid sector creates a planet', async () => {
-    // Move to a non-restricted, non-Stardock sector
+    // Move to a non-restricted, non-Starbase sector
     const warps = await pool.query(
       `SELECT s_to.sector_number AS sector_to, s_to.id AS sector_db_id
        FROM warps w
        JOIN sectors s_from ON w.from_sector_id = s_from.id
        JOIN sectors s_to ON w.to_sector_id = s_to.id
-       WHERE s_from.sector_number = 1 AND s_from.universe_id = $1 AND s_to.name != 'Stardock' LIMIT 1`,
+       WHERE s_from.sector_number = 1 AND s_from.universe_id = $1 AND s_to.name != 'Starbase' LIMIT 1`,
       [universeId],
     );
     assert.ok(warps.rows.length > 0, 'should have a warp from sector 1');
@@ -1029,32 +1029,32 @@ describe('WS: use terraform device', () => {
   });
 });
 
-// ==================== WS: stardock and hardware store ====================
+// ==================== WS: starbase and hardware store ====================
 
-describe('WS: stardock and hardware store', () => {
+describe('WS: starbase and hardware store', () => {
   let universeId;
   let player;
-  let stardockSector;
+  let starbaseSector;
 
   before(async () => {
     const res = await adminKeyPost('/api/admin/universes/generate', {
-      name: 'WsStardock', sectors: 20, seed: 70006,
+      name: 'WsStarbase', sectors: 20, seed: 70006,
     });
     assert.equal(res.status, 201);
     universeId = res.body.id;
 
-    // Find the stardock sector
+    // Find the starbase sector
     const sdRes = await pool.query(
-      "SELECT sector_number FROM sectors WHERE name = 'Stardock' AND universe_id = $1",
+      "SELECT sector_number FROM sectors WHERE name = 'Starbase' AND universe_id = $1",
       [universeId],
     );
-    assert.ok(sdRes.rows.length > 0, 'Stardock sector should exist');
-    stardockSector = sdRes.rows[0].sector_number;
+    assert.ok(sdRes.rows.length > 0, 'Starbase sector should exist');
+    starbaseSector = sdRes.rows[0].sector_number;
 
     player = await createTestPlayer(universeId);
 
-    // Navigate to stardock
-    player.sendMsg({ type: ClientMsgType.ShortestPath, from: 1, to: stardockSector });
+    // Navigate to starbase
+    player.sendMsg({ type: ClientMsgType.ShortestPath, from: 1, to: starbaseSector });
     const pathMsg = await player.waitForMessage('shortestPathResult');
     for (const sector of pathMsg.path.slice(1)) {
       player.sendMsg({ type: ClientMsgType.Move, sector });
@@ -1065,10 +1065,10 @@ describe('WS: stardock and hardware store', () => {
 
   after(() => { player?.close(); });
 
-  it('dockStardock at class 9 port responds with stardockMenu', async () => {
-    player.sendMsg({ type: ClientMsgType.DockStardock });
-    const msg = await player.waitForMessage('dockStardockResult');
-    assert.ok(msg, 'should receive stardockMenu');
+  it('dockStarbase at class 9 port responds with starbaseMenu', async () => {
+    player.sendMsg({ type: ClientMsgType.DockStarbase });
+    const msg = await player.waitForMessage('dockStarbaseResult');
+    assert.ok(msg, 'should receive starbaseMenu');
   });
 
   it('buyPlanetBusters with insufficient credits returns error', async () => {
@@ -1117,10 +1117,10 @@ describe('WS: stardock and hardware store', () => {
     assert.equal(msg.quantity, 1);
   });
 
-  it('leaveStardock responds with leaveStardockResult', async () => {
-    player.sendMsg({ type: ClientMsgType.LeaveStardock });
-    const msg = await player.waitForMessage('leaveStardockResult');
-    assert.ok(msg, 'should receive sectorDisplay after leaving stardock');
+  it('leaveStarbase responds with leaveStarbaseResult', async () => {
+    player.sendMsg({ type: ClientMsgType.LeaveStarbase });
+    const msg = await player.waitForMessage('leaveStarbaseResult');
+    assert.ok(msg, 'should receive sectorDisplay after leaving starbase');
   });
 });
 
@@ -1171,7 +1171,7 @@ describe('WS: destroy planet', () => {
        FROM warps w
        JOIN sectors s_from ON w.from_sector_id = s_from.id
        JOIN sectors s_to ON w.to_sector_id = s_to.id
-       WHERE s_from.sector_number = 1 AND s_from.universe_id = $1 AND s_to.name != 'Stardock' LIMIT 1`,
+       WHERE s_from.sector_number = 1 AND s_from.universe_id = $1 AND s_to.name != 'Starbase' LIMIT 1`,
       [universeId],
     );
     const targetSector = sectorRes.rows[0].sector_to;
@@ -1275,7 +1275,7 @@ describe('WS: landOnPlanet validation', () => {
 describe('WS: buy hardware exceeds ship maximum', () => {
   let universeId;
   let player;
-  let stardockSector;
+  let starbaseSector;
 
   before(async () => {
     const res = await adminKeyPost('/api/admin/universes/generate', {
@@ -1285,24 +1285,24 @@ describe('WS: buy hardware exceeds ship maximum', () => {
     universeId = res.body.id;
 
     const sdRes = await pool.query(
-      "SELECT sector_number FROM sectors WHERE name = 'Stardock' AND universe_id = $1",
+      "SELECT sector_number FROM sectors WHERE name = 'Starbase' AND universe_id = $1",
       [universeId],
     );
-    stardockSector = sdRes.rows[0].sector_number;
+    starbaseSector = sdRes.rows[0].sector_number;
 
     player = await createTestPlayer(universeId);
 
-    // Navigate to stardock
-    player.sendMsg({ type: ClientMsgType.ShortestPath, from: 1, to: stardockSector });
+    // Navigate to starbase
+    player.sendMsg({ type: ClientMsgType.ShortestPath, from: 1, to: starbaseSector });
     const pathMsg = await player.waitForMessage('shortestPathResult');
     for (const sector of pathMsg.path.slice(1)) {
       player.sendMsg({ type: ClientMsgType.Move, sector });
       await player.waitForMessage(ServerMsgType.MoveResult).catch(() => null);
     }
 
-    // Dock at stardock
-    player.sendMsg({ type: ClientMsgType.DockStardock });
-    await player.waitForMessage('dockStardockResult');
+    // Dock at starbase
+    player.sendMsg({ type: ClientMsgType.DockStarbase });
+    await player.waitForMessage('dockStarbaseResult');
   });
 
   after(() => { player?.close(); });
@@ -1353,49 +1353,49 @@ describe('WS: buy hardware exceeds ship maximum', () => {
     assert.ok(msg.message, 'should return error when exceeding max terraform devices');
   });
 
-  it('dockStardock in non-class-9 sector returns error', async () => {
-    // Leave stardock first
-    player.sendMsg({ type: ClientMsgType.LeaveStardock });
-    await player.waitForMessage('leaveStardockResult').catch(() => null);
+  it('dockStarbase in non-class-9 sector returns error', async () => {
+    // Leave starbase first
+    player.sendMsg({ type: ClientMsgType.LeaveStarbase });
+    await player.waitForMessage('leaveStarbaseResult').catch(() => null);
 
     // Move to sector 1 (which has class 0 port, not class 9)
-    player.sendMsg({ type: ClientMsgType.ShortestPath, from: stardockSector, to: 1 });
+    player.sendMsg({ type: ClientMsgType.ShortestPath, from: starbaseSector, to: 1 });
     const pathMsg = await player.waitForMessage('shortestPathResult');
     for (const sector of pathMsg.path.slice(1)) {
       player.sendMsg({ type: ClientMsgType.Move, sector });
       await player.waitForMessage(ServerMsgType.MoveResult).catch(() => null);
     }
 
-    player.sendMsg({ type: ClientMsgType.DockStardock });
+    player.sendMsg({ type: ClientMsgType.DockStarbase });
     const msg = await player.waitForMessage('error');
-    assert.ok(msg.message, 'should return error for dockStardock in non-class-9 sector');
+    assert.ok(msg.message, 'should return error for dockStarbase in non-class-9 sector');
   });
 });
 
-// ==================== WS: buy hardware requires dockStardock (not just being in sector) ====================
+// ==================== WS: buy hardware requires dockStarbase (not just being in sector) ====================
 
-describe('WS: buy hardware requires stardock docking', () => {
+describe('WS: buy hardware requires starbase docking', () => {
   let universeId;
   let player;
-  let stardockSector;
+  let starbaseSector;
 
   before(async () => {
     const res = await adminKeyPost('/api/admin/universes/generate', {
-      name: 'WsStardockFlag', sectors: 20, seed: 70015,
+      name: 'WsStarbaseFlag', sectors: 20, seed: 70015,
     });
     assert.equal(res.status, 201);
     universeId = res.body.id;
 
     const sdRes = await pool.query(
-      "SELECT sector_number FROM sectors WHERE name = 'Stardock' AND universe_id = $1",
+      "SELECT sector_number FROM sectors WHERE name = 'Starbase' AND universe_id = $1",
       [universeId],
     );
-    stardockSector = sdRes.rows[0].sector_number;
+    starbaseSector = sdRes.rows[0].sector_number;
 
     player = await createTestPlayer(universeId);
 
-    // Navigate to stardock sector but do NOT call dockStardock
-    player.sendMsg({ type: ClientMsgType.ShortestPath, from: 1, to: stardockSector });
+    // Navigate to starbase sector but do NOT call dockStarbase
+    player.sendMsg({ type: ClientMsgType.ShortestPath, from: 1, to: starbaseSector });
     const pathMsg = await player.waitForMessage('shortestPathResult');
     for (const sector of pathMsg.path.slice(1)) {
       player.sendMsg({ type: ClientMsgType.Move, sector });
@@ -1413,13 +1413,13 @@ describe('WS: buy hardware requires stardock docking', () => {
 
   after(() => { player?.close(); });
 
-  it('buyPlanetBusters in stardock sector without docking returns error', async () => {
+  it('buyPlanetBusters in starbase sector without docking returns error', async () => {
     player.sendMsg({ type: ClientMsgType.BuyPlanetBusters, quantity: 1 });
     const msg = await player.waitForMessage('error');
-    assert.ok(msg.message, 'should return error when not docked at stardock');
+    assert.ok(msg.message, 'should return error when not docked at starbase');
   });
 
-  it('buyTerraformDevices in stardock sector without docking returns error', async () => {
+  it('buyTerraformDevices in starbase sector without docking returns error', async () => {
     const allConfigs = readdirSync(CONFIG_SHIPS_DIR).filter(f => f.endsWith('.json')).map(f => JSON.parse(readFileSync(join(CONFIG_SHIPS_DIR, f), 'utf8')));
     const terraShip = allConfigs.find(c => c.maxTerraformDevices > 0);
     if (terraShip) {
@@ -1427,7 +1427,7 @@ describe('WS: buy hardware requires stardock docking', () => {
     }
     player.sendMsg({ type: ClientMsgType.BuyTerraformDevices, quantity: 1 });
     const msg = await player.waitForMessage('error');
-    assert.ok(msg.message, 'should return error when not docked at stardock');
+    assert.ok(msg.message, 'should return error when not docked at starbase');
   });
 });
 
@@ -1436,7 +1436,7 @@ describe('WS: buy hardware requires stardock docking', () => {
 describe('WS: buy hardware credit deduction', () => {
   let universeId;
   let player;
-  let stardockSector;
+  let starbaseSector;
 
   before(async () => {
     const res = await adminKeyPost('/api/admin/universes/generate', {
@@ -1446,25 +1446,25 @@ describe('WS: buy hardware credit deduction', () => {
     universeId = res.body.id;
 
     const sdRes = await pool.query(
-      "SELECT sector_number FROM sectors WHERE name = 'Stardock' AND universe_id = $1",
+      "SELECT sector_number FROM sectors WHERE name = 'Starbase' AND universe_id = $1",
       [universeId],
     );
-    stardockSector = sdRes.rows[0].sector_number;
+    starbaseSector = sdRes.rows[0].sector_number;
 
     player = await createTestPlayer(universeId);
 
     const allConfigs = readdirSync(CONFIG_SHIPS_DIR).filter(f => f.endsWith('.json')).map(f => JSON.parse(readFileSync(join(CONFIG_SHIPS_DIR, f), 'utf8')));
 
-    // Navigate to stardock
-    player.sendMsg({ type: ClientMsgType.ShortestPath, from: 1, to: stardockSector });
+    // Navigate to starbase
+    player.sendMsg({ type: ClientMsgType.ShortestPath, from: 1, to: starbaseSector });
     const pathMsg = await player.waitForMessage('shortestPathResult');
     for (const sector of pathMsg.path.slice(1)) {
       player.sendMsg({ type: ClientMsgType.Move, sector });
       await player.waitForMessage(ServerMsgType.MoveResult).catch(() => null);
     }
 
-    player.sendMsg({ type: ClientMsgType.DockStardock });
-    await player.waitForMessage('dockStardockResult');
+    player.sendMsg({ type: ClientMsgType.DockStarbase });
+    await player.waitForMessage('dockStarbaseResult');
   });
 
   after(() => { player?.close(); });
@@ -1501,14 +1501,14 @@ describe('WS: buy hardware credit deduction', () => {
     assert.equal(msg.totalOnShip, 2);
   });
 
-  it('buyPlanetBusters when not at stardock returns error', async () => {
-    // Leave stardock
-    player.sendMsg({ type: ClientMsgType.LeaveStardock });
-    await player.waitForMessage('leaveStardockResult').catch(() => null);
+  it('buyPlanetBusters when not at starbase returns error', async () => {
+    // Leave starbase
+    player.sendMsg({ type: ClientMsgType.LeaveStarbase });
+    await player.waitForMessage('leaveStarbaseResult').catch(() => null);
 
     player.sendMsg({ type: ClientMsgType.BuyPlanetBusters, quantity: 1 });
     const msg = await player.waitForMessage('error');
-    assert.ok(msg.message, 'should return error when not at stardock');
+    assert.ok(msg.message, 'should return error when not at starbase');
   });
 });
 
@@ -1542,7 +1542,7 @@ describe('WS: terraform collision logic', () => {
        FROM warps w
        JOIN sectors s_from ON w.from_sector_id = s_from.id
        JOIN sectors s_to ON w.to_sector_id = s_to.id
-       WHERE s_from.sector_number = 1 AND s_from.universe_id = $1 AND s_to.name != 'Stardock' LIMIT 1`,
+       WHERE s_from.sector_number = 1 AND s_from.universe_id = $1 AND s_to.name != 'Starbase' LIMIT 1`,
       [universeId],
     );
     assert.ok(warps.rows.length > 0, 'need a warp target');
@@ -1624,12 +1624,12 @@ describe('WS: terraform collision logic', () => {
   });
 });
 
-// ==================== WS: terraform in Stardock sector ====================
+// ==================== WS: terraform in Starbase sector ====================
 
-describe('WS: terraform in Stardock sector returns restricted_sector', () => {
+describe('WS: terraform in Starbase sector returns restricted_sector', () => {
   let universeId;
   let player;
-  let stardockSector;
+  let starbaseSector;
 
   before(async () => {
     const res = await adminKeyPost('/api/admin/universes/generate', {
@@ -1639,16 +1639,16 @@ describe('WS: terraform in Stardock sector returns restricted_sector', () => {
     universeId = res.body.id;
 
     const sdRes = await pool.query(
-      "SELECT sector_number FROM sectors WHERE name = 'Stardock' AND universe_id = $1",
+      "SELECT sector_number FROM sectors WHERE name = 'Starbase' AND universe_id = $1",
       [universeId],
     );
-    assert.ok(sdRes.rows.length > 0, 'Stardock sector should exist');
-    stardockSector = sdRes.rows[0].sector_number;
+    assert.ok(sdRes.rows.length > 0, 'Starbase sector should exist');
+    starbaseSector = sdRes.rows[0].sector_number;
 
     player = await createTestPlayer(universeId);
 
-    // Navigate to stardock sector
-    player.sendMsg({ type: ClientMsgType.ShortestPath, from: 1, to: stardockSector });
+    // Navigate to starbase sector
+    player.sendMsg({ type: ClientMsgType.ShortestPath, from: 1, to: starbaseSector });
     const pathMsg = await player.waitForMessage('shortestPathResult');
     for (const sector of pathMsg.path.slice(1)) {
       player.sendMsg({ type: ClientMsgType.Move, sector });
@@ -1661,7 +1661,7 @@ describe('WS: terraform in Stardock sector returns restricted_sector', () => {
 
   after(() => { player?.close(); });
 
-  it('useTerraformDevice in Stardock sector returns restricted_sector', async () => {
+  it('useTerraformDevice in Starbase sector returns restricted_sector', async () => {
     player.sendMsg({ type: ClientMsgType.UseTerraformDevice });
     const msg = await player.waitForMessage('useTerraformDeviceResult');
     assert.equal(msg.success, false);
@@ -1697,7 +1697,7 @@ describe('WS: on_planet_id cleared after destroyPlanet', () => {
        FROM warps w
        JOIN sectors s_from ON w.from_sector_id = s_from.id
        JOIN sectors s_to ON w.to_sector_id = s_to.id
-       WHERE s_from.sector_number = 1 AND s_from.universe_id = $1 AND s_to.name != 'Stardock' LIMIT 1`,
+       WHERE s_from.sector_number = 1 AND s_from.universe_id = $1 AND s_to.name != 'Starbase' LIMIT 1`,
       [universeId],
     );
     const targetSector = warps.rows[0].sector_to;
@@ -1763,7 +1763,7 @@ describe('WS: terraform success response completeness', () => {
        FROM warps w
        JOIN sectors s_from ON w.from_sector_id = s_from.id
        JOIN sectors s_to ON w.to_sector_id = s_to.id
-       WHERE s_from.sector_number = 1 AND s_from.universe_id = $1 AND s_to.name != 'Stardock' LIMIT 1`,
+       WHERE s_from.sector_number = 1 AND s_from.universe_id = $1 AND s_to.name != 'Starbase' LIMIT 1`,
       [universeId],
     );
     const targetSector = warps.rows[0].sector_to;
@@ -1788,9 +1788,9 @@ describe('WS: terraform success response completeness', () => {
   });
 });
 
-// ==================== WS: buyTerraformDevices when not at stardock ====================
+// ==================== WS: buyTerraformDevices when not at starbase ====================
 
-describe('WS: buyTerraformDevices when not at stardock', () => {
+describe('WS: buyTerraformDevices when not at starbase', () => {
   let universeId;
   let player;
 
@@ -1805,10 +1805,10 @@ describe('WS: buyTerraformDevices when not at stardock', () => {
 
   after(() => { player?.close(); });
 
-  it('buyTerraformDevices when not at stardock returns error', async () => {
+  it('buyTerraformDevices when not at starbase returns error', async () => {
     player.sendMsg({ type: ClientMsgType.BuyTerraformDevices, quantity: 1 });
     const msg = await player.waitForMessage('error');
-    assert.ok(msg.message, 'should return error when not at stardock');
+    assert.ok(msg.message, 'should return error when not at starbase');
   });
 });
 
@@ -1840,7 +1840,7 @@ describe('WS: terraform planet ID sequencing', () => {
        FROM warps w
        JOIN sectors s_from ON w.from_sector_id = s_from.id
        JOIN sectors s_to ON w.to_sector_id = s_to.id
-       WHERE s_from.sector_number = 1 AND s_from.universe_id = $1 AND s_to.name != 'Stardock' LIMIT 1`,
+       WHERE s_from.sector_number = 1 AND s_from.universe_id = $1 AND s_to.name != 'Starbase' LIMIT 1`,
       [universeId],
     );
     const targetSector = warps.rows[0].sector_to;

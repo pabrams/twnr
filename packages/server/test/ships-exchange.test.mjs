@@ -47,29 +47,29 @@ after(async () => {
 // ─── tests ────────────────────────────────────────────────────────────────────
 
 describe('Ship exchange — validation', () => {
-  async function getStardockSector() {
-    const res = await pool.query(`SELECT sector_number FROM sectors WHERE name = 'Stardock' AND universe_id = $1`, [UNIVERSE_ID]);
+  async function getStarbaseSector() {
+    const res = await pool.query(`SELECT sector_number FROM sectors WHERE name = 'Starbase' AND universe_id = $1`, [UNIVERSE_ID]);
     return res.rows.length > 0 ? Number(res.rows[0].sector_number) : null;
   }
 
-  it('returns "Not at Stardock" when player is not in Stardock', async () => {
+  it('returns "Not at Starbase" when player is not in Starbase', async () => {
     const { ws } = await connectWS();
     try {
       const msg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: warbirdCfg.name }, ServerMsgType.BuyShipTradeinResult);
       assert.equal(msg.type, 'error');
-      assert.equal(msg.message, 'Not at Stardock');
+      assert.equal(msg.message, 'Not at Starbase');
     } finally {
       await closeWS(ws);
     }
   });
 
   it('returns "Unknown ship" for an unrecognized ship name', async () => {
-    const stardockId = await getStardockSector();
-    assert.ok(stardockId, 'Stardock sector must exist');
+    const starbaseId = await getStarbaseSector();
+    assert.ok(starbaseId, 'Starbase sector must exist');
 
     const { ws } = await connectWS();
     try {
-      await navigateTo(ws, stardockId);
+      await navigateTo(ws, starbaseId);
       const msg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: 'Galaxy Hauler' }, ServerMsgType.BuyShipTradeinResult);
       assert.equal(msg.type, 'error');
       assert.equal(msg.message, 'Unknown ship');
@@ -79,12 +79,12 @@ describe('Ship exchange — validation', () => {
   });
 
   it('returns "Already on that ship" when targeting the current ship', async () => {
-    const stardockId = await getStardockSector();
-    assert.ok(stardockId);
+    const starbaseId = await getStarbaseSector();
+    assert.ok(starbaseId);
 
     const { ws } = await connectWS();
     try {
-      await navigateTo(ws, stardockId);
+      await navigateTo(ws, starbaseId);
       const msg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: merchantCfg.name }, ServerMsgType.BuyShipTradeinResult);
       assert.equal(msg.type, 'error');
       assert.equal(msg.message, 'Already on that ship');
@@ -94,13 +94,13 @@ describe('Ship exchange — validation', () => {
   });
 
   it('returns "Insufficient credits" when player cannot afford the upgrade', async () => {
-    const stardockId = await getStardockSector();
-    assert.ok(stardockId);
+    const starbaseId = await getStarbaseSector();
+    assert.ok(starbaseId);
 
     const { ws, welcome } = await connectWS();
     const playerId = welcome.playerId;
     try {
-      await navigateTo(ws, stardockId);
+      await navigateTo(ws, starbaseId);
       const upgradeCost = warbirdCfg.price - merchantCfg.price;
       await pool.query('UPDATE ship_cargo SET credits = $1 WHERE player_id = $2', [upgradeCost - 1, playerId]);
       const msg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: warbirdCfg.name }, ServerMsgType.BuyShipTradeinResult);
@@ -112,8 +112,8 @@ describe('Ship exchange — validation', () => {
   });
 
   it('returns "New ship has insufficient holds for current cargo" when cargo exceeds new ship startingHolds', async () => {
-    const stardockId = await getStardockSector();
-    assert.ok(stardockId);
+    const starbaseId = await getStarbaseSector();
+    assert.ok(starbaseId);
 
     const { ws, welcome } = await connectWS();
     const playerId = welcome.playerId;
@@ -121,7 +121,7 @@ describe('Ship exchange — validation', () => {
       // set fuel > warbird's startingHolds directly in ship_cargo to trigger the holds check on exchange
       await pool.query('UPDATE ship_cargo SET fuel = $1 WHERE player_id = $2', [warbirdCfg.startingHolds + 1, playerId]);
 
-      await navigateTo(ws, stardockId);
+      await navigateTo(ws, starbaseId);
       const msg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: warbirdCfg.name }, ServerMsgType.BuyShipTradeinResult);
       assert.equal(msg.type, 'error');
       assert.equal(msg.message, 'New ship has insufficient holds for current cargo');
@@ -132,20 +132,20 @@ describe('Ship exchange — validation', () => {
 });
 
 describe('Ship exchange — success', () => {
-  async function getStardockSector() {
-    const res = await pool.query(`SELECT sector_number FROM sectors WHERE name = 'Stardock' AND universe_id = $1`, [UNIVERSE_ID]);
+  async function getStarbaseSector() {
+    const res = await pool.query(`SELECT sector_number FROM sectors WHERE name = 'Starbase' AND universe_id = $1`, [UNIVERSE_ID]);
     return res.rows.length > 0 ? Number(res.rows[0].sector_number) : null;
   }
 
   it('upgrade to Warbird costs correct credits, resets drones/shields, sets cargoLimit to startingHolds', async () => {
-    const stardockId = await getStardockSector();
-    assert.ok(stardockId);
+    const starbaseId = await getStarbaseSector();
+    assert.ok(starbaseId);
 
     const upgradeCost = warbirdCfg.price - merchantCfg.price;
     const { ws, welcome } = await connectWS();
     const playerId = welcome.playerId;
     try {
-      await navigateTo(ws, stardockId);
+      await navigateTo(ws, starbaseId);
       const msg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: warbirdCfg.name }, ServerMsgType.BuyShipTradeinResult);
       assert.equal(msg.type, ServerMsgType.BuyShipTradeinResult);
       assert.equal(msg.shipName, warbirdCfg.name);
@@ -166,8 +166,8 @@ describe('Ship exchange — success', () => {
   });
 
   it('exchange resets previously purchased drones and shields to 0', async () => {
-    const stardockId = await getStardockSector();
-    assert.ok(stardockId);
+    const starbaseId = await getStarbaseSector();
+    assert.ok(starbaseId);
 
     const { ws, welcome } = await connectWS();
     const playerId = welcome.playerId;
@@ -176,7 +176,7 @@ describe('Ship exchange — success', () => {
       await wsRequest(ws, { type: ClientMsgType.BuyDrones, quantity: Math.min(5, merchantCfg.maxDrones) }, ServerMsgType.BuyDronesResult);
       await wsRequest(ws, { type: ClientMsgType.BuyShields, quantity: Math.min(4, merchantCfg.maxShields) }, ServerMsgType.BuyShieldsResult);
 
-      await navigateTo(ws, stardockId);
+      await navigateTo(ws, starbaseId);
       const msg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: warbirdCfg.name }, ServerMsgType.BuyShipTradeinResult);
       assert.equal(msg.type, ServerMsgType.BuyShipTradeinResult);
 
@@ -189,12 +189,12 @@ describe('Ship exchange — success', () => {
   });
 
   it('downgrade from Warbird to Merchant Freighter refunds credit difference, sets cargoLimit to startingHolds', async () => {
-    const stardockId = await getStardockSector();
-    assert.ok(stardockId);
+    const starbaseId = await getStarbaseSector();
+    assert.ok(starbaseId);
 
     const { ws } = await connectWS();
     try {
-      await navigateTo(ws, stardockId);
+      await navigateTo(ws, starbaseId);
       // Upgrade first
       await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: warbirdCfg.name }, ServerMsgType.BuyShipTradeinResult);
       // Now downgrade

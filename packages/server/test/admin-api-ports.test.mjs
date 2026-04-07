@@ -160,12 +160,12 @@ describe('Admin API - Update Port', () => {
   });
 
   it('rejects modification of Class 9 port', async () => {
-    const stardock = await pool.query(
+    const starbase = await pool.query(
       "SELECT s.sector_number as sector_id FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE s.universe_id = $1 AND p.class = 9", [universeId]
     );
-    assert.ok(stardock.rows.length > 0);
+    assert.ok(starbase.rows.length > 0);
     const res = await adminKeyPut(
-      `/api/admin/universes/${universeId}/ports/${stardock.rows[0].sector_id}`,
+      `/api/admin/universes/${universeId}/ports/${starbase.rows[0].sector_id}`,
       { fuel: 100 },
     );
     assert.equal(res.status, 403);
@@ -364,12 +364,12 @@ describe('Admin API - Delete Port', () => {
   });
 
   it('rejects deletion of Class 9 port', async () => {
-    const stardock = await pool.query(
+    const starbase = await pool.query(
       "SELECT s.sector_number as sector_id FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE s.universe_id = $1 AND p.class = 9", [universeId]
     );
-    assert.ok(stardock.rows.length > 0);
+    assert.ok(starbase.rows.length > 0);
     const res = await adminKeyDelete(
-      `/api/admin/universes/${universeId}/ports/${stardock.rows[0].sector_id}`,
+      `/api/admin/universes/${universeId}/ports/${starbase.rows[0].sector_id}`,
     );
     assert.equal(res.status, 403);
   });

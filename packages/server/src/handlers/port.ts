@@ -362,7 +362,7 @@ export async function handlePortTransaction(
     }
 }
 
-export async function handleDockStardock(playerId: number): Promise<void> {
+export async function handleDockStarbase(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
@@ -382,26 +382,26 @@ export async function handleDockStardock(playerId: number): Promise<void> {
     if (portRes.rows.length === 0 || portRes.rows[0].class !== 9) {
         sendEnvelope(playerId, {
             type: ServerMsgType.Error,
-            message: 'Stardock not found in this sector',
+            message: 'Starbase not found in this sector',
         });
         return;
     }
 
-    player.at_stardock = true;
+    player.at_starbase = true;
 
-    sendEnvelope(playerId, { type: ServerMsgType.DockStardockResult });
+    sendEnvelope(playerId, { type: ServerMsgType.DockStarbaseResult });
 }
 
-export async function handleLeaveStardock(playerId: number): Promise<void> {
+export async function handleLeaveStarbase(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
-    if (!player.at_stardock) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not at Stardock' });
+    if (!player.at_starbase) {
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not at Starbase' });
         return;
     }
 
-    player.at_stardock = false;
+    player.at_starbase = false;
 
     const currentSector = player.sector;
     const universeId = player.universeId;
@@ -430,7 +430,7 @@ export async function handleLeaveStardock(playerId: number): Promise<void> {
         .map(([id, p]) => ({ id: Number(id), name: p.name }));
 
     sendEnvelope(playerId, {
-        type: ServerMsgType.LeaveStardockResult,
+        type: ServerMsgType.LeaveStarbaseResult,
         sector: currentSector,
         warps: displayWarps,
         players: playersInSector,
@@ -451,8 +451,8 @@ export async function handleBuyPlanetBusters(playerId: number, quantity: number)
     const player = players[playerId];
     if (!player) return;
 
-    if (!player.at_stardock) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not at Stardock' });
+    if (!player.at_starbase) {
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not at Starbase' });
         return;
     }
 
@@ -531,8 +531,8 @@ export async function handleBuyTerraformDevices(playerId: number, quantity: numb
     const player = players[playerId];
     if (!player) return;
 
-    if (!player.at_stardock) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not at Stardock' });
+    if (!player.at_starbase) {
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not at Starbase' });
         return;
     }
 

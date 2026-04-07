@@ -7,8 +7,8 @@ import {
     handleDock,
     handleUndock,
     handlePortTransaction,
-    handleDockStardock,
-    handleLeaveStardock,
+    handleDockStarbase,
+    handleLeaveStarbase,
     handleBuyPlanetBusters,
     handleBuyTerraformDevices,
 } from './port.js';
@@ -85,10 +85,10 @@ export async function handleMessage(playerId: number, data: any): Promise<void> 
             return handleDestroyPlanet(playerId);
         case ClientMsgType.UseTerraformDevice:
             return handleUseTerraformDevice(playerId);
-        case ClientMsgType.DockStardock:
-            return handleDockStardock(playerId);
-        case ClientMsgType.LeaveStardock:
-            return handleLeaveStardock(playerId);
+        case ClientMsgType.DockStarbase:
+            return handleDockStarbase(playerId);
+        case ClientMsgType.LeaveStarbase:
+            return handleLeaveStarbase(playerId);
         case ClientMsgType.BuyPlanetBusters:
             return handleBuyPlanetBusters(playerId, data.quantity);
         case ClientMsgType.BuyTerraformDevices:

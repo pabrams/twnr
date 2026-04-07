@@ -97,20 +97,20 @@ describe('Sector Generation', () => {
     assert.equal(sector1[0][1], 'Federation Space');
   });
 
-  it('exactly one sector is named "Stardock"', () => {
-    const stardocks = rows.filter(r => r[1] === 'Stardock');
-    assert.equal(stardocks.length, 1, 'There must be exactly one Stardock sector');
+  it('exactly one sector is named "Starbase"', () => {
+    const starbases = rows.filter(r => r[1] === 'Starbase');
+    assert.equal(starbases.length, 1, 'There must be exactly one Starbase sector');
   });
 
-  it('Stardock is not sector 1', () => {
-    const stardock = rows.find(r => r[1] === 'Stardock');
-    assert.notEqual(parseInt(stardock[0], 10), 1, 'Stardock must not be sector 1');
+  it('Starbase is not sector 1', () => {
+    const starbase = rows.find(r => r[1] === 'Starbase');
+    assert.notEqual(parseInt(starbase[0], 10), 1, 'Starbase must not be sector 1');
   });
 
-  it('all sectors other than sector 1 and Stardock have empty name', () => {
+  it('all sectors other than sector 1 and Starbase have empty name', () => {
     for (const row of rows) {
       const sid = parseInt(row[0], 10);
-      if (sid === 1 || row[1] === 'Stardock') continue;
+      if (sid === 1 || row[1] === 'Starbase') continue;
       assert.equal(row[1], '', `Sector ${sid} should have empty name, got '${row[1]}'`);
     }
   });

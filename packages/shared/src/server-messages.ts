@@ -263,8 +263,8 @@ export type BuyTerraformDevicesResultObject = {
     credits: number;
 };
 
-export type DockStardockResultObject = {
-    type: typeof ServerMsgType.DockStardockResult;
+export type DockStarbaseResultObject = {
+    type: typeof ServerMsgType.DockStarbaseResult;
 };
 
 export type TakeColonistsResultObject = {
@@ -350,8 +350,8 @@ export type LeavePlanetResultObject = {
     turnsUsed?: number;
 } & SectorDisplayData;
 
-export type LeaveStardockResultObject = {
-    type: typeof ServerMsgType.LeaveStardockResult;
+export type LeaveStarbaseResultObject = {
+    type: typeof ServerMsgType.LeaveStarbaseResult;
 } & SectorDisplayData;
 
 export type BuyHyperwarpDriveResultObject = {
@@ -388,7 +388,7 @@ export type ServerResult =
     | UndockResultObject
     | JettisonResultObject
     | LeavePlanetResultObject
-    | LeaveStardockResultObject
+    | LeaveStarbaseResultObject
     | PlayerLeftEvent
     | PlayersOnlineResultObject
     | NoShipResultObject
@@ -422,7 +422,7 @@ export type ServerResult =
     | DestroyPlanetResultObject
     | BuyPlanetBustersResultObject
     | BuyTerraformDevicesResultObject
-    | DockStardockResultObject
+    | DockStarbaseResultObject
     | BuyHyperwarpDriveResultObject
     | ListDeployedDronesResultObject
     | HyperspaceJumpResultObject

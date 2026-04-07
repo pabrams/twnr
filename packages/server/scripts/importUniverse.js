@@ -249,18 +249,18 @@ async function main() {
       ON CONFLICT DO NOTHING
     `, [sector1Id, universeId]);
 
-    // Seed Class 9 port at Stardock
-    const stardockRes = await client.query(
-      `SELECT id FROM sectors WHERE name = 'Stardock' AND universe_id = $1`,
+    // Seed Class 9 port at Starbase
+    const starbaseRes = await client.query(
+      `SELECT id FROM sectors WHERE name = 'Starbase' AND universe_id = $1`,
       [universeId],
     );
-    if (stardockRes.rows.length > 0) {
+    if (starbaseRes.rows.length > 0) {
       await client.query(`
         INSERT INTO ports (sector_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
         VALUES ($1, 9, 0, 0, 0, 0, 0, 0)
         ON CONFLICT (sector_id) DO UPDATE
         SET class = 9, fuel = 0, fuel_price = 0, organics = 0, org_price = 0, equipment = 0, equ_price = 0
-      `, [stardockRes.rows[0].id]);
+      `, [starbaseRes.rows[0].id]);
     }
 
     await client.query('COMMIT');

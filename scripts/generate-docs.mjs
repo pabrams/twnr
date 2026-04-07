@@ -130,8 +130,8 @@ const clientInputMap = {
     LeavePlanet:         [],  // no client UI
     BuyPlanetBusters:    [],  // no client UI
     BuyTerraformDevices: [],  // no client UI
-    DockStardock:        [],  // no client UI
-    LeaveStardock:       [],  // no client UI
+    DockStarbase:        [],  // no client UI
+    LeaveStarbase:       [],  // no client UI
 };
 
 // --- 4. Build the mapping table rows ---

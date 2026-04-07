@@ -33,7 +33,7 @@ export async function showClass0Menu(ctx: GameContext) {
     const p = ctx.class0Prices!;
     ctx.term.writeln('');
     ctx.term.writeln(
-        `${colors.boldGreen('Docked')} at ${colors.boldCyan('Stardock Supply Depot')}`,
+        `${colors.boldGreen('Docked')} at ${colors.boldCyan('Starbase Supply Depot')}`,
     );
     ctx.term.writeln(
         `  ${colors.cyan('F')}  Buy Drones ${colors.white(`(${p.dronePrice} credits each)`)}`,

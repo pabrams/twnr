@@ -146,12 +146,12 @@ export type BuyTerraformDevicesCommand = {
     quantity: number;
 };
 
-export type DockStardockCommand = {
-    type: typeof ClientMsgType.DockStardock;
+export type DockStarbaseCommand = {
+    type: typeof ClientMsgType.DockStarbase;
 };
 
-export type LeaveStardockCommand = {
-    type: typeof ClientMsgType.LeaveStardock;
+export type LeaveStarbaseCommand = {
+    type: typeof ClientMsgType.LeaveStarbase;
 };
 
 export type ChangeMenuCommand = {
@@ -191,6 +191,6 @@ export type ClientCommand =
     | LeavePlanetCommand
     | BuyPlanetBustersCommand
     | BuyTerraformDevicesCommand
-    | DockStardockCommand
-    | LeaveStardockCommand
+    | DockStarbaseCommand
+    | LeaveStarbaseCommand
     | ChangeMenuCommand;

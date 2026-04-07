@@ -217,12 +217,12 @@ describe('Admin API - Clone Universe', () => {
     assert.equal(port0.rows.length, 1);
     assert.equal(port0.rows[0].class, 0);
 
-    // Check Stardock with Class 9
+    // Check Starbase with Class 9
     const sdRes = await pool.query(
       'SELECT s.id FROM sectors s JOIN ports p ON p.sector_id = s.id WHERE s.name = $1 AND s.universe_id = $2 AND p.class = 9',
-      ['Stardock', cloneId]
+      ['Starbase', cloneId]
     );
-    assert.equal(sdRes.rows.length, 1, 'Cloned universe must have Stardock with Class 9 port');
+    assert.equal(sdRes.rows.length, 1, 'Cloned universe must have Starbase with Class 9 port');
   });
 
   it('cloned universe does not copy players', async () => {

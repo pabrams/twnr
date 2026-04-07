@@ -75,26 +75,26 @@ async function ensureBuyingPort(pool, sectorNumber, universeId = UNIVERSE_ID) {
   `, [dbId]);
 }
 
-/** Find the Stardock sector (port class 9) — returns sector_number */
-async function findStardockSector() {
+/** Find the Starbase sector (port class 9) — returns sector_number */
+async function findStarbaseSector() {
   const res = await pool.query('SELECT s.sector_number FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE s.universe_id = $1 AND p.class = 9 LIMIT 1', [UNIVERSE_ID]);
   return res.rows.length > 0 ? res.rows[0].sector_number : null;
 }
 
-/** Move player to stardock, dock, and return ws + player info */
-async function goToStardock(pool) {
+/** Move player to starbase, dock, and return ws + player info */
+async function goToStarbase(pool) {
   const { token, playerId } = await joinUniverse(pool);
   await pool.query('UPDATE players SET turns = 9999 WHERE id = $1', [playerId]);
   const { ws: wsConn } = await ws(token);
 
-  const stardockSector = await findStardockSector();
-  assert.ok(stardockSector, 'Stardock sector must exist');
+  const starbaseSector = await findStarbaseSector();
+  assert.ok(starbaseSector, 'Starbase sector must exist');
 
-  const moved = await movePlayerToViaWs(wsConn, stardockSector);
-  assert.ok(moved, 'Must be able to reach Stardock');
+  const moved = await movePlayerToViaWs(wsConn, starbaseSector);
+  assert.ok(moved, 'Must be able to reach Starbase');
 
-  await wsRequest(wsConn, { type: ClientMsgType.DockStardock }, ServerMsgType.DockStardockResult);
-  return { ws: wsConn, token, playerId, stardockSector };
+  await wsRequest(wsConn, { type: ClientMsgType.DockStarbase }, ServerMsgType.DockStarbaseResult);
+  return { ws: wsConn, token, playerId, starbaseSector };
 }
 
 /** Ensure a planet exists in the given sector, creating one if needed. Returns planet id. */
@@ -305,13 +305,13 @@ describe('Ship trade-in resets ship-specific fields', () => {
     await pool.query('UPDATE players SET turns = 9999 WHERE id = $1', [playerId]);
     const { ws: wsConn } = await ws(token);
 
-    const stardockRes = await pool.query('SELECT s.sector_number AS sector_id FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE s.universe_id = $1 AND p.class = 9 LIMIT 1', [UNIVERSE_ID]);
-    assert.ok(stardockRes.rows.length > 0, 'Stardock must exist');
-    const stardockSector = stardockRes.rows[0].sector_id;
-    const moved = await movePlayerToViaWs(wsConn, stardockSector);
-    assert.ok(moved, 'Must reach Stardock');
+    const starbaseRes = await pool.query('SELECT s.sector_number AS sector_id FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE s.universe_id = $1 AND p.class = 9 LIMIT 1', [UNIVERSE_ID]);
+    assert.ok(starbaseRes.rows.length > 0, 'Starbase must exist');
+    const starbaseSector = starbaseRes.rows[0].sector_id;
+    const moved = await movePlayerToViaWs(wsConn, starbaseSector);
+    assert.ok(moved, 'Must reach Starbase');
 
-    await wsRequest(wsConn, { type: ClientMsgType.DockStardock }, ServerMsgType.DockStardockResult);
+    await wsRequest(wsConn, { type: ClientMsgType.DockStarbase }, ServerMsgType.DockStarbaseResult);
     await pool.query('UPDATE ship_cargo SET credits = 999999 WHERE player_id = $1', [playerId]);
 
     const scoutCfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', 'scout.json'), 'utf8'));
@@ -330,10 +330,10 @@ describe('Ship trade-in resets ship-specific fields', () => {
     await pool.query('UPDATE players SET turns = 9999 WHERE id = $1', [playerId]);
     const { ws: wsConn } = await ws(token);
 
-    const stardockRes = await pool.query('SELECT s.sector_number AS sector_id FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE s.universe_id = $1 AND p.class = 9 LIMIT 1', [UNIVERSE_ID]);
-    const stardockSector = stardockRes.rows[0].sector_id;
-    await movePlayerToViaWs(wsConn, stardockSector);
-    await wsRequest(wsConn, { type: ClientMsgType.DockStardock }, ServerMsgType.DockStardockResult);
+    const starbaseRes = await pool.query('SELECT s.sector_number AS sector_id FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE s.universe_id = $1 AND p.class = 9 LIMIT 1', [UNIVERSE_ID]);
+    const starbaseSector = starbaseRes.rows[0].sector_id;
+    await movePlayerToViaWs(wsConn, starbaseSector);
+    await wsRequest(wsConn, { type: ClientMsgType.DockStarbase }, ServerMsgType.DockStarbaseResult);
 
     await pool.query('UPDATE player_ships SET has_hyperwarp_drive = true WHERE player_id = $1', [playerId]);
     await pool.query('UPDATE ship_cargo SET credits = 999999 WHERE player_id = $1', [playerId]);
@@ -887,8 +887,8 @@ describe('Schema - has_hyperwarp_drive', () => {
 // --- BuyHyperwarpDrive ---
 
 describe('BuyHyperwarpDrive', () => {
-  it('Successfully buys hyperwarp drive at Stardock', async () => {
-    const { ws: wsConn, playerId } = await goToStardock(pool);
+  it('Successfully buys hyperwarp drive at Starbase', async () => {
+    const { ws: wsConn, playerId } = await goToStarbase(pool);
     const shipRes = await pool.query('SELECT ship_name FROM player_ships WHERE player_id = $1', [playerId]);
     const shipName = shipRes.rows[0].ship_name;
     const cfgFiles = readdirSync(join(PROJECT_ROOT, 'config', 'ships')).filter(f => f.endsWith('.json'));
@@ -917,7 +917,7 @@ describe('BuyHyperwarpDrive', () => {
     await closeWS(wsConn);
   });
 
-  it('Rejected when not at Stardock', async () => {
+  it('Rejected when not at Starbase', async () => {
     const { token, playerId } = await joinUniverse(pool);
     const { ws: wsConn } = await ws(token);
     await pool.query("UPDATE player_ships SET ship_name = 'Scout Marauder', has_hyperwarp_drive = false WHERE player_id = $1", [playerId]);
@@ -930,7 +930,7 @@ describe('BuyHyperwarpDrive', () => {
   });
 
   it('Rejected when ship cannot equip hyperwarp', async () => {
-    const { ws: wsConn, playerId } = await goToStardock(pool);
+    const { ws: wsConn, playerId } = await goToStarbase(pool);
     await pool.query("UPDATE player_ships SET ship_name = 'Merchant Freighter' WHERE player_id = $1", [playerId]);
     await pool.query('UPDATE ship_cargo SET credits = 100000 WHERE player_id = $1', [playerId]);
 
@@ -942,7 +942,7 @@ describe('BuyHyperwarpDrive', () => {
   });
 
   it('Rejected when already have hyperwarp drive', async () => {
-    const { ws: wsConn, playerId } = await goToStardock(pool);
+    const { ws: wsConn, playerId } = await goToStarbase(pool);
     await pool.query("UPDATE player_ships SET ship_name = 'Scout Marauder', has_hyperwarp_drive = true WHERE player_id = $1", [playerId]);
     await pool.query('UPDATE ship_cargo SET credits = 100000 WHERE player_id = $1', [playerId]);
 
@@ -954,7 +954,7 @@ describe('BuyHyperwarpDrive', () => {
   });
 
   it('Rejected when insufficient credits', async () => {
-    const { ws: wsConn, playerId } = await goToStardock(pool);
+    const { ws: wsConn, playerId } = await goToStarbase(pool);
     await pool.query("UPDATE player_ships SET ship_name = 'Scout Marauder', has_hyperwarp_drive = false WHERE player_id = $1", [playerId]);
     await pool.query('UPDATE ship_cargo SET credits = 100 WHERE player_id = $1', [playerId]);
 
@@ -966,7 +966,7 @@ describe('BuyHyperwarpDrive', () => {
   });
 
   it('Buying hyperwarp drive costs 0 turns', async () => {
-    const { ws: wsConn, playerId } = await goToStardock(pool);
+    const { ws: wsConn, playerId } = await goToStarbase(pool);
     await pool.query("UPDATE player_ships SET ship_name = 'Scout Marauder', has_hyperwarp_drive = false WHERE player_id = $1", [playerId]);
     await pool.query('UPDATE ship_cargo SET credits = 100000 WHERE player_id = $1', [playerId]);
     await pool.query('UPDATE players SET turns = 50 WHERE id = $1', [playerId]);
@@ -1254,8 +1254,8 @@ describe('HyperspaceJump', () => {
     await closeWS(wsConn);
   });
 
-  it('Rejected when player is at Stardock', async () => {
-    const { ws: wsConn, playerId } = await goToStardock(pool);
+  it('Rejected when player is at Starbase', async () => {
+    const { ws: wsConn, playerId } = await goToStarbase(pool);
     await pool.query('UPDATE ship_cargo SET fuel = 100 WHERE player_id = $1', [playerId]);
 
     const adj = await getAdjacentSector(wsConn);
@@ -1326,8 +1326,8 @@ describe('ListDeployedDrones - sector command mode', () => {
     await closeWS(wsConn);
   });
 
-  it('Rejected when player is at Stardock', async () => {
-    const { ws: wsConn } = await goToStardock(pool);
+  it('Rejected when player is at Starbase', async () => {
+    const { ws: wsConn } = await goToStarbase(pool);
 
     const result = await wsRequest(wsConn, { type: ClientMsgType.ListDeployedDrones }, ServerMsgType.ListDeployedDronesResult);
     assert.equal(result.type, ServerMsgType.Error);

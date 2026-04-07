@@ -34,9 +34,9 @@ export async function handleBuyShipTradein(
             sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
             return;
         }
-        if (pRes.rows[0].sector_name !== 'Stardock') {
+        if (pRes.rows[0].sector_name !== 'Starbase') {
             await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not at Stardock' });
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not at Starbase' });
             return;
         }
 

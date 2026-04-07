@@ -8,8 +8,8 @@ export async function handleBuyHyperwarpDrive(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
-    if (!player.at_stardock) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not at Stardock' });
+    if (!player.at_starbase) {
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not at Starbase' });
         return;
     }
 
@@ -81,7 +81,7 @@ export async function handleListDeployedDrones(playerId: number): Promise<void> 
     const player = players[playerId];
     if (!player) return;
 
-    if (player.docked || player.at_stardock) {
+    if (player.docked || player.at_starbase) {
         sendEnvelope(playerId, {
             type: ServerMsgType.Error,
             message: 'Cannot use this command while docked',
@@ -118,7 +118,7 @@ export async function handleHyperspaceJump(playerId: number, targetSector: numbe
     const player = players[playerId];
     if (!player) return;
 
-    if (player.docked || player.at_stardock) {
+    if (player.docked || player.at_starbase) {
         sendEnvelope(playerId, {
             type: ServerMsgType.Error,
             message: 'Cannot use this command while docked',

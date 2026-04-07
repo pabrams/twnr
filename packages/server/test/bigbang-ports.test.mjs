@@ -89,14 +89,14 @@ function counter(arr) {
 describe('Port Generation', () => {
   const NUM_SECTORS  = 200;
   const PORT_DENSITY = 60;
-  let outdir, header, rows, stardockSector;
+  let outdir, header, rows, starbaseSector;
 
   before(() => {
     outdir = generateUniverse({ sectors: NUM_SECTORS, seed: 42, portDensity: PORT_DENSITY, planetDensity: 10 });
     ({ header, rows } = readCSV(join(outdir, 'ports.csv')));
     const { rows: sRows } = readCSV(join(outdir, 'sectors.csv'));
-    const stardockRow = sRows.find(r => r[1] === 'Stardock');
-    stardockSector = stardockRow ? parseInt(stardockRow[0], 10) : null;
+    const starbaseRow = sRows.find(r => r[1] === 'Starbase');
+    starbaseSector = starbaseRow ? parseInt(starbaseRow[0], 10) : null;
   });
   after(() => { rmSync(outdir, { recursive: true, force: true }); });
 
@@ -125,11 +125,11 @@ describe('Port Generation', () => {
     }
   });
 
-  it('Stardock sector has exactly one class 8 port', () => {
-    assert.ok(stardockSector != null, 'Stardock sector not found');
-    const stardockPorts = rows.filter(r => parseInt(r[0], 10) === stardockSector);
-    assert.equal(stardockPorts.length, 1, 'Stardock must have exactly 1 port');
-    assert.equal(parseInt(stardockPorts[0][1], 10), 8, 'Stardock port must be class 8');
+  it('Starbase sector has exactly one class 8 port', () => {
+    assert.ok(starbaseSector != null, 'Starbase sector not found');
+    const starbasePorts = rows.filter(r => parseInt(r[0], 10) === starbaseSector);
+    assert.equal(starbasePorts.length, 1, 'Starbase must have exactly 1 port');
+    assert.equal(parseInt(starbasePorts[0][1], 10), 8, 'Starbase port must be class 8');
   });
 
   it('sector 1 (Federation Space) has no port', () => {

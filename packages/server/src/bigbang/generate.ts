@@ -28,8 +28,8 @@ export function generateUniverse(options: BigBangOptions): BigBangResult {
     // Generate sector names
     const sectorNames = new Array(N + 1).fill('');
     sectorNames[1] = 'Federation Space';
-    const stardockId = randomInt(2, N);
-    sectorNames[stardockId] = 'Stardock';
+    const starbaseId = randomInt(2, N);
+    sectorNames[starbaseId] = 'Starbase';
 
     // Generate graph
     const warps = generateGraph(N, twoWayPct, rng);
@@ -66,8 +66,8 @@ export function generateUniverse(options: BigBangOptions): BigBangResult {
         };
     }
 
-    // Stardock always gets a port (class 8 in generation, will be overridden to 9 later)
-    ports.push(generatePort(stardockId, 8));
+    // Starbase always gets a port (class 8 in generation, will be overridden to 9 later)
+    ports.push(generatePort(starbaseId, 8));
 
     let numOtherPorts = totalPortsTarget - 1;
     if (numOtherPorts > N - 2) {
@@ -76,7 +76,7 @@ export function generateUniverse(options: BigBangOptions): BigBangResult {
 
     const availableSectorsForPorts: number[] = [];
     for (let i = 2; i <= N; i++) {
-        if (i !== stardockId) {
+        if (i !== starbaseId) {
             availableSectorsForPorts.push(i);
         }
     }
