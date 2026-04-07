@@ -1,4 +1,5 @@
 import { pool } from './pool.js';
+import { shipConfigs } from '../ship-config.js';
 
 let isConnected = false;
 
@@ -54,12 +55,28 @@ export const connectDB = async (): Promise<void> => {
         PRIMARY KEY (from_sector_id, to_sector_id)
       );
 
+      CREATE TABLE IF NOT EXISTS ship_types (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) UNIQUE NOT NULL,
+        max_drones INTEGER NOT NULL DEFAULT 0,
+        max_shields INTEGER NOT NULL DEFAULT 0,
+        starting_holds INTEGER NOT NULL DEFAULT 5,
+        max_holds INTEGER NOT NULL DEFAULT 20,
+        price INTEGER NOT NULL DEFAULT 0,
+        max_planet_busters INTEGER NOT NULL DEFAULT 0,
+        max_terraform_devices INTEGER NOT NULL DEFAULT 0,
+        turns_per_warp INTEGER NOT NULL DEFAULT 2,
+        can_have_hyperwarp BOOLEAN NOT NULL DEFAULT false
+      );
+
       CREATE TABLE IF NOT EXISTS players (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255),
         user_id INTEGER NOT NULL REFERENCES users(id),
         universe_id INTEGER NOT NULL REFERENCES universes(id),
         current_sector_id INTEGER REFERENCES sectors(id),
+        ship_id INTEGER,
+        credits INTEGER NOT NULL DEFAULT 10000,
         ship_destroyed_date TIMESTAMPTZ,
         docked BOOLEAN NOT NULL DEFAULT FALSE,
         on_planet_id INTEGER DEFAULT NULL,
@@ -68,9 +85,34 @@ export const connectDB = async (): Promise<void> => {
         UNIQUE (user_id, universe_id)
       );
 
-      ALTER TABLE players ADD COLUMN IF NOT EXISTS on_planet_id INTEGER DEFAULT NULL;
-      ALTER TABLE players ADD COLUMN IF NOT EXISTS turns INTEGER NOT NULL DEFAULT 0;
-      ALTER TABLE players ADD COLUMN IF NOT EXISTS last_turns_granted_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+      CREATE TABLE IF NOT EXISTS ships (
+        id SERIAL PRIMARY KEY,
+        owner_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+        ship_type_id INTEGER NOT NULL REFERENCES ship_types(id),
+        sector_id INTEGER REFERENCES sectors(id),
+        drones INTEGER NOT NULL DEFAULT 0,
+        shields INTEGER NOT NULL DEFAULT 0,
+        holds INTEGER NOT NULL,
+        planet_busters SMALLINT NOT NULL DEFAULT 0,
+        terraform_devices SMALLINT NOT NULL DEFAULT 0,
+        turns_per_warp INTEGER NOT NULL DEFAULT 2,
+        has_hyperwarp_drive BOOLEAN NOT NULL DEFAULT FALSE,
+        fuel INTEGER NOT NULL DEFAULT 0,
+        organics INTEGER NOT NULL DEFAULT 0,
+        equipment INTEGER NOT NULL DEFAULT 0,
+        colonists INTEGER NOT NULL DEFAULT 0
+      );
+
+      -- FK from players.ship_id to ships.id (deferred to avoid circular dependency)
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.table_constraints
+          WHERE constraint_name = 'players_ship_id_fkey' AND table_name = 'players'
+        ) THEN
+          ALTER TABLE players ADD CONSTRAINT players_ship_id_fkey
+            FOREIGN KEY (ship_id) REFERENCES ships(id) ON DELETE SET NULL;
+        END IF;
+      END $$;
 
       CREATE TABLE IF NOT EXISTS ports (
         id SERIAL PRIMARY KEY,
@@ -121,37 +163,11 @@ export const connectDB = async (): Promise<void> => {
         PRIMARY KEY (collision_planet, colliding_with)
       );
 
-      CREATE TABLE IF NOT EXISTS ship_cargo (
-        player_id INTEGER PRIMARY KEY,
-        fuel INTEGER NOT NULL DEFAULT 0,
-        organics INTEGER NOT NULL DEFAULT 0,
-        equipment INTEGER NOT NULL DEFAULT 0,
-        colonists INTEGER NOT NULL DEFAULT 0,
-        credits INTEGER NOT NULL DEFAULT 10000
-      );
-
       CREATE TABLE IF NOT EXISTS visited_sectors (
         player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
         sector_id INTEGER NOT NULL,
         PRIMARY KEY (player_id, sector_id)
       );
-
-      CREATE TABLE IF NOT EXISTS player_ships (
-        player_id INTEGER PRIMARY KEY REFERENCES players(id) ON DELETE CASCADE,
-        ship_name VARCHAR(255) NOT NULL,
-        drones INTEGER NOT NULL DEFAULT 0,
-        shields INTEGER NOT NULL DEFAULT 0,
-        cargo_limit INTEGER NOT NULL,
-        planet_busters SMALLINT NOT NULL DEFAULT 0,
-        terraform_devices SMALLINT NOT NULL DEFAULT 0,
-        turns_per_warp INTEGER NOT NULL DEFAULT 1,
-        has_hyperwarp_drive BOOLEAN NOT NULL DEFAULT FALSE
-      );
-
-      ALTER TABLE player_ships ADD COLUMN IF NOT EXISTS planet_busters SMALLINT NOT NULL DEFAULT 0;
-      ALTER TABLE player_ships ADD COLUMN IF NOT EXISTS terraform_devices SMALLINT NOT NULL DEFAULT 0;
-      ALTER TABLE player_ships ADD COLUMN IF NOT EXISTS turns_per_warp INTEGER NOT NULL DEFAULT 1;
-      ALTER TABLE player_ships ADD COLUMN IF NOT EXISTS has_hyperwarp_drive BOOLEAN NOT NULL DEFAULT FALSE;
 
       CREATE TABLE IF NOT EXISTS sector_drones (
         sector_id INTEGER NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
@@ -440,6 +456,23 @@ export const connectDB = async (): Promise<void> => {
 
       -- Autopilot has no commands (input ignored during autopilot)
     `);
+
+        // Seed ship_types from config files (idempotent)
+        for (const ship of Object.values(shipConfigs)) {
+            const s = ship as any;
+            await client.query(
+                `INSERT INTO ship_types (name, max_drones, max_shields, starting_holds, max_holds, price, max_planet_busters, max_terraform_devices, turns_per_warp, can_have_hyperwarp)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                 ON CONFLICT (name) DO UPDATE SET
+                   max_drones = EXCLUDED.max_drones, max_shields = EXCLUDED.max_shields,
+                   starting_holds = EXCLUDED.starting_holds, max_holds = EXCLUDED.max_holds,
+                   price = EXCLUDED.price, max_planet_busters = EXCLUDED.max_planet_busters,
+                   max_terraform_devices = EXCLUDED.max_terraform_devices,
+                   turns_per_warp = EXCLUDED.turns_per_warp, can_have_hyperwarp = EXCLUDED.can_have_hyperwarp`,
+                [s.name, s.maxDrones, s.maxShields, s.startingHolds, s.maxHolds, s.price,
+                 s.maxPlanetBusters || 0, s.maxTerraformDevices || 0, s.turnsPerWarp || 2, s.canHaveHyperwarp ?? false],
+            );
+        }
 
         client.release();
         isConnected = true;
