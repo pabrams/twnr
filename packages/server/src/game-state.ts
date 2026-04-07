@@ -92,7 +92,7 @@ export function broadcastTo(data: ServerResult, targetClients: Set<WebSocket> | 
     for (const client of targetClients) {
         if (client.readyState === 1) {
             // Find the player's current menu for the envelope
-            const entry = Object.values(players).find(p => p.ws === client);
+            const entry = Object.values(players).find((p) => p.ws === client);
             const menu = entry?.currentMenu ?? 'sector';
             client.send(JSON.stringify({ menu, payload: data }));
         }

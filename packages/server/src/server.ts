@@ -9,7 +9,7 @@ import * as auth from './auth/index.js';
 import { ServerMsgType } from '@twnr/shared';
 import type { AuthTokenPayload, ServerResult } from '@twnr/shared';
 import { shipConfigs } from './ship-config.js';
-import { players, send, sendEnvelope, broadcastTo } from './game-state.js';
+import { players, sendEnvelope, broadcastTo } from './game-state.js';
 import { handleMessage } from './handlers/message-router.js';
 
 const app: ReturnType<typeof express> = express();
@@ -126,7 +126,14 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             `UPDATE players SET current_menu_id = (SELECT id FROM menu WHERE name = 'sector') WHERE id = $1`,
             [playerId],
         );
-        players[playerId] = { ws, sector, name: playerRow.name, universeId, docked: false, currentMenu: 'sector' };
+        players[playerId] = {
+            ws,
+            sector,
+            name: playerRow.name,
+            universeId,
+            docked: false,
+            currentMenu: 'sector',
+        };
         const sectorCountRes = await pool.query(
             'SELECT COUNT(*) FROM sectors WHERE universe_id = $1',
             [universeId],
@@ -171,7 +178,10 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
                 await handleMessage(ws, playerId, data);
             } catch (err) {
                 console.error('Message handler error:', err);
-                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Internal server error' });
+                sendEnvelope(playerId, {
+                    type: ServerMsgType.Error,
+                    message: 'Internal server error',
+                });
             }
         });
 

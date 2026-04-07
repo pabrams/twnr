@@ -20,7 +20,11 @@ export async function handleMove(
     targetSector: number,
 ): Promise<void> {
     if (!Number.isInteger(targetSector) || targetSector <= 0) {
-        sendEnvelope(playerId, { type: ServerMsgType.MoveResult, outcome: 'error', message: 'Invalid sector' });
+        sendEnvelope(playerId, {
+            type: ServerMsgType.MoveResult,
+            outcome: 'error',
+            message: 'Invalid sector',
+        });
         return;
     }
 
