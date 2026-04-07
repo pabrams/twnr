@@ -15,6 +15,12 @@ import { ClientMsgType, ServerMsgType } from '@twnr/shared';
 
 const __filename = fileURLToPath(import.meta.url);
 const PROJECT_ROOT = join(dirname(__filename), '..');
+const SHIPS_DIR = SHIPS_DIR;
+
+const merchantCfg = JSON.parse(readFileSync(join(SHIPS_DIR, 'merchant.json'), 'utf8'));
+const scoutCfg = JSON.parse(readFileSync(join(SHIPS_DIR, 'scout.json'), 'utf8'));
+const MERCHANT_NAME = merchantCfg.name;
+const SCOUT_NAME = scoutCfg.name;
 
 const UNIVERSE_ID = 1;
 
@@ -193,22 +199,21 @@ describe('Schema - Ship columns', () => {
 
 describe('Ship configs', () => {
   it('Merchant Freighter has turnsPerWarp = 3', () => {
-    const cfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', 'merchant.json'), 'utf8'));
-    assert.equal(cfg.turnsPerWarp, 3);
+    assert.equal(merchantCfg.turnsPerWarp, 3);
   });
   it('All ship configs have turnsPerWarp >= 1', () => {
-    const files = readdirSync(join(PROJECT_ROOT, 'config', 'ships')).filter(f => f.endsWith('.json'));
+    const files = readdirSync(SHIPS_DIR).filter(f => f.endsWith('.json'));
     assert.ok(files.length > 0);
     for (const file of files) {
-      const cfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', file), 'utf8'));
+      const cfg = JSON.parse(readFileSync(join(SHIPS_DIR, file), 'utf8'));
       assert.ok(typeof cfg.turnsPerWarp === 'number' && cfg.turnsPerWarp >= 1, `${file}: turnsPerWarp must be >= 1, got ${cfg.turnsPerWarp}`);
     }
   });
   it('Non-Merchant ships default to turnsPerWarp = 2', () => {
-    const files = readdirSync(join(PROJECT_ROOT, 'config', 'ships')).filter(f => f.endsWith('.json'));
+    const files = readdirSync(SHIPS_DIR).filter(f => f.endsWith('.json'));
     for (const file of files) {
-      const cfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', file), 'utf8'));
-      if (cfg.name !== 'Merchant Freighter') {
+      const cfg = JSON.parse(readFileSync(join(SHIPS_DIR, file), 'utf8'));
+      if (cfg.name !== MERCHANT_NAME) {
         assert.equal(cfg.turnsPerWarp, 2, `${file}: non-Merchant ships should have turnsPerWarp = 2, got ${cfg.turnsPerWarp}`);
       }
     }
@@ -241,7 +246,7 @@ describe('Player initialization', () => {
     const r = await pool.query('SELECT ship_name, turns_per_warp FROM player_ships WHERE player_id = $1', [playerId]);
     assert.ok(r.rows.length > 0);
     assert.ok(r.rows[0].turns_per_warp >= 1);
-    if (r.rows[0].ship_name === 'Merchant Freighter') assert.equal(r.rows[0].turns_per_warp, 3);
+    if (r.rows[0].ship_name === MERCHANT_NAME) assert.equal(r.rows[0].turns_per_warp, merchantCfg.turnsPerWarp);
   });
 });
 
@@ -314,8 +319,7 @@ describe('Ship trade-in resets ship-specific fields', () => {
     await wsRequest(wsConn, { type: ClientMsgType.DockStarbase }, ServerMsgType.DockStarbaseResult);
     await pool.query('UPDATE ship_cargo SET credits = 999999 WHERE player_id = $1', [playerId]);
 
-    const scoutCfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', 'scout.json'), 'utf8'));
-    const result = await wsRequest(wsConn, { type: ClientMsgType.BuyShipTradein, targetShipName: 'Scout Marauder' }, ServerMsgType.BuyShipTradeinResult);
+    const result = await wsRequest(wsConn, { type: ClientMsgType.BuyShipTradein, targetShipName: SCOUT_NAME }, ServerMsgType.BuyShipTradeinResult);
     if (result.type === ServerMsgType.Error) { await closeWS(wsConn); assert.fail(`Trade failed: ${result.message}`); }
 
     const shipRes = await pool.query('SELECT turns_per_warp FROM player_ships WHERE player_id = $1', [playerId]);
@@ -338,7 +342,7 @@ describe('Ship trade-in resets ship-specific fields', () => {
     await pool.query('UPDATE player_ships SET has_hyperwarp_drive = true WHERE player_id = $1', [playerId]);
     await pool.query('UPDATE ship_cargo SET credits = 999999 WHERE player_id = $1', [playerId]);
 
-    const result = await wsRequest(wsConn, { type: ClientMsgType.BuyShipTradein, targetShipName: 'Scout Marauder' }, ServerMsgType.BuyShipTradeinResult);
+    const result = await wsRequest(wsConn, { type: ClientMsgType.BuyShipTradein, targetShipName: SCOUT_NAME }, ServerMsgType.BuyShipTradeinResult);
     if (result.type === ServerMsgType.Error) { await closeWS(wsConn); assert.fail(`Trade failed: ${result.message}`); }
 
     const driveRes = await pool.query('SELECT has_hyperwarp_drive FROM player_ships WHERE player_id = $1', [playerId]);
@@ -846,21 +850,19 @@ describe('Grant turns script', () => {
 
 describe('Ship configs - canHaveHyperwarp', () => {
   it('Merchant Freighter has canHaveHyperwarp = false', () => {
-    const cfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', 'merchant.json'), 'utf8'));
-    assert.strictEqual(cfg.canHaveHyperwarp, false);
+    assert.strictEqual(merchantCfg.canHaveHyperwarp, false);
   });
 
   it('Scout Marauder has canHaveHyperwarp = true', () => {
-    const cfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', 'scout.json'), 'utf8'));
-    assert.strictEqual(cfg.canHaveHyperwarp, true);
+    assert.strictEqual(scoutCfg.canHaveHyperwarp, true);
   });
 
   it('All ships follow the maxDrones >= 10 rule (except Merchant and Scout)', () => {
-    const files = readdirSync(join(PROJECT_ROOT, 'config', 'ships')).filter(f => f.endsWith('.json'));
+    const files = readdirSync(SHIPS_DIR).filter(f => f.endsWith('.json'));
     for (const file of files) {
-      const cfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', file), 'utf8'));
+      const cfg = JSON.parse(readFileSync(join(SHIPS_DIR, file), 'utf8'));
       assert.ok(typeof cfg.canHaveHyperwarp === 'boolean', `${file}: missing canHaveHyperwarp`);
-      if (cfg.name === 'Merchant Freighter' || cfg.name === 'Scout Marauder') continue;
+      if (cfg.name === MERCHANT_NAME || cfg.name === SCOUT_NAME) continue;
       const expected = cfg.maxDrones >= 10;
       assert.strictEqual(cfg.canHaveHyperwarp, expected,
         `${file}: canHaveHyperwarp should be ${expected} (maxDrones=${cfg.maxDrones})`);
@@ -891,15 +893,15 @@ describe('BuyHyperwarpDrive', () => {
     const { ws: wsConn, playerId } = await goToStarbase(pool);
     const shipRes = await pool.query('SELECT ship_name FROM player_ships WHERE player_id = $1', [playerId]);
     const shipName = shipRes.rows[0].ship_name;
-    const cfgFiles = readdirSync(join(PROJECT_ROOT, 'config', 'ships')).filter(f => f.endsWith('.json'));
+    const cfgFiles = readdirSync(SHIPS_DIR).filter(f => f.endsWith('.json'));
     let canEquip = false;
     for (const file of cfgFiles) {
-      const cfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', file), 'utf8'));
+      const cfg = JSON.parse(readFileSync(join(SHIPS_DIR, file), 'utf8'));
       if (cfg.name === shipName) { canEquip = cfg.canHaveHyperwarp; break; }
     }
 
     if (!canEquip) {
-      await pool.query("UPDATE player_ships SET ship_name = 'Scout Marauder' WHERE player_id = $1", [playerId]);
+      await pool.query(`UPDATE player_ships SET ship_name = '${SCOUT_NAME}' WHERE player_id = $1`, [playerId]);
     }
 
     await pool.query('UPDATE ship_cargo SET credits = 100000 WHERE player_id = $1', [playerId]);
@@ -920,7 +922,7 @@ describe('BuyHyperwarpDrive', () => {
   it('Rejected when not at Starbase', async () => {
     const { token, playerId } = await joinUniverse(pool);
     const { ws: wsConn } = await ws(token);
-    await pool.query("UPDATE player_ships SET ship_name = 'Scout Marauder', has_hyperwarp_drive = false WHERE player_id = $1", [playerId]);
+    await pool.query(`UPDATE player_ships SET ship_name = '${SCOUT_NAME}', has_hyperwarp_drive = false WHERE player_id = $1`, [playerId]);
     await pool.query('UPDATE ship_cargo SET credits = 100000 WHERE player_id = $1', [playerId]);
 
     const result = await wsRequest(wsConn, { type: ClientMsgType.BuyHyperwarpDrive }, ServerMsgType.BuyHyperwarpDriveResult);
@@ -931,7 +933,7 @@ describe('BuyHyperwarpDrive', () => {
 
   it('Rejected when ship cannot equip hyperwarp', async () => {
     const { ws: wsConn, playerId } = await goToStarbase(pool);
-    await pool.query("UPDATE player_ships SET ship_name = 'Merchant Freighter' WHERE player_id = $1", [playerId]);
+    await pool.query(`UPDATE player_ships SET ship_name = '${MERCHANT_NAME}' WHERE player_id = $1`, [playerId]);
     await pool.query('UPDATE ship_cargo SET credits = 100000 WHERE player_id = $1', [playerId]);
 
     const result = await wsRequest(wsConn, { type: ClientMsgType.BuyHyperwarpDrive }, ServerMsgType.BuyHyperwarpDriveResult);
@@ -943,7 +945,7 @@ describe('BuyHyperwarpDrive', () => {
 
   it('Rejected when already have hyperwarp drive', async () => {
     const { ws: wsConn, playerId } = await goToStarbase(pool);
-    await pool.query("UPDATE player_ships SET ship_name = 'Scout Marauder', has_hyperwarp_drive = true WHERE player_id = $1", [playerId]);
+    await pool.query(`UPDATE player_ships SET ship_name = '${SCOUT_NAME}', has_hyperwarp_drive = true WHERE player_id = $1`, [playerId]);
     await pool.query('UPDATE ship_cargo SET credits = 100000 WHERE player_id = $1', [playerId]);
 
     const result = await wsRequest(wsConn, { type: ClientMsgType.BuyHyperwarpDrive }, ServerMsgType.BuyHyperwarpDriveResult);
@@ -955,7 +957,7 @@ describe('BuyHyperwarpDrive', () => {
 
   it('Rejected when insufficient credits', async () => {
     const { ws: wsConn, playerId } = await goToStarbase(pool);
-    await pool.query("UPDATE player_ships SET ship_name = 'Scout Marauder', has_hyperwarp_drive = false WHERE player_id = $1", [playerId]);
+    await pool.query(`UPDATE player_ships SET ship_name = '${SCOUT_NAME}', has_hyperwarp_drive = false WHERE player_id = $1`, [playerId]);
     await pool.query('UPDATE ship_cargo SET credits = 100 WHERE player_id = $1', [playerId]);
 
     const result = await wsRequest(wsConn, { type: ClientMsgType.BuyHyperwarpDrive }, ServerMsgType.BuyHyperwarpDriveResult);
@@ -967,7 +969,7 @@ describe('BuyHyperwarpDrive', () => {
 
   it('Buying hyperwarp drive costs 0 turns', async () => {
     const { ws: wsConn, playerId } = await goToStarbase(pool);
-    await pool.query("UPDATE player_ships SET ship_name = 'Scout Marauder', has_hyperwarp_drive = false WHERE player_id = $1", [playerId]);
+    await pool.query(`UPDATE player_ships SET ship_name = '${SCOUT_NAME}', has_hyperwarp_drive = false WHERE player_id = $1`, [playerId]);
     await pool.query('UPDATE ship_cargo SET credits = 100000 WHERE player_id = $1', [playerId]);
     await pool.query('UPDATE players SET turns = 50 WHERE id = $1', [playerId]);
 
@@ -1054,7 +1056,7 @@ describe('HyperspaceJump', () => {
   async function setupJumpPlayer() {
     const { token, playerId } = await joinUniverse(pool);
     await pool.query('UPDATE players SET turns = 9999 WHERE id = $1', [playerId]);
-    await pool.query("UPDATE player_ships SET ship_name = 'Scout Marauder', has_hyperwarp_drive = true, turns_per_warp = 2 WHERE player_id = $1", [playerId]);
+    await pool.query(`UPDATE player_ships SET ship_name = '${SCOUT_NAME}', has_hyperwarp_drive = true, turns_per_warp = 2 WHERE player_id = $1`, [playerId]);
     const { ws: wsConn } = await ws(token);
     return { ws: wsConn, token, playerId };
   }
