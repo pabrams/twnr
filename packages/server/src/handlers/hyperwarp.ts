@@ -1,14 +1,11 @@
 import { WebSocket } from 'ws';
 import { ServerMsgType } from '@twnr/shared';
-import { players, send, getPlayerUniverseId, getGraph } from '../game-state.js';
+import { players, send, getGraph } from '../game-state.js';
 import { pool } from '../db/index.js';
 import { shipConfigs } from '../ship-config.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 
-export async function handleBuyHyperwarpDrive(
-    ws: WebSocket,
-    playerId: number,
-): Promise<void> {
+export async function handleBuyHyperwarpDrive(ws: WebSocket, playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
@@ -58,10 +55,9 @@ export async function handleBuyHyperwarpDrive(
             'UPDATE player_ships SET has_hyperwarp_drive = TRUE WHERE player_id = $1',
             [playerId],
         );
-        await client.query(
-            'UPDATE ship_cargo SET credits = credits - 50000 WHERE player_id = $1',
-            [playerId],
-        );
+        await client.query('UPDATE ship_cargo SET credits = credits - 50000 WHERE player_id = $1', [
+            playerId,
+        ]);
         await client.query('COMMIT');
 
         send(ws, {
@@ -76,10 +72,7 @@ export async function handleBuyHyperwarpDrive(
     }
 }
 
-export async function handleListDeployedFighters(
-    ws: WebSocket,
-    playerId: number,
-): Promise<void> {
+export async function handleListDeployedFighters(ws: WebSocket, playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
@@ -92,7 +85,10 @@ export async function handleListDeployedFighters(
         playerId,
     ]);
     if (playerRes.rows[0]?.on_planet_id) {
-        send(ws, { type: ServerMsgType.Error, message: 'Cannot use this command while on a planet' });
+        send(ws, {
+            type: ServerMsgType.Error,
+            message: 'Cannot use this command while on a planet',
+        });
         return;
     }
 
@@ -124,7 +120,10 @@ export async function handleHyperspaceJump(
         playerId,
     ]);
     if (playerRes.rows[0]?.on_planet_id) {
-        send(ws, { type: ServerMsgType.Error, message: 'Cannot use this command while on a planet' });
+        send(ws, {
+            type: ServerMsgType.Error,
+            message: 'Cannot use this command while on a planet',
+        });
         return;
     }
 
@@ -150,7 +149,10 @@ export async function handleHyperspaceJump(
         [targetSector, universeId, playerId],
     );
     if (fighterRes.rows.length === 0) {
-        send(ws, { type: ServerMsgType.Error, message: 'No signal from fighters in target sector' });
+        send(ws, {
+            type: ServerMsgType.Error,
+            message: 'No signal from fighters in target sector',
+        });
         return;
     }
 
