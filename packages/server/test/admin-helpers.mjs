@@ -236,6 +236,9 @@ export const SCHEMA_SQL = `
     credits INTEGER NOT NULL DEFAULT 10000,
     ship_destroyed_date TIMESTAMPTZ,
     docked BOOLEAN NOT NULL DEFAULT FALSE,
+    on_planet_id INTEGER DEFAULT NULL,
+    turns INTEGER NOT NULL DEFAULT 0,
+    last_turns_granted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (user_id, universe_id)
   );
   CREATE TABLE IF NOT EXISTS ports (

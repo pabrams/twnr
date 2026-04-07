@@ -218,7 +218,7 @@ export async function handleBuyHolds(playerId: number, quantity: number): Promis
         }
 
         // Check turns
-        const turnResult = await checkAndDeductTurns(playerId, universeId, 1);
+        const turnResult = await checkAndDeductTurns(playerId, universeId, 1, client);
         if (!turnResult.allowed) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient turns' });

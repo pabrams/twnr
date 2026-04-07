@@ -258,7 +258,7 @@ export async function handlePortTransaction(
 
         if (action === 'buy') {
             // Check turns for buying
-            const turnResult = await checkAndDeductTurns(playerId, universeId, 1);
+            const turnResult = await checkAndDeductTurns(playerId, universeId, 1, client);
             if (!turnResult.allowed) {
                 await client.query('ROLLBACK');
                 sendEnvelope(playerId, {
