@@ -6,7 +6,7 @@ import { colors } from './constants.js';
 
 export function handleAttackInput(ctx: GameContext, line: string) {
     if (line.toLowerCase() === 'q') {
-        ctx.setMode('sector');
+        ctx.changeMenu('sector');
         showPrompt(ctx);
         return;
     }
@@ -21,7 +21,7 @@ export function handleAttackInput(ctx: GameContext, line: string) {
 
 export function handleAttackFightersInput(ctx: GameContext, line: string) {
     if (line.toLowerCase() === 'q') {
-        ctx.setMode('sector');
+        ctx.changeMenu('sector');
         showPrompt(ctx);
         return;
     }
@@ -39,7 +39,7 @@ export function handleAttackFightersInput(ctx: GameContext, line: string) {
 
 export function handleDeployFightersQtyInput(ctx: GameContext, line: string) {
     if (line.toLowerCase() === 'q') {
-        ctx.setMode('sector');
+        ctx.changeMenu('sector');
         showPrompt(ctx);
         return;
     }
@@ -67,7 +67,7 @@ export function handleFighterEncounterInput(ctx: GameContext, line: string) {
 
 export function handleFighterAttackQtyInput(ctx: GameContext, line: string) {
     if (line.toLowerCase() === 'q') {
-        ctx.setMode('fighterEncounter');
+        ctx.changeMenu('fighterEncounter');
         return;
     }
     const qty = parseInt(line, 10);

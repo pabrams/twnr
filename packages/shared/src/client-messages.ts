@@ -154,6 +154,11 @@ export type LeaveStardockCommand = {
     type: typeof ClientMsgType.LeaveStardock;
 };
 
+export type ChangeMenuCommand = {
+    type: typeof ClientMsgType.ChangeMenu;
+    menu: string;
+};
+
 export type ClientCommand =
     | MoveCommand
     | SectorDisplayCommand
@@ -187,4 +192,5 @@ export type ClientCommand =
     | BuyPlanetBustersCommand
     | BuyTerraformDevicesCommand
     | DockStardockCommand
-    | LeaveStardockCommand;
+    | LeaveStardockCommand
+    | ChangeMenuCommand;

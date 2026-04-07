@@ -7,7 +7,7 @@ const mg = colors.magenta;
 export function showAutopilotPrompt(ctx: GameContext, path: number[], hops: number) {
     ctx.setAutopilotPath(path);
     ctx.setAutopilotStep(1);
-    ctx.setMode('autopilotPrompt');
+    ctx.changeMenu('autopilotPrompt');
     ctx.term.writeln('');
     ctx.term.writeln(
         `${colors.boldYellow('That sector is not adjacent.')} Shortest path ${mg('(')}${colors.boldCyan(String(hops))} hops${mg(')')}:`,
@@ -21,7 +21,7 @@ export function showAutopilotPrompt(ctx: GameContext, path: number[], hops: numb
 }
 
 export async function showClass0Menu(ctx: GameContext) {
-    ctx.setMode('class0');
+    ctx.changeMenu('class0');
     if (!ctx.class0Prices) {
         try {
             const res = await fetch('/api/class0-prices');
@@ -48,12 +48,12 @@ export async function showClass0Menu(ctx: GameContext) {
 }
 
 export function showClass0QtyPrompt(ctx: GameContext, buyType: string) {
-    ctx.setMode('class0Qty');
+    ctx.changeMenu('class0Qty');
     ctx.term.write(`\r\n${colors.cyan(`How many ${buyType}?`)} `);
 }
 
 export function showJettisonConfirm(ctx: GameContext) {
-    ctx.setMode('jettisonConfirm');
+    ctx.changeMenu('jettisonConfirm');
     ctx.term.write(
         `\r\n${colors.boldYellow('Jettison all cargo?')} This cannot be undone. ${mg('(')}${colors.boldYellow('Y')}/${colors.boldYellow('N')}${mg(')')} `,
     );

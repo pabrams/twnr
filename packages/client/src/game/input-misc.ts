@@ -29,7 +29,7 @@ export function handleClass0Input(ctx: GameContext, line: string) {
 
 export function handleClass0QtyInput(ctx: GameContext, line: string) {
     if (line.toLowerCase() === 'q') {
-        ctx.setMode('class0');
+        ctx.changeMenu('class0');
         showClass0Menu(ctx);
         return;
     }
@@ -54,7 +54,7 @@ export function handleClass0QtyInput(ctx: GameContext, line: string) {
 export function handleAutopilotPromptInput(ctx: GameContext, line: string) {
     switch (line.toLowerCase()) {
         case 'y': {
-            ctx.setMode('autopilot');
+            ctx.changeMenu('autopilot');
             ctx.term.writeln(`\r\n${colors.boldGreen('Autopilot engaged.')}`);
             // Start moving along the path (step 1 is the first hop, step 0 is current sector)
             const nextSector = ctx.autopilotPath[ctx.autopilotStep];
@@ -63,7 +63,7 @@ export function handleAutopilotPromptInput(ctx: GameContext, line: string) {
             break;
         }
         case 'n':
-            ctx.setMode('sector');
+            ctx.changeMenu('sector');
             showPrompt(ctx);
             break;
     }
@@ -73,10 +73,10 @@ export function handleJettisonConfirmInput(ctx: GameContext, line: string) {
     switch (line.toLowerCase()) {
         case 'y':
             ctx.sendMsg({ type: ClientMsgType.Jettison });
-            ctx.setMode('sector');
+            ctx.changeMenu('sector');
             break;
         case 'n':
-            ctx.setMode('sector');
+            ctx.changeMenu('sector');
             showPrompt(ctx);
             break;
     }
@@ -94,7 +94,7 @@ export function handlePlanetInput(ctx: GameContext, line: string) {
             ctx.term.writeln(
                 `\r\n${colors.white('You return to your ship and leave the planet.')}`,
             );
-            ctx.setMode('sector');
+            ctx.changeMenu('sector');
             showPrompt(ctx);
             break;
     }
@@ -102,7 +102,7 @@ export function handlePlanetInput(ctx: GameContext, line: string) {
 
 export function handlePlanetTakeQtyInput(ctx: GameContext, line: string) {
     if (line.toLowerCase() === 'q') {
-        ctx.setMode('sector');
+        ctx.changeMenu('sector');
         showPrompt(ctx);
         return;
     }
@@ -116,7 +116,7 @@ export function handlePlanetTakeQtyInput(ctx: GameContext, line: string) {
 
 export function handlePlanetLeaveQtyInput(ctx: GameContext, line: string) {
     if (line.toLowerCase() === 'q') {
-        ctx.setMode('sector');
+        ctx.changeMenu('sector');
         showPrompt(ctx);
         return;
     }

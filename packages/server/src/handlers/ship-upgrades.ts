@@ -1,6 +1,6 @@
 import { ServerMsgType } from '@twnr/shared';
 import { shipConfigs } from '../ship-config.js';
-import { sendEnvelope, getPlayerUniverseId } from '../game-state.js';
+import { sendEnvelope, getPlayerUniverseId, setPlayerMenu } from '../game-state.js';
 import { pool } from '../db/index.js';
 import { class0Prices } from '../game-config.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
@@ -79,6 +79,7 @@ export async function handleBuyFighters(playerId: number, quantity: number): Pro
         ]);
         await client.query('COMMIT');
 
+        await setPlayerMenu(playerId, 'class0');
         sendEnvelope(playerId, {
             type: ServerMsgType.BuyFightersResult,
             credits: data.credits - cost,
@@ -166,6 +167,7 @@ export async function handleBuyShields(playerId: number, quantity: number): Prom
         ]);
         await client.query('COMMIT');
 
+        await setPlayerMenu(playerId, 'class0');
         sendEnvelope(playerId, {
             type: ServerMsgType.BuyShieldsResult,
             credits: data.credits - cost,
@@ -261,6 +263,7 @@ export async function handleBuyHolds(playerId: number, quantity: number): Promis
         ]);
         await client.query('COMMIT');
 
+        await setPlayerMenu(playerId, 'class0');
         sendEnvelope(playerId, {
             type: ServerMsgType.BuyHoldsResult,
             credits: data.credits - cost,

@@ -376,6 +376,10 @@ export type ErrorResultObject = {
     message: string;
 };
 
+export type MenuChangedResultObject = {
+    type: typeof ServerMsgType.MenuChanged;
+};
+
 export type ServerResult =
     | WelcomeEvent
     | PlayerMovedEvent
@@ -422,4 +426,5 @@ export type ServerResult =
     | BuyHyperwarpDriveResultObject
     | ListDeployedFightersResultObject
     | HyperspaceJumpResultObject
+    | MenuChangedResultObject
     | ErrorResultObject;

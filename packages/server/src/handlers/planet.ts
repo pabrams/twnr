@@ -242,6 +242,7 @@ export async function handleDestroyPlanet(playerId: number): Promise<void> {
         client.release();
     }
 
+    await setPlayerMenu(playerId, 'sector');
     sendEnvelope(playerId, {
         type: ServerMsgType.DestroyPlanetResult,
         destroyed: true,
