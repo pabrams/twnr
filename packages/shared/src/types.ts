@@ -40,7 +40,6 @@ export type MenuCommandEntry = {
     command: string;
     keyPattern: string;
     label: string;
-    actionType: 'local' | 'server' | 'mixed';
     clientMsgType: string | null;
     targetMenu: string | null;
     sortOrder: number;

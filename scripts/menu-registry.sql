@@ -11,7 +11,6 @@ SELECT json_agg(menu_row ORDER BY menu_row.id) FROM (
            c.name as command,
            mc.key_pattern as key_pattern,
            COALESCE(mc.label, c.label) as label,
-           mc.action_type as action_type,
            mc.client_msg_type as client_msg_type,
            tm.name as target_menu,
            mc.sort_order
