@@ -90,8 +90,12 @@ describe('Sector & Path Queries', () => {
   });
 
   it('path query returns error when no path exists', async () => {
-    await pool.query('INSERT INTO sectors (id, universe_id) VALUES (999, $1) ON CONFLICT DO NOTHING', [UNIVERSE_ID]);
-    await pool.query('DELETE FROM warps WHERE (sector_from = 999 OR sector_to = 999) AND universe_id = $1', [UNIVERSE_ID]);
+    const sectorRes = await pool.query(
+      'INSERT INTO sectors (universe_id, sector_number) VALUES ($1, 999) ON CONFLICT (universe_id, sector_number) DO UPDATE SET name = sectors.name RETURNING id',
+      [UNIVERSE_ID]
+    );
+    const isolatedId = sectorRes.rows[0].id;
+    await pool.query('DELETE FROM warps WHERE from_sector_id = $1 OR to_sector_id = $1', [isolatedId]);
 
     const { ws: wsConn } = await ws();
     const msg = await wsRequest(wsConn, { type: ClientMsgType.ShortestPath, from: 1, to: 999 }, ServerMsgType.ShortestPathResult);
@@ -99,7 +103,7 @@ describe('Sector & Path Queries', () => {
     assert.equal(msg.message, 'No path found');
     await closeWS(wsConn);
 
-    await pool.query('DELETE FROM sectors WHERE id = 999 AND universe_id = $1', [UNIVERSE_ID]);
+    await pool.query('DELETE FROM sectors WHERE id = $1', [isolatedId]);
   });
 
   it('path respects directed warps', async () => {

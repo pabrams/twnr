@@ -78,7 +78,7 @@ describe('Admin API - Update Port', () => {
 
     // Find a trading port (class 1-8)
     const ports = await pool.query(
-      'SELECT sector_id, class FROM ports WHERE universe_id = $1 AND class BETWEEN 1 AND 8 LIMIT 1',
+      'SELECT s.sector_number as sector_id, p.class FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE s.universe_id = $1 AND p.class BETWEEN 1 AND 8 LIMIT 1',
       [universeId],
     );
     assert.ok(ports.rows.length > 0, 'Should have at least one trading port');
@@ -161,7 +161,7 @@ describe('Admin API - Update Port', () => {
 
   it('rejects modification of Class 9 port', async () => {
     const stardock = await pool.query(
-      "SELECT sector_id FROM ports WHERE universe_id = $1 AND class = 9", [universeId]
+      "SELECT s.sector_number as sector_id FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE s.universe_id = $1 AND p.class = 9", [universeId]
     );
     assert.ok(stardock.rows.length > 0);
     const res = await adminKeyPut(
@@ -198,9 +198,9 @@ describe('Admin API - Create Port', () => {
 
     // Find a sector without a port
     const result = await pool.query(
-      `SELECT s.id FROM sectors s LEFT JOIN ports p ON p.sector_id = s.id AND p.universe_id = s.universe_id
-       WHERE s.universe_id = $1 AND p.id IS NULL AND s.id > 1
-       ORDER BY s.id LIMIT 1`,
+      `SELECT s.sector_number as id FROM sectors s LEFT JOIN ports p ON p.sector_id = s.id
+       WHERE s.universe_id = $1 AND p.id IS NULL AND s.sector_number > 1
+       ORDER BY s.sector_number LIMIT 1`,
       [universeId],
     );
     assert.ok(result.rows.length > 0, 'Should have a sector without a port');
@@ -223,9 +223,9 @@ describe('Admin API - Create Port', () => {
   it('rejects invalid price for port class', async () => {
     // Find another empty sector
     const result = await pool.query(
-      `SELECT s.id FROM sectors s LEFT JOIN ports p ON p.sector_id = s.id AND p.universe_id = s.universe_id
-       WHERE s.universe_id = $1 AND p.id IS NULL AND s.id > 1
-       ORDER BY s.id LIMIT 1`,
+      `SELECT s.sector_number as id FROM sectors s LEFT JOIN ports p ON p.sector_id = s.id
+       WHERE s.universe_id = $1 AND p.id IS NULL AND s.sector_number > 1
+       ORDER BY s.sector_number LIMIT 1`,
       [universeId],
     );
     assert.ok(result.rows.length > 0);
@@ -243,9 +243,9 @@ describe('Admin API - Create Port', () => {
 
   it('rejects class 0 or class 9 creation', async () => {
     const result = await pool.query(
-      `SELECT s.id FROM sectors s LEFT JOIN ports p ON p.sector_id = s.id AND p.universe_id = s.universe_id
-       WHERE s.universe_id = $1 AND p.id IS NULL AND s.id > 1
-       ORDER BY s.id LIMIT 1`,
+      `SELECT s.sector_number as id FROM sectors s LEFT JOIN ports p ON p.sector_id = s.id
+       WHERE s.universe_id = $1 AND p.id IS NULL AND s.sector_number > 1
+       ORDER BY s.sector_number LIMIT 1`,
       [universeId],
     );
     const sector = result.rows[0].id;
@@ -265,9 +265,9 @@ describe('Admin API - Create Port', () => {
 
   it('rejects missing required fields', async () => {
     const result = await pool.query(
-      `SELECT s.id FROM sectors s LEFT JOIN ports p ON p.sector_id = s.id AND p.universe_id = s.universe_id
-       WHERE s.universe_id = $1 AND p.id IS NULL AND s.id > 1
-       ORDER BY s.id LIMIT 1`,
+      `SELECT s.sector_number as id FROM sectors s LEFT JOIN ports p ON p.sector_id = s.id
+       WHERE s.universe_id = $1 AND p.id IS NULL AND s.sector_number > 1
+       ORDER BY s.sector_number LIMIT 1`,
       [universeId],
     );
     assert.ok(result.rows.length > 0);
@@ -292,9 +292,9 @@ describe('Admin API - Create Port', () => {
 
   it('rejects quantity out of range on create', async () => {
     const result = await pool.query(
-      `SELECT s.id FROM sectors s LEFT JOIN ports p ON p.sector_id = s.id AND p.universe_id = s.universe_id
-       WHERE s.universe_id = $1 AND p.id IS NULL AND s.id > 1
-       ORDER BY s.id LIMIT 1`,
+      `SELECT s.sector_number as id FROM sectors s LEFT JOIN ports p ON p.sector_id = s.id
+       WHERE s.universe_id = $1 AND p.id IS NULL AND s.sector_number > 1
+       ORDER BY s.sector_number LIMIT 1`,
       [universeId],
     );
     assert.ok(result.rows.length > 0);
@@ -336,7 +336,7 @@ describe('Admin API - Delete Port', () => {
     universeId = res.body.id;
 
     const ports = await pool.query(
-      'SELECT sector_id FROM ports WHERE universe_id = $1 AND class BETWEEN 1 AND 8 LIMIT 1',
+      'SELECT s.sector_number as sector_id FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE s.universe_id = $1 AND p.class BETWEEN 1 AND 8 LIMIT 1',
       [universeId],
     );
     assert.ok(ports.rows.length > 0);
@@ -351,7 +351,7 @@ describe('Admin API - Delete Port', () => {
 
     // Verify it's gone
     const check = await pool.query(
-      'SELECT COUNT(*) FROM ports WHERE sector_id = $1 AND universe_id = $2',
+      'SELECT COUNT(*) FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE s.sector_number = $1 AND s.universe_id = $2',
       [tradingPortSector, universeId],
     );
     assert.equal(parseInt(check.rows[0].count, 10), 0);
@@ -365,7 +365,7 @@ describe('Admin API - Delete Port', () => {
 
   it('rejects deletion of Class 9 port', async () => {
     const stardock = await pool.query(
-      "SELECT sector_id FROM ports WHERE universe_id = $1 AND class = 9", [universeId]
+      "SELECT s.sector_number as sector_id FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE s.universe_id = $1 AND p.class = 9", [universeId]
     );
     assert.ok(stardock.rows.length > 0);
     const res = await adminKeyDelete(

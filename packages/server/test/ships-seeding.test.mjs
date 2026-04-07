@@ -43,7 +43,7 @@ describe('Universe Seeding', () => {
   });
 
   it('sector 1 has a class 0 port', async () => {
-    const res = await pool.query('SELECT class FROM ports WHERE sector_id = 1 AND universe_id = $1', [UNIVERSE_ID]);
+    const res = await pool.query('SELECT p.class FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE s.sector_number = 1 AND s.universe_id = $1', [UNIVERSE_ID]);
     assert.equal(res.rows.length, 1, 'sector 1 should have a port');
     assert.equal(res.rows[0].class, 0, 'sector 1 port should be class 0');
   });
@@ -51,7 +51,7 @@ describe('Universe Seeding', () => {
   it('Stardock sector has a class 9 port', async () => {
     const res = await pool.query(
       `SELECT p.class FROM ports p
-       JOIN sectors s ON p.sector_id = s.id AND p.universe_id = s.universe_id
+       JOIN sectors s ON p.sector_id = s.id
        WHERE s.name = 'Stardock' AND s.universe_id = $1`, [UNIVERSE_ID]
     );
     assert.equal(res.rows.length, 1, 'Stardock should have a port');

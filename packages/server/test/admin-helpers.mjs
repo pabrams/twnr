@@ -215,16 +215,16 @@ export const SCHEMA_SQL = `
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   );
   CREATE TABLE IF NOT EXISTS sectors (
-    id INTEGER NOT NULL,
-    universe_id INTEGER NOT NULL REFERENCES universes(id),
+    id SERIAL PRIMARY KEY,
+    universe_id INT NOT NULL REFERENCES universes(id) ON DELETE CASCADE,
+    sector_number INT NOT NULL,
     name VARCHAR(255),
-    PRIMARY KEY (id, universe_id)
+    UNIQUE(universe_id, sector_number)
   );
   CREATE TABLE IF NOT EXISTS warps (
-    sector_from INTEGER NOT NULL,
-    sector_to INTEGER NOT NULL,
-    universe_id INTEGER NOT NULL REFERENCES universes(id),
-    PRIMARY KEY (sector_from, sector_to, universe_id)
+    from_sector_id INT NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
+    to_sector_id INT NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
+    PRIMARY KEY(from_sector_id, to_sector_id)
   );
   CREATE TABLE IF NOT EXISTS players (
     id SERIAL PRIMARY KEY,
@@ -238,20 +238,18 @@ export const SCHEMA_SQL = `
   );
   CREATE TABLE IF NOT EXISTS ports (
     id SERIAL PRIMARY KEY,
-    sector_id INTEGER NOT NULL,
-    universe_id INTEGER NOT NULL REFERENCES universes(id),
+    sector_id INTEGER NOT NULL UNIQUE REFERENCES sectors(id) ON DELETE CASCADE,
     class INTEGER NOT NULL,
     fuel INTEGER NOT NULL DEFAULT 1000,
     fuel_price INTEGER NOT NULL,
     organics INTEGER NOT NULL DEFAULT 1000,
     org_price INTEGER NOT NULL,
     equipment INTEGER NOT NULL DEFAULT 1000,
-    equ_price INTEGER NOT NULL,
-    UNIQUE (sector_id, universe_id)
+    equ_price INTEGER NOT NULL
   );
   CREATE TABLE IF NOT EXISTS planets (
     id SERIAL PRIMARY KEY,
-    sector_id INTEGER NOT NULL,
+    sector_id INTEGER NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
     universe_id INTEGER NOT NULL REFERENCES universes(id),
     name VARCHAR(255) NOT NULL,
     type VARCHAR(255) NOT NULL DEFAULT 'Terran',

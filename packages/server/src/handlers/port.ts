@@ -27,7 +27,9 @@ export async function handlePortInfo(
     if (universeId === undefined) return;
 
     const portRes = await pool.query(
-        'SELECT sector_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price FROM ports WHERE sector_id = $1 AND universe_id = $2',
+        `SELECT s.sector_number as sector_id, p.class, p.fuel, p.fuel_price, p.organics, p.org_price, p.equipment, p.equ_price
+         FROM ports p JOIN sectors s ON p.sector_id = s.id
+         WHERE s.sector_number = $1 AND s.universe_id = $2`,
         [sectorId, universeId],
     );
     if (portRes.rows.length === 0) {
@@ -64,7 +66,9 @@ export async function handleDock(ws: WebSocket, playerId: number): Promise<void>
     }
 
     const portRes = await pool.query(
-        'SELECT class, fuel, fuel_price, organics, org_price, equipment, equ_price FROM ports WHERE sector_id = $1 AND universe_id = $2',
+        `SELECT p.class, p.fuel, p.fuel_price, p.organics, p.org_price, p.equipment, p.equ_price
+         FROM ports p JOIN sectors s ON p.sector_id = s.id
+         WHERE s.sector_number = $1 AND s.universe_id = $2`,
         [player.sector, player.universeId],
     );
     if (portRes.rows.length === 0) {
@@ -114,7 +118,9 @@ export async function handleUndock(ws: WebSocket, playerId: number): Promise<voi
         getVisitedSectors(playerId),
         getSectorFighters(currentSector, universeId),
         pool.query(
-            'SELECT id, name, type FROM planets WHERE sector_id = $1 AND universe_id = $2 ORDER BY id',
+            `SELECT pl.id, pl.name, pl.type FROM planets pl
+             JOIN sectors s ON pl.sector_id = s.id
+             WHERE s.sector_number = $1 AND s.universe_id = $2 ORDER BY pl.id`,
             [currentSector, universeId],
         ),
     ]);
@@ -191,7 +197,9 @@ export async function handlePortTransaction(
         const currentSector = pRes.rows[0].current_sector;
 
         const portRes = await client.query(
-            'SELECT class, fuel, fuel_price, organics, org_price, equipment, equ_price FROM ports WHERE sector_id = $1 AND universe_id = $2 FOR UPDATE',
+            `SELECT p.id as port_id, p.class, p.fuel, p.fuel_price, p.organics, p.org_price, p.equipment, p.equ_price
+             FROM ports p JOIN sectors s ON p.sector_id = s.id
+             WHERE s.sector_number = $1 AND s.universe_id = $2 FOR UPDATE OF p`,
             [currentSector, universeId],
         );
         if (portRes.rows.length === 0) {
@@ -267,8 +275,8 @@ export async function handlePortTransaction(
             }
 
             await client.query(
-                `UPDATE ports SET ${col} = ${col} - $1 WHERE sector_id = $2 AND universe_id = $3`,
-                [qty, currentSector, universeId],
+                `UPDATE ports SET ${col} = ${col} - $1 WHERE id = $2`,
+                [qty, port.port_id],
             );
             await client.query(
                 `UPDATE ship_cargo SET ${col} = ${col} + $1, credits = credits - $2 WHERE player_id = $3`,
@@ -298,8 +306,8 @@ export async function handlePortTransaction(
             }
 
             await client.query(
-                `UPDATE ports SET ${col} = ${col} + $1 WHERE sector_id = $2 AND universe_id = $3`,
-                [qty, currentSector, universeId],
+                `UPDATE ports SET ${col} = ${col} + $1 WHERE id = $2`,
+                [qty, port.port_id],
             );
             await client.query(
                 `UPDATE ship_cargo SET ${col} = ${col} - $1, credits = credits + $2 WHERE player_id = $3`,
@@ -339,7 +347,8 @@ export async function handleDockStardock(ws: WebSocket, playerId: number): Promi
     }
 
     const portRes = await pool.query(
-        'SELECT class FROM ports WHERE sector_id = $1 AND universe_id = $2',
+        `SELECT p.class FROM ports p JOIN sectors s ON p.sector_id = s.id
+         WHERE s.sector_number = $1 AND s.universe_id = $2`,
         [player.sector, player.universeId],
     );
     if (portRes.rows.length === 0 || portRes.rows[0].class !== 9) {
@@ -372,7 +381,9 @@ export async function handleLeaveStardock(ws: WebSocket, playerId: number): Prom
         getVisitedSectors(playerId),
         getSectorFighters(currentSector, universeId),
         pool.query(
-            'SELECT id, name, type FROM planets WHERE sector_id = $1 AND universe_id = $2 ORDER BY id',
+            `SELECT pl.id, pl.name, pl.type FROM planets pl
+             JOIN sectors s ON pl.sector_id = s.id
+             WHERE s.sector_number = $1 AND s.universe_id = $2 ORDER BY pl.id`,
             [currentSector, universeId],
         ),
     ]);

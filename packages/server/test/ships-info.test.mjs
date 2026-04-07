@@ -104,7 +104,7 @@ describe('Ship info — dynamic state', () => {
   });
 
   it('holdsAvailable reflects actual cargo (not just cargoLimit)', async () => {
-    const fuelRes = await pool.query('SELECT sector_id FROM ports WHERE class IN (3,4,6,7) AND universe_id = $1 LIMIT 1', [UNIVERSE_ID]);
+    const fuelRes = await pool.query('SELECT s.sector_number AS sector_id FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE p.class IN (3,4,6,7) AND s.universe_id = $1 LIMIT 1', [UNIVERSE_ID]);
     assert.ok(fuelRes.rows.length > 0, 'Need a fuel-selling sector');
     const fuelSector = Number(fuelRes.rows[0].sector_id);
 

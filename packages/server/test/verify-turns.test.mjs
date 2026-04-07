@@ -43,33 +43,42 @@ async function getAdjacentSector(wsConn) {
   return disp.warps?.[0];
 }
 
+/** Resolve a sector_number to the sectors.id DB primary key */
+async function sectorDbId(sectorNumber, universeId = UNIVERSE_ID) {
+  const res = await pool.query('SELECT id FROM sectors WHERE sector_number = $1 AND universe_id = $2', [sectorNumber, universeId]);
+  return res.rows[0]?.id;
+}
+
 /** Clear any sector fighters so movement doesn't trigger encounters */
-async function clearSectorFighters(sectorId, universeId = UNIVERSE_ID) {
-  await pool.query('DELETE FROM sector_fighters WHERE sector_id = $1 AND universe_id = $2', [sectorId, universeId]);
+async function clearSectorFighters(sectorNumber, universeId = UNIVERSE_ID) {
+  const dbId = await sectorDbId(sectorNumber, universeId);
+  if (dbId != null) await pool.query('DELETE FROM sector_fighters WHERE sector_id = $1', [dbId]);
 }
 
 /** Put a selling port (class 6: sells fuel) in a given sector via DB */
-async function ensureSellingPort(pool, sectorId, universeId = UNIVERSE_ID) {
+async function ensureSellingPort(pool, sectorNumber, universeId = UNIVERSE_ID) {
+  const dbId = await sectorDbId(sectorNumber, universeId);
   await pool.query(`
-    INSERT INTO ports (sector_id, universe_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
-    VALUES ($1, $2, 6, 1000, 5, 1000, 5, 1000, 5)
-    ON CONFLICT (sector_id, universe_id) DO UPDATE SET class = 6, fuel = 1000, fuel_price = 5
-  `, [sectorId, universeId]);
+    INSERT INTO ports (sector_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
+    VALUES ($1, 6, 1000, 5, 1000, 5, 1000, 5)
+    ON CONFLICT (sector_id) DO UPDATE SET class = 6, fuel = 1000, fuel_price = 5
+  `, [dbId]);
 }
 
 /** Put a port that buys fuel (class 1: buys fuel+organics, sells equipment) */
-async function ensureBuyingPort(pool, sectorId, universeId = UNIVERSE_ID) {
+async function ensureBuyingPort(pool, sectorNumber, universeId = UNIVERSE_ID) {
+  const dbId = await sectorDbId(sectorNumber, universeId);
   await pool.query(`
-    INSERT INTO ports (sector_id, universe_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
-    VALUES ($1, $2, 1, 1000, 5, 1000, 5, 1000, 5)
-    ON CONFLICT (sector_id, universe_id) DO UPDATE SET class = 1, fuel = 1000, fuel_price = 5
-  `, [sectorId, universeId]);
+    INSERT INTO ports (sector_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
+    VALUES ($1, 1, 1000, 5, 1000, 5, 1000, 5)
+    ON CONFLICT (sector_id) DO UPDATE SET class = 1, fuel = 1000, fuel_price = 5
+  `, [dbId]);
 }
 
-/** Find the Stardock sector (port class 9) */
+/** Find the Stardock sector (port class 9) — returns sector_number */
 async function findStardockSector() {
-  const res = await pool.query('SELECT sector_id FROM ports WHERE universe_id = $1 AND class = 9 LIMIT 1', [UNIVERSE_ID]);
-  return res.rows.length > 0 ? res.rows[0].sector_id : null;
+  const res = await pool.query('SELECT s.sector_number FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE s.universe_id = $1 AND p.class = 9 LIMIT 1', [UNIVERSE_ID]);
+  return res.rows.length > 0 ? res.rows[0].sector_number : null;
 }
 
 /** Move player to stardock, dock, and return ws + player info */
@@ -89,25 +98,27 @@ async function goToStardock(pool) {
 }
 
 /** Ensure a planet exists in the given sector, creating one if needed. Returns planet id. */
-async function ensurePlanetInSector(sectorId, universeId = UNIVERSE_ID) {
-  const existing = await pool.query('SELECT id FROM planets WHERE sector_id = $1 AND universe_id = $2 LIMIT 1', [sectorId, universeId]);
+async function ensurePlanetInSector(sectorNumber, universeId = UNIVERSE_ID) {
+  const dbId = await sectorDbId(sectorNumber, universeId);
+  const existing = await pool.query('SELECT id FROM planets WHERE sector_id = $1 AND universe_id = $2 LIMIT 1', [dbId, universeId]);
   if (existing.rows.length > 0) return existing.rows[0].id;
   const maxId = await pool.query('SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM planets WHERE universe_id = $1', [universeId]);
   const nextId = maxId.rows[0].next_id;
   await pool.query(
     `INSERT INTO planets (id, sector_id, universe_id, name, type) VALUES ($1, $2, $3, 'TestPlanet', 'H')`,
-    [nextId, sectorId, universeId],
+    [nextId, dbId, universeId],
   );
   return nextId;
 }
 
 /** Deploy fighters in a sector for a player (directly via DB) */
-async function deployFightersInSector(pool, playerId, sectorId, quantity, universeId = UNIVERSE_ID) {
+async function deployFightersInSector(pool, playerId, sectorNumber, quantity, universeId = UNIVERSE_ID) {
+  const dbId = await sectorDbId(sectorNumber, universeId);
   await pool.query(`
-    INSERT INTO sector_fighters (sector_id, universe_id, owner_id, quantity)
-    VALUES ($1, $2, $3, $4)
-    ON CONFLICT (sector_id, universe_id) DO UPDATE SET owner_id = $3, quantity = $4
-  `, [sectorId, universeId, playerId, quantity]);
+    INSERT INTO sector_fighters (sector_id, owner_id, quantity)
+    VALUES ($1, $2, $3)
+    ON CONFLICT (sector_id) DO UPDATE SET owner_id = $2, quantity = $3
+  `, [dbId, playerId, quantity]);
 }
 
 /** Move player to a specific sector, clearing fighters en route */
@@ -294,7 +305,7 @@ describe('Ship trade-in resets ship-specific fields', () => {
     await pool.query('UPDATE players SET turns = 9999 WHERE id = $1', [playerId]);
     const { ws: wsConn } = await ws(token);
 
-    const stardockRes = await pool.query('SELECT sector_id FROM ports WHERE universe_id = $1 AND class = 9 LIMIT 1', [UNIVERSE_ID]);
+    const stardockRes = await pool.query('SELECT s.sector_number AS sector_id FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE s.universe_id = $1 AND p.class = 9 LIMIT 1', [UNIVERSE_ID]);
     assert.ok(stardockRes.rows.length > 0, 'Stardock must exist');
     const stardockSector = stardockRes.rows[0].sector_id;
     const moved = await movePlayerToViaWs(wsConn, stardockSector);
@@ -319,7 +330,7 @@ describe('Ship trade-in resets ship-specific fields', () => {
     await pool.query('UPDATE players SET turns = 9999 WHERE id = $1', [playerId]);
     const { ws: wsConn } = await ws(token);
 
-    const stardockRes = await pool.query('SELECT sector_id FROM ports WHERE universe_id = $1 AND class = 9 LIMIT 1', [UNIVERSE_ID]);
+    const stardockRes = await pool.query('SELECT s.sector_number AS sector_id FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE s.universe_id = $1 AND p.class = 9 LIMIT 1', [UNIVERSE_ID]);
     const stardockSector = stardockRes.rows[0].sector_id;
     await movePlayerToViaWs(wsConn, stardockSector);
     await wsRequest(wsConn, { type: ClientMsgType.DockStardock }, ServerMsgType.DockStardockResult);
@@ -349,7 +360,7 @@ describe('Warp turn costs', () => {
     const tpw = (await pool.query('SELECT turns_per_warp FROM player_ships WHERE player_id = $1', [playerId])).rows[0].turns_per_warp;
     const adj = await getAdjacentSector(wsConn);
     assert.ok(adj, 'Need adjacent sector');
-    await pool.query('DELETE FROM sector_fighters WHERE sector_id = $1 AND universe_id = $2', [adj, UNIVERSE_ID]);
+    await clearSectorFighters(adj);
 
     const result = await wsRequest(wsConn, { type: ClientMsgType.Move, sector: adj }, ServerMsgType.MoveResult);
     assert.equal(result.outcome, 'success');
@@ -421,7 +432,7 @@ describe('Docking costs 0 turns', () => {
     const adj = await getAdjacentSector(wsConn);
     assert.ok(adj);
     await ensureSellingPort(pool, adj);
-    await pool.query('DELETE FROM sector_fighters WHERE sector_id = $1 AND universe_id = $2', [adj, UNIVERSE_ID]);
+    await clearSectorFighters(adj);
     await wsRequest(wsConn, { type: ClientMsgType.Move, sector: adj }, ServerMsgType.MoveResult);
 
     await pool.query('UPDATE players SET turns = 50 WHERE id = $1', [playerId]);
@@ -1280,17 +1291,17 @@ describe('HyperspaceJump', () => {
   it('Rejected when no path to target sector', async () => {
     const { ws: wsConn, playerId } = await setupJumpPlayer();
 
-    const fakeSector = 99999;
-    await pool.query(`INSERT INTO sectors (id, universe_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [fakeSector, UNIVERSE_ID]);
-    await deployFightersInSector(pool, playerId, fakeSector, 5);
+    const fakeSectorNumber = 99999;
+    await pool.query(`INSERT INTO sectors (universe_id, sector_number) VALUES ($1, $2) ON CONFLICT (universe_id, sector_number) DO NOTHING`, [UNIVERSE_ID, fakeSectorNumber]);
+    await deployFightersInSector(pool, playerId, fakeSectorNumber, 5);
     await pool.query('UPDATE ship_cargo SET fuel = 1000 WHERE player_id = $1', [playerId]);
 
-    const result = await wsRequest(wsConn, { type: ClientMsgType.HyperspaceJump, targetSector: fakeSector }, ServerMsgType.HyperspaceJumpResult);
+    const result = await wsRequest(wsConn, { type: ClientMsgType.HyperspaceJump, targetSector: fakeSectorNumber }, ServerMsgType.HyperspaceJumpResult);
     assert.equal(result.type, ServerMsgType.Error);
     assert.match(result.message.toLowerCase(), /no path/);
 
     await pool.query('DELETE FROM sector_fighters WHERE owner_id = $1', [playerId]);
-    await pool.query('DELETE FROM sectors WHERE id = $1 AND universe_id = $2', [fakeSector, UNIVERSE_ID]);
+    await pool.query('DELETE FROM sectors WHERE sector_number = $1 AND universe_id = $2', [fakeSectorNumber, UNIVERSE_ID]);
     await closeWS(wsConn);
   });
 });

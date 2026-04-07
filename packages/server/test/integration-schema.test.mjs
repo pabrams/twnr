@@ -19,23 +19,27 @@ after(async () => {
 });
 
 describe('Schema', () => {
-  it('sectors table has an integer id column', async () => {
+  it('sectors table has id and sector_number columns', async () => {
     const res = await pool.query(
       `SELECT column_name, data_type FROM information_schema.columns
-       WHERE table_name = 'sectors' AND column_name = 'id'`
+       WHERE table_name = 'sectors' AND column_name IN ('id', 'sector_number')
+       ORDER BY column_name`
     );
-    assert.equal(res.rows.length, 1, 'sectors table should have an id column');
-    assert.ok(res.rows[0].data_type.includes('int'), 'id should be an integer type');
+    const cols = Object.fromEntries(res.rows.map(r => [r.column_name, r.data_type]));
+    assert.ok(cols.id, 'sectors table should have an id column');
+    assert.ok(cols.id.includes('int'), 'id should be an integer type');
+    assert.ok(cols.sector_number, 'sectors table should have a sector_number column');
+    assert.ok(cols.sector_number.includes('int'), 'sector_number should be an integer type');
   });
 
-  it('warps table has sector_from and sector_to columns', async () => {
+  it('warps table has from_sector_id and to_sector_id columns', async () => {
     const res = await pool.query(
       `SELECT column_name FROM information_schema.columns
        WHERE table_name = 'warps' ORDER BY column_name`
     );
     const cols = res.rows.map(r => r.column_name);
-    assert.ok(cols.includes('sector_from'), 'missing sector_from column');
-    assert.ok(cols.includes('sector_to'), 'missing sector_to column');
+    assert.ok(cols.includes('from_sector_id'), 'missing from_sector_id column');
+    assert.ok(cols.includes('to_sector_id'), 'missing to_sector_id column');
   });
 
   it('players table has id, name, and current_sector columns', async () => {
@@ -49,7 +53,7 @@ describe('Schema', () => {
     assert.ok(cols.includes('current_sector'), 'missing current_sector column');
   });
 
-  it('warps table has foreign key referencing universes', async () => {
+  it('warps table has foreign keys referencing sectors', async () => {
     const res = await pool.query(
       `SELECT ccu.table_name AS foreign_table, kcu.column_name
        FROM information_schema.table_constraints tc
@@ -60,7 +64,7 @@ describe('Schema', () => {
        WHERE tc.table_name = 'warps' AND tc.constraint_type = 'FOREIGN KEY'`
     );
     const fkTables = res.rows.map(r => r.foreign_table);
-    assert.ok(fkTables.includes('universes'), 'warps should have FK to universes');
+    assert.ok(fkTables.includes('sectors'), 'warps should have FK to sectors');
   });
 
   it('players table has foreign keys referencing users and universes', async () => {

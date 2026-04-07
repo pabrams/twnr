@@ -114,7 +114,9 @@ export async function handleMove(
         getVisitedSectors(playerId),
         getSectorFighters(targetSector, universeId),
         pool.query(
-            'SELECT id, name, type FROM planets WHERE sector_id = $1 AND universe_id = $2 ORDER BY id',
+            `SELECT pl.id, pl.name, pl.type FROM planets pl
+             JOIN sectors s ON pl.sector_id = s.id
+             WHERE s.sector_number = $1 AND s.universe_id = $2 ORDER BY pl.id`,
             [targetSector, universeId],
         ),
     ]);
@@ -195,7 +197,9 @@ export async function handleSectorDisplay(ws: WebSocket, playerId: number): Prom
         getVisitedSectors(playerId),
         getSectorFighters(currentSector, universeId),
         pool.query(
-            'SELECT id, name, type FROM planets WHERE sector_id = $1 AND universe_id = $2 ORDER BY id',
+            `SELECT pl.id, pl.name, pl.type FROM planets pl
+             JOIN sectors s ON pl.sector_id = s.id
+             WHERE s.sector_number = $1 AND s.universe_id = $2 ORDER BY pl.id`,
             [currentSector, universeId],
         ),
     ]);
@@ -232,7 +236,7 @@ export async function handleWarpsOut(ws: WebSocket, playerId: number, id: number
     if (universeId === undefined) return;
 
     const sectorRes = await pool.query(
-        'SELECT id FROM sectors WHERE id = $1 AND universe_id = $2',
+        'SELECT id FROM sectors WHERE sector_number = $1 AND universe_id = $2',
         [id, universeId],
     );
     if (sectorRes.rows.length === 0) {
@@ -241,7 +245,11 @@ export async function handleWarpsOut(ws: WebSocket, playerId: number, id: number
     }
 
     const warpsRes = await pool.query(
-        'SELECT sector_to FROM warps WHERE sector_from = $1 AND universe_id = $2',
+        `SELECT s_to.sector_number as sector_to
+         FROM warps w
+         JOIN sectors s_from ON w.from_sector_id = s_from.id
+         JOIN sectors s_to ON w.to_sector_id = s_to.id
+         WHERE s_from.sector_number = $1 AND s_from.universe_id = $2`,
         [id, universeId],
     );
     const warps = warpsRes.rows.map((r) => r.sector_to);
@@ -263,11 +271,11 @@ export async function handleShortestPath(
     if (universeId === undefined) return;
 
     const sectorRes = await pool.query(
-        'SELECT id FROM sectors WHERE id IN ($1, $2) AND universe_id = $3',
+        'SELECT sector_number FROM sectors WHERE sector_number IN ($1, $2) AND universe_id = $3',
         [from, to, universeId],
     );
     if (sectorRes.rows.length !== (from === to ? 1 : 2)) {
-        const foundIds = new Set(sectorRes.rows.map((r: any) => r.id));
+        const foundIds = new Set(sectorRes.rows.map((r: any) => r.sector_number));
         if (!foundIds.has(from) || !foundIds.has(to)) {
             send(ws, { type: ServerMsgType.Error, message: 'Sector not found' });
             return;

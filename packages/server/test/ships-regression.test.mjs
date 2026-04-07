@@ -26,7 +26,7 @@ function connectWS(opts = {}) {
 }
 
 async function findFuelBuyerSector() {
-  const res = await pool.query('SELECT sector_id FROM ports WHERE class IN (1, 2, 5, 8) AND universe_id = $1 LIMIT 1', [UNIVERSE_ID]);
+  const res = await pool.query('SELECT s.sector_number AS sector_id FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE p.class IN (1, 2, 5, 8) AND s.universe_id = $1 LIMIT 1', [UNIVERSE_ID]);
   return res.rows.length > 0 ? Number(res.rows[0].sector_id) : null;
 }
 
@@ -50,7 +50,7 @@ describe('Movement Constraint', () => {
     try {
       await pool.query('DELETE FROM player_ships WHERE player_id = $1', [playerId]);
 
-      const adjRes = await pool.query('SELECT sector_to FROM warps WHERE sector_from = 1 AND universe_id = $1 LIMIT 1', [UNIVERSE_ID]);
+      const adjRes = await pool.query('SELECT s_to.sector_number AS sector_to FROM warps w JOIN sectors s_from ON w.from_sector_id = s_from.id JOIN sectors s_to ON w.to_sector_id = s_to.id WHERE s_from.sector_number = 1 AND s_from.universe_id = $1 LIMIT 1', [UNIVERSE_ID]);
       const target = adjRes.rows.length > 0 ? Number(adjRes.rows[0].sector_to) : 2;
 
       const msg = await wsRequest(ws, { type: ClientMsgType.Move, sector: target }, ServerMsgType.MoveResult);

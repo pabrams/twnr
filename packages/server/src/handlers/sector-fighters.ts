@@ -96,10 +96,22 @@ export async function handleDeployFighters(
         const shipCfg = shipConfigs[shipRes.rows[0].ship_name];
         const maxFighters = shipCfg?.maxFighters ?? 0;
 
+        // Look up sector DB id
+        const sectorLookup = await client.query(
+            'SELECT id FROM sectors WHERE sector_number = $1 AND universe_id = $2',
+            [sectorId, universeId],
+        );
+        if (sectorLookup.rows.length === 0) {
+            await client.query('ROLLBACK');
+            send(ws, { type: ServerMsgType.Error, message: 'Sector not found' });
+            return;
+        }
+        const sectorDbId = sectorLookup.rows[0].id;
+
         // Lock existing sector fighters row if present
         const sfRes = await client.query(
-            'SELECT quantity, owner_id FROM sector_fighters WHERE sector_id = $1 AND universe_id = $2 FOR UPDATE',
-            [sectorId, universeId],
+            'SELECT quantity, owner_id FROM sector_fighters WHERE sector_id = $1 FOR UPDATE',
+            [sectorDbId],
         );
 
         let currentInSector = 0;
@@ -151,18 +163,18 @@ export async function handleDeployFighters(
         // Update sector fighters
         if (target === 0 && sfRes.rows.length > 0) {
             await client.query(
-                'DELETE FROM sector_fighters WHERE sector_id = $1 AND universe_id = $2 AND owner_id = $3',
-                [sectorId, universeId, playerId],
+                'DELETE FROM sector_fighters WHERE sector_id = $1 AND owner_id = $2',
+                [sectorDbId, playerId],
             );
         } else if (sfRes.rows.length > 0) {
             await client.query(
-                'UPDATE sector_fighters SET quantity = $1 WHERE sector_id = $2 AND universe_id = $3 AND owner_id = $4',
-                [target, sectorId, universeId, playerId],
+                'UPDATE sector_fighters SET quantity = $1 WHERE sector_id = $2 AND owner_id = $3',
+                [target, sectorDbId, playerId],
             );
         } else if (target > 0) {
             await client.query(
-                'INSERT INTO sector_fighters (sector_id, universe_id, owner_id, quantity) VALUES ($1, $2, $3, $4)',
-                [sectorId, universeId, playerId, target],
+                'INSERT INTO sector_fighters (sector_id, owner_id, quantity) VALUES ($1, $2, $3)',
+                [sectorDbId, playerId, target],
             );
         }
 
@@ -203,6 +215,13 @@ export async function handleAttackSectorFighters(
     const sectorId = player.sector;
     const universeId = player.universeId;
 
+    // Look up sector DB id
+    const sectorLookup = await pool.query(
+        'SELECT id FROM sectors WHERE sector_number = $1 AND universe_id = $2',
+        [sectorId, universeId],
+    );
+    const sectorDbId = sectorLookup.rows[0]?.id;
+
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
@@ -228,8 +247,8 @@ export async function handleAttackSectorFighters(
         }
 
         const sfRes = await client.query(
-            'SELECT quantity, owner_id FROM sector_fighters WHERE sector_id = $1 AND universe_id = $2 FOR UPDATE',
-            [sectorId, universeId],
+            'SELECT quantity, owner_id FROM sector_fighters WHERE sector_id = $1 FOR UPDATE',
+            [sectorDbId],
         );
         if (sfRes.rows.length === 0 || sfRes.rows[0].quantity <= 0) {
             await client.query('ROLLBACK');
@@ -256,13 +275,13 @@ export async function handleAttackSectorFighters(
         // Update or delete sector fighters
         if (newSectorFighters <= 0) {
             await client.query(
-                'DELETE FROM sector_fighters WHERE sector_id = $1 AND universe_id = $2 AND owner_id = $3',
-                [sectorId, universeId, ownerId],
+                'DELETE FROM sector_fighters WHERE sector_id = $1 AND owner_id = $2',
+                [sectorDbId, ownerId],
             );
         } else {
             await client.query(
-                'UPDATE sector_fighters SET quantity = $1 WHERE sector_id = $2 AND universe_id = $3 AND owner_id = $4',
-                [newSectorFighters, sectorId, universeId, ownerId],
+                'UPDATE sector_fighters SET quantity = $1 WHERE sector_id = $2 AND owner_id = $3',
+                [newSectorFighters, sectorDbId, ownerId],
             );
         }
 
@@ -351,7 +370,9 @@ export async function handleRetreatFromFighters(ws: WebSocket, playerId: number)
         getVisitedSectors(playerId),
         getSectorFighters(retreatSector, universeId),
         pool.query(
-            'SELECT id, name, type FROM planets WHERE sector_id = $1 AND universe_id = $2 ORDER BY id',
+            `SELECT pl.id, pl.name, pl.type FROM planets pl
+             JOIN sectors s ON pl.sector_id = s.id
+             WHERE s.sector_number = $1 AND s.universe_id = $2 ORDER BY pl.id`,
             [retreatSector, universeId],
         ),
     ]);

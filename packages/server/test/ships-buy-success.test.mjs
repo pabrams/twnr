@@ -37,7 +37,7 @@ function connectWS(opts = {}) {
 }
 
 async function findFuelSellerSector() {
-  const res = await pool.query('SELECT sector_id FROM ports WHERE class IN (3, 4, 6, 7) AND universe_id = $1 LIMIT 1', [UNIVERSE_ID]);
+  const res = await pool.query('SELECT s.sector_number AS sector_id FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE p.class IN (3, 4, 6, 7) AND s.universe_id = $1 LIMIT 1', [UNIVERSE_ID]);
   return res.rows.length > 0 ? Number(res.rows[0].sector_id) : null;
 }
 
@@ -123,9 +123,9 @@ describe('Buy equipment — success', () => {
   });
 
   it('buy-holds cap is enforced using the current ship type (Warbird has lower maxHolds)', async () => {
-    const stardockRes = await pool.query(`SELECT id FROM sectors WHERE name = 'Stardock' AND universe_id = $1`, [UNIVERSE_ID]);
+    const stardockRes = await pool.query(`SELECT sector_number FROM sectors WHERE name = 'Stardock' AND universe_id = $1`, [UNIVERSE_ID]);
     assert.ok(stardockRes.rows.length > 0, 'Stardock must exist');
-    const stardockId = Number(stardockRes.rows[0].id);
+    const stardockId = Number(stardockRes.rows[0].sector_number);
 
     const { ws, welcome } = await connectWS();
     try {
@@ -193,9 +193,9 @@ describe('Buy equipment — success', () => {
   it('cargo limit is enforced after ship exchange reduces cargoLimit', async () => {
     const fuelSector = await findFuelSellerSector();
     assert.ok(fuelSector, 'Need a fuel-selling port for this test');
-    const stardockRes = await pool.query(`SELECT id FROM sectors WHERE name = 'Stardock' AND universe_id = $1`, [UNIVERSE_ID]);
+    const stardockRes = await pool.query(`SELECT sector_number FROM sectors WHERE name = 'Stardock' AND universe_id = $1`, [UNIVERSE_ID]);
     assert.ok(stardockRes.rows.length > 0, 'Stardock must exist');
-    const stardockId = Number(stardockRes.rows[0].id);
+    const stardockId = Number(stardockRes.rows[0].sector_number);
 
     const { ws } = await connectWS();
     try {
@@ -215,7 +215,7 @@ describe('Buy equipment — success', () => {
   });
 
   it('after buying holds the new cargo_limit is enforced in trade', async () => {
-    const fuelRes = await pool.query('SELECT sector_id FROM ports WHERE class IN (3,4,6,7) AND universe_id = $1 LIMIT 1', [UNIVERSE_ID]);
+    const fuelRes = await pool.query('SELECT s.sector_number AS sector_id FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE p.class IN (3,4,6,7) AND s.universe_id = $1 LIMIT 1', [UNIVERSE_ID]);
     assert.ok(fuelRes.rows.length > 0, 'Need a fuel-selling sector');
     const fuelSector = Number(fuelRes.rows[0].sector_id);
 

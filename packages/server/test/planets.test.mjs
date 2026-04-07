@@ -262,10 +262,12 @@ describe('planets table schema', () => {
 describe('planets triggers', () => {
   let univId;
 
+  let sectorDbId;
   before(async () => {
     const res = await pool.query("INSERT INTO universes (name, seed) VALUES ('trigger_test', 1) RETURNING id");
     univId = res.rows[0].id;
-    await pool.query('INSERT INTO sectors (id, universe_id, name) VALUES (1, $1, $2)', [univId, 'S1']);
+    const sRes = await pool.query('INSERT INTO sectors (universe_id, sector_number, name) VALUES ($1, 1, $2) RETURNING id', [univId, 'S1']);
+    sectorDbId = sRes.rows[0].id;
   });
 
   after(async () => {
@@ -276,8 +278,8 @@ describe('planets triggers', () => {
 
   it('sets created_at on INSERT', async () => {
     await pool.query(
-      "INSERT INTO planets (id, sector_id, universe_id, name, type) VALUES (1, 1, $1, 'TriggerWorld', 'Terran')",
-      [univId],
+      "INSERT INTO planets (id, sector_id, universe_id, name, type) VALUES (1, $1, $2, 'TriggerWorld', 'Terran')",
+      [sectorDbId, univId],
     );
     const res = await pool.query('SELECT created_at FROM planets WHERE id = 1 AND universe_id = $1', [univId]);
     assert.ok(res.rows[0].created_at, 'created_at should be set on insert');
@@ -298,10 +300,11 @@ describe('multiple planets per sector', () => {
   it('allows inserting multiple planets in the same sector', async () => {
     const res = await pool.query("INSERT INTO universes (name, seed) VALUES ('multi_test', 2) RETURNING id");
     const uid = res.rows[0].id;
-    await pool.query('INSERT INTO sectors (id, universe_id, name) VALUES (1, $1, $2)', [uid, 'S1']);
-    await pool.query("INSERT INTO planets (id, sector_id, universe_id, name, type) VALUES (1, 1, $1, 'P1', 'Terran')", [uid]);
-    await pool.query("INSERT INTO planets (id, sector_id, universe_id, name, type) VALUES (2, 1, $1, 'P2', 'Oceanic')", [uid]);
-    const count = await pool.query('SELECT COUNT(*)::int as cnt FROM planets WHERE sector_id = 1 AND universe_id = $1', [uid]);
+    const sRes = await pool.query('INSERT INTO sectors (universe_id, sector_number, name) VALUES ($1, 1, $2) RETURNING id', [uid, 'S1']);
+    const secId = sRes.rows[0].id;
+    await pool.query("INSERT INTO planets (id, sector_id, universe_id, name, type) VALUES (1, $1, $2, 'P1', 'Terran')", [secId, uid]);
+    await pool.query("INSERT INTO planets (id, sector_id, universe_id, name, type) VALUES (2, $1, $2, 'P2', 'Oceanic')", [secId, uid]);
+    const count = await pool.query('SELECT COUNT(*)::int as cnt FROM planets WHERE sector_id = $1 AND universe_id = $2', [secId, uid]);
     assert.equal(count.rows[0].cnt, 2);
 
     await pool.query('DELETE FROM planets WHERE universe_id = $1', [uid]);
@@ -376,10 +379,11 @@ describe('planet_collisions table', () => {
   it('cascade deletes when collision_planet is deleted', async () => {
     const res = await pool.query("INSERT INTO universes (name, seed) VALUES ('cascade_test', 3) RETURNING id");
     const uid = res.rows[0].id;
-    await pool.query('INSERT INTO sectors (id, universe_id, name) VALUES (1, $1, $2)', [uid, 'S1']);
-    await pool.query('INSERT INTO sectors (id, universe_id, name) VALUES (2, $1, $2)', [uid, 'S2']);
-    await pool.query("INSERT INTO planets (id, sector_id, universe_id, name, type) VALUES (1, 1, $1, 'P1', 'Terran')", [uid]);
-    await pool.query("INSERT INTO planets (id, sector_id, universe_id, name, type) VALUES (2, 2, $1, 'P2', 'Oceanic')", [uid]);
+    const s1Res = await pool.query('INSERT INTO sectors (universe_id, sector_number, name) VALUES ($1, 1, $2) RETURNING id', [uid, 'S1']);
+    const s2Res = await pool.query('INSERT INTO sectors (universe_id, sector_number, name) VALUES ($1, 2, $2) RETURNING id', [uid, 'S2']);
+    const sec1 = s1Res.rows[0].id, sec2 = s2Res.rows[0].id;
+    await pool.query("INSERT INTO planets (id, sector_id, universe_id, name, type) VALUES (1, $1, $2, 'P1', 'Terran')", [sec1, uid]);
+    await pool.query("INSERT INTO planets (id, sector_id, universe_id, name, type) VALUES (2, $1, $2, 'P2', 'Oceanic')", [sec2, uid]);
     await pool.query(
       "INSERT INTO planet_collisions (collision_planet, colliding_with, universe_id, collision_at) VALUES (1, 2, $1, NOW() + interval '24 hours')",
       [uid],
@@ -399,9 +403,10 @@ describe('planet_collisions table', () => {
   it('cascade deletes when colliding_with planet is deleted', async () => {
     const res = await pool.query("INSERT INTO universes (name, seed) VALUES ('cascade2_test', 4) RETURNING id");
     const uid = res.rows[0].id;
-    await pool.query('INSERT INTO sectors (id, universe_id, name) VALUES (1, $1, $2)', [uid, 'S1']);
-    await pool.query("INSERT INTO planets (id, sector_id, universe_id, name, type) VALUES (1, 1, $1, 'PA', 'Terran')", [uid]);
-    await pool.query("INSERT INTO planets (id, sector_id, universe_id, name, type) VALUES (2, 1, $1, 'PB', 'Oceanic')", [uid]);
+    const sRes = await pool.query('INSERT INTO sectors (universe_id, sector_number, name) VALUES ($1, 1, $2) RETURNING id', [uid, 'S1']);
+    const secId = sRes.rows[0].id;
+    await pool.query("INSERT INTO planets (id, sector_id, universe_id, name, type) VALUES (1, $1, $2, 'PA', 'Terran')", [secId, uid]);
+    await pool.query("INSERT INTO planets (id, sector_id, universe_id, name, type) VALUES (2, $1, $2, 'PB', 'Oceanic')", [secId, uid]);
     await pool.query(
       "INSERT INTO planet_collisions (collision_planet, colliding_with, universe_id, collision_at) VALUES (1, 2, $1, NOW() + interval '24 hours')",
       [uid],
@@ -723,14 +728,19 @@ describe('WS: sector display includes planets', () => {
   it('sector with no planets returns empty planets array', async () => {
     // Move to a sector that has no planets
     const warps = await pool.query(
-      'SELECT w.sector_to FROM warps w WHERE w.sector_from = 1 AND w.universe_id = $1 LIMIT 1',
+      `SELECT s_to.sector_number AS sector_to, s_to.id AS sector_db_id
+       FROM warps w
+       JOIN sectors s_from ON w.from_sector_id = s_from.id
+       JOIN sectors s_to ON w.to_sector_id = s_to.id
+       WHERE s_from.sector_number = 1 AND s_from.universe_id = $1 LIMIT 1`,
       [universeId],
     );
     assert.ok(warps.rows.length > 0, 'need a warp target from sector 1');
     const targetSector = warps.rows[0].sector_to;
+    const targetSectorDbId = warps.rows[0].sector_db_id;
 
     // Ensure no planets in that sector
-    await pool.query('DELETE FROM planets WHERE sector_id = $1 AND universe_id = $2', [targetSector, universeId]);
+    await pool.query('DELETE FROM planets WHERE sector_id = $1 AND universe_id = $2', [targetSectorDbId, universeId]);
 
     player.sendMsg({ type: ClientMsgType.Move, sector: targetSector });
     await player.waitForMessage(ServerMsgType.MoveResult);
@@ -811,14 +821,19 @@ describe('WS: land command returns planet list', () => {
   it('land command in sector with no planets returns empty planetList', async () => {
     // Move to a sector with no planets
     const warps = await pool.query(
-      'SELECT w.sector_to FROM warps w WHERE w.sector_from = 1 AND w.universe_id = $1 LIMIT 1',
+      `SELECT s_to.sector_number AS sector_to, s_to.id AS sector_db_id
+       FROM warps w
+       JOIN sectors s_from ON w.from_sector_id = s_from.id
+       JOIN sectors s_to ON w.to_sector_id = s_to.id
+       WHERE s_from.sector_number = 1 AND s_from.universe_id = $1 LIMIT 1`,
       [universeId],
     );
     assert.ok(warps.rows.length > 0, 'need a warp target from sector 1');
     const targetSector = warps.rows[0].sector_to;
+    const targetSectorDbId = warps.rows[0].sector_db_id;
 
     // Ensure no planets in that sector
-    await pool.query('DELETE FROM planets WHERE sector_id = $1 AND universe_id = $2', [targetSector, universeId]);
+    await pool.query('DELETE FROM planets WHERE sector_id = $1 AND universe_id = $2', [targetSectorDbId, universeId]);
 
     player.sendMsg({ type: ClientMsgType.Move, sector: targetSector });
     await player.waitForMessage(ServerMsgType.MoveResult);
@@ -920,7 +935,11 @@ describe('WS: use terraform device', () => {
   it('useTerraformDevice with 0 devices returns no_devices', async () => {
     // Move to a non-restricted sector first
     const warps = await pool.query(
-      'SELECT sector_to FROM warps WHERE sector_from = 1 AND universe_id = $1 LIMIT 1',
+      `SELECT s_to.sector_number AS sector_to, s_to.id AS sector_db_id
+       FROM warps w
+       JOIN sectors s_from ON w.from_sector_id = s_from.id
+       JOIN sectors s_to ON w.to_sector_id = s_to.id
+       WHERE s_from.sector_number = 1 AND s_from.universe_id = $1 LIMIT 1`,
       [universeId],
     );
     if (warps.rows.length > 0) {
@@ -966,11 +985,16 @@ describe('WS: use terraform device', () => {
   it('useTerraformDevice in a valid sector creates a planet', async () => {
     // Move to a non-restricted, non-Stardock sector
     const warps = await pool.query(
-      "SELECT w.sector_to FROM warps w JOIN sectors s ON s.id = w.sector_to AND s.universe_id = w.universe_id WHERE w.sector_from = 1 AND w.universe_id = $1 AND s.name != 'Stardock' LIMIT 1",
+      `SELECT s_to.sector_number AS sector_to, s_to.id AS sector_db_id
+       FROM warps w
+       JOIN sectors s_from ON w.from_sector_id = s_from.id
+       JOIN sectors s_to ON w.to_sector_id = s_to.id
+       WHERE s_from.sector_number = 1 AND s_from.universe_id = $1 AND s_to.name != 'Stardock' LIMIT 1`,
       [universeId],
     );
     assert.ok(warps.rows.length > 0, 'should have a warp from sector 1');
     const targetSector = warps.rows[0].sector_to;
+    const targetSectorDbId = warps.rows[0].sector_db_id;
 
     player.sendMsg({ type: ClientMsgType.Move, sector: targetSector });
     await player.waitForMessage(ServerMsgType.MoveResult);
@@ -980,7 +1004,7 @@ describe('WS: use terraform device', () => {
 
     const planetsBefore = await pool.query(
       'SELECT COUNT(*)::int as cnt FROM planets WHERE sector_id = $1 AND universe_id = $2',
-      [targetSector, universeId],
+      [targetSectorDbId, universeId],
     );
 
     player.sendMsg({ type: ClientMsgType.UseTerraformDevice });
@@ -994,7 +1018,7 @@ describe('WS: use terraform device', () => {
 
     const planetsAfter = await pool.query(
       'SELECT COUNT(*)::int as cnt FROM planets WHERE sector_id = $1 AND universe_id = $2',
-      [targetSector, universeId],
+      [targetSectorDbId, universeId],
     );
     assert.equal(planetsAfter.rows[0].cnt, planetsBefore.rows[0].cnt + 1, 'should have one more planet');
 
@@ -1020,11 +1044,11 @@ describe('WS: stardock and hardware store', () => {
 
     // Find the stardock sector
     const sdRes = await pool.query(
-      "SELECT id FROM sectors WHERE name = 'Stardock' AND universe_id = $1",
+      "SELECT sector_number FROM sectors WHERE name = 'Stardock' AND universe_id = $1",
       [universeId],
     );
     assert.ok(sdRes.rows.length > 0, 'Stardock sector should exist');
-    stardockSector = sdRes.rows[0].id;
+    stardockSector = sdRes.rows[0].sector_number;
 
     player = await createTestPlayer(universeId);
 
@@ -1142,17 +1166,22 @@ describe('WS: destroy planet', () => {
   it('destroyPlanet with busters destroys the planet', async () => {
     // Create a disposable planet to destroy
     const sectorRes = await pool.query(
-      "SELECT w.sector_to FROM warps w JOIN sectors s ON s.id = w.sector_to AND s.universe_id = w.universe_id WHERE w.sector_from = 1 AND w.universe_id = $1 AND s.name != 'Stardock' LIMIT 1",
+      `SELECT s_to.sector_number AS sector_to, s_to.id AS sector_db_id
+       FROM warps w
+       JOIN sectors s_from ON w.from_sector_id = s_from.id
+       JOIN sectors s_to ON w.to_sector_id = s_to.id
+       WHERE s_from.sector_number = 1 AND s_from.universe_id = $1 AND s_to.name != 'Stardock' LIMIT 1`,
       [universeId],
     );
     const targetSector = sectorRes.rows[0].sector_to;
+    const targetSectorDbId = sectorRes.rows[0].sector_db_id;
 
     // Insert a test planet
     const maxId = await pool.query('SELECT COALESCE(MAX(id), 0)::int as m FROM planets WHERE universe_id = $1', [universeId]);
     const newPlanetId = maxId.rows[0].m + 1;
     await pool.query(
       "INSERT INTO planets (id, sector_id, universe_id, name, type) VALUES ($1, $2, $3, 'Doomed', 'Barren')",
-      [newPlanetId, targetSector, universeId],
+      [newPlanetId, targetSectorDbId, universeId],
     );
 
     // Move to that sector
@@ -1214,15 +1243,20 @@ describe('WS: landOnPlanet validation', () => {
   it('landOnPlanet with planet in a different sector returns error', async () => {
     // Insert a planet in a sector the player is NOT in
     const warps = await pool.query(
-      'SELECT sector_to FROM warps WHERE sector_from = 1 AND universe_id = $1 LIMIT 1',
+      `SELECT s_to.sector_number AS sector_to, s_to.id AS sector_db_id
+       FROM warps w
+       JOIN sectors s_from ON w.from_sector_id = s_from.id
+       JOIN sectors s_to ON w.to_sector_id = s_to.id
+       WHERE s_from.sector_number = 1 AND s_from.universe_id = $1 LIMIT 1`,
       [universeId],
     );
     const otherSector = warps.rows[0].sector_to;
+    const otherSectorDbId = warps.rows[0].sector_db_id;
     const maxId = await pool.query('SELECT COALESCE(MAX(id), 0)::int as m FROM planets WHERE universe_id = $1', [universeId]);
     const planetId = maxId.rows[0].m + 1;
     await pool.query(
       "INSERT INTO planets (id, sector_id, universe_id, name, type) VALUES ($1, $2, $3, 'FarPlanet', 'Barren')",
-      [planetId, otherSector, universeId],
+      [planetId, otherSectorDbId, universeId],
     );
 
     // Player is in sector 1, try to land on planet in otherSector
@@ -1250,10 +1284,10 @@ describe('WS: buy hardware exceeds ship maximum', () => {
     universeId = res.body.id;
 
     const sdRes = await pool.query(
-      "SELECT id FROM sectors WHERE name = 'Stardock' AND universe_id = $1",
+      "SELECT sector_number FROM sectors WHERE name = 'Stardock' AND universe_id = $1",
       [universeId],
     );
-    stardockSector = sdRes.rows[0].id;
+    stardockSector = sdRes.rows[0].sector_number;
 
     player = await createTestPlayer(universeId);
 
@@ -1352,10 +1386,10 @@ describe('WS: buy hardware requires stardock docking', () => {
     universeId = res.body.id;
 
     const sdRes = await pool.query(
-      "SELECT id FROM sectors WHERE name = 'Stardock' AND universe_id = $1",
+      "SELECT sector_number FROM sectors WHERE name = 'Stardock' AND universe_id = $1",
       [universeId],
     );
-    stardockSector = sdRes.rows[0].id;
+    stardockSector = sdRes.rows[0].sector_number;
 
     player = await createTestPlayer(universeId);
 
@@ -1411,10 +1445,10 @@ describe('WS: buy hardware credit deduction', () => {
     universeId = res.body.id;
 
     const sdRes = await pool.query(
-      "SELECT id FROM sectors WHERE name = 'Stardock' AND universe_id = $1",
+      "SELECT sector_number FROM sectors WHERE name = 'Stardock' AND universe_id = $1",
       [universeId],
     );
-    stardockSector = sdRes.rows[0].id;
+    stardockSector = sdRes.rows[0].sector_number;
 
     player = await createTestPlayer(universeId);
 
@@ -1503,11 +1537,16 @@ describe('WS: terraform collision logic', () => {
 
     // Find a non-restricted sector with a warp from sector 1
     const warps = await pool.query(
-      "SELECT w.sector_to FROM warps w JOIN sectors s ON s.id = w.sector_to AND s.universe_id = w.universe_id WHERE w.sector_from = 1 AND w.universe_id = $1 AND s.name != 'Stardock' LIMIT 1",
+      `SELECT s_to.sector_number AS sector_to, s_to.id AS sector_db_id
+       FROM warps w
+       JOIN sectors s_from ON w.from_sector_id = s_from.id
+       JOIN sectors s_to ON w.to_sector_id = s_to.id
+       WHERE s_from.sector_number = 1 AND s_from.universe_id = $1 AND s_to.name != 'Stardock' LIMIT 1`,
       [universeId],
     );
     assert.ok(warps.rows.length > 0, 'need a warp target');
     targetSector = warps.rows[0].sector_to;
+    const targetSectorDbId = warps.rows[0].sector_db_id;
 
     // Move to that sector
     player.sendMsg({ type: ClientMsgType.Move, sector: targetSector });
@@ -1517,7 +1556,7 @@ describe('WS: terraform collision logic', () => {
     const maxId = await pool.query('SELECT COALESCE(MAX(id), 0)::int as m FROM planets WHERE universe_id = $1', [universeId]);
     await pool.query(
       "INSERT INTO planets (id, sector_id, universe_id, name, type) VALUES ($1, $2, $3, 'ExistingP', 'Terran')",
-      [maxId.rows[0].m + 1, targetSector, universeId],
+      [maxId.rows[0].m + 1, targetSectorDbId, universeId],
     );
   });
 
@@ -1557,11 +1596,11 @@ describe('WS: terraform collision logic', () => {
 
     // Verify colliding_with is a planet in the same sector
     const collidingPlanet = await pool.query(
-      'SELECT sector_id FROM planets WHERE id = $1 AND universe_id = $2',
+      `SELECT s.sector_number FROM planets p JOIN sectors s ON p.sector_id = s.id WHERE p.id = $1 AND p.universe_id = $2`,
       [collision.colliding_with, universeId],
     );
     assert.ok(collidingPlanet.rows.length > 0, 'colliding_with should reference an existing planet');
-    assert.equal(collidingPlanet.rows[0].sector_id, targetSector, 'colliding_with planet should be in the same sector');
+    assert.equal(collidingPlanet.rows[0].sector_number, targetSector, 'colliding_with planet should be in the same sector');
 
     // Verify collision_at is between NOW+min_hours and NOW+max_hours
     const collisionAt = new Date(collision.collision_at);
@@ -1599,11 +1638,11 @@ describe('WS: terraform in Stardock sector returns restricted_sector', () => {
     universeId = res.body.id;
 
     const sdRes = await pool.query(
-      "SELECT id FROM sectors WHERE name = 'Stardock' AND universe_id = $1",
+      "SELECT sector_number FROM sectors WHERE name = 'Stardock' AND universe_id = $1",
       [universeId],
     );
     assert.ok(sdRes.rows.length > 0, 'Stardock sector should exist');
-    stardockSector = sdRes.rows[0].id;
+    stardockSector = sdRes.rows[0].sector_number;
 
     player = await createTestPlayer(universeId);
 
@@ -1653,17 +1692,22 @@ describe('WS: on_planet_id cleared after destroyPlanet', () => {
   it('on_planet_id is NULL after destroying a planet', async () => {
     // Find a non-restricted sector to create a disposable planet
     const warps = await pool.query(
-      "SELECT w.sector_to FROM warps w JOIN sectors s ON s.id = w.sector_to AND s.universe_id = w.universe_id WHERE w.sector_from = 1 AND w.universe_id = $1 AND s.name != 'Stardock' LIMIT 1",
+      `SELECT s_to.sector_number AS sector_to, s_to.id AS sector_db_id
+       FROM warps w
+       JOIN sectors s_from ON w.from_sector_id = s_from.id
+       JOIN sectors s_to ON w.to_sector_id = s_to.id
+       WHERE s_from.sector_number = 1 AND s_from.universe_id = $1 AND s_to.name != 'Stardock' LIMIT 1`,
       [universeId],
     );
     const targetSector = warps.rows[0].sector_to;
+    const targetSectorDbId = warps.rows[0].sector_db_id;
 
     // Insert a disposable planet
     const maxId = await pool.query('SELECT COALESCE(MAX(id), 0)::int as m FROM planets WHERE universe_id = $1', [universeId]);
     const newPlanetId = maxId.rows[0].m + 1;
     await pool.query(
       "INSERT INTO planets (id, sector_id, universe_id, name, type) VALUES ($1, $2, $3, 'DestroyMe', 'Barren')",
-      [newPlanetId, targetSector, universeId],
+      [newPlanetId, targetSectorDbId, universeId],
     );
 
     // Move to that sector
@@ -1714,13 +1758,18 @@ describe('WS: terraform success response completeness', () => {
   it('terraformResult includes collision=false and terraformDevices when sector is below capacity', async () => {
     // Move to a non-restricted sector with no planets
     const warps = await pool.query(
-      "SELECT w.sector_to FROM warps w JOIN sectors s ON s.id = w.sector_to AND s.universe_id = w.universe_id WHERE w.sector_from = 1 AND w.universe_id = $1 AND s.name != 'Stardock' LIMIT 1",
+      `SELECT s_to.sector_number AS sector_to, s_to.id AS sector_db_id
+       FROM warps w
+       JOIN sectors s_from ON w.from_sector_id = s_from.id
+       JOIN sectors s_to ON w.to_sector_id = s_to.id
+       WHERE s_from.sector_number = 1 AND s_from.universe_id = $1 AND s_to.name != 'Stardock' LIMIT 1`,
       [universeId],
     );
     const targetSector = warps.rows[0].sector_to;
+    const targetSectorDbId = warps.rows[0].sector_db_id;
 
     // Remove any existing planets from that sector
-    await pool.query('DELETE FROM planets WHERE sector_id = $1 AND universe_id = $2', [targetSector, universeId]);
+    await pool.query('DELETE FROM planets WHERE sector_id = $1 AND universe_id = $2', [targetSectorDbId, universeId]);
 
     player.sendMsg({ type: ClientMsgType.Move, sector: targetSector });
     await player.waitForMessage(ServerMsgType.MoveResult);
@@ -1786,7 +1835,11 @@ describe('WS: terraform planet ID sequencing', () => {
 
     // Move to a non-restricted sector
     const warps = await pool.query(
-      "SELECT w.sector_to FROM warps w JOIN sectors s ON s.id = w.sector_to AND s.universe_id = w.universe_id WHERE w.sector_from = 1 AND w.universe_id = $1 AND s.name != 'Stardock' LIMIT 1",
+      `SELECT s_to.sector_number AS sector_to, s_to.id AS sector_db_id
+       FROM warps w
+       JOIN sectors s_from ON w.from_sector_id = s_from.id
+       JOIN sectors s_to ON w.to_sector_id = s_to.id
+       WHERE s_from.sector_number = 1 AND s_from.universe_id = $1 AND s_to.name != 'Stardock' LIMIT 1`,
       [universeId],
     );
     const targetSector = warps.rows[0].sector_to;

@@ -49,7 +49,7 @@ describe('Admin API - Topology', () => {
 
     // Verify against actual DB data
     const warps = await pool.query(
-      'SELECT sector_from, sector_to FROM warps WHERE universe_id = $1', [universeId]
+      'SELECT s_from.sector_number as sector_from, s_to.sector_number as sector_to FROM warps w JOIN sectors s_from ON w.from_sector_id = s_from.id JOIN sectors s_to ON w.to_sector_id = s_to.id WHERE s_from.universe_id = $1', [universeId]
     );
     const warpSet = new Set(warps.rows.map(w => `${w.sector_from},${w.sector_to}`));
     let biPairs = 0;
@@ -71,7 +71,7 @@ describe('Admin API - Topology', () => {
 
     // Compute expected values from DB
     const warps = await pool.query(
-      'SELECT sector_from, sector_to FROM warps WHERE universe_id = $1', [universeId]
+      'SELECT s_from.sector_number as sector_from, s_to.sector_number as sector_to FROM warps w JOIN sectors s_from ON w.from_sector_id = s_from.id JOIN sectors s_to ON w.to_sector_id = s_to.id WHERE s_from.universe_id = $1', [universeId]
     );
     const outDeg = new Map();
     for (let i = 1; i <= 30; i++) outDeg.set(i, 0);

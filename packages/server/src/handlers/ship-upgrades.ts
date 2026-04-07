@@ -34,7 +34,8 @@ export async function handleBuyFighters(
         const currentSector = pRes.rows[0].current_sector;
 
         const portRes = await client.query(
-            'SELECT class FROM ports WHERE sector_id = $1 AND universe_id = $2',
+            `SELECT p.class FROM ports p JOIN sectors s ON p.sector_id = s.id
+             WHERE s.sector_number = $1 AND s.universe_id = $2`,
             [currentSector, universeId],
         );
         if (portRes.rows.length === 0 || portRes.rows[0].class !== 0) {
@@ -124,7 +125,8 @@ export async function handleBuyShields(
         const currentSector = pRes.rows[0].current_sector;
 
         const portRes = await client.query(
-            'SELECT class FROM ports WHERE sector_id = $1 AND universe_id = $2',
+            `SELECT p.class FROM ports p JOIN sectors s ON p.sector_id = s.id
+             WHERE s.sector_number = $1 AND s.universe_id = $2`,
             [currentSector, universeId],
         );
         if (portRes.rows.length === 0 || portRes.rows[0].class !== 0) {
@@ -214,7 +216,8 @@ export async function handleBuyHolds(
         const currentSector = pRes.rows[0].current_sector;
 
         const portRes = await client.query(
-            'SELECT class FROM ports WHERE sector_id = $1 AND universe_id = $2',
+            `SELECT p.class FROM ports p JOIN sectors s ON p.sector_id = s.id
+             WHERE s.sector_number = $1 AND s.universe_id = $2`,
             [currentSector, universeId],
         );
         if (portRes.rows.length === 0 || portRes.rows[0].class !== 0) {

@@ -74,21 +74,23 @@ async function joinUniverse(token, universeId, name = 'TestPlayer') {
 
 /** Seed minimal sector/warp data for a universe directly in DB */
 async function seedUniverseSectors(pool, universeId, numSectors = 5) {
+  const sectorIds = {}; // sector_number -> DB id
   for (let i = 1; i <= numSectors; i++) {
-    await pool.query(
-      'INSERT INTO sectors (id, universe_id, name) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
-      [i, universeId, i === 1 ? 'Federation Space' : null],
+    const res = await pool.query(
+      'INSERT INTO sectors (universe_id, sector_number, name) VALUES ($1, $2, $3) RETURNING id',
+      [universeId, i, i === 1 ? 'Federation Space' : null],
     );
+    sectorIds[i] = res.rows[0].id;
   }
   for (let i = 1; i <= numSectors; i++) {
     const next = i < numSectors ? i + 1 : 1;
     await pool.query(
-      'INSERT INTO warps (sector_from, sector_to, universe_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
-      [i, next, universeId],
+      'INSERT INTO warps (from_sector_id, to_sector_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      [sectorIds[i], sectorIds[next]],
     );
     await pool.query(
-      'INSERT INTO warps (sector_from, sector_to, universe_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
-      [next, i, universeId],
+      'INSERT INTO warps (from_sector_id, to_sector_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      [sectorIds[next], sectorIds[i]],
     );
   }
 }

@@ -26,7 +26,7 @@ function connectWS(opts = {}) {
 }
 
 async function findFuelSellerSector() {
-  const res = await pool.query('SELECT sector_id FROM ports WHERE class IN (3, 4, 6, 7) AND universe_id = $1 LIMIT 1', [UNIVERSE_ID]);
+  const res = await pool.query('SELECT s.sector_number AS sector_id FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE p.class IN (3, 4, 6, 7) AND s.universe_id = $1 LIMIT 1', [UNIVERSE_ID]);
   return res.rows.length > 0 ? Number(res.rows[0].sector_id) : null;
 }
 

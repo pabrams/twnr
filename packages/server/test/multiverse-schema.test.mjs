@@ -143,23 +143,15 @@ describe('Universe-scoped tables', () => {
     assert.equal(res.rows.length, 1, 'sectors should have universe_id column');
   });
 
-  it('warps table has universe_id column', async () => {
+  it('sectors table has sector_number column', async () => {
     const res = await pool.query(`
       SELECT column_name FROM information_schema.columns
-      WHERE table_name = 'warps' AND column_name = 'universe_id'
+      WHERE table_name = 'sectors' AND column_name = 'sector_number'
     `);
-    assert.equal(res.rows.length, 1, 'warps should have universe_id column');
+    assert.equal(res.rows.length, 1, 'sectors should have sector_number column');
   });
 
-  it('ports table has universe_id column', async () => {
-    const res = await pool.query(`
-      SELECT column_name FROM information_schema.columns
-      WHERE table_name = 'ports' AND column_name = 'universe_id'
-    `);
-    assert.equal(res.rows.length, 1, 'ports should have universe_id column');
-  });
-
-  it('sectors primary key includes universe_id', async () => {
+  it('sectors primary key is id only (SERIAL)', async () => {
     const res = await pool.query(`
       SELECT kcu.column_name
       FROM information_schema.table_constraints tc
@@ -169,11 +161,30 @@ describe('Universe-scoped tables', () => {
       ORDER BY kcu.ordinal_position
     `);
     const pkCols = res.rows.map(r => r.column_name);
-    assert.ok(pkCols.includes('id'), 'sectors PK should include id');
-    assert.ok(pkCols.includes('universe_id'), 'sectors PK should include universe_id');
+    assert.deepEqual(pkCols, ['id'], 'sectors PK should be id only');
   });
 
-  it('warps primary key includes universe_id', async () => {
+  it('sectors has unique constraint on (universe_id, sector_number)', async () => {
+    const res = await pool.query(`
+      SELECT tc.constraint_name
+      FROM information_schema.table_constraints tc
+      JOIN information_schema.constraint_column_usage ccu ON tc.constraint_name = ccu.constraint_name
+      WHERE tc.table_name = 'sectors' AND tc.constraint_type = 'UNIQUE'
+      GROUP BY tc.constraint_name
+      HAVING array_agg(ccu.column_name::text ORDER BY ccu.column_name) @> ARRAY['sector_number', 'universe_id']
+    `);
+    assert.ok(res.rows.length > 0, 'sectors should have unique constraint on (universe_id, sector_number)');
+  });
+
+  it('warps table does NOT have universe_id column', async () => {
+    const res = await pool.query(`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_name = 'warps' AND column_name = 'universe_id'
+    `);
+    assert.equal(res.rows.length, 0, 'warps should NOT have universe_id column');
+  });
+
+  it('warps primary key is (from_sector_id, to_sector_id)', async () => {
     const res = await pool.query(`
       SELECT kcu.column_name
       FROM information_schema.table_constraints tc
@@ -183,18 +194,27 @@ describe('Universe-scoped tables', () => {
       ORDER BY kcu.ordinal_position
     `);
     const pkCols = res.rows.map(r => r.column_name);
-    assert.ok(pkCols.includes('universe_id'), 'warps PK should include universe_id');
+    assert.ok(pkCols.includes('from_sector_id'), 'warps PK should include from_sector_id');
+    assert.ok(pkCols.includes('to_sector_id'), 'warps PK should include to_sector_id');
+    assert.equal(pkCols.length, 2, 'warps PK should have exactly 2 columns');
   });
 
-  it('ports has unique constraint on (sector_id, universe_id)', async () => {
+  it('ports table does NOT have universe_id column', async () => {
+    const res = await pool.query(`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_name = 'ports' AND column_name = 'universe_id'
+    `);
+    assert.equal(res.rows.length, 0, 'ports should NOT have universe_id column');
+  });
+
+  it('ports has unique constraint on sector_id', async () => {
     const res = await pool.query(`
       SELECT tc.constraint_name
       FROM information_schema.table_constraints tc
       JOIN information_schema.constraint_column_usage ccu ON tc.constraint_name = ccu.constraint_name
       WHERE tc.table_name = 'ports' AND tc.constraint_type = 'UNIQUE'
-      GROUP BY tc.constraint_name
-      HAVING array_agg(ccu.column_name::text ORDER BY ccu.column_name) @> ARRAY['sector_id', 'universe_id']
+        AND ccu.column_name = 'sector_id'
     `);
-    assert.ok(res.rows.length > 0, 'ports should have unique constraint on (sector_id, universe_id)');
+    assert.ok(res.rows.length > 0, 'ports should have unique constraint on sector_id');
   });
 });
