@@ -230,7 +230,12 @@ export const connectDB = async (): Promise<void> => {
         ('planetLeaveQty', 'Leave Colonists'),
         ('deployDronesQty', 'Deploy Drones'),
         ('droneEncounter', 'Drone Encounter'),
-        ('droneAttackQty', 'Drone Attack')
+        ('droneAttackQty', 'Drone Attack'),
+        ('starbase', 'Starbase'),
+        ('starbaseHardware', 'Hardware Store'),
+        ('starbaseBuyQty', 'Buy Quantity'),
+        ('planetSelect', 'Select Planet'),
+        ('hyperspaceJumpTarget', 'Hyperspace Jump')
       ON CONFLICT (name) DO NOTHING;
 
       -- Set parent menu relationships
@@ -252,6 +257,16 @@ export const connectDB = async (): Promise<void> => {
         WHERE name IN ('planetTakeQty', 'planetLeaveQty');
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'droneEncounter')
         WHERE name = 'droneAttackQty';
+      UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'sector')
+        WHERE name = 'starbase';
+      UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'starbase')
+        WHERE name IN ('starbaseHardware');
+      UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'starbaseHardware')
+        WHERE name = 'starbaseBuyQty';
+      UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'sector')
+        WHERE name = 'planetSelect';
+      UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'computer')
+        WHERE name = 'hyperspaceJumpTarget';
 
       -- Seed commands (abstract identities, reusable across menus)
       INSERT INTO command (name, label) VALUES
@@ -300,7 +315,23 @@ export const connectDB = async (): Promise<void> => {
         ('leave_colonists', 'Leave colonists'),
         -- DroneEncounter commands
         ('attack_encounter', 'Attack'),
-        ('retreat', 'Retreat')
+        ('retreat', 'Retreat'),
+        -- Starbase commands
+        ('ship_exchange', 'Ship Exchange'),
+        ('hardware_store', 'Hardware Store'),
+        ('leave_starbase', 'Leave Starbase'),
+        ('buy_planet_busters', 'Buy Planet Busters'),
+        ('buy_terraform_devices', 'Buy Terraform Devices'),
+        ('buy_hyperwarp_drive', 'Buy Hyperwarp Drive'),
+        ('list_deployed_drones', 'List Deployed Drones'),
+        -- Planet commands
+        ('select_planet', 'Select planet'),
+        ('destroy_planet', 'Destroy Planet'),
+        ('use_terraform_device', 'Terraform'),
+        ('planet_display', 'Planet Info'),
+        ('leave_planet', 'Leave Planet'),
+        -- Computer commands
+        ('hyperspace_jump', 'Hyperspace Jump')
       ON CONFLICT (name) DO NOTHING;
 
       -- Seed menu_command join rows
@@ -455,6 +486,61 @@ export const connectDB = async (): Promise<void> => {
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- Autopilot has no commands (input ignored during autopilot)
+
+      -- === Starbase ===
+      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
+        ((SELECT id FROM menu WHERE name='starbase'), (SELECT id FROM command WHERE name='ship_exchange'), 's', 'Ship Exchange', NULL, (SELECT id FROM menu WHERE name='shipCatalog'), 10),
+        ((SELECT id FROM menu WHERE name='starbase'), (SELECT id FROM command WHERE name='hardware_store'), 'h', 'Hardware Store', NULL, (SELECT id FROM menu WHERE name='starbaseHardware'), 20),
+        ((SELECT id FROM menu WHERE name='starbase'), (SELECT id FROM command WHERE name='list_deployed_drones'), 'd', 'Deployed Drones', 'listDeployedDrones', NULL, 30),
+        ((SELECT id FROM menu WHERE name='starbase'), (SELECT id FROM command WHERE name='leave_starbase'), 'q', 'Leave Starbase', 'leaveStarbase', NULL, 40)
+      ON CONFLICT (menu_id, command_id) DO NOTHING;
+
+      -- === Starbase Hardware ===
+      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
+        ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_planet_busters'), 'b', 'Buy Planet Busters', NULL, (SELECT id FROM menu WHERE name='starbaseBuyQty'), 10),
+        ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_terraform_devices'), 't', 'Buy Terraform Devices', NULL, (SELECT id FROM menu WHERE name='starbaseBuyQty'), 20),
+        ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_hyperwarp_drive'), 'w', 'Buy Hyperwarp Drive', 'buyHyperwarpDrive', NULL, 30),
+        ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', NULL, (SELECT id FROM menu WHERE name='starbase'), 40)
+      ON CONFLICT (menu_id, command_id) DO NOTHING;
+
+      -- === Starbase Buy Qty ===
+      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
+        ((SELECT id FROM menu WHERE name='starbaseBuyQty'), (SELECT id FROM command WHERE name='enter_quantity'), '<number>', 'Enter quantity', NULL, NULL, 10),
+        ((SELECT id FROM menu WHERE name='starbaseBuyQty'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', NULL, (SELECT id FROM menu WHERE name='starbaseHardware'), 20)
+      ON CONFLICT (menu_id, command_id) DO NOTHING;
+
+      -- === Planet Select (after Land command) ===
+      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
+        ((SELECT id FROM menu WHERE name='planetSelect'), (SELECT id FROM command WHERE name='select_planet'), '<number>', 'Select planet', 'landOnPlanet', NULL, 10),
+        ((SELECT id FROM menu WHERE name='planetSelect'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', NULL, (SELECT id FROM menu WHERE name='sector'), 20)
+      ON CONFLICT (menu_id, command_id) DO NOTHING;
+
+      -- === Planet (expand with new actions) ===
+      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
+        ((SELECT id FROM menu WHERE name='planet'), (SELECT id FROM command WHERE name='planet_display'), 'd', 'Planet Info', 'planetDisplay', NULL, 25),
+        ((SELECT id FROM menu WHERE name='planet'), (SELECT id FROM command WHERE name='destroy_planet'), 'x', 'Destroy Planet', 'destroyPlanet', NULL, 35),
+        ((SELECT id FROM menu WHERE name='planet'), (SELECT id FROM command WHERE name='leave_planet'), 'q', 'Leave Planet', 'leavePlanet', NULL, 40)
+      ON CONFLICT (menu_id, command_id) DO NOTHING;
+
+      -- Update planet 'back' to be 'leave_planet' instead (remove old back, add leave_planet as q)
+      DELETE FROM menu_command WHERE menu_id = (SELECT id FROM menu WHERE name='planet') AND command_id = (SELECT id FROM command WHERE name='back');
+
+      -- === Sector: add terraform ===
+      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
+        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='use_terraform_device'), 'u', 'Terraform', 'useTerraformDevice', NULL, 95)
+      ON CONFLICT (menu_id, command_id) DO NOTHING;
+
+      -- === Computer: add hyperspace jump and deployed drones ===
+      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
+        ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='list_deployed_drones'), 'd', 'Deployed Drones', 'listDeployedDrones', NULL, 55),
+        ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='hyperspace_jump'), 'h', 'Hyperspace Jump', NULL, (SELECT id FROM menu WHERE name='hyperspaceJumpTarget'), 56)
+      ON CONFLICT (menu_id, command_id) DO NOTHING;
+
+      -- === Hyperspace Jump Target ===
+      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
+        ((SELECT id FROM menu WHERE name='hyperspaceJumpTarget'), (SELECT id FROM command WHERE name='enter_quantity'), '<number>', 'Target sector', 'hyperspaceJump', NULL, 10),
+        ((SELECT id FROM menu WHERE name='hyperspaceJumpTarget'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', NULL, (SELECT id FROM menu WHERE name='computer'), 20)
+      ON CONFLICT (menu_id, command_id) DO NOTHING;
     `);
 
         // Seed ship_types from config files (idempotent)

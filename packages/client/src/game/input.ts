@@ -27,6 +27,13 @@ import {
     handlePlanetTakeQtyInput,
     handlePlanetLeaveQtyInput,
 } from './input-misc.js';
+import {
+    handleStarbaseInput,
+    handleHardwareInput,
+    handleStarbaseBuyQtyInput,
+    handlePlanetSelectInput,
+    handleHyperspaceJumpInput,
+} from './input-starbase.js';
 import { colors } from './constants.js';
 
 /**
@@ -162,6 +169,21 @@ function handleInput(ctx: GameContext, line: string) {
         case 'droneAttackQty':
             handleDroneAttackQtyInput(ctx, line);
             return;
+        case 'starbase':
+            handleStarbaseInput(ctx, line);
+            return;
+        case 'starbaseHardware':
+            handleHardwareInput(ctx, line);
+            return;
+        case 'starbaseBuyQty':
+            handleStarbaseBuyQtyInput(ctx, line);
+            return;
+        case 'planetSelect':
+            handlePlanetSelectInput(ctx, line);
+            return;
+        case 'hyperspaceJumpTarget':
+            handleHyperspaceJumpInput(ctx, line);
+            return;
     }
 
     // Sector mode
@@ -198,6 +220,9 @@ function handleInput(ctx: GameContext, line: string) {
             break;
         case 'l':
             ctx.sendMsg({ type: ClientMsgType.Land });
+            break;
+        case 'u':
+            ctx.sendMsg({ type: ClientMsgType.UseTerraformDevice });
             break;
         case 'q':
             ctx.term.writeln(`\r\n${colors.white('Goodbye!')}`);

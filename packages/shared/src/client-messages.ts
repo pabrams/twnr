@@ -154,6 +154,19 @@ export type LeaveStarbaseCommand = {
     type: typeof ClientMsgType.LeaveStarbase;
 };
 
+export type BuyHyperwarpDriveCommand = {
+    type: typeof ClientMsgType.BuyHyperwarpDrive;
+};
+
+export type ListDeployedDronesCommand = {
+    type: typeof ClientMsgType.ListDeployedDrones;
+};
+
+export type HyperspaceJumpCommand = {
+    type: typeof ClientMsgType.HyperspaceJump;
+    targetSector: number;
+};
+
 export type ChangeMenuCommand = {
     type: typeof ClientMsgType.ChangeMenu;
     menu: string;
@@ -193,4 +206,7 @@ export type ClientCommand =
     | BuyTerraformDevicesCommand
     | DockStarbaseCommand
     | LeaveStarbaseCommand
+    | BuyHyperwarpDriveCommand
+    | ListDeployedDronesCommand
+    | HyperspaceJumpCommand
     | ChangeMenuCommand;

@@ -397,6 +397,7 @@ export async function handleDockStarbase(playerId: number): Promise<void> {
     }
 
     player.at_starbase = true;
+    await setPlayerMenu(playerId, 'starbase');
 
     sendEnvelope(playerId, { type: ServerMsgType.DockStarbaseResult });
 }
@@ -411,6 +412,7 @@ export async function handleLeaveStarbase(playerId: number): Promise<void> {
     }
 
     player.at_starbase = false;
+    await setPlayerMenu(playerId, 'sector');
 
     const currentSector = player.sector;
     const universeId = player.universeId;
