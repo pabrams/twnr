@@ -71,7 +71,7 @@ export function renderShipList(container: HTMLElement): void {
             const headers = [
                 'Name',
                 'Price',
-                'Fighters',
+                'Drones',
                 'Shields',
                 'Start Holds',
                 'Max Holds',
@@ -98,7 +98,7 @@ export function renderShipList(container: HTMLElement): void {
                 const cells = [
                     String(ship.name),
                     String(ship.price),
-                    String(ship.maxFighters),
+                    String(ship.maxDrones),
                     String(ship.maxShields),
                     String(ship.startingHolds),
                     String(ship.maxHolds),

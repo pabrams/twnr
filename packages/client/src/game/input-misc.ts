@@ -8,8 +8,8 @@ import { colors } from './constants.js';
 export function handleClass0Input(ctx: GameContext, line: string) {
     switch (line.toLowerCase()) {
         case 'f':
-            ctx.setClass0BuyType('fighters');
-            showClass0QtyPrompt(ctx, 'fighters');
+            ctx.setClass0BuyType('drones');
+            showClass0QtyPrompt(ctx, 'drones');
             break;
         case 's':
             ctx.setClass0BuyType('shields');
@@ -39,8 +39,8 @@ export function handleClass0QtyInput(ctx: GameContext, line: string) {
         return;
     }
     switch (ctx.class0BuyType) {
-        case 'fighters':
-            ctx.sendMsg({ type: ClientMsgType.BuyFighters, quantity: qty });
+        case 'drones':
+            ctx.sendMsg({ type: ClientMsgType.BuyDrones, quantity: qty });
             break;
         case 'shields':
             ctx.sendMsg({ type: ClientMsgType.BuyShields, quantity: qty });

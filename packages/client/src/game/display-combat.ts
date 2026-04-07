@@ -17,34 +17,34 @@ export function showAttackMenu(ctx: GameContext) {
     ctx.term.writeln(`  ${colors.cyan('Q')}  Cancel`);
 }
 
-export function showAttackFightersPrompt(ctx: GameContext) {
-    ctx.changeMenu('attackFighters');
-    ctx.term.write(`\r\n${colors.cyan('How many fighters to attack with?')} `);
+export function showAttackDronesPrompt(ctx: GameContext) {
+    ctx.changeMenu('attackDrones');
+    ctx.term.write(`\r\n${colors.cyan('How many drones to attack with?')} `);
 }
 
-export function showFighterEncounter(
+export function showDroneEncounter(
     ctx: GameContext,
-    sectorFighters: number,
+    sectorDrones: number,
     ownerName: string,
-    shipFighters: number,
+    shipDrones: number,
 ) {
-    ctx.changeMenu('fighterEncounter');
+    ctx.changeMenu('droneEncounter');
     ctx.term.writeln('');
-    ctx.term.writeln(colors.boldRed('=== HOSTILE FIGHTERS DETECTED ==='));
+    ctx.term.writeln(colors.boldRed('=== HOSTILE DRONES DETECTED ==='));
     ctx.term.writeln(
-        `  ${colors.boldYellow('Sector fighters')}: ${colors.boldRed(String(sectorFighters))} (owned by ${colors.boldYellow(ownerName)})`,
+        `  ${colors.boldYellow('Sector drones')}: ${colors.boldRed(String(sectorDrones))} (owned by ${colors.boldYellow(ownerName)})`,
     );
     ctx.term.writeln(
-        `  ${colors.boldYellow('Your ship fighters')}: ${colors.white(String(shipFighters))}`,
+        `  ${colors.boldYellow('Your ship drones')}: ${colors.white(String(shipDrones))}`,
     );
-    if (shipFighters === 0) {
-        ctx.term.writeln(colors.boldRed('You have no fighters! You must retreat.'));
+    if (shipDrones === 0) {
+        ctx.term.writeln(colors.boldRed('You have no drones! You must retreat.'));
     }
     ctx.term.writeln(`  ${colors.cyan('A')}  Attack`);
     ctx.term.writeln(`  ${colors.cyan('R')}  Retreat`);
 }
 
-export function showFighterAttackQtyPrompt(ctx: GameContext) {
-    ctx.changeMenu('fighterAttackQty');
-    ctx.term.write(`\r\n${colors.cyan('How many fighters to send?')} `);
+export function showDroneAttackQtyPrompt(ctx: GameContext) {
+    ctx.changeMenu('droneAttackQty');
+    ctx.term.write(`\r\n${colors.cyan('How many drones to send?')} `);
 }

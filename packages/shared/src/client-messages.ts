@@ -46,8 +46,8 @@ export type PortTransactionCommand = {
     action: 'buy' | 'sell';
 };
 
-export type BuyFightersCommand = {
-    type: typeof ClientMsgType.BuyFighters;
+export type BuyDronesCommand = {
+    type: typeof ClientMsgType.BuyDrones;
     quantity: number;
 };
 
@@ -68,7 +68,7 @@ export type BuyShipTradeinCommand = {
 export type AttackShipCommand = {
     type: typeof ClientMsgType.AttackShip;
     targetPlayerId: number;
-    fighters: number;
+    drones: number;
 };
 
 export type DockCommand = {
@@ -97,22 +97,22 @@ export type LeaveColonistsCommand = {
     quantity: number;
 };
 
-export type DeployFightersInfoCommand = {
-    type: typeof ClientMsgType.DeployFightersInfo;
+export type DeployDronesInfoCommand = {
+    type: typeof ClientMsgType.DeployDronesInfo;
 };
 
-export type DeployFightersCommand = {
-    type: typeof ClientMsgType.DeployFighters;
+export type DeployDronesCommand = {
+    type: typeof ClientMsgType.DeployDrones;
     quantity: number;
 };
 
-export type AttackSectorFightersCommand = {
-    type: typeof ClientMsgType.AttackSectorFighters;
-    fighters: number;
+export type AttackSectorDronesCommand = {
+    type: typeof ClientMsgType.AttackSectorDrones;
+    drones: number;
 };
 
-export type RetreatFromFightersCommand = {
-    type: typeof ClientMsgType.RetreatFromFighters;
+export type RetreatFromDronesCommand = {
+    type: typeof ClientMsgType.RetreatFromDrones;
 };
 
 export type UseTerraformDeviceCommand = {
@@ -169,7 +169,7 @@ export type ClientCommand =
     | ShipInfoCommand
     | CargoInfoCommand
     | PortTransactionCommand
-    | BuyFightersCommand
+    | BuyDronesCommand
     | BuyShieldsCommand
     | BuyHoldsCommand
     | BuyShipTradeinCommand
@@ -180,10 +180,10 @@ export type ClientCommand =
     | LandCommand
     | TakeColonistsCommand
     | LeaveColonistsCommand
-    | DeployFightersInfoCommand
-    | DeployFightersCommand
-    | AttackSectorFightersCommand
-    | RetreatFromFightersCommand
+    | DeployDronesInfoCommand
+    | DeployDronesCommand
+    | AttackSectorDronesCommand
+    | RetreatFromDronesCommand
     | UseTerraformDeviceCommand
     | LandOnPlanetCommand
     | PlanetDisplayCommand

@@ -27,7 +27,7 @@ export async function showClass0Menu(ctx: GameContext) {
             const res = await fetch('/api/class0-prices');
             ctx.setClass0Prices(await res.json());
         } catch {
-            ctx.setClass0Prices({ fighterPrice: 20, shieldPrice: 10, holdPrice: 50 });
+            ctx.setClass0Prices({ dronePrice: 20, shieldPrice: 10, holdPrice: 50 });
         }
     }
     const p = ctx.class0Prices!;
@@ -36,7 +36,7 @@ export async function showClass0Menu(ctx: GameContext) {
         `${colors.boldGreen('Docked')} at ${colors.boldCyan('Stardock Supply Depot')}`,
     );
     ctx.term.writeln(
-        `  ${colors.cyan('F')}  Buy Fighters ${colors.white(`(${p.fighterPrice} credits each)`)}`,
+        `  ${colors.cyan('F')}  Buy Drones ${colors.white(`(${p.dronePrice} credits each)`)}`,
     );
     ctx.term.writeln(
         `  ${colors.cyan('S')}  Buy Shields ${colors.white(`(${p.shieldPrice} credits each)`)}`,

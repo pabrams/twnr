@@ -36,7 +36,7 @@ describe('Config Files', () => {
     assert.ok(existsSync(p), 'merchant.json must exist');
     const cfg = JSON.parse(readFileSync(p, 'utf8'));
     assert.equal(cfg.name, 'Merchant Freighter');
-    assert.equal(cfg.maxFighters, 10);
+    assert.equal(cfg.maxDrones, 10);
     assert.equal(cfg.maxShields, 10);
     assert.equal(cfg.startingHolds, 5, 'startingHolds should be 5');
     assert.equal(cfg.maxHolds, 20, 'maxHolds (cap) should be 20');
@@ -53,7 +53,7 @@ describe('Config Files', () => {
     assert.ok(existsSync(p), 'warbird.json must exist');
     const cfg = JSON.parse(readFileSync(p, 'utf8'));
     assert.equal(cfg.name, 'Warbird');
-    assert.equal(cfg.maxFighters, 30);
+    assert.equal(cfg.maxDrones, 30);
     assert.equal(cfg.maxShields, 25);
     assert.equal(cfg.startingHolds, 1, 'startingHolds should be 1');
     assert.equal(cfg.maxHolds, 5, 'maxHolds (cap) should be 5');
@@ -78,7 +78,7 @@ describe('Database Schema', () => {
     const cols = res.rows.map(r => r.column_name);
     assert.ok(cols.includes('player_id'), 'should have player_id');
     assert.ok(cols.includes('ship_name'), 'should have ship_name');
-    assert.ok(cols.includes('fighters'), 'should have fighters');
+    assert.ok(cols.includes('drones'), 'should have drones');
     assert.ok(cols.includes('shields'), 'should have shields');
     assert.ok(cols.includes('cargo_limit'), 'should have cargo_limit (not max_holds)');
   });

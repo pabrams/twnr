@@ -1,1 +1,1 @@
-{ "name": "Cardassian Keldon Cruiser", "race": "Cardassian", "maxFighters": 65, "maxShields": 50, "startingHolds": 5, "maxHolds": 16, "price": 30000 }
+{ "name": "Cardassian Keldon Cruiser", "race": "Cardassian", "maxDrones": 65, "maxShields": 50, "startingHolds": 5, "maxHolds": 16, "price": 30000 }

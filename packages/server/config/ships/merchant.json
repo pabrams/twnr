@@ -1,6 +1,6 @@
 {
   "name": "Merchant Freighter",
-  "maxFighters": 10,
+  "maxDrones": 10,
   "maxShields": 10,
   "startingHolds": 5,
   "maxHolds": 20,

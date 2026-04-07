@@ -1,6 +1,6 @@
 {
   "name": "Scout Marauder",
-  "maxFighters": 5,
+  "maxDrones": 5,
   "maxShields": 5,
   "startingHolds": 3,
   "maxHolds": 10,

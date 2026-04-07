@@ -257,7 +257,7 @@ export function createAdminLifecycleRoutes(
                     await client.query('DELETE FROM players WHERE universe_id = $1', [universeId]);
                 }
 
-                // Delete universe — CASCADE handles sectors, warps, ports, planets, sector_fighters
+                // Delete universe — CASCADE handles sectors, warps, ports, planets, sector_drones
                 await client.query('DELETE FROM universes WHERE id = $1', [universeId]);
 
                 await client.query('COMMIT');
@@ -371,8 +371,8 @@ export function createAdminLifecycleRoutes(
 
                     // Copy planets
                     await client.query(
-                        `INSERT INTO planets (id, sector_id, universe_id, name, type, fighters, fuel, organics, equipment, colonists_fuel, colonists_organics, colonists_equipment)
-                         SELECT pl.id, new_s.id, $1, pl.name, pl.type, pl.fighters, pl.fuel, pl.organics, pl.equipment, pl.colonists_fuel, pl.colonists_organics, pl.colonists_equipment
+                        `INSERT INTO planets (id, sector_id, universe_id, name, type, drones, fuel, organics, equipment, colonists_fuel, colonists_organics, colonists_equipment)
+                         SELECT pl.id, new_s.id, $1, pl.name, pl.type, pl.drones, pl.fuel, pl.organics, pl.equipment, pl.colonists_fuel, pl.colonists_organics, pl.colonists_equipment
                          FROM planets pl
                          JOIN sectors old_s ON pl.sector_id = old_s.id
                          JOIN sectors new_s ON new_s.sector_number = old_s.sector_number AND new_s.universe_id = $1

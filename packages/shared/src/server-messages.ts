@@ -18,7 +18,7 @@ export type PlayerMovedEvent = {
     direction: 'in' | 'out';
 };
 
-export type SectorFighterInfo = {
+export type SectorDroneInfo = {
     quantity: number;
     ownerId: number;
     ownerName: string;
@@ -30,7 +30,7 @@ export type SectorDisplayData = {
     warps: number[];
     port?: { class: number; name: string } | null;
     visitedSectors: number[];
-    sectorFighters?: SectorFighterInfo | null;
+    sectorDrones?: SectorDroneInfo | null;
     planets: { id: number; name: string; type: string }[];
 };
 
@@ -52,10 +52,10 @@ export type MoveResultObject =
           players: { id: number; name: string }[];
           port?: { class: number; name: string } | null;
           visitedSectors: number[];
-          sectorFighters: number;
+          sectorDrones: number;
           ownerId: number;
           ownerName: string;
-          shipFighters: number;
+          shipDrones: number;
           retreatSector: number;
           turnsUsed?: number;
       }
@@ -115,9 +115,9 @@ export type ShipInfoResultObject = {
     type: typeof ServerMsgType.ShipInfoResult;
     playerId: number;
     shipName: string;
-    fighters: number;
+    drones: number;
     shields: number;
-    maxFighters: number;
+    maxDrones: number;
     maxShields: number;
     cargoLimit: number;
     maxHolds: number;
@@ -152,10 +152,10 @@ export type PortTransactionResultObject = {
     turnsUsed?: number;
 };
 
-export type BuyFightersResultObject = {
-    type: typeof ServerMsgType.BuyFightersResult;
+export type BuyDronesResultObject = {
+    type: typeof ServerMsgType.BuyDronesResult;
     credits: number;
-    fighters: number;
+    drones: number;
 };
 
 export type BuyShieldsResultObject = {
@@ -175,7 +175,7 @@ export type BuyShipTradeinResultObject = {
     type: typeof ServerMsgType.BuyShipTradeinResult;
     shipName: string;
     credits: number;
-    maxFighters: number;
+    maxDrones: number;
     maxShields: number;
     cargoLimit: number;
 };
@@ -183,9 +183,9 @@ export type BuyShipTradeinResultObject = {
 export type AttackShipResultObject = {
     type: typeof ServerMsgType.AttackShipResult;
     destroyed: boolean;
-    attackerFightersLost: number;
+    attackerDronesLost: number;
     defenderShieldsLost: number;
-    defenderFightersLost: number;
+    defenderDronesLost: number;
     message?: string;
 };
 
@@ -223,7 +223,7 @@ export type PlanetDisplayData = {
     sector_id: number;
     name: string;
     planetType: string;
-    fighters: number;
+    drones: number;
     fuel: number;
     organics: number;
     equipment: number;
@@ -283,53 +283,53 @@ export type LeaveColonistsResultObject = {
     holdsFree: number;
 };
 
-// FighterEncounter embeds full sector display data (Oak's design) to avoid message ordering issues
-export type FighterEncounterResultObject = {
-    type: typeof ServerMsgType.FighterEncounter;
+// DroneEncounter embeds full sector display data (Oak's design) to avoid message ordering issues
+export type DroneEncounterResultObject = {
+    type: typeof ServerMsgType.DroneEncounter;
     sector: number;
     warps: number[];
     players: { id: number; name: string }[];
     port?: { class: number; name: string } | null;
     visitedSectors: number[];
-    sectorFighters: number;
+    sectorDrones: number;
     ownerId: number;
     ownerName: string;
-    shipFighters: number;
+    shipDrones: number;
     retreatSector: number;
 };
 
-export type DeployFightersInfoResultObject = {
-    type: typeof ServerMsgType.DeployFightersInfoResult;
-    sectorFighters: number;
-    shipFighters: number;
-    shipMaxFighters: number;
+export type DeployDronesInfoResultObject = {
+    type: typeof ServerMsgType.DeployDronesInfoResult;
+    sectorDrones: number;
+    shipDrones: number;
+    shipMaxDrones: number;
 };
 
-export type DeployFightersResultObject = {
-    type: typeof ServerMsgType.DeployFightersResult;
-    sectorFighters: number;
-    shipFighters: number;
+export type DeployDronesResultObject = {
+    type: typeof ServerMsgType.DeployDronesResult;
+    sectorDrones: number;
+    shipDrones: number;
 };
 
-export type AttackSectorFightersResultObject = {
-    type: typeof ServerMsgType.AttackSectorFightersResult;
+export type AttackSectorDronesResultObject = {
+    type: typeof ServerMsgType.AttackSectorDronesResult;
     victory: boolean;
-    fightersLost: number;
-    sectorFightersRemaining: number;
-    shipFighters: number;
+    dronesLost: number;
+    sectorDronesRemaining: number;
+    shipDrones: number;
 };
 
-export type RetreatFromFightersResultObject = {
-    type: typeof ServerMsgType.RetreatFromFightersResult;
+export type RetreatFromDronesResultObject = {
+    type: typeof ServerMsgType.RetreatFromDronesResult;
     sector: number;
 };
 
-export type SectorFightersAlertEvent = {
-    type: typeof ServerMsgType.SectorFightersAlert;
+export type SectorDronesAlertEvent = {
+    type: typeof ServerMsgType.SectorDronesAlert;
     event: 'intrusion' | 'attacked' | 'destroyed';
     sector: number;
-    fightersLost: number;
-    fightersRemaining: number;
+    dronesLost: number;
+    dronesRemaining: number;
     intruderName: string;
 };
 
@@ -359,9 +359,9 @@ export type BuyHyperwarpDriveResultObject = {
     credits: number;
 };
 
-export type ListDeployedFightersResultObject = {
-    type: typeof ServerMsgType.ListDeployedFightersResult;
-    fighters: { sectorId: number; quantity: number }[];
+export type ListDeployedDronesResultObject = {
+    type: typeof ServerMsgType.ListDeployedDronesResult;
+    drones: { sectorId: number; quantity: number }[];
 };
 
 export type HyperspaceJumpResultObject = {
@@ -400,7 +400,7 @@ export type ServerResult =
     | ShipInfoResultObject
     | CargoInfoResultObject
     | PortTransactionResultObject
-    | BuyFightersResultObject
+    | BuyDronesResultObject
     | BuyShieldsResultObject
     | BuyHoldsResultObject
     | BuyShipTradeinResultObject
@@ -409,12 +409,12 @@ export type ServerResult =
     | PlanetInfoResultObject
     | TakeColonistsResultObject
     | LeaveColonistsResultObject
-    | FighterEncounterResultObject
-    | DeployFightersInfoResultObject
-    | DeployFightersResultObject
-    | AttackSectorFightersResultObject
-    | RetreatFromFightersResultObject
-    | SectorFightersAlertEvent
+    | DroneEncounterResultObject
+    | DeployDronesInfoResultObject
+    | DeployDronesResultObject
+    | AttackSectorDronesResultObject
+    | RetreatFromDronesResultObject
+    | SectorDronesAlertEvent
     | UseTerraformDeviceResultObject
     | LandResultObject
     | LandOnPlanetResultObject
@@ -424,7 +424,7 @@ export type ServerResult =
     | BuyTerraformDevicesResultObject
     | DockStardockResultObject
     | BuyHyperwarpDriveResultObject
-    | ListDeployedFightersResultObject
+    | ListDeployedDronesResultObject
     | HyperspaceJumpResultObject
     | MenuChangedResultObject
     | ErrorResultObject;

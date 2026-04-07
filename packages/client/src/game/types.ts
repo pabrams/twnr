@@ -14,7 +14,7 @@ export interface GameContext {
     totalSectors: number;
     sectorPlayers: { id: number; name: string }[];
     attackTarget: number | null;
-    class0BuyType: 'fighters' | 'shields' | 'holds' | null;
+    class0BuyType: 'drones' | 'shields' | 'holds' | null;
     shipConfigs: any[] | null;
     planetConfigs: any[] | null;
     currentShipName: string;
@@ -33,12 +33,12 @@ export interface GameContext {
     setTotalSectors: (n: number) => void;
     setSectorPlayers: (players: { id: number; name: string }[]) => void;
     setAttackTarget: (id: number | null) => void;
-    setClass0BuyType: (t: 'fighters' | 'shields' | 'holds' | null) => void;
+    setClass0BuyType: (t: 'drones' | 'shields' | 'holds' | null) => void;
     setShipConfigs: (configs: any[]) => void;
     setPlanetConfigs: (configs: any[]) => void;
     setCurrentShipName: (name: string) => void;
-    class0Prices: { fighterPrice: number; shieldPrice: number; holdPrice: number } | null;
-    setClass0Prices: (p: { fighterPrice: number; shieldPrice: number; holdPrice: number }) => void;
+    class0Prices: { dronePrice: number; shieldPrice: number; holdPrice: number } | null;
+    setClass0Prices: (p: { dronePrice: number; shieldPrice: number; holdPrice: number }) => void;
     autopilotPath: number[];
     autopilotStep: number;
     autopilotPaused: boolean;

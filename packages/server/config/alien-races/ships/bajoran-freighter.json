@@ -1,1 +1,1 @@
-{ "name": "Bajoran Freighter", "race": "Bajoran", "maxFighters": 5, "maxShields": 8, "startingHolds": 12, "maxHolds": 35, "price": 7000 }
+{ "name": "Bajoran Freighter", "race": "Bajoran", "maxDrones": 5, "maxShields": 8, "startingHolds": 12, "maxHolds": 35, "price": 7000 }

@@ -7,7 +7,7 @@ import {
     getGraph,
     getPortForSector,
     getVisitedSectors,
-    getSectorFighters,
+    getSectorDrones,
     setPlayerMenu,
 } from '../game-state.js';
 import { pool } from '../db/index.js';
@@ -59,7 +59,7 @@ export async function handleDock(playerId: number): Promise<void> {
     if (player.pendingEncounter) {
         sendEnvelope(playerId, {
             type: ServerMsgType.Error,
-            message: 'Resolve fighter encounter first',
+            message: 'Resolve drone encounter first',
         });
         return;
     }
@@ -117,11 +117,11 @@ export async function handleUndock(playerId: number): Promise<void> {
     const currentSector = player.sector;
     const universeId = player.universeId;
 
-    const [warps, port, visitedSectors, sectorFighters, planetsRes] = await Promise.all([
+    const [warps, port, visitedSectors, sectorDrones, planetsRes] = await Promise.all([
         getGraph(universeId),
         getPortForSector(currentSector, universeId),
         getVisitedSectors(playerId),
-        getSectorFighters(currentSector, universeId),
+        getSectorDrones(currentSector, universeId),
         pool.query(
             `SELECT pl.id, pl.name, pl.type FROM planets pl
              JOIN sectors s ON pl.sector_id = s.id
@@ -149,7 +149,7 @@ export async function handleUndock(playerId: number): Promise<void> {
         players: playersInSector,
         port,
         visitedSectors,
-        sectorFighters,
+        sectorDrones,
         planets,
     });
 }
@@ -369,7 +369,7 @@ export async function handleDockStardock(playerId: number): Promise<void> {
     if (player.pendingEncounter) {
         sendEnvelope(playerId, {
             type: ServerMsgType.Error,
-            message: 'Resolve fighter encounter first',
+            message: 'Resolve drone encounter first',
         });
         return;
     }
@@ -406,11 +406,11 @@ export async function handleLeaveStardock(playerId: number): Promise<void> {
     const currentSector = player.sector;
     const universeId = player.universeId;
 
-    const [warps, port, visitedSectors, sectorFighters, planetsRes] = await Promise.all([
+    const [warps, port, visitedSectors, sectorDrones, planetsRes] = await Promise.all([
         getGraph(universeId),
         getPortForSector(currentSector, universeId),
         getVisitedSectors(playerId),
-        getSectorFighters(currentSector, universeId),
+        getSectorDrones(currentSector, universeId),
         pool.query(
             `SELECT pl.id, pl.name, pl.type FROM planets pl
              JOIN sectors s ON pl.sector_id = s.id
@@ -436,7 +436,7 @@ export async function handleLeaveStardock(playerId: number): Promise<void> {
         players: playersInSector,
         port,
         visitedSectors,
-        sectorFighters,
+        sectorDrones,
         planets: planetsRes.rows,
     });
 }

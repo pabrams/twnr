@@ -71,7 +71,7 @@ describe('New Player Ship Assignment', () => {
     }
   });
 
-  it(`new player is Merchant Freighter with fighters=0, shields=0, cargo_limit=${merchantCfg.startingHolds}`, async () => {
+  it(`new player is Merchant Freighter with drones=0, shields=0, cargo_limit=${merchantCfg.startingHolds}`, async () => {
     const { ws, welcome } = await connectWS();
     const playerId = welcome.playerId;
     try {
@@ -79,7 +79,7 @@ describe('New Player Ship Assignment', () => {
       assert.equal(res.rows.length, 1);
       const row = res.rows[0];
       assert.equal(row.ship_name, merchantCfg.name);
-      assert.equal(Number(row.fighters), 0);
+      assert.equal(Number(row.drones), 0);
       assert.equal(Number(row.shields), 0);
       assert.equal(Number(row.cargo_limit), merchantCfg.startingHolds);
     } finally {

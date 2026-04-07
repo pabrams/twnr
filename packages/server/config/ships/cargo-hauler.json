@@ -1,6 +1,6 @@
 {
   "name": "Cargo Hauler",
-  "maxFighters": 5,
+  "maxDrones": 5,
   "maxShields": 8,
   "startingHolds": 10,
   "maxHolds": 40,

@@ -1,6 +1,6 @@
 {
   "name": "Battlecruiser",
-  "maxFighters": 50,
+  "maxDrones": 50,
   "maxShields": 40,
   "startingHolds": 2,
   "maxHolds": 8,

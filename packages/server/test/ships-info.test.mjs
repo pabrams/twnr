@@ -52,9 +52,9 @@ describe('Ship info query', () => {
       assert.equal(msg.type, ServerMsgType.ShipInfoResult);
       assert.equal(typeof msg.playerId, 'number');
       assert.equal(typeof msg.shipName, 'string');
-      assert.equal(typeof msg.fighters, 'number');
+      assert.equal(typeof msg.drones, 'number');
       assert.equal(typeof msg.shields, 'number');
-      assert.equal(typeof msg.maxFighters, 'number');
+      assert.equal(typeof msg.maxDrones, 'number');
       assert.equal(typeof msg.maxShields, 'number');
       assert.equal(typeof msg.maxHolds, 'number');
       assert.equal(typeof msg.cargoLimit, 'number');
@@ -73,9 +73,9 @@ describe('Ship info query', () => {
       const msg = await wsRequest(ws, { type: ClientMsgType.ShipInfo }, ServerMsgType.ShipInfoResult);
       assert.equal(msg.type, ServerMsgType.ShipInfoResult);
       assert.equal(msg.shipName, merchantCfg.name);
-      assert.equal(msg.fighters, 0);
+      assert.equal(msg.drones, 0);
       assert.equal(msg.shields, 0);
-      assert.equal(msg.maxFighters, merchantCfg.maxFighters);
+      assert.equal(msg.maxDrones, merchantCfg.maxDrones);
       assert.equal(msg.maxShields, merchantCfg.maxShields);
       assert.equal(msg.maxHolds, merchantCfg.maxHolds);
       assert.equal(msg.cargoLimit, merchantCfg.startingHolds);

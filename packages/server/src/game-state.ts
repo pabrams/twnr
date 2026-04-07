@@ -127,13 +127,13 @@ export function getPlayerUniverseId(playerId: number): number | undefined {
     return players[playerId]?.universeId;
 }
 
-export async function getSectorFighters(
+export async function getSectorDrones(
     sectorNumber: number,
     universeId: number,
 ): Promise<{ quantity: number; ownerId: number; ownerName: string } | null> {
     const res = await pool.query(
         `SELECT sf.quantity, sf.owner_id, p.name as owner_name
-         FROM sector_fighters sf
+         FROM sector_drones sf
          JOIN sectors s ON sf.sector_id = s.id
          JOIN players p ON sf.owner_id = p.id
          WHERE s.sector_number = $1 AND s.universe_id = $2 AND sf.quantity > 0`,

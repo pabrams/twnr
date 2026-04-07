@@ -1,6 +1,6 @@
 {
   "name": "Imperial Dreadnought",
-  "maxFighters": 75,
+  "maxDrones": 75,
   "maxShields": 60,
   "startingHolds": 3,
   "maxHolds": 10,

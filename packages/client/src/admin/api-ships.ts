@@ -2,7 +2,7 @@ import { adminFetch } from './api.js';
 
 export interface ShipConfig {
     name: string;
-    maxFighters: number;
+    maxDrones: number;
     maxShields: number;
     startingHolds: number;
     maxHolds: number;

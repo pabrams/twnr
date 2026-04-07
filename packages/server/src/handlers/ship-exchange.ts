@@ -86,7 +86,7 @@ export async function handleBuyShipTradein(
         await client.query(
             `
             UPDATE player_ships
-            SET ship_name = $1, fighters = 0, shields = 0, cargo_limit = $2, turns_per_warp = $3, has_hyperwarp_drive = FALSE
+            SET ship_name = $1, drones = 0, shields = 0, cargo_limit = $2, turns_per_warp = $3, has_hyperwarp_drive = FALSE
             WHERE player_id = $4
         `,
             [targetShipName, newCargoLimit, turnsPerWarp, playerId],
@@ -102,7 +102,7 @@ export async function handleBuyShipTradein(
             type: ServerMsgType.BuyShipTradeinResult,
             shipName: targetShipName,
             credits: data.credits - cost,
-            maxFighters: targetConfig.maxFighters,
+            maxDrones: targetConfig.maxDrones,
             maxShields: targetConfig.maxShields,
             cargoLimit: newCargoLimit,
         });

@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict QmxzUTIb16rf7J1SeIX5Egt3FDYsx1dqHWkhJ4v6LT6lqgDCqo7sjPMOskisddB
+\restrict 0BJTGiyWLop1XUqolwwPNbrBwrREz3ZSZyCYPcNI0m0LNpeQEWNR6OgHlodf86U
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -20,7 +20,7 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 --
--- Name: trigger_set_timestamp(); Type: FUNCTION; Schema: public; Owner: postgres
+-- Name: trigger_set_timestamp(); Type: FUNCTION; Schema: public; Owner: twnr_user
 --
 
 CREATE FUNCTION public.trigger_set_timestamp() RETURNS trigger
@@ -33,14 +33,127 @@ CREATE FUNCTION public.trigger_set_timestamp() RETURNS trigger
       $$;
 
 
-ALTER FUNCTION public.trigger_set_timestamp() OWNER TO postgres;
+ALTER FUNCTION public.trigger_set_timestamp() OWNER TO twnr_user;
 
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
 
 --
--- Name: planet_collisions; Type: TABLE; Schema: public; Owner: postgres
+-- Name: command; Type: TABLE; Schema: public; Owner: twnr_user
+--
+
+CREATE TABLE public.command (
+    id integer NOT NULL,
+    name character varying(100) NOT NULL,
+    label character varying(255) NOT NULL
+);
+
+
+ALTER TABLE public.command OWNER TO twnr_user;
+
+--
+-- Name: command_id_seq; Type: SEQUENCE; Schema: public; Owner: twnr_user
+--
+
+CREATE SEQUENCE public.command_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.command_id_seq OWNER TO twnr_user;
+
+--
+-- Name: command_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: twnr_user
+--
+
+ALTER SEQUENCE public.command_id_seq OWNED BY public.command.id;
+
+
+--
+-- Name: menu; Type: TABLE; Schema: public; Owner: twnr_user
+--
+
+CREATE TABLE public.menu (
+    id integer NOT NULL,
+    name character varying(50) NOT NULL,
+    label character varying(100) NOT NULL,
+    parent_menu_id integer
+);
+
+
+ALTER TABLE public.menu OWNER TO twnr_user;
+
+--
+-- Name: menu_command; Type: TABLE; Schema: public; Owner: twnr_user
+--
+
+CREATE TABLE public.menu_command (
+    id integer NOT NULL,
+    menu_id integer NOT NULL,
+    command_id integer NOT NULL,
+    key_pattern character varying(50) NOT NULL,
+    label character varying(255),
+    action_type character varying(10) NOT NULL,
+    client_msg_type character varying(100),
+    target_menu_id integer,
+    sort_order smallint DEFAULT 0 NOT NULL,
+    CONSTRAINT menu_command_action_type_check CHECK (((action_type)::text = ANY ((ARRAY['local'::character varying, 'server'::character varying, 'mixed'::character varying])::text[])))
+);
+
+
+ALTER TABLE public.menu_command OWNER TO twnr_user;
+
+--
+-- Name: menu_command_id_seq; Type: SEQUENCE; Schema: public; Owner: twnr_user
+--
+
+CREATE SEQUENCE public.menu_command_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.menu_command_id_seq OWNER TO twnr_user;
+
+--
+-- Name: menu_command_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: twnr_user
+--
+
+ALTER SEQUENCE public.menu_command_id_seq OWNED BY public.menu_command.id;
+
+
+--
+-- Name: menu_id_seq; Type: SEQUENCE; Schema: public; Owner: twnr_user
+--
+
+CREATE SEQUENCE public.menu_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.menu_id_seq OWNER TO twnr_user;
+
+--
+-- Name: menu_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: twnr_user
+--
+
+ALTER SEQUENCE public.menu_id_seq OWNED BY public.menu.id;
+
+
+--
+-- Name: planet_collisions; Type: TABLE; Schema: public; Owner: twnr_user
 --
 
 CREATE TABLE public.planet_collisions (
@@ -51,10 +164,10 @@ CREATE TABLE public.planet_collisions (
 );
 
 
-ALTER TABLE public.planet_collisions OWNER TO postgres;
+ALTER TABLE public.planet_collisions OWNER TO twnr_user;
 
 --
--- Name: planets; Type: TABLE; Schema: public; Owner: postgres
+-- Name: planets; Type: TABLE; Schema: public; Owner: twnr_user
 --
 
 CREATE TABLE public.planets (
@@ -63,7 +176,7 @@ CREATE TABLE public.planets (
     universe_id integer NOT NULL,
     name character varying(255) NOT NULL,
     type character varying(255) DEFAULT 'Terran'::character varying NOT NULL,
-    fighters smallint DEFAULT 0 NOT NULL,
+    drones smallint DEFAULT 0 NOT NULL,
     fuel smallint DEFAULT 0 NOT NULL,
     organics smallint DEFAULT 0 NOT NULL,
     equipment smallint DEFAULT 0 NOT NULL,
@@ -75,16 +188,16 @@ CREATE TABLE public.planets (
 );
 
 
-ALTER TABLE public.planets OWNER TO postgres;
+ALTER TABLE public.planets OWNER TO twnr_user;
 
 --
--- Name: player_ships; Type: TABLE; Schema: public; Owner: postgres
+-- Name: player_ships; Type: TABLE; Schema: public; Owner: twnr_user
 --
 
 CREATE TABLE public.player_ships (
     player_id integer NOT NULL,
     ship_name character varying(255) NOT NULL,
-    fighters integer DEFAULT 0 NOT NULL,
+    drones integer DEFAULT 0 NOT NULL,
     shields integer DEFAULT 0 NOT NULL,
     cargo_limit integer NOT NULL,
     planet_busters smallint DEFAULT 0 NOT NULL,
@@ -94,10 +207,10 @@ CREATE TABLE public.player_ships (
 );
 
 
-ALTER TABLE public.player_ships OWNER TO postgres;
+ALTER TABLE public.player_ships OWNER TO twnr_user;
 
 --
--- Name: players; Type: TABLE; Schema: public; Owner: postgres
+-- Name: players; Type: TABLE; Schema: public; Owner: twnr_user
 --
 
 CREATE TABLE public.players (
@@ -110,14 +223,15 @@ CREATE TABLE public.players (
     docked boolean DEFAULT false NOT NULL,
     on_planet_id integer,
     turns integer DEFAULT 0 NOT NULL,
-    last_turns_granted_at timestamp with time zone DEFAULT now() NOT NULL
+    last_turns_granted_at timestamp with time zone DEFAULT now() NOT NULL,
+    current_menu_id integer
 );
 
 
-ALTER TABLE public.players OWNER TO postgres;
+ALTER TABLE public.players OWNER TO twnr_user;
 
 --
--- Name: players_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+-- Name: players_id_seq; Type: SEQUENCE; Schema: public; Owner: twnr_user
 --
 
 CREATE SEQUENCE public.players_id_seq
@@ -129,36 +243,36 @@ CREATE SEQUENCE public.players_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.players_id_seq OWNER TO postgres;
+ALTER SEQUENCE public.players_id_seq OWNER TO twnr_user;
 
 --
--- Name: players_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+-- Name: players_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: twnr_user
 --
 
 ALTER SEQUENCE public.players_id_seq OWNED BY public.players.id;
 
 
 --
--- Name: ports; Type: TABLE; Schema: public; Owner: postgres
+-- Name: ports; Type: TABLE; Schema: public; Owner: twnr_user
 --
 
 CREATE TABLE public.ports (
     id integer NOT NULL,
     sector_id integer NOT NULL,
     class integer NOT NULL,
-    fuel integer DEFAULT 500 NOT NULL,
+    fuel integer DEFAULT 1000 NOT NULL,
     fuel_price integer NOT NULL,
-    organics integer DEFAULT 500 NOT NULL,
+    organics integer DEFAULT 1000 NOT NULL,
     org_price integer NOT NULL,
-    equipment integer DEFAULT 500 NOT NULL,
+    equipment integer DEFAULT 1000 NOT NULL,
     equ_price integer NOT NULL
 );
 
 
-ALTER TABLE public.ports OWNER TO postgres;
+ALTER TABLE public.ports OWNER TO twnr_user;
 
 --
--- Name: ports_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+-- Name: ports_id_seq; Type: SEQUENCE; Schema: public; Owner: twnr_user
 --
 
 CREATE SEQUENCE public.ports_id_seq
@@ -170,30 +284,30 @@ CREATE SEQUENCE public.ports_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.ports_id_seq OWNER TO postgres;
+ALTER SEQUENCE public.ports_id_seq OWNER TO twnr_user;
 
 --
--- Name: ports_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+-- Name: ports_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: twnr_user
 --
 
 ALTER SEQUENCE public.ports_id_seq OWNED BY public.ports.id;
 
 
 --
--- Name: sector_fighters; Type: TABLE; Schema: public; Owner: postgres
+-- Name: sector_drones; Type: TABLE; Schema: public; Owner: twnr_user
 --
 
-CREATE TABLE public.sector_fighters (
+CREATE TABLE public.sector_drones (
     sector_id integer NOT NULL,
     owner_id integer NOT NULL,
     quantity integer NOT NULL
 );
 
 
-ALTER TABLE public.sector_fighters OWNER TO postgres;
+ALTER TABLE public.sector_drones OWNER TO twnr_user;
 
 --
--- Name: sectors; Type: TABLE; Schema: public; Owner: postgres
+-- Name: sectors; Type: TABLE; Schema: public; Owner: twnr_user
 --
 
 CREATE TABLE public.sectors (
@@ -204,10 +318,10 @@ CREATE TABLE public.sectors (
 );
 
 
-ALTER TABLE public.sectors OWNER TO postgres;
+ALTER TABLE public.sectors OWNER TO twnr_user;
 
 --
--- Name: sectors_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+-- Name: sectors_id_seq; Type: SEQUENCE; Schema: public; Owner: twnr_user
 --
 
 CREATE SEQUENCE public.sectors_id_seq
@@ -219,17 +333,17 @@ CREATE SEQUENCE public.sectors_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.sectors_id_seq OWNER TO postgres;
+ALTER SEQUENCE public.sectors_id_seq OWNER TO twnr_user;
 
 --
--- Name: sectors_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+-- Name: sectors_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: twnr_user
 --
 
 ALTER SEQUENCE public.sectors_id_seq OWNED BY public.sectors.id;
 
 
 --
--- Name: ship_cargo; Type: TABLE; Schema: public; Owner: postgres
+-- Name: ship_cargo; Type: TABLE; Schema: public; Owner: twnr_user
 --
 
 CREATE TABLE public.ship_cargo (
@@ -242,10 +356,10 @@ CREATE TABLE public.ship_cargo (
 );
 
 
-ALTER TABLE public.ship_cargo OWNER TO postgres;
+ALTER TABLE public.ship_cargo OWNER TO twnr_user;
 
 --
--- Name: universes; Type: TABLE; Schema: public; Owner: postgres
+-- Name: universes; Type: TABLE; Schema: public; Owner: twnr_user
 --
 
 CREATE TABLE public.universes (
@@ -263,10 +377,10 @@ CREATE TABLE public.universes (
 );
 
 
-ALTER TABLE public.universes OWNER TO postgres;
+ALTER TABLE public.universes OWNER TO twnr_user;
 
 --
--- Name: universes_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+-- Name: universes_id_seq; Type: SEQUENCE; Schema: public; Owner: twnr_user
 --
 
 CREATE SEQUENCE public.universes_id_seq
@@ -278,17 +392,17 @@ CREATE SEQUENCE public.universes_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.universes_id_seq OWNER TO postgres;
+ALTER SEQUENCE public.universes_id_seq OWNER TO twnr_user;
 
 --
--- Name: universes_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+-- Name: universes_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: twnr_user
 --
 
 ALTER SEQUENCE public.universes_id_seq OWNED BY public.universes.id;
 
 
 --
--- Name: users; Type: TABLE; Schema: public; Owner: postgres
+-- Name: users; Type: TABLE; Schema: public; Owner: twnr_user
 --
 
 CREATE TABLE public.users (
@@ -300,10 +414,10 @@ CREATE TABLE public.users (
 );
 
 
-ALTER TABLE public.users OWNER TO postgres;
+ALTER TABLE public.users OWNER TO twnr_user;
 
 --
--- Name: users_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+-- Name: users_id_seq; Type: SEQUENCE; Schema: public; Owner: twnr_user
 --
 
 CREATE SEQUENCE public.users_id_seq
@@ -315,17 +429,17 @@ CREATE SEQUENCE public.users_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.users_id_seq OWNER TO postgres;
+ALTER SEQUENCE public.users_id_seq OWNER TO twnr_user;
 
 --
--- Name: users_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+-- Name: users_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: twnr_user
 --
 
 ALTER SEQUENCE public.users_id_seq OWNED BY public.users.id;
 
 
 --
--- Name: visited_sectors; Type: TABLE; Schema: public; Owner: postgres
+-- Name: visited_sectors; Type: TABLE; Schema: public; Owner: twnr_user
 --
 
 CREATE TABLE public.visited_sectors (
@@ -334,10 +448,10 @@ CREATE TABLE public.visited_sectors (
 );
 
 
-ALTER TABLE public.visited_sectors OWNER TO postgres;
+ALTER TABLE public.visited_sectors OWNER TO twnr_user;
 
 --
--- Name: warps; Type: TABLE; Schema: public; Owner: postgres
+-- Name: warps; Type: TABLE; Schema: public; Owner: twnr_user
 --
 
 CREATE TABLE public.warps (
@@ -346,45 +460,114 @@ CREATE TABLE public.warps (
 );
 
 
-ALTER TABLE public.warps OWNER TO postgres;
+ALTER TABLE public.warps OWNER TO twnr_user;
 
 --
--- Name: players id; Type: DEFAULT; Schema: public; Owner: postgres
+-- Name: command id; Type: DEFAULT; Schema: public; Owner: twnr_user
+--
+
+ALTER TABLE ONLY public.command ALTER COLUMN id SET DEFAULT nextval('public.command_id_seq'::regclass);
+
+
+--
+-- Name: menu id; Type: DEFAULT; Schema: public; Owner: twnr_user
+--
+
+ALTER TABLE ONLY public.menu ALTER COLUMN id SET DEFAULT nextval('public.menu_id_seq'::regclass);
+
+
+--
+-- Name: menu_command id; Type: DEFAULT; Schema: public; Owner: twnr_user
+--
+
+ALTER TABLE ONLY public.menu_command ALTER COLUMN id SET DEFAULT nextval('public.menu_command_id_seq'::regclass);
+
+
+--
+-- Name: players id; Type: DEFAULT; Schema: public; Owner: twnr_user
 --
 
 ALTER TABLE ONLY public.players ALTER COLUMN id SET DEFAULT nextval('public.players_id_seq'::regclass);
 
 
 --
--- Name: ports id; Type: DEFAULT; Schema: public; Owner: postgres
+-- Name: ports id; Type: DEFAULT; Schema: public; Owner: twnr_user
 --
 
 ALTER TABLE ONLY public.ports ALTER COLUMN id SET DEFAULT nextval('public.ports_id_seq'::regclass);
 
 
 --
--- Name: sectors id; Type: DEFAULT; Schema: public; Owner: postgres
+-- Name: sectors id; Type: DEFAULT; Schema: public; Owner: twnr_user
 --
 
 ALTER TABLE ONLY public.sectors ALTER COLUMN id SET DEFAULT nextval('public.sectors_id_seq'::regclass);
 
 
 --
--- Name: universes id; Type: DEFAULT; Schema: public; Owner: postgres
+-- Name: universes id; Type: DEFAULT; Schema: public; Owner: twnr_user
 --
 
 ALTER TABLE ONLY public.universes ALTER COLUMN id SET DEFAULT nextval('public.universes_id_seq'::regclass);
 
 
 --
--- Name: users id; Type: DEFAULT; Schema: public; Owner: postgres
+-- Name: users id; Type: DEFAULT; Schema: public; Owner: twnr_user
 --
 
 ALTER TABLE ONLY public.users ALTER COLUMN id SET DEFAULT nextval('public.users_id_seq'::regclass);
 
 
 --
--- Name: planet_collisions planet_collisions_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: command command_name_key; Type: CONSTRAINT; Schema: public; Owner: twnr_user
+--
+
+ALTER TABLE ONLY public.command
+    ADD CONSTRAINT command_name_key UNIQUE (name);
+
+
+--
+-- Name: command command_pkey; Type: CONSTRAINT; Schema: public; Owner: twnr_user
+--
+
+ALTER TABLE ONLY public.command
+    ADD CONSTRAINT command_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: menu_command menu_command_menu_id_command_id_key; Type: CONSTRAINT; Schema: public; Owner: twnr_user
+--
+
+ALTER TABLE ONLY public.menu_command
+    ADD CONSTRAINT menu_command_menu_id_command_id_key UNIQUE (menu_id, command_id);
+
+
+--
+-- Name: menu_command menu_command_pkey; Type: CONSTRAINT; Schema: public; Owner: twnr_user
+--
+
+ALTER TABLE ONLY public.menu_command
+    ADD CONSTRAINT menu_command_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: menu menu_name_key; Type: CONSTRAINT; Schema: public; Owner: twnr_user
+--
+
+ALTER TABLE ONLY public.menu
+    ADD CONSTRAINT menu_name_key UNIQUE (name);
+
+
+--
+-- Name: menu menu_pkey; Type: CONSTRAINT; Schema: public; Owner: twnr_user
+--
+
+ALTER TABLE ONLY public.menu
+    ADD CONSTRAINT menu_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: planet_collisions planet_collisions_pkey; Type: CONSTRAINT; Schema: public; Owner: twnr_user
 --
 
 ALTER TABLE ONLY public.planet_collisions
@@ -392,7 +575,7 @@ ALTER TABLE ONLY public.planet_collisions
 
 
 --
--- Name: planets planets_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: planets planets_pkey; Type: CONSTRAINT; Schema: public; Owner: twnr_user
 --
 
 ALTER TABLE ONLY public.planets
@@ -400,7 +583,7 @@ ALTER TABLE ONLY public.planets
 
 
 --
--- Name: player_ships player_ships_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: player_ships player_ships_pkey; Type: CONSTRAINT; Schema: public; Owner: twnr_user
 --
 
 ALTER TABLE ONLY public.player_ships
@@ -408,7 +591,7 @@ ALTER TABLE ONLY public.player_ships
 
 
 --
--- Name: players players_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: players players_pkey; Type: CONSTRAINT; Schema: public; Owner: twnr_user
 --
 
 ALTER TABLE ONLY public.players
@@ -416,7 +599,7 @@ ALTER TABLE ONLY public.players
 
 
 --
--- Name: players players_user_id_universe_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: players players_user_id_universe_id_key; Type: CONSTRAINT; Schema: public; Owner: twnr_user
 --
 
 ALTER TABLE ONLY public.players
@@ -424,7 +607,7 @@ ALTER TABLE ONLY public.players
 
 
 --
--- Name: ports ports_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: ports ports_pkey; Type: CONSTRAINT; Schema: public; Owner: twnr_user
 --
 
 ALTER TABLE ONLY public.ports
@@ -432,7 +615,7 @@ ALTER TABLE ONLY public.ports
 
 
 --
--- Name: ports ports_sector_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: ports ports_sector_id_key; Type: CONSTRAINT; Schema: public; Owner: twnr_user
 --
 
 ALTER TABLE ONLY public.ports
@@ -440,15 +623,15 @@ ALTER TABLE ONLY public.ports
 
 
 --
--- Name: sector_fighters sector_fighters_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: sector_drones sector_drones_pkey; Type: CONSTRAINT; Schema: public; Owner: twnr_user
 --
 
-ALTER TABLE ONLY public.sector_fighters
-    ADD CONSTRAINT sector_fighters_pkey PRIMARY KEY (sector_id);
+ALTER TABLE ONLY public.sector_drones
+    ADD CONSTRAINT sector_drones_pkey PRIMARY KEY (sector_id);
 
 
 --
--- Name: sectors sectors_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: sectors sectors_pkey; Type: CONSTRAINT; Schema: public; Owner: twnr_user
 --
 
 ALTER TABLE ONLY public.sectors
@@ -456,7 +639,7 @@ ALTER TABLE ONLY public.sectors
 
 
 --
--- Name: sectors sectors_universe_id_sector_number_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: sectors sectors_universe_id_sector_number_key; Type: CONSTRAINT; Schema: public; Owner: twnr_user
 --
 
 ALTER TABLE ONLY public.sectors
@@ -464,7 +647,7 @@ ALTER TABLE ONLY public.sectors
 
 
 --
--- Name: ship_cargo ship_cargo_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: ship_cargo ship_cargo_pkey; Type: CONSTRAINT; Schema: public; Owner: twnr_user
 --
 
 ALTER TABLE ONLY public.ship_cargo
@@ -472,7 +655,7 @@ ALTER TABLE ONLY public.ship_cargo
 
 
 --
--- Name: universes universes_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: universes universes_pkey; Type: CONSTRAINT; Schema: public; Owner: twnr_user
 --
 
 ALTER TABLE ONLY public.universes
@@ -480,7 +663,7 @@ ALTER TABLE ONLY public.universes
 
 
 --
--- Name: users users_email_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: users users_email_key; Type: CONSTRAINT; Schema: public; Owner: twnr_user
 --
 
 ALTER TABLE ONLY public.users
@@ -488,7 +671,7 @@ ALTER TABLE ONLY public.users
 
 
 --
--- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: twnr_user
 --
 
 ALTER TABLE ONLY public.users
@@ -496,7 +679,7 @@ ALTER TABLE ONLY public.users
 
 
 --
--- Name: visited_sectors visited_sectors_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: visited_sectors visited_sectors_pkey; Type: CONSTRAINT; Schema: public; Owner: twnr_user
 --
 
 ALTER TABLE ONLY public.visited_sectors
@@ -504,7 +687,7 @@ ALTER TABLE ONLY public.visited_sectors
 
 
 --
--- Name: warps warps_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: warps warps_pkey; Type: CONSTRAINT; Schema: public; Owner: twnr_user
 --
 
 ALTER TABLE ONLY public.warps
@@ -512,14 +695,46 @@ ALTER TABLE ONLY public.warps
 
 
 --
--- Name: planets set_timestamp_planets; Type: TRIGGER; Schema: public; Owner: postgres
+-- Name: planets set_timestamp_planets; Type: TRIGGER; Schema: public; Owner: twnr_user
 --
 
 CREATE TRIGGER set_timestamp_planets BEFORE UPDATE ON public.planets FOR EACH ROW EXECUTE FUNCTION public.trigger_set_timestamp();
 
 
 --
--- Name: planet_collisions planet_collisions_colliding_with_universe_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: menu_command menu_command_command_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: twnr_user
+--
+
+ALTER TABLE ONLY public.menu_command
+    ADD CONSTRAINT menu_command_command_id_fkey FOREIGN KEY (command_id) REFERENCES public.command(id) ON DELETE CASCADE;
+
+
+--
+-- Name: menu_command menu_command_menu_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: twnr_user
+--
+
+ALTER TABLE ONLY public.menu_command
+    ADD CONSTRAINT menu_command_menu_id_fkey FOREIGN KEY (menu_id) REFERENCES public.menu(id) ON DELETE CASCADE;
+
+
+--
+-- Name: menu_command menu_command_target_menu_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: twnr_user
+--
+
+ALTER TABLE ONLY public.menu_command
+    ADD CONSTRAINT menu_command_target_menu_id_fkey FOREIGN KEY (target_menu_id) REFERENCES public.menu(id) ON DELETE SET NULL;
+
+
+--
+-- Name: menu menu_parent_menu_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: twnr_user
+--
+
+ALTER TABLE ONLY public.menu
+    ADD CONSTRAINT menu_parent_menu_id_fkey FOREIGN KEY (parent_menu_id) REFERENCES public.menu(id) ON DELETE SET NULL;
+
+
+--
+-- Name: planet_collisions planet_collisions_colliding_with_universe_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: twnr_user
 --
 
 ALTER TABLE ONLY public.planet_collisions
@@ -527,7 +742,7 @@ ALTER TABLE ONLY public.planet_collisions
 
 
 --
--- Name: planet_collisions planet_collisions_collision_planet_universe_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: planet_collisions planet_collisions_collision_planet_universe_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: twnr_user
 --
 
 ALTER TABLE ONLY public.planet_collisions
@@ -535,7 +750,7 @@ ALTER TABLE ONLY public.planet_collisions
 
 
 --
--- Name: planet_collisions planet_collisions_universe_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: planet_collisions planet_collisions_universe_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: twnr_user
 --
 
 ALTER TABLE ONLY public.planet_collisions
@@ -543,7 +758,7 @@ ALTER TABLE ONLY public.planet_collisions
 
 
 --
--- Name: planets planets_sector_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: planets planets_sector_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: twnr_user
 --
 
 ALTER TABLE ONLY public.planets
@@ -551,7 +766,7 @@ ALTER TABLE ONLY public.planets
 
 
 --
--- Name: planets planets_universe_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: planets planets_universe_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: twnr_user
 --
 
 ALTER TABLE ONLY public.planets
@@ -559,7 +774,7 @@ ALTER TABLE ONLY public.planets
 
 
 --
--- Name: player_ships player_ships_player_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: player_ships player_ships_player_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: twnr_user
 --
 
 ALTER TABLE ONLY public.player_ships
@@ -567,7 +782,15 @@ ALTER TABLE ONLY public.player_ships
 
 
 --
--- Name: players players_universe_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: players players_current_menu_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: twnr_user
+--
+
+ALTER TABLE ONLY public.players
+    ADD CONSTRAINT players_current_menu_id_fkey FOREIGN KEY (current_menu_id) REFERENCES public.menu(id) ON DELETE SET NULL;
+
+
+--
+-- Name: players players_universe_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: twnr_user
 --
 
 ALTER TABLE ONLY public.players
@@ -575,7 +798,7 @@ ALTER TABLE ONLY public.players
 
 
 --
--- Name: players players_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: players players_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: twnr_user
 --
 
 ALTER TABLE ONLY public.players
@@ -583,7 +806,7 @@ ALTER TABLE ONLY public.players
 
 
 --
--- Name: ports ports_sector_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: ports ports_sector_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: twnr_user
 --
 
 ALTER TABLE ONLY public.ports
@@ -591,23 +814,23 @@ ALTER TABLE ONLY public.ports
 
 
 --
--- Name: sector_fighters sector_fighters_owner_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: sector_drones sector_drones_owner_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: twnr_user
 --
 
-ALTER TABLE ONLY public.sector_fighters
-    ADD CONSTRAINT sector_fighters_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES public.players(id) ON DELETE CASCADE;
-
-
---
--- Name: sector_fighters sector_fighters_sector_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.sector_fighters
-    ADD CONSTRAINT sector_fighters_sector_id_fkey FOREIGN KEY (sector_id) REFERENCES public.sectors(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.sector_drones
+    ADD CONSTRAINT sector_drones_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES public.players(id) ON DELETE CASCADE;
 
 
 --
--- Name: sectors sectors_universe_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: sector_drones sector_drones_sector_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: twnr_user
+--
+
+ALTER TABLE ONLY public.sector_drones
+    ADD CONSTRAINT sector_drones_sector_id_fkey FOREIGN KEY (sector_id) REFERENCES public.sectors(id) ON DELETE CASCADE;
+
+
+--
+-- Name: sectors sectors_universe_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: twnr_user
 --
 
 ALTER TABLE ONLY public.sectors
@@ -615,7 +838,7 @@ ALTER TABLE ONLY public.sectors
 
 
 --
--- Name: visited_sectors visited_sectors_player_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: visited_sectors visited_sectors_player_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: twnr_user
 --
 
 ALTER TABLE ONLY public.visited_sectors
@@ -623,7 +846,7 @@ ALTER TABLE ONLY public.visited_sectors
 
 
 --
--- Name: warps warps_from_sector_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: warps warps_from_sector_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: twnr_user
 --
 
 ALTER TABLE ONLY public.warps
@@ -631,7 +854,7 @@ ALTER TABLE ONLY public.warps
 
 
 --
--- Name: warps warps_to_sector_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: warps warps_to_sector_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: twnr_user
 --
 
 ALTER TABLE ONLY public.warps
@@ -642,5 +865,5 @@ ALTER TABLE ONLY public.warps
 -- PostgreSQL database dump complete
 --
 
-\unrestrict QmxzUTIb16rf7J1SeIX5Egt3FDYsx1dqHWkhJ4v6LT6lqgDCqo7sjPMOskisddB
+\unrestrict 0BJTGiyWLop1XUqolwwPNbrBwrREz3ZSZyCYPcNI0m0LNpeQEWNR6OgHlodf86U
 

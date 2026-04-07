@@ -7,10 +7,10 @@ import { showComputerMenu } from './display-computer.js';
 import { showJettisonConfirm } from './display-port.js';
 import {
     handleAttackInput,
-    handleAttackFightersInput,
-    handleDeployFightersQtyInput,
-    handleFighterEncounterInput,
-    handleFighterAttackQtyInput,
+    handleAttackDronesInput,
+    handleDeployDronesQtyInput,
+    handleDroneEncounterInput,
+    handleDroneAttackQtyInput,
 } from './input-combat.js';
 import {
     handleComputerInput,
@@ -114,8 +114,8 @@ function handleInput(ctx: GameContext, line: string) {
         case 'attack':
             handleAttackInput(ctx, line);
             return;
-        case 'attackFighters':
-            handleAttackFightersInput(ctx, line);
+        case 'attackDrones':
+            handleAttackDronesInput(ctx, line);
             return;
         case 'computer':
             handleComputerInput(ctx, line);
@@ -153,14 +153,14 @@ function handleInput(ctx: GameContext, line: string) {
         case 'planetLeaveQty':
             handlePlanetLeaveQtyInput(ctx, line);
             return;
-        case 'deployFightersQty':
-            handleDeployFightersQtyInput(ctx, line);
+        case 'deployDronesQty':
+            handleDeployDronesQtyInput(ctx, line);
             return;
-        case 'fighterEncounter':
-            handleFighterEncounterInput(ctx, line);
+        case 'droneEncounter':
+            handleDroneEncounterInput(ctx, line);
             return;
-        case 'fighterAttackQty':
-            handleFighterAttackQtyInput(ctx, line);
+        case 'droneAttackQty':
+            handleDroneAttackQtyInput(ctx, line);
             return;
     }
 
@@ -191,7 +191,7 @@ function handleInput(ctx: GameContext, line: string) {
             showComputerMenu(ctx);
             break;
         case 'f':
-            ctx.sendMsg({ type: ClientMsgType.DeployFightersInfo });
+            ctx.sendMsg({ type: ClientMsgType.DeployDronesInfo });
             break;
         case 'j':
             showJettisonConfirm(ctx);

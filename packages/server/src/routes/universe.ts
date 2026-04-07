@@ -87,12 +87,12 @@ export function createUniverseRoutes(
             const startShip = shipConfigs[newPlayerConfig.startingShip];
             if (startShip) {
                 await pool.query(
-                    `INSERT INTO player_ships (player_id, ship_name, fighters, shields, cargo_limit, turns_per_warp)
+                    `INSERT INTO player_ships (player_id, ship_name, drones, shields, cargo_limit, turns_per_warp)
                      VALUES ($1, $2, $3, $4, $5, $6)`,
                     [
                         playerId,
                         startShip.name,
-                        newPlayerConfig.startingFighters,
+                        newPlayerConfig.startingDrones,
                         newPlayerConfig.startingShields,
                         startShip.startingHolds,
                         startShip.turnsPerWarp ?? 1,

@@ -34,7 +34,7 @@ after(async () => {
 
 // ─── tests ────────────────────────────────────────────────────────────────────
 
-describe('Buy fighters — validation', () => {
+describe('Buy drones — validation', () => {
   it('returns "Not at a class 0 port" when not in a class 0 sector', async () => {
     const res = await pool.query('SELECT s.sector_number AS sector_id FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE p.class != 0 AND s.universe_id = $1 LIMIT 1', [UNIVERSE_ID]);
     assert.ok(res.rows.length > 0, 'Need a non-class-0 sector');
@@ -44,7 +44,7 @@ describe('Buy fighters — validation', () => {
     const playerId = welcome.playerId;
     try {
       await pool.query('UPDATE players SET current_sector = $1 WHERE id = $2', [otherSector, playerId]);
-      const msg = await wsRequest(ws, { type: ClientMsgType.BuyFighters, quantity: 1 }, ServerMsgType.BuyFightersResult);
+      const msg = await wsRequest(ws, { type: ClientMsgType.BuyDrones, quantity: 1 }, ServerMsgType.BuyDronesResult);
       assert.equal(msg.type, ServerMsgType.Error);
       assert.equal(msg.message, 'Not at a class 0 port');
     } finally {
@@ -55,7 +55,7 @@ describe('Buy fighters — validation', () => {
   it('returns "Invalid quantity" for quantity 0', async () => {
     const { ws } = await connectWS();
     try {
-      const msg = await wsRequest(ws, { type: ClientMsgType.BuyFighters, quantity: 0 }, ServerMsgType.BuyFightersResult);
+      const msg = await wsRequest(ws, { type: ClientMsgType.BuyDrones, quantity: 0 }, ServerMsgType.BuyDronesResult);
       assert.equal(msg.type, ServerMsgType.Error);
       assert.equal(msg.message, 'Invalid quantity');
     } finally {
@@ -66,7 +66,7 @@ describe('Buy fighters — validation', () => {
   it('returns "Invalid quantity" for negative quantity', async () => {
     const { ws } = await connectWS();
     try {
-      const msg = await wsRequest(ws, { type: ClientMsgType.BuyFighters, quantity: -1 }, ServerMsgType.BuyFightersResult);
+      const msg = await wsRequest(ws, { type: ClientMsgType.BuyDrones, quantity: -1 }, ServerMsgType.BuyDronesResult);
       assert.equal(msg.type, ServerMsgType.Error);
       assert.equal(msg.message, 'Invalid quantity');
     } finally {
@@ -77,7 +77,7 @@ describe('Buy fighters — validation', () => {
   it('returns "Invalid quantity" for a float quantity', async () => {
     const { ws } = await connectWS();
     try {
-      const msg = await wsRequest(ws, { type: ClientMsgType.BuyFighters, quantity: 1.5 }, ServerMsgType.BuyFightersResult);
+      const msg = await wsRequest(ws, { type: ClientMsgType.BuyDrones, quantity: 1.5 }, ServerMsgType.BuyDronesResult);
       assert.equal(msg.type, ServerMsgType.Error);
       assert.equal(msg.message, 'Invalid quantity');
     } finally {
@@ -85,10 +85,10 @@ describe('Buy fighters — validation', () => {
     }
   });
 
-  it('returns "Exceeds maximum" when fighters + quantity > maxFighters', async () => {
+  it('returns "Exceeds maximum" when drones + quantity > maxDrones', async () => {
     const { ws } = await connectWS();
     try {
-      const msg = await wsRequest(ws, { type: ClientMsgType.BuyFighters, quantity: merchantCfg.maxFighters + 1 }, ServerMsgType.BuyFightersResult);
+      const msg = await wsRequest(ws, { type: ClientMsgType.BuyDrones, quantity: merchantCfg.maxDrones + 1 }, ServerMsgType.BuyDronesResult);
       assert.equal(msg.type, ServerMsgType.Error);
       assert.equal(msg.message, 'Exceeds maximum');
     } finally {
@@ -96,12 +96,12 @@ describe('Buy fighters — validation', () => {
     }
   });
 
-  it('returns "Insufficient credits" when player cannot afford fighters', async () => {
+  it('returns "Insufficient credits" when player cannot afford drones', async () => {
     const { ws, welcome } = await connectWS();
     const playerId = welcome.playerId;
     try {
       await pool.query('UPDATE ship_cargo SET credits = 0 WHERE player_id = $1', [playerId]);
-      const msg = await wsRequest(ws, { type: ClientMsgType.BuyFighters, quantity: 1 }, ServerMsgType.BuyFightersResult);
+      const msg = await wsRequest(ws, { type: ClientMsgType.BuyDrones, quantity: 1 }, ServerMsgType.BuyDronesResult);
       assert.equal(msg.type, ServerMsgType.Error);
       assert.equal(msg.message, 'Insufficient credits');
     } finally {

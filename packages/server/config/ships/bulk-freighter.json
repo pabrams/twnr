@@ -1,6 +1,6 @@
 {
   "name": "Bulk Freighter",
-  "maxFighters": 3,
+  "maxDrones": 3,
   "maxShields": 15,
   "startingHolds": 15,
   "maxHolds": 60,

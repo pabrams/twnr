@@ -105,11 +105,11 @@ export function createCatalogRoutes(router: Router, middleware: Middleware): voi
     });
 
     router.post('/api/admin/ships', authenticateAdmin, (req, res): any => {
-        const { name, maxFighters, maxShields, startingHolds, maxHolds, price } = req.body;
+        const { name, maxDrones, maxShields, startingHolds, maxHolds, price } = req.body;
         if (!name) return res.status(400).json({ error: 'name is required' });
         if (shipConfigs[name]) return res.status(409).json({ error: 'Ship already exists' });
 
-        const ship = { name, maxFighters, maxShields, startingHolds, maxHolds, price };
+        const ship = { name, maxDrones, maxShields, startingHolds, maxHolds, price };
         const filePath = path.join(SHIPS_DIR, `${slugify(name)}.json`);
         try {
             fs.writeFileSync(filePath, JSON.stringify(ship), 'utf-8');

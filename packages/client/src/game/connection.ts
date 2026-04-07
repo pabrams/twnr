@@ -5,7 +5,7 @@ import { colorSector } from './types.js';
 import { showSectorDisplay, showDockedMenu, showPrompt } from './display.js';
 import { showClass0Menu, showAutopilotPrompt } from './display-port.js';
 import { showPlanetMenu, showNoPlanet } from './display-planet.js';
-import { showFighterEncounter } from './display-combat.js';
+import { showDroneEncounter } from './display-combat.js';
 import { colors } from './constants.js';
 
 const mg = colors.magenta;
@@ -47,7 +47,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     msg.players,
                     msg.port,
                     msg.visitedSectors,
-                    msg.sectorFighters,
+                    msg.sectorDrones,
                 );
                 // Advance autopilot if in progress
                 if (ctx.mode === 'autopilot' && ctx.autopilotStep < ctx.autopilotPath.length) {
@@ -81,7 +81,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                         msg.players,
                         msg.port,
                         msg.visitedSectors,
-                        msg.sectorFighters,
+                        msg.sectorDrones,
                     );
                 } else {
                     ctx.term.writeln(`\r\n${colors.boldRed('Error:')} ${colors.red(msg.message)}`);
@@ -121,7 +121,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 ctx.term.writeln('');
                 ctx.term.writeln(`${colors.white('Ship:')} ${colors.boldCyan(msg.shipName)}`);
                 ctx.term.writeln(
-                    `  ${colors.boldYellow('Fighters')}: ${colors.white(`${msg.fighters}`)}/${colors.cyan(`${msg.maxFighters}`)}  ${colors.boldYellow('Shields')}: ${colors.white(`${msg.shields}`)}/${colors.cyan(`${msg.maxShields}`)}`,
+                    `  ${colors.boldYellow('Drones')}: ${colors.white(`${msg.drones}`)}/${colors.cyan(`${msg.maxDrones}`)}  ${colors.boldYellow('Shields')}: ${colors.white(`${msg.shields}`)}/${colors.cyan(`${msg.maxShields}`)}`,
                 );
                 ctx.term.writeln(
                     `  ${colors.boldYellow('Cargo holds')}: ${colors.boldGreen(`${msg.holdsAvailable} free`)} / ${colors.white(`${msg.cargoLimit} total`)} ${mg('(')}max ${msg.maxHolds}${mg(')')}`,
@@ -162,7 +162,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                             msg.players,
                             msg.port,
                             msg.visitedSectors,
-                            msg.sectorFighters,
+                            msg.sectorDrones,
                         );
                         if (
                             ctx.mode === 'autopilot' &&
@@ -192,15 +192,10 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                         if (ctx.mode === 'autopilot') {
                             ctx.setAutopilotPaused(true);
                             ctx.term.writeln(
-                                `\r\n${colors.boldRed('Autopilot disengaged — hostile fighters!')}`,
+                                `\r\n${colors.boldRed('Autopilot disengaged — hostile drones!')}`,
                             );
                         }
-                        showFighterEncounter(
-                            ctx,
-                            msg.sectorFighters,
-                            msg.ownerName,
-                            msg.shipFighters,
-                        );
+                        showDroneEncounter(ctx, msg.sectorDrones, msg.ownerName, msg.shipDrones);
                         break;
                     }
                     case 'nonAdjacent':
@@ -238,10 +233,10 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     showPrompt(ctx);
                 }
                 break;
-            case ServerMsgType.BuyFightersResult:
+            case ServerMsgType.BuyDronesResult:
                 ctx.term.writeln(`\r\n${colors.boldGreen('Purchase complete.')}`);
                 ctx.term.writeln(
-                    `  ${colors.boldYellow('Credits')}: ${msg.credits}  ${colors.boldYellow('Fighters')}: ${msg.fighters}`,
+                    `  ${colors.boldYellow('Credits')}: ${msg.credits}  ${colors.boldYellow('Drones')}: ${msg.drones}`,
                 );
                 if (ctx.mode === 'class0Qty') {
                     ctx.setMode('class0');
@@ -276,13 +271,13 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     ctx.term.writeln(colors.boldYellow(msg.message || 'Attack completed.'));
                 }
                 ctx.term.writeln(
-                    `  ${colors.boldYellow('Your fighters lost')}: ${msg.attackerFightersLost}`,
+                    `  ${colors.boldYellow('Your drones lost')}: ${msg.attackerDronesLost}`,
                 );
                 ctx.term.writeln(
                     `  ${colors.boldYellow('Defender shields lost')}: ${msg.defenderShieldsLost}`,
                 );
                 ctx.term.writeln(
-                    `  ${colors.boldYellow('Defender fighters lost')}: ${msg.defenderFightersLost}`,
+                    `  ${colors.boldYellow('Defender drones lost')}: ${msg.defenderDronesLost}`,
                 );
                 showPrompt(ctx);
                 break;
@@ -330,7 +325,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 showPrompt(ctx);
                 break;
             }
-            case ServerMsgType.FighterEncounter: {
+            case ServerMsgType.DroneEncounter: {
                 ctx.setSectorPlayers(msg.players);
                 if (msg.visitedSectors) ctx.setVisitedSet(new Set(msg.visitedSectors));
                 ctx.setCurrentSector(msg.sector);
@@ -350,32 +345,32 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 if (ctx.mode === 'autopilot') {
                     ctx.setAutopilotPaused(true);
                     ctx.term.writeln(
-                        `\r\n${colors.boldRed('Autopilot disengaged — hostile fighters!')}`,
+                        `\r\n${colors.boldRed('Autopilot disengaged — hostile drones!')}`,
                     );
                 }
 
-                showFighterEncounter(ctx, msg.sectorFighters, msg.ownerName, msg.shipFighters);
+                showDroneEncounter(ctx, msg.sectorDrones, msg.ownerName, msg.shipDrones);
                 break;
             }
-            case ServerMsgType.DeployFightersInfoResult:
+            case ServerMsgType.DeployDronesInfoResult:
                 ctx.term.writeln('');
                 ctx.term.writeln(
-                    `${colors.boldYellow('Deploy Fighters')} — Sector: ${colors.white(String(msg.sectorFighters))}, Ship: ${colors.white(String(msg.shipFighters))}/${colors.cyan(String(msg.shipMaxFighters))}`,
+                    `${colors.boldYellow('Deploy Drones')} — Sector: ${colors.white(String(msg.sectorDrones))}, Ship: ${colors.white(String(msg.shipDrones))}/${colors.cyan(String(msg.shipMaxDrones))}`,
                 );
                 ctx.term.write(
-                    `${colors.cyan('How many fighters to leave in sector?')} ${colors.white('(Q to cancel)')} `,
+                    `${colors.cyan('How many drones to leave in sector?')} ${colors.white('(Q to cancel)')} `,
                 );
                 break;
-            case ServerMsgType.DeployFightersResult:
+            case ServerMsgType.DeployDronesResult:
                 ctx.term.writeln(
-                    `\r\n${colors.boldGreen('Deployed.')} Sector: ${colors.white(String(msg.sectorFighters))}, Ship: ${colors.white(String(msg.shipFighters))}`,
+                    `\r\n${colors.boldGreen('Deployed.')} Sector: ${colors.white(String(msg.sectorDrones))}, Ship: ${colors.white(String(msg.shipDrones))}`,
                 );
                 showPrompt(ctx);
                 break;
-            case ServerMsgType.AttackSectorFightersResult:
+            case ServerMsgType.AttackSectorDronesResult:
                 ctx.term.writeln('');
                 ctx.term.writeln(
-                    `${colors.boldYellow('Combat:')} Lost ${colors.boldRed(String(msg.fightersLost))} fighters. Sector fighters remaining: ${colors.boldRed(String(msg.sectorFightersRemaining))}. Ship fighters: ${colors.white(String(msg.shipFighters))}`,
+                    `${colors.boldYellow('Combat:')} Lost ${colors.boldRed(String(msg.dronesLost))} drones. Sector drones remaining: ${colors.boldRed(String(msg.sectorDronesRemaining))}. Ship drones: ${colors.white(String(msg.shipDrones))}`,
                 );
                 if (msg.victory) {
                     ctx.term.writeln(colors.boldGreen('Sector cleared!'));
@@ -390,15 +385,15 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     }
                 } else {
                     // Re-show encounter with updated numbers
-                    showFighterEncounter(
+                    showDroneEncounter(
                         ctx,
-                        msg.sectorFightersRemaining,
+                        msg.sectorDronesRemaining,
                         ctx.encounterOwnerName,
-                        msg.shipFighters,
+                        msg.shipDrones,
                     );
                 }
                 break;
-            case ServerMsgType.RetreatFromFightersResult:
+            case ServerMsgType.RetreatFromDronesResult:
                 ctx.term.writeln(
                     `\r\n${colors.boldYellow('Retreated to sector')} ${colors.boldCyan(String(msg.sector))}`,
                 );
@@ -410,29 +405,29 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 }
                 // SectorDisplay follows from server
                 break;
-            case ServerMsgType.SectorFightersAlert:
+            case ServerMsgType.SectorDronesAlert:
                 ctx.term.writeln('');
                 if (msg.event === 'intrusion') {
                     ctx.term.writeln(
-                        `${colors.boldYellow('Alert:')} ${colors.boldRed(msg.intruderName)} entered sector ${colors.boldCyan(String(msg.sector))} with your fighters!`,
+                        `${colors.boldYellow('Alert:')} ${colors.boldRed(msg.intruderName)} entered sector ${colors.boldCyan(String(msg.sector))} with your drones!`,
                     );
                 } else if (msg.event === 'attacked') {
                     ctx.term.writeln(
-                        `${colors.boldRed('Alert:')} ${colors.boldRed(msg.intruderName)} attacked your fighters in sector ${colors.boldCyan(String(msg.sector))}! Lost: ${msg.fightersLost}, remaining: ${msg.fightersRemaining}`,
+                        `${colors.boldRed('Alert:')} ${colors.boldRed(msg.intruderName)} attacked your drones in sector ${colors.boldCyan(String(msg.sector))}! Lost: ${msg.dronesLost}, remaining: ${msg.dronesRemaining}`,
                     );
                 } else if (msg.event === 'destroyed') {
                     ctx.term.writeln(
-                        `${colors.boldRed('Alert:')} ${colors.boldRed(msg.intruderName)} destroyed all your fighters in sector ${colors.boldCyan(String(msg.sector))}!`,
+                        `${colors.boldRed('Alert:')} ${colors.boldRed(msg.intruderName)} destroyed all your drones in sector ${colors.boldCyan(String(msg.sector))}!`,
                     );
                 }
                 break;
             case ServerMsgType.Error:
                 ctx.term.writeln(`\r\n${colors.boldRed('Error:')} ${colors.red(msg.message)}`);
                 if (ctx.mode === 'docked') showDockedMenu(ctx);
-                else if (ctx.mode === 'deployFightersQty') {
+                else if (ctx.mode === 'deployDronesQty') {
                     ctx.setMode('sector');
                     showPrompt(ctx);
-                } else if (ctx.mode === 'fighterEncounter' || ctx.mode === 'fighterAttackQty') {
+                } else if (ctx.mode === 'droneEncounter' || ctx.mode === 'droneAttackQty') {
                     // Stay in encounter mode — re-prompt
                 } else if (ctx.mode === 'sector') showPrompt(ctx);
                 break;

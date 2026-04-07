@@ -67,12 +67,12 @@ export function renderShipEditor(
     );
     form.appendChild(priceField.row);
 
-    const fightersField = makeField(
-        'Max Fighters',
+    const dronesField = makeField(
+        'Max Drones',
         { type: 'number', min: '0' },
-        String(existing?.maxFighters ?? 0),
+        String(existing?.maxDrones ?? 0),
     );
-    form.appendChild(fightersField.row);
+    form.appendChild(dronesField.row);
 
     const shieldsField = makeField(
         'Max Shields',
@@ -160,7 +160,7 @@ export function renderShipEditor(
         const ship: ShipConfig = {
             name,
             price: parseInt(priceField.input.value, 10),
-            maxFighters: parseInt(fightersField.input.value, 10),
+            maxDrones: parseInt(dronesField.input.value, 10),
             maxShields: parseInt(shieldsField.input.value, 10),
             startingHolds: parseInt(startHoldsField.input.value, 10),
             maxHolds: parseInt(maxHoldsField.input.value, 10),

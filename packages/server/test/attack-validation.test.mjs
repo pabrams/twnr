@@ -8,9 +8,9 @@ const UNIVERSE_ID = 1;
 
 let pool;
 
-async function createPlayer(name, sector = 1, fighters = 0, shields = 0) {
+async function createPlayer(name, sector = 1, drones = 0, shields = 0) {
   const { userId, token } = await createTestUser(pool);
-  const playerId = await createTestPlayer(pool, userId, UNIVERSE_ID, name, sector, fighters, shields);
+  const playerId = await createTestPlayer(pool, userId, UNIVERSE_ID, name, sector, drones, shields);
   return { id: playerId, token };
 }
 
@@ -66,20 +66,20 @@ describe('Attack validation', () => {
     const p = await createPlayer('self_atk', 1, 5, 0);
     const { ws } = await connectPlayer(p.token);
     try {
-      const res = await wsRequest(ws, { type: ClientMsgType.AttackShip, targetPlayerId: p.id, fighters: 1 }, ServerMsgType.AttackShipResult);
+      const res = await wsRequest(ws, { type: ClientMsgType.AttackShip, targetPlayerId: p.id, drones: 1 }, ServerMsgType.AttackShipResult);
       assert.equal(res.type, ServerMsgType.Error, 'Should return error for self-attack');
     } finally {
       await closeWS(ws);
     }
   });
 
-  it('should reject attack with 0 fighters', async () => {
+  it('should reject attack with 0 drones', async () => {
     const atk = await createPlayer('atk_zero', 1, 5, 0);
     const def = await createPlayer('def_zero', 1, 5, 0);
     const { ws: ws1 } = await connectPlayer(atk.token);
     const { ws: ws2 } = await connectPlayer(def.token);
     try {
-      const res = await wsRequest(ws1, { type: ClientMsgType.AttackShip, targetPlayerId: def.id, fighters: 0 }, ServerMsgType.AttackShipResult);
+      const res = await wsRequest(ws1, { type: ClientMsgType.AttackShip, targetPlayerId: def.id, drones: 0 }, ServerMsgType.AttackShipResult);
       assert.equal(res.type, ServerMsgType.Error);
     } finally {
       await closeWS(ws1);
@@ -87,13 +87,13 @@ describe('Attack validation', () => {
     }
   });
 
-  it('should reject attack with negative fighters', async () => {
+  it('should reject attack with negative drones', async () => {
     const atk = await createPlayer('atk_neg', 1, 5, 0);
     const def = await createPlayer('def_neg', 1, 5, 0);
     const { ws: ws1 } = await connectPlayer(atk.token);
     const { ws: ws2 } = await connectPlayer(def.token);
     try {
-      const res = await wsRequest(ws1, { type: ClientMsgType.AttackShip, targetPlayerId: def.id, fighters: -1 }, ServerMsgType.AttackShipResult);
+      const res = await wsRequest(ws1, { type: ClientMsgType.AttackShip, targetPlayerId: def.id, drones: -1 }, ServerMsgType.AttackShipResult);
       assert.equal(res.type, ServerMsgType.Error);
     } finally {
       await closeWS(ws1);
@@ -101,13 +101,13 @@ describe('Attack validation', () => {
     }
   });
 
-  it('should reject attack when attacker lacks enough fighters', async () => {
+  it('should reject attack when attacker lacks enough drones', async () => {
     const atk = await createPlayer('atk_few', 1, 3, 0);
     const def = await createPlayer('def_few', 1, 5, 0);
     const { ws: ws1 } = await connectPlayer(atk.token);
     const { ws: ws2 } = await connectPlayer(def.token);
     try {
-      const res = await wsRequest(ws1, { type: ClientMsgType.AttackShip, targetPlayerId: def.id, fighters: 5 }, ServerMsgType.AttackShipResult);
+      const res = await wsRequest(ws1, { type: ClientMsgType.AttackShip, targetPlayerId: def.id, drones: 5 }, ServerMsgType.AttackShipResult);
       assert.equal(res.type, ServerMsgType.Error);
     } finally {
       await closeWS(ws1);
@@ -121,7 +121,7 @@ describe('Attack validation', () => {
     const { ws: ws1 } = await connectPlayer(atk.token);
     const { ws: ws2 } = await connectPlayer(def.token);
     try {
-      const res = await wsRequest(ws1, { type: ClientMsgType.AttackShip, targetPlayerId: def.id, fighters: 1 }, ServerMsgType.AttackShipResult);
+      const res = await wsRequest(ws1, { type: ClientMsgType.AttackShip, targetPlayerId: def.id, drones: 1 }, ServerMsgType.AttackShipResult);
       assert.equal(res.type, ServerMsgType.Error);
     } finally {
       await closeWS(ws1);

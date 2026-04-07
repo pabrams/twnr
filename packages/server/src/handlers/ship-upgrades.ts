@@ -5,7 +5,7 @@ import { pool } from '../db/index.js';
 import { class0Prices } from '../game-config.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 
-export async function handleBuyFighters(playerId: number, quantity: number): Promise<void> {
+export async function handleBuyDrones(playerId: number, quantity: number): Promise<void> {
     const qty = Number(quantity);
     if (!Number.isInteger(qty) || qty <= 0) {
         sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid quantity' });
@@ -41,7 +41,7 @@ export async function handleBuyFighters(playerId: number, quantity: number): Pro
 
         const cargoRes = await client.query(
             `
-            SELECT sc.credits, ps.ship_name, ps.fighters, ps.shields, ps.cargo_limit
+            SELECT sc.credits, ps.ship_name, ps.drones, ps.shields, ps.cargo_limit
             FROM ship_cargo sc
             JOIN player_ships ps ON sc.player_id = ps.player_id
             WHERE sc.player_id = $1 FOR UPDATE
@@ -56,23 +56,23 @@ export async function handleBuyFighters(playerId: number, quantity: number): Pro
 
         const data = cargoRes.rows[0];
         const config = shipConfigs[data.ship_name];
-        if (data.fighters + qty > config.maxFighters) {
+        if (data.drones + qty > config.maxDrones) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Exceeds maximum' });
             return;
         }
 
-        const cost = qty * class0Prices.fighterPrice;
+        const cost = qty * class0Prices.dronePrice;
         if (data.credits < cost) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient credits' });
             return;
         }
 
-        await client.query(
-            'UPDATE player_ships SET fighters = fighters + $1 WHERE player_id = $2',
-            [qty, playerId],
-        );
+        await client.query('UPDATE player_ships SET drones = drones + $1 WHERE player_id = $2', [
+            qty,
+            playerId,
+        ]);
         await client.query('UPDATE ship_cargo SET credits = credits - $1 WHERE player_id = $2', [
             cost,
             playerId,
@@ -81,9 +81,9 @@ export async function handleBuyFighters(playerId: number, quantity: number): Pro
 
         await setPlayerMenu(playerId, 'class0');
         sendEnvelope(playerId, {
-            type: ServerMsgType.BuyFightersResult,
+            type: ServerMsgType.BuyDronesResult,
             credits: data.credits - cost,
-            fighters: data.fighters + qty,
+            drones: data.drones + qty,
         });
     } catch {
         await client.query('ROLLBACK');
@@ -129,7 +129,7 @@ export async function handleBuyShields(playerId: number, quantity: number): Prom
 
         const cargoRes = await client.query(
             `
-            SELECT sc.credits, ps.ship_name, ps.fighters, ps.shields, ps.cargo_limit
+            SELECT sc.credits, ps.ship_name, ps.drones, ps.shields, ps.cargo_limit
             FROM ship_cargo sc
             JOIN player_ships ps ON sc.player_id = ps.player_id
             WHERE sc.player_id = $1 FOR UPDATE
@@ -225,7 +225,7 @@ export async function handleBuyHolds(playerId: number, quantity: number): Promis
 
         const cargoRes = await client.query(
             `
-            SELECT sc.credits, ps.ship_name, ps.fighters, ps.shields, ps.cargo_limit
+            SELECT sc.credits, ps.ship_name, ps.drones, ps.shields, ps.cargo_limit
             FROM ship_cargo sc
             JOIN player_ships ps ON sc.player_id = ps.player_id
             WHERE sc.player_id = $1 FOR UPDATE

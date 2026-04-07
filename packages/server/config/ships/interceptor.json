@@ -1,6 +1,6 @@
 {
   "name": "Interceptor",
-  "maxFighters": 35,
+  "maxDrones": 35,
   "maxShields": 15,
   "startingHolds": 1,
   "maxHolds": 4,

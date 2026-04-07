@@ -5,7 +5,7 @@ import { pool } from '../db/index.js';
 
 export async function handleShipInfo(playerId: number): Promise<void> {
     const query = `
-        SELECT ps.ship_name, ps.fighters, ps.shields, ps.cargo_limit, ps.planet_busters, ps.terraform_devices,
+        SELECT ps.ship_name, ps.drones, ps.shields, ps.cargo_limit, ps.planet_busters, ps.terraform_devices,
                ps.turns_per_warp, ps.has_hyperwarp_drive,
                sc.fuel, sc.organics, sc.equipment, sc.colonists,
                p.turns
@@ -33,9 +33,9 @@ export async function handleShipInfo(playerId: number): Promise<void> {
         type: ServerMsgType.ShipInfoResult,
         playerId,
         shipName: row.ship_name,
-        fighters: row.fighters,
+        drones: row.drones,
         shields: row.shields,
-        maxFighters: config.maxFighters,
+        maxDrones: config.maxDrones,
         maxShields: config.maxShields,
         cargoLimit: row.cargo_limit,
         maxHolds: config.maxHolds,

@@ -93,7 +93,7 @@ async function doSetup() {
   let pool = createPool();
   await pool.query('SELECT 1');
   await pool.query(`
-    DROP TABLE IF EXISTS sector_fighters CASCADE;
+    DROP TABLE IF EXISTS sector_drones CASCADE;
     DROP TABLE IF EXISTS planet_collisions CASCADE;
     DROP TABLE IF EXISTS planets CASCADE;
     DROP TABLE IF EXISTS visited_sectors CASCADE;
@@ -203,14 +203,14 @@ function closeWS(ws) {
   });
 }
 
-/** Move player to a specific sector by warping along the shortest path, clearing fighters en route */
+/** Move player to a specific sector by warping along the shortest path, clearing drones en route */
 async function movePlayerTo(ws, targetSector) {
   const disp = await wsRequest(ws, { type: 'sectorDisplay' }, 'sectorDisplayResult');
   if (disp.sector === targetSector) return true;
   const pathRes = await wsRequest(ws, { type: 'shortestPath', from: disp.sector, to: targetSector }, 'shortestPathResult');
   if (pathRes.type === 'error') return false;
   for (let i = 1; i < pathRes.path.length; i++) {
-    await clearSectorFighters(pathRes.path[i]);
+    await clearSectorDrones(pathRes.path[i]);
     const r = await wsRequest(ws, { type: 'move', sector: pathRes.path[i] }, 'moveResult');
     if (r.type === 'error' || r.outcome === 'error') return false;
   }
@@ -223,9 +223,9 @@ async function getAdjacentSector(ws) {
   return disp.warps?.[0];
 }
 
-/** Clear any sector fighters so movement doesn't trigger encounters */
-async function clearSectorFighters(sectorId, universeId = UNIVERSE_ID) {
-  await pool.query('DELETE FROM sector_fighters WHERE sector_id = $1 AND universe_id = $2', [sectorId, universeId]);
+/** Clear any sector drones so movement doesn't trigger encounters */
+async function clearSectorDrones(sectorId, universeId = UNIVERSE_ID) {
+  await pool.query('DELETE FROM sector_drones WHERE sector_id = $1 AND universe_id = $2', [sectorId, universeId]);
 }
 
 /** Put a selling port (class 6: sells fuel) in a given sector via DB */
@@ -477,7 +477,7 @@ describe('Warp turn costs', () => {
     const tpw = (await pool.query('SELECT turns_per_warp FROM player_ships WHERE player_id = $1', [playerId])).rows[0].turns_per_warp;
     const adj = await getAdjacentSector(ws);
     assert.ok(adj, 'Need adjacent sector');
-    await pool.query('DELETE FROM sector_fighters WHERE sector_id = $1 AND universe_id = $2', [adj, UNIVERSE_ID]);
+    await pool.query('DELETE FROM sector_drones WHERE sector_id = $1 AND universe_id = $2', [adj, UNIVERSE_ID]);
 
     const result = await wsRequest(ws, { type: 'move', sector: adj }, 'moveResult');
     assert.equal(result.outcome, 'success');
@@ -495,7 +495,7 @@ describe('Warp turn costs', () => {
 
     const adj = await getAdjacentSector(ws);
     assert.ok(adj);
-    await clearSectorFighters(adj);
+    await clearSectorDrones(adj);
     const result = await wsRequest(ws, { type: 'move', sector: adj }, 'moveResult');
     assert.ok(result.type === 'error' || result.outcome === 'error');
     assert.match(result.message.toLowerCase(), /insufficient turns/);
@@ -516,7 +516,7 @@ describe('Unlimited universe - warp', () => {
     const { ws } = await connectWS(token);
 
     const adj = await getAdjacentSector(ws);
-    await clearSectorFighters(adj);
+    await clearSectorDrones(adj);
     const result = await wsRequest(ws, { type: 'move', sector: adj }, 'moveResult');
     assert.equal(result.outcome, 'success');
     assert.equal(result.turnsUsed, 0);
@@ -531,7 +531,7 @@ describe('Unlimited universe - warp', () => {
     const { ws } = await connectWS(token);
 
     const adj = await getAdjacentSector(ws);
-    await clearSectorFighters(adj);
+    await clearSectorDrones(adj);
     const result = await wsRequest(ws, { type: 'move', sector: adj }, 'moveResult');
     assert.equal(result.outcome, 'success');
 
@@ -550,7 +550,7 @@ describe('Docking costs 0 turns', () => {
     const adj = await getAdjacentSector(ws);
     assert.ok(adj);
     await ensureSellingPort(pool, adj);
-    await pool.query('DELETE FROM sector_fighters WHERE sector_id = $1 AND universe_id = $2', [adj, UNIVERSE_ID]);
+    await pool.query('DELETE FROM sector_drones WHERE sector_id = $1 AND universe_id = $2', [adj, UNIVERSE_ID]);
     await wsRequest(ws, { type: 'move', sector: adj }, 'moveResult');
 
     await pool.query('UPDATE players SET turns = 50 WHERE id = $1', [playerId]);
@@ -571,7 +571,7 @@ describe('Buy cargo turn costs', () => {
 
     const adj = await getAdjacentSector(ws);
     await ensureSellingPort(pool, adj);
-    await clearSectorFighters(adj);
+    await clearSectorDrones(adj);
     await wsRequest(ws, { type: 'move', sector: adj }, 'moveResult');
     await wsRequest(ws, { type: 'dock' }, 'dockResult');
 
@@ -590,7 +590,7 @@ describe('Buy cargo turn costs', () => {
 
     const adj = await getAdjacentSector(ws);
     await ensureSellingPort(pool, adj);
-    await clearSectorFighters(adj);
+    await clearSectorDrones(adj);
     await wsRequest(ws, { type: 'move', sector: adj }, 'moveResult');
     await wsRequest(ws, { type: 'dock' }, 'dockResult');
 
@@ -612,7 +612,7 @@ describe('Sell cargo costs 0 turns', () => {
 
     const adj = await getAdjacentSector(ws);
     await ensureBuyingPort(pool, adj);
-    await clearSectorFighters(adj);
+    await clearSectorDrones(adj);
     await wsRequest(ws, { type: 'move', sector: adj }, 'moveResult');
     // Give cargo directly
     await pool.query('UPDATE ship_cargo SET fuel = 10 WHERE player_id = $1', [playerId]);
@@ -717,11 +717,11 @@ describe('Buy holds turn costs', () => {
 // --- Zero-cost actions ---
 
 describe('Zero-cost actions', () => {
-  it('Buying fighters costs 0 turns', async () => {
+  it('Buying drones costs 0 turns', async () => {
     const { token, playerId } = await joinUniverse(pool);
     const { ws } = await connectWS(token);
     await pool.query('UPDATE players SET turns = 50 WHERE id = $1', [playerId]);
-    await wsRequest(ws, { type: 'buyFighters', quantity: 1 }, 'buyFightersResult');
+    await wsRequest(ws, { type: 'buyDrones', quantity: 1 }, 'buyDronesResult');
     assert.equal((await pool.query('SELECT turns FROM players WHERE id = $1', [playerId])).rows[0].turns, 50);
     await closeWS(ws);
   });
@@ -744,16 +744,16 @@ describe('Zero-cost actions', () => {
     await closeWS(ws);
   });
 
-  it('Deploying fighters costs 0 turns', async () => {
+  it('Deploying drones costs 0 turns', async () => {
     const { token, playerId } = await joinUniverse(pool);
     const { ws } = await connectWS(token);
     await pool.query('UPDATE players SET turns = 50 WHERE id = $1', [playerId]);
-    // Give player some fighters to deploy
-    await pool.query('UPDATE player_ships SET fighters = 10 WHERE player_id = $1', [playerId]);
-    await wsRequest(ws, { type: 'deployFighters', quantity: 1 }, 'deployFightersResult');
+    // Give player some drones to deploy
+    await pool.query('UPDATE player_ships SET drones = 10 WHERE player_id = $1', [playerId]);
+    await wsRequest(ws, { type: 'deployDrones', quantity: 1 }, 'deployDronesResult');
     assert.equal((await pool.query('SELECT turns FROM players WHERE id = $1', [playerId])).rows[0].turns, 50);
     // Clean up
-    await pool.query('DELETE FROM sector_fighters WHERE owner_id = $1', [playerId]);
+    await pool.query('DELETE FROM sector_drones WHERE owner_id = $1', [playerId]);
     await closeWS(ws);
   });
 });
@@ -770,7 +770,7 @@ describe('Unlimited universe - non-warp', () => {
 
     const adj = await getAdjacentSector(ws);
     await ensureSellingPort(pool, adj);
-    await clearSectorFighters(adj);
+    await clearSectorDrones(adj);
     await wsRequest(ws, { type: 'move', sector: adj }, 'moveResult');
     await wsRequest(ws, { type: 'dock' }, 'dockResult');
 
@@ -819,7 +819,7 @@ describe('Unlimited universe - non-warp', () => {
 
     const adj = await getAdjacentSector(ws);
     await ensureSellingPort(pool, adj);
-    await clearSectorFighters(adj);
+    await clearSectorDrones(adj);
     await wsRequest(ws, { type: 'move', sector: adj }, 'moveResult');
     await wsRequest(ws, { type: 'dock' }, 'dockResult');
 
@@ -1006,10 +1006,10 @@ async function goToStardock(pool) {
   return { ws, token, playerId, stardockSector };
 }
 
-/** Deploy fighters in a sector for a player (directly via DB) */
-async function deployFightersInSector(pool, playerId, sectorId, quantity, universeId = UNIVERSE_ID) {
+/** Deploy drones in a sector for a player (directly via DB) */
+async function deployDronesInSector(pool, playerId, sectorId, quantity, universeId = UNIVERSE_ID) {
   await pool.query(`
-    INSERT INTO sector_fighters (sector_id, universe_id, owner_id, quantity)
+    INSERT INTO sector_drones (sector_id, universe_id, owner_id, quantity)
     VALUES ($1, $2, $3, $4)
     ON CONFLICT (sector_id, universe_id) DO UPDATE SET owner_id = $3, quantity = $4
   `, [sectorId, universeId, playerId, quantity]);
@@ -1028,16 +1028,16 @@ describe('Ship configs - canHaveHyperwarp', () => {
     assert.strictEqual(cfg.canHaveHyperwarp, true);
   });
 
-  it('All ships follow the maxFighters >= 10 rule (except Merchant and Scout)', () => {
+  it('All ships follow the maxDrones >= 10 rule (except Merchant and Scout)', () => {
     const files = readdirSync(join(PROJECT_ROOT, 'config', 'ships')).filter(f => f.endsWith('.json'));
     for (const file of files) {
       const cfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', file), 'utf8'));
       assert.ok(typeof cfg.canHaveHyperwarp === 'boolean', `${file}: missing canHaveHyperwarp`);
       // Merchant and Scout have explicit overrides, skip the rule check for them
       if (cfg.name === 'Merchant Freighter' || cfg.name === 'Scout Marauder') continue;
-      const expected = cfg.maxFighters >= 10;
+      const expected = cfg.maxDrones >= 10;
       assert.strictEqual(cfg.canHaveHyperwarp, expected,
-        `${file}: canHaveHyperwarp should be ${expected} (maxFighters=${cfg.maxFighters})`);
+        `${file}: canHaveHyperwarp should be ${expected} (maxDrones=${cfg.maxDrones})`);
     }
   });
 });
@@ -1157,62 +1157,62 @@ describe('BuyHyperwarpDrive', () => {
   });
 });
 
-// --- ListDeployedFighters ---
+// --- ListDeployedDrones ---
 
-describe('ListDeployedFighters', () => {
-  it('Returns deployed fighters for the player', async () => {
+describe('ListDeployedDrones', () => {
+  it('Returns deployed drones for the player', async () => {
     const { token, playerId } = await joinUniverse(pool);
     await pool.query('UPDATE players SET turns = 9999 WHERE id = $1', [playerId]);
     const { ws } = await connectWS(token);
 
-    // Deploy fighters in two sectors via DB
-    await deployFightersInSector(pool, playerId, 5, 10);
-    await deployFightersInSector(pool, playerId, 15, 20);
+    // Deploy drones in two sectors via DB
+    await deployDronesInSector(pool, playerId, 5, 10);
+    await deployDronesInSector(pool, playerId, 15, 20);
 
-    const result = await wsRequest(ws, { type: 'listDeployedFighters' }, 'listDeployedFightersResult');
-    assert.equal(result.type, 'listDeployedFightersResult');
-    assert.ok(Array.isArray(result.fighters));
+    const result = await wsRequest(ws, { type: 'listDeployedDrones' }, 'listDeployedDronesResult');
+    assert.equal(result.type, 'listDeployedDronesResult');
+    assert.ok(Array.isArray(result.drones));
 
-    const s5 = result.fighters.find(f => f.sectorId === 5);
-    const s15 = result.fighters.find(f => f.sectorId === 15);
+    const s5 = result.drones.find(f => f.sectorId === 5);
+    const s15 = result.drones.find(f => f.sectorId === 15);
     assert.ok(s5, 'Should include sector 5');
     assert.equal(s5.quantity, 10);
     assert.ok(s15, 'Should include sector 15');
     assert.equal(s15.quantity, 20);
 
     // Cleanup
-    await pool.query('DELETE FROM sector_fighters WHERE owner_id = $1', [playerId]);
+    await pool.query('DELETE FROM sector_drones WHERE owner_id = $1', [playerId]);
     await closeWS(ws);
   });
 
-  it('Returns empty array when no fighters deployed', async () => {
+  it('Returns empty array when no drones deployed', async () => {
     const { token, playerId } = await joinUniverse(pool);
     const { ws } = await connectWS(token);
 
-    // Make sure no fighters for this player
-    await pool.query('DELETE FROM sector_fighters WHERE owner_id = $1', [playerId]);
+    // Make sure no drones for this player
+    await pool.query('DELETE FROM sector_drones WHERE owner_id = $1', [playerId]);
 
-    const result = await wsRequest(ws, { type: 'listDeployedFighters' }, 'listDeployedFightersResult');
-    assert.equal(result.type, 'listDeployedFightersResult');
-    assert.ok(Array.isArray(result.fighters));
-    assert.equal(result.fighters.length, 0);
+    const result = await wsRequest(ws, { type: 'listDeployedDrones' }, 'listDeployedDronesResult');
+    assert.equal(result.type, 'listDeployedDronesResult');
+    assert.ok(Array.isArray(result.drones));
+    assert.equal(result.drones.length, 0);
 
     await closeWS(ws);
   });
 
-  it('Does not include other players fighters', async () => {
+  it('Does not include other players drones', async () => {
     const { token: token1, playerId: p1 } = await joinUniverse(pool);
     const { playerId: p2 } = await joinUniverse(pool);
     const { ws } = await connectWS(token1);
 
-    await deployFightersInSector(pool, p2, 50, 10);
+    await deployDronesInSector(pool, p2, 50, 10);
 
-    const result = await wsRequest(ws, { type: 'listDeployedFighters' }, 'listDeployedFightersResult');
-    assert.equal(result.type, 'listDeployedFightersResult');
-    const found = result.fighters.find(f => f.sectorId === 50);
-    assert.ok(!found, 'Should not include other player fighters');
+    const result = await wsRequest(ws, { type: 'listDeployedDrones' }, 'listDeployedDronesResult');
+    assert.equal(result.type, 'listDeployedDronesResult');
+    const found = result.drones.find(f => f.sectorId === 50);
+    assert.ok(!found, 'Should not include other player drones');
 
-    await pool.query('DELETE FROM sector_fighters WHERE owner_id = $1', [p2]);
+    await pool.query('DELETE FROM sector_drones WHERE owner_id = $1', [p2]);
     await closeWS(ws);
   });
 
@@ -1221,7 +1221,7 @@ describe('ListDeployedFighters', () => {
     const { ws } = await connectWS(token);
     await pool.query('UPDATE players SET turns = 50 WHERE id = $1', [playerId]);
 
-    await wsRequest(ws, { type: 'listDeployedFighters' }, 'listDeployedFightersResult');
+    await wsRequest(ws, { type: 'listDeployedDrones' }, 'listDeployedDronesResult');
     const turnsAfter = (await pool.query('SELECT turns FROM players WHERE id = $1', [playerId])).rows[0].turns;
     assert.equal(turnsAfter, 50);
 
@@ -1234,7 +1234,7 @@ describe('ListDeployedFighters', () => {
 describe('HyperspaceJump', () => {
   // For jump tests, we need:
   // 1. A player with hyperwarp drive
-  // 2. Fighters deployed in a distant target sector
+  // 2. Drones deployed in a distant target sector
   // 3. Enough fuel in cargo
   // 4. Enough turns
   // We'll use sectors that are a known distance apart.
@@ -1269,8 +1269,8 @@ describe('HyperspaceJump', () => {
     const { targetSector, hops } = await findDistantSector(ws);
     const fuelCost = hops * 3;
 
-    // Deploy fighters in target sector
-    await deployFightersInSector(pool, playerId, targetSector, 5);
+    // Deploy drones in target sector
+    await deployDronesInSector(pool, playerId, targetSector, 5);
     // Give enough fuel
     await pool.query('UPDATE ship_cargo SET fuel = $1 WHERE player_id = $2', [fuelCost + 10, playerId]);
     await pool.query('UPDATE players SET turns = 100 WHERE id = $1', [playerId]);
@@ -1295,7 +1295,7 @@ describe('HyperspaceJump', () => {
     const sectorDisp = await wsRequest(ws, { type: 'sectorDisplay' }, 'sectorDisplayResult');
     assert.equal(sectorDisp.sector, targetSector);
 
-    await pool.query('DELETE FROM sector_fighters WHERE owner_id = $1', [playerId]);
+    await pool.query('DELETE FROM sector_drones WHERE owner_id = $1', [playerId]);
     await closeWS(ws);
   });
 
@@ -1306,22 +1306,22 @@ describe('HyperspaceJump', () => {
     const { ws } = await connectWS(token);
 
     const adj = await getAdjacentSector(ws);
-    await deployFightersInSector(pool, playerId, adj, 5);
+    await deployDronesInSector(pool, playerId, adj, 5);
 
     const result = await wsRequest(ws, { type: 'hyperspaceJump', targetSector: adj }, 'hyperspaceJumpResult');
     assert.equal(result.type, 'error');
     assert.match(result.message.toLowerCase(), /not equipped/);
 
-    await pool.query('DELETE FROM sector_fighters WHERE owner_id = $1', [playerId]);
+    await pool.query('DELETE FROM sector_drones WHERE owner_id = $1', [playerId]);
     await closeWS(ws);
   });
 
-  it('Rejected when no fighter in target sector', async () => {
+  it('Rejected when no drone in target sector', async () => {
     const { ws, playerId } = await setupJumpPlayer();
     const adj = await getAdjacentSector(ws);
 
-    // Ensure no fighters in target sector for this player
-    await pool.query('DELETE FROM sector_fighters WHERE sector_id = $1 AND owner_id = $2', [adj, playerId]);
+    // Ensure no drones in target sector for this player
+    await pool.query('DELETE FROM sector_drones WHERE sector_id = $1 AND owner_id = $2', [adj, playerId]);
 
     await pool.query('UPDATE ship_cargo SET fuel = 100 WHERE player_id = $1', [playerId]);
 
@@ -1337,7 +1337,7 @@ describe('HyperspaceJump', () => {
     const { targetSector, hops } = await findDistantSector(ws);
     const fuelCost = hops * 3;
 
-    await deployFightersInSector(pool, playerId, targetSector, 5);
+    await deployDronesInSector(pool, playerId, targetSector, 5);
     // Give less fuel than needed
     await pool.query('UPDATE ship_cargo SET fuel = $1 WHERE player_id = $2', [fuelCost - 1, playerId]);
 
@@ -1345,7 +1345,7 @@ describe('HyperspaceJump', () => {
     assert.equal(result.type, 'error');
     assert.match(result.message.toLowerCase(), /fuel/);
 
-    await pool.query('DELETE FROM sector_fighters WHERE owner_id = $1', [playerId]);
+    await pool.query('DELETE FROM sector_drones WHERE owner_id = $1', [playerId]);
     await closeWS(ws);
   });
 
@@ -1354,7 +1354,7 @@ describe('HyperspaceJump', () => {
     const { targetSector, hops } = await findDistantSector(ws);
     const fuelCost = hops * 3;
 
-    await deployFightersInSector(pool, playerId, targetSector, 5);
+    await deployDronesInSector(pool, playerId, targetSector, 5);
     await pool.query('UPDATE ship_cargo SET fuel = $1 WHERE player_id = $2', [fuelCost + 10, playerId]);
     // Set turns to 0
     await pool.query('UPDATE players SET turns = 0 WHERE id = $1', [playerId]);
@@ -1363,7 +1363,7 @@ describe('HyperspaceJump', () => {
     assert.equal(result.type, 'error');
     assert.match(result.message.toLowerCase(), /turns/);
 
-    await pool.query('DELETE FROM sector_fighters WHERE owner_id = $1', [playerId]);
+    await pool.query('DELETE FROM sector_drones WHERE owner_id = $1', [playerId]);
     await closeWS(ws);
   });
 
@@ -1372,7 +1372,7 @@ describe('HyperspaceJump', () => {
     const { targetSector, hops } = await findDistantSector(ws, 3); // at least 3 hops
     const expectedFuelCost = hops * 3;
 
-    await deployFightersInSector(pool, playerId, targetSector, 5);
+    await deployDronesInSector(pool, playerId, targetSector, 5);
     await pool.query('UPDATE ship_cargo SET fuel = $1 WHERE player_id = $2', [1000, playerId]);
     await pool.query('UPDATE players SET turns = 100 WHERE id = $1', [playerId]);
 
@@ -1383,7 +1383,7 @@ describe('HyperspaceJump', () => {
     const fuelAfter = (await pool.query('SELECT fuel FROM ship_cargo WHERE player_id = $1', [playerId])).rows[0].fuel;
     assert.equal(fuelAfter, 1000 - expectedFuelCost);
 
-    await pool.query('DELETE FROM sector_fighters WHERE owner_id = $1', [playerId]);
+    await pool.query('DELETE FROM sector_drones WHERE owner_id = $1', [playerId]);
     await closeWS(ws);
   });
 
@@ -1394,7 +1394,7 @@ describe('HyperspaceJump', () => {
       const { targetSector, hops } = await findDistantSector(ws);
       const fuelCost = hops * 3;
 
-      await deployFightersInSector(pool, playerId, targetSector, 5);
+      await deployDronesInSector(pool, playerId, targetSector, 5);
       await pool.query('UPDATE ship_cargo SET fuel = $1 WHERE player_id = $2', [fuelCost + 10, playerId]);
       await pool.query('UPDATE players SET turns = 10 WHERE id = $1', [playerId]);
 
@@ -1405,7 +1405,7 @@ describe('HyperspaceJump', () => {
       const turnsAfter = (await pool.query('SELECT turns FROM players WHERE id = $1', [playerId])).rows[0].turns;
       assert.equal(turnsAfter, 10); // no deduction
 
-      await pool.query('DELETE FROM sector_fighters WHERE owner_id = $1', [playerId]);
+      await pool.query('DELETE FROM sector_drones WHERE owner_id = $1', [playerId]);
       await closeWS(ws);
     } finally {
       await pool.query('UPDATE universes SET turns_per_day = 500 WHERE id = $1', [UNIVERSE_ID]);
@@ -1417,7 +1417,7 @@ describe('HyperspaceJump', () => {
     try {
       const { ws, playerId } = await setupJumpPlayer();
       const adj = await getAdjacentSector(ws);
-      await deployFightersInSector(pool, playerId, adj, 5);
+      await deployDronesInSector(pool, playerId, adj, 5);
       await pool.query('UPDATE ship_cargo SET fuel = 100 WHERE player_id = $1', [playerId]);
       await pool.query('UPDATE players SET turns = 0 WHERE id = $1', [playerId]);
 
@@ -1425,7 +1425,7 @@ describe('HyperspaceJump', () => {
       assert.equal(result.type, 'hyperspaceJumpResult');
       assert.equal(result.turnsUsed, 0);
 
-      await pool.query('DELETE FROM sector_fighters WHERE owner_id = $1', [playerId]);
+      await pool.query('DELETE FROM sector_drones WHERE owner_id = $1', [playerId]);
       await closeWS(ws);
     } finally {
       await pool.query('UPDATE universes SET turns_per_day = 500 WHERE id = $1', [UNIVERSE_ID]);
@@ -1436,8 +1436,8 @@ describe('HyperspaceJump', () => {
     const { ws, playerId } = await setupJumpPlayer();
     const adj = await getAdjacentSector(ws);
     await ensureSellingPort(pool, adj);
-    await clearSectorFighters(adj);
-    await deployFightersInSector(pool, playerId, adj, 5);
+    await clearSectorDrones(adj);
+    await deployDronesInSector(pool, playerId, adj, 5);
     await pool.query('UPDATE ship_cargo SET fuel = 100 WHERE player_id = $1', [playerId]);
 
     // Move to sector with port and dock
@@ -1447,12 +1447,12 @@ describe('HyperspaceJump', () => {
     // Find another sector to jump to
     const adj2 = await getAdjacentSector(ws);
     if (adj2) {
-      await deployFightersInSector(pool, playerId, adj2, 5);
+      await deployDronesInSector(pool, playerId, adj2, 5);
       const result = await wsRequest(ws, { type: 'hyperspaceJump', targetSector: adj2 }, 'hyperspaceJumpResult');
       assert.equal(result.type, 'error');
     }
 
-    await pool.query('DELETE FROM sector_fighters WHERE owner_id = $1', [playerId]);
+    await pool.query('DELETE FROM sector_drones WHERE owner_id = $1', [playerId]);
     await closeWS(ws);
   });
 
@@ -1463,10 +1463,10 @@ describe('HyperspaceJump', () => {
     // Find a sector to jump to
     const adj = await getAdjacentSector(ws);
     if (adj) {
-      await deployFightersInSector(pool, playerId, adj, 5);
+      await deployDronesInSector(pool, playerId, adj, 5);
       const result = await wsRequest(ws, { type: 'hyperspaceJump', targetSector: adj }, 'hyperspaceJumpResult');
       assert.equal(result.type, 'error');
-      await pool.query('DELETE FROM sector_fighters WHERE owner_id = $1', [playerId]);
+      await pool.query('DELETE FROM sector_drones WHERE owner_id = $1', [playerId]);
     }
 
     await closeWS(ws);
@@ -1483,10 +1483,10 @@ describe('HyperspaceJump', () => {
 
     const adj = await getAdjacentSector(ws);
     if (adj) {
-      await deployFightersInSector(pool, playerId, adj, 5);
+      await deployDronesInSector(pool, playerId, adj, 5);
       const result = await wsRequest(ws, { type: 'hyperspaceJump', targetSector: adj }, 'hyperspaceJumpResult');
       assert.equal(result.type, 'error');
-      await pool.query('DELETE FROM sector_fighters WHERE owner_id = $1', [playerId]);
+      await pool.query('DELETE FROM sector_drones WHERE owner_id = $1', [playerId]);
     }
 
     await closeWS(ws);
@@ -1498,22 +1498,22 @@ describe('HyperspaceJump', () => {
     // Use a non-existent sector ID that won't have any warps to it
     const fakeSector = 99999;
     await pool.query(`INSERT INTO sectors (id, universe_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [fakeSector, UNIVERSE_ID]);
-    await deployFightersInSector(pool, playerId, fakeSector, 5);
+    await deployDronesInSector(pool, playerId, fakeSector, 5);
     await pool.query('UPDATE ship_cargo SET fuel = 1000 WHERE player_id = $1', [playerId]);
 
     const result = await wsRequest(ws, { type: 'hyperspaceJump', targetSector: fakeSector }, 'hyperspaceJumpResult');
     assert.equal(result.type, 'error');
     assert.match(result.message.toLowerCase(), /no path/);
 
-    await pool.query('DELETE FROM sector_fighters WHERE owner_id = $1', [playerId]);
+    await pool.query('DELETE FROM sector_drones WHERE owner_id = $1', [playerId]);
     await pool.query('DELETE FROM sectors WHERE id = $1 AND universe_id = $2', [fakeSector, UNIVERSE_ID]);
     await closeWS(ws);
   });
 });
 
-// --- ListDeployedFighters state checks ---
+// --- ListDeployedDrones state checks ---
 
-describe('ListDeployedFighters - sector command mode', () => {
+describe('ListDeployedDrones - sector command mode', () => {
   it('Rejected when player is docked at a port', async () => {
     const { token, playerId } = await joinUniverse(pool);
     await pool.query('UPDATE players SET turns = 9999 WHERE id = $1', [playerId]);
@@ -1521,11 +1521,11 @@ describe('ListDeployedFighters - sector command mode', () => {
 
     const adj = await getAdjacentSector(ws);
     await ensureSellingPort(pool, adj);
-    await clearSectorFighters(adj);
+    await clearSectorDrones(adj);
     await wsRequest(ws, { type: 'move', sector: adj }, 'moveResult');
     await wsRequest(ws, { type: 'dock' }, 'dockResult');
 
-    const result = await wsRequest(ws, { type: 'listDeployedFighters' }, 'listDeployedFightersResult');
+    const result = await wsRequest(ws, { type: 'listDeployedDrones' }, 'listDeployedDronesResult');
     assert.equal(result.type, 'error');
 
     await closeWS(ws);
@@ -1534,7 +1534,7 @@ describe('ListDeployedFighters - sector command mode', () => {
   it('Rejected when player is at Stardock', async () => {
     const { ws, playerId } = await goToStardock(pool);
 
-    const result = await wsRequest(ws, { type: 'listDeployedFighters' }, 'listDeployedFightersResult');
+    const result = await wsRequest(ws, { type: 'listDeployedDrones' }, 'listDeployedDronesResult');
     assert.equal(result.type, 'error');
 
     await closeWS(ws);
@@ -1549,7 +1549,7 @@ describe('ListDeployedFighters - sector command mode', () => {
     assert.ok(planetRes.rows.length > 0);
     await wsRequest(ws, { type: 'landOnPlanet', planetId: planetRes.rows[0].id }, 'landOnPlanetResult');
 
-    const result = await wsRequest(ws, { type: 'listDeployedFighters' }, 'listDeployedFightersResult');
+    const result = await wsRequest(ws, { type: 'listDeployedDrones' }, 'listDeployedDronesResult');
     assert.equal(result.type, 'error');
 
     await closeWS(ws);

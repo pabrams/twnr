@@ -1,7 +1,7 @@
 import { ClientMsgType } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { showPrompt } from './display.js';
-import { showAttackFightersPrompt, showFighterAttackQtyPrompt } from './display-combat.js';
+import { showAttackDronesPrompt, showDroneAttackQtyPrompt } from './display-combat.js';
 import { colors } from './constants.js';
 
 export function handleAttackInput(ctx: GameContext, line: string) {
@@ -13,13 +13,13 @@ export function handleAttackInput(ctx: GameContext, line: string) {
     const idx = parseInt(line, 10) - 1;
     if (idx >= 0 && idx < ctx.sectorPlayers.length) {
         ctx.setAttackTarget(ctx.sectorPlayers[idx].id);
-        showAttackFightersPrompt(ctx);
+        showAttackDronesPrompt(ctx);
     } else {
         ctx.term.writeln(colors.boldRed('Invalid selection.'));
     }
 }
 
-export function handleAttackFightersInput(ctx: GameContext, line: string) {
+export function handleAttackDronesInput(ctx: GameContext, line: string) {
     if (line.toLowerCase() === 'q') {
         ctx.changeMenu('sector');
         showPrompt(ctx);
@@ -33,11 +33,11 @@ export function handleAttackFightersInput(ctx: GameContext, line: string) {
     ctx.sendMsg({
         type: ClientMsgType.AttackShip,
         targetPlayerId: ctx.attackTarget!,
-        fighters: qty,
+        drones: qty,
     });
 }
 
-export function handleDeployFightersQtyInput(ctx: GameContext, line: string) {
+export function handleDeployDronesQtyInput(ctx: GameContext, line: string) {
     if (line.toLowerCase() === 'q') {
         ctx.changeMenu('sector');
         showPrompt(ctx);
@@ -48,16 +48,16 @@ export function handleDeployFightersQtyInput(ctx: GameContext, line: string) {
         ctx.term.writeln('Enter a non-negative number (0 to retrieve all).');
         return;
     }
-    ctx.sendMsg({ type: ClientMsgType.DeployFighters, quantity: qty });
+    ctx.sendMsg({ type: ClientMsgType.DeployDrones, quantity: qty });
 }
 
-export function handleFighterEncounterInput(ctx: GameContext, line: string) {
+export function handleDroneEncounterInput(ctx: GameContext, line: string) {
     switch (line.toLowerCase()) {
         case 'a':
-            showFighterAttackQtyPrompt(ctx);
+            showDroneAttackQtyPrompt(ctx);
             break;
         case 'r':
-            ctx.sendMsg({ type: ClientMsgType.RetreatFromFighters });
+            ctx.sendMsg({ type: ClientMsgType.RetreatFromDrones });
             break;
         default:
             ctx.term.writeln(`  ${colors.cyan('A')}  Attack`);
@@ -65,9 +65,9 @@ export function handleFighterEncounterInput(ctx: GameContext, line: string) {
     }
 }
 
-export function handleFighterAttackQtyInput(ctx: GameContext, line: string) {
+export function handleDroneAttackQtyInput(ctx: GameContext, line: string) {
     if (line.toLowerCase() === 'q') {
-        ctx.changeMenu('fighterEncounter');
+        ctx.changeMenu('droneEncounter');
         return;
     }
     const qty = parseInt(line, 10);
@@ -75,5 +75,5 @@ export function handleFighterAttackQtyInput(ctx: GameContext, line: string) {
         ctx.term.writeln('Enter a positive number.');
         return;
     }
-    ctx.sendMsg({ type: ClientMsgType.AttackSectorFighters, fighters: qty });
+    ctx.sendMsg({ type: ClientMsgType.AttackSectorDrones, drones: qty });
 }

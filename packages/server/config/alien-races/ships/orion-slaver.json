@@ -1,1 +1,1 @@
-{ "name": "Orion Slaver Barge", "race": "Orion", "maxFighters": 15, "maxShields": 25, "startingHolds": 25, "maxHolds": 70, "price": 19000 }
+{ "name": "Orion Slaver Barge", "race": "Orion", "maxDrones": 15, "maxShields": 25, "startingHolds": 25, "maxHolds": 70, "price": 19000 }
