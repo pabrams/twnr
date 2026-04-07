@@ -70,15 +70,14 @@ describe('Login restriction after ship destruction', () => {
     const playerRes = await pool.query('SELECT ship_destroyed_date FROM players WHERE id = $1', [playerId]);
     assert.equal(playerRes.rows[0].ship_destroyed_date, null, 'ship_destroyed_date should be cleared');
 
-    const shipRes = await pool.query('SELECT ship_name, drones, shields, cargo_limit FROM player_ships WHERE player_id = $1', [playerId]);
+    const shipRes = await pool.query('SELECT s.drones, s.shields, s.holds, st.name as ship_name FROM ships s JOIN ship_types st ON s.ship_type_id = st.id WHERE s.id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
     assert.equal(shipRes.rows.length, 1, 'Should have a new ship');
     assert.equal(shipRes.rows[0].ship_name, 'Merchant Freighter');
     assert.equal(shipRes.rows[0].drones, 0);
     assert.equal(shipRes.rows[0].shields, 0);
 
-    const cargoRes = await pool.query('SELECT credits FROM ship_cargo WHERE player_id = $1', [playerId]);
-    assert.equal(cargoRes.rows.length, 1, 'Should have cargo');
-    assert.equal(cargoRes.rows[0].credits, 10000);
+    const creditsRes = await pool.query('SELECT credits FROM players WHERE id = $1', [playerId]);
+    assert.equal(creditsRes.rows[0].credits, 10000);
   });
 
   it('refuses login with 403 when delay has not passed', async () => {
@@ -155,8 +154,8 @@ describe('Login restriction after ship destruction', () => {
     assert.equal(joinRes.status, 201);
     const { playerId } = await joinRes.json();
 
-    await pool.query('DELETE FROM player_ships WHERE player_id = $1', [playerId]);
-    await pool.query('DELETE FROM ship_cargo WHERE player_id = $1', [playerId]);
+    await pool.query('UPDATE players SET ship_id = NULL WHERE id = $1', [playerId]);
+    await pool.query('DELETE FROM ships WHERE owner_id = $1', [playerId]);
     await pool.query(
       `UPDATE players SET ship_destroyed_date = NOW() - INTERVAL '1 hour' WHERE id = $1`,
       [playerId],
@@ -170,7 +169,7 @@ describe('Login restriction after ship destruction', () => {
     assert.equal(loginRes.status, 200);
 
     const ship = await pool.query(
-      'SELECT ship_name, drones, shields, cargo_limit FROM player_ships WHERE player_id = $1',
+      'SELECT s.drones, s.shields, s.holds, st.name as ship_name FROM ships s JOIN ship_types st ON s.ship_type_id = st.id WHERE s.id = (SELECT ship_id FROM players WHERE id = $1)',
       [playerId],
     );
     assert.equal(ship.rows.length, 1);
@@ -178,9 +177,8 @@ describe('Login restriction after ship destruction', () => {
     assert.equal(ship.rows[0].drones, 0);
     assert.equal(ship.rows[0].shields, 0);
 
-    const cargo = await pool.query('SELECT credits FROM ship_cargo WHERE player_id = $1', [playerId]);
-    assert.equal(cargo.rows.length, 1);
-    assert.equal(cargo.rows[0].credits, 10000);
+    const credits = await pool.query('SELECT credits FROM players WHERE id = $1', [playerId]);
+    assert.equal(credits.rows[0].credits, 10000);
 
     const player = await pool.query('SELECT ship_destroyed_date FROM players WHERE id = $1', [playerId]);
     assert.equal(player.rows[0].ship_destroyed_date, null);

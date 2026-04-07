@@ -1,5 +1,4 @@
 import { ServerMsgType } from '@twnr/shared';
-import { shipConfigs } from '../ship-config.js';
 import { sendEnvelope, getPlayerUniverseId, setPlayerMenu } from '../game-state.js';
 import { pool } from '../db/index.js';
 import { class0Prices } from '../game-config.js';
@@ -42,10 +41,11 @@ export async function handleBuyDrones(playerId: number, quantity: number): Promi
 
         const cargoRes = await client.query(
             `
-            SELECT sc.credits, ps.ship_name, ps.drones, ps.shields, ps.cargo_limit
-            FROM ship_cargo sc
-            JOIN player_ships ps ON sc.player_id = ps.player_id
-            WHERE sc.player_id = $1 FOR UPDATE
+            SELECT p.credits, s.drones, s.shields, s.holds, st.max_drones
+            FROM players p
+            JOIN ships s ON p.ship_id = s.id
+            JOIN ship_types st ON s.ship_type_id = st.id
+            WHERE p.id = $1 FOR UPDATE
         `,
             [playerId],
         );
@@ -56,8 +56,7 @@ export async function handleBuyDrones(playerId: number, quantity: number): Promi
         }
 
         const data = cargoRes.rows[0];
-        const config = shipConfigs[data.ship_name];
-        if (data.drones + qty > config.maxDrones) {
+        if (data.drones + qty > data.max_drones) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Exceeds maximum' });
             return;
@@ -70,11 +69,11 @@ export async function handleBuyDrones(playerId: number, quantity: number): Promi
             return;
         }
 
-        await client.query('UPDATE player_ships SET drones = drones + $1 WHERE player_id = $2', [
+        await client.query('UPDATE ships SET drones = drones + $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)', [
             qty,
             playerId,
         ]);
-        await client.query('UPDATE ship_cargo SET credits = credits - $1 WHERE player_id = $2', [
+        await client.query('UPDATE players SET credits = credits - $1 WHERE id = $2', [
             cost,
             playerId,
         ]);
@@ -131,10 +130,11 @@ export async function handleBuyShields(playerId: number, quantity: number): Prom
 
         const cargoRes = await client.query(
             `
-            SELECT sc.credits, ps.ship_name, ps.drones, ps.shields, ps.cargo_limit
-            FROM ship_cargo sc
-            JOIN player_ships ps ON sc.player_id = ps.player_id
-            WHERE sc.player_id = $1 FOR UPDATE
+            SELECT p.credits, s.drones, s.shields, s.holds, st.max_shields
+            FROM players p
+            JOIN ships s ON p.ship_id = s.id
+            JOIN ship_types st ON s.ship_type_id = st.id
+            WHERE p.id = $1 FOR UPDATE
         `,
             [playerId],
         );
@@ -145,8 +145,7 @@ export async function handleBuyShields(playerId: number, quantity: number): Prom
         }
 
         const data = cargoRes.rows[0];
-        const config = shipConfigs[data.ship_name];
-        if (data.shields + qty > config.maxShields) {
+        if (data.shields + qty > data.max_shields) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Exceeds maximum' });
             return;
@@ -159,11 +158,11 @@ export async function handleBuyShields(playerId: number, quantity: number): Prom
             return;
         }
 
-        await client.query('UPDATE player_ships SET shields = shields + $1 WHERE player_id = $2', [
+        await client.query('UPDATE ships SET shields = shields + $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)', [
             qty,
             playerId,
         ]);
-        await client.query('UPDATE ship_cargo SET credits = credits - $1 WHERE player_id = $2', [
+        await client.query('UPDATE players SET credits = credits - $1 WHERE id = $2', [
             cost,
             playerId,
         ]);
@@ -228,10 +227,11 @@ export async function handleBuyHolds(playerId: number, quantity: number): Promis
 
         const cargoRes = await client.query(
             `
-            SELECT sc.credits, ps.ship_name, ps.drones, ps.shields, ps.cargo_limit
-            FROM ship_cargo sc
-            JOIN player_ships ps ON sc.player_id = ps.player_id
-            WHERE sc.player_id = $1 FOR UPDATE
+            SELECT p.credits, s.drones, s.shields, s.holds, st.max_holds
+            FROM players p
+            JOIN ships s ON p.ship_id = s.id
+            JOIN ship_types st ON s.ship_type_id = st.id
+            WHERE p.id = $1 FOR UPDATE
         `,
             [playerId],
         );
@@ -242,8 +242,7 @@ export async function handleBuyHolds(playerId: number, quantity: number): Promis
         }
 
         const data = cargoRes.rows[0];
-        const config = shipConfigs[data.ship_name];
-        if (data.cargo_limit + qty > config.maxHolds) {
+        if (data.holds + qty > data.max_holds) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Exceeds maximum' });
             return;
@@ -257,10 +256,10 @@ export async function handleBuyHolds(playerId: number, quantity: number): Promis
         }
 
         await client.query(
-            'UPDATE player_ships SET cargo_limit = cargo_limit + $1 WHERE player_id = $2',
+            'UPDATE ships SET holds = holds + $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)',
             [qty, playerId],
         );
-        await client.query('UPDATE ship_cargo SET credits = credits - $1 WHERE player_id = $2', [
+        await client.query('UPDATE players SET credits = credits - $1 WHERE id = $2', [
             cost,
             playerId,
         ]);
@@ -270,7 +269,7 @@ export async function handleBuyHolds(playerId: number, quantity: number): Promis
         sendEnvelope(playerId, {
             type: ServerMsgType.BuyHoldsResult,
             credits: data.credits - cost,
-            cargoLimit: data.cargo_limit + qty,
+            cargoLimit: data.holds + qty,
             turnsUsed: turnResult.turnsUsed,
         });
     } catch {

@@ -82,35 +82,26 @@ export function createUniverseRoutes(
             );
             const startSectorId = sectorIdRes.rows[0]?.id;
             const playerRes = await pool.query(
-                `INSERT INTO players (name, user_id, universe_id, current_sector_id, turns, last_turns_granted_at)
-                 VALUES ($1, $2, $3, $4, $5, NOW()) RETURNING id`,
-                [name, userId, universeId, startSectorId, startingTurns],
+                `INSERT INTO players (name, user_id, universe_id, current_sector_id, credits, turns, last_turns_granted_at)
+                 VALUES ($1, $2, $3, $4, $5, $6, NOW()) RETURNING id`,
+                [name, userId, universeId, startSectorId, newPlayerConfig.startingCredits, startingTurns],
             );
             const playerId = playerRes.rows[0].id;
 
             // Create ship
-            const startShip = shipConfigs[newPlayerConfig.startingShip];
-            if (startShip) {
-                await pool.query(
-                    `INSERT INTO player_ships (player_id, ship_name, drones, shields, cargo_limit, turns_per_warp)
-                     VALUES ($1, $2, $3, $4, $5, $6)`,
-                    [
-                        playerId,
-                        startShip.name,
-                        newPlayerConfig.startingDrones,
-                        newPlayerConfig.startingShields,
-                        startShip.startingHolds,
-                        startShip.turnsPerWarp ?? 1,
-                    ],
-                );
-            }
-
-            // Create cargo
-            await pool.query(
-                `INSERT INTO ship_cargo (player_id, fuel, organics, equipment, credits)
-                 VALUES ($1, 0, 0, 0, $2)`,
-                [playerId, newPlayerConfig.startingCredits],
+            const startShipType = await pool.query(
+                'SELECT id, starting_holds, turns_per_warp FROM ship_types WHERE name = $1',
+                [newPlayerConfig.startingShip],
             );
+            if (startShipType.rows.length > 0) {
+                const st = startShipType.rows[0];
+                const shipRes = await pool.query(
+                    `INSERT INTO ships (owner_id, ship_type_id, sector_id, drones, shields, holds, turns_per_warp)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+                    [playerId, st.id, startSectorId, newPlayerConfig.startingDrones, newPlayerConfig.startingShields, st.starting_holds, st.turns_per_warp],
+                );
+                await pool.query('UPDATE players SET ship_id = $1 WHERE id = $2', [shipRes.rows[0].id, playerId]);
+            }
 
             // Mark starting sector as visited
             await pool.query(
@@ -132,9 +123,10 @@ export function createUniverseRoutes(
         const universeId = parseInt(req.params.id as string, 10);
         try {
             const result = await pool.query(
-                `SELECT p.name, COALESCE(ps.ship_name, 'No ship') AS ship_name
+                `SELECT p.name, COALESCE(st.name, 'No ship') AS ship_name
                      FROM players p
-                     LEFT JOIN player_ships ps ON p.id = ps.player_id
+                     LEFT JOIN ships s ON p.ship_id = s.id
+                     LEFT JOIN ship_types st ON s.ship_type_id = st.id
                      WHERE p.universe_id = $1
                      ORDER BY p.name`,
                 [universeId],

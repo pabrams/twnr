@@ -12,7 +12,6 @@ import {
     resolveSectorId,
 } from '../game-state.js';
 import { pool } from '../db/index.js';
-import { shipConfigs } from '../ship-config.js';
 
 export async function handleDeployDronesInfo(playerId: number): Promise<void> {
     const player = players[playerId];
@@ -35,15 +34,15 @@ export async function handleDeployDronesInfo(playerId: number): Promise<void> {
     }
 
     const shipRes = await pool.query(
-        'SELECT ps.drones, ps.ship_name FROM player_ships ps WHERE ps.player_id = $1',
+        `SELECT s.drones, st.name as ship_name, st.max_drones
+         FROM ships s JOIN ship_types st ON s.ship_type_id = st.id
+         WHERE s.id = (SELECT ship_id FROM players WHERE id = $1)`,
         [playerId],
     );
     if (shipRes.rows.length === 0) {
         sendEnvelope(playerId, { type: ServerMsgType.NoShip });
         return;
     }
-
-    const shipCfg = shipConfigs[shipRes.rows[0].ship_name];
     const sectorDrones = await getSectorDrones(player.sector, player.universeId);
 
     // Only show own drones or no drones; can't deploy into hostile sector
@@ -60,7 +59,7 @@ export async function handleDeployDronesInfo(playerId: number): Promise<void> {
         type: ServerMsgType.DeployDronesInfoResult,
         sectorDrones: sectorDrones?.quantity ?? 0,
         shipDrones: shipRes.rows[0].drones,
-        shipMaxDrones: shipCfg?.maxDrones ?? 0,
+        shipMaxDrones: shipRes.rows[0].max_drones ?? 0,
     });
 }
 
@@ -97,7 +96,9 @@ export async function handleDeployDrones(playerId: number, target: number): Prom
         await client.query('BEGIN');
 
         const shipRes = await client.query(
-            'SELECT drones, ship_name FROM player_ships WHERE player_id = $1 FOR UPDATE',
+            `SELECT s.drones, st.max_drones
+             FROM ships s JOIN ship_types st ON s.ship_type_id = st.id
+             WHERE s.id = (SELECT ship_id FROM players WHERE id = $1) FOR UPDATE`,
             [playerId],
         );
         if (shipRes.rows.length === 0) {
@@ -107,8 +108,7 @@ export async function handleDeployDrones(playerId: number, target: number): Prom
         }
 
         const shipDrones = shipRes.rows[0].drones;
-        const shipCfg = shipConfigs[shipRes.rows[0].ship_name];
-        const maxDrones = shipCfg?.maxDrones ?? 0;
+        const maxDrones = shipRes.rows[0].max_drones ?? 0;
 
         // Look up sector DB id
         const sectorLookup = await client.query(
@@ -169,7 +169,7 @@ export async function handleDeployDrones(playerId: number, target: number): Prom
         const newShipDrones = shipDrones - delta;
 
         // Update ship
-        await client.query('UPDATE player_ships SET drones = $1 WHERE player_id = $2', [
+        await client.query('UPDATE ships SET drones = $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)', [
             newShipDrones,
             playerId,
         ]);
@@ -247,7 +247,7 @@ export async function handleAttackSectorDrones(
         await client.query('BEGIN');
 
         const shipRes = await client.query(
-            'SELECT drones FROM player_ships WHERE player_id = $1 FOR UPDATE',
+            'SELECT drones FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1) FOR UPDATE',
             [playerId],
         );
         if (shipRes.rows.length === 0) {
@@ -290,7 +290,7 @@ export async function handleAttackSectorDrones(
         const victory = dronesToAttack >= sectorDroneQty;
 
         // Update ship drones
-        await client.query('UPDATE player_ships SET drones = $1 WHERE player_id = $2', [
+        await client.query('UPDATE ships SET drones = $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)', [
             newShipDrones,
             playerId,
         ]);
@@ -364,9 +364,15 @@ export async function handleRetreatFromDrones(playerId: number): Promise<void> {
     const retreatSectorId = await resolveSectorId(retreatSector, universeId);
     player.sector = retreatSector;
     player.sectorId = retreatSectorId;
-    await pool.query('UPDATE players SET current_sector_id = $1 WHERE id = $2', [
-        retreatSectorId,
-        playerId,
+    await Promise.all([
+        pool.query('UPDATE players SET current_sector_id = $1 WHERE id = $2', [
+            retreatSectorId,
+            playerId,
+        ]),
+        pool.query('UPDATE ships SET sector_id = $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)', [
+            retreatSectorId,
+            playerId,
+        ]),
     ]);
 
     // Broadcast movement

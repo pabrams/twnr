@@ -116,11 +116,12 @@ async function doSetup() {
   await pool.query(`
     DROP TABLE IF EXISTS menu_command CASCADE;
     DROP TABLE IF EXISTS command CASCADE;
+    DROP TABLE IF EXISTS sector_drones CASCADE;
     DROP TABLE IF EXISTS planet_collisions CASCADE;
     DROP TABLE IF EXISTS planets CASCADE;
     DROP TABLE IF EXISTS visited_sectors CASCADE;
-    DROP TABLE IF EXISTS player_ships CASCADE;
-    DROP TABLE IF EXISTS ship_cargo CASCADE;
+    DROP TABLE IF EXISTS ships CASCADE;
+    DROP TABLE IF EXISTS ship_types CASCADE;
     DROP TABLE IF EXISTS ports CASCADE;
     DROP TABLE IF EXISTS warps CASCADE;
     DROP TABLE IF EXISTS players CASCADE;

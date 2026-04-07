@@ -90,7 +90,7 @@ describe('Ship info query', () => {
 });
 
 describe('Ship info — dynamic state', () => {
-  it('cargoLimit reflects cargo_limit after buying holds', async () => {
+  it('cargoLimit reflects holds after buying holds', async () => {
     const { ws } = await connectWS();
     const qty = 4;
     try {

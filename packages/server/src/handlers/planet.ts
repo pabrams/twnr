@@ -197,7 +197,7 @@ export async function handleDestroyPlanet(playerId: number): Promise<void> {
     }
 
     const shipRes = await pool.query(
-        'SELECT planet_busters FROM player_ships WHERE player_id = $1 FOR UPDATE',
+        'SELECT planet_busters FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1) FOR UPDATE',
         [playerId],
     );
     if (shipRes.rows.length === 0 || shipRes.rows[0].planet_busters < 1) {
@@ -220,7 +220,7 @@ export async function handleDestroyPlanet(playerId: number): Promise<void> {
         await client.query('BEGIN');
 
         await client.query(
-            'UPDATE player_ships SET planet_busters = planet_busters - 1 WHERE player_id = $1',
+            'UPDATE ships SET planet_busters = planet_busters - 1 WHERE id = (SELECT ship_id FROM players WHERE id = $1)',
             [playerId],
         );
         await client.query('UPDATE players SET on_planet_id = NULL WHERE id = $1', [playerId]);
@@ -281,7 +281,7 @@ export async function handleUseTerraformDevice(playerId: number): Promise<void> 
     }
 
     const shipRes = await pool.query(
-        'SELECT terraform_devices FROM player_ships WHERE player_id = $1 FOR UPDATE',
+        'SELECT terraform_devices FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1) FOR UPDATE',
         [playerId],
     );
     if (shipRes.rows.length === 0 || shipRes.rows[0].terraform_devices < 1) {
@@ -310,7 +310,7 @@ export async function handleUseTerraformDevice(playerId: number): Promise<void> 
         );
 
         await client.query(
-            'UPDATE player_ships SET terraform_devices = terraform_devices - 1 WHERE player_id = $1',
+            'UPDATE ships SET terraform_devices = terraform_devices - 1 WHERE id = (SELECT ship_id FROM players WHERE id = $1)',
             [playerId],
         );
 

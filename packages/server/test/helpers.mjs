@@ -61,21 +61,21 @@ export async function createTestPlayer(pool, userId, universeId, name, sector = 
   const startingTurns = univRes.rows[0]?.starting_turns ?? 500;
   const sectorIdRes = await pool.query('SELECT id FROM sectors WHERE sector_number = $1 AND universe_id = $2', [sector, universeId]);
   const sectorId = sectorIdRes.rows[0]?.id;
+  const shipTypeRes = await pool.query('SELECT id, starting_holds FROM ship_types WHERE name = $1', [merchantCfg.name]);
+  const shipTypeId = shipTypeRes.rows[0]?.id;
+  const startingHolds = shipTypeRes.rows[0]?.starting_holds ?? merchantCfg.startingHolds;
   const res = await pool.query(
-    `INSERT INTO players (name, user_id, universe_id, current_sector_id, turns)
-     VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+    `INSERT INTO players (name, user_id, universe_id, current_sector_id, credits, turns)
+     VALUES ($1, $2, $3, $4, 10000, $5) RETURNING id`,
     [name, userId, universeId, sectorId, startingTurns],
   );
   const playerId = res.rows[0].id;
 
-  await pool.query(
-    `INSERT INTO ship_cargo (player_id, fuel, organics, equipment, credits) VALUES ($1, 0, 0, 0, 10000)`,
-    [playerId],
+  const shipRes = await pool.query(
+    `INSERT INTO ships (owner_id, ship_type_id, sector_id, drones, shields, holds) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+    [playerId, shipTypeId, sectorId, drones, shields, startingHolds],
   );
-  await pool.query(
-    `INSERT INTO player_ships (player_id, ship_name, drones, shields, cargo_limit) VALUES ($1, $2, $3, $4, $5)`,
-    [playerId, merchantCfg.name, drones, shields, merchantCfg.startingHolds],
-  );
+  await pool.query('UPDATE players SET ship_id = $1 WHERE id = $2', [shipRes.rows[0].id, playerId]);
 
   return playerId;
 }

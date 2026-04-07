@@ -103,7 +103,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
 
         // Look up player for this user in this universe
         const playerRes = await pool.query(
-            `SELECT p.id, p.name, p.current_sector_id, s.sector_number
+            `SELECT p.id, p.name, p.current_sector_id, p.ship_id, s.sector_number
              FROM players p
              JOIN sectors s ON p.current_sector_id = s.id
              WHERE p.user_id = $1 AND p.universe_id = $2`,
@@ -134,6 +134,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             ws,
             sector,
             sectorId,
+            shipId: playerRow.ship_id,
             name: playerRow.name,
             universeId,
             docked: false,

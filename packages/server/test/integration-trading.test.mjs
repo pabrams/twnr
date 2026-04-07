@@ -38,16 +38,25 @@ describe('Trading System', () => {
     assert.ok(cols.includes('equ_price'), 'missing equ_price');
   });
 
-  it('ship_cargo table exists with correct columns', async () => {
+  it('ships table has cargo columns', async () => {
     const res = await pool.query(
       `SELECT column_name FROM information_schema.columns
-       WHERE table_name = 'ship_cargo' ORDER BY column_name`
+       WHERE table_name = 'ships' ORDER BY column_name`
     );
     const cols = res.rows.map(r => r.column_name);
-    assert.ok(cols.includes('player_id'), 'missing player_id');
+    assert.ok(cols.includes('owner_id'), 'missing owner_id');
     assert.ok(cols.includes('fuel'), 'missing fuel');
     assert.ok(cols.includes('organics'), 'missing organics');
     assert.ok(cols.includes('equipment'), 'missing equipment');
+    assert.ok(cols.includes('colonists'), 'missing colonists');
+  });
+
+  it('players table has credits column', async () => {
+    const res = await pool.query(
+      `SELECT column_name FROM information_schema.columns
+       WHERE table_name = 'players' ORDER BY column_name`
+    );
+    const cols = res.rows.map(r => r.column_name);
     assert.ok(cols.includes('credits'), 'missing credits');
   });
 
@@ -138,7 +147,7 @@ describe('Trading System', () => {
     assert.ok(reached, `Could not reach port sector ${portSector.sectorId}`);
 
     // Give the player organics directly so we don't need a separate buy port
-    await pool.query('UPDATE ship_cargo SET organics = 10 WHERE player_id = $1', [welcome.playerId]);
+    await pool.query('UPDATE ships SET organics = 10 WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [welcome.playerId]);
 
     const portBefore = await wsRequest(wsConn, { type: ClientMsgType.PortInfo, sectorId: portSector.sectorId }, ServerMsgType.PortInfoResult);
     const price = portBefore.orgPrice;
@@ -193,7 +202,7 @@ describe('Trading System', () => {
     assert.ok(reached);
 
     // Give player enough credits so we hit inventory check, not credits check
-    await pool.query('UPDATE ship_cargo SET credits = 9999999 WHERE player_id = $1', [welcome.playerId]);
+    await pool.query('UPDATE players SET credits = 9999999 WHERE id = $1', [welcome.playerId]);
 
     const portInfo = await wsRequest(wsConn, { type: ClientMsgType.PortInfo, sectorId: portSector.sectorId }, ServerMsgType.PortInfoResult);
     const amount = portInfo.fuel + 1; // one more than available

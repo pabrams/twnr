@@ -6,12 +6,30 @@ export interface Player {
     ws: WebSocket;
     sector: number;
     sectorId: number;
+    shipId: number | null;
     name: string;
     universeId: number;
     docked: boolean;
     at_starbase?: boolean;
     pendingEncounter?: { retreatSector: number };
     currentMenu: string;
+}
+
+/** Get the player's current ship with its type info. Returns null if no ship. */
+export async function getPlayerShip(playerId: number) {
+    const res = await pool.query(
+        `SELECT s.id, s.drones, s.shields, s.holds, s.planet_busters, s.terraform_devices,
+                s.turns_per_warp, s.has_hyperwarp_drive, s.fuel, s.organics, s.equipment, s.colonists,
+                s.sector_id, s.ship_type_id,
+                st.name as ship_name, st.max_drones, st.max_shields, st.max_holds,
+                st.max_planet_busters, st.max_terraform_devices, st.can_have_hyperwarp,
+                st.starting_holds, st.price, st.turns_per_warp as type_turns_per_warp
+         FROM ships s
+         JOIN ship_types st ON s.ship_type_id = st.id
+         WHERE s.id = (SELECT ship_id FROM players WHERE id = $1)`,
+        [playerId],
+    );
+    return res.rows[0] ?? null;
 }
 
 export const players: Record<number, Player> = {};

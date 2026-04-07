@@ -62,24 +62,32 @@ describe('Config Files', () => {
 });
 
 describe('Database Schema', () => {
-  it('player_ships table exists', async () => {
+  it('ships table exists', async () => {
     const res = await pool.query(
       `SELECT table_name FROM information_schema.tables
-       WHERE table_schema = 'public' AND table_name = 'player_ships'`
+       WHERE table_schema = 'public' AND table_name = 'ships'`
     );
-    assert.equal(res.rows.length, 1, 'player_ships table should exist');
+    assert.equal(res.rows.length, 1, 'ships table should exist');
   });
 
-  it('player_ships has required columns including cargo_limit', async () => {
+  it('ships has required columns including holds', async () => {
     const res = await pool.query(
       `SELECT column_name FROM information_schema.columns
-       WHERE table_name = 'player_ships' ORDER BY column_name`
+       WHERE table_name = 'ships' ORDER BY column_name`
     );
     const cols = res.rows.map(r => r.column_name);
-    assert.ok(cols.includes('player_id'), 'should have player_id');
-    assert.ok(cols.includes('ship_name'), 'should have ship_name');
+    assert.ok(cols.includes('owner_id'), 'should have owner_id');
+    assert.ok(cols.includes('ship_type_id'), 'should have ship_type_id');
     assert.ok(cols.includes('drones'), 'should have drones');
     assert.ok(cols.includes('shields'), 'should have shields');
-    assert.ok(cols.includes('cargo_limit'), 'should have cargo_limit (not max_holds)');
+    assert.ok(cols.includes('holds'), 'should have holds (not cargo_limit)');
+  });
+
+  it('ship_types table exists', async () => {
+    const res = await pool.query(
+      `SELECT table_name FROM information_schema.tables
+       WHERE table_schema = 'public' AND table_name = 'ship_types'`
+    );
+    assert.equal(res.rows.length, 1, 'ship_types table should exist');
   });
 });

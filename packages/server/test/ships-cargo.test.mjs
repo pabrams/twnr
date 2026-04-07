@@ -59,7 +59,7 @@ describe('Trade at class 0 port', () => {
     const { ws, welcome } = await connectWS();
     const playerId = welcome.playerId;
     try {
-      await pool.query('UPDATE ship_cargo SET fuel = 3 WHERE player_id = $1', [playerId]);
+      await pool.query('UPDATE ships SET fuel = 3 WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
       const msg = await wsRequest(ws, { type: ClientMsgType.PortTransaction, good: 'fuel', quantity: 1, action: 'sell' }, ServerMsgType.PortTransactionResult);
       assert.equal(msg.type, ServerMsgType.Error);
     } finally {
@@ -69,14 +69,14 @@ describe('Trade at class 0 port', () => {
 });
 
 describe('Cargo hold enforcement', () => {
-  it('buying cargo exceeding cargo_limit returns "Insufficient cargo holds"', async () => {
+  it('buying cargo exceeding holds returns "Insufficient cargo holds"', async () => {
     const fuelSector = await findFuelSellerSector();
     assert.ok(fuelSector, 'Need a fuel-selling port for this test');
 
     const { ws } = await connectWS();
     try {
       await navigateTo(ws, fuelSector);
-      // cargo_limit is 5; try to buy 6
+      // holds is 5; try to buy 6
       const msg = await wsRequest(ws, { type: ClientMsgType.PortTransaction, good: 'fuel', quantity: 6, action: 'buy' }, ServerMsgType.PortTransactionResult);
       assert.equal(msg.type, ServerMsgType.Error);
       assert.equal(msg.message, 'Insufficient cargo holds');
@@ -85,7 +85,7 @@ describe('Cargo hold enforcement', () => {
     }
   });
 
-  it('buying exactly cargo_limit units succeeds', async () => {
+  it('buying exactly holds units succeeds', async () => {
     const fuelSector = await findFuelSellerSector();
     assert.ok(fuelSector, 'Need a fuel-selling port for this test');
 
@@ -93,7 +93,7 @@ describe('Cargo hold enforcement', () => {
     try {
       await navigateTo(ws, fuelSector);
       const msg = await wsRequest(ws, { type: ClientMsgType.PortTransaction, good: 'fuel', quantity: 5, action: 'buy' }, ServerMsgType.PortTransactionResult);
-      assert.equal(msg.type, ServerMsgType.PortTransactionResult, 'buying exactly cargo_limit should succeed');
+      assert.equal(msg.type, ServerMsgType.PortTransactionResult, 'buying exactly holds should succeed');
     } finally {
       await closeWS(ws);
     }

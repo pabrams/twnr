@@ -186,8 +186,8 @@ describe('Schema - Player columns', () => {
 });
 
 describe('Schema - Ship columns', () => {
-  it('player_ships.turns_per_warp exists (integer, NOT NULL, default 1)', async () => {
-    const res = await pool.query(`SELECT data_type, column_default, is_nullable FROM information_schema.columns WHERE table_name = 'player_ships' AND column_name = 'turns_per_warp'`);
+  it('ships.turns_per_warp exists (integer, NOT NULL, default 1)', async () => {
+    const res = await pool.query(`SELECT data_type, column_default, is_nullable FROM information_schema.columns WHERE table_name = 'ships' AND column_name = 'turns_per_warp'`);
     assert.equal(res.rows.length, 1); assert.match(res.rows[0].data_type, /int/i);
     assert.equal(res.rows[0].is_nullable, 'NO'); assert.match(res.rows[0].column_default, /1/);
   });
@@ -241,7 +241,7 @@ describe('Player initialization', () => {
 
   it('New player ship has turns_per_warp from config', async () => {
     const { playerId } = await joinUniverse(pool);
-    const r = await pool.query('SELECT ship_name, turns_per_warp FROM player_ships WHERE player_id = $1', [playerId]);
+    const r = await pool.query('SELECT st.name as ship_name, s.turns_per_warp FROM ships s JOIN ship_types st ON s.ship_type_id = st.id WHERE s.id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
     assert.ok(r.rows.length > 0);
     assert.ok(r.rows[0].turns_per_warp >= 1);
     if (r.rows[0].ship_name === MERCHANT_NAME) assert.equal(r.rows[0].turns_per_warp, merchantCfg.turnsPerWarp);
@@ -290,7 +290,7 @@ describe('ShipInfo includes turn and hyperwarp fields', () => {
 
   it('ShipInfo turnsPerWarp matches DB value after trade-in', async () => {
     const { token, playerId } = await joinUniverse(pool);
-    await pool.query("UPDATE player_ships SET turns_per_warp = 5 WHERE player_id = $1", [playerId]);
+    await pool.query("UPDATE ships SET turns_per_warp = 5 WHERE id = (SELECT ship_id FROM players WHERE id = $1)", [playerId]);
     const { ws: wsConn } = await ws(token);
 
     const result = await wsRequest(wsConn, { type: ClientMsgType.ShipInfo }, ServerMsgType.ShipInfoResult);
@@ -315,12 +315,12 @@ describe('Ship trade-in resets ship-specific fields', () => {
     assert.ok(moved, 'Must reach Starbase');
 
     await wsRequest(wsConn, { type: ClientMsgType.DockStarbase }, ServerMsgType.DockStarbaseResult);
-    await pool.query('UPDATE ship_cargo SET credits = 999999 WHERE player_id = $1', [playerId]);
+    await pool.query('UPDATE players SET credits = 999999 WHERE id = $1', [playerId]);
 
     const result = await wsRequest(wsConn, { type: ClientMsgType.BuyShipTradein, targetShipName: SCOUT_NAME }, ServerMsgType.BuyShipTradeinResult);
     if (result.type === ServerMsgType.Error) { await closeWS(wsConn); assert.fail(`Trade failed: ${result.message}`); }
 
-    const shipRes = await pool.query('SELECT turns_per_warp FROM player_ships WHERE player_id = $1', [playerId]);
+    const shipRes = await pool.query('SELECT turns_per_warp FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
     assert.equal(shipRes.rows[0].turns_per_warp, scoutCfg.turnsPerWarp,
       `turns_per_warp should match Scout config (${scoutCfg.turnsPerWarp})`);
 
@@ -337,13 +337,13 @@ describe('Ship trade-in resets ship-specific fields', () => {
     await movePlayerToViaWs(wsConn, starbaseSector);
     await wsRequest(wsConn, { type: ClientMsgType.DockStarbase }, ServerMsgType.DockStarbaseResult);
 
-    await pool.query('UPDATE player_ships SET has_hyperwarp_drive = true WHERE player_id = $1', [playerId]);
-    await pool.query('UPDATE ship_cargo SET credits = 999999 WHERE player_id = $1', [playerId]);
+    await pool.query('UPDATE ships SET has_hyperwarp_drive = true WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
+    await pool.query('UPDATE players SET credits = 999999 WHERE id = $1', [playerId]);
 
     const result = await wsRequest(wsConn, { type: ClientMsgType.BuyShipTradein, targetShipName: SCOUT_NAME }, ServerMsgType.BuyShipTradeinResult);
     if (result.type === ServerMsgType.Error) { await closeWS(wsConn); assert.fail(`Trade failed: ${result.message}`); }
 
-    const driveRes = await pool.query('SELECT has_hyperwarp_drive FROM player_ships WHERE player_id = $1', [playerId]);
+    const driveRes = await pool.query('SELECT has_hyperwarp_drive FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
     assert.equal(driveRes.rows[0].has_hyperwarp_drive, false,
       'Hyperwarp drive should not transfer to new ship');
 
@@ -359,7 +359,7 @@ describe('Warp turn costs', () => {
     await pool.query('UPDATE players SET turns = 100 WHERE id = $1', [playerId]);
     const { ws: wsConn } = await ws(token);
 
-    const tpw = (await pool.query('SELECT turns_per_warp FROM player_ships WHERE player_id = $1', [playerId])).rows[0].turns_per_warp;
+    const tpw = (await pool.query('SELECT turns_per_warp FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId])).rows[0].turns_per_warp;
     const adj = await getAdjacentSector(wsConn);
     assert.ok(adj, 'Need adjacent sector');
     await clearSectorDrones(adj);
@@ -498,7 +498,7 @@ describe('Sell cargo costs 0 turns', () => {
     await ensureBuyingPort(pool, adj);
     await clearSectorDrones(adj);
     await wsRequest(wsConn, { type: ClientMsgType.Move, sector: adj }, ServerMsgType.MoveResult);
-    await pool.query('UPDATE ship_cargo SET fuel = 10 WHERE player_id = $1', [playerId]);
+    await pool.query('UPDATE ships SET fuel = 10 WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
     await pool.query('UPDATE players SET turns = 50 WHERE id = $1', [playerId]);
 
     await wsRequest(wsConn, { type: ClientMsgType.Dock }, ServerMsgType.DockResult);
@@ -626,7 +626,7 @@ describe('Zero-cost actions', () => {
     const { token, playerId } = await joinUniverse(pool);
     const { ws: wsConn } = await ws(token);
     await pool.query('UPDATE players SET turns = 50 WHERE id = $1', [playerId]);
-    await pool.query('UPDATE player_ships SET drones = 10 WHERE player_id = $1', [playerId]);
+    await pool.query('UPDATE ships SET drones = 10 WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
     await wsRequest(wsConn, { type: ClientMsgType.DeployDrones, quantity: 1 }, ServerMsgType.DeployDronesResult);
     assert.equal((await pool.query('SELECT turns FROM players WHERE id = $1', [playerId])).rows[0].turns, 50);
     await pool.query('DELETE FROM sector_drones WHERE owner_id = $1', [playerId]);
@@ -871,11 +871,11 @@ describe('Ship configs - canHaveHyperwarp', () => {
 // --- Schema: has_hyperwarp_drive ---
 
 describe('Schema - has_hyperwarp_drive', () => {
-  it('player_ships.has_hyperwarp_drive exists (boolean, NOT NULL, default false)', async () => {
+  it('ships.has_hyperwarp_drive exists (boolean, NOT NULL, default false)', async () => {
     const res = await pool.query(`
       SELECT data_type, column_default, is_nullable
       FROM information_schema.columns
-      WHERE table_name = 'player_ships' AND column_name = 'has_hyperwarp_drive'
+      WHERE table_name = 'ships' AND column_name = 'has_hyperwarp_drive'
     `);
     assert.equal(res.rows.length, 1);
     assert.match(res.rows[0].data_type, /bool/i);
@@ -889,7 +889,7 @@ describe('Schema - has_hyperwarp_drive', () => {
 describe('BuyHyperwarpDrive', () => {
   it('Successfully buys hyperwarp drive at Starbase', async () => {
     const { ws: wsConn, playerId } = await goToStarbase(pool);
-    const shipRes = await pool.query('SELECT ship_name FROM player_ships WHERE player_id = $1', [playerId]);
+    const shipRes = await pool.query('SELECT st.name as ship_name FROM ships s JOIN ship_types st ON s.ship_type_id = st.id WHERE s.id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
     const shipName = shipRes.rows[0].ship_name;
     const cfgFiles = readdirSync(SHIPS_DIR).filter(f => f.endsWith('.json'));
     let canEquip = false;
@@ -899,19 +899,19 @@ describe('BuyHyperwarpDrive', () => {
     }
 
     if (!canEquip) {
-      await pool.query(`UPDATE player_ships SET ship_name = '${SCOUT_NAME}' WHERE player_id = $1`, [playerId]);
+      await pool.query(`UPDATE ships SET ship_type_id = (SELECT id FROM ship_types WHERE name = '${SCOUT_NAME}') WHERE id = (SELECT ship_id FROM players WHERE id = $1)`, [playerId]);
     }
 
-    await pool.query('UPDATE ship_cargo SET credits = 100000 WHERE player_id = $1', [playerId]);
-    await pool.query('UPDATE player_ships SET has_hyperwarp_drive = false WHERE player_id = $1', [playerId]);
+    await pool.query('UPDATE players SET credits = 100000 WHERE id = $1', [playerId]);
+    await pool.query('UPDATE ships SET has_hyperwarp_drive = false WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
 
     const result = await wsRequest(wsConn, { type: ClientMsgType.BuyHyperwarpDrive }, ServerMsgType.BuyHyperwarpDriveResult);
     assert.equal(result.type, ServerMsgType.BuyHyperwarpDriveResult);
 
-    const driveRes = await pool.query('SELECT has_hyperwarp_drive FROM player_ships WHERE player_id = $1', [playerId]);
+    const driveRes = await pool.query('SELECT has_hyperwarp_drive FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
     assert.equal(driveRes.rows[0].has_hyperwarp_drive, true);
 
-    const creditsRes = await pool.query('SELECT credits FROM ship_cargo WHERE player_id = $1', [playerId]);
+    const creditsRes = await pool.query('SELECT credits FROM players WHERE id = $1', [playerId]);
     assert.equal(creditsRes.rows[0].credits, 50000);
 
     await closeWS(wsConn);
@@ -920,8 +920,8 @@ describe('BuyHyperwarpDrive', () => {
   it('Rejected when not at Starbase', async () => {
     const { token, playerId } = await joinUniverse(pool);
     const { ws: wsConn } = await ws(token);
-    await pool.query(`UPDATE player_ships SET ship_name = '${SCOUT_NAME}', has_hyperwarp_drive = false WHERE player_id = $1`, [playerId]);
-    await pool.query('UPDATE ship_cargo SET credits = 100000 WHERE player_id = $1', [playerId]);
+    await pool.query(`UPDATE ships SET ship_type_id = (SELECT id FROM ship_types WHERE name = '${SCOUT_NAME}'), has_hyperwarp_drive = false WHERE id = (SELECT ship_id FROM players WHERE id = $1)`, [playerId]);
+    await pool.query('UPDATE players SET credits = 100000 WHERE id = $1', [playerId]);
 
     const result = await wsRequest(wsConn, { type: ClientMsgType.BuyHyperwarpDrive }, ServerMsgType.BuyHyperwarpDriveResult);
     assert.equal(result.type, ServerMsgType.Error);
@@ -931,8 +931,8 @@ describe('BuyHyperwarpDrive', () => {
 
   it('Rejected when ship cannot equip hyperwarp', async () => {
     const { ws: wsConn, playerId } = await goToStarbase(pool);
-    await pool.query(`UPDATE player_ships SET ship_name = '${MERCHANT_NAME}' WHERE player_id = $1`, [playerId]);
-    await pool.query('UPDATE ship_cargo SET credits = 100000 WHERE player_id = $1', [playerId]);
+    await pool.query(`UPDATE ships SET ship_type_id = (SELECT id FROM ship_types WHERE name = '${MERCHANT_NAME}') WHERE id = (SELECT ship_id FROM players WHERE id = $1)`, [playerId]);
+    await pool.query('UPDATE players SET credits = 100000 WHERE id = $1', [playerId]);
 
     const result = await wsRequest(wsConn, { type: ClientMsgType.BuyHyperwarpDrive }, ServerMsgType.BuyHyperwarpDriveResult);
     assert.equal(result.type, ServerMsgType.Error);
@@ -943,8 +943,8 @@ describe('BuyHyperwarpDrive', () => {
 
   it('Rejected when already have hyperwarp drive', async () => {
     const { ws: wsConn, playerId } = await goToStarbase(pool);
-    await pool.query(`UPDATE player_ships SET ship_name = '${SCOUT_NAME}', has_hyperwarp_drive = true WHERE player_id = $1`, [playerId]);
-    await pool.query('UPDATE ship_cargo SET credits = 100000 WHERE player_id = $1', [playerId]);
+    await pool.query(`UPDATE ships SET ship_type_id = (SELECT id FROM ship_types WHERE name = '${SCOUT_NAME}'), has_hyperwarp_drive = true WHERE id = (SELECT ship_id FROM players WHERE id = $1)`, [playerId]);
+    await pool.query('UPDATE players SET credits = 100000 WHERE id = $1', [playerId]);
 
     const result = await wsRequest(wsConn, { type: ClientMsgType.BuyHyperwarpDrive }, ServerMsgType.BuyHyperwarpDriveResult);
     assert.equal(result.type, ServerMsgType.Error);
@@ -955,8 +955,8 @@ describe('BuyHyperwarpDrive', () => {
 
   it('Rejected when insufficient credits', async () => {
     const { ws: wsConn, playerId } = await goToStarbase(pool);
-    await pool.query(`UPDATE player_ships SET ship_name = '${SCOUT_NAME}', has_hyperwarp_drive = false WHERE player_id = $1`, [playerId]);
-    await pool.query('UPDATE ship_cargo SET credits = 100 WHERE player_id = $1', [playerId]);
+    await pool.query(`UPDATE ships SET ship_type_id = (SELECT id FROM ship_types WHERE name = '${SCOUT_NAME}'), has_hyperwarp_drive = false WHERE id = (SELECT ship_id FROM players WHERE id = $1)`, [playerId]);
+    await pool.query('UPDATE players SET credits = 100 WHERE id = $1', [playerId]);
 
     const result = await wsRequest(wsConn, { type: ClientMsgType.BuyHyperwarpDrive }, ServerMsgType.BuyHyperwarpDriveResult);
     assert.equal(result.type, ServerMsgType.Error);
@@ -967,8 +967,8 @@ describe('BuyHyperwarpDrive', () => {
 
   it('Buying hyperwarp drive costs 0 turns', async () => {
     const { ws: wsConn, playerId } = await goToStarbase(pool);
-    await pool.query(`UPDATE player_ships SET ship_name = '${SCOUT_NAME}', has_hyperwarp_drive = false WHERE player_id = $1`, [playerId]);
-    await pool.query('UPDATE ship_cargo SET credits = 100000 WHERE player_id = $1', [playerId]);
+    await pool.query(`UPDATE ships SET ship_type_id = (SELECT id FROM ship_types WHERE name = '${SCOUT_NAME}'), has_hyperwarp_drive = false WHERE id = (SELECT ship_id FROM players WHERE id = $1)`, [playerId]);
+    await pool.query('UPDATE players SET credits = 100000 WHERE id = $1', [playerId]);
     await pool.query('UPDATE players SET turns = 50 WHERE id = $1', [playerId]);
 
     await wsRequest(wsConn, { type: ClientMsgType.BuyHyperwarpDrive }, ServerMsgType.BuyHyperwarpDriveResult);
@@ -1054,7 +1054,7 @@ describe('HyperspaceJump', () => {
   async function setupJumpPlayer() {
     const { token, playerId } = await joinUniverse(pool);
     await pool.query('UPDATE players SET turns = 9999 WHERE id = $1', [playerId]);
-    await pool.query(`UPDATE player_ships SET ship_name = '${SCOUT_NAME}', has_hyperwarp_drive = true, turns_per_warp = 2 WHERE player_id = $1`, [playerId]);
+    await pool.query(`UPDATE ships SET ship_type_id = (SELECT id FROM ship_types WHERE name = '${SCOUT_NAME}'), has_hyperwarp_drive = true, turns_per_warp = 2 WHERE id = (SELECT ship_id FROM players WHERE id = $1)`, [playerId]);
     const { ws: wsConn } = await ws(token);
     return { ws: wsConn, token, playerId };
   }
@@ -1079,10 +1079,10 @@ describe('HyperspaceJump', () => {
     const fuelCost = hops * 3;
 
     await deployDronesInSector(pool, playerId, targetSector, 5);
-    await pool.query('UPDATE ship_cargo SET fuel = $1 WHERE player_id = $2', [fuelCost + 10, playerId]);
+    await pool.query('UPDATE ships SET fuel = $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)', [fuelCost + 10, playerId]);
     await pool.query('UPDATE players SET turns = 100 WHERE id = $1', [playerId]);
 
-    const tpw = (await pool.query('SELECT turns_per_warp FROM player_ships WHERE player_id = $1', [playerId])).rows[0].turns_per_warp;
+    const tpw = (await pool.query('SELECT turns_per_warp FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId])).rows[0].turns_per_warp;
 
     const result = await wsRequest(wsConn, { type: ClientMsgType.HyperspaceJump, targetSector }, ServerMsgType.HyperspaceJumpResult);
     assert.equal(result.type, ServerMsgType.HyperspaceJumpResult);
@@ -1090,7 +1090,7 @@ describe('HyperspaceJump', () => {
     assert.equal(result.fuelUsed, fuelCost);
     assert.equal(result.turnsUsed, tpw);
 
-    const fuelAfter = (await pool.query('SELECT fuel FROM ship_cargo WHERE player_id = $1', [playerId])).rows[0].fuel;
+    const fuelAfter = (await pool.query('SELECT fuel FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId])).rows[0].fuel;
     assert.equal(fuelAfter, fuelCost + 10 - fuelCost);
 
     const turnsAfter = (await pool.query('SELECT turns FROM players WHERE id = $1', [playerId])).rows[0].turns;
@@ -1106,7 +1106,7 @@ describe('HyperspaceJump', () => {
   it('Rejected when no hyperwarp drive', async () => {
     const { token, playerId } = await joinUniverse(pool);
     await pool.query('UPDATE players SET turns = 9999 WHERE id = $1', [playerId]);
-    await pool.query('UPDATE player_ships SET has_hyperwarp_drive = false WHERE player_id = $1', [playerId]);
+    await pool.query('UPDATE ships SET has_hyperwarp_drive = false WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
     const { ws: wsConn } = await ws(token);
 
     const adj = await getAdjacentSector(wsConn);
@@ -1125,7 +1125,7 @@ describe('HyperspaceJump', () => {
     const adj = await getAdjacentSector(wsConn);
 
     await pool.query('DELETE FROM sector_drones WHERE sector_id = $1 AND owner_id = $2', [adj, playerId]);
-    await pool.query('UPDATE ship_cargo SET fuel = 100 WHERE player_id = $1', [playerId]);
+    await pool.query('UPDATE ships SET fuel = 100 WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
 
     const result = await wsRequest(wsConn, { type: ClientMsgType.HyperspaceJump, targetSector: adj }, ServerMsgType.HyperspaceJumpResult);
     assert.equal(result.type, ServerMsgType.Error);
@@ -1140,7 +1140,7 @@ describe('HyperspaceJump', () => {
     const fuelCost = hops * 3;
 
     await deployDronesInSector(pool, playerId, targetSector, 5);
-    await pool.query('UPDATE ship_cargo SET fuel = $1 WHERE player_id = $2', [fuelCost - 1, playerId]);
+    await pool.query('UPDATE ships SET fuel = $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)', [fuelCost - 1, playerId]);
 
     const result = await wsRequest(wsConn, { type: ClientMsgType.HyperspaceJump, targetSector }, ServerMsgType.HyperspaceJumpResult);
     assert.equal(result.type, ServerMsgType.Error);
@@ -1156,7 +1156,7 @@ describe('HyperspaceJump', () => {
     const fuelCost = hops * 3;
 
     await deployDronesInSector(pool, playerId, targetSector, 5);
-    await pool.query('UPDATE ship_cargo SET fuel = $1 WHERE player_id = $2', [fuelCost + 10, playerId]);
+    await pool.query('UPDATE ships SET fuel = $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)', [fuelCost + 10, playerId]);
     await pool.query('UPDATE players SET turns = 0 WHERE id = $1', [playerId]);
 
     const result = await wsRequest(wsConn, { type: ClientMsgType.HyperspaceJump, targetSector }, ServerMsgType.HyperspaceJumpResult);
@@ -1173,14 +1173,14 @@ describe('HyperspaceJump', () => {
     const expectedFuelCost = hops * 3;
 
     await deployDronesInSector(pool, playerId, targetSector, 5);
-    await pool.query('UPDATE ship_cargo SET fuel = $1 WHERE player_id = $2', [1000, playerId]);
+    await pool.query('UPDATE ships SET fuel = $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)', [1000, playerId]);
     await pool.query('UPDATE players SET turns = 100 WHERE id = $1', [playerId]);
 
     const result = await wsRequest(wsConn, { type: ClientMsgType.HyperspaceJump, targetSector }, ServerMsgType.HyperspaceJumpResult);
     assert.equal(result.type, ServerMsgType.HyperspaceJumpResult);
     assert.equal(result.fuelUsed, expectedFuelCost);
 
-    const fuelAfter = (await pool.query('SELECT fuel FROM ship_cargo WHERE player_id = $1', [playerId])).rows[0].fuel;
+    const fuelAfter = (await pool.query('SELECT fuel FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId])).rows[0].fuel;
     assert.equal(fuelAfter, 1000 - expectedFuelCost);
 
     await pool.query('DELETE FROM sector_drones WHERE owner_id = $1', [playerId]);
@@ -1195,7 +1195,7 @@ describe('HyperspaceJump', () => {
       const fuelCost = hops * 3;
 
       await deployDronesInSector(pool, playerId, targetSector, 5);
-      await pool.query('UPDATE ship_cargo SET fuel = $1 WHERE player_id = $2', [fuelCost + 10, playerId]);
+      await pool.query('UPDATE ships SET fuel = $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)', [fuelCost + 10, playerId]);
       await pool.query('UPDATE players SET turns = 10 WHERE id = $1', [playerId]);
 
       const result = await wsRequest(wsConn, { type: ClientMsgType.HyperspaceJump, targetSector }, ServerMsgType.HyperspaceJumpResult);
@@ -1218,7 +1218,7 @@ describe('HyperspaceJump', () => {
       const { ws: wsConn, playerId } = await setupJumpPlayer();
       const adj = await getAdjacentSector(wsConn);
       await deployDronesInSector(pool, playerId, adj, 5);
-      await pool.query('UPDATE ship_cargo SET fuel = 100 WHERE player_id = $1', [playerId]);
+      await pool.query('UPDATE ships SET fuel = 100 WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
       await pool.query('UPDATE players SET turns = 0 WHERE id = $1', [playerId]);
 
       const result = await wsRequest(wsConn, { type: ClientMsgType.HyperspaceJump, targetSector: adj }, ServerMsgType.HyperspaceJumpResult);
@@ -1238,7 +1238,7 @@ describe('HyperspaceJump', () => {
     await ensureSellingPort(pool, adj);
     await clearSectorDrones(adj);
     await deployDronesInSector(pool, playerId, adj, 5);
-    await pool.query('UPDATE ship_cargo SET fuel = 100 WHERE player_id = $1', [playerId]);
+    await pool.query('UPDATE ships SET fuel = 100 WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
 
     await wsRequest(wsConn, { type: ClientMsgType.Move, sector: adj }, ServerMsgType.MoveResult);
     await wsRequest(wsConn, { type: ClientMsgType.Dock }, ServerMsgType.DockResult);
@@ -1256,7 +1256,7 @@ describe('HyperspaceJump', () => {
 
   it('Rejected when player is at Starbase', async () => {
     const { ws: wsConn, playerId } = await goToStarbase(pool);
-    await pool.query('UPDATE ship_cargo SET fuel = 100 WHERE player_id = $1', [playerId]);
+    await pool.query('UPDATE ships SET fuel = 100 WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
 
     const adj = await getAdjacentSector(wsConn);
     if (adj) {
@@ -1275,7 +1275,7 @@ describe('HyperspaceJump', () => {
     const planetId = await ensurePlanetInSector(1);
 
     await wsRequest(wsConn, { type: ClientMsgType.LandOnPlanet, planetId }, ServerMsgType.LandOnPlanetResult);
-    await pool.query('UPDATE ship_cargo SET fuel = 100 WHERE player_id = $1', [playerId]);
+    await pool.query('UPDATE ships SET fuel = 100 WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
 
     const adj = await getAdjacentSector(wsConn);
     if (adj) {
@@ -1294,7 +1294,7 @@ describe('HyperspaceJump', () => {
     const fakeSectorNumber = 99999;
     await pool.query(`INSERT INTO sectors (universe_id, sector_number) VALUES ($1, $2) ON CONFLICT (universe_id, sector_number) DO NOTHING`, [UNIVERSE_ID, fakeSectorNumber]);
     await deployDronesInSector(pool, playerId, fakeSectorNumber, 5);
-    await pool.query('UPDATE ship_cargo SET fuel = 1000 WHERE player_id = $1', [playerId]);
+    await pool.query('UPDATE ships SET fuel = 1000 WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
 
     const result = await wsRequest(wsConn, { type: ClientMsgType.HyperspaceJump, targetSector: fakeSectorNumber }, ServerMsgType.HyperspaceJumpResult);
     assert.equal(result.type, ServerMsgType.Error);

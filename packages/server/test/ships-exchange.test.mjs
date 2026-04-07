@@ -102,7 +102,7 @@ describe('Ship exchange — validation', () => {
     try {
       await navigateTo(ws, starbaseId);
       const upgradeCost = warbirdCfg.price - merchantCfg.price;
-      await pool.query('UPDATE ship_cargo SET credits = $1 WHERE player_id = $2', [upgradeCost - 1, playerId]);
+      await pool.query('UPDATE players SET credits = $1 WHERE id = $2', [upgradeCost - 1, playerId]);
       const msg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: warbirdCfg.name }, ServerMsgType.BuyShipTradeinResult);
       assert.equal(msg.type, 'error');
       assert.equal(msg.message, 'Insufficient credits');
@@ -118,8 +118,8 @@ describe('Ship exchange — validation', () => {
     const { ws, welcome } = await connectWS();
     const playerId = welcome.playerId;
     try {
-      // set fuel > warbird's startingHolds directly in ship_cargo to trigger the holds check on exchange
-      await pool.query('UPDATE ship_cargo SET fuel = $1 WHERE player_id = $2', [warbirdCfg.startingHolds + 1, playerId]);
+      // set fuel > warbird's startingHolds directly on ships to trigger the holds check on exchange
+      await pool.query('UPDATE ships SET fuel = $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)', [warbirdCfg.startingHolds + 1, playerId]);
 
       await navigateTo(ws, starbaseId);
       const msg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: warbirdCfg.name }, ServerMsgType.BuyShipTradeinResult);
@@ -155,11 +155,11 @@ describe('Ship exchange — success', () => {
       assert.equal(msg.cargoLimit, warbirdCfg.startingHolds);
 
       // Verify DB: drones and shields reset to 0
-      const shipRes = await pool.query('SELECT * FROM player_ships WHERE player_id = $1', [playerId]);
+      const shipRes = await pool.query('SELECT s.*, st.name as ship_name FROM ships s JOIN ship_types st ON s.ship_type_id = st.id WHERE s.id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
       assert.equal(shipRes.rows[0].ship_name, warbirdCfg.name);
       assert.equal(Number(shipRes.rows[0].drones), 0);
       assert.equal(Number(shipRes.rows[0].shields), 0);
-      assert.equal(Number(shipRes.rows[0].cargo_limit), warbirdCfg.startingHolds);
+      assert.equal(Number(shipRes.rows[0].holds), warbirdCfg.startingHolds);
     } finally {
       await closeWS(ws);
     }
@@ -180,7 +180,7 @@ describe('Ship exchange — success', () => {
       const msg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: warbirdCfg.name }, ServerMsgType.BuyShipTradeinResult);
       assert.equal(msg.type, ServerMsgType.BuyShipTradeinResult);
 
-      const shipRes = await pool.query('SELECT drones, shields FROM player_ships WHERE player_id = $1', [playerId]);
+      const shipRes = await pool.query('SELECT drones, shields FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
       assert.equal(Number(shipRes.rows[0].drones), 0, 'drones should be reset to 0 on exchange');
       assert.equal(Number(shipRes.rows[0].shields), 0, 'shields should be reset to 0 on exchange');
     } finally {

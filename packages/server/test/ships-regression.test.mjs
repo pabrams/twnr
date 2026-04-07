@@ -48,7 +48,8 @@ describe('Movement Constraint', () => {
     const { ws, welcome } = await connectWS();
     const playerId = welcome.playerId;
     try {
-      await pool.query('DELETE FROM player_ships WHERE player_id = $1', [playerId]);
+      await pool.query('UPDATE players SET ship_id = NULL WHERE id = $1', [playerId]);
+      await pool.query('DELETE FROM ships WHERE owner_id = $1', [playerId]);
 
       const adjRes = await pool.query('SELECT s_to.sector_number AS sector_to FROM warps w JOIN sectors s_from ON w.from_sector_id = s_from.id JOIN sectors s_to ON w.to_sector_id = s_to.id WHERE s_from.sector_number = 1 AND s_from.universe_id = $1 LIMIT 1', [UNIVERSE_ID]);
       const target = adjRes.rows.length > 0 ? Number(adjRes.rows[0].sector_to) : 2;
@@ -70,7 +71,7 @@ describe('Existing feature regression', () => {
     const { ws, welcome } = await connectWS();
     const playerId = welcome.playerId;
     try {
-      await pool.query('UPDATE ship_cargo SET fuel = 3 WHERE player_id = $1', [playerId]);
+      await pool.query('UPDATE ships SET fuel = 3 WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
       await navigateTo(ws, fuelSector);
       const msg = await wsRequest(ws, { type: ClientMsgType.PortTransaction, good: 'fuel', quantity: 2, action: 'sell' }, ServerMsgType.PortTransactionResult);
       assert.equal(msg.type,  ServerMsgType.PortTransactionResult);
@@ -79,13 +80,13 @@ describe('Existing feature regression', () => {
     }
   });
 
-  it('deleting a player cascades to player_ships', async () => {
+  it('deleting a player cascades to ships', async () => {
     const { ws, welcome } = await connectWS();
     const playerId = welcome.playerId;
     await closeWS(ws);
 
     await pool.query('DELETE FROM players WHERE id = $1', [playerId]);
-    const res = await pool.query('SELECT * FROM player_ships WHERE player_id = $1', [playerId]);
-    assert.equal(res.rows.length, 0, 'player_ships row should be deleted via cascade');
+    const res = await pool.query('SELECT * FROM ships WHERE owner_id = $1', [playerId]);
+    assert.equal(res.rows.length, 0, 'ships row should be deleted via cascade');
   });
 });
