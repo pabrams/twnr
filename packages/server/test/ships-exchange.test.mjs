@@ -147,7 +147,7 @@ describe('Ship exchange — success', () => {
     try {
       await navigateTo(ws, stardockId);
       const msg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: warbirdCfg.name }, ServerMsgType.BuyShipTradeinResult);
-      assert.equal(msg.type, ServerMsgType.buyShipTradeinResult);
+      assert.equal(msg.type, ServerMsgType.BuyShipTradeinResult);
       assert.equal(msg.shipName, warbirdCfg.name);
       assert.equal(msg.credits, STARTING_CREDITS - upgradeCost);
       assert.equal(msg.maxFighters, warbirdCfg.maxFighters);
@@ -178,7 +178,7 @@ describe('Ship exchange — success', () => {
 
       await navigateTo(ws, stardockId);
       const msg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: warbirdCfg.name }, ServerMsgType.BuyShipTradeinResult);
-      assert.equal(msg.type, ServerMsgType.buyShipTradeinResult);
+      assert.equal(msg.type, ServerMsgType.BuyShipTradeinResult);
 
       const shipRes = await pool.query('SELECT fighters, shields FROM player_ships WHERE player_id = $1', [playerId]);
       assert.equal(Number(shipRes.rows[0].fighters), 0, 'fighters should be reset to 0 on exchange');
@@ -199,7 +199,7 @@ describe('Ship exchange — success', () => {
       await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: warbirdCfg.name }, ServerMsgType.BuyShipTradeinResult);
       // Now downgrade
       const msg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: merchantCfg.name }, ServerMsgType.BuyShipTradeinResult);
-      assert.equal(msg.type, ServerMsgType.buyShipTradeinResult);
+      assert.equal(msg.type, ServerMsgType.BuyShipTradeinResult);
       assert.equal(msg.shipName, merchantCfg.name);
       assert.equal(msg.credits, STARTING_CREDITS, 'credits restored after upgrade then downgrade');
       assert.equal(msg.cargoLimit, merchantCfg.startingHolds);
