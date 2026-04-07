@@ -233,10 +233,9 @@ export function createAdminPortRoutes(
                 const sectorDbId = sectorRes.rows[0].id;
 
                 // Check no existing port
-                const existingPort = await pool.query(
-                    'SELECT id FROM ports WHERE sector_id = $1',
-                    [sectorDbId],
-                );
+                const existingPort = await pool.query('SELECT id FROM ports WHERE sector_id = $1', [
+                    sectorDbId,
+                ]);
                 if (existingPort.rows.length > 0) {
                     return res.status(409).json({ error: 'Port already exists' });
                 }

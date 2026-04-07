@@ -18,12 +18,18 @@ export async function handleDeployFightersInfo(ws: WebSocket, playerId: number):
     if (!player) return;
 
     if (player.docked) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Cannot deploy while docked' });
+        sendEnvelope(playerId, {
+            type: ServerMsgType.Error,
+            message: 'Cannot deploy while docked',
+        });
         return;
     }
 
     if (player.pendingEncounter) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Resolve fighter encounter first' });
+        sendEnvelope(playerId, {
+            type: ServerMsgType.Error,
+            message: 'Resolve fighter encounter first',
+        });
         return;
     }
 
@@ -41,7 +47,10 @@ export async function handleDeployFightersInfo(ws: WebSocket, playerId: number):
 
     // Only show own fighters or no fighters; can't deploy into hostile sector
     if (sectorFighters && sectorFighters.ownerId !== playerId) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Sector contains hostile fighters' });
+        sendEnvelope(playerId, {
+            type: ServerMsgType.Error,
+            message: 'Sector contains hostile fighters',
+        });
         return;
     }
 
@@ -68,12 +77,18 @@ export async function handleDeployFighters(
     if (!player) return;
 
     if (player.docked) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Cannot deploy while docked' });
+        sendEnvelope(playerId, {
+            type: ServerMsgType.Error,
+            message: 'Cannot deploy while docked',
+        });
         return;
     }
 
     if (player.pendingEncounter) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Resolve fighter encounter first' });
+        sendEnvelope(playerId, {
+            type: ServerMsgType.Error,
+            message: 'Resolve fighter encounter first',
+        });
         return;
     }
 
@@ -203,7 +218,10 @@ export async function handleAttackSectorFighters(
     fightersToAttack: number,
 ): Promise<void> {
     if (!Number.isInteger(fightersToAttack) || fightersToAttack <= 0) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid number of fighters' });
+        sendEnvelope(playerId, {
+            type: ServerMsgType.Error,
+            message: 'Invalid number of fighters',
+        });
         return;
     }
 
@@ -211,7 +229,10 @@ export async function handleAttackSectorFighters(
     if (!player) return;
 
     if (!player.pendingEncounter) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'No fighter encounter pending' });
+        sendEnvelope(playerId, {
+            type: ServerMsgType.Error,
+            message: 'No fighter encounter pending',
+        });
         return;
     }
 
@@ -256,7 +277,10 @@ export async function handleAttackSectorFighters(
         if (sfRes.rows.length === 0 || sfRes.rows[0].quantity <= 0) {
             await client.query('ROLLBACK');
             player.pendingEncounter = undefined;
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'No hostile fighters in sector' });
+            sendEnvelope(playerId, {
+                type: ServerMsgType.Error,
+                message: 'No hostile fighters in sector',
+            });
             return;
         }
 
@@ -329,7 +353,10 @@ export async function handleRetreatFromFighters(ws: WebSocket, playerId: number)
     if (!player) return;
 
     if (!player.pendingEncounter) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'No fighter encounter pending' });
+        sendEnvelope(playerId, {
+            type: ServerMsgType.Error,
+            message: 'No fighter encounter pending',
+        });
         return;
     }
 
@@ -366,7 +393,10 @@ export async function handleRetreatFromFighters(ws: WebSocket, playerId: number)
     player.pendingEncounter = undefined;
     await setPlayerMenu(playerId, 'sector');
 
-    sendEnvelope(playerId, { type: ServerMsgType.RetreatFromFightersResult, sector: retreatSector });
+    sendEnvelope(playerId, {
+        type: ServerMsgType.RetreatFromFightersResult,
+        sector: retreatSector,
+    });
 
     // Send sector display for the retreat sector
     const [warps, port, visitedSectors, sectorFighters, planetsRes] = await Promise.all([

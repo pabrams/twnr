@@ -18,7 +18,10 @@ export async function handleLand(ws: WebSocket, playerId: number): Promise<void>
     if (!player) return;
 
     if (player.pendingEncounter) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Resolve fighter encounter first' });
+        sendEnvelope(playerId, {
+            type: ServerMsgType.Error,
+            message: 'Resolve fighter encounter first',
+        });
         return;
     }
 
@@ -44,7 +47,10 @@ export async function handleLandOnPlanet(
     if (!player) return;
 
     if (player.pendingEncounter) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Resolve fighter encounter first' });
+        sendEnvelope(playerId, {
+            type: ServerMsgType.Error,
+            message: 'Resolve fighter encounter first',
+        });
         return;
     }
 
@@ -56,7 +62,10 @@ export async function handleLandOnPlanet(
     );
 
     if (planetRes.rows.length === 0) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Planet not found in this sector' });
+        sendEnvelope(playerId, {
+            type: ServerMsgType.Error,
+            message: 'Planet not found in this sector',
+        });
         return;
     }
 
@@ -171,7 +180,11 @@ export async function handleLeavePlanet(ws: WebSocket, playerId: number): Promis
 
     const data = await buildSectorDisplayData(playerId);
     if (!data) return;
-    sendEnvelope(playerId, { type: ServerMsgType.LeavePlanetResult, ...data, turnsUsed: turnResult.turnsUsed });
+    sendEnvelope(playerId, {
+        type: ServerMsgType.LeavePlanetResult,
+        ...data,
+        turnsUsed: turnResult.turnsUsed,
+    });
 }
 
 export async function handleDestroyPlanet(ws: WebSocket, playerId: number): Promise<void> {
@@ -193,7 +206,10 @@ export async function handleDestroyPlanet(ws: WebSocket, playerId: number): Prom
         [playerId],
     );
     if (shipRes.rows.length === 0 || shipRes.rows[0].planet_busters < 1) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'You do not have a planet buster.' });
+        sendEnvelope(playerId, {
+            type: ServerMsgType.Error,
+            message: 'You do not have a planet buster.',
+        });
         return;
     }
 
@@ -251,7 +267,10 @@ export async function handleUseTerraformDevice(ws: WebSocket, playerId: number):
     const universeId = player.universeId;
 
     if (player.pendingEncounter) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Resolve fighter encounter first' });
+        sendEnvelope(playerId, {
+            type: ServerMsgType.Error,
+            message: 'Resolve fighter encounter first',
+        });
         return;
     }
 
@@ -352,7 +371,10 @@ export async function handleUseTerraformDevice(ws: WebSocket, playerId: number):
     } catch (err) {
         await client.query('ROLLBACK');
         console.error('Use terraform device error', err);
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Failed to use terraform device.' });
+        sendEnvelope(playerId, {
+            type: ServerMsgType.Error,
+            message: 'Failed to use terraform device.',
+        });
     } finally {
         client.release();
     }

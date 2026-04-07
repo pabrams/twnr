@@ -62,7 +62,10 @@ export async function handleDock(ws: WebSocket, playerId: number): Promise<void>
     }
 
     if (player.pendingEncounter) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Resolve fighter encounter first' });
+        sendEnvelope(playerId, {
+            type: ServerMsgType.Error,
+            message: 'Resolve fighter encounter first',
+        });
         return;
     }
 
@@ -104,7 +107,11 @@ export async function handleUndock(ws: WebSocket, playerId: number): Promise<voi
     if (!player) return;
 
     if (!player.docked) {
-        sendEnvelope(playerId, { type: ServerMsgType.UndockResult, outcome: 'error', message: 'Not docked' });
+        sendEnvelope(playerId, {
+            type: ServerMsgType.UndockResult,
+            outcome: 'error',
+            message: 'Not docked',
+        });
         return;
     }
 
@@ -207,7 +214,10 @@ export async function handlePortTransaction(
         );
         if (portRes.rows.length === 0) {
             await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'No port in this sector' });
+            sendEnvelope(playerId, {
+                type: ServerMsgType.Error,
+                message: 'No port in this sector',
+            });
             return;
         }
 
@@ -225,7 +235,10 @@ export async function handlePortTransaction(
             (action === 'sell' && portActions[good] !== 'B')
         ) {
             await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Port does not trade this commodity' });
+            sendEnvelope(playerId, {
+                type: ServerMsgType.Error,
+                message: 'Port does not trade this commodity',
+            });
             return;
         }
 
@@ -253,19 +266,28 @@ export async function handlePortTransaction(
             const turnResult = await checkAndDeductTurns(playerId, universeId, 1);
             if (!turnResult.allowed) {
                 await client.query('ROLLBACK');
-                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient turns' });
+                sendEnvelope(playerId, {
+                    type: ServerMsgType.Error,
+                    message: 'Insufficient turns',
+                });
                 return;
             }
 
             const cost = qty * price;
             if (cargo.credits < cost) {
                 await client.query('ROLLBACK');
-                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient credits' });
+                sendEnvelope(playerId, {
+                    type: ServerMsgType.Error,
+                    message: 'Insufficient credits',
+                });
                 return;
             }
             if (port[good] < qty) {
                 await client.query('ROLLBACK');
-                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient port inventory' });
+                sendEnvelope(playerId, {
+                    type: ServerMsgType.Error,
+                    message: 'Insufficient port inventory',
+                });
                 return;
             }
             if (
@@ -273,14 +295,17 @@ export async function handlePortTransaction(
                 cargo.cargo_limit
             ) {
                 await client.query('ROLLBACK');
-                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient cargo holds' });
+                sendEnvelope(playerId, {
+                    type: ServerMsgType.Error,
+                    message: 'Insufficient cargo holds',
+                });
                 return;
             }
 
-            await client.query(
-                `UPDATE ports SET ${col} = ${col} - $1 WHERE id = $2`,
-                [qty, port.port_id],
-            );
+            await client.query(`UPDATE ports SET ${col} = ${col} - $1 WHERE id = $2`, [
+                qty,
+                port.port_id,
+            ]);
             await client.query(
                 `UPDATE ship_cargo SET ${col} = ${col} + $1, credits = credits - $2 WHERE player_id = $3`,
                 [qty, cost, playerId],
@@ -304,14 +329,17 @@ export async function handlePortTransaction(
             const revenue = qty * price;
             if (cargo[good] < qty) {
                 await client.query('ROLLBACK');
-                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient cargo' });
+                sendEnvelope(playerId, {
+                    type: ServerMsgType.Error,
+                    message: 'Insufficient cargo',
+                });
                 return;
             }
 
-            await client.query(
-                `UPDATE ports SET ${col} = ${col} + $1 WHERE id = $2`,
-                [qty, port.port_id],
-            );
+            await client.query(`UPDATE ports SET ${col} = ${col} + $1 WHERE id = $2`, [
+                qty,
+                port.port_id,
+            ]);
             await client.query(
                 `UPDATE ship_cargo SET ${col} = ${col} - $1, credits = credits + $2 WHERE player_id = $3`,
                 [qty, revenue, playerId],
@@ -345,7 +373,10 @@ export async function handleDockStardock(ws: WebSocket, playerId: number): Promi
     if (!player) return;
 
     if (player.pendingEncounter) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Resolve fighter encounter first' });
+        sendEnvelope(playerId, {
+            type: ServerMsgType.Error,
+            message: 'Resolve fighter encounter first',
+        });
         return;
     }
 
@@ -355,7 +386,10 @@ export async function handleDockStardock(ws: WebSocket, playerId: number): Promi
         [player.sector, player.universeId],
     );
     if (portRes.rows.length === 0 || portRes.rows[0].class !== 9) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Stardock not found in this sector' });
+        sendEnvelope(playerId, {
+            type: ServerMsgType.Error,
+            message: 'Stardock not found in this sector',
+        });
         return;
     }
 

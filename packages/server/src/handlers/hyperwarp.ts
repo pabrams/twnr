@@ -31,13 +31,19 @@ export async function handleBuyHyperwarpDrive(ws: WebSocket, playerId: number): 
         const config = shipConfigs[shipRes.rows[0].ship_name];
         if (!config || config.canHaveHyperwarp === false) {
             await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Ship incapable of hyperwarp drive' });
+            sendEnvelope(playerId, {
+                type: ServerMsgType.Error,
+                message: 'Ship incapable of hyperwarp drive',
+            });
             return;
         }
 
         if (shipRes.rows[0].has_hyperwarp_drive) {
             await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Ship already has hyperwarp drive' });
+            sendEnvelope(playerId, {
+                type: ServerMsgType.Error,
+                message: 'Ship already has hyperwarp drive',
+            });
             return;
         }
 
@@ -77,7 +83,10 @@ export async function handleListDeployedFighters(ws: WebSocket, playerId: number
     if (!player) return;
 
     if (player.docked || player.at_stardock) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Cannot use this command while docked' });
+        sendEnvelope(playerId, {
+            type: ServerMsgType.Error,
+            message: 'Cannot use this command while docked',
+        });
         return;
     }
 
@@ -115,7 +124,10 @@ export async function handleHyperspaceJump(
     if (!player) return;
 
     if (player.docked || player.at_stardock) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Cannot use this command while docked' });
+        sendEnvelope(playerId, {
+            type: ServerMsgType.Error,
+            message: 'Cannot use this command while docked',
+        });
         return;
     }
 
@@ -140,7 +152,10 @@ export async function handleHyperspaceJump(
         return;
     }
     if (!shipRes.rows[0].has_hyperwarp_drive) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Hyperwarp drive not equipped' });
+        sendEnvelope(playerId, {
+            type: ServerMsgType.Error,
+            message: 'Hyperwarp drive not equipped',
+        });
         return;
     }
 
@@ -208,7 +223,10 @@ export async function handleHyperspaceJump(
         playerId,
     ]);
     if (cargoRes.rows.length === 0 || cargoRes.rows[0].fuel < fuelCost) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient fuel for hyperspace jump' });
+        sendEnvelope(playerId, {
+            type: ServerMsgType.Error,
+            message: 'Insufficient fuel for hyperspace jump',
+        });
         return;
     }
 

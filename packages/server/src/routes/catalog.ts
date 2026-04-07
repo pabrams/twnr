@@ -56,7 +56,7 @@ export function createCatalogRoutes(router: Router, middleware: Middleware): voi
                 name: m.name,
                 label: m.label,
                 parentMenu: m.parent_menu_id
-                    ? (menuMap.get(m.parent_menu_id) as any)?.name ?? null
+                    ? ((menuMap.get(m.parent_menu_id) as any)?.name ?? null)
                     : null,
                 commands: commands
                     .filter((c: any) => c.menu_id === m.id)
@@ -67,7 +67,7 @@ export function createCatalogRoutes(router: Router, middleware: Middleware): voi
                         actionType: c.action_type,
                         clientMsgType: c.client_msg_type || null,
                         targetMenu: c.target_menu_id
-                            ? (menuMap.get(c.target_menu_id) as any)?.name ?? null
+                            ? ((menuMap.get(c.target_menu_id) as any)?.name ?? null)
                             : null,
                         sortOrder: c.sort_order,
                     })),
