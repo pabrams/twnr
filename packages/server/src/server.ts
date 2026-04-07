@@ -175,7 +175,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             }
 
             try {
-                await handleMessage(ws, playerId, data);
+                await handleMessage(playerId, data);
             } catch (err) {
                 console.error('Message handler error:', err);
                 sendEnvelope(playerId, {

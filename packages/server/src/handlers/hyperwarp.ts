@@ -1,11 +1,10 @@
-import { WebSocket } from 'ws';
 import { ServerMsgType } from '@twnr/shared';
 import { players, sendEnvelope, getGraph } from '../game-state.js';
 import { pool } from '../db/index.js';
 import { shipConfigs } from '../ship-config.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 
-export async function handleBuyHyperwarpDrive(ws: WebSocket, playerId: number): Promise<void> {
+export async function handleBuyHyperwarpDrive(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
@@ -78,7 +77,7 @@ export async function handleBuyHyperwarpDrive(ws: WebSocket, playerId: number): 
     }
 }
 
-export async function handleListDeployedFighters(ws: WebSocket, playerId: number): Promise<void> {
+export async function handleListDeployedFighters(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
@@ -115,11 +114,7 @@ export async function handleListDeployedFighters(ws: WebSocket, playerId: number
     });
 }
 
-export async function handleHyperspaceJump(
-    ws: WebSocket,
-    playerId: number,
-    targetSector: number,
-): Promise<void> {
+export async function handleHyperspaceJump(playerId: number, targetSector: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 

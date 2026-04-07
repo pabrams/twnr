@@ -1,9 +1,8 @@
-import { WebSocket } from 'ws';
 import { ServerMsgType } from '@twnr/shared';
 import { sendEnvelope } from '../game-state.js';
 import { pool } from '../db/index.js';
 
-export async function handleJettison(ws: WebSocket, playerId: number): Promise<void> {
+export async function handleJettison(playerId: number): Promise<void> {
     const cargoRes = await pool.query(
         'SELECT fuel, organics, equipment, colonists FROM ship_cargo WHERE player_id = $1',
         [playerId],

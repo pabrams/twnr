@@ -2,11 +2,11 @@ import { ClientMsgType } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { showPrompt } from './display.js';
 import { showAttackFightersPrompt, showFighterAttackQtyPrompt } from './display-combat.js';
-import { colors, MenuMode } from './constants.js';
+import { colors } from './constants.js';
 
 export function handleAttackInput(ctx: GameContext, line: string) {
     if (line.toLowerCase() === 'q') {
-        ctx.setMode(MenuMode.Sector);
+        ctx.setMode('sector');
         showPrompt(ctx);
         return;
     }
@@ -21,7 +21,7 @@ export function handleAttackInput(ctx: GameContext, line: string) {
 
 export function handleAttackFightersInput(ctx: GameContext, line: string) {
     if (line.toLowerCase() === 'q') {
-        ctx.setMode(MenuMode.Sector);
+        ctx.setMode('sector');
         showPrompt(ctx);
         return;
     }
@@ -39,7 +39,7 @@ export function handleAttackFightersInput(ctx: GameContext, line: string) {
 
 export function handleDeployFightersQtyInput(ctx: GameContext, line: string) {
     if (line.toLowerCase() === 'q') {
-        ctx.setMode(MenuMode.Sector);
+        ctx.setMode('sector');
         showPrompt(ctx);
         return;
     }
@@ -67,7 +67,7 @@ export function handleFighterEncounterInput(ctx: GameContext, line: string) {
 
 export function handleFighterAttackQtyInput(ctx: GameContext, line: string) {
     if (line.toLowerCase() === 'q') {
-        ctx.setMode(MenuMode.FighterEncounter);
+        ctx.setMode('fighterEncounter');
         return;
     }
     const qty = parseInt(line, 10);

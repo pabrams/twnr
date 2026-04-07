@@ -1,9 +1,9 @@
 import type { GameContext } from './types.js';
-import { colors, MenuMode } from './constants.js';
+import { colors } from './constants.js';
 import { showPrompt } from './display.js';
 
 export function showPlanetMenu(ctx: GameContext, name: string, colonists: number) {
-    ctx.setMode(MenuMode.Planet);
+    ctx.setMode('planet');
     ctx.term.writeln('');
     ctx.term.writeln(
         `${colors.boldGreen('Landing on')} ${colors.boldCyan(name)}${colors.boldYellow('...')}`,
@@ -18,12 +18,12 @@ export function showPlanetMenu(ctx: GameContext, name: string, colonists: number
 }
 
 export function showPlanetTakePrompt(ctx: GameContext) {
-    ctx.setMode(MenuMode.PlanetTakeQty);
+    ctx.setMode('planetTakeQty');
     ctx.term.write(`\r\n${colors.cyan('How many colonists to take?')} `);
 }
 
 export function showPlanetLeavePrompt(ctx: GameContext) {
-    ctx.setMode(MenuMode.PlanetLeaveQty);
+    ctx.setMode('planetLeaveQty');
     ctx.term.write(`\r\n${colors.cyan('How many colonists to leave?')} `);
 }
 

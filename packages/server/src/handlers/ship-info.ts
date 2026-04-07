@@ -1,10 +1,9 @@
-import { WebSocket } from 'ws';
 import { ServerMsgType } from '@twnr/shared';
 import { shipConfigs } from '../ship-config.js';
 import { sendEnvelope } from '../game-state.js';
 import { pool } from '../db/index.js';
 
-export async function handleShipInfo(ws: WebSocket, playerId: number): Promise<void> {
+export async function handleShipInfo(playerId: number): Promise<void> {
     const query = `
         SELECT ps.ship_name, ps.fighters, ps.shields, ps.cargo_limit, ps.planet_busters, ps.terraform_devices,
                ps.turns_per_warp, ps.has_hyperwarp_drive,
@@ -55,7 +54,7 @@ export async function handleShipInfo(ws: WebSocket, playerId: number): Promise<v
     });
 }
 
-export async function handleCargoInfo(ws: WebSocket, playerId: number): Promise<void> {
+export async function handleCargoInfo(playerId: number): Promise<void> {
     const cargoRes = await pool.query(
         'SELECT player_id, fuel, organics, equipment, colonists, credits FROM ship_cargo WHERE player_id = $1',
         [playerId],

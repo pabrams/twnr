@@ -99,10 +99,6 @@ export function broadcastTo(data: ServerResult, targetClients: Set<WebSocket> | 
     }
 }
 
-export function send(ws: WebSocket, data: ServerResult) {
-    ws.send(JSON.stringify(data));
-}
-
 export function sendEnvelope(playerId: number, data: ServerResult) {
     const player = players[playerId];
     if (!player || player.ws.readyState !== 1) return;

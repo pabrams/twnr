@@ -1,4 +1,3 @@
-import { WebSocket } from 'ws';
 import { ServerMsgType } from '@twnr/shared';
 import { shipConfigs } from '../ship-config.js';
 import { sendEnvelope, getPlayerUniverseId } from '../game-state.js';
@@ -6,11 +5,7 @@ import { pool } from '../db/index.js';
 import { class0Prices } from '../game-config.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 
-export async function handleBuyFighters(
-    ws: WebSocket,
-    playerId: number,
-    quantity: number,
-): Promise<void> {
+export async function handleBuyFighters(playerId: number, quantity: number): Promise<void> {
     const qty = Number(quantity);
     if (!Number.isInteger(qty) || qty <= 0) {
         sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid quantity' });
@@ -97,11 +92,7 @@ export async function handleBuyFighters(
     }
 }
 
-export async function handleBuyShields(
-    ws: WebSocket,
-    playerId: number,
-    quantity: number,
-): Promise<void> {
+export async function handleBuyShields(playerId: number, quantity: number): Promise<void> {
     const qty = Number(quantity);
     if (!Number.isInteger(qty) || qty <= 0) {
         sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid quantity' });
@@ -188,11 +179,7 @@ export async function handleBuyShields(
     }
 }
 
-export async function handleBuyHolds(
-    ws: WebSocket,
-    playerId: number,
-    quantity: number,
-): Promise<void> {
+export async function handleBuyHolds(playerId: number, quantity: number): Promise<void> {
     const qty = Number(quantity);
     if (!Number.isInteger(qty) || qty <= 0) {
         sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid quantity' });

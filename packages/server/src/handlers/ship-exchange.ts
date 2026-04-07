@@ -1,11 +1,9 @@
-import { WebSocket } from 'ws';
 import { ServerMsgType } from '@twnr/shared';
 import { shipConfigs } from '../ship-config.js';
 import { sendEnvelope, getPlayerUniverseId } from '../game-state.js';
 import { pool } from '../db/index.js';
 
 export async function handleBuyShipTradein(
-    ws: WebSocket,
     playerId: number,
     targetShipName: string,
 ): Promise<void> {

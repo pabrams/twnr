@@ -1,6 +1,5 @@
 import type { Terminal } from '@xterm/xterm';
 import type { ClientCommand, PortInfoResultObject, MenuEntry } from '@twnr/shared';
-import { MenuMode } from './constants.js';
 import { colors } from './constants.js';
 
 export interface GameContext {
@@ -8,7 +7,7 @@ export interface GameContext {
     currentSector: number;
     currentPort: { class: number; name: string } | null;
     dockedPortInfo: PortInfoResultObject | null;
-    mode: MenuMode;
+    mode: string;
     visitedSet: Set<number>;
     playerName: string;
     playerId: number;
@@ -22,7 +21,7 @@ export interface GameContext {
     universeId: number;
     ws: WebSocket;
     sendMsg: (msg: ClientCommand) => void;
-    setMode: (mode: MenuMode) => void;
+    setMode: (mode: string) => void;
     setCurrentSector: (sector: number) => void;
     setCurrentPort: (port: { class: number; name: string } | null) => void;
     setVisitedSet: (set: Set<number>) => void;

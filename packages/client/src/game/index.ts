@@ -1,7 +1,6 @@
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import type { ClientCommand, PortInfoResultObject, MenuEntry } from '@twnr/shared';
-import { MenuMode } from './constants.js';
 import type { GameContext } from './types.js';
 import { setupConnection } from './connection.js';
 import { setupInput } from './input.js';
@@ -27,7 +26,7 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
     const wsProtocol = location.protocol === 'https:' ? 'wss' : 'ws';
     const ws = new WebSocket(`${wsProtocol}://${location.host}/ws?universe=${universeId}`);
 
-    let mode: MenuMode = MenuMode.Sector;
+    let mode = 'sector';
     let currentSector = 0;
     let currentPort: { class: number; name: string } | null = null;
     let dockedPortInfo: PortInfoResultObject | null = null;
