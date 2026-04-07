@@ -32,7 +32,7 @@ export function handleComputerInput(ctx: GameContext, line: string) {
             showCurrentShipSpecs(ctx);
             break;
         case 'q':
-            ctx.setMode('sector');
+            ctx.changeMenu('sector');
             showPrompt(ctx);
             break;
         default:

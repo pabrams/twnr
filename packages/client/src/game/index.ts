@@ -1,5 +1,6 @@
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
+import { ClientMsgType } from '@twnr/shared';
 import type { ClientCommand, PortInfoResultObject, MenuEntry } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { setupConnection } from './connection.js';
@@ -118,6 +119,10 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
         sendMsg,
         setMode: (m) => {
             mode = m;
+        },
+        changeMenu: (m) => {
+            mode = m;
+            sendMsg({ type: ClientMsgType.ChangeMenu, menu: m });
         },
         setCurrentSector: (s) => {
             currentSector = s;

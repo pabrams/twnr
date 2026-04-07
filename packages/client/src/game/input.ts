@@ -101,7 +101,7 @@ function handleInput(ctx: GameContext, line: string) {
         case 'shipInfo':
         case 'playerInfo':
             if (line.toLowerCase() === 'q') {
-                ctx.setMode('sector');
+                ctx.changeMenu('sector');
                 showPrompt(ctx);
             }
             return;
@@ -225,7 +225,7 @@ function handlePortInput(ctx: GameContext, line: string) {
             ctx.sendMsg({ type: ClientMsgType.Dock });
             break;
         case 'q':
-            ctx.setMode('sector');
+            ctx.changeMenu('sector');
             showPrompt(ctx);
             break;
         default:

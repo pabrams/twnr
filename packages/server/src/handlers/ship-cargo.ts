@@ -1,5 +1,5 @@
 import { ServerMsgType } from '@twnr/shared';
-import { sendEnvelope } from '../game-state.js';
+import { sendEnvelope, setPlayerMenu } from '../game-state.js';
 import { pool } from '../db/index.js';
 
 export async function handleJettison(playerId: number): Promise<void> {
@@ -28,6 +28,7 @@ export async function handleJettison(playerId: number): Promise<void> {
         [playerId],
     );
 
+    await setPlayerMenu(playerId, 'sector');
     sendEnvelope(playerId, {
         type: ServerMsgType.JettisonResult,
         outcome: 'success',

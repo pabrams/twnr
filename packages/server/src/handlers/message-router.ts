@@ -1,5 +1,6 @@
 import { ClientMsgType, ServerMsgType } from '@twnr/shared';
-import { players, sendEnvelope } from '../game-state.js';
+import { players, sendEnvelope, setPlayerMenu } from '../game-state.js';
+import { handleChangeMenu } from './menu.js';
 import { handleMove, handleSectorDisplay, handleWarpsOut, handleShortestPath } from './movement.js';
 import {
     handlePortInfo,
@@ -110,6 +111,8 @@ export async function handleMessage(playerId: number, data: any): Promise<void> 
             return handleListDeployedFighters(playerId);
         case ClientMsgType.HyperspaceJump:
             return handleHyperspaceJump(playerId, data.targetSector);
+        case ClientMsgType.ChangeMenu:
+            return handleChangeMenu(playerId, data.menu);
         default:
             sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Unknown message type' });
     }

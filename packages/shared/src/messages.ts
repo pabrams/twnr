@@ -47,6 +47,7 @@ export const ServerMsgType = {
     BuyHyperwarpDriveResult: 'buyHyperwarpDriveResult',
     ListDeployedFightersResult: 'listDeployedFightersResult',
     HyperspaceJumpResult: 'hyperspaceJumpResult',
+    MenuChanged: 'menuChanged',
 } as const;
 type ServerMsgType = typeof ServerMsgType;
 
@@ -87,5 +88,6 @@ export const ClientMsgType = {
     BuyHyperwarpDrive: 'buyHyperwarpDrive',
     ListDeployedFighters: 'listDeployedFighters',
     HyperspaceJump: 'hyperspaceJump',
+    ChangeMenu: 'changeMenu',
 } as const;
 type ClientMsgType = typeof ClientMsgType;

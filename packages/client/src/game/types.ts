@@ -22,6 +22,8 @@ export interface GameContext {
     ws: WebSocket;
     sendMsg: (msg: ClientCommand) => void;
     setMode: (mode: string) => void;
+    /** Optimistically set mode locally AND notify server */
+    changeMenu: (menu: string) => void;
     setCurrentSector: (sector: number) => void;
     setCurrentPort: (port: { class: number; name: string } | null) => void;
     setVisitedSet: (set: Set<number>) => void;
