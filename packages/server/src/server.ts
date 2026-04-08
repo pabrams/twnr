@@ -118,8 +118,13 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
         const sectorId: number = playerRow.current_sector_id;
         const sector: number = playerRow.sector_number;
 
-        // Undock on connect (in case of prior disconnect while docked)
-        await pool.query('UPDATE players SET docked = FALSE WHERE id = $1', [playerId]);
+        // Undock on connect (in case of prior disconnect while docked) and set login timestamp
+        await pool.query(
+            'UPDATE players SET docked = FALSE, last_login_at = NOW() WHERE id = $1',
+            [playerId],
+        );
+        // Update user last connected timestamp
+        await pool.query('UPDATE users SET last_connected_at = NOW() WHERE id = $1', [userId]);
         // Mark current sector as visited
         await pool.query(
             'INSERT INTO visited_sectors (player_id, sector_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
@@ -196,6 +201,11 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             const lastSector = players[playerId]?.sector;
             const lastUniverse = players[playerId]?.universeId;
             delete players[playerId];
+
+            // Record logout/disconnect timestamp
+            pool.query('UPDATE players SET last_logout_at = NOW() WHERE id = $1', [playerId]).catch(
+                (err) => console.error('Failed to set last_logout_at:', err),
+            );
 
             if (lastSector && lastUniverse) {
                 const clientsToNotify = new Set<WebSocket>();
