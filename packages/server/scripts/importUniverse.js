@@ -79,13 +79,34 @@ async function ensureSchema(client) {
       id SERIAL PRIMARY KEY,
       name VARCHAR(255) UNIQUE NOT NULL,
       max_planets_per_sector SMALLINT NOT NULL DEFAULT 2,
+      planet_collision_likelihood SMALLINT NOT NULL DEFAULT 50,
+      planet_collision_min_hours SMALLINT NOT NULL DEFAULT 24,
+      planet_collision_max_hours SMALLINT NOT NULL DEFAULT 24,
       turns_per_day INTEGER NOT NULL DEFAULT 500,
       starting_turns INTEGER NOT NULL DEFAULT 500,
       max_turns INTEGER NOT NULL DEFAULT 2000,
       starting_ship VARCHAR(255) NOT NULL DEFAULT 'Vulpeculan Cruiser',
       starting_drones INTEGER NOT NULL DEFAULT 0,
-      starting_credits INTEGER NOT NULL DEFAULT 10000
+      starting_credits INTEGER NOT NULL DEFAULT 10000,
+      starting_port_density SMALLINT NOT NULL DEFAULT 50,
+      max_port_density SMALLINT NOT NULL DEFAULT 100,
+      port_production_rate SMALLINT NOT NULL DEFAULT 50,
+      port_memory_hours INTEGER NOT NULL DEFAULT 48,
+      max_players INTEGER NOT NULL DEFAULT 100,
+      max_age_days INTEGER NOT NULL DEFAULT 0,
+      max_planets INTEGER NOT NULL DEFAULT 500,
+      turn_delay INTEGER NOT NULL DEFAULT 0,
+      is_speed_warp_delay_on BOOLEAN NOT NULL DEFAULT TRUE,
+      photons_allowed BOOLEAN NOT NULL DEFAULT TRUE,
+      photon_blast_time_seconds INTEGER NOT NULL DEFAULT 5,
+      planet_spawn_density SMALLINT NOT NULL DEFAULT 10,
+      max_ships_allowed INTEGER NOT NULL DEFAULT 500,
+      max_corp_size SMALLINT NOT NULL DEFAULT 10,
+      max_ships_in_protected_space SMALLINT NOT NULL DEFAULT 1,
+      truce_time_hours SMALLINT NOT NULL DEFAULT 0,
+      is_automation_enabled BOOLEAN NOT NULL DEFAULT TRUE
     );
+    INSERT INTO edits (name) VALUES ('stock') ON CONFLICT (name) DO NOTHING;
 
     CREATE TABLE IF NOT EXISTS universes (
       id SERIAL PRIMARY KEY,
@@ -192,7 +213,9 @@ async function ensureSchema(client) {
       max_disruptors INTEGER NOT NULL DEFAULT 0,
       max_recon_drones INTEGER NOT NULL DEFAULT 0,
       transporter_range INTEGER NOT NULL DEFAULT 0,
-      has_tractor BOOLEAN NOT NULL DEFAULT FALSE
+      has_tractor BOOLEAN NOT NULL DEFAULT FALSE,
+      piloting_restriction VARCHAR(100),
+      notes TEXT
     );
 
     CREATE TABLE IF NOT EXISTS ships (
@@ -240,9 +263,11 @@ async function main() {
     await client.query('BEGIN');
     await ensureSchema(client);
 
-    // Ensure universe row exists
+    // Ensure universe row exists, linked to stock edit
     await client.query(
-      `INSERT INTO universes (id, name) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING`,
+      `INSERT INTO universes (id, name, edit_id)
+       VALUES ($1, $2, (SELECT id FROM edits WHERE name = 'stock'))
+       ON CONFLICT (id) DO UPDATE SET edit_id = COALESCE(universes.edit_id, (SELECT id FROM edits WHERE name = 'stock'))`,
       [universeId, `Universe ${universeId}`],
     );
 

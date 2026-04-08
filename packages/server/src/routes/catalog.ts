@@ -25,9 +25,7 @@ export function createCatalogRoutes(router: Router, middleware: Middleware): voi
 
     router.get('/api/ships', async (_req, res) => {
         try {
-            const { rows } = await pool.query(
-                'SELECT * FROM ship_types ORDER BY sort_order, id',
-            );
+            const { rows } = await pool.query('SELECT * FROM ship_types ORDER BY sort_order, id');
             res.json(rows);
         } catch (err) {
             console.error('Ship catalog error:', err);

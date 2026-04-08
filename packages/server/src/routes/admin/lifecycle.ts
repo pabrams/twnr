@@ -14,14 +14,7 @@ export function createAdminLifecycleRoutes(
         '/api/admin/universes/generate',
         authenticateAdmin,
         async (req, res): Promise<any> => {
-            const {
-                name,
-                sectors,
-                seed,
-                portDensity,
-                twoWayPct,
-                edit_name = 'stock',
-            } = req.body;
+            const { name, sectors, seed, portDensity, twoWayPct, edit_name = 'stock' } = req.body;
 
             if (!name || !String(name).trim()) {
                 return res.status(400).json({ error: 'name is required' });
@@ -46,10 +39,9 @@ export function createAdminLifecycleRoutes(
                     await client.query('BEGIN');
 
                     // Look up the edit
-                    const editRes = await client.query(
-                        'SELECT id FROM edits WHERE name = $1',
-                        [edit_name],
-                    );
+                    const editRes = await client.query('SELECT id FROM edits WHERE name = $1', [
+                        edit_name,
+                    ]);
                     const editId = editRes.rows[0]?.id ?? null;
 
                     // Create universe row

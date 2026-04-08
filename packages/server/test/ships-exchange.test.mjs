@@ -12,6 +12,7 @@ const PROJECT_ROOT = join(dirname(__filename), '..');
 
 const merchantCfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', '01-vulpeculan-cruiser.json'), 'utf8'));
 const warbirdCfg  = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', '02-hydra-skiff.json'),  'utf8'));
+const torpedoCfg  = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', '03-torpedo-boat.json'),  'utf8'));
 const shipPrice = (cfg) => cfg.costDrive + cfg.costComputer + cfg.costHull + cfg.holdCost;
 const STARTING_CREDITS = 10000;
 const UNIVERSE_ID = 1;
@@ -102,9 +103,11 @@ describe('Ship exchange — validation', () => {
     const playerId = welcome.playerId;
     try {
       await navigateTo(ws, starbaseId);
-      const upgradeCost = shipPrice(warbirdCfg) - shipPrice(merchantCfg);
+      // Torpedo Boat costs more than Vulpeculan Cruiser, so this is a real upgrade
+      const upgradeCost = shipPrice(torpedoCfg) - shipPrice(merchantCfg);
+      assert.ok(upgradeCost > 0, 'Torpedo Boat should cost more than Vulpeculan Cruiser');
       await pool.query('UPDATE players SET credits = $1 WHERE id = $2', [upgradeCost - 1, playerId]);
-      const msg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: warbirdCfg.name }, ServerMsgType.BuyShipTradeinResult);
+      const msg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: torpedoCfg.name }, ServerMsgType.BuyShipTradeinResult);
       assert.equal(msg.type, 'error');
       assert.equal(msg.message, 'Insufficient credits');
     } finally {
