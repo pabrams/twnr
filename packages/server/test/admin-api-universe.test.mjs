@@ -95,7 +95,7 @@ describe('Admin API - Delete Universe', () => {
     );
     const playerId = playerRes.rows[0].id;
     const shipTypeRes = await pool.query(
-      `SELECT id FROM ship_types WHERE name = 'Merchant Freighter'`
+      `SELECT id FROM ship_types WHERE name = 'Vulpeculan Cruiser'`
     );
     const shipTypeId = shipTypeRes.rows[0].id;
     const sectorId = (await pool.query('SELECT id FROM sectors WHERE sector_number = 1 AND universe_id = $1', [uid])).rows[0].id;

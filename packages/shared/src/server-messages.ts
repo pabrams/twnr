@@ -359,6 +359,72 @@ export type BuyHyperwarpDriveResultObject = {
     credits: number;
 };
 
+export type BuyBuoysResultObject = {
+    type: typeof ServerMsgType.BuyBuoysResult;
+    quantity: number;
+    totalOnShip: number;
+    credits: number;
+};
+
+export type BuyMinesResultObject = {
+    type: typeof ServerMsgType.BuyMinesResult;
+    mineType: 'proximity' | 'seeker' | 'orbital';
+    quantity: number;
+    totalOnShip: number;
+    credits: number;
+};
+
+export type BuyMineDisruptorsResultObject = {
+    type: typeof ServerMsgType.BuyMineDisruptorsResult;
+    quantity: number;
+    totalOnShip: number;
+    credits: number;
+};
+
+export type BuyVisualScannerResultObject = {
+    type: typeof ServerMsgType.BuyVisualScannerResult;
+    credits: number;
+};
+
+export type BuyPlanetScannerResultObject = {
+    type: typeof ServerMsgType.BuyPlanetScannerResult;
+    credits: number;
+};
+
+export type BuyCloakingDeviceResultObject = {
+    type: typeof ServerMsgType.BuyCloakingDeviceResult;
+    quantity: number;
+    totalOnShip: number;
+    credits: number;
+};
+
+export type BuyCorbomiteResultObject = {
+    type: typeof ServerMsgType.BuyCorbomiteResult;
+    quantity: number;
+    totalOnShip: number;
+    credits: number;
+};
+
+export type BuyPhotonTorpedoesResultObject = {
+    type: typeof ServerMsgType.BuyPhotonTorpedoesResult;
+    quantity: number;
+    totalOnShip: number;
+    credits: number;
+};
+
+export type BuyReconDronesResultObject = {
+    type: typeof ServerMsgType.BuyReconDronesResult;
+    quantity: number;
+    totalOnShip: number;
+    credits: number;
+};
+
+export type BuyHyperspaceDriveResultObject = {
+    type: typeof ServerMsgType.BuyHyperspaceDriveResult;
+    driveType: 1 | 2;
+    credits: number;
+};
+
 export type ListDeployedDronesResultObject = {
     type: typeof ServerMsgType.ListDeployedDronesResult;
     drones: { sectorId: number; quantity: number }[];
@@ -424,6 +490,16 @@ export type ServerResult =
     | BuyTerraformDevicesResultObject
     | DockStarbaseResultObject
     | BuyHyperwarpDriveResultObject
+    | BuyBuoysResultObject
+    | BuyMinesResultObject
+    | BuyMineDisruptorsResultObject
+    | BuyVisualScannerResultObject
+    | BuyPlanetScannerResultObject
+    | BuyCloakingDeviceResultObject
+    | BuyCorbomiteResultObject
+    | BuyPhotonTorpedoesResultObject
+    | BuyReconDronesResultObject
+    | BuyHyperspaceDriveResultObject
     | ListDeployedDronesResultObject
     | HyperspaceJumpResultObject
     | MenuChangedResultObject

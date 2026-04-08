@@ -131,7 +131,7 @@ describe('Login after ship destruction', () => {
 
     const shipRes = await pool.query('SELECT st.name as ship_name FROM ships s JOIN ship_types st ON s.ship_type_id = st.id WHERE s.id = (SELECT ship_id FROM players WHERE id = $1)', [join.body.playerId]);
     assert.equal(shipRes.rows.length, 1, 'New ship should be created');
-    assert.equal(shipRes.rows[0].ship_name, 'Merchant Freighter');
+    assert.equal(shipRes.rows[0].ship_name, 'Vulpeculan Cruiser');
 
     const creditsRes = await pool.query('SELECT credits FROM players WHERE id = $1', [join.body.playerId]);
     assert.equal(creditsRes.rows[0].credits, 10000);

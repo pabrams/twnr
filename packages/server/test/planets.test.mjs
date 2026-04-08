@@ -489,11 +489,11 @@ describe('ship config files', () => {
     }
   });
 
-  it('Merchant Freighter has maxPlanetBusters=0 and maxTerraformDevices=1', () => {
-    const merchant = configs.find(c => c.data.name === 'Merchant Freighter');
-    assert.ok(merchant, 'Merchant Freighter config not found');
-    assert.equal(merchant.data.maxPlanetBusters, 0);
-    assert.equal(merchant.data.maxTerraformDevices, 1);
+  it('Vulpeculan Cruiser has maxPlanetBusters=0 and maxTerraformDevices=5', () => {
+    const cruiser = configs.find(c => c.data.name === 'Vulpeculan Cruiser');
+    assert.ok(cruiser, 'Vulpeculan Cruiser config not found');
+    assert.equal(cruiser.data.maxPlanetBusters, 0);
+    assert.equal(cruiser.data.maxTerraformDevices, 5);
   });
 
   it('many ships (>=3) have 0 for both fields', () => {
@@ -1087,9 +1087,9 @@ describe('WS: starbase and hardware store', () => {
     await pool.query('UPDATE players SET credits = 100000 WHERE id = $1', [player.playerId]);
     // Check ship max
     const shipRes = await pool.query('SELECT st.name as ship_name FROM ships s JOIN ship_types st ON s.ship_type_id = st.id WHERE s.id = (SELECT ship_id FROM players WHERE id = $1)', [player.playerId]);
-    const shipConfig = JSON.parse(readFileSync(join(CONFIG_SHIPS_DIR, '..', '..', 'config', 'ships', 'merchant.json'), 'utf8'));
+    const shipConfig = JSON.parse(readFileSync(join(CONFIG_SHIPS_DIR, '..', '..', 'config', 'ships', '01-vulpeculan-cruiser.json'), 'utf8'));
 
-    // If merchant freighter can't carry busters, give them a different ship
+    // If Vulpeculan Cruiser can't carry busters, give them a different ship
     if (shipConfig.maxPlanetBusters === 0) {
       const allConfigs = readdirSync(CONFIG_SHIPS_DIR).filter(f => f.endsWith('.json')).map(f => JSON.parse(readFileSync(join(CONFIG_SHIPS_DIR, f), 'utf8')));
       const busterShip = allConfigs.find(c => c.maxPlanetBusters > 0);

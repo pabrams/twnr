@@ -10,7 +10,7 @@ import { ClientMsgType, ServerMsgType } from '@twnr/shared';
 const { Pool } = pg;
 const __filename = fileURLToPath(import.meta.url);
 const PROJECT_ROOT = join(dirname(__filename), '..');
-const merchantCfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', 'merchant.json'), 'utf8'));
+const merchantCfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', '01-vulpeculan-cruiser.json'), 'utf8'));
 const JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret';
 export const TEST_DB = process.env.PGDATABASE || 'twnr_test';
 
@@ -57,7 +57,11 @@ export async function createTestUser(pool) {
  * Creates a player in a universe for the given user. Returns playerId.
  */
 export async function createTestPlayer(pool, userId, universeId, name, sector = 1, drones = 0, shields = 0) {
-  const univRes = await pool.query('SELECT starting_turns FROM universes WHERE id = $1', [universeId]);
+  const univRes = await pool.query(
+    `SELECT COALESCE(e.starting_turns, 500) as starting_turns
+     FROM universes u LEFT JOIN edits e ON u.edit_id = e.id WHERE u.id = $1`,
+    [universeId],
+  );
   const startingTurns = univRes.rows[0]?.starting_turns ?? 500;
   const sectorIdRes = await pool.query('SELECT id FROM sectors WHERE sector_number = $1 AND universe_id = $2', [sector, universeId]);
   const sectorId = sectorIdRes.rows[0]?.id;

@@ -75,11 +75,24 @@ async function ensureSchema(client) {
       token_version INTEGER NOT NULL DEFAULT 1
     );
 
+    CREATE TABLE IF NOT EXISTS edits (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(255) UNIQUE NOT NULL,
+      max_planets_per_sector SMALLINT NOT NULL DEFAULT 2,
+      turns_per_day INTEGER NOT NULL DEFAULT 500,
+      starting_turns INTEGER NOT NULL DEFAULT 500,
+      max_turns INTEGER NOT NULL DEFAULT 2000,
+      starting_ship VARCHAR(255) NOT NULL DEFAULT 'Vulpeculan Cruiser',
+      starting_drones INTEGER NOT NULL DEFAULT 0,
+      starting_credits INTEGER NOT NULL DEFAULT 10000
+    );
+
     CREATE TABLE IF NOT EXISTS universes (
       id SERIAL PRIMARY KEY,
       name VARCHAR(255) NOT NULL,
       seed INTEGER,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      edit_id INTEGER REFERENCES edits(id) ON DELETE SET NULL
     );
 
     CREATE TABLE IF NOT EXISTS sectors (
@@ -143,15 +156,43 @@ async function ensureSchema(client) {
     CREATE TABLE IF NOT EXISTS ship_types (
       id SERIAL PRIMARY KEY,
       name VARCHAR(255) UNIQUE NOT NULL,
+      make VARCHAR(255),
+      sort_order SMALLINT NOT NULL DEFAULT 0,
       max_drones INTEGER NOT NULL DEFAULT 0,
       max_shields INTEGER NOT NULL DEFAULT 0,
       starting_holds INTEGER NOT NULL DEFAULT 5,
       max_holds INTEGER NOT NULL DEFAULT 20,
-      price INTEGER NOT NULL DEFAULT 0,
+      odds_offensive REAL NOT NULL DEFAULT 1.0,
+      odds_defensive REAL NOT NULL DEFAULT 1.0,
+      max_buoy INTEGER NOT NULL DEFAULT 0,
+      has_pod BOOLEAN NOT NULL DEFAULT TRUE,
+      can_land BOOLEAN NOT NULL DEFAULT TRUE,
+      has_interdictor BOOLEAN NOT NULL DEFAULT FALSE,
+      has_planetary_defense_bonus BOOLEAN NOT NULL DEFAULT FALSE,
+      planetary_defense_odds REAL,
+      max_proximity INTEGER NOT NULL DEFAULT 0,
+      max_orbital INTEGER NOT NULL DEFAULT 0,
+      max_seeker INTEGER NOT NULL DEFAULT 0,
+      speed SMALLINT NOT NULL DEFAULT 10,
+      turns_per_warp INTEGER NOT NULL DEFAULT 2,
+      cost_drive INTEGER NOT NULL DEFAULT 0,
+      cost_computer INTEGER NOT NULL DEFAULT 0,
+      cost_hull INTEGER NOT NULL DEFAULT 0,
+      hold_cost INTEGER NOT NULL DEFAULT 0,
+      max_drone_attack INTEGER NOT NULL DEFAULT 0,
+      can_have_hyperspace_1 BOOLEAN NOT NULL DEFAULT FALSE,
+      can_have_hyperspace_2 BOOLEAN NOT NULL DEFAULT FALSE,
+      can_have_visual_scanner BOOLEAN NOT NULL DEFAULT FALSE,
+      can_have_planet_scanner BOOLEAN NOT NULL DEFAULT FALSE,
       max_planet_busters INTEGER NOT NULL DEFAULT 0,
       max_terraform_devices INTEGER NOT NULL DEFAULT 0,
-      turns_per_warp INTEGER NOT NULL DEFAULT 2,
-      can_have_hyperwarp BOOLEAN NOT NULL DEFAULT false
+      max_cloaking INTEGER NOT NULL DEFAULT 0,
+      max_corbomite INTEGER NOT NULL DEFAULT 0,
+      max_photon INTEGER NOT NULL DEFAULT 0,
+      max_disruptors INTEGER NOT NULL DEFAULT 0,
+      max_recon_drones INTEGER NOT NULL DEFAULT 0,
+      transporter_range INTEGER NOT NULL DEFAULT 0,
+      has_tractor BOOLEAN NOT NULL DEFAULT FALSE
     );
 
     CREATE TABLE IF NOT EXISTS ships (
@@ -165,7 +206,20 @@ async function ensureSchema(client) {
       planet_busters SMALLINT NOT NULL DEFAULT 0,
       terraform_devices SMALLINT NOT NULL DEFAULT 0,
       turns_per_warp INTEGER NOT NULL DEFAULT 2,
-      has_hyperwarp_drive BOOLEAN NOT NULL DEFAULT FALSE,
+      has_hyperspace_1 BOOLEAN NOT NULL DEFAULT FALSE,
+      has_hyperspace_2 BOOLEAN NOT NULL DEFAULT FALSE,
+      has_visual_scanner BOOLEAN NOT NULL DEFAULT FALSE,
+      has_planet_scanner BOOLEAN NOT NULL DEFAULT FALSE,
+      has_density_scanner BOOLEAN NOT NULL DEFAULT TRUE,
+      cloaking_devices SMALLINT NOT NULL DEFAULT 0,
+      corbomite INTEGER NOT NULL DEFAULT 0,
+      photon_torpedoes SMALLINT NOT NULL DEFAULT 0,
+      buoys SMALLINT NOT NULL DEFAULT 0,
+      proximity_mines INTEGER NOT NULL DEFAULT 0,
+      orbital_mines INTEGER NOT NULL DEFAULT 0,
+      seeker_mines INTEGER NOT NULL DEFAULT 0,
+      mine_disruptors INTEGER NOT NULL DEFAULT 0,
+      recon_drones INTEGER NOT NULL DEFAULT 0,
       fuel INTEGER NOT NULL DEFAULT 0,
       organics INTEGER NOT NULL DEFAULT 0,
       equipment INTEGER NOT NULL DEFAULT 0,

@@ -13,7 +13,7 @@ function loadJson<T>(file: string, fallback: T): T {
 }
 
 export const newPlayerConfig = loadJson('new-player.json', {
-    startingShip: 'Merchant Freighter',
+    startingShip: 'Vulpeculan Cruiser',
     startingCredits: 10000,
     startingDrones: 0,
     startingShields: 0,

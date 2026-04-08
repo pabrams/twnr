@@ -20,7 +20,7 @@ export function createAdminLifecycleRoutes(
                 seed,
                 portDensity,
                 twoWayPct,
-                max_planets_per_sector = 2,
+                edit_name = 'stock',
             } = req.body;
 
             if (!name || !String(name).trim()) {
@@ -31,12 +31,6 @@ export function createAdminLifecycleRoutes(
                 return res
                     .status(400)
                     .json({ error: 'sectors is required and must be between 20 and 500' });
-            }
-            const maxPlanets = parseInt(String(max_planets_per_sector), 10);
-            if (isNaN(maxPlanets) || maxPlanets < 0 || maxPlanets > 25) {
-                return res
-                    .status(400)
-                    .json({ error: 'max_planets_per_sector must be between 0 and 25' });
             }
 
             try {
@@ -51,10 +45,17 @@ export function createAdminLifecycleRoutes(
                 try {
                     await client.query('BEGIN');
 
+                    // Look up the edit
+                    const editRes = await client.query(
+                        'SELECT id FROM edits WHERE name = $1',
+                        [edit_name],
+                    );
+                    const editId = editRes.rows[0]?.id ?? null;
+
                     // Create universe row
                     const univRes = await client.query(
-                        'INSERT INTO universes (name, seed, max_planets_per_sector) VALUES ($1, $2, $3) RETURNING id',
-                        [name, result.seed, maxPlanets],
+                        'INSERT INTO universes (name, seed, edit_id) VALUES ($1, $2, $3) RETURNING id',
+                        [name, result.seed, editId],
                     );
                     const universeId = univRes.rows[0].id;
 
