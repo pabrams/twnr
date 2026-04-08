@@ -262,6 +262,18 @@ export const connectDB = async (): Promise<void> => {
         PRIMARY KEY (sector_id)
       );
 
+      CREATE TABLE IF NOT EXISTS command_log (
+        id BIGSERIAL PRIMARY KEY,
+        player_id INTEGER REFERENCES players(id) ON DELETE SET NULL,
+        universe_id INTEGER NOT NULL REFERENCES universes(id) ON DELETE CASCADE,
+        command_type VARCHAR(100) NOT NULL,
+        payload JSONB,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_command_log_player_created
+        ON command_log (player_id, created_at);
+
       CREATE TABLE IF NOT EXISTS menu (
         id SERIAL PRIMARY KEY,
         name VARCHAR(50) UNIQUE NOT NULL,

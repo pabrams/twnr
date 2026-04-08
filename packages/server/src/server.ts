@@ -194,6 +194,12 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
                     message: 'Internal server error',
                 });
             }
+
+            // Log command (fire-and-forget)
+            pool.query(
+                'INSERT INTO command_log (player_id, universe_id, command_type, payload) VALUES ($1, $2, $3, $4)',
+                [playerId, universeId, data.type, JSON.stringify(data)],
+            ).catch((err) => console.error('Command log error:', err));
         });
 
         ws.on('close', () => {
