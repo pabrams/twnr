@@ -64,10 +64,9 @@ async function buyStackableHardware(
             return;
         }
 
-        const credRes = await client.query(
-            'SELECT credits FROM players WHERE id = $1 FOR UPDATE',
-            [playerId],
-        );
+        const credRes = await client.query('SELECT credits FROM players WHERE id = $1 FOR UPDATE', [
+            playerId,
+        ]);
         if (credRes.rows.length === 0 || credRes.rows[0].credits < cost) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient credits' });
@@ -152,10 +151,9 @@ async function buyToggleHardware(
             return;
         }
 
-        const credRes = await client.query(
-            'SELECT credits FROM players WHERE id = $1 FOR UPDATE',
-            [playerId],
-        );
+        const credRes = await client.query('SELECT credits FROM players WHERE id = $1 FOR UPDATE', [
+            playerId,
+        ]);
         if (credRes.rows.length === 0 || credRes.rows[0].credits < opts.unitPrice) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient credits' });
@@ -302,10 +300,7 @@ export async function handleBuyPlanetScanner(playerId: number): Promise<void> {
     });
 }
 
-export async function handleBuyHyperspaceDrive(
-    playerId: number,
-    driveType: 1 | 2,
-): Promise<void> {
+export async function handleBuyHyperspaceDrive(playerId: number, driveType: 1 | 2): Promise<void> {
     if (driveType === 1) {
         return buyToggleHardware(playerId, {
             shipColumn: 'has_hyperspace_1',

@@ -78,8 +78,16 @@ export async function handleBuyShipTradein(
             return;
         }
 
-        const targetPrice = targetType.cost_drive + targetType.cost_computer + targetType.cost_hull + targetType.hold_cost;
-        const currentPrice = data.current_cost_drive + data.current_cost_computer + data.current_cost_hull + data.current_hold_cost;
+        const targetPrice =
+            targetType.cost_drive +
+            targetType.cost_computer +
+            targetType.cost_hull +
+            targetType.hold_cost;
+        const currentPrice =
+            data.current_cost_drive +
+            data.current_cost_computer +
+            data.current_cost_hull +
+            data.current_hold_cost;
         const cost = targetPrice - currentPrice;
         if (cost > 0 && data.credits < cost) {
             await client.query('ROLLBACK');

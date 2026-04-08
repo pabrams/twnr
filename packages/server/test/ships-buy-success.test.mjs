@@ -95,11 +95,12 @@ describe('Buy equipment — success', () => {
   });
 
   it('cumulative drone purchases respect maxDrones cap', async () => {
-    const { ws } = await connectWS();
-    const firstBuy = merchantCfg.maxDrones - 2;
+    const { ws, welcome } = await connectWS();
+    const playerId = welcome.playerId;
     try {
-      // Buy maxDrones-2 drones first
-      await wsRequest(ws, { type: ClientMsgType.BuyDrones, quantity: firstBuy }, ServerMsgType.BuyDronesResult);
+      // Give the player enough credits and set drones close to cap via DB
+      const nearCap = merchantCfg.maxDrones - 2;
+      await pool.query('UPDATE ships SET drones = $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)', [nearCap, playerId]);
       // Then try to buy 3 more — would exceed cap by 1
       const msg = await wsRequest(ws, { type: ClientMsgType.BuyDrones, quantity: 3 }, ServerMsgType.BuyDronesResult);
       assert.equal(msg.type, ServerMsgType.Error);
@@ -178,10 +179,10 @@ describe('Buy equipment — success', () => {
     const { ws, welcome } = await connectWS();
     const playerId = welcome.playerId;
     try {
-      // Set fuel=2, organics=2 directly (4 holds used, 1 remaining out of cargoLimit=5)
-      await pool.query('UPDATE ships SET fuel = 2, organics = 2 WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
+      // Fill most of the cargo holds (startingHolds=20): 10 fuel + 9 organics = 19 used, 1 remaining
+      await pool.query('UPDATE ships SET fuel = 10, organics = 9 WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
       await navigateTo(ws, fuelSector);
-      // Buying 2 more fuel: 2+2+2 = 6 > cargoLimit(5) — should fail
+      // Buying 2 more fuel: 10+9+2 = 21 > cargoLimit(20) — should fail
       const msg = await wsRequest(ws, { type: ClientMsgType.PortTransaction, good: 'fuel', quantity: 2, action: 'buy' }, ServerMsgType.PortTransactionResult);
       assert.equal(msg.type, ServerMsgType.Error);
       assert.equal(msg.message, 'Insufficient cargo holds');
@@ -221,14 +222,14 @@ describe('Buy equipment — success', () => {
 
     const { ws } = await connectWS();
     try {
-      // Buy 3 holds → holds becomes 8
+      // Buy 3 holds → holds becomes startingHolds + 3 = 23
       const buyMsg = await wsRequest(ws, { type: ClientMsgType.BuyHolds, quantity: 3 }, ServerMsgType.BuyHoldsResult);
       assert.equal(buyMsg.type, ServerMsgType.BuyHoldsResult);
 
-      // Navigate to fuel seller and buy 8 units (should succeed now)
+      // Navigate to fuel seller and buy 23 units (should succeed with new cargo limit)
       await navigateTo(ws, fuelSector);
-      const msg = await wsRequest(ws, { type: ClientMsgType.PortTransaction, good: 'fuel', quantity: 8, action: 'buy' }, ServerMsgType.PortTransactionResult);
-      assert.equal(msg.type, ServerMsgType.PortTransactionResult, 'should be able to buy 8 fuel after buying 3 extra holds');
+      const msg = await wsRequest(ws, { type: ClientMsgType.PortTransaction, good: 'fuel', quantity: merchantCfg.startingHolds + 3, action: 'buy' }, ServerMsgType.PortTransactionResult);
+      assert.equal(msg.type, ServerMsgType.PortTransactionResult, `should be able to buy ${merchantCfg.startingHolds + 3} fuel after buying 3 extra holds`);
     } finally {
       await closeWS(ws);
     }

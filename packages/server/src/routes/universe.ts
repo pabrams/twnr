@@ -80,7 +80,8 @@ export function createUniverseRoutes(
             // Create player row
             const startSector = newPlayerConfig.startingSector;
             const startingTurns = editDefaults.starting_turns ?? 500;
-            const startingCredits = editDefaults.starting_credits ?? newPlayerConfig.startingCredits;
+            const startingCredits =
+                editDefaults.starting_credits ?? newPlayerConfig.startingCredits;
             const startingShip = editDefaults.starting_ship ?? newPlayerConfig.startingShip;
             const startingDrones = editDefaults.starting_drones ?? newPlayerConfig.startingDrones;
             const sectorIdRes = await pool.query(
@@ -91,14 +92,7 @@ export function createUniverseRoutes(
             const playerRes = await pool.query(
                 `INSERT INTO players (name, user_id, universe_id, current_sector_id, credits, turns, last_turns_granted_at)
                  VALUES ($1, $2, $3, $4, $5, $6, NOW()) RETURNING id`,
-                [
-                    name,
-                    userId,
-                    universeId,
-                    startSectorId,
-                    startingCredits,
-                    startingTurns,
-                ],
+                [name, userId, universeId, startSectorId, startingCredits, startingTurns],
             );
             const playerId = playerRes.rows[0].id;
 

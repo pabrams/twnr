@@ -316,11 +316,11 @@ describe('multiple planets per sector', () => {
   });
 });
 
-// ==================== universes table ====================
+// ==================== edits table (planet settings) ====================
 
-describe('universes table', () => {
+describe('edits table (planet settings)', () => {
   let cols;
-  before(async () => { cols = await getColumns('universes'); });
+  before(async () => { cols = await getColumns('edits'); });
 
   it('has max_planets_per_sector (SMALLINT NOT NULL)', () => {
     assert.ok(cols.max_planets_per_sector, 'max_planets_per_sector missing');
@@ -342,20 +342,18 @@ describe('universes table', () => {
     }
   });
 
-  it('defaults are correct (2, 50, 24, 24)', async () => {
-    const res = await pool.query("INSERT INTO universes (name, seed) VALUES ('defaults_test', 99) RETURNING id");
-    const uid = res.rows[0].id;
+  it('stock edit defaults are correct (2, 50, 24, 24)', async () => {
     const row = await pool.query(
       `SELECT max_planets_per_sector, planet_collision_likelihood,
               planet_collision_min_hours, planet_collision_max_hours
-       FROM universes WHERE id = $1`, [uid],
+       FROM edits WHERE name = 'stock'`,
     );
+    assert.equal(row.rows.length, 1, 'stock edit must exist');
     const r = row.rows[0];
     assert.equal(r.max_planets_per_sector, 2);
     assert.equal(r.planet_collision_likelihood, 50);
     assert.equal(r.planet_collision_min_hours, 24);
     assert.equal(r.planet_collision_max_hours, 24);
-    await pool.query('DELETE FROM universes WHERE id = $1', [uid]);
   });
 });
 
@@ -507,68 +505,79 @@ describe('ship config files', () => {
 // ==================== Ship catalog API includes new fields ====================
 
 describe('ship catalog API', () => {
-  it('GET /api/ships includes maxPlanetBusters and maxTerraformDevices', async () => {
+  it('GET /api/ships includes max_planet_busters and max_terraform_devices', async () => {
     const res = await fetch(`${BASE}/api/ships`);
     assert.equal(res.status, 200);
     const ships = await res.json();
     assert.ok(Array.isArray(ships), 'should return an array');
     assert.ok(ships.length > 0, 'should have at least one ship');
     for (const ship of ships) {
-      assert.ok('maxPlanetBusters' in ship, `${ship.name} missing maxPlanetBusters in API response`);
-      assert.ok('maxTerraformDevices' in ship, `${ship.name} missing maxTerraformDevices in API response`);
+      assert.ok('max_planet_busters' in ship, `${ship.name} missing max_planet_busters in API response`);
+      assert.ok('max_terraform_devices' in ship, `${ship.name} missing max_terraform_devices in API response`);
     }
   });
 });
 
-// ==================== Admin API: max_planets_per_sector ====================
+// ==================== Admin API: edit-based universe generation ====================
 
-describe('admin API max_planets_per_sector', () => {
-  it('stores max_planets_per_sector when provided', async () => {
+describe('admin API edit-based universe generation', () => {
+  it('generated universe links to stock edit by default', async () => {
     const res = await adminKeyPost('/api/admin/universes/generate', {
-      name: 'MppsTest', sectors: 20, seed: 50001, max_planets_per_sector: 5,
+      name: 'EditDefault', sectors: 20, seed: 50001,
     });
     assert.equal(res.status, 201, `expected 201, got ${res.status}: ${JSON.stringify(res.body)}`);
     const uid = res.body.id;
-    const row = await pool.query('SELECT max_planets_per_sector FROM universes WHERE id = $1', [uid]);
-    assert.equal(row.rows[0].max_planets_per_sector, 5);
+    const row = await pool.query(
+      `SELECT e.max_planets_per_sector FROM universes u JOIN edits e ON u.edit_id = e.id WHERE u.id = $1`, [uid],
+    );
+    assert.equal(row.rows.length, 1, 'universe should be linked to an edit');
+    assert.equal(row.rows[0].max_planets_per_sector, 2, 'stock edit defaults max_planets_per_sector to 2');
   });
 
-  it('defaults to 2 when max_planets_per_sector is not provided', async () => {
+  it('generated universe with explicit edit_name=stock links correctly', async () => {
     const res = await adminKeyPost('/api/admin/universes/generate', {
-      name: 'MppsDefault', sectors: 20, seed: 50002,
+      name: 'EditExplicit', sectors: 20, seed: 50002, edit_name: 'stock',
     });
     assert.equal(res.status, 201);
     const uid = res.body.id;
-    const row = await pool.query('SELECT max_planets_per_sector FROM universes WHERE id = $1', [uid]);
+    const row = await pool.query(
+      `SELECT e.name, e.max_planets_per_sector FROM universes u JOIN edits e ON u.edit_id = e.id WHERE u.id = $1`, [uid],
+    );
+    assert.equal(row.rows[0].name, 'stock');
     assert.equal(row.rows[0].max_planets_per_sector, 2);
   });
 
-  it('rejects max_planets_per_sector outside 0-25 with 400', async () => {
-    const res1 = await adminKeyPost('/api/admin/universes/generate', {
-      name: 'MppsBad1', sectors: 20, seed: 50003, max_planets_per_sector: -1,
-    });
-    assert.equal(res1.status, 400, 'should reject -1');
-
-    const res2 = await adminKeyPost('/api/admin/universes/generate', {
-      name: 'MppsBad2', sectors: 20, seed: 50004, max_planets_per_sector: 26,
-    });
-    assert.equal(res2.status, 400, 'should reject 26');
+  it('generated universe with custom edit inherits its max_planets_per_sector', async () => {
+    // Create a custom edit with max_planets_per_sector=5
+    await pool.query("INSERT INTO edits (name, max_planets_per_sector) VALUES ('custom_mpps', 5) ON CONFLICT (name) DO UPDATE SET max_planets_per_sector = 5");
+    try {
+      const res = await adminKeyPost('/api/admin/universes/generate', {
+        name: 'EditCustom', sectors: 20, seed: 50003, edit_name: 'custom_mpps',
+      });
+      assert.equal(res.status, 201);
+      const uid = res.body.id;
+      const row = await pool.query(
+        `SELECT e.max_planets_per_sector FROM universes u JOIN edits e ON u.edit_id = e.id WHERE u.id = $1`, [uid],
+      );
+      assert.equal(row.rows[0].max_planets_per_sector, 5);
+    } finally {
+      await pool.query("DELETE FROM edits WHERE name = 'custom_mpps'");
+    }
   });
 
-  it('accepts boundary values 0 and 25', async () => {
-    const res0 = await adminKeyPost('/api/admin/universes/generate', {
-      name: 'MppsZero', sectors: 20, seed: 50005, max_planets_per_sector: 0,
+  it('stock edit has correct planet collision defaults via join', async () => {
+    const res = await adminKeyPost('/api/admin/universes/generate', {
+      name: 'EditCollisionDefaults', sectors: 20, seed: 50004,
     });
-    assert.equal(res0.status, 201);
-    const row0 = await pool.query('SELECT max_planets_per_sector FROM universes WHERE id = $1', [res0.body.id]);
-    assert.equal(row0.rows[0].max_planets_per_sector, 0);
-
-    const res25 = await adminKeyPost('/api/admin/universes/generate', {
-      name: 'MppsMax', sectors: 20, seed: 50006, max_planets_per_sector: 25,
-    });
-    assert.equal(res25.status, 201);
-    const row25 = await pool.query('SELECT max_planets_per_sector FROM universes WHERE id = $1', [res25.body.id]);
-    assert.equal(row25.rows[0].max_planets_per_sector, 25);
+    assert.equal(res.status, 201);
+    const uid = res.body.id;
+    const row = await pool.query(
+      `SELECT e.planet_collision_likelihood, e.planet_collision_min_hours, e.planet_collision_max_hours
+       FROM universes u JOIN edits e ON u.edit_id = e.id WHERE u.id = $1`, [uid],
+    );
+    assert.equal(row.rows[0].planet_collision_likelihood, 50);
+    assert.equal(row.rows[0].planet_collision_min_hours, 24);
+    assert.equal(row.rows[0].planet_collision_max_hours, 24);
   });
 });
 
@@ -1521,19 +1530,18 @@ describe('WS: terraform collision logic', () => {
   let targetSector;
 
   before(async () => {
-    // Create universe with max_planets_per_sector=1 and collision_likelihood=100
-    // so we can deterministically test collision behavior
+    // Create a custom edit with max_planets_per_sector=1 and collision_likelihood=100
+    await pool.query(
+      `INSERT INTO edits (name, max_planets_per_sector, planet_collision_likelihood, planet_collision_min_hours, planet_collision_max_hours)
+       VALUES ('collision_test', 1, 100, 1, 48)
+       ON CONFLICT (name) DO UPDATE SET max_planets_per_sector = 1, planet_collision_likelihood = 100, planet_collision_min_hours = 1, planet_collision_max_hours = 48`,
+    );
+
     const res = await adminKeyPost('/api/admin/universes/generate', {
-      name: 'WsCollision', sectors: 20, seed: 70011, max_planets_per_sector: 1,
+      name: 'WsCollision', sectors: 20, seed: 70011, edit_name: 'collision_test',
     });
     assert.equal(res.status, 201);
     universeId = res.body.id;
-
-    // Set collision likelihood to 100 so collisions always happen
-    await pool.query(
-      'UPDATE universes SET planet_collision_likelihood = 100, planet_collision_min_hours = 1, planet_collision_max_hours = 48 WHERE id = $1',
-      [universeId],
-    );
 
     player = await createTestPlayer(universeId);
 
