@@ -10,8 +10,8 @@ import { ClientMsgType, ServerMsgType } from '@twnr/shared';
 const __filename = fileURLToPath(import.meta.url);
 const PROJECT_ROOT = join(dirname(__filename), '..');
 
-const merchantCfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', 'merchant.json'), 'utf8'));
-const warbirdCfg  = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', 'warbird.json'),  'utf8'));
+const merchantCfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', '01-vulpeculan-cruiser.json'), 'utf8'));
+const escapePodCfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', '00-escape-pod.json'), 'utf8'));
 const STARTING_CREDITS = 10000;
 const DRONE_PRICE = 20;
 const SHIELD_PRICE  = 10;
@@ -122,23 +122,23 @@ describe('Buy equipment — success', () => {
     }
   });
 
-  it('buy-holds cap is enforced using the current ship type (Warbird has lower maxHolds)', async () => {
+  it('buy-holds cap is enforced using the current ship type (Escape Pod has lower maxHolds)', async () => {
     const starbaseRes = await pool.query(`SELECT sector_number FROM sectors WHERE name = 'Starbase' AND universe_id = $1`, [UNIVERSE_ID]);
     assert.ok(starbaseRes.rows.length > 0, 'Starbase must exist');
     const starbaseId = Number(starbaseRes.rows[0].sector_number);
 
     const { ws, welcome } = await connectWS();
     try {
-      // Exchange to Warbird at Starbase (navigate there first)
+      // Exchange to Escape Pod at Starbase (navigate there first)
       await navigateTo(ws, starbaseId);
-      const exchMsg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: warbirdCfg.name }, ServerMsgType.BuyShipTradeinResult);
+      const exchMsg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: escapePodCfg.name }, ServerMsgType.BuyShipTradeinResult);
       assert.equal(exchMsg.type, ServerMsgType.BuyShipTradeinResult);
 
       // Teleport to sector 1 (class 0 port) via DB — buyHolds reads current_sector_id from DB
       await pool.query(`UPDATE players SET current_sector_id = (SELECT id FROM sectors WHERE sector_number = 1 AND universe_id = ${UNIVERSE_ID}) WHERE id = $1`, [welcome.playerId]);
 
       // Trying to buy maxHolds - startingHolds + 1 holds should fail
-      const overLimit = warbirdCfg.maxHolds - warbirdCfg.startingHolds + 1;
+      const overLimit = escapePodCfg.maxHolds - escapePodCfg.startingHolds + 1;
       const msg = await wsRequest(ws, { type: ClientMsgType.BuyHolds, quantity: overLimit }, ServerMsgType.BuyHoldsResult);
       assert.equal(msg.type, ServerMsgType.Error);
       assert.equal(msg.message, 'Exceeds maximum');
@@ -199,9 +199,9 @@ describe('Buy equipment — success', () => {
 
     const { ws } = await connectWS();
     try {
-      // Navigate to Starbase and exchange to Warbird (startingHolds=1)
+      // Navigate to Starbase and exchange to Escape Pod (startingHolds=1)
       await navigateTo(ws, starbaseId);
-      const exchMsg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: warbirdCfg.name }, ServerMsgType.BuyShipTradeinResult);
+      const exchMsg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: escapePodCfg.name }, ServerMsgType.BuyShipTradeinResult);
       assert.equal(exchMsg.type, ServerMsgType.BuyShipTradeinResult);
 
       // Navigate to fuel port and try to buy 2 fuel — exceeds new cargoLimit of 1

@@ -19,27 +19,45 @@ export const connectDB = async (): Promise<void> => {
         token_version INTEGER NOT NULL DEFAULT 1
       );
 
-      CREATE TABLE IF NOT EXISTS universes (
+      CREATE TABLE IF NOT EXISTS edits (
         id SERIAL PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        seed INTEGER,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        name VARCHAR(255) UNIQUE NOT NULL,
         max_planets_per_sector SMALLINT NOT NULL DEFAULT 2,
         planet_collision_likelihood SMALLINT NOT NULL DEFAULT 50,
         planet_collision_min_hours SMALLINT NOT NULL DEFAULT 24,
         planet_collision_max_hours SMALLINT NOT NULL DEFAULT 24,
         turns_per_day INTEGER NOT NULL DEFAULT 500,
         starting_turns INTEGER NOT NULL DEFAULT 500,
-        max_turns INTEGER NOT NULL DEFAULT 2000
+        max_turns INTEGER NOT NULL DEFAULT 2000,
+        starting_ship VARCHAR(255) NOT NULL DEFAULT 'Vulpeculan Cruiser',
+        starting_drones INTEGER NOT NULL DEFAULT 0,
+        starting_credits INTEGER NOT NULL DEFAULT 10000,
+        starting_port_density SMALLINT NOT NULL DEFAULT 50,
+        max_port_density SMALLINT NOT NULL DEFAULT 100,
+        port_production_rate SMALLINT NOT NULL DEFAULT 50,
+        port_memory_hours INTEGER NOT NULL DEFAULT 48,
+        max_players INTEGER NOT NULL DEFAULT 100,
+        max_age_days INTEGER NOT NULL DEFAULT 0,
+        max_planets INTEGER NOT NULL DEFAULT 500,
+        turn_delay INTEGER NOT NULL DEFAULT 0,
+        is_speed_warp_delay_on BOOLEAN NOT NULL DEFAULT TRUE,
+        photons_allowed BOOLEAN NOT NULL DEFAULT TRUE,
+        photon_blast_time_seconds INTEGER NOT NULL DEFAULT 5,
+        planet_spawn_density SMALLINT NOT NULL DEFAULT 10,
+        max_ships_allowed INTEGER NOT NULL DEFAULT 500,
+        max_corp_size SMALLINT NOT NULL DEFAULT 10,
+        max_ships_in_protected_space SMALLINT NOT NULL DEFAULT 1,
+        truce_time_hours SMALLINT NOT NULL DEFAULT 0,
+        is_automation_enabled BOOLEAN NOT NULL DEFAULT TRUE
       );
 
-      ALTER TABLE universes ADD COLUMN IF NOT EXISTS max_planets_per_sector SMALLINT NOT NULL DEFAULT 2;
-      ALTER TABLE universes ADD COLUMN IF NOT EXISTS planet_collision_likelihood SMALLINT NOT NULL DEFAULT 50;
-      ALTER TABLE universes ADD COLUMN IF NOT EXISTS planet_collision_min_hours SMALLINT NOT NULL DEFAULT 24;
-      ALTER TABLE universes ADD COLUMN IF NOT EXISTS planet_collision_max_hours SMALLINT NOT NULL DEFAULT 24;
-      ALTER TABLE universes ADD COLUMN IF NOT EXISTS turns_per_day INTEGER NOT NULL DEFAULT 500;
-      ALTER TABLE universes ADD COLUMN IF NOT EXISTS starting_turns INTEGER NOT NULL DEFAULT 500;
-      ALTER TABLE universes ADD COLUMN IF NOT EXISTS max_turns INTEGER NOT NULL DEFAULT 2000;
+      CREATE TABLE IF NOT EXISTS universes (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        seed INTEGER,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        edit_id INTEGER REFERENCES edits(id) ON DELETE SET NULL
+      );
 
       CREATE TABLE IF NOT EXISTS sectors (
         id SERIAL PRIMARY KEY,
@@ -58,15 +76,65 @@ export const connectDB = async (): Promise<void> => {
       CREATE TABLE IF NOT EXISTS ship_types (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) UNIQUE NOT NULL,
+        make VARCHAR(255),
+        sort_order SMALLINT NOT NULL DEFAULT 0,
         max_drones INTEGER NOT NULL DEFAULT 0,
         max_shields INTEGER NOT NULL DEFAULT 0,
         starting_holds INTEGER NOT NULL DEFAULT 5,
         max_holds INTEGER NOT NULL DEFAULT 20,
-        price INTEGER NOT NULL DEFAULT 0,
+        odds_offensive REAL NOT NULL DEFAULT 1.0,
+        odds_defensive REAL NOT NULL DEFAULT 1.0,
+        max_buoy INTEGER NOT NULL DEFAULT 0,
+        has_pod BOOLEAN NOT NULL DEFAULT TRUE,
+        can_land BOOLEAN NOT NULL DEFAULT TRUE,
+        has_interdictor BOOLEAN NOT NULL DEFAULT FALSE,
+        has_planetary_defense_bonus BOOLEAN NOT NULL DEFAULT FALSE,
+        planetary_defense_odds REAL,
+        max_proximity INTEGER NOT NULL DEFAULT 0,
+        max_orbital INTEGER NOT NULL DEFAULT 0,
+        max_seeker INTEGER NOT NULL DEFAULT 0,
+        speed SMALLINT NOT NULL DEFAULT 10,
+        turns_per_warp INTEGER NOT NULL DEFAULT 2,
+        cost_drive INTEGER NOT NULL DEFAULT 0,
+        cost_computer INTEGER NOT NULL DEFAULT 0,
+        cost_hull INTEGER NOT NULL DEFAULT 0,
+        hold_cost INTEGER NOT NULL DEFAULT 0,
+        max_drone_attack INTEGER NOT NULL DEFAULT 0,
+        can_have_hyperspace_1 BOOLEAN NOT NULL DEFAULT FALSE,
+        can_have_hyperspace_2 BOOLEAN NOT NULL DEFAULT FALSE,
+        can_have_visual_scanner BOOLEAN NOT NULL DEFAULT FALSE,
+        can_have_planet_scanner BOOLEAN NOT NULL DEFAULT FALSE,
+        max_photon INTEGER NOT NULL DEFAULT 0,
+        transporter_range SMALLINT NOT NULL DEFAULT 0,
+        max_cloaking SMALLINT NOT NULL DEFAULT 0,
+        max_corbomite INTEGER NOT NULL DEFAULT 0,
+        has_tractor BOOLEAN NOT NULL DEFAULT FALSE,
         max_planet_busters INTEGER NOT NULL DEFAULT 0,
         max_terraform_devices INTEGER NOT NULL DEFAULT 0,
-        turns_per_warp INTEGER NOT NULL DEFAULT 2,
-        can_have_hyperwarp BOOLEAN NOT NULL DEFAULT false
+        max_disruptors INTEGER NOT NULL DEFAULT 0,
+        max_recon_drones INTEGER NOT NULL DEFAULT 0,
+        piloting_restriction VARCHAR(100),
+        notes TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS hardware (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) UNIQUE NOT NULL,
+        category VARCHAR(100),
+        price INTEGER NOT NULL DEFAULT 0,
+        description TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS ship_types_edits (
+        ship_type_id INTEGER NOT NULL REFERENCES ship_types(id) ON DELETE CASCADE,
+        edit_id INTEGER NOT NULL REFERENCES edits(id) ON DELETE CASCADE,
+        PRIMARY KEY (ship_type_id, edit_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS planet_types_edits (
+        planet_type VARCHAR(255) NOT NULL,
+        edit_id INTEGER NOT NULL REFERENCES edits(id) ON DELETE CASCADE,
+        PRIMARY KEY (planet_type, edit_id)
       );
 
       CREATE TABLE IF NOT EXISTS players (
@@ -77,6 +145,8 @@ export const connectDB = async (): Promise<void> => {
         current_sector_id INTEGER REFERENCES sectors(id),
         ship_id INTEGER,
         credits INTEGER NOT NULL DEFAULT 10000,
+        reputation INTEGER NOT NULL DEFAULT 0,
+        experience INTEGER NOT NULL DEFAULT 0,
         ship_destroyed_date TIMESTAMPTZ,
         docked BOOLEAN NOT NULL DEFAULT FALSE,
         on_planet_id INTEGER DEFAULT NULL,
@@ -96,7 +166,20 @@ export const connectDB = async (): Promise<void> => {
         planet_busters SMALLINT NOT NULL DEFAULT 0,
         terraform_devices SMALLINT NOT NULL DEFAULT 0,
         turns_per_warp INTEGER NOT NULL DEFAULT 2,
-        has_hyperwarp_drive BOOLEAN NOT NULL DEFAULT FALSE,
+        has_hyperspace_1 BOOLEAN NOT NULL DEFAULT FALSE,
+        has_hyperspace_2 BOOLEAN NOT NULL DEFAULT FALSE,
+        has_visual_scanner BOOLEAN NOT NULL DEFAULT FALSE,
+        has_planet_scanner BOOLEAN NOT NULL DEFAULT FALSE,
+        has_density_scanner BOOLEAN NOT NULL DEFAULT TRUE,
+        cloaking_devices SMALLINT NOT NULL DEFAULT 0,
+        corbomite INTEGER NOT NULL DEFAULT 0,
+        photon_torpedoes SMALLINT NOT NULL DEFAULT 0,
+        buoys SMALLINT NOT NULL DEFAULT 0,
+        proximity_mines INTEGER NOT NULL DEFAULT 0,
+        orbital_mines INTEGER NOT NULL DEFAULT 0,
+        seeker_mines INTEGER NOT NULL DEFAULT 0,
+        mine_disruptors INTEGER NOT NULL DEFAULT 0,
+        recon_drones INTEGER NOT NULL DEFAULT 0,
         fuel INTEGER NOT NULL DEFAULT 0,
         organics INTEGER NOT NULL DEFAULT 0,
         equipment INTEGER NOT NULL DEFAULT 0,
@@ -235,7 +318,8 @@ export const connectDB = async (): Promise<void> => {
         ('starbaseHardware', 'Hardware Store'),
         ('starbaseBuyQty', 'Buy Quantity'),
         ('planetSelect', 'Select Planet'),
-        ('hyperspaceJumpTarget', 'Hyperspace Jump')
+        ('hyperspaceJumpTarget', 'Hyperspace Jump'),
+        ('starbaseMines', 'Mine Type')
       ON CONFLICT (name) DO NOTHING;
 
       -- Set parent menu relationships
@@ -262,6 +346,8 @@ export const connectDB = async (): Promise<void> => {
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'starbase')
         WHERE name IN ('starbaseHardware');
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'starbaseHardware')
+        WHERE name IN ('starbaseBuyQty', 'starbaseMines');
+      UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'starbaseMines')
         WHERE name = 'starbaseBuyQty';
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'sector')
         WHERE name = 'planetSelect';
@@ -322,7 +408,19 @@ export const connectDB = async (): Promise<void> => {
         ('leave_starbase', 'Leave Starbase'),
         ('buy_planet_busters', 'Buy Planet Busters'),
         ('buy_terraform_devices', 'Buy Terraform Devices'),
-        ('buy_hyperwarp_drive', 'Buy Hyperwarp Drive'),
+        ('buy_hyperspace_drive', 'Buy Hyperspace Drive'),
+        ('buy_buoys', 'Buy Space Buoys'),
+        ('buy_mines', 'Buy Mines'),
+        ('buy_proximity_mines', 'Proximity Mines'),
+        ('buy_seeker_mines', 'Seeker Mines'),
+        ('buy_orbital_mines', 'Orbital Mines'),
+        ('buy_mine_disruptors', 'Buy Mine Disruptors'),
+        ('buy_scanners_visual', 'Buy Visual Scanner'),
+        ('buy_scanners_planet', 'Buy Planet Scanner'),
+        ('buy_cloaking_device', 'Buy Cloaking Device'),
+        ('buy_corbomite', 'Buy Corbomite'),
+        ('buy_photon_torpedoes', 'Buy Photon Torpedoes'),
+        ('buy_recon_drones', 'Buy Recon Drones'),
         ('list_deployed_drones', 'List Deployed Drones'),
         -- Planet commands
         ('select_planet', 'Select planet'),
@@ -497,10 +595,27 @@ export const connectDB = async (): Promise<void> => {
 
       -- === Starbase Hardware ===
       INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_planet_busters'), 'b', 'Buy Planet Busters', NULL, (SELECT id FROM menu WHERE name='starbaseBuyQty'), 10),
-        ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_terraform_devices'), 't', 'Buy Terraform Devices', NULL, (SELECT id FROM menu WHERE name='starbaseBuyQty'), 20),
-        ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_hyperwarp_drive'), 'w', 'Buy Hyperwarp Drive', 'buyHyperwarpDrive', NULL, 30),
-        ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', NULL, (SELECT id FROM menu WHERE name='starbase'), 40)
+        ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_terraform_devices'), 't', 'Terraform Devices', NULL, (SELECT id FROM menu WHERE name='starbaseBuyQty'), 10),
+        ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_planet_busters'), 'b', 'Planet Busters', NULL, (SELECT id FROM menu WHERE name='starbaseBuyQty'), 20),
+        ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_buoys'), 'u', 'Space Buoys', NULL, (SELECT id FROM menu WHERE name='starbaseBuyQty'), 30),
+        ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_mines'), 'm', 'Mines', NULL, (SELECT id FROM menu WHERE name='starbaseMines'), 40),
+        ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_mine_disruptors'), 'd', 'Mine Disruptors', NULL, (SELECT id FROM menu WHERE name='starbaseBuyQty'), 50),
+        ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_hyperspace_drive'), 'h', 'Hyperspace Drive', 'buyHyperspaceDrive', NULL, 60),
+        ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_scanners_visual'), 'v', 'Visual Scanner', 'buyVisualScanner', NULL, 70),
+        ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_scanners_planet'), 'p', 'Planet Scanner', 'buyPlanetScanner', NULL, 80),
+        ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_cloaking_device'), 'k', 'Cloaking Device', NULL, (SELECT id FROM menu WHERE name='starbaseBuyQty'), 90),
+        ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_corbomite'), 'c', 'Corbomite', NULL, (SELECT id FROM menu WHERE name='starbaseBuyQty'), 100),
+        ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_photon_torpedoes'), 'o', 'Photon Torpedoes', NULL, (SELECT id FROM menu WHERE name='starbaseBuyQty'), 110),
+        ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_recon_drones'), 'r', 'Recon Drones', NULL, (SELECT id FROM menu WHERE name='starbaseBuyQty'), 120),
+        ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', NULL, (SELECT id FROM menu WHERE name='starbase'), 130)
+      ON CONFLICT (menu_id, command_id) DO NOTHING;
+
+      -- === Starbase Mines submenu ===
+      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
+        ((SELECT id FROM menu WHERE name='starbaseMines'), (SELECT id FROM command WHERE name='buy_proximity_mines'), 'p', 'Proximity Mines', NULL, (SELECT id FROM menu WHERE name='starbaseBuyQty'), 10),
+        ((SELECT id FROM menu WHERE name='starbaseMines'), (SELECT id FROM command WHERE name='buy_seeker_mines'), 's', 'Seeker Mines', NULL, (SELECT id FROM menu WHERE name='starbaseBuyQty'), 20),
+        ((SELECT id FROM menu WHERE name='starbaseMines'), (SELECT id FROM command WHERE name='buy_orbital_mines'), 'o', 'Orbital Mines', NULL, (SELECT id FROM menu WHERE name='starbaseBuyQty'), 30),
+        ((SELECT id FROM menu WHERE name='starbaseMines'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', NULL, (SELECT id FROM menu WHERE name='starbaseHardware'), 40)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === Starbase Buy Qty ===
@@ -541,34 +656,158 @@ export const connectDB = async (): Promise<void> => {
         ((SELECT id FROM menu WHERE name='hyperspaceJumpTarget'), (SELECT id FROM command WHERE name='enter_quantity'), '<number>', 'Target sector', 'hyperspaceJump', NULL, 10),
         ((SELECT id FROM menu WHERE name='hyperspaceJumpTarget'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', NULL, (SELECT id FROM menu WHERE name='computer'), 20)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
+
+      -- === Seed hardware items ===
+      INSERT INTO hardware (name, category, price, description) VALUES
+        ('Terraform Device', 'devices', 5000, 'Transforms barren sectors into habitable planets'),
+        ('Planet Buster', 'weapons', 20000, 'Destroys planets'),
+        ('Space Buoy', 'deployables', 100, 'Marks sectors with messages'),
+        ('Proximity Mine', 'mines', 1000, 'Detonates when a ship enters the sector'),
+        ('Seeker Mine', 'mines', 2500, 'Pursues ships that enter the sector'),
+        ('Orbital Mine', 'mines', 5000, 'Advanced mine with high damage'),
+        ('Mine Disruptor', 'devices', 2000, 'Disarms mines in a sector'),
+        ('Hyperspace Drive Type 1', 'drives', 50000, 'Enables hyperspace jumps to drone-deployed sectors'),
+        ('Hyperspace Drive Type 2', 'drives', 100000, 'Enables hyperspace jumps to any explored sector'),
+        ('Visual Scanner', 'scanners', 10000, 'Shows ships in adjacent sectors'),
+        ('Planet Scanner', 'scanners', 15000, 'Shows planet details from orbit'),
+        ('Cloaking Device', 'devices', 25000, 'Hides ship from visual scanners'),
+        ('Corbomite Device', 'devices', 5000, 'Destroys attacker drones on ship destruction'),
+        ('Photon Torpedo', 'weapons', 10000, 'Powerful direct-fire weapon'),
+        ('Recon Drone', 'deployables', 500, 'Scouts remote sectors')
+      ON CONFLICT (name) DO NOTHING;
+
+      -- === Seed default edit ===
+      INSERT INTO edits (name) VALUES ('stock') ON CONFLICT (name) DO NOTHING;
     `);
 
         // Seed ship_types from config files (idempotent)
         for (const ship of Object.values(shipConfigs)) {
             const s = ship as any;
             await client.query(
-                `INSERT INTO ship_types (name, max_drones, max_shields, starting_holds, max_holds, price, max_planet_busters, max_terraform_devices, turns_per_warp, can_have_hyperwarp)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-                 ON CONFLICT (name) DO UPDATE SET
-                   max_drones = EXCLUDED.max_drones, max_shields = EXCLUDED.max_shields,
-                   starting_holds = EXCLUDED.starting_holds, max_holds = EXCLUDED.max_holds,
-                   price = EXCLUDED.price, max_planet_busters = EXCLUDED.max_planet_busters,
-                   max_terraform_devices = EXCLUDED.max_terraform_devices,
-                   turns_per_warp = EXCLUDED.turns_per_warp, can_have_hyperwarp = EXCLUDED.can_have_hyperwarp`,
+                `INSERT INTO ship_types (
+                    name, make, sort_order,
+                    max_drones, max_shields, starting_holds, max_holds,
+                    odds_offensive, odds_defensive,
+                    max_buoy, has_pod, can_land, has_interdictor,
+                    has_planetary_defense_bonus, planetary_defense_odds,
+                    max_proximity, max_orbital, max_seeker,
+                    speed, turns_per_warp,
+                    cost_drive, cost_computer, cost_hull, hold_cost,
+                    max_drone_attack,
+                    can_have_hyperspace_1, can_have_hyperspace_2,
+                    can_have_visual_scanner, can_have_planet_scanner,
+                    max_photon, transporter_range, max_cloaking, max_corbomite,
+                    has_tractor, max_planet_busters, max_terraform_devices,
+                    max_disruptors, max_recon_drones,
+                    piloting_restriction, notes
+                 ) VALUES (
+                    $1, $2, $3,
+                    $4, $5, $6, $7,
+                    $8, $9,
+                    $10, $11, $12, $13,
+                    $14, $15,
+                    $16, $17, $18,
+                    $19, $20,
+                    $21, $22, $23, $24,
+                    $25,
+                    $26, $27,
+                    $28, $29,
+                    $30, $31, $32, $33,
+                    $34, $35, $36,
+                    $37, $38,
+                    $39, $40
+                 ) ON CONFLICT (name) DO UPDATE SET
+                    make = EXCLUDED.make,
+                    sort_order = EXCLUDED.sort_order,
+                    max_drones = EXCLUDED.max_drones,
+                    max_shields = EXCLUDED.max_shields,
+                    starting_holds = EXCLUDED.starting_holds,
+                    max_holds = EXCLUDED.max_holds,
+                    odds_offensive = EXCLUDED.odds_offensive,
+                    odds_defensive = EXCLUDED.odds_defensive,
+                    max_buoy = EXCLUDED.max_buoy,
+                    has_pod = EXCLUDED.has_pod,
+                    can_land = EXCLUDED.can_land,
+                    has_interdictor = EXCLUDED.has_interdictor,
+                    has_planetary_defense_bonus = EXCLUDED.has_planetary_defense_bonus,
+                    planetary_defense_odds = EXCLUDED.planetary_defense_odds,
+                    max_proximity = EXCLUDED.max_proximity,
+                    max_orbital = EXCLUDED.max_orbital,
+                    max_seeker = EXCLUDED.max_seeker,
+                    speed = EXCLUDED.speed,
+                    turns_per_warp = EXCLUDED.turns_per_warp,
+                    cost_drive = EXCLUDED.cost_drive,
+                    cost_computer = EXCLUDED.cost_computer,
+                    cost_hull = EXCLUDED.cost_hull,
+                    hold_cost = EXCLUDED.hold_cost,
+                    max_drone_attack = EXCLUDED.max_drone_attack,
+                    can_have_hyperspace_1 = EXCLUDED.can_have_hyperspace_1,
+                    can_have_hyperspace_2 = EXCLUDED.can_have_hyperspace_2,
+                    can_have_visual_scanner = EXCLUDED.can_have_visual_scanner,
+                    can_have_planet_scanner = EXCLUDED.can_have_planet_scanner,
+                    max_photon = EXCLUDED.max_photon,
+                    transporter_range = EXCLUDED.transporter_range,
+                    max_cloaking = EXCLUDED.max_cloaking,
+                    max_corbomite = EXCLUDED.max_corbomite,
+                    has_tractor = EXCLUDED.has_tractor,
+                    max_planet_busters = EXCLUDED.max_planet_busters,
+                    max_terraform_devices = EXCLUDED.max_terraform_devices,
+                    max_disruptors = EXCLUDED.max_disruptors,
+                    max_recon_drones = EXCLUDED.max_recon_drones,
+                    piloting_restriction = EXCLUDED.piloting_restriction,
+                    notes = EXCLUDED.notes`,
                 [
-                    s.name,
-                    s.maxDrones,
-                    s.maxShields,
-                    s.startingHolds,
-                    s.maxHolds,
-                    s.price,
-                    s.maxPlanetBusters || 0,
-                    s.maxTerraformDevices || 0,
-                    s.turnsPerWarp || 2,
-                    s.canHaveHyperwarp ?? false,
+                    s.name, s.make || null, s.sortOrder ?? 0,
+                    s.maxDrones ?? 0, s.maxShields ?? 0, s.startingHolds ?? 5, s.maxHolds ?? 20,
+                    s.oddsOffensive ?? 1.0, s.oddsDefensive ?? 1.0,
+                    s.maxBuoy ?? 0, s.hasPod ?? true, s.canLand ?? true, s.hasInterdictor ?? false,
+                    s.hasPlanetaryDefenseBonus ?? false, s.planetaryDefenseOdds ?? null,
+                    s.maxProximity ?? 0, s.maxOrbital ?? 0, s.maxSeeker ?? 0,
+                    s.speed ?? 10, s.turnsPerWarp ?? 2,
+                    s.costDrive ?? 0, s.costComputer ?? 0, s.costHull ?? 0, s.holdCost ?? 0,
+                    s.maxDroneAttack ?? 0,
+                    s.canHaveHyperspace1 ?? false, s.canHaveHyperspace2 ?? false,
+                    s.canHaveVisualScanner ?? false, s.canHavePlanetScanner ?? false,
+                    s.maxPhoton ?? 0, s.transporterRange ?? 0, s.maxCloaking ?? 0, s.maxCorbomite ?? 0,
+                    s.hasTractor ?? false, s.maxPlanetBusters ?? 0, s.maxTerraformDevices ?? 0,
+                    s.maxDisruptors ?? 0, s.maxReconDrones ?? 0,
+                    s.pilotingRestriction ?? null, s.notes ?? null,
                 ],
             );
         }
+
+        // Seed ship_types_edits: link all ship types to 'stock' edit
+        await client.query(`
+            INSERT INTO ship_types_edits (ship_type_id, edit_id)
+            SELECT st.id, e.id FROM ship_types st, edits e WHERE e.name = 'stock'
+            ON CONFLICT DO NOTHING
+        `);
+
+        // Seed planet_types_edits: link all planet types to 'stock' edit
+        await client.query(`
+            INSERT INTO planet_types_edits (planet_type, edit_id)
+            SELECT DISTINCT p.type, e.id FROM planets p, edits e WHERE e.name = 'stock'
+            ON CONFLICT DO NOTHING
+        `);
+
+        // Also seed default planet types even if no planets exist yet
+        await client.query(`
+            INSERT INTO planet_types_edits (planet_type, edit_id)
+            VALUES
+                ('Terran', (SELECT id FROM edits WHERE name = 'stock')),
+                ('Agricultural', (SELECT id FROM edits WHERE name = 'stock')),
+                ('Barren', (SELECT id FROM edits WHERE name = 'stock')),
+                ('Crystalline', (SELECT id FROM edits WHERE name = 'stock')),
+                ('Desert', (SELECT id FROM edits WHERE name = 'stock')),
+                ('Gas Giant', (SELECT id FROM edits WHERE name = 'stock')),
+                ('Glacial', (SELECT id FROM edits WHERE name = 'stock')),
+                ('Jungle', (SELECT id FROM edits WHERE name = 'stock')),
+                ('Mountainous', (SELECT id FROM edits WHERE name = 'stock')),
+                ('Oceanic', (SELECT id FROM edits WHERE name = 'stock')),
+                ('Toxic', (SELECT id FROM edits WHERE name = 'stock')),
+                ('Volcanic', (SELECT id FROM edits WHERE name = 'stock'))
+            ON CONFLICT DO NOTHING
+        `);
 
         client.release();
         isConnected = true;

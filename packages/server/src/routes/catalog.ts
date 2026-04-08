@@ -24,7 +24,7 @@ export function createCatalogRoutes(router: Router, middleware: Middleware): voi
     });
 
     router.get('/api/ships', (_req, res) => {
-        const ships = Object.values(shipConfigs).sort((a: any, b: any) => a.price - b.price);
+        const ships = Object.values(shipConfigs).sort((a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
         res.json(ships);
     });
 

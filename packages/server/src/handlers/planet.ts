@@ -299,7 +299,11 @@ export async function handleUseTerraformDevice(playerId: number): Promise<void> 
         await client.query('BEGIN');
 
         const univRes = await client.query(
-            'SELECT max_planets_per_sector, planet_collision_likelihood, planet_collision_min_hours, planet_collision_max_hours FROM universes WHERE id = $1',
+            `SELECT COALESCE(e.max_planets_per_sector, 2) as max_planets_per_sector,
+                    COALESCE(e.planet_collision_likelihood, 50) as planet_collision_likelihood,
+                    COALESCE(e.planet_collision_min_hours, 24) as planet_collision_min_hours,
+                    COALESCE(e.planet_collision_max_hours, 24) as planet_collision_max_hours
+             FROM universes u LEFT JOIN edits e ON u.edit_id = e.id WHERE u.id = $1`,
             [universeId],
         );
         const universeInfo = univRes.rows[0];

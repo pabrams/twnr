@@ -19,11 +19,26 @@ export interface Player {
 export async function getPlayerShip(playerId: number) {
     const res = await pool.query(
         `SELECT s.id, s.drones, s.shields, s.holds, s.planet_busters, s.terraform_devices,
-                s.turns_per_warp, s.has_hyperwarp_drive, s.fuel, s.organics, s.equipment, s.colonists,
+                s.turns_per_warp, s.has_hyperspace_1, s.has_hyperspace_2,
+                s.has_visual_scanner, s.has_planet_scanner, s.has_density_scanner,
+                s.cloaking_devices, s.corbomite, s.photon_torpedoes,
+                s.buoys, s.proximity_mines, s.orbital_mines, s.seeker_mines,
+                s.mine_disruptors, s.recon_drones,
+                s.fuel, s.organics, s.equipment, s.colonists,
                 s.sector_id, s.ship_type_id,
                 st.name as ship_name, st.max_drones, st.max_shields, st.max_holds,
-                st.max_planet_busters, st.max_terraform_devices, st.can_have_hyperwarp,
-                st.starting_holds, st.price, st.turns_per_warp as type_turns_per_warp
+                st.max_planet_busters, st.max_terraform_devices,
+                st.can_have_hyperspace_1, st.can_have_hyperspace_2,
+                st.can_have_visual_scanner, st.can_have_planet_scanner,
+                st.max_buoy, st.max_proximity, st.max_orbital, st.max_seeker,
+                st.max_cloaking, st.max_corbomite, st.max_photon,
+                st.max_disruptors, st.max_recon_drones,
+                st.starting_holds, st.turns_per_warp as type_turns_per_warp,
+                st.cost_drive, st.cost_computer, st.cost_hull, st.hold_cost,
+                st.odds_offensive, st.odds_defensive, st.speed,
+                st.max_drone_attack, st.transporter_range,
+                st.has_tractor, st.has_pod, st.can_land, st.has_interdictor,
+                st.sort_order
          FROM ships s
          JOIN ship_types st ON s.ship_type_id = st.id
          WHERE s.id = (SELECT ship_id FROM players WHERE id = $1)`,

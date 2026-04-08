@@ -36,6 +36,20 @@ import {
     handleListDeployedDrones,
     handleHyperspaceJump,
 } from './hyperwarp.js';
+import {
+    handleBuyBuoys,
+    handleBuyProximityMines,
+    handleBuySeekerMines,
+    handleBuyOrbitalMines,
+    handleBuyMineDisruptors,
+    handleBuyHyperspaceDrive,
+    handleBuyVisualScanner,
+    handleBuyPlanetScanner,
+    handleBuyCloakingDevice,
+    handleBuyCorbomite,
+    handleBuyPhotonTorpedoes,
+    handleBuyReconDrones,
+} from './hardware-store.js';
 
 export async function handleMessage(playerId: number, data: any): Promise<void> {
     switch (data.type) {
@@ -107,6 +121,30 @@ export async function handleMessage(playerId: number, data: any): Promise<void> 
             return handleRetreatFromDrones(playerId);
         case ClientMsgType.BuyHyperwarpDrive:
             return handleBuyHyperwarpDrive(playerId);
+        case ClientMsgType.BuyBuoys:
+            return handleBuyBuoys(playerId, data.quantity);
+        case ClientMsgType.BuyProximityMines:
+            return handleBuyProximityMines(playerId, data.quantity);
+        case ClientMsgType.BuySeekerMines:
+            return handleBuySeekerMines(playerId, data.quantity);
+        case ClientMsgType.BuyOrbitalMines:
+            return handleBuyOrbitalMines(playerId, data.quantity);
+        case ClientMsgType.BuyMineDisruptors:
+            return handleBuyMineDisruptors(playerId, data.quantity);
+        case ClientMsgType.BuyHyperspaceDrive:
+            return handleBuyHyperspaceDrive(playerId, data.driveType);
+        case ClientMsgType.BuyVisualScanner:
+            return handleBuyVisualScanner(playerId);
+        case ClientMsgType.BuyPlanetScanner:
+            return handleBuyPlanetScanner(playerId);
+        case ClientMsgType.BuyCloakingDevice:
+            return handleBuyCloakingDevice(playerId, data.quantity);
+        case ClientMsgType.BuyCorbomite:
+            return handleBuyCorbomite(playerId, data.quantity);
+        case ClientMsgType.BuyPhotonTorpedoes:
+            return handleBuyPhotonTorpedoes(playerId, data.quantity);
+        case ClientMsgType.BuyReconDrones:
+            return handleBuyReconDrones(playerId, data.quantity);
         case ClientMsgType.ListDeployedDrones:
             return handleListDeployedDrones(playerId);
         case ClientMsgType.HyperspaceJump:

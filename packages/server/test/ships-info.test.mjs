@@ -10,7 +10,7 @@ import { ClientMsgType, ServerMsgType } from '@twnr/shared';
 const __filename = fileURLToPath(import.meta.url);
 const PROJECT_ROOT = join(dirname(__filename), '..');
 
-const merchantCfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', 'merchant.json'), 'utf8'));
+const merchantCfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', '01-vulpeculan-cruiser.json'), 'utf8'));
 const UNIVERSE_ID = 1;
 
 async function navigateTo(ws, targetSector) {
@@ -67,7 +67,7 @@ describe('Ship info query', () => {
     }
   });
 
-  it('returns correct values for a new Merchant Freighter player', async () => {
+  it('returns correct values for a new Vulpeculan Cruiser player', async () => {
     const { ws } = await connectWS();
     try {
       const msg = await wsRequest(ws, { type: ClientMsgType.ShipInfo }, ServerMsgType.ShipInfoResult);

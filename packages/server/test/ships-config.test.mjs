@@ -26,38 +26,42 @@ after(async () => {
 // ─── tests ────────────────────────────────────────────────────────────────────
 
 describe('Config Files', () => {
-  it('config/ships/merchant.json exists', () => {
-    const p = join(PROJECT_ROOT, 'config', 'ships', 'merchant.json');
-    assert.ok(existsSync(p), 'merchant.json should exist at config/ships/merchant.json');
+  it('config/ships/01-vulpeculan-cruiser.json exists', () => {
+    const p = join(PROJECT_ROOT, 'config', 'ships', '01-vulpeculan-cruiser.json');
+    assert.ok(existsSync(p), '01-vulpeculan-cruiser.json should exist at config/ships/');
   });
 
-  it('merchant.json has correct fields and values', () => {
-    const p = join(PROJECT_ROOT, 'config', 'ships', 'merchant.json');
-    assert.ok(existsSync(p), 'merchant.json must exist');
+  it('vulpeculan-cruiser.json has correct fields and values', () => {
+    const p = join(PROJECT_ROOT, 'config', 'ships', '01-vulpeculan-cruiser.json');
+    assert.ok(existsSync(p), '01-vulpeculan-cruiser.json must exist');
     const cfg = JSON.parse(readFileSync(p, 'utf8'));
-    assert.equal(cfg.name, 'Merchant Freighter');
-    assert.equal(cfg.maxDrones, 10);
-    assert.equal(cfg.maxShields, 10);
-    assert.equal(cfg.startingHolds, 5, 'startingHolds should be 5');
-    assert.equal(cfg.maxHolds, 20, 'maxHolds (cap) should be 20');
-    assert.equal(cfg.price, 5000);
+    assert.equal(cfg.name, 'Vulpeculan Cruiser');
+    assert.equal(cfg.maxDrones, 2500);
+    assert.equal(cfg.maxShields, 400);
+    assert.equal(cfg.startingHolds, 20, 'startingHolds should be 20');
+    assert.equal(cfg.maxHolds, 75, 'maxHolds (cap) should be 75');
+    // price is now calculated as costDrive + costComputer + costHull + holdCost
+    const expectedPrice = cfg.costDrive + cfg.costComputer + cfg.costHull + cfg.holdCost;
+    assert.equal(expectedPrice, 41300);
   });
 
-  it('config/ships/warbird.json exists', () => {
-    const p = join(PROJECT_ROOT, 'config', 'ships', 'warbird.json');
-    assert.ok(existsSync(p), 'warbird.json should exist at config/ships/warbird.json');
+  it('config/ships/02-hydra-skiff.json exists', () => {
+    const p = join(PROJECT_ROOT, 'config', 'ships', '02-hydra-skiff.json');
+    assert.ok(existsSync(p), '02-hydra-skiff.json should exist at config/ships/');
   });
 
-  it('warbird.json has correct fields and values', () => {
-    const p = join(PROJECT_ROOT, 'config', 'ships', 'warbird.json');
-    assert.ok(existsSync(p), 'warbird.json must exist');
+  it('hydra-skiff.json has correct fields and values', () => {
+    const p = join(PROJECT_ROOT, 'config', 'ships', '02-hydra-skiff.json');
+    assert.ok(existsSync(p), '02-hydra-skiff.json must exist');
     const cfg = JSON.parse(readFileSync(p, 'utf8'));
-    assert.equal(cfg.name, 'Warbird');
-    assert.equal(cfg.maxDrones, 30);
-    assert.equal(cfg.maxShields, 25);
-    assert.equal(cfg.startingHolds, 1, 'startingHolds should be 1');
-    assert.equal(cfg.maxHolds, 5, 'maxHolds (cap) should be 5');
-    assert.equal(cfg.price, 8000);
+    assert.equal(cfg.name, 'Hydra Skiff');
+    assert.equal(cfg.maxDrones, 250);
+    assert.equal(cfg.maxShields, 100);
+    assert.equal(cfg.startingHolds, 10, 'startingHolds should be 10');
+    assert.equal(cfg.maxHolds, 25, 'maxHolds (cap) should be 25');
+    // price is now calculated as costDrive + costComputer + costHull + holdCost
+    const expectedPrice = cfg.costDrive + cfg.costComputer + cfg.costHull + cfg.holdCost;
+    assert.equal(expectedPrice, 15950);
   });
 });
 

@@ -64,18 +64,25 @@ export function createUniverseRoutes(
         }
 
         try {
-            // Check universe exists
+            // Check universe exists and get edit defaults
             const univRes = await pool.query(
-                'SELECT id, starting_turns FROM universes WHERE id = $1',
+                `SELECT u.id, e.starting_turns, e.starting_credits, e.starting_ship, e.starting_drones
+                 FROM universes u
+                 LEFT JOIN edits e ON u.edit_id = e.id
+                 WHERE u.id = $1`,
                 [universeId],
             );
             if (univRes.rows.length === 0) {
                 return res.status(404).json({ error: 'Universe not found' });
             }
 
+            const editDefaults = univRes.rows[0];
             // Create player row
             const startSector = newPlayerConfig.startingSector;
-            const startingTurns = univRes.rows[0].starting_turns;
+            const startingTurns = editDefaults.starting_turns ?? 500;
+            const startingCredits = editDefaults.starting_credits ?? newPlayerConfig.startingCredits;
+            const startingShip = editDefaults.starting_ship ?? newPlayerConfig.startingShip;
+            const startingDrones = editDefaults.starting_drones ?? newPlayerConfig.startingDrones;
             const sectorIdRes = await pool.query(
                 'SELECT id FROM sectors WHERE sector_number = $1 AND universe_id = $2',
                 [startSector, universeId],
@@ -89,7 +96,7 @@ export function createUniverseRoutes(
                     userId,
                     universeId,
                     startSectorId,
-                    newPlayerConfig.startingCredits,
+                    startingCredits,
                     startingTurns,
                 ],
             );
@@ -98,7 +105,7 @@ export function createUniverseRoutes(
             // Create ship
             const startShipType = await pool.query(
                 'SELECT id, starting_holds, turns_per_warp FROM ship_types WHERE name = $1',
-                [newPlayerConfig.startingShip],
+                [startingShip],
             );
             if (startShipType.rows.length > 0) {
                 const st = startShipType.rows[0];
@@ -109,7 +116,7 @@ export function createUniverseRoutes(
                         playerId,
                         st.id,
                         startSectorId,
-                        newPlayerConfig.startingDrones,
+                        startingDrones,
                         newPlayerConfig.startingShields,
                         st.starting_holds,
                         st.turns_per_warp,

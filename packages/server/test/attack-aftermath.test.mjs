@@ -72,7 +72,7 @@ describe('Login restriction after ship destruction', () => {
 
     const shipRes = await pool.query('SELECT s.drones, s.shields, s.holds, st.name as ship_name FROM ships s JOIN ship_types st ON s.ship_type_id = st.id WHERE s.id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
     assert.equal(shipRes.rows.length, 1, 'Should have a new ship');
-    assert.equal(shipRes.rows[0].ship_name, 'Merchant Freighter');
+    assert.equal(shipRes.rows[0].ship_name, 'Vulpeculan Cruiser');
     assert.equal(shipRes.rows[0].drones, 0);
     assert.equal(shipRes.rows[0].shields, 0);
 
@@ -127,7 +127,7 @@ describe('Login restriction after ship destruction', () => {
     );
   });
 
-  it('gives new Merchant Freighter with correct stats on re-login after destruction', async () => {
+  it('gives new Vulpeculan Cruiser with correct stats on re-login after destruction', async () => {
     const ts = Date.now() + Math.random();
     const email = `newship_${ts}@test.com`;
     const password = 'testpass789';
@@ -173,7 +173,7 @@ describe('Login restriction after ship destruction', () => {
       [playerId],
     );
     assert.equal(ship.rows.length, 1);
-    assert.equal(ship.rows[0].ship_name, 'Merchant Freighter');
+    assert.equal(ship.rows[0].ship_name, 'Vulpeculan Cruiser');
     assert.equal(ship.rows[0].drones, 0);
     assert.equal(ship.rows[0].shields, 0);
 

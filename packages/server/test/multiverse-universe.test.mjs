@@ -175,12 +175,12 @@ describe('Join Universe', () => {
       [body.playerId],
     );
     assert.equal(shipRes.rows.length, 1);
-    assert.equal(shipRes.rows[0].ship_name, 'Merchant Freighter');
+    assert.equal(shipRes.rows[0].ship_name, 'Vulpeculan Cruiser');
     assert.equal(shipRes.rows[0].drones, 0);
     assert.equal(shipRes.rows[0].shields, 0);
 
-    // Verify holds matches merchant.json startingHolds (5)
-    assert.equal(shipRes.rows[0].holds, 5, 'holds should match merchant.json startingHolds');
+    // Verify holds matches Vulpeculan Cruiser startingHolds (20)
+    assert.equal(shipRes.rows[0].holds, 20, 'holds should match Vulpeculan Cruiser startingHolds');
 
     // Verify cargo
     assert.equal(shipRes.rows[0].fuel, 0, 'fuel should be 0 on join');

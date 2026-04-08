@@ -9,7 +9,7 @@ import { ensureServer, createPool } from './global-setup.mjs';
 const __filename = fileURLToPath(import.meta.url);
 const PROJECT_ROOT = join(dirname(__filename), '..');
 
-const merchantCfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', 'merchant.json'), 'utf8'));
+const merchantCfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', '01-vulpeculan-cruiser.json'), 'utf8'));
 const UNIVERSE_ID = 1;
 
 // ─── globals ──────────────────────────────────────────────────────────────────
@@ -68,7 +68,7 @@ describe('New Player Ship Assignment', () => {
     }
   });
 
-  it(`new player is Merchant Freighter with drones=0, shields=0, holds=${merchantCfg.startingHolds}`, async () => {
+  it(`new player is Vulpeculan Cruiser with drones=0, shields=0, holds=${merchantCfg.startingHolds}`, async () => {
     const { ws, welcome } = await connectWS();
     const playerId = welcome.playerId;
     try {

@@ -158,6 +158,64 @@ export type BuyHyperwarpDriveCommand = {
     type: typeof ClientMsgType.BuyHyperwarpDrive;
 };
 
+export type BuyBuoysCommand = {
+    type: typeof ClientMsgType.BuyBuoys;
+    quantity: number;
+};
+
+export type BuyProximityMinesCommand = {
+    type: typeof ClientMsgType.BuyProximityMines;
+    quantity: number;
+};
+
+export type BuySeekerMinesCommand = {
+    type: typeof ClientMsgType.BuySeekerMines;
+    quantity: number;
+};
+
+export type BuyOrbitalMinesCommand = {
+    type: typeof ClientMsgType.BuyOrbitalMines;
+    quantity: number;
+};
+
+export type BuyMineDisruptorsCommand = {
+    type: typeof ClientMsgType.BuyMineDisruptors;
+    quantity: number;
+};
+
+export type BuyHyperspaceDriveCommand = {
+    type: typeof ClientMsgType.BuyHyperspaceDrive;
+    driveType: 1 | 2;
+};
+
+export type BuyVisualScannerCommand = {
+    type: typeof ClientMsgType.BuyVisualScanner;
+};
+
+export type BuyPlanetScannerCommand = {
+    type: typeof ClientMsgType.BuyPlanetScanner;
+};
+
+export type BuyCloakingDeviceCommand = {
+    type: typeof ClientMsgType.BuyCloakingDevice;
+    quantity: number;
+};
+
+export type BuyCorbomiteCommand = {
+    type: typeof ClientMsgType.BuyCorbomite;
+    quantity: number;
+};
+
+export type BuyPhotonTorpedoesCommand = {
+    type: typeof ClientMsgType.BuyPhotonTorpedoes;
+    quantity: number;
+};
+
+export type BuyReconDronesCommand = {
+    type: typeof ClientMsgType.BuyReconDrones;
+    quantity: number;
+};
+
 export type ListDeployedDronesCommand = {
     type: typeof ClientMsgType.ListDeployedDrones;
 };
@@ -207,6 +265,18 @@ export type ClientCommand =
     | DockStarbaseCommand
     | LeaveStarbaseCommand
     | BuyHyperwarpDriveCommand
+    | BuyBuoysCommand
+    | BuyProximityMinesCommand
+    | BuySeekerMinesCommand
+    | BuyOrbitalMinesCommand
+    | BuyMineDisruptorsCommand
+    | BuyHyperspaceDriveCommand
+    | BuyVisualScannerCommand
+    | BuyPlanetScannerCommand
+    | BuyCloakingDeviceCommand
+    | BuyCorbomiteCommand
+    | BuyPhotonTorpedoesCommand
+    | BuyReconDronesCommand
     | ListDeployedDronesCommand
     | HyperspaceJumpCommand
     | ChangeMenuCommand;

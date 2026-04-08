@@ -17,7 +17,7 @@ export async function handleBuyHyperwarpDrive(playerId: number): Promise<void> {
         await client.query('BEGIN');
 
         const shipRes = await client.query(
-            `SELECT s.id as ship_id, st.name as ship_name, s.has_hyperwarp_drive, st.can_have_hyperwarp, s.turns_per_warp
+            `SELECT s.id as ship_id, st.name as ship_name, s.has_hyperspace_1, st.can_have_hyperspace_1, s.turns_per_warp
              FROM ships s JOIN ship_types st ON s.ship_type_id = st.id
              WHERE s.id = (SELECT ship_id FROM players WHERE id = $1) FOR UPDATE OF s`,
             [playerId],
@@ -28,20 +28,20 @@ export async function handleBuyHyperwarpDrive(playerId: number): Promise<void> {
             return;
         }
 
-        if (!shipRes.rows[0].can_have_hyperwarp) {
+        if (!shipRes.rows[0].can_have_hyperspace_1) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, {
                 type: ServerMsgType.Error,
-                message: 'Ship incapable of hyperwarp drive',
+                message: 'Ship incapable of hyperspace drive',
             });
             return;
         }
 
-        if (shipRes.rows[0].has_hyperwarp_drive) {
+        if (shipRes.rows[0].has_hyperspace_1) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, {
                 type: ServerMsgType.Error,
-                message: 'Ship already has hyperwarp drive',
+                message: 'Ship already has hyperspace drive',
             });
             return;
         }
@@ -56,7 +56,7 @@ export async function handleBuyHyperwarpDrive(playerId: number): Promise<void> {
             return;
         }
 
-        await client.query('UPDATE ships SET has_hyperwarp_drive = TRUE WHERE id = $1', [
+        await client.query('UPDATE ships SET has_hyperspace_1 = TRUE WHERE id = $1', [
             shipRes.rows[0].ship_id,
         ]);
         await client.query('UPDATE players SET credits = credits - 50000 WHERE id = $1', [
@@ -136,9 +136,9 @@ export async function handleHyperspaceJump(playerId: number, targetSector: numbe
         return;
     }
 
-    // Check has hyperwarp drive
+    // Check has hyperspace drive (type 1 or 2)
     const shipRes = await pool.query(
-        `SELECT s.id as ship_id, s.has_hyperwarp_drive, s.turns_per_warp
+        `SELECT s.id as ship_id, s.has_hyperspace_1, s.has_hyperspace_2, s.turns_per_warp
          FROM ships s JOIN players p ON p.ship_id = s.id
          WHERE p.id = $1`,
         [playerId],
@@ -147,10 +147,10 @@ export async function handleHyperspaceJump(playerId: number, targetSector: numbe
         sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Ship not found' });
         return;
     }
-    if (!shipRes.rows[0].has_hyperwarp_drive) {
+    if (!shipRes.rows[0].has_hyperspace_1 && !shipRes.rows[0].has_hyperspace_2) {
         sendEnvelope(playerId, {
             type: ServerMsgType.Error,
-            message: 'Hyperwarp drive not equipped',
+            message: 'Hyperspace drive not equipped',
         });
         return;
     }

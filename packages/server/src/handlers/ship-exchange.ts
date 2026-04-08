@@ -15,7 +15,11 @@ export async function handleBuyShipTradein(
 
         // Look up the target ship type
         const targetTypeRes = await client.query(
-            'SELECT id, name, starting_holds, max_holds, max_drones, max_shields, price, turns_per_warp, can_have_hyperwarp, max_planet_busters, max_terraform_devices FROM ship_types WHERE name = $1',
+            `SELECT id, name, starting_holds, max_holds, max_drones, max_shields,
+                    cost_drive, cost_computer, cost_hull, hold_cost,
+                    turns_per_warp, can_have_hyperspace_1, can_have_hyperspace_2,
+                    max_planet_busters, max_terraform_devices
+             FROM ship_types WHERE name = $1`,
             [targetShipName],
         );
         if (targetTypeRes.rows.length === 0) {
@@ -48,7 +52,11 @@ export async function handleBuyShipTradein(
 
         const cargoRes = await client.query(
             `
-            SELECT p.credits, s.fuel, s.organics, s.equipment, s.colonists, st.name AS ship_name, st.price AS current_price, s.id AS ship_id
+            SELECT p.credits, s.fuel, s.organics, s.equipment, s.colonists,
+                   st.name AS ship_name,
+                   st.cost_drive AS current_cost_drive, st.cost_computer AS current_cost_computer,
+                   st.cost_hull AS current_cost_hull, st.hold_cost AS current_hold_cost,
+                   s.id AS ship_id
             FROM players p
             JOIN ships s ON p.ship_id = s.id
             JOIN ship_types st ON s.ship_type_id = st.id
@@ -70,7 +78,9 @@ export async function handleBuyShipTradein(
             return;
         }
 
-        const cost = targetType.price - data.current_price;
+        const targetPrice = targetType.cost_drive + targetType.cost_computer + targetType.cost_hull + targetType.hold_cost;
+        const currentPrice = data.current_cost_drive + data.current_cost_computer + data.current_cost_hull + data.current_hold_cost;
+        const cost = targetPrice - currentPrice;
         if (cost > 0 && data.credits < cost) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient credits' });
@@ -88,11 +98,11 @@ export async function handleBuyShipTradein(
             return;
         }
 
-        // Create new ship, transferring cargo
+        // Create new ship, transferring cargo (all hardware reset to defaults)
         const newShipRes = await client.query(
             `
-            INSERT INTO ships (owner_id, ship_type_id, sector_id, drones, shields, holds, planet_busters, terraform_devices, turns_per_warp, has_hyperwarp_drive, fuel, organics, equipment, colonists)
-            VALUES ($1, $2, $3, 0, 0, $4, 0, 0, $5, FALSE, $6, $7, $8, $9)
+            INSERT INTO ships (owner_id, ship_type_id, sector_id, drones, shields, holds, turns_per_warp, fuel, organics, equipment, colonists)
+            VALUES ($1, $2, $3, 0, 0, $4, $5, $6, $7, $8, $9)
             RETURNING id
         `,
             [

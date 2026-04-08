@@ -10,8 +10,9 @@ import { ClientMsgType, ServerMsgType } from '@twnr/shared';
 const __filename = fileURLToPath(import.meta.url);
 const PROJECT_ROOT = join(dirname(__filename), '..');
 
-const merchantCfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', 'merchant.json'), 'utf8'));
-const warbirdCfg  = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', 'warbird.json'),  'utf8'));
+const merchantCfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', '01-vulpeculan-cruiser.json'), 'utf8'));
+const warbirdCfg  = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', '02-hydra-skiff.json'),  'utf8'));
+const shipPrice = (cfg) => cfg.costDrive + cfg.costComputer + cfg.costHull + cfg.holdCost;
 const STARTING_CREDITS = 10000;
 const UNIVERSE_ID = 1;
 
@@ -101,7 +102,7 @@ describe('Ship exchange — validation', () => {
     const playerId = welcome.playerId;
     try {
       await navigateTo(ws, starbaseId);
-      const upgradeCost = warbirdCfg.price - merchantCfg.price;
+      const upgradeCost = shipPrice(warbirdCfg) - shipPrice(merchantCfg);
       await pool.query('UPDATE players SET credits = $1 WHERE id = $2', [upgradeCost - 1, playerId]);
       const msg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: warbirdCfg.name }, ServerMsgType.BuyShipTradeinResult);
       assert.equal(msg.type, 'error');
@@ -137,11 +138,11 @@ describe('Ship exchange — success', () => {
     return res.rows.length > 0 ? Number(res.rows[0].sector_number) : null;
   }
 
-  it('upgrade to Warbird costs correct credits, resets drones/shields, sets cargoLimit to startingHolds', async () => {
+  it('upgrade to Hydra Skiff costs correct credits, resets drones/shields, sets cargoLimit to startingHolds', async () => {
     const starbaseId = await getStarbaseSector();
     assert.ok(starbaseId);
 
-    const upgradeCost = warbirdCfg.price - merchantCfg.price;
+    const upgradeCost = shipPrice(warbirdCfg) - shipPrice(merchantCfg);
     const { ws, welcome } = await connectWS();
     const playerId = welcome.playerId;
     try {
@@ -188,7 +189,7 @@ describe('Ship exchange — success', () => {
     }
   });
 
-  it('downgrade from Warbird to Merchant Freighter refunds credit difference, sets cargoLimit to startingHolds', async () => {
+  it('downgrade from Hydra Skiff to Vulpeculan Cruiser refunds credit difference, sets cargoLimit to startingHolds', async () => {
     const starbaseId = await getStarbaseSector();
     assert.ok(starbaseId);
 

@@ -17,10 +17,12 @@ const __filename = fileURLToPath(import.meta.url);
 const PROJECT_ROOT = join(dirname(__filename), '..');
 const SHIPS_DIR = join(PROJECT_ROOT, 'config', 'ships');
 
-const merchantCfg = JSON.parse(readFileSync(join(SHIPS_DIR, 'merchant.json'), 'utf8'));
-const scoutCfg = JSON.parse(readFileSync(join(SHIPS_DIR, 'scout.json'), 'utf8'));
-const MERCHANT_NAME = merchantCfg.name;
-const SCOUT_NAME = scoutCfg.name;
+const merchantCfg = JSON.parse(readFileSync(join(SHIPS_DIR, '01-vulpeculan-cruiser.json'), 'utf8'));
+const scoutCfg = JSON.parse(readFileSync(join(SHIPS_DIR, '02-hydra-skiff.json'), 'utf8'));
+const interceptorCfg = JSON.parse(readFileSync(join(SHIPS_DIR, '10-espatier-interceptor.json'), 'utf8'));
+const MERCHANT_NAME = merchantCfg.name;  // 'Vulpeculan Cruiser'
+const SCOUT_NAME = scoutCfg.name;        // 'Hydra Skiff'
+const INTERCEPTOR_NAME = interceptorCfg.name; // 'Espatier Interceptor' (canHaveHyperspace1 = true)
 
 const UNIVERSE_ID = 1;
 
@@ -156,19 +158,19 @@ after(async () => {
 
 // --- Schema tests ---
 
-describe('Schema - Universe columns', () => {
-  it('turns_per_day column exists with default 500', async () => {
-    const res = await pool.query(`SELECT data_type, column_default, is_nullable FROM information_schema.columns WHERE table_name = 'universes' AND column_name = 'turns_per_day'`);
+describe('Schema - Edits columns (turns settings)', () => {
+  it('edits.turns_per_day column exists with default 500', async () => {
+    const res = await pool.query(`SELECT data_type, column_default, is_nullable FROM information_schema.columns WHERE table_name = 'edits' AND column_name = 'turns_per_day'`);
     assert.equal(res.rows.length, 1); assert.match(res.rows[0].data_type, /int/i);
     assert.equal(res.rows[0].is_nullable, 'NO'); assert.match(res.rows[0].column_default, /500/);
   });
-  it('starting_turns column exists with default 500', async () => {
-    const res = await pool.query(`SELECT data_type, column_default, is_nullable FROM information_schema.columns WHERE table_name = 'universes' AND column_name = 'starting_turns'`);
+  it('edits.starting_turns column exists with default 500', async () => {
+    const res = await pool.query(`SELECT data_type, column_default, is_nullable FROM information_schema.columns WHERE table_name = 'edits' AND column_name = 'starting_turns'`);
     assert.equal(res.rows.length, 1); assert.match(res.rows[0].data_type, /int/i);
     assert.equal(res.rows[0].is_nullable, 'NO'); assert.match(res.rows[0].column_default, /500/);
   });
-  it('max_turns column exists with default 2000', async () => {
-    const res = await pool.query(`SELECT data_type, column_default, is_nullable FROM information_schema.columns WHERE table_name = 'universes' AND column_name = 'max_turns'`);
+  it('edits.max_turns column exists with default 2000', async () => {
+    const res = await pool.query(`SELECT data_type, column_default, is_nullable FROM information_schema.columns WHERE table_name = 'edits' AND column_name = 'max_turns'`);
     assert.equal(res.rows.length, 1); assert.match(res.rows[0].data_type, /int/i);
     assert.equal(res.rows[0].is_nullable, 'NO'); assert.match(res.rows[0].column_default, /2000/);
   });
@@ -196,7 +198,7 @@ describe('Schema - Ship columns', () => {
 // --- Ship config tests ---
 
 describe('Ship configs', () => {
-  it('Merchant Freighter has turnsPerWarp = 3', () => {
+  it('Vulpeculan Cruiser has turnsPerWarp = 3', () => {
     assert.equal(merchantCfg.turnsPerWarp, 3);
   });
   it('All ship configs have turnsPerWarp >= 1', () => {
@@ -207,28 +209,19 @@ describe('Ship configs', () => {
       assert.ok(typeof cfg.turnsPerWarp === 'number' && cfg.turnsPerWarp >= 1, `${file}: turnsPerWarp must be >= 1, got ${cfg.turnsPerWarp}`);
     }
   });
-  it('Non-Merchant ships default to turnsPerWarp = 2', () => {
-    const files = readdirSync(SHIPS_DIR).filter(f => f.endsWith('.json'));
-    for (const file of files) {
-      const cfg = JSON.parse(readFileSync(join(SHIPS_DIR, file), 'utf8'));
-      if (cfg.name !== MERCHANT_NAME) {
-        assert.equal(cfg.turnsPerWarp, 2, `${file}: non-Merchant ships should have turnsPerWarp = 2, got ${cfg.turnsPerWarp}`);
-      }
-    }
-  });
 });
 
 // --- Player initialization ---
 
 describe('Player initialization', () => {
   it('New player gets turns = starting_turns', async () => {
-    await pool.query('UPDATE universes SET starting_turns = 250 WHERE id = $1', [UNIVERSE_ID]);
+    await pool.query('UPDATE edits SET starting_turns = 250 FROM universes WHERE universes.edit_id = edits.id AND universes.id = $1', [UNIVERSE_ID]);
     try {
       const { playerId } = await joinUniverse(pool);
       const r = await pool.query('SELECT turns FROM players WHERE id = $1', [playerId]);
       assert.equal(r.rows[0].turns, 250);
     } finally {
-      await pool.query('UPDATE universes SET starting_turns = 500 WHERE id = $1', [UNIVERSE_ID]);
+      await pool.query('UPDATE edits SET starting_turns = 500 FROM universes WHERE universes.edit_id = edits.id AND universes.id = $1', [UNIVERSE_ID]);
     }
   });
 
@@ -300,7 +293,7 @@ describe('ShipInfo includes turn and hyperwarp fields', () => {
   });
 });
 
-// --- Ship trade-in resets turns_per_warp and has_hyperwarp_drive ---
+// --- Ship trade-in resets turns_per_warp and has_hyperspace_1 ---
 
 describe('Ship trade-in resets ship-specific fields', () => {
   it('After trade-in, turns_per_warp matches new ship config', async () => {
@@ -322,12 +315,12 @@ describe('Ship trade-in resets ship-specific fields', () => {
 
     const shipRes = await pool.query('SELECT turns_per_warp FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
     assert.equal(shipRes.rows[0].turns_per_warp, scoutCfg.turnsPerWarp,
-      `turns_per_warp should match Scout config (${scoutCfg.turnsPerWarp})`);
+      `turns_per_warp should match Hydra Skiff config (${scoutCfg.turnsPerWarp})`);
 
     await closeWS(wsConn);
   });
 
-  it('After trade-in, has_hyperwarp_drive is false', async () => {
+  it('After trade-in, has_hyperspace_1 resets to false', async () => {
     const { token, playerId } = await joinUniverse(pool);
     await pool.query('UPDATE players SET turns = 9999 WHERE id = $1', [playerId]);
     const { ws: wsConn } = await ws(token);
@@ -337,14 +330,14 @@ describe('Ship trade-in resets ship-specific fields', () => {
     await movePlayerToViaWs(wsConn, starbaseSector);
     await wsRequest(wsConn, { type: ClientMsgType.DockStarbase }, ServerMsgType.DockStarbaseResult);
 
-    await pool.query('UPDATE ships SET has_hyperwarp_drive = true WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
+    await pool.query('UPDATE ships SET has_hyperspace_1 = true WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
     await pool.query('UPDATE players SET credits = 999999 WHERE id = $1', [playerId]);
 
     const result = await wsRequest(wsConn, { type: ClientMsgType.BuyShipTradein, targetShipName: SCOUT_NAME }, ServerMsgType.BuyShipTradeinResult);
     if (result.type === ServerMsgType.Error) { await closeWS(wsConn); assert.fail(`Trade failed: ${result.message}`); }
 
-    const driveRes = await pool.query('SELECT has_hyperwarp_drive FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
-    assert.equal(driveRes.rows[0].has_hyperwarp_drive, false,
+    const driveRes = await pool.query('SELECT has_hyperspace_1 FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
+    assert.equal(driveRes.rows[0].has_hyperspace_1, false,
       'Hyperwarp drive should not transfer to new ship');
 
     await closeWS(wsConn);
@@ -392,8 +385,8 @@ describe('Warp turn costs', () => {
 // --- Unlimited universe warp ---
 
 describe('Unlimited universe - warp', () => {
-  before(() => pool.query('UPDATE universes SET turns_per_day = 0 WHERE id = $1', [UNIVERSE_ID]));
-  after(() => pool.query('UPDATE universes SET turns_per_day = 500 WHERE id = $1', [UNIVERSE_ID]));
+  before(() => pool.query('UPDATE edits SET turns_per_day = 0 FROM universes WHERE universes.edit_id = edits.id AND universes.id = $1', [UNIVERSE_ID]));
+  after(() => pool.query('UPDATE edits SET turns_per_day = 500 FROM universes WHERE universes.edit_id = edits.id AND universes.id = $1', [UNIVERSE_ID]));
 
   it('Unlimited: warp turnsUsed = 0, no deduction', async () => {
     const { token, playerId } = await joinUniverse(pool);
@@ -637,8 +630,8 @@ describe('Zero-cost actions', () => {
 // --- Unlimited non-warp ---
 
 describe('Unlimited universe - non-warp', () => {
-  before(() => pool.query('UPDATE universes SET turns_per_day = 0 WHERE id = $1', [UNIVERSE_ID]));
-  after(() => pool.query('UPDATE universes SET turns_per_day = 500 WHERE id = $1', [UNIVERSE_ID]));
+  before(() => pool.query('UPDATE edits SET turns_per_day = 0 FROM universes WHERE universes.edit_id = edits.id AND universes.id = $1', [UNIVERSE_ID]));
+  after(() => pool.query('UPDATE edits SET turns_per_day = 500 FROM universes WHERE universes.edit_id = edits.id AND universes.id = $1', [UNIVERSE_ID]));
 
   it('Unlimited: buying cargo turnsUsed = 0', async () => {
     const { token, playerId } = await joinUniverse(pool);
@@ -723,8 +716,8 @@ describe('Unlimited universe - non-warp', () => {
 // --- Grant turns script ---
 
 describe('Grant turns script', () => {
-  before(() => pool.query('UPDATE universes SET turns_per_day = 240, max_turns = 100 WHERE id = $1', [UNIVERSE_ID]));
-  after(() => pool.query('UPDATE universes SET turns_per_day = 500, max_turns = 2000 WHERE id = $1', [UNIVERSE_ID]));
+  before(() => pool.query('UPDATE edits SET turns_per_day = 240, max_turns = 100 FROM universes WHERE universes.edit_id = edits.id AND universes.id = $1', [UNIVERSE_ID]));
+  after(() => pool.query('UPDATE edits SET turns_per_day = 500, max_turns = 2000 FROM universes WHERE universes.edit_id = edits.id AND universes.id = $1', [UNIVERSE_ID]));
 
   it('Script runs without error and prints player count', () => {
     const output = execFileSync('node', ['scripts/grant-turns.js'], { cwd: PROJECT_ROOT, env: testEnv(), encoding: 'utf8' });
@@ -756,12 +749,12 @@ describe('Grant turns script', () => {
   });
 
   it('Skips unlimited universes', async () => {
-    await pool.query('UPDATE universes SET turns_per_day = 0 WHERE id = $1', [UNIVERSE_ID]);
+    await pool.query('UPDATE edits SET turns_per_day = 0 FROM universes WHERE universes.edit_id = edits.id AND universes.id = $1', [UNIVERSE_ID]);
     const { playerId } = await joinUniverse(pool);
     await pool.query(`UPDATE players SET turns = 5, last_turns_granted_at = NOW() - interval '10 hours' WHERE id = $1`, [playerId]);
     execFileSync('node', ['scripts/grant-turns.js'], { cwd: PROJECT_ROOT, env: testEnv(), encoding: 'utf8' });
     assert.equal((await pool.query('SELECT turns FROM players WHERE id = $1', [playerId])).rows[0].turns, 5);
-    await pool.query('UPDATE universes SET turns_per_day = 240 WHERE id = $1', [UNIVERSE_ID]);
+    await pool.query('UPDATE edits SET turns_per_day = 240 FROM universes WHERE universes.edit_id = edits.id AND universes.id = $1', [UNIVERSE_ID]);
   });
 
   it('Grants 0 when less than 1 hour elapsed', async () => {
@@ -844,38 +837,38 @@ describe('Grant turns script', () => {
 // HYPERSPACE JUMP SYSTEM TESTS
 // ============================================================
 
-// --- Ship config: canHaveHyperwarp ---
+// --- Ship config: canHaveHyperspace1 ---
 
-describe('Ship configs - canHaveHyperwarp', () => {
-  it('Merchant Freighter has canHaveHyperwarp = false', () => {
-    assert.strictEqual(merchantCfg.canHaveHyperwarp, false);
+describe('Ship configs - canHaveHyperspace1', () => {
+  it('Vulpeculan Cruiser has canHaveHyperspace1 = false', () => {
+    assert.strictEqual(merchantCfg.canHaveHyperspace1, false);
   });
 
-  it('Scout Marauder has canHaveHyperwarp = true', () => {
-    assert.strictEqual(scoutCfg.canHaveHyperwarp, true);
+  it('Hydra Skiff has canHaveHyperspace1 = false', () => {
+    assert.strictEqual(scoutCfg.canHaveHyperspace1, false);
   });
 
-  it('All ships follow the maxDrones >= 10 rule (except Merchant and Scout)', () => {
+  it('Espatier Interceptor has canHaveHyperspace1 = true', () => {
+    assert.strictEqual(interceptorCfg.canHaveHyperspace1, true);
+  });
+
+  it('All ship configs have canHaveHyperspace1 boolean', () => {
     const files = readdirSync(SHIPS_DIR).filter(f => f.endsWith('.json'));
     for (const file of files) {
       const cfg = JSON.parse(readFileSync(join(SHIPS_DIR, file), 'utf8'));
-      assert.ok(typeof cfg.canHaveHyperwarp === 'boolean', `${file}: missing canHaveHyperwarp`);
-      if (cfg.name === MERCHANT_NAME || cfg.name === SCOUT_NAME) continue;
-      const expected = cfg.maxDrones >= 10;
-      assert.strictEqual(cfg.canHaveHyperwarp, expected,
-        `${file}: canHaveHyperwarp should be ${expected} (maxDrones=${cfg.maxDrones})`);
+      assert.ok(typeof cfg.canHaveHyperspace1 === 'boolean', `${file}: missing canHaveHyperspace1`);
     }
   });
 });
 
-// --- Schema: has_hyperwarp_drive ---
+// --- Schema: has_hyperspace_1 ---
 
-describe('Schema - has_hyperwarp_drive', () => {
-  it('ships.has_hyperwarp_drive exists (boolean, NOT NULL, default false)', async () => {
+describe('Schema - has_hyperspace_1', () => {
+  it('ships.has_hyperspace_1 exists (boolean, NOT NULL, default false)', async () => {
     const res = await pool.query(`
       SELECT data_type, column_default, is_nullable
       FROM information_schema.columns
-      WHERE table_name = 'ships' AND column_name = 'has_hyperwarp_drive'
+      WHERE table_name = 'ships' AND column_name = 'has_hyperspace_1'
     `);
     assert.equal(res.rows.length, 1);
     assert.match(res.rows[0].data_type, /bool/i);
@@ -895,21 +888,21 @@ describe('BuyHyperwarpDrive', () => {
     let canEquip = false;
     for (const file of cfgFiles) {
       const cfg = JSON.parse(readFileSync(join(SHIPS_DIR, file), 'utf8'));
-      if (cfg.name === shipName) { canEquip = cfg.canHaveHyperwarp; break; }
+      if (cfg.name === shipName) { canEquip = cfg.canHaveHyperspace1; break; }
     }
 
     if (!canEquip) {
-      await pool.query(`UPDATE ships SET ship_type_id = (SELECT id FROM ship_types WHERE name = '${SCOUT_NAME}') WHERE id = (SELECT ship_id FROM players WHERE id = $1)`, [playerId]);
+      await pool.query(`UPDATE ships SET ship_type_id = (SELECT id FROM ship_types WHERE name = '${INTERCEPTOR_NAME}') WHERE id = (SELECT ship_id FROM players WHERE id = $1)`, [playerId]);
     }
 
     await pool.query('UPDATE players SET credits = 100000 WHERE id = $1', [playerId]);
-    await pool.query('UPDATE ships SET has_hyperwarp_drive = false WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
+    await pool.query('UPDATE ships SET has_hyperspace_1 = false WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
 
     const result = await wsRequest(wsConn, { type: ClientMsgType.BuyHyperwarpDrive }, ServerMsgType.BuyHyperwarpDriveResult);
     assert.equal(result.type, ServerMsgType.BuyHyperwarpDriveResult);
 
-    const driveRes = await pool.query('SELECT has_hyperwarp_drive FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
-    assert.equal(driveRes.rows[0].has_hyperwarp_drive, true);
+    const driveRes = await pool.query('SELECT has_hyperspace_1 FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
+    assert.equal(driveRes.rows[0].has_hyperspace_1, true);
 
     const creditsRes = await pool.query('SELECT credits FROM players WHERE id = $1', [playerId]);
     assert.equal(creditsRes.rows[0].credits, 50000);
@@ -920,7 +913,7 @@ describe('BuyHyperwarpDrive', () => {
   it('Rejected when not at Starbase', async () => {
     const { token, playerId } = await joinUniverse(pool);
     const { ws: wsConn } = await ws(token);
-    await pool.query(`UPDATE ships SET ship_type_id = (SELECT id FROM ship_types WHERE name = '${SCOUT_NAME}'), has_hyperwarp_drive = false WHERE id = (SELECT ship_id FROM players WHERE id = $1)`, [playerId]);
+    await pool.query(`UPDATE ships SET ship_type_id = (SELECT id FROM ship_types WHERE name = '${INTERCEPTOR_NAME}'), has_hyperspace_1 = false WHERE id = (SELECT ship_id FROM players WHERE id = $1)`, [playerId]);
     await pool.query('UPDATE players SET credits = 100000 WHERE id = $1', [playerId]);
 
     const result = await wsRequest(wsConn, { type: ClientMsgType.BuyHyperwarpDrive }, ServerMsgType.BuyHyperwarpDriveResult);
@@ -943,7 +936,7 @@ describe('BuyHyperwarpDrive', () => {
 
   it('Rejected when already have hyperwarp drive', async () => {
     const { ws: wsConn, playerId } = await goToStarbase(pool);
-    await pool.query(`UPDATE ships SET ship_type_id = (SELECT id FROM ship_types WHERE name = '${SCOUT_NAME}'), has_hyperwarp_drive = true WHERE id = (SELECT ship_id FROM players WHERE id = $1)`, [playerId]);
+    await pool.query(`UPDATE ships SET ship_type_id = (SELECT id FROM ship_types WHERE name = '${INTERCEPTOR_NAME}'), has_hyperspace_1 = true WHERE id = (SELECT ship_id FROM players WHERE id = $1)`, [playerId]);
     await pool.query('UPDATE players SET credits = 100000 WHERE id = $1', [playerId]);
 
     const result = await wsRequest(wsConn, { type: ClientMsgType.BuyHyperwarpDrive }, ServerMsgType.BuyHyperwarpDriveResult);
@@ -955,7 +948,7 @@ describe('BuyHyperwarpDrive', () => {
 
   it('Rejected when insufficient credits', async () => {
     const { ws: wsConn, playerId } = await goToStarbase(pool);
-    await pool.query(`UPDATE ships SET ship_type_id = (SELECT id FROM ship_types WHERE name = '${SCOUT_NAME}'), has_hyperwarp_drive = false WHERE id = (SELECT ship_id FROM players WHERE id = $1)`, [playerId]);
+    await pool.query(`UPDATE ships SET ship_type_id = (SELECT id FROM ship_types WHERE name = '${INTERCEPTOR_NAME}'), has_hyperspace_1 = false WHERE id = (SELECT ship_id FROM players WHERE id = $1)`, [playerId]);
     await pool.query('UPDATE players SET credits = 100 WHERE id = $1', [playerId]);
 
     const result = await wsRequest(wsConn, { type: ClientMsgType.BuyHyperwarpDrive }, ServerMsgType.BuyHyperwarpDriveResult);
@@ -967,7 +960,7 @@ describe('BuyHyperwarpDrive', () => {
 
   it('Buying hyperwarp drive costs 0 turns', async () => {
     const { ws: wsConn, playerId } = await goToStarbase(pool);
-    await pool.query(`UPDATE ships SET ship_type_id = (SELECT id FROM ship_types WHERE name = '${SCOUT_NAME}'), has_hyperwarp_drive = false WHERE id = (SELECT ship_id FROM players WHERE id = $1)`, [playerId]);
+    await pool.query(`UPDATE ships SET ship_type_id = (SELECT id FROM ship_types WHERE name = '${INTERCEPTOR_NAME}'), has_hyperspace_1 = false WHERE id = (SELECT ship_id FROM players WHERE id = $1)`, [playerId]);
     await pool.query('UPDATE players SET credits = 100000 WHERE id = $1', [playerId]);
     await pool.query('UPDATE players SET turns = 50 WHERE id = $1', [playerId]);
 
@@ -1054,7 +1047,7 @@ describe('HyperspaceJump', () => {
   async function setupJumpPlayer() {
     const { token, playerId } = await joinUniverse(pool);
     await pool.query('UPDATE players SET turns = 9999 WHERE id = $1', [playerId]);
-    await pool.query(`UPDATE ships SET ship_type_id = (SELECT id FROM ship_types WHERE name = '${SCOUT_NAME}'), has_hyperwarp_drive = true, turns_per_warp = 2 WHERE id = (SELECT ship_id FROM players WHERE id = $1)`, [playerId]);
+    await pool.query(`UPDATE ships SET ship_type_id = (SELECT id FROM ship_types WHERE name = '${INTERCEPTOR_NAME}'), has_hyperspace_1 = true, turns_per_warp = 2 WHERE id = (SELECT ship_id FROM players WHERE id = $1)`, [playerId]);
     const { ws: wsConn } = await ws(token);
     return { ws: wsConn, token, playerId };
   }
@@ -1106,7 +1099,7 @@ describe('HyperspaceJump', () => {
   it('Rejected when no hyperwarp drive', async () => {
     const { token, playerId } = await joinUniverse(pool);
     await pool.query('UPDATE players SET turns = 9999 WHERE id = $1', [playerId]);
-    await pool.query('UPDATE ships SET has_hyperwarp_drive = false WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
+    await pool.query('UPDATE ships SET has_hyperspace_1 = false WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
     const { ws: wsConn } = await ws(token);
 
     const adj = await getAdjacentSector(wsConn);
@@ -1188,7 +1181,7 @@ describe('HyperspaceJump', () => {
   });
 
   it('In unlimited universe, turnsUsed = 0 and no turn deduction', async () => {
-    await pool.query('UPDATE universes SET turns_per_day = 0 WHERE id = $1', [UNIVERSE_ID]);
+    await pool.query('UPDATE edits SET turns_per_day = 0 FROM universes WHERE universes.edit_id = edits.id AND universes.id = $1', [UNIVERSE_ID]);
     try {
       const { ws: wsConn, playerId } = await setupJumpPlayer();
       const { targetSector, hops } = await findDistantSector(wsConn);
@@ -1208,12 +1201,12 @@ describe('HyperspaceJump', () => {
       await pool.query('DELETE FROM sector_drones WHERE owner_id = $1', [playerId]);
       await closeWS(wsConn);
     } finally {
-      await pool.query('UPDATE universes SET turns_per_day = 500 WHERE id = $1', [UNIVERSE_ID]);
+      await pool.query('UPDATE edits SET turns_per_day = 500 FROM universes WHERE universes.edit_id = edits.id AND universes.id = $1', [UNIVERSE_ID]);
     }
   });
 
   it('In unlimited universe, jump succeeds even with 0 turns', async () => {
-    await pool.query('UPDATE universes SET turns_per_day = 0 WHERE id = $1', [UNIVERSE_ID]);
+    await pool.query('UPDATE edits SET turns_per_day = 0 FROM universes WHERE universes.edit_id = edits.id AND universes.id = $1', [UNIVERSE_ID]);
     try {
       const { ws: wsConn, playerId } = await setupJumpPlayer();
       const adj = await getAdjacentSector(wsConn);
@@ -1228,7 +1221,7 @@ describe('HyperspaceJump', () => {
       await pool.query('DELETE FROM sector_drones WHERE owner_id = $1', [playerId]);
       await closeWS(wsConn);
     } finally {
-      await pool.query('UPDATE universes SET turns_per_day = 500 WHERE id = $1', [UNIVERSE_ID]);
+      await pool.query('UPDATE edits SET turns_per_day = 500 FROM universes WHERE universes.edit_id = edits.id AND universes.id = $1', [UNIVERSE_ID]);
     }
   });
 
