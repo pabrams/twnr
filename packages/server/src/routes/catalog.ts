@@ -23,9 +23,16 @@ export function createCatalogRoutes(router: Router, middleware: Middleware): voi
         res.json(class0Prices);
     });
 
-    router.get('/api/ships', (_req, res) => {
-        const ships = Object.values(shipConfigs).sort((a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
-        res.json(ships);
+    router.get('/api/ships', async (_req, res) => {
+        try {
+            const { rows } = await pool.query(
+                'SELECT * FROM ship_types ORDER BY sort_order, id',
+            );
+            res.json(rows);
+        } catch (err) {
+            console.error('Ship catalog error:', err);
+            res.status(500).json({ error: 'Failed to load ship catalog' });
+        }
     });
 
     router.get('/api/planets', (_req, res) => {
