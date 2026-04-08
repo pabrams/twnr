@@ -119,10 +119,9 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
         const sector: number = playerRow.sector_number;
 
         // Undock on connect (in case of prior disconnect while docked) and set login timestamp
-        await pool.query(
-            'UPDATE players SET docked = FALSE, last_login_at = NOW() WHERE id = $1',
-            [playerId],
-        );
+        await pool.query('UPDATE players SET docked = FALSE, last_login_at = NOW() WHERE id = $1', [
+            playerId,
+        ]);
         // Update user last connected timestamp
         await pool.query('UPDATE users SET last_connected_at = NOW() WHERE id = $1', [userId]);
         // Mark current sector as visited
