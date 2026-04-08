@@ -1,5 +1,6 @@
 import { pool } from './pool.js';
 import { shipConfigs } from '../ship-config.js';
+import { planetConfigs } from '../planet-config.js';
 
 let isConnected = false;
 
@@ -300,6 +301,160 @@ export const connectDB = async (): Promise<void> => {
       );
 
       ALTER TABLE players ADD COLUMN IF NOT EXISTS current_menu_id INTEGER REFERENCES menu(id) ON DELETE SET NULL;
+    `);
+
+        // Schema additions: new tables and columns
+        await client.query(`
+      -- Sectors: protected space
+      ALTER TABLE sectors ADD COLUMN IF NOT EXISTS is_protected BOOLEAN NOT NULL DEFAULT FALSE;
+
+      -- Warps: prevent self-loops
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.table_constraints
+          WHERE constraint_name = 'warps_no_self_loop' AND table_name = 'warps'
+        ) THEN
+          ALTER TABLE warps ADD CONSTRAINT warps_no_self_loop
+            CHECK (from_sector_id <> to_sector_id);
+        END IF;
+      END $$;
+
+      -- Edits: starting shields and per-universe hardware prices
+      ALTER TABLE edits ADD COLUMN IF NOT EXISTS starting_shields INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE edits ADD COLUMN IF NOT EXISTS price_terraform_device INTEGER NOT NULL DEFAULT 25000;
+      ALTER TABLE edits ADD COLUMN IF NOT EXISTS price_planet_buster INTEGER NOT NULL DEFAULT 40000;
+      ALTER TABLE edits ADD COLUMN IF NOT EXISTS price_space_buoy INTEGER NOT NULL DEFAULT 100;
+      ALTER TABLE edits ADD COLUMN IF NOT EXISTS price_proximity_mine INTEGER NOT NULL DEFAULT 500;
+      ALTER TABLE edits ADD COLUMN IF NOT EXISTS price_seeker_mine INTEGER NOT NULL DEFAULT 9500;
+      ALTER TABLE edits ADD COLUMN IF NOT EXISTS price_orbital_mine INTEGER NOT NULL DEFAULT 2000;
+      ALTER TABLE edits ADD COLUMN IF NOT EXISTS price_mine_disruptor INTEGER NOT NULL DEFAULT 5000;
+      ALTER TABLE edits ADD COLUMN IF NOT EXISTS price_hyperspace_1 INTEGER NOT NULL DEFAULT 100000;
+      ALTER TABLE edits ADD COLUMN IF NOT EXISTS price_hyperspace_2 INTEGER NOT NULL DEFAULT 150000;
+      ALTER TABLE edits ADD COLUMN IF NOT EXISTS price_visual_scanner INTEGER NOT NULL DEFAULT 50000;
+      ALTER TABLE edits ADD COLUMN IF NOT EXISTS price_planet_scanner INTEGER NOT NULL DEFAULT 20000;
+      ALTER TABLE edits ADD COLUMN IF NOT EXISTS price_cloaking_device INTEGER NOT NULL DEFAULT 25000;
+      ALTER TABLE edits ADD COLUMN IF NOT EXISTS price_corbomite INTEGER NOT NULL DEFAULT 500;
+      ALTER TABLE edits ADD COLUMN IF NOT EXISTS price_photon_torpedo INTEGER NOT NULL DEFAULT 60000;
+      ALTER TABLE edits ADD COLUMN IF NOT EXISTS price_recon_drone INTEGER NOT NULL DEFAULT 1500;
+
+      -- Command: flag for news generation
+      ALTER TABLE command ADD COLUMN IF NOT EXISTS generates_news BOOLEAN NOT NULL DEFAULT FALSE;
+
+      -- Ship types: calculated cost columns
+      ALTER TABLE ship_types ADD COLUMN IF NOT EXISTS basic_hold_cost INTEGER GENERATED ALWAYS AS (starting_holds * hold_cost) STORED;
+      ALTER TABLE ship_types ADD COLUMN IF NOT EXISTS base_cost INTEGER GENERATED ALWAYS AS (cost_drive + cost_computer + cost_hull + starting_holds * hold_cost) STORED;
+
+      -- Planet types reference table
+      CREATE TABLE IF NOT EXISTS planet_types (
+        name VARCHAR(255) PRIMARY KEY,
+        description TEXT,
+        max_colonists INTEGER NOT NULL DEFAULT 0,
+        max_citadel SMALLINT NOT NULL DEFAULT 0,
+        fuel_production SMALLINT NOT NULL DEFAULT 0,
+        organics_production SMALLINT NOT NULL DEFAULT 0,
+        equipment_production SMALLINT NOT NULL DEFAULT 0
+      );
+
+      -- Corporations
+      CREATE TABLE IF NOT EXISTS corporations (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        ceo_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+        universe_id INTEGER NOT NULL REFERENCES universes(id) ON DELETE CASCADE,
+        UNIQUE (name, universe_id)
+      );
+
+      -- Players: knighted status and corporation membership
+      ALTER TABLE players ADD COLUMN IF NOT EXISTS is_knighted BOOLEAN NOT NULL DEFAULT FALSE;
+      ALTER TABLE players ADD COLUMN IF NOT EXISTS corporation_id INTEGER REFERENCES corporations(id) ON DELETE SET NULL;
+
+      -- Ships: corporation ownership (at most one owner type)
+      ALTER TABLE ships ADD COLUMN IF NOT EXISTS corp_owner_id INTEGER REFERENCES corporations(id) ON DELETE SET NULL;
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.table_constraints
+          WHERE constraint_name = 'ships_single_owner_type' AND table_name = 'ships'
+        ) THEN
+          ALTER TABLE ships ADD CONSTRAINT ships_single_owner_type
+            CHECK (NOT (owner_id IS NOT NULL AND corp_owner_id IS NOT NULL));
+        END IF;
+      END $$;
+
+      -- Ports: name and buy/sell direction for each commodity
+      ALTER TABLE ports ADD COLUMN IF NOT EXISTS name VARCHAR(255);
+      ALTER TABLE ports ADD COLUMN IF NOT EXISTS fuel_buys BOOLEAN NOT NULL DEFAULT TRUE;
+      ALTER TABLE ports ADD COLUMN IF NOT EXISTS org_buys BOOLEAN NOT NULL DEFAULT TRUE;
+      ALTER TABLE ports ADD COLUMN IF NOT EXISTS equ_buys BOOLEAN NOT NULL DEFAULT TRUE;
+
+      -- Planets: shields, base, ownership
+      ALTER TABLE planets ADD COLUMN IF NOT EXISTS shields INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE planets ADD COLUMN IF NOT EXISTS has_base BOOLEAN NOT NULL DEFAULT FALSE;
+      ALTER TABLE planets ADD COLUMN IF NOT EXISTS owner_player_id INTEGER REFERENCES players(id) ON DELETE SET NULL;
+      ALTER TABLE planets ADD COLUMN IF NOT EXISTS owner_corp_id INTEGER REFERENCES corporations(id) ON DELETE SET NULL;
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.table_constraints
+          WHERE constraint_name = 'planets_single_owner_type' AND table_name = 'planets'
+        ) THEN
+          ALTER TABLE planets ADD CONSTRAINT planets_single_owner_type
+            CHECK (NOT (owner_player_id IS NOT NULL AND owner_corp_id IS NOT NULL));
+        END IF;
+      END $$;
+
+      -- Sector drones: corporation ownership
+      ALTER TABLE sector_drones ADD COLUMN IF NOT EXISTS corp_owner_id INTEGER REFERENCES corporations(id) ON DELETE SET NULL;
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.table_constraints
+          WHERE constraint_name = 'sector_drones_single_owner_type' AND table_name = 'sector_drones'
+        ) THEN
+          ALTER TABLE sector_drones ADD CONSTRAINT sector_drones_single_owner_type
+            CHECK (NOT (owner_id IS NOT NULL AND corp_owner_id IS NOT NULL));
+        END IF;
+      END $$;
+
+      -- Sector mines (each mine type per sector has its own owner)
+      CREATE TABLE IF NOT EXISTS sector_mines (
+        sector_id INTEGER NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
+        mine_type VARCHAR(20) NOT NULL CHECK (mine_type IN ('proximity', 'orbital', 'seeker')),
+        quantity INTEGER NOT NULL DEFAULT 0,
+        owner_player_id INTEGER REFERENCES players(id) ON DELETE SET NULL,
+        owner_corp_id INTEGER REFERENCES corporations(id) ON DELETE SET NULL,
+        PRIMARY KEY (sector_id, mine_type),
+        CHECK (NOT (owner_player_id IS NOT NULL AND owner_corp_id IS NOT NULL))
+      );
+
+      -- Sector beacons (0 or 1 per sector)
+      CREATE TABLE IF NOT EXISTS sector_beacons (
+        sector_id INTEGER PRIMARY KEY REFERENCES sectors(id) ON DELETE CASCADE,
+        owner_player_id INTEGER REFERENCES players(id) ON DELETE SET NULL,
+        owner_corp_id INTEGER REFERENCES corporations(id) ON DELETE SET NULL,
+        message TEXT,
+        CHECK (NOT (owner_player_id IS NOT NULL AND owner_corp_id IS NOT NULL))
+      );
+
+      -- Visited sectors: add timestamp and snapshot
+      ALTER TABLE visited_sectors ADD COLUMN IF NOT EXISTS visited_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+      ALTER TABLE visited_sectors ADD COLUMN IF NOT EXISTS snapshot JSONB;
+
+      -- Visited ports: track docking history with snapshots
+      CREATE TABLE IF NOT EXISTS visited_ports (
+        player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+        port_id INTEGER NOT NULL REFERENCES ports(id) ON DELETE CASCADE,
+        visited_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        snapshot JSONB,
+        PRIMARY KEY (player_id, port_id)
+      );
+
+      -- News
+      CREATE TABLE IF NOT EXISTS news (
+        id BIGSERIAL PRIMARY KEY,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        universe_id INTEGER NOT NULL REFERENCES universes(id) ON DELETE CASCADE,
+        text TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_news_universe ON news (universe_id, created_at);
     `);
 
         // Seed menu registry data (idempotent)
@@ -674,22 +829,22 @@ export const connectDB = async (): Promise<void> => {
 
       -- === Seed hardware items ===
       INSERT INTO hardware (name, category, price, description) VALUES
-        ('Terraform Device', 'devices', 5000, 'Transforms barren sectors into habitable planets'),
-        ('Planet Buster', 'weapons', 20000, 'Destroys planets'),
+        ('Terraform Device', 'devices', 25000, 'Transforms barren sectors into habitable planets'),
+        ('Planet Buster', 'weapons', 40000, 'Destroys planets'),
         ('Space Buoy', 'deployables', 100, 'Marks sectors with messages'),
-        ('Proximity Mine', 'mines', 1000, 'Detonates when a ship enters the sector'),
-        ('Seeker Mine', 'mines', 2500, 'Pursues ships that enter the sector'),
-        ('Orbital Mine', 'mines', 5000, 'Advanced mine with high damage'),
-        ('Mine Disruptor', 'devices', 2000, 'Disarms mines in a sector'),
-        ('Hyperspace Drive Type 1', 'drives', 50000, 'Enables hyperspace jumps to drone-deployed sectors'),
-        ('Hyperspace Drive Type 2', 'drives', 100000, 'Enables hyperspace jumps to any explored sector'),
-        ('Visual Scanner', 'scanners', 10000, 'Shows ships in adjacent sectors'),
-        ('Planet Scanner', 'scanners', 15000, 'Shows planet details from orbit'),
+        ('Proximity Mine', 'mines', 500, 'Detonates when a ship enters the sector'),
+        ('Seeker Mine', 'mines', 9500, 'Pursues ships that enter the sector'),
+        ('Orbital Mine', 'mines', 2000, 'Advanced mine with high damage'),
+        ('Mine Disruptor', 'devices', 5000, 'Disarms mines in a sector'),
+        ('Hyperspace Drive Type 1', 'drives', 100000, 'Enables hyperspace jumps to drone-deployed sectors'),
+        ('Hyperspace Drive Type 2', 'drives', 150000, 'Enables hyperspace jumps to any explored sector'),
+        ('Visual Scanner', 'scanners', 50000, 'Shows ships in adjacent sectors'),
+        ('Planet Scanner', 'scanners', 20000, 'Shows planet details from orbit'),
         ('Cloaking Device', 'devices', 25000, 'Hides ship from visual scanners'),
-        ('Corbomite Device', 'devices', 5000, 'Destroys attacker drones on ship destruction'),
-        ('Photon Torpedo', 'weapons', 10000, 'Powerful direct-fire weapon'),
-        ('Recon Drone', 'deployables', 500, 'Scouts remote sectors')
-      ON CONFLICT (name) DO NOTHING;
+        ('Corbomite Device', 'devices', 500, 'Destroys attacker drones on ship destruction'),
+        ('Photon Torpedo', 'weapons', 60000, 'Powerful direct-fire weapon'),
+        ('Recon Drone', 'deployables', 1500, 'Scouts remote sectors')
+      ON CONFLICT (name) DO UPDATE SET price = EXCLUDED.price;
 
       -- === Seed default edit ===
       INSERT INTO edits (name) VALUES ('stock') ON CONFLICT (name) DO NOTHING;
@@ -816,6 +971,31 @@ export const connectDB = async (): Promise<void> => {
             );
         }
 
+        // Seed planet_types from config files (idempotent)
+        for (const planet of Object.values(planetConfigs)) {
+            const p = planet as any;
+            await client.query(
+                `INSERT INTO planet_types (name, description, max_colonists, max_citadel, fuel_production, organics_production, equipment_production)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7)
+                 ON CONFLICT (name) DO UPDATE SET
+                    description = EXCLUDED.description,
+                    max_colonists = EXCLUDED.max_colonists,
+                    max_citadel = EXCLUDED.max_citadel,
+                    fuel_production = EXCLUDED.fuel_production,
+                    organics_production = EXCLUDED.organics_production,
+                    equipment_production = EXCLUDED.equipment_production`,
+                [
+                    p.type,
+                    p.description ?? null,
+                    p.maxColonists ?? 0,
+                    p.maxCitadel ?? 0,
+                    p.fuelProduction ?? 0,
+                    p.organicsProduction ?? 0,
+                    p.equipmentProduction ?? 0,
+                ],
+            );
+        }
+
         // Seed ship_types_edits: link all ship types to 'stock' edit
         await client.query(`
             INSERT INTO ship_types_edits (ship_type_id, edit_id)
@@ -847,6 +1027,33 @@ export const connectDB = async (): Promise<void> => {
                 ('Toxic', (SELECT id FROM edits WHERE name = 'stock')),
                 ('Volcanic', (SELECT id FROM edits WHERE name = 'stock'))
             ON CONFLICT DO NOTHING
+        `);
+
+        // Add FK constraints that depend on seeded data
+        await client.query(`
+            -- FK from planet_types_edits.planet_type to planet_types.name
+            DO $$ BEGIN
+              IF NOT EXISTS (
+                SELECT 1 FROM information_schema.table_constraints
+                WHERE constraint_name = 'planet_types_edits_planet_type_fkey'
+                  AND table_name = 'planet_types_edits'
+              ) THEN
+                ALTER TABLE planet_types_edits ADD CONSTRAINT planet_types_edits_planet_type_fkey
+                  FOREIGN KEY (planet_type) REFERENCES planet_types(name) ON DELETE CASCADE;
+              END IF;
+            END $$;
+
+            -- FK from planets.type to planet_types.name
+            DO $$ BEGIN
+              IF NOT EXISTS (
+                SELECT 1 FROM information_schema.table_constraints
+                WHERE constraint_name = 'planets_type_fkey'
+                  AND table_name = 'planets'
+              ) THEN
+                ALTER TABLE planets ADD CONSTRAINT planets_type_fkey
+                  FOREIGN KEY (type) REFERENCES planet_types(name);
+              END IF;
+            END $$;
         `);
 
         client.release();
