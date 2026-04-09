@@ -1,0 +1,659 @@
+// ============================================================
+// Space Trading Game — Database Schema (PostgreSQL 16)
+// ============================================================
+
+// -----------------------------------------------------------
+// Server & Users
+// -----------------------------------------------------------
+
+Table servers {
+  id SERIAL [pk, not null]
+  name VARCHAR(255) [not null]
+  created_at TIMESTAMPTZ [not null, default: `now()`]
+}
+
+Table users {
+  id SERIAL [pk, not null]
+  email VARCHAR(255) [not null, unique]
+  password_hash VARCHAR(255) [not null]
+  created_at TIMESTAMPTZ [not null, default: `now()`]
+  server_id INTEGER [not null]
+}
+
+Ref: users.server_id > servers.id [delete: cascade]
+
+// -----------------------------------------------------------
+// Edits (universe parameter templates)
+// -----------------------------------------------------------
+
+Table edits {
+  id SERIAL [pk, not null]
+  name VARCHAR(255) [not null]
+  is_default BOOLEAN [not null, default: false]
+  num_sectors INTEGER [not null, default: 10000]
+  max_planets_per_sector INTEGER [not null, default: 2]
+  planet_collision_likelihood INTEGER [not null, default: 50]
+  planet_collision_min_hours INTEGER [not null, default: 24]
+  planet_collision_max_hours INTEGER [not null, default: 72]
+  turns_per_day INTEGER [not null, default: 1000]
+  starting_turns INTEGER [not null, default: 1000]
+  max_turns INTEGER [not null, default: 5000]
+  starting_ship_type_id INTEGER [not null]
+  starting_drones INTEGER [not null, default: 500]
+  starting_credits INTEGER [not null, default: 5000]
+  starting_shields INTEGER [not null, default: 0]
+  starting_port_density INTEGER [not null, default: 50]
+  max_port_density INTEGER [not null, default: 80]
+  port_production_rate INTEGER [not null, default: 50]
+  port_memory_hours INTEGER [not null, default: 72]
+  max_players INTEGER [not null, default: 200]
+  max_age_days INTEGER [not null, default: 0]
+  max_planets INTEGER [not null, default: 2400]
+  turn_delay_ms INTEGER [not null, default: 100]
+  is_speed_warp_delay_on BOOLEAN [not null, default: true]
+  photons_allowed BOOLEAN [not null, default: true]
+  photon_blast_time_seconds INTEGER [not null, default: 5]
+  planet_spawn_density INTEGER [not null, default: 0]
+  max_ships_allowed INTEGER [not null, default: 1200]
+  max_corp_size INTEGER [not null, default: 4]
+  max_ships_in_protected_space INTEGER [not null, default: 5]
+  truce_time_hours INTEGER [not null, default: 1]
+  is_automation_enabled BOOLEAN [not null, default: true]
+  drone_price INTEGER [not null, default: 120]
+  shield_price INTEGER [not null, default: 100]
+  hold_price INTEGER [not null, default: 500]
+  terraform_device_price INTEGER [not null, default: 25000]
+  planet_buster_price INTEGER [not null, default: 40000]
+  space_buoy_price INTEGER [not null, default: 100]
+  proximity_mine_price INTEGER [not null, default: 500]
+  seeker_mine_price INTEGER [not null, default: 9500]
+  orbital_mine_price INTEGER [not null, default: 2000]
+  mine_disruptor_price INTEGER [not null, default: 5000]
+  hyperspace_drive_1_price INTEGER [not null, default: 100000]
+  hyperspace_drive_2_price INTEGER [not null, default: 150000]
+  visual_scanner_price INTEGER [not null, default: 50000]
+  planet_scanner_price INTEGER [not null, default: 20000]
+  cloaking_device_price INTEGER [not null, default: 25000]
+  corbomite_price INTEGER [not null, default: 500]
+  photon_torpedo_price INTEGER [not null, default: 60000]
+  recon_drone_price INTEGER [not null, default: 1500]
+}
+
+// -----------------------------------------------------------
+// Universe & Sectors
+// -----------------------------------------------------------
+
+Table universes {
+  id SERIAL [pk, not null]
+  server_id INTEGER [not null]
+  edit_id INTEGER [not null]
+  name VARCHAR(255) [not null]
+  created_at TIMESTAMPTZ [not null, default: `now()`]
+
+  Indexes {
+    edit_id
+  }
+}
+
+Ref: universes.server_id > servers.id [delete: cascade]
+Ref: universes.edit_id > edits.id [delete: restrict]
+
+Table sectors {
+  id SERIAL [pk, not null]
+  universe_id INTEGER [not null]
+  sector_number INTEGER [not null]
+  is_protected BOOLEAN [not null, default: false]
+
+  Indexes {
+    (universe_id, sector_number) [unique]
+  }
+  Note: '''
+    CHECK (sectors.sector_number >= 1)
+  '''
+}
+
+Ref: sectors.universe_id > universes.id [delete: cascade]
+
+Table warps {
+  id SERIAL [pk, not null]
+  from_sector_id INTEGER [not null]
+  to_sector_id INTEGER [not null]
+
+  Indexes {
+    (from_sector_id, to_sector_id) [unique]
+    to_sector_id
+  }
+
+  Note: '''
+    CHECK (from_sector_id <> to_sector_id)
+  '''
+}
+
+Ref: warps.from_sector_id > sectors.id [delete: cascade]
+Ref: warps.to_sector_id > sectors.id [delete: cascade]
+
+// -----------------------------------------------------------
+// Corporations
+// -----------------------------------------------------------
+
+Table corporations {
+  id SERIAL [pk, not null]
+  universe_id INTEGER [not null]
+  name VARCHAR(255) [not null]
+  password_hash VARCHAR(255) [not null]
+  ceo_player_id INTEGER [not null]
+  created_at TIMESTAMPTZ [not null, default: `now()`]
+
+  Indexes {
+    universe_id
+    ceo_player_id [unique]
+  }
+}
+
+Ref: corporations.universe_id > universes.id [delete: cascade]
+// ceo_player_id ref defined after players table
+
+// -----------------------------------------------------------
+// Players
+// -----------------------------------------------------------
+
+Table players {
+  id SERIAL [pk, not null]
+  user_id INTEGER [not null]
+  universe_id INTEGER [not null]
+  credits BIGINT [not null, default: 0]
+  turns_remaining INTEGER [not null, default: 0]
+  current_ship_id INTEGER [unique, note: 'NULL = ship_destroyed']
+  current_sector_id INTEGER [note: 'NULL when ship_destroyed']
+  current_menu_id INTEGER [note: 'NULL when ship_destroyed']
+  is_knighted BOOLEAN [not null, default: false]
+  corporation_id INTEGER
+  created_at TIMESTAMPTZ [not null, default: `now()`]
+
+  Indexes {
+    (user_id, universe_id) [unique]
+    universe_id
+    corporation_id
+    current_sector_id
+  }
+
+  Note:
+  '''
+    CHECK (players.credits >= 0)
+  '''
+}
+
+Ref: players.user_id > users.id [delete: cascade]
+Ref: players.universe_id > universes.id [delete: cascade]
+Ref: players.current_sector_id > sectors.id [delete: set null]
+Ref: players.current_menu_id > menus.id [delete: restrict]
+Ref: players.corporation_id > corporations.id [delete: set null]
+
+// Circular refs (defined separately)
+Ref: players.current_ship_id > ships.id [delete: set null]
+Ref: corporations.ceo_player_id > players.id [delete: restrict]
+
+// -----------------------------------------------------------
+// Ship Types
+// -----------------------------------------------------------
+
+Table ship_types {
+  id SERIAL [pk, not null]
+  name VARCHAR(255) [not null, unique]
+  speed INTEGER [not null]
+  max_drones INTEGER [not null]
+  max_shields INTEGER [not null]
+  starting_holds INTEGER [not null]
+  maximum_holds INTEGER [not null]
+  main_drive_cost INTEGER [not null]
+  computer_cost INTEGER [not null]
+  ship_hull_cost INTEGER [not null]
+  turns_per_warp INTEGER [not null]
+  offensive_odds NUMERIC(4,2) [not null]
+  defensive_odds NUMERIC(4,2) [not null]
+  max_drones_per_attack INTEGER [not null]
+  transporter_range INTEGER [not null]
+  mine_max INTEGER [not null]
+  buoy_max INTEGER [not null]
+  terraform_max INTEGER [not null]
+  planet_buster_max INTEGER [not null]
+  cloaking_device_max INTEGER [not null]
+  corbomite_max INTEGER [not null]
+  max_recon_drones INTEGER [not null]
+  max_disruptors INTEGER [not null]
+  has_tractor_beam BOOLEAN [not null, default: false]
+  has_visual_scanner BOOLEAN [not null, default: false]
+  has_planet_scanner BOOLEAN [not null, default: false]
+  hyperspace_drive_type SMALLINT [not null, default: 0, note: '0=none, 1=type1, 2=type2']
+  max_photon_torpedoes INTEGER [not null, default: 0]
+  carries_escape_pod BOOLEAN [not null, default: true]
+  ceo_only BOOLEAN [not null, default: false]
+  knighted_only BOOLEAN [not null, default: false]
+  can_interdict BOOLEAN [not null, default: false]
+  can_land BOOLEAN [not null, default: true]
+  planet_defense_odds NUMERIC(4,2)
+}
+
+Ref: edits.starting_ship_type_id > ship_types.id [delete: restrict]
+
+// -----------------------------------------------------------
+// Ships
+// -----------------------------------------------------------
+
+Table ships {
+  id SERIAL [pk, not null]
+  ship_type_id INTEGER [not null]
+  owner_player_id INTEGER
+  owner_corporation_id INTEGER
+  sector_id INTEGER [not null]
+  universe_id INTEGER [not null]
+
+  // Cargo (each unit fills one hold)
+  fuel_ore INTEGER [not null, default: 0]
+  organics INTEGER [not null, default: 0]
+  equipment INTEGER [not null, default: 0]
+  colonists INTEGER [not null, default: 0]
+
+  // Hardware & defenses
+  drones INTEGER [not null, default: 0]
+  shields INTEGER [not null, default: 0]
+  holds INTEGER [not null]
+  proximity_mines INTEGER [not null, default: 0]
+  orbital_mines INTEGER [not null, default: 0]
+  seeker_mines INTEGER [not null, default: 0]
+  buoys INTEGER [not null, default: 0]
+  terraform_devices INTEGER [not null, default: 0]
+  planet_busters INTEGER [not null, default: 0]
+  cloaking_devices INTEGER [not null, default: 0]
+  corbomite INTEGER [not null, default: 0]
+  recon_drones INTEGER [not null, default: 0]
+  mine_disruptors INTEGER [not null, default: 0]
+  photon_torpedoes INTEGER [not null, default: 0]
+  has_tractor_beam BOOLEAN [not null, default: false]
+  has_visual_scanner BOOLEAN [not null, default: false]
+  has_planet_scanner BOOLEAN [not null, default: false]
+  hyperspace_drive_type SMALLINT [not null, default: 0]
+  carries_escape_pod BOOLEAN [not null, default: true]
+
+  created_at TIMESTAMPTZ [not null, default: `now()`]
+
+  Indexes {
+    sector_id
+    universe_id
+    owner_player_id
+    owner_corporation_id
+    ship_type_id
+  }
+
+  Note: '''
+    CHECK (num_nonnulls(owner_player_id, owner_corporation_id) <= 1)
+  '''
+}
+
+Ref: ships.ship_type_id > ship_types.id [delete: restrict]
+Ref: ships.owner_player_id > players.id [delete: set null]
+Ref: ships.owner_corporation_id > corporations.id [delete: set null]
+Ref: ships.sector_id > sectors.id [delete: cascade]
+Ref: ships.universe_id > universes.id [delete: cascade]
+
+// -----------------------------------------------------------
+// Planet Types
+// -----------------------------------------------------------
+
+Table planet_types {
+  id SERIAL [pk, not null]
+  name VARCHAR(64) [not null, unique]
+  description TEXT [not null]
+  max_colonists INTEGER [not null]
+  max_base_level INTEGER [not null]
+  fuel_production INTEGER [not null]
+  organics_production INTEGER [not null]
+  equipment_production INTEGER [not null]
+}
+
+// -----------------------------------------------------------
+// Planets
+// -----------------------------------------------------------
+
+Table planets {
+  id SERIAL [pk, not null]
+  sector_id INTEGER [not null]
+  planet_type_id INTEGER [not null]
+  name VARCHAR(255) [not null]
+  owner_player_id INTEGER
+  owner_corporation_id INTEGER
+  fuel_ore INTEGER [not null, default: 0]
+  organics INTEGER [not null, default: 0]
+  equipment INTEGER [not null, default: 0]
+  colonists_fuel INTEGER [not null, default: 0]
+  colonists_organics INTEGER [not null, default: 0]
+  colonists_equipment INTEGER [not null, default: 0]
+  drones INTEGER [not null, default: 0]
+  shields INTEGER [not null, default: 0]
+  base_level SMALLINT
+  created_at TIMESTAMPTZ [not null, default: `now()`]
+
+  Indexes {
+    sector_id
+    owner_player_id
+    owner_corporation_id
+  }
+
+  Note: '''
+    CHECK (num_nonnulls(owner_player_id, owner_corporation_id) <= 1)
+  '''
+}
+
+Ref: planets.sector_id > sectors.id [delete: cascade]
+Ref: planets.planet_type_id > planet_types.id [delete: restrict]
+Ref: planets.owner_player_id > players.id [delete: set null]
+Ref: planets.owner_corporation_id > corporations.id [delete: set null]
+
+// -----------------------------------------------------------
+// Planet Collisions
+// -----------------------------------------------------------
+
+Table planet_collisions {
+  id SERIAL [pk, not null]
+  planet_a_id INTEGER [not null]
+  planet_b_id INTEGER [not null]
+  collision_at TIMESTAMPTZ [not null]
+  created_at TIMESTAMPTZ [not null, default: `now()`]
+
+  Indexes {
+    planet_a_id
+    planet_b_id
+    collision_at
+  }
+}
+
+Ref: planet_collisions.planet_a_id > planets.id [delete: cascade]
+Ref: planet_collisions.planet_b_id > planets.id [delete: cascade]
+
+// -----------------------------------------------------------
+// Ports
+//
+// Classes 1–8: buy/sell commodities (fuel, organics, equipment).
+// Class 0: sell drones, shields, holds (prices from edit).
+// Class 9: sell hardware and new ships (via hardware_type / ship_type).
+//
+// Commodity columns are populated only for classes 1–8.
+// -----------------------------------------------------------
+
+Table ports {
+  id SERIAL [pk, not null]
+  sector_id INTEGER [not null, unique]
+  name VARCHAR(255) [not null]
+  port_class SMALLINT [not null]
+  fuel_quantity INTEGER
+  fuel_price INTEGER
+  organics_quantity INTEGER
+  organics_price INTEGER
+  equipment_quantity INTEGER
+  equipment_price INTEGER
+
+  Note: '''
+    CHECK (port_class BETWEEN 0 AND 9)
+  '''
+}
+
+Ref: ports.sector_id > sectors.id [delete: cascade]
+
+// -----------------------------------------------------------
+// Menus & Commands
+// -----------------------------------------------------------
+
+Table menus {
+  id SERIAL [pk, not null]
+  name VARCHAR(64) [not null, unique]
+  parent_menu_id INTEGER [ref: > menus.id]
+}
+
+Table commands {
+  id SERIAL [pk, not null]
+  menu_id INTEGER [not null]
+  target_menu_id INTEGER
+  key VARCHAR(32)
+  label VARCHAR(255)
+  wire_name VARCHAR(128) [not null]
+  handler VARCHAR(128)
+  generates_news BOOLEAN [not null, default: false]
+
+  Indexes {
+    menu_id
+  }
+
+  Note: '''
+    CREATE UNIQUE INDEX ON commands (menu_id, key) WHERE key IS NOT NULL;
+  '''
+}
+
+Ref: commands.target_menu_id > menus.id [delete: set null]
+Ref: commands.menu_id > menus.id [delete: cascade]
+
+// -----------------------------------------------------------
+// Command Log
+//
+// player deletion  → SET NULL (preserve logs)
+// universe deletion → CASCADE  (remove logs)
+// -----------------------------------------------------------
+
+Table command_logs {
+  id BIGSERIAL [pk, not null]
+  universe_id INTEGER [not null]
+  player_id INTEGER
+  command_id INTEGER [not null]
+  executed_at TIMESTAMPTZ [not null, default: `now()`]
+  details JSONB
+
+  Indexes {
+    player_id
+    (universe_id, executed_at)
+  }
+}
+
+Ref: command_logs.universe_id > universes.id [delete: cascade]
+Ref: command_logs.player_id > players.id [delete: set null]
+Ref: command_logs.command_id > commands.id [delete: restrict]
+
+// -----------------------------------------------------------
+// News
+//
+// universe deletion → CASCADE
+// -----------------------------------------------------------
+
+Table news {
+  id BIGSERIAL [pk, not null]
+  universe_id INTEGER [not null]
+  news_text TEXT [not null]
+  created_at TIMESTAMPTZ [not null, default: `now()`]
+
+  Indexes {
+    (universe_id, created_at)
+  }
+}
+
+Ref: news.universe_id > universes.id [delete: cascade]
+
+// -----------------------------------------------------------
+// Sector Deployments
+// -----------------------------------------------------------
+
+// Drones: 0 or many per sector, owned by exactly 0 or 1 player/corp
+Table sector_drones {
+  id SERIAL [pk, not null]
+  sector_id INTEGER [not null, unique]
+  owner_player_id INTEGER
+  owner_corporation_id INTEGER
+  quantity INTEGER [not null, default: 0]
+
+  Indexes {
+    owner_player_id
+    owner_corporation_id
+  }
+
+  Note: '''
+    CHECK (num_nonnulls(owner_player_id, owner_corporation_id) <= 1)
+  '''
+}
+
+Ref: sector_drones.sector_id > sectors.id [delete: cascade]
+Ref: sector_drones.owner_player_id > players.id [delete: set null]
+Ref: sector_drones.owner_corporation_id > corporations.id [delete: set null]
+
+// Mines: 0 or many of each type per sector, each type owned by 0 or 1 player/corp
+Table sector_orbital_mines {
+  id SERIAL [pk, not null]
+  sector_id INTEGER [not null, unique]
+  owner_player_id INTEGER
+  owner_corporation_id INTEGER
+  quantity INTEGER [not null, default: 0]
+
+  Indexes {
+    owner_player_id
+    owner_corporation_id
+  }
+
+  Note: '''
+    CHECK (num_nonnulls(owner_player_id, owner_corporation_id) <= 1)
+  '''
+}
+
+Ref: sector_orbital_mines.sector_id > sectors.id [delete: cascade]
+Ref: sector_orbital_mines.owner_player_id > players.id [delete: set null]
+Ref: sector_orbital_mines.owner_corporation_id > corporations.id [delete: set null]
+
+// Mines: 0 or many of each type per sector, each type owned by 0 or 1 player/corp
+Table sector_proximity_mines {
+  id SERIAL [pk, not null]
+  sector_id INTEGER [not null, unique]
+  owner_player_id INTEGER
+  owner_corporation_id INTEGER
+  quantity INTEGER [not null, default: 0]
+
+  Indexes {
+    owner_player_id
+    owner_corporation_id
+  }
+
+  Note: '''
+    CHECK (num_nonnulls(owner_player_id, owner_corporation_id) <= 1)
+  '''
+}
+
+Ref: sector_proximity_mines.sector_id > sectors.id [delete: cascade]
+Ref: sector_proximity_mines.owner_player_id > players.id [delete: set null]
+Ref: sector_proximity_mines.owner_corporation_id > corporations.id [delete: set null]
+
+// Mines: 0 or many of each type per sector, each type owned by 0 or 1 player/corp
+Table sector_seeker_mines {
+  id SERIAL [pk, not null]
+  sector_id INTEGER [not null, unique]
+  owner_player_id INTEGER
+  owner_corporation_id INTEGER
+  quantity INTEGER [not null, default: 0]
+
+  Indexes {
+    owner_player_id
+    owner_corporation_id
+  }
+
+  Note: '''
+    CHECK (num_nonnulls(owner_player_id, owner_corporation_id) <= 1)
+  '''
+}
+
+Ref: sector_seeker_mines.sector_id > sectors.id [delete: cascade]
+Ref: sector_seeker_mines.owner_player_id > players.id [delete: set null]
+Ref: sector_seeker_mines.owner_corporation_id > corporations.id [delete: set null]
+
+// Beacons: 0 or 1 per sector
+Table beacons {
+  id SERIAL [pk, not null]
+  sector_id INTEGER [not null, unique]
+  owner_player_id INTEGER
+  owner_corporation_id INTEGER
+  message TEXT
+
+  Indexes {
+    owner_player_id
+    owner_corporation_id
+  }
+
+  Note: '''
+    CHECK (num_nonnulls(owner_player_id, owner_corporation_id) <= 1)
+  '''
+}
+
+Ref: beacons.sector_id > sectors.id [delete: cascade]
+Ref: beacons.owner_player_id > players.id [delete: set null]
+Ref: beacons.owner_corporation_id > corporations.id [delete: set null]
+
+// -----------------------------------------------------------
+// Player Visit Snapshots
+// -----------------------------------------------------------
+
+// Sector visits — latest visit per (player, sector) with JSONB snapshot
+// Snapshot includes: drones, mines, players/ships present, port metadata
+//   (class + name), beacon, planets (type + name)
+Table player_sector_visits {
+  id SERIAL [pk, not null]
+  player_id INTEGER [not null]
+  sector_id INTEGER [not null]
+  visited_at TIMESTAMPTZ [not null, default: `now()`]
+  snapshot JSONB [not null]
+
+  Indexes {
+    (player_id, sector_id) [unique]
+  }
+}
+
+Ref: player_sector_visits.player_id > players.id [delete: cascade]
+Ref: player_sector_visits.sector_id > sectors.id [delete: cascade]
+
+// Port visits — latest visit per (player, port) with JSONB snapshot
+// Snapshot includes: prices and quantities of each commodity
+Table player_port_visits {
+  id SERIAL [pk, not null]
+  player_id INTEGER [not null]
+  port_id INTEGER [not null]
+  visited_at TIMESTAMPTZ [not null, default: `now()`]
+  snapshot JSONB [not null]
+
+  Indexes {
+    (player_id, port_id) [unique]
+  }
+}
+
+Ref: player_port_visits.player_id > players.id [delete: cascade]
+Ref: player_port_visits.port_id > ports.id [delete: cascade]
+
+// -----------------------------------------------------------
+// Edit ↔ Ship Type / Planet Type (many-to-many)
+// -----------------------------------------------------------
+
+Table edit_ship_types {
+  edit_id INTEGER [not null]
+  ship_type_id INTEGER [not null]
+
+  Indexes {
+    (edit_id, ship_type_id) [pk]
+    ship_type_id
+  }
+}
+
+Ref: edit_ship_types.edit_id > edits.id [delete: cascade]
+Ref: edit_ship_types.ship_type_id > ship_types.id [delete: cascade]
+
+Table edit_planet_types {
+  edit_id INTEGER [not null]
+  planet_type_id INTEGER [not null]
+
+  Indexes {
+    (edit_id, planet_type_id) [pk]
+    planet_type_id
+  }
+}
+
+Ref: edit_planet_types.edit_id > edits.id [delete: cascade]
+Ref: edit_planet_types.planet_type_id > planet_types.id [delete: cascade]
