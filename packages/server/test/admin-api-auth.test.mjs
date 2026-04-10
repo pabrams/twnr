@@ -1,7 +1,7 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  createPool, createRegularUser,
+  createRegularUser,
   adminPost, adminGet, adminPut, adminDelete,
 } from './admin-helpers.mjs';
 import { ensureServer, createPool as _gsCreatePool } from './global-setup.mjs';
