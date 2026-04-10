@@ -3,7 +3,7 @@ import { ClientMsgType } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { showPrompt, showPortMenu, showHelp, showDockedMenu, showPlayerInfo } from './display.js';
 import { showAttackMenu } from './display-combat.js';
-import { showComputerMenu } from './display-computer.js';
+import { showComputerActivated, showComputerDeactivated } from './display-computer.js';
 import { showJettisonConfirm } from './display-port.js';
 import {
     handleAttackInput,
@@ -209,7 +209,7 @@ function handleInput(ctx: GameContext, line: string) {
             break;
         case 'c':
             ctx.changeMenu('computer');
-            showComputerMenu(ctx);
+            showComputerActivated(ctx);
             break;
         case 'f':
             ctx.sendMsg({ type: ClientMsgType.DeployDronesInfo });

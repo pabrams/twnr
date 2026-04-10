@@ -103,9 +103,12 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
 
         // Look up player for this user in this universe
         const playerRes = await pool.query(
-            `SELECT p.id, p.name, p.current_sector_id, p.ship_id, s.sector_number
+            `SELECT p.id, p.name, p.current_sector_id, p.ship_id, s.sector_number,
+                    st.name AS ship_name
              FROM players p
              JOIN sectors s ON p.current_sector_id = s.id
+             LEFT JOIN ships sh ON p.ship_id = sh.id
+             LEFT JOIN ship_types st ON sh.ship_type_id = st.id
              WHERE p.user_id = $1 AND p.universe_id = $2`,
             [userId, universeId],
         );
@@ -155,6 +158,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             name: playerRow.name,
             sector,
             totalSectors,
+            shipName: playerRow.ship_name ?? '',
             token: auth.signPlayerToken({
                 userId,
                 name: playerRow.name,

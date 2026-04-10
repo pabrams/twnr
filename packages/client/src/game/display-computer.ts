@@ -3,36 +3,50 @@ import type { ServerResult } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { colors } from './constants.js';
 
-export function showComputerMenu(ctx: GameContext) {
+const mg = colors.magenta;
+
+export function showComputerPrompt(ctx: GameContext) {
+    ctx.term.write(
+        `\r\n${mg('Computer command')} ${mg('[')}${colors.boldCyan(String(ctx.currentSector))}${mg(']')} ${mg('(')}${colors.boldYellow('?')}=${colors.boldYellow('Help')}${mg(')')} ${colors.boldYellow(':')} `,
+    );
+}
+
+export function showComputerActivated(ctx: GameContext) {
     ctx.setMode('computer');
+    ctx.term.writeln(`\r\n${colors.boldCyan('<Computer activated>')}`);
+    showComputerPrompt(ctx);
+}
+
+export function showComputerDeactivated(ctx: GameContext) {
+    ctx.term.writeln(`\r\n${colors.boldCyan('<Computer deactivated>')}`);
+}
+
+export function showComputerHelp(ctx: GameContext) {
     ctx.term.writeln('');
-    ctx.term.writeln(colors.boldCyan('=== Ship Computer ==='));
     ctx.term.writeln(`  ${colors.cyan('K')}  Known Universe`);
     ctx.term.writeln(`  ${colors.cyan('L')}  List Traders`);
     ctx.term.writeln(`  ${colors.cyan('C')}  Ship Catalog`);
     ctx.term.writeln(`  ${colors.cyan('J')}  Planetary Specs`);
     ctx.term.writeln(`  ${colors.cyan(';')}  Current Ship Specs`);
     ctx.term.writeln(`  ${colors.cyan('Q')}  Exit Computer`);
+    showComputerPrompt(ctx);
 }
 
 export function showKnownUniverseMenu(ctx: GameContext) {
     ctx.setMode('knownUniverse');
-    ctx.term.writeln('');
-    ctx.term.writeln(colors.boldCyan('Known Universe'));
-    ctx.term.writeln(`  ${colors.cyan('E')}  Explored sectors`);
-    ctx.term.writeln(`  ${colors.cyan('U')}  Unexplored sectors`);
-    ctx.term.writeln(`  ${colors.cyan('Q')}  Back`);
+    ctx.term.write(
+        `\r\n${colors.boldCyan('Known Universe')} — ${colors.cyan('E')}xplored, ${colors.cyan('U')}nexplored, ${colors.cyan('Q')}uit? `,
+    );
 }
 
 export function showExploredSectors(ctx: GameContext) {
-    ctx.sendMsg({ type: ClientMsgType.VisitedSectors });
-    // Handler is in connection.ts — renders when server responds
     (ctx as any)._knownUniverseMode = 'explored';
+    ctx.sendMsg({ type: ClientMsgType.VisitedSectors });
 }
 
 export function showUnexploredSectors(ctx: GameContext) {
-    ctx.sendMsg({ type: ClientMsgType.VisitedSectors });
     (ctx as any)._knownUniverseMode = 'unexplored';
+    ctx.sendMsg({ type: ClientMsgType.VisitedSectors });
 }
 
 export function renderVisitedSectorsResult(ctx: GameContext, msg: { sectors: number[]; totalSectors: number }) {
@@ -52,6 +66,8 @@ export function renderVisitedSectorsResult(ctx: GameContext, msg: { sectors: num
         ctx.term.writeln(`${colors.boldCyan('Unexplored sectors')} (${unexplored.length}):`);
         ctx.term.writeln(unexplored.map((s) => colors.boldRed(String(s))).join(' '));
     }
+    ctx.changeMenu('computer');
+    showComputerPrompt(ctx);
 }
 
 export async function showShipCatalog(ctx: GameContext) {
@@ -63,7 +79,7 @@ export async function showShipCatalog(ctx: GameContext) {
             ctx.setShipConfigs(await res.json());
         } catch {
             ctx.term.writeln(colors.boldRed('Failed to load ship catalog.'));
-            showComputerMenu(ctx);
+            showComputerPrompt(ctx);
             return;
         }
     }
@@ -80,22 +96,20 @@ export function showShipDetail(ctx: GameContext, ship: any) {
     ctx.term.writeln('');
     ctx.term.writeln(colors.boldCyan(`=== ${ship.name} ===`));
     ctx.term.writeln(
-        `  ${colors.boldYellow('Price'.padEnd(16))} ${colors.white(String(ship.price))}`,
+        `  ${colors.boldYellow('Price'.padEnd(16))} ${colors.white(String(ship.base_cost))}`,
     );
     ctx.term.writeln(
-        `  ${colors.boldYellow('Max Drones'.padEnd(16))} ${colors.white(String(ship.maxDrones))}`,
+        `  ${colors.boldYellow('Max Drones'.padEnd(16))} ${colors.white(String(ship.max_drones))}`,
     );
     ctx.term.writeln(
-        `  ${colors.boldYellow('Max Shields'.padEnd(16))} ${colors.white(String(ship.maxShields))}`,
+        `  ${colors.boldYellow('Max Shields'.padEnd(16))} ${colors.white(String(ship.max_shields))}`,
     );
     ctx.term.writeln(
-        `  ${colors.boldYellow('Starting Holds'.padEnd(16))} ${colors.white(String(ship.startingHolds))}`,
+        `  ${colors.boldYellow('Starting Holds'.padEnd(16))} ${colors.white(String(ship.starting_holds))}`,
     );
     ctx.term.writeln(
-        `  ${colors.boldYellow('Max Holds'.padEnd(16))} ${colors.white(String(ship.maxHolds))}`,
+        `  ${colors.boldYellow('Max Holds'.padEnd(16))} ${colors.white(String(ship.max_holds))}`,
     );
-    ctx.term.writeln('');
-    ctx.term.writeln(`Press ${colors.boldYellow('Q')} to go back.`);
 }
 
 export async function showPlanetSpecs(ctx: GameContext) {
@@ -107,7 +121,7 @@ export async function showPlanetSpecs(ctx: GameContext) {
             ctx.setPlanetConfigs(await res.json());
         } catch {
             ctx.term.writeln(colors.boldRed('Failed to load planetary specs.'));
-            showComputerMenu(ctx);
+            showComputerPrompt(ctx);
             return;
         }
     }
@@ -139,8 +153,6 @@ export function showPlanetDetail(ctx: GameContext, planet: any) {
     ctx.term.writeln(
         `  ${colors.boldYellow('Equip Production'.padEnd(20))} ${colors.white(String(planet.equipmentProduction))}`,
     );
-    ctx.term.writeln('');
-    ctx.term.writeln(`Press ${colors.boldYellow('Q')} to go back.`);
 }
 
 export async function showCurrentShipSpecs(ctx: GameContext) {
@@ -150,20 +162,24 @@ export async function showCurrentShipSpecs(ctx: GameContext) {
             ctx.setShipConfigs(await res.json());
         } catch {
             ctx.term.writeln(colors.boldRed('Failed to load ship catalog.'));
+            showComputerPrompt(ctx);
             return;
         }
     }
     if (!ctx.currentShipName) {
         ctx.term.writeln(colors.white('Requesting ship data...'));
         ctx.sendMsg({ type: ClientMsgType.ShipInfo });
+        showComputerPrompt(ctx);
         return;
     }
     const ship = ctx.shipConfigs!.find((s: any) => s.name === ctx.currentShipName);
     if (!ship) {
         ctx.term.writeln(colors.boldRed(`Ship config not found for: ${ctx.currentShipName}`));
+        showComputerPrompt(ctx);
         return;
     }
     showShipDetail(ctx, ship);
+    showComputerPrompt(ctx);
 }
 
 export async function showTraderList(ctx: GameContext) {
@@ -182,4 +198,5 @@ export async function showTraderList(ctx: GameContext) {
     } catch {
         ctx.term.writeln(colors.boldRed('Failed to load trader list.'));
     }
+    showComputerPrompt(ctx);
 }

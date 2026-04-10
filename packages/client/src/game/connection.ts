@@ -37,6 +37,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 ctx.setPlayerName(msg.name);
                 ctx.setPlayerId(msg.playerId);
                 ctx.setTotalSectors(msg.totalSectors);
+                ctx.setCurrentShipName(msg.shipName);
                 ctx.term.writeln(`\r\n${colors.boldGreen(`Welcome, ${msg.name}.`)}`);
                 ctx.sendMsg({ type: ClientMsgType.SectorDisplay });
                 break;

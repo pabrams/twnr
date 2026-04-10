@@ -1,7 +1,9 @@
 import type { GameContext } from './types.js';
 import { showPrompt } from './display.js';
 import {
-    showComputerMenu,
+    showComputerHelp,
+    showComputerPrompt,
+    showComputerDeactivated,
     showKnownUniverseMenu,
     showExploredSectors,
     showUnexploredSectors,
@@ -34,12 +36,16 @@ export function handleComputerInput(ctx: GameContext, line: string) {
         case ';':
             showCurrentShipSpecs(ctx);
             break;
+        case '?':
+            showComputerHelp(ctx);
+            break;
         case 'q':
+            showComputerDeactivated(ctx);
             ctx.changeMenu('sector');
             showPrompt(ctx);
             break;
         default:
-            showComputerMenu(ctx);
+            showComputerPrompt(ctx);
     }
 }
 
@@ -53,7 +59,7 @@ export function handleKnownUniverseInput(ctx: GameContext, line: string) {
             break;
         case 'q':
             ctx.changeMenu('computer');
-            showComputerMenu(ctx);
+            showComputerPrompt(ctx);
             break;
         default:
             showKnownUniverseMenu(ctx);
@@ -63,7 +69,7 @@ export function handleKnownUniverseInput(ctx: GameContext, line: string) {
 export function handleShipCatalogInput(ctx: GameContext, line: string) {
     if (line.toLowerCase() === 'q') {
         ctx.changeMenu('computer');
-        showComputerMenu(ctx);
+        showComputerPrompt(ctx);
         return;
     }
     const idx = line.toUpperCase().charCodeAt(0) - 65;
@@ -77,7 +83,7 @@ export function handleShipCatalogInput(ctx: GameContext, line: string) {
 export function handlePlanetSpecsInput(ctx: GameContext, line: string) {
     if (line.toLowerCase() === 'q') {
         ctx.changeMenu('computer');
-        showComputerMenu(ctx);
+        showComputerPrompt(ctx);
         return;
     }
     const idx = line.toUpperCase().charCodeAt(0) - 65;
