@@ -2,6 +2,14 @@ import { ServerMsgType } from '@twnr/shared';
 import { players, sendEnvelope, setPlayerMenu } from '../game-state.js';
 import { pool } from '../db/index.js';
 
+async function getEditPrice(universeId: number, priceColumn: string, fallback: number): Promise<number> {
+    const res = await pool.query(
+        `SELECT e.${priceColumn} FROM edits e JOIN universes u ON u.edit_id = e.id WHERE u.id = $1`,
+        [universeId],
+    );
+    return res.rows[0]?.[priceColumn] ?? fallback;
+}
+
 /** Generic helper for buying stackable hardware (quantity-based items). */
 async function buyStackableHardware(
     playerId: number,
@@ -9,7 +17,8 @@ async function buyStackableHardware(
     opts: {
         shipColumn: string;
         maxColumn: string;
-        unitPrice: number;
+        priceColumn: string;
+        fallbackPrice: number;
         itemName: string;
         resultType: string;
         resultExtra?: Record<string, any>;
@@ -27,7 +36,8 @@ async function buyStackableHardware(
         return;
     }
 
-    const cost = qty * opts.unitPrice;
+    const unitPrice = await getEditPrice(player.universeId, opts.priceColumn, opts.fallbackPrice);
+    const cost = qty * unitPrice;
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
@@ -106,7 +116,8 @@ async function buyToggleHardware(
     opts: {
         shipColumn: string;
         canHaveColumn: string;
-        unitPrice: number;
+        priceColumn: string;
+        fallbackPrice: number;
         itemName: string;
         resultType: string;
         resultExtra?: Record<string, any>;
@@ -118,6 +129,7 @@ async function buyToggleHardware(
         return;
     }
 
+    const unitPrice = await getEditPrice(player.universeId, opts.priceColumn, opts.fallbackPrice);
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
@@ -155,7 +167,7 @@ async function buyToggleHardware(
         const credRes = await client.query('SELECT credits FROM players WHERE id = $1 FOR UPDATE', [
             playerId,
         ]);
-        if (credRes.rows.length === 0 || credRes.rows[0].credits < opts.unitPrice) {
+        if (credRes.rows.length === 0 || credRes.rows[0].credits < unitPrice) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient credits' });
             return;
@@ -165,7 +177,7 @@ async function buyToggleHardware(
             shipRes.rows[0].ship_id,
         ]);
         await client.query('UPDATE players SET credits = credits - $1 WHERE id = $2', [
-            opts.unitPrice,
+            unitPrice,
             playerId,
         ]);
         await client.query('COMMIT');
@@ -173,7 +185,7 @@ async function buyToggleHardware(
         await setPlayerMenu(playerId, 'starbaseHardware');
         sendEnvelope(playerId, {
             type: opts.resultType,
-            credits: credRes.rows[0].credits - opts.unitPrice,
+            credits: credRes.rows[0].credits - unitPrice,
             ...opts.resultExtra,
         } as any);
     } catch (err) {
@@ -187,96 +199,94 @@ async function buyToggleHardware(
 
 // --- Stackable hardware ---
 
+export async function handleBuyPlanetBusters(playerId: number, quantity: number): Promise<void> {
+    return buyStackableHardware(playerId, quantity, {
+        shipColumn: 'planet_busters', maxColumn: 'max_planet_busters',
+        priceColumn: 'price_planet_buster', fallbackPrice: 40000,
+        itemName: 'Planet Busters', resultType: ServerMsgType.BuyPlanetBustersResult,
+    });
+}
+
+export async function handleBuyTerraformDevices(playerId: number, quantity: number): Promise<void> {
+    return buyStackableHardware(playerId, quantity, {
+        shipColumn: 'terraform_devices', maxColumn: 'max_terraform_devices',
+        priceColumn: 'price_terraform_device', fallbackPrice: 25000,
+        itemName: 'Terraform Devices', resultType: ServerMsgType.BuyTerraformDevicesResult,
+    });
+}
+
 export async function handleBuyBuoys(playerId: number, quantity: number): Promise<void> {
     return buyStackableHardware(playerId, quantity, {
-        shipColumn: 'buoys',
-        maxColumn: 'max_buoy',
-        unitPrice: 100,
-        itemName: 'Space Buoys',
-        resultType: ServerMsgType.BuyBuoysResult,
+        shipColumn: 'buoys', maxColumn: 'max_buoy',
+        priceColumn: 'price_space_buoy', fallbackPrice: 100,
+        itemName: 'Space Buoys', resultType: ServerMsgType.BuyBuoysResult,
     });
 }
 
 export async function handleBuyProximityMines(playerId: number, quantity: number): Promise<void> {
     return buyStackableHardware(playerId, quantity, {
-        shipColumn: 'proximity_mines',
-        maxColumn: 'max_proximity',
-        unitPrice: 1000,
-        itemName: 'Proximity Mines',
-        resultType: ServerMsgType.BuyMinesResult,
+        shipColumn: 'proximity_mines', maxColumn: 'max_proximity',
+        priceColumn: 'price_proximity_mine', fallbackPrice: 500,
+        itemName: 'Proximity Mines', resultType: ServerMsgType.BuyMinesResult,
         resultExtra: { mineType: 'proximity' },
     });
 }
 
 export async function handleBuySeekerMines(playerId: number, quantity: number): Promise<void> {
     return buyStackableHardware(playerId, quantity, {
-        shipColumn: 'seeker_mines',
-        maxColumn: 'max_seeker',
-        unitPrice: 2500,
-        itemName: 'Seeker Mines',
-        resultType: ServerMsgType.BuyMinesResult,
+        shipColumn: 'seeker_mines', maxColumn: 'max_seeker',
+        priceColumn: 'price_seeker_mine', fallbackPrice: 9500,
+        itemName: 'Seeker Mines', resultType: ServerMsgType.BuyMinesResult,
         resultExtra: { mineType: 'seeker' },
     });
 }
 
 export async function handleBuyOrbitalMines(playerId: number, quantity: number): Promise<void> {
     return buyStackableHardware(playerId, quantity, {
-        shipColumn: 'orbital_mines',
-        maxColumn: 'max_orbital',
-        unitPrice: 5000,
-        itemName: 'Orbital Mines',
-        resultType: ServerMsgType.BuyMinesResult,
+        shipColumn: 'orbital_mines', maxColumn: 'max_orbital',
+        priceColumn: 'price_orbital_mine', fallbackPrice: 2000,
+        itemName: 'Orbital Mines', resultType: ServerMsgType.BuyMinesResult,
         resultExtra: { mineType: 'orbital' },
     });
 }
 
 export async function handleBuyMineDisruptors(playerId: number, quantity: number): Promise<void> {
     return buyStackableHardware(playerId, quantity, {
-        shipColumn: 'mine_disruptors',
-        maxColumn: 'max_disruptors',
-        unitPrice: 2000,
-        itemName: 'Mine Disruptors',
-        resultType: ServerMsgType.BuyMineDisruptorsResult,
+        shipColumn: 'mine_disruptors', maxColumn: 'max_disruptors',
+        priceColumn: 'price_mine_disruptor', fallbackPrice: 5000,
+        itemName: 'Mine Disruptors', resultType: ServerMsgType.BuyMineDisruptorsResult,
     });
 }
 
 export async function handleBuyCloakingDevice(playerId: number, quantity: number): Promise<void> {
     return buyStackableHardware(playerId, quantity, {
-        shipColumn: 'cloaking_devices',
-        maxColumn: 'max_cloaking',
-        unitPrice: 25000,
-        itemName: 'Cloaking Devices',
-        resultType: ServerMsgType.BuyCloakingDeviceResult,
+        shipColumn: 'cloaking_devices', maxColumn: 'max_cloaking',
+        priceColumn: 'price_cloaking_device', fallbackPrice: 25000,
+        itemName: 'Cloaking Devices', resultType: ServerMsgType.BuyCloakingDeviceResult,
     });
 }
 
 export async function handleBuyCorbomite(playerId: number, quantity: number): Promise<void> {
     return buyStackableHardware(playerId, quantity, {
-        shipColumn: 'corbomite',
-        maxColumn: 'max_corbomite',
-        unitPrice: 5000,
-        itemName: 'Corbomite',
-        resultType: ServerMsgType.BuyCorbomiteResult,
+        shipColumn: 'corbomite', maxColumn: 'max_corbomite',
+        priceColumn: 'price_corbomite', fallbackPrice: 500,
+        itemName: 'Corbomite', resultType: ServerMsgType.BuyCorbomiteResult,
     });
 }
 
 export async function handleBuyPhotonTorpedoes(playerId: number, quantity: number): Promise<void> {
     return buyStackableHardware(playerId, quantity, {
-        shipColumn: 'photon_torpedoes',
-        maxColumn: 'max_photon',
-        unitPrice: 10000,
-        itemName: 'Photon Torpedoes',
-        resultType: ServerMsgType.BuyPhotonTorpedoesResult,
+        shipColumn: 'photon_torpedoes', maxColumn: 'max_photon',
+        priceColumn: 'price_photon_torpedo', fallbackPrice: 60000,
+        itemName: 'Photon Torpedoes', resultType: ServerMsgType.BuyPhotonTorpedoesResult,
     });
 }
 
 export async function handleBuyReconDrones(playerId: number, quantity: number): Promise<void> {
     return buyStackableHardware(playerId, quantity, {
-        shipColumn: 'recon_drones',
-        maxColumn: 'max_recon_drones',
-        unitPrice: 500,
-        itemName: 'Recon Drones',
-        resultType: ServerMsgType.BuyReconDronesResult,
+        shipColumn: 'recon_drones', maxColumn: 'max_recon_drones',
+        priceColumn: 'price_recon_drone', fallbackPrice: 1500,
+        itemName: 'Recon Drones', resultType: ServerMsgType.BuyReconDronesResult,
     });
 }
 
@@ -284,41 +294,33 @@ export async function handleBuyReconDrones(playerId: number, quantity: number): 
 
 export async function handleBuyVisualScanner(playerId: number): Promise<void> {
     return buyToggleHardware(playerId, {
-        shipColumn: 'has_visual_scanner',
-        canHaveColumn: 'can_have_visual_scanner',
-        unitPrice: 10000,
-        itemName: 'Visual Scanner',
-        resultType: ServerMsgType.BuyVisualScannerResult,
+        shipColumn: 'has_visual_scanner', canHaveColumn: 'can_have_visual_scanner',
+        priceColumn: 'price_visual_scanner', fallbackPrice: 50000,
+        itemName: 'Visual Scanner', resultType: ServerMsgType.BuyVisualScannerResult,
     });
 }
 
 export async function handleBuyPlanetScanner(playerId: number): Promise<void> {
     return buyToggleHardware(playerId, {
-        shipColumn: 'has_planet_scanner',
-        canHaveColumn: 'can_have_planet_scanner',
-        unitPrice: 15000,
-        itemName: 'Planet Scanner',
-        resultType: ServerMsgType.BuyPlanetScannerResult,
+        shipColumn: 'has_planet_scanner', canHaveColumn: 'can_have_planet_scanner',
+        priceColumn: 'price_planet_scanner', fallbackPrice: 20000,
+        itemName: 'Planet Scanner', resultType: ServerMsgType.BuyPlanetScannerResult,
     });
 }
 
 export async function handleBuyHyperspaceDrive(playerId: number, driveType: 1 | 2): Promise<void> {
     if (driveType === 1) {
         return buyToggleHardware(playerId, {
-            shipColumn: 'has_hyperspace_1',
-            canHaveColumn: 'can_have_hyperspace_1',
-            unitPrice: 50000,
-            itemName: 'Hyperspace Drive Type 1',
-            resultType: ServerMsgType.BuyHyperspaceDriveResult,
+            shipColumn: 'has_hyperspace_1', canHaveColumn: 'can_have_hyperspace_1',
+            priceColumn: 'price_hyperspace_1', fallbackPrice: 100000,
+            itemName: 'Hyperspace Drive Type 1', resultType: ServerMsgType.BuyHyperspaceDriveResult,
             resultExtra: { driveType: 1 },
         });
     } else {
         return buyToggleHardware(playerId, {
-            shipColumn: 'has_hyperspace_2',
-            canHaveColumn: 'can_have_hyperspace_2',
-            unitPrice: 100000,
-            itemName: 'Hyperspace Drive Type 2',
-            resultType: ServerMsgType.BuyHyperspaceDriveResult,
+            shipColumn: 'has_hyperspace_2', canHaveColumn: 'can_have_hyperspace_2',
+            priceColumn: 'price_hyperspace_2', fallbackPrice: 150000,
+            itemName: 'Hyperspace Drive Type 2', resultType: ServerMsgType.BuyHyperspaceDriveResult,
             resultExtra: { driveType: 2 },
         });
     }

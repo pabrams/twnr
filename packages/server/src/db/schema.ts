@@ -544,9 +544,11 @@ export const connectDB = async (): Promise<void> => {
         ('deploy_drones_info', 'Deploy drones'),
         ('jettison_menu', 'Jettison cargo'),
         ('land', 'Land on planet'),
+        ('starbase_info', 'Starbase Info'),
         ('quit_game', 'Quit'),
         -- Port commands
         ('trade_at_port', 'Trade at port'),
+        ('dock_starbase', 'Enter Starbase'),
         -- Docked commands
         ('buy_goods', 'Buy goods'),
         ('sell_goods', 'Sell goods'),
@@ -617,6 +619,7 @@ export const connectDB = async (): Promise<void> => {
         ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='deploy_drones_info'), 'f', 'Deploy drones','deployDronesInfo', NULL, 80),
         ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='jettison_menu'), 'j', 'Jettison cargo',NULL, (SELECT id FROM menu WHERE name='jettisonConfirm'), 90),
         ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='land'), 'l', 'Land','land', NULL, 100),
+        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='starbase_info'), 'v', 'Starbase info',NULL, NULL, 105),
         ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='quit_game'), 'q', 'Quit',NULL, NULL, 110),
         ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='players_online'), '#', 'Players online','playersOnline', NULL, 120)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
@@ -624,6 +627,7 @@ export const connectDB = async (): Promise<void> => {
       -- === Port ===
       INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
         ((SELECT id FROM menu WHERE name='port'), (SELECT id FROM command WHERE name='trade_at_port'), 't', 'Trade at port','dock', NULL, 10),
+        ((SELECT id FROM menu WHERE name='port'), (SELECT id FROM command WHERE name='dock_starbase'), 's', 'Enter Starbase','dockStarbase', NULL, 15),
         ((SELECT id FROM menu WHERE name='port'), (SELECT id FROM command WHERE name='back'), 'q', 'Back',NULL, (SELECT id FROM menu WHERE name='sector'), 20)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
@@ -761,6 +765,7 @@ export const connectDB = async (): Promise<void> => {
         ((SELECT id FROM menu WHERE name='starbase'), (SELECT id FROM command WHERE name='ship_exchange'), 's', 'Ship Exchange', NULL, (SELECT id FROM menu WHERE name='shipCatalog'), 10),
         ((SELECT id FROM menu WHERE name='starbase'), (SELECT id FROM command WHERE name='hardware_store'), 'h', 'Hardware Store', NULL, (SELECT id FROM menu WHERE name='starbaseHardware'), 20),
         ((SELECT id FROM menu WHERE name='starbase'), (SELECT id FROM command WHERE name='list_deployed_drones'), 'd', 'Deployed Drones', 'listDeployedDrones', NULL, 30),
+        ((SELECT id FROM menu WHERE name='starbase'), (SELECT id FROM command WHERE name='help_menu'), '?', 'Help', NULL, NULL, 35),
         ((SELECT id FROM menu WHERE name='starbase'), (SELECT id FROM command WHERE name='leave_starbase'), 'q', 'Leave Starbase', 'leaveStarbase', NULL, 40)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
@@ -778,6 +783,7 @@ export const connectDB = async (): Promise<void> => {
         ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_corbomite'), 'c', 'Corbomite', NULL, (SELECT id FROM menu WHERE name='starbaseBuyQty'), 100),
         ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_photon_torpedoes'), 'o', 'Photon Torpedoes', NULL, (SELECT id FROM menu WHERE name='starbaseBuyQty'), 110),
         ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_recon_drones'), 'r', 'Recon Drones', NULL, (SELECT id FROM menu WHERE name='starbaseBuyQty'), 120),
+        ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='help_menu'), '?', 'Help', NULL, NULL, 125),
         ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', NULL, (SELECT id FROM menu WHERE name='starbase'), 130)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
