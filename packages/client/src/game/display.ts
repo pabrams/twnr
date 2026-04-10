@@ -42,9 +42,9 @@ export function showSectorDisplay(
     if (sectorDrones && sectorDrones.quantity > 0) {
         const label =
             sectorDrones.ownerId === ctx.playerId
-                ? colors.boldGreen(String(sectorDrones.quantity))
-                : `${colors.boldRed(String(sectorDrones.quantity))} ${mg('(owned by')} ${colors.boldYellow(sectorDrones.ownerName)}${mg(')')}`;
-        ctx.term.writeln(`${mg('Figs')}    ${cl} ${label}`);
+                ? `${colors.boldGreen(String(sectorDrones.quantity))} ${mg('(yours)')}`
+                : `${colors.boldRed(String(sectorDrones.quantity))} ${mg('(')}${colors.boldYellow(sectorDrones.ownerName)}${mg(')')}`;
+        ctx.term.writeln(`${mg('Drones')}  ${cl} ${label}`);
     }
     if (warps.length > 0) {
         ctx.term.writeln(
