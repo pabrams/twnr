@@ -489,9 +489,10 @@ export async function handleTakeColonists(
 
         await client.query('COMMIT');
 
-        const updatedPlanet = await pool.query(`SELECT ${col} as remaining FROM planets WHERE id = $1`, [
-            onPlanetId,
-        ]);
+        const updatedPlanet = await pool.query(
+            `SELECT ${col} as remaining FROM planets WHERE id = $1`,
+            [onPlanetId],
+        );
 
         const updatedShip = await pool.query(
             'SELECT colonists FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)',
@@ -567,9 +568,10 @@ export async function handleLeaveColonists(
 
         await client.query('COMMIT');
 
-        const updatedPlanet = await pool.query(`SELECT ${col} as remaining FROM planets WHERE id = $1`, [
-            onPlanetId,
-        ]);
+        const updatedPlanet = await pool.query(
+            `SELECT ${col} as remaining FROM planets WHERE id = $1`,
+            [onPlanetId],
+        );
 
         const updatedShip = await pool.query(
             'SELECT colonists FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)',

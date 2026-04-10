@@ -115,7 +115,7 @@ export async function handleMove(playerId: number, targetSector: number): Promis
         newSectorClients,
     );
 
-    const [port, warpRefs, sectorDrones, planetsRes] = await Promise.all([
+    const [port, warpRefs, sectorDrones, planetsRes, collisionsRes] = await Promise.all([
         getPortForSector(targetSector, universeId),
         getWarpRefs(playerId, targetSector, universeId),
         getSectorDrones(targetSector, universeId),
@@ -125,8 +125,23 @@ export async function handleMove(playerId: number, targetSector: number): Promis
              WHERE s.sector_number = $1 AND s.universe_id = $2 ORDER BY pl.id`,
             [targetSector, universeId],
         ),
+        pool.query(
+            `SELECT p1.name as planet_name, p2.name as colliding_with_name, pc.collision_at
+             FROM planet_collisions pc
+             JOIN planets p1 ON pc.collision_planet = p1.id
+             JOIN planets p2 ON pc.colliding_with = p2.id
+             JOIN sectors s ON p1.sector_id = s.id
+             WHERE s.sector_number = $1 AND s.universe_id = $2
+               AND pc.collision_at > NOW()`,
+            [targetSector, universeId],
+        ),
     ]);
     const planets = planetsRes.rows;
+    const collisions = collisionsRes.rows.map((r: any) => ({
+        planetName: r.planet_name,
+        collidingWithName: r.colliding_with_name,
+        collisionAt: r.collision_at,
+    }));
     const playersInSector = Object.entries(players)
         .filter(
             ([id, p]) =>
@@ -187,6 +202,7 @@ export async function handleMove(playerId: number, targetSector: number): Promis
         port,
         sectorDrones,
         planets,
+        collisions,
         turnsUsed: turnResult.turnsUsed,
     });
 }
@@ -197,7 +213,7 @@ export async function handleSectorDisplay(playerId: number): Promise<void> {
     const currentSector = player.sector;
     const universeId = player.universeId;
 
-    const [port, warpRefs, sectorDrones, planetsRes] = await Promise.all([
+    const [port, warpRefs, sectorDrones, planetsRes, collisionsRes] = await Promise.all([
         getPortForSector(currentSector, universeId),
         getWarpRefs(playerId, currentSector, universeId),
         getSectorDrones(currentSector, universeId),
@@ -207,8 +223,23 @@ export async function handleSectorDisplay(playerId: number): Promise<void> {
              WHERE s.sector_number = $1 AND s.universe_id = $2 ORDER BY pl.id`,
             [currentSector, universeId],
         ),
+        pool.query(
+            `SELECT p1.name as planet_name, p2.name as colliding_with_name, pc.collision_at
+             FROM planet_collisions pc
+             JOIN planets p1 ON pc.collision_planet = p1.id
+             JOIN planets p2 ON pc.colliding_with = p2.id
+             JOIN sectors s ON p1.sector_id = s.id
+             WHERE s.sector_number = $1 AND s.universe_id = $2
+               AND pc.collision_at > NOW()`,
+            [currentSector, universeId],
+        ),
     ]);
     const planets = planetsRes.rows;
+    const collisions = collisionsRes.rows.map((r: any) => ({
+        planetName: r.planet_name,
+        collidingWithName: r.colliding_with_name,
+        collisionAt: r.collision_at,
+    }));
     const playersInSector = Object.entries(players)
         .filter(
             ([id, p]) =>
@@ -226,6 +257,7 @@ export async function handleSectorDisplay(playerId: number): Promise<void> {
         port,
         sectorDrones,
         planets,
+        collisions,
     });
 }
 

@@ -99,9 +99,13 @@ export function showHelp(ctx: GameContext) {
     );
     ctx.term.writeln(`${colors.cyan('Jettison:')} ${colors.boldYellow("'J'")} jettison all cargo.`);
     ctx.term.writeln(`${colors.cyan('Drones:')} ${colors.boldYellow("'F'")} deploy sector drones.`);
-    ctx.term.writeln(`${colors.cyan('Deployed:')} ${colors.boldYellow("'G'")} list deployed drones.`);
+    ctx.term.writeln(
+        `${colors.cyan('Deployed:')} ${colors.boldYellow("'G'")} list deployed drones.`,
+    );
     ctx.term.writeln(`${colors.cyan('Land:')} ${colors.boldYellow("'L'")} land on a planet.`);
-    ctx.term.writeln(`${colors.cyan('Terraform:')} ${colors.boldYellow("'U'")} use terraform device.`);
+    ctx.term.writeln(
+        `${colors.cyan('Terraform:')} ${colors.boldYellow("'U'")} use terraform device.`,
+    );
     ctx.term.writeln(`${colors.cyan('Computer:')} ${colors.boldYellow("'C'")} ship computer.`);
     ctx.term.writeln(
         `${colors.cyan('Starbase:')} ${colors.boldYellow("'V'")} show Starbase location.`,

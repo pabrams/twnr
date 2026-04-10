@@ -190,7 +190,11 @@ export function handlePlanetTakeQtyInput(ctx: GameContext, line: string) {
         ctx.term.writeln('Enter a positive number.');
         return;
     }
-    ctx.sendMsg({ type: ClientMsgType.TakeColonists, quantity: qty, commodity: ctx.colonistCommodity ?? 'fuel' });
+    ctx.sendMsg({
+        type: ClientMsgType.TakeColonists,
+        quantity: qty,
+        commodity: ctx.colonistCommodity ?? 'fuel',
+    });
 }
 
 export function handlePlanetLeaveQtyInput(ctx: GameContext, line: string) {
@@ -204,5 +208,9 @@ export function handlePlanetLeaveQtyInput(ctx: GameContext, line: string) {
         ctx.term.writeln('Enter a positive number.');
         return;
     }
-    ctx.sendMsg({ type: ClientMsgType.LeaveColonists, quantity: qty, commodity: ctx.colonistCommodity ?? 'fuel' });
+    ctx.sendMsg({
+        type: ClientMsgType.LeaveColonists,
+        quantity: qty,
+        commodity: ctx.colonistCommodity ?? 'fuel',
+    });
 }
