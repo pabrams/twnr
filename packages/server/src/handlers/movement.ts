@@ -305,6 +305,7 @@ export async function handleShortestPath(
         for (const neighbor of neighbors) {
             if (neighbor === to) {
                 const finalPath = [...path, neighbor];
+                await setPlayerMenu(playerId, 'autopilotPrompt');
                 sendEnvelope(playerId, {
                     type: ServerMsgType.ShortestPathResult,
                     path: finalPath,

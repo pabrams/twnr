@@ -3,7 +3,7 @@ import type { GameContext } from './types.js';
 import { colors } from './constants.js';
 
 export function showComputerMenu(ctx: GameContext) {
-    ctx.changeMenu('computer');
+    ctx.setMode('computer');
     ctx.term.writeln('');
     ctx.term.writeln(colors.boldCyan('=== Ship Computer ==='));
     ctx.term.writeln(`  ${colors.cyan('K')}  Known Universe`);
@@ -15,7 +15,7 @@ export function showComputerMenu(ctx: GameContext) {
 }
 
 export function showKnownUniverseMenu(ctx: GameContext) {
-    ctx.changeMenu('knownUniverse');
+    ctx.setMode('knownUniverse');
     ctx.term.writeln('');
     ctx.term.writeln(colors.boldCyan('Known Universe'));
     ctx.term.writeln(`  ${colors.cyan('E')}  Explored sectors`);
@@ -41,7 +41,7 @@ export function showUnexploredSectors(ctx: GameContext) {
 }
 
 export async function showShipCatalog(ctx: GameContext) {
-    ctx.changeMenu('shipCatalog');
+    ctx.setMode('shipCatalog');
     if (!ctx.shipConfigs) {
         ctx.term.writeln(`\r\n${colors.white('Loading ship catalog...')}`);
         try {
@@ -85,7 +85,7 @@ export function showShipDetail(ctx: GameContext, ship: any) {
 }
 
 export async function showPlanetSpecs(ctx: GameContext) {
-    ctx.changeMenu('planetSpecs');
+    ctx.setMode('planetSpecs');
     if (!ctx.planetConfigs) {
         ctx.term.writeln(`\r\n${colors.white('Loading planetary specs...')}`);
         try {

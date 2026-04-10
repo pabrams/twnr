@@ -31,6 +31,9 @@ export async function handleLand(playerId: number): Promise<void> {
         [player.sector, player.universeId],
     );
 
+    if (planetRes.rows.length > 0) {
+        await setPlayerMenu(playerId, 'planetSelect');
+    }
     sendEnvelope(playerId, {
         type: ServerMsgType.LandResult,
         planets: planetRes.rows,

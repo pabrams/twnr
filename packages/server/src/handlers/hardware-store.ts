@@ -1,5 +1,5 @@
 import { ServerMsgType } from '@twnr/shared';
-import { players, sendEnvelope } from '../game-state.js';
+import { players, sendEnvelope, setPlayerMenu } from '../game-state.js';
 import { pool } from '../db/index.js';
 
 /** Generic helper for buying stackable hardware (quantity-based items). */
@@ -83,6 +83,7 @@ async function buyStackableHardware(
         );
         await client.query('COMMIT');
 
+        await setPlayerMenu(playerId, 'starbaseHardware');
         sendEnvelope(playerId, {
             type: opts.resultType,
             quantity: qty,
@@ -169,6 +170,7 @@ async function buyToggleHardware(
         ]);
         await client.query('COMMIT');
 
+        await setPlayerMenu(playerId, 'starbaseHardware');
         sendEnvelope(playerId, {
             type: opts.resultType,
             credits: credRes.rows[0].credits - opts.unitPrice,

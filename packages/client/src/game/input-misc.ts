@@ -9,14 +9,17 @@ export function handleClass0Input(ctx: GameContext, line: string) {
     switch (line.toLowerCase()) {
         case 'f':
             ctx.setClass0BuyType('drones');
+            ctx.changeMenu('class0Qty');
             showClass0QtyPrompt(ctx, 'drones');
             break;
         case 's':
             ctx.setClass0BuyType('shields');
+            ctx.changeMenu('class0Qty');
             showClass0QtyPrompt(ctx, 'shields');
             break;
         case 'h':
             ctx.setClass0BuyType('holds');
+            ctx.changeMenu('class0Qty');
             showClass0QtyPrompt(ctx, 'holds');
             break;
         case 'q':
@@ -85,9 +88,11 @@ export function handleJettisonConfirmInput(ctx: GameContext, line: string) {
 export function handlePlanetInput(ctx: GameContext, line: string) {
     switch (line.toLowerCase()) {
         case 't':
+            ctx.changeMenu('planetTakeQty');
             showPlanetTakePrompt(ctx);
             break;
         case 'l':
+            ctx.changeMenu('planetLeaveQty');
             showPlanetLeavePrompt(ctx);
             break;
         case 'd':
