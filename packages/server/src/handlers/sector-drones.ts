@@ -5,8 +5,7 @@ import {
     sendEnvelope,
     getSectorDrones,
     getPortForSector,
-    getVisitedWarpDestinations,
-    getGraph,
+    getWarpRefs,
     broadcastTo,
     setPlayerMenu,
     resolveSectorId,
@@ -403,10 +402,9 @@ export async function handleRetreatFromDrones(playerId: number): Promise<void> {
     });
 
     // Send sector display for the retreat sector
-    const [warps, port, visitedSectors, sectorDrones, planetsRes] = await Promise.all([
-        getGraph(universeId),
+    const [port, warpRefs, sectorDrones, planetsRes] = await Promise.all([
         getPortForSector(retreatSector, universeId),
-        getVisitedWarpDestinations(playerId, retreatSector, universeId),
+        getWarpRefs(playerId, retreatSector, universeId),
         getSectorDrones(retreatSector, universeId),
         pool.query(
             `SELECT pl.id, pl.name, pl.type FROM planets pl
@@ -416,7 +414,6 @@ export async function handleRetreatFromDrones(playerId: number): Promise<void> {
         ),
     ]);
     const planets = planetsRes.rows;
-    const displayWarps = warps[retreatSector] || [];
     const playersInSector = Object.entries(players)
         .filter(
             ([id, p]) =>
@@ -429,10 +426,9 @@ export async function handleRetreatFromDrones(playerId: number): Promise<void> {
     sendEnvelope(playerId, {
         type: ServerMsgType.SectorDisplayResult,
         sector: retreatSector,
-        warps: displayWarps,
+        warps: warpRefs,
         players: playersInSector,
         port,
-        visitedSectors,
         sectorDrones,
         planets,
     });

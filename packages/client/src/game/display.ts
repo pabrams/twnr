@@ -1,25 +1,27 @@
 import { ClientMsgType } from '@twnr/shared';
+import type { SectorRef } from '@twnr/shared';
 import type { GameContext } from './types.js';
-import { colorSector } from './types.js';
 import { colors, PORT_CLASS_LABELS, PORT_CLASS_ACTIONS } from './constants.js';
 
-// Re-export GameContext and colorSector so existing imports from './display.js' still work
+// Re-export GameContext so existing imports from './display.js' still work
 export type { GameContext } from './types.js';
-export { colorSector } from './types.js';
 
 const mg = colors.magenta;
+
+function colorSectorRef(ref: SectorRef): string {
+    const num = String(ref.sector);
+    if (ref.visited) return colors.boldCyan(num);
+    return `${mg('(')}${colors.boldRed(num)}${mg(')')}`;
+}
 
 export function showSectorDisplay(
     ctx: GameContext,
     sector: number,
-    warps: number[],
+    warps: SectorRef[],
     players: { id: number; name: string }[],
     port?: { class: number; name: string } | null,
-    visitedSectors?: number[],
     sectorDrones?: { quantity: number; ownerId: number | null; ownerName: string } | null,
 ) {
-    const visitedSet = new Set(visitedSectors ?? []);
-    // Track current sector as visited for other features (autopilot path coloring, etc.)
     ctx.visitedSet.add(sector);
     ctx.setCurrentSector(sector);
     ctx.setCurrentPort(port ?? null);
@@ -48,7 +50,7 @@ export function showSectorDisplay(
     }
     if (warps.length > 0) {
         ctx.term.writeln(
-            `${colors.boldGreen('Warps')}   ${cl} ${warps.map((w) => colorSector(w, visitedSet)).join(` ${colors.green('-')} `)}`,
+            `${colors.boldGreen('Warps')}   ${cl} ${warps.map((w) => colorSectorRef(w)).join(` ${colors.green('-')} `)}`,
         );
     }
     if (players.length > 0) {

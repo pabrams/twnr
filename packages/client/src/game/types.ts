@@ -52,10 +52,3 @@ export interface GameContext {
     setMenuRegistry: (registry: Map<string, MenuEntry>) => void;
 }
 
-const mg = colors.magenta;
-
-export function colorSector(sector: number, visitedSet: Set<number>): string {
-    const num = String(sector);
-    if (visitedSet.has(sector)) return colors.boldCyan(num);
-    return `${mg('(')}${colors.boldRed(num)}${mg(')')}`;
-}

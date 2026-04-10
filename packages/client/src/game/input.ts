@@ -107,6 +107,9 @@ export function setupInput(term: Terminal, ctx: GameContext) {
 }
 
 function handleInput(ctx: GameContext, line: string) {
+    // Ignore input during autopilot
+    if (ctx.autopilotPath.length > 0 && ctx.autopilotStep > 0) return;
+
     switch (ctx.mode) {
         case 'help':
         case 'shipInfo':
@@ -148,9 +151,6 @@ function handleInput(ctx: GameContext, line: string) {
             return;
         case 'autopilotPrompt':
             handleAutopilotPromptInput(ctx, line);
-            return;
-        case 'autopilot':
-            // Ignore input during autopilot
             return;
         case 'jettisonConfirm':
             handleJettisonConfirmInput(ctx, line);

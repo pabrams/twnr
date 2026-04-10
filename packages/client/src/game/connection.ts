@@ -55,17 +55,17 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     msg.warps,
                     msg.players,
                     msg.port,
-                    msg.visitedSectors,
                     msg.sectorDrones,
                 );
                 // Advance autopilot if in progress
-                if (ctx.mode === 'autopilot' && ctx.autopilotStep < ctx.autopilotPath.length) {
+                if (ctx.autopilotPath.length > 0 && ctx.autopilotStep < ctx.autopilotPath.length) {
                     const nextSector = ctx.autopilotPath[ctx.autopilotStep];
                     ctx.setAutopilotStep(ctx.autopilotStep + 1);
                     ctx.sendMsg({ type: ClientMsgType.Move, sector: nextSector });
-                } else if (ctx.mode === 'autopilot') {
+                } else if (ctx.autopilotPath.length > 0) {
                     // Arrived at destination
-                    ctx.setMode('sector');
+                    ctx.setAutopilotPath([]);
+                    ctx.setAutopilotStep(0);
                 }
                 break;
             case ServerMsgType.DockResult:
@@ -89,7 +89,6 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                         msg.warps,
                         msg.players,
                         msg.port,
-                        msg.visitedSectors,
                         msg.sectorDrones,
                     );
                 } else {
@@ -170,18 +169,15 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                             msg.warps,
                             msg.players,
                             msg.port,
-                            msg.visitedSectors,
                             msg.sectorDrones,
                         );
-                        if (
-                            ctx.mode === 'autopilot' &&
-                            ctx.autopilotStep < ctx.autopilotPath.length
-                        ) {
+                        if (ctx.autopilotPath.length > 0 && ctx.autopilotStep < ctx.autopilotPath.length) {
                             const nextSector = ctx.autopilotPath[ctx.autopilotStep];
                             ctx.setAutopilotStep(ctx.autopilotStep + 1);
                             ctx.sendMsg({ type: ClientMsgType.Move, sector: nextSector });
-                        } else if (ctx.mode === 'autopilot') {
-                            ctx.setMode('sector');
+                        } else if (ctx.autopilotPath.length > 0) {
+                            ctx.setAutopilotPath([]);
+                            ctx.setAutopilotStep(0);
                         }
                         break;
                     case 'encounter': {
@@ -196,9 +192,8 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                             msg.warps,
                             msg.players,
                             msg.port,
-                            msg.visitedSectors,
                         );
-                        if (ctx.mode === 'autopilot') {
+                        if (ctx.autopilotPath.length > 0) {
                             ctx.setAutopilotPaused(true);
                             ctx.term.writeln(
                                 `\r\n${colors.boldRed('Autopilot disengaged — hostile drones!')}`,
@@ -236,7 +231,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 break;
             case ServerMsgType.ShortestPathResult:
                 if (msg.path.length > 1) {
-                    showAutopilotPrompt(ctx, msg.path, msg.hops, msg.visitedSectors);
+                    showAutopilotPrompt(ctx, msg.path, msg.hops);
                 } else {
                     ctx.term.writeln(`\r\n${colors.boldRed('No path found to that sector.')}`);
                     showPrompt(ctx);
@@ -348,10 +343,9 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     msg.warps,
                     msg.players,
                     msg.port,
-                    msg.visitedSectors,
                 );
 
-                if (ctx.mode === 'autopilot') {
+                if (ctx.autopilotPath.length > 0) {
                     ctx.setAutopilotPaused(true);
                     ctx.term.writeln(
                         `\r\n${colors.boldRed('Autopilot disengaged — hostile drones!')}`,
@@ -385,7 +379,6 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     ctx.term.writeln(colors.boldGreen('Sector cleared!'));
                     if (ctx.autopilotPaused) {
                         ctx.term.writeln(colors.boldCyan('Autopilot resuming...'));
-                        ctx.setMode('autopilot');
                         ctx.setAutopilotPaused(false);
                         // Server will send SectorDisplay which triggers autopilot advance
                         ctx.sendMsg({ type: ClientMsgType.SectorDisplay });
@@ -441,7 +434,6 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     msg.warps,
                     msg.players,
                     msg.port,
-                    msg.visitedSectors,
                     msg.sectorDrones,
                 );
                 break;
@@ -551,7 +543,6 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     msg.warps,
                     msg.players,
                     msg.port,
-                    msg.visitedSectors,
                     msg.sectorDrones,
                 );
                 break;

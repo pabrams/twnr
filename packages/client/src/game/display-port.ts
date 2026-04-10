@@ -1,20 +1,18 @@
 import type { GameContext } from './types.js';
-import { colorSector } from './types.js';
 import { colors } from './constants.js';
 
 const mg = colors.magenta;
 
-export function showAutopilotPrompt(ctx: GameContext, path: number[], hops: number, visitedSectors: number[]) {
-    const visitedSet = new Set(visitedSectors);
-    ctx.setAutopilotPath(path);
-    ctx.setAutopilotStep(1);
+export function showAutopilotPrompt(ctx: GameContext, path: { sector: number; visited: boolean }[], hops: number) {
+    ctx.setAutopilotPath(path.map((p) => p.sector));
+    ctx.setAutopilotStep(0);
     ctx.setMode('autopilotPrompt');
     ctx.term.writeln('');
     ctx.term.writeln(
         `${colors.boldYellow('That sector is not adjacent.')} Shortest path ${mg('(')}${colors.boldCyan(String(hops))} hops${mg(')')}:`,
     );
     ctx.term.writeln(
-        `  ${path.map((s) => colorSector(s, visitedSet)).join(` ${colors.green('>')} `)}`,
+        `  ${path.map((p) => p.visited ? colors.boldCyan(String(p.sector)) : `${mg('(')}${colors.boldRed(String(p.sector))}${mg(')')}`).join(` ${colors.green('>')} `)}`,
     );
     ctx.term.write(
         `\r\n${colors.cyan('Engage autopilot?')} ${mg('(')}${colors.boldYellow('Y')}/${colors.boldYellow('N')}${mg(')')} `,

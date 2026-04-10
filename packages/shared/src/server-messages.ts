@@ -2,6 +2,12 @@
 
 import { ServerMsgType } from './messages.js';
 
+/** A sector number with player-specific visited flag. */
+export type SectorRef = {
+    sector: number;
+    visited: boolean;
+};
+
 export type WelcomeEvent = {
     type: typeof ServerMsgType.Welcome;
     playerId: number;
@@ -27,9 +33,8 @@ export type SectorDroneInfo = {
 export type SectorDisplayData = {
     sector: number;
     players: { id: number; name: string }[];
-    warps: number[];
+    warps: SectorRef[];
     port?: { class: number; name: string } | null;
-    visitedSectors: number[];
     sectorDrones?: SectorDroneInfo | null;
     planets: { id: number; name: string; type: string }[];
 };
@@ -48,10 +53,9 @@ export type MoveResultObject =
           type: typeof ServerMsgType.MoveResult;
           outcome: 'encounter';
           sector: number;
-          warps: number[];
+          warps: SectorRef[];
           players: { id: number; name: string }[];
           port?: { class: number; name: string } | null;
-          visitedSectors: number[];
           sectorDrones: number;
           ownerId: number | null;
           ownerName: string;
@@ -90,14 +94,13 @@ export type RateLimitedEvent = {
 export type WarpsOutResultObject = {
     type: typeof ServerMsgType.WarpsOutResult;
     id: number;
-    warps: number[];
+    warps: SectorRef[];
 };
 
 export type ShortestPathResultObject = {
     type: typeof ServerMsgType.ShortestPathResult;
-    path: number[];
+    path: SectorRef[];
     hops: number;
-    visitedSectors: number[];
 };
 
 export type PortInfoResultObject = {
@@ -288,10 +291,9 @@ export type LeaveColonistsResultObject = {
 export type DroneEncounterResultObject = {
     type: typeof ServerMsgType.DroneEncounter;
     sector: number;
-    warps: number[];
+    warps: SectorRef[];
     players: { id: number; name: string }[];
     port?: { class: number; name: string } | null;
-    visitedSectors: number[];
     sectorDrones: number;
     ownerId: number | null;
     ownerName: string;
