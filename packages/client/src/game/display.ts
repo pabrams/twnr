@@ -21,6 +21,8 @@ export function showSectorDisplay(
     players: { id: number; name: string }[],
     port?: { class: number; name: string } | null,
     sectorDrones?: { quantity: number; ownerId: number | null; ownerName: string } | null,
+    planets?: { id: number; name: string; type: string }[],
+    collisions?: { planetName: string; collidingWithName: string; collisionAt: string }[],
 ) {
     ctx.visitedSet.add(sector);
     ctx.setCurrentSector(sector);
@@ -47,6 +49,20 @@ export function showSectorDisplay(
                 ? `${colors.boldGreen(String(sectorDrones.quantity))} ${mg('(yours)')}`
                 : `${colors.boldRed(String(sectorDrones.quantity))} ${mg('(')}${colors.boldYellow(sectorDrones.ownerName)}${mg(')')}`;
         ctx.term.writeln(`${mg('Drones')}  ${cl} ${label}`);
+    }
+    if (planets && planets.length > 0) {
+        ctx.term.writeln(
+            `${mg('Planets')} ${cl} ${planets.map((p) => `${colors.boldCyan(p.name)} ${mg('(')}${colors.white(p.type)}${mg(')')}`).join(colors.boldYellow(', '))}`,
+        );
+    }
+    if (collisions && collisions.length > 0) {
+        for (const c of collisions) {
+            const eta = new Date(c.collisionAt);
+            const hoursLeft = Math.max(0, Math.round((eta.getTime() - Date.now()) / 3600000));
+            ctx.term.writeln(
+                `${colors.boldRed('WARNING')}: ${colors.boldYellow(c.planetName)} on collision course with ${colors.boldYellow(c.collidingWithName)}! ${mg('(')}ETA: ${colors.boldRed(String(hoursLeft))}h${mg(')')}`,
+            );
+        }
     }
     if (warps.length > 0) {
         ctx.term.writeln(
@@ -83,7 +99,9 @@ export function showHelp(ctx: GameContext) {
     );
     ctx.term.writeln(`${colors.cyan('Jettison:')} ${colors.boldYellow("'J'")} jettison all cargo.`);
     ctx.term.writeln(`${colors.cyan('Drones:')} ${colors.boldYellow("'F'")} deploy sector drones.`);
+    ctx.term.writeln(`${colors.cyan('Deployed:')} ${colors.boldYellow("'G'")} list deployed drones.`);
     ctx.term.writeln(`${colors.cyan('Land:')} ${colors.boldYellow("'L'")} land on a planet.`);
+    ctx.term.writeln(`${colors.cyan('Terraform:')} ${colors.boldYellow("'U'")} use terraform device.`);
     ctx.term.writeln(`${colors.cyan('Computer:')} ${colors.boldYellow("'C'")} ship computer.`);
     ctx.term.writeln(
         `${colors.cyan('Starbase:')} ${colors.boldYellow("'V'")} show Starbase location.`,

@@ -80,25 +80,6 @@ export async function handleListDeployedDrones(playerId: number): Promise<void> 
     const player = players[playerId];
     if (!player) return;
 
-    if (player.docked || player.at_starbase) {
-        sendEnvelope(playerId, {
-            type: ServerMsgType.Error,
-            message: 'Cannot use this command while docked',
-        });
-        return;
-    }
-
-    const playerRes = await pool.query('SELECT on_planet_id FROM players WHERE id = $1', [
-        playerId,
-    ]);
-    if (playerRes.rows[0]?.on_planet_id) {
-        sendEnvelope(playerId, {
-            type: ServerMsgType.Error,
-            message: 'Cannot use this command while on a planet',
-        });
-        return;
-    }
-
     const res = await pool.query(
         `SELECT s.sector_number as sector_id, sf.quantity
          FROM sector_drones sf

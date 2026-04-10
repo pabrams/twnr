@@ -107,6 +107,7 @@ async function ensureSchema(client) {
       truce_time_hours SMALLINT NOT NULL DEFAULT 0,
       is_automation_enabled BOOLEAN NOT NULL DEFAULT TRUE
     );
+    ALTER TABLE edits ADD COLUMN IF NOT EXISTS starting_earth_colonists INTEGER NOT NULL DEFAULT 1000000;
     INSERT INTO edits (name) VALUES ('stock') ON CONFLICT (name) DO NOTHING;
 
     CREATE TABLE IF NOT EXISTS universes (
@@ -175,9 +176,9 @@ async function ensureSchema(client) {
       fuel SMALLINT NOT NULL DEFAULT 0,
       organics SMALLINT NOT NULL DEFAULT 0,
       equipment SMALLINT NOT NULL DEFAULT 0,
-      colonists_fuel SMALLINT NOT NULL DEFAULT 0,
-      colonists_organics SMALLINT NOT NULL DEFAULT 0,
-      colonists_equipment SMALLINT NOT NULL DEFAULT 0,
+      colonists_fuel INTEGER NOT NULL DEFAULT 0,
+      colonists_organics INTEGER NOT NULL DEFAULT 0,
+      colonists_equipment INTEGER NOT NULL DEFAULT 0,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ
     );
@@ -356,12 +357,20 @@ async function main() {
       SET class = 0, fuel = 0, fuel_price = 0, organics = 0, org_price = 0, equipment = 0, equ_price = 0
     `, [sector1Id]);
 
-    // Seed Earth in Sector 1
+    // Seed Earth in Sector 1 with starting colonists
     await client.query(`
       INSERT INTO planets (sector_id, name, type)
       VALUES ($1, 'Earth', 'Terran')
       ON CONFLICT DO NOTHING
     `, [sector1Id]);
+    const earthColRes = await client.query(
+      `SELECT COALESCE(e.starting_earth_colonists, 1000000) as col FROM edits e WHERE e.name = 'stock'`
+    );
+    const earthCol = earthColRes.rows[0]?.col ?? 1000000;
+    await client.query(
+      `UPDATE planets SET colonists_fuel = $1 WHERE sector_id = $2 AND name = 'Earth'`,
+      [earthCol, sector1Id]
+    );
 
     // Seed Class 9 port at Starbase
     const starbaseRes = await client.query(

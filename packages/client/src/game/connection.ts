@@ -4,10 +4,10 @@ import type { GameContext } from './types.js';
 
 import { showSectorDisplay, showDockedMenu, showPrompt } from './display.js';
 import { showClass0Menu, showAutopilotPrompt } from './display-port.js';
-import { showPlanetMenu, showNoPlanet } from './display-planet.js';
+import { showPlanetMenu, showPlanetMenuOptions, showEarthMenu, showNoPlanet } from './display-planet.js';
 import { showDroneEncounter } from './display-combat.js';
 import { showStarbaseMenu, showHardwareMenu, showPlanetSelectMenu } from './display-starbase.js';
-import { renderVisitedSectorsResult } from './display-computer.js';
+import { renderVisitedSectorsResult, showComputerPrompt } from './display-computer.js';
 import { colors } from './constants.js';
 
 const mg = colors.magenta;
@@ -58,6 +58,8 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     msg.players,
                     msg.port,
                     msg.sectorDrones,
+                    msg.planets,
+                    msg.collisions,
                 );
                 // Advance autopilot if in progress
                 if (ctx.autopilotPath.length > 0 && ctx.autopilotStep < ctx.autopilotPath.length) {
@@ -92,6 +94,8 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                         msg.players,
                         msg.port,
                         msg.sectorDrones,
+                        msg.planets,
+                        msg.collisions,
                     );
                 } else {
                     ctx.term.writeln(`\r\n${colors.boldRed('Error:')} ${colors.red(msg.message)}`);
@@ -170,6 +174,8 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                             msg.players,
                             msg.port,
                             msg.sectorDrones,
+                            msg.planets,
+                            msg.collisions,
                         );
                         if (
                             ctx.autopilotPath.length > 0 &&
@@ -299,31 +305,27 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
             case ServerMsgType.TakeColonistsResult: {
                 ctx.term.writeln('');
                 ctx.term.writeln(
-                    `${colors.boldGreen(`You took ${msg.quantity.toLocaleString()} colonists.`)}`,
+                    `${colors.boldGreen(`You took ${msg.quantity.toLocaleString()} ${msg.commodity} colonists.`)}`,
                 );
                 ctx.term.writeln(
                     `  ${colors.boldYellow('Planet colonists')}: ${colors.white(msg.planetColonists.toLocaleString())}`,
                 );
                 ctx.term.writeln(
-                    `\r\n${colors.white('You return to your ship and leave the planet.')}`,
+                    `  ${colors.boldYellow('Ship colonists')}: ${colors.white(String(msg.shipColonists))}`,
                 );
-                ctx.setMode('sector');
-                showPrompt(ctx);
                 break;
             }
             case ServerMsgType.LeaveColonistsResult: {
                 ctx.term.writeln('');
                 ctx.term.writeln(
-                    `${colors.boldGreen(`You left ${msg.quantity.toLocaleString()} colonists.`)}`,
+                    `${colors.boldGreen(`You left ${msg.quantity.toLocaleString()} ${msg.commodity} colonists.`)}`,
                 );
                 ctx.term.writeln(
                     `  ${colors.boldYellow('Planet colonists')}: ${colors.white(msg.planetColonists.toLocaleString())}`,
                 );
                 ctx.term.writeln(
-                    `\r\n${colors.white('You return to your ship and leave the planet.')}`,
+                    `  ${colors.boldYellow('Ship colonists')}: ${colors.white(String(msg.shipColonists))}`,
                 );
-                ctx.setMode('sector');
-                showPrompt(ctx);
                 break;
             }
             case ServerMsgType.DroneEncounter: {
@@ -427,6 +429,8 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     msg.players,
                     msg.port,
                     msg.sectorDrones,
+                    msg.planets,
+                    msg.collisions,
                 );
                 break;
             case ServerMsgType.LandResult:
@@ -439,12 +443,20 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 }
                 break;
             case ServerMsgType.LandOnPlanetResult:
-                ctx.term.writeln('');
-                ctx.term.writeln(`${colors.boldGreen('Landed on')} ${colors.boldCyan(msg.name)}`);
-                ctx.term.writeln(`  ${colors.boldYellow('Type')}: ${msg.planetType}`);
-                ctx.term.writeln(
-                    `  ${colors.boldYellow('Drones')}: ${msg.drones}  ${colors.boldYellow('Fuel')}: ${msg.fuel}  ${colors.boldYellow('Organics')}: ${msg.organics}  ${colors.boldYellow('Equipment')}: ${msg.equipment}`,
-                );
+                if (ctx.mode === 'planetEarth') {
+                    showEarthMenu(ctx, msg.colonists_fuel ?? 0);
+                } else {
+                    ctx.term.writeln('');
+                    ctx.term.writeln(`${colors.boldGreen('Landed on')} ${colors.boldCyan(msg.name)}`);
+                    ctx.term.writeln(`  ${colors.boldYellow('Type')}: ${msg.planetType}`);
+                    ctx.term.writeln(
+                        `  ${colors.boldYellow('Drones')}: ${msg.drones}  ${colors.boldYellow('Fuel')}: ${msg.fuel}  ${colors.boldYellow('Organics')}: ${msg.organics}  ${colors.boldYellow('Equipment')}: ${msg.equipment}`,
+                    );
+                    ctx.term.writeln(
+                        `  ${colors.boldYellow('Colonists')}: Fuel=${msg.colonists_fuel ?? 0}, Org=${msg.colonists_organics ?? 0}, Equ=${msg.colonists_equipment ?? 0}`,
+                    );
+                    showPlanetMenuOptions(ctx);
+                }
                 break;
             case ServerMsgType.PlanetDisplayResult:
                 ctx.term.writeln('');
@@ -577,6 +589,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                         );
                     }
                 }
+                showPrompt(ctx);
                 break;
             case ServerMsgType.HyperspaceJumpResult:
                 ctx.term.writeln(
@@ -596,6 +609,8 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     msg.players,
                     msg.port,
                     msg.sectorDrones,
+                    msg.planets,
+                    msg.collisions,
                 );
                 break;
             case ServerMsgType.MenuChanged:
@@ -604,6 +619,24 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
             case ServerMsgType.VisitedSectorsResult:
                 renderVisitedSectorsResult(ctx, msg);
                 break;
+            case ServerMsgType.ListPlanetsResult: {
+                ctx.term.writeln('');
+                if (msg.planets.length === 0) {
+                    ctx.term.writeln(colors.white('You own no planets.'));
+                } else {
+                    ctx.term.writeln(colors.boldCyan('=== Your Planets ==='));
+                    for (const p of msg.planets) {
+                        ctx.term.writeln(
+                            `  ${colors.boldYellow(`Sector ${p.sectorNumber}`)} — ${colors.boldCyan(p.name)} (${colors.white(p.type)})`,
+                        );
+                        ctx.term.writeln(
+                            `    Fuel col: ${p.colonists_fuel}  Org col: ${p.colonists_organics}  Equ col: ${p.colonists_equipment}`,
+                        );
+                    }
+                }
+                showComputerPrompt(ctx);
+                break;
+            }
             case ServerMsgType.Error:
                 ctx.term.writeln(`\r\n${colors.boldRed('Error:')} ${colors.red(msg.message)}`);
                 if (ctx.mode === 'docked') showDockedMenu(ctx);

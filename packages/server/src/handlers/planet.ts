@@ -23,6 +23,20 @@ export async function handleLand(playerId: number): Promise<void> {
         return;
     }
 
+    // Special behavior for sector 1: auto-land on Earth
+    if (player.sector === 1) {
+        const earthRes = await pool.query(
+            `SELECT pl.id FROM planets pl
+             JOIN sectors s ON pl.sector_id = s.id
+             WHERE s.sector_number = 1 AND s.universe_id = $1 AND pl.name = 'Earth'
+             LIMIT 1`,
+            [player.universeId],
+        );
+        if (earthRes.rows.length > 0) {
+            return handleLandOnPlanet(playerId, earthRes.rows[0].id);
+        }
+    }
+
     const planetRes = await pool.query(
         `SELECT pl.id, pl.name, pl.type FROM planets pl
          JOIN sectors s ON pl.sector_id = s.id
@@ -72,7 +86,10 @@ export async function handleLandOnPlanet(playerId: number, planetId: number): Pr
     }
 
     await pool.query('UPDATE players SET on_planet_id = $1 WHERE id = $2', [planetId, playerId]);
-    await setPlayerMenu(playerId, 'planet');
+
+    // Use special menu for Earth in sector 1
+    const isEarth = player.sector === 1 && planetRes.rows[0].name === 'Earth';
+    await setPlayerMenu(playerId, isEarth ? 'planetEarth' : 'planet');
 
     const data = await queryPlanetDisplayData(playerId);
     if (!data) {
@@ -139,6 +156,19 @@ async function buildSectorDisplayData(playerId: number) {
             [currentSector, universeId],
         ),
     ]);
+
+    // Query upcoming collisions for planets in this sector
+    const collisionsRes = await pool.query(
+        `SELECT p1.name as planet_name, p2.name as colliding_with_name, pc.collision_at
+         FROM planet_collisions pc
+         JOIN planets p1 ON pc.collision_planet = p1.id
+         JOIN planets p2 ON pc.colliding_with = p2.id
+         JOIN sectors s ON p1.sector_id = s.id
+         WHERE s.sector_number = $1 AND s.universe_id = $2
+           AND pc.collision_at > NOW()`,
+        [currentSector, universeId],
+    );
+
     const playersInSector = Object.entries(players)
         .filter(
             ([id, p]) =>
@@ -156,6 +186,11 @@ async function buildSectorDisplayData(playerId: number) {
         port,
         sectorDrones,
         planets: planetsRes.rows,
+        collisions: collisionsRes.rows.map((r: any) => ({
+            planetName: r.planet_name,
+            collidingWithName: r.colliding_with_name,
+            collisionAt: r.collision_at,
+        })),
     };
 }
 
@@ -322,8 +357,8 @@ export async function handleUseTerraformDevice(playerId: number): Promise<void> 
         const randomName = 'Planet-' + Math.random().toString(36).substring(2, 8).toUpperCase();
 
         const insertRes = await client.query(
-            'INSERT INTO planets (sector_id, name, type) VALUES ($1, $2, $3) RETURNING id',
-            [sectorDbId, randomName, randomType],
+            'INSERT INTO planets (sector_id, name, type, owner_player_id) VALUES ($1, $2, $3, $4) RETURNING id',
+            [sectorDbId, randomName, randomType, playerId],
         );
         const newPlanetId = insertRes.rows[0].id;
 
@@ -366,4 +401,228 @@ export async function handleUseTerraformDevice(playerId: number): Promise<void> 
     } finally {
         client.release();
     }
+}
+
+const COLONIST_COLUMNS = {
+    fuel: 'colonists_fuel',
+    organics: 'colonists_organics',
+    equipment: 'colonists_equipment',
+} as const;
+
+export async function handleTakeColonists(
+    playerId: number,
+    quantity: number,
+    commodity: string,
+): Promise<void> {
+    const player = players[playerId];
+    if (!player) return;
+
+    const col = COLONIST_COLUMNS[commodity as keyof typeof COLONIST_COLUMNS];
+    if (!col) {
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid commodity' });
+        return;
+    }
+
+    const playerRes = await pool.query('SELECT on_planet_id FROM players WHERE id = $1', [
+        playerId,
+    ]);
+    const onPlanetId = playerRes.rows[0]?.on_planet_id;
+    if (!onPlanetId) {
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not on a planet' });
+        return;
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const planetRes = await client.query(
+            `SELECT ${col} as available FROM planets WHERE id = $1 FOR UPDATE`,
+            [onPlanetId],
+        );
+        if (planetRes.rows.length === 0) {
+            await client.query('ROLLBACK');
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Planet not found' });
+            return;
+        }
+
+        const available = planetRes.rows[0].available;
+        const actual = Math.min(quantity, available);
+        if (actual <= 0) {
+            await client.query('ROLLBACK');
+            sendEnvelope(playerId, {
+                type: ServerMsgType.Error,
+                message: 'No colonists available to take',
+            });
+            return;
+        }
+
+        // Check ship holds
+        const shipRes = await client.query(
+            `SELECT s.holds, s.fuel, s.organics, s.equipment, s.colonists
+             FROM ships s WHERE s.id = (SELECT ship_id FROM players WHERE id = $1) FOR UPDATE`,
+            [playerId],
+        );
+        if (shipRes.rows.length === 0) {
+            await client.query('ROLLBACK');
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'No ship' });
+            return;
+        }
+        const ship = shipRes.rows[0];
+        const used = ship.fuel + ship.organics + ship.equipment + ship.colonists;
+        const free = ship.holds - used;
+        const toTake = Math.min(actual, free);
+        if (toTake <= 0) {
+            await client.query('ROLLBACK');
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'No free holds' });
+            return;
+        }
+
+        await client.query(`UPDATE planets SET ${col} = ${col} - $1 WHERE id = $2`, [
+            toTake,
+            onPlanetId,
+        ]);
+        await client.query(
+            'UPDATE ships SET colonists = colonists + $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)',
+            [toTake, playerId],
+        );
+
+        await client.query('COMMIT');
+
+        const updatedPlanet = await pool.query(`SELECT ${col} as remaining FROM planets WHERE id = $1`, [
+            onPlanetId,
+        ]);
+
+        const updatedShip = await pool.query(
+            'SELECT colonists FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)',
+            [playerId],
+        );
+
+        sendEnvelope(playerId, {
+            type: ServerMsgType.TakeColonistsResult,
+            quantity: toTake,
+            commodity: commodity as 'fuel' | 'organics' | 'equipment',
+            planetColonists: updatedPlanet.rows[0].remaining,
+            shipColonists: updatedShip.rows[0].colonists,
+        });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('Take colonists error', err);
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Failed to take colonists' });
+    } finally {
+        client.release();
+    }
+}
+
+export async function handleLeaveColonists(
+    playerId: number,
+    quantity: number,
+    commodity: string,
+): Promise<void> {
+    const player = players[playerId];
+    if (!player) return;
+
+    const col = COLONIST_COLUMNS[commodity as keyof typeof COLONIST_COLUMNS];
+    if (!col) {
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid commodity' });
+        return;
+    }
+
+    const playerRes = await pool.query('SELECT on_planet_id FROM players WHERE id = $1', [
+        playerId,
+    ]);
+    const onPlanetId = playerRes.rows[0]?.on_planet_id;
+    if (!onPlanetId) {
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not on a planet' });
+        return;
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const shipRes = await client.query(
+            'SELECT colonists FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1) FOR UPDATE',
+            [playerId],
+        );
+        if (shipRes.rows.length === 0 || shipRes.rows[0].colonists <= 0) {
+            await client.query('ROLLBACK');
+            sendEnvelope(playerId, {
+                type: ServerMsgType.Error,
+                message: 'No colonists on ship',
+            });
+            return;
+        }
+
+        const actual = Math.min(quantity, shipRes.rows[0].colonists);
+
+        await client.query(
+            'UPDATE ships SET colonists = colonists - $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)',
+            [actual, playerId],
+        );
+        await client.query(`UPDATE planets SET ${col} = ${col} + $1 WHERE id = $2`, [
+            actual,
+            onPlanetId,
+        ]);
+
+        await client.query('COMMIT');
+
+        const updatedPlanet = await pool.query(`SELECT ${col} as remaining FROM planets WHERE id = $1`, [
+            onPlanetId,
+        ]);
+
+        const updatedShip = await pool.query(
+            'SELECT colonists FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)',
+            [playerId],
+        );
+
+        sendEnvelope(playerId, {
+            type: ServerMsgType.LeaveColonistsResult,
+            quantity: actual,
+            commodity: commodity as 'fuel' | 'organics' | 'equipment',
+            planetColonists: updatedPlanet.rows[0].remaining,
+            shipColonists: updatedShip.rows[0].colonists,
+        });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('Leave colonists error', err);
+        sendEnvelope(playerId, {
+            type: ServerMsgType.Error,
+            message: 'Failed to leave colonists',
+        });
+    } finally {
+        client.release();
+    }
+}
+
+export async function handleListPlanets(playerId: number): Promise<void> {
+    const player = players[playerId];
+    if (!player) return;
+
+    const res = await pool.query(
+        `SELECT p.id, s.sector_number, p.name, p.type,
+                p.fuel, p.organics, p.equipment,
+                p.colonists_fuel, p.colonists_organics, p.colonists_equipment
+         FROM planets p
+         JOIN sectors s ON p.sector_id = s.id
+         WHERE p.owner_player_id = $1 AND s.universe_id = $2
+         ORDER BY s.sector_number, p.id`,
+        [playerId, player.universeId],
+    );
+
+    sendEnvelope(playerId, {
+        type: ServerMsgType.ListPlanetsResult,
+        planets: res.rows.map((r: any) => ({
+            id: r.id,
+            sectorNumber: r.sector_number,
+            name: r.name,
+            type: r.type,
+            fuel: r.fuel,
+            organics: r.organics,
+            equipment: r.equipment,
+            colonists_fuel: r.colonists_fuel,
+            colonists_organics: r.colonists_organics,
+            colonists_equipment: r.colonists_equipment,
+        })),
+    });
 }

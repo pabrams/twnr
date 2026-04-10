@@ -24,6 +24,9 @@ import {
     handleAutopilotPromptInput,
     handleJettisonConfirmInput,
     handlePlanetInput,
+    handlePlanetEarthInput,
+    handlePlanetTakeCommodityInput,
+    handlePlanetLeaveCommodityInput,
     handlePlanetTakeQtyInput,
     handlePlanetLeaveQtyInput,
 } from './input-misc.js';
@@ -150,6 +153,15 @@ function handleInput(ctx: GameContext, line: string) {
         case 'planet':
             handlePlanetInput(ctx, line);
             return;
+        case 'planetEarth':
+            handlePlanetEarthInput(ctx, line);
+            return;
+        case 'planetTakeCommodity':
+            handlePlanetTakeCommodityInput(ctx, line);
+            return;
+        case 'planetLeaveCommodity':
+            handlePlanetLeaveCommodityInput(ctx, line);
+            return;
         case 'planetTakeQty':
             handlePlanetTakeQtyInput(ctx, line);
             return;
@@ -217,6 +229,9 @@ function handleInput(ctx: GameContext, line: string) {
         case 'j':
             ctx.changeMenu('jettisonConfirm');
             showJettisonConfirm(ctx);
+            break;
+        case 'g':
+            ctx.sendMsg({ type: ClientMsgType.ListDeployedDrones });
             break;
         case 'l':
             ctx.sendMsg({ type: ClientMsgType.Land });
