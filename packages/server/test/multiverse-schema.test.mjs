@@ -3,11 +3,10 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import pg from 'pg';
-import { ensureServer, createPool as _gsCreatePool } from './global-setup.mjs';
+import { ensureServer, createPool as _gsCreatePool, BASE } from './global-setup.mjs';
 
 const { Pool } = pg;
 const JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret';
-const BASE = 'http://localhost:3000';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 

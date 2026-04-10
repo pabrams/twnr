@@ -72,7 +72,8 @@ async function ensureSchema(client) {
       email VARCHAR(255) UNIQUE NOT NULL,
       password_hash VARCHAR(255) NOT NULL,
       role VARCHAR(50) NOT NULL DEFAULT 'player',
-      token_version INTEGER NOT NULL DEFAULT 1
+      token_version INTEGER NOT NULL DEFAULT 1,
+      last_connected_at TIMESTAMPTZ
     );
 
     CREATE TABLE IF NOT EXISTS edits (
@@ -138,11 +139,18 @@ async function ensureSchema(client) {
       current_sector_id INTEGER REFERENCES sectors(id),
       ship_id INTEGER,
       credits INTEGER NOT NULL DEFAULT 10000,
+      reputation INTEGER NOT NULL DEFAULT 0,
+      experience INTEGER NOT NULL DEFAULT 0,
       ship_destroyed_date TIMESTAMPTZ,
+      last_login_at TIMESTAMPTZ,
+      last_logout_at TIMESTAMPTZ,
       docked BOOLEAN NOT NULL DEFAULT FALSE,
       on_planet_id INTEGER DEFAULT NULL,
       turns INTEGER NOT NULL DEFAULT 0,
       last_turns_granted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      is_knighted BOOLEAN NOT NULL DEFAULT FALSE,
+      corporation_id INTEGER,
+      current_menu_id INTEGER,
       UNIQUE (user_id, universe_id)
     );
 

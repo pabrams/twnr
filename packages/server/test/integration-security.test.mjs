@@ -1,7 +1,7 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { connectWS, closeWS, httpPost } from './helpers.mjs';
-import { ensureServer, createPool } from './global-setup.mjs';
+import { ensureServer, createPool, BASE, WS_BASE } from './global-setup.mjs';
 import { ServerMsgType } from '@twnr/shared';
 const UNIVERSE_ID = 1;
 
@@ -26,7 +26,7 @@ describe('Security', () => {
     const payload = Buffer.from(JSON.stringify({ userId: 1, role: 'player' })).toString('base64url');
     const forgedToken = `${header}.${payload}.`;
 
-    const res = await fetch('http://localhost:3000/api/auth/logout', {
+    const res = await fetch(`${BASE}/api/auth/logout`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${forgedToken}` },
     });
@@ -37,7 +37,7 @@ describe('Security', () => {
   });
 
   it('allows WebSocket connections from configured origins', async () => {
-    const { ws: wsConn, welcome } = await ws({ origin: 'http://localhost:3000' });
+    const { ws: wsConn, welcome } = await ws({ origin: BASE });
 
     assert.equal(welcome.type, ServerMsgType.Welcome);
     await closeWS(wsConn);
@@ -47,7 +47,7 @@ describe('Security', () => {
     const { default: WebSocket } = await import('ws');
 
     await new Promise((resolve, reject) => {
-      const wsConn = new WebSocket('ws://localhost:3000', { origin: 'https://evil.example' });
+      const wsConn = new WebSocket(`${WS_BASE}`, { origin: 'https://evil.example' });
       const timer = setTimeout(() => {
         wsConn.terminate();
         reject(new Error('WS connect timeout'));
