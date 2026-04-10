@@ -5,82 +5,25 @@ import { getOnPlanetId, moveToSector, markSectorVisited } from '../db/queries/pl
 import { getShipFuel } from '../db/queries/ship.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 
-export async function handleBuyHyperwarpDrive(playerId: number): Promise<void> {
-    const player = players[playerId];
-    if (!player) return;
-
-    if (!player.at_starbase) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not at Starbase' });
-        return;
-    }
-
-    const client = await pool.connect();
-    try {
-        await client.query('BEGIN');
-
-        const shipRes = await client.query(
-            `SELECT s.id as ship_id, st.name as ship_name, s.has_hyperspace_1, st.can_have_hyperspace_1, s.turns_per_warp
-             FROM ships s JOIN ship_types st ON s.ship_type_id = st.id
-             WHERE s.id = (SELECT ship_id FROM players WHERE id = $1) FOR UPDATE OF s`,
-            [playerId],
-        );
-        if (shipRes.rows.length === 0) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Ship not found' });
-            return;
-        }
-
-        if (!shipRes.rows[0].can_have_hyperspace_1) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, {
-                type: ServerMsgType.Error,
-                message: 'Ship incapable of hyperspace drive',
-            });
-            return;
-        }
-
-        if (shipRes.rows[0].has_hyperspace_1) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, {
-                type: ServerMsgType.Error,
-                message: 'Ship already has hyperspace drive',
-            });
-            return;
-        }
-
-        const cargoRes = await client.query(
-            'SELECT credits FROM players WHERE id = $1 FOR UPDATE',
-            [playerId],
-        );
-        if (cargoRes.rows.length === 0 || cargoRes.rows[0].credits < 50000) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient credits' });
-            return;
-        }
-
-        await client.query('UPDATE ships SET has_hyperspace_1 = TRUE WHERE id = $1', [
-            shipRes.rows[0].ship_id,
-        ]);
-        await client.query('UPDATE players SET credits = credits - 50000 WHERE id = $1', [
-            playerId,
-        ]);
-        await client.query('COMMIT');
-
-        sendEnvelope(playerId, {
-            type: ServerMsgType.BuyHyperwarpDriveResult,
-            credits: cargoRes.rows[0].credits - 50000,
-        });
-    } catch {
-        await client.query('ROLLBACK');
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Internal server error' });
-    } finally {
-        client.release();
-    }
-}
-
 export async function handleListDeployedDrones(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
+
+    if (player.docked || player.at_starbase) {
+        sendEnvelope(playerId, {
+            type: ServerMsgType.Error,
+            message: 'Cannot use this command while docked',
+        });
+        return;
+    }
+    const onPlanetId = await getOnPlanetId(playerId);
+    if (onPlanetId) {
+        sendEnvelope(playerId, {
+            type: ServerMsgType.Error,
+            message: 'Cannot use this command while on a planet',
+        });
+        return;
+    }
 
     const res = await pool.query(
         `SELECT s.sector_number as sector_id, sf.quantity

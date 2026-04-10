@@ -132,6 +132,7 @@ describe('Buy equipment — success', () => {
     try {
       // Exchange to Escape Pod at Starbase (navigate there first)
       await navigateTo(ws, starbaseId);
+      await wsRequest(ws, { type: ClientMsgType.DockStarbase }, ServerMsgType.DockStarbaseResult);
       const exchMsg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: escapePodCfg.name }, ServerMsgType.BuyShipTradeinResult);
       assert.equal(exchMsg.type, ServerMsgType.BuyShipTradeinResult);
 
@@ -202,6 +203,7 @@ describe('Buy equipment — success', () => {
     try {
       // Navigate to Starbase and exchange to Escape Pod (startingHolds=1)
       await navigateTo(ws, starbaseId);
+      await wsRequest(ws, { type: ClientMsgType.DockStarbase }, ServerMsgType.DockStarbaseResult);
       const exchMsg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: escapePodCfg.name }, ServerMsgType.BuyShipTradeinResult);
       assert.equal(exchMsg.type, ServerMsgType.BuyShipTradeinResult);
 

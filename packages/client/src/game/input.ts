@@ -37,6 +37,12 @@ import {
     handleStarbaseBuyQtyInput,
     handlePlanetSelectInput,
     handleHyperspaceJumpInput,
+    handleShipyardsInput,
+    handleShipyardsBuyInput,
+    handleShipyardsTradeinInput,
+    handleShipyardsExamineInput,
+    handleShipyardsClass0Input,
+    handleShipyardsClass0QtyInput,
 } from './input-starbase.js';
 import { colors } from './constants.js';
 
@@ -189,6 +195,24 @@ function handleInput(ctx: GameContext, line: string) {
             return;
         case 'starbaseBuyQty':
             handleStarbaseBuyQtyInput(ctx, line);
+            return;
+        case 'shipyards':
+            handleShipyardsInput(ctx, line);
+            return;
+        case 'shipyardsBuy':
+            handleShipyardsBuyInput(ctx, line);
+            return;
+        case 'shipyardsTradein':
+            handleShipyardsTradeinInput(ctx, line);
+            return;
+        case 'shipyardsExamine':
+            handleShipyardsExamineInput(ctx, line);
+            return;
+        case 'shipyardsClass0':
+            handleShipyardsClass0Input(ctx, line);
+            return;
+        case 'shipyardsClass0Qty':
+            handleShipyardsClass0QtyInput(ctx, line);
             return;
         case 'planetSelect':
             handlePlanetSelectInput(ctx, line);

@@ -1,6 +1,7 @@
 import { ClientMsgType } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { colors } from './constants.js';
+import { indexToLetter } from './display-starbase.js';
 
 const mg = colors.magenta;
 
@@ -89,7 +90,7 @@ export async function showShipCatalog(ctx: GameContext) {
     ctx.term.writeln('');
     ctx.term.writeln(colors.boldCyan('=== Ship Catalog ==='));
     ctx.shipConfigs!.forEach((ship: any, i: number) => {
-        const letter = String.fromCharCode(65 + i);
+        const letter = indexToLetter(i);
         ctx.term.writeln(`  ${colors.boldYellow(letter)}  ${colors.white(ship.name)}`);
     });
     ctx.term.writeln(`  ${colors.cyan('Q')}  Back`);
@@ -156,7 +157,7 @@ export async function showPlanetSpecs(ctx: GameContext) {
     ctx.term.writeln('');
     ctx.term.writeln(colors.boldCyan('=== Planetary Specifications ==='));
     ctx.planetConfigs!.forEach((planet: any, i: number) => {
-        const letter = String.fromCharCode(65 + i);
+        const letter = indexToLetter(i);
         ctx.term.writeln(`  ${colors.boldYellow(letter)}  ${colors.white(planet.type)}`);
     });
     ctx.term.writeln(`  ${colors.cyan('Q')}  Back`);

@@ -12,8 +12,8 @@ const PROJECT_ROOT = join(dirname(__filename), '..');
 
 const merchantCfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', '01-vulpeculan-cruiser.json'), 'utf8'));
 const warbirdCfg  = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', '02-hydra-skiff.json'),  'utf8'));
-const torpedoCfg  = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', '03-torpedo-boat.json'),  'utf8'));
-const shipPrice = (cfg) => cfg.costDrive + cfg.costComputer + cfg.costHull + cfg.holdCost;
+const tugCfg      = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', '11-purveyor-tug.json'),  'utf8'));
+const shipPrice = (cfg) => cfg.costDrive + cfg.costComputer + cfg.costHull + cfg.startingHolds * cfg.holdCost;
 const STARTING_CREDITS = 10000;
 const UNIVERSE_ID = 1;
 
@@ -72,6 +72,7 @@ describe('Ship exchange — validation', () => {
     const { ws } = await connectWS();
     try {
       await navigateTo(ws, starbaseId);
+      await wsRequest(ws, { type: ClientMsgType.DockStarbase }, ServerMsgType.DockStarbaseResult);
       const msg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: 'Galaxy Hauler' }, ServerMsgType.BuyShipTradeinResult);
       assert.equal(msg.type, 'error');
       assert.equal(msg.message, 'Unknown ship');
@@ -87,6 +88,7 @@ describe('Ship exchange — validation', () => {
     const { ws } = await connectWS();
     try {
       await navigateTo(ws, starbaseId);
+      await wsRequest(ws, { type: ClientMsgType.DockStarbase }, ServerMsgType.DockStarbaseResult);
       const msg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: merchantCfg.name }, ServerMsgType.BuyShipTradeinResult);
       assert.equal(msg.type, 'error');
       assert.equal(msg.message, 'Already on that ship');
@@ -103,11 +105,12 @@ describe('Ship exchange — validation', () => {
     const playerId = welcome.playerId;
     try {
       await navigateTo(ws, starbaseId);
+      await wsRequest(ws, { type: ClientMsgType.DockStarbase }, ServerMsgType.DockStarbaseResult);
       // Torpedo Boat costs more than Vulpeculan Cruiser, so this is a real upgrade
-      const upgradeCost = shipPrice(torpedoCfg) - shipPrice(merchantCfg);
-      assert.ok(upgradeCost > 0, 'Torpedo Boat should cost more than Vulpeculan Cruiser');
+      const upgradeCost = shipPrice(tugCfg) - shipPrice(merchantCfg);
+      assert.ok(upgradeCost > 0, 'Purveyor Tug should cost more than Vulpeculan Cruiser');
       await pool.query('UPDATE players SET credits = $1 WHERE id = $2', [upgradeCost - 1, playerId]);
-      const msg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: torpedoCfg.name }, ServerMsgType.BuyShipTradeinResult);
+      const msg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: tugCfg.name }, ServerMsgType.BuyShipTradeinResult);
       assert.equal(msg.type, 'error');
       assert.equal(msg.message, 'Insufficient credits');
     } finally {
@@ -115,24 +118,7 @@ describe('Ship exchange — validation', () => {
     }
   });
 
-  it('returns "New ship has insufficient holds for current cargo" when cargo exceeds new ship startingHolds', async () => {
-    const starbaseId = await getStarbaseSector();
-    assert.ok(starbaseId);
-
-    const { ws, welcome } = await connectWS();
-    const playerId = welcome.playerId;
-    try {
-      // set fuel > warbird's startingHolds directly on ships to trigger the holds check on exchange
-      await pool.query('UPDATE ships SET fuel = $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)', [warbirdCfg.startingHolds + 1, playerId]);
-
-      await navigateTo(ws, starbaseId);
-      const msg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: warbirdCfg.name }, ServerMsgType.BuyShipTradeinResult);
-      assert.equal(msg.type, 'error');
-      assert.equal(msg.message, 'New ship has insufficient holds for current cargo');
-    } finally {
-      await closeWS(ws);
-    }
-  });
+  // Trade-in no longer checks cargo (cargo is discarded with old ship)
 });
 
 describe('Ship exchange — success', () => {
@@ -150,6 +136,7 @@ describe('Ship exchange — success', () => {
     const playerId = welcome.playerId;
     try {
       await navigateTo(ws, starbaseId);
+      await wsRequest(ws, { type: ClientMsgType.DockStarbase }, ServerMsgType.DockStarbaseResult);
       const msg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: warbirdCfg.name }, ServerMsgType.BuyShipTradeinResult);
       assert.equal(msg.type, ServerMsgType.BuyShipTradeinResult);
       assert.equal(msg.shipName, warbirdCfg.name);
@@ -181,6 +168,7 @@ describe('Ship exchange — success', () => {
       await wsRequest(ws, { type: ClientMsgType.BuyShields, quantity: Math.min(4, merchantCfg.maxShields) }, ServerMsgType.BuyShieldsResult);
 
       await navigateTo(ws, starbaseId);
+      await wsRequest(ws, { type: ClientMsgType.DockStarbase }, ServerMsgType.DockStarbaseResult);
       const msg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: warbirdCfg.name }, ServerMsgType.BuyShipTradeinResult);
       assert.equal(msg.type, ServerMsgType.BuyShipTradeinResult);
 
@@ -199,6 +187,7 @@ describe('Ship exchange — success', () => {
     const { ws } = await connectWS();
     try {
       await navigateTo(ws, starbaseId);
+      await wsRequest(ws, { type: ClientMsgType.DockStarbase }, ServerMsgType.DockStarbaseResult);
       // Upgrade first
       await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: warbirdCfg.name }, ServerMsgType.BuyShipTradeinResult);
       // Now downgrade

@@ -13,7 +13,7 @@ import {
 } from './port.js';
 import { handleShipInfo, handleCargoInfo } from './ship-info.js';
 import { handleBuyDrones, handleBuyShields, handleBuyHolds } from './ship-upgrades.js';
-import { handleBuyShipTradein } from './ship-exchange.js';
+import { handleBuyShipTradein, handleBuyShipNew } from './ship-exchange.js';
 import { handleJettison } from './ship-cargo.js';
 import { handleAttackShip } from './combat.js';
 import {
@@ -33,11 +33,7 @@ import {
     handleAttackSectorDrones,
     handleRetreatFromDrones,
 } from './sector-drones.js';
-import {
-    handleBuyHyperwarpDrive,
-    handleListDeployedDrones,
-    handleHyperspaceJump,
-} from './hyperwarp.js';
+import { handleListDeployedDrones, handleHyperspaceJump } from './hyperwarp.js';
 import {
     handleBuyBuoys,
     handleBuyPlanetBusters,
@@ -125,8 +121,8 @@ export async function handleMessage(playerId: number, data: any): Promise<void> 
             return handleAttackSectorDrones(playerId, data.drones);
         case ClientMsgType.RetreatFromDrones:
             return handleRetreatFromDrones(playerId);
-        case ClientMsgType.BuyHyperwarpDrive:
-            return handleBuyHyperwarpDrive(playerId);
+        case ClientMsgType.BuyShipNew:
+            return handleBuyShipNew(playerId, data.targetShipName);
         case ClientMsgType.BuyBuoys:
             return handleBuyBuoys(playerId, data.quantity);
         case ClientMsgType.BuyProximityMines:

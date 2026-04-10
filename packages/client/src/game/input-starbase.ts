@@ -9,11 +9,25 @@ import {
     showHardwareHelp,
     showHardwarePrompt,
     showBuyQtyPrompt,
+    showShipyardsMenu,
+    showShipyardsHelp,
+    showShipyardsPrompt,
+    showShipBuyList,
+    showShipExamineList,
+    showTradeinPrompt,
+    showShipyardsClass0Menu,
+    showShipyardsClass0QtyPrompt,
+    letterToIndex,
 } from './display-starbase.js';
+import { showShipDetail } from './display-computer.js';
 import { colors } from './constants.js';
 
 export function handleStarbaseInput(ctx: GameContext, line: string) {
     switch (line.toLowerCase()) {
+        case 's':
+            ctx.changeMenu('shipyards');
+            showShipyardsMenu(ctx);
+            break;
         case 'h':
             ctx.changeMenu('starbaseHardware');
             showHardwareMenu(ctx);
@@ -126,4 +140,148 @@ export function handleHyperspaceJumpInput(ctx: GameContext, line: string) {
         return;
     }
     ctx.sendMsg({ type: ClientMsgType.HyperspaceJump, targetSector: sector });
+}
+
+// --- Shipyards ---
+
+function calculateShipPrice(ship: any): number {
+    return (
+        (ship.cost_drive ?? 0) +
+        (ship.cost_computer ?? 0) +
+        (ship.cost_hull ?? 0) +
+        (ship.starting_holds ?? 0) * (ship.hold_cost ?? 0)
+    );
+}
+
+function getCurrentShipPrice(ctx: GameContext): number {
+    if (!ctx.shipConfigs || !ctx.currentShipName) return 0;
+    const ship = ctx.shipConfigs.find((s: any) => s.name === ctx.currentShipName);
+    return ship ? calculateShipPrice(ship) : 0;
+}
+
+export function handleShipyardsInput(ctx: GameContext, line: string) {
+    switch (line.toLowerCase()) {
+        case 'b':
+            showShipBuyList(ctx);
+            break;
+        case 'e':
+            showShipExamineList(ctx);
+            break;
+        case 'p':
+            showShipyardsClass0Menu(ctx);
+            break;
+        case '?':
+            showShipyardsHelp(ctx);
+            break;
+        case 'q':
+            ctx.changeMenu('starbase');
+            showStarbaseMenu(ctx);
+            break;
+        default:
+            showShipyardsPrompt(ctx);
+    }
+}
+
+export function handleShipyardsBuyInput(ctx: GameContext, line: string) {
+    if (line.toLowerCase() === 'q') {
+        ctx.changeMenu('shipyards');
+        showShipyardsMenu(ctx);
+        return;
+    }
+    const idx = letterToIndex(line);
+    if (ctx.shipConfigs && idx >= 0 && idx < ctx.shipConfigs.length) {
+        const ship = ctx.shipConfigs[idx];
+        if (ship.name === ctx.currentShipName) {
+            ctx.term.writeln(colors.boldRed('Already flying that ship.'));
+            return;
+        }
+        const price = calculateShipPrice(ship);
+        const tradeinCredit = getCurrentShipPrice(ctx);
+        (ctx as any).shipyardsBuyTarget = ship.name;
+        showTradeinPrompt(ctx, ship.name, price, tradeinCredit);
+    } else {
+        ctx.term.writeln(colors.boldRed('Invalid selection.'));
+    }
+}
+
+export function handleShipyardsTradeinInput(ctx: GameContext, line: string) {
+    const targetShipName = (ctx as any).shipyardsBuyTarget;
+    if (!targetShipName) {
+        ctx.changeMenu('shipyards');
+        showShipyardsMenu(ctx);
+        return;
+    }
+    switch (line.toLowerCase()) {
+        case 'y':
+            ctx.sendMsg({ type: ClientMsgType.BuyShipTradein, targetShipName });
+            break;
+        case 'n':
+            ctx.sendMsg({ type: ClientMsgType.BuyShipNew, targetShipName });
+            break;
+        case 'q':
+            showShipBuyList(ctx);
+            break;
+        default:
+            ctx.term.write(`${colors.cyan('Trade in?')} (Y/N/Q) `);
+    }
+}
+
+export function handleShipyardsExamineInput(ctx: GameContext, line: string) {
+    if (line.toLowerCase() === 'q') {
+        ctx.changeMenu('shipyards');
+        showShipyardsMenu(ctx);
+        return;
+    }
+    const idx = letterToIndex(line);
+    if (ctx.shipConfigs && idx >= 0 && idx < ctx.shipConfigs.length) {
+        showShipDetail(ctx, ctx.shipConfigs[idx]);
+    } else {
+        ctx.term.writeln(colors.boldRed('Invalid selection.'));
+    }
+}
+
+export function handleShipyardsClass0Input(ctx: GameContext, line: string) {
+    switch (line.toLowerCase()) {
+        case 'f':
+            ctx.setClass0BuyType('drones');
+            showShipyardsClass0QtyPrompt(ctx, 'drones');
+            break;
+        case 's':
+            ctx.setClass0BuyType('shields');
+            showShipyardsClass0QtyPrompt(ctx, 'shields');
+            break;
+        case 'h':
+            ctx.setClass0BuyType('holds');
+            showShipyardsClass0QtyPrompt(ctx, 'holds');
+            break;
+        case 'q':
+            ctx.changeMenu('shipyards');
+            showShipyardsMenu(ctx);
+            break;
+        default:
+            showShipyardsClass0Menu(ctx);
+    }
+}
+
+export function handleShipyardsClass0QtyInput(ctx: GameContext, line: string) {
+    if (line.toLowerCase() === 'q') {
+        showShipyardsClass0Menu(ctx);
+        return;
+    }
+    const qty = parseInt(line, 10);
+    if (isNaN(qty) || qty <= 0) {
+        ctx.term.writeln('Enter a positive number.');
+        return;
+    }
+    switch (ctx.class0BuyType) {
+        case 'drones':
+            ctx.sendMsg({ type: ClientMsgType.BuyDrones, quantity: qty });
+            break;
+        case 'shields':
+            ctx.sendMsg({ type: ClientMsgType.BuyShields, quantity: qty });
+            break;
+        case 'holds':
+            ctx.sendMsg({ type: ClientMsgType.BuyHolds, quantity: qty });
+            break;
+    }
 }

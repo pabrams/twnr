@@ -1,5 +1,5 @@
 import { ServerMsgType } from '@twnr/shared';
-import { sendEnvelope, getPlayerUniverseId, setPlayerMenu } from '../game-state.js';
+import { sendEnvelope, getPlayerUniverseId, setPlayerMenu, players } from '../game-state.js';
 import { pool } from '../db/index.js';
 import { getCurrentSector } from '../db/queries/player.js';
 import { class0Prices } from '../game-config.js';
@@ -30,9 +30,13 @@ export async function handleBuyDrones(playerId: number, quantity: number): Promi
              WHERE s.sector_number = $1 AND s.universe_id = $2`,
             [currentSector, universeId],
         );
-        if (portRes.rows.length === 0 || portRes.rows[0].class !== 0) {
+        const atStarbase = players[playerId]?.at_starbase;
+        if (!atStarbase && (portRes.rows.length === 0 || portRes.rows[0].class !== 0)) {
             await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not at a class 0 port' });
+            sendEnvelope(playerId, {
+                type: ServerMsgType.Error,
+                message: 'Not at a class 0 port or starbase',
+            });
             return;
         }
 
@@ -115,9 +119,13 @@ export async function handleBuyShields(playerId: number, quantity: number): Prom
              WHERE s.sector_number = $1 AND s.universe_id = $2`,
             [currentSector, universeId],
         );
-        if (portRes.rows.length === 0 || portRes.rows[0].class !== 0) {
+        const atStarbase = players[playerId]?.at_starbase;
+        if (!atStarbase && (portRes.rows.length === 0 || portRes.rows[0].class !== 0)) {
             await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not at a class 0 port' });
+            sendEnvelope(playerId, {
+                type: ServerMsgType.Error,
+                message: 'Not at a class 0 port or starbase',
+            });
             return;
         }
 
@@ -200,9 +208,13 @@ export async function handleBuyHolds(playerId: number, quantity: number): Promis
              WHERE s.sector_number = $1 AND s.universe_id = $2`,
             [currentSector, universeId],
         );
-        if (portRes.rows.length === 0 || portRes.rows[0].class !== 0) {
+        const atStarbase = players[playerId]?.at_starbase;
+        if (!atStarbase && (portRes.rows.length === 0 || portRes.rows[0].class !== 0)) {
             await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not at a class 0 port' });
+            sendEnvelope(playerId, {
+                type: ServerMsgType.Error,
+                message: 'Not at a class 0 port or starbase',
+            });
             return;
         }
 
