@@ -15,6 +15,7 @@ export type WelcomeEvent = {
     sector: number;
     token: string;
     totalSectors: number;
+    shipName: string;
 };
 
 export type PlayerMovedEvent = {
