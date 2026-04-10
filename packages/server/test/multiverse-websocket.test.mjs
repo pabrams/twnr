@@ -234,7 +234,7 @@ describe('WebSocket universe scoping', () => {
     assert.equal(dispB.sector, 1);
     // Universe B has sectors 1-3, so sector 1 should NOT have warp to sector 4 or 5
     for (const w of dispB.warps) {
-      assert.ok(w >= 1 && w <= 3, `Universe B sector 1 warp ${w} should be within sectors 1-3`);
+      assert.ok(w.sector >= 1 && w.sector <= 3, `Universe B sector 1 warp ${w.sector} should be within sectors 1-3`);
     }
     await closeWS(wsB);
   });
