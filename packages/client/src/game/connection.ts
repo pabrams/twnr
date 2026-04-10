@@ -377,10 +377,26 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                         });
                         break;
                     case 'noShip':
+                        if (ctx.autopilotPath.length > 0) {
+                            ctx.setAutopilotPath([]);
+                            ctx.setAutopilotStep(0);
+                            ctx.setAutopilotPaused(false);
+                            ctx.term.writeln(
+                                `\r\n${colors.boldRed('Autopilot cancelled.')}`,
+                            );
+                        }
                         ctx.term.writeln(`\r\n${colors.boldRed('You do not have a ship.')}`);
                         showPrompt(ctx);
                         break;
                     case 'error':
+                        if (ctx.autopilotPath.length > 0) {
+                            ctx.setAutopilotPath([]);
+                            ctx.setAutopilotStep(0);
+                            ctx.setAutopilotPaused(false);
+                            ctx.term.writeln(
+                                `\r\n${colors.boldRed('Autopilot cancelled.')}`,
+                            );
+                        }
                         ctx.term.writeln(
                             `\r\n${colors.boldRed('Error:')} ${colors.red(msg.message)}`,
                         );
