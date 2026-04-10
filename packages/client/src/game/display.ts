@@ -85,7 +85,9 @@ export function showHelp(ctx: GameContext) {
     ctx.term.writeln(`${colors.cyan('Drones:')} ${colors.boldYellow("'F'")} deploy sector drones.`);
     ctx.term.writeln(`${colors.cyan('Land:')} ${colors.boldYellow("'L'")} land on a planet.`);
     ctx.term.writeln(`${colors.cyan('Computer:')} ${colors.boldYellow("'C'")} ship computer.`);
-    ctx.term.writeln(`${colors.cyan('Starbase:')} ${colors.boldYellow("'V'")} show Starbase location.`);
+    ctx.term.writeln(
+        `${colors.cyan('Starbase:')} ${colors.boldYellow("'V'")} show Starbase location.`,
+    );
     ctx.term.writeln(`${colors.cyan('Who:')} ${colors.boldYellow("'#'")} players online.`);
     ctx.term.writeln(`${colors.cyan('Help:')} ${colors.boldYellow("'?'")} this help.`);
     ctx.term.writeln(`${colors.cyan('Quit:')} ${colors.boldYellow("'Q'")} quit the game.`);

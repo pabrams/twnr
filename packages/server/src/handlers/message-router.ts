@@ -163,10 +163,9 @@ async function handleVisitedSectors(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
     const sectors = await getVisitedSectors(playerId);
-    const totalRes = await pool.query(
-        'SELECT COUNT(*)::int FROM sectors WHERE universe_id = $1',
-        [player.universeId],
-    );
+    const totalRes = await pool.query('SELECT COUNT(*)::int FROM sectors WHERE universe_id = $1', [
+        player.universeId,
+    ]);
     sendEnvelope(playerId, {
         type: ServerMsgType.VisitedSectorsResult,
         sectors,

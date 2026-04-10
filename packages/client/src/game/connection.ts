@@ -154,9 +154,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 ctx.term.writeln(`${colors.boldCyan('Players Online')} (${msg.players.length}):`);
                 for (const p of msg.players) {
                     const tag = p.id === ctx.playerId ? colors.boldGreen(' (you)') : '';
-                    ctx.term.writeln(
-                        `  ${colors.boldYellow(p.name)}${tag}`,
-                    );
+                    ctx.term.writeln(`  ${colors.boldYellow(p.name)}${tag}`);
                 }
                 showPrompt(ctx);
                 break;
@@ -173,7 +171,10 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                             msg.port,
                             msg.sectorDrones,
                         );
-                        if (ctx.autopilotPath.length > 0 && ctx.autopilotStep < ctx.autopilotPath.length) {
+                        if (
+                            ctx.autopilotPath.length > 0 &&
+                            ctx.autopilotStep < ctx.autopilotPath.length
+                        ) {
                             const nextSector = ctx.autopilotPath[ctx.autopilotStep];
                             ctx.setAutopilotStep(ctx.autopilotStep + 1);
                             ctx.sendMsg({ type: ClientMsgType.Move, sector: nextSector });
@@ -188,13 +189,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                         ctx.setCurrentSector(msg.sector);
                         ctx.setCurrentPort(msg.port ?? null);
                         ctx.setEncounterOwnerName(msg.ownerName);
-                        showSectorDisplay(
-                            ctx,
-                            msg.sector,
-                            msg.warps,
-                            msg.players,
-                            msg.port,
-                        );
+                        showSectorDisplay(ctx, msg.sector, msg.warps, msg.players, msg.port);
                         if (ctx.autopilotPath.length > 0) {
                             ctx.setAutopilotPaused(true);
                             ctx.term.writeln(
@@ -339,13 +334,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 ctx.setEncounterOwnerName(msg.ownerName);
 
                 // Show sector info first
-                showSectorDisplay(
-                    ctx,
-                    msg.sector,
-                    msg.warps,
-                    msg.players,
-                    msg.port,
-                );
+                showSectorDisplay(ctx, msg.sector, msg.warps, msg.players, msg.port);
 
                 if (ctx.autopilotPath.length > 0) {
                     ctx.setAutopilotPaused(true);

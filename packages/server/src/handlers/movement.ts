@@ -277,7 +277,11 @@ export async function handleShortestPath(
     }
 
     if (from === to) {
-        sendEnvelope(playerId, { type: ServerMsgType.ShortestPathResult, path: [{ sector: from, visited: true }], hops: 0 });
+        sendEnvelope(playerId, {
+            type: ServerMsgType.ShortestPathResult,
+            path: [{ sector: from, visited: true }],
+            hops: 0,
+        });
         return;
     }
 

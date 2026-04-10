@@ -40,21 +40,51 @@ export function showHardwareHelp(ctx: GameContext) {
     const p = ctx.hardwarePrices;
     ctx.term.writeln('');
     if (p) {
-        ctx.term.writeln(`  ${colors.cyan('T')}  Terraform Device  ${colors.white(fmt(p.terraformDevice))}`);
-        ctx.term.writeln(`  ${colors.cyan('B')}  Planet Buster      ${colors.white(fmt(p.planetBuster))}`);
-        ctx.term.writeln(`  ${colors.cyan('U')}  Space Buoy         ${colors.white(fmt(p.spaceBuoy))}`);
-        ctx.term.writeln(`  ${colors.cyan('P')}  Proximity Mine     ${colors.white(fmt(p.proximityMine))}`);
-        ctx.term.writeln(`  ${colors.cyan('S')}  Seeker Mine        ${colors.white(fmt(p.seekerMine))}`);
-        ctx.term.writeln(`  ${colors.cyan('O')}  Orbital Mine       ${colors.white(fmt(p.orbitalMine))}`);
-        ctx.term.writeln(`  ${colors.cyan('D')}  Mine Disruptor     ${colors.white(fmt(p.mineDisruptor))}`);
-        ctx.term.writeln(`  ${colors.cyan('1')}  Hyperspace Drive 1 ${colors.white(fmt(p.hyperspace1))}`);
-        ctx.term.writeln(`  ${colors.cyan('2')}  Hyperspace Drive 2 ${colors.white(fmt(p.hyperspace2))}`);
-        ctx.term.writeln(`  ${colors.cyan('V')}  Visual Scanner     ${colors.white(fmt(p.visualScanner))}`);
-        ctx.term.writeln(`  ${colors.cyan('N')}  Planet Scanner     ${colors.white(fmt(p.planetScanner))}`);
-        ctx.term.writeln(`  ${colors.cyan('K')}  Cloaking Device    ${colors.white(fmt(p.cloakingDevice))}`);
-        ctx.term.writeln(`  ${colors.cyan('C')}  Corbomite          ${colors.white(fmt(p.corbomite))}`);
-        ctx.term.writeln(`  ${colors.cyan('H')}  Photon Torpedo     ${colors.white(fmt(p.photonTorpedo))}`);
-        ctx.term.writeln(`  ${colors.cyan('R')}  Recon Drone        ${colors.white(fmt(p.reconDrone))}`);
+        ctx.term.writeln(
+            `  ${colors.cyan('T')}  Terraform Device  ${colors.white(fmt(p.terraformDevice))}`,
+        );
+        ctx.term.writeln(
+            `  ${colors.cyan('B')}  Planet Buster      ${colors.white(fmt(p.planetBuster))}`,
+        );
+        ctx.term.writeln(
+            `  ${colors.cyan('U')}  Space Buoy         ${colors.white(fmt(p.spaceBuoy))}`,
+        );
+        ctx.term.writeln(
+            `  ${colors.cyan('P')}  Proximity Mine     ${colors.white(fmt(p.proximityMine))}`,
+        );
+        ctx.term.writeln(
+            `  ${colors.cyan('S')}  Seeker Mine        ${colors.white(fmt(p.seekerMine))}`,
+        );
+        ctx.term.writeln(
+            `  ${colors.cyan('O')}  Orbital Mine       ${colors.white(fmt(p.orbitalMine))}`,
+        );
+        ctx.term.writeln(
+            `  ${colors.cyan('D')}  Mine Disruptor     ${colors.white(fmt(p.mineDisruptor))}`,
+        );
+        ctx.term.writeln(
+            `  ${colors.cyan('1')}  Hyperspace Drive 1 ${colors.white(fmt(p.hyperspace1))}`,
+        );
+        ctx.term.writeln(
+            `  ${colors.cyan('2')}  Hyperspace Drive 2 ${colors.white(fmt(p.hyperspace2))}`,
+        );
+        ctx.term.writeln(
+            `  ${colors.cyan('V')}  Visual Scanner     ${colors.white(fmt(p.visualScanner))}`,
+        );
+        ctx.term.writeln(
+            `  ${colors.cyan('N')}  Planet Scanner     ${colors.white(fmt(p.planetScanner))}`,
+        );
+        ctx.term.writeln(
+            `  ${colors.cyan('K')}  Cloaking Device    ${colors.white(fmt(p.cloakingDevice))}`,
+        );
+        ctx.term.writeln(
+            `  ${colors.cyan('C')}  Corbomite          ${colors.white(fmt(p.corbomite))}`,
+        );
+        ctx.term.writeln(
+            `  ${colors.cyan('H')}  Photon Torpedo     ${colors.white(fmt(p.photonTorpedo))}`,
+        );
+        ctx.term.writeln(
+            `  ${colors.cyan('R')}  Recon Drone        ${colors.white(fmt(p.reconDrone))}`,
+        );
     }
     ctx.term.writeln(`  ${colors.cyan('Q')}  Back`);
     showHardwarePrompt(ctx);
