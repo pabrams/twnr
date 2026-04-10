@@ -5,12 +5,11 @@ import {
     getPlayerUniverseId,
     PORT_CLASS_ACTIONS,
     portName,
-    getPortForSector,
-    getWarpRefs,
-    getSectorDrones,
+    buildSectorDisplayData,
     setPlayerMenu,
 } from '../game-state.js';
 import { pool } from '../db/index.js';
+import { setDocked, getCurrentSector } from '../db/queries/player.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 
 export async function handlePortInfo(playerId: number, sectorId: number): Promise<void> {
@@ -88,7 +87,7 @@ export async function handleDock(playerId: number): Promise<void> {
     }
 
     player.docked = true;
-    await pool.query('UPDATE players SET docked = TRUE WHERE id = $1', [playerId]);
+    await setDocked(playerId, true);
 
     const p = portRes.rows[0];
     const cargo = cargoRes.rows[0];
@@ -139,43 +138,15 @@ export async function handleUndock(playerId: number): Promise<void> {
     }
 
     player.docked = false;
-    await pool.query('UPDATE players SET docked = FALSE WHERE id = $1', [playerId]);
+    await setDocked(playerId, false);
     await setPlayerMenu(playerId, 'sector');
 
-    const currentSector = player.sector;
-    const universeId = player.universeId;
-
-    const [port, warpRefs, sectorDrones, planetsRes] = await Promise.all([
-        getPortForSector(currentSector, universeId),
-        getWarpRefs(playerId, currentSector, universeId),
-        getSectorDrones(currentSector, universeId),
-        pool.query(
-            `SELECT pl.id, pl.name, pl.type FROM planets pl
-             JOIN sectors s ON pl.sector_id = s.id
-             WHERE s.sector_number = $1 AND s.universe_id = $2 ORDER BY pl.id`,
-            [currentSector, universeId],
-        ),
-    ]);
-    const planets = planetsRes.rows;
-    const playersInSector = Object.entries(players)
-        .filter(
-            ([id, p]) =>
-                p.sector === currentSector &&
-                p.universeId === universeId &&
-                !p.docked &&
-                Number(id) !== playerId,
-        )
-        .map(([id, p]) => ({ id: Number(id), name: p.name }));
-
+    const sectorData = await buildSectorDisplayData(playerId);
+    if (!sectorData) return;
     sendEnvelope(playerId, {
         type: ServerMsgType.UndockResult,
         outcome: 'success',
-        sector: currentSector,
-        warps: warpRefs,
-        players: playersInSector,
-        port,
-        sectorDrones,
-        planets,
+        ...sectorData,
     });
 }
 
@@ -215,16 +186,12 @@ export async function handlePortTransaction(
     try {
         await client.query('BEGIN');
 
-        const pRes = await client.query(
-            'SELECT s.sector_number as current_sector FROM players p JOIN sectors s ON p.current_sector_id = s.id WHERE p.id = $1',
-            [playerId],
-        );
-        if (pRes.rows.length === 0) {
+        const currentSector = await getCurrentSector(playerId, client);
+        if (currentSector === undefined) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
             return;
         }
-        const currentSector = pRes.rows[0].current_sector;
 
         const portRes = await client.query(
             `SELECT p.id as port_id, p.class, p.fuel, p.fuel_price, p.organics, p.org_price, p.equipment, p.equ_price
@@ -482,195 +449,10 @@ export async function handleLeaveStarbase(playerId: number): Promise<void> {
     player.at_starbase = false;
     await setPlayerMenu(playerId, 'sector');
 
-    const currentSector = player.sector;
-    const universeId = player.universeId;
-
-    const [port, warpRefs, sectorDrones, planetsRes] = await Promise.all([
-        getPortForSector(currentSector, universeId),
-        getWarpRefs(playerId, currentSector, universeId),
-        getSectorDrones(currentSector, universeId),
-        pool.query(
-            `SELECT pl.id, pl.name, pl.type FROM planets pl
-             JOIN sectors s ON pl.sector_id = s.id
-             WHERE s.sector_number = $1 AND s.universe_id = $2 ORDER BY pl.id`,
-            [currentSector, universeId],
-        ),
-    ]);
-    const playersInSector = Object.entries(players)
-        .filter(
-            ([id, p]) =>
-                p.sector === currentSector &&
-                p.universeId === universeId &&
-                !p.docked &&
-                Number(id) !== playerId,
-        )
-        .map(([id, p]) => ({ id: Number(id), name: p.name }));
-
+    const sectorData = await buildSectorDisplayData(playerId);
+    if (!sectorData) return;
     sendEnvelope(playerId, {
         type: ServerMsgType.LeaveStarbaseResult,
-        sector: currentSector,
-        warps: warpRefs,
-        players: playersInSector,
-        port,
-        sectorDrones,
-        planets: planetsRes.rows,
+        ...sectorData,
     });
-}
-
-export async function handleBuyPlanetBusters(playerId: number, quantity: number): Promise<void> {
-    const qty = Number.isInteger(quantity) ? quantity : 0;
-    if (qty <= 0) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid quantity' });
-        return;
-    }
-
-    const player = players[playerId];
-    if (!player) return;
-
-    if (!player.at_starbase) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not at Starbase' });
-        return;
-    }
-
-    const cost = qty * 20000;
-
-    const client = await pool.connect();
-    try {
-        await client.query('BEGIN');
-
-        const shipRes = await client.query(
-            `SELECT s.id as ship_id, st.name as ship_name, s.planet_busters, st.max_planet_busters
-             FROM ships s JOIN ship_types st ON s.ship_type_id = st.id
-             WHERE s.id = (SELECT ship_id FROM players WHERE id = $1) FOR UPDATE OF s`,
-            [playerId],
-        );
-        if (shipRes.rows.length === 0) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Ship not found' });
-            return;
-        }
-
-        const cargoRes = await client.query(
-            'SELECT credits FROM players WHERE id = $1 FOR UPDATE',
-            [playerId],
-        );
-        if (cargoRes.rows.length === 0 || cargoRes.rows[0].credits < cost) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient credits' });
-            return;
-        }
-
-        const maxPlanetBusters = shipRes.rows[0].max_planet_busters || 0;
-
-        if (shipRes.rows[0].planet_busters + qty > maxPlanetBusters) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, {
-                type: ServerMsgType.Error,
-                message: 'Cannot hold that many Planet Busters',
-            });
-            return;
-        }
-
-        await client.query('UPDATE players SET credits = credits - $1 WHERE id = $2', [
-            cost,
-            playerId,
-        ]);
-        await client.query('UPDATE ships SET planet_busters = planet_busters + $1 WHERE id = $2', [
-            qty,
-            shipRes.rows[0].ship_id,
-        ]);
-        await client.query('COMMIT');
-
-        sendEnvelope(playerId, {
-            type: ServerMsgType.BuyPlanetBustersResult,
-            quantity: qty,
-            totalOnShip: shipRes.rows[0].planet_busters + qty,
-            credits: cargoRes.rows[0].credits - cost,
-        });
-    } catch (err) {
-        await client.query('ROLLBACK');
-        console.error('Buy hardware error', err);
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Internal server error' });
-    } finally {
-        client.release();
-    }
-}
-
-export async function handleBuyTerraformDevices(playerId: number, quantity: number): Promise<void> {
-    const qty = Number.isInteger(quantity) ? quantity : 0;
-    if (qty <= 0) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid quantity' });
-        return;
-    }
-
-    const player = players[playerId];
-    if (!player) return;
-
-    if (!player.at_starbase) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not at Starbase' });
-        return;
-    }
-
-    const cost = qty * 5000;
-
-    const client = await pool.connect();
-    try {
-        await client.query('BEGIN');
-
-        const shipRes = await client.query(
-            `SELECT s.id as ship_id, st.name as ship_name, s.terraform_devices, st.max_terraform_devices
-             FROM ships s JOIN ship_types st ON s.ship_type_id = st.id
-             WHERE s.id = (SELECT ship_id FROM players WHERE id = $1) FOR UPDATE OF s`,
-            [playerId],
-        );
-        if (shipRes.rows.length === 0) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Ship not found' });
-            return;
-        }
-
-        const cargoRes = await client.query(
-            'SELECT credits FROM players WHERE id = $1 FOR UPDATE',
-            [playerId],
-        );
-        if (cargoRes.rows.length === 0 || cargoRes.rows[0].credits < cost) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient credits' });
-            return;
-        }
-
-        const maxTerraformDevices = shipRes.rows[0].max_terraform_devices || 0;
-
-        if (shipRes.rows[0].terraform_devices + qty > maxTerraformDevices) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, {
-                type: ServerMsgType.Error,
-                message: 'Cannot hold that many Terraform Devices',
-            });
-            return;
-        }
-
-        await client.query('UPDATE players SET credits = credits - $1 WHERE id = $2', [
-            cost,
-            playerId,
-        ]);
-        await client.query(
-            'UPDATE ships SET terraform_devices = terraform_devices + $1 WHERE id = $2',
-            [qty, shipRes.rows[0].ship_id],
-        );
-        await client.query('COMMIT');
-
-        sendEnvelope(playerId, {
-            type: ServerMsgType.BuyTerraformDevicesResult,
-            quantity: qty,
-            totalOnShip: shipRes.rows[0].terraform_devices + qty,
-            credits: cargoRes.rows[0].credits - cost,
-        });
-    } catch (err) {
-        await client.query('ROLLBACK');
-        console.error('Buy hardware error', err);
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Internal server error' });
-    } finally {
-        client.release();
-    }
 }

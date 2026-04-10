@@ -1,6 +1,7 @@
 import { ServerMsgType } from '@twnr/shared';
 import { sendEnvelope, getPlayerUniverseId, setPlayerMenu } from '../game-state.js';
 import { pool } from '../db/index.js';
+import { getCurrentSector } from '../db/queries/player.js';
 import { class0Prices } from '../game-config.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 
@@ -17,16 +18,12 @@ export async function handleBuyDrones(playerId: number, quantity: number): Promi
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
-        const pRes = await client.query(
-            'SELECT s.sector_number as current_sector FROM players p JOIN sectors s ON p.current_sector_id = s.id WHERE p.id = $1',
-            [playerId],
-        );
-        if (pRes.rows.length === 0) {
+        const currentSector = await getCurrentSector(playerId, client);
+        if (currentSector === undefined) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
             return;
         }
-        const currentSector = pRes.rows[0].current_sector;
 
         const portRes = await client.query(
             `SELECT p.class FROM ports p JOIN sectors s ON p.sector_id = s.id
@@ -106,16 +103,12 @@ export async function handleBuyShields(playerId: number, quantity: number): Prom
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
-        const pRes = await client.query(
-            'SELECT s.sector_number as current_sector FROM players p JOIN sectors s ON p.current_sector_id = s.id WHERE p.id = $1',
-            [playerId],
-        );
-        if (pRes.rows.length === 0) {
+        const currentSector = await getCurrentSector(playerId, client);
+        if (currentSector === undefined) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
             return;
         }
-        const currentSector = pRes.rows[0].current_sector;
 
         const portRes = await client.query(
             `SELECT p.class FROM ports p JOIN sectors s ON p.sector_id = s.id
@@ -195,16 +188,12 @@ export async function handleBuyHolds(playerId: number, quantity: number): Promis
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
-        const pRes = await client.query(
-            'SELECT s.sector_number as current_sector FROM players p JOIN sectors s ON p.current_sector_id = s.id WHERE p.id = $1',
-            [playerId],
-        );
-        if (pRes.rows.length === 0) {
+        const currentSector = await getCurrentSector(playerId, client);
+        if (currentSector === undefined) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
             return;
         }
-        const currentSector = pRes.rows[0].current_sector;
 
         const portRes = await client.query(
             `SELECT p.class FROM ports p JOIN sectors s ON p.sector_id = s.id

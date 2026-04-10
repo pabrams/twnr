@@ -1,6 +1,7 @@
 import { WebSocket } from 'ws';
 import type { ServerResult } from '@twnr/shared';
 import { pool } from './db/index.js';
+import { getPlanetsInSector, getCollisionsInSector } from './db/queries/sector.js';
 
 export interface Player {
     ws: WebSocket;
@@ -194,6 +195,41 @@ export async function resolveSectorId(sectorNumber: number, universeId: number):
         [sectorNumber, universeId],
     );
     return res.rows[0]?.id;
+}
+
+export async function buildSectorDisplayData(playerId: number, sectorNumber?: number) {
+    const player = players[playerId];
+    if (!player) return null;
+    const sector = sectorNumber ?? player.sector;
+    const universeId = player.universeId;
+
+    const [port, warps, sectorDrones, planets, collisions] = await Promise.all([
+        getPortForSector(sector, universeId),
+        getWarpRefs(playerId, sector, universeId),
+        getSectorDrones(sector, universeId),
+        getPlanetsInSector(sector, universeId),
+        getCollisionsInSector(sector, universeId),
+    ]);
+
+    const playersInSector = Object.entries(players)
+        .filter(
+            ([id, p]) =>
+                p.sector === sector &&
+                p.universeId === universeId &&
+                !p.docked &&
+                Number(id) !== playerId,
+        )
+        .map(([id, p]) => ({ id: Number(id), name: p.name }));
+
+    return {
+        sector,
+        warps,
+        players: playersInSector,
+        port,
+        sectorDrones,
+        planets,
+        collisions,
+    };
 }
 
 export async function getSectorDrones(

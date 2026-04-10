@@ -4,13 +4,15 @@ import {
     players,
     sendEnvelope,
     getSectorDrones,
-    getPortForSector,
-    getWarpRefs,
     broadcastTo,
+    buildSectorDisplayData,
     setPlayerMenu,
     resolveSectorId,
 } from '../game-state.js';
 import { pool } from '../db/index.js';
+import { moveToSector } from '../db/queries/player.js';
+import { moveShipToSector } from '../db/queries/ship.js';
+import { getSectorDbId } from '../db/queries/sector.js';
 
 export async function handleDeployDronesInfo(playerId: number): Promise<void> {
     const player = players[playerId];
@@ -110,16 +112,12 @@ export async function handleDeployDrones(playerId: number, target: number): Prom
         const maxDrones = shipRes.rows[0].max_drones ?? 0;
 
         // Look up sector DB id
-        const sectorLookup = await client.query(
-            'SELECT id FROM sectors WHERE sector_number = $1 AND universe_id = $2',
-            [sectorId, universeId],
-        );
-        if (sectorLookup.rows.length === 0) {
+        const sectorDbId = await getSectorDbId(sectorId, universeId);
+        if (!sectorDbId) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Sector not found' });
             return;
         }
-        const sectorDbId = sectorLookup.rows[0].id;
 
         // Lock existing sector drones row if present
         const sfRes = await client.query(
@@ -235,11 +233,7 @@ export async function handleAttackSectorDrones(
     const universeId = player.universeId;
 
     // Look up sector DB id
-    const sectorLookup = await pool.query(
-        'SELECT id FROM sectors WHERE sector_number = $1 AND universe_id = $2',
-        [sectorId, universeId],
-    );
-    const sectorDbId = sectorLookup.rows[0]?.id;
+    const sectorDbId = await getSectorDbId(sectorId, universeId);
 
     const client = await pool.connect();
     try {
@@ -364,14 +358,8 @@ export async function handleRetreatFromDrones(playerId: number): Promise<void> {
     player.sector = retreatSector;
     player.sectorId = retreatSectorId;
     await Promise.all([
-        pool.query('UPDATE players SET current_sector_id = $1 WHERE id = $2', [
-            retreatSectorId,
-            playerId,
-        ]),
-        pool.query(
-            'UPDATE ships SET sector_id = $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)',
-            [retreatSectorId, playerId],
-        ),
+        moveToSector(playerId, retreatSectorId),
+        moveShipToSector(playerId, retreatSectorId),
     ]);
 
     // Broadcast movement
@@ -402,34 +390,8 @@ export async function handleRetreatFromDrones(playerId: number): Promise<void> {
     });
 
     // Send sector display for the retreat sector
-    const [port, warpRefs, sectorDrones, planetsRes] = await Promise.all([
-        getPortForSector(retreatSector, universeId),
-        getWarpRefs(playerId, retreatSector, universeId),
-        getSectorDrones(retreatSector, universeId),
-        pool.query(
-            `SELECT pl.id, pl.name, pl.type FROM planets pl
-             JOIN sectors s ON pl.sector_id = s.id
-             WHERE s.sector_number = $1 AND s.universe_id = $2 ORDER BY pl.id`,
-            [retreatSector, universeId],
-        ),
-    ]);
-    const planets = planetsRes.rows;
-    const playersInSector = Object.entries(players)
-        .filter(
-            ([id, p]) =>
-                p.sector === retreatSector &&
-                p.universeId === universeId &&
-                !p.docked &&
-                Number(id) !== playerId,
-        )
-        .map(([id, p]) => ({ id: Number(id), name: p.name }));
-    sendEnvelope(playerId, {
-        type: ServerMsgType.SectorDisplayResult,
-        sector: retreatSector,
-        warps: warpRefs,
-        players: playersInSector,
-        port,
-        sectorDrones,
-        planets,
-    });
+    const sectorData = await buildSectorDisplayData(playerId, retreatSector);
+    if (sectorData) {
+        sendEnvelope(playerId, { type: ServerMsgType.SectorDisplayResult, ...sectorData });
+    }
 }

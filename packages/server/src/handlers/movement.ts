@@ -5,14 +5,16 @@ import {
     sendEnvelope,
     broadcastTo,
     getGraph,
-    getPortForSector,
     getWarpRefs,
     getPlayerUniverseId,
-    getSectorDrones,
+    buildSectorDisplayData,
     setPlayerMenu,
     resolveSectorId,
 } from '../game-state.js';
 import { pool } from '../db/index.js';
+import { getShipId, setDocked, moveToSector, markSectorVisited } from '../db/queries/player.js';
+import { getTurnsPerWarp, getShipDrones, moveShipToSector } from '../db/queries/ship.js';
+import { getSectorDbId } from '../db/queries/sector.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 
 export async function handleMove(playerId: number, targetSector: number): Promise<void> {
@@ -25,8 +27,8 @@ export async function handleMove(playerId: number, targetSector: number): Promis
         return;
     }
 
-    const shipCheck = await pool.query('SELECT ship_id FROM players WHERE id = $1', [playerId]);
-    if (!shipCheck.rows[0]?.ship_id) {
+    const shipId = await getShipId(playerId);
+    if (!shipId) {
         sendEnvelope(playerId, { type: ServerMsgType.MoveResult, outcome: 'noShip' });
         return;
     }
@@ -58,11 +60,7 @@ export async function handleMove(playerId: number, targetSector: number): Promis
     }
 
     // Check turns
-    const turnsPerWarpRes = await pool.query(
-        'SELECT s.turns_per_warp FROM ships s WHERE s.id = (SELECT ship_id FROM players WHERE id = $1)',
-        [playerId],
-    );
-    const turnsPerWarp = turnsPerWarpRes.rows[0]?.turns_per_warp ?? 1;
+    const turnsPerWarp = await getTurnsPerWarp(playerId);
     const turnResult = await checkAndDeductTurns(playerId, universeId, turnsPerWarp);
     if (!turnResult.allowed) {
         sendEnvelope(playerId, {
@@ -76,25 +74,16 @@ export async function handleMove(playerId: number, targetSector: number): Promis
     // Undock if docked
     if (player.docked) {
         player.docked = false;
-        await pool.query('UPDATE players SET docked = FALSE WHERE id = $1', [playerId]);
+        await setDocked(playerId, false);
     }
 
     const targetSectorId = await resolveSectorId(targetSector, universeId);
     player.sector = targetSector;
     player.sectorId = targetSectorId;
     await Promise.all([
-        pool.query('UPDATE players SET current_sector_id = $1 WHERE id = $2', [
-            targetSectorId,
-            playerId,
-        ]),
-        pool.query(
-            'UPDATE ships SET sector_id = $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)',
-            [targetSectorId, playerId],
-        ),
-        pool.query(
-            'INSERT INTO visited_sectors (player_id, sector_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-            [playerId, targetSectorId],
-        ),
+        moveToSector(playerId, targetSectorId),
+        moveShipToSector(playerId, targetSectorId),
+        markSectorVisited(playerId, targetSectorId),
     ]);
 
     const oldSectorClients = new Set<WebSocket>();
@@ -115,77 +104,41 @@ export async function handleMove(playerId: number, targetSector: number): Promis
         newSectorClients,
     );
 
-    const [port, warpRefs, sectorDrones, planetsRes, collisionsRes] = await Promise.all([
-        getPortForSector(targetSector, universeId),
-        getWarpRefs(playerId, targetSector, universeId),
-        getSectorDrones(targetSector, universeId),
-        pool.query(
-            `SELECT pl.id, pl.name, pl.type FROM planets pl
-             JOIN sectors s ON pl.sector_id = s.id
-             WHERE s.sector_number = $1 AND s.universe_id = $2 ORDER BY pl.id`,
-            [targetSector, universeId],
-        ),
-        pool.query(
-            `SELECT p1.name as planet_name, p2.name as colliding_with_name, pc.collision_at
-             FROM planet_collisions pc
-             JOIN planets p1 ON pc.collision_planet = p1.id
-             JOIN planets p2 ON pc.colliding_with = p2.id
-             JOIN sectors s ON p1.sector_id = s.id
-             WHERE s.sector_number = $1 AND s.universe_id = $2
-               AND pc.collision_at > NOW()`,
-            [targetSector, universeId],
-        ),
-    ]);
-    const planets = planetsRes.rows;
-    const collisions = collisionsRes.rows.map((r: any) => ({
-        planetName: r.planet_name,
-        collidingWithName: r.colliding_with_name,
-        collisionAt: r.collision_at,
-    }));
-    const playersInSector = Object.entries(players)
-        .filter(
-            ([id, p]) =>
-                p.sector === targetSector &&
-                p.universeId === universeId &&
-                !p.docked &&
-                Number(id) !== playerId,
-        )
-        .map(([id, p]) => ({ id: Number(id), name: p.name }));
+    const sectorData = await buildSectorDisplayData(playerId, targetSector);
+    if (!sectorData) return;
 
-    // Hostile drone encounter — send DroneEncounter with embedded sector data (Oak's design)
-    if (sectorDrones && sectorDrones.ownerId !== playerId) {
+    // Hostile drone encounter — send DroneEncounter with embedded sector data
+    if (sectorData.sectorDrones && sectorData.sectorDrones.ownerId !== playerId) {
         player.pendingEncounter = { retreatSector: currentSector };
         await setPlayerMenu(playerId, 'droneEncounter');
 
-        const shipRes = await pool.query(
-            'SELECT drones FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)',
-            [playerId],
-        );
+        const shipDrones = await getShipDrones(playerId) ?? 0;
 
         sendEnvelope(playerId, {
             type: ServerMsgType.MoveResult,
             outcome: 'encounter',
             sector: targetSector,
-            warps: warpRefs,
-            players: playersInSector,
-            port,
-            sectorDrones: sectorDrones.quantity,
-            ownerId: sectorDrones.ownerId,
-            ownerName: sectorDrones.ownerName,
-            shipDrones: shipRes.rows[0]?.drones ?? 0,
+            warps: sectorData.warps,
+            players: sectorData.players,
+            port: sectorData.port,
+            sectorDrones: sectorData.sectorDrones.quantity,
+            ownerId: sectorData.sectorDrones.ownerId,
+            ownerName: sectorData.sectorDrones.ownerName,
+            shipDrones,
             retreatSector: currentSector,
             turnsUsed: turnResult.turnsUsed,
         });
 
         // Alert the owner about the intrusion (skip for rogue drones)
-        const owner = sectorDrones.ownerId != null ? players[sectorDrones.ownerId] : undefined;
-        if (owner && owner.ws.readyState === 1 && sectorDrones.ownerId != null) {
-            sendEnvelope(sectorDrones.ownerId, {
+        const ownerId = sectorData.sectorDrones.ownerId;
+        const owner = ownerId != null ? players[ownerId] : undefined;
+        if (owner && owner.ws.readyState === 1 && ownerId != null) {
+            sendEnvelope(ownerId, {
                 type: ServerMsgType.SectorDronesAlert,
                 event: 'intrusion',
                 sector: targetSector,
                 dronesLost: 0,
-                dronesRemaining: sectorDrones.quantity,
+                dronesRemaining: sectorData.sectorDrones.quantity,
                 intruderName: player.name,
             });
         }
@@ -196,13 +149,7 @@ export async function handleMove(playerId: number, targetSector: number): Promis
     sendEnvelope(playerId, {
         type: ServerMsgType.MoveResult,
         outcome: 'success',
-        sector: targetSector,
-        warps: warpRefs,
-        players: playersInSector,
-        port,
-        sectorDrones,
-        planets,
-        collisions,
+        ...sectorData,
         turnsUsed: turnResult.turnsUsed,
     });
 }
@@ -210,55 +157,10 @@ export async function handleMove(playerId: number, targetSector: number): Promis
 export async function handleSectorDisplay(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
-    const currentSector = player.sector;
-    const universeId = player.universeId;
 
-    const [port, warpRefs, sectorDrones, planetsRes, collisionsRes] = await Promise.all([
-        getPortForSector(currentSector, universeId),
-        getWarpRefs(playerId, currentSector, universeId),
-        getSectorDrones(currentSector, universeId),
-        pool.query(
-            `SELECT pl.id, pl.name, pl.type FROM planets pl
-             JOIN sectors s ON pl.sector_id = s.id
-             WHERE s.sector_number = $1 AND s.universe_id = $2 ORDER BY pl.id`,
-            [currentSector, universeId],
-        ),
-        pool.query(
-            `SELECT p1.name as planet_name, p2.name as colliding_with_name, pc.collision_at
-             FROM planet_collisions pc
-             JOIN planets p1 ON pc.collision_planet = p1.id
-             JOIN planets p2 ON pc.colliding_with = p2.id
-             JOIN sectors s ON p1.sector_id = s.id
-             WHERE s.sector_number = $1 AND s.universe_id = $2
-               AND pc.collision_at > NOW()`,
-            [currentSector, universeId],
-        ),
-    ]);
-    const planets = planetsRes.rows;
-    const collisions = collisionsRes.rows.map((r: any) => ({
-        planetName: r.planet_name,
-        collidingWithName: r.colliding_with_name,
-        collisionAt: r.collision_at,
-    }));
-    const playersInSector = Object.entries(players)
-        .filter(
-            ([id, p]) =>
-                p.sector === currentSector &&
-                p.universeId === universeId &&
-                !p.docked &&
-                Number(id) !== playerId,
-        )
-        .map(([id, p]) => ({ id: Number(id), name: p.name }));
-    sendEnvelope(playerId, {
-        type: ServerMsgType.SectorDisplayResult,
-        sector: currentSector,
-        warps: warpRefs,
-        players: playersInSector,
-        port,
-        sectorDrones,
-        planets,
-        collisions,
-    });
+    const data = await buildSectorDisplayData(playerId);
+    if (!data) return;
+    sendEnvelope(playerId, { type: ServerMsgType.SectorDisplayResult, ...data });
 }
 
 export async function handleWarpsOut(playerId: number, id: number): Promise<void> {
@@ -270,11 +172,8 @@ export async function handleWarpsOut(playerId: number, id: number): Promise<void
     const universeId = getPlayerUniverseId(playerId);
     if (universeId === undefined) return;
 
-    const sectorRes = await pool.query(
-        'SELECT id FROM sectors WHERE sector_number = $1 AND universe_id = $2',
-        [id, universeId],
-    );
-    if (sectorRes.rows.length === 0) {
+    const sectorDbId = await getSectorDbId(id, universeId);
+    if (!sectorDbId) {
         sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Sector not found' });
         return;
     }

@@ -2,12 +2,13 @@ import { ServerMsgType } from '@twnr/shared';
 import {
     players,
     sendEnvelope,
-    getPortForSector,
-    getWarpRefs,
-    getSectorDrones,
+    buildSectorDisplayData,
     setPlayerMenu,
 } from '../game-state.js';
 import { pool } from '../db/index.js';
+import { getEarthId, getPlanetInSector, getPlanetDisplayData, getPlanetName } from '../db/queries/planet.js';
+import { getPlanetsInSector } from '../db/queries/sector.js';
+import { getOnPlanetId, setDocked, setOnPlanet } from '../db/queries/player.js';
 import { planetConfigs } from '../planet-config.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 
@@ -25,31 +26,20 @@ export async function handleLand(playerId: number): Promise<void> {
 
     // Special behavior for sector 1: auto-land on Earth
     if (player.sector === 1) {
-        const earthRes = await pool.query(
-            `SELECT pl.id FROM planets pl
-             JOIN sectors s ON pl.sector_id = s.id
-             WHERE s.sector_number = 1 AND s.universe_id = $1 AND pl.name = 'Earth'
-             LIMIT 1`,
-            [player.universeId],
-        );
-        if (earthRes.rows.length > 0) {
-            return handleLandOnPlanet(playerId, earthRes.rows[0].id);
+        const earthId = await getEarthId(player.universeId);
+        if (earthId) {
+            return handleLandOnPlanet(playerId, earthId);
         }
     }
 
-    const planetRes = await pool.query(
-        `SELECT pl.id, pl.name, pl.type FROM planets pl
-         JOIN sectors s ON pl.sector_id = s.id
-         WHERE s.sector_number = $1 AND s.universe_id = $2 ORDER BY pl.id`,
-        [player.sector, player.universeId],
-    );
+    const planets = await getPlanetsInSector(player.sector, player.universeId);
 
-    if (planetRes.rows.length > 0) {
+    if (planets.length > 0) {
         await setPlayerMenu(playerId, 'planetSelect');
     }
     sendEnvelope(playerId, {
         type: ServerMsgType.LandResult,
-        planets: planetRes.rows,
+        planets,
     });
 }
 
@@ -65,14 +55,8 @@ export async function handleLandOnPlanet(playerId: number, planetId: number): Pr
         return;
     }
 
-    const planetRes = await pool.query(
-        `SELECT pl.* FROM planets pl
-         JOIN sectors s ON pl.sector_id = s.id
-         WHERE pl.id = $1 AND s.sector_number = $2 AND s.universe_id = $3`,
-        [planetId, player.sector, player.universeId],
-    );
-
-    if (planetRes.rows.length === 0) {
+    const planet = await getPlanetInSector(planetId, player.sector, player.universeId);
+    if (!planet) {
         sendEnvelope(playerId, {
             type: ServerMsgType.Error,
             message: 'Planet not found in this sector',
@@ -82,16 +66,16 @@ export async function handleLandOnPlanet(playerId: number, planetId: number): Pr
 
     if (player.docked) {
         player.docked = false;
-        await pool.query('UPDATE players SET docked = FALSE WHERE id = $1', [playerId]);
+        await setDocked(playerId, false);
     }
 
-    await pool.query('UPDATE players SET on_planet_id = $1 WHERE id = $2', [planetId, playerId]);
+    await setOnPlanet(playerId, planetId);
 
     // Use special menu for Earth in sector 1
-    const isEarth = player.sector === 1 && planetRes.rows[0].name === 'Earth';
+    const isEarth = player.sector === 1 && planet.name === 'Earth';
     await setPlayerMenu(playerId, isEarth ? 'planetEarth' : 'planet');
 
-    const data = await queryPlanetDisplayData(playerId);
+    const data = await getPlanetDisplayData(playerId);
     if (!data) {
         sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Planet no longer exists' });
         return;
@@ -103,95 +87,18 @@ export async function handlePlanetDisplay(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
-    const playerRes = await pool.query('SELECT on_planet_id FROM players WHERE id = $1', [
-        playerId,
-    ]);
-    if (!playerRes.rows[0]?.on_planet_id) {
+    const onPlanetId = await getOnPlanetId(playerId);
+    if (!onPlanetId) {
         sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not on a planet' });
         return;
     }
 
-    const data = await queryPlanetDisplayData(playerId);
+    const data = await getPlanetDisplayData(playerId);
     if (!data) {
         sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Planet no longer exists' });
         return;
     }
     sendEnvelope(playerId, { type: ServerMsgType.PlanetDisplayResult, ...data });
-}
-
-async function queryPlanetDisplayData(playerId: number) {
-    const player = players[playerId];
-    if (!player) return null;
-
-    const playerRes = await pool.query('SELECT on_planet_id FROM players WHERE id = $1', [
-        playerId,
-    ]);
-    const onPlanetId = playerRes.rows[0]?.on_planet_id;
-    if (!onPlanetId) return null;
-
-    const planetRes = await pool.query(
-        'SELECT id, sector_id, name, type, drones, fuel, organics, equipment, colonists_fuel, colonists_organics, colonists_equipment, created_at, updated_at FROM planets WHERE id = $1',
-        [onPlanetId],
-    );
-    if (planetRes.rows.length === 0) return null;
-
-    const { type: planetType, ...rest } = planetRes.rows[0];
-    return { planetType, ...rest };
-}
-
-async function buildSectorDisplayData(playerId: number) {
-    const player = players[playerId];
-    if (!player) return null;
-    const currentSector = player.sector;
-    const universeId = player.universeId;
-
-    const [port, warpRefs, sectorDrones, planetsRes] = await Promise.all([
-        getPortForSector(currentSector, universeId),
-        getWarpRefs(playerId, currentSector, universeId),
-        getSectorDrones(currentSector, universeId),
-        pool.query(
-            `SELECT pl.id, pl.name, pl.type FROM planets pl
-             JOIN sectors s ON pl.sector_id = s.id
-             WHERE s.sector_number = $1 AND s.universe_id = $2 ORDER BY pl.id`,
-            [currentSector, universeId],
-        ),
-    ]);
-
-    // Query upcoming collisions for planets in this sector
-    const collisionsRes = await pool.query(
-        `SELECT p1.name as planet_name, p2.name as colliding_with_name, pc.collision_at
-         FROM planet_collisions pc
-         JOIN planets p1 ON pc.collision_planet = p1.id
-         JOIN planets p2 ON pc.colliding_with = p2.id
-         JOIN sectors s ON p1.sector_id = s.id
-         WHERE s.sector_number = $1 AND s.universe_id = $2
-           AND pc.collision_at > NOW()`,
-        [currentSector, universeId],
-    );
-
-    const playersInSector = Object.entries(players)
-        .filter(
-            ([id, p]) =>
-                p.sector === currentSector &&
-                p.universeId === universeId &&
-                !p.docked &&
-                Number(id) !== playerId,
-        )
-        .map(([id, p]) => ({ id: Number(id), name: p.name }));
-
-    return {
-        sector: currentSector,
-        warps: warpRefs,
-        players: playersInSector,
-        port,
-        sectorDrones,
-        planets: planetsRes.rows,
-        collisions: collisionsRes.rows.map((r: any) => ({
-            planetName: r.planet_name,
-            collidingWithName: r.colliding_with_name,
-            collisionAt: r.collision_at,
-        })),
-    };
 }
 
 export async function handleLeavePlanet(playerId: number): Promise<void> {
@@ -204,7 +111,7 @@ export async function handleLeavePlanet(playerId: number): Promise<void> {
         return;
     }
 
-    await pool.query('UPDATE players SET on_planet_id = NULL WHERE id = $1', [playerId]);
+    await setOnPlanet(playerId, null);
     await setPlayerMenu(playerId, 'sector');
 
     const data = await buildSectorDisplayData(playerId);
@@ -220,11 +127,7 @@ export async function handleDestroyPlanet(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
-    const playerRes = await pool.query('SELECT on_planet_id FROM players WHERE id = $1', [
-        playerId,
-    ]);
-    const onPlanetId = playerRes.rows[0]?.on_planet_id;
-
+    const onPlanetId = await getOnPlanetId(playerId);
     if (!onPlanetId) {
         sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not on a planet' });
         return;
@@ -242,12 +145,11 @@ export async function handleDestroyPlanet(playerId: number): Promise<void> {
         return;
     }
 
-    const planetRes = await pool.query('SELECT name FROM planets WHERE id = $1', [onPlanetId]);
-    if (planetRes.rows.length === 0) {
+    const planetName = await getPlanetName(onPlanetId);
+    if (!planetName) {
         sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Planet not found.' });
         return;
     }
-    const planetName = planetRes.rows[0].name;
 
     const client = await pool.connect();
     try {
@@ -257,7 +159,7 @@ export async function handleDestroyPlanet(playerId: number): Promise<void> {
             'UPDATE ships SET planet_busters = planet_busters - 1 WHERE id = (SELECT ship_id FROM players WHERE id = $1)',
             [playerId],
         );
-        await client.query('UPDATE players SET on_planet_id = NULL WHERE id = $1', [playerId]);
+        await setOnPlanet(playerId, null, client);
         await client.query('DELETE FROM planets WHERE id = $1', [onPlanetId]);
 
         await client.query('COMMIT');
@@ -423,10 +325,7 @@ export async function handleTakeColonists(
         return;
     }
 
-    const playerRes = await pool.query('SELECT on_planet_id FROM players WHERE id = $1', [
-        playerId,
-    ]);
-    const onPlanetId = playerRes.rows[0]?.on_planet_id;
+    const onPlanetId = await getOnPlanetId(playerId);
     if (!onPlanetId) {
         sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not on a planet' });
         return;
@@ -529,10 +428,7 @@ export async function handleLeaveColonists(
         return;
     }
 
-    const playerRes = await pool.query('SELECT on_planet_id FROM players WHERE id = $1', [
-        playerId,
-    ]);
-    const onPlanetId = playerRes.rows[0]?.on_planet_id;
+    const onPlanetId = await getOnPlanetId(playerId);
     if (!onPlanetId) {
         sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not on a planet' });
         return;
