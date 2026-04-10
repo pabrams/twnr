@@ -801,6 +801,7 @@ describe('WS: ship info includes new fields', () => {
 describe('WS: land command returns planet list', () => {
   let universeId;
   let player;
+  let planetSector; // a non-sector-1 sector that has a planet
 
   before(async () => {
     const res = await adminKeyPost('/api/admin/universes/generate', {
@@ -808,30 +809,8 @@ describe('WS: land command returns planet list', () => {
     });
     assert.equal(res.status, 201);
     universeId = res.body.id;
-    player = await createTestPlayer(universeId);
-  });
 
-  after(() => { player?.close(); });
-
-  it('land command responds with planetList message', async () => {
-    player.sendMsg({ type: ClientMsgType.Land });
-    const msg = await player.waitForMessage(ServerMsgType.LandResult);
-    assert.ok('planets' in msg, 'planetList should include planets field');
-    assert.ok(Array.isArray(msg.planets), 'planets should be an array');
-  });
-
-  it('planetList in sector 1 includes Earth', async () => {
-    player.sendMsg({ type: ClientMsgType.Land });
-    const msg = await player.waitForMessage(ServerMsgType.LandResult);
-    assert.ok(msg.planets.length >= 1, 'sector 1 should have Earth');
-    const earth = msg.planets.find(p => p.name === 'Earth');
-    assert.ok(earth, 'Earth should be in planet list');
-    assert.ok('id' in earth, 'planet should have id');
-    assert.ok('type' in earth, 'planet should have type');
-  });
-
-  it('land command in sector with no planets returns empty planetList', async () => {
-    // Move to a sector with no planets
+    // Find a warp target from sector 1 and place a planet there for testing
     const warps = await pool.query(
       `SELECT s_to.sector_number AS sector_to, s_to.id AS sector_db_id
        FROM warps w
@@ -841,6 +820,60 @@ describe('WS: land command returns planet list', () => {
       [universeId],
     );
     assert.ok(warps.rows.length > 0, 'need a warp target from sector 1');
+    planetSector = warps.rows[0].sector_to;
+    const sectorDbId = warps.rows[0].sector_db_id;
+
+    // Ensure a planet exists in that sector
+    await pool.query(
+      `INSERT INTO planets (sector_id, name, type) VALUES ($1, 'TestPlanet', 'H')
+       ON CONFLICT DO NOTHING`,
+      [sectorDbId],
+    );
+
+    player = await createTestPlayer(universeId);
+  });
+
+  after(() => { player?.close(); });
+
+  it('sector 1 land auto-lands on Earth', async () => {
+    player.sendMsg({ type: ClientMsgType.Land });
+    const msg = await player.waitForMessage(ServerMsgType.LandOnPlanetResult);
+    assert.ok('name' in msg, 'auto-land result should include planet name');
+    assert.equal(msg.name, 'Earth', 'sector 1 should auto-land on Earth');
+    assert.ok('planetType' in msg, 'auto-land result should include planetType');
+    assert.ok('id' in msg, 'auto-land result should include planet id');
+
+    // Leave the planet so subsequent tests can move
+    player.sendMsg({ type: ClientMsgType.LeavePlanet });
+    await player.waitForMessage(ServerMsgType.LeavePlanetResult);
+  });
+
+  it('land in non-sector-1 with planets returns planet list', async () => {
+    player.sendMsg({ type: ClientMsgType.Move, sector: planetSector });
+    await player.waitForMessage(ServerMsgType.MoveResult);
+
+    player.sendMsg({ type: ClientMsgType.Land });
+    const msg = await player.waitForMessage(ServerMsgType.LandResult);
+    assert.ok('planets' in msg, 'planetList should include planets field');
+    assert.ok(Array.isArray(msg.planets), 'planets should be an array');
+    assert.ok(msg.planets.length >= 1, 'sector should have at least one planet');
+    assert.ok('id' in msg.planets[0], 'planet should have id');
+    assert.ok('type' in msg.planets[0], 'planet should have type');
+  });
+
+  it('land command in sector with no planets returns empty planetList', async () => {
+    // Find another warp target and ensure it has no planets
+    const warps = await pool.query(
+      `SELECT s_to.sector_number AS sector_to, s_to.id AS sector_db_id
+       FROM warps w
+       JOIN sectors s_from ON w.from_sector_id = s_from.id
+       JOIN sectors s_to ON w.to_sector_id = s_to.id
+       WHERE s_from.sector_number = $1 AND s_from.universe_id = $2
+         AND s_to.sector_number != 1
+       LIMIT 1`,
+      [planetSector, universeId],
+    );
+    assert.ok(warps.rows.length > 0, 'need a warp target');
     const targetSector = warps.rows[0].sector_to;
     const targetSectorDbId = warps.rows[0].sector_db_id;
 

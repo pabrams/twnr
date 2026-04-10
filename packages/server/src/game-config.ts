@@ -25,4 +25,3 @@ export const class0Prices = loadJson('class0-prices.json', {
     shieldPrice: 10,
     holdPrice: 50,
 });
-

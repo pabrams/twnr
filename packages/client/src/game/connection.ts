@@ -4,7 +4,12 @@ import type { GameContext } from './types.js';
 
 import { showSectorDisplay, showDockedMenu, showPrompt } from './display.js';
 import { showClass0Menu, showAutopilotPrompt } from './display-port.js';
-import { showPlanetMenu, showPlanetMenuOptions, showEarthMenu, showNoPlanet } from './display-planet.js';
+import {
+    showPlanetMenu,
+    showPlanetMenuOptions,
+    showEarthMenu,
+    showNoPlanet,
+} from './display-planet.js';
 import { showDroneEncounter } from './display-combat.js';
 import { showStarbaseMenu, showHardwareMenu, showPlanetSelectMenu } from './display-starbase.js';
 import { renderVisitedSectorsResult, showComputerPrompt } from './display-computer.js';
@@ -447,7 +452,9 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     showEarthMenu(ctx, msg.colonists_fuel ?? 0);
                 } else {
                     ctx.term.writeln('');
-                    ctx.term.writeln(`${colors.boldGreen('Landed on')} ${colors.boldCyan(msg.name)}`);
+                    ctx.term.writeln(
+                        `${colors.boldGreen('Landed on')} ${colors.boldCyan(msg.name)}`,
+                    );
                     ctx.term.writeln(`  ${colors.boldYellow('Type')}: ${msg.planetType}`);
                     ctx.term.writeln(
                         `  ${colors.boldYellow('Drones')}: ${msg.drones}  ${colors.boldYellow('Fuel')}: ${msg.fuel}  ${colors.boldYellow('Organics')}: ${msg.organics}  ${colors.boldYellow('Equipment')}: ${msg.equipment}`,
