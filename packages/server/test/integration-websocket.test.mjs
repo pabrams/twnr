@@ -44,7 +44,7 @@ describe('WebSocket', () => {
     const { ws: wsConn } = await ws();
 
     const disp = await wsRequest(wsConn, { type: ClientMsgType.SectorDisplay }, ServerMsgType.SectorDisplayResult);
-    const target = disp.warps[0];
+    const target = disp.warps[0].sector;
     const moveMsg = await wsRequest(wsConn, { type: ClientMsgType.Move, sector: target }, ServerMsgType.MoveResult);
 
     assert.equal(moveMsg.type, ServerMsgType.MoveResult);
@@ -58,7 +58,7 @@ describe('WebSocket', () => {
     const { ws: ws2 } = await ws();
 
     const disp = await wsRequest(ws2, { type: ClientMsgType.SectorDisplay }, ServerMsgType.SectorDisplayResult);
-    const target = disp.warps[0];
+    const target = disp.warps[0].sector;
     const broadcastPromise = waitForMsg(ws1, ServerMsgType.PlayerMoved);
     ws2.send(JSON.stringify({ type: ClientMsgType.Move, sector: target }));
     const msg = await broadcastPromise;
@@ -76,16 +76,16 @@ describe('WebSocket', () => {
 
     // Move ws1 away from sector 1
     const disp1 = await wsRequest(ws1, { type: ClientMsgType.SectorDisplay }, ServerMsgType.SectorDisplayResult);
-    const ws1Target = disp1.warps[0];
+    const ws1Target = disp1.warps[0].sector;
     const disp1b = await wsRequest(ws1, { type: ClientMsgType.Move, sector: ws1Target }, ServerMsgType.MoveResult);
 
     // Move ws1 again so it's two hops away from sector 1
-    const ws1Target2 = disp1b.warps.find(w => w !== 1) || disp1b.warps[0];
+    const ws1Target2 = (disp1b.warps.find(w => w.sector !== 1) || disp1b.warps[0]).sector;
     await wsRequest(ws1, { type: ClientMsgType.Move, sector: ws1Target2 }, ServerMsgType.MoveResult);
 
     // ws2 is still in sector 1 - ws1 should not receive this move
     const disp3 = await wsRequest(ws2, { type: ClientMsgType.SectorDisplay }, ServerMsgType.SectorDisplayResult);
-    const ws2Target = disp3.warps[0];
+    const ws2Target = disp3.warps[0].sector;
 
     const noMsgPromise = expectNoMsg(ws1, ServerMsgType.PlayerMoved);
     ws2.send(JSON.stringify({ type: ClientMsgType.Move, sector: ws2Target }));
@@ -125,7 +125,7 @@ describe('WebSocket', () => {
 
     // Move ws2 away from sector 1
     const disp = await wsRequest(ws2, { type: ClientMsgType.SectorDisplay }, ServerMsgType.SectorDisplayResult);
-    const target = disp.warps[0];
+    const target = disp.warps[0].sector;
     await wsRequest(ws2, { type: ClientMsgType.Move, sector: target }, ServerMsgType.MoveResult);
 
     // ws1 and ws3 are in sector 1, ws2 is elsewhere

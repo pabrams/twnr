@@ -241,8 +241,9 @@ export async function startServer() {
     try {
         await connectDB();
 
-        server.listen(3000, () => {
-            console.log('Server listening on port 3000');
+        const port = parseInt(process.env.PORT || '3000', 10);
+        server.listen(port, () => {
+            console.log(`Server listening on port ${port}`);
         });
     } catch (error) {
         console.error('Error during server startup:', error);

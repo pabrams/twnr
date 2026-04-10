@@ -225,7 +225,7 @@ describe('WebSocket universe scoping', () => {
     assert.equal(dispA.type, ServerMsgType.SectorDisplayResult);
     assert.equal(dispA.sector, 1, 'Should be in sector 1');
     // Universe A has sector 2 as a warp from sector 1
-    assert.ok(dispA.warps.includes(2), 'Universe A sector 1 should have warp to sector 2');
+    assert.ok(dispA.warps.some(w => w.sector === 2), 'Universe A sector 1 should have warp to sector 2');
     await closeWS(wsA);
 
     // Connect to universe B and verify it sees universe B's warps, not A's
