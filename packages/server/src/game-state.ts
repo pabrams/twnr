@@ -203,12 +203,13 @@ export async function buildSectorDisplayData(playerId: number, sectorNumber?: nu
     const sector = sectorNumber ?? player.sector;
     const universeId = player.universeId;
 
-    const [port, warps, sectorDrones, planets, collisions] = await Promise.all([
+    const [port, warps, sectorDrones, planets, collisions, emptyShips] = await Promise.all([
         getPortForSector(sector, universeId),
         getWarpRefs(playerId, sector, universeId),
         getSectorDrones(sector, universeId),
         getPlanetsInSector(sector, universeId),
         getCollisionsInSector(sector, universeId),
+        getEmptyShipsInSector(sector, universeId),
     ]);
 
     const playersInSector = Object.entries(players)
@@ -228,6 +229,7 @@ export async function buildSectorDisplayData(playerId: number, sectorNumber?: nu
         port,
         sectorDrones,
         planets,
+        ships: emptyShips.length > 0 ? emptyShips : undefined,
         collisions,
     };
 }
@@ -250,4 +252,26 @@ export async function getSectorDrones(
         ownerId: res.rows[0].owner_id,
         ownerName: res.rows[0].owner_name,
     };
+}
+
+export async function getEmptyShipsInSector(
+    sectorNumber: number,
+    universeId: number,
+): Promise<{ id: number; name: string; typeName: string; ownerName: string }[]> {
+    const res = await pool.query(
+        `SELECT sh.id, st.name AS type_name, COALESCE(p.name, 'Abandoned') AS owner_name
+         FROM ships sh
+         JOIN ship_types st ON sh.ship_type_id = st.id
+         JOIN sectors s ON sh.sector_id = s.id
+         LEFT JOIN players p ON sh.owner_id = p.id
+         WHERE s.sector_number = $1 AND s.universe_id = $2
+           AND NOT EXISTS (SELECT 1 FROM players p2 WHERE p2.ship_id = sh.id)`,
+        [sectorNumber, universeId],
+    );
+    return res.rows.map((r: any) => ({
+        id: r.id,
+        name: r.type_name,
+        typeName: r.type_name,
+        ownerName: r.owner_name,
+    }));
 }

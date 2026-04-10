@@ -108,10 +108,10 @@ const clientInputMap = {
     ShipInfo:            [{ mode: 'sector', key: 'i (auto)' }],
     CargoInfo:           [{ mode: 'sector', key: 'i (auto)' }],
     PortTransaction:     [{ mode: 'docked', key: `b &lt;good&gt; ${Q}` }, { mode: 'docked', key: `s &lt;good&gt; ${Q}` }],
-    BuyDrones:           [{ mode: 'class0Qty', key: Q }],
-    BuyShields:          [{ mode: 'class0Qty', key: Q }],
-    BuyHolds:            [{ mode: 'class0Qty', key: Q }],
-    BuyShipTradein:      [],  // no client UI yet
+    BuyDrones:           [{ mode: 'class0Qty', key: Q }, { mode: 'shipyardsClass0Qty', key: Q }],
+    BuyShields:          [{ mode: 'class0Qty', key: Q }, { mode: 'shipyardsClass0Qty', key: Q }],
+    BuyHolds:            [{ mode: 'class0Qty', key: Q }, { mode: 'shipyardsClass0Qty', key: Q }],
+    BuyShipTradein:      [{ mode: 'shipyardsTradein', key: 'y' }],
     AttackShip:          [{ mode: 'attackDrones', key: Q }],
     Dock:                [{ mode: 'port', key: 't' }],
     Undock:              [{ mode: 'docked', key: 'q' }, { mode: 'class0', key: 'q' }],
@@ -132,7 +132,7 @@ const clientInputMap = {
     BuyTerraformDevices: [{ mode: 'starbaseBuyQty', key: Q }],
     DockStarbase:        [{ mode: 'port', key: 's' }],
     LeaveStarbase:       [{ mode: 'starbase', key: 'q' }],
-    BuyHyperwarpDrive:   [],  // no client UI yet
+    BuyShipNew:          [{ mode: 'shipyardsTradein', key: 'n' }],
     BuyBuoys:            [{ mode: 'starbaseBuyQty', key: Q }],
     BuyProximityMines:   [{ mode: 'starbaseBuyQty', key: Q }],
     BuySeekerMines:      [{ mode: 'starbaseBuyQty', key: Q }],

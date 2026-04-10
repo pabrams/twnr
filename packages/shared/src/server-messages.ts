@@ -45,6 +45,7 @@ export type SectorDisplayData = {
     port?: { class: number; name: string } | null;
     sectorDrones?: SectorDroneInfo | null;
     planets: { id: number; name: string; type: string }[];
+    ships?: { id: number; name: string; typeName: string; ownerName: string }[];
     collisions?: CollisionInfo[];
 };
 
@@ -394,9 +395,13 @@ export type LeaveStarbaseResultObject = {
     type: typeof ServerMsgType.LeaveStarbaseResult;
 } & SectorDisplayData;
 
-export type BuyHyperwarpDriveResultObject = {
-    type: typeof ServerMsgType.BuyHyperwarpDriveResult;
+export type BuyShipNewResultObject = {
+    type: typeof ServerMsgType.BuyShipNewResult;
+    shipName: string;
     credits: number;
+    maxDrones: number;
+    maxShields: number;
+    cargoLimit: number;
 };
 
 export type BuyBuoysResultObject = {
@@ -551,7 +556,7 @@ export type ServerResult =
     | BuyPlanetBustersResultObject
     | BuyTerraformDevicesResultObject
     | DockStarbaseResultObject
-    | BuyHyperwarpDriveResultObject
+    | BuyShipNewResultObject
     | BuyBuoysResultObject
     | BuyMinesResultObject
     | BuyMineDisruptorsResultObject

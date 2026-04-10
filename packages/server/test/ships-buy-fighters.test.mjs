@@ -46,7 +46,7 @@ describe('Buy drones — validation', () => {
       await pool.query('UPDATE players SET current_sector_id = $1 WHERE id = $2', [otherSector, playerId]);
       const msg = await wsRequest(ws, { type: ClientMsgType.BuyDrones, quantity: 1 }, ServerMsgType.BuyDronesResult);
       assert.equal(msg.type, ServerMsgType.Error);
-      assert.equal(msg.message, 'Not at a class 0 port');
+      assert.equal(msg.message, 'Not at a class 0 port or starbase');
     } finally {
       await closeWS(ws);
     }

@@ -156,8 +156,9 @@ export type LeaveStarbaseCommand = {
     type: typeof ClientMsgType.LeaveStarbase;
 };
 
-export type BuyHyperwarpDriveCommand = {
-    type: typeof ClientMsgType.BuyHyperwarpDrive;
+export type BuyShipNewCommand = {
+    type: typeof ClientMsgType.BuyShipNew;
+    targetShipName: string;
 };
 
 export type BuyBuoysCommand = {
@@ -274,7 +275,7 @@ export type ClientCommand =
     | BuyTerraformDevicesCommand
     | DockStarbaseCommand
     | LeaveStarbaseCommand
-    | BuyHyperwarpDriveCommand
+    | BuyShipNewCommand
     | BuyBuoysCommand
     | BuyProximityMinesCommand
     | BuySeekerMinesCommand

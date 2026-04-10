@@ -22,6 +22,7 @@ export function showSectorDisplay(
     port?: { class: number; name: string } | null,
     sectorDrones?: { quantity: number; ownerId: number | null; ownerName: string } | null,
     planets?: { id: number; name: string; type: string }[],
+    ships?: { id: number; name: string; typeName: string; ownerName: string }[],
     collisions?: { planetName: string; collidingWithName: string; collisionAt: string }[],
 ) {
     ctx.visitedSet.add(sector);
@@ -72,6 +73,11 @@ export function showSectorDisplay(
     if (players.length > 0) {
         ctx.term.writeln(
             `${mg('Players')} ${cl} ${players.map((p) => colors.boldYellow(p.name)).join(colors.boldYellow(', '))}`,
+        );
+    }
+    if (ships && ships.length > 0) {
+        ctx.term.writeln(
+            `${mg('Ships')}   ${cl} ${ships.map((s) => `${colors.boldCyan(s.typeName)} ${mg('(')}${colors.boldYellow(s.ownerName)}${mg(')')}`).join(colors.boldYellow(', '))}`,
         );
     }
     showPrompt(ctx);

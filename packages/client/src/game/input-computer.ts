@@ -1,6 +1,7 @@
 import { ClientMsgType } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { showPrompt } from './display.js';
+import { letterToIndex } from './display-starbase.js';
 import {
     showComputerHelp,
     showComputerPrompt,
@@ -76,7 +77,7 @@ export function handleShipCatalogInput(ctx: GameContext, line: string) {
         showComputerPrompt(ctx);
         return;
     }
-    const idx = line.toUpperCase().charCodeAt(0) - 65;
+    const idx = letterToIndex(line);
     if (ctx.shipConfigs && idx >= 0 && idx < ctx.shipConfigs.length) {
         showShipDetail(ctx, ctx.shipConfigs[idx]);
     } else {
@@ -90,7 +91,7 @@ export function handlePlanetSpecsInput(ctx: GameContext, line: string) {
         showComputerPrompt(ctx);
         return;
     }
-    const idx = line.toUpperCase().charCodeAt(0) - 65;
+    const idx = letterToIndex(line);
     if (ctx.planetConfigs && idx >= 0 && idx < ctx.planetConfigs.length) {
         showPlanetDetail(ctx, ctx.planetConfigs[idx]);
     } else {

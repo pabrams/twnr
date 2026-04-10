@@ -16,7 +16,13 @@ import {
     showNoPlanet,
 } from './display-planet.js';
 import { showDroneEncounter } from './display-combat.js';
-import { showStarbaseMenu, showHardwareMenu, showPlanetSelectMenu } from './display-starbase.js';
+import {
+    showStarbaseMenu,
+    showHardwareMenu,
+    showPlanetSelectMenu,
+    showShipyardsMenu,
+    showShipyardsClass0Menu,
+} from './display-starbase.js';
 import { renderVisitedSectorsResult, showComputerPrompt } from './display-computer.js';
 import { colors, PORT_CLASS_ACTIONS } from './constants.js';
 import type { TradeStep } from './types.js';
@@ -105,6 +111,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     msg.port,
                     msg.sectorDrones,
                     msg.planets,
+                    msg.ships,
                     msg.collisions,
                 );
                 // Advance autopilot if in progress
@@ -248,6 +255,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                         msg.port,
                         msg.sectorDrones,
                         msg.planets,
+                        msg.ships,
                         msg.collisions,
                     );
                 } else {
@@ -330,6 +338,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                             msg.port,
                             msg.sectorDrones,
                             msg.planets,
+                            msg.ships,
                             msg.collisions,
                         );
                         if (
@@ -403,6 +412,8 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 if (ctx.mode === 'class0Qty') {
                     ctx.setMode('class0');
                     showClass0Menu(ctx);
+                } else if (ctx.mode === 'shipyardsClass0Qty') {
+                    showShipyardsClass0Menu(ctx);
                 }
                 break;
             case ServerMsgType.BuyShieldsResult:
@@ -413,6 +424,8 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 if (ctx.mode === 'class0Qty') {
                     ctx.setMode('class0');
                     showClass0Menu(ctx);
+                } else if (ctx.mode === 'shipyardsClass0Qty') {
+                    showShipyardsClass0Menu(ctx);
                 }
                 break;
             case ServerMsgType.BuyHoldsResult:
@@ -423,6 +436,8 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 if (ctx.mode === 'class0Qty') {
                     ctx.setMode('class0');
                     showClass0Menu(ctx);
+                } else if (ctx.mode === 'shipyardsClass0Qty') {
+                    showShipyardsClass0Menu(ctx);
                 }
                 break;
             case ServerMsgType.AttackShipResult:
@@ -444,10 +459,24 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 showPrompt(ctx);
                 break;
             case ServerMsgType.BuyShipTradeinResult:
+                ctx.setCurrentShipName(msg.shipName);
                 ctx.term.writeln(
                     `\r\n${colors.boldGreen('Ship exchanged!')} Now flying: ${colors.boldCyan(msg.shipName)}`,
                 );
-                ctx.term.writeln(`  ${colors.boldYellow('Credits')}: ${msg.credits}`);
+                ctx.term.writeln(
+                    `  ${colors.boldYellow('Credits')}: ${msg.credits.toLocaleString()}`,
+                );
+                showShipyardsMenu(ctx);
+                break;
+            case ServerMsgType.BuyShipNewResult:
+                ctx.setCurrentShipName(msg.shipName);
+                ctx.term.writeln(
+                    `\r\n${colors.boldGreen('New ship purchased!')} Now flying: ${colors.boldCyan(msg.shipName)}`,
+                );
+                ctx.term.writeln(
+                    `  ${colors.boldYellow('Credits')}: ${msg.credits.toLocaleString()}`,
+                );
+                showShipyardsMenu(ctx);
                 break;
             case ServerMsgType.PlanetInfoResult:
                 if (msg.hasPlanet) {
@@ -584,6 +613,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     msg.port,
                     msg.sectorDrones,
                     msg.planets,
+                    msg.ships,
                     msg.collisions,
                 );
                 break;
@@ -664,12 +694,6 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
             case ServerMsgType.BuyTerraformDevicesResult:
                 ctx.term.writeln(
                     `\r\n${colors.boldGreen('Purchase complete.')} Terraform Devices: ${msg.totalOnShip}, Credits: ${msg.credits}`,
-                );
-                showHardwareMenu(ctx);
-                break;
-            case ServerMsgType.BuyHyperwarpDriveResult:
-                ctx.term.writeln(
-                    `\r\n${colors.boldGreen('Hyperwarp drive installed!')} Credits: ${msg.credits}`,
                 );
                 showHardwareMenu(ctx);
                 break;
@@ -766,6 +790,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     msg.port,
                     msg.sectorDrones,
                     msg.planets,
+                    msg.ships,
                     msg.collisions,
                 );
                 break;
@@ -803,6 +828,8 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     showPrompt(ctx);
                 } else if (ctx.mode === 'droneEncounter' || ctx.mode === 'droneAttackQty') {
                     // Stay in encounter mode — re-prompt
+                } else if (ctx.mode.startsWith('shipyards')) {
+                    showShipyardsMenu(ctx);
                 } else if (ctx.mode === 'sector') showPrompt(ctx);
                 break;
         }
