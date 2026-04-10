@@ -117,8 +117,8 @@ export function setupInput(term: Terminal, ctx: GameContext) {
 }
 
 function handleInput(ctx: GameContext, line: string) {
-    // Ignore input during autopilot
-    if (ctx.autopilotPath.length > 0 && ctx.autopilotStep > 0) return;
+    // Ignore input during autopilot (but allow when paused for encounters)
+    if (ctx.autopilotPath.length > 0 && ctx.autopilotStep > 0 && !ctx.autopilotPaused) return;
 
     switch (ctx.mode) {
         case 'port':
