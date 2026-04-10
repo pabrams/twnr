@@ -1,12 +1,12 @@
 import { ServerMsgType } from '@twnr/shared';
-import {
-    players,
-    sendEnvelope,
-    buildSectorDisplayData,
-    setPlayerMenu,
-} from '../game-state.js';
+import { players, sendEnvelope, buildSectorDisplayData, setPlayerMenu } from '../game-state.js';
 import { pool } from '../db/index.js';
-import { getEarthId, getPlanetInSector, getPlanetDisplayData, getPlanetName } from '../db/queries/planet.js';
+import {
+    getEarthId,
+    getPlanetInSector,
+    getPlanetDisplayData,
+    getPlanetName,
+} from '../db/queries/planet.js';
 import { getPlanetsInSector } from '../db/queries/sector.js';
 import { getOnPlanetId, setDocked, setOnPlanet } from '../db/queries/player.js';
 import { planetConfigs } from '../planet-config.js';

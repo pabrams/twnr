@@ -112,7 +112,7 @@ export async function handleMove(playerId: number, targetSector: number): Promis
         player.pendingEncounter = { retreatSector: currentSector };
         await setPlayerMenu(playerId, 'droneEncounter');
 
-        const shipDrones = await getShipDrones(playerId) ?? 0;
+        const shipDrones = (await getShipDrones(playerId)) ?? 0;
 
         sendEnvelope(playerId, {
             type: ServerMsgType.MoveResult,

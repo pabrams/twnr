@@ -91,7 +91,11 @@ export async function handleDock(playerId: number): Promise<void> {
 
     const p = portRes.rows[0];
     const cargo = cargoRes.rows[0];
-    const used = (cargo?.fuel ?? 0) + (cargo?.organics ?? 0) + (cargo?.equipment ?? 0) + (cargo?.colonists ?? 0);
+    const used =
+        (cargo?.fuel ?? 0) +
+        (cargo?.organics ?? 0) +
+        (cargo?.equipment ?? 0) +
+        (cargo?.colonists ?? 0);
     const emptyHolds = Math.max(0, (cargo?.cargo_limit ?? 0) - used);
 
     await setPlayerMenu(playerId, p.class === 0 ? 'class0' : 'docked');

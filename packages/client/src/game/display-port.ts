@@ -73,7 +73,11 @@ export function showTradeQtyPrompt(
     );
 }
 
-export function showTradeConfirmPrompt(ctx: GameContext, totalPrice: number, action: 'buy' | 'sell') {
+export function showTradeConfirmPrompt(
+    ctx: GameContext,
+    totalPrice: number,
+    action: 'buy' | 'sell',
+) {
     const verb = action === 'buy' ? 'sell' : 'buy';
     ctx.term.writeln(
         `\r\n${mg("We'll")} ${verb} ${mg('them for')} ${colors.boldYellow(totalPrice.toLocaleString())} ${mg('credits.')}`,

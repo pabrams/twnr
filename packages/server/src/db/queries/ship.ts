@@ -9,10 +9,9 @@ export async function getShipDrones(
     playerId: number,
     db: Queryable = pool,
 ): Promise<number | undefined> {
-    const res = await db.query(
-        `SELECT drones FROM ships WHERE id = ${SHIP_ID_SUBSELECT}`,
-        [playerId],
-    );
+    const res = await db.query(`SELECT drones FROM ships WHERE id = ${SHIP_ID_SUBSELECT}`, [
+        playerId,
+    ]);
     return res.rows[0]?.drones;
 }
 
@@ -58,9 +57,8 @@ export async function getTurnsPerWarp(playerId: number): Promise<number> {
 }
 
 export async function getShipFuel(playerId: number): Promise<number | undefined> {
-    const res = await pool.query(
-        `SELECT fuel FROM ships WHERE id = ${SHIP_ID_SUBSELECT}`,
-        [playerId],
-    );
+    const res = await pool.query(`SELECT fuel FROM ships WHERE id = ${SHIP_ID_SUBSELECT}`, [
+        playerId,
+    ]);
     return res.rows[0]?.fuel;
 }
