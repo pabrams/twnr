@@ -111,8 +111,8 @@ async function createTestPlayer(universeId) {
   async function navigateTo(targetSector, fromSector) {
     sendMsg({ type: ClientMsgType.ShortestPath, from: fromSector, to: targetSector });
     const pathMsg = await waitForMessage(ServerMsgType.ShortestPathResult);
-    for (const sector of pathMsg.path.slice(1)) {
-      sendMsg({ type: ClientMsgType.Move, sector });
+    for (const step of pathMsg.path.slice(1)) {
+      sendMsg({ type: ClientMsgType.Move, sector: step.sector });
       // Drain messages until we get moveResult success, handling drone encounters
       let moved = false;
       for (let attempt = 0; attempt < 5 && !moved; attempt++) {
@@ -978,8 +978,8 @@ describe('WS: use terraform device', () => {
       // Navigate back — find a path
       player.sendMsg({ type: ClientMsgType.ShortestPath, from: currentSector, to: 1 });
       const pathMsg = await player.waitForMessage('shortestPathResult');
-      for (const sector of pathMsg.path.slice(1)) {
-        player.sendMsg({ type: ClientMsgType.Move, sector });
+      for (const step of pathMsg.path.slice(1)) {
+        player.sendMsg({ type: ClientMsgType.Move, sector: step.sector });
         await player.waitForMessage(ServerMsgType.MoveResult);
       }
     }
@@ -1067,8 +1067,8 @@ describe('WS: starbase and hardware store', () => {
     // Navigate to starbase
     player.sendMsg({ type: ClientMsgType.ShortestPath, from: 1, to: starbaseSector });
     const pathMsg = await player.waitForMessage('shortestPathResult');
-    for (const sector of pathMsg.path.slice(1)) {
-      player.sendMsg({ type: ClientMsgType.Move, sector });
+    for (const step of pathMsg.path.slice(1)) {
+      player.sendMsg({ type: ClientMsgType.Move, sector: step.sector });
       // Consume whatever comes back (moveResult success or encounter)
       await player.waitForMessage(ServerMsgType.MoveResult).catch(() => null);
     }
@@ -1201,8 +1201,8 @@ describe('WS: destroy planet', () => {
 
     player.sendMsg({ type: ClientMsgType.ShortestPath, from: 1, to: targetSector });
     const pathMsg = await player.waitForMessage('shortestPathResult');
-    for (const sector of pathMsg.path.slice(1)) {
-      player.sendMsg({ type: ClientMsgType.Move, sector });
+    for (const step of pathMsg.path.slice(1)) {
+      player.sendMsg({ type: ClientMsgType.Move, sector: step.sector });
       await player.waitForMessage(ServerMsgType.MoveResult);
     }
 
@@ -1304,8 +1304,8 @@ describe('WS: buy hardware exceeds ship maximum', () => {
     // Navigate to starbase
     player.sendMsg({ type: ClientMsgType.ShortestPath, from: 1, to: starbaseSector });
     const pathMsg = await player.waitForMessage('shortestPathResult');
-    for (const sector of pathMsg.path.slice(1)) {
-      player.sendMsg({ type: ClientMsgType.Move, sector });
+    for (const step of pathMsg.path.slice(1)) {
+      player.sendMsg({ type: ClientMsgType.Move, sector: step.sector });
       await player.waitForMessage(ServerMsgType.MoveResult).catch(() => null);
     }
 
@@ -1370,8 +1370,8 @@ describe('WS: buy hardware exceeds ship maximum', () => {
     // Move to sector 1 (which has class 0 port, not class 9)
     player.sendMsg({ type: ClientMsgType.ShortestPath, from: starbaseSector, to: 1 });
     const pathMsg = await player.waitForMessage('shortestPathResult');
-    for (const sector of pathMsg.path.slice(1)) {
-      player.sendMsg({ type: ClientMsgType.Move, sector });
+    for (const step of pathMsg.path.slice(1)) {
+      player.sendMsg({ type: ClientMsgType.Move, sector: step.sector });
       await player.waitForMessage(ServerMsgType.MoveResult).catch(() => null);
     }
 
@@ -1406,8 +1406,8 @@ describe('WS: buy hardware requires starbase docking', () => {
     // Navigate to starbase sector but do NOT call dockStarbase
     player.sendMsg({ type: ClientMsgType.ShortestPath, from: 1, to: starbaseSector });
     const pathMsg = await player.waitForMessage('shortestPathResult');
-    for (const sector of pathMsg.path.slice(1)) {
-      player.sendMsg({ type: ClientMsgType.Move, sector });
+    for (const step of pathMsg.path.slice(1)) {
+      player.sendMsg({ type: ClientMsgType.Move, sector: step.sector });
       await player.waitForMessage(ServerMsgType.MoveResult).catch(() => null);
     }
 
@@ -1467,8 +1467,8 @@ describe('WS: buy hardware credit deduction', () => {
     // Navigate to starbase
     player.sendMsg({ type: ClientMsgType.ShortestPath, from: 1, to: starbaseSector });
     const pathMsg = await player.waitForMessage('shortestPathResult');
-    for (const sector of pathMsg.path.slice(1)) {
-      player.sendMsg({ type: ClientMsgType.Move, sector });
+    for (const step of pathMsg.path.slice(1)) {
+      player.sendMsg({ type: ClientMsgType.Move, sector: step.sector });
       await player.waitForMessage(ServerMsgType.MoveResult).catch(() => null);
     }
 
@@ -1659,8 +1659,8 @@ describe('WS: terraform in Starbase sector returns restricted_sector', () => {
     // Navigate to starbase sector
     player.sendMsg({ type: ClientMsgType.ShortestPath, from: 1, to: starbaseSector });
     const pathMsg = await player.waitForMessage('shortestPathResult');
-    for (const sector of pathMsg.path.slice(1)) {
-      player.sendMsg({ type: ClientMsgType.Move, sector });
+    for (const step of pathMsg.path.slice(1)) {
+      player.sendMsg({ type: ClientMsgType.Move, sector: step.sector });
       await player.waitForMessage(ServerMsgType.MoveResult).catch(() => null);
     }
 
@@ -1722,8 +1722,8 @@ describe('WS: on_planet_id cleared after destroyPlanet', () => {
     // Move to that sector
     player.sendMsg({ type: ClientMsgType.ShortestPath, from: 1, to: targetSector });
     const pathMsg = await player.waitForMessage('shortestPathResult');
-    for (const sector of pathMsg.path.slice(1)) {
-      player.sendMsg({ type: ClientMsgType.Move, sector });
+    for (const step of pathMsg.path.slice(1)) {
+      player.sendMsg({ type: ClientMsgType.Move, sector: step.sector });
       await player.waitForMessage(ServerMsgType.MoveResult);
     }
 

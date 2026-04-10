@@ -48,7 +48,7 @@ function ws(token, universeId = UNIVERSE_ID) {
 /** Find an adjacent sector to the player's current sector */
 async function getAdjacentSector(wsConn) {
   const disp = await wsRequest(wsConn, { type: ClientMsgType.SectorDisplay }, ServerMsgType.SectorDisplayResult);
-  return disp.warps?.[0];
+  return disp.warps?.[0]?.sector;
 }
 
 /** Resolve a sector_number to the sectors.id DB primary key */
