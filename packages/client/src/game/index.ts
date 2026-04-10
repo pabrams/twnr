@@ -47,9 +47,17 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
     let autopilotPaused = false;
     let encounterOwnerName = '';
     let menuRegistry = new Map<string, MenuEntry>();
+    let debug = false;
 
     function sendMsg(msg: ClientCommand) {
         if (ws.readyState === WebSocket.OPEN) {
+            if (debug) {
+                const lines = JSON.stringify(msg, null, 2).split('\n');
+                term.writeln(`\r\n\x1b[38;5;243m→ ${lines[0]}\x1b[0m`);
+                for (let i = 1; i < lines.length; i++) {
+                    term.writeln(`\x1b[38;5;243m  ${lines[i]}\x1b[0m`);
+                }
+            }
             ws.send(JSON.stringify(msg));
         }
     }
@@ -114,6 +122,13 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
         },
         get encounterOwnerName() {
             return encounterOwnerName;
+        },
+        get debug() {
+            return debug;
+        },
+        setDebug: (on) => {
+            debug = on;
+            term.writeln(`\r\n\x1b[38;5;243m[debug ${on ? 'ON' : 'OFF'}]\x1b[0m`);
         },
         sendMsg,
         setMode: (m) => {

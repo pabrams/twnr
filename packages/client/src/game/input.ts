@@ -76,6 +76,10 @@ function isValidKeyForMenu(ctx: GameContext, key: string): 'single' | 'buffered'
 export function setupInput(term: Terminal, ctx: GameContext) {
     let inputBuffer = '';
     term.onKey(({ key, domEvent }) => {
+        if (key === '~') {
+            ctx.setDebug(!ctx.debug);
+            return;
+        }
         if (domEvent.key === 'Enter') {
             term.writeln('');
             handleInput(ctx, inputBuffer.trim());
