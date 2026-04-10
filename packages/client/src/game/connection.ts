@@ -142,10 +142,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 ctx.term.writeln(
                     `  ${colors.boldYellow('Credits')}: ${colors.boldYellow(String(msg.credits))}`,
                 );
-                if (ctx.mode === 'shipInfo' || ctx.mode === 'playerInfo') {
-                    ctx.term.writeln('');
-                    ctx.term.writeln(`Press ${colors.boldYellow("'q'")} to return.`);
-                }
+                showPrompt(ctx);
                 break;
             case ServerMsgType.PlayersOnlineResult: {
                 ctx.term.writeln('');

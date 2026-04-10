@@ -111,14 +111,6 @@ function handleInput(ctx: GameContext, line: string) {
     if (ctx.autopilotPath.length > 0 && ctx.autopilotStep > 0) return;
 
     switch (ctx.mode) {
-        case 'help':
-        case 'shipInfo':
-        case 'playerInfo':
-            if (line.toLowerCase() === 'q') {
-                ctx.changeMenu('sector');
-                showPrompt(ctx);
-            }
-            return;
         case 'port':
             handlePortInput(ctx, line);
             return;
@@ -206,11 +198,9 @@ function handleInput(ctx: GameContext, line: string) {
             showPortMenu(ctx);
             break;
         case 'i':
-            ctx.changeMenu('playerInfo');
             showPlayerInfo(ctx);
             break;
         case '?':
-            ctx.changeMenu('help');
             showHelp(ctx);
             break;
         case 'a':
