@@ -66,7 +66,12 @@ export interface GameContext {
     setTradePendingQty: (q: number) => void;
     setTradeCredits: (c: number) => void;
     setTradeEmptyHolds: (h: number) => void;
-    setTradeCargo: (c: { fuel: number; organics: number; equipment: number; colonists: number }) => void;
+    setTradeCargo: (c: {
+        fuel: number;
+        organics: number;
+        equipment: number;
+        colonists: number;
+    }) => void;
 }
 
 export interface TradeStep {

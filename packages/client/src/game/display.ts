@@ -1,7 +1,7 @@
 import { ClientMsgType } from '@twnr/shared';
 import type { SectorRef } from '@twnr/shared';
 import type { GameContext } from './types.js';
-import { colors, PORT_CLASS_LABELS, PORT_CLASS_ACTIONS } from './constants.js';
+import { colors, PORT_CLASS_LABELS } from './constants.js';
 
 // Re-export GameContext so existing imports from './display.js' still work
 export type { GameContext } from './types.js';
@@ -140,14 +140,19 @@ export function showCommerceReport(
     ctx: GameContext,
     portName: string,
     portClass: number,
-    goods: { name: string; key: string; status: string; trading: number; max: number; onBoard: number }[],
+    goods: {
+        name: string;
+        key: string;
+        status: string;
+        trading: number;
+        max: number;
+        onBoard: number;
+    }[],
     credits: number,
     emptyHolds: number,
 ) {
     ctx.term.writeln('');
-    ctx.term.writeln(
-        `${colors.boldGreen('Commerce report for')} ${colors.boldCyan(portName)}`,
-    );
+    ctx.term.writeln(`${colors.boldGreen('Commerce report for')} ${colors.boldCyan(portName)}`);
     ctx.term.writeln('');
     ctx.term.writeln(
         ` ${colors.boldWhite('Items'.padEnd(12))}${colors.boldWhite('Status'.padEnd(10))}${colors.boldWhite('Trading'.padStart(7))} ${colors.boldWhite('% of max'.padStart(8))} ${colors.boldWhite('OnBoard'.padStart(7))}`,
@@ -157,7 +162,10 @@ export function showCommerceReport(
     );
     for (const g of goods) {
         const pct = g.max > 0 ? Math.round((g.trading / g.max) * 100) : 0;
-        const statusColor = g.status === 'Buying' ? colors.boldGreen(g.status.padEnd(10)) : colors.boldRed(g.status.padEnd(10));
+        const statusColor =
+            g.status === 'Buying'
+                ? colors.boldGreen(g.status.padEnd(10))
+                : colors.boldRed(g.status.padEnd(10));
         ctx.term.writeln(
             ` ${colors.boldYellow(g.name.padEnd(12))}${statusColor}${colors.white(String(g.trading).padStart(7))} ${colors.white((pct + '%').padStart(8))} ${colors.white(String(g.onBoard).padStart(7))}`,
         );

@@ -3,7 +3,12 @@ import type { ServerResult } from '@twnr/shared';
 import type { GameContext } from './types.js';
 
 import { showSectorDisplay, showCommerceReport, showPrompt } from './display.js';
-import { showClass0Menu, showAutopilotPrompt, showTradeQtyPrompt, showNoTradeMessage } from './display-port.js';
+import {
+    showClass0Menu,
+    showAutopilotPrompt,
+    showTradeQtyPrompt,
+    showNoTradeMessage,
+} from './display-port.js';
 import {
     showPlanetMenu,
     showPlanetMenuOptions,
@@ -43,7 +48,14 @@ export function advanceTradeQueue(ctx: GameContext) {
         return;
     }
     ctx.setMode('tradeQty');
-    showTradeQtyPrompt(ctx, step.commodityLabel, step.action, step.portTrading, step.onBoard, step.maxQty);
+    showTradeQtyPrompt(
+        ctx,
+        step.commodityLabel,
+        step.action,
+        step.portTrading,
+        step.onBoard,
+        step.maxQty,
+    );
 }
 
 export function setupConnection(ws: WebSocket, ctx: GameContext) {
@@ -115,13 +127,46 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                         // Build commerce report and guided trade flow
                         const actions = PORT_CLASS_ACTIONS[msg.port.class];
                         if (!actions) break;
-                        const cargo = msg.cargo ?? { fuel: 0, organics: 0, equipment: 0, colonists: 0 };
+                        const cargo = msg.cargo ?? {
+                            fuel: 0,
+                            organics: 0,
+                            equipment: 0,
+                            colonists: 0,
+                        };
                         const credits = msg.credits ?? 0;
                         const emptyHolds = msg.emptyHolds ?? 0;
-                        const commodities: { key: 'fuel' | 'organics' | 'equipment'; label: string; trading: number; max: number; price: number; onBoard: number }[] = [
-                            { key: 'fuel', label: 'Fuel', trading: msg.port.fuel, max: msg.port.fuelMax, price: msg.port.fuelPrice, onBoard: cargo.fuel },
-                            { key: 'organics', label: 'Organics', trading: msg.port.organics, max: msg.port.orgMax, price: msg.port.orgPrice, onBoard: cargo.organics },
-                            { key: 'equipment', label: 'Equipment', trading: msg.port.equipment, max: msg.port.equMax, price: msg.port.equPrice, onBoard: cargo.equipment },
+                        const commodities: {
+                            key: 'fuel' | 'organics' | 'equipment';
+                            label: string;
+                            trading: number;
+                            max: number;
+                            price: number;
+                            onBoard: number;
+                        }[] = [
+                            {
+                                key: 'fuel',
+                                label: 'Fuel',
+                                trading: msg.port.fuel,
+                                max: msg.port.fuelMax,
+                                price: msg.port.fuelPrice,
+                                onBoard: cargo.fuel,
+                            },
+                            {
+                                key: 'organics',
+                                label: 'Organics',
+                                trading: msg.port.organics,
+                                max: msg.port.orgMax,
+                                price: msg.port.orgPrice,
+                                onBoard: cargo.organics,
+                            },
+                            {
+                                key: 'equipment',
+                                label: 'Equipment',
+                                trading: msg.port.equipment,
+                                max: msg.port.equMax,
+                                price: msg.port.equPrice,
+                                onBoard: cargo.equipment,
+                            },
                         ];
                         // Show commerce report
                         showCommerceReport(
@@ -178,7 +223,14 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                             ctx.setTradeStep(0);
                             const step = queue[0];
                             ctx.setMode('tradeQty');
-                            showTradeQtyPrompt(ctx, step.commodityLabel, step.action, step.portTrading, step.onBoard, step.maxQty);
+                            showTradeQtyPrompt(
+                                ctx,
+                                step.commodityLabel,
+                                step.action,
+                                step.portTrading,
+                                step.onBoard,
+                                step.maxQty,
+                            );
                         }
                     }
                 }
