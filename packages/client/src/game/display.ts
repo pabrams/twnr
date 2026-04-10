@@ -3,9 +3,6 @@ import type { SectorRef } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { colors, PORT_CLASS_LABELS } from './constants.js';
 
-// Re-export GameContext so existing imports from './display.js' still work
-export type { GameContext } from './types.js';
-
 const mg = colors.magenta;
 
 function colorSectorRef(ref: SectorRef): string {
