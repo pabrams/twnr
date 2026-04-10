@@ -4,9 +4,8 @@ import {
     sendEnvelope,
     getPlayerUniverseId,
     PORT_CLASS_ACTIONS,
-    getGraph,
     getPortForSector,
-    getVisitedWarpDestinations,
+    getWarpRefs,
     getSectorDrones,
     setPlayerMenu,
 } from '../game-state.js';
@@ -117,10 +116,9 @@ export async function handleUndock(playerId: number): Promise<void> {
     const currentSector = player.sector;
     const universeId = player.universeId;
 
-    const [warps, port, visitedSectors, sectorDrones, planetsRes] = await Promise.all([
-        getGraph(universeId),
+    const [port, warpRefs, sectorDrones, planetsRes] = await Promise.all([
         getPortForSector(currentSector, universeId),
-        getVisitedWarpDestinations(playerId, currentSector, universeId),
+        getWarpRefs(playerId, currentSector, universeId),
         getSectorDrones(currentSector, universeId),
         pool.query(
             `SELECT pl.id, pl.name, pl.type FROM planets pl
@@ -130,7 +128,6 @@ export async function handleUndock(playerId: number): Promise<void> {
         ),
     ]);
     const planets = planetsRes.rows;
-    const displayWarps = warps[currentSector] || [];
     const playersInSector = Object.entries(players)
         .filter(
             ([id, p]) =>
@@ -145,10 +142,9 @@ export async function handleUndock(playerId: number): Promise<void> {
         type: ServerMsgType.UndockResult,
         outcome: 'success',
         sector: currentSector,
-        warps: displayWarps,
+        warps: warpRefs,
         players: playersInSector,
         port,
-        visitedSectors,
         sectorDrones,
         planets,
     });
@@ -417,10 +413,9 @@ export async function handleLeaveStarbase(playerId: number): Promise<void> {
     const currentSector = player.sector;
     const universeId = player.universeId;
 
-    const [warps, port, visitedSectors, sectorDrones, planetsRes] = await Promise.all([
-        getGraph(universeId),
+    const [port, warpRefs, sectorDrones, planetsRes] = await Promise.all([
         getPortForSector(currentSector, universeId),
-        getVisitedWarpDestinations(playerId, currentSector, universeId),
+        getWarpRefs(playerId, currentSector, universeId),
         getSectorDrones(currentSector, universeId),
         pool.query(
             `SELECT pl.id, pl.name, pl.type FROM planets pl
@@ -429,7 +424,6 @@ export async function handleLeaveStarbase(playerId: number): Promise<void> {
             [currentSector, universeId],
         ),
     ]);
-    const displayWarps = warps[currentSector] || [];
     const playersInSector = Object.entries(players)
         .filter(
             ([id, p]) =>
@@ -443,10 +437,9 @@ export async function handleLeaveStarbase(playerId: number): Promise<void> {
     sendEnvelope(playerId, {
         type: ServerMsgType.LeaveStarbaseResult,
         sector: currentSector,
-        warps: displayWarps,
+        warps: warpRefs,
         players: playersInSector,
         port,
-        visitedSectors,
         sectorDrones,
         planets: planetsRes.rows,
     });

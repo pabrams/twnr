@@ -57,15 +57,15 @@ export function handleClass0QtyInput(ctx: GameContext, line: string) {
 export function handleAutopilotPromptInput(ctx: GameContext, line: string) {
     switch (line.toLowerCase()) {
         case 'y': {
-            ctx.changeMenu('autopilot');
             ctx.term.writeln(`\r\n${colors.boldGreen('Autopilot engaged.')}`);
-            // Start moving along the path (step 1 is the first hop, step 0 is current sector)
-            const nextSector = ctx.autopilotPath[ctx.autopilotStep];
-            ctx.setAutopilotStep(ctx.autopilotStep + 1);
+            const nextSector = ctx.autopilotPath[1];
+            ctx.setAutopilotStep(2);
             ctx.sendMsg({ type: ClientMsgType.Move, sector: nextSector });
             break;
         }
         case 'n':
+            ctx.setAutopilotPath([]);
+            ctx.setAutopilotStep(0);
             ctx.changeMenu('sector');
             showPrompt(ctx);
             break;

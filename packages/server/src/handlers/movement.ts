@@ -6,7 +6,7 @@ import {
     broadcastTo,
     getGraph,
     getPortForSector,
-    getVisitedWarpDestinations,
+    getWarpRefs,
     getPlayerUniverseId,
     getSectorDrones,
     setPlayerMenu,
@@ -115,9 +115,9 @@ export async function handleMove(playerId: number, targetSector: number): Promis
         newSectorClients,
     );
 
-    const [port, visitedSectors, sectorDrones, planetsRes] = await Promise.all([
+    const [port, warpRefs, sectorDrones, planetsRes] = await Promise.all([
         getPortForSector(targetSector, universeId),
-        getVisitedWarpDestinations(playerId, targetSector, universeId),
+        getWarpRefs(playerId, targetSector, universeId),
         getSectorDrones(targetSector, universeId),
         pool.query(
             `SELECT pl.id, pl.name, pl.type FROM planets pl
@@ -127,7 +127,6 @@ export async function handleMove(playerId: number, targetSector: number): Promis
         ),
     ]);
     const planets = planetsRes.rows;
-    const displayWarps = warps[targetSector] || [];
     const playersInSector = Object.entries(players)
         .filter(
             ([id, p]) =>
@@ -152,10 +151,9 @@ export async function handleMove(playerId: number, targetSector: number): Promis
             type: ServerMsgType.MoveResult,
             outcome: 'encounter',
             sector: targetSector,
-            warps: displayWarps,
+            warps: warpRefs,
             players: playersInSector,
             port,
-            visitedSectors,
             sectorDrones: sectorDrones.quantity,
             ownerId: sectorDrones.ownerId,
             ownerName: sectorDrones.ownerName,
@@ -179,14 +177,14 @@ export async function handleMove(playerId: number, targetSector: number): Promis
         return;
     }
 
+    await setPlayerMenu(playerId, 'sector');
     sendEnvelope(playerId, {
         type: ServerMsgType.MoveResult,
         outcome: 'success',
         sector: targetSector,
-        warps: displayWarps,
+        warps: warpRefs,
         players: playersInSector,
         port,
-        visitedSectors,
         sectorDrones,
         planets,
         turnsUsed: turnResult.turnsUsed,
@@ -199,10 +197,9 @@ export async function handleSectorDisplay(playerId: number): Promise<void> {
     const currentSector = player.sector;
     const universeId = player.universeId;
 
-    const [warps, port, visitedSectors, sectorDrones, planetsRes] = await Promise.all([
-        getGraph(universeId),
+    const [port, warpRefs, sectorDrones, planetsRes] = await Promise.all([
         getPortForSector(currentSector, universeId),
-        getVisitedWarpDestinations(playerId, currentSector, universeId),
+        getWarpRefs(playerId, currentSector, universeId),
         getSectorDrones(currentSector, universeId),
         pool.query(
             `SELECT pl.id, pl.name, pl.type FROM planets pl
@@ -212,7 +209,6 @@ export async function handleSectorDisplay(playerId: number): Promise<void> {
         ),
     ]);
     const planets = planetsRes.rows;
-    const displayWarps = warps[currentSector] || [];
     const playersInSector = Object.entries(players)
         .filter(
             ([id, p]) =>
@@ -225,10 +221,9 @@ export async function handleSectorDisplay(playerId: number): Promise<void> {
     sendEnvelope(playerId, {
         type: ServerMsgType.SectorDisplayResult,
         sector: currentSector,
-        warps: displayWarps,
+        warps: warpRefs,
         players: playersInSector,
         port,
-        visitedSectors,
         sectorDrones,
         planets,
     });
@@ -252,16 +247,8 @@ export async function handleWarpsOut(playerId: number, id: number): Promise<void
         return;
     }
 
-    const warpsRes = await pool.query(
-        `SELECT s_to.sector_number as sector_to
-         FROM warps w
-         JOIN sectors s_from ON w.from_sector_id = s_from.id
-         JOIN sectors s_to ON w.to_sector_id = s_to.id
-         WHERE s_from.sector_number = $1 AND s_from.universe_id = $2`,
-        [id, universeId],
-    );
-    const warps = warpsRes.rows.map((r) => r.sector_to);
-    sendEnvelope(playerId, { type: ServerMsgType.WarpsOutResult, id, warps });
+    const warpRefs = await getWarpRefs(playerId, id, universeId);
+    sendEnvelope(playerId, { type: ServerMsgType.WarpsOutResult, id, warps: warpRefs });
 }
 
 export async function handleShortestPath(
@@ -290,7 +277,7 @@ export async function handleShortestPath(
     }
 
     if (from === to) {
-        sendEnvelope(playerId, { type: ServerMsgType.ShortestPathResult, path: [from], hops: 0, visitedSectors: [from] });
+        sendEnvelope(playerId, { type: ServerMsgType.ShortestPathResult, path: [{ sector: from, visited: true }], hops: 0 });
         return;
     }
 
@@ -305,7 +292,6 @@ export async function handleShortestPath(
         for (const neighbor of neighbors) {
             if (neighbor === to) {
                 const finalPath = [...path, neighbor];
-                // Query which sectors in the path the player has visited
                 const visitedRes = await pool.query(
                     `SELECT s.sector_number FROM visited_sectors vs
                      JOIN sectors s ON vs.sector_id = s.id
@@ -313,13 +299,12 @@ export async function handleShortestPath(
                        AND s.sector_number = ANY($3::int[])`,
                     [playerId, universeId, finalPath],
                 );
-                const visitedSectors = visitedRes.rows.map((r: any) => r.sector_number);
+                const visitedSet = new Set(visitedRes.rows.map((r: any) => r.sector_number));
                 await setPlayerMenu(playerId, 'autopilotPrompt');
                 sendEnvelope(playerId, {
                     type: ServerMsgType.ShortestPathResult,
-                    path: finalPath,
+                    path: finalPath.map((s) => ({ sector: s, visited: visitedSet.has(s) })),
                     hops: finalPath.length - 1,
-                    visitedSectors,
                 });
                 return;
             }

@@ -76,24 +76,26 @@ export async function getVisitedSectors(playerId: number): Promise<number[]> {
 }
 
 /**
- * Returns the sector_numbers of warp destinations from `sectorNumber`
- * that the player has previously visited.
+ * Returns the warp destinations from `sectorNumber` as SectorRef[],
+ * each with a `visited` flag for this player.
  */
-export async function getVisitedWarpDestinations(
+export async function getWarpRefs(
     playerId: number,
     sectorNumber: number,
     universeId: number,
-): Promise<number[]> {
+): Promise<{ sector: number; visited: boolean }[]> {
     const res = await pool.query(
-        `SELECT DISTINCT s_to.sector_number
+        `SELECT DISTINCT s_to.sector_number,
+                (vs.player_id IS NOT NULL) AS visited
          FROM warps w
          JOIN sectors s_from ON w.from_sector_id = s_from.id
          JOIN sectors s_to   ON w.to_sector_id   = s_to.id
-         JOIN visited_sectors vs ON vs.sector_id = s_to.id AND vs.player_id = $1
-         WHERE s_from.sector_number = $2 AND s_from.universe_id = $3`,
+         LEFT JOIN visited_sectors vs ON vs.sector_id = s_to.id AND vs.player_id = $1
+         WHERE s_from.sector_number = $2 AND s_from.universe_id = $3
+         ORDER BY s_to.sector_number`,
         [playerId, sectorNumber, universeId],
     );
-    return res.rows.map((r: any) => r.sector_number);
+    return res.rows.map((r: any) => ({ sector: r.sector_number, visited: r.visited }));
 }
 
 export async function getPortForSector(

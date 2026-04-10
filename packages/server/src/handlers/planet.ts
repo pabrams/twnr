@@ -2,9 +2,8 @@ import { ServerMsgType } from '@twnr/shared';
 import {
     players,
     sendEnvelope,
-    getGraph,
     getPortForSector,
-    getVisitedWarpDestinations,
+    getWarpRefs,
     getSectorDrones,
     setPlayerMenu,
 } from '../game-state.js';
@@ -129,10 +128,9 @@ async function buildSectorDisplayData(playerId: number) {
     const currentSector = player.sector;
     const universeId = player.universeId;
 
-    const [warps, port, visitedSectors, sectorDrones, planetsRes] = await Promise.all([
-        getGraph(universeId),
+    const [port, warpRefs, sectorDrones, planetsRes] = await Promise.all([
         getPortForSector(currentSector, universeId),
-        getVisitedWarpDestinations(playerId, currentSector, universeId),
+        getWarpRefs(playerId, currentSector, universeId),
         getSectorDrones(currentSector, universeId),
         pool.query(
             `SELECT pl.id, pl.name, pl.type FROM planets pl
@@ -141,7 +139,6 @@ async function buildSectorDisplayData(playerId: number) {
             [currentSector, universeId],
         ),
     ]);
-    const displayWarps = warps[currentSector] || [];
     const playersInSector = Object.entries(players)
         .filter(
             ([id, p]) =>
@@ -154,10 +151,9 @@ async function buildSectorDisplayData(playerId: number) {
 
     return {
         sector: currentSector,
-        warps: displayWarps,
+        warps: warpRefs,
         players: playersInSector,
         port,
-        visitedSectors,
         sectorDrones,
         planets: planetsRes.rows,
     };
