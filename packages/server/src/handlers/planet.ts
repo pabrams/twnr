@@ -4,7 +4,7 @@ import {
     sendEnvelope,
     getGraph,
     getPortForSector,
-    getVisitedSectors,
+    getVisitedWarpDestinations,
     getSectorDrones,
     setPlayerMenu,
 } from '../game-state.js';
@@ -132,7 +132,7 @@ async function buildSectorDisplayData(playerId: number) {
     const [warps, port, visitedSectors, sectorDrones, planetsRes] = await Promise.all([
         getGraph(universeId),
         getPortForSector(currentSector, universeId),
-        getVisitedSectors(playerId),
+        getVisitedWarpDestinations(playerId, currentSector, universeId),
         getSectorDrones(currentSector, universeId),
         pool.query(
             `SELECT pl.id, pl.name, pl.type FROM planets pl

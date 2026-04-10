@@ -1,4 +1,5 @@
-import { ClientMsgType } from '@twnr/shared';
+import { ClientMsgType, ServerMsgType } from '@twnr/shared';
+import type { ServerResult } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { colors } from './constants.js';
 
@@ -24,20 +25,33 @@ export function showKnownUniverseMenu(ctx: GameContext) {
 }
 
 export function showExploredSectors(ctx: GameContext) {
-    const explored = Array.from(ctx.visitedSet).sort((a, b) => a - b);
-    ctx.term.writeln('');
-    ctx.term.writeln(`${colors.boldCyan('Explored sectors')} (${explored.length}):`);
-    ctx.term.writeln(explored.map((s) => colors.boldCyan(String(s))).join(' '));
+    ctx.sendMsg({ type: ClientMsgType.VisitedSectors });
+    // Handler is in connection.ts — renders when server responds
+    (ctx as any)._knownUniverseMode = 'explored';
 }
 
 export function showUnexploredSectors(ctx: GameContext) {
-    const unexplored: number[] = [];
-    for (let i = 1; i <= ctx.totalSectors; i++) {
-        if (!ctx.visitedSet.has(i)) unexplored.push(i);
+    ctx.sendMsg({ type: ClientMsgType.VisitedSectors });
+    (ctx as any)._knownUniverseMode = 'unexplored';
+}
+
+export function renderVisitedSectorsResult(ctx: GameContext, msg: { sectors: number[]; totalSectors: number }) {
+    const mode = (ctx as any)._knownUniverseMode || 'explored';
+    const visited = new Set(msg.sectors);
+    if (mode === 'explored') {
+        const explored = msg.sectors.sort((a, b) => a - b);
+        ctx.term.writeln('');
+        ctx.term.writeln(`${colors.boldCyan('Explored sectors')} (${explored.length}):`);
+        ctx.term.writeln(explored.map((s) => colors.boldCyan(String(s))).join(' '));
+    } else {
+        const unexplored: number[] = [];
+        for (let i = 1; i <= msg.totalSectors; i++) {
+            if (!visited.has(i)) unexplored.push(i);
+        }
+        ctx.term.writeln('');
+        ctx.term.writeln(`${colors.boldCyan('Unexplored sectors')} (${unexplored.length}):`);
+        ctx.term.writeln(unexplored.map((s) => colors.boldRed(String(s))).join(' '));
     }
-    ctx.term.writeln('');
-    ctx.term.writeln(`${colors.boldCyan('Unexplored sectors')} (${unexplored.length}):`);
-    ctx.term.writeln(unexplored.map((s) => colors.boldRed(String(s))).join(' '));
 }
 
 export async function showShipCatalog(ctx: GameContext) {

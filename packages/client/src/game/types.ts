@@ -28,7 +28,6 @@ export interface GameContext {
     changeMenu: (menu: string) => void;
     setCurrentSector: (sector: number) => void;
     setCurrentPort: (port: { class: number; name: string } | null) => void;
-    setVisitedSet: (set: Set<number>) => void;
     setDockedPortInfo: (p: PortInfoResultObject | null) => void;
     setPlayerName: (name: string) => void;
     setPlayerId: (id: number) => void;

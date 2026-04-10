@@ -18,9 +18,9 @@ export function showSectorDisplay(
     visitedSectors?: number[],
     sectorDrones?: { quantity: number; ownerId: number | null; ownerName: string } | null,
 ) {
-    if (visitedSectors) {
-        ctx.setVisitedSet(new Set(visitedSectors));
-    }
+    const visitedSet = new Set(visitedSectors ?? []);
+    // Track current sector as visited for other features (autopilot path coloring, etc.)
+    ctx.visitedSet.add(sector);
     ctx.setCurrentSector(sector);
     ctx.setCurrentPort(port ?? null);
     ctx.term.writeln('');
@@ -48,7 +48,7 @@ export function showSectorDisplay(
     }
     if (warps.length > 0) {
         ctx.term.writeln(
-            `${colors.boldGreen('Warps')}   ${cl} ${warps.map((w) => colorSector(w, ctx.visitedSet)).join(` ${colors.green('-')} `)}`,
+            `${colors.boldGreen('Warps')}   ${cl} ${warps.map((w) => colorSector(w, visitedSet)).join(` ${colors.green('-')} `)}`,
         );
     }
     if (players.length > 0) {
