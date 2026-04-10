@@ -10,8 +10,9 @@ export PGUSER="${PGUSER:-twnr_user}"
 export PGPASSWORD="${PGPASSWORD:-twnr_pass}"
 export JWT_SECRET="test-jwt-secret"
 export ADMIN_API_KEY="test-admin-key"
-export WS_ALLOWED_ORIGINS="http://localhost:3000"
+export WS_ALLOWED_ORIGINS="http://localhost:3001"
 export DISABLE_RATE_LIMIT=1
+export PORT=3001
 
 PROJECT_ROOT="$(pwd)"
 
@@ -60,13 +61,16 @@ psql -h "${PGHOST:-localhost}" -d "$PGDATABASE" -U "$PGUSER" -c \
    SELECT setval('sectors_id_seq', COALESCE((SELECT MAX(id) FROM sectors), 0) + 1);
    SELECT setval('ports_id_seq', COALESCE((SELECT MAX(id) FROM ports), 0) + 1)" >/dev/null 2>&1
 
+# Kill anything already on our test port
+fuser -k "${PORT}/tcp" 2>/dev/null || true
+
 echo "==> Starting server..."
 node dist/server.js &
 SERVER_PID=$!
 
 # Wait for server to be ready
 for i in $(seq 1 30); do
-  if curl -s http://localhost:3000/api/ships >/dev/null 2>&1; then
+  if curl -s http://localhost:3001/api/ships >/dev/null 2>&1; then
     break
   fi
   sleep 1
@@ -83,11 +87,12 @@ sleep 1
 
 unset DISABLE_RATE_LIMIT
 
+fuser -k "${PORT}/tcp" 2>/dev/null || true
 node dist/server.js &
 SERVER_PID=$!
 
 for i in $(seq 1 30); do
-  if curl -s http://localhost:3000/api/ships >/dev/null 2>&1; then
+  if curl -s http://localhost:3001/api/ships >/dev/null 2>&1; then
     break
   fi
   sleep 1

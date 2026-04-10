@@ -51,13 +51,13 @@ describe('Sector & Path Queries', () => {
   it('path query returns shortest path between connected sectors', async () => {
     const { ws: wsConn } = await ws();
     const sectorMsg = await wsRequest(wsConn, { type: ClientMsgType.WarpsOut, id: 1 }, ServerMsgType.WarpsOutResult);
-    const target = sectorMsg.warps[0];
+    const target = sectorMsg.warps[0].sector;
 
     const msg = await wsRequest(wsConn, { type: ClientMsgType.ShortestPath, from: 1, to: target }, ServerMsgType.ShortestPathResult);
     assert.equal(msg.type, ServerMsgType.ShortestPathResult);
     assert.ok(Array.isArray(msg.path), 'path should be an array');
-    assert.equal(msg.path[0], 1, 'path should start with origin sector');
-    assert.equal(msg.path[msg.path.length - 1], target, 'path should end with target sector');
+    assert.equal(msg.path[0].sector, 1, 'path should start with origin sector');
+    assert.equal(msg.path[msg.path.length - 1].sector, target, 'path should end with target sector');
     assert.equal(msg.hops, msg.path.length - 1, 'hops should equal path length minus 1');
     assert.equal(msg.path.length, 2, 'direct neighbors should have a 2-element path');
     assert.equal(msg.hops, 1);
@@ -68,7 +68,8 @@ describe('Sector & Path Queries', () => {
     const { ws: wsConn } = await ws();
     const msg = await wsRequest(wsConn, { type: ClientMsgType.ShortestPath, from: 1, to: 1 }, ServerMsgType.ShortestPathResult);
     assert.equal(msg.type, ServerMsgType.ShortestPathResult);
-    assert.deepStrictEqual(msg.path, [1]);
+    assert.equal(msg.path.length, 1);
+    assert.equal(msg.path[0].sector, 1);
     assert.equal(msg.hops, 0);
     await closeWS(wsConn);
   });
@@ -112,9 +113,10 @@ describe('Sector & Path Queries', () => {
     for (let from = 1; from <= 100; from++) {
       const res = await wsRequest(wsConn, { type: ClientMsgType.WarpsOut, id: from }, ServerMsgType.WarpsOutResult);
       if (res.type !== ServerMsgType.WarpsOutResult) continue;
-      for (const to of res.warps) {
+      for (const warpRef of res.warps) {
+        const to = warpRef.sector;
         const reverse = await wsRequest(wsConn, { type: ClientMsgType.WarpsOut, id: to }, ServerMsgType.WarpsOutResult);
-        if (reverse.type === ServerMsgType.WarpsOutResult && !reverse.warps.includes(from)) {
+        if (reverse.type === ServerMsgType.WarpsOutResult && !reverse.warps.some(w => w.sector === from)) {
           const path = await wsRequest(wsConn, { type: ClientMsgType.ShortestPath, from: to, to: from }, ServerMsgType.ShortestPathResult);
           if (path.type === ServerMsgType.ShortestPathResult) {
             assert.ok(path.hops > 1,

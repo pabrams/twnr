@@ -12,6 +12,9 @@ const __filename = fileURLToPath(import.meta.url);
 const PROJECT_ROOT = join(dirname(__filename), '..');
 const merchantCfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', '01-vulpeculan-cruiser.json'), 'utf8'));
 const JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret';
+const TEST_PORT = process.env.PORT || '3000';
+const BASE_URL = `http://localhost:${TEST_PORT}`;
+const WS_URL = `ws://localhost:${TEST_PORT}`;
 export const TEST_DB = process.env.PGDATABASE || 'twnr_test';
 
 export function testEnv() {
@@ -94,7 +97,7 @@ export function startServer() {
         PGDATABASE: process.env.PGDATABASE || 'twnr_test',
         JWT_SECRET,
         ADMIN_API_KEY: process.env.ADMIN_API_KEY || 'test-admin-key',
-        WS_ALLOWED_ORIGINS: process.env.WS_ALLOWED_ORIGINS || 'http://localhost:3000',
+        WS_ALLOWED_ORIGINS: process.env.WS_ALLOWED_ORIGINS || BASE_URL,
       },
     });
 
@@ -145,8 +148,8 @@ export async function connectWS(options = {}) {
 
   const headers = { Cookie: `twnr_auth=${token}`, ...(wsOptions.headers || {}) };
   const url = universeId
-    ? `ws://localhost:3000/ws?universe=${universeId}`
-    : 'ws://localhost:3000/ws';
+    ? `${WS_URL}/ws?universe=${universeId}`
+    : `${WS_URL}/ws`;
 
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(url, { ...wsOptions, headers });
@@ -236,7 +239,7 @@ export function closeWS(ws) {
 }
 
 export async function httpGet(path) {
-  const res = await fetch(`http://localhost:3000${path}`);
+  const res = await fetch(`${BASE_URL}${path}`);
   return { status: res.status, body: await res.json() };
 }
 
@@ -246,7 +249,7 @@ export async function httpPost(path, data, options = {}) {
     ...(options.headers || {}),
   };
 
-  const res = await fetch(`http://localhost:3000${path}`, {
+  const res = await fetch(`${BASE_URL}${path}`, {
     method: 'POST',
     headers,
     body: JSON.stringify(data),

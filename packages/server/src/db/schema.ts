@@ -1036,6 +1036,12 @@ export const connectDB = async (): Promise<void> => {
             ON CONFLICT DO NOTHING
         `);
 
+        // Clean up orphaned rows before adding FK constraints
+        await client.query(`
+            DELETE FROM planet_types_edits WHERE planet_type NOT IN (SELECT name FROM planet_types);
+            UPDATE planets SET type = 'Terran' WHERE type NOT IN (SELECT name FROM planet_types);
+        `);
+
         // Add FK constraints that depend on seeded data
         await client.query(`
             -- FK from planet_types_edits.planet_type to planet_types.name

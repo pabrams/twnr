@@ -1479,35 +1479,37 @@ describe('WS: buy hardware credit deduction', () => {
 
   after(() => { player?.close(); });
 
-  it('buyPlanetBusters deducts 20000 credits per buster', async () => {
+  it('buyPlanetBusters deducts credits per buster (price from edits)', async () => {
     // Find a ship that can carry planet busters
     const allConfigs = readdirSync(CONFIG_SHIPS_DIR).filter(f => f.endsWith('.json')).map(f => JSON.parse(readFileSync(join(CONFIG_SHIPS_DIR, f), 'utf8')));
     const busterShip = allConfigs.find(c => c.maxPlanetBusters >= 2);
     assert.ok(busterShip, 'need at least one ship config with maxPlanetBusters >= 2');
     await pool.query('UPDATE ships SET ship_type_id = (SELECT id FROM ship_types WHERE name = $1), planet_busters = 0 WHERE id = (SELECT ship_id FROM players WHERE id = $2)', [busterShip.name, player.playerId]);
-    await pool.query('UPDATE players SET credits = 100000 WHERE id = $1', [player.playerId]);
+    await pool.query('UPDATE players SET credits = 200000 WHERE id = $1', [player.playerId]);
 
     player.sendMsg({ type: ClientMsgType.BuyPlanetBusters, quantity: 2 });
     const msg = await player.waitForMessage('buyPlanetBustersResult');
     assert.equal(msg.type, 'buyPlanetBustersResult');
     assert.equal(msg.quantity, 2);
-    assert.equal(msg.credits, 60000, 'should deduct 40000 (2 * 20000) from 100000');
+    // Price comes from edits table (default 40000 per buster)
+    assert.equal(msg.credits, 120000, 'should deduct 80000 (2 * 40000) from 200000');
     assert.equal(msg.totalOnShip, 2);
   });
 
-  it('buyTerraformDevices deducts 5000 credits per device', async () => {
+  it('buyTerraformDevices deducts credits per device (price from edits)', async () => {
     // Find a ship that can carry terraform devices
     const allConfigs = readdirSync(CONFIG_SHIPS_DIR).filter(f => f.endsWith('.json')).map(f => JSON.parse(readFileSync(join(CONFIG_SHIPS_DIR, f), 'utf8')));
     const terraShip = allConfigs.find(c => c.maxTerraformDevices >= 2);
     assert.ok(terraShip, 'need at least one ship config with maxTerraformDevices >= 2');
     await pool.query('UPDATE ships SET ship_type_id = (SELECT id FROM ship_types WHERE name = $1), terraform_devices = 0 WHERE id = (SELECT ship_id FROM players WHERE id = $2)', [terraShip.name, player.playerId]);
-    await pool.query('UPDATE players SET credits = 100000 WHERE id = $1', [player.playerId]);
+    await pool.query('UPDATE players SET credits = 200000 WHERE id = $1', [player.playerId]);
 
     player.sendMsg({ type: ClientMsgType.BuyTerraformDevices, quantity: 2 });
     const msg = await player.waitForMessage('buyTerraformDevicesResult');
     assert.equal(msg.type, 'buyTerraformDevicesResult');
     assert.equal(msg.quantity, 2);
-    assert.equal(msg.credits, 90000, 'should deduct 10000 (2 * 5000) from 100000');
+    // Price comes from edits table (default 25000 per device)
+    assert.equal(msg.credits, 150000, 'should deduct 50000 (2 * 25000) from 200000');
     assert.equal(msg.totalOnShip, 2);
   });
 

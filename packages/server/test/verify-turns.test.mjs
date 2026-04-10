@@ -134,8 +134,8 @@ async function movePlayerToViaWs(wsConn, targetSector) {
   const pathRes = await wsRequest(wsConn, { type: ClientMsgType.ShortestPath, from: disp.sector, to: targetSector }, ServerMsgType.ShortestPathResult);
   if (pathRes.type === ServerMsgType.Error) return false;
   for (let i = 1; i < pathRes.path.length; i++) {
-    await clearSectorDrones(pathRes.path[i]);
-    const r = await wsRequest(wsConn, { type: ClientMsgType.Move, sector: pathRes.path[i] }, ServerMsgType.MoveResult);
+    await clearSectorDrones(pathRes.path[i].sector);
+    const r = await wsRequest(wsConn, { type: ClientMsgType.Move, sector: pathRes.path[i].sector }, ServerMsgType.MoveResult);
     if (r.type === ServerMsgType.Error || r.outcome === 'error') return false;
   }
   return true;

@@ -24,7 +24,7 @@ async function navigateTo(ws, targetSector) {
   const path = await wsRequest(ws, { type: ClientMsgType.ShortestPath, from: disp.sector, to: targetSector }, ServerMsgType.ShortestPathResult);
   if (path.type === ServerMsgType.Error) throw new Error(`No path to ${targetSector}`);
   for (let i = 1; i < path.path.length; i++) {
-    await wsRequest(ws, { type: ClientMsgType.Move, sector: path.path[i] }, ServerMsgType.MoveResult);
+    await wsRequest(ws, { type: ClientMsgType.Move, sector: path.path[i].sector }, ServerMsgType.MoveResult);
   }
 }
 

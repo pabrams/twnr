@@ -1,0 +1,16 @@
+
+I have some partially implemented features, I need you to add appropriate UI.
+
+The following is a list of server methods that have been implemented but need to have UI added. 
+
+The database has some tables called command, menu, and menu_command
+
+Menu	Key	    Handler	 
+Sector	U	handleUseTerraformDevice	
+Sector  L	handleLandOnPlanet	
+Planet  D	handlePlanetDisplay	
+Planet  Z	handleDestroyPlanet
+Planet  Q	handleLeavePlanet
+Sector  G	handleListDeployedDrones
+
+Add a command to the Sector menu for (U)se Terraform Device. It should print out the number of such devices that are on the player's ship. If the player doesn't have any, a message to that effect is displayed and the user is returned to the Sector menu. If there is 1 or more,  ask the user if they would like to use one in the current sector to create a planet. 

@@ -22,7 +22,8 @@ const PROJECT_ROOT = join(dirname(__filename), '..');
 export const JWT_SECRET = 'test-jwt-secret';
 export const ADMIN_API_KEY = 'test-admin-key';
 export const TEST_DB = process.env.PGDATABASE || 'twnr_test';
-export const BASE = 'http://localhost:3000';
+const TEST_PORT = process.env.PORT || '3000';
+export const BASE = `http://localhost:${TEST_PORT}`;
 
 export function testEnv() {
   return { ...process.env, PGDATABASE: TEST_DB };
@@ -63,7 +64,7 @@ function startServer() {
         PGPASSWORD: process.env.PGPASSWORD || 'twnr_pass',
         JWT_SECRET,
         ADMIN_API_KEY,
-        WS_ALLOWED_ORIGINS: 'http://localhost:3000',
+        WS_ALLOWED_ORIGINS: BASE,
       },
     });
 
@@ -75,7 +76,7 @@ function startServer() {
     let stdout = '';
     proc.stdout.on('data', (d) => {
       stdout += d.toString();
-      if (!settled && (stdout.includes('listening') || stdout.includes('3000'))) {
+      if (!settled && (stdout.includes('listening') || stdout.includes(TEST_PORT))) {
         settled = true;
         clearTimeout(timeout);
         setTimeout(() => resolve(proc), 5000);
