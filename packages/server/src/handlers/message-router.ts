@@ -23,6 +23,9 @@ import {
     handleLeavePlanet,
     handleDestroyPlanet,
     handleUseTerraformDevice,
+    handleTakeColonists,
+    handleLeaveColonists,
+    handleListPlanets,
 } from './planet.js';
 import {
     handleDeployDronesInfo,
@@ -109,9 +112,11 @@ export async function handleMessage(playerId: number, data: any): Promise<void> 
         case ClientMsgType.BuyTerraformDevices:
             return handleBuyTerraformDevices(playerId, data.quantity);
         case ClientMsgType.TakeColonists:
+            return handleTakeColonists(playerId, data.quantity, data.commodity ?? 'fuel');
         case ClientMsgType.LeaveColonists:
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not implemented' });
-            return;
+            return handleLeaveColonists(playerId, data.quantity, data.commodity ?? 'fuel');
+        case ClientMsgType.ListPlanets:
+            return handleListPlanets(playerId);
         case ClientMsgType.DeployDronesInfo:
             return handleDeployDronesInfo(playerId);
         case ClientMsgType.DeployDrones:

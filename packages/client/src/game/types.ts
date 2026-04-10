@@ -53,4 +53,6 @@ export interface GameContext {
     setStarbaseSector: (s: number | null) => void;
     hardwarePrices: HardwarePrices | null;
     setHardwarePrices: (p: HardwarePrices) => void;
+    colonistCommodity: 'fuel' | 'organics' | 'equipment' | null;
+    setColonistCommodity: (c: 'fuel' | 'organics' | 'equipment' | null) => void;
 }

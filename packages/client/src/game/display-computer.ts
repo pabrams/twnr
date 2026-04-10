@@ -27,6 +27,7 @@ export function showComputerHelp(ctx: GameContext) {
     ctx.term.writeln(`  ${colors.cyan('C')}  Ship Catalog`);
     ctx.term.writeln(`  ${colors.cyan('J')}  Planetary Specs`);
     ctx.term.writeln(`  ${colors.cyan(';')}  Current Ship Specs`);
+    ctx.term.writeln(`  ${colors.cyan('Y')}  Your Planets`);
     ctx.term.writeln(`  ${colors.cyan('Q')}  Exit Computer`);
     showComputerPrompt(ctx);
 }

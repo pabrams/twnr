@@ -32,6 +32,12 @@ export type SectorDroneInfo = {
     ownerName: string;
 };
 
+export type CollisionInfo = {
+    planetName: string;
+    collidingWithName: string;
+    collisionAt: string;
+};
+
 export type SectorDisplayData = {
     sector: number;
     players: { id: number; name: string }[];
@@ -39,6 +45,7 @@ export type SectorDisplayData = {
     port?: { class: number; name: string } | null;
     sectorDrones?: SectorDroneInfo | null;
     planets: { id: number; name: string; type: string }[];
+    collisions?: CollisionInfo[];
 };
 
 export type SectorDisplayResultObject = {
@@ -296,17 +303,17 @@ export type DockStarbaseResultObject = {
 export type TakeColonistsResultObject = {
     type: typeof ServerMsgType.TakeColonistsResult;
     quantity: number;
+    commodity: 'fuel' | 'organics' | 'equipment';
     planetColonists: number;
-    holdsUsed: number;
-    holdsFree: number;
+    shipColonists: number;
 };
 
 export type LeaveColonistsResultObject = {
     type: typeof ServerMsgType.LeaveColonistsResult;
     quantity: number;
+    commodity: 'fuel' | 'organics' | 'equipment';
     planetColonists: number;
-    holdsUsed: number;
-    holdsFree: number;
+    shipColonists: number;
 };
 
 // DroneEncounter embeds full sector display data (Oak's design) to avoid message ordering issues
@@ -477,6 +484,22 @@ export type VisitedSectorsResultObject = {
     totalSectors: number;
 };
 
+export type ListPlanetsResultObject = {
+    type: typeof ServerMsgType.ListPlanetsResult;
+    planets: {
+        id: number;
+        sectorNumber: number;
+        name: string;
+        type: string;
+        fuel: number;
+        organics: number;
+        equipment: number;
+        colonists_fuel: number;
+        colonists_organics: number;
+        colonists_equipment: number;
+    }[];
+};
+
 export type ServerResult =
     | WelcomeEvent
     | PlayerMovedEvent
@@ -532,6 +555,7 @@ export type ServerResult =
     | BuyReconDronesResultObject
     | BuyHyperspaceDriveResultObject
     | ListDeployedDronesResultObject
+    | ListPlanetsResultObject
     | HyperspaceJumpResultObject
     | MenuChangedResultObject
     | VisitedSectorsResultObject

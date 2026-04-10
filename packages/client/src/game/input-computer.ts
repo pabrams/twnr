@@ -1,3 +1,4 @@
+import { ClientMsgType } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { showPrompt } from './display.js';
 import {
@@ -35,6 +36,9 @@ export function handleComputerInput(ctx: GameContext, line: string) {
             break;
         case ';':
             showCurrentShipSpecs(ctx);
+            break;
+        case 'y':
+            ctx.sendMsg({ type: ClientMsgType.ListPlanets });
             break;
         case '?':
             showComputerHelp(ctx);

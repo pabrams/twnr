@@ -2,7 +2,13 @@ import { ClientMsgType } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { showPrompt } from './display.js';
 import { showClass0Menu, showClass0QtyPrompt } from './display-port.js';
-import { showPlanetTakePrompt, showPlanetLeavePrompt } from './display-planet.js';
+import {
+    showPlanetTakePrompt,
+    showPlanetLeavePrompt,
+    showPlanetTakeCommodityMenu,
+    showPlanetLeaveCommodityMenu,
+    showPlanetMenuOptions,
+} from './display-planet.js';
 import { colors } from './constants.js';
 
 export function handleClass0Input(ctx: GameContext, line: string) {
@@ -88,21 +94,87 @@ export function handleJettisonConfirmInput(ctx: GameContext, line: string) {
 export function handlePlanetInput(ctx: GameContext, line: string) {
     switch (line.toLowerCase()) {
         case 't':
-            ctx.changeMenu('planetTakeQty');
-            showPlanetTakePrompt(ctx);
+            ctx.changeMenu('planetTakeCommodity');
+            showPlanetTakeCommodityMenu(ctx);
             break;
         case 'l':
-            ctx.changeMenu('planetLeaveQty');
-            showPlanetLeavePrompt(ctx);
+            ctx.changeMenu('planetLeaveCommodity');
+            showPlanetLeaveCommodityMenu(ctx);
             break;
         case 'd':
             ctx.sendMsg({ type: ClientMsgType.PlanetDisplay });
             break;
-        case 'x':
+        case 'z':
             ctx.sendMsg({ type: ClientMsgType.DestroyPlanet });
             break;
         case 'q':
             ctx.sendMsg({ type: ClientMsgType.LeavePlanet });
+            break;
+    }
+}
+
+export function handlePlanetEarthInput(ctx: GameContext, line: string) {
+    switch (line.toLowerCase()) {
+        case 't':
+            ctx.setColonistCommodity('fuel');
+            ctx.changeMenu('planetTakeQty');
+            showPlanetTakePrompt(ctx);
+            break;
+        case 'l':
+            ctx.setColonistCommodity('fuel');
+            ctx.changeMenu('planetLeaveQty');
+            showPlanetLeavePrompt(ctx);
+            break;
+        case 'q':
+            ctx.sendMsg({ type: ClientMsgType.LeavePlanet });
+            break;
+    }
+}
+
+export function handlePlanetTakeCommodityInput(ctx: GameContext, line: string) {
+    switch (line.toLowerCase()) {
+        case 'f':
+            ctx.setColonistCommodity('fuel');
+            ctx.changeMenu('planetTakeQty');
+            showPlanetTakePrompt(ctx);
+            break;
+        case 'o':
+            ctx.setColonistCommodity('organics');
+            ctx.changeMenu('planetTakeQty');
+            showPlanetTakePrompt(ctx);
+            break;
+        case 'e':
+            ctx.setColonistCommodity('equipment');
+            ctx.changeMenu('planetTakeQty');
+            showPlanetTakePrompt(ctx);
+            break;
+        case 'q':
+            ctx.changeMenu('planet');
+            showPlanetMenuOptions(ctx);
+            break;
+    }
+}
+
+export function handlePlanetLeaveCommodityInput(ctx: GameContext, line: string) {
+    switch (line.toLowerCase()) {
+        case 'f':
+            ctx.setColonistCommodity('fuel');
+            ctx.changeMenu('planetLeaveQty');
+            showPlanetLeavePrompt(ctx);
+            break;
+        case 'o':
+            ctx.setColonistCommodity('organics');
+            ctx.changeMenu('planetLeaveQty');
+            showPlanetLeavePrompt(ctx);
+            break;
+        case 'e':
+            ctx.setColonistCommodity('equipment');
+            ctx.changeMenu('planetLeaveQty');
+            showPlanetLeavePrompt(ctx);
+            break;
+        case 'q':
+            ctx.changeMenu('planet');
+            showPlanetMenuOptions(ctx);
             break;
     }
 }
@@ -118,7 +190,7 @@ export function handlePlanetTakeQtyInput(ctx: GameContext, line: string) {
         ctx.term.writeln('Enter a positive number.');
         return;
     }
-    ctx.sendMsg({ type: ClientMsgType.TakeColonists, quantity: qty });
+    ctx.sendMsg({ type: ClientMsgType.TakeColonists, quantity: qty, commodity: ctx.colonistCommodity ?? 'fuel' });
 }
 
 export function handlePlanetLeaveQtyInput(ctx: GameContext, line: string) {
@@ -132,5 +204,5 @@ export function handlePlanetLeaveQtyInput(ctx: GameContext, line: string) {
         ctx.term.writeln('Enter a positive number.');
         return;
     }
-    ctx.sendMsg({ type: ClientMsgType.LeaveColonists, quantity: qty });
+    ctx.sendMsg({ type: ClientMsgType.LeaveColonists, quantity: qty, commodity: ctx.colonistCommodity ?? 'fuel' });
 }

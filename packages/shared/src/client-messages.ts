@@ -90,11 +90,13 @@ export type LandCommand = {
 export type TakeColonistsCommand = {
     type: typeof ClientMsgType.TakeColonists;
     quantity: number;
+    commodity: 'fuel' | 'organics' | 'equipment';
 };
 
 export type LeaveColonistsCommand = {
     type: typeof ClientMsgType.LeaveColonists;
     quantity: number;
+    commodity: 'fuel' | 'organics' | 'equipment';
 };
 
 export type DeployDronesInfoCommand = {
@@ -220,6 +222,10 @@ export type ListDeployedDronesCommand = {
     type: typeof ClientMsgType.ListDeployedDrones;
 };
 
+export type ListPlanetsCommand = {
+    type: typeof ClientMsgType.ListPlanets;
+};
+
 export type HyperspaceJumpCommand = {
     type: typeof ClientMsgType.HyperspaceJump;
     targetSector: number;
@@ -282,6 +288,7 @@ export type ClientCommand =
     | BuyPhotonTorpedoesCommand
     | BuyReconDronesCommand
     | ListDeployedDronesCommand
+    | ListPlanetsCommand
     | HyperspaceJumpCommand
     | ChangeMenuCommand
     | VisitedSectorsCommand;

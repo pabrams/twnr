@@ -112,12 +112,23 @@ export function createAdminLifecycleRoutes(
                         );
                     }
 
-                    // Seed Earth in Sector 1
+                    // Seed Earth in Sector 1 with starting colonists
                     await client.query(
                         `INSERT INTO planets (sector_id, name, type)
                          VALUES ($1, 'Earth', 'Terran')
                          ON CONFLICT DO NOTHING`,
                         [sector1Id],
+                    );
+                    const earthColRes = await client.query(
+                        `SELECT COALESCE(e.starting_earth_colonists, 1000000) as col
+                         FROM edits e WHERE e.id = $1`,
+                        [editId],
+                    );
+                    const earthCol = earthColRes.rows[0]?.col ?? 1000000;
+                    await client.query(
+                        `UPDATE planets SET colonists_fuel = $1
+                         WHERE sector_id = $2 AND name = 'Earth'`,
+                        [earthCol, sector1Id],
                     );
 
                     await client.query('COMMIT');
