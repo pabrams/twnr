@@ -2,8 +2,8 @@ import { ServerMsgType, ClientMsgType } from '@twnr/shared';
 import type { ServerResult } from '@twnr/shared';
 import type { GameContext } from './types.js';
 
-import { showSectorDisplay, showDockedMenu, showPrompt } from './display.js';
-import { showClass0Menu, showAutopilotPrompt } from './display-port.js';
+import { showSectorDisplay, showCommerceReport, showPrompt } from './display.js';
+import { showClass0Menu, showAutopilotPrompt, showTradeQtyPrompt, showNoTradeMessage } from './display-port.js';
 import {
     showPlanetMenu,
     showPlanetMenuOptions,
@@ -13,9 +13,38 @@ import {
 import { showDroneEncounter } from './display-combat.js';
 import { showStarbaseMenu, showHardwareMenu, showPlanetSelectMenu } from './display-starbase.js';
 import { renderVisitedSectorsResult, showComputerPrompt } from './display-computer.js';
-import { colors } from './constants.js';
+import { colors, PORT_CLASS_ACTIONS } from './constants.js';
+import type { TradeStep } from './types.js';
 
 const mg = colors.magenta;
+
+export function advanceTradeQueue(ctx: GameContext) {
+    const nextIdx = ctx.tradeStep + 1;
+    if (nextIdx >= ctx.tradeQueue.length) {
+        // All trades done — undock
+        ctx.setTradeQueue([]);
+        ctx.setTradeStep(0);
+        ctx.sendMsg({ type: ClientMsgType.Undock });
+        return;
+    }
+    ctx.setTradeStep(nextIdx);
+    const step = ctx.tradeQueue[nextIdx];
+    // Recalculate maxQty based on updated state
+    if (step.action === 'sell') {
+        step.maxQty = Math.min(ctx.tradeCargo[step.commodity], step.portTrading);
+        step.onBoard = ctx.tradeCargo[step.commodity];
+    } else {
+        step.maxQty = Math.min(ctx.tradeEmptyHolds, step.portTrading);
+        step.onBoard = ctx.tradeCargo[step.commodity];
+    }
+    if (step.maxQty <= 0) {
+        // Nothing to trade for this commodity, skip
+        advanceTradeQueue(ctx);
+        return;
+    }
+    ctx.setMode('tradeQty');
+    showTradeQtyPrompt(ctx, step.commodityLabel, step.action, step.portTrading, step.onBoard, step.maxQty);
+}
 
 export function setupConnection(ws: WebSocket, ctx: GameContext) {
     ws.addEventListener('open', () => {
@@ -83,7 +112,74 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     if (msg.port.class === 0) {
                         showClass0Menu(ctx);
                     } else {
-                        showDockedMenu(ctx);
+                        // Build commerce report and guided trade flow
+                        const actions = PORT_CLASS_ACTIONS[msg.port.class];
+                        if (!actions) break;
+                        const cargo = msg.cargo ?? { fuel: 0, organics: 0, equipment: 0, colonists: 0 };
+                        const credits = msg.credits ?? 0;
+                        const emptyHolds = msg.emptyHolds ?? 0;
+                        const commodities: { key: 'fuel' | 'organics' | 'equipment'; label: string; trading: number; max: number; price: number; onBoard: number }[] = [
+                            { key: 'fuel', label: 'Fuel', trading: msg.port.fuel, max: msg.port.fuelMax, price: msg.port.fuelPrice, onBoard: cargo.fuel },
+                            { key: 'organics', label: 'Organics', trading: msg.port.organics, max: msg.port.orgMax, price: msg.port.orgPrice, onBoard: cargo.organics },
+                            { key: 'equipment', label: 'Equipment', trading: msg.port.equipment, max: msg.port.equMax, price: msg.port.equPrice, onBoard: cargo.equipment },
+                        ];
+                        // Show commerce report
+                        showCommerceReport(
+                            ctx,
+                            msg.port.portName,
+                            msg.port.class,
+                            commodities.map((c) => ({
+                                name: c.label,
+                                key: c.key,
+                                status: actions[c.key] === 'B' ? 'Buying' : 'Selling',
+                                trading: c.trading,
+                                max: c.max,
+                                onBoard: c.onBoard,
+                            })),
+                            credits,
+                            emptyHolds,
+                        );
+                        // Build trade queue
+                        const queue: TradeStep[] = [];
+                        for (const c of commodities) {
+                            const dir = actions[c.key];
+                            if (dir === 'B' && c.onBoard > 0 && c.trading > 0) {
+                                // Port is buying, player has goods to sell
+                                queue.push({
+                                    commodity: c.key,
+                                    commodityLabel: c.label,
+                                    action: 'sell',
+                                    maxQty: Math.min(c.onBoard, c.trading),
+                                    portTrading: c.trading,
+                                    onBoard: c.onBoard,
+                                    price: c.price,
+                                });
+                            } else if (dir === 'S' && emptyHolds > 0 && c.trading > 0) {
+                                // Port is selling, player has empty holds
+                                queue.push({
+                                    commodity: c.key,
+                                    commodityLabel: c.label,
+                                    action: 'buy',
+                                    maxQty: Math.min(emptyHolds, c.trading),
+                                    portTrading: c.trading,
+                                    onBoard: c.onBoard,
+                                    price: c.price,
+                                });
+                            }
+                        }
+                        ctx.setTradeCredits(credits);
+                        ctx.setTradeEmptyHolds(emptyHolds);
+                        ctx.setTradeCargo(cargo);
+                        if (queue.length === 0) {
+                            showNoTradeMessage(ctx);
+                            ctx.sendMsg({ type: ClientMsgType.Undock });
+                        } else {
+                            ctx.setTradeQueue(queue);
+                            ctx.setTradeStep(0);
+                            const step = queue[0];
+                            ctx.setMode('tradeQty');
+                            showTradeQtyPrompt(ctx, step.commodityLabel, step.action, step.portTrading, step.onBoard, step.maxQty);
+                        }
                     }
                 }
                 break;
@@ -128,12 +224,14 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 break;
             case ServerMsgType.PortTransactionResult:
                 ctx.term.writeln(
-                    `\r\n${colors.boldGreen('Transaction complete.')} Credits: ${colors.boldYellow(String(msg.credits))}`,
+                    `\r\n${colors.boldGreen('Transaction complete.')} ${mg('Credits:')} ${colors.boldYellow(msg.credits.toLocaleString())}`,
                 );
-                ctx.term.writeln(
-                    `  Cargo — ${colors.boldYellow('Fuel')}: ${msg.cargo.fuel}, ${colors.boldYellow('Organics')}: ${msg.cargo.organics}, ${colors.boldYellow('Equipment')}: ${msg.cargo.equipment}, ${colors.boldYellow('Colonists')}: ${msg.cargo.colonists}`,
-                );
-                if (ctx.mode === 'docked') showDockedMenu(ctx);
+                // Update trade state from server response
+                ctx.setTradeCredits(msg.credits);
+                ctx.setTradeEmptyHolds(msg.emptyHolds);
+                ctx.setTradeCargo(msg.cargo);
+                // Advance to next trade step
+                advanceTradeQueue(ctx);
                 break;
             case ServerMsgType.ShipInfoResult:
                 ctx.setCurrentShipName(msg.shipName);
@@ -298,7 +396,6 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     `\r\n${colors.boldGreen('Ship exchanged!')} Now flying: ${colors.boldCyan(msg.shipName)}`,
                 );
                 ctx.term.writeln(`  ${colors.boldYellow('Credits')}: ${msg.credits}`);
-                if (ctx.mode === 'docked') showDockedMenu(ctx);
                 break;
             case ServerMsgType.PlanetInfoResult:
                 if (msg.hasPlanet) {
@@ -646,8 +743,10 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
             }
             case ServerMsgType.Error:
                 ctx.term.writeln(`\r\n${colors.boldRed('Error:')} ${colors.red(msg.message)}`);
-                if (ctx.mode === 'docked') showDockedMenu(ctx);
-                else if (ctx.mode === 'deployDronesQty') {
+                if (ctx.mode === 'tradeQty' || ctx.mode === 'tradeConfirm') {
+                    // Trade error — undock and return to sector
+                    ctx.sendMsg({ type: ClientMsgType.Undock });
+                } else if (ctx.mode === 'deployDronesQty') {
                     ctx.setMode('sector');
                     showPrompt(ctx);
                 } else if (ctx.mode === 'droneEncounter' || ctx.mode === 'droneAttackQty') {

@@ -8,6 +8,7 @@ import {
     showPlanetTakeCommodityMenu,
     showPlanetLeaveCommodityMenu,
     showPlanetMenuOptions,
+    showPlanetHelp,
 } from './display-planet.js';
 import { colors } from './constants.js';
 
@@ -109,6 +110,9 @@ export function handlePlanetInput(ctx: GameContext, line: string) {
             break;
         case 'q':
             ctx.sendMsg({ type: ClientMsgType.LeavePlanet });
+            break;
+        case '?':
+            showPlanetHelp(ctx);
             break;
     }
 }

@@ -19,10 +19,13 @@ export interface GeneratedPort {
     sector: number;
     class: number;
     fuel_qty: number;
+    fuel_max: number;
     fuel_price: number;
     org_qty: number;
+    org_max: number;
     org_price: number;
     equ_qty: number;
+    equ_max: number;
     equ_price: number;
 }
 

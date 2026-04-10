@@ -58,10 +58,13 @@ export function generateUniverse(options: BigBangOptions): BigBangResult {
             sector: sectorId,
             class: portClass,
             fuel_qty: fuel.qty,
+            fuel_max: fuel.qty,
             fuel_price: fuel.price,
             org_qty: org.qty,
+            org_max: org.qty,
             org_price: org.price,
             equ_qty: equ.qty,
+            equ_max: equ.qty,
             equ_price: equ.price,
         };
     }

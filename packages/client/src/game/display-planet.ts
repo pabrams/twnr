@@ -11,19 +11,28 @@ export function showPlanetMenu(ctx: GameContext, name: string, colonists: number
     ctx.term.writeln(
         `  ${colors.boldYellow('Colonists')}: ${colors.white(colonists.toLocaleString())}`,
     );
-    ctx.term.writeln('');
-    ctx.term.writeln(`  ${colors.cyan('T')}  Take colonists aboard`);
-    ctx.term.writeln(`  ${colors.cyan('L')}  Leave colonists on planet`);
-    ctx.term.writeln(`  ${colors.cyan('Q')}  Return to ship`);
+    showPlanetPrompt(ctx);
 }
 
 export function showPlanetMenuOptions(ctx: GameContext) {
+    showPlanetPrompt(ctx);
+}
+
+export function showPlanetHelp(ctx: GameContext) {
     ctx.term.writeln('');
     ctx.term.writeln(`  ${colors.cyan('T')}  Take colonists aboard`);
     ctx.term.writeln(`  ${colors.cyan('L')}  Leave colonists on planet`);
     ctx.term.writeln(`  ${colors.cyan('D')}  Planet Info`);
     ctx.term.writeln(`  ${colors.cyan('Z')}  Destroy Planet`);
     ctx.term.writeln(`  ${colors.cyan('Q')}  Leave Planet`);
+    showPlanetPrompt(ctx);
+}
+
+function showPlanetPrompt(ctx: GameContext) {
+    const mg = colors.magenta;
+    ctx.term.write(
+        `\r\n${mg('Planet command')} ${mg('(')}${colors.boldYellow('?')}=${colors.boldYellow('Help')}${mg(')')} ${colors.boldYellow('?')} `,
+    );
 }
 
 export function showEarthMenu(ctx: GameContext, colonistsFuel: number) {

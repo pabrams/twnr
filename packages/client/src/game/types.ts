@@ -55,4 +55,26 @@ export interface GameContext {
     setHardwarePrices: (p: HardwarePrices) => void;
     colonistCommodity: 'fuel' | 'organics' | 'equipment' | null;
     setColonistCommodity: (c: 'fuel' | 'organics' | 'equipment' | null) => void;
+    tradeQueue: TradeStep[];
+    tradeStep: number;
+    tradePendingQty: number;
+    tradeCredits: number;
+    tradeEmptyHolds: number;
+    tradeCargo: { fuel: number; organics: number; equipment: number; colonists: number };
+    setTradeQueue: (q: TradeStep[]) => void;
+    setTradeStep: (s: number) => void;
+    setTradePendingQty: (q: number) => void;
+    setTradeCredits: (c: number) => void;
+    setTradeEmptyHolds: (h: number) => void;
+    setTradeCargo: (c: { fuel: number; organics: number; equipment: number; colonists: number }) => void;
+}
+
+export interface TradeStep {
+    commodity: 'fuel' | 'organics' | 'equipment';
+    commodityLabel: string;
+    action: 'buy' | 'sell';
+    maxQty: number;
+    portTrading: number;
+    onBoard: number;
+    price: number;
 }

@@ -175,7 +175,7 @@ export function createAdminPortRoutes(
                 }
 
                 await pool.query(
-                    `UPDATE ports SET class = $1, fuel = $2, fuel_price = $3, organics = $4, org_price = $5, equipment = $6, equ_price = $7
+                    `UPDATE ports SET class = $1, fuel = $2, fuel_max = $2, fuel_price = $3, organics = $4, org_max = $4, org_price = $5, equipment = $6, equ_max = $6, equ_price = $7
                      WHERE id = $8`,
                     [
                         newClass,
@@ -285,8 +285,8 @@ export function createAdminPortRoutes(
                 }
 
                 await pool.query(
-                    `INSERT INTO ports (sector_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+                    `INSERT INTO ports (sector_id, class, fuel, fuel_max, fuel_price, organics, org_max, org_price, equipment, equ_max, equ_price)
+                     VALUES ($1, $2, $3, $3, $4, $5, $5, $6, $7, $7, $8)`,
                     [sectorDbId, cls, fuelQty, fp, orgQty, op, equQty, ep],
                 );
 

@@ -72,8 +72,8 @@ export function createAdminLifecycleRoutes(
                     // Insert trading ports
                     for (const p of result.ports) {
                         await client.query(
-                            `INSERT INTO ports (sector_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
-                             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+                            `INSERT INTO ports (sector_id, class, fuel, fuel_max, fuel_price, organics, org_max, org_price, equipment, equ_max, equ_price)
+                             VALUES ($1, $2, $3, $3, $4, $5, $5, $6, $7, $7, $8)`,
                             [
                                 sectorIdMap.get(p.sector),
                                 p.class,
@@ -90,10 +90,10 @@ export function createAdminLifecycleRoutes(
                     // Seed Class 0 port in Sector 1
                     const sector1Id = sectorIdMap.get(1)!;
                     await client.query(
-                        `INSERT INTO ports (sector_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
-                         VALUES ($1, 0, 0, 0, 0, 0, 0, 0)
+                        `INSERT INTO ports (sector_id, class, fuel, fuel_max, fuel_price, organics, org_max, org_price, equipment, equ_max, equ_price)
+                         VALUES ($1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
                          ON CONFLICT (sector_id) DO UPDATE
-                         SET class = 0, fuel = 0, fuel_price = 0, organics = 0, org_price = 0, equipment = 0, equ_price = 0`,
+                         SET class = 0, fuel = 0, fuel_max = 0, fuel_price = 0, organics = 0, org_max = 0, org_price = 0, equipment = 0, equ_max = 0, equ_price = 0`,
                         [sector1Id],
                     );
 
@@ -104,10 +104,10 @@ export function createAdminLifecycleRoutes(
                     );
                     if (starbaseRes.rows.length > 0) {
                         await client.query(
-                            `INSERT INTO ports (sector_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
-                             VALUES ($1, 9, 0, 0, 0, 0, 0, 0)
+                            `INSERT INTO ports (sector_id, class, fuel, fuel_max, fuel_price, organics, org_max, org_price, equipment, equ_max, equ_price)
+                             VALUES ($1, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0)
                              ON CONFLICT (sector_id) DO UPDATE
-                             SET class = 9, fuel = 0, fuel_price = 0, organics = 0, org_price = 0, equipment = 0, equ_price = 0`,
+                             SET class = 9, fuel = 0, fuel_max = 0, fuel_price = 0, organics = 0, org_max = 0, org_price = 0, equipment = 0, equ_max = 0, equ_price = 0`,
                             [starbaseRes.rows[0].id],
                         );
                     }
