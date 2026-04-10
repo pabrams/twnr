@@ -1,5 +1,7 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { rmSync } from 'node:fs';
+import { join } from 'node:path';
 import { readCSV, generateUniverse } from './bigbang-helpers.mjs';
 
 const VALID_PLANET_TYPES = new Set(['Earth-like', 'Volcanic', 'Glacial', 'Gaseous', 'Mountainous']);

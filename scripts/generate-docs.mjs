@@ -108,10 +108,10 @@ const clientInputMap = {
     ShipInfo:            [{ mode: 'sector', key: 'i (auto)' }],
     CargoInfo:           [{ mode: 'sector', key: 'i (auto)' }],
     PortTransaction:     [{ mode: 'docked', key: `b &lt;good&gt; ${Q}` }, { mode: 'docked', key: `s &lt;good&gt; ${Q}` }],
-    BuyDrones:         [{ mode: 'class0Qty', key: Q }],
+    BuyDrones:           [{ mode: 'class0Qty', key: Q }],
     BuyShields:          [{ mode: 'class0Qty', key: Q }],
     BuyHolds:            [{ mode: 'class0Qty', key: Q }],
-    BuyShipTradein:      [],  // no client UI
+    BuyShipTradein:      [],  // no client UI yet
     AttackShip:          [{ mode: 'attackDrones', key: Q }],
     Dock:                [{ mode: 'port', key: 't' }],
     Undock:              [{ mode: 'docked', key: 'q' }, { mode: 'class0', key: 'q' }],
@@ -119,19 +119,37 @@ const clientInputMap = {
     Land:                [{ mode: 'sector', key: 'l' }],
     TakeColonists:       [{ mode: 'planetTakeQty', key: Q }],
     LeaveColonists:      [{ mode: 'planetLeaveQty', key: Q }],
-    DeployDronesInfo:  [{ mode: 'sector', key: 'f' }],
-    DeployDrones:      [{ mode: 'deployDronesQty', key: Q }],
-    AttackSectorDrones:[{ mode: 'droneAttackQty', key: Q }],
-    RetreatFromDrones: [{ mode: 'droneEncounter', key: 'r' }],
-    UseTerraformDevice:  [],  // no client UI
-    LandOnPlanet:        [],  // no client UI
-    PlanetDisplay:       [],  // no client UI
-    DestroyPlanet:       [],  // no client UI
-    LeavePlanet:         [],  // no client UI
-    BuyPlanetBusters:    [],  // no client UI
-    BuyTerraformDevices: [],  // no client UI
-    DockStarbase:        [],  // no client UI
-    LeaveStarbase:       [],  // no client UI
+    DeployDronesInfo:    [{ mode: 'sector', key: 'f' }],
+    DeployDrones:        [{ mode: 'deployDronesQty', key: Q }],
+    AttackSectorDrones:  [{ mode: 'droneAttackQty', key: Q }],
+    RetreatFromDrones:   [{ mode: 'droneEncounter', key: 'r' }],
+    UseTerraformDevice:  [{ mode: 'sector', key: 'u' }],
+    LandOnPlanet:        [{ mode: 'planetSelect', key: N }],
+    PlanetDisplay:       [{ mode: 'planet', key: 'd' }],
+    DestroyPlanet:       [{ mode: 'planet', key: 'z' }],
+    LeavePlanet:         [{ mode: 'planet', key: 'q' }, { mode: 'planetEarth', key: 'q' }],
+    BuyPlanetBusters:    [{ mode: 'starbaseBuyQty', key: Q }],
+    BuyTerraformDevices: [{ mode: 'starbaseBuyQty', key: Q }],
+    DockStarbase:        [{ mode: 'port', key: 's' }],
+    LeaveStarbase:       [{ mode: 'starbase', key: 'q' }],
+    BuyHyperwarpDrive:   [],  // no client UI yet
+    BuyBuoys:            [{ mode: 'starbaseBuyQty', key: Q }],
+    BuyProximityMines:   [{ mode: 'starbaseBuyQty', key: Q }],
+    BuySeekerMines:      [{ mode: 'starbaseBuyQty', key: Q }],
+    BuyOrbitalMines:     [{ mode: 'starbaseBuyQty', key: Q }],
+    BuyMineDisruptors:   [{ mode: 'starbaseBuyQty', key: Q }],
+    BuyHyperspaceDrive:  [{ mode: 'starbaseHardware', key: '1' }, { mode: 'starbaseHardware', key: '2' }],
+    BuyVisualScanner:    [{ mode: 'starbaseHardware', key: 'v' }],
+    BuyPlanetScanner:    [{ mode: 'starbaseHardware', key: 'n' }],
+    BuyCloakingDevice:   [{ mode: 'starbaseBuyQty', key: Q }],
+    BuyCorbomite:        [{ mode: 'starbaseBuyQty', key: Q }],
+    BuyPhotonTorpedoes:  [{ mode: 'starbaseBuyQty', key: Q }],
+    BuyReconDrones:      [{ mode: 'starbaseBuyQty', key: Q }],
+    ListDeployedDrones:  [{ mode: 'sector', key: 'g' }],
+    ListPlanets:         [{ mode: 'computer', key: 'y' }],
+    HyperspaceJump:      [{ mode: 'hyperspaceJumpTarget', key: N }],
+    ChangeMenu:          [],  // internal message, no direct UI
+    VisitedSectors:      [{ mode: 'knownUniverse', key: 'e' }, { mode: 'knownUniverse', key: 'u' }],
 };
 
 // --- 4. Build the mapping table rows ---
