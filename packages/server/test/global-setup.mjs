@@ -22,8 +22,9 @@ const PROJECT_ROOT = join(dirname(__filename), '..');
 export const JWT_SECRET = 'test-jwt-secret';
 export const ADMIN_API_KEY = 'test-admin-key';
 export const TEST_DB = process.env.PGDATABASE || 'twnr_test';
-const TEST_PORT = process.env.PORT || '3000';
+export const TEST_PORT = process.env.PORT || '3000';
 export const BASE = `http://localhost:${TEST_PORT}`;
+export const WS_BASE = `ws://localhost:${TEST_PORT}`;
 
 export function testEnv() {
   return { ...process.env, PGDATABASE: TEST_DB };

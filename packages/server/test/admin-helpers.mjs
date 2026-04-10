@@ -7,7 +7,8 @@ const { Pool } = pg;
 export const JWT_SECRET = 'test-jwt-secret';
 export const ADMIN_API_KEY = 'test-admin-key';
 export const TEST_DB = 'twnr_test';
-export const BASE = 'http://localhost:3000';
+const TEST_PORT = process.env.PORT || '3000';
+export const BASE = `http://localhost:${TEST_PORT}`;
 
 export function createPool() {
   return new Pool({
@@ -68,7 +69,7 @@ export function startServer() {
         PGPASSWORD: process.env.PGPASSWORD || 'twnr_pass',
         JWT_SECRET,
         ADMIN_API_KEY,
-        WS_ALLOWED_ORIGINS: 'http://localhost:3000',
+        WS_ALLOWED_ORIGINS: BASE,
       },
     });
 

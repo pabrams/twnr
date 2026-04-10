@@ -7,12 +7,11 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import jwt from 'jsonwebtoken';
 import pg from 'pg';
-import { ensureServer, createPool as _gsCreatePool } from './global-setup.mjs';
+import { ensureServer, createPool as _gsCreatePool, BASE } from './global-setup.mjs';
 
 const { Pool } = pg;
 const SERVER_DIR = process.cwd();
 const JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret';
-const BASE = 'http://localhost:3000';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 

@@ -2,11 +2,10 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import jwt from 'jsonwebtoken';
-import { ensureServer, createPool as _gsCreatePool } from './global-setup.mjs';
+import { ensureServer, createPool as _gsCreatePool, BASE, WS_BASE } from './global-setup.mjs';
 import { ClientMsgType, ServerMsgType } from '@twnr/shared';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret';
-const BASE = 'http://localhost:3000';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -34,7 +33,7 @@ async function createTestUser(name, email, password) {
 async function connectWS(token, universeId) {
   const { default: WebSocket } = await import('ws');
   const headers = { Cookie: `twnr_auth=${token}` };
-  const url = `ws://localhost:3000/ws?universe=${universeId}`;
+  const url = `${WS_BASE}/ws?universe=${universeId}`;
 
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(url, { headers });
@@ -163,7 +162,7 @@ describe('WebSocket universe scoping', () => {
     const reg = await createTestUser(`wsnouniv_${ts}`, `wsnouniv_${ts}@test.com`, 'pass123');
     const { default: WebSocket } = await import('ws');
 
-    const ws = new WebSocket('ws://localhost:3000/ws', {
+    const ws = new WebSocket(`${WS_BASE}/ws`, {
       headers: { Cookie: `twnr_auth=${reg.token}` },
     });
 
@@ -187,7 +186,7 @@ describe('WebSocket universe scoping', () => {
     // Don't join the universe
     const { default: WebSocket } = await import('ws');
 
-    const ws = new WebSocket(`ws://localhost:3000/ws?universe=${univ.body.universeId}`, {
+    const ws = new WebSocket(`${WS_BASE}/ws?universe=${univ.body.universeId}`, {
       headers: { Cookie: `twnr_auth=${reg.token}` },
     });
 

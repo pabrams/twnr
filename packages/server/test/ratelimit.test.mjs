@@ -1,7 +1,7 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createTestUser, createTestPlayer } from './helpers.mjs';
-import { ensureServer, createPool } from './global-setup.mjs';
+import { ensureServer, createPool, BASE, WS_BASE } from './global-setup.mjs';
 import { ClientMsgType, ServerMsgType } from '@twnr/shared';
 
 const UNIVERSE_ID = 1;
@@ -10,7 +10,7 @@ let pool;
 let testPlayerToken;
 
 async function post(path, body) {
-  const res = await fetch(`http://localhost:3000${path}`, {
+  const res = await fetch(`${BASE}${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -71,7 +71,7 @@ describe('Rate Limiting', () => {
 
       // Connect with JWT cookie — universe param required
       const ws = await new Promise((resolve, reject) => {
-        const conn = new WebSocket(`ws://localhost:3000/ws?universe=${UNIVERSE_ID}`, {
+        const conn = new WebSocket(`${WS_BASE}/ws?universe=${UNIVERSE_ID}`, {
           headers: { Cookie: `twnr_auth=${testPlayerToken}` },
         });
         const timer = setTimeout(() => { conn.terminate(); reject(new Error('WS connect timeout')); }, 2000);

@@ -1,7 +1,7 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createTestUser, createTestPlayer, connectWS, closeWS, wsRequest } from './helpers.mjs';
-import { ensureServer, createPool } from './global-setup.mjs';
+import { ensureServer, createPool, BASE } from './global-setup.mjs';
 import { ClientMsgType, ServerMsgType } from '@twnr/shared';
 
 const UNIVERSE_ID = 1;
@@ -34,7 +34,7 @@ describe('Login restriction after ship destruction', () => {
     const email = `destroyed_${ts}@test.com`;
     const password = 'testpass123';
 
-    const regRes = await fetch('http://localhost:3000/api/auth/register', {
+    const regRes = await fetch(`${BASE}/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 'DestroyedPlayer', email, password }),
@@ -49,7 +49,7 @@ describe('Login restriction after ship destruction', () => {
       if (match) regToken = match[1];
     }
 
-    const joinRes = await fetch(`http://localhost:3000/api/universes/${UNIVERSE_ID}/join`, {
+    const joinRes = await fetch(`${BASE}/api/universes/${UNIVERSE_ID}/join`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Cookie: `twnr_auth=${regToken}` },
       body: JSON.stringify({ name: 'DestroyedPlayer' }),
@@ -59,7 +59,7 @@ describe('Login restriction after ship destruction', () => {
 
     await pool.query('UPDATE players SET ship_destroyed_date = NOW() WHERE id = $1', [playerId]);
 
-    const loginRes = await fetch('http://localhost:3000/api/auth/login', {
+    const loginRes = await fetch(`${BASE}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
@@ -85,7 +85,7 @@ describe('Login restriction after ship destruction', () => {
     const email = `refused_${ts}@test.com`;
     const password = 'testpass456';
 
-    const regRes = await fetch('http://localhost:3000/api/auth/register', {
+    const regRes = await fetch(`${BASE}/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 'RefusedPlayer', email, password }),
@@ -99,7 +99,7 @@ describe('Login restriction after ship destruction', () => {
       if (match) regToken = match[1];
     }
 
-    const joinRes = await fetch(`http://localhost:3000/api/universes/${UNIVERSE_ID}/join`, {
+    const joinRes = await fetch(`${BASE}/api/universes/${UNIVERSE_ID}/join`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Cookie: `twnr_auth=${regToken}` },
       body: JSON.stringify({ name: 'RefusedPlayer' }),
@@ -113,7 +113,7 @@ describe('Login restriction after ship destruction', () => {
       [playerId],
     );
 
-    const loginRes = await fetch('http://localhost:3000/api/auth/login', {
+    const loginRes = await fetch(`${BASE}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
@@ -132,7 +132,7 @@ describe('Login restriction after ship destruction', () => {
     const email = `newship_${ts}@test.com`;
     const password = 'testpass789';
 
-    const regRes = await fetch('http://localhost:3000/api/auth/register', {
+    const regRes = await fetch(`${BASE}/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 'NewShipPlayer', email, password }),
@@ -146,7 +146,7 @@ describe('Login restriction after ship destruction', () => {
       if (match) regToken = match[1];
     }
 
-    const joinRes = await fetch(`http://localhost:3000/api/universes/${UNIVERSE_ID}/join`, {
+    const joinRes = await fetch(`${BASE}/api/universes/${UNIVERSE_ID}/join`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Cookie: `twnr_auth=${regToken}` },
       body: JSON.stringify({ name: 'NewShipPlayer' }),
@@ -161,7 +161,7 @@ describe('Login restriction after ship destruction', () => {
       [playerId],
     );
 
-    const loginRes = await fetch('http://localhost:3000/api/auth/login', {
+    const loginRes = await fetch(`${BASE}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),

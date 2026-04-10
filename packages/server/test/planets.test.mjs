@@ -4,14 +4,13 @@ import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import WebSocket from 'ws';
-import { ensureServer, createPool, ADMIN_API_KEY, BASE } from './global-setup.mjs';
+import { ensureServer, createPool, ADMIN_API_KEY, BASE, WS_BASE } from './global-setup.mjs';
 import { createTestUser, createTestPlayer as createTestPlayerDB } from './helpers.mjs';
 import { ClientMsgType, ServerMsgType } from '@twnr/shared';
 
 const __filename = fileURLToPath(import.meta.url);
 const PROJECT_ROOT = join(dirname(__filename), '..');
 
-const WS_BASE = 'ws://localhost:3000';
 const CONFIG_SHIPS_DIR = join(PROJECT_ROOT, 'config', 'ships');
 const SERVER_MESSAGES_TS = join(PROJECT_ROOT, '..', 'shared', 'src', 'server-messages.ts');
 const MESSAGES_TS = join(PROJECT_ROOT, '..', 'shared', 'src', 'messages.ts');
