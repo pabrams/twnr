@@ -1,6 +1,8 @@
 import { ServerMsgType } from '@twnr/shared';
 import { players, sendEnvelope, getGraph, resolveSectorId } from '../game-state.js';
 import { pool } from '../db/index.js';
+import { getOnPlanetId, moveToSector, markSectorVisited } from '../db/queries/player.js';
+import { getShipFuel } from '../db/queries/ship.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 
 export async function handleBuyHyperwarpDrive(playerId: number): Promise<void> {
@@ -106,10 +108,8 @@ export async function handleHyperspaceJump(playerId: number, targetSector: numbe
         return;
     }
 
-    const playerRes = await pool.query('SELECT on_planet_id FROM players WHERE id = $1', [
-        playerId,
-    ]);
-    if (playerRes.rows[0]?.on_planet_id) {
+    const onPlanetId = await getOnPlanetId(playerId);
+    if (onPlanetId) {
         sendEnvelope(playerId, {
             type: ServerMsgType.Error,
             message: 'Cannot use this command while on a planet',
@@ -196,11 +196,8 @@ export async function handleHyperspaceJump(playerId: number, targetSector: numbe
     const fuelCost = pathHops * 3;
 
     // Check fuel
-    const cargoRes = await pool.query(
-        'SELECT fuel FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)',
-        [playerId],
-    );
-    if (cargoRes.rows.length === 0 || cargoRes.rows[0].fuel < fuelCost) {
+    const shipFuel = await getShipFuel(playerId);
+    if (shipFuel === undefined || shipFuel < fuelCost) {
         sendEnvelope(playerId, {
             type: ServerMsgType.Error,
             message: 'Insufficient fuel for hyperspace jump',
@@ -226,14 +223,8 @@ export async function handleHyperspaceJump(playerId: number, targetSector: numbe
     player.sector = targetSector;
     player.sectorId = targetSectorId;
     await Promise.all([
-        pool.query('UPDATE players SET current_sector_id = $1 WHERE id = $2', [
-            targetSectorId,
-            playerId,
-        ]),
-        pool.query(
-            'INSERT INTO visited_sectors (player_id, sector_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-            [playerId, targetSector],
-        ),
+        moveToSector(playerId, targetSectorId),
+        markSectorVisited(playerId, targetSectorId),
     ]);
 
     sendEnvelope(playerId, {
