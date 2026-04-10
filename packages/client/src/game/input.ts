@@ -3,7 +3,7 @@ import { ClientMsgType } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { showPrompt, showPortMenu, showHelp, showDockedMenu, showPlayerInfo } from './display.js';
 import { showAttackMenu } from './display-combat.js';
-import { showComputerActivated, showComputerDeactivated } from './display-computer.js';
+import { showComputerActivated } from './display-computer.js';
 import { showJettisonConfirm } from './display-port.js';
 import {
     handleAttackInput,
@@ -226,7 +226,9 @@ function handleInput(ctx: GameContext, line: string) {
             break;
         case 'v':
             if (ctx.starbaseSector != null) {
-                ctx.term.writeln(`\r\n${colors.boldCyan('Starbase')} is in sector ${colors.boldCyan(String(ctx.starbaseSector))}`);
+                ctx.term.writeln(
+                    `\r\n${colors.boldCyan('Starbase')} is in sector ${colors.boldCyan(String(ctx.starbaseSector))}`,
+                );
             } else {
                 ctx.term.writeln(`\r\n${colors.white('No Starbase in this universe.')}`);
             }

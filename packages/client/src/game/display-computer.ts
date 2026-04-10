@@ -1,5 +1,4 @@
-import { ClientMsgType, ServerMsgType } from '@twnr/shared';
-import type { ServerResult } from '@twnr/shared';
+import { ClientMsgType } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { colors } from './constants.js';
 
@@ -49,7 +48,10 @@ export function showUnexploredSectors(ctx: GameContext) {
     ctx.sendMsg({ type: ClientMsgType.VisitedSectors });
 }
 
-export function renderVisitedSectorsResult(ctx: GameContext, msg: { sectors: number[]; totalSectors: number }) {
+export function renderVisitedSectorsResult(
+    ctx: GameContext,
+    msg: { sectors: number[]; totalSectors: number },
+) {
     const mode = (ctx as any)._knownUniverseMode || 'explored';
     const visited = new Set(msg.sectors);
     if (mode === 'explored') {

@@ -1,7 +1,15 @@
 import { ClientMsgType } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { showPrompt } from './display.js';
-import { showStarbaseMenu, showStarbaseHelp, showStarbasePrompt, showHardwareMenu, showHardwareHelp, showHardwarePrompt, showBuyQtyPrompt } from './display-starbase.js';
+import {
+    showStarbaseMenu,
+    showStarbaseHelp,
+    showStarbasePrompt,
+    showHardwareMenu,
+    showHardwareHelp,
+    showHardwarePrompt,
+    showBuyQtyPrompt,
+} from './display-starbase.js';
 import { colors } from './constants.js';
 
 export function handleStarbaseInput(ctx: GameContext, line: string) {

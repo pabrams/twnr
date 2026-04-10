@@ -1,6 +1,5 @@
 import type { Terminal } from '@xterm/xterm';
 import type { ClientCommand, PortInfoResultObject, MenuEntry, HardwarePrices } from '@twnr/shared';
-import { colors } from './constants.js';
 
 export interface GameContext {
     term: Terminal;
@@ -55,4 +54,3 @@ export interface GameContext {
     hardwarePrices: HardwarePrices | null;
     setHardwarePrices: (p: HardwarePrices) => void;
 }
-
