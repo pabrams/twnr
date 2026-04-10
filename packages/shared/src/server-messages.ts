@@ -115,12 +115,16 @@ export type ShortestPathResultObject = {
 export type PortInfoResultObject = {
     type: typeof ServerMsgType.PortInfoResult;
     sectorId: number;
+    portName: string;
     class: number;
     fuel: number;
+    fuelMax: number;
     fuelPrice: number;
     organics: number;
+    orgMax: number;
     orgPrice: number;
     equipment: number;
+    equMax: number;
     equPrice: number;
 };
 
@@ -163,6 +167,7 @@ export type PortTransactionResultObject = {
     type: typeof ServerMsgType.PortTransactionResult;
     credits: number;
     cargo: { fuel: number; organics: number; equipment: number; colonists: number };
+    emptyHolds: number;
     turnsUsed?: number;
 };
 
@@ -207,6 +212,9 @@ export type DockResultObject = {
     type: typeof ServerMsgType.DockResult;
     docked: boolean;
     port?: PortInfoResultObject;
+    credits?: number;
+    cargo?: { fuel: number; organics: number; equipment: number; colonists: number };
+    emptyHolds?: number;
 };
 
 export type PlanetInfoResultObject = {

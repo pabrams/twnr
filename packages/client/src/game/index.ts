@@ -2,7 +2,7 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { ClientMsgType } from '@twnr/shared';
 import type { ClientCommand, PortInfoResultObject, MenuEntry, HardwarePrices } from '@twnr/shared';
-import type { GameContext } from './types.js';
+import type { GameContext, TradeStep } from './types.js';
 import { setupConnection } from './connection.js';
 import { setupInput } from './input.js';
 
@@ -50,6 +50,12 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
     let starbaseSector: number | null = null;
     let hardwarePrices: HardwarePrices | null = null;
     let colonistCommodity: 'fuel' | 'organics' | 'equipment' | null = null;
+    let tradeQueue: TradeStep[] = [];
+    let tradeStepIdx = 0;
+    let tradePendingQty = 0;
+    let tradeCredits = 0;
+    let tradeEmptyHolds = 0;
+    let tradeCargo = { fuel: 0, organics: 0, equipment: 0, colonists: 0 };
     let debug = false;
 
     function sendMsg(msg: ClientCommand) {
@@ -215,6 +221,42 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
         },
         setColonistCommodity: (c) => {
             colonistCommodity = c;
+        },
+        get tradeQueue() {
+            return tradeQueue;
+        },
+        get tradeStep() {
+            return tradeStepIdx;
+        },
+        get tradePendingQty() {
+            return tradePendingQty;
+        },
+        get tradeCredits() {
+            return tradeCredits;
+        },
+        get tradeEmptyHolds() {
+            return tradeEmptyHolds;
+        },
+        get tradeCargo() {
+            return tradeCargo;
+        },
+        setTradeQueue: (q) => {
+            tradeQueue = q;
+        },
+        setTradeStep: (s) => {
+            tradeStepIdx = s;
+        },
+        setTradePendingQty: (q) => {
+            tradePendingQty = q;
+        },
+        setTradeCredits: (c) => {
+            tradeCredits = c;
+        },
+        setTradeEmptyHolds: (h) => {
+            tradeEmptyHolds = h;
+        },
+        setTradeCargo: (c) => {
+            tradeCargo = c;
         },
     };
 

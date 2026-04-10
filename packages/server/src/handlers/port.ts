@@ -4,6 +4,7 @@ import {
     sendEnvelope,
     getPlayerUniverseId,
     PORT_CLASS_ACTIONS,
+    portName,
     getPortForSector,
     getWarpRefs,
     getSectorDrones,
@@ -22,7 +23,7 @@ export async function handlePortInfo(playerId: number, sectorId: number): Promis
     if (universeId === undefined) return;
 
     const portRes = await pool.query(
-        `SELECT s.sector_number as sector_id, p.class, p.fuel, p.fuel_price, p.organics, p.org_price, p.equipment, p.equ_price
+        `SELECT s.sector_number as sector_id, p.class, p.fuel, p.fuel_max, p.fuel_price, p.organics, p.org_max, p.org_price, p.equipment, p.equ_max, p.equ_price
          FROM ports p JOIN sectors s ON p.sector_id = s.id
          WHERE s.sector_number = $1 AND s.universe_id = $2`,
         [sectorId, universeId],
@@ -36,12 +37,16 @@ export async function handlePortInfo(playerId: number, sectorId: number): Promis
     sendEnvelope(playerId, {
         type: ServerMsgType.PortInfoResult,
         sectorId: p.sector_id,
+        portName: portName(sectorId),
         class: p.class,
         fuel: p.fuel,
+        fuelMax: p.fuel_max,
         fuelPrice: p.fuel_price,
         organics: p.organics,
+        orgMax: p.org_max,
         orgPrice: p.org_price,
         equipment: p.equipment,
+        equMax: p.equ_max,
         equPrice: p.equ_price,
     });
 }
@@ -63,12 +68,20 @@ export async function handleDock(playerId: number): Promise<void> {
         return;
     }
 
-    const portRes = await pool.query(
-        `SELECT p.class, p.fuel, p.fuel_price, p.organics, p.org_price, p.equipment, p.equ_price
-         FROM ports p JOIN sectors s ON p.sector_id = s.id
-         WHERE s.sector_number = $1 AND s.universe_id = $2`,
-        [player.sector, player.universeId],
-    );
+    const [portRes, cargoRes] = await Promise.all([
+        pool.query(
+            `SELECT p.class, p.fuel, p.fuel_max, p.fuel_price, p.organics, p.org_max, p.org_price, p.equipment, p.equ_max, p.equ_price
+             FROM ports p JOIN sectors s ON p.sector_id = s.id
+             WHERE s.sector_number = $1 AND s.universe_id = $2`,
+            [player.sector, player.universeId],
+        ),
+        pool.query(
+            `SELECT s.fuel, s.organics, s.equipment, s.colonists, s.holds as cargo_limit, pl.credits
+             FROM players pl JOIN ships s ON pl.ship_id = s.id
+             WHERE pl.id = $1`,
+            [playerId],
+        ),
+    ]);
     if (portRes.rows.length === 0) {
         sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'No port in this sector' });
         return;
@@ -78,6 +91,10 @@ export async function handleDock(playerId: number): Promise<void> {
     await pool.query('UPDATE players SET docked = TRUE WHERE id = $1', [playerId]);
 
     const p = portRes.rows[0];
+    const cargo = cargoRes.rows[0];
+    const used = (cargo?.fuel ?? 0) + (cargo?.organics ?? 0) + (cargo?.equipment ?? 0) + (cargo?.colonists ?? 0);
+    const emptyHolds = Math.max(0, (cargo?.cargo_limit ?? 0) - used);
+
     await setPlayerMenu(playerId, p.class === 0 ? 'class0' : 'docked');
     sendEnvelope(playerId, {
         type: ServerMsgType.DockResult,
@@ -85,14 +102,26 @@ export async function handleDock(playerId: number): Promise<void> {
         port: {
             type: ServerMsgType.PortInfoResult,
             sectorId: player.sector,
+            portName: portName(player.sector),
             class: p.class,
             fuel: p.fuel,
+            fuelMax: p.fuel_max,
             fuelPrice: p.fuel_price,
             organics: p.organics,
+            orgMax: p.org_max,
             orgPrice: p.org_price,
             equipment: p.equipment,
+            equMax: p.equ_max,
             equPrice: p.equ_price,
         },
+        credits: cargo?.credits ?? 0,
+        cargo: {
+            fuel: cargo?.fuel ?? 0,
+            organics: cargo?.organics ?? 0,
+            equipment: cargo?.equipment ?? 0,
+            colonists: cargo?.colonists ?? 0,
+        },
+        emptyHolds,
     });
 }
 
@@ -309,6 +338,7 @@ export async function handlePortTransaction(
 
             cargo[good] += qty;
             cargo.credits -= cost;
+            const usedAfterBuy = cargo.fuel + cargo.organics + cargo.equipment + cargo.colonists;
             sendEnvelope(playerId, {
                 type: ServerMsgType.PortTransactionResult,
                 credits: cargo.credits,
@@ -318,6 +348,7 @@ export async function handlePortTransaction(
                     equipment: cargo.equipment,
                     colonists: cargo.colonists,
                 },
+                emptyHolds: Math.max(0, cargo.cargo_limit - usedAfterBuy),
                 turnsUsed: turnResult.turnsUsed,
             });
         } else {
@@ -330,8 +361,16 @@ export async function handlePortTransaction(
                 });
                 return;
             }
+            if (port[good] < qty) {
+                await client.query('ROLLBACK');
+                sendEnvelope(playerId, {
+                    type: ServerMsgType.Error,
+                    message: 'Port cannot buy that many',
+                });
+                return;
+            }
 
-            await client.query(`UPDATE ports SET ${col} = ${col} + $1 WHERE id = $2`, [
+            await client.query(`UPDATE ports SET ${col} = ${col} - $1 WHERE id = $2`, [
                 qty,
                 port.port_id,
             ]);
@@ -347,6 +386,7 @@ export async function handlePortTransaction(
 
             cargo[good] -= qty;
             cargo.credits += revenue;
+            const usedAfterSell = cargo.fuel + cargo.organics + cargo.equipment + cargo.colonists;
             sendEnvelope(playerId, {
                 type: ServerMsgType.PortTransactionResult,
                 credits: cargo.credits,
@@ -356,6 +396,7 @@ export async function handlePortTransaction(
                     equipment: cargo.equipment,
                     colonists: cargo.colonists,
                 },
+                emptyHolds: Math.max(0, cargo.cargo_limit - usedAfterSell),
             });
         }
     } catch (err) {

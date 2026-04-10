@@ -55,6 +55,41 @@ export function showClass0QtyPrompt(ctx: GameContext, buyType: string) {
     ctx.term.write(`\r\n${colors.cyan(`How many ${buyType}?`)} `);
 }
 
+export function showTradeQtyPrompt(
+    ctx: GameContext,
+    commodity: string,
+    action: 'buy' | 'sell',
+    portTrading: number,
+    onBoard: number,
+    maxQty: number,
+) {
+    const actionWord = action === 'buy' ? 'selling' : 'buying';
+    ctx.term.writeln('');
+    ctx.term.writeln(
+        `${mg('We are')} ${action === 'buy' ? colors.boldRed(actionWord) : colors.boldGreen(actionWord)} ${mg('up to')} ${colors.boldYellow(String(portTrading))}${mg('.')} ${mg('You have')} ${colors.boldYellow(String(onBoard))} ${mg('in your holds.')}`,
+    );
+    ctx.term.write(
+        `${mg('How many holds of')} ${colors.boldCyan(commodity)} ${mg('do you want to')} ${action === 'buy' ? colors.boldRed('buy') : colors.boldGreen('sell')} ${mg('[')}${colors.boldYellow(String(maxQty))}${mg(']?')} `,
+    );
+}
+
+export function showTradeConfirmPrompt(ctx: GameContext, totalPrice: number, action: 'buy' | 'sell') {
+    const verb = action === 'buy' ? 'sell' : 'buy';
+    ctx.term.writeln(
+        `\r\n${mg("We'll")} ${verb} ${mg('them for')} ${colors.boldYellow(totalPrice.toLocaleString())} ${mg('credits.')}`,
+    );
+    ctx.term.write(
+        `${mg('Accept?')} ${mg('(')}${colors.boldYellow('Y')}${mg('/')}${colors.boldYellow('N')}${mg(')')} `,
+    );
+}
+
+export function showNoTradeMessage(ctx: GameContext) {
+    ctx.term.writeln('');
+    ctx.term.writeln(
+        colors.white("You don't have anything they want, and they don't have anything you need."),
+    );
+}
+
 export function showJettisonConfirm(ctx: GameContext) {
     ctx.setMode('jettisonConfirm');
     ctx.term.write(

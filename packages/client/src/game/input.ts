@@ -1,10 +1,11 @@
 import type { Terminal } from '@xterm/xterm';
 import { ClientMsgType } from '@twnr/shared';
 import type { GameContext } from './types.js';
-import { showPrompt, showPortMenu, showHelp, showDockedMenu, showPlayerInfo } from './display.js';
+import { showPrompt, showPortMenu, showHelp, showPlayerInfo } from './display.js';
 import { showAttackMenu } from './display-combat.js';
 import { showComputerActivated } from './display-computer.js';
-import { showJettisonConfirm } from './display-port.js';
+import { showJettisonConfirm, showTradeConfirmPrompt } from './display-port.js';
+import { advanceTradeQueue } from './connection.js';
 import {
     handleAttackInput,
     handleAttackDronesInput,
@@ -117,8 +118,11 @@ function handleInput(ctx: GameContext, line: string) {
         case 'port':
             handlePortInput(ctx, line);
             return;
-        case 'docked':
-            handleDockedInput(ctx, line);
+        case 'tradeQty':
+            handleTradeQtyInput(ctx, line);
+            return;
+        case 'tradeConfirm':
+            handleTradeConfirmInput(ctx, line);
             return;
         case 'attack':
             handleAttackInput(ctx, line);
@@ -288,46 +292,47 @@ function handlePortInput(ctx: GameContext, line: string) {
     }
 }
 
-function handleDockedInput(ctx: GameContext, line: string) {
-    const [cmd, ...args] = line.split(/\s+/);
-    switch (cmd.toLowerCase()) {
-        case 'b':
-        case 'buy': {
-            const good = args[0]?.toLowerCase();
-            const qty = parseInt(args[1], 10);
-            if (!good || isNaN(qty) || qty <= 0) {
-                ctx.term.writeln('Usage: b <fuel|organics|equipment> <quantity>');
+function handleTradeQtyInput(ctx: GameContext, line: string) {
+    const step = ctx.tradeQueue[ctx.tradeStep];
+    if (!step) return;
+    const trimmed = line.trim();
+    // Empty input = accept default (maxQty)
+    const qty = trimmed === '' ? step.maxQty : parseInt(trimmed, 10);
+    if (isNaN(qty) || qty < 0) return;
+    if (qty === 0) {
+        // Skip this commodity
+        advanceTradeQueue(ctx);
+        return;
+    }
+    const clampedQty = Math.min(qty, step.maxQty);
+    ctx.setTradePendingQty(clampedQty);
+    ctx.term.writeln(`${colors.white(`Agreed, ${clampedQty.toLocaleString()} units.`)}`);
+    const totalPrice = clampedQty * step.price;
+    ctx.setMode('tradeConfirm');
+    showTradeConfirmPrompt(ctx, totalPrice, step.action);
+}
+
+function handleTradeConfirmInput(ctx: GameContext, line: string) {
+    const step = ctx.tradeQueue[ctx.tradeStep];
+    if (!step) return;
+    switch (line.toLowerCase()) {
+        case 'y': {
+            const totalPrice = ctx.tradePendingQty * step.price;
+            if (step.action === 'buy' && ctx.tradeCredits < totalPrice) {
+                ctx.term.writeln(`\r\n${colors.boldRed('Insufficient credits!')}`);
+                advanceTradeQueue(ctx);
                 return;
             }
             ctx.sendMsg({
                 type: ClientMsgType.PortTransaction,
-                good,
-                quantity: qty,
-                action: 'buy',
+                good: step.commodity,
+                quantity: ctx.tradePendingQty,
+                action: step.action,
             });
             break;
         }
-        case 's':
-        case 'sell': {
-            const good = args[0]?.toLowerCase();
-            const qty = parseInt(args[1], 10);
-            if (!good || isNaN(qty) || qty <= 0) {
-                ctx.term.writeln('Usage: s <fuel|organics|equipment> <quantity>');
-                return;
-            }
-            ctx.sendMsg({
-                type: ClientMsgType.PortTransaction,
-                good,
-                quantity: qty,
-                action: 'sell',
-            });
+        case 'n':
+            advanceTradeQueue(ctx);
             break;
-        }
-        case 'q':
-        case 'leave':
-            ctx.sendMsg({ type: ClientMsgType.Undock });
-            break;
-        default:
-            showDockedMenu(ctx);
     }
 }

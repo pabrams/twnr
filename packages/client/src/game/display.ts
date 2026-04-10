@@ -136,37 +136,36 @@ export function showPortMenu(ctx: GameContext) {
     ctx.term.writeln(`  ${colors.cyan('Q')}  Never mind`);
 }
 
-export function showDockedMenu(ctx: GameContext) {
-    if (!ctx.dockedPortInfo) return;
-    const p = ctx.dockedPortInfo;
-    const actions = PORT_CLASS_ACTIONS[p.class];
+export function showCommerceReport(
+    ctx: GameContext,
+    portName: string,
+    portClass: number,
+    goods: { name: string; key: string; status: string; trading: number; max: number; onBoard: number }[],
+    credits: number,
+    emptyHolds: number,
+) {
     ctx.term.writeln('');
     ctx.term.writeln(
-        `${colors.boldGreen('Docked')} at ${colors.boldCyan(`Port ${p.sectorId}`)}${colors.boldYellow(',')} ${mg('Class')} ${colors.boldCyan(String(p.class))}`,
+        `${colors.boldGreen('Commerce report for')} ${colors.boldCyan(portName)}`,
     );
-    if (actions) {
+    ctx.term.writeln('');
+    ctx.term.writeln(
+        ` ${colors.boldWhite('Items'.padEnd(12))}${colors.boldWhite('Status'.padEnd(10))}${colors.boldWhite('Trading'.padStart(7))} ${colors.boldWhite('% of max'.padStart(8))} ${colors.boldWhite('OnBoard'.padStart(7))}`,
+    );
+    ctx.term.writeln(
+        ` ${colors.white('-----'.padEnd(12))}${colors.white('------'.padEnd(10))}${colors.white('-------'.padStart(7))} ${colors.white('--------'.padStart(8))} ${colors.white('-------'.padStart(7))}`,
+    );
+    for (const g of goods) {
+        const pct = g.max > 0 ? Math.round((g.trading / g.max) * 100) : 0;
+        const statusColor = g.status === 'Buying' ? colors.boldGreen(g.status.padEnd(10)) : colors.boldRed(g.status.padEnd(10));
         ctx.term.writeln(
-            `  ${colors.boldWhite('Commodity'.padEnd(14))} ${colors.boldWhite('Price'.padStart(5))}   ${colors.boldWhite('Stock'.padStart(5))}   ${colors.boldWhite('Port')}`,
+            ` ${colors.boldYellow(g.name.padEnd(12))}${statusColor}${colors.white(String(g.trading).padStart(7))} ${colors.white((pct + '%').padStart(8))} ${colors.white(String(g.onBoard).padStart(7))}`,
         );
-        const goods = [
-            { name: 'Fuel', key: 'fuel', price: p.fuelPrice, stock: p.fuel },
-            { name: 'Organics', key: 'organics', price: p.orgPrice, stock: p.organics },
-            { name: 'Equipment', key: 'equipment', price: p.equPrice, stock: p.equipment },
-        ];
-        for (const g of goods) {
-            const action = actions[g.key];
-            const dir = action === 'B' ? colors.boldGreen('Buying') : colors.boldRed('Selling');
-            ctx.term.writeln(
-                `  ${colors.boldYellow(g.name.padEnd(14))} ${colors.white(String(g.price).padStart(5))}   ${colors.white(String(g.stock).padStart(5))}   ${dir}`,
-            );
-        }
-        ctx.term.writeln('');
-        ctx.term.writeln(`  ${colors.cyan('B')} <good> <qty>  Buy from port`);
-        ctx.term.writeln(`  ${colors.cyan('S')} <good> <qty>  Sell to port`);
-    } else {
-        ctx.term.writeln(`  ${colors.cyan('This is a special port.')}`);
     }
-    ctx.term.writeln(`  ${colors.cyan('Q')}  Leave port`);
+    ctx.term.writeln('');
+    ctx.term.writeln(
+        `${mg('You have')} ${colors.boldYellow(credits.toLocaleString())} ${mg('credits and')} ${colors.boldYellow(String(emptyHolds))} ${mg('empty cargo holds.')}`,
+    );
 }
 
 export function showPlayerInfo(ctx: GameContext) {
