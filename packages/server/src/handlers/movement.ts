@@ -6,7 +6,7 @@ import {
     broadcastTo,
     getGraph,
     getPortForSector,
-    getVisitedSectors,
+    getVisitedWarpDestinations,
     getPlayerUniverseId,
     getSectorDrones,
     setPlayerMenu,
@@ -117,7 +117,7 @@ export async function handleMove(playerId: number, targetSector: number): Promis
 
     const [port, visitedSectors, sectorDrones, planetsRes] = await Promise.all([
         getPortForSector(targetSector, universeId),
-        getVisitedSectors(playerId),
+        getVisitedWarpDestinations(playerId, targetSector, universeId),
         getSectorDrones(targetSector, universeId),
         pool.query(
             `SELECT pl.id, pl.name, pl.type FROM planets pl
@@ -202,7 +202,7 @@ export async function handleSectorDisplay(playerId: number): Promise<void> {
     const [warps, port, visitedSectors, sectorDrones, planetsRes] = await Promise.all([
         getGraph(universeId),
         getPortForSector(currentSector, universeId),
-        getVisitedSectors(playerId),
+        getVisitedWarpDestinations(playerId, currentSector, universeId),
         getSectorDrones(currentSector, universeId),
         pool.query(
             `SELECT pl.id, pl.name, pl.type FROM planets pl
@@ -290,7 +290,7 @@ export async function handleShortestPath(
     }
 
     if (from === to) {
-        sendEnvelope(playerId, { type: ServerMsgType.ShortestPathResult, path: [from], hops: 0 });
+        sendEnvelope(playerId, { type: ServerMsgType.ShortestPathResult, path: [from], hops: 0, visitedSectors: [from] });
         return;
     }
 
@@ -305,11 +305,21 @@ export async function handleShortestPath(
         for (const neighbor of neighbors) {
             if (neighbor === to) {
                 const finalPath = [...path, neighbor];
+                // Query which sectors in the path the player has visited
+                const visitedRes = await pool.query(
+                    `SELECT s.sector_number FROM visited_sectors vs
+                     JOIN sectors s ON vs.sector_id = s.id
+                     WHERE vs.player_id = $1 AND s.universe_id = $2
+                       AND s.sector_number = ANY($3::int[])`,
+                    [playerId, universeId, finalPath],
+                );
+                const visitedSectors = visitedRes.rows.map((r: any) => r.sector_number);
                 await setPlayerMenu(playerId, 'autopilotPrompt');
                 sendEnvelope(playerId, {
                     type: ServerMsgType.ShortestPathResult,
                     path: finalPath,
                     hops: finalPath.length - 1,
+                    visitedSectors,
                 });
                 return;
             }

@@ -230,6 +230,10 @@ export type ChangeMenuCommand = {
     menu: string;
 };
 
+export type VisitedSectorsCommand = {
+    type: typeof ClientMsgType.VisitedSectors;
+};
+
 export type ClientCommand =
     | MoveCommand
     | SectorDisplayCommand
@@ -279,4 +283,5 @@ export type ClientCommand =
     | BuyReconDronesCommand
     | ListDeployedDronesCommand
     | HyperspaceJumpCommand
-    | ChangeMenuCommand;
+    | ChangeMenuCommand
+    | VisitedSectorsCommand;

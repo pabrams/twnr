@@ -1,5 +1,6 @@
 import { ClientMsgType, ServerMsgType } from '@twnr/shared';
-import { players, sendEnvelope } from '../game-state.js';
+import { players, sendEnvelope, getVisitedSectors } from '../game-state.js';
+import { pool } from '../db/index.js';
 import { handleChangeMenu } from './menu.js';
 import { handleMove, handleSectorDisplay, handleWarpsOut, handleShortestPath } from './movement.js';
 import {
@@ -151,15 +152,32 @@ export async function handleMessage(playerId: number, data: any): Promise<void> 
             return handleHyperspaceJump(playerId, data.targetSector);
         case ClientMsgType.ChangeMenu:
             return handleChangeMenu(playerId, data.menu);
+        case ClientMsgType.VisitedSectors:
+            return handleVisitedSectors(playerId);
         default:
             sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Unknown message type' });
     }
+}
+
+async function handleVisitedSectors(playerId: number): Promise<void> {
+    const player = players[playerId];
+    if (!player) return;
+    const sectors = await getVisitedSectors(playerId);
+    const totalRes = await pool.query(
+        'SELECT COUNT(*)::int FROM sectors WHERE universe_id = $1',
+        [player.universeId],
+    );
+    sendEnvelope(playerId, {
+        type: ServerMsgType.VisitedSectorsResult,
+        sectors,
+        totalSectors: totalRes.rows[0].count,
+    });
 }
 
 function handlePlayersOnline(playerId: number): void {
     const callerUniverse = players[playerId]?.universeId;
     const online = Object.entries(players)
         .filter(([, p]) => p.universeId === callerUniverse)
-        .map(([id, p]) => ({ id: Number(id), name: p.name, sector: p.sector }));
+        .map(([id, p]) => ({ id: Number(id), name: p.name }));
     sendEnvelope(playerId, { type: ServerMsgType.PlayersOnlineResult, players: online });
 }

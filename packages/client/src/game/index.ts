@@ -144,9 +144,6 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
         setCurrentPort: (p) => {
             currentPort = p;
         },
-        setVisitedSet: (s) => {
-            visitedSet = s;
-        },
         setDockedPortInfo: (p) => {
             dockedPortInfo = p;
         },

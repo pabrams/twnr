@@ -70,7 +70,7 @@ export type PlayerLeftEvent = {
 
 export type PlayersOnlineResultObject = {
     type: typeof ServerMsgType.PlayersOnlineResult;
-    players: { id: number; name: string; sector: number }[];
+    players: { id: number; name: string }[];
 };
 
 export type NoShipResultObject = {
@@ -97,6 +97,7 @@ export type ShortestPathResultObject = {
     type: typeof ServerMsgType.ShortestPathResult;
     path: number[];
     hops: number;
+    visitedSectors: number[];
 };
 
 export type PortInfoResultObject = {
@@ -446,6 +447,12 @@ export type MenuChangedResultObject = {
     type: typeof ServerMsgType.MenuChanged;
 };
 
+export type VisitedSectorsResultObject = {
+    type: typeof ServerMsgType.VisitedSectorsResult;
+    sectors: number[];
+    totalSectors: number;
+};
+
 export type ServerResult =
     | WelcomeEvent
     | PlayerMovedEvent
@@ -503,4 +510,5 @@ export type ServerResult =
     | ListDeployedDronesResultObject
     | HyperspaceJumpResultObject
     | MenuChangedResultObject
+    | VisitedSectorsResultObject
     | ErrorResultObject;

@@ -6,7 +6,7 @@ import {
     PORT_CLASS_ACTIONS,
     getGraph,
     getPortForSector,
-    getVisitedSectors,
+    getVisitedWarpDestinations,
     getSectorDrones,
     setPlayerMenu,
 } from '../game-state.js';
@@ -120,7 +120,7 @@ export async function handleUndock(playerId: number): Promise<void> {
     const [warps, port, visitedSectors, sectorDrones, planetsRes] = await Promise.all([
         getGraph(universeId),
         getPortForSector(currentSector, universeId),
-        getVisitedSectors(playerId),
+        getVisitedWarpDestinations(playerId, currentSector, universeId),
         getSectorDrones(currentSector, universeId),
         pool.query(
             `SELECT pl.id, pl.name, pl.type FROM planets pl
@@ -420,7 +420,7 @@ export async function handleLeaveStarbase(playerId: number): Promise<void> {
     const [warps, port, visitedSectors, sectorDrones, planetsRes] = await Promise.all([
         getGraph(universeId),
         getPortForSector(currentSector, universeId),
-        getVisitedSectors(playerId),
+        getVisitedWarpDestinations(playerId, currentSector, universeId),
         getSectorDrones(currentSector, universeId),
         pool.query(
             `SELECT pl.id, pl.name, pl.type FROM planets pl

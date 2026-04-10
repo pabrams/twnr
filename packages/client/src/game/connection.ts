@@ -1,12 +1,13 @@
 import { ServerMsgType, ClientMsgType } from '@twnr/shared';
 import type { ServerResult } from '@twnr/shared';
 import type { GameContext } from './types.js';
-import { colorSector } from './types.js';
+
 import { showSectorDisplay, showDockedMenu, showPrompt } from './display.js';
 import { showClass0Menu, showAutopilotPrompt } from './display-port.js';
 import { showPlanetMenu, showNoPlanet } from './display-planet.js';
 import { showDroneEncounter } from './display-combat.js';
 import { showStarbaseMenu, showHardwareMenu, showPlanetSelectMenu } from './display-starbase.js';
+import { renderVisitedSectorsResult } from './display-computer.js';
 import { colors } from './constants.js';
 
 const mg = colors.magenta;
@@ -153,7 +154,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 for (const p of msg.players) {
                     const tag = p.id === ctx.playerId ? colors.boldGreen(' (you)') : '';
                     ctx.term.writeln(
-                        `  ${colors.boldYellow(p.name)} in sector ${colorSector(p.sector, ctx.visitedSet)}${tag}`,
+                        `  ${colors.boldYellow(p.name)}${tag}`,
                     );
                 }
                 showPrompt(ctx);
@@ -185,7 +186,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                         break;
                     case 'encounter': {
                         ctx.setSectorPlayers(msg.players);
-                        if (msg.visitedSectors) ctx.setVisitedSet(new Set(msg.visitedSectors));
+                        ctx.visitedSet.add(msg.sector);
                         ctx.setCurrentSector(msg.sector);
                         ctx.setCurrentPort(msg.port ?? null);
                         ctx.setEncounterOwnerName(msg.ownerName);
@@ -235,7 +236,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 break;
             case ServerMsgType.ShortestPathResult:
                 if (msg.path.length > 1) {
-                    showAutopilotPrompt(ctx, msg.path, msg.hops);
+                    showAutopilotPrompt(ctx, msg.path, msg.hops, msg.visitedSectors);
                 } else {
                     ctx.term.writeln(`\r\n${colors.boldRed('No path found to that sector.')}`);
                     showPrompt(ctx);
@@ -335,7 +336,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
             }
             case ServerMsgType.DroneEncounter: {
                 ctx.setSectorPlayers(msg.players);
-                if (msg.visitedSectors) ctx.setVisitedSet(new Set(msg.visitedSectors));
+                ctx.visitedSet.add(msg.sector);
                 ctx.setCurrentSector(msg.sector);
                 ctx.setCurrentPort(msg.port ?? null);
                 ctx.setEncounterOwnerName(msg.ownerName);
@@ -556,6 +557,9 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 break;
             case ServerMsgType.MenuChanged:
                 // Acknowledged by server, menu already set via envelope
+                break;
+            case ServerMsgType.VisitedSectorsResult:
+                renderVisitedSectorsResult(ctx, msg);
                 break;
             case ServerMsgType.Error:
                 ctx.term.writeln(`\r\n${colors.boldRed('Error:')} ${colors.red(msg.message)}`);

@@ -58,6 +58,7 @@ export const ServerMsgType = {
     ListDeployedDronesResult: 'listDeployedDronesResult',
     HyperspaceJumpResult: 'hyperspaceJumpResult',
     MenuChanged: 'menuChanged',
+    VisitedSectorsResult: 'visitedSectorsResult',
 } as const;
 type ServerMsgType = typeof ServerMsgType;
 
@@ -111,5 +112,6 @@ export const ClientMsgType = {
     ListDeployedDrones: 'listDeployedDrones',
     HyperspaceJump: 'hyperspaceJump',
     ChangeMenu: 'changeMenu',
+    VisitedSectors: 'visitedSectors',
 } as const;
 type ClientMsgType = typeof ClientMsgType;

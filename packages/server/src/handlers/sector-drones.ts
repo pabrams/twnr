@@ -5,7 +5,7 @@ import {
     sendEnvelope,
     getSectorDrones,
     getPortForSector,
-    getVisitedSectors,
+    getVisitedWarpDestinations,
     getGraph,
     broadcastTo,
     setPlayerMenu,
@@ -406,7 +406,7 @@ export async function handleRetreatFromDrones(playerId: number): Promise<void> {
     const [warps, port, visitedSectors, sectorDrones, planetsRes] = await Promise.all([
         getGraph(universeId),
         getPortForSector(retreatSector, universeId),
-        getVisitedSectors(playerId),
+        getVisitedWarpDestinations(playerId, retreatSector, universeId),
         getSectorDrones(retreatSector, universeId),
         pool.query(
             `SELECT pl.id, pl.name, pl.type FROM planets pl
