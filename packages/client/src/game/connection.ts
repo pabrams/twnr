@@ -137,12 +137,15 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 ctx.term.writeln(
                     `  ${colors.boldYellow('Fuel')}: ${msg.cargoFuel}  ${colors.boldYellow('Organics')}: ${msg.cargoOrganics}  ${colors.boldYellow('Equipment')}: ${msg.cargoEquipment}  ${colors.boldYellow('Colonists')}: ${msg.cargoColonists}`,
                 );
+                ctx.term.writeln(
+                    `  ${colors.boldYellow('Credits')}: ${colors.boldYellow(String(msg.credits))}`,
+                );
+                if (ctx.mode === 'sector') showPrompt(ctx);
                 break;
             case ServerMsgType.CargoInfoResult:
                 ctx.term.writeln(
                     `  ${colors.boldYellow('Credits')}: ${colors.boldYellow(String(msg.credits))}`,
                 );
-                showPrompt(ctx);
                 break;
             case ServerMsgType.PlayersOnlineResult: {
                 ctx.term.writeln('');

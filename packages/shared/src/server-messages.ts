@@ -137,6 +137,7 @@ export type ShipInfoResultObject = {
     turnsPerWarp: number;
     hasHyperwarpDrive: boolean;
     turns: number;
+    credits: number;
 };
 
 export type CargoInfoResultObject = {

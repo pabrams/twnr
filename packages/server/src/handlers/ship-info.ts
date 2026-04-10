@@ -11,7 +11,7 @@ export async function handleShipInfo(playerId: number): Promise<void> {
                s.buoys, s.proximity_mines, s.orbital_mines, s.seeker_mines,
                s.mine_disruptors, s.recon_drones,
                s.fuel, s.organics, s.equipment, s.colonists,
-               p.turns,
+               p.turns, p.credits,
                st.max_drones, st.max_shields, st.max_holds,
                st.max_planet_busters, st.max_terraform_devices,
                st.max_buoy, st.max_proximity, st.max_orbital, st.max_seeker,
@@ -55,6 +55,7 @@ export async function handleShipInfo(playerId: number): Promise<void> {
         turnsPerWarp: row.turns_per_warp,
         hasHyperwarpDrive: row.has_hyperspace_1 || row.has_hyperspace_2,
         turns: row.turns,
+        credits: row.credits,
     });
 }
 

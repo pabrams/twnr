@@ -147,5 +147,4 @@ export function showPlayerInfo(ctx: GameContext) {
         `${colors.boldGreen('Sector')}: ${colors.boldCyan(String(ctx.currentSector))}`,
     );
     ctx.sendMsg({ type: ClientMsgType.ShipInfo });
-    ctx.sendMsg({ type: ClientMsgType.CargoInfo });
 }
