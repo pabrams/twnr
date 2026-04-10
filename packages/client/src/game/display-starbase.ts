@@ -2,7 +2,7 @@ import type { GameContext } from './types.js';
 import { colors } from './constants.js';
 
 export function showStarbaseMenu(ctx: GameContext) {
-    ctx.changeMenu('starbase');
+    ctx.setMode('starbase');
     ctx.term.writeln('');
     ctx.term.writeln(colors.boldCyan('=== Starbase ==='));
     ctx.term.writeln(`  ${colors.cyan('S')}  Ship Exchange`);
@@ -12,7 +12,7 @@ export function showStarbaseMenu(ctx: GameContext) {
 }
 
 export function showHardwareMenu(ctx: GameContext) {
-    ctx.changeMenu('starbaseHardware');
+    ctx.setMode('starbaseHardware');
     ctx.term.writeln('');
     ctx.term.writeln(colors.boldCyan('=== Hardware Store ==='));
     ctx.term.writeln(`  ${colors.cyan('B')}  Buy Planet Busters (20,000 credits)`);
@@ -22,7 +22,7 @@ export function showHardwareMenu(ctx: GameContext) {
 }
 
 export function showBuyQtyPrompt(ctx: GameContext, item: string) {
-    ctx.changeMenu('starbaseBuyQty');
+    ctx.setMode('starbaseBuyQty');
     ctx.term.write(`\r\n${colors.cyan(`How many ${item}?`)} `);
 }
 
@@ -30,7 +30,7 @@ export function showPlanetSelectMenu(
     ctx: GameContext,
     planets: { id: number; name: string; type: string }[],
 ) {
-    ctx.changeMenu('planetSelect');
+    ctx.setMode('planetSelect');
     ctx.term.writeln('');
     ctx.term.writeln(colors.boldCyan('=== Select a Planet ==='));
     planets.forEach((p, i) => {
@@ -42,6 +42,6 @@ export function showPlanetSelectMenu(
 }
 
 export function showHyperspaceJumpPrompt(ctx: GameContext) {
-    ctx.changeMenu('hyperspaceJumpTarget');
+    ctx.setMode('hyperspaceJumpTarget');
     ctx.term.write(`\r\n${colors.cyan('Target sector for hyperspace jump?')} `);
 }

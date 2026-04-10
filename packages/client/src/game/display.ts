@@ -66,7 +66,7 @@ export function showPrompt(ctx: GameContext) {
 }
 
 export function showHelp(ctx: GameContext) {
-    ctx.changeMenu('help');
+    ctx.setMode('help');
     ctx.term.writeln('');
     ctx.term.writeln(colors.cyan('Help Menu:'));
     ctx.term.writeln(`${colors.cyan('Command:')} Move to a sector by typing its number.`);
@@ -97,7 +97,7 @@ export function showPortMenu(ctx: GameContext) {
         showPrompt(ctx);
         return;
     }
-    ctx.changeMenu('port');
+    ctx.setMode('port');
     const label = PORT_CLASS_LABELS[ctx.currentPort.class] ?? '???';
     ctx.term.writeln('');
     ctx.term.writeln(
@@ -141,13 +141,13 @@ export function showDockedMenu(ctx: GameContext) {
 }
 
 export function showShipInfo(ctx: GameContext) {
-    ctx.changeMenu('shipInfo');
+    ctx.setMode('shipInfo');
     ctx.sendMsg({ type: ClientMsgType.ShipInfo });
     ctx.sendMsg({ type: ClientMsgType.CargoInfo });
 }
 
 export function showPlayerInfo(ctx: GameContext) {
-    ctx.changeMenu('playerInfo');
+    ctx.setMode('playerInfo');
     ctx.term.writeln('');
     ctx.term.writeln(`${colors.boldGreen('Player')}: ${colors.boldCyan(ctx.playerName)}`);
     ctx.term.writeln(

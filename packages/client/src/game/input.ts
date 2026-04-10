@@ -202,24 +202,30 @@ function handleInput(ctx: GameContext, line: string) {
             ctx.sendMsg({ type: ClientMsgType.SectorDisplay });
             break;
         case 'p':
+            ctx.changeMenu('port');
             showPortMenu(ctx);
             break;
         case 'i':
+            ctx.changeMenu('playerInfo');
             showPlayerInfo(ctx);
             break;
         case '?':
+            ctx.changeMenu('help');
             showHelp(ctx);
             break;
         case 'a':
+            ctx.changeMenu('attack');
             showAttackMenu(ctx);
             break;
         case 'c':
+            ctx.changeMenu('computer');
             showComputerMenu(ctx);
             break;
         case 'f':
             ctx.sendMsg({ type: ClientMsgType.DeployDronesInfo });
             break;
         case 'j':
+            ctx.changeMenu('jettisonConfirm');
             showJettisonConfirm(ctx);
             break;
         case 'l':

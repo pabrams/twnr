@@ -8,9 +8,11 @@ import { colors } from './constants.js';
 export function handleStarbaseInput(ctx: GameContext, line: string) {
     switch (line.toLowerCase()) {
         case 's':
+            ctx.changeMenu('shipCatalog');
             showShipCatalog(ctx);
             break;
         case 'h':
+            ctx.changeMenu('starbaseHardware');
             showHardwareMenu(ctx);
             break;
         case 'd':
@@ -28,16 +30,19 @@ export function handleHardwareInput(ctx: GameContext, line: string) {
     switch (line.toLowerCase()) {
         case 'b':
             (ctx as any).starbaseBuyType = 'planetBusters';
+            ctx.changeMenu('starbaseBuyQty');
             showBuyQtyPrompt(ctx, 'Planet Busters');
             break;
         case 't':
             (ctx as any).starbaseBuyType = 'terraformDevices';
+            ctx.changeMenu('starbaseBuyQty');
             showBuyQtyPrompt(ctx, 'Terraform Devices');
             break;
         case 'w':
             ctx.sendMsg({ type: ClientMsgType.BuyHyperwarpDrive });
             break;
         case 'q':
+            ctx.changeMenu('starbase');
             showStarbaseMenu(ctx);
             break;
         default:
@@ -47,6 +52,7 @@ export function handleHardwareInput(ctx: GameContext, line: string) {
 
 export function handleStarbaseBuyQtyInput(ctx: GameContext, line: string) {
     if (line.toLowerCase() === 'q') {
+        ctx.changeMenu('starbaseHardware');
         showHardwareMenu(ctx);
         return;
     }
