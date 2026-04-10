@@ -158,13 +158,20 @@ async function ensureSchema(client) {
     CREATE TABLE IF NOT EXISTS ports (
       id SERIAL PRIMARY KEY,
       sector_id INTEGER NOT NULL UNIQUE REFERENCES sectors(id) ON DELETE CASCADE,
+      name VARCHAR(255),
       class INTEGER NOT NULL,
       fuel INTEGER NOT NULL DEFAULT 500,
+      fuel_max INTEGER NOT NULL DEFAULT 1000,
       fuel_price INTEGER NOT NULL,
+      fuel_buys INTEGER NOT NULL DEFAULT 0,
       organics INTEGER NOT NULL DEFAULT 500,
+      org_max INTEGER NOT NULL DEFAULT 1000,
       org_price INTEGER NOT NULL,
+      org_buys INTEGER NOT NULL DEFAULT 0,
       equipment INTEGER NOT NULL DEFAULT 500,
-      equ_price INTEGER NOT NULL
+      equ_max INTEGER NOT NULL DEFAULT 1000,
+      equ_price INTEGER NOT NULL,
+      equ_buys INTEGER NOT NULL DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS planets (

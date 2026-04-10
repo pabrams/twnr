@@ -162,7 +162,7 @@ describe('Trading System', () => {
     assert.equal(msg.credits, 10000 + 3 * price);
 
     const portAfter = await wsRequest(wsConn, { type: ClientMsgType.PortInfo, sectorId: portSector.sectorId }, ServerMsgType.PortInfoResult);
-    assert.equal(portAfter.organics, portBefore.organics + 3);
+    assert.equal(portAfter.organics, portBefore.organics - 3);
 
     await closeWS(wsConn);
   });
