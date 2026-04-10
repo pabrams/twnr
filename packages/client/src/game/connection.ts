@@ -18,6 +18,13 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
 
     ws.addEventListener('message', (event) => {
         const raw = JSON.parse(event.data);
+        if (ctx.debug) {
+            const lines = JSON.stringify(raw, null, 2).split('\n');
+            ctx.term.writeln(`\r\n\x1b[38;5;243m← ${lines[0]}\x1b[0m`);
+            for (let i = 1; i < lines.length; i++) {
+                ctx.term.writeln(`\x1b[38;5;243m  ${lines[i]}\x1b[0m`);
+            }
+        }
         // Support envelope format: { menu, payload } or legacy bare messages
         const msg: ServerResult = raw.payload ?? raw;
         if (raw.menu) {

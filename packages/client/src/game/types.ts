@@ -20,6 +20,8 @@ export interface GameContext {
     currentShipName: string;
     universeId: number;
     ws: WebSocket;
+    debug: boolean;
+    setDebug: (on: boolean) => void;
     sendMsg: (msg: ClientCommand) => void;
     setMode: (mode: string) => void;
     /** Optimistically set mode locally AND notify server */
