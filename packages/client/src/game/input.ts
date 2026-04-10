@@ -224,6 +224,14 @@ function handleInput(ctx: GameContext, line: string) {
         case 'u':
             ctx.sendMsg({ type: ClientMsgType.UseTerraformDevice });
             break;
+        case 'v':
+            if (ctx.starbaseSector != null) {
+                ctx.term.writeln(`\r\n${colors.boldCyan('Starbase')} is in sector ${colors.boldCyan(String(ctx.starbaseSector))}`);
+            } else {
+                ctx.term.writeln(`\r\n${colors.white('No Starbase in this universe.')}`);
+            }
+            showPrompt(ctx);
+            break;
         case 'q':
             ctx.term.writeln(`\r\n${colors.white('Goodbye!')}`);
             ctx.ws.close();
@@ -247,15 +255,19 @@ function handleInput(ctx: GameContext, line: string) {
 function handlePortInput(ctx: GameContext, line: string) {
     switch (line.toLowerCase()) {
         case 't':
-            ctx.sendMsg({ type: ClientMsgType.Dock });
+            if (ctx.currentPort?.class !== 9) {
+                ctx.sendMsg({ type: ClientMsgType.Dock });
+            }
+            break;
+        case 's':
+            if (ctx.currentPort?.class === 9) {
+                ctx.sendMsg({ type: ClientMsgType.DockStarbase });
+            }
             break;
         case 'q':
             ctx.changeMenu('sector');
             showPrompt(ctx);
             break;
-        default:
-            ctx.term.writeln('  T  Trade at this port');
-            ctx.term.writeln('  Q  Never mind');
     }
 }
 

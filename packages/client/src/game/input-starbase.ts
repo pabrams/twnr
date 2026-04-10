@@ -1,53 +1,78 @@
 import { ClientMsgType } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { showPrompt } from './display.js';
-import { showStarbaseMenu, showHardwareMenu, showBuyQtyPrompt } from './display-starbase.js';
-import { showShipCatalog } from './display-computer.js';
+import { showStarbaseMenu, showStarbaseHelp, showStarbasePrompt, showHardwareMenu, showHardwareHelp, showHardwarePrompt, showBuyQtyPrompt } from './display-starbase.js';
 import { colors } from './constants.js';
 
 export function handleStarbaseInput(ctx: GameContext, line: string) {
     switch (line.toLowerCase()) {
-        case 's':
-            ctx.changeMenu('shipCatalog');
-            showShipCatalog(ctx);
-            break;
         case 'h':
             ctx.changeMenu('starbaseHardware');
             showHardwareMenu(ctx);
             break;
-        case 'd':
-            ctx.sendMsg({ type: ClientMsgType.ListDeployedDrones });
+        case '?':
+            showStarbaseHelp(ctx);
             break;
         case 'q':
             ctx.sendMsg({ type: ClientMsgType.LeaveStarbase });
             break;
         default:
-            showStarbaseMenu(ctx);
+            showStarbasePrompt(ctx);
     }
 }
 
+// Map hardware menu keys to ClientMsgType and labels
+const STACKABLE_HARDWARE: Record<string, { msgType: string; label: string }> = {
+    t: { msgType: ClientMsgType.BuyTerraformDevices, label: 'Terraform Devices' },
+    b: { msgType: ClientMsgType.BuyPlanetBusters, label: 'Planet Busters' },
+    u: { msgType: ClientMsgType.BuyBuoys, label: 'Space Buoys' },
+    p: { msgType: ClientMsgType.BuyProximityMines, label: 'Proximity Mines' },
+    s: { msgType: ClientMsgType.BuySeekerMines, label: 'Seeker Mines' },
+    o: { msgType: ClientMsgType.BuyOrbitalMines, label: 'Orbital Mines' },
+    d: { msgType: ClientMsgType.BuyMineDisruptors, label: 'Mine Disruptors' },
+    k: { msgType: ClientMsgType.BuyCloakingDevice, label: 'Cloaking Devices' },
+    c: { msgType: ClientMsgType.BuyCorbomite, label: 'Corbomite' },
+    h: { msgType: ClientMsgType.BuyPhotonTorpedoes, label: 'Photon Torpedoes' },
+    r: { msgType: ClientMsgType.BuyReconDrones, label: 'Recon Drones' },
+};
+
 export function handleHardwareInput(ctx: GameContext, line: string) {
-    switch (line.toLowerCase()) {
-        case 'b':
-            (ctx as any).starbaseBuyType = 'planetBusters';
-            ctx.changeMenu('starbaseBuyQty');
-            showBuyQtyPrompt(ctx, 'Planet Busters');
-            break;
-        case 't':
-            (ctx as any).starbaseBuyType = 'terraformDevices';
-            ctx.changeMenu('starbaseBuyQty');
-            showBuyQtyPrompt(ctx, 'Terraform Devices');
-            break;
-        case 'w':
-            ctx.sendMsg({ type: ClientMsgType.BuyHyperwarpDrive });
-            break;
-        case 'q':
-            ctx.changeMenu('starbase');
-            showStarbaseMenu(ctx);
-            break;
-        default:
-            showHardwareMenu(ctx);
+    const key = line.toLowerCase();
+    // Toggle hardware (no quantity needed)
+    if (key === '1') {
+        ctx.sendMsg({ type: ClientMsgType.BuyHyperspaceDrive, driveType: 1 });
+        return;
     }
+    if (key === '2') {
+        ctx.sendMsg({ type: ClientMsgType.BuyHyperspaceDrive, driveType: 2 });
+        return;
+    }
+    if (key === 'v') {
+        ctx.sendMsg({ type: ClientMsgType.BuyVisualScanner });
+        return;
+    }
+    if (key === 'n') {
+        ctx.sendMsg({ type: ClientMsgType.BuyPlanetScanner });
+        return;
+    }
+    // Stackable hardware (needs quantity)
+    const hw = STACKABLE_HARDWARE[key];
+    if (hw) {
+        (ctx as any).starbaseBuyType = hw.msgType;
+        ctx.changeMenu('starbaseBuyQty');
+        showBuyQtyPrompt(ctx, hw.label);
+        return;
+    }
+    if (key === '?') {
+        showHardwareHelp(ctx);
+        return;
+    }
+    if (key === 'q') {
+        ctx.changeMenu('starbase');
+        showStarbaseMenu(ctx);
+        return;
+    }
+    showHardwarePrompt(ctx);
 }
 
 export function handleStarbaseBuyQtyInput(ctx: GameContext, line: string) {
@@ -61,11 +86,9 @@ export function handleStarbaseBuyQtyInput(ctx: GameContext, line: string) {
         ctx.term.writeln('Enter a positive number.');
         return;
     }
-    const buyType = (ctx as any).starbaseBuyType;
-    if (buyType === 'planetBusters') {
-        ctx.sendMsg({ type: ClientMsgType.BuyPlanetBusters, quantity: qty });
-    } else if (buyType === 'terraformDevices') {
-        ctx.sendMsg({ type: ClientMsgType.BuyTerraformDevices, quantity: qty });
+    const msgType = (ctx as any).starbaseBuyType;
+    if (msgType) {
+        ctx.sendMsg({ type: msgType, quantity: qty } as any);
     }
 }
 

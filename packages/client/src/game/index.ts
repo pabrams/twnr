@@ -47,6 +47,8 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
     let autopilotPaused = false;
     let encounterOwnerName = '';
     let menuRegistry = new Map<string, MenuEntry>();
+    let starbaseSector: number | null = null;
+    let hardwarePrices: any = null;
     let debug = false;
 
     function sendMsg(msg: ClientCommand) {
@@ -194,6 +196,18 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
         },
         setMenuRegistry: (r) => {
             menuRegistry = r;
+        },
+        get starbaseSector() {
+            return starbaseSector;
+        },
+        setStarbaseSector: (s) => {
+            starbaseSector = s;
+        },
+        get hardwarePrices() {
+            return hardwarePrices;
+        },
+        setHardwarePrices: (p) => {
+            hardwarePrices = p;
         },
     };
 

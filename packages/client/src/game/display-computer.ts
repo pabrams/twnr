@@ -92,24 +92,49 @@ export async function showShipCatalog(ctx: GameContext) {
     ctx.term.writeln(`  ${colors.cyan('Q')}  Back`);
 }
 
+function shipLine(label: string, value: any, pad = 22): string {
+    return `  ${colors.boldYellow(label.padEnd(pad))} ${colors.white(String(value))}`;
+}
+
+function boolStr(val: boolean): string {
+    return val ? colors.boldGreen('Yes') : colors.white('No');
+}
+
 export function showShipDetail(ctx: GameContext, ship: any) {
     ctx.term.writeln('');
     ctx.term.writeln(colors.boldCyan(`=== ${ship.name} ===`));
-    ctx.term.writeln(
-        `  ${colors.boldYellow('Price'.padEnd(16))} ${colors.white(String(ship.base_cost))}`,
-    );
-    ctx.term.writeln(
-        `  ${colors.boldYellow('Max Drones'.padEnd(16))} ${colors.white(String(ship.max_drones))}`,
-    );
-    ctx.term.writeln(
-        `  ${colors.boldYellow('Max Shields'.padEnd(16))} ${colors.white(String(ship.max_shields))}`,
-    );
-    ctx.term.writeln(
-        `  ${colors.boldYellow('Starting Holds'.padEnd(16))} ${colors.white(String(ship.starting_holds))}`,
-    );
-    ctx.term.writeln(
-        `  ${colors.boldYellow('Max Holds'.padEnd(16))} ${colors.white(String(ship.max_holds))}`,
-    );
+    if (ship.make) ctx.term.writeln(shipLine('Make', ship.make));
+    ctx.term.writeln(shipLine('Price', ship.base_cost?.toLocaleString() ?? '?'));
+    ctx.term.writeln(shipLine('Speed', ship.speed));
+    ctx.term.writeln(shipLine('Turns/Warp', ship.turns_per_warp));
+    ctx.term.writeln(shipLine('Starting Holds', ship.starting_holds));
+    ctx.term.writeln(shipLine('Max Holds', ship.max_holds));
+    ctx.term.writeln(shipLine('Max Drones', ship.max_drones));
+    ctx.term.writeln(shipLine('Max Shields', ship.max_shields));
+    ctx.term.writeln(shipLine('Odds Offensive', ship.odds_offensive));
+    ctx.term.writeln(shipLine('Odds Defensive', ship.odds_defensive));
+    ctx.term.writeln(shipLine('Max Drone Attack', ship.max_drone_attack));
+    ctx.term.writeln(shipLine('Transporter Range', ship.transporter_range));
+    ctx.term.writeln(shipLine('Has Escape Pod', boolStr(ship.has_pod)));
+    ctx.term.writeln(shipLine('Can Land', boolStr(ship.can_land)));
+    ctx.term.writeln(shipLine('Has Tractor', boolStr(ship.has_tractor)));
+    ctx.term.writeln(shipLine('Has Interdictor', boolStr(ship.has_interdictor)));
+    ctx.term.writeln(shipLine('Hyperspace 1', boolStr(ship.can_have_hyperspace_1)));
+    ctx.term.writeln(shipLine('Hyperspace 2', boolStr(ship.can_have_hyperspace_2)));
+    ctx.term.writeln(shipLine('Visual Scanner', boolStr(ship.can_have_visual_scanner)));
+    ctx.term.writeln(shipLine('Planet Scanner', boolStr(ship.can_have_planet_scanner)));
+    ctx.term.writeln(shipLine('Max Buoys', ship.max_buoy));
+    ctx.term.writeln(shipLine('Max Proximity Mines', ship.max_proximity));
+    ctx.term.writeln(shipLine('Max Seeker Mines', ship.max_seeker));
+    ctx.term.writeln(shipLine('Max Orbital Mines', ship.max_orbital));
+    ctx.term.writeln(shipLine('Max Cloaking', ship.max_cloaking));
+    ctx.term.writeln(shipLine('Max Corbomite', ship.max_corbomite));
+    ctx.term.writeln(shipLine('Max Photon Torpedoes', ship.max_photon));
+    ctx.term.writeln(shipLine('Max Disruptors', ship.max_disruptors));
+    ctx.term.writeln(shipLine('Max Recon Drones', ship.max_recon_drones));
+    ctx.term.writeln(shipLine('Max Planet Busters', ship.max_planet_busters));
+    ctx.term.writeln(shipLine('Max Terraform Dev.', ship.max_terraform_devices));
+    if (ship.notes) ctx.term.writeln(shipLine('Notes', ship.notes));
 }
 
 export async function showPlanetSpecs(ctx: GameContext) {

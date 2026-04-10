@@ -10,8 +10,6 @@ import {
     handlePortTransaction,
     handleDockStarbase,
     handleLeaveStarbase,
-    handleBuyPlanetBusters,
-    handleBuyTerraformDevices,
 } from './port.js';
 import { handleShipInfo, handleCargoInfo } from './ship-info.js';
 import { handleBuyDrones, handleBuyShields, handleBuyHolds } from './ship-upgrades.js';
@@ -39,6 +37,8 @@ import {
 } from './hyperwarp.js';
 import {
     handleBuyBuoys,
+    handleBuyPlanetBusters,
+    handleBuyTerraformDevices,
     handleBuyProximityMines,
     handleBuySeekerMines,
     handleBuyOrbitalMines,

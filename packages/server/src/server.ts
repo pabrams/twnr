@@ -147,11 +147,15 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             docked: false,
             currentMenu: 'sector',
         };
-        const sectorCountRes = await pool.query(
-            'SELECT COUNT(*) FROM sectors WHERE universe_id = $1',
-            [universeId],
-        );
+        const [sectorCountRes, starbaseRes] = await Promise.all([
+            pool.query('SELECT COUNT(*) FROM sectors WHERE universe_id = $1', [universeId]),
+            pool.query(
+                "SELECT sector_number FROM sectors WHERE name = 'Starbase' AND universe_id = $1 LIMIT 1",
+                [universeId],
+            ),
+        ]);
         const totalSectors = parseInt(sectorCountRes.rows[0].count, 10);
+        const starbaseSector = starbaseRes.rows[0]?.sector_number ?? null;
         const welcomeMsg: ServerResult = {
             type: ServerMsgType.Welcome,
             playerId,
@@ -159,6 +163,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             sector,
             totalSectors,
             shipName: playerRow.ship_name ?? '',
+            starbaseSector,
             token: auth.signPlayerToken({
                 userId,
                 name: playerRow.name,

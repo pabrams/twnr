@@ -38,6 +38,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 ctx.setPlayerId(msg.playerId);
                 ctx.setTotalSectors(msg.totalSectors);
                 ctx.setCurrentShipName(msg.shipName);
+                ctx.setStarbaseSector(msg.starbaseSector);
                 ctx.term.writeln(`\r\n${colors.boldGreen(`Welcome, ${msg.name}.`)}`);
                 ctx.sendMsg({ type: ClientMsgType.SectorDisplay });
                 break;
@@ -425,6 +426,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 }
                 break;
             case ServerMsgType.DockStarbaseResult:
+                ctx.setHardwarePrices(msg.prices);
                 showStarbaseMenu(ctx);
                 break;
             case ServerMsgType.LeaveStarbaseResult:
@@ -511,6 +513,66 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
             case ServerMsgType.BuyHyperwarpDriveResult:
                 ctx.term.writeln(
                     `\r\n${colors.boldGreen('Hyperwarp drive installed!')} Credits: ${msg.credits}`,
+                );
+                showHardwareMenu(ctx);
+                break;
+            case ServerMsgType.BuyBuoysResult:
+                ctx.term.writeln(
+                    `\r\n${colors.boldGreen('Purchase complete.')} Space Buoys: ${msg.totalOnShip}, Credits: ${msg.credits}`,
+                );
+                showHardwareMenu(ctx);
+                break;
+            case ServerMsgType.BuyMinesResult:
+                ctx.term.writeln(
+                    `\r\n${colors.boldGreen('Purchase complete.')} ${msg.mineType} mines: ${msg.totalOnShip}, Credits: ${msg.credits}`,
+                );
+                showHardwareMenu(ctx);
+                break;
+            case ServerMsgType.BuyMineDisruptorsResult:
+                ctx.term.writeln(
+                    `\r\n${colors.boldGreen('Purchase complete.')} Mine Disruptors: ${msg.totalOnShip}, Credits: ${msg.credits}`,
+                );
+                showHardwareMenu(ctx);
+                break;
+            case ServerMsgType.BuyVisualScannerResult:
+                ctx.term.writeln(
+                    `\r\n${colors.boldGreen('Visual Scanner installed!')} Credits: ${msg.credits}`,
+                );
+                showHardwareMenu(ctx);
+                break;
+            case ServerMsgType.BuyPlanetScannerResult:
+                ctx.term.writeln(
+                    `\r\n${colors.boldGreen('Planet Scanner installed!')} Credits: ${msg.credits}`,
+                );
+                showHardwareMenu(ctx);
+                break;
+            case ServerMsgType.BuyCloakingDeviceResult:
+                ctx.term.writeln(
+                    `\r\n${colors.boldGreen('Purchase complete.')} Cloaking Devices: ${msg.totalOnShip}, Credits: ${msg.credits}`,
+                );
+                showHardwareMenu(ctx);
+                break;
+            case ServerMsgType.BuyCorbomiteResult:
+                ctx.term.writeln(
+                    `\r\n${colors.boldGreen('Purchase complete.')} Corbomite: ${msg.totalOnShip}, Credits: ${msg.credits}`,
+                );
+                showHardwareMenu(ctx);
+                break;
+            case ServerMsgType.BuyPhotonTorpedoesResult:
+                ctx.term.writeln(
+                    `\r\n${colors.boldGreen('Purchase complete.')} Photon Torpedoes: ${msg.totalOnShip}, Credits: ${msg.credits}`,
+                );
+                showHardwareMenu(ctx);
+                break;
+            case ServerMsgType.BuyReconDronesResult:
+                ctx.term.writeln(
+                    `\r\n${colors.boldGreen('Purchase complete.')} Recon Drones: ${msg.totalOnShip}, Credits: ${msg.credits}`,
+                );
+                showHardwareMenu(ctx);
+                break;
+            case ServerMsgType.BuyHyperspaceDriveResult:
+                ctx.term.writeln(
+                    `\r\n${colors.boldGreen(`Hyperspace Drive Type ${msg.driveType} installed!`)} Credits: ${msg.credits}`,
                 );
                 showHardwareMenu(ctx);
                 break;

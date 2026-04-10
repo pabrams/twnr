@@ -16,6 +16,7 @@ export type WelcomeEvent = {
     token: string;
     totalSectors: number;
     shipName: string;
+    starbaseSector: number | null;
 };
 
 export type PlayerMovedEvent = {
@@ -269,8 +270,27 @@ export type BuyTerraformDevicesResultObject = {
     credits: number;
 };
 
+export type HardwarePrices = {
+    terraformDevice: number;
+    planetBuster: number;
+    spaceBuoy: number;
+    proximityMine: number;
+    seekerMine: number;
+    orbitalMine: number;
+    mineDisruptor: number;
+    hyperspace1: number;
+    hyperspace2: number;
+    visualScanner: number;
+    planetScanner: number;
+    cloakingDevice: number;
+    corbomite: number;
+    photonTorpedo: number;
+    reconDrone: number;
+};
+
 export type DockStarbaseResultObject = {
     type: typeof ServerMsgType.DockStarbaseResult;
+    prices: HardwarePrices;
 };
 
 export type TakeColonistsResultObject = {

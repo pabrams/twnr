@@ -1,5 +1,5 @@
 import type { Terminal } from '@xterm/xterm';
-import type { ClientCommand, PortInfoResultObject, MenuEntry } from '@twnr/shared';
+import type { ClientCommand, PortInfoResultObject, MenuEntry, HardwarePrices } from '@twnr/shared';
 import { colors } from './constants.js';
 
 export interface GameContext {
@@ -50,5 +50,9 @@ export interface GameContext {
     setEncounterOwnerName: (name: string) => void;
     menuRegistry: Map<string, MenuEntry>;
     setMenuRegistry: (registry: Map<string, MenuEntry>) => void;
+    starbaseSector: number | null;
+    setStarbaseSector: (s: number | null) => void;
+    hardwarePrices: HardwarePrices | null;
+    setHardwarePrices: (p: HardwarePrices) => void;
 }
 
