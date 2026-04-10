@@ -1,59 +1,20 @@
-import pg from 'pg';
-import crypto from 'crypto';
-import { spawn } from 'node:child_process';
-import jwt from 'jsonwebtoken';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 import { ClientMsgType, ServerMsgType } from '@twnr/shared';
+import { BASE as BASE_URL, WS_BASE as WS_URL, createPool, createTestUserWithToken } from './global-setup.mjs';
 
-const { Pool } = pg;
 const __filename = fileURLToPath(import.meta.url);
 const PROJECT_ROOT = join(dirname(__filename), '..');
 const merchantCfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', '01-vulpeculan-cruiser.json'), 'utf8'));
-const JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret';
-const TEST_PORT = process.env.PORT || '3000';
-const BASE_URL = `http://localhost:${TEST_PORT}`;
-const WS_URL = `ws://localhost:${TEST_PORT}`;
-export const TEST_DB = process.env.PGDATABASE || 'twnr_test';
 
-export function testEnv() {
-  return { ...process.env, PGDATABASE: TEST_DB };
-}
-
-export function createPool() {
-  return new Pool({
-    host:     process.env.PGHOST     || 'localhost',
-    database: process.env.PGDATABASE || 'twnr_test',
-    user:     process.env.PGUSER,
-    password: process.env.PGPASSWORD,
-  });
-}
-
-function hashPassword(password) {
-  const salt = crypto.randomBytes(16);
-  const derivedKey = crypto.scryptSync(password, salt, 64);
-  return `scrypt$${salt.toString('base64url')}$${derivedKey.toString('base64url')}`;
-}
+export { createPool } from './global-setup.mjs';
 
 /**
  * Creates a test user in the users table and returns { userId, token }.
  */
 export async function createTestUser(pool) {
-  const ts = Date.now() + Math.random();
-  const email = `testuser_${ts}@test.com`;
-  const hash = hashPassword('testpass');
-  const res = await pool.query(
-    `INSERT INTO users (email, password_hash, role) VALUES ($1, $2, 'player') RETURNING id, role, token_version`,
-    [email, hash],
-  );
-  const user = res.rows[0];
-  const token = jwt.sign(
-    { userId: user.id, name: `TestUser_${ts}`, role: user.role, tokenVersion: user.token_version },
-    JWT_SECRET,
-    { algorithm: 'HS256', expiresIn: '7d' },
-  );
-  return { userId: user.id, token };
+  return createTestUserWithToken(pool);
 }
 
 /**
@@ -85,48 +46,6 @@ export async function createTestPlayer(pool, userId, universeId, name, sector = 
   await pool.query('UPDATE players SET ship_id = $1 WHERE id = $2', [shipRes.rows[0].id, playerId]);
 
   return playerId;
-}
-
-export function startServer() {
-  return new Promise((resolve, reject) => {
-    const proc = spawn('node', ['dist/server.js'], {
-      cwd: process.cwd(),
-      stdio: ['pipe', 'pipe', 'pipe'],
-      env: {
-        ...process.env,
-        PGDATABASE: process.env.PGDATABASE || 'twnr_test',
-        JWT_SECRET,
-        ADMIN_API_KEY: process.env.ADMIN_API_KEY || 'test-admin-key',
-        WS_ALLOWED_ORIGINS: process.env.WS_ALLOWED_ORIGINS || BASE_URL,
-      },
-    });
-
-    let settled = false;
-    const timeout = setTimeout(() => {
-      if (!settled) { settled = true; reject(new Error('Server start timeout (10s)')); }
-    }, 10000);
-
-    proc.stdout.on('data', (d) => {
-      const out = d.toString();
-      if (!settled && (out.includes('listening') || out.includes('3000'))) {
-        settled = true;
-        clearTimeout(timeout);
-        setTimeout(() => resolve(proc), 5000); // extra time for universe generation
-      }
-    });
-
-    proc.stderr.on('data', (d) => {
-      const text = d.toString().trim();
-      if (text) process.stderr.write(`[server stderr] ${text}\n`);
-    });
-
-    proc.on('error', (err) => {
-      if (!settled) { settled = true; clearTimeout(timeout); reject(err); }
-    });
-    proc.on('exit', (code) => {
-      if (!settled) { settled = true; clearTimeout(timeout); reject(new Error(`Server exited with code ${code}`)); }
-    });
-  });
 }
 
 export async function connectWS(options = {}) {

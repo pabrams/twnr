@@ -9,6 +9,8 @@
  */
 
 import pg from 'pg';
+import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
 import { spawn, spawnSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -37,6 +39,36 @@ export function createPool() {
     user: process.env.PGUSER || 'twnr_user',
     password: process.env.PGPASSWORD || 'twnr_pass',
   });
+}
+
+// ─── shared auth helpers ─────────────────────────────────────────────────────
+
+export function hashPassword(password) {
+  const salt = crypto.randomBytes(16);
+  const derivedKey = crypto.scryptSync(password, salt, 64);
+  return `scrypt$${salt.toString('base64url')}$${derivedKey.toString('base64url')}`;
+}
+
+/**
+ * Creates a test user in the DB and returns { userId, token }.
+ * If name/email are omitted, they are auto-generated.
+ */
+export async function createTestUserWithToken(pool, { name, email, password = 'testpass', role = 'player' } = {}) {
+  const ts = Date.now() + Math.random();
+  const actualName = name ?? `TestUser_${ts}`;
+  const actualEmail = email ?? `testuser_${ts}@test.com`;
+  const hash = hashPassword(password);
+  const res = await pool.query(
+    `INSERT INTO users (email, password_hash, role) VALUES ($1, $2, $3) RETURNING id, role, token_version`,
+    [actualEmail, hash, role],
+  );
+  const user = res.rows[0];
+  const token = jwt.sign(
+    { userId: user.id, name: actualName, role: user.role, tokenVersion: user.token_version },
+    JWT_SECRET,
+    { algorithm: 'HS256', expiresIn: '7d' },
+  );
+  return { userId: user.id, token };
 }
 
 // ─── singleton state ─────────────────────────────────────────────────────────

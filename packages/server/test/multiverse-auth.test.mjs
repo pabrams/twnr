@@ -1,35 +1,12 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import crypto from 'node:crypto';
-import jwt from 'jsonwebtoken';
-import pg from 'pg';
-import { ensureServer, createPool as _gsCreatePool, BASE } from './global-setup.mjs';
-
-const { Pool } = pg;
-const JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret';
+import { ensureServer, createPool as _gsCreatePool, createTestUserWithToken, BASE } from './global-setup.mjs';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-function hashPassword(password) {
-  const salt = crypto.randomBytes(16);
-  const derivedKey = crypto.scryptSync(password, salt, 64);
-  return `scrypt$${salt.toString('base64url')}$${derivedKey.toString('base64url')}`;
-}
-
-/** Create a user directly in the DB, bypassing the rate-limited API. Returns { status, body: { userId }, token }. */
 async function createTestUser(name, email, password) {
-  const hash = hashPassword(password);
-  const res = await pool.query(
-    `INSERT INTO users (email, password_hash, role) VALUES ($1, $2, 'player') RETURNING id, role, token_version`,
-    [email, hash],
-  );
-  const user = res.rows[0];
-  const token = jwt.sign(
-    { userId: user.id, name, role: user.role, tokenVersion: user.token_version },
-    JWT_SECRET,
-    { algorithm: 'HS256', expiresIn: '7d' },
-  );
-  return { status: 201, body: { userId: user.id }, token };
+  const { userId, token } = await createTestUserWithToken(pool, { name, email, password });
+  return { status: 201, body: { userId }, token };
 }
 
 async function registerUser(name, email, password) {
