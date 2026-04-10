@@ -1,0 +1,47 @@
+
+I have some partially implemented features, I need you to add appropriate UI.
+
+The following is a list of server methods that have been implemented but need to have UI added. 
+
+The database has some tables called command, menu, and menu_command. These are supposed to keep track of all possible commands from each of the 
+player "menus".
+
+The server is supposed to keep track of the player's current menu at all times, and return this information to the client after commands, so 
+that the client can display the correct prompt and accept the appropriate input. Check how that's already being done.
+
+    Menu   Key	    Handler	 
+1. Sector  U	handleUseTerraformDevice	
+2. Sector  L	handleLandOnPlanet	
+3. Planet  D	handlePlanetDisplay	
+4. Planet  Z	handleDestroyPlanet
+5. Planet  Q	handleLeavePlanet
+6. Sector  G	handleListDeployedDrones
+
+1. Use Terraform Device
+It should print out the number of Terraform devices that are on the player's ship. 
+If the player doesn't have any, a message to that effect is displayed and the user is returned to the Sector menu.  
+If there are 1 or more, ask the user if they would like to use one in the current sector to create a planet. 
+If they say yes, then choose a random planet type and create a planet of that type in the sector.
+Once created, count the number of planets in the sector. If it's more than the max_planets_per_sector value form the current universe's edit (see table `edits`), 
+then a new record should be inserted in the planet_collisions table. Pick one of the other planets in the sector at random to be one of the planets in the collision.
+Pick a random hour between planet_collisions_min_hours and planet_collision_max_hours, and add that to the current time to calculate the collision time. 
+Change the sector display to include information about any upcoming planet collision in the current sector.
+Also make sure that the sector display is showing the list of planets in the sector.
+
+2. Land on Planet
+This command is partly implemented. When the user uses the L key from the sector menu, the game should list available planets by id, name, and type.
+The player must type a planet id (also let them quit back to sector menu) to land. Once landed, they are on the planet menu. 
+Available commands here are Q (to leave the planet and go back to the sector menu), D (to display the planet; show all values stored on the planets table),
+and Z to destroy the planet. If the user destroys the planet, they are returned to the sector menu. The planet should be deleted, and the planet_collisions entry,
+if any, should be deleted (via cascading delete - add the constraint if it does not exist). Show appropriate messaging to the player.
+However, there is a special planet. Sector 1 is supposed to always have a planet called Earth. The feature was partly implemented, we need to fix it.
+Delete the config file initial-values.json and remove all references to it. Instead, update the schema, including universe generation as well as the 
+importUniverse script, to add a column to the edits table, `starting_earth_colonists` and set it to one million. Then make sure that this number of colonists 
+gets added to the planet Earth in sector 1 on universe creation (and during importUniverse  and wherever else is appropriate). You can use the fuel colonists
+column on the planet. Then we want to change the "L"and command to be special when in sector 1. Instead of doing all the "pick a planet" stuff we just automatically
+land the player on earth and prompt them to eiether Leave or Take colonists (or Quit to go back to sector 1 prompt). On any planet other than earth, leaving or taking
+colonists requires also specifying a commodity, but on planet earth, just always assume it's fuel ore. Also, we don't need to display any info when on planet earth
+except the number of colonists (and we don't need to know which commodity they're assigned to).
+For other planets, let's not bother implementing the leave/take colonists functionality yet because it's more complicated.
+
+Please try to use existing code, where appropriate, instead of creating new stuff. you might find the ./docs useful. 
