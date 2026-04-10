@@ -80,6 +80,13 @@ function startServer() {
       if (!settled && (stdout.includes('listening') || stdout.includes(TEST_PORT))) {
         settled = true;
         clearTimeout(timeout);
+        // Detach stdio so the test process can exit when tests finish
+        proc.stdout.removeAllListeners('data');
+        proc.stderr.removeAllListeners('data');
+        proc.stdout.destroy();
+        proc.stderr.destroy();
+        proc.stdin.destroy();
+        proc.unref();
         setTimeout(() => resolve(proc), 5000);
       }
     });
@@ -141,7 +148,7 @@ async function doSetup() {
   const imp = spawnSync(process.execPath, [
     join(PROJECT_ROOT, 'scripts', 'importUniverse.js'),
     universeDir, '--force',
-  ], { encoding: 'utf8', cwd: PROJECT_ROOT, env: testEnv() });
+  ], { encoding: 'utf8', cwd: PROJECT_ROOT, env: { ...testEnv(), PGUSER: 'twnr_user', PGPASSWORD: 'twnr_pass' } });
   if (imp.status !== 0) throw new Error(`importUniverse failed: ${imp.stderr}\n${imp.stdout}`);
 
   serverProc = await startServer();
