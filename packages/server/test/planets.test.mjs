@@ -238,11 +238,17 @@ describe('planets table schema', () => {
     assert.ok(!cols.colonists, 'colonists column should be removed');
   });
 
-  it('has new SMALLINT columns: drones, fuel, organics, equipment, colonists_fuel, colonists_organics, colonists_equipment', () => {
-    const expected = ['drones', 'fuel', 'organics', 'equipment', 'colonists_fuel', 'colonists_organics', 'colonists_equipment'];
-    for (const name of expected) {
+  it('has new SMALLINT columns: drones, fuel, organics, equipment; INTEGER columns: colonists_fuel, colonists_organics, colonists_equipment', () => {
+    const smallintCols = ['drones', 'fuel', 'organics', 'equipment'];
+    const integerCols = ['colonists_fuel', 'colonists_organics', 'colonists_equipment'];
+    for (const name of smallintCols) {
       assert.ok(cols[name], `column ${name} missing`);
       assert.ok(cols[name].data_type.includes('smallint'), `${name} should be smallint, got ${cols[name].data_type}`);
+      assert.equal(cols[name].is_nullable, 'NO', `${name} should be NOT NULL`);
+    }
+    for (const name of integerCols) {
+      assert.ok(cols[name], `column ${name} missing`);
+      assert.ok(cols[name].data_type.includes('integer'), `${name} should be integer, got ${cols[name].data_type}`);
       assert.equal(cols[name].is_nullable, 'NO', `${name} should be NOT NULL`);
     }
   });
@@ -825,7 +831,7 @@ describe('WS: land command returns planet list', () => {
 
     // Ensure a planet exists in that sector
     await pool.query(
-      `INSERT INTO planets (sector_id, name, type) VALUES ($1, 'TestPlanet', 'H')
+      `INSERT INTO planets (sector_id, name, type) VALUES ($1, 'TestPlanet', 'Terran')
        ON CONFLICT DO NOTHING`,
       [sectorDbId],
     );

@@ -381,9 +381,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                             ctx.setAutopilotPath([]);
                             ctx.setAutopilotStep(0);
                             ctx.setAutopilotPaused(false);
-                            ctx.term.writeln(
-                                `\r\n${colors.boldRed('Autopilot cancelled.')}`,
-                            );
+                            ctx.term.writeln(`\r\n${colors.boldRed('Autopilot cancelled.')}`);
                         }
                         ctx.term.writeln(`\r\n${colors.boldRed('You do not have a ship.')}`);
                         showPrompt(ctx);
@@ -393,9 +391,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                             ctx.setAutopilotPath([]);
                             ctx.setAutopilotStep(0);
                             ctx.setAutopilotPaused(false);
-                            ctx.term.writeln(
-                                `\r\n${colors.boldRed('Autopilot cancelled.')}`,
-                            );
+                            ctx.term.writeln(`\r\n${colors.boldRed('Autopilot cancelled.')}`);
                         }
                         ctx.term.writeln(
                             `\r\n${colors.boldRed('Error:')} ${colors.red(msg.message)}`,
