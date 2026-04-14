@@ -1,6 +1,7 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { ensureServer, createPool as _gsCreatePool, createTestUserWithToken, BASE } from './global-setup.mjs';
+import jwt from 'jsonwebtoken';
+import { ensureServer, createPool as _gsCreatePool, createTestUserWithToken, BASE, JWT_SECRET } from './global-setup.mjs';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
