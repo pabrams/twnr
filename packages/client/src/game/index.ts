@@ -1,7 +1,7 @@
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { ClientMsgType } from '@twnr/shared';
-import type { ClientCommand, PortInfoResultObject, MenuEntry, HardwarePrices } from '@twnr/shared';
+import type { ClientCommand, PortInfoResultObject, MenuEntry, HardwarePriceItem } from '@twnr/shared';
 import type { GameContext, TradeStep } from './types.js';
 import { setupConnection } from './connection.js';
 import { setupInput } from './input.js';
@@ -48,7 +48,7 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
     let encounterOwnerName = '';
     let menuRegistry = new Map<string, MenuEntry>();
     let starbaseSector: number | null = null;
-    let hardwarePrices: HardwarePrices | null = null;
+    let hardwarePrices: HardwarePriceItem[] | null = null;
     let colonistCommodity: 'fuel' | 'organics' | 'equipment' | null = null;
     let tradeQueue: TradeStep[] = [];
     let tradeStepIdx = 0;

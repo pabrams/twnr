@@ -104,6 +104,25 @@ function boolStr(val: boolean): string {
     return val ? colors.boldGreen('Yes') : colors.white('No');
 }
 
+// Hardware display labels (order matters for display)
+const HW_DISPLAY: { name: string; label: string; isToggle?: boolean }[] = [
+    { name: 'hyperspace_1', label: 'Hyperspace 1', isToggle: true },
+    { name: 'hyperspace_2', label: 'Hyperspace 2', isToggle: true },
+    { name: 'visual_scanner', label: 'Visual Scanner', isToggle: true },
+    { name: 'planet_scanner', label: 'Planet Scanner', isToggle: true },
+    { name: 'buoy', label: 'Max Buoys' },
+    { name: 'proximity_mine', label: 'Max Proximity Mines' },
+    { name: 'seeker_mine', label: 'Max Seeker Mines' },
+    { name: 'orbital_mine', label: 'Max Orbital Mines' },
+    { name: 'cloaking_device', label: 'Max Cloaking' },
+    { name: 'corbomite', label: 'Max Corbomite' },
+    { name: 'photon_torpedo', label: 'Max Photon Torpedoes' },
+    { name: 'mine_disruptor', label: 'Max Disruptors' },
+    { name: 'recon_drone', label: 'Max Recon Drones' },
+    { name: 'planet_buster', label: 'Max Planet Busters' },
+    { name: 'terraform_device', label: 'Max Terraform Dev.' },
+];
+
 export function showShipDetail(ctx: GameContext, ship: any) {
     ctx.term.writeln('');
     ctx.term.writeln(colors.boldCyan(`=== ${ship.name} ===`));
@@ -123,21 +142,15 @@ export function showShipDetail(ctx: GameContext, ship: any) {
     ctx.term.writeln(shipLine('Can Land', boolStr(ship.can_land)));
     ctx.term.writeln(shipLine('Has Tractor', boolStr(ship.has_tractor)));
     ctx.term.writeln(shipLine('Has Interdictor', boolStr(ship.has_interdictor)));
-    ctx.term.writeln(shipLine('Hyperspace 1', boolStr(ship.can_have_hyperspace_1)));
-    ctx.term.writeln(shipLine('Hyperspace 2', boolStr(ship.can_have_hyperspace_2)));
-    ctx.term.writeln(shipLine('Visual Scanner', boolStr(ship.can_have_visual_scanner)));
-    ctx.term.writeln(shipLine('Planet Scanner', boolStr(ship.can_have_planet_scanner)));
-    ctx.term.writeln(shipLine('Max Buoys', ship.max_buoy));
-    ctx.term.writeln(shipLine('Max Proximity Mines', ship.max_proximity));
-    ctx.term.writeln(shipLine('Max Seeker Mines', ship.max_seeker));
-    ctx.term.writeln(shipLine('Max Orbital Mines', ship.max_orbital));
-    ctx.term.writeln(shipLine('Max Cloaking', ship.max_cloaking));
-    ctx.term.writeln(shipLine('Max Corbomite', ship.max_corbomite));
-    ctx.term.writeln(shipLine('Max Photon Torpedoes', ship.max_photon));
-    ctx.term.writeln(shipLine('Max Disruptors', ship.max_disruptors));
-    ctx.term.writeln(shipLine('Max Recon Drones', ship.max_recon_drones));
-    ctx.term.writeln(shipLine('Max Planet Busters', ship.max_planet_busters));
-    ctx.term.writeln(shipLine('Max Terraform Dev.', ship.max_terraform_devices));
+    const hw = ship.hardware ?? {};
+    for (const h of HW_DISPLAY) {
+        const val = hw[h.name] ?? 0;
+        if (h.isToggle) {
+            ctx.term.writeln(shipLine(h.label, boolStr(val > 0)));
+        } else {
+            ctx.term.writeln(shipLine(h.label, val));
+        }
+    }
     if (ship.notes) ctx.term.writeln(shipLine('Notes', ship.notes));
 }
 

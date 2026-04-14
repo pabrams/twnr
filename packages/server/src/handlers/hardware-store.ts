@@ -2,31 +2,54 @@ import { ServerMsgType } from '@twnr/shared';
 import { players, sendEnvelope, setPlayerMenu } from '../game-state.js';
 import { pool } from '../db/index.js';
 
-async function getEditPrice(
-    universeId: number,
-    priceColumn: string,
-    fallback: number,
-): Promise<number> {
+/** Get hardware price for a universe: check hardware_price for the edit, fall back to default_price. */
+async function getHardwarePrice(universeId: number, hardwareItemId: number, defaultPrice: number): Promise<number> {
     const res = await pool.query(
-        `SELECT e.${priceColumn} FROM edits e JOIN universes u ON u.edit_id = e.id WHERE u.id = $1`,
-        [universeId],
+        `SELECT hp.price FROM hardware_price hp
+         JOIN universes u ON u.edit_id = hp.edit_id
+         WHERE u.id = $1 AND hp.hardware_item_id = $2`,
+        [universeId, hardwareItemId],
     );
-    return res.rows[0]?.[priceColumn] ?? fallback;
+    return res.rows[0]?.price ?? defaultPrice;
 }
 
-/** Generic helper for buying stackable hardware (quantity-based items). */
-async function buyStackableHardware(
+/** Unified handler for buying any hardware item. */
+export async function handleBuyHardware(
     playerId: number,
+    itemName: string,
+    quantity?: number,
+): Promise<void> {
+    const player = players[playerId];
+    if (!player?.at_starbase) {
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not at Starbase' });
+        return;
+    }
+
+    // Look up the hardware item
+    const hwRes = await pool.query(
+        'SELECT id, name, label, kind, default_price, result_extra FROM hardware_item WHERE name = $1',
+        [itemName],
+    );
+    if (hwRes.rows.length === 0) {
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Unknown hardware item' });
+        return;
+    }
+    const hw = hwRes.rows[0];
+
+    const unitPrice = await getHardwarePrice(player.universeId, hw.id, hw.default_price);
+
+    if (hw.kind === 'stackable') {
+        await buyStackable(playerId, hw, unitPrice, quantity ?? 0);
+    } else {
+        await buyToggle(playerId, hw, unitPrice);
+    }
+}
+
+async function buyStackable(
+    playerId: number,
+    hw: { id: number; name: string; label: string; kind: string; result_extra: any },
+    unitPrice: number,
     quantity: number,
-    opts: {
-        shipColumn: string;
-        maxColumn: string;
-        priceColumn: string;
-        fallbackPrice: number;
-        itemName: string;
-        resultType: string;
-        resultExtra?: Record<string, any>;
-    },
 ): Promise<void> {
     const qty = Number.isInteger(quantity) ? quantity : 0;
     if (qty <= 0) {
@@ -34,23 +57,22 @@ async function buyStackableHardware(
         return;
     }
 
-    const player = players[playerId];
-    if (!player?.at_starbase) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not at Starbase' });
-        return;
-    }
-
-    const unitPrice = await getEditPrice(player.universeId, opts.priceColumn, opts.fallbackPrice);
     const cost = qty * unitPrice;
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
 
+        // Get ship id and current quantity
         const shipRes = await client.query(
-            `SELECT s.id as ship_id, s.${opts.shipColumn} as current_qty, st.${opts.maxColumn} as max_qty
-             FROM ships s JOIN ship_types st ON s.ship_type_id = st.id
-             WHERE s.id = (SELECT ship_id FROM players WHERE id = $1) FOR UPDATE OF s`,
-            [playerId],
+            `SELECT s.id as ship_id,
+                    COALESCE(sh.quantity, 0) as current_qty,
+                    COALESCE(sth.max_quantity, 0) as max_qty
+             FROM ships s
+             LEFT JOIN ship_hardware sh ON sh.ship_id = s.id AND sh.hardware_item_id = $2
+             LEFT JOIN ship_type_hardware sth ON sth.ship_type_id = s.ship_type_id AND sth.hardware_item_id = $2
+             WHERE s.id = (SELECT ship_id FROM players WHERE id = $1)
+             FOR UPDATE OF s`,
+            [playerId, hw.id],
         );
         if (shipRes.rows.length === 0) {
             await client.query('ROLLBACK');
@@ -64,7 +86,7 @@ async function buyStackableHardware(
             await client.query('ROLLBACK');
             sendEnvelope(playerId, {
                 type: ServerMsgType.Error,
-                message: `Your ship cannot carry ${opts.itemName}`,
+                message: `Your ship cannot carry ${hw.label}`,
             });
             return;
         }
@@ -73,7 +95,7 @@ async function buyStackableHardware(
             await client.query('ROLLBACK');
             sendEnvelope(playerId, {
                 type: ServerMsgType.Error,
-                message: `Cannot hold that many ${opts.itemName} (max ${max_qty})`,
+                message: `Cannot hold that many ${hw.label} (max ${max_qty})`,
             });
             return;
         }
@@ -92,18 +114,23 @@ async function buyStackableHardware(
             playerId,
         ]);
         await client.query(
-            `UPDATE ships SET ${opts.shipColumn} = ${opts.shipColumn} + $1 WHERE id = $2`,
-            [qty, ship_id],
+            `INSERT INTO ship_hardware (ship_id, hardware_item_id, quantity)
+             VALUES ($1, $2, $3)
+             ON CONFLICT (ship_id, hardware_item_id) DO UPDATE SET quantity = ship_hardware.quantity + $3`,
+            [ship_id, hw.id, qty],
         );
         await client.query('COMMIT');
 
         await setPlayerMenu(playerId, 'starbaseHardware');
         sendEnvelope(playerId, {
-            type: opts.resultType,
+            type: ServerMsgType.BuyHardwareResult,
+            itemName: hw.name,
+            label: hw.label,
+            kind: 'stackable',
             quantity: qty,
             totalOnShip: current_qty + qty,
             credits: credRes.rows[0].credits - cost,
-            ...opts.resultExtra,
+            ...(hw.result_extra ?? {}),
         } as any);
     } catch (err) {
         await client.query('ROLLBACK');
@@ -114,35 +141,25 @@ async function buyStackableHardware(
     }
 }
 
-/** Generic helper for buying boolean (toggle) hardware items. */
-async function buyToggleHardware(
+async function buyToggle(
     playerId: number,
-    opts: {
-        shipColumn: string;
-        canHaveColumn: string;
-        priceColumn: string;
-        fallbackPrice: number;
-        itemName: string;
-        resultType: string;
-        resultExtra?: Record<string, any>;
-    },
+    hw: { id: number; name: string; label: string; kind: string; result_extra: any },
+    unitPrice: number,
 ): Promise<void> {
-    const player = players[playerId];
-    if (!player?.at_starbase) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not at Starbase' });
-        return;
-    }
-
-    const unitPrice = await getEditPrice(player.universeId, opts.priceColumn, opts.fallbackPrice);
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
 
         const shipRes = await client.query(
-            `SELECT s.id as ship_id, s.${opts.shipColumn} as has_item, st.${opts.canHaveColumn} as can_have
-             FROM ships s JOIN ship_types st ON s.ship_type_id = st.id
-             WHERE s.id = (SELECT ship_id FROM players WHERE id = $1) FOR UPDATE OF s`,
-            [playerId],
+            `SELECT s.id as ship_id,
+                    COALESCE(sh.quantity, 0) as has_item,
+                    COALESCE(sth.max_quantity, 0) as can_have
+             FROM ships s
+             LEFT JOIN ship_hardware sh ON sh.ship_id = s.id AND sh.hardware_item_id = $2
+             LEFT JOIN ship_type_hardware sth ON sth.ship_type_id = s.ship_type_id AND sth.hardware_item_id = $2
+             WHERE s.id = (SELECT ship_id FROM players WHERE id = $1)
+             FOR UPDATE OF s`,
+            [playerId, hw.id],
         );
         if (shipRes.rows.length === 0) {
             await client.query('ROLLBACK');
@@ -154,16 +171,16 @@ async function buyToggleHardware(
             await client.query('ROLLBACK');
             sendEnvelope(playerId, {
                 type: ServerMsgType.Error,
-                message: `Ship cannot equip ${opts.itemName}`,
+                message: `Ship cannot equip ${hw.label}`,
             });
             return;
         }
 
-        if (shipRes.rows[0].has_item) {
+        if (shipRes.rows[0].has_item > 0) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, {
                 type: ServerMsgType.Error,
-                message: `Ship already has ${opts.itemName}`,
+                message: `Ship already has ${hw.label}`,
             });
             return;
         }
@@ -177,9 +194,12 @@ async function buyToggleHardware(
             return;
         }
 
-        await client.query(`UPDATE ships SET ${opts.shipColumn} = TRUE WHERE id = $1`, [
-            shipRes.rows[0].ship_id,
-        ]);
+        await client.query(
+            `INSERT INTO ship_hardware (ship_id, hardware_item_id, quantity)
+             VALUES ($1, $2, 1)
+             ON CONFLICT (ship_id, hardware_item_id) DO UPDATE SET quantity = 1`,
+            [shipRes.rows[0].ship_id, hw.id],
+        );
         await client.query('UPDATE players SET credits = credits - $1 WHERE id = $2', [
             unitPrice,
             playerId,
@@ -188,9 +208,12 @@ async function buyToggleHardware(
 
         await setPlayerMenu(playerId, 'starbaseHardware');
         sendEnvelope(playerId, {
-            type: opts.resultType,
+            type: ServerMsgType.BuyHardwareResult,
+            itemName: hw.name,
+            label: hw.label,
+            kind: 'toggle',
             credits: credRes.rows[0].credits - unitPrice,
-            ...opts.resultExtra,
+            ...(hw.result_extra ?? {}),
         } as any);
     } catch (err) {
         await client.query('ROLLBACK');
@@ -198,179 +221,5 @@ async function buyToggleHardware(
         sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Internal server error' });
     } finally {
         client.release();
-    }
-}
-
-// --- Stackable hardware ---
-
-export async function handleBuyPlanetBusters(playerId: number, quantity: number): Promise<void> {
-    return buyStackableHardware(playerId, quantity, {
-        shipColumn: 'planet_busters',
-        maxColumn: 'max_planet_busters',
-        priceColumn: 'price_planet_buster',
-        fallbackPrice: 40000,
-        itemName: 'Planet Busters',
-        resultType: ServerMsgType.BuyPlanetBustersResult,
-    });
-}
-
-export async function handleBuyTerraformDevices(playerId: number, quantity: number): Promise<void> {
-    return buyStackableHardware(playerId, quantity, {
-        shipColumn: 'terraform_devices',
-        maxColumn: 'max_terraform_devices',
-        priceColumn: 'price_terraform_device',
-        fallbackPrice: 25000,
-        itemName: 'Terraform Devices',
-        resultType: ServerMsgType.BuyTerraformDevicesResult,
-    });
-}
-
-export async function handleBuyBuoys(playerId: number, quantity: number): Promise<void> {
-    return buyStackableHardware(playerId, quantity, {
-        shipColumn: 'buoys',
-        maxColumn: 'max_buoy',
-        priceColumn: 'price_space_buoy',
-        fallbackPrice: 100,
-        itemName: 'Space Buoys',
-        resultType: ServerMsgType.BuyBuoysResult,
-    });
-}
-
-export async function handleBuyProximityMines(playerId: number, quantity: number): Promise<void> {
-    return buyStackableHardware(playerId, quantity, {
-        shipColumn: 'proximity_mines',
-        maxColumn: 'max_proximity',
-        priceColumn: 'price_proximity_mine',
-        fallbackPrice: 500,
-        itemName: 'Proximity Mines',
-        resultType: ServerMsgType.BuyMinesResult,
-        resultExtra: { mineType: 'proximity' },
-    });
-}
-
-export async function handleBuySeekerMines(playerId: number, quantity: number): Promise<void> {
-    return buyStackableHardware(playerId, quantity, {
-        shipColumn: 'seeker_mines',
-        maxColumn: 'max_seeker',
-        priceColumn: 'price_seeker_mine',
-        fallbackPrice: 9500,
-        itemName: 'Seeker Mines',
-        resultType: ServerMsgType.BuyMinesResult,
-        resultExtra: { mineType: 'seeker' },
-    });
-}
-
-export async function handleBuyOrbitalMines(playerId: number, quantity: number): Promise<void> {
-    return buyStackableHardware(playerId, quantity, {
-        shipColumn: 'orbital_mines',
-        maxColumn: 'max_orbital',
-        priceColumn: 'price_orbital_mine',
-        fallbackPrice: 2000,
-        itemName: 'Orbital Mines',
-        resultType: ServerMsgType.BuyMinesResult,
-        resultExtra: { mineType: 'orbital' },
-    });
-}
-
-export async function handleBuyMineDisruptors(playerId: number, quantity: number): Promise<void> {
-    return buyStackableHardware(playerId, quantity, {
-        shipColumn: 'mine_disruptors',
-        maxColumn: 'max_disruptors',
-        priceColumn: 'price_mine_disruptor',
-        fallbackPrice: 5000,
-        itemName: 'Mine Disruptors',
-        resultType: ServerMsgType.BuyMineDisruptorsResult,
-    });
-}
-
-export async function handleBuyCloakingDevice(playerId: number, quantity: number): Promise<void> {
-    return buyStackableHardware(playerId, quantity, {
-        shipColumn: 'cloaking_devices',
-        maxColumn: 'max_cloaking',
-        priceColumn: 'price_cloaking_device',
-        fallbackPrice: 25000,
-        itemName: 'Cloaking Devices',
-        resultType: ServerMsgType.BuyCloakingDeviceResult,
-    });
-}
-
-export async function handleBuyCorbomite(playerId: number, quantity: number): Promise<void> {
-    return buyStackableHardware(playerId, quantity, {
-        shipColumn: 'corbomite',
-        maxColumn: 'max_corbomite',
-        priceColumn: 'price_corbomite',
-        fallbackPrice: 500,
-        itemName: 'Corbomite',
-        resultType: ServerMsgType.BuyCorbomiteResult,
-    });
-}
-
-export async function handleBuyPhotonTorpedoes(playerId: number, quantity: number): Promise<void> {
-    return buyStackableHardware(playerId, quantity, {
-        shipColumn: 'photon_torpedoes',
-        maxColumn: 'max_photon',
-        priceColumn: 'price_photon_torpedo',
-        fallbackPrice: 60000,
-        itemName: 'Photon Torpedoes',
-        resultType: ServerMsgType.BuyPhotonTorpedoesResult,
-    });
-}
-
-export async function handleBuyReconDrones(playerId: number, quantity: number): Promise<void> {
-    return buyStackableHardware(playerId, quantity, {
-        shipColumn: 'recon_drones',
-        maxColumn: 'max_recon_drones',
-        priceColumn: 'price_recon_drone',
-        fallbackPrice: 1500,
-        itemName: 'Recon Drones',
-        resultType: ServerMsgType.BuyReconDronesResult,
-    });
-}
-
-// --- Toggle hardware ---
-
-export async function handleBuyVisualScanner(playerId: number): Promise<void> {
-    return buyToggleHardware(playerId, {
-        shipColumn: 'has_visual_scanner',
-        canHaveColumn: 'can_have_visual_scanner',
-        priceColumn: 'price_visual_scanner',
-        fallbackPrice: 50000,
-        itemName: 'Visual Scanner',
-        resultType: ServerMsgType.BuyVisualScannerResult,
-    });
-}
-
-export async function handleBuyPlanetScanner(playerId: number): Promise<void> {
-    return buyToggleHardware(playerId, {
-        shipColumn: 'has_planet_scanner',
-        canHaveColumn: 'can_have_planet_scanner',
-        priceColumn: 'price_planet_scanner',
-        fallbackPrice: 20000,
-        itemName: 'Planet Scanner',
-        resultType: ServerMsgType.BuyPlanetScannerResult,
-    });
-}
-
-export async function handleBuyHyperspaceDrive(playerId: number, driveType: 1 | 2): Promise<void> {
-    if (driveType === 1) {
-        return buyToggleHardware(playerId, {
-            shipColumn: 'has_hyperspace_1',
-            canHaveColumn: 'can_have_hyperspace_1',
-            priceColumn: 'price_hyperspace_1',
-            fallbackPrice: 100000,
-            itemName: 'Hyperspace Drive Type 1',
-            resultType: ServerMsgType.BuyHyperspaceDriveResult,
-            resultExtra: { driveType: 1 },
-        });
-    } else {
-        return buyToggleHardware(playerId, {
-            shipColumn: 'has_hyperspace_2',
-            canHaveColumn: 'can_have_hyperspace_2',
-            priceColumn: 'price_hyperspace_2',
-            fallbackPrice: 150000,
-            itemName: 'Hyperspace Drive Type 2',
-            resultType: ServerMsgType.BuyHyperspaceDriveResult,
-            resultExtra: { driveType: 2 },
-        });
     }
 }

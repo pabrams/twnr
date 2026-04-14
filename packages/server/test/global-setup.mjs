@@ -161,11 +161,14 @@ async function doSetup() {
     DROP TABLE IF EXISTS planet_collisions CASCADE;
     DROP TABLE IF EXISTS planets CASCADE;
     DROP TABLE IF EXISTS visited_sectors CASCADE;
+    DROP TABLE IF EXISTS ship_hardware CASCADE;
     DROP TABLE IF EXISTS ships CASCADE;
+    DROP TABLE IF EXISTS ship_type_hardware CASCADE;
     DROP TABLE IF EXISTS ship_types_edits CASCADE;
     DROP TABLE IF EXISTS planet_types_edits CASCADE;
     DROP TABLE IF EXISTS ship_types CASCADE;
-    DROP TABLE IF EXISTS hardware CASCADE;
+    DROP TABLE IF EXISTS hardware_price CASCADE;
+    DROP TABLE IF EXISTS hardware_item CASCADE;
     DROP TABLE IF EXISTS ports CASCADE;
     DROP TABLE IF EXISTS warps CASCADE;
     DROP TABLE IF EXISTS players CASCADE;

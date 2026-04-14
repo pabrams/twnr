@@ -134,10 +134,12 @@ export async function handleDestroyPlanet(playerId: number): Promise<void> {
     }
 
     const shipRes = await pool.query(
-        'SELECT planet_busters FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1) FOR UPDATE',
+        `SELECT sh.quantity FROM ship_hardware sh
+         JOIN hardware_item hi ON hi.id = sh.hardware_item_id
+         WHERE hi.name = 'planet_buster' AND sh.ship_id = (SELECT ship_id FROM players WHERE id = $1)`,
         [playerId],
     );
-    if (shipRes.rows.length === 0 || shipRes.rows[0].planet_busters < 1) {
+    if (shipRes.rows.length === 0 || shipRes.rows[0].quantity < 1) {
         sendEnvelope(playerId, {
             type: ServerMsgType.Error,
             message: 'You do not have a planet buster.',
@@ -156,7 +158,9 @@ export async function handleDestroyPlanet(playerId: number): Promise<void> {
         await client.query('BEGIN');
 
         await client.query(
-            'UPDATE ships SET planet_busters = planet_busters - 1 WHERE id = (SELECT ship_id FROM players WHERE id = $1)',
+            `UPDATE ship_hardware SET quantity = quantity - 1
+             WHERE hardware_item_id = (SELECT id FROM hardware_item WHERE name = 'planet_buster')
+             AND ship_id = (SELECT ship_id FROM players WHERE id = $1)`,
             [playerId],
         );
         await setOnPlanet(playerId, null, client);
@@ -217,10 +221,13 @@ export async function handleUseTerraformDevice(playerId: number): Promise<void> 
     }
 
     const shipRes = await pool.query(
-        'SELECT terraform_devices FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1) FOR UPDATE',
+        `SELECT COALESCE(sh.quantity, 0) as quantity FROM ships s
+         LEFT JOIN ship_hardware sh ON sh.ship_id = s.id
+           AND sh.hardware_item_id = (SELECT id FROM hardware_item WHERE name = 'terraform_device')
+         WHERE s.id = (SELECT ship_id FROM players WHERE id = $1)`,
         [playerId],
     );
-    if (shipRes.rows.length === 0 || shipRes.rows[0].terraform_devices < 1) {
+    if (shipRes.rows.length === 0 || shipRes.rows[0].quantity < 1) {
         sendEnvelope(playerId, {
             type: ServerMsgType.UseTerraformDeviceResult,
             success: false,
@@ -250,7 +257,9 @@ export async function handleUseTerraformDevice(playerId: number): Promise<void> 
         );
 
         await client.query(
-            'UPDATE ships SET terraform_devices = terraform_devices - 1 WHERE id = (SELECT ship_id FROM players WHERE id = $1)',
+            `UPDATE ship_hardware SET quantity = quantity - 1
+             WHERE hardware_item_id = (SELECT id FROM hardware_item WHERE name = 'terraform_device')
+             AND ship_id = (SELECT ship_id FROM players WHERE id = $1)`,
             [playerId],
         );
 
@@ -291,7 +300,7 @@ export async function handleUseTerraformDevice(playerId: number): Promise<void> 
             success: true,
             planet: { id: newPlanetId, name: randomName, type: randomType, sectorId },
             collision,
-            terraformDevices: shipRes.rows[0].terraform_devices - 1,
+            terraformDevices: shipRes.rows[0].quantity - 1,
         });
     } catch (err) {
         await client.query('ROLLBACK');

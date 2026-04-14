@@ -62,8 +62,15 @@ export async function handleHyperspaceJump(playerId: number, targetSector: numbe
 
     // Check has hyperspace drive (type 1 or 2)
     const shipRes = await pool.query(
-        `SELECT s.id as ship_id, s.has_hyperspace_1, s.has_hyperspace_2, s.turns_per_warp
-         FROM ships s JOIN players p ON p.ship_id = s.id
+        `SELECT s.id as ship_id, s.turns_per_warp,
+                COALESCE(sh1.quantity, 0) as has_hyperspace_1,
+                COALESCE(sh2.quantity, 0) as has_hyperspace_2
+         FROM ships s
+         JOIN players p ON p.ship_id = s.id
+         LEFT JOIN ship_hardware sh1 ON sh1.ship_id = s.id
+           AND sh1.hardware_item_id = (SELECT id FROM hardware_item WHERE name = 'hyperspace_1')
+         LEFT JOIN ship_hardware sh2 ON sh2.ship_id = s.id
+           AND sh2.hardware_item_id = (SELECT id FROM hardware_item WHERE name = 'hyperspace_2')
          WHERE p.id = $1`,
         [playerId],
     );

@@ -1,5 +1,5 @@
 import type { Terminal } from '@xterm/xterm';
-import type { ClientCommand, PortInfoResultObject, MenuEntry, HardwarePrices } from '@twnr/shared';
+import type { ClientCommand, PortInfoResultObject, MenuEntry, HardwarePriceItem } from '@twnr/shared';
 
 export interface GameContext {
     term: Terminal;
@@ -51,8 +51,8 @@ export interface GameContext {
     setMenuRegistry: (registry: Map<string, MenuEntry>) => void;
     starbaseSector: number | null;
     setStarbaseSector: (s: number | null) => void;
-    hardwarePrices: HardwarePrices | null;
-    setHardwarePrices: (p: HardwarePrices) => void;
+    hardwarePrices: HardwarePriceItem[] | null;
+    setHardwarePrices: (p: HardwarePriceItem[]) => void;
     colonistCommodity: 'fuel' | 'organics' | 'equipment' | null;
     setColonistCommodity: (c: 'fuel' | 'organics' | 'equipment' | null) => void;
     tradeQueue: TradeStep[];
