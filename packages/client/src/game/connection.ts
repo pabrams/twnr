@@ -59,6 +59,17 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     ctx.term.writeln(`\r\n${colors.white('Player warped out of the sector.')}`);
                 }
                 break;
+            case ServerMsgType.RateLimited:
+                if (ctx.autopilotPath.length > 0) {
+                    // Rate limited during autopilot — retry after a short delay
+                    const retrySector = ctx.autopilotPath[ctx.autopilotStep - 1];
+                    if (retrySector !== undefined) {
+                        setTimeout(() => {
+                            ctx.sendMsg({ type: ClientMsgType.Move, sector: retrySector });
+                        }, 200);
+                    }
+                }
+                break;
             case ServerMsgType.SectorDisplayResult:
                 ctx.sectorPlayers = msg.players;
                 showSectorDisplay(
