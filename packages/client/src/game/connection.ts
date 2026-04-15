@@ -229,7 +229,6 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                             ctx.tradeQueue = queue;
                             ctx.tradeStep = 0;
                             const step = queue[0];
-                            ctx.mode = Menu.TradeQty;
                             showTradeQtyPrompt(
                                 ctx,
                                 step.commodityLabel,
@@ -279,7 +278,6 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 } else {
                     ctx.term.writeln(`\r\n${colors.boldRed('Error:')} ${colors.red(msg.message)}`);
                 }
-                ctx.mode = Menu.Sector;
                 showPrompt(ctx);
                 break;
             case ServerMsgType.PortTransactionResult:
@@ -422,7 +420,6 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     `  ${colors.boldYellow('Credits')}: ${msg.credits}  ${colors.boldYellow('Drones')}: ${msg.drones}`,
                 );
                 if (ctx.mode === Menu.Class0Qty) {
-                    ctx.mode = Menu.Class0;
                     showClass0Menu(ctx);
                 } else if (ctx.mode === Menu.ShipyardsClass0Qty) {
                     showShipyardsClass0Menu(ctx);
@@ -434,7 +431,6 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     `  ${colors.boldYellow('Credits')}: ${msg.credits}  ${colors.boldYellow('Shields')}: ${msg.shields}`,
                 );
                 if (ctx.mode === Menu.Class0Qty) {
-                    ctx.mode = Menu.Class0;
                     showClass0Menu(ctx);
                 } else if (ctx.mode === Menu.ShipyardsClass0Qty) {
                     showShipyardsClass0Menu(ctx);
@@ -446,7 +442,6 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     `  ${colors.boldYellow('Credits')}: ${msg.credits}  ${colors.boldYellow('Holds')}: ${msg.cargoLimit}`,
                 );
                 if (ctx.mode === Menu.Class0Qty) {
-                    ctx.mode = Menu.Class0;
                     showClass0Menu(ctx);
                 } else if (ctx.mode === Menu.ShipyardsClass0Qty) {
                     showShipyardsClass0Menu(ctx);
@@ -776,7 +771,6 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     // Trade error — undock and return to sector
                     ctx.sendMsg({ type: ClientMsgType.Undock });
                 } else if (ctx.mode === Menu.DeployDronesQty) {
-                    ctx.mode = Menu.Sector;
                     showPrompt(ctx);
                 } else if (ctx.mode === Menu.DroneEncounter || ctx.mode === Menu.DroneAttackQty) {
                     // Stay in encounter mode — re-prompt

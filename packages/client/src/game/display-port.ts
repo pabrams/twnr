@@ -1,4 +1,3 @@
-import { Menu } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { colors } from './constants.js';
 
@@ -11,7 +10,6 @@ export function showAutopilotPrompt(
 ) {
     ctx.autopilotPath = path.map((p) => p.sector);
     ctx.autopilotStep = 0;
-    ctx.mode = Menu.AutopilotPrompt;
     ctx.term.writeln('');
     ctx.term.writeln(
         `${colors.boldYellow('That sector is not adjacent.')} Shortest path ${mg('(')}${colors.boldCyan(String(hops))} hops${mg(')')}:`,
@@ -25,7 +23,6 @@ export function showAutopilotPrompt(
 }
 
 export async function showClass0Menu(ctx: GameContext) {
-    ctx.mode = Menu.Class0;
     if (!ctx.class0Prices) {
         try {
             const res = await fetch('/api/class0-prices');
@@ -52,7 +49,6 @@ export async function showClass0Menu(ctx: GameContext) {
 }
 
 export function showClass0QtyPrompt(ctx: GameContext, buyType: string) {
-    ctx.mode = Menu.Class0Qty;
     ctx.term.write(`\r\n${colors.cyan(`How many ${buyType}?`)} `);
 }
 
@@ -96,7 +92,6 @@ export function showNoTradeMessage(ctx: GameContext) {
 }
 
 export function showJettisonConfirm(ctx: GameContext) {
-    ctx.mode = Menu.JettisonConfirm;
     ctx.term.write(
         `\r\n${colors.boldYellow('Jettison all cargo?')} This cannot be undone. ${mg('(')}${colors.boldYellow('Y')}/${colors.boldYellow('N')}${mg(')')} `,
     );
