@@ -202,7 +202,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     `  ${colors.boldYellow('Fuel')}: ${msg.cargoFuel}  ${colors.boldYellow('Organics')}: ${msg.cargoOrganics}  ${colors.boldYellow('Equipment')}: ${msg.cargoEquipment}  ${colors.boldYellow('Colonists')}: ${msg.cargoColonists}`,
                 );
                 ctx.term.writeln(
-                    `  ${colors.boldYellow('Credits')}: ${colors.boldYellow(String(msg.credits))}`,
+                    `  ${colors.boldYellow('Credits')}: ${colors.boldYellow(String(msg.credits))}  ${colors.boldYellow('Turns')}: ${colors.white(String(msg.turns))}`,
                 );
                 if (ctx.mode === Menu.Sector) showPrompt(ctx);
                 break;
