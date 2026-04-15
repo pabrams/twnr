@@ -1,6 +1,5 @@
 import { pool } from '../index.js';
-
-type Queryable = { query: (text: string, params?: any[]) => Promise<any> };
+import type { Queryable } from '../types.js';
 
 /** Subselect for the player's ship — used in WHERE clauses. */
 const SHIP_ID_SUBSELECT = '(SELECT ship_id FROM players WHERE id = $1)';
@@ -9,7 +8,7 @@ export async function getShipDrones(
     playerId: number,
     db: Queryable = pool,
 ): Promise<number | undefined> {
-    const res = await db.query(`SELECT drones FROM ships WHERE id = ${SHIP_ID_SUBSELECT}`, [
+    const res = await db.query<{ drones: number }>(`SELECT drones FROM ships WHERE id = ${SHIP_ID_SUBSELECT}`, [
         playerId,
     ]);
     return res.rows[0]?.drones;
@@ -19,7 +18,7 @@ export async function getShipDronesForUpdate(
     playerId: number,
     db: Queryable = pool,
 ): Promise<number | undefined> {
-    const res = await db.query(
+    const res = await db.query<{ drones: number }>(
         `SELECT drones FROM ships WHERE id = ${SHIP_ID_SUBSELECT} FOR UPDATE`,
         [playerId],
     );

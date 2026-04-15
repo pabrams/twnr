@@ -1,4 +1,4 @@
-import { ClientMsgType, ServerMsgType } from '@twnr/shared';
+import { ClientMsgType, ServerMsgType, type ClientCommand } from '@twnr/shared';
 import { players, sendEnvelope, getVisitedSectors } from '../game-state.js';
 import { pool } from '../db/index.js';
 import { handleChangeMenu } from './menu.js';
@@ -36,7 +36,7 @@ import {
 import { handleListDeployedDrones, handleHyperspaceJump } from './hyperwarp.js';
 import { handleBuyHardware } from './hardware-store.js';
 
-export async function handleMessage(playerId: number, data: any): Promise<void> {
+export async function handleMessage(playerId: number, data: ClientCommand): Promise<void> {
     switch (data.type) {
         case ClientMsgType.Move:
             return handleMove(playerId, data.sector);

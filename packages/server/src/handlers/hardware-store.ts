@@ -1,4 +1,4 @@
-import { ServerMsgType } from '@twnr/shared';
+import { ServerMsgType, type BuyHardwareResultObject } from '@twnr/shared';
 import { players, sendEnvelope, setPlayerMenu } from '../game-state.js';
 import { pool } from '../db/index.js';
 
@@ -51,7 +51,7 @@ export async function handleBuyHardware(
 
 async function buyStackable(
     playerId: number,
-    hw: { id: number; name: string; label: string; kind: string; result_extra: any },
+    hw: { id: number; name: string; label: string; kind: string; result_extra: Record<string, unknown> | null },
     unitPrice: number,
     quantity: number,
 ): Promise<void> {
@@ -135,7 +135,7 @@ async function buyStackable(
             totalOnShip: current_qty + qty,
             credits: credRes.rows[0].credits - cost,
             ...(hw.result_extra ?? {}),
-        } as any);
+        } as BuyHardwareResultObject);
     } catch (err) {
         await client.query('ROLLBACK');
         console.error('Buy hardware error', err);
@@ -147,7 +147,7 @@ async function buyStackable(
 
 async function buyToggle(
     playerId: number,
-    hw: { id: number; name: string; label: string; kind: string; result_extra: any },
+    hw: { id: number; name: string; label: string; kind: string; result_extra: Record<string, unknown> | null },
     unitPrice: number,
 ): Promise<void> {
     const client = await pool.connect();
@@ -218,7 +218,7 @@ async function buyToggle(
             kind: 'toggle',
             credits: credRes.rows[0].credits - unitPrice,
             ...(hw.result_extra ?? {}),
-        } as any);
+        } as BuyHardwareResultObject);
     } catch (err) {
         await client.query('ROLLBACK');
         console.error('Buy hardware error', err);

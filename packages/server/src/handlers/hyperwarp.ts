@@ -4,6 +4,7 @@ import { pool } from '../db/index.js';
 import { getOnPlanetId, moveToSector, markSectorVisited } from '../db/queries/player.js';
 import { getShipFuel } from '../db/queries/ship.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
+import type { DeployedDroneRow } from '../db/types.js';
 
 export async function handleListDeployedDrones(playerId: number): Promise<void> {
     const player = players[playerId];
@@ -25,7 +26,7 @@ export async function handleListDeployedDrones(playerId: number): Promise<void> 
         return;
     }
 
-    const res = await pool.query(
+    const res = await pool.query<DeployedDroneRow>(
         `SELECT s.sector_number as sector_id, sf.quantity
          FROM sector_drones sf
          JOIN sectors s ON sf.sector_id = s.id
@@ -35,7 +36,7 @@ export async function handleListDeployedDrones(playerId: number): Promise<void> 
 
     sendEnvelope(playerId, {
         type: ServerMsgType.ListDeployedDronesResult,
-        drones: res.rows.map((r: any) => ({ sectorId: r.sector_id, quantity: r.quantity })),
+        drones: res.rows.map((r) => ({ sectorId: r.sector_id, quantity: r.quantity })),
     });
 }
 

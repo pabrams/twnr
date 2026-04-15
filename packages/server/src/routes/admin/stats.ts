@@ -11,7 +11,7 @@ export function createAdminStatsRoutes(
     const { players } = deps;
     const { authenticateAdmin } = middleware;
 
-    router.get('/api/admin/server-stats', authenticateAdmin, async (_req, res): Promise<any> => {
+    router.get('/api/admin/server-stats', authenticateAdmin, async (_req, res) => {
         try {
             const playerCount = await pool.query('SELECT COUNT(*) FROM players');
             const sectorCount = await pool.query('SELECT COUNT(*) FROM sectors');

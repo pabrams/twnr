@@ -1,6 +1,7 @@
 import { ServerMsgType } from '@twnr/shared';
 import { players, sendEnvelope, buildSectorDisplayData, setPlayerMenu } from '../game-state.js';
 import { pool } from '../db/index.js';
+import type { PlayerPlanetRow } from '../db/types.js';
 import {
     getEarthId,
     getPlanetInSector,
@@ -506,7 +507,7 @@ export async function handleListPlanets(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
-    const res = await pool.query(
+    const res = await pool.query<PlayerPlanetRow>(
         `SELECT p.id, s.sector_number, p.name, p.type,
                 p.fuel, p.organics, p.equipment,
                 p.colonists_fuel, p.colonists_organics, p.colonists_equipment
@@ -519,7 +520,7 @@ export async function handleListPlanets(playerId: number): Promise<void> {
 
     sendEnvelope(playerId, {
         type: ServerMsgType.ListPlanetsResult,
-        planets: res.rows.map((r: any) => ({
+        planets: res.rows.map((r) => ({
             id: r.id,
             sectorNumber: r.sector_number,
             name: r.name,

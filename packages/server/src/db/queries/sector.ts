@@ -1,4 +1,5 @@
 import { pool } from '../index.js';
+import type { CollisionRow } from '../types.js';
 
 export async function getPlanetsInSector(
     sectorNumber: number,
@@ -17,7 +18,7 @@ export async function getCollisionsInSector(
     sectorNumber: number,
     universeId: number,
 ): Promise<{ planetName: string; collidingWithName: string; collisionAt: string }[]> {
-    const res = await pool.query(
+    const res = await pool.query<CollisionRow>(
         `SELECT p1.name as planet_name, p2.name as colliding_with_name, pc.collision_at
          FROM planet_collisions pc
          JOIN planets p1 ON pc.collision_planet = p1.id
@@ -27,7 +28,7 @@ export async function getCollisionsInSector(
            AND pc.collision_at > NOW()`,
         [sectorNumber, universeId],
     );
-    return res.rows.map((r: any) => ({
+    return res.rows.map((r) => ({
         planetName: r.planet_name,
         collidingWithName: r.colliding_with_name,
         collisionAt: r.collision_at,

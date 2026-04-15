@@ -1,6 +1,7 @@
 import { ServerMsgType } from '@twnr/shared';
 import { sendEnvelope } from '../game-state.js';
 import { pool } from '../db/index.js';
+import type { HardwareRow, HardwareMaxRow } from '../db/types.js';
 
 export async function handleShipInfo(playerId: number): Promise<void> {
     const query = `
@@ -24,25 +25,25 @@ export async function handleShipInfo(playerId: number): Promise<void> {
     const row = result.rows[0];
 
     // Get hardware quantities
-    const hwRes = await pool.query(
+    const hwRes = await pool.query<HardwareRow>(
         `SELECT hi.name, COALESCE(sh.quantity, 0) as quantity
          FROM hardware_item hi
          LEFT JOIN ship_hardware sh ON sh.hardware_item_id = hi.id AND sh.ship_id = $1`,
         [row.ship_id],
     );
     const hardware: Record<string, number> = Object.fromEntries(
-        hwRes.rows.map((r: any) => [r.name, r.quantity]),
+        hwRes.rows.map((r) => [r.name, r.quantity]),
     );
 
     // Get hardware max quantities
-    const hwMaxRes = await pool.query(
+    const hwMaxRes = await pool.query<HardwareMaxRow>(
         `SELECT hi.name, COALESCE(sth.max_quantity, 0) as max_quantity
          FROM hardware_item hi
          LEFT JOIN ship_type_hardware sth ON sth.hardware_item_id = hi.id AND sth.ship_type_id = $1`,
         [row.ship_type_id],
     );
     const hardwareMax: Record<string, number> = Object.fromEntries(
-        hwMaxRes.rows.map((r: any) => [r.name, r.max_quantity]),
+        hwMaxRes.rows.map((r) => [r.name, r.max_quantity]),
     );
 
     const holdsAvailable = row.holds - (row.fuel + row.organics + row.equipment + row.colonists);

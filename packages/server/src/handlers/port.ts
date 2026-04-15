@@ -9,6 +9,7 @@ import {
     setPlayerMenu,
 } from '../game-state.js';
 import { pool } from '../db/index.js';
+import type { HardwarePriceRow } from '../db/types.js';
 import { setDocked, getCurrentSector } from '../db/queries/player.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 
@@ -408,7 +409,7 @@ export async function handleDockStarbase(playerId: number): Promise<void> {
     await setPlayerMenu(playerId, 'starbase');
 
     // Fetch hardware prices from the universe's edit (or fall back to defaults)
-    const priceRes = await pool.query(
+    const priceRes = await pool.query<HardwarePriceRow>(
         `SELECT hi.name, hi.label, COALESCE(hp.price, hi.default_price) as price
          FROM hardware_item hi
          LEFT JOIN hardware_price hp ON hp.hardware_item_id = hi.id
@@ -418,7 +419,7 @@ export async function handleDockStarbase(playerId: number): Promise<void> {
     );
     sendEnvelope(playerId, {
         type: ServerMsgType.DockStarbaseResult,
-        prices: priceRes.rows.map((r: any) => ({ name: r.name, label: r.label, price: r.price })),
+        prices: priceRes.rows.map((r) => ({ name: r.name, label: r.label, price: r.price })),
     });
 }
 
