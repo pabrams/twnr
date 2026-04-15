@@ -51,7 +51,13 @@ export async function handleBuyHardware(
 
 async function buyStackable(
     playerId: number,
-    hw: { id: number; name: string; label: string; kind: string; result_extra: Record<string, unknown> | null },
+    hw: {
+        id: number;
+        name: string;
+        label: string;
+        kind: string;
+        result_extra: Record<string, unknown> | null;
+    },
     unitPrice: number,
     quantity: number,
 ): Promise<void> {
@@ -147,7 +153,13 @@ async function buyStackable(
 
 async function buyToggle(
     playerId: number,
-    hw: { id: number; name: string; label: string; kind: string; result_extra: Record<string, unknown> | null },
+    hw: {
+        id: number;
+        name: string;
+        label: string;
+        kind: string;
+        result_extra: Record<string, unknown> | null;
+    },
     unitPrice: number,
 ): Promise<void> {
     const client = await pool.connect();

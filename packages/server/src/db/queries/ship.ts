@@ -8,9 +8,10 @@ export async function getShipDrones(
     playerId: number,
     db: Queryable = pool,
 ): Promise<number | undefined> {
-    const res = await db.query<{ drones: number }>(`SELECT drones FROM ships WHERE id = ${SHIP_ID_SUBSELECT}`, [
-        playerId,
-    ]);
+    const res = await db.query<{ drones: number }>(
+        `SELECT drones FROM ships WHERE id = ${SHIP_ID_SUBSELECT}`,
+        [playerId],
+    );
     return res.rows[0]?.drones;
 }
 

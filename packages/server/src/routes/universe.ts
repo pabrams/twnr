@@ -131,7 +131,11 @@ export function createUniverseRoutes(
 
             res.status(201).json({ playerId, universeId });
         } catch (err) {
-            if (err instanceof Error && 'code' in err && (err as Record<string, unknown>).code === '23505') {
+            if (
+                err instanceof Error &&
+                'code' in err &&
+                (err as Record<string, unknown>).code === '23505'
+            ) {
                 return res.status(409).json({ error: 'Already joined this universe' });
             }
             console.error('Join universe error', err);

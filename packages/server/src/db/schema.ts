@@ -1121,7 +1121,10 @@ export const connectDB = async (): Promise<void> => {
 
             // Seed ship_type_hardware from config
             for (const [hwName, mapping] of Object.entries(HW_CONFIG_MAP)) {
-                const val = ship[mapping.configKey as keyof ShipConfig] as number | boolean | undefined;
+                const val = ship[mapping.configKey as keyof ShipConfig] as
+                    | number
+                    | boolean
+                    | undefined;
                 const maxQty = mapping.isToggle ? (val ? 1 : 0) : ((val as number) ?? 0);
                 if (maxQty > 0) {
                     await client.query(

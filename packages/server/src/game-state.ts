@@ -1,7 +1,13 @@
 import { WebSocket } from 'ws';
 import type { ServerResult } from '@twnr/shared';
 import { pool } from './db/index.js';
-import type { HardwareRow, HardwareMaxRow, SectorNumberRow, WarpRow, SectorShipRow } from './db/types.js';
+import type {
+    HardwareRow,
+    HardwareMaxRow,
+    SectorNumberRow,
+    WarpRow,
+    SectorShipRow,
+} from './db/types.js';
 import { getPlanetsInSector, getCollisionsInSector } from './db/queries/sector.js';
 
 export interface Player {
