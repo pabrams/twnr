@@ -13,7 +13,6 @@ export function showComputerPrompt(ctx: GameContext) {
 }
 
 export function showComputerActivated(ctx: GameContext) {
-    ctx.mode = Menu.Computer;
     ctx.term.writeln(`\r\n${colors.boldCyan('<Computer activated>')}`);
     showComputerPrompt(ctx);
 }
@@ -35,7 +34,6 @@ export function showComputerHelp(ctx: GameContext) {
 }
 
 export function showKnownUniverseMenu(ctx: GameContext) {
-    ctx.mode = Menu.KnownUniverse;
     ctx.term.write(
         `\r\n${colors.boldCyan('Known Universe')} — ${colors.cyan('E')}xplored, ${colors.cyan('U')}nexplored, ${colors.cyan('Q')}uit? `,
     );
@@ -76,7 +74,6 @@ export function renderVisitedSectorsResult(
 }
 
 export async function showShipCatalog(ctx: GameContext) {
-    ctx.mode = Menu.ShipCatalog;
     if (!ctx.shipConfigs) {
         ctx.term.writeln(`\r\n${colors.white('Loading ship catalog...')}`);
         try {
@@ -156,7 +153,6 @@ export function showShipDetail(ctx: GameContext, ship: ShipCatalogEntry) {
 }
 
 export async function showPlanetSpecs(ctx: GameContext) {
-    ctx.mode = Menu.PlanetSpecs;
     if (!ctx.planetConfigs) {
         ctx.term.writeln(`\r\n${colors.white('Loading planetary specs...')}`);
         try {
