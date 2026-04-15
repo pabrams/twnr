@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { defineConfig } from 'vite';
 
 export default defineConfig({
@@ -6,5 +7,8 @@ export default defineConfig({
       '/api': 'http://localhost:3000',
       '/ws': { target: 'ws://localhost:3000', ws: true },
     },
+  },
+  test: {
+    environment: 'node',
   },
 });
