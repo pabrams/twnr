@@ -246,7 +246,11 @@ async function advanceTradeFlow(playerId: number): Promise<void> {
         player.tradeState.stepIndex++;
     }
 
-    // All commodities exhausted — undock
+    // All commodities exhausted — notify and undock
+    sendEnvelope(playerId, {
+        type: ServerMsgType.TradeSkipped,
+        reason: "You don't have anything they want, and they don't have anything you need.",
+    });
     await undockPlayer(playerId);
 }
 
