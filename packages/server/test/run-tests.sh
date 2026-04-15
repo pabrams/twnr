@@ -30,37 +30,8 @@ node scripts/twnr-bigbang.js "$UNIVERSE_DIR" --sectors 100 --seed 42
 
 echo "==> Importing universe..."
 # Drop old tables
-psql -h "${PGHOST:-localhost}" -d "$PGDATABASE" -U "$PGUSER" -c "
-  DROP TABLE IF EXISTS news CASCADE;
-  DROP TABLE IF EXISTS visited_ports CASCADE;
-  DROP TABLE IF EXISTS sector_beacons CASCADE;
-  DROP TABLE IF EXISTS sector_mines CASCADE;
-  DROP TABLE IF EXISTS command_log CASCADE;
-  DROP TABLE IF EXISTS menu_command CASCADE;
-  DROP TABLE IF EXISTS command CASCADE;
-  DROP TABLE IF EXISTS sector_drones CASCADE;
-  DROP TABLE IF EXISTS planet_collisions CASCADE;
-  DROP TABLE IF EXISTS planets CASCADE;
-  DROP TABLE IF EXISTS planet_types CASCADE;
-  DROP TABLE IF EXISTS visited_sectors CASCADE;
-  DROP TABLE IF EXISTS ship_hardware CASCADE;
-  DROP TABLE IF EXISTS ships CASCADE;
-  DROP TABLE IF EXISTS corporations CASCADE;
-  DROP TABLE IF EXISTS ship_type_hardware CASCADE;
-  DROP TABLE IF EXISTS ship_types_edits CASCADE;
-  DROP TABLE IF EXISTS planet_types_edits CASCADE;
-  DROP TABLE IF EXISTS ship_types CASCADE;
-  DROP TABLE IF EXISTS hardware_price CASCADE;
-  DROP TABLE IF EXISTS hardware_item CASCADE;
-  DROP TABLE IF EXISTS ports CASCADE;
-  DROP TABLE IF EXISTS warps CASCADE;
-  DROP TABLE IF EXISTS players CASCADE;
-  DROP TABLE IF EXISTS sectors CASCADE;
-  DROP TABLE IF EXISTS universes CASCADE;
-  DROP TABLE IF EXISTS edits CASCADE;
-  DROP TABLE IF EXISTS users CASCADE;
-  DROP TABLE IF EXISTS menu CASCADE;
-" >/dev/null 2>&1
+psql -h "${PGHOST:-localhost}" -d "$PGDATABASE" -U "$PGUSER" \
+  -f "$PROJECT_ROOT/scripts/drop-all-tables.sql" >/dev/null 2>&1
 
 node scripts/importUniverse.js "$UNIVERSE_DIR" --force
 rm -rf "$UNIVERSE_DIR"

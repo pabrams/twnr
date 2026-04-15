@@ -1,4 +1,10 @@
+import { readFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { Pool } from 'pg';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const dropSQL = readFileSync(join(__dirname, 'drop-all-tables.sql'), 'utf8');
 
 async function deleteDatabase() {
   const pool = new Pool({
@@ -12,39 +18,9 @@ async function deleteDatabase() {
     console.log("Connecting to database...");
     const client = await pool.connect();
     console.log("connected");
-    
-    await client.query(`
-      DROP TABLE IF EXISTS news CASCADE;
-      DROP TABLE IF EXISTS visited_ports CASCADE;
-      DROP TABLE IF EXISTS sector_beacons CASCADE;
-      DROP TABLE IF EXISTS sector_mines CASCADE;
-      DROP TABLE IF EXISTS command_log CASCADE;
-      DROP TABLE IF EXISTS menu_command CASCADE;
-      DROP TABLE IF EXISTS command CASCADE;
-      DROP TABLE IF EXISTS sector_drones CASCADE;
-      DROP TABLE IF EXISTS planet_collisions CASCADE;
-      DROP TABLE IF EXISTS planets CASCADE;
-      DROP TABLE IF EXISTS planet_types CASCADE;
-      DROP TABLE IF EXISTS visited_sectors CASCADE;
-      DROP TABLE IF EXISTS ship_hardware CASCADE;
-      DROP TABLE IF EXISTS ships CASCADE;
-      DROP TABLE IF EXISTS corporations CASCADE;
-      DROP TABLE IF EXISTS ship_type_hardware CASCADE;
-      DROP TABLE IF EXISTS ship_types_edits CASCADE;
-      DROP TABLE IF EXISTS planet_types_edits CASCADE;
-      DROP TABLE IF EXISTS ship_types CASCADE;
-      DROP TABLE IF EXISTS hardware_price CASCADE;
-      DROP TABLE IF EXISTS hardware_item CASCADE;
-      DROP TABLE IF EXISTS ports CASCADE;
-      DROP TABLE IF EXISTS warps CASCADE;
-      DROP TABLE IF EXISTS players CASCADE;
-      DROP TABLE IF EXISTS sectors CASCADE;
-      DROP TABLE IF EXISTS universes CASCADE;
-      DROP TABLE IF EXISTS edits CASCADE;
-      DROP TABLE IF EXISTS users CASCADE;
-      DROP TABLE IF EXISTS menu CASCADE;
-    `);
-    
+
+    await client.query(dropSQL);
+
     console.log('Database tables deleted successfully');
     client.release();
   } catch (error) {
