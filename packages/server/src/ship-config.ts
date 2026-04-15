@@ -1,8 +1,9 @@
 import fs from 'fs';
 import path from 'path';
+import type { ShipConfig } from '@twnr/shared';
 
 export const SHIPS_DIR = path.join(process.cwd(), 'config', 'ships');
-export const shipConfigs: Record<string, any> = {};
+export const shipConfigs: Record<string, ShipConfig> = {};
 
 export function reloadShipConfigs(): void {
     for (const key of Object.keys(shipConfigs)) delete shipConfigs[key];

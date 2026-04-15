@@ -13,7 +13,7 @@ export function createAdminLifecycleRoutes(
     router.post(
         '/api/admin/universes/generate',
         authenticateAdmin,
-        async (req, res): Promise<any> => {
+        async (req, res) => {
             const { name, sectors, seed, portDensity, twoWayPct, edit_name = 'stock' } = req.body;
 
             if (!name || !String(name).trim()) {
@@ -171,7 +171,7 @@ export function createAdminLifecycleRoutes(
     router.get(
         '/api/admin/universes/:id/stats',
         authenticateAdmin,
-        async (req, res): Promise<any> => {
+        async (req, res) => {
             const universeId = parseInt(req.params.id as string, 10);
 
             try {
@@ -222,7 +222,7 @@ export function createAdminLifecycleRoutes(
         },
     );
 
-    router.delete('/api/admin/universes/:id', authenticateAdmin, async (req, res): Promise<any> => {
+    router.delete('/api/admin/universes/:id', authenticateAdmin, async (req, res) => {
         const universeId = parseInt(req.params.id as string, 10);
 
         try {
@@ -279,7 +279,7 @@ export function createAdminLifecycleRoutes(
         }
     });
 
-    router.put('/api/admin/universes/:id', authenticateAdmin, async (req, res): Promise<any> => {
+    router.put('/api/admin/universes/:id', authenticateAdmin, async (req, res) => {
         const universeId = parseInt(req.params.id as string, 10);
         const { name } = req.body;
 
@@ -306,7 +306,7 @@ export function createAdminLifecycleRoutes(
     router.get(
         '/api/admin/universes/:id/topology',
         authenticateAdmin,
-        async (req, res): Promise<any> => {
+        async (req, res) => {
             const universeId = parseInt(req.params.id as string, 10);
 
             try {

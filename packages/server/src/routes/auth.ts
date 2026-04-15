@@ -17,7 +17,7 @@ export function createAuthRoutes(router: Router, deps: RouteDeps, middleware: Mi
 
     // ─── Logout ────────────────────────────────────────────────────────
 
-    router.post('/api/auth/logout', authenticateToken, async (req, res): Promise<any> => {
+    router.post('/api/auth/logout', authenticateToken, async (req, res) => {
         const { userId } = getAuthenticatedPlayer(req);
         try {
             await pool.query('UPDATE users SET token_version = token_version + 1 WHERE id = $1', [
@@ -34,7 +34,7 @@ export function createAuthRoutes(router: Router, deps: RouteDeps, middleware: Mi
 
     // ─── Register ──────────────────────────────────────────────────────
 
-    router.post('/api/auth/register', registerLimiter, async (req, res): Promise<any> => {
+    router.post('/api/auth/register', registerLimiter, async (req, res) => {
         const { name, email, password } = req.body;
         if (!name || !email || !password) {
             return res.status(400).json({ error: 'name, email and password are required' });
@@ -66,8 +66,8 @@ export function createAuthRoutes(router: Router, deps: RouteDeps, middleware: Mi
                 token,
             };
             res.status(201).json(body);
-        } catch (err: any) {
-            if (err.code === '23505') {
+        } catch (err) {
+            if ((err as { code?: string }).code === '23505') {
                 return res.status(409).json({ error: 'Email already registered' });
             }
             console.error('Register error', err);
@@ -77,7 +77,7 @@ export function createAuthRoutes(router: Router, deps: RouteDeps, middleware: Mi
 
     // ─── Login ─────────────────────────────────────────────────────────
 
-    router.post('/api/auth/login', loginLimiter, async (req, res): Promise<any> => {
+    router.post('/api/auth/login', loginLimiter, async (req, res) => {
         const { email, password } = req.body;
         if (!email || !password) {
             return res.status(400).json({ error: 'email and password are required' });

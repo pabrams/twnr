@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { pool } from '../../db/index.js';
+import type { PortRow } from '../../db/types.js';
 import type { RouteDeps, Middleware } from '../middleware.js';
 
 export const PORT_CLASS_ACTIONS: Record<number, [string, string, string]> = {
@@ -49,7 +50,7 @@ export function createAdminPortRoutes(
     router.get(
         '/api/admin/universes/:id/ports',
         authenticateAdmin,
-        async (req, res): Promise<any> => {
+        async (req, res) => {
             const universeId = parseInt(req.params.id as string, 10);
 
             try {
@@ -60,7 +61,7 @@ export function createAdminPortRoutes(
                     return res.status(404).json({ error: 'Universe not found' });
                 }
 
-                const portRes = await pool.query(
+                const portRes = await pool.query<PortRow>(
                     `SELECT s.sector_number as sector_id, p.class, p.fuel, p.fuel_price, p.organics, p.org_price, p.equipment, p.equ_price
                      FROM ports p
                      JOIN sectors s ON p.sector_id = s.id
@@ -68,7 +69,7 @@ export function createAdminPortRoutes(
                     [universeId],
                 );
 
-                const ports = portRes.rows.map((r: any) => ({
+                const ports = portRes.rows.map((r) => ({
                     sectorId: r.sector_id,
                     class: r.class,
                     fuel: r.fuel,
@@ -90,7 +91,7 @@ export function createAdminPortRoutes(
     router.put(
         '/api/admin/universes/:id/ports/:sectorId',
         authenticateAdmin,
-        async (req, res): Promise<any> => {
+        async (req, res) => {
             const universeId = parseInt(req.params.id as string, 10);
             const sectorId = parseInt(req.params.sectorId as string, 10);
 
@@ -209,7 +210,7 @@ export function createAdminPortRoutes(
     router.post(
         '/api/admin/universes/:id/ports/:sectorId',
         authenticateAdmin,
-        async (req, res): Promise<any> => {
+        async (req, res) => {
             const universeId = parseInt(req.params.id as string, 10);
             const sectorId = parseInt(req.params.sectorId as string, 10);
 
@@ -310,7 +311,7 @@ export function createAdminPortRoutes(
     router.delete(
         '/api/admin/universes/:id/ports/:sectorId',
         authenticateAdmin,
-        async (req, res): Promise<any> => {
+        async (req, res) => {
             const universeId = parseInt(req.params.id as string, 10);
             const sectorId = parseInt(req.params.sectorId as string, 10);
 

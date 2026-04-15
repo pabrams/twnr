@@ -91,5 +91,5 @@ export function getJwtToken(req: Request): string | null {
  * @returns The authenticated player's token payload
  */
 export function getAuthenticatedPlayer(req: Request): AuthTokenPayload {
-    return (req as any).player as AuthTokenPayload;
+    return req.player as AuthTokenPayload;
 }

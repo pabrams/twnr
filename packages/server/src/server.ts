@@ -7,7 +7,7 @@ import { connectDB, pool } from './db/index.js';
 import { createRoutes } from './routes/index.js';
 import * as auth from './auth/index.js';
 import { ServerMsgType } from '@twnr/shared';
-import type { AuthTokenPayload, ServerResult } from '@twnr/shared';
+import type { AuthTokenPayload, ClientCommand, ServerResult } from '@twnr/shared';
 import { shipConfigs } from './ship-config.js';
 import { players, sendEnvelope, broadcastTo } from './game-state.js';
 import { handleMessage } from './handlers/message-router.js';
@@ -185,9 +185,9 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             }
             tokens--;
 
-            let data: any;
+            let data: ClientCommand;
             try {
-                data = JSON.parse(message.toString());
+                data = JSON.parse(message.toString()) as ClientCommand;
             } catch {
                 sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid JSON' });
                 return;

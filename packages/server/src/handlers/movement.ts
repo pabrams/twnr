@@ -12,6 +12,7 @@ import {
     resolveSectorId,
 } from '../game-state.js';
 import { pool } from '../db/index.js';
+import type { SectorNumberRow } from '../db/types.js';
 import { getShipId, setDocked, moveToSector, markSectorVisited } from '../db/queries/player.js';
 import { getTurnsPerWarp, getShipDrones, moveShipToSector } from '../db/queries/ship.js';
 import { getSectorDbId } from '../db/queries/sector.js';
@@ -195,12 +196,12 @@ export async function handleShortestPath(
     const universeId = getPlayerUniverseId(playerId);
     if (universeId === undefined) return;
 
-    const sectorRes = await pool.query(
+    const sectorRes = await pool.query<SectorNumberRow>(
         'SELECT sector_number FROM sectors WHERE sector_number IN ($1, $2) AND universe_id = $3',
         [from, to, universeId],
     );
     if (sectorRes.rows.length !== (from === to ? 1 : 2)) {
-        const foundIds = new Set(sectorRes.rows.map((r: any) => r.sector_number));
+        const foundIds = new Set(sectorRes.rows.map((r) => r.sector_number));
         if (!foundIds.has(from) || !foundIds.has(to)) {
             sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Sector not found' });
             return;
@@ -227,14 +228,14 @@ export async function handleShortestPath(
         for (const neighbor of neighbors) {
             if (neighbor === to) {
                 const finalPath = [...path, neighbor];
-                const visitedRes = await pool.query(
+                const visitedRes = await pool.query<SectorNumberRow>(
                     `SELECT s.sector_number FROM visited_sectors vs
                      JOIN sectors s ON vs.sector_id = s.id
                      WHERE vs.player_id = $1 AND s.universe_id = $2
                        AND s.sector_number = ANY($3::int[])`,
                     [playerId, universeId, finalPath],
                 );
-                const visitedSet = new Set(visitedRes.rows.map((r: any) => r.sector_number));
+                const visitedSet = new Set(visitedRes.rows.map((r) => r.sector_number));
                 await setPlayerMenu(playerId, 'autopilotPrompt');
                 sendEnvelope(playerId, {
                     type: ServerMsgType.ShortestPathResult,

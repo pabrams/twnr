@@ -1,8 +1,9 @@
 import fs from 'fs';
 import path from 'path';
+import type { PlanetConfig } from '@twnr/shared';
 
 export const PLANETS_DIR = path.join(process.cwd(), 'config', 'planets');
-export const planetConfigs: Record<string, any> = {};
+export const planetConfigs: Record<string, PlanetConfig> = {};
 
 export function reloadPlanetConfigs(): void {
     for (const key of Object.keys(planetConfigs)) delete planetConfigs[key];

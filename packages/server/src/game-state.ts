@@ -1,6 +1,7 @@
 import { WebSocket } from 'ws';
 import type { ServerResult } from '@twnr/shared';
 import { pool } from './db/index.js';
+import type { HardwareRow, HardwareMaxRow, SectorNumberRow, WarpRow, SectorShipRow } from './db/types.js';
 import { getPlanetsInSector, getCollisionsInSector } from './db/queries/sector.js';
 
 export interface Player {
@@ -39,22 +40,22 @@ export async function getPlayerShip(playerId: number) {
     const ship = res.rows[0];
 
     // Attach hardware quantities as a map
-    const hwRes = await pool.query(
+    const hwRes = await pool.query<HardwareRow>(
         `SELECT hi.name, COALESCE(sh.quantity, 0) as quantity
          FROM hardware_item hi
          LEFT JOIN ship_hardware sh ON sh.hardware_item_id = hi.id AND sh.ship_id = $1`,
         [ship.id],
     );
-    ship.hardware = Object.fromEntries(hwRes.rows.map((r: any) => [r.name, r.quantity]));
+    ship.hardware = Object.fromEntries(hwRes.rows.map((r) => [r.name, r.quantity]));
 
     // Attach hardware max quantities as a map
-    const hwMaxRes = await pool.query(
+    const hwMaxRes = await pool.query<HardwareMaxRow>(
         `SELECT hi.name, COALESCE(sth.max_quantity, 0) as max_quantity
          FROM hardware_item hi
          LEFT JOIN ship_type_hardware sth ON sth.hardware_item_id = hi.id AND sth.ship_type_id = $1`,
         [ship.ship_type_id],
     );
-    ship.hardware_max = Object.fromEntries(hwMaxRes.rows.map((r: any) => [r.name, r.max_quantity]));
+    ship.hardware_max = Object.fromEntries(hwMaxRes.rows.map((r) => [r.name, r.max_quantity]));
 
     return ship;
 }
@@ -78,13 +79,13 @@ export function portName(sectorId: number): string {
 
 /** Returns all sector_numbers the player has ever visited. */
 export async function getVisitedSectors(playerId: number): Promise<number[]> {
-    const res = await pool.query(
+    const res = await pool.query<SectorNumberRow>(
         `SELECT s.sector_number FROM visited_sectors vs
          JOIN sectors s ON vs.sector_id = s.id
          WHERE vs.player_id = $1`,
         [playerId],
     );
-    return res.rows.map((r: any) => r.sector_number);
+    return res.rows.map((r) => r.sector_number);
 }
 
 /**
@@ -96,7 +97,7 @@ export async function getWarpRefs(
     sectorNumber: number,
     universeId: number,
 ): Promise<{ sector: number; visited: boolean }[]> {
-    const res = await pool.query(
+    const res = await pool.query<WarpRow>(
         `SELECT DISTINCT s_to.sector_number,
                 (vs.player_id IS NOT NULL) AS visited
          FROM warps w
@@ -107,7 +108,7 @@ export async function getWarpRefs(
          ORDER BY s_to.sector_number`,
         [playerId, sectorNumber, universeId],
     );
-    return res.rows.map((r: any) => ({ sector: r.sector_number, visited: r.visited }));
+    return res.rows.map((r) => ({ sector: r.sector_number, visited: r.visited }));
 }
 
 export async function getPortForSector(
@@ -269,7 +270,7 @@ export async function getEmptyShipsInSector(
     sectorNumber: number,
     universeId: number,
 ): Promise<{ id: number; name: string; typeName: string; ownerName: string }[]> {
-    const res = await pool.query(
+    const res = await pool.query<SectorShipRow>(
         `SELECT sh.id, st.name AS type_name, COALESCE(p.name, 'Abandoned') AS owner_name
          FROM ships sh
          JOIN ship_types st ON sh.ship_type_id = st.id
@@ -279,7 +280,7 @@ export async function getEmptyShipsInSector(
            AND NOT EXISTS (SELECT 1 FROM players p2 WHERE p2.ship_id = sh.id)`,
         [sectorNumber, universeId],
     );
-    return res.rows.map((r: any) => ({
+    return res.rows.map((r) => ({
         id: r.id,
         name: r.type_name,
         typeName: r.type_name,

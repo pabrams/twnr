@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { pool } from '../db/index.js';
+import type { PlayerListRow } from '../db/types.js';
 import type { RouteDeps, Middleware } from './middleware.js';
 import { newPlayerConfig } from '../game-config.js';
 
@@ -11,7 +12,7 @@ export function createUniverseRoutes(
     const { getAuthenticatedPlayer } = deps;
     const { authenticateToken } = middleware;
 
-    router.post('/api/universes', authenticateToken, async (req, res): Promise<any> => {
+    router.post('/api/universes', authenticateToken, async (req, res) => {
         const { name } = req.body;
         if (!name || !name.trim()) {
             return res.status(400).json({ error: 'name is required' });
@@ -30,7 +31,7 @@ export function createUniverseRoutes(
         }
     });
 
-    router.get('/api/universes', authenticateToken, async (req, res): Promise<any> => {
+    router.get('/api/universes', authenticateToken, async (req, res) => {
         const { userId } = getAuthenticatedPlayer(req);
         try {
             const result = await pool.query(
@@ -54,7 +55,7 @@ export function createUniverseRoutes(
         }
     });
 
-    router.post('/api/universes/:id/join', authenticateToken, async (req, res): Promise<any> => {
+    router.post('/api/universes/:id/join', authenticateToken, async (req, res) => {
         const { userId } = getAuthenticatedPlayer(req);
         const universeId = parseInt(req.params.id as string, 10);
         const { name } = req.body;
@@ -129,8 +130,8 @@ export function createUniverseRoutes(
             );
 
             res.status(201).json({ playerId, universeId });
-        } catch (err: any) {
-            if (err.code === '23505') {
+        } catch (err) {
+            if (err instanceof Error && 'code' in err && (err as Record<string, unknown>).code === '23505') {
                 return res.status(409).json({ error: 'Already joined this universe' });
             }
             console.error('Join universe error', err);
@@ -138,10 +139,10 @@ export function createUniverseRoutes(
         }
     });
 
-    router.get('/api/universes/:id/players', authenticateToken, async (req, res): Promise<any> => {
+    router.get('/api/universes/:id/players', authenticateToken, async (req, res) => {
         const universeId = parseInt(req.params.id as string, 10);
         try {
-            const result = await pool.query(
+            const result = await pool.query<PlayerListRow>(
                 `SELECT p.name, COALESCE(st.name, 'No ship') AS ship_name
                      FROM players p
                      LEFT JOIN ships s ON p.ship_id = s.id
@@ -151,7 +152,7 @@ export function createUniverseRoutes(
                 [universeId],
             );
             res.json(
-                result.rows.map((r: any) => ({
+                result.rows.map((r) => ({
                     name: r.name,
                     shipName: r.ship_name,
                 })),

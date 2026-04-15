@@ -1,7 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import { pool } from '../db/index.js';
-import type { AuthTokenPayload } from '@twnr/shared';
+import type { AuthTokenPayload, ShipConfig } from '@twnr/shared';
+import type WebSocket from 'ws';
+
+declare module 'express' {
+    interface Request {
+        player?: AuthTokenPayload;
+    }
+}
 
 export interface RouteDeps {
     hashPassword: (password: string) => string;
@@ -11,8 +18,8 @@ export interface RouteDeps {
     setAuthCookie: (res: Response, token: string) => void;
     getJwtToken: (req: Request) => string | null;
     getAuthenticatedPlayer: (req: Request) => AuthTokenPayload;
-    shipConfigs: Record<string, any>;
-    players: Record<number, { ws: any; sector: number; name: string }>;
+    shipConfigs: Record<string, ShipConfig>;
+    players: Record<number, { ws: WebSocket; sector: number; name: string }>;
     AUTH_COOKIE_NAME: string;
     ADMIN_API_KEY: string | undefined;
 }
@@ -59,7 +66,7 @@ export function createMiddleware(deps: RouteDeps): Middleware {
             return;
         }
 
-        (req as any).player = payload;
+        req.player = payload;
         next();
     }
 
@@ -82,7 +89,7 @@ export function createMiddleware(deps: RouteDeps): Middleware {
                 return;
             }
 
-            (req as any).player = payload;
+            req.player = payload;
             next();
         } catch {
             res.status(403).json({ error: 'Forbidden' });

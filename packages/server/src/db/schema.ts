@@ -1,6 +1,7 @@
 import { pool } from './pool.js';
 import { shipConfigs } from '../ship-config.js';
 import { planetConfigs } from '../planet-config.js';
+import type { ShipConfig } from '@twnr/shared';
 
 let isConnected = false;
 
@@ -1039,7 +1040,6 @@ export const connectDB = async (): Promise<void> => {
         };
 
         for (const ship of Object.values(shipConfigs)) {
-            const s = ship as any;
             const stRes = await client.query(
                 `INSERT INTO ship_types (
                     name, make, sort_order,
@@ -1090,39 +1090,39 @@ export const connectDB = async (): Promise<void> => {
                     notes = EXCLUDED.notes
                  RETURNING id`,
                 [
-                    s.name,
-                    s.make || null,
-                    s.sortOrder ?? 0,
-                    s.maxDrones ?? 0,
-                    s.maxShields ?? 0,
-                    s.startingHolds ?? 5,
-                    s.maxHolds ?? 20,
-                    s.oddsOffensive ?? 1.0,
-                    s.oddsDefensive ?? 1.0,
-                    s.hasPod ?? true,
-                    s.canLand ?? true,
-                    s.hasInterdictor ?? false,
-                    s.hasPlanetaryDefenseBonus ?? false,
-                    s.planetaryDefenseOdds ?? null,
-                    s.speed ?? 10,
-                    s.turnsPerWarp ?? 2,
-                    s.costDrive ?? 0,
-                    s.costComputer ?? 0,
-                    s.costHull ?? 0,
-                    s.holdCost ?? 0,
-                    s.maxDroneAttack ?? 0,
-                    s.transporterRange ?? 0,
-                    s.hasTractor ?? false,
-                    s.pilotingRestriction ?? null,
-                    s.notes ?? null,
+                    ship.name,
+                    ship.make || null,
+                    ship.sortOrder ?? 0,
+                    ship.maxDrones ?? 0,
+                    ship.maxShields ?? 0,
+                    ship.startingHolds ?? 5,
+                    ship.maxHolds ?? 20,
+                    ship.oddsOffensive ?? 1.0,
+                    ship.oddsDefensive ?? 1.0,
+                    ship.hasPod ?? true,
+                    ship.canLand ?? true,
+                    ship.hasInterdictor ?? false,
+                    ship.hasPlanetaryDefenseBonus ?? false,
+                    ship.planetaryDefenseOdds ?? null,
+                    ship.speed ?? 10,
+                    ship.turnsPerWarp ?? 2,
+                    ship.costDrive ?? 0,
+                    ship.costComputer ?? 0,
+                    ship.costHull ?? 0,
+                    ship.holdCost ?? 0,
+                    ship.maxDroneAttack ?? 0,
+                    ship.transporterRange ?? 0,
+                    ship.hasTractor ?? false,
+                    ship.pilotingRestriction ?? null,
+                    ship.notes ?? null,
                 ],
             );
             const shipTypeId = stRes.rows[0].id;
 
             // Seed ship_type_hardware from config
             for (const [hwName, mapping] of Object.entries(HW_CONFIG_MAP)) {
-                const val = s[mapping.configKey];
-                const maxQty = mapping.isToggle ? (val ? 1 : 0) : (val ?? 0);
+                const val = ship[mapping.configKey as keyof ShipConfig] as number | boolean | undefined;
+                const maxQty = mapping.isToggle ? (val ? 1 : 0) : ((val as number) ?? 0);
                 if (maxQty > 0) {
                     await client.query(
                         `INSERT INTO ship_type_hardware (ship_type_id, hardware_item_id, max_quantity)
@@ -1145,7 +1145,6 @@ export const connectDB = async (): Promise<void> => {
 
         // Seed planet_types from config files (idempotent)
         for (const planet of Object.values(planetConfigs)) {
-            const p = planet as any;
             await client.query(
                 `INSERT INTO planet_types (name, description, max_colonists, max_citadel, fuel_production, organics_production, equipment_production)
                  VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -1157,13 +1156,13 @@ export const connectDB = async (): Promise<void> => {
                     organics_production = EXCLUDED.organics_production,
                     equipment_production = EXCLUDED.equipment_production`,
                 [
-                    p.type,
-                    p.description ?? null,
-                    p.maxColonists ?? 0,
-                    p.maxCitadel ?? 0,
-                    p.fuelProduction ?? 0,
-                    p.organicsProduction ?? 0,
-                    p.equipmentProduction ?? 0,
+                    planet.type,
+                    planet.description ?? null,
+                    planet.maxColonists ?? 0,
+                    planet.maxCitadel ?? 0,
+                    planet.fuelProduction ?? 0,
+                    planet.organicsProduction ?? 0,
+                    planet.equipmentProduction ?? 0,
                 ],
             );
         }
