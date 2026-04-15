@@ -138,14 +138,10 @@ export type LeavePlanetCommand = {
     type: typeof ClientMsgType.LeavePlanet;
 };
 
-export type BuyPlanetBustersCommand = {
-    type: typeof ClientMsgType.BuyPlanetBusters;
-    quantity: number;
-};
-
-export type BuyTerraformDevicesCommand = {
-    type: typeof ClientMsgType.BuyTerraformDevices;
-    quantity: number;
+export type BuyHardwareCommand = {
+    type: typeof ClientMsgType.BuyHardware;
+    itemName: string;
+    quantity?: number;
 };
 
 export type DockStarbaseCommand = {
@@ -159,64 +155,6 @@ export type LeaveStarbaseCommand = {
 export type BuyShipNewCommand = {
     type: typeof ClientMsgType.BuyShipNew;
     targetShipName: string;
-};
-
-export type BuyBuoysCommand = {
-    type: typeof ClientMsgType.BuyBuoys;
-    quantity: number;
-};
-
-export type BuyProximityMinesCommand = {
-    type: typeof ClientMsgType.BuyProximityMines;
-    quantity: number;
-};
-
-export type BuySeekerMinesCommand = {
-    type: typeof ClientMsgType.BuySeekerMines;
-    quantity: number;
-};
-
-export type BuyOrbitalMinesCommand = {
-    type: typeof ClientMsgType.BuyOrbitalMines;
-    quantity: number;
-};
-
-export type BuyMineDisruptorsCommand = {
-    type: typeof ClientMsgType.BuyMineDisruptors;
-    quantity: number;
-};
-
-export type BuyHyperspaceDriveCommand = {
-    type: typeof ClientMsgType.BuyHyperspaceDrive;
-    driveType: 1 | 2;
-};
-
-export type BuyVisualScannerCommand = {
-    type: typeof ClientMsgType.BuyVisualScanner;
-};
-
-export type BuyPlanetScannerCommand = {
-    type: typeof ClientMsgType.BuyPlanetScanner;
-};
-
-export type BuyCloakingDeviceCommand = {
-    type: typeof ClientMsgType.BuyCloakingDevice;
-    quantity: number;
-};
-
-export type BuyCorbomiteCommand = {
-    type: typeof ClientMsgType.BuyCorbomite;
-    quantity: number;
-};
-
-export type BuyPhotonTorpedoesCommand = {
-    type: typeof ClientMsgType.BuyPhotonTorpedoes;
-    quantity: number;
-};
-
-export type BuyReconDronesCommand = {
-    type: typeof ClientMsgType.BuyReconDrones;
-    quantity: number;
 };
 
 export type ListDeployedDronesCommand = {
@@ -271,23 +209,10 @@ export type ClientCommand =
     | PlanetDisplayCommand
     | DestroyPlanetCommand
     | LeavePlanetCommand
-    | BuyPlanetBustersCommand
-    | BuyTerraformDevicesCommand
+    | BuyHardwareCommand
     | DockStarbaseCommand
     | LeaveStarbaseCommand
     | BuyShipNewCommand
-    | BuyBuoysCommand
-    | BuyProximityMinesCommand
-    | BuySeekerMinesCommand
-    | BuyOrbitalMinesCommand
-    | BuyMineDisruptorsCommand
-    | BuyHyperspaceDriveCommand
-    | BuyVisualScannerCommand
-    | BuyPlanetScannerCommand
-    | BuyCloakingDeviceCommand
-    | BuyCorbomiteCommand
-    | BuyPhotonTorpedoesCommand
-    | BuyReconDronesCommand
     | ListDeployedDronesCommand
     | ListPlanetsCommand
     | HyperspaceJumpCommand

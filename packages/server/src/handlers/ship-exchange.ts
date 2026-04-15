@@ -41,8 +41,7 @@ export async function handleBuyShipTradein(
         const targetTypeRes = await client.query(
             `SELECT id, name, starting_holds, max_holds, max_drones, max_shields,
                     cost_drive, cost_computer, cost_hull, hold_cost,
-                    turns_per_warp, can_have_hyperspace_1, can_have_hyperspace_2,
-                    max_planet_busters, max_terraform_devices
+                    turns_per_warp
              FROM ship_types WHERE name = $1`,
             [targetShipName],
         );

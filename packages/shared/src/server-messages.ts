@@ -144,10 +144,8 @@ export type ShipInfoResultObject = {
     cargoEquipment: number;
     cargoColonists: number;
     holdsAvailable: number;
-    planetBusters: number;
-    terraformDevices: number;
-    maxPlanetBusters: number;
-    maxTerraformDevices: number;
+    hardware: Record<string, number>;
+    hardwareMax: Record<string, number>;
     turnsPerWarp: number;
     hasHyperwarpDrive: boolean;
     turns: number;
@@ -272,41 +270,25 @@ export type DestroyPlanetResultObject = {
     planetName: string;
 };
 
-export type BuyPlanetBustersResultObject = {
-    type: typeof ServerMsgType.BuyPlanetBustersResult;
-    quantity: number;
-    totalOnShip: number;
+export type BuyHardwareResultObject = {
+    type: typeof ServerMsgType.BuyHardwareResult;
+    itemName: string;
+    label: string;
+    kind: 'stackable' | 'toggle';
+    quantity?: number;
+    totalOnShip?: number;
     credits: number;
 };
 
-export type BuyTerraformDevicesResultObject = {
-    type: typeof ServerMsgType.BuyTerraformDevicesResult;
-    quantity: number;
-    totalOnShip: number;
-    credits: number;
-};
-
-export type HardwarePrices = {
-    terraformDevice: number;
-    planetBuster: number;
-    spaceBuoy: number;
-    proximityMine: number;
-    seekerMine: number;
-    orbitalMine: number;
-    mineDisruptor: number;
-    hyperspace1: number;
-    hyperspace2: number;
-    visualScanner: number;
-    planetScanner: number;
-    cloakingDevice: number;
-    corbomite: number;
-    photonTorpedo: number;
-    reconDrone: number;
+export type HardwarePriceItem = {
+    name: string;
+    label: string;
+    price: number;
 };
 
 export type DockStarbaseResultObject = {
     type: typeof ServerMsgType.DockStarbaseResult;
-    prices: HardwarePrices;
+    prices: HardwarePriceItem[];
 };
 
 export type TakeColonistsResultObject = {
@@ -404,72 +386,6 @@ export type BuyShipNewResultObject = {
     cargoLimit: number;
 };
 
-export type BuyBuoysResultObject = {
-    type: typeof ServerMsgType.BuyBuoysResult;
-    quantity: number;
-    totalOnShip: number;
-    credits: number;
-};
-
-export type BuyMinesResultObject = {
-    type: typeof ServerMsgType.BuyMinesResult;
-    mineType: 'proximity' | 'seeker' | 'orbital';
-    quantity: number;
-    totalOnShip: number;
-    credits: number;
-};
-
-export type BuyMineDisruptorsResultObject = {
-    type: typeof ServerMsgType.BuyMineDisruptorsResult;
-    quantity: number;
-    totalOnShip: number;
-    credits: number;
-};
-
-export type BuyVisualScannerResultObject = {
-    type: typeof ServerMsgType.BuyVisualScannerResult;
-    credits: number;
-};
-
-export type BuyPlanetScannerResultObject = {
-    type: typeof ServerMsgType.BuyPlanetScannerResult;
-    credits: number;
-};
-
-export type BuyCloakingDeviceResultObject = {
-    type: typeof ServerMsgType.BuyCloakingDeviceResult;
-    quantity: number;
-    totalOnShip: number;
-    credits: number;
-};
-
-export type BuyCorbomiteResultObject = {
-    type: typeof ServerMsgType.BuyCorbomiteResult;
-    quantity: number;
-    totalOnShip: number;
-    credits: number;
-};
-
-export type BuyPhotonTorpedoesResultObject = {
-    type: typeof ServerMsgType.BuyPhotonTorpedoesResult;
-    quantity: number;
-    totalOnShip: number;
-    credits: number;
-};
-
-export type BuyReconDronesResultObject = {
-    type: typeof ServerMsgType.BuyReconDronesResult;
-    quantity: number;
-    totalOnShip: number;
-    credits: number;
-};
-
-export type BuyHyperspaceDriveResultObject = {
-    type: typeof ServerMsgType.BuyHyperspaceDriveResult;
-    driveType: 1 | 2;
-    credits: number;
-};
-
 export type ListDeployedDronesResultObject = {
     type: typeof ServerMsgType.ListDeployedDronesResult;
     drones: { sectorId: number; quantity: number }[];
@@ -553,20 +469,9 @@ export type ServerResult =
     | LandOnPlanetResultObject
     | PlanetDisplayResultObject
     | DestroyPlanetResultObject
-    | BuyPlanetBustersResultObject
-    | BuyTerraformDevicesResultObject
+    | BuyHardwareResultObject
     | DockStarbaseResultObject
     | BuyShipNewResultObject
-    | BuyBuoysResultObject
-    | BuyMinesResultObject
-    | BuyMineDisruptorsResultObject
-    | BuyVisualScannerResultObject
-    | BuyPlanetScannerResultObject
-    | BuyCloakingDeviceResultObject
-    | BuyCorbomiteResultObject
-    | BuyPhotonTorpedoesResultObject
-    | BuyReconDronesResultObject
-    | BuyHyperspaceDriveResultObject
     | ListDeployedDronesResultObject
     | ListPlanetsResultObject
     | HyperspaceJumpResultObject

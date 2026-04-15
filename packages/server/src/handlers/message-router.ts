@@ -34,22 +34,7 @@ import {
     handleRetreatFromDrones,
 } from './sector-drones.js';
 import { handleListDeployedDrones, handleHyperspaceJump } from './hyperwarp.js';
-import {
-    handleBuyBuoys,
-    handleBuyPlanetBusters,
-    handleBuyTerraformDevices,
-    handleBuyProximityMines,
-    handleBuySeekerMines,
-    handleBuyOrbitalMines,
-    handleBuyMineDisruptors,
-    handleBuyHyperspaceDrive,
-    handleBuyVisualScanner,
-    handleBuyPlanetScanner,
-    handleBuyCloakingDevice,
-    handleBuyCorbomite,
-    handleBuyPhotonTorpedoes,
-    handleBuyReconDrones,
-} from './hardware-store.js';
+import { handleBuyHardware } from './hardware-store.js';
 
 export async function handleMessage(playerId: number, data: any): Promise<void> {
     switch (data.type) {
@@ -103,10 +88,8 @@ export async function handleMessage(playerId: number, data: any): Promise<void> 
             return handleDockStarbase(playerId);
         case ClientMsgType.LeaveStarbase:
             return handleLeaveStarbase(playerId);
-        case ClientMsgType.BuyPlanetBusters:
-            return handleBuyPlanetBusters(playerId, data.quantity);
-        case ClientMsgType.BuyTerraformDevices:
-            return handleBuyTerraformDevices(playerId, data.quantity);
+        case ClientMsgType.BuyHardware:
+            return handleBuyHardware(playerId, data.itemName, data.quantity);
         case ClientMsgType.TakeColonists:
             return handleTakeColonists(playerId, data.quantity, data.commodity ?? 'fuel');
         case ClientMsgType.LeaveColonists:
@@ -123,30 +106,6 @@ export async function handleMessage(playerId: number, data: any): Promise<void> 
             return handleRetreatFromDrones(playerId);
         case ClientMsgType.BuyShipNew:
             return handleBuyShipNew(playerId, data.targetShipName);
-        case ClientMsgType.BuyBuoys:
-            return handleBuyBuoys(playerId, data.quantity);
-        case ClientMsgType.BuyProximityMines:
-            return handleBuyProximityMines(playerId, data.quantity);
-        case ClientMsgType.BuySeekerMines:
-            return handleBuySeekerMines(playerId, data.quantity);
-        case ClientMsgType.BuyOrbitalMines:
-            return handleBuyOrbitalMines(playerId, data.quantity);
-        case ClientMsgType.BuyMineDisruptors:
-            return handleBuyMineDisruptors(playerId, data.quantity);
-        case ClientMsgType.BuyHyperspaceDrive:
-            return handleBuyHyperspaceDrive(playerId, data.driveType);
-        case ClientMsgType.BuyVisualScanner:
-            return handleBuyVisualScanner(playerId);
-        case ClientMsgType.BuyPlanetScanner:
-            return handleBuyPlanetScanner(playerId);
-        case ClientMsgType.BuyCloakingDevice:
-            return handleBuyCloakingDevice(playerId, data.quantity);
-        case ClientMsgType.BuyCorbomite:
-            return handleBuyCorbomite(playerId, data.quantity);
-        case ClientMsgType.BuyPhotonTorpedoes:
-            return handleBuyPhotonTorpedoes(playerId, data.quantity);
-        case ClientMsgType.BuyReconDrones:
-            return handleBuyReconDrones(playerId, data.quantity);
         case ClientMsgType.ListDeployedDrones:
             return handleListDeployedDrones(playerId);
         case ClientMsgType.HyperspaceJump:

@@ -331,7 +331,7 @@ for (let i = availableSectorsForPlanets.length - 1; i > 0; i--) {
     [availableSectorsForPlanets[i], availableSectorsForPlanets[j]] = [availableSectorsForPlanets[j], availableSectorsForPlanets[i]];
 }
 
-const planetTypesPool = ["Earth-like", "Volcanic", "Glacial", "Gaseous", "Mountainous"];
+const planetTypesPool = ["Terran", "Volcanic", "Glacial", "Gas Giant", "Mountainous"];
 let pTypePool = [];
 function getNextPlanetType() {
     if (pTypePool.length === 0) {

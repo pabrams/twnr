@@ -19,21 +19,11 @@ export interface Player {
 /** Get the player's current ship with its type info. Returns null if no ship. */
 export async function getPlayerShip(playerId: number) {
     const res = await pool.query(
-        `SELECT s.id, s.drones, s.shields, s.holds, s.planet_busters, s.terraform_devices,
-                s.turns_per_warp, s.has_hyperspace_1, s.has_hyperspace_2,
-                s.has_visual_scanner, s.has_planet_scanner, s.has_density_scanner,
-                s.cloaking_devices, s.corbomite, s.photon_torpedoes,
-                s.buoys, s.proximity_mines, s.orbital_mines, s.seeker_mines,
-                s.mine_disruptors, s.recon_drones,
+        `SELECT s.id, s.drones, s.shields, s.holds,
+                s.turns_per_warp, s.has_density_scanner,
                 s.fuel, s.organics, s.equipment, s.colonists,
                 s.sector_id, s.ship_type_id,
                 st.name as ship_name, st.max_drones, st.max_shields, st.max_holds,
-                st.max_planet_busters, st.max_terraform_devices,
-                st.can_have_hyperspace_1, st.can_have_hyperspace_2,
-                st.can_have_visual_scanner, st.can_have_planet_scanner,
-                st.max_buoy, st.max_proximity, st.max_orbital, st.max_seeker,
-                st.max_cloaking, st.max_corbomite, st.max_photon,
-                st.max_disruptors, st.max_recon_drones,
                 st.starting_holds, st.turns_per_warp as type_turns_per_warp,
                 st.cost_drive, st.cost_computer, st.cost_hull, st.hold_cost,
                 st.odds_offensive, st.odds_defensive, st.speed,
@@ -45,7 +35,28 @@ export async function getPlayerShip(playerId: number) {
          WHERE s.id = (SELECT ship_id FROM players WHERE id = $1)`,
         [playerId],
     );
-    return res.rows[0] ?? null;
+    if (!res.rows[0]) return null;
+    const ship = res.rows[0];
+
+    // Attach hardware quantities as a map
+    const hwRes = await pool.query(
+        `SELECT hi.name, COALESCE(sh.quantity, 0) as quantity
+         FROM hardware_item hi
+         LEFT JOIN ship_hardware sh ON sh.hardware_item_id = hi.id AND sh.ship_id = $1`,
+        [ship.id],
+    );
+    ship.hardware = Object.fromEntries(hwRes.rows.map((r: any) => [r.name, r.quantity]));
+
+    // Attach hardware max quantities as a map
+    const hwMaxRes = await pool.query(
+        `SELECT hi.name, COALESCE(sth.max_quantity, 0) as max_quantity
+         FROM hardware_item hi
+         LEFT JOIN ship_type_hardware sth ON sth.hardware_item_id = hi.id AND sth.ship_type_id = $1`,
+        [ship.ship_type_id],
+    );
+    ship.hardware_max = Object.fromEntries(hwMaxRes.rows.map((r: any) => [r.name, r.max_quantity]));
+
+    return ship;
 }
 
 export const players: Record<number, Player> = {};
