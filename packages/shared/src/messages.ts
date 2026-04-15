@@ -3,7 +3,6 @@
 export const Menu = {
     Sector: 'sector',
     Port: 'port',
-    Docked: 'docked',
     Class0: 'class0',
     Class0Qty: 'class0Qty',
     Help: 'help',
@@ -95,6 +94,10 @@ export const ServerMsgType = {
     HyperspaceJumpResult: 'hyperspaceJumpResult',
     MenuChanged: 'menuChanged',
     VisitedSectorsResult: 'visitedSectorsResult',
+    TradePrompt: 'tradePrompt',
+    TradeConfirmPrompt: 'tradeConfirmPrompt',
+    TradeComplete: 'tradeComplete',
+    TradeSkipped: 'tradeSkipped',
 } as const;
 type ServerMsgType = typeof ServerMsgType;
 
@@ -137,5 +140,7 @@ export const ClientMsgType = {
     HyperspaceJump: 'hyperspaceJump',
     ChangeMenu: 'changeMenu',
     VisitedSectors: 'visitedSectors',
+    TradeResponse: 'tradeResponse',
+    TradeConfirmResponse: 'tradeConfirmResponse',
 } as const;
 type ClientMsgType = typeof ClientMsgType;

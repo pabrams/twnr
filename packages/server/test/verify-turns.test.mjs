@@ -1151,7 +1151,13 @@ describe('HyperspaceJump', () => {
   it('Rejected when player is docked at a port', async () => {
     const { ws: wsConn, playerId } = await setupJumpPlayer();
     const adj = await getAdjacentSector(wsConn);
-    await ensureSellingPort(pool, adj);
+    // Use class 0 port — trading ports now auto-enter trade flow and may auto-undock
+    const dbId = await sectorDbId(adj);
+    await pool.query(`
+      INSERT INTO ports (sector_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
+      VALUES ($1, 0, 0, 0, 0, 0, 0, 0)
+      ON CONFLICT (sector_id) DO UPDATE SET class = 0, fuel = 0, fuel_price = 0
+    `, [dbId]);
     await clearSectorDrones(adj);
     await deployDronesInSector(pool, playerId, adj, 5);
     await pool.query('UPDATE ships SET fuel = 100 WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
@@ -1231,7 +1237,13 @@ describe('ListDeployedDrones - sector command mode', () => {
     const { ws: wsConn } = await ws(token);
 
     const adj = await getAdjacentSector(wsConn);
-    await ensureSellingPort(pool, adj);
+    // Use class 0 port — trading ports now auto-enter trade flow and may auto-undock
+    const dbId = await sectorDbId(adj);
+    await pool.query(`
+      INSERT INTO ports (sector_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
+      VALUES ($1, 0, 0, 0, 0, 0, 0, 0)
+      ON CONFLICT (sector_id) DO UPDATE SET class = 0, fuel = 0, fuel_price = 0
+    `, [dbId]);
     await clearSectorDrones(adj);
     await wsRequest(wsConn, { type: ClientMsgType.Move, sector: adj }, ServerMsgType.MoveResult);
     await wsRequest(wsConn, { type: ClientMsgType.Dock }, ServerMsgType.DockResult);
