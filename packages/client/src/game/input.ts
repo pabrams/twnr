@@ -4,8 +4,7 @@ import type { GameContext } from './types.js';
 import { showPrompt, showPortMenu, showHelp, showPlayerInfo } from './display.js';
 import { showAttackMenu } from './display-combat.js';
 import { showComputerActivated } from './display-computer.js';
-import { showJettisonConfirm, showTradeConfirmPrompt } from './display-port.js';
-import { advanceTradeQueue } from './connection.js';
+import { showJettisonConfirm } from './display-port.js';
 import {
     handleAttackInput,
     handleAttackDronesInput,
@@ -317,46 +316,21 @@ function handlePortInput(ctx: GameContext, line: string) {
 }
 
 function handleTradeQtyInput(ctx: GameContext, line: string) {
-    const step = ctx.tradeQueue[ctx.tradeStep];
-    if (!step) return;
     const trimmed = line.trim();
-    // Empty input = accept default (maxQty)
-    const qty = trimmed === '' ? step.maxQty : parseInt(trimmed, 10);
-    if (isNaN(qty) || qty < 0) return;
-    if (qty === 0) {
-        // Skip this commodity
-        advanceTradeQueue(ctx);
-        return;
-    }
-    const clampedQty = Math.min(qty, step.maxQty);
-    ctx.tradePendingQty = clampedQty;
-    ctx.term.writeln(`${colors.white(`Agreed, ${clampedQty.toLocaleString()} units.`)}`);
-    const totalPrice = clampedQty * step.price;
-    ctx.mode = Menu.TradeConfirm;
-    showTradeConfirmPrompt(ctx, totalPrice, step.action);
+    // Empty input = accept default (server will clamp)
+    const qty = trimmed === '' ? -1 : parseInt(trimmed, 10);
+    if (isNaN(qty) || qty < -1) return;
+    // -1 signals "use default maxQty" to the server, 0 = skip
+    ctx.sendMsg({ type: ClientMsgType.TradeResponse, quantity: qty === -1 ? -1 : qty });
 }
 
 function handleTradeConfirmInput(ctx: GameContext, line: string) {
-    const step = ctx.tradeQueue[ctx.tradeStep];
-    if (!step) return;
     switch (line.toLowerCase()) {
-        case 'y': {
-            const totalPrice = ctx.tradePendingQty * step.price;
-            if (step.action === 'buy' && ctx.tradeCredits < totalPrice) {
-                ctx.term.writeln(`\r\n${colors.boldRed('Insufficient credits!')}`);
-                advanceTradeQueue(ctx);
-                return;
-            }
-            ctx.sendMsg({
-                type: ClientMsgType.PortTransaction,
-                good: step.commodity,
-                quantity: ctx.tradePendingQty,
-                action: step.action,
-            });
+        case 'y':
+            ctx.sendMsg({ type: ClientMsgType.TradeConfirmResponse, confirmed: true });
             break;
-        }
         case 'n':
-            advanceTradeQueue(ctx);
+            ctx.sendMsg({ type: ClientMsgType.TradeConfirmResponse, confirmed: false });
             break;
     }
 }

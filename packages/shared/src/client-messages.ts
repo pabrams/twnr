@@ -179,6 +179,16 @@ export type VisitedSectorsCommand = {
     type: typeof ClientMsgType.VisitedSectors;
 };
 
+export type TradeResponseCommand = {
+    type: typeof ClientMsgType.TradeResponse;
+    quantity: number;
+};
+
+export type TradeConfirmResponseCommand = {
+    type: typeof ClientMsgType.TradeConfirmResponse;
+    confirmed: boolean;
+};
+
 export type ClientCommand =
     | MoveCommand
     | SectorDisplayCommand
@@ -217,4 +227,6 @@ export type ClientCommand =
     | ListPlanetsCommand
     | HyperspaceJumpCommand
     | ChangeMenuCommand
-    | VisitedSectorsCommand;
+    | VisitedSectorsCommand
+    | TradeResponseCommand
+    | TradeConfirmResponseCommand;

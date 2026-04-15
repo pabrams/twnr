@@ -429,6 +429,42 @@ export type ListPlanetsResultObject = {
     }[];
 };
 
+// Server-driven trade flow
+export type TradePromptObject = {
+    type: typeof ServerMsgType.TradePrompt;
+    commodity: string;
+    commodityLabel: string;
+    action: 'buy' | 'sell';
+    portTrading: number;
+    onBoard: number;
+    maxQty: number;
+    price: number;
+    credits: number;
+    emptyHolds: number;
+};
+
+export type TradeConfirmPromptObject = {
+    type: typeof ServerMsgType.TradeConfirmPrompt;
+    commodity: string;
+    commodityLabel: string;
+    action: 'buy' | 'sell';
+    quantity: number;
+    totalPrice: number;
+};
+
+export type TradeCompleteObject = {
+    type: typeof ServerMsgType.TradeComplete;
+    credits: number;
+    cargo: { fuel: number; organics: number; equipment: number; colonists: number };
+    emptyHolds: number;
+    turnsUsed?: number;
+};
+
+export type TradeSkippedObject = {
+    type: typeof ServerMsgType.TradeSkipped;
+    reason: string;
+};
+
 export type ServerResult =
     | WelcomeEvent
     | PlayerMovedEvent
@@ -477,4 +513,8 @@ export type ServerResult =
     | HyperspaceJumpResultObject
     | MenuChangedResultObject
     | VisitedSectorsResultObject
+    | TradePromptObject
+    | TradeConfirmPromptObject
+    | TradeCompleteObject
+    | TradeSkippedObject
     | ErrorResultObject;

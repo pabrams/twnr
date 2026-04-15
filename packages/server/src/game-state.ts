@@ -10,6 +10,19 @@ import type {
 } from './db/types.js';
 import { getPlanetsInSector, getCollisionsInSector } from './db/queries/sector.js';
 
+export interface TradeStep {
+    commodity: 'fuel' | 'organics' | 'equipment';
+    commodityLabel: string;
+    action: 'buy' | 'sell';
+    price: number;
+}
+
+export interface TradeState {
+    steps: TradeStep[];
+    stepIndex: number;
+    pendingQty?: number;
+}
+
 export interface Player {
     ws: WebSocket;
     sector: number;
@@ -21,6 +34,7 @@ export interface Player {
     at_starbase?: boolean;
     pendingEncounter?: { retreatSector: number };
     currentMenu: string;
+    tradeState?: TradeState;
 }
 
 /** Get the player's current ship with its type info. Returns null if no ship. */

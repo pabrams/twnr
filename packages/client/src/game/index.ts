@@ -80,12 +80,6 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
         starbaseSector: null,
         hardwarePrices: null,
         colonistCommodity: null,
-        tradeQueue: [],
-        tradeStep: 0,
-        tradePendingQty: 0,
-        tradeCredits: 0,
-        tradeEmptyHolds: 0,
-        tradeCargo: { fuel: 0, organics: 0, equipment: 0, colonists: 0 },
 
         // Transient UI state
         knownUniverseMode: 'explored',

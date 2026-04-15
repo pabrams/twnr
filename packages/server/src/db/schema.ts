@@ -508,7 +508,6 @@ export const connectDB = async (): Promise<void> => {
       INSERT INTO menu (name, label) VALUES
         ('sector', 'Sector'),
         ('port', 'Port'),
-        ('docked', 'Docked'),
         ('class0', 'Class 0 Port'),
         ('class0Qty', 'Class 0 Quantity'),
         ('help', 'Help'),
@@ -552,8 +551,8 @@ export const connectDB = async (): Promise<void> => {
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'sector')
         WHERE name IN ('port', 'help', 'shipInfo', 'playerInfo', 'attack', 'computer', 'jettisonConfirm', 'planet', 'deployDronesQty');
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'port')
-        WHERE name IN ('docked', 'tradeQty', 'tradeConfirm');
-      UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'docked')
+        WHERE name IN ('tradeQty', 'tradeConfirm');
+      UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'port')
         WHERE name = 'class0';
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'class0')
         WHERE name = 'class0Qty';
@@ -707,13 +706,6 @@ export const connectDB = async (): Promise<void> => {
         ((SELECT id FROM menu WHERE name='port'), (SELECT id FROM command WHERE name='trade_at_port'), 't', 'Trade at port','dock', NULL, 10),
         ((SELECT id FROM menu WHERE name='port'), (SELECT id FROM command WHERE name='dock_starbase'), 's', 'Enter Starbase','dockStarbase', NULL, 15),
         ((SELECT id FROM menu WHERE name='port'), (SELECT id FROM command WHERE name='back'), 'q', 'Back',NULL, (SELECT id FROM menu WHERE name='sector'), 20)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
-
-      -- === Docked ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='docked'), (SELECT id FROM command WHERE name='buy_goods'), 'b', 'Buy goods','portTransaction', NULL, 10),
-        ((SELECT id FROM menu WHERE name='docked'), (SELECT id FROM command WHERE name='sell_goods'), 's', 'Sell goods','portTransaction', NULL, 20),
-        ((SELECT id FROM menu WHERE name='docked'), (SELECT id FROM command WHERE name='leave_port'), 'q', 'Leave port','undock', NULL, 30)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === Class0 ===

@@ -44,26 +44,10 @@ export interface GameContext {
     starbaseSector: number | null;
     hardwarePrices: HardwarePriceItem[] | null;
     colonistCommodity: 'fuel' | 'organics' | 'equipment' | null;
-    tradeQueue: TradeStep[];
-    tradeStep: number;
-    tradePendingQty: number;
-    tradeCredits: number;
-    tradeEmptyHolds: number;
-    tradeCargo: { fuel: number; organics: number; equipment: number; colonists: number };
 
     // ─── Transient UI state (was ad-hoc via `as any`) ────────────────
     knownUniverseMode: 'explored' | 'unexplored';
     starbaseBuyItemName: string | null;
     shipyardsBuyTarget: string | null;
     landablePlanets: { id: number; name: string; type: string }[] | null;
-}
-
-export interface TradeStep {
-    commodity: 'fuel' | 'organics' | 'equipment';
-    commodityLabel: string;
-    action: 'buy' | 'sell';
-    maxQty: number;
-    portTrading: number;
-    onBoard: number;
-    price: number;
 }
