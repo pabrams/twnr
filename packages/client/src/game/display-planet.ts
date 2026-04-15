@@ -1,9 +1,10 @@
+import { Menu } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { colors } from './constants.js';
 import { showPrompt } from './display.js';
 
 export function showPlanetMenu(ctx: GameContext, name: string, colonists: number) {
-    ctx.mode = 'planet';
+    ctx.mode = Menu.Planet;
     ctx.term.writeln('');
     ctx.term.writeln(
         `${colors.boldGreen('Landing on')} ${colors.boldCyan(name)}${colors.boldYellow('...')}`,

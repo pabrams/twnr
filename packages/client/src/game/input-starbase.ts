@@ -1,4 +1,4 @@
-import { ClientMsgType, type ShipCatalogEntry } from '@twnr/shared';
+import { ClientMsgType, Menu, type ShipCatalogEntry } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { showPrompt } from './display.js';
 import {
@@ -25,11 +25,11 @@ import { colors } from './constants.js';
 export function handleStarbaseInput(ctx: GameContext, line: string) {
     switch (line.toLowerCase()) {
         case 's':
-            ctx.changeMenu('shipyards');
+            ctx.changeMenu(Menu.Shipyards);
             showShipyardsMenu(ctx);
             break;
         case 'h':
-            ctx.changeMenu('starbaseHardware');
+            ctx.changeMenu(Menu.StarbaseHardware);
             showHardwareMenu(ctx);
             break;
         case '?':
@@ -81,7 +81,7 @@ export function handleHardwareInput(ctx: GameContext, line: string) {
     const hw = STACKABLE_HARDWARE[key];
     if (hw) {
         ctx.starbaseBuyItemName = hw.itemName;
-        ctx.changeMenu('starbaseBuyQty');
+        ctx.changeMenu(Menu.StarbaseBuyQty);
         showBuyQtyPrompt(ctx, hw.label);
         return;
     }
@@ -90,7 +90,7 @@ export function handleHardwareInput(ctx: GameContext, line: string) {
         return;
     }
     if (key === 'q') {
-        ctx.changeMenu('starbase');
+        ctx.changeMenu(Menu.Starbase);
         showStarbaseMenu(ctx);
         return;
     }
@@ -99,7 +99,7 @@ export function handleHardwareInput(ctx: GameContext, line: string) {
 
 export function handleStarbaseBuyQtyInput(ctx: GameContext, line: string) {
     if (line.toLowerCase() === 'q') {
-        ctx.changeMenu('starbaseHardware');
+        ctx.changeMenu(Menu.StarbaseHardware);
         showHardwareMenu(ctx);
         return;
     }
@@ -116,7 +116,7 @@ export function handleStarbaseBuyQtyInput(ctx: GameContext, line: string) {
 
 export function handlePlanetSelectInput(ctx: GameContext, line: string) {
     if (line.toLowerCase() === 'q') {
-        ctx.changeMenu('sector');
+        ctx.changeMenu(Menu.Sector);
         showPrompt(ctx);
         return;
     }
@@ -131,7 +131,7 @@ export function handlePlanetSelectInput(ctx: GameContext, line: string) {
 
 export function handleHyperspaceJumpInput(ctx: GameContext, line: string) {
     if (line.toLowerCase() === 'q') {
-        ctx.changeMenu('computer');
+        ctx.changeMenu(Menu.Computer);
         return;
     }
     const sector = parseInt(line, 10);
@@ -174,7 +174,7 @@ export function handleShipyardsInput(ctx: GameContext, line: string) {
             showShipyardsHelp(ctx);
             break;
         case 'q':
-            ctx.changeMenu('starbase');
+            ctx.changeMenu(Menu.Starbase);
             showStarbaseMenu(ctx);
             break;
         default:
@@ -184,7 +184,7 @@ export function handleShipyardsInput(ctx: GameContext, line: string) {
 
 export function handleShipyardsBuyInput(ctx: GameContext, line: string) {
     if (line.toLowerCase() === 'q') {
-        ctx.changeMenu('shipyards');
+        ctx.changeMenu(Menu.Shipyards);
         showShipyardsMenu(ctx);
         return;
     }
@@ -207,7 +207,7 @@ export function handleShipyardsBuyInput(ctx: GameContext, line: string) {
 export function handleShipyardsTradeinInput(ctx: GameContext, line: string) {
     const targetShipName = ctx.shipyardsBuyTarget;
     if (!targetShipName) {
-        ctx.changeMenu('shipyards');
+        ctx.changeMenu(Menu.Shipyards);
         showShipyardsMenu(ctx);
         return;
     }
@@ -228,7 +228,7 @@ export function handleShipyardsTradeinInput(ctx: GameContext, line: string) {
 
 export function handleShipyardsExamineInput(ctx: GameContext, line: string) {
     if (line.toLowerCase() === 'q') {
-        ctx.changeMenu('shipyards');
+        ctx.changeMenu(Menu.Shipyards);
         showShipyardsMenu(ctx);
         return;
     }
@@ -255,7 +255,7 @@ export function handleShipyardsClass0Input(ctx: GameContext, line: string) {
             showShipyardsClass0QtyPrompt(ctx, 'holds');
             break;
         case 'q':
-            ctx.changeMenu('shipyards');
+            ctx.changeMenu(Menu.Shipyards);
             showShipyardsMenu(ctx);
             break;
         default:

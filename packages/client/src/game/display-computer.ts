@@ -1,4 +1,4 @@
-import { ClientMsgType } from '@twnr/shared';
+import { ClientMsgType, Menu } from '@twnr/shared';
 import type { ShipCatalogEntry, PlanetConfig } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { colors } from './constants.js';
@@ -13,7 +13,7 @@ export function showComputerPrompt(ctx: GameContext) {
 }
 
 export function showComputerActivated(ctx: GameContext) {
-    ctx.mode = 'computer';
+    ctx.mode = Menu.Computer;
     ctx.term.writeln(`\r\n${colors.boldCyan('<Computer activated>')}`);
     showComputerPrompt(ctx);
 }
@@ -35,7 +35,7 @@ export function showComputerHelp(ctx: GameContext) {
 }
 
 export function showKnownUniverseMenu(ctx: GameContext) {
-    ctx.mode = 'knownUniverse';
+    ctx.mode = Menu.KnownUniverse;
     ctx.term.write(
         `\r\n${colors.boldCyan('Known Universe')} — ${colors.cyan('E')}xplored, ${colors.cyan('U')}nexplored, ${colors.cyan('Q')}uit? `,
     );
@@ -71,12 +71,12 @@ export function renderVisitedSectorsResult(
         ctx.term.writeln(`${colors.boldCyan('Unexplored sectors')} (${unexplored.length}):`);
         ctx.term.writeln(unexplored.map((s) => colors.boldRed(String(s))).join(' '));
     }
-    ctx.changeMenu('computer');
+    ctx.changeMenu(Menu.Computer);
     showComputerPrompt(ctx);
 }
 
 export async function showShipCatalog(ctx: GameContext) {
-    ctx.mode = 'shipCatalog';
+    ctx.mode = Menu.ShipCatalog;
     if (!ctx.shipConfigs) {
         ctx.term.writeln(`\r\n${colors.white('Loading ship catalog...')}`);
         try {
@@ -156,7 +156,7 @@ export function showShipDetail(ctx: GameContext, ship: ShipCatalogEntry) {
 }
 
 export async function showPlanetSpecs(ctx: GameContext) {
-    ctx.mode = 'planetSpecs';
+    ctx.mode = Menu.PlanetSpecs;
     if (!ctx.planetConfigs) {
         ctx.term.writeln(`\r\n${colors.white('Loading planetary specs...')}`);
         try {

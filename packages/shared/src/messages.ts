@@ -1,3 +1,49 @@
+// Menu names (must match the server's `menu` table seed data)
+
+export const Menu = {
+    Sector: 'sector',
+    Port: 'port',
+    Docked: 'docked',
+    Class0: 'class0',
+    Class0Qty: 'class0Qty',
+    Help: 'help',
+    ShipInfo: 'shipInfo',
+    PlayerInfo: 'playerInfo',
+    Attack: 'attack',
+    AttackDrones: 'attackDrones',
+    Computer: 'computer',
+    KnownUniverse: 'knownUniverse',
+    ShipCatalog: 'shipCatalog',
+    PlanetSpecs: 'planetSpecs',
+    AutopilotPrompt: 'autopilotPrompt',
+    Autopilot: 'autopilot',
+    JettisonConfirm: 'jettisonConfirm',
+    Planet: 'planet',
+    PlanetTakeQty: 'planetTakeQty',
+    PlanetLeaveQty: 'planetLeaveQty',
+    DeployDronesQty: 'deployDronesQty',
+    DroneEncounter: 'droneEncounter',
+    DroneAttackQty: 'droneAttackQty',
+    Starbase: 'starbase',
+    StarbaseHardware: 'starbaseHardware',
+    StarbaseBuyQty: 'starbaseBuyQty',
+    PlanetSelect: 'planetSelect',
+    HyperspaceJumpTarget: 'hyperspaceJumpTarget',
+    StarbaseMines: 'starbaseMines',
+    PlanetEarth: 'planetEarth',
+    PlanetTakeCommodity: 'planetTakeCommodity',
+    PlanetLeaveCommodity: 'planetLeaveCommodity',
+    TradeQty: 'tradeQty',
+    TradeConfirm: 'tradeConfirm',
+    Shipyards: 'shipyards',
+    ShipyardsBuy: 'shipyardsBuy',
+    ShipyardsTradein: 'shipyardsTradein',
+    ShipyardsExamine: 'shipyardsExamine',
+    ShipyardsClass0: 'shipyardsClass0',
+    ShipyardsClass0Qty: 'shipyardsClass0Qty',
+} as const;
+export type MenuName = typeof Menu[keyof typeof Menu];
+
 // Message type constants
 
 export const ServerMsgType = {

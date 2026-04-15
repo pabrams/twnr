@@ -1,9 +1,10 @@
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
-import { ClientMsgType } from '@twnr/shared';
+import { ClientMsgType, Menu } from '@twnr/shared';
 import type {
     ClientCommand,
     MenuEntry,
+    MenuName,
 } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { setupConnection } from './connection.js';
@@ -59,7 +60,7 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
         },
 
         // Mutable state
-        mode: 'sector',
+        mode: Menu.Sector,
         currentSector: 0,
         currentPort: null,
         dockedPortInfo: null,

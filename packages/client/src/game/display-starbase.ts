@@ -1,3 +1,4 @@
+import { Menu } from '@twnr/shared';
 import type { ShipCatalogEntry } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { colors } from './constants.js';
@@ -11,7 +12,7 @@ export function showStarbasePrompt(ctx: GameContext) {
 }
 
 export function showStarbaseMenu(ctx: GameContext) {
-    ctx.mode = 'starbase';
+    ctx.mode = Menu.Starbase;
     showStarbasePrompt(ctx);
 }
 
@@ -34,7 +35,7 @@ function fmt(n: number): string {
 }
 
 export function showHardwareMenu(ctx: GameContext) {
-    ctx.mode = 'starbaseHardware';
+    ctx.mode = Menu.StarbaseHardware;
     showHardwarePrompt(ctx);
 }
 
@@ -73,7 +74,7 @@ export function showHardwareHelp(ctx: GameContext) {
 }
 
 export function showBuyQtyPrompt(ctx: GameContext, item: string) {
-    ctx.mode = 'starbaseBuyQty';
+    ctx.mode = Menu.StarbaseBuyQty;
     ctx.term.write(`\r\n${colors.cyan(`How many ${item}?`)} `);
 }
 
@@ -81,7 +82,7 @@ export function showPlanetSelectMenu(
     ctx: GameContext,
     planets: { id: number; name: string; type: string }[],
 ) {
-    ctx.mode = 'planetSelect';
+    ctx.mode = Menu.PlanetSelect;
     ctx.term.writeln('');
     ctx.term.writeln(colors.boldCyan('=== Select a Planet ==='));
     planets.forEach((p, i) => {
@@ -93,7 +94,7 @@ export function showPlanetSelectMenu(
 }
 
 export function showHyperspaceJumpPrompt(ctx: GameContext) {
-    ctx.mode = 'hyperspaceJumpTarget';
+    ctx.mode = Menu.HyperspaceJumpTarget;
     ctx.term.write(`\r\n${colors.cyan('Target sector for hyperspace jump?')} `);
 }
 
@@ -106,7 +107,7 @@ export function showShipyardsPrompt(ctx: GameContext) {
 }
 
 export function showShipyardsMenu(ctx: GameContext) {
-    ctx.mode = 'shipyards';
+    ctx.mode = Menu.Shipyards;
     showShipyardsPrompt(ctx);
 }
 
@@ -143,7 +144,7 @@ function calculateShipPrice(ship: ShipCatalogEntry): number {
 }
 
 export async function showShipBuyList(ctx: GameContext) {
-    ctx.changeMenu('shipyardsBuy');
+    ctx.changeMenu(Menu.ShipyardsBuy);
     if (!ctx.shipConfigs) {
         ctx.term.writeln(`\r\n${colors.white('Loading ship catalog...')}`);
         try {
@@ -170,7 +171,7 @@ export async function showShipBuyList(ctx: GameContext) {
 }
 
 export function showShipExamineList(ctx: GameContext) {
-    ctx.changeMenu('shipyardsExamine');
+    ctx.changeMenu(Menu.ShipyardsExamine);
     showShipBuyListInternal(ctx, 'Examine');
 }
 
@@ -201,7 +202,7 @@ export function showTradeinPrompt(
     price: number,
     tradeinCredit: number,
 ) {
-    ctx.changeMenu('shipyardsTradein');
+    ctx.changeMenu(Menu.ShipyardsTradein);
     ctx.term.writeln('');
     ctx.term.writeln(
         `${colors.boldCyan(shipName)} — ${colors.boldYellow('Price')}: ${colors.white(price.toLocaleString())} cr`,
@@ -220,7 +221,7 @@ export function showTradeinPrompt(
 }
 
 export function showShipyardsClass0Menu(ctx: GameContext) {
-    ctx.changeMenu('shipyardsClass0');
+    ctx.changeMenu(Menu.ShipyardsClass0);
     ctx.term.writeln('');
     ctx.term.writeln(`  ${colors.cyan('F')}  Buy drones`);
     ctx.term.writeln(`  ${colors.cyan('S')}  Buy shields`);
@@ -230,6 +231,6 @@ export function showShipyardsClass0Menu(ctx: GameContext) {
 }
 
 export function showShipyardsClass0QtyPrompt(ctx: GameContext, item: string) {
-    ctx.changeMenu('shipyardsClass0Qty');
+    ctx.changeMenu(Menu.ShipyardsClass0Qty);
     ctx.term.write(`\r\n${colors.cyan(`How many ${item}?`)} `);
 }
