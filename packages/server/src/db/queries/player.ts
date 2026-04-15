@@ -5,7 +5,10 @@ export async function getOnPlanetId(
     playerId: number,
     db: Queryable = pool,
 ): Promise<number | null> {
-    const res = await db.query<{ on_planet_id: number | null }>('SELECT on_planet_id FROM players WHERE id = $1', [playerId]);
+    const res = await db.query<{ on_planet_id: number | null }>(
+        'SELECT on_planet_id FROM players WHERE id = $1',
+        [playerId],
+    );
     return res.rows[0]?.on_planet_id ?? null;
 }
 
@@ -24,12 +27,18 @@ export async function getCreditsForUpdate(
     playerId: number,
     db: Queryable = pool,
 ): Promise<number | undefined> {
-    const res = await db.query<{ credits: number }>('SELECT credits FROM players WHERE id = $1 FOR UPDATE', [playerId]);
+    const res = await db.query<{ credits: number }>(
+        'SELECT credits FROM players WHERE id = $1 FOR UPDATE',
+        [playerId],
+    );
     return res.rows[0]?.credits;
 }
 
 export async function getShipId(playerId: number): Promise<number | null> {
-    const res = await pool.query<{ ship_id: number | null }>('SELECT ship_id FROM players WHERE id = $1', [playerId]);
+    const res = await pool.query<{ ship_id: number | null }>(
+        'SELECT ship_id FROM players WHERE id = $1',
+        [playerId],
+    );
     return res.rows[0]?.ship_id ?? null;
 }
 

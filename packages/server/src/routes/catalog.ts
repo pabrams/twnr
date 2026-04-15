@@ -52,9 +52,7 @@ export function createCatalogRoutes(router: Router, middleware: Middleware): voi
     });
 
     router.get('/api/planets', (_req, res) => {
-        const planets = Object.values(planetConfigs).sort((a, b) =>
-            a.type.localeCompare(b.type),
-        );
+        const planets = Object.values(planetConfigs).sort((a, b) => a.type.localeCompare(b.type));
         res.json(planets);
     });
 
@@ -78,9 +76,7 @@ export function createCatalogRoutes(router: Router, middleware: Middleware): voi
             const registry = menus.map((m) => ({
                 name: m.name,
                 label: m.label,
-                parentMenu: m.parent_menu_id
-                    ? (menuMap.get(m.parent_menu_id)?.name ?? null)
-                    : null,
+                parentMenu: m.parent_menu_id ? (menuMap.get(m.parent_menu_id)?.name ?? null) : null,
                 commands: commands
                     .filter((c) => c.menu_id === m.id)
                     .map((c) => ({
