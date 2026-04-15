@@ -384,43 +384,48 @@ export async function handleTakeColonists(
         if (toTake <= 0) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'No free holds' });
-            return;
+        } else {
+            await client.query(`UPDATE planets SET ${col} = ${col} - $1 WHERE id = $2`, [
+                toTake,
+                onPlanetId,
+            ]);
+            await client.query(
+                'UPDATE ships SET colonists = colonists + $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)',
+                [toTake, playerId],
+            );
+            await client.query('COMMIT');
+
+            const updatedPlanet = await pool.query(
+                `SELECT ${col} as remaining FROM planets WHERE id = $1`,
+                [onPlanetId],
+            );
+            const updatedShip = await pool.query(
+                'SELECT colonists FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)',
+                [playerId],
+            );
+
+            sendEnvelope(playerId, {
+                type: ServerMsgType.TakeColonistsResult,
+                quantity: toTake,
+                commodity: commodity as 'fuel' | 'organics' | 'equipment',
+                planetColonists: updatedPlanet.rows[0].remaining,
+                shipColonists: updatedShip.rows[0].colonists,
+            });
         }
-
-        await client.query(`UPDATE planets SET ${col} = ${col} - $1 WHERE id = $2`, [
-            toTake,
-            onPlanetId,
-        ]);
-        await client.query(
-            'UPDATE ships SET colonists = colonists + $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)',
-            [toTake, playerId],
-        );
-
-        await client.query('COMMIT');
-
-        const updatedPlanet = await pool.query(
-            `SELECT ${col} as remaining FROM planets WHERE id = $1`,
-            [onPlanetId],
-        );
-
-        const updatedShip = await pool.query(
-            'SELECT colonists FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)',
-            [playerId],
-        );
-
-        sendEnvelope(playerId, {
-            type: ServerMsgType.TakeColonistsResult,
-            quantity: toTake,
-            commodity: commodity as 'fuel' | 'organics' | 'equipment',
-            planetColonists: updatedPlanet.rows[0].remaining,
-            shipColonists: updatedShip.rows[0].colonists,
-        });
     } catch (err) {
         await client.query('ROLLBACK');
         console.error('Take colonists error', err);
         sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Failed to take colonists' });
     } finally {
         client.release();
+    }
+
+    // Auto-leave planet after taking colonists (success or no-holds)
+    await setOnPlanet(playerId, null);
+    await setPlayerMenu(playerId, 'sector');
+    const sectorData = await buildSectorDisplayData(playerId);
+    if (sectorData) {
+        sendEnvelope(playerId, { type: ServerMsgType.LeavePlanetResult, ...sectorData });
     }
 }
 

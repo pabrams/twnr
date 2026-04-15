@@ -104,22 +104,41 @@ export async function handleDock(playerId: number): Promise<void> {
                 sectorId: player.sector,
                 portName: portName(player.sector),
                 class: p.class,
-                fuel: p.fuel, fuelMax: p.fuel_max, fuelPrice: p.fuel_price,
-                organics: p.organics, orgMax: p.org_max, orgPrice: p.org_price,
-                equipment: p.equipment, equMax: p.equ_max, equPrice: p.equ_price,
+                fuel: p.fuel,
+                fuelMax: p.fuel_max,
+                fuelPrice: p.fuel_price,
+                organics: p.organics,
+                orgMax: p.org_max,
+                orgPrice: p.org_price,
+                equipment: p.equipment,
+                equMax: p.equ_max,
+                equPrice: p.equ_price,
             },
             credits: cargo?.credits ?? 0,
             cargo: {
-                fuel: cargo?.fuel ?? 0, organics: cargo?.organics ?? 0,
-                equipment: cargo?.equipment ?? 0, colonists: cargo?.colonists ?? 0,
+                fuel: cargo?.fuel ?? 0,
+                organics: cargo?.organics ?? 0,
+                equipment: cargo?.equipment ?? 0,
+                colonists: cargo?.colonists ?? 0,
             },
-            emptyHolds: Math.max(0, (cargo?.cargo_limit ?? 0) - (cargo?.fuel ?? 0) - (cargo?.organics ?? 0) - (cargo?.equipment ?? 0) - (cargo?.colonists ?? 0)),
+            emptyHolds: Math.max(
+                0,
+                (cargo?.cargo_limit ?? 0) -
+                    (cargo?.fuel ?? 0) -
+                    (cargo?.organics ?? 0) -
+                    (cargo?.equipment ?? 0) -
+                    (cargo?.colonists ?? 0),
+            ),
         });
         return;
     }
 
     // Trading ports: send commerce report then build server-side trade sequence
-    const used = (cargo?.fuel ?? 0) + (cargo?.organics ?? 0) + (cargo?.equipment ?? 0) + (cargo?.colonists ?? 0);
+    const used =
+        (cargo?.fuel ?? 0) +
+        (cargo?.organics ?? 0) +
+        (cargo?.equipment ?? 0) +
+        (cargo?.colonists ?? 0);
     const emptyHolds = Math.max(0, (cargo?.cargo_limit ?? 0) - used);
     const credits = cargo?.credits ?? 0;
 
@@ -131,14 +150,22 @@ export async function handleDock(playerId: number): Promise<void> {
             sectorId: player.sector,
             portName: portName(player.sector),
             class: p.class,
-            fuel: p.fuel, fuelMax: p.fuel_max, fuelPrice: p.fuel_price,
-            organics: p.organics, orgMax: p.org_max, orgPrice: p.org_price,
-            equipment: p.equipment, equMax: p.equ_max, equPrice: p.equ_price,
+            fuel: p.fuel,
+            fuelMax: p.fuel_max,
+            fuelPrice: p.fuel_price,
+            organics: p.organics,
+            orgMax: p.org_max,
+            orgPrice: p.org_price,
+            equipment: p.equipment,
+            equMax: p.equ_max,
+            equPrice: p.equ_price,
         },
         credits,
         cargo: {
-            fuel: cargo?.fuel ?? 0, organics: cargo?.organics ?? 0,
-            equipment: cargo?.equipment ?? 0, colonists: cargo?.colonists ?? 0,
+            fuel: cargo?.fuel ?? 0,
+            organics: cargo?.organics ?? 0,
+            equipment: cargo?.equipment ?? 0,
+            colonists: cargo?.colonists ?? 0,
         },
         emptyHolds,
     });
@@ -150,7 +177,11 @@ export async function handleDock(playerId: number): Promise<void> {
         return;
     }
 
-    const COMMODITIES: { key: 'fuel' | 'organics' | 'equipment'; label: string; priceCol: string }[] = [
+    const COMMODITIES: {
+        key: 'fuel' | 'organics' | 'equipment';
+        label: string;
+        priceCol: string;
+    }[] = [
         { key: 'fuel', label: 'Fuel', priceCol: 'fuel_price' },
         { key: 'organics', label: 'Organics', priceCol: 'org_price' },
         { key: 'equipment', label: 'Equipment', priceCol: 'equ_price' },
@@ -160,7 +191,7 @@ export async function handleDock(playerId: number): Promise<void> {
     for (const c of COMMODITIES) {
         const dir = actions[c.key];
         if (!dir) continue;
-        const action = dir === 'S' ? 'buy' as const : 'sell' as const;
+        const action = dir === 'S' ? ('buy' as const) : ('sell' as const);
         steps.push({
             commodity: c.key,
             commodityLabel: c.label,
@@ -189,7 +220,10 @@ async function undockPlayer(playerId: number): Promise<void> {
 /** Advance to the next tradeable commodity, or undock if done. */
 async function advanceTradeFlow(playerId: number): Promise<void> {
     const player = players[playerId];
-    if (!player?.tradeState) { await undockPlayer(playerId); return; }
+    if (!player?.tradeState) {
+        await undockPlayer(playerId);
+        return;
+    }
 
     const { steps } = player.tradeState;
 
@@ -221,9 +255,10 @@ async function advanceTradeFlow(playerId: number): Promise<void> {
         const emptyHolds = Math.max(0, cargo.cargo_limit - used);
         const portTrading = port[step.commodity];
         const onBoard = cargo[step.commodity];
-        const maxQty = step.action === 'buy'
-            ? Math.min(emptyHolds, portTrading)
-            : Math.min(onBoard, portTrading);
+        const maxQty =
+            step.action === 'buy'
+                ? Math.min(emptyHolds, portTrading)
+                : Math.min(onBoard, portTrading);
 
         if (maxQty > 0) {
             await setPlayerMenu(playerId, 'tradeQty');
@@ -262,7 +297,10 @@ export async function handleTradeResponse(playerId: number, quantity: number): P
     }
 
     const step = player.tradeState.steps[player.tradeState.stepIndex];
-    if (!step) { await advanceTradeFlow(playerId); return; }
+    if (!step) {
+        await advanceTradeFlow(playerId);
+        return;
+    }
 
     if (quantity === 0) {
         // Skip this commodity
@@ -286,15 +324,17 @@ export async function handleTradeResponse(playerId: number, quantity: number): P
     ]);
     const port = portRes.rows[0];
     const cargo = cargoRes.rows[0];
-    if (!port || !cargo) { await undockPlayer(playerId); return; }
+    if (!port || !cargo) {
+        await undockPlayer(playerId);
+        return;
+    }
 
     const used = cargo.fuel + cargo.organics + cargo.equipment + cargo.colonists;
     const emptyHolds = Math.max(0, cargo.cargo_limit - used);
     const portTrading = port[step.commodity];
     const onBoard = cargo[step.commodity];
-    const maxQty = step.action === 'buy'
-        ? Math.min(emptyHolds, portTrading)
-        : Math.min(onBoard, portTrading);
+    const maxQty =
+        step.action === 'buy' ? Math.min(emptyHolds, portTrading) : Math.min(onBoard, portTrading);
 
     // -1 = accept default (maxQty)
     const clampedQty = quantity < 0 ? maxQty : Math.min(quantity, maxQty);
@@ -318,7 +358,10 @@ export async function handleTradeResponse(playerId: number, quantity: number): P
     });
 }
 
-export async function handleTradeConfirmResponse(playerId: number, confirmed: boolean): Promise<void> {
+export async function handleTradeConfirmResponse(
+    playerId: number,
+    confirmed: boolean,
+): Promise<void> {
     const player = players[playerId];
     if (!player?.tradeState) {
         sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not in a trade flow' });
@@ -381,7 +424,10 @@ export async function handleTradeConfirmResponse(playerId: number, confirmed: bo
             const turnResult = await checkAndDeductTurns(playerId, player.universeId, 1, client);
             if (!turnResult.allowed) {
                 await client.query('ROLLBACK');
-                sendEnvelope(playerId, { type: ServerMsgType.TradeSkipped, reason: 'Insufficient turns' });
+                sendEnvelope(playerId, {
+                    type: ServerMsgType.TradeSkipped,
+                    reason: 'Insufficient turns',
+                });
                 player.tradeState.pendingQty = undefined;
                 player.tradeState.stepIndex++;
                 await advanceTradeFlow(playerId);
@@ -391,7 +437,10 @@ export async function handleTradeConfirmResponse(playerId: number, confirmed: bo
             const cost = qty * price;
             if (cargo.credits < cost) {
                 await client.query('ROLLBACK');
-                sendEnvelope(playerId, { type: ServerMsgType.TradeSkipped, reason: 'Insufficient credits' });
+                sendEnvelope(playerId, {
+                    type: ServerMsgType.TradeSkipped,
+                    reason: 'Insufficient credits',
+                });
                 player.tradeState.pendingQty = undefined;
                 player.tradeState.stepIndex++;
                 await advanceTradeFlow(playerId);
@@ -399,7 +448,10 @@ export async function handleTradeConfirmResponse(playerId: number, confirmed: bo
             }
             if (port[col] < qty) {
                 await client.query('ROLLBACK');
-                sendEnvelope(playerId, { type: ServerMsgType.TradeSkipped, reason: 'Insufficient port inventory' });
+                sendEnvelope(playerId, {
+                    type: ServerMsgType.TradeSkipped,
+                    reason: 'Insufficient port inventory',
+                });
                 player.tradeState.pendingQty = undefined;
                 player.tradeState.stepIndex++;
                 await advanceTradeFlow(playerId);
@@ -408,16 +460,28 @@ export async function handleTradeConfirmResponse(playerId: number, confirmed: bo
             const used = cargo.fuel + cargo.organics + cargo.equipment + cargo.colonists;
             if (used + qty > cargo.cargo_limit) {
                 await client.query('ROLLBACK');
-                sendEnvelope(playerId, { type: ServerMsgType.TradeSkipped, reason: 'Insufficient cargo holds' });
+                sendEnvelope(playerId, {
+                    type: ServerMsgType.TradeSkipped,
+                    reason: 'Insufficient cargo holds',
+                });
                 player.tradeState.pendingQty = undefined;
                 player.tradeState.stepIndex++;
                 await advanceTradeFlow(playerId);
                 return;
             }
 
-            await client.query(`UPDATE ports SET ${col} = ${col} - $1 WHERE id = $2`, [qty, port.port_id]);
-            await client.query(`UPDATE ships SET ${col} = ${col} + $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)`, [qty, playerId]);
-            await client.query('UPDATE players SET credits = credits - $1 WHERE id = $2', [cost, playerId]);
+            await client.query(`UPDATE ports SET ${col} = ${col} - $1 WHERE id = $2`, [
+                qty,
+                port.port_id,
+            ]);
+            await client.query(
+                `UPDATE ships SET ${col} = ${col} + $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)`,
+                [qty, playerId],
+            );
+            await client.query('UPDATE players SET credits = credits - $1 WHERE id = $2', [
+                cost,
+                playerId,
+            ]);
             await client.query('COMMIT');
 
             cargo[col] += qty;
@@ -426,7 +490,12 @@ export async function handleTradeConfirmResponse(playerId: number, confirmed: bo
             sendEnvelope(playerId, {
                 type: ServerMsgType.TradeComplete,
                 credits: cargo.credits,
-                cargo: { fuel: cargo.fuel, organics: cargo.organics, equipment: cargo.equipment, colonists: cargo.colonists },
+                cargo: {
+                    fuel: cargo.fuel,
+                    organics: cargo.organics,
+                    equipment: cargo.equipment,
+                    colonists: cargo.colonists,
+                },
                 emptyHolds: Math.max(0, cargo.cargo_limit - usedAfter),
                 turnsUsed: turnResult.turnsUsed,
             });
@@ -434,7 +503,10 @@ export async function handleTradeConfirmResponse(playerId: number, confirmed: bo
             // Sell
             if (cargo[col] < qty) {
                 await client.query('ROLLBACK');
-                sendEnvelope(playerId, { type: ServerMsgType.TradeSkipped, reason: 'Insufficient cargo' });
+                sendEnvelope(playerId, {
+                    type: ServerMsgType.TradeSkipped,
+                    reason: 'Insufficient cargo',
+                });
                 player.tradeState.pendingQty = undefined;
                 player.tradeState.stepIndex++;
                 await advanceTradeFlow(playerId);
@@ -442,7 +514,10 @@ export async function handleTradeConfirmResponse(playerId: number, confirmed: bo
             }
             if (port[col] < qty) {
                 await client.query('ROLLBACK');
-                sendEnvelope(playerId, { type: ServerMsgType.TradeSkipped, reason: 'Port cannot buy that many' });
+                sendEnvelope(playerId, {
+                    type: ServerMsgType.TradeSkipped,
+                    reason: 'Port cannot buy that many',
+                });
                 player.tradeState.pendingQty = undefined;
                 player.tradeState.stepIndex++;
                 await advanceTradeFlow(playerId);
@@ -450,9 +525,18 @@ export async function handleTradeConfirmResponse(playerId: number, confirmed: bo
             }
 
             const revenue = qty * price;
-            await client.query(`UPDATE ports SET ${col} = ${col} - $1 WHERE id = $2`, [qty, port.port_id]);
-            await client.query(`UPDATE ships SET ${col} = ${col} - $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)`, [qty, playerId]);
-            await client.query('UPDATE players SET credits = credits + $1 WHERE id = $2', [revenue, playerId]);
+            await client.query(`UPDATE ports SET ${col} = ${col} - $1 WHERE id = $2`, [
+                qty,
+                port.port_id,
+            ]);
+            await client.query(
+                `UPDATE ships SET ${col} = ${col} - $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)`,
+                [qty, playerId],
+            );
+            await client.query('UPDATE players SET credits = credits + $1 WHERE id = $2', [
+                revenue,
+                playerId,
+            ]);
             await client.query('COMMIT');
 
             cargo[col] -= qty;
@@ -461,7 +545,12 @@ export async function handleTradeConfirmResponse(playerId: number, confirmed: bo
             sendEnvelope(playerId, {
                 type: ServerMsgType.TradeComplete,
                 credits: cargo.credits,
-                cargo: { fuel: cargo.fuel, organics: cargo.organics, equipment: cargo.equipment, colonists: cargo.colonists },
+                cargo: {
+                    fuel: cargo.fuel,
+                    organics: cargo.organics,
+                    equipment: cargo.equipment,
+                    colonists: cargo.colonists,
+                },
                 emptyHolds: Math.max(0, cargo.cargo_limit - usedAfter),
             });
         }
