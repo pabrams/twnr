@@ -1,4 +1,4 @@
-import { ClientMsgType } from '@twnr/shared';
+import { ClientMsgType, Menu } from '@twnr/shared';
 import type { SectorRef } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { colors, PORT_CLASS_LABELS } from './constants.js';
@@ -125,7 +125,7 @@ export function showPortMenu(ctx: GameContext) {
         showPrompt(ctx);
         return;
     }
-    ctx.mode = 'port';
+    ctx.mode = Menu.Port;
     const label = PORT_CLASS_LABELS[ctx.currentPort.class] ?? '???';
     ctx.term.writeln('');
     ctx.term.writeln(

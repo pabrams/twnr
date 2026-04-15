@@ -1,4 +1,4 @@
-import { ClientMsgType } from '@twnr/shared';
+import { ClientMsgType, Menu } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { showPrompt } from './display.js';
 import { showAttackDronesPrompt, showDroneAttackQtyPrompt } from './display-combat.js';
@@ -6,14 +6,14 @@ import { colors } from './constants.js';
 
 export function handleAttackInput(ctx: GameContext, line: string) {
     if (line.toLowerCase() === 'q') {
-        ctx.changeMenu('sector');
+        ctx.changeMenu(Menu.Sector);
         showPrompt(ctx);
         return;
     }
     const idx = parseInt(line, 10) - 1;
     if (idx >= 0 && idx < ctx.sectorPlayers.length) {
         ctx.attackTarget = ctx.sectorPlayers[idx].id;
-        ctx.changeMenu('attackDrones');
+        ctx.changeMenu(Menu.AttackDrones);
         showAttackDronesPrompt(ctx);
     } else {
         ctx.term.writeln(colors.boldRed('Invalid selection.'));
@@ -22,7 +22,7 @@ export function handleAttackInput(ctx: GameContext, line: string) {
 
 export function handleAttackDronesInput(ctx: GameContext, line: string) {
     if (line.toLowerCase() === 'q') {
-        ctx.changeMenu('sector');
+        ctx.changeMenu(Menu.Sector);
         showPrompt(ctx);
         return;
     }
@@ -40,7 +40,7 @@ export function handleAttackDronesInput(ctx: GameContext, line: string) {
 
 export function handleDeployDronesQtyInput(ctx: GameContext, line: string) {
     if (line.toLowerCase() === 'q') {
-        ctx.changeMenu('sector');
+        ctx.changeMenu(Menu.Sector);
         showPrompt(ctx);
         return;
     }
@@ -55,7 +55,7 @@ export function handleDeployDronesQtyInput(ctx: GameContext, line: string) {
 export function handleDroneEncounterInput(ctx: GameContext, line: string) {
     switch (line.toLowerCase()) {
         case 'a':
-            ctx.changeMenu('droneAttackQty');
+            ctx.changeMenu(Menu.DroneAttackQty);
             showDroneAttackQtyPrompt(ctx);
             break;
         case 'r':
@@ -69,7 +69,7 @@ export function handleDroneEncounterInput(ctx: GameContext, line: string) {
 
 export function handleDroneAttackQtyInput(ctx: GameContext, line: string) {
     if (line.toLowerCase() === 'q') {
-        ctx.changeMenu('droneEncounter');
+        ctx.changeMenu(Menu.DroneEncounter);
         return;
     }
     const qty = parseInt(line, 10);

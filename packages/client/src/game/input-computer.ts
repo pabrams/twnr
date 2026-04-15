@@ -1,4 +1,4 @@
-import { ClientMsgType } from '@twnr/shared';
+import { ClientMsgType, Menu } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { showPrompt } from './display.js';
 import { letterToIndex } from './display-starbase.js';
@@ -21,18 +21,18 @@ import { colors } from './constants.js';
 export function handleComputerInput(ctx: GameContext, line: string) {
     switch (line.toLowerCase()) {
         case 'k':
-            ctx.changeMenu('knownUniverse');
+            ctx.changeMenu(Menu.KnownUniverse);
             showKnownUniverseMenu(ctx);
             break;
         case 'l':
             showTraderList(ctx);
             break;
         case 'c':
-            ctx.changeMenu('shipCatalog');
+            ctx.changeMenu(Menu.ShipCatalog);
             showShipCatalog(ctx);
             break;
         case 'j':
-            ctx.changeMenu('planetSpecs');
+            ctx.changeMenu(Menu.PlanetSpecs);
             showPlanetSpecs(ctx);
             break;
         case ';':
@@ -46,7 +46,7 @@ export function handleComputerInput(ctx: GameContext, line: string) {
             break;
         case 'q':
             showComputerDeactivated(ctx);
-            ctx.changeMenu('sector');
+            ctx.changeMenu(Menu.Sector);
             showPrompt(ctx);
             break;
         default:
@@ -63,7 +63,7 @@ export function handleKnownUniverseInput(ctx: GameContext, line: string) {
             showUnexploredSectors(ctx);
             break;
         case 'q':
-            ctx.changeMenu('computer');
+            ctx.changeMenu(Menu.Computer);
             showComputerPrompt(ctx);
             break;
         default:
@@ -73,7 +73,7 @@ export function handleKnownUniverseInput(ctx: GameContext, line: string) {
 
 export function handleShipCatalogInput(ctx: GameContext, line: string) {
     if (line.toLowerCase() === 'q') {
-        ctx.changeMenu('computer');
+        ctx.changeMenu(Menu.Computer);
         showComputerPrompt(ctx);
         return;
     }
@@ -87,7 +87,7 @@ export function handleShipCatalogInput(ctx: GameContext, line: string) {
 
 export function handlePlanetSpecsInput(ctx: GameContext, line: string) {
     if (line.toLowerCase() === 'q') {
-        ctx.changeMenu('computer');
+        ctx.changeMenu(Menu.Computer);
         showComputerPrompt(ctx);
         return;
     }

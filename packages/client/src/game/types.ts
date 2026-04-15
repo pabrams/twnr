@@ -1,6 +1,7 @@
 import type { Terminal } from '@xterm/xterm';
 import type {
     ClientCommand,
+    MenuName,
     PortInfoResultObject,
     MenuEntry,
     HardwarePriceItem,
@@ -15,11 +16,11 @@ export interface GameContext {
     universeId: number;
     sendMsg: (msg: ClientCommand) => void;
     /** Set mode locally AND notify server */
-    changeMenu: (menu: string) => void;
+    changeMenu: (menu: MenuName) => void;
     setDebug: (on: boolean) => void;
 
     // ─── Mutable state ───────────────────────────────────────────────
-    mode: string;
+    mode: MenuName;
     currentSector: number;
     currentPort: { class: number; name: string } | null;
     dockedPortInfo: PortInfoResultObject | null;

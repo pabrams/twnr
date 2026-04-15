@@ -1,5 +1,5 @@
 import type { Terminal } from '@xterm/xterm';
-import { ClientMsgType } from '@twnr/shared';
+import { ClientMsgType, Menu } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { showPrompt, showPortMenu, showHelp, showPlayerInfo } from './display.js';
 import { showAttackMenu } from './display-combat.js';
@@ -121,103 +121,103 @@ function handleInput(ctx: GameContext, line: string) {
     if (ctx.autopilotPath.length > 0 && ctx.autopilotStep > 0 && !ctx.autopilotPaused) return;
 
     switch (ctx.mode) {
-        case 'port':
+        case Menu.Port:
             handlePortInput(ctx, line);
             return;
-        case 'tradeQty':
+        case Menu.TradeQty:
             handleTradeQtyInput(ctx, line);
             return;
-        case 'tradeConfirm':
+        case Menu.TradeConfirm:
             handleTradeConfirmInput(ctx, line);
             return;
-        case 'attack':
+        case Menu.Attack:
             handleAttackInput(ctx, line);
             return;
-        case 'attackDrones':
+        case Menu.AttackDrones:
             handleAttackDronesInput(ctx, line);
             return;
-        case 'computer':
+        case Menu.Computer:
             handleComputerInput(ctx, line);
             return;
-        case 'knownUniverse':
+        case Menu.KnownUniverse:
             handleKnownUniverseInput(ctx, line);
             return;
-        case 'shipCatalog':
+        case Menu.ShipCatalog:
             handleShipCatalogInput(ctx, line);
             return;
-        case 'planetSpecs':
+        case Menu.PlanetSpecs:
             handlePlanetSpecsInput(ctx, line);
             return;
-        case 'class0':
+        case Menu.Class0:
             handleClass0Input(ctx, line);
             return;
-        case 'class0Qty':
+        case Menu.Class0Qty:
             handleClass0QtyInput(ctx, line);
             return;
-        case 'autopilotPrompt':
+        case Menu.AutopilotPrompt:
             handleAutopilotPromptInput(ctx, line);
             return;
-        case 'jettisonConfirm':
+        case Menu.JettisonConfirm:
             handleJettisonConfirmInput(ctx, line);
             return;
-        case 'planet':
+        case Menu.Planet:
             handlePlanetInput(ctx, line);
             return;
-        case 'planetEarth':
+        case Menu.PlanetEarth:
             handlePlanetEarthInput(ctx, line);
             return;
-        case 'planetTakeCommodity':
+        case Menu.PlanetTakeCommodity:
             handlePlanetTakeCommodityInput(ctx, line);
             return;
-        case 'planetLeaveCommodity':
+        case Menu.PlanetLeaveCommodity:
             handlePlanetLeaveCommodityInput(ctx, line);
             return;
-        case 'planetTakeQty':
+        case Menu.PlanetTakeQty:
             handlePlanetTakeQtyInput(ctx, line);
             return;
-        case 'planetLeaveQty':
+        case Menu.PlanetLeaveQty:
             handlePlanetLeaveQtyInput(ctx, line);
             return;
-        case 'deployDronesQty':
+        case Menu.DeployDronesQty:
             handleDeployDronesQtyInput(ctx, line);
             return;
-        case 'droneEncounter':
+        case Menu.DroneEncounter:
             handleDroneEncounterInput(ctx, line);
             return;
-        case 'droneAttackQty':
+        case Menu.DroneAttackQty:
             handleDroneAttackQtyInput(ctx, line);
             return;
-        case 'starbase':
+        case Menu.Starbase:
             handleStarbaseInput(ctx, line);
             return;
-        case 'starbaseHardware':
+        case Menu.StarbaseHardware:
             handleHardwareInput(ctx, line);
             return;
-        case 'starbaseBuyQty':
+        case Menu.StarbaseBuyQty:
             handleStarbaseBuyQtyInput(ctx, line);
             return;
-        case 'shipyards':
+        case Menu.Shipyards:
             handleShipyardsInput(ctx, line);
             return;
-        case 'shipyardsBuy':
+        case Menu.ShipyardsBuy:
             handleShipyardsBuyInput(ctx, line);
             return;
-        case 'shipyardsTradein':
+        case Menu.ShipyardsTradein:
             handleShipyardsTradeinInput(ctx, line);
             return;
-        case 'shipyardsExamine':
+        case Menu.ShipyardsExamine:
             handleShipyardsExamineInput(ctx, line);
             return;
-        case 'shipyardsClass0':
+        case Menu.ShipyardsClass0:
             handleShipyardsClass0Input(ctx, line);
             return;
-        case 'shipyardsClass0Qty':
+        case Menu.ShipyardsClass0Qty:
             handleShipyardsClass0QtyInput(ctx, line);
             return;
-        case 'planetSelect':
+        case Menu.PlanetSelect:
             handlePlanetSelectInput(ctx, line);
             return;
-        case 'hyperspaceJumpTarget':
+        case Menu.HyperspaceJumpTarget:
             handleHyperspaceJumpInput(ctx, line);
             return;
     }
@@ -234,7 +234,7 @@ function handleInput(ctx: GameContext, line: string) {
             ctx.sendMsg({ type: ClientMsgType.SectorDisplay });
             break;
         case 'p':
-            ctx.changeMenu('port');
+            ctx.changeMenu(Menu.Port);
             showPortMenu(ctx);
             break;
         case 'i':
@@ -244,18 +244,18 @@ function handleInput(ctx: GameContext, line: string) {
             showHelp(ctx);
             break;
         case 'a':
-            ctx.changeMenu('attack');
+            ctx.changeMenu(Menu.Attack);
             showAttackMenu(ctx);
             break;
         case 'c':
-            ctx.changeMenu('computer');
+            ctx.changeMenu(Menu.Computer);
             showComputerActivated(ctx);
             break;
         case 'f':
             ctx.sendMsg({ type: ClientMsgType.DeployDronesInfo });
             break;
         case 'j':
-            ctx.changeMenu('jettisonConfirm');
+            ctx.changeMenu(Menu.JettisonConfirm);
             showJettisonConfirm(ctx);
             break;
         case 'g':
@@ -310,7 +310,7 @@ function handlePortInput(ctx: GameContext, line: string) {
             }
             break;
         case 'q':
-            ctx.changeMenu('sector');
+            ctx.changeMenu(Menu.Sector);
             showPrompt(ctx);
             break;
     }
@@ -332,7 +332,7 @@ function handleTradeQtyInput(ctx: GameContext, line: string) {
     ctx.tradePendingQty = clampedQty;
     ctx.term.writeln(`${colors.white(`Agreed, ${clampedQty.toLocaleString()} units.`)}`);
     const totalPrice = clampedQty * step.price;
-    ctx.mode = 'tradeConfirm';
+    ctx.mode = Menu.TradeConfirm;
     showTradeConfirmPrompt(ctx, totalPrice, step.action);
 }
 

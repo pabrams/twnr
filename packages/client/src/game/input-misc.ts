@@ -1,4 +1,4 @@
-import { ClientMsgType } from '@twnr/shared';
+import { ClientMsgType, Menu } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { showPrompt } from './display.js';
 import { showClass0Menu, showClass0QtyPrompt } from './display-port.js';
@@ -16,17 +16,17 @@ export function handleClass0Input(ctx: GameContext, line: string) {
     switch (line.toLowerCase()) {
         case 'f':
             ctx.class0BuyType = 'drones';
-            ctx.changeMenu('class0Qty');
+            ctx.changeMenu(Menu.Class0Qty);
             showClass0QtyPrompt(ctx, 'drones');
             break;
         case 's':
             ctx.class0BuyType = 'shields';
-            ctx.changeMenu('class0Qty');
+            ctx.changeMenu(Menu.Class0Qty);
             showClass0QtyPrompt(ctx, 'shields');
             break;
         case 'h':
             ctx.class0BuyType = 'holds';
-            ctx.changeMenu('class0Qty');
+            ctx.changeMenu(Menu.Class0Qty);
             showClass0QtyPrompt(ctx, 'holds');
             break;
         case 'q':
@@ -39,7 +39,7 @@ export function handleClass0Input(ctx: GameContext, line: string) {
 
 export function handleClass0QtyInput(ctx: GameContext, line: string) {
     if (line.toLowerCase() === 'q') {
-        ctx.changeMenu('class0');
+        ctx.changeMenu(Menu.Class0);
         showClass0Menu(ctx);
         return;
     }
@@ -73,7 +73,7 @@ export function handleAutopilotPromptInput(ctx: GameContext, line: string) {
         case 'n':
             ctx.autopilotPath = [];
             ctx.autopilotStep = 0;
-            ctx.changeMenu('sector');
+            ctx.changeMenu(Menu.Sector);
             showPrompt(ctx);
             break;
     }
@@ -83,10 +83,10 @@ export function handleJettisonConfirmInput(ctx: GameContext, line: string) {
     switch (line.toLowerCase()) {
         case 'y':
             ctx.sendMsg({ type: ClientMsgType.Jettison });
-            ctx.changeMenu('sector');
+            ctx.changeMenu(Menu.Sector);
             break;
         case 'n':
-            ctx.changeMenu('sector');
+            ctx.changeMenu(Menu.Sector);
             showPrompt(ctx);
             break;
     }
@@ -95,11 +95,11 @@ export function handleJettisonConfirmInput(ctx: GameContext, line: string) {
 export function handlePlanetInput(ctx: GameContext, line: string) {
     switch (line.toLowerCase()) {
         case 't':
-            ctx.changeMenu('planetTakeCommodity');
+            ctx.changeMenu(Menu.PlanetTakeCommodity);
             showPlanetTakeCommodityMenu(ctx);
             break;
         case 'l':
-            ctx.changeMenu('planetLeaveCommodity');
+            ctx.changeMenu(Menu.PlanetLeaveCommodity);
             showPlanetLeaveCommodityMenu(ctx);
             break;
         case 'd':
@@ -121,12 +121,12 @@ export function handlePlanetEarthInput(ctx: GameContext, line: string) {
     switch (line.toLowerCase()) {
         case 't':
             ctx.colonistCommodity = 'fuel';
-            ctx.changeMenu('planetTakeQty');
+            ctx.changeMenu(Menu.PlanetTakeQty);
             showPlanetTakePrompt(ctx);
             break;
         case 'l':
             ctx.colonistCommodity = 'fuel';
-            ctx.changeMenu('planetLeaveQty');
+            ctx.changeMenu(Menu.PlanetLeaveQty);
             showPlanetLeavePrompt(ctx);
             break;
         case 'q':
@@ -139,21 +139,21 @@ export function handlePlanetTakeCommodityInput(ctx: GameContext, line: string) {
     switch (line.toLowerCase()) {
         case 'f':
             ctx.colonistCommodity = 'fuel';
-            ctx.changeMenu('planetTakeQty');
+            ctx.changeMenu(Menu.PlanetTakeQty);
             showPlanetTakePrompt(ctx);
             break;
         case 'o':
             ctx.colonistCommodity = 'organics';
-            ctx.changeMenu('planetTakeQty');
+            ctx.changeMenu(Menu.PlanetTakeQty);
             showPlanetTakePrompt(ctx);
             break;
         case 'e':
             ctx.colonistCommodity = 'equipment';
-            ctx.changeMenu('planetTakeQty');
+            ctx.changeMenu(Menu.PlanetTakeQty);
             showPlanetTakePrompt(ctx);
             break;
         case 'q':
-            ctx.changeMenu('planet');
+            ctx.changeMenu(Menu.Planet);
             showPlanetMenuOptions(ctx);
             break;
     }
@@ -163,21 +163,21 @@ export function handlePlanetLeaveCommodityInput(ctx: GameContext, line: string) 
     switch (line.toLowerCase()) {
         case 'f':
             ctx.colonistCommodity = 'fuel';
-            ctx.changeMenu('planetLeaveQty');
+            ctx.changeMenu(Menu.PlanetLeaveQty);
             showPlanetLeavePrompt(ctx);
             break;
         case 'o':
             ctx.colonistCommodity = 'organics';
-            ctx.changeMenu('planetLeaveQty');
+            ctx.changeMenu(Menu.PlanetLeaveQty);
             showPlanetLeavePrompt(ctx);
             break;
         case 'e':
             ctx.colonistCommodity = 'equipment';
-            ctx.changeMenu('planetLeaveQty');
+            ctx.changeMenu(Menu.PlanetLeaveQty);
             showPlanetLeavePrompt(ctx);
             break;
         case 'q':
-            ctx.changeMenu('planet');
+            ctx.changeMenu(Menu.Planet);
             showPlanetMenuOptions(ctx);
             break;
     }
@@ -185,7 +185,7 @@ export function handlePlanetLeaveCommodityInput(ctx: GameContext, line: string) 
 
 export function handlePlanetTakeQtyInput(ctx: GameContext, line: string) {
     if (line.toLowerCase() === 'q') {
-        ctx.changeMenu('sector');
+        ctx.changeMenu(Menu.Sector);
         showPrompt(ctx);
         return;
     }
@@ -203,7 +203,7 @@ export function handlePlanetTakeQtyInput(ctx: GameContext, line: string) {
 
 export function handlePlanetLeaveQtyInput(ctx: GameContext, line: string) {
     if (line.toLowerCase() === 'q') {
-        ctx.changeMenu('sector');
+        ctx.changeMenu(Menu.Sector);
         showPrompt(ctx);
         return;
     }

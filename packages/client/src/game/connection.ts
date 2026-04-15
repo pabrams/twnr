@@ -1,5 +1,5 @@
-import { ServerMsgType, ClientMsgType } from '@twnr/shared';
-import type { ServerResult } from '@twnr/shared';
+import { ServerMsgType, ClientMsgType, Menu } from '@twnr/shared';
+import type { ServerResult, MenuName } from '@twnr/shared';
 import type { GameContext } from './types.js';
 
 import { showSectorDisplay, showCommerceReport, showPrompt } from './display.js';
@@ -53,7 +53,7 @@ export function advanceTradeQueue(ctx: GameContext) {
         advanceTradeQueue(ctx);
         return;
     }
-    ctx.mode = 'tradeQty';
+    ctx.mode = Menu.TradeQty;
     showTradeQtyPrompt(
         ctx,
         step.commodityLabel,
@@ -82,7 +82,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
         const msg: ServerResult = raw.payload ?? raw;
         if (raw.menu) {
             // Server is authoritative on menu state
-            ctx.mode = raw.menu;
+            ctx.mode = raw.menu as MenuName;
         }
         switch (msg.type) {
             case ServerMsgType.Welcome:
@@ -229,7 +229,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                             ctx.tradeQueue = queue;
                             ctx.tradeStep = 0;
                             const step = queue[0];
-                            ctx.mode = 'tradeQty';
+                            ctx.mode = Menu.TradeQty;
                             showTradeQtyPrompt(
                                 ctx,
                                 step.commodityLabel,
@@ -279,7 +279,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 } else {
                     ctx.term.writeln(`\r\n${colors.boldRed('Error:')} ${colors.red(msg.message)}`);
                 }
-                ctx.mode = 'sector';
+                ctx.mode = Menu.Sector;
                 showPrompt(ctx);
                 break;
             case ServerMsgType.PortTransactionResult:
@@ -309,7 +309,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 ctx.term.writeln(
                     `  ${colors.boldYellow('Credits')}: ${colors.boldYellow(String(msg.credits))}`,
                 );
-                if (ctx.mode === 'sector') showPrompt(ctx);
+                if (ctx.mode === Menu.Sector) showPrompt(ctx);
                 break;
             case ServerMsgType.CargoInfoResult:
                 ctx.term.writeln(
@@ -421,10 +421,10 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 ctx.term.writeln(
                     `  ${colors.boldYellow('Credits')}: ${msg.credits}  ${colors.boldYellow('Drones')}: ${msg.drones}`,
                 );
-                if (ctx.mode === 'class0Qty') {
-                    ctx.mode = 'class0';
+                if (ctx.mode === Menu.Class0Qty) {
+                    ctx.mode = Menu.Class0;
                     showClass0Menu(ctx);
-                } else if (ctx.mode === 'shipyardsClass0Qty') {
+                } else if (ctx.mode === Menu.ShipyardsClass0Qty) {
                     showShipyardsClass0Menu(ctx);
                 }
                 break;
@@ -433,10 +433,10 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 ctx.term.writeln(
                     `  ${colors.boldYellow('Credits')}: ${msg.credits}  ${colors.boldYellow('Shields')}: ${msg.shields}`,
                 );
-                if (ctx.mode === 'class0Qty') {
-                    ctx.mode = 'class0';
+                if (ctx.mode === Menu.Class0Qty) {
+                    ctx.mode = Menu.Class0;
                     showClass0Menu(ctx);
-                } else if (ctx.mode === 'shipyardsClass0Qty') {
+                } else if (ctx.mode === Menu.ShipyardsClass0Qty) {
                     showShipyardsClass0Menu(ctx);
                 }
                 break;
@@ -445,10 +445,10 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 ctx.term.writeln(
                     `  ${colors.boldYellow('Credits')}: ${msg.credits}  ${colors.boldYellow('Holds')}: ${msg.cargoLimit}`,
                 );
-                if (ctx.mode === 'class0Qty') {
-                    ctx.mode = 'class0';
+                if (ctx.mode === Menu.Class0Qty) {
+                    ctx.mode = Menu.Class0;
                     showClass0Menu(ctx);
-                } else if (ctx.mode === 'shipyardsClass0Qty') {
+                } else if (ctx.mode === Menu.ShipyardsClass0Qty) {
                     showShipyardsClass0Menu(ctx);
                 }
                 break;
@@ -639,7 +639,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 }
                 break;
             case ServerMsgType.LandOnPlanetResult:
-                if (ctx.mode === 'planetEarth') {
+                if (ctx.mode === Menu.PlanetEarth) {
                     showEarthMenu(ctx, msg.colonists_fuel ?? 0);
                 } else {
                     ctx.term.writeln('');
@@ -772,17 +772,17 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
             }
             case ServerMsgType.Error:
                 ctx.term.writeln(`\r\n${colors.boldRed('Error:')} ${colors.red(msg.message)}`);
-                if (ctx.mode === 'tradeQty' || ctx.mode === 'tradeConfirm') {
+                if (ctx.mode === Menu.TradeQty || ctx.mode === Menu.TradeConfirm) {
                     // Trade error — undock and return to sector
                     ctx.sendMsg({ type: ClientMsgType.Undock });
-                } else if (ctx.mode === 'deployDronesQty') {
-                    ctx.mode = 'sector';
+                } else if (ctx.mode === Menu.DeployDronesQty) {
+                    ctx.mode = Menu.Sector;
                     showPrompt(ctx);
-                } else if (ctx.mode === 'droneEncounter' || ctx.mode === 'droneAttackQty') {
+                } else if (ctx.mode === Menu.DroneEncounter || ctx.mode === Menu.DroneAttackQty) {
                     // Stay in encounter mode — re-prompt
-                } else if (ctx.mode.startsWith('shipyards')) {
+                } else if (ctx.mode.startsWith(Menu.Shipyards)) {
                     showShipyardsMenu(ctx);
-                } else if (ctx.mode === 'sector') showPrompt(ctx);
+                } else if (ctx.mode === Menu.Sector) showPrompt(ctx);
                 break;
         }
     });
