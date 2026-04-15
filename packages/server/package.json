@@ -28,6 +28,7 @@
   "scripts": {
     "build": "tsc",
     "generate-env": "node scripts/generate-env.mjs",
+    "dev": "node --env-file=.env --watch ./dist/server.js",
     "start": "node --env-file=.env ./dist/server.js",
     "dropDatabase": "node ./scripts/deleteDatabase.js",
     "bigbang": "node ./scripts/twnr-bigbang.js data/universe/",

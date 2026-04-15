@@ -8,6 +8,7 @@
     "clean:install": "pnpm delete:dist && pnpm delete:buildinfo && pnpm delete:nm",
     "clean:build": "pnpm delete:buildinfo && pnpm delete:dist",
     "rebuild": "pnpm clean && pnpm build",
+    "dev": "pnpm --parallel --filter @twnr/server --filter @twnr/client run dev",
     "build": "pnpm -r run build && pnpm run docs",
     "test": "pnpm lint && pnpm format:check && pnpm --filter @twnr/server test",
     "lint": "eslint packages/*/src",
