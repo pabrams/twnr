@@ -3,11 +3,7 @@ import type { ServerResult, MenuName } from '@twnr/shared';
 import type { GameContext } from './types.js';
 
 import { showSectorDisplay, showCommerceReport, showPrompt } from './display.js';
-import {
-    showClass0Menu,
-    showAutopilotPrompt,
-    showTradeQtyPrompt,
-} from './display-port.js';
+import { showClass0Menu, showAutopilotPrompt, showTradeQtyPrompt } from './display-port.js';
 import {
     showPlanetMenu,
     showPlanetMenuOptions,
@@ -96,13 +92,36 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                         // Show commerce report — server drives the trade flow from here
                         const actions = PORT_CLASS_ACTIONS[msg.port.class];
                         if (!actions) break;
-                        const cargo = msg.cargo ?? { fuel: 0, organics: 0, equipment: 0, colonists: 0 };
+                        const cargo = msg.cargo ?? {
+                            fuel: 0,
+                            organics: 0,
+                            equipment: 0,
+                            colonists: 0,
+                        };
                         const credits = msg.credits ?? 0;
                         const emptyHolds = msg.emptyHolds ?? 0;
                         const commodities = [
-                            { key: 'fuel', label: 'Fuel', trading: msg.port.fuel, max: msg.port.fuelMax, onBoard: cargo.fuel },
-                            { key: 'organics', label: 'Organics', trading: msg.port.organics, max: msg.port.orgMax, onBoard: cargo.organics },
-                            { key: 'equipment', label: 'Equipment', trading: msg.port.equipment, max: msg.port.equMax, onBoard: cargo.equipment },
+                            {
+                                key: 'fuel',
+                                label: 'Fuel',
+                                trading: msg.port.fuel,
+                                max: msg.port.fuelMax,
+                                onBoard: cargo.fuel,
+                            },
+                            {
+                                key: 'organics',
+                                label: 'Organics',
+                                trading: msg.port.organics,
+                                max: msg.port.orgMax,
+                                onBoard: cargo.organics,
+                            },
+                            {
+                                key: 'equipment',
+                                label: 'Equipment',
+                                trading: msg.port.equipment,
+                                max: msg.port.equMax,
+                                onBoard: cargo.equipment,
+                            },
                         ];
                         showCommerceReport(
                             ctx,
@@ -123,7 +142,14 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 }
                 break;
             case ServerMsgType.TradePrompt:
-                showTradeQtyPrompt(ctx, msg.commodityLabel, msg.action, msg.portTrading, msg.onBoard, msg.maxQty);
+                showTradeQtyPrompt(
+                    ctx,
+                    msg.commodityLabel,
+                    msg.action,
+                    msg.portTrading,
+                    msg.onBoard,
+                    msg.maxQty,
+                );
                 break;
             case ServerMsgType.TradeConfirmPrompt: {
                 const verb = msg.action === 'buy' ? 'sell' : 'buy';
