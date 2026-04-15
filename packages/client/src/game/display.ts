@@ -23,8 +23,8 @@ export function showSectorDisplay(
     collisions?: { planetName: string; collidingWithName: string; collisionAt: string }[],
 ) {
     ctx.visitedSet.add(sector);
-    ctx.setCurrentSector(sector);
-    ctx.setCurrentPort(port ?? null);
+    ctx.currentSector = sector;
+    ctx.currentPort = port ?? null;
     ctx.term.writeln('');
     const cl = colors.boldYellow(':');
     ctx.term.writeln(`${colors.boldGreen('Sector')}  ${cl} ${colors.boldCyan(String(sector))}`);
@@ -125,7 +125,7 @@ export function showPortMenu(ctx: GameContext) {
         showPrompt(ctx);
         return;
     }
-    ctx.setMode('port');
+    ctx.mode = 'port';
     const label = PORT_CLASS_LABELS[ctx.currentPort.class] ?? '???';
     ctx.term.writeln('');
     ctx.term.writeln(

@@ -12,7 +12,7 @@ export function handleAttackInput(ctx: GameContext, line: string) {
     }
     const idx = parseInt(line, 10) - 1;
     if (idx >= 0 && idx < ctx.sectorPlayers.length) {
-        ctx.setAttackTarget(ctx.sectorPlayers[idx].id);
+        ctx.attackTarget = ctx.sectorPlayers[idx].id;
         ctx.changeMenu('attackDrones');
         showAttackDronesPrompt(ctx);
     } else {

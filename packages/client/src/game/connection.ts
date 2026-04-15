@@ -33,12 +33,12 @@ export function advanceTradeQueue(ctx: GameContext) {
     const nextIdx = ctx.tradeStep + 1;
     if (nextIdx >= ctx.tradeQueue.length) {
         // All trades done — undock
-        ctx.setTradeQueue([]);
-        ctx.setTradeStep(0);
+        ctx.tradeQueue = [];
+        ctx.tradeStep = 0;
         ctx.sendMsg({ type: ClientMsgType.Undock });
         return;
     }
-    ctx.setTradeStep(nextIdx);
+    ctx.tradeStep = nextIdx;
     const step = ctx.tradeQueue[nextIdx];
     // Recalculate maxQty based on updated state
     if (step.action === 'sell') {
@@ -53,7 +53,7 @@ export function advanceTradeQueue(ctx: GameContext) {
         advanceTradeQueue(ctx);
         return;
     }
-    ctx.setMode('tradeQty');
+    ctx.mode = 'tradeQty';
     showTradeQtyPrompt(
         ctx,
         step.commodityLabel,
@@ -82,15 +82,15 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
         const msg: ServerResult = raw.payload ?? raw;
         if (raw.menu) {
             // Server is authoritative on menu state
-            ctx.setMode(raw.menu);
+            ctx.mode = raw.menu;
         }
         switch (msg.type) {
             case ServerMsgType.Welcome:
-                ctx.setPlayerName(msg.name);
-                ctx.setPlayerId(msg.playerId);
-                ctx.setTotalSectors(msg.totalSectors);
-                ctx.setCurrentShipName(msg.shipName);
-                ctx.setStarbaseSector(msg.starbaseSector);
+                ctx.playerName = msg.name;
+                ctx.playerId = msg.playerId;
+                ctx.totalSectors = msg.totalSectors;
+                ctx.currentShipName = msg.shipName;
+                ctx.starbaseSector = msg.starbaseSector;
                 ctx.term.writeln(`\r\n${colors.boldGreen(`Welcome, ${msg.name}.`)}`);
                 ctx.sendMsg({ type: ClientMsgType.SectorDisplay });
                 break;
@@ -102,7 +102,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 }
                 break;
             case ServerMsgType.SectorDisplayResult:
-                ctx.setSectorPlayers(msg.players);
+                ctx.sectorPlayers = msg.players;
                 showSectorDisplay(
                     ctx,
                     msg.sector,
@@ -117,17 +117,17 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 // Advance autopilot if in progress
                 if (ctx.autopilotPath.length > 0 && ctx.autopilotStep < ctx.autopilotPath.length) {
                     const nextSector = ctx.autopilotPath[ctx.autopilotStep];
-                    ctx.setAutopilotStep(ctx.autopilotStep + 1);
+                    ctx.autopilotStep = ctx.autopilotStep + 1;
                     ctx.sendMsg({ type: ClientMsgType.Move, sector: nextSector });
                 } else if (ctx.autopilotPath.length > 0) {
                     // Arrived at destination
-                    ctx.setAutopilotPath([]);
-                    ctx.setAutopilotStep(0);
+                    ctx.autopilotPath = [];
+                    ctx.autopilotStep = 0;
                 }
                 break;
             case ServerMsgType.DockResult:
                 if (msg.docked && msg.port) {
-                    ctx.setDockedPortInfo(msg.port);
+                    ctx.dockedPortInfo = msg.port;
                     if (msg.port.class === 0) {
                         showClass0Menu(ctx);
                     } else {
@@ -219,17 +219,17 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                                 });
                             }
                         }
-                        ctx.setTradeCredits(credits);
-                        ctx.setTradeEmptyHolds(emptyHolds);
-                        ctx.setTradeCargo(cargo);
+                        ctx.tradeCredits = credits;
+                        ctx.tradeEmptyHolds = emptyHolds;
+                        ctx.tradeCargo = cargo;
                         if (queue.length === 0) {
                             showNoTradeMessage(ctx);
                             ctx.sendMsg({ type: ClientMsgType.Undock });
                         } else {
-                            ctx.setTradeQueue(queue);
-                            ctx.setTradeStep(0);
+                            ctx.tradeQueue = queue;
+                            ctx.tradeStep = 0;
                             const step = queue[0];
-                            ctx.setMode('tradeQty');
+                            ctx.mode = 'tradeQty';
                             showTradeQtyPrompt(
                                 ctx,
                                 step.commodityLabel,
@@ -244,9 +244,9 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 break;
             case ServerMsgType.UndockResult:
                 if (msg.outcome === 'success') {
-                    ctx.setDockedPortInfo(null);
+                    ctx.dockedPortInfo = null;
                     ctx.term.writeln(`\r\n${colors.white('You undock from the port.')}`);
-                    ctx.setSectorPlayers(msg.players);
+                    ctx.sectorPlayers = msg.players;
                     showSectorDisplay(
                         ctx,
                         msg.sector,
@@ -279,7 +279,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 } else {
                     ctx.term.writeln(`\r\n${colors.boldRed('Error:')} ${colors.red(msg.message)}`);
                 }
-                ctx.setMode('sector');
+                ctx.mode = 'sector';
                 showPrompt(ctx);
                 break;
             case ServerMsgType.PortTransactionResult:
@@ -287,14 +287,14 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     `\r\n${colors.boldGreen('Transaction complete.')} ${mg('Credits:')} ${colors.boldYellow(msg.credits.toLocaleString())}`,
                 );
                 // Update trade state from server response
-                ctx.setTradeCredits(msg.credits);
-                ctx.setTradeEmptyHolds(msg.emptyHolds);
-                ctx.setTradeCargo(msg.cargo);
+                ctx.tradeCredits = msg.credits;
+                ctx.tradeEmptyHolds = msg.emptyHolds;
+                ctx.tradeCargo = msg.cargo;
                 // Advance to next trade step
                 advanceTradeQueue(ctx);
                 break;
             case ServerMsgType.ShipInfoResult:
-                ctx.setCurrentShipName(msg.shipName);
+                ctx.currentShipName = msg.shipName;
                 ctx.term.writeln('');
                 ctx.term.writeln(`${colors.white('Ship:')} ${colors.boldCyan(msg.shipName)}`);
                 ctx.term.writeln(
@@ -329,7 +329,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
             case ServerMsgType.MoveResult:
                 switch (msg.outcome) {
                     case 'success':
-                        ctx.setSectorPlayers(msg.players);
+                        ctx.sectorPlayers = msg.players;
                         showSectorDisplay(
                             ctx,
                             msg.sector,
@@ -346,22 +346,22 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                             ctx.autopilotStep < ctx.autopilotPath.length
                         ) {
                             const nextSector = ctx.autopilotPath[ctx.autopilotStep];
-                            ctx.setAutopilotStep(ctx.autopilotStep + 1);
+                            ctx.autopilotStep = ctx.autopilotStep + 1;
                             ctx.sendMsg({ type: ClientMsgType.Move, sector: nextSector });
                         } else if (ctx.autopilotPath.length > 0) {
-                            ctx.setAutopilotPath([]);
-                            ctx.setAutopilotStep(0);
+                            ctx.autopilotPath = [];
+                            ctx.autopilotStep = 0;
                         }
                         break;
                     case 'encounter': {
-                        ctx.setSectorPlayers(msg.players);
+                        ctx.sectorPlayers = msg.players;
                         ctx.visitedSet.add(msg.sector);
-                        ctx.setCurrentSector(msg.sector);
-                        ctx.setCurrentPort(msg.port ?? null);
-                        ctx.setEncounterOwnerName(msg.ownerName);
+                        ctx.currentSector = msg.sector;
+                        ctx.currentPort = msg.port ?? null;
+                        ctx.encounterOwnerName = msg.ownerName;
                         showSectorDisplay(ctx, msg.sector, msg.warps, msg.players, msg.port);
                         if (ctx.autopilotPath.length > 0) {
-                            ctx.setAutopilotPaused(true);
+                            ctx.autopilotPaused = true;
                             ctx.term.writeln(
                                 `\r\n${colors.boldRed('Autopilot disengaged — hostile drones!')}`,
                             );
@@ -378,9 +378,9 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                         break;
                     case 'noShip':
                         if (ctx.autopilotPath.length > 0) {
-                            ctx.setAutopilotPath([]);
-                            ctx.setAutopilotStep(0);
-                            ctx.setAutopilotPaused(false);
+                            ctx.autopilotPath = [];
+                            ctx.autopilotStep = 0;
+                            ctx.autopilotPaused = false;
                             ctx.term.writeln(`\r\n${colors.boldRed('Autopilot cancelled.')}`);
                         }
                         ctx.term.writeln(`\r\n${colors.boldRed('You do not have a ship.')}`);
@@ -388,9 +388,9 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                         break;
                     case 'error':
                         if (ctx.autopilotPath.length > 0) {
-                            ctx.setAutopilotPath([]);
-                            ctx.setAutopilotStep(0);
-                            ctx.setAutopilotPaused(false);
+                            ctx.autopilotPath = [];
+                            ctx.autopilotStep = 0;
+                            ctx.autopilotPaused = false;
                             ctx.term.writeln(`\r\n${colors.boldRed('Autopilot cancelled.')}`);
                         }
                         ctx.term.writeln(
@@ -422,7 +422,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     `  ${colors.boldYellow('Credits')}: ${msg.credits}  ${colors.boldYellow('Drones')}: ${msg.drones}`,
                 );
                 if (ctx.mode === 'class0Qty') {
-                    ctx.setMode('class0');
+                    ctx.mode = 'class0';
                     showClass0Menu(ctx);
                 } else if (ctx.mode === 'shipyardsClass0Qty') {
                     showShipyardsClass0Menu(ctx);
@@ -434,7 +434,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     `  ${colors.boldYellow('Credits')}: ${msg.credits}  ${colors.boldYellow('Shields')}: ${msg.shields}`,
                 );
                 if (ctx.mode === 'class0Qty') {
-                    ctx.setMode('class0');
+                    ctx.mode = 'class0';
                     showClass0Menu(ctx);
                 } else if (ctx.mode === 'shipyardsClass0Qty') {
                     showShipyardsClass0Menu(ctx);
@@ -446,7 +446,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     `  ${colors.boldYellow('Credits')}: ${msg.credits}  ${colors.boldYellow('Holds')}: ${msg.cargoLimit}`,
                 );
                 if (ctx.mode === 'class0Qty') {
-                    ctx.setMode('class0');
+                    ctx.mode = 'class0';
                     showClass0Menu(ctx);
                 } else if (ctx.mode === 'shipyardsClass0Qty') {
                     showShipyardsClass0Menu(ctx);
@@ -471,7 +471,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 showPrompt(ctx);
                 break;
             case ServerMsgType.BuyShipTradeinResult:
-                ctx.setCurrentShipName(msg.shipName);
+                ctx.currentShipName = msg.shipName;
                 ctx.term.writeln(
                     `\r\n${colors.boldGreen('Ship exchanged!')} Now flying: ${colors.boldCyan(msg.shipName)}`,
                 );
@@ -481,7 +481,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 showShipyardsMenu(ctx);
                 break;
             case ServerMsgType.BuyShipNewResult:
-                ctx.setCurrentShipName(msg.shipName);
+                ctx.currentShipName = msg.shipName;
                 ctx.term.writeln(
                     `\r\n${colors.boldGreen('New ship purchased!')} Now flying: ${colors.boldCyan(msg.shipName)}`,
                 );
@@ -524,17 +524,17 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 break;
             }
             case ServerMsgType.DroneEncounter: {
-                ctx.setSectorPlayers(msg.players);
+                ctx.sectorPlayers = msg.players;
                 ctx.visitedSet.add(msg.sector);
-                ctx.setCurrentSector(msg.sector);
-                ctx.setCurrentPort(msg.port ?? null);
-                ctx.setEncounterOwnerName(msg.ownerName);
+                ctx.currentSector = msg.sector;
+                ctx.currentPort = msg.port ?? null;
+                ctx.encounterOwnerName = msg.ownerName;
 
                 // Show sector info first
                 showSectorDisplay(ctx, msg.sector, msg.warps, msg.players, msg.port);
 
                 if (ctx.autopilotPath.length > 0) {
-                    ctx.setAutopilotPaused(true);
+                    ctx.autopilotPaused = true;
                     ctx.term.writeln(
                         `\r\n${colors.boldRed('Autopilot disengaged — hostile drones!')}`,
                     );
@@ -567,7 +567,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     ctx.term.writeln(colors.boldGreen('Sector cleared!'));
                     if (ctx.autopilotPaused) {
                         ctx.term.writeln(colors.boldCyan('Autopilot resuming...'));
-                        ctx.setAutopilotPaused(false);
+                        ctx.autopilotPaused = false;
                         // Server will send SectorDisplay which triggers autopilot advance
                         ctx.sendMsg({ type: ClientMsgType.SectorDisplay });
                     } else {
@@ -588,9 +588,9 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     `\r\n${colors.boldYellow('Retreated to sector')} ${colors.boldCyan(String(msg.sector))}`,
                 );
                 if (ctx.autopilotPaused) {
-                    ctx.setAutopilotPath([]);
-                    ctx.setAutopilotStep(0);
-                    ctx.setAutopilotPaused(false);
+                    ctx.autopilotPath = [];
+                    ctx.autopilotStep = 0;
+                    ctx.autopilotPaused = false;
                     ctx.term.writeln(colors.boldRed('Autopilot cancelled.'));
                 }
                 // SectorDisplay follows from server
@@ -612,11 +612,11 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 }
                 break;
             case ServerMsgType.DockStarbaseResult:
-                ctx.setHardwarePrices(msg.prices);
+                ctx.hardwarePrices = msg.prices;
                 showStarbaseMenu(ctx);
                 break;
             case ServerMsgType.LeaveStarbaseResult:
-                ctx.setSectorPlayers(msg.players);
+                ctx.sectorPlayers = msg.players;
                 showSectorDisplay(
                     ctx,
                     msg.sector,
@@ -631,7 +631,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 break;
             case ServerMsgType.LandResult:
                 if (msg.planets.length > 0) {
-                    (ctx as any).landablePlanets = msg.planets;
+                    ctx.landablePlanets = msg.planets;
                     showPlanetSelectMenu(ctx, msg.planets);
                 } else {
                     ctx.term.writeln(`\r\n${colors.white('No planets in this sector.')}`);
@@ -733,7 +733,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 ctx.term.writeln(
                     `\r\n${colors.white('You return to your ship and leave the planet.')}`,
                 );
-                ctx.setSectorPlayers(msg.players);
+                ctx.sectorPlayers = msg.players;
                 showSectorDisplay(
                     ctx,
                     msg.sector,
@@ -776,7 +776,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     // Trade error — undock and return to sector
                     ctx.sendMsg({ type: ClientMsgType.Undock });
                 } else if (ctx.mode === 'deployDronesQty') {
-                    ctx.setMode('sector');
+                    ctx.mode = 'sector';
                     showPrompt(ctx);
                 } else if (ctx.mode === 'droneEncounter' || ctx.mode === 'droneAttackQty') {
                     // Stay in encounter mode — re-prompt

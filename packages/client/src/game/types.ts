@@ -4,14 +4,25 @@ import type {
     PortInfoResultObject,
     MenuEntry,
     HardwarePriceItem,
+    ShipCatalogEntry,
+    PlanetConfig,
 } from '@twnr/shared';
 
 export interface GameContext {
+    // ─── Services (methods) ──────────────────────────────────────────
     term: Terminal;
+    ws: WebSocket;
+    universeId: number;
+    sendMsg: (msg: ClientCommand) => void;
+    /** Set mode locally AND notify server */
+    changeMenu: (menu: string) => void;
+    setDebug: (on: boolean) => void;
+
+    // ─── Mutable state ───────────────────────────────────────────────
+    mode: string;
     currentSector: number;
     currentPort: { class: number; name: string } | null;
     dockedPortInfo: PortInfoResultObject | null;
-    mode: string;
     visitedSet: Set<number>;
     playerName: string;
     playerId: number;
@@ -19,64 +30,31 @@ export interface GameContext {
     sectorPlayers: { id: number; name: string }[];
     attackTarget: number | null;
     class0BuyType: 'drones' | 'shields' | 'holds' | null;
-    shipConfigs: any[] | null;
-    planetConfigs: any[] | null;
+    shipConfigs: ShipCatalogEntry[] | null;
+    planetConfigs: PlanetConfig[] | null;
     currentShipName: string;
-    universeId: number;
-    ws: WebSocket;
-    debug: boolean;
-    setDebug: (on: boolean) => void;
-    sendMsg: (msg: ClientCommand) => void;
-    setMode: (mode: string) => void;
-    /** Optimistically set mode locally AND notify server */
-    changeMenu: (menu: string) => void;
-    setCurrentSector: (sector: number) => void;
-    setCurrentPort: (port: { class: number; name: string } | null) => void;
-    setDockedPortInfo: (p: PortInfoResultObject | null) => void;
-    setPlayerName: (name: string) => void;
-    setPlayerId: (id: number) => void;
-    setTotalSectors: (n: number) => void;
-    setSectorPlayers: (players: { id: number; name: string }[]) => void;
-    setAttackTarget: (id: number | null) => void;
-    setClass0BuyType: (t: 'drones' | 'shields' | 'holds' | null) => void;
-    setShipConfigs: (configs: any[]) => void;
-    setPlanetConfigs: (configs: any[]) => void;
-    setCurrentShipName: (name: string) => void;
     class0Prices: { dronePrice: number; shieldPrice: number; holdPrice: number } | null;
-    setClass0Prices: (p: { dronePrice: number; shieldPrice: number; holdPrice: number }) => void;
     autopilotPath: number[];
     autopilotStep: number;
     autopilotPaused: boolean;
     encounterOwnerName: string;
-    setAutopilotPath: (path: number[]) => void;
-    setAutopilotStep: (step: number) => void;
-    setAutopilotPaused: (paused: boolean) => void;
-    setEncounterOwnerName: (name: string) => void;
+    debug: boolean;
     menuRegistry: Map<string, MenuEntry>;
-    setMenuRegistry: (registry: Map<string, MenuEntry>) => void;
     starbaseSector: number | null;
-    setStarbaseSector: (s: number | null) => void;
     hardwarePrices: HardwarePriceItem[] | null;
-    setHardwarePrices: (p: HardwarePriceItem[]) => void;
     colonistCommodity: 'fuel' | 'organics' | 'equipment' | null;
-    setColonistCommodity: (c: 'fuel' | 'organics' | 'equipment' | null) => void;
     tradeQueue: TradeStep[];
     tradeStep: number;
     tradePendingQty: number;
     tradeCredits: number;
     tradeEmptyHolds: number;
     tradeCargo: { fuel: number; organics: number; equipment: number; colonists: number };
-    setTradeQueue: (q: TradeStep[]) => void;
-    setTradeStep: (s: number) => void;
-    setTradePendingQty: (q: number) => void;
-    setTradeCredits: (c: number) => void;
-    setTradeEmptyHolds: (h: number) => void;
-    setTradeCargo: (c: {
-        fuel: number;
-        organics: number;
-        equipment: number;
-        colonists: number;
-    }) => void;
+
+    // ─── Transient UI state (was ad-hoc via `as any`) ────────────────
+    knownUniverseMode: 'explored' | 'unexplored';
+    starbaseBuyItemName: string | null;
+    shipyardsBuyTarget: string | null;
+    landablePlanets: { id: number; name: string; type: string }[] | null;
 }
 
 export interface TradeStep {
