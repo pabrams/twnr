@@ -42,7 +42,7 @@ export const connectDB = async (): Promise<void> => {
         max_players INTEGER NOT NULL DEFAULT 100,
         max_age_days INTEGER NOT NULL DEFAULT 0,
         max_planets INTEGER NOT NULL DEFAULT 500,
-        turn_delay INTEGER NOT NULL DEFAULT 0,
+        turn_delay INTEGER NOT NULL DEFAULT 100,
         is_speed_warp_delay_on BOOLEAN NOT NULL DEFAULT TRUE,
         photons_allowed BOOLEAN NOT NULL DEFAULT TRUE,
         photon_blast_time_seconds INTEGER NOT NULL DEFAULT 5,
