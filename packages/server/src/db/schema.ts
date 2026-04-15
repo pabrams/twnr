@@ -418,7 +418,10 @@ export const connectDB = async (): Promise<void> => {
         END IF;
       END $$;
 
-      -- Ports: name and buy/sell direction for each commodity
+      -- Ports: max columns, name, and buy/sell direction for each commodity
+      ALTER TABLE ports ADD COLUMN IF NOT EXISTS fuel_max INTEGER NOT NULL DEFAULT 1000;
+      ALTER TABLE ports ADD COLUMN IF NOT EXISTS org_max INTEGER NOT NULL DEFAULT 1000;
+      ALTER TABLE ports ADD COLUMN IF NOT EXISTS equ_max INTEGER NOT NULL DEFAULT 1000;
       ALTER TABLE ports ADD COLUMN IF NOT EXISTS name VARCHAR(255);
       ALTER TABLE ports ADD COLUMN IF NOT EXISTS fuel_buys BOOLEAN NOT NULL DEFAULT TRUE;
       ALTER TABLE ports ADD COLUMN IF NOT EXISTS org_buys BOOLEAN NOT NULL DEFAULT TRUE;
