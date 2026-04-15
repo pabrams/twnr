@@ -10,7 +10,7 @@
     "rebuild": "pnpm clean && pnpm build",
     "dev": "pnpm --parallel --filter @twnr/server --filter @twnr/client run dev",
     "build": "pnpm -r run build && pnpm run docs",
-    "test": "pnpm lint && pnpm format:check && pnpm --filter @twnr/server test",
+    "test": "pnpm lint && pnpm format:check && pnpm --filter @twnr/client test && pnpm --filter @twnr/server test",
     "lint": "eslint packages/*/src",
     "format": "prettier --write \"packages/*/src/**/*.ts\"",
     "format:check": "prettier --check \"packages/*/src/**/*.ts\"",
