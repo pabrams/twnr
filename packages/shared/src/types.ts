@@ -53,6 +53,40 @@ export type PlanetConfig = {
     equipmentProduction: number;
 };
 
+// Ship catalog entry — what /api/ships returns (DB snake_case + hardware map)
+
+export type ShipCatalogEntry = {
+    id: number;
+    name: string;
+    make: string | null;
+    sort_order: number;
+    max_drones: number;
+    max_shields: number;
+    starting_holds: number;
+    max_holds: number;
+    odds_offensive: number;
+    odds_defensive: number;
+    has_pod: boolean;
+    can_land: boolean;
+    has_interdictor: boolean;
+    has_planetary_defense_bonus: boolean;
+    planetary_defense_odds: number | null;
+    speed: number;
+    turns_per_warp: number;
+    cost_drive: number;
+    cost_computer: number;
+    cost_hull: number;
+    hold_cost: number;
+    max_drone_attack: number;
+    transporter_range: number;
+    has_tractor: boolean;
+    piloting_restriction: string | null;
+    notes: string | null;
+    basic_hold_cost: number;
+    base_cost: number;
+    hardware: Record<string, number>;
+};
+
 // Auth
 
 export type AuthTokenPayload = {

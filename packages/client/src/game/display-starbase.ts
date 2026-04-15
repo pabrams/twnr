@@ -1,3 +1,4 @@
+import type { ShipCatalogEntry } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { colors } from './constants.js';
 
@@ -10,7 +11,7 @@ export function showStarbasePrompt(ctx: GameContext) {
 }
 
 export function showStarbaseMenu(ctx: GameContext) {
-    ctx.setMode('starbase');
+    ctx.mode = 'starbase';
     showStarbasePrompt(ctx);
 }
 
@@ -33,7 +34,7 @@ function fmt(n: number): string {
 }
 
 export function showHardwareMenu(ctx: GameContext) {
-    ctx.setMode('starbaseHardware');
+    ctx.mode = 'starbaseHardware';
     showHardwarePrompt(ctx);
 }
 
@@ -72,7 +73,7 @@ export function showHardwareHelp(ctx: GameContext) {
 }
 
 export function showBuyQtyPrompt(ctx: GameContext, item: string) {
-    ctx.setMode('starbaseBuyQty');
+    ctx.mode = 'starbaseBuyQty';
     ctx.term.write(`\r\n${colors.cyan(`How many ${item}?`)} `);
 }
 
@@ -80,7 +81,7 @@ export function showPlanetSelectMenu(
     ctx: GameContext,
     planets: { id: number; name: string; type: string }[],
 ) {
-    ctx.setMode('planetSelect');
+    ctx.mode = 'planetSelect';
     ctx.term.writeln('');
     ctx.term.writeln(colors.boldCyan('=== Select a Planet ==='));
     planets.forEach((p, i) => {
@@ -92,7 +93,7 @@ export function showPlanetSelectMenu(
 }
 
 export function showHyperspaceJumpPrompt(ctx: GameContext) {
-    ctx.setMode('hyperspaceJumpTarget');
+    ctx.mode = 'hyperspaceJumpTarget';
     ctx.term.write(`\r\n${colors.cyan('Target sector for hyperspace jump?')} `);
 }
 
@@ -105,7 +106,7 @@ export function showShipyardsPrompt(ctx: GameContext) {
 }
 
 export function showShipyardsMenu(ctx: GameContext) {
-    ctx.setMode('shipyards');
+    ctx.mode = 'shipyards';
     showShipyardsPrompt(ctx);
 }
 
@@ -132,7 +133,7 @@ export function letterToIndex(letter: string): number {
     return code;
 }
 
-function calculateShipPrice(ship: any): number {
+function calculateShipPrice(ship: ShipCatalogEntry): number {
     return (
         (ship.cost_drive ?? 0) +
         (ship.cost_computer ?? 0) +
@@ -147,7 +148,7 @@ export async function showShipBuyList(ctx: GameContext) {
         ctx.term.writeln(`\r\n${colors.white('Loading ship catalog...')}`);
         try {
             const res = await fetch('/api/ships');
-            ctx.setShipConfigs(await res.json());
+            ctx.shipConfigs = await res.json();
         } catch {
             ctx.term.writeln(colors.boldRed('Failed to load ship catalog.'));
             showShipyardsPrompt(ctx);
@@ -156,7 +157,7 @@ export async function showShipBuyList(ctx: GameContext) {
     }
     ctx.term.writeln('');
     ctx.term.writeln(colors.boldCyan('=== Shipyards - Buy ==='));
-    ctx.shipConfigs!.forEach((ship: any, i: number) => {
+    ctx.shipConfigs!.forEach((ship, i) => {
         const letter = indexToLetter(i);
         const price = calculateShipPrice(ship);
         const current =
@@ -178,7 +179,7 @@ async function showShipBuyListInternal(ctx: GameContext, label: string) {
         ctx.term.writeln(`\r\n${colors.white('Loading ship catalog...')}`);
         try {
             const res = await fetch('/api/ships');
-            ctx.setShipConfigs(await res.json());
+            ctx.shipConfigs = await res.json();
         } catch {
             ctx.term.writeln(colors.boldRed('Failed to load ship catalog.'));
             showShipyardsPrompt(ctx);
@@ -187,7 +188,7 @@ async function showShipBuyListInternal(ctx: GameContext, label: string) {
     }
     ctx.term.writeln('');
     ctx.term.writeln(colors.boldCyan(`=== Shipyards - ${label} ===`));
-    ctx.shipConfigs!.forEach((ship: any, i: number) => {
+    ctx.shipConfigs!.forEach((ship, i) => {
         const letter = indexToLetter(i);
         ctx.term.writeln(`  ${colors.boldYellow(letter)}  ${colors.white(ship.name)}`);
     });

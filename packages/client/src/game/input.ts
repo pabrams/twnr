@@ -329,10 +329,10 @@ function handleTradeQtyInput(ctx: GameContext, line: string) {
         return;
     }
     const clampedQty = Math.min(qty, step.maxQty);
-    ctx.setTradePendingQty(clampedQty);
+    ctx.tradePendingQty = clampedQty;
     ctx.term.writeln(`${colors.white(`Agreed, ${clampedQty.toLocaleString()} units.`)}`);
     const totalPrice = clampedQty * step.price;
-    ctx.setMode('tradeConfirm');
+    ctx.mode = 'tradeConfirm';
     showTradeConfirmPrompt(ctx, totalPrice, step.action);
 }
 

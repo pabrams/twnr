@@ -8,7 +8,7 @@ export function showAttackMenu(ctx: GameContext) {
         showPrompt(ctx);
         return;
     }
-    ctx.setMode('attack');
+    ctx.mode = 'attack';
     ctx.term.writeln('');
     ctx.term.writeln(colors.cyan('Attack — Select target:'));
     ctx.sectorPlayers.forEach((p, i) => {
@@ -18,7 +18,7 @@ export function showAttackMenu(ctx: GameContext) {
 }
 
 export function showAttackDronesPrompt(ctx: GameContext) {
-    ctx.setMode('attackDrones');
+    ctx.mode = 'attackDrones';
     ctx.term.write(`\r\n${colors.cyan('How many drones to attack with?')} `);
 }
 
@@ -28,7 +28,7 @@ export function showDroneEncounter(
     ownerName: string,
     shipDrones: number,
 ) {
-    ctx.setMode('droneEncounter');
+    ctx.mode = 'droneEncounter';
     ctx.term.writeln('');
     ctx.term.writeln(colors.boldRed('=== HOSTILE DRONES DETECTED ==='));
     ctx.term.writeln(
@@ -45,6 +45,6 @@ export function showDroneEncounter(
 }
 
 export function showDroneAttackQtyPrompt(ctx: GameContext) {
-    ctx.setMode('droneAttackQty');
+    ctx.mode = 'droneAttackQty';
     ctx.term.write(`\r\n${colors.cyan('How many drones to send?')} `);
 }

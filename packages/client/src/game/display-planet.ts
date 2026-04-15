@@ -3,7 +3,7 @@ import { colors } from './constants.js';
 import { showPrompt } from './display.js';
 
 export function showPlanetMenu(ctx: GameContext, name: string, colonists: number) {
-    ctx.setMode('planet');
+    ctx.mode = 'planet';
     ctx.term.writeln('');
     ctx.term.writeln(
         `${colors.boldGreen('Landing on')} ${colors.boldCyan(name)}${colors.boldYellow('...')}`,

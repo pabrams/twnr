@@ -1,4 +1,4 @@
-import { ClientMsgType } from '@twnr/shared';
+import { ClientMsgType, type ShipCatalogEntry } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { showPrompt } from './display.js';
 import {
@@ -80,7 +80,7 @@ export function handleHardwareInput(ctx: GameContext, line: string) {
     // Stackable hardware (needs quantity)
     const hw = STACKABLE_HARDWARE[key];
     if (hw) {
-        (ctx as any).starbaseBuyItemName = hw.itemName;
+        ctx.starbaseBuyItemName = hw.itemName;
         ctx.changeMenu('starbaseBuyQty');
         showBuyQtyPrompt(ctx, hw.label);
         return;
@@ -108,7 +108,7 @@ export function handleStarbaseBuyQtyInput(ctx: GameContext, line: string) {
         ctx.term.writeln('Enter a positive number.');
         return;
     }
-    const itemName = (ctx as any).starbaseBuyItemName;
+    const itemName = ctx.starbaseBuyItemName;
     if (itemName) {
         ctx.sendMsg({ type: ClientMsgType.BuyHardware, itemName, quantity: qty });
     }
@@ -121,7 +121,7 @@ export function handlePlanetSelectInput(ctx: GameContext, line: string) {
         return;
     }
     const idx = parseInt(line, 10) - 1;
-    const planets = (ctx as any).landablePlanets;
+    const planets = ctx.landablePlanets;
     if (planets && idx >= 0 && idx < planets.length) {
         ctx.sendMsg({ type: ClientMsgType.LandOnPlanet, planetId: planets[idx].id });
     } else {
@@ -144,7 +144,7 @@ export function handleHyperspaceJumpInput(ctx: GameContext, line: string) {
 
 // --- Shipyards ---
 
-function calculateShipPrice(ship: any): number {
+function calculateShipPrice(ship: ShipCatalogEntry): number {
     return (
         (ship.cost_drive ?? 0) +
         (ship.cost_computer ?? 0) +
@@ -155,7 +155,7 @@ function calculateShipPrice(ship: any): number {
 
 function getCurrentShipPrice(ctx: GameContext): number {
     if (!ctx.shipConfigs || !ctx.currentShipName) return 0;
-    const ship = ctx.shipConfigs.find((s: any) => s.name === ctx.currentShipName);
+    const ship = ctx.shipConfigs.find((s) => s.name === ctx.currentShipName);
     return ship ? calculateShipPrice(ship) : 0;
 }
 
@@ -197,7 +197,7 @@ export function handleShipyardsBuyInput(ctx: GameContext, line: string) {
         }
         const price = calculateShipPrice(ship);
         const tradeinCredit = getCurrentShipPrice(ctx);
-        (ctx as any).shipyardsBuyTarget = ship.name;
+        ctx.shipyardsBuyTarget = ship.name;
         showTradeinPrompt(ctx, ship.name, price, tradeinCredit);
     } else {
         ctx.term.writeln(colors.boldRed('Invalid selection.'));
@@ -205,7 +205,7 @@ export function handleShipyardsBuyInput(ctx: GameContext, line: string) {
 }
 
 export function handleShipyardsTradeinInput(ctx: GameContext, line: string) {
-    const targetShipName = (ctx as any).shipyardsBuyTarget;
+    const targetShipName = ctx.shipyardsBuyTarget;
     if (!targetShipName) {
         ctx.changeMenu('shipyards');
         showShipyardsMenu(ctx);
@@ -243,15 +243,15 @@ export function handleShipyardsExamineInput(ctx: GameContext, line: string) {
 export function handleShipyardsClass0Input(ctx: GameContext, line: string) {
     switch (line.toLowerCase()) {
         case 'f':
-            ctx.setClass0BuyType('drones');
+            ctx.class0BuyType = 'drones';
             showShipyardsClass0QtyPrompt(ctx, 'drones');
             break;
         case 's':
-            ctx.setClass0BuyType('shields');
+            ctx.class0BuyType = 'shields';
             showShipyardsClass0QtyPrompt(ctx, 'shields');
             break;
         case 'h':
-            ctx.setClass0BuyType('holds');
+            ctx.class0BuyType = 'holds';
             showShipyardsClass0QtyPrompt(ctx, 'holds');
             break;
         case 'q':

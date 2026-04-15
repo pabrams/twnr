@@ -1,4 +1,5 @@
 import { ClientMsgType } from '@twnr/shared';
+import type { ShipCatalogEntry, PlanetConfig } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { colors } from './constants.js';
 import { indexToLetter } from './display-starbase.js';
@@ -12,7 +13,7 @@ export function showComputerPrompt(ctx: GameContext) {
 }
 
 export function showComputerActivated(ctx: GameContext) {
-    ctx.setMode('computer');
+    ctx.mode = 'computer';
     ctx.term.writeln(`\r\n${colors.boldCyan('<Computer activated>')}`);
     showComputerPrompt(ctx);
 }
@@ -34,19 +35,19 @@ export function showComputerHelp(ctx: GameContext) {
 }
 
 export function showKnownUniverseMenu(ctx: GameContext) {
-    ctx.setMode('knownUniverse');
+    ctx.mode = 'knownUniverse';
     ctx.term.write(
         `\r\n${colors.boldCyan('Known Universe')} — ${colors.cyan('E')}xplored, ${colors.cyan('U')}nexplored, ${colors.cyan('Q')}uit? `,
     );
 }
 
 export function showExploredSectors(ctx: GameContext) {
-    (ctx as any)._knownUniverseMode = 'explored';
+    ctx.knownUniverseMode = 'explored';
     ctx.sendMsg({ type: ClientMsgType.VisitedSectors });
 }
 
 export function showUnexploredSectors(ctx: GameContext) {
-    (ctx as any)._knownUniverseMode = 'unexplored';
+    ctx.knownUniverseMode = 'unexplored';
     ctx.sendMsg({ type: ClientMsgType.VisitedSectors });
 }
 
@@ -54,7 +55,7 @@ export function renderVisitedSectorsResult(
     ctx: GameContext,
     msg: { sectors: number[]; totalSectors: number },
 ) {
-    const mode = (ctx as any)._knownUniverseMode || 'explored';
+    const mode = ctx.knownUniverseMode;
     const visited = new Set(msg.sectors);
     if (mode === 'explored') {
         const explored = msg.sectors.sort((a, b) => a - b);
@@ -75,12 +76,12 @@ export function renderVisitedSectorsResult(
 }
 
 export async function showShipCatalog(ctx: GameContext) {
-    ctx.setMode('shipCatalog');
+    ctx.mode = 'shipCatalog';
     if (!ctx.shipConfigs) {
         ctx.term.writeln(`\r\n${colors.white('Loading ship catalog...')}`);
         try {
             const res = await fetch('/api/ships');
-            ctx.setShipConfigs(await res.json());
+            ctx.shipConfigs = await res.json();
         } catch {
             ctx.term.writeln(colors.boldRed('Failed to load ship catalog.'));
             showComputerPrompt(ctx);
@@ -89,14 +90,14 @@ export async function showShipCatalog(ctx: GameContext) {
     }
     ctx.term.writeln('');
     ctx.term.writeln(colors.boldCyan('=== Ship Catalog ==='));
-    ctx.shipConfigs!.forEach((ship: any, i: number) => {
+    ctx.shipConfigs!.forEach((ship, i) => {
         const letter = indexToLetter(i);
         ctx.term.writeln(`  ${colors.boldYellow(letter)}  ${colors.white(ship.name)}`);
     });
     ctx.term.writeln(`  ${colors.cyan('Q')}  Back`);
 }
 
-function shipLine(label: string, value: any, pad = 22): string {
+function shipLine(label: string, value: string | number | boolean, pad = 22): string {
     return `  ${colors.boldYellow(label.padEnd(pad))} ${colors.white(String(value))}`;
 }
 
@@ -123,7 +124,7 @@ const HW_DISPLAY: { name: string; label: string; isToggle?: boolean }[] = [
     { name: 'terraform_device', label: 'Max Terraform Dev.' },
 ];
 
-export function showShipDetail(ctx: GameContext, ship: any) {
+export function showShipDetail(ctx: GameContext, ship: ShipCatalogEntry) {
     ctx.term.writeln('');
     ctx.term.writeln(colors.boldCyan(`=== ${ship.name} ===`));
     if (ship.make) ctx.term.writeln(shipLine('Make', ship.make));
@@ -155,12 +156,12 @@ export function showShipDetail(ctx: GameContext, ship: any) {
 }
 
 export async function showPlanetSpecs(ctx: GameContext) {
-    ctx.setMode('planetSpecs');
+    ctx.mode = 'planetSpecs';
     if (!ctx.planetConfigs) {
         ctx.term.writeln(`\r\n${colors.white('Loading planetary specs...')}`);
         try {
             const res = await fetch('/api/planets');
-            ctx.setPlanetConfigs(await res.json());
+            ctx.planetConfigs = await res.json();
         } catch {
             ctx.term.writeln(colors.boldRed('Failed to load planetary specs.'));
             showComputerPrompt(ctx);
@@ -169,14 +170,14 @@ export async function showPlanetSpecs(ctx: GameContext) {
     }
     ctx.term.writeln('');
     ctx.term.writeln(colors.boldCyan('=== Planetary Specifications ==='));
-    ctx.planetConfigs!.forEach((planet: any, i: number) => {
+    ctx.planetConfigs!.forEach((planet, i) => {
         const letter = indexToLetter(i);
         ctx.term.writeln(`  ${colors.boldYellow(letter)}  ${colors.white(planet.type)}`);
     });
     ctx.term.writeln(`  ${colors.cyan('Q')}  Back`);
 }
 
-export function showPlanetDetail(ctx: GameContext, planet: any) {
+export function showPlanetDetail(ctx: GameContext, planet: PlanetConfig) {
     ctx.term.writeln('');
     ctx.term.writeln(colors.boldCyan(`=== ${planet.type} ===`));
     ctx.term.writeln(`  ${colors.white(planet.description)}`);
@@ -201,7 +202,7 @@ export async function showCurrentShipSpecs(ctx: GameContext) {
     if (!ctx.shipConfigs) {
         try {
             const res = await fetch('/api/ships');
-            ctx.setShipConfigs(await res.json());
+            ctx.shipConfigs = await res.json();
         } catch {
             ctx.term.writeln(colors.boldRed('Failed to load ship catalog.'));
             showComputerPrompt(ctx);
@@ -214,7 +215,7 @@ export async function showCurrentShipSpecs(ctx: GameContext) {
         showComputerPrompt(ctx);
         return;
     }
-    const ship = ctx.shipConfigs!.find((s: any) => s.name === ctx.currentShipName);
+    const ship = ctx.shipConfigs!.find((s) => s.name === ctx.currentShipName);
     if (!ship) {
         ctx.term.writeln(colors.boldRed(`Ship config not found for: ${ctx.currentShipName}`));
         showComputerPrompt(ctx);
