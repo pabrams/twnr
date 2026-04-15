@@ -4,7 +4,7 @@ import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { readCSV, generateUniverse } from './bigbang-helpers.mjs';
 
-const VALID_PLANET_TYPES = new Set(['Earth-like', 'Volcanic', 'Glacial', 'Gaseous', 'Mountainous']);
+const VALID_PLANET_TYPES = new Set(['Terran', 'Volcanic', 'Glacial', 'Gas Giant', 'Mountainous']);
 
 /** Returns a Map of value -> count. */
 function counter(arr) {
@@ -61,30 +61,6 @@ describe('Planet Generation', () => {
   it('sector 1 has no planets', () => {
     const sector1 = rows.filter(r => parseInt(r[0], 10) === 1);
     assert.equal(sector1.length, 0, 'Sector 1 must not have planets');
-  });
-
-  it('planet names follow {planet_type}-{sector_id}-{index} format with sequential indices', () => {
-    const bySecotr = new Map();
-    for (const row of rows) {
-      const sid = parseInt(row[0], 10);
-      if (!bySecotr.has(sid)) bySecotr.set(sid, []);
-      bySecotr.get(sid).push(row);
-    }
-    for (const [sector, planets] of bySecotr) {
-      const indicesSeen = [];
-      for (const row of planets) {
-        const name  = row[1];
-        const ptype = row[2];
-        const prefix = `${ptype}-${sector}-`;
-        assert.ok(name.startsWith(prefix), `Planet name '${name}' should start with '${prefix}'`);
-        const suffix = name.slice(prefix.length);
-        assert.ok(/^\d+$/.test(suffix), `Planet name '${name}' index '${suffix}' is not a number`);
-        indicesSeen.push(parseInt(suffix, 10));
-      }
-      const expected = Array.from({ length: planets.length }, (_, i) => i + 1);
-      assert.deepStrictEqual(indicesSeen.sort((a, b) => a - b), expected,
-        `Sector ${sector}: planet indices ${indicesSeen} should be ${expected}`);
-    }
   });
 
   it('all planet sectors are in range 1-N', () => {

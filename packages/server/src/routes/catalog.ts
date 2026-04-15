@@ -25,8 +25,25 @@ export function createCatalogRoutes(router: Router, middleware: Middleware): voi
 
     router.get('/api/ships', async (_req, res) => {
         try {
-            const { rows } = await pool.query('SELECT * FROM ship_types ORDER BY sort_order, id');
-            res.json(rows);
+            const { rows: shipTypes } = await pool.query(
+                'SELECT * FROM ship_types ORDER BY sort_order, id',
+            );
+            // Attach hardware capacities to each ship type
+            const { rows: allHw } = await pool.query(
+                `SELECT sth.ship_type_id, hi.name, sth.max_quantity
+                 FROM ship_type_hardware sth
+                 JOIN hardware_item hi ON hi.id = sth.hardware_item_id`,
+            );
+            const hwByType: Record<number, Record<string, number>> = {};
+            for (const h of allHw) {
+                if (!hwByType[h.ship_type_id]) hwByType[h.ship_type_id] = {};
+                hwByType[h.ship_type_id][h.name] = h.max_quantity;
+            }
+            const result = shipTypes.map((st: any) => ({
+                ...st,
+                hardware: hwByType[st.id] ?? {},
+            }));
+            res.json(result);
         } catch (err) {
             console.error('Ship catalog error:', err);
             res.status(500).json({ error: 'Failed to load ship catalog' });

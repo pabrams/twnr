@@ -407,37 +407,18 @@ export async function handleDockStarbase(playerId: number): Promise<void> {
     player.at_starbase = true;
     await setPlayerMenu(playerId, 'starbase');
 
-    // Fetch hardware prices from the universe's edit
-    const editRes = await pool.query(
-        `SELECT e.price_terraform_device, e.price_planet_buster, e.price_space_buoy,
-                e.price_proximity_mine, e.price_seeker_mine, e.price_orbital_mine,
-                e.price_mine_disruptor, e.price_hyperspace_1, e.price_hyperspace_2,
-                e.price_visual_scanner, e.price_planet_scanner, e.price_cloaking_device,
-                e.price_corbomite, e.price_photon_torpedo, e.price_recon_drone
-         FROM edits e JOIN universes u ON u.edit_id = e.id
-         WHERE u.id = $1`,
+    // Fetch hardware prices from the universe's edit (or fall back to defaults)
+    const priceRes = await pool.query(
+        `SELECT hi.name, hi.label, COALESCE(hp.price, hi.default_price) as price
+         FROM hardware_item hi
+         LEFT JOIN hardware_price hp ON hp.hardware_item_id = hi.id
+           AND hp.edit_id = (SELECT edit_id FROM universes WHERE id = $1)
+         ORDER BY hi.id`,
         [player.universeId],
     );
-    const e = editRes.rows[0] ?? {};
     sendEnvelope(playerId, {
         type: ServerMsgType.DockStarbaseResult,
-        prices: {
-            terraformDevice: e.price_terraform_device ?? 25000,
-            planetBuster: e.price_planet_buster ?? 40000,
-            spaceBuoy: e.price_space_buoy ?? 100,
-            proximityMine: e.price_proximity_mine ?? 500,
-            seekerMine: e.price_seeker_mine ?? 9500,
-            orbitalMine: e.price_orbital_mine ?? 2000,
-            mineDisruptor: e.price_mine_disruptor ?? 5000,
-            hyperspace1: e.price_hyperspace_1 ?? 100000,
-            hyperspace2: e.price_hyperspace_2 ?? 150000,
-            visualScanner: e.price_visual_scanner ?? 50000,
-            planetScanner: e.price_planet_scanner ?? 20000,
-            cloakingDevice: e.price_cloaking_device ?? 25000,
-            corbomite: e.price_corbomite ?? 500,
-            photonTorpedo: e.price_photon_torpedo ?? 60000,
-            reconDrone: e.price_recon_drone ?? 1500,
-        },
+        prices: priceRes.rows.map((r: any) => ({ name: r.name, label: r.label, price: r.price })),
     });
 }
 

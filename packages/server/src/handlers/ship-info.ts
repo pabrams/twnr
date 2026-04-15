@@ -4,21 +4,12 @@ import { pool } from '../db/index.js';
 
 export async function handleShipInfo(playerId: number): Promise<void> {
     const query = `
-        SELECT st.name AS ship_name, s.drones, s.shields, s.holds, s.planet_busters, s.terraform_devices,
-               s.turns_per_warp, s.has_hyperspace_1, s.has_hyperspace_2,
-               s.has_visual_scanner, s.has_planet_scanner, s.has_density_scanner,
-               s.cloaking_devices, s.corbomite, s.photon_torpedoes,
-               s.buoys, s.proximity_mines, s.orbital_mines, s.seeker_mines,
-               s.mine_disruptors, s.recon_drones,
+        SELECT st.name AS ship_name, s.id AS ship_id, s.ship_type_id,
+               s.drones, s.shields, s.holds,
+               s.turns_per_warp, s.has_density_scanner,
                s.fuel, s.organics, s.equipment, s.colonists,
                p.turns, p.credits,
-               st.max_drones, st.max_shields, st.max_holds,
-               st.max_planet_busters, st.max_terraform_devices,
-               st.max_buoy, st.max_proximity, st.max_orbital, st.max_seeker,
-               st.max_cloaking, st.max_corbomite, st.max_photon,
-               st.max_disruptors, st.max_recon_drones,
-               st.can_have_hyperspace_1, st.can_have_hyperspace_2,
-               st.can_have_visual_scanner, st.can_have_planet_scanner
+               st.max_drones, st.max_shields, st.max_holds
         FROM players p
         JOIN ships s ON p.ship_id = s.id
         JOIN ship_types st ON s.ship_type_id = st.id
@@ -31,6 +22,28 @@ export async function handleShipInfo(playerId: number): Promise<void> {
     }
 
     const row = result.rows[0];
+
+    // Get hardware quantities
+    const hwRes = await pool.query(
+        `SELECT hi.name, COALESCE(sh.quantity, 0) as quantity
+         FROM hardware_item hi
+         LEFT JOIN ship_hardware sh ON sh.hardware_item_id = hi.id AND sh.ship_id = $1`,
+        [row.ship_id],
+    );
+    const hardware: Record<string, number> = Object.fromEntries(
+        hwRes.rows.map((r: any) => [r.name, r.quantity]),
+    );
+
+    // Get hardware max quantities
+    const hwMaxRes = await pool.query(
+        `SELECT hi.name, COALESCE(sth.max_quantity, 0) as max_quantity
+         FROM hardware_item hi
+         LEFT JOIN ship_type_hardware sth ON sth.hardware_item_id = hi.id AND sth.ship_type_id = $1`,
+        [row.ship_type_id],
+    );
+    const hardwareMax: Record<string, number> = Object.fromEntries(
+        hwMaxRes.rows.map((r: any) => [r.name, r.max_quantity]),
+    );
 
     const holdsAvailable = row.holds - (row.fuel + row.organics + row.equipment + row.colonists);
     sendEnvelope(playerId, {
@@ -48,12 +61,10 @@ export async function handleShipInfo(playerId: number): Promise<void> {
         cargoEquipment: row.equipment,
         cargoColonists: row.colonists,
         holdsAvailable,
-        planetBusters: row.planet_busters,
-        terraformDevices: row.terraform_devices,
-        maxPlanetBusters: row.max_planet_busters || 0,
-        maxTerraformDevices: row.max_terraform_devices || 0,
+        hardware,
+        hardwareMax,
         turnsPerWarp: row.turns_per_warp,
-        hasHyperwarpDrive: row.has_hyperspace_1 || row.has_hyperspace_2,
+        hasHyperwarpDrive: (hardware.hyperspace_1 || 0) > 0 || (hardware.hyperspace_2 || 0) > 0,
         turns: row.turns,
         credits: row.credits,
     });

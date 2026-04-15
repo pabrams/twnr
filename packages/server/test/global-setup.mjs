@@ -155,17 +155,27 @@ async function doSetup() {
   let pool = createPool();
   await pool.query('SELECT 1');
   await pool.query(`
+    DROP TABLE IF EXISTS news CASCADE;
+    DROP TABLE IF EXISTS visited_ports CASCADE;
+    DROP TABLE IF EXISTS sector_beacons CASCADE;
+    DROP TABLE IF EXISTS sector_mines CASCADE;
+    DROP TABLE IF EXISTS command_log CASCADE;
     DROP TABLE IF EXISTS menu_command CASCADE;
     DROP TABLE IF EXISTS command CASCADE;
     DROP TABLE IF EXISTS sector_drones CASCADE;
     DROP TABLE IF EXISTS planet_collisions CASCADE;
     DROP TABLE IF EXISTS planets CASCADE;
+    DROP TABLE IF EXISTS planet_types CASCADE;
     DROP TABLE IF EXISTS visited_sectors CASCADE;
+    DROP TABLE IF EXISTS ship_hardware CASCADE;
     DROP TABLE IF EXISTS ships CASCADE;
+    DROP TABLE IF EXISTS corporations CASCADE;
+    DROP TABLE IF EXISTS ship_type_hardware CASCADE;
     DROP TABLE IF EXISTS ship_types_edits CASCADE;
     DROP TABLE IF EXISTS planet_types_edits CASCADE;
     DROP TABLE IF EXISTS ship_types CASCADE;
-    DROP TABLE IF EXISTS hardware CASCADE;
+    DROP TABLE IF EXISTS hardware_price CASCADE;
+    DROP TABLE IF EXISTS hardware_item CASCADE;
     DROP TABLE IF EXISTS ports CASCADE;
     DROP TABLE IF EXISTS warps CASCADE;
     DROP TABLE IF EXISTS players CASCADE;

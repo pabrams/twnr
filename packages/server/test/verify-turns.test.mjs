@@ -330,14 +330,26 @@ describe('Ship trade-in resets ship-specific fields', () => {
     await movePlayerToViaWs(wsConn, starbaseSector);
     await wsRequest(wsConn, { type: ClientMsgType.DockStarbase }, ServerMsgType.DockStarbaseResult);
 
-    await pool.query('UPDATE ships SET has_hyperspace_1 = true WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
+    // Give the ship hyperspace_1 via ship_hardware
+    await pool.query(
+      `INSERT INTO ship_hardware (ship_id, hardware_item_id, quantity)
+       VALUES ((SELECT ship_id FROM players WHERE id = $1), (SELECT id FROM hardware_item WHERE name = 'hyperspace_1'), 1)
+       ON CONFLICT (ship_id, hardware_item_id) DO UPDATE SET quantity = 1`,
+      [playerId],
+    );
     await pool.query('UPDATE players SET credits = 999999 WHERE id = $1', [playerId]);
 
     const result = await wsRequest(wsConn, { type: ClientMsgType.BuyShipTradein, targetShipName: SCOUT_NAME }, ServerMsgType.BuyShipTradeinResult);
     if (result.type === ServerMsgType.Error) { await closeWS(wsConn); assert.fail(`Trade failed: ${result.message}`); }
 
-    const driveRes = await pool.query('SELECT has_hyperspace_1 FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
-    assert.equal(driveRes.rows[0].has_hyperspace_1, false,
+    const driveRes = await pool.query(
+      `SELECT COALESCE(sh.quantity, 0) as qty FROM ships s
+       LEFT JOIN ship_hardware sh ON sh.ship_id = s.id
+         AND sh.hardware_item_id = (SELECT id FROM hardware_item WHERE name = 'hyperspace_1')
+       WHERE s.id = (SELECT ship_id FROM players WHERE id = $1)`,
+      [playerId],
+    );
+    assert.equal(driveRes.rows[0].qty, 0,
       'Hyperwarp drive should not transfer to new ship');
 
     await closeWS(wsConn);
@@ -861,19 +873,19 @@ describe('Ship configs - canHaveHyperspace1', () => {
   });
 });
 
-// --- Schema: has_hyperspace_1 ---
+// --- Schema: ship_hardware table ---
 
-describe('Schema - has_hyperspace_1', () => {
-  it('ships.has_hyperspace_1 exists (boolean, NOT NULL, default false)', async () => {
+describe('Schema - ship_hardware', () => {
+  it('ship_hardware table exists with expected columns', async () => {
     const res = await pool.query(`
-      SELECT data_type, column_default, is_nullable
-      FROM information_schema.columns
-      WHERE table_name = 'ships' AND column_name = 'has_hyperspace_1'
+      SELECT column_name FROM information_schema.columns
+      WHERE table_name = 'ship_hardware'
+      ORDER BY ordinal_position
     `);
-    assert.equal(res.rows.length, 1);
-    assert.match(res.rows[0].data_type, /bool/i);
-    assert.equal(res.rows[0].is_nullable, 'NO');
-    assert.match(res.rows[0].column_default, /false/i);
+    const cols = res.rows.map(r => r.column_name);
+    assert.ok(cols.includes('ship_id'), 'should have ship_id');
+    assert.ok(cols.includes('hardware_item_id'), 'should have hardware_item_id');
+    assert.ok(cols.includes('quantity'), 'should have quantity');
   });
 });
 
@@ -952,7 +964,13 @@ describe('HyperspaceJump', () => {
   async function setupJumpPlayer() {
     const { token, playerId } = await joinUniverse(pool);
     await pool.query('UPDATE players SET turns = 9999 WHERE id = $1', [playerId]);
-    await pool.query(`UPDATE ships SET ship_type_id = (SELECT id FROM ship_types WHERE name = '${INTERCEPTOR_NAME}'), has_hyperspace_1 = true, turns_per_warp = 2 WHERE id = (SELECT ship_id FROM players WHERE id = $1)`, [playerId]);
+    await pool.query(`UPDATE ships SET ship_type_id = (SELECT id FROM ship_types WHERE name = '${INTERCEPTOR_NAME}'), turns_per_warp = 2 WHERE id = (SELECT ship_id FROM players WHERE id = $1)`, [playerId]);
+    await pool.query(
+      `INSERT INTO ship_hardware (ship_id, hardware_item_id, quantity)
+       VALUES ((SELECT ship_id FROM players WHERE id = $1), (SELECT id FROM hardware_item WHERE name = 'hyperspace_1'), 1)
+       ON CONFLICT (ship_id, hardware_item_id) DO UPDATE SET quantity = 1`,
+      [playerId],
+    );
     const { ws: wsConn } = await ws(token);
     return { ws: wsConn, token, playerId };
   }
@@ -1004,7 +1022,7 @@ describe('HyperspaceJump', () => {
   it('Rejected when no hyperwarp drive', async () => {
     const { token, playerId } = await joinUniverse(pool);
     await pool.query('UPDATE players SET turns = 9999 WHERE id = $1', [playerId]);
-    await pool.query('UPDATE ships SET has_hyperspace_1 = false WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
+    // Ensure no hyperspace drive (ship_hardware row won't exist for new ship by default)
     const { ws: wsConn } = await ws(token);
 
     const adj = await getAdjacentSector(wsConn);
