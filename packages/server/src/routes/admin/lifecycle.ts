@@ -11,16 +11,38 @@ export function createAdminLifecycleRoutes(
     const { authenticateAdmin } = middleware;
 
     router.post('/api/admin/universes/generate', authenticateAdmin, async (req, res) => {
-        const { name, sectors, seed, portDensity, twoWayPct, edit_name = 'stock' } = req.body;
+        const { name, sectors, seed, portDensity, twoWayPct, warpDist, edit_name = 'stock' } =
+            req.body;
 
         if (!name || !String(name).trim()) {
             return res.status(400).json({ error: 'name is required' });
         }
         const sectorCount = parseInt(sectors, 10);
-        if (!sectors || isNaN(sectorCount) || sectorCount < 20 || sectorCount > 500) {
+        if (!sectors || isNaN(sectorCount) || sectorCount < 20 || sectorCount > 25000) {
             return res
                 .status(400)
-                .json({ error: 'sectors is required and must be between 20 and 500' });
+                .json({ error: 'sectors is required and must be between 20 and 25000' });
+        }
+
+        // Validate warpDist if provided
+        let parsedWarpDist: number[] | undefined;
+        if (warpDist != null) {
+            if (
+                !Array.isArray(warpDist) ||
+                warpDist.length !== 7 ||
+                warpDist.some((v: unknown) => typeof v !== 'number' || v < 0)
+            ) {
+                return res.status(400).json({
+                    error: 'warpDist must be an array of 7 non-negative numbers (degrees 1-7)',
+                });
+            }
+            const sum = warpDist.reduce((a: number, b: number) => a + b, 0);
+            if (Math.abs(sum - 100) > 0.01) {
+                return res.status(400).json({
+                    error: `warpDist values must sum to 100 (got ${sum})`,
+                });
+            }
+            parsedWarpDist = [0, ...warpDist];
         }
 
         try {
@@ -29,6 +51,7 @@ export function createAdminLifecycleRoutes(
                 seed: seed != null ? Math.floor(Number(seed)) : undefined,
                 portDensity: portDensity != null ? Number(portDensity) : undefined,
                 twoWayPct: twoWayPct != null ? Number(twoWayPct) : undefined,
+                warpDist: parsedWarpDist,
             });
 
             const client = await pool.connect();

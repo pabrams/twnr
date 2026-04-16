@@ -2,19 +2,38 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { generateGraph } from '../dist/bigbang/graph.js';
+import { mulberry32 } from '../dist/bigbang/prng.js';
+import { DEFAULT_WARP_DIST } from '../dist/bigbang/types.js';
 
 const args = process.argv.slice(2);
 let outDir = null;
-let sectors = null;
-let portDensity = 50;
+let sectors = 5000;
+let portDensity = 80;
 let planetDensity = 5;
-let twoWayPct = 90;
+let twoWayPct = 95;
 let seed = null;
+let warpDist = [...DEFAULT_WARP_DIST];
 
 for (let i = 0; i < args.length; i++) {
     const arg = args[i];
-    
-    if (['--sectors', '--port-density', '--planet-density', '--two-way-pct', '--seed'].includes(arg)) {
+
+    if (arg === '--warp-dist') {
+        if (i + 1 >= args.length) {
+            console.error('Error: --warp-dist requires a value');
+            process.exit(1);
+        }
+        const parts = args[++i].split(',').map(Number);
+        if (parts.length !== 7 || parts.some(isNaN) || parts.some(p => p < 0)) {
+            console.error('Error: --warp-dist must be 7 comma-separated non-negative numbers (degrees 1-7)');
+            process.exit(1);
+        }
+        if (parts.reduce((a, b) => a + b, 0) <= 0) {
+            console.error('Error: --warp-dist values must sum to a positive number');
+            process.exit(1);
+        }
+        warpDist = [0, ...parts];
+    } else if (['--sectors', '--port-density', '--planet-density', '--two-way-pct', '--seed'].includes(arg)) {
         if (i + 1 >= args.length) {
             console.error(`Error: ${arg} requires a value`);
             process.exit(1);
@@ -43,12 +62,19 @@ for (let i = 0; i < args.length; i++) {
     }
 }
 
-if (!outDir || sectors === null) {
-    console.error("Usage: node twnr-bigbang.js <output-dir> --sectors N [OPTIONS]");
+if (!outDir) {
+    console.error("Usage: node twnr-bigbang.js <output-dir> [--sectors N] [OPTIONS]");
+    console.error("Options:");
+    console.error("  --sectors N             Number of sectors (20-25000, default 5000)");
+    console.error("  --port-density N        Port density 1-100 (default 80)");
+    console.error("  --planet-density N      Planet density 0-100 (default 5)");
+    console.error("  --two-way-pct N         Two-way warp percentage 0-100 (default 95)");
+    console.error("  --warp-dist D1,...,D7   Warp-out degree distribution for 1-7 (default: 12,18,20,20,15,10,5)");
+    console.error("  --seed N                Random seed (default: random)");
     process.exit(1);
 }
-if (sectors < 20 || sectors > 5000) {
-    console.error("Error: --sectors must be between 20 and 5000");
+if (sectors < 20 || sectors > 25000) {
+    console.error("Error: --sectors must be between 20 and 25000");
     process.exit(1);
 }
 if (portDensity < 1 || portDensity > 100) {
@@ -82,14 +108,6 @@ if (fs.existsSync(outDir)) {
     fs.mkdirSync(outDir, { recursive: true });
 }
 
-function mulberry32(a) {
-    return function() {
-      var t = a += 0x6D2B79F5;
-      t = Math.imul(t ^ t >>> 15, t | 1);
-      t ^= t + Math.imul(t ^ t >>> 7, t | 61);
-      return ((t ^ t >>> 14) >>> 0) / 4294967296;
-    }
-}
 const rng = mulberry32(seed);
 
 function randomInt(min, max) {
@@ -102,149 +120,20 @@ sectorNames[1] = "Federation Space";
 const starbaseId = randomInt(2, N);
 sectorNames[starbaseId] = "Starbase";
 
-function generateGraph(N, T, rng) {
-    let bestW = -1, bestE_bi = -1, bestE_uni = -1, minDiff = 100;
-    let minW = Math.max(N, 20);
-    let maxW = N * 4;
-    
-    for (let w = minW; w <= maxW; w++) {
-        let targetBi = w * T / 100;
-        let e_bi = Math.round(targetBi / 2);
-        let e_uni = w - 2 * e_bi;
-        
-        if (e_bi + e_uni < N) continue;
-        if (e_bi < 0 || e_uni < 0) continue;
-        
-        let pct = (2 * e_bi / w) * 100;
-        let diff = Math.abs(pct - T);
-        if (diff < minDiff) {
-            minDiff = diff;
-            bestW = w;
-            bestE_bi = e_bi;
-            bestE_uni = e_uni;
-        }
-    }
+const warps = generateGraph(N, twoWayPct, rng, warpDist);
 
-    while (true) {
-        let outDegree = new Int32Array(N + 1);
-        let inDegree = new Int32Array(N + 1);
-        let edges = new Set();
-        
-        function addEdge(u, v) {
-            edges.add(`${u},${v}`);
-            outDegree[u]++;
-            inDegree[v]++;
-        }
-        function canAddPair(u, v) {
-            if (u === v) return false;
-            if (edges.has(`${u},${v}`) || edges.has(`${v},${u}`)) return false;
-            if (outDegree[u] >= 6 || inDegree[v] >= 6) return false;
-            if (outDegree[v] >= 6 || inDegree[u] >= 6) return false;
-            return true;
-        }
-        function canAddSingle(u, v) {
-            if (u === v) return false;
-            if (edges.has(`${u},${v}`) || edges.has(`${v},${u}`)) return false;
-            if (outDegree[u] >= 6 || inDegree[v] >= 6) return false;
-            return true;
-        }
-
-        let nodes = Array.from({length: N}, (_, i) => i + 1);
-        for (let i = nodes.length - 1; i > 0; i--) {
-            let j = Math.floor(rng() * (i + 1));
-            [nodes[i], nodes[j]] = [nodes[j], nodes[i]];
-        }
-
-        let K = Math.max(0, N - bestE_uni);
-        let cycleEdges = [];
-        for (let i = 0; i < N; i++) {
-            cycleEdges.push([nodes[i], nodes[(i + 1) % N]]);
-        }
-        
-        for (let i = cycleEdges.length - 1; i > 0; i--) {
-            let j = Math.floor(rng() * (i + 1));
-            [cycleEdges[i], cycleEdges[j]] = [cycleEdges[j], cycleEdges[i]];
-        }
-
-        let K_added = 0;
-        let single_added = 0;
-        for (let i = 0; i < N; i++) {
-            let [u, v] = cycleEdges[i];
-            if (i < K) {
-                addEdge(u, v);
-                addEdge(v, u);
-                K_added++;
-            } else {
-                addEdge(u, v);
-                single_added++;
-            }
-        }
-
-        let pairs_needed = bestE_bi - K_added;
-        let singles_needed = bestE_uni - single_added;
-
-        let attempts = 0;
-        let success = true;
-
-        while (pairs_needed > 0) {
-            if (attempts++ > 20000) { success = false; break; }
-            let u = Math.floor(rng() * N) + 1;
-            let v = Math.floor(rng() * N) + 1;
-            if (canAddPair(u, v)) {
-                addEdge(u, v);
-                addEdge(v, u);
-                pairs_needed--;
-                attempts = 0;
-            }
-        }
-        if (!success) continue;
-
-        attempts = 0;
-        while (singles_needed > 0) {
-            if (attempts++ > 20000) { success = false; break; }
-            let u = Math.floor(rng() * N) + 1;
-            let v = Math.floor(rng() * N) + 1;
-            if (canAddSingle(u, v)) {
-                addEdge(u, v);
-                singles_needed--;
-                attempts = 0;
-            }
-        }
-        if (!success) continue;
-        
-        let valid = true;
-        for(let i=1; i<=N; i++) {
-            if (outDegree[i] < 1 || outDegree[i] > 6 || inDegree[i] < 1 || inDegree[i] > 6) {
-                valid = false; break;
-            }
-        }
-        if (!valid) continue;
-
-        let totalWarps = edges.size;
-        let biWarps = 0;
-        for (let e of edges) {
-            let [u, v] = e.split(',');
-            if (edges.has(`${v},${u}`)) biWarps++;
-        }
-        let actualPct = (biWarps / totalWarps) * 100;
-        if (Math.abs(actualPct - T) > 1.0001) {
-            continue;
-        }
-
-        let result = [];
-        for (let e of edges) {
-            let parts = e.split(',');
-            result.push({from: parseInt(parts[0], 10), to: parseInt(parts[1], 10)});
-        }
-        result.sort((a, b) => {
-            if (a.from !== b.from) return a.from - b.from;
-            return a.to - b.to;
-        });
-        return result;
-    }
+// Print generation stats
+{
+    const outMap = new Map();
+    for (const w of warps) outMap.set(w.from, (outMap.get(w.from) || 0) + 1);
+    const degDist = new Array(8).fill(0);
+    for (const [, c] of outMap) if (c >= 1 && c <= 7) degDist[c]++;
+    const warpSet = new Set(warps.map(w => `${w.from},${w.to}`));
+    let bi = 0;
+    for (const w of warps) if (warpSet.has(`${w.to},${w.from}`)) bi++;
+    console.error(`Sectors: ${N}, Warps: ${warps.length}, Two-way: ${(bi / warps.length * 100).toFixed(1)}%`);
+    console.error(`Degree dist: ${degDist.slice(1).map((c, i) => `${i + 1}=${c}`).join(', ')}`);
 }
-
-const warps = generateGraph(N, twoWayPct, rng);
 
 const portClasses = {
     1: ['B', 'B', 'S'],
@@ -378,9 +267,9 @@ const warpsRows = warps.map(w => toCSVLine([w.from, w.to]));
 fs.writeFileSync(path.join(outDir, 'warps.csv'), 'from_sector_id,to_sector_id\n' + warpsRows.join('\n') + '\n');
 
 const portsRows = ports.map(p => toCSVLine([
-    p.sector, p.class, 
-    p.fuel_qty, p.fuel_price, 
-    p.org_qty, p.org_price, 
+    p.sector, p.class,
+    p.fuel_qty, p.fuel_price,
+    p.org_qty, p.org_price,
     p.equ_qty, p.equ_price
 ]));
 fs.writeFileSync(path.join(outDir, 'ports.csv'), 'sector,class,fuel_qty,fuel_price,org_qty,org_price,equ_qty,equ_price\n' + portsRows.join('\n') + '\n');
