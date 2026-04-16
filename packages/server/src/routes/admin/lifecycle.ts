@@ -29,11 +29,11 @@ export function createAdminLifecycleRoutes(
         if (warpDist != null) {
             if (
                 !Array.isArray(warpDist) ||
-                warpDist.length !== 7 ||
+                warpDist.length !== 6 ||
                 warpDist.some((v: unknown) => typeof v !== 'number' || v < 0)
             ) {
                 return res.status(400).json({
-                    error: 'warpDist must be an array of 7 non-negative numbers (degrees 1-7)',
+                    error: 'warpDist must be an array of 6 non-negative numbers (degrees 1-6)',
                 });
             }
             const sum = warpDist.reduce((a: number, b: number) => a + b, 0);

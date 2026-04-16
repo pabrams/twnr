@@ -24,8 +24,8 @@ for (let i = 0; i < args.length; i++) {
             process.exit(1);
         }
         const parts = args[++i].split(',').map(Number);
-        if (parts.length !== 7 || parts.some(isNaN) || parts.some(p => p < 0)) {
-            console.error('Error: --warp-dist must be 7 comma-separated non-negative numbers (degrees 1-7)');
+        if (parts.length !== 6 || parts.some(isNaN) || parts.some(p => p < 0)) {
+            console.error('Error: --warp-dist must be 6 comma-separated non-negative numbers (degrees 1-6)');
             process.exit(1);
         }
         if (parts.reduce((a, b) => a + b, 0) <= 0) {
@@ -69,7 +69,7 @@ if (!outDir) {
     console.error("  --port-density N        Port density 1-100 (default 80)");
     console.error("  --planet-density N      Planet density 0-100 (default 5)");
     console.error("  --two-way-pct N         Two-way warp percentage 0-100 (default 95)");
-    console.error("  --warp-dist D1,...,D7   Warp-out degree distribution for 1-7 (default: 12,18,20,20,15,10,5)");
+    console.error("  --warp-dist D1,...,D6   Warp-out degree distribution for 1-6 (default: 12,18,20,20,15,15)");
     console.error("  --seed N                Random seed (default: random)");
     process.exit(1);
 }
@@ -126,8 +126,8 @@ const warps = generateGraph(N, twoWayPct, rng, warpDist);
 {
     const outMap = new Map();
     for (const w of warps) outMap.set(w.from, (outMap.get(w.from) || 0) + 1);
-    const degDist = new Array(8).fill(0);
-    for (const [, c] of outMap) if (c >= 1 && c <= 7) degDist[c]++;
+    const degDist = new Array(7).fill(0);
+    for (const [, c] of outMap) if (c >= 1 && c <= 6) degDist[c]++;
     const warpSet = new Set(warps.map(w => `${w.from},${w.to}`));
     let bi = 0;
     for (const w of warps) if (warpSet.has(`${w.to},${w.from}`)) bi++;
