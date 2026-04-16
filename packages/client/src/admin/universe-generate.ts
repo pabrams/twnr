@@ -1,6 +1,6 @@
 import { generateUniverse } from './api.js';
 
-const DEFAULT_WARP_DIST = [12, 18, 20, 20, 15, 10, 5];
+const DEFAULT_WARP_DIST = [12, 18, 20, 20, 15, 15];
 
 function makeInput(
     label: string,
@@ -45,7 +45,7 @@ function makeWarpDistField(): {
     row.style.marginBottom = '8px';
 
     const lbl = document.createElement('label');
-    lbl.textContent = 'Warp-Out Distribution (degrees 1-7, must sum to 100)';
+    lbl.textContent = 'Warp-Out Distribution (degrees 1-6, must sum to 100)';
     lbl.style.display = 'block';
     lbl.style.color = '#888';
     lbl.style.fontSize = '12px';
@@ -54,13 +54,13 @@ function makeWarpDistField(): {
 
     const grid = document.createElement('div');
     grid.style.display = 'grid';
-    grid.style.gridTemplateColumns = 'repeat(7, 1fr)';
+    grid.style.gridTemplateColumns = 'repeat(6, 1fr)';
     grid.style.gap = '4px';
     grid.style.maxWidth = '280px';
     row.appendChild(grid);
 
     const inputs: HTMLInputElement[] = [];
-    for (let d = 1; d <= 7; d++) {
+    for (let d = 1; d <= 6; d++) {
         const cell = document.createElement('div');
         cell.style.textAlign = 'center';
 

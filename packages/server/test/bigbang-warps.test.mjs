@@ -80,21 +80,21 @@ describe('Warp Generation', () => {
     assert.deepStrictEqual(header, ['from_sector_id', 'to_sector_id']);
   });
 
-  it('each sector has 1-7 outbound warps', () => {
+  it('each sector has 1-6 outbound warps', () => {
     const outbound = counter(rows.map(r => parseInt(r[0], 10)));
     for (let sid = 1; sid <= NUM_SECTORS; sid++) {
       const count = outbound.get(sid) ?? 0;
       assert.ok(count >= 1, `Sector ${sid} has ${count} outbound warps (min 1)`);
-      assert.ok(count <= 7, `Sector ${sid} has ${count} outbound warps (max 7)`);
+      assert.ok(count <= 6, `Sector ${sid} has ${count} outbound warps (max 6)`);
     }
   });
 
-  it('each sector has 1-7 inbound warps', () => {
+  it('each sector has 1-6 inbound warps', () => {
     const inbound = counter(rows.map(r => parseInt(r[1], 10)));
     for (let sid = 1; sid <= NUM_SECTORS; sid++) {
       const count = inbound.get(sid) ?? 0;
       assert.ok(count >= 1, `Sector ${sid} has ${count} inbound warps (min 1)`);
-      assert.ok(count <= 7, `Sector ${sid} has ${count} inbound warps (max 7)`);
+      assert.ok(count <= 6, `Sector ${sid} has ${count} inbound warps (max 6)`);
     }
   });
 
@@ -131,7 +131,7 @@ describe('Warp Generation', () => {
       for (let sid = 1; sid <= 500; sid++) {
         const c = inbound.get(sid) ?? 0;
         assert.ok(c >= 1, `500 sectors: sector ${sid} has ${c} inbound (min 1)`);
-        assert.ok(c <= 7, `500 sectors: sector ${sid} has ${c} inbound (max 7)`);
+        assert.ok(c <= 6, `500 sectors: sector ${sid} has ${c} inbound (max 6)`);
       }
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
@@ -145,7 +145,7 @@ describe('Warp Generation', () => {
       for (let sid = 1; sid <= 500; sid++) {
         const c = inbound.get(sid) ?? 0;
         assert.ok(c >= 1, `500s twp=0: sector ${sid} has ${c} inbound (min 1)`);
-        assert.ok(c <= 7, `500s twp=0: sector ${sid} has ${c} inbound (max 7)`);
+        assert.ok(c <= 6, `500s twp=0: sector ${sid} has ${c} inbound (max 6)`);
       }
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
@@ -161,9 +161,9 @@ describe('Warp Generation', () => {
         const inbound  = counter(wr.map(r => parseInt(r[1], 10)));
         for (let sid = 1; sid <= 20; sid++) {
           assert.ok((outbound.get(sid) ?? 0) >= 1, `20s twp=${twp}: sector ${sid} outbound < 1`);
-          assert.ok((outbound.get(sid) ?? 0) <= 7, `20s twp=${twp}: sector ${sid} outbound > 7`);
+          assert.ok((outbound.get(sid) ?? 0) <= 6, `20s twp=${twp}: sector ${sid} outbound > 6`);
           assert.ok((inbound.get(sid) ?? 0) >= 1,  `20s twp=${twp}: sector ${sid} inbound < 1`);
-          assert.ok((inbound.get(sid) ?? 0) <= 7,  `20s twp=${twp}: sector ${sid} inbound > 7`);
+          assert.ok((inbound.get(sid) ?? 0) <= 6,  `20s twp=${twp}: sector ${sid} inbound > 6`);
         }
 
         const pairs = wr.map(r => `${r[0]},${r[1]}`);
@@ -246,15 +246,15 @@ describe('Bidirectional Warp Percentage', () => {
     finally { rmSync(dir, { recursive: true, force: true }); }
   });
 
-  it('--two-way-pct 100 still respects degree limits (<=7 in/out)', () => {
+  it('--two-way-pct 100 still respects degree limits (<=6 in/out)', () => {
     const dir = generateUniverse({ sectors: 100, seed: 42, twoWayPct: 100 });
     try {
       const { rows } = readCSV(join(dir, 'warps.csv'));
       const outbound = counter(rows.map(r => parseInt(r[0], 10)));
       const inbound  = counter(rows.map(r => parseInt(r[1], 10)));
       for (let sid = 1; sid <= 100; sid++) {
-        assert.ok((outbound.get(sid) ?? 0) <= 7, `Sector ${sid} outbound > 7 with twp=100`);
-        assert.ok((inbound.get(sid) ?? 0) <= 7,  `Sector ${sid} inbound > 7 with twp=100`);
+        assert.ok((outbound.get(sid) ?? 0) <= 6, `Sector ${sid} outbound > 6 with twp=100`);
+        assert.ok((inbound.get(sid) ?? 0) <= 6,  `Sector ${sid} inbound > 6 with twp=100`);
       }
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
@@ -267,7 +267,7 @@ describe('Bidirectional Warp Percentage', () => {
       for (let sid = 1; sid <= 200; sid++) {
         const c = inbound.get(sid) ?? 0;
         assert.ok(c >= 1, `Sector ${sid} has ${c} inbound with twp=0 (min 1)`);
-        assert.ok(c <= 7, `Sector ${sid} has ${c} inbound with twp=0 (max 7)`);
+        assert.ok(c <= 6, `Sector ${sid} has ${c} inbound with twp=0 (max 6)`);
       }
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
@@ -283,9 +283,9 @@ describe('Bidirectional Warp Percentage', () => {
         const inbound  = counter(rows.map(r => parseInt(r[1], 10)));
         for (let sid = 1; sid <= 1000; sid++) {
           assert.ok((outbound.get(sid) ?? 0) >= 1, `Sector ${sid} 0 outbound at 1000s twp=${target}`);
-          assert.ok((outbound.get(sid) ?? 0) <= 7, `Sector ${sid} outbound > 7 at 1000s twp=${target}`);
+          assert.ok((outbound.get(sid) ?? 0) <= 6, `Sector ${sid} outbound > 6 at 1000s twp=${target}`);
           assert.ok((inbound.get(sid) ?? 0) >= 1,  `Sector ${sid} 0 inbound at 1000s twp=${target}`);
-          assert.ok((inbound.get(sid) ?? 0) <= 7,  `Sector ${sid} inbound > 7 at 1000s twp=${target}`);
+          assert.ok((inbound.get(sid) ?? 0) <= 6,  `Sector ${sid} inbound > 6 at 1000s twp=${target}`);
         }
 
         // Forward BFS only (reverse is expensive; forward is the critical check)

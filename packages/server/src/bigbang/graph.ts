@@ -7,25 +7,26 @@ export function generateGraph(
     rng: () => number,
     warpDist: number[] = DEFAULT_WARP_DIST,
 ): GeneratedWarp[] {
-    const MAX_IN = 7;
+    const MAX_OUT = 6;
+    const MAX_IN = 6;
 
     // Assign target out-degrees from distribution
     const targetOut = new Int32Array(N + 1);
-    const cumDist = new Float64Array(8);
+    const cumDist = new Float64Array(MAX_OUT + 1);
     let pctSum = 0;
-    for (let d = 1; d <= 7; d++) {
+    for (let d = 1; d <= MAX_OUT; d++) {
         pctSum += warpDist[d];
         cumDist[d] = pctSum;
     }
     for (let i = 1; i <= N; i++) {
         const r = rng() * pctSum;
-        for (let d = 1; d <= 7; d++) {
+        for (let d = 1; d <= MAX_OUT; d++) {
             if (r < cumDist[d]) {
                 targetOut[i] = d;
                 break;
             }
         }
-        if (targetOut[i] === 0) targetOut[i] = 7;
+        if (targetOut[i] === 0) targetOut[i] = MAX_OUT;
     }
 
     // For T >= 99: bump degree-1 nodes to 2 so full bidirectional is possible
@@ -41,7 +42,7 @@ export function generateGraph(
     // For T >= 99: ensure even total so 100% bidirectional is achievable
     if (T >= 99 && totalEdges % 2 !== 0) {
         for (let i = 1; i <= N; i++) {
-            if (targetOut[i] < 7) {
+            if (targetOut[i] < MAX_OUT) {
                 targetOut[i]++;
                 totalEdges++;
                 break;
@@ -63,7 +64,7 @@ export function generateGraph(
     let biPairsTarget = findBiPairs(totalEdges);
     while (biPairsTarget < 0) {
         for (let i = 1; i <= N; i++) {
-            if (targetOut[i] < 7) {
+            if (targetOut[i] < MAX_OUT) {
                 targetOut[i]++;
                 totalEdges++;
                 break;
@@ -88,7 +89,7 @@ export function generateGraph(
         }
 
         // Bump degree-1 nodes first, then degree-2, etc.
-        for (let targetDeg = 1; targetDeg < 7 && getMargin() < minMargin; targetDeg++) {
+        for (let targetDeg = 1; targetDeg < MAX_OUT && getMargin() < minMargin; targetDeg++) {
             for (let i = 1; i <= N && getMargin() < minMargin; i++) {
                 if (targetOut[i] === targetDeg) {
                     targetOut[i]++;
