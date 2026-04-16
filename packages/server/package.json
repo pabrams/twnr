@@ -33,7 +33,7 @@
     "dropDatabase": "node ./scripts/deleteDatabase.js",
     "bigbang": "node ./scripts/twnr-bigbang.js data/universe/",
     "db:import": "node ./scripts/importUniverse.js",
-    "db:seed": "node ./scripts/twnr-bigbang.js ./data/universe/ --sectors 100 --seed 42 && node ./scripts/importUniverse.js ./data/universe --force",
+    "db:seed": "node ./scripts/twnr-bigbang.js ./data/universe/ --sectors 500 --seed 42 && node ./scripts/importUniverse.js ./data/universe --force",
     "test": "bash test/run-tests.sh"
   }
 }
