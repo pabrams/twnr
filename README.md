@@ -45,26 +45,15 @@ pnpm run db:seed
 pnpm test
 ```
 
-### 6. Start the server
+### 6. Start the server and client
 
 ```bash
-cd packages/server
-pnpm start
+pnpm dev
 ```
 
 You should see:
 ```
-PostgreSQL connected and schema verified
 Server listening on port 3000
-```
-
-### 7. Start the client
-
-Open a new terminal in the project root:
-
-```bash
-cd packages/client
-pnpm run dev
 ```
 
 Visit http://localhost:5173 and register.
