@@ -35,6 +35,7 @@ export interface GenerateUniverseParams {
     seed?: number;
     portDensity?: number;
     twoWayPct?: number;
+    warpDist?: number[];
 }
 
 export interface GenerateUniverseResult {

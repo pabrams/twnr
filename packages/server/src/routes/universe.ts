@@ -126,7 +126,7 @@ export function createUniverseRoutes(
             // Mark starting sector as visited
             await pool.query(
                 'INSERT INTO visited_sectors (player_id, sector_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-                [playerId, startSector],
+                [playerId, startSectorId],
             );
 
             res.status(201).json({ playerId, universeId });

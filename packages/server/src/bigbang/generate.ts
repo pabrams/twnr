@@ -1,4 +1,5 @@
 import type { BigBangOptions, BigBangResult, GeneratedSector, GeneratedPort } from './types.js';
+import { DEFAULT_WARP_DIST } from './types.js';
 import { mulberry32 } from './prng.js';
 import { generateGraph } from './graph.js';
 
@@ -15,8 +16,9 @@ const portClasses: Record<number, string[]> = {
 
 export function generateUniverse(options: BigBangOptions): BigBangResult {
     const N = options.sectors;
-    const portDensity = options.portDensity ?? 50;
-    const twoWayPct = options.twoWayPct ?? 90;
+    const portDensity = options.portDensity ?? 80;
+    const twoWayPct = options.twoWayPct ?? 95;
+    const warpDist = options.warpDist ?? DEFAULT_WARP_DIST;
     const seed = options.seed ?? Math.floor(Math.random() * 2147483647);
 
     const rng = mulberry32(seed);
@@ -32,7 +34,7 @@ export function generateUniverse(options: BigBangOptions): BigBangResult {
     sectorNames[starbaseId] = 'Starbase';
 
     // Generate graph
-    const warps = generateGraph(N, twoWayPct, rng);
+    const warps = generateGraph(N, twoWayPct, rng, warpDist);
 
     // Generate sectors
     const sectors: GeneratedSector[] = [];

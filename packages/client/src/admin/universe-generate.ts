@@ -1,5 +1,7 @@
 import { generateUniverse } from './api.js';
 
+const DEFAULT_WARP_DIST = [12, 18, 20, 20, 15, 10, 5];
+
 function makeInput(
     label: string,
     attrs: Record<string, string>,
@@ -33,6 +35,93 @@ function makeInput(
     return { row, input };
 }
 
+function makeWarpDistField(): {
+    row: HTMLElement;
+    inputs: HTMLInputElement[];
+    getValues: () => number[] | null;
+    errorSpan: HTMLSpanElement;
+} {
+    const row = document.createElement('div');
+    row.style.marginBottom = '8px';
+
+    const lbl = document.createElement('label');
+    lbl.textContent = 'Warp-Out Distribution (degrees 1-7, must sum to 100)';
+    lbl.style.display = 'block';
+    lbl.style.color = '#888';
+    lbl.style.fontSize = '12px';
+    lbl.style.marginBottom = '2px';
+    row.appendChild(lbl);
+
+    const grid = document.createElement('div');
+    grid.style.display = 'grid';
+    grid.style.gridTemplateColumns = 'repeat(7, 1fr)';
+    grid.style.gap = '4px';
+    grid.style.maxWidth = '280px';
+    row.appendChild(grid);
+
+    const inputs: HTMLInputElement[] = [];
+    for (let d = 1; d <= 7; d++) {
+        const cell = document.createElement('div');
+        cell.style.textAlign = 'center';
+
+        const header = document.createElement('div');
+        header.textContent = `${d}`;
+        header.style.color = '#666';
+        header.style.fontSize = '11px';
+        cell.appendChild(header);
+
+        const input = document.createElement('input');
+        Object.assign(input.style, {
+            background: '#111',
+            color: '#c0c0c0',
+            border: '1px solid #444',
+            padding: '4px 2px',
+            fontFamily: 'inherit',
+            fontSize: '13px',
+            width: '100%',
+            textAlign: 'center',
+            boxSizing: 'border-box',
+        });
+        input.type = 'number';
+        input.min = '0';
+        input.max = '100';
+        input.value = String(DEFAULT_WARP_DIST[d - 1]);
+        cell.appendChild(input);
+
+        grid.appendChild(cell);
+        inputs.push(input);
+    }
+
+    const errorSpan = document.createElement('span');
+    errorSpan.style.color = '#f44';
+    errorSpan.style.fontSize = '11px';
+    row.appendChild(errorSpan);
+
+    // Live sum validation
+    function updateSum() {
+        const vals = inputs.map((inp) => parseFloat(inp.value) || 0);
+        const sum = vals.reduce((a, b) => a + b, 0);
+        if (Math.abs(sum - 100) > 0.01) {
+            errorSpan.textContent = ` Sum: ${sum} (must be 100)`;
+        } else {
+            errorSpan.textContent = '';
+        }
+    }
+    for (const inp of inputs) {
+        inp.addEventListener('input', updateSum);
+    }
+
+    function getValues(): number[] | null {
+        const vals = inputs.map((inp) => parseFloat(inp.value) || 0);
+        const sum = vals.reduce((a, b) => a + b, 0);
+        if (Math.abs(sum - 100) > 0.01) return null;
+        if (vals.some((v) => v < 0)) return null;
+        return vals;
+    }
+
+    return { row, inputs, getValues, errorSpan };
+}
+
 export function renderUniverseGenerator(container: HTMLElement, onGenerated: () => void): void {
     container.innerHTML = '';
 
@@ -48,13 +137,13 @@ export function renderUniverseGenerator(container: HTMLElement, onGenerated: () 
     const nameField = makeInput('Name (required)', { type: 'text', placeholder: 'Universe name' });
     form.appendChild(nameField.row);
 
-    const sectorsField = makeInput('Sectors (20-500)', {
+    const sectorsField = makeInput('Sectors (20-25000)', {
         type: 'number',
-        placeholder: '100',
+        placeholder: '5000',
         min: '20',
-        max: '500',
+        max: '25000',
     });
-    sectorsField.input.value = '100';
+    sectorsField.input.value = '5000';
     form.appendChild(sectorsField.row);
 
     const seedField = makeInput('Seed (optional)', { type: 'number', placeholder: 'Random' });
@@ -62,21 +151,24 @@ export function renderUniverseGenerator(container: HTMLElement, onGenerated: () 
 
     const portDensityField = makeInput('Port Density % (0-100)', {
         type: 'number',
-        placeholder: '50',
+        placeholder: '80',
         min: '0',
         max: '100',
     });
-    portDensityField.input.value = '50';
+    portDensityField.input.value = '80';
     form.appendChild(portDensityField.row);
 
     const twoWayField = makeInput('Two-Way Warp % (0-100)', {
         type: 'number',
-        placeholder: '90',
+        placeholder: '95',
         min: '0',
         max: '100',
     });
-    twoWayField.input.value = '90';
+    twoWayField.input.value = '95';
     form.appendChild(twoWayField.row);
+
+    const warpDistField = makeWarpDistField();
+    form.appendChild(warpDistField.row);
 
     const errorDiv = document.createElement('div');
     errorDiv.style.color = '#f44';
@@ -120,11 +212,17 @@ export function renderUniverseGenerator(container: HTMLElement, onGenerated: () 
             return;
         }
 
-        const sectors = parseInt(sectorsField.input.value, 10) || 100;
+        const sectors = parseInt(sectorsField.input.value, 10) || 5000;
         const seedVal = seedField.input.value.trim();
         const seed = seedVal ? parseInt(seedVal, 10) : undefined;
         const portDensity = parseInt(portDensityField.input.value, 10);
         const twoWayPct = parseInt(twoWayField.input.value, 10);
+        const warpDist = warpDistField.getValues();
+
+        if (!warpDist) {
+            errorDiv.textContent = 'Warp distribution values must sum to 100.';
+            return;
+        }
 
         submitBtn.disabled = true;
         submitBtn.textContent = 'Generating...';
@@ -135,6 +233,7 @@ export function renderUniverseGenerator(container: HTMLElement, onGenerated: () 
             seed,
             portDensity: isNaN(portDensity) ? undefined : portDensity,
             twoWayPct: isNaN(twoWayPct) ? undefined : twoWayPct,
+            warpDist,
         })
             .then((result) => {
                 resultDiv.style.color = '#0ff';

@@ -1,146 +1,249 @@
 import type { GeneratedWarp } from './types.js';
+import { DEFAULT_WARP_DIST } from './types.js';
 
-export function generateGraph(N: number, T: number, rng: () => number): GeneratedWarp[] {
-    let bestE_bi = -1,
-        bestE_uni = -1,
-        minDiff = 100;
-    const minW = Math.max(N, 20);
-    const maxW = N * 4;
+export function generateGraph(
+    N: number,
+    T: number,
+    rng: () => number,
+    warpDist: number[] = DEFAULT_WARP_DIST,
+): GeneratedWarp[] {
+    const MAX_IN = 7;
 
-    for (let w = minW; w <= maxW; w++) {
-        const targetBi = (w * T) / 100;
-        const e_bi = Math.round(targetBi / 2);
-        const e_uni = w - 2 * e_bi;
+    // Assign target out-degrees from distribution
+    const targetOut = new Int32Array(N + 1);
+    const cumDist = new Float64Array(8);
+    let pctSum = 0;
+    for (let d = 1; d <= 7; d++) {
+        pctSum += warpDist[d];
+        cumDist[d] = pctSum;
+    }
+    for (let i = 1; i <= N; i++) {
+        const r = rng() * pctSum;
+        for (let d = 1; d <= 7; d++) {
+            if (r < cumDist[d]) {
+                targetOut[i] = d;
+                break;
+            }
+        }
+        if (targetOut[i] === 0) targetOut[i] = 7;
+    }
 
-        if (e_bi + e_uni < N) continue;
-        if (e_bi < 0 || e_uni < 0) continue;
-
-        const pct = ((2 * e_bi) / w) * 100;
-        const diff = Math.abs(pct - T);
-        if (diff < minDiff) {
-            minDiff = diff;
-            bestE_bi = e_bi;
-            bestE_uni = e_uni;
+    // For T >= 99: bump degree-1 nodes to 2 so full bidirectional is possible
+    if (T >= 99) {
+        for (let i = 1; i <= N; i++) {
+            if (targetOut[i] < 2) targetOut[i] = 2;
         }
     }
 
-    while (true) {
-        const outDegree = new Int32Array(N + 1);
-        const inDegree = new Int32Array(N + 1);
+    let totalEdges = 0;
+    for (let i = 1; i <= N; i++) totalEdges += targetOut[i];
+
+    // For T >= 99: ensure even total so 100% bidirectional is achievable
+    if (T >= 99 && totalEdges % 2 !== 0) {
+        for (let i = 1; i <= N; i++) {
+            if (targetOut[i] < 7) {
+                targetOut[i]++;
+                totalEdges++;
+                break;
+            }
+        }
+    }
+
+    // Find biPairsTarget that gives pct within ±1% of T
+    function findBiPairs(total: number): number {
+        const base = Math.round((total * T) / 200);
+        for (const bp of [base, base - 1, base + 1]) {
+            if (bp < 0 || 2 * bp > total) continue;
+            const pct = ((2 * bp) / total) * 100;
+            if (Math.abs(pct - T) <= 1.0001) return bp;
+        }
+        return -1;
+    }
+
+    let biPairsTarget = findBiPairs(totalEdges);
+    while (biPairsTarget < 0) {
+        for (let i = 1; i <= N; i++) {
+            if (targetOut[i] < 7) {
+                targetOut[i]++;
+                totalEdges++;
+                break;
+            }
+        }
+        biPairsTarget = findBiPairs(totalEdges);
+    }
+
+    // Budget feasibility: Phase B can make at most (N - degree1count) bi pairs
+    // costing 1 unit each; fill phase costs 2 per expensive bi pair.
+    // When tight, bump lowest-degree nodes to increase budget.
+    // Skip for T >= 99 — the earlier T>=99 bump already ensures feasibility.
+    if (T < 99) {
+        const minMargin = Math.max(5, Math.ceil(N * 0.02));
+
+        function getMargin(): number {
+            let d1 = 0;
+            for (let i = 1; i <= N; i++) if (targetOut[i] === 1) d1++;
+            const remaining = totalEdges - N;
+            const maxPhaseB = N - d1;
+            return Math.floor((remaining + maxPhaseB) / 2) - biPairsTarget;
+        }
+
+        // Bump degree-1 nodes first, then degree-2, etc.
+        for (let targetDeg = 1; targetDeg < 7 && getMargin() < minMargin; targetDeg++) {
+            for (let i = 1; i <= N && getMargin() < minMargin; i++) {
+                if (targetOut[i] === targetDeg) {
+                    targetOut[i]++;
+                    totalEdges++;
+                    const bp = findBiPairs(totalEdges);
+                    if (bp >= 0) biPairsTarget = bp;
+                }
+            }
+        }
+    } // end T < 99 budget check
+
+    // Retry loop
+    for (let attempt = 0; ; attempt++) {
+        if (attempt > 500) {
+            throw new Error('Failed to generate graph after 500 attempts.');
+        }
+
+        const outDeg = new Int32Array(N + 1);
+        const inDeg = new Int32Array(N + 1);
         const edges = new Set<string>();
 
         function addEdge(u: number, v: number) {
             edges.add(`${u},${v}`);
-            outDegree[u]++;
-            inDegree[v]++;
-        }
-        function canAddPair(u: number, v: number): boolean {
-            if (u === v) return false;
-            if (edges.has(`${u},${v}`) || edges.has(`${v},${u}`)) return false;
-            if (outDegree[u] >= 6 || inDegree[v] >= 6) return false;
-            if (outDegree[v] >= 6 || inDegree[u] >= 6) return false;
-            return true;
-        }
-        function canAddSingle(u: number, v: number): boolean {
-            if (u === v) return false;
-            if (edges.has(`${u},${v}`) || edges.has(`${v},${u}`)) return false;
-            if (outDegree[u] >= 6 || inDegree[v] >= 6) return false;
-            return true;
+            outDeg[u]++;
+            inDeg[v]++;
         }
 
-        const nodes = Array.from({ length: N }, (_, i) => i + 1);
-        for (let i = nodes.length - 1; i > 0; i--) {
-            const j = Math.floor(rng() * (i + 1));
-            [nodes[i], nodes[j]] = [nodes[j], nodes[i]];
+        // Phase A: Hamiltonian cycle for connectivity
+        const perm = Array.from({ length: N }, (_, i) => i + 1);
+        for (let k = perm.length - 1; k > 0; k--) {
+            const j = Math.floor(rng() * (k + 1));
+            [perm[k], perm[j]] = [perm[j], perm[k]];
         }
-
-        const K = Math.max(0, N - bestE_uni);
-        const cycleEdges: [number, number][] = [];
         for (let i = 0; i < N; i++) {
-            cycleEdges.push([nodes[i], nodes[(i + 1) % N]]);
+            addEdge(perm[i], perm[(i + 1) % N]);
         }
 
-        for (let i = cycleEdges.length - 1; i > 0; i--) {
-            const j = Math.floor(rng() * (i + 1));
-            [cycleEdges[i], cycleEdges[j]] = [cycleEdges[j], cycleEdges[i]];
+        // Phase B: Make some cycle edges bidirectional
+        let biPairsPlaced = 0;
+        const cycleIdx = Array.from({ length: N }, (_, i) => i);
+        for (let k = cycleIdx.length - 1; k > 0; k--) {
+            const j = Math.floor(rng() * (k + 1));
+            [cycleIdx[k], cycleIdx[j]] = [cycleIdx[j], cycleIdx[k]];
         }
-
-        let K_added = 0;
-        let single_added = 0;
-        for (let i = 0; i < N; i++) {
-            const [u, v] = cycleEdges[i];
-            if (i < K) {
-                addEdge(u, v);
+        for (const ci of cycleIdx) {
+            if (biPairsPlaced >= biPairsTarget) break;
+            const u = perm[ci];
+            const v = perm[(ci + 1) % N];
+            if (outDeg[v] < targetOut[v] && inDeg[u] < MAX_IN) {
                 addEdge(v, u);
-                K_added++;
-            } else {
-                addEdge(u, v);
-                single_added++;
+                biPairsPlaced++;
             }
         }
 
-        let pairs_needed = bestE_bi - K_added;
-        let singles_needed = bestE_uni - single_added;
+        // Fill phase: two passes to ensure bi pairs get first claim on budget
+        let biPairsNeeded = biPairsTarget - biPairsPlaced;
 
-        let attempts = 0;
-        let success = true;
-
-        while (pairs_needed > 0) {
-            if (attempts++ > 20000) {
-                success = false;
-                break;
+        // Pass 1: Add bidirectional pairs only (expensive: both new, or cheap: reverse exists)
+        if (biPairsNeeded > 0) {
+            let pool: number[] = [];
+            for (let i = 1; i <= N; i++) {
+                if (outDeg[i] < targetOut[i]) pool.push(i);
             }
-            const u = Math.floor(rng() * N) + 1;
-            const v = Math.floor(rng() * N) + 1;
-            if (canAddPair(u, v)) {
-                addEdge(u, v);
-                addEdge(v, u);
-                pairs_needed--;
-                attempts = 0;
+
+            let stalled = 0;
+            while (biPairsNeeded > 0 && stalled < 3) {
+                let tries = 0;
+                let placed = false;
+                const limit = pool.length * 5 + 200;
+                while (tries++ < limit) {
+                    const u = pool[Math.floor(rng() * pool.length)];
+                    if (outDeg[u] >= targetOut[u]) continue;
+                    const v = Math.floor(rng() * N) + 1;
+                    if (v === u) continue;
+                    if (edges.has(`${u},${v}`)) continue;
+                    if (inDeg[v] >= MAX_IN) continue;
+
+                    const reverseExists = edges.has(`${v},${u}`);
+                    if (reverseExists) {
+                        // Cheap bi: just add u→v
+                        addEdge(u, v);
+                        biPairsNeeded--;
+                        placed = true;
+                        break;
+                    } else if (outDeg[v] < targetOut[v] && inDeg[u] < MAX_IN) {
+                        // Expensive bi: add both directions
+                        addEdge(u, v);
+                        addEdge(v, u);
+                        biPairsNeeded--;
+                        placed = true;
+                        break;
+                    }
+                }
+                if (!placed) stalled++;
+                else stalled = 0;
+
+                // Rebuild pool periodically
+                if (biPairsNeeded > 0 && biPairsNeeded % 200 === 0) {
+                    pool = [];
+                    for (let i = 1; i <= N; i++) {
+                        if (outDeg[i] < targetOut[i]) pool.push(i);
+                    }
+                    if (pool.length < 2) break;
+                }
             }
         }
-        if (!success) continue;
+        if (biPairsNeeded > 0) continue;
 
-        attempts = 0;
-        while (singles_needed > 0) {
-            if (attempts++ > 20000) {
-                success = false;
-                break;
+        // Pass 2: Fill remaining degree targets with unidirectional edges
+        let allFilled = true;
+        for (let i = 1; i <= N; i++) {
+            let tries = 0;
+            while (outDeg[i] < targetOut[i]) {
+                if (tries++ > N * 5 + 200) {
+                    allFilled = false;
+                    break;
+                }
+                const v = Math.floor(rng() * N) + 1;
+                if (v === i) continue;
+                if (edges.has(`${i},${v}`)) continue;
+                if (edges.has(`${v},${i}`)) continue; // avoid accidental bi pair
+                if (inDeg[v] >= MAX_IN) continue;
+                addEdge(i, v);
             }
-            const u = Math.floor(rng() * N) + 1;
-            const v = Math.floor(rng() * N) + 1;
-            if (canAddSingle(u, v)) {
-                addEdge(u, v);
-                singles_needed--;
-                attempts = 0;
-            }
+            if (!allFilled) break;
         }
-        if (!success) continue;
+        if (!allFilled) continue;
 
+        // Validate
         let valid = true;
         for (let i = 1; i <= N; i++) {
-            if (outDegree[i] < 1 || outDegree[i] > 6 || inDegree[i] < 1 || inDegree[i] > 6) {
+            if (outDeg[i] !== targetOut[i] || inDeg[i] < 1 || inDeg[i] > MAX_IN) {
                 valid = false;
                 break;
             }
         }
         if (!valid) continue;
 
-        const totalWarps = edges.size;
-        let biWarps = 0;
+        let biCount = 0;
         for (const e of edges) {
-            const [u, v] = e.split(',');
-            if (edges.has(`${v},${u}`)) biWarps++;
+            const comma = e.indexOf(',');
+            const a = e.substring(0, comma);
+            const b = e.substring(comma + 1);
+            if (edges.has(`${b},${a}`)) biCount++;
         }
-        const actualPct = (biWarps / totalWarps) * 100;
-        if (Math.abs(actualPct - T) > 1.0001) {
-            continue;
-        }
+        const actualPct = (biCount / edges.size) * 100;
+        if (Math.abs(actualPct - T) > 1.0001) continue;
 
         const result: GeneratedWarp[] = [];
         for (const e of edges) {
-            const parts = e.split(',');
-            result.push({ from: parseInt(parts[0], 10), to: parseInt(parts[1], 10) });
+            const comma = e.indexOf(',');
+            result.push({
+                from: parseInt(e.substring(0, comma), 10),
+                to: parseInt(e.substring(comma + 1), 10),
+            });
         }
         result.sort((a, b) => {
             if (a.from !== b.from) return a.from - b.from;
