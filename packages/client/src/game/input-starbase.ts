@@ -20,7 +20,8 @@ import {
     letterToIndex,
 } from './display-starbase.js';
 import { showShipDetail } from './display-computer.js';
-import { colors } from './constants.js';
+import { render } from './renderer.js';
+import { NOTIFY, COMMON } from './messages/index.js';
 
 export function handleStarbaseInput(ctx: GameContext, line: string) {
     switch (line.toLowerCase()) {
@@ -125,7 +126,7 @@ export function handlePlanetSelectInput(ctx: GameContext, line: string) {
     if (planets && idx >= 0 && idx < planets.length) {
         ctx.sendMsg({ type: ClientMsgType.LandOnPlanet, planetId: planets[idx].id });
     } else {
-        ctx.term.writeln(colors.boldRed('Invalid selection.'));
+        ctx.term.writeln(render(NOTIFY.invalidSelection));
     }
 }
 
@@ -192,7 +193,7 @@ export function handleShipyardsBuyInput(ctx: GameContext, line: string) {
     if (ctx.shipConfigs && idx >= 0 && idx < ctx.shipConfigs.length) {
         const ship = ctx.shipConfigs[idx];
         if (ship.name === ctx.currentShipName) {
-            ctx.term.writeln(colors.boldRed('Already flying that ship.'));
+            ctx.term.writeln(render(COMMON.errorLine, { text: 'Already flying that ship.' }));
             return;
         }
         const price = calculateShipPrice(ship);
@@ -200,7 +201,7 @@ export function handleShipyardsBuyInput(ctx: GameContext, line: string) {
         ctx.shipyardsBuyTarget = ship.name;
         showTradeinPrompt(ctx, ship.name, price, tradeinCredit);
     } else {
-        ctx.term.writeln(colors.boldRed('Invalid selection.'));
+        ctx.term.writeln(render(NOTIFY.invalidSelection));
     }
 }
 
@@ -222,7 +223,7 @@ export function handleShipyardsTradeinInput(ctx: GameContext, line: string) {
             showShipBuyList(ctx);
             break;
         default:
-            ctx.term.write(`${colors.cyan('Trade in?')} (Y/N/Q) `);
+            ctx.term.write(render('[c]Trade in?[/c] (Y/N/Q) '));
     }
 }
 
@@ -236,7 +237,7 @@ export function handleShipyardsExamineInput(ctx: GameContext, line: string) {
     if (ctx.shipConfigs && idx >= 0 && idx < ctx.shipConfigs.length) {
         showShipDetail(ctx, ctx.shipConfigs[idx]);
     } else {
-        ctx.term.writeln(colors.boldRed('Invalid selection.'));
+        ctx.term.writeln(render(NOTIFY.invalidSelection));
     }
 }
 

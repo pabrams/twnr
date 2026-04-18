@@ -14,6 +14,8 @@
     "lint": "eslint packages/*/src",
     "format": "prettier --write \"packages/*/src/**/*.ts\"",
     "format:check": "prettier --check \"packages/*/src/**/*.ts\"",
+    "preview:messages": "tsx scripts/preview-messages.ts",
+    "preview:messages:watch": "tsx watch scripts/preview-messages.ts",
     "docs": "ts-json-schema-generator --path packages/shared/src/client-messages.ts --type ClientCommand -o docs/client-messages.schema.json && ts-json-schema-generator --path packages/shared/src/server-messages.ts --type ServerResult -o docs/server-messages.schema.json && node scripts/dump-menu-registry.mjs && node scripts/generate-docs.mjs"
   },
   "devDependencies": {
@@ -22,6 +24,7 @@
     "eslint": "^10.1.0",
     "eslint-plugin-n": "^17.24.0",
     "prettier": "^3.8.1",
-    "ts-json-schema-generator": "^2.9.0"
+    "ts-json-schema-generator": "^2.9.0",
+    "tsx": "^4.21.0"
   }
 }

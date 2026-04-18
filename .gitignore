@@ -5,3 +5,4 @@ data
 server.log
 *.tsbuildinfo
 docs
+*.preview.ansi

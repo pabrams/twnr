@@ -1,7 +1,6 @@
 import type { GameContext } from './types.js';
-import { colors } from './constants.js';
-
-const mg = colors.magenta;
+import { render } from './renderer.js';
+import { SECTOR, PORT, COMMON } from './messages/index.js';
 
 export function showAutopilotPrompt(
     ctx: GameContext,
@@ -10,16 +9,18 @@ export function showAutopilotPrompt(
 ) {
     ctx.autopilotPath = path.map((p) => p.sector);
     ctx.autopilotStep = 0;
-    ctx.term.writeln('');
-    ctx.term.writeln(
-        `${colors.boldYellow('That sector is not adjacent.')} Shortest path ${mg('(')}${colors.boldCyan(String(hops))} hops${mg(')')}:`,
-    );
-    ctx.term.writeln(
-        `  ${path.map((p) => (p.visited ? colors.boldCyan(String(p.sector)) : `${mg('(')}${colors.boldRed(String(p.sector))}${mg(')')}`)).join(` ${colors.green('>')} `)}`,
-    );
-    ctx.term.write(
-        `\r\n${colors.cyan('Engage autopilot?')} ${mg('(')}${colors.boldYellow('Y')}/${colors.boldYellow('N')}${mg(')')} `,
-    );
+    const { term } = ctx;
+    term.writeln('');
+    term.writeln(render(SECTOR.autopilotNotAdjacent, { hops }));
+    const sep = render(SECTOR.autopilotPathSeparator);
+    const list = path
+        .map((p) => {
+            const tpl = p.visited ? SECTOR.warpVisited : SECTOR.warpUnvisited;
+            return render(tpl, { sector: p.sector });
+        })
+        .join(sep);
+    term.writeln(`  ${list}`);
+    term.write(render(SECTOR.autopilotConfirm));
 }
 
 export async function showClass0Menu(ctx: GameContext) {
@@ -32,24 +33,32 @@ export async function showClass0Menu(ctx: GameContext) {
         }
     }
     const p = ctx.class0Prices!;
-    ctx.term.writeln('');
-    ctx.term.writeln(
-        `${colors.boldGreen('Docked')} at ${colors.boldCyan('Starbase Supply Depot')}`,
+    const { term } = ctx;
+    term.writeln('');
+    term.writeln(render(PORT.class0DockHeader));
+    term.writeln(
+        render(COMMON.menuRow, {
+            key: 'F',
+            text: `Buy Drones ${render(PORT.class0Drones, { price: p.dronePrice })}`,
+        }),
     );
-    ctx.term.writeln(
-        `  ${colors.cyan('F')}  Buy Drones ${colors.white(`(${p.dronePrice} credits each)`)}`,
+    term.writeln(
+        render(COMMON.menuRow, {
+            key: 'S',
+            text: `Buy Shields ${render(PORT.class0Shields, { price: p.shieldPrice })}`,
+        }),
     );
-    ctx.term.writeln(
-        `  ${colors.cyan('S')}  Buy Shields ${colors.white(`(${p.shieldPrice} credits each)`)}`,
+    term.writeln(
+        render(COMMON.menuRow, {
+            key: 'H',
+            text: `Buy Holds ${render(PORT.class0Holds, { price: p.holdPrice })}`,
+        }),
     );
-    ctx.term.writeln(
-        `  ${colors.cyan('H')}  Buy Holds ${colors.white(`(${p.holdPrice} credits each)`)}`,
-    );
-    ctx.term.writeln(`  ${colors.cyan('Q')}  Leave port`);
+    term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Leave port' }));
 }
 
 export function showClass0QtyPrompt(ctx: GameContext, buyType: string) {
-    ctx.term.write(`\r\n${colors.cyan(`How many ${buyType}?`)} `);
+    ctx.term.write(render(COMMON.howManyPrompt, { item: buyType }));
 }
 
 export function showTradeQtyPrompt(
@@ -60,14 +69,11 @@ export function showTradeQtyPrompt(
     onBoard: number,
     maxQty: number,
 ) {
-    const actionWord = action === 'buy' ? 'selling' : 'buying';
+    const infoTpl = action === 'buy' ? PORT.tradeQtyInfoBuy : PORT.tradeQtyInfoSell;
+    const promptTpl = action === 'buy' ? PORT.tradeQtyPromptBuy : PORT.tradeQtyPromptSell;
     ctx.term.writeln('');
-    ctx.term.writeln(
-        `${mg('We are')} ${action === 'buy' ? colors.boldRed(actionWord) : colors.boldGreen(actionWord)} ${mg('up to')} ${colors.boldYellow(String(portTrading))}${mg('.')} ${mg('You have')} ${colors.boldYellow(String(onBoard))} ${mg('in your holds.')}`,
-    );
-    ctx.term.write(
-        `${mg('How many holds of')} ${colors.boldCyan(commodity)} ${mg('do you want to')} ${action === 'buy' ? colors.boldRed('buy') : colors.boldGreen('sell')} ${mg('[')}${colors.boldYellow(String(maxQty))}${mg(']?')} `,
-    );
+    ctx.term.writeln(render(infoTpl, { portTrading, onBoard }));
+    ctx.term.write(render(promptTpl, { commodity, maxQty }));
 }
 
 export function showTradeConfirmPrompt(
@@ -75,24 +81,16 @@ export function showTradeConfirmPrompt(
     totalPrice: number,
     action: 'buy' | 'sell',
 ) {
-    const verb = action === 'buy' ? 'sell' : 'buy';
-    ctx.term.writeln(
-        `\r\n${mg("We'll")} ${verb} ${mg('them for')} ${colors.boldYellow(totalPrice.toLocaleString())} ${mg('credits.')}`,
-    );
-    ctx.term.write(
-        `${mg('Accept?')} ${mg('(')}${colors.boldYellow('Y')}${mg('/')}${colors.boldYellow('N')}${mg(')')} `,
-    );
+    const tpl = action === 'buy' ? PORT.tradeConfirmSell : PORT.tradeConfirmBuy;
+    ctx.term.writeln(render(tpl, { total: totalPrice.toLocaleString() }));
+    ctx.term.write(render(PORT.tradeConfirmAccept));
 }
 
 export function showNoTradeMessage(ctx: GameContext) {
     ctx.term.writeln('');
-    ctx.term.writeln(
-        colors.white("You don't have anything they want, and they don't have anything you need."),
-    );
+    ctx.term.writeln(render(PORT.noTrade));
 }
 
 export function showJettisonConfirm(ctx: GameContext) {
-    ctx.term.write(
-        `\r\n${colors.boldYellow('Jettison all cargo?')} This cannot be undone. ${mg('(')}${colors.boldYellow('Y')}/${colors.boldYellow('N')}${mg(')')} `,
-    );
+    ctx.term.write(render(SECTOR.jettisonConfirm));
 }

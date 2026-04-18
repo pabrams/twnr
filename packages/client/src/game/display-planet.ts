@@ -1,15 +1,12 @@
 import type { GameContext } from './types.js';
-import { colors } from './constants.js';
+import { render } from './renderer.js';
+import { PLANET, SECTOR, COMMON } from './messages/index.js';
 import { showPrompt } from './display.js';
 
 export function showPlanetMenu(ctx: GameContext, name: string, colonists: number) {
     ctx.term.writeln('');
-    ctx.term.writeln(
-        `${colors.boldGreen('Landing on')} ${colors.boldCyan(name)}${colors.boldYellow('...')}`,
-    );
-    ctx.term.writeln(
-        `  ${colors.boldYellow('Colonists')}: ${colors.white(colonists.toLocaleString())}`,
-    );
+    ctx.term.writeln(render(PLANET.landing, { name }));
+    ctx.term.writeln(render(PLANET.colonists, { count: colonists.toLocaleString() }));
     showPlanetPrompt(ctx);
 }
 
@@ -19,64 +16,55 @@ export function showPlanetMenuOptions(ctx: GameContext) {
 
 export function showPlanetHelp(ctx: GameContext) {
     ctx.term.writeln('');
-    ctx.term.writeln(`  ${colors.cyan('T')}  Take colonists aboard`);
-    ctx.term.writeln(`  ${colors.cyan('L')}  Leave colonists on planet`);
-    ctx.term.writeln(`  ${colors.cyan('D')}  Planet Info`);
-    ctx.term.writeln(`  ${colors.cyan('Z')}  Destroy Planet`);
-    ctx.term.writeln(`  ${colors.cyan('Q')}  Leave Planet`);
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'T', text: 'Take colonists aboard' }));
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'L', text: 'Leave colonists on planet' }));
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'D', text: 'Planet Info' }));
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'Z', text: 'Destroy Planet' }));
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Leave Planet' }));
     showPlanetPrompt(ctx);
 }
 
 function showPlanetPrompt(ctx: GameContext) {
-    const mg = colors.magenta;
-    ctx.term.write(
-        `\r\n${mg('Planet command')} ${mg('(')}${colors.boldYellow('?')}=${colors.boldYellow('Help')}${mg(')')} ${colors.boldYellow('?')} `,
-    );
+    ctx.term.write(render(PLANET.prompt));
 }
 
 export function showEarthMenu(ctx: GameContext, colonistsFuel: number) {
     ctx.term.writeln('');
-    ctx.term.writeln(
-        `${colors.boldGreen('Earth')} — ${colors.boldYellow('Colonists')}: ${colors.white(colonistsFuel.toLocaleString())}`,
-    );
+    ctx.term.writeln(render(PLANET.earthHeader, { count: colonistsFuel.toLocaleString() }));
     ctx.term.writeln('');
-    ctx.term.writeln(`  ${colors.cyan('T')}  Take colonists aboard`);
-    ctx.term.writeln(`  ${colors.cyan('L')}  Leave colonists on planet`);
-    ctx.term.writeln(`  ${colors.cyan('Q')}  Leave Earth`);
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'T', text: 'Take colonists aboard' }));
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'L', text: 'Leave colonists on planet' }));
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Leave Earth' }));
 }
 
 export function showPlanetTakePrompt(ctx: GameContext) {
-    ctx.term.write(`\r\n${colors.cyan('How many colonists to take?')} `);
+    ctx.term.write(render(PLANET.takePrompt));
 }
 
 export function showPlanetLeavePrompt(ctx: GameContext) {
-    ctx.term.write(`\r\n${colors.cyan('How many colonists to leave?')} `);
+    ctx.term.write(render(PLANET.leavePrompt));
 }
 
 export function showPlanetTakeCommodityMenu(ctx: GameContext) {
     ctx.term.writeln('');
-    ctx.term.writeln(colors.boldCyan('Which colonists to take?'));
-    ctx.term.writeln(`  ${colors.cyan('F')}  Fuel colonists`);
-    ctx.term.writeln(`  ${colors.cyan('O')}  Organics colonists`);
-    ctx.term.writeln(`  ${colors.cyan('E')}  Equipment colonists`);
-    ctx.term.writeln(`  ${colors.cyan('Q')}  Back`);
+    ctx.term.writeln(render(PLANET.takeCommodityHeader));
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'F', text: 'Fuel colonists' }));
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'O', text: 'Organics colonists' }));
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'E', text: 'Equipment colonists' }));
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
 }
 
 export function showPlanetLeaveCommodityMenu(ctx: GameContext) {
     ctx.term.writeln('');
-    ctx.term.writeln(colors.boldCyan('Assign colonists to which commodity?'));
-    ctx.term.writeln(`  ${colors.cyan('F')}  Fuel`);
-    ctx.term.writeln(`  ${colors.cyan('O')}  Organics`);
-    ctx.term.writeln(`  ${colors.cyan('E')}  Equipment`);
-    ctx.term.writeln(`  ${colors.cyan('Q')}  Back`);
+    ctx.term.writeln(render(PLANET.leaveCommodityHeader));
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'F', text: 'Fuel' }));
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'O', text: 'Organics' }));
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'E', text: 'Equipment' }));
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
 }
 
 export function showNoPlanet(ctx: GameContext) {
     ctx.term.writeln('');
-    ctx.term.writeln(
-        colors.white(
-            'There is no planet in this sector. You could create one with a Terraform Device.',
-        ),
-    );
+    ctx.term.writeln(render(SECTOR.noPlanet));
     showPrompt(ctx);
 }

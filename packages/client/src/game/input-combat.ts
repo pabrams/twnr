@@ -2,7 +2,8 @@ import { ClientMsgType, Menu } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { showPrompt } from './display.js';
 import { showAttackDronesPrompt, showDroneAttackQtyPrompt } from './display-combat.js';
-import { colors } from './constants.js';
+import { render } from './renderer.js';
+import { NOTIFY, COMMON } from './messages/index.js';
 
 export function handleAttackInput(ctx: GameContext, line: string) {
     if (line.toLowerCase() === 'q') {
@@ -16,7 +17,7 @@ export function handleAttackInput(ctx: GameContext, line: string) {
         ctx.changeMenu(Menu.AttackDrones);
         showAttackDronesPrompt(ctx);
     } else {
-        ctx.term.writeln(colors.boldRed('Invalid selection.'));
+        ctx.term.writeln(render(NOTIFY.invalidSelection));
     }
 }
 
@@ -62,8 +63,8 @@ export function handleDroneEncounterInput(ctx: GameContext, line: string) {
             ctx.sendMsg({ type: ClientMsgType.RetreatFromDrones });
             break;
         default:
-            ctx.term.writeln(`  ${colors.cyan('A')}  Attack`);
-            ctx.term.writeln(`  ${colors.cyan('R')}  Retreat`);
+            ctx.term.writeln(render(COMMON.menuRow, { key: 'A', text: 'Attack' }));
+            ctx.term.writeln(render(COMMON.menuRow, { key: 'R', text: 'Retreat' }));
     }
 }
 
