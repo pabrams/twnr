@@ -51,13 +51,6 @@ export const PORT = makeDomain('PORT', {
     tradeQtyPromptSell:
         '[mg]How many holds of[/mg] [bc]{commodity}[/bc] [mg]do you want to sell [[/mg][by]{maxQty}[/by][mg]]?[/mg] ',
 
-    tradeConfirmSell:
-        '\r\n[mg]We\'ll[/mg] sell [mg]them for[/mg] [by]{total}[/by] [mg]credits.[/mg]',
-    tradeConfirmBuy:
-        '\r\n[mg]We\'ll[/mg] buy [mg]them for[/mg] [by]{total}[/by] [mg]credits.[/mg]',
-    tradeConfirmAccept:
-        '[mg]Accept?[/mg] [mg]([/mg][by]Y[/by][mg]/[/mg][by]N[/by][mg])[/mg] ',
-
     class0DockHeader: '[bg]Docked[/bg] at [bc]Starbase Supply Depot[/bc]',
     class0Drones: '[w]({price} credits each)[/w]',
     class0Shields: '[w]({price} credits each)[/w]',
