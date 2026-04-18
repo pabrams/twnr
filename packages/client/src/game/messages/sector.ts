@@ -8,7 +8,7 @@ import { makeDomain } from './_domain.js';
 export const SECTOR = makeDomain('SECTOR', {
     header: '[bg]Sector[/bg]  [by]:[/by] [bc]{sector}[/bc]',
 
-    port: '[mg]Port[/mg]    [by]:[/by] [bc]{name}[/bc][by],[/by] [mg]Class[/mg] [bc]{class}[/bc] [mg]([/mg][bw]{label}[/bw][mg])[/mg]',
+    port: '[mg]Port[/mg]    [by]:[/by] [bc]{name}[/bc][by],[/by] [mg]Class[/mg] [bc]{class}[/bc] [mg]([/mg]{label}[mg])[/mg]',
 
     dronesYours: '[mg]Drones[/mg]  [by]:[/by] [bg]{qty}[/bg] [mg]([bw]yours[/bw])[/mg]',
     dronesEnemy:
