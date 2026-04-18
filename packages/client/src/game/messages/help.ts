@@ -2,11 +2,13 @@
  * Main command-help screen.
  */
 
-export const HELP = {
+import { makeDomain } from './_domain.js';
+
+export const HELP = makeDomain('HELP', {
     header: '[c]Help:[/c]',
     lineText: '[c]{label}:[/c] {text}',
     lineKey: "[c]{label}:[/c] [by]'{key}'[/by] {text}",
-} as const;
+});
 
 export const HELP_LINES: Array<
     | { label: string; text: string }

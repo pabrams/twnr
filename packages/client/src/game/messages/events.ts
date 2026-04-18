@@ -2,7 +2,9 @@
  * Gameplay events: combat, drones, terraforming, hyperspace, alerts.
  */
 
-export const EVENT = {
+import { makeDomain } from './_domain.js';
+
+export const EVENT = makeDomain('EVENT', {
     autopilotDisengaged: '\r\n[br]Autopilot disengaged — hostile drones![/br]',
     autopilotCancelled: '\r\n[br]Autopilot cancelled.[/br]',
     autopilotResuming: '[bc]Autopilot resuming...[/bc]',
@@ -45,4 +47,4 @@ export const EVENT = {
 
     leftPlanet: '\r\n[w]You return to your ship and leave the planet.[/w]',
     noPlanetsToLand: '\r\n[w]No planets in this sector.[/w]',
-} as const;
+});

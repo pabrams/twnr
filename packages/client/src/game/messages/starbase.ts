@@ -2,7 +2,9 @@
  * Starbase: root prompt, Hardware Store, Shipyards, Class-0 equipment shop.
  */
 
-export const STARBASE = {
+import { makeDomain } from './_domain.js';
+
+export const STARBASE = makeDomain('STARBASE', {
     rootPrompt:
         '\r\n[mg]<[/mg][bc]Starbase[/bc][mg]>[/mg] [mg]Where to?[/mg] [mg]([/mg][by]?[/by]=[by]Help[/by][mg])[/mg] ',
 
@@ -35,4 +37,4 @@ export const STARBASE = {
 
     class0EquipmentPrompt:
         '\r\n[mg]<[/mg][bc]Shipyards Equipment[/bc][mg]>[/mg] ',
-} as const;
+});

@@ -3,7 +3,9 @@
  * trader list.
  */
 
-export const COMPUTER = {
+import { makeDomain } from './_domain.js';
+
+export const COMPUTER = makeDomain('COMPUTER', {
     prompt:
         '\r\n[mg]Computer command[/mg] [mg][[/mg][bc]{sector}[/bc][mg]][/mg] [mg]([/mg][by]?[/by][br]=[/br][by]Help[/by][mg])[/mg] [by]:[/by] ',
 
@@ -43,4 +45,4 @@ export const COMPUTER = {
 
     shipDataRequesting: '[w]Requesting ship data...[/w]',
     shipConfigNotFound: '[br]Ship config not found for: {name}[/br]',
-} as const;
+});

@@ -2,7 +2,9 @@
  * Port menu, commerce report, trade prompts, Class-0 (Supply Depot) shop.
  */
 
-export const PORT = {
+import { makeDomain } from './_domain.js';
+
+export const PORT = makeDomain('PORT', {
     menuHeader:
         '[bc]{name}[/bc][by],[/by] [mg]Class[/mg] [bc]{class}[/bc] [mg]([/mg][bw]{label}[/bw][mg])[/mg]',
     menuNoPort: '\r\n[br]No port in this sector.[/br]',
@@ -42,4 +44,4 @@ export const PORT = {
     class0Drones: '[w]({price} credits each)[/w]',
     class0Shields: '[w]({price} credits each)[/w]',
     class0Holds: '[w]({price} credits each)[/w]',
-} as const;
+});

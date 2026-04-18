@@ -2,7 +2,9 @@
  * Purchase, trade, and ship-exchange results.
  */
 
-export const TRANSACTION = {
+import { makeDomain } from './_domain.js';
+
+export const TRANSACTION = makeDomain('TRANSACTION', {
     tradeComplete:
         '\r\n[bg]Transaction complete.[/bg] [mg]Credits:[/mg] [by]{credits}[/by]',
     tradeSkipped: '\r\n[br]{reason}[/br]',
@@ -34,4 +36,4 @@ export const TRANSACTION = {
     undocked: '\r\n[w]You undock from the port.[/w]',
 
     jettisoned: '\r\n[by]Jettisoned:[/by] {items}',
-} as const;
+});

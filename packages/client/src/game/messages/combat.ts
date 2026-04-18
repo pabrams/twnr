@@ -2,7 +2,9 @@
  * Combat: attack-player menu, drone encounter, attack quantity prompts.
  */
 
-export const COMBAT = {
+import { makeDomain } from './_domain.js';
+
+export const COMBAT = makeDomain('COMBAT', {
     attackNoTargets: '\r\n[br]No other players in this sector.[/br]',
     attackHeader: '[c]Attack — Select target:[/c]',
     attackTarget: '  [by]{n}[/by]  [w]{name}[/w]',
@@ -16,4 +18,4 @@ export const COMBAT = {
     droneNoDrones: '[br]You have no drones! You must retreat.[/br]',
 
     droneAttackQtyPrompt: '\r\n[c]How many drones to send?[/c] ',
-} as const;
+});
