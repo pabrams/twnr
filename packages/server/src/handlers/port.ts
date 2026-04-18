@@ -284,7 +284,7 @@ async function advanceTradeFlow(playerId: number): Promise<void> {
     // All commodities exhausted — notify and undock
     sendEnvelope(playerId, {
         type: ServerMsgType.TradeSkipped,
-        reason: "You don't have anything they want, and they don't have anything you need.",
+        reason: 'noTrade',
     });
     await undockPlayer(playerId);
 }
@@ -426,7 +426,7 @@ export async function handleTradeConfirmResponse(
                 await client.query('ROLLBACK');
                 sendEnvelope(playerId, {
                     type: ServerMsgType.TradeSkipped,
-                    reason: 'Insufficient turns',
+                    reason: 'insufficientTurns',
                 });
                 player.tradeState.pendingQty = undefined;
                 player.tradeState.stepIndex++;
@@ -439,7 +439,7 @@ export async function handleTradeConfirmResponse(
                 await client.query('ROLLBACK');
                 sendEnvelope(playerId, {
                     type: ServerMsgType.TradeSkipped,
-                    reason: 'Insufficient credits',
+                    reason: 'insufficientCredits',
                 });
                 player.tradeState.pendingQty = undefined;
                 player.tradeState.stepIndex++;
@@ -450,7 +450,7 @@ export async function handleTradeConfirmResponse(
                 await client.query('ROLLBACK');
                 sendEnvelope(playerId, {
                     type: ServerMsgType.TradeSkipped,
-                    reason: 'Insufficient port inventory',
+                    reason: 'insufficientPortInventory',
                 });
                 player.tradeState.pendingQty = undefined;
                 player.tradeState.stepIndex++;
@@ -462,7 +462,7 @@ export async function handleTradeConfirmResponse(
                 await client.query('ROLLBACK');
                 sendEnvelope(playerId, {
                     type: ServerMsgType.TradeSkipped,
-                    reason: 'Insufficient cargo holds',
+                    reason: 'insufficientCargoHolds',
                 });
                 player.tradeState.pendingQty = undefined;
                 player.tradeState.stepIndex++;
@@ -505,7 +505,7 @@ export async function handleTradeConfirmResponse(
                 await client.query('ROLLBACK');
                 sendEnvelope(playerId, {
                     type: ServerMsgType.TradeSkipped,
-                    reason: 'Insufficient cargo',
+                    reason: 'insufficientCargo',
                 });
                 player.tradeState.pendingQty = undefined;
                 player.tradeState.stepIndex++;
@@ -516,7 +516,7 @@ export async function handleTradeConfirmResponse(
                 await client.query('ROLLBACK');
                 sendEnvelope(playerId, {
                     type: ServerMsgType.TradeSkipped,
-                    reason: 'Port cannot buy that many',
+                    reason: 'portCannotBuy',
                 });
                 player.tradeState.pendingQty = undefined;
                 player.tradeState.stepIndex++;

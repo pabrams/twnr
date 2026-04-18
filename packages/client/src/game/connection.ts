@@ -3,7 +3,7 @@ import type { ServerResult, MenuName } from '@twnr/shared';
 import type { GameContext } from './types.js';
 
 import { render } from './renderer.js';
-import { NOTIFY, TRANSACTION, EVENT, PANEL } from './messages/index.js';
+import { NOTIFY, TRANSACTION, EVENT, PANEL, PORT } from './messages/index.js';
 import { showSectorDisplay, showCommerceReport, showPrompt } from './display.js';
 import { showClass0Menu, showAutopilotPrompt, showTradeQtyPrompt } from './display-port.js';
 import {
@@ -166,25 +166,30 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
             case ServerMsgType.TradeComplete:
                 ctx.term.writeln(render(TRANSACTION.tradeComplete, { credits: fmt(msg.credits) }));
                 break;
-            case ServerMsgType.TradeSkipped:
-                ctx.term.writeln(render(TRANSACTION.tradeSkipped, { reason: msg.reason }));
+            case ServerMsgType.TradeSkipped: {
+                const tpl =
+                    msg.reason === 'noTrade'
+                        ? PORT.noTrade
+                        : msg.reason === 'insufficientTurns'
+                          ? PORT.skipInsufficientTurns
+                          : msg.reason === 'insufficientCredits'
+                            ? PORT.skipInsufficientCredits
+                            : msg.reason === 'insufficientPortInventory'
+                              ? PORT.skipInsufficientPortInventory
+                              : msg.reason === 'insufficientCargoHolds'
+                                ? PORT.skipInsufficientCargoHolds
+                                : msg.reason === 'insufficientCargo'
+                                  ? PORT.skipInsufficientCargo
+                                  : PORT.skipPortCannotBuy;
+                ctx.term.writeln('');
+                ctx.term.writeln(render(tpl));
                 break;
+            }
             case ServerMsgType.UndockResult:
                 if (msg.outcome === 'success') {
                     ctx.dockedPortInfo = null;
-                    ctx.term.writeln(render(TRANSACTION.undocked));
                     ctx.sectorPlayers = msg.players;
-                    showSectorDisplay(
-                        ctx,
-                        msg.sector,
-                        msg.warps,
-                        msg.players,
-                        msg.port,
-                        msg.sectorDrones,
-                        msg.planets,
-                        msg.ships,
-                        msg.collisions,
-                    );
+                    showPrompt(ctx);
                 } else {
                     ctx.term.writeln(render(NOTIFY.error, { message: msg.message }));
                 }

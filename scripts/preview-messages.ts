@@ -124,7 +124,6 @@ const SAMPLES: Record<string, Record<string, unknown>> = {
     'NOTIFY.unknownCommand': { cmd: 'foo' },
 
     'TRANSACTION.tradeComplete': { credits: '1,234' },
-    'TRANSACTION.tradeSkipped': { reason: 'You cannot afford this.' },
     'TRANSACTION.tradeConfirmSell': { total: '1,234' },
     'TRANSACTION.tradeConfirmBuy': { total: '1,234' },
     'TRANSACTION.purchaseStatsDrones': { credits: '10,000', drones: 100 },
