@@ -8,9 +8,9 @@ export const TRANSACTION = makeDomain('TRANSACTION', {
     tradeComplete:
         '\r\n[bg]Transaction complete.[/bg] [mg]Credits:[/mg] [by]{credits}[/by]',
     tradeConfirmSell:
-        '\r\n[mg]We\'ll[/mg] sell [mg]them for[/mg] [by]{total}[/by] [mg]credits.[/mg]',
+        '\r\n[mg]We\'ll sell them for[/mg] [by]{total}[/by] [mg]credits.[/mg]',
     tradeConfirmBuy:
-        '\r\n[mg]We\'ll[/mg] buy [mg]them for[/mg] [by]{total}[/by] [mg]credits.[/mg]',
+        '\r\n[mg]We\'ll buy them for[/mg] [by]{total}[/by] [mg]credits.[/mg]',
     tradeConfirmAccept:
         '[mg]Accept?[/mg] [mg]([/mg][by]Y[/by][mg]/[/mg][by]N[/by][mg])[/mg] ',
 

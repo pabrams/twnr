@@ -76,16 +76,6 @@ export function showTradeQtyPrompt(
     ctx.term.write(render(promptTpl, { commodity, maxQty }));
 }
 
-export function showTradeConfirmPrompt(
-    ctx: GameContext,
-    totalPrice: number,
-    action: 'buy' | 'sell',
-) {
-    const tpl = action === 'buy' ? PORT.tradeConfirmSell : PORT.tradeConfirmBuy;
-    ctx.term.writeln(render(tpl, { total: totalPrice.toLocaleString() }));
-    ctx.term.write(render(PORT.tradeConfirmAccept));
-}
-
 export function showNoTradeMessage(ctx: GameContext) {
     ctx.term.writeln('');
     ctx.term.writeln(render(PORT.noTrade));

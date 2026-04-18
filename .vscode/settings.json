@@ -80,6 +80,15 @@
         { "color": "#339933" },
         { "textDecoration": "none; display: none;" }
       ]
+    },
+    "(\\[[A-Za-z]*:[A-Za-z]+\\])([^\\[]*?)(\\[/[A-Za-z]*:[A-Za-z]+\\])": {
+      "regexFlags": "g",
+      "filterFileRegex": ".*\\.(ts|tsx|js|jsx)$",
+      "decorations": [
+        { "textDecoration": "none; display: none;" },
+        { "color": "#FFFFFF", "backgroundColor": "#1E3A5F", "fontWeight": "bold" },
+        { "textDecoration": "none; display: none;" }
+      ]
     }
   }
 }

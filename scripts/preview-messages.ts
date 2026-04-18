@@ -66,8 +66,6 @@ const SAMPLES: Record<string, Record<string, unknown>> = {
     'PORT.tradeQtyInfoSell': { portTrading: 100, onBoard: 5 },
     'PORT.tradeQtyPromptBuy': { commodity: 'Fuel', maxQty: 25 },
     'PORT.tradeQtyPromptSell': { commodity: 'Fuel', maxQty: 25 },
-    'PORT.tradeConfirmSell': { total: '1,234' },
-    'PORT.tradeConfirmBuy': { total: '1,234' },
     'PORT.class0Drones': { price: 20 },
     'PORT.class0Shields': { price: 10 },
     'PORT.class0Holds': { price: 50 },
