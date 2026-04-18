@@ -1,5 +1,11 @@
 import { ServerMsgType } from '@twnr/shared';
-import { players, sendEnvelope, buildSectorDisplayData, setPlayerMenu } from '../game-state.js';
+import {
+    players,
+    sendEnvelope,
+    sendError,
+    buildSectorDisplayData,
+    setPlayerMenu,
+} from '../game-state.js';
 import { withTransaction, AbortTransaction } from '../db/index.js';
 import {
     getEarthId,
@@ -32,16 +38,14 @@ import {
 } from '../db/queries/ship.js';
 import { planetConfigs } from '../planet-config.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
+import { cargoUsed } from './cargo-utils.js';
 
 export async function handleLand(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
     if (player.pendingEncounter) {
-        sendEnvelope(playerId, {
-            type: ServerMsgType.Error,
-            message: 'Resolve drone encounter first',
-        });
+        sendError(playerId, 'Resolve drone encounter first');
         return;
     }
 
@@ -69,19 +73,13 @@ export async function handleLandOnPlanet(playerId: number, planetId: number): Pr
     if (!player) return;
 
     if (player.pendingEncounter) {
-        sendEnvelope(playerId, {
-            type: ServerMsgType.Error,
-            message: 'Resolve drone encounter first',
-        });
+        sendError(playerId, 'Resolve drone encounter first');
         return;
     }
 
     const planet = await getPlanetInSector(planetId, player.sector, player.universeId);
     if (!planet) {
-        sendEnvelope(playerId, {
-            type: ServerMsgType.Error,
-            message: 'Planet not found in this sector',
-        });
+        sendError(playerId, 'Planet not found in this sector');
         return;
     }
 
@@ -97,7 +95,7 @@ export async function handleLandOnPlanet(playerId: number, planetId: number): Pr
 
     const data = await getPlanetDisplayData(playerId);
     if (!data) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Planet no longer exists' });
+        sendError(playerId, 'Planet no longer exists');
         return;
     }
     sendEnvelope(playerId, { type: ServerMsgType.LandOnPlanetResult, ...data });
@@ -109,13 +107,13 @@ export async function handlePlanetDisplay(playerId: number): Promise<void> {
 
     const onPlanetId = await getOnPlanetId(playerId);
     if (!onPlanetId) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not on a planet' });
+        sendError(playerId, 'Not on a planet');
         return;
     }
 
     const data = await getPlanetDisplayData(playerId);
     if (!data) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Planet no longer exists' });
+        sendError(playerId, 'Planet no longer exists');
         return;
     }
     sendEnvelope(playerId, { type: ServerMsgType.PlanetDisplayResult, ...data });
@@ -127,7 +125,7 @@ export async function handleLeavePlanet(playerId: number): Promise<void> {
 
     const turnResult = await checkAndDeductTurns(playerId, player.universeId, 1);
     if (!turnResult.allowed) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient turns' });
+        sendError(playerId, 'Insufficient turns');
         return;
     }
 
@@ -149,22 +147,19 @@ export async function handleDestroyPlanet(playerId: number): Promise<void> {
 
     const onPlanetId = await getOnPlanetId(playerId);
     if (!onPlanetId) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not on a planet' });
+        sendError(playerId, 'Not on a planet');
         return;
     }
 
     const busters = await getShipHardwareQuantityByName(playerId, 'planet_buster');
     if (busters < 1) {
-        sendEnvelope(playerId, {
-            type: ServerMsgType.Error,
-            message: 'You do not have a planet buster.',
-        });
+        sendError(playerId, 'You do not have a planet buster.');
         return;
     }
 
     const planetName = await getPlanetName(onPlanetId);
     if (!planetName) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Planet not found.' });
+        sendError(playerId, 'Planet not found.');
         return;
     }
 
@@ -176,7 +171,7 @@ export async function handleDestroyPlanet(playerId: number): Promise<void> {
         });
     } catch (err) {
         console.error('Destroy planet error', err);
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Failed to destroy planet.' });
+        sendError(playerId, 'Failed to destroy planet.');
         return;
     }
 
@@ -200,10 +195,7 @@ export async function handleUseTerraformDevice(playerId: number): Promise<void> 
     const universeId = player.universeId;
 
     if (player.pendingEncounter) {
-        sendEnvelope(playerId, {
-            type: ServerMsgType.Error,
-            message: 'Resolve drone encounter first',
-        });
+        sendError(playerId, 'Resolve drone encounter first');
         return;
     }
 
@@ -232,7 +224,7 @@ export async function handleUseTerraformDevice(playerId: number): Promise<void> 
     }
 
     if (!sectorDbId) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Sector not found' });
+        sendError(playerId, 'Sector not found');
         return;
     }
 
@@ -240,10 +232,7 @@ export async function handleUseTerraformDevice(playerId: number): Promise<void> 
         const result = await withTransaction(async (client) => {
             const universeInfo = await getTerraformConfigForUniverse(universeId, client);
             if (!universeInfo) {
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.Error,
-                    message: 'Universe not found',
-                });
+                sendError(playerId, 'Universe not found');
                 throw new AbortTransaction();
             }
 
@@ -253,8 +242,7 @@ export async function handleUseTerraformDevice(playerId: number): Promise<void> 
 
             const types = Object.keys(planetConfigs);
             const randomType = types[Math.floor(Math.random() * types.length)] || 'Terran';
-            const randomName =
-                'Planet-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+            const randomName = 'Planet-' + Math.random().toString(36).substring(2, 8).toUpperCase();
 
             const newPlanetId = await insertPlanet(
                 sectorDbId,
@@ -299,10 +287,7 @@ export async function handleUseTerraformDevice(playerId: number): Promise<void> 
         });
     } catch (err) {
         console.error('Use terraform device error', err);
-        sendEnvelope(playerId, {
-            type: ServerMsgType.Error,
-            message: 'Failed to use terraform device.',
-        });
+        sendError(playerId, 'Failed to use terraform device.');
     }
 }
 
@@ -315,14 +300,14 @@ export async function handleTakeColonists(
     if (!player) return;
 
     if (commodity !== 'fuel' && commodity !== 'organics' && commodity !== 'equipment') {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid commodity' });
+        sendError(playerId, 'Invalid commodity');
         return;
     }
     const col = commodity as ColonistCommodity;
 
     const onPlanetId = await getOnPlanetId(playerId);
     if (!onPlanetId) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not on a planet' });
+        sendError(playerId, 'Not on a planet');
         return;
     }
 
@@ -330,29 +315,26 @@ export async function handleTakeColonists(
         const toTake = await withTransaction(async (client) => {
             const available = await getPlanetColonistsForUpdate(onPlanetId, col, client);
             if (available === undefined) {
-                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Planet not found' });
+                sendError(playerId, 'Planet not found');
                 throw new AbortTransaction();
             }
 
             const actual = Math.min(quantity, available);
             if (actual <= 0) {
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.Error,
-                    message: 'No colonists available to take',
-                });
+                sendError(playerId, 'No colonists available to take');
                 throw new AbortTransaction();
             }
 
             const ship = await getShipHoldsAndCargoForUpdate(playerId, client);
             if (!ship) {
-                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'No ship' });
+                sendError(playerId, 'No ship');
                 throw new AbortTransaction();
             }
-            const used = ship.fuel + ship.organics + ship.equipment + ship.colonists;
+            const used = cargoUsed(ship);
             const free = ship.holds - used;
             const take = Math.min(actual, free);
             if (take <= 0) {
-                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'No free holds' });
+                sendError(playerId, 'No free holds');
                 throw new AbortTransaction();
             }
 
@@ -375,7 +357,7 @@ export async function handleTakeColonists(
         }
     } catch (err) {
         console.error('Take colonists error', err);
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Failed to take colonists' });
+        sendError(playerId, 'Failed to take colonists');
     }
 
     // Auto-leave planet after taking colonists (success or no-holds)
@@ -396,14 +378,14 @@ export async function handleLeaveColonists(
     if (!player) return;
 
     if (commodity !== 'fuel' && commodity !== 'organics' && commodity !== 'equipment') {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid commodity' });
+        sendError(playerId, 'Invalid commodity');
         return;
     }
     const col = commodity as ColonistCommodity;
 
     const onPlanetId = await getOnPlanetId(playerId);
     if (!onPlanetId) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not on a planet' });
+        sendError(playerId, 'Not on a planet');
         return;
     }
 
@@ -411,10 +393,7 @@ export async function handleLeaveColonists(
         const actual = await withTransaction(async (client) => {
             const shipColonists = await getShipColonistsForUpdate(playerId, client);
             if (shipColonists === undefined || shipColonists <= 0) {
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.Error,
-                    message: 'No colonists on ship',
-                });
+                sendError(playerId, 'No colonists on ship');
                 throw new AbortTransaction();
             }
 
@@ -439,10 +418,7 @@ export async function handleLeaveColonists(
         });
     } catch (err) {
         console.error('Leave colonists error', err);
-        sendEnvelope(playerId, {
-            type: ServerMsgType.Error,
-            message: 'Failed to leave colonists',
-        });
+        sendError(playerId, 'Failed to leave colonists');
     }
 }
 

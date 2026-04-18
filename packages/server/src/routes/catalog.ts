@@ -24,7 +24,6 @@ function slugify(name: string): string {
 export function createCatalogRoutes(router: Router, middleware: Middleware): void {
     const { authenticateAdmin } = middleware;
 
-
     router.get('/api/class0-prices', (_req, res) => {
         res.json(class0Prices);
     });
@@ -80,8 +79,6 @@ export function createCatalogRoutes(router: Router, middleware: Middleware): voi
         }),
     );
 
-
-
     router.get('/api/admin/ships/:name', authenticateAdmin, (req, res) => {
         const ship = shipConfigs[req.params.name as string];
         if (!ship) return res.status(404).json({ error: 'Ship not found' });
@@ -135,7 +132,6 @@ export function createCatalogRoutes(router: Router, middleware: Middleware): voi
             res.status(500).json({ error: 'Failed to delete config' });
         }
     });
-
 
     router.get('/api/admin/planets/:type', authenticateAdmin, (req, res) => {
         const planet = planetConfigs[req.params.type as string];

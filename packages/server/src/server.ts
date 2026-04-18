@@ -9,7 +9,7 @@ import * as auth from './auth/index.js';
 import { ServerMsgType } from '@twnr/shared';
 import type { AuthTokenPayload, ClientCommand, ServerResult } from '@twnr/shared';
 import { shipConfigs } from './ship-config.js';
-import { players, sendEnvelope, broadcastTo } from './game-state.js';
+import { players, sendEnvelope, sendError, broadcastTo } from './game-state.js';
 import { handleMessage } from './handlers/message-router.js';
 import { getUserTokenVersion, markUserConnected } from './db/queries/user.js';
 import {
@@ -171,7 +171,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             try {
                 data = JSON.parse(message.toString()) as ClientCommand;
             } catch {
-                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid JSON' });
+                sendError(playerId, 'Invalid JSON');
                 return;
             }
 
@@ -179,10 +179,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
                 await handleMessage(playerId, data);
             } catch (err) {
                 console.error('Message handler error:', err);
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.Error,
-                    message: 'Internal server error',
-                });
+                sendError(playerId, 'Internal server error');
             }
 
             // Log command (fire-and-forget)

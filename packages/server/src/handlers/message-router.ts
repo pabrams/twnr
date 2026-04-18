@@ -1,5 +1,5 @@
 import { ClientMsgType, ServerMsgType, type ClientCommand } from '@twnr/shared';
-import { players, sendEnvelope, getVisitedSectors } from '../game-state.js';
+import { players, sendEnvelope, sendError, getVisitedSectors } from '../game-state.js';
 import { countSectorsInUniverse } from '../db/queries/sector.js';
 import { handleChangeMenu } from './menu.js';
 import { handleMove, handleSectorDisplay, handleWarpsOut, handleShortestPath } from './movement.js';
@@ -119,7 +119,7 @@ export async function handleMessage(playerId: number, data: ClientCommand): Prom
         case ClientMsgType.VisitedSectors:
             return handleVisitedSectors(playerId);
         default:
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Unknown message type' });
+            sendError(playerId, 'Unknown message type');
     }
 }
 

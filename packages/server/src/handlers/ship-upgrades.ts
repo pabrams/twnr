@@ -1,5 +1,11 @@
 import { ServerMsgType } from '@twnr/shared';
-import { sendEnvelope, getPlayerUniverseId, setPlayerMenu, players } from '../game-state.js';
+import {
+    sendEnvelope,
+    sendError,
+    getPlayerUniverseId,
+    setPlayerMenu,
+    players,
+} from '../game-state.js';
 import { withTransaction, AbortTransaction } from '../db/index.js';
 import { getCurrentSector, deductCredits } from '../db/queries/player.js';
 import {
@@ -28,7 +34,7 @@ async function isAtClass0OrStarbase(
 export async function handleBuyDrones(playerId: number, quantity: number): Promise<void> {
     const qty = Number(quantity);
     if (!Number.isInteger(qty) || qty <= 0) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid quantity' });
+        sendError(playerId, 'Invalid quantity');
         return;
     }
 
@@ -38,30 +44,24 @@ export async function handleBuyDrones(playerId: number, quantity: number): Promi
     try {
         const result = await withTransaction(async (client) => {
             if (!(await isAtClass0OrStarbase(playerId, universeId, client))) {
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.Error,
-                    message: 'Not at a class 0 port or starbase',
-                });
+                sendError(playerId, 'Not at a class 0 port or starbase');
                 throw new AbortTransaction();
             }
 
             const data = await getShipUpgradeInfoForUpdate(playerId, client);
             if (!data) {
-                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
+                sendError(playerId, 'Player not found');
                 throw new AbortTransaction();
             }
 
             if (data.drones + qty > data.max_drones) {
-                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Exceeds maximum' });
+                sendError(playerId, 'Exceeds maximum');
                 throw new AbortTransaction();
             }
 
             const cost = qty * class0Prices.dronePrice;
             if (data.credits < cost) {
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.Error,
-                    message: 'Insufficient credits',
-                });
+                sendError(playerId, 'Insufficient credits');
                 throw new AbortTransaction();
             }
 
@@ -79,14 +79,14 @@ export async function handleBuyDrones(playerId: number, quantity: number): Promi
             drones: result.drones,
         });
     } catch {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Internal server error' });
+        sendError(playerId, 'Internal server error');
     }
 }
 
 export async function handleBuyShields(playerId: number, quantity: number): Promise<void> {
     const qty = Number(quantity);
     if (!Number.isInteger(qty) || qty <= 0) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid quantity' });
+        sendError(playerId, 'Invalid quantity');
         return;
     }
 
@@ -96,30 +96,24 @@ export async function handleBuyShields(playerId: number, quantity: number): Prom
     try {
         const result = await withTransaction(async (client) => {
             if (!(await isAtClass0OrStarbase(playerId, universeId, client))) {
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.Error,
-                    message: 'Not at a class 0 port or starbase',
-                });
+                sendError(playerId, 'Not at a class 0 port or starbase');
                 throw new AbortTransaction();
             }
 
             const data = await getShipUpgradeInfoForUpdate(playerId, client);
             if (!data) {
-                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
+                sendError(playerId, 'Player not found');
                 throw new AbortTransaction();
             }
 
             if (data.shields + qty > data.max_shields) {
-                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Exceeds maximum' });
+                sendError(playerId, 'Exceeds maximum');
                 throw new AbortTransaction();
             }
 
             const cost = qty * class0Prices.shieldPrice;
             if (data.credits < cost) {
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.Error,
-                    message: 'Insufficient credits',
-                });
+                sendError(playerId, 'Insufficient credits');
                 throw new AbortTransaction();
             }
 
@@ -137,14 +131,14 @@ export async function handleBuyShields(playerId: number, quantity: number): Prom
             shields: result.shields,
         });
     } catch {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Internal server error' });
+        sendError(playerId, 'Internal server error');
     }
 }
 
 export async function handleBuyHolds(playerId: number, quantity: number): Promise<void> {
     const qty = Number(quantity);
     if (!Number.isInteger(qty) || qty <= 0) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid quantity' });
+        sendError(playerId, 'Invalid quantity');
         return;
     }
 
@@ -154,39 +148,30 @@ export async function handleBuyHolds(playerId: number, quantity: number): Promis
     try {
         const result = await withTransaction(async (client) => {
             if (!(await isAtClass0OrStarbase(playerId, universeId, client))) {
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.Error,
-                    message: 'Not at a class 0 port or starbase',
-                });
+                sendError(playerId, 'Not at a class 0 port or starbase');
                 throw new AbortTransaction();
             }
 
             const turnResult = await checkAndDeductTurns(playerId, universeId, 1, client);
             if (!turnResult.allowed) {
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.Error,
-                    message: 'Insufficient turns',
-                });
+                sendError(playerId, 'Insufficient turns');
                 throw new AbortTransaction();
             }
 
             const data = await getShipUpgradeInfoForUpdate(playerId, client);
             if (!data) {
-                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
+                sendError(playerId, 'Player not found');
                 throw new AbortTransaction();
             }
 
             if (data.holds + qty > data.max_holds) {
-                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Exceeds maximum' });
+                sendError(playerId, 'Exceeds maximum');
                 throw new AbortTransaction();
             }
 
             const cost = qty * class0Prices.holdPrice;
             if (data.credits < cost) {
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.Error,
-                    message: 'Insufficient credits',
-                });
+                sendError(playerId, 'Insufficient credits');
                 throw new AbortTransaction();
             }
 
@@ -209,6 +194,6 @@ export async function handleBuyHolds(playerId: number, quantity: number): Promis
             turnsUsed: result.turnsUsed,
         });
     } catch {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Internal server error' });
+        sendError(playerId, 'Internal server error');
     }
 }

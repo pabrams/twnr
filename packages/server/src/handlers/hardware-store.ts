@@ -1,5 +1,5 @@
 import { ServerMsgType, type BuyHardwareResultObject } from '@twnr/shared';
-import { players, sendEnvelope, setPlayerMenu } from '../game-state.js';
+import { players, sendEnvelope, sendError, setPlayerMenu } from '../game-state.js';
 import { withTransaction, AbortTransaction } from '../db/index.js';
 import { getCreditsForUpdate, deductCredits } from '../db/queries/player.js';
 import {
@@ -19,13 +19,13 @@ export async function handleBuyHardware(
 ): Promise<void> {
     const player = players[playerId];
     if (!player?.at_starbase) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not at Starbase' });
+        sendError(playerId, 'Not at Starbase');
         return;
     }
 
     const hw = await getHardwareItemByName(itemName);
     if (!hw) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Unknown hardware item' });
+        sendError(playerId, 'Unknown hardware item');
         return;
     }
 
@@ -47,7 +47,7 @@ async function buyStackable(
 ): Promise<void> {
     const qty = Number.isInteger(quantity) ? quantity : 0;
     if (qty <= 0) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid quantity' });
+        sendError(playerId, 'Invalid quantity');
         return;
     }
 
@@ -56,34 +56,25 @@ async function buyStackable(
         const result = await withTransaction(async (client) => {
             const capacity = await getShipHardwareCapacityForUpdate(playerId, hw.id, client);
             if (!capacity) {
-                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Ship not found' });
+                sendError(playerId, 'Ship not found');
                 throw new AbortTransaction();
             }
 
             const { ship_id, current_qty, max_qty } = capacity;
 
             if (max_qty <= 0) {
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.Error,
-                    message: `Your ship cannot carry ${hw.label}`,
-                });
+                sendError(playerId, `Your ship cannot carry ${hw.label}`);
                 throw new AbortTransaction();
             }
 
             if (current_qty + qty > max_qty) {
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.Error,
-                    message: `Cannot hold that many ${hw.label} (max ${max_qty})`,
-                });
+                sendError(playerId, `Cannot hold that many ${hw.label} (max ${max_qty})`);
                 throw new AbortTransaction();
             }
 
             const credits = await getCreditsForUpdate(playerId, client);
             if (credits === undefined || credits < cost) {
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.Error,
-                    message: 'Insufficient credits',
-                });
+                sendError(playerId, 'Insufficient credits');
                 throw new AbortTransaction();
             }
 
@@ -107,7 +98,7 @@ async function buyStackable(
         } as BuyHardwareResultObject);
     } catch (err) {
         console.error('Buy hardware error', err);
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Internal server error' });
+        sendError(playerId, 'Internal server error');
     }
 }
 
@@ -116,32 +107,23 @@ async function buyToggle(playerId: number, hw: HardwareItemRow, unitPrice: numbe
         const result = await withTransaction(async (client) => {
             const capacity = await getShipHardwareCapacityForUpdate(playerId, hw.id, client);
             if (!capacity) {
-                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Ship not found' });
+                sendError(playerId, 'Ship not found');
                 throw new AbortTransaction();
             }
 
             if (capacity.max_qty <= 0) {
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.Error,
-                    message: `Ship cannot equip ${hw.label}`,
-                });
+                sendError(playerId, `Ship cannot equip ${hw.label}`);
                 throw new AbortTransaction();
             }
 
             if (capacity.current_qty > 0) {
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.Error,
-                    message: `Ship already has ${hw.label}`,
-                });
+                sendError(playerId, `Ship already has ${hw.label}`);
                 throw new AbortTransaction();
             }
 
             const credits = await getCreditsForUpdate(playerId, client);
             if (credits === undefined || credits < unitPrice) {
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.Error,
-                    message: 'Insufficient credits',
-                });
+                sendError(playerId, 'Insufficient credits');
                 throw new AbortTransaction();
             }
 
@@ -163,6 +145,6 @@ async function buyToggle(playerId: number, hw: HardwareItemRow, unitPrice: numbe
         } as BuyHardwareResultObject);
     } catch (err) {
         console.error('Buy hardware error', err);
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Internal server error' });
+        sendError(playerId, 'Internal server error');
     }
 }

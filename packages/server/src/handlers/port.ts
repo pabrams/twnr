@@ -2,6 +2,7 @@ import { ServerMsgType } from '@twnr/shared';
 import {
     players,
     sendEnvelope,
+    sendError,
     getPlayerUniverseId,
     PORT_CLASS_ACTIONS,
     portName,
@@ -25,25 +26,28 @@ import {
     incrementShipCommodity,
 } from '../db/queries/ship.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
+import { cargoUsed, formatCargo } from './cargo-utils.js';
 
-export async function handlePortInfo(playerId: number, sectorId: number): Promise<void> {
-    if (!Number.isInteger(sectorId) || sectorId <= 0) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid sector ID' });
-        return;
-    }
+const EMPTY_CARGO = { fuel: 0, organics: 0, equipment: 0, colonists: 0 };
 
-    const universeId = getPlayerUniverseId(playerId);
-    if (universeId === undefined) return;
-
-    const p = await getPortAtSector(sectorId, universeId);
-    if (!p) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'No port in this sector' });
-        return;
-    }
-
-    sendEnvelope(playerId, {
+function buildPortInfoPayload(
+    p: {
+        class: number;
+        fuel: number;
+        fuel_max: number;
+        fuel_price: number;
+        organics: number;
+        org_max: number;
+        org_price: number;
+        equipment: number;
+        equ_max: number;
+        equ_price: number;
+    },
+    sectorId: number,
+) {
+    return {
         type: ServerMsgType.PortInfoResult,
-        sectorId: p.sector_id,
+        sectorId,
         portName: portName(sectorId),
         class: p.class,
         fuel: p.fuel,
@@ -55,7 +59,25 @@ export async function handlePortInfo(playerId: number, sectorId: number): Promis
         equipment: p.equipment,
         equMax: p.equ_max,
         equPrice: p.equ_price,
-    });
+    };
+}
+
+export async function handlePortInfo(playerId: number, sectorId: number): Promise<void> {
+    if (!Number.isInteger(sectorId) || sectorId <= 0) {
+        sendError(playerId, 'Invalid sector ID');
+        return;
+    }
+
+    const universeId = getPlayerUniverseId(playerId);
+    if (universeId === undefined) return;
+
+    const p = await getPortAtSector(sectorId, universeId);
+    if (!p) {
+        sendError(playerId, 'No port in this sector');
+        return;
+    }
+
+    sendEnvelope(playerId, buildPortInfoPayload(p, p.sector_id));
 }
 
 export async function handleDock(playerId: number): Promise<void> {
@@ -63,15 +85,12 @@ export async function handleDock(playerId: number): Promise<void> {
     if (!player) return;
 
     if (player.docked) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Already docked' });
+        sendError(playerId, 'Already docked');
         return;
     }
 
     if (player.pendingEncounter) {
-        sendEnvelope(playerId, {
-            type: ServerMsgType.Error,
-            message: 'Resolve drone encounter first',
-        });
+        sendError(playerId, 'Resolve drone encounter first');
         return;
     }
 
@@ -80,38 +99,19 @@ export async function handleDock(playerId: number): Promise<void> {
         getShipCargoWithCredits(playerId),
     ]);
     if (!p) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'No port in this sector' });
+        sendError(playerId, 'No port in this sector');
         return;
     }
 
     player.docked = true;
     await setDocked(playerId, true);
 
-    const used =
-        (cargo?.fuel ?? 0) +
-        (cargo?.organics ?? 0) +
-        (cargo?.equipment ?? 0) +
-        (cargo?.colonists ?? 0);
-    const emptyHolds = Math.max(0, (cargo?.cargo_limit ?? 0) - used);
+    const cargoOut = cargo ? formatCargo(cargo) : EMPTY_CARGO;
+    const emptyHolds = Math.max(0, (cargo?.cargo_limit ?? 0) - cargoUsed(cargoOut));
     const credits = cargo?.credits ?? 0;
 
-    const portInfoPayload = {
-        type: ServerMsgType.PortInfoResult,
-        sectorId: player.sector,
-        portName: portName(player.sector),
-        class: p.class,
-        fuel: p.fuel,
-        fuelMax: p.fuel_max,
-        fuelPrice: p.fuel_price,
-        organics: p.organics,
-        orgMax: p.org_max,
-        orgPrice: p.org_price,
-        equipment: p.equipment,
-        equMax: p.equ_max,
-        equPrice: p.equ_price,
-    };
+    const portInfoPayload = buildPortInfoPayload(p, player.sector);
 
-    // Class 0 ports use a different flow
     if (p.class === 0) {
         await setPlayerMenu(playerId, 'class0');
         sendEnvelope(playerId, {
@@ -119,12 +119,7 @@ export async function handleDock(playerId: number): Promise<void> {
             docked: true,
             port: portInfoPayload,
             credits,
-            cargo: {
-                fuel: cargo?.fuel ?? 0,
-                organics: cargo?.organics ?? 0,
-                equipment: cargo?.equipment ?? 0,
-                colonists: cargo?.colonists ?? 0,
-            },
+            cargo: cargoOut,
             emptyHolds,
         });
         return;
@@ -135,12 +130,7 @@ export async function handleDock(playerId: number): Promise<void> {
         docked: true,
         port: portInfoPayload,
         credits,
-        cargo: {
-            fuel: cargo?.fuel ?? 0,
-            organics: cargo?.organics ?? 0,
-            equipment: cargo?.equipment ?? 0,
-            colonists: cargo?.colonists ?? 0,
-        },
+        cargo: cargoOut,
         emptyHolds,
     });
 
@@ -151,22 +141,21 @@ export async function handleDock(playerId: number): Promise<void> {
         return;
     }
 
-    const COMMODITIES: { key: Commodity; label: string; priceCol: string }[] = [
-        { key: 'fuel', label: 'Fuel', priceCol: 'fuel_price' },
-        { key: 'organics', label: 'Organics', priceCol: 'org_price' },
-        { key: 'equipment', label: 'Equipment', priceCol: 'equ_price' },
+    const COMMODITIES: { key: Commodity; label: string; price: number }[] = [
+        { key: 'fuel', label: 'Fuel', price: p.fuel_price },
+        { key: 'organics', label: 'Organics', price: p.org_price },
+        { key: 'equipment', label: 'Equipment', price: p.equ_price },
     ];
 
     const steps: import('../game-state.js').TradeStep[] = [];
     for (const c of COMMODITIES) {
         const dir = actions[c.key];
         if (!dir) continue;
-        const action = dir === 'S' ? ('buy' as const) : ('sell' as const);
         steps.push({
             commodity: c.key,
             commodityLabel: c.label,
-            action,
-            price: (p as unknown as Record<string, number>)[c.priceCol],
+            action: dir === 'S' ? 'buy' : 'sell',
+            price: c.price,
         });
     }
 
@@ -207,7 +196,7 @@ async function advanceTradeFlow(playerId: number): Promise<void> {
             return;
         }
 
-        const used = cargo.fuel + cargo.organics + cargo.equipment + cargo.colonists;
+        const used = cargoUsed(cargo);
         const emptyHolds = Math.max(0, cargo.cargo_limit - used);
         const portTrading = port[step.commodity];
         const onBoard = cargo[step.commodity];
@@ -246,7 +235,7 @@ async function advanceTradeFlow(playerId: number): Promise<void> {
 export async function handleTradeResponse(playerId: number, quantity: number): Promise<void> {
     const player = players[playerId];
     if (!player?.tradeState) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not in a trade flow' });
+        sendError(playerId, 'Not in a trade flow');
         return;
     }
 
@@ -271,7 +260,7 @@ export async function handleTradeResponse(playerId: number, quantity: number): P
         return;
     }
 
-    const used = cargo.fuel + cargo.organics + cargo.equipment + cargo.colonists;
+    const used = cargoUsed(cargo);
     const emptyHolds = Math.max(0, cargo.cargo_limit - used);
     const portTrading = port[step.commodity];
     const onBoard = cargo[step.commodity];
@@ -306,7 +295,7 @@ export async function handleTradeConfirmResponse(
 ): Promise<void> {
     const player = players[playerId];
     if (!player?.tradeState) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not in a trade flow' });
+        sendError(playerId, 'Not in a trade flow');
         return;
     }
 
@@ -387,7 +376,7 @@ export async function handleTradeConfirmResponse(
                     outcome = { kind: 'skip', reason: 'insufficientPortInventory' };
                     throw new AbortTransaction();
                 }
-                const used = cargo.fuel + cargo.organics + cargo.equipment + cargo.colonists;
+                const used = cargoUsed(cargo);
                 if (used + qty > cargo.cargo_limit) {
                     outcome = { kind: 'skip', reason: 'insufficientCargoHolds' };
                     throw new AbortTransaction();
@@ -399,16 +388,11 @@ export async function handleTradeConfirmResponse(
 
                 cargo[col] += qty;
                 cargo.credits -= cost;
-                const usedAfter = cargo.fuel + cargo.organics + cargo.equipment + cargo.colonists;
+                const usedAfter = cargoUsed(cargo);
                 outcome = {
                     kind: 'complete',
                     credits: cargo.credits,
-                    cargo: {
-                        fuel: cargo.fuel,
-                        organics: cargo.organics,
-                        equipment: cargo.equipment,
-                        colonists: cargo.colonists,
-                    },
+                    cargo: formatCargo(cargo),
                     emptyHolds: Math.max(0, cargo.cargo_limit - usedAfter),
                     turnsUsed: turnResult.turnsUsed,
                 };
@@ -429,23 +413,18 @@ export async function handleTradeConfirmResponse(
 
                 cargo[col] -= qty;
                 cargo.credits += revenue;
-                const usedAfter = cargo.fuel + cargo.organics + cargo.equipment + cargo.colonists;
+                const usedAfter = cargoUsed(cargo);
                 outcome = {
                     kind: 'complete',
                     credits: cargo.credits,
-                    cargo: {
-                        fuel: cargo.fuel,
-                        organics: cargo.organics,
-                        equipment: cargo.equipment,
-                        colonists: cargo.colonists,
-                    },
+                    cargo: formatCargo(cargo),
                     emptyHolds: Math.max(0, cargo.cargo_limit - usedAfter),
                 };
             }
         });
     } catch (err) {
         console.error('Trade error', err);
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Internal server error' });
+        sendError(playerId, 'Internal server error');
         await undockPlayer(playerId);
         return;
     }
@@ -505,19 +484,19 @@ export async function handlePortTransaction(
     action: string,
 ): Promise<void> {
     if (good !== 'fuel' && good !== 'organics' && good !== 'equipment') {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid good' });
+        sendError(playerId, 'Invalid good');
         return;
     }
     const col = good as Commodity;
 
     if (action !== 'buy' && action !== 'sell') {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid action' });
+        sendError(playerId, 'Invalid action');
         return;
     }
 
     const qty = Number.isInteger(quantity) ? quantity : parseInt(String(quantity), 10);
     if (isNaN(qty) || qty <= 0) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid quantity' });
+        sendError(playerId, 'Invalid quantity');
         return;
     }
 
@@ -535,16 +514,13 @@ export async function handlePortTransaction(
         const result = await withTransaction(async (client) => {
             const currentSector = await getCurrentSector(playerId, client);
             if (currentSector === undefined) {
-                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
+                sendError(playerId, 'Player not found');
                 throw new AbortTransaction();
             }
 
             const port = await getPortTradeInfoForUpdate(currentSector, universeId, client);
             if (!port) {
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.Error,
-                    message: 'No port in this sector',
-                });
+                sendError(playerId, 'No port in this sector');
                 throw new AbortTransaction();
             }
 
@@ -554,10 +530,7 @@ export async function handlePortTransaction(
                 (action === 'buy' && portActions[col] !== 'S') ||
                 (action === 'sell' && portActions[col] !== 'B')
             ) {
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.Error,
-                    message: 'Port does not trade this commodity',
-                });
+                sendError(playerId, 'Port does not trade this commodity');
                 throw new AbortTransaction();
             }
 
@@ -565,43 +538,28 @@ export async function handlePortTransaction(
 
             const cargo = await getShipCargoWithCreditsForUpdate(playerId, client);
             if (!cargo) {
-                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
+                sendError(playerId, 'Player not found');
                 throw new AbortTransaction();
             }
 
             if (action === 'buy') {
                 const turnResult = await checkAndDeductTurns(playerId, universeId, 1, client);
                 if (!turnResult.allowed) {
-                    sendEnvelope(playerId, {
-                        type: ServerMsgType.Error,
-                        message: 'Insufficient turns',
-                    });
+                    sendError(playerId, 'Insufficient turns');
                     throw new AbortTransaction();
                 }
 
                 const cost = qty * price;
                 if (cargo.credits < cost) {
-                    sendEnvelope(playerId, {
-                        type: ServerMsgType.Error,
-                        message: 'Insufficient credits',
-                    });
+                    sendError(playerId, 'Insufficient credits');
                     throw new AbortTransaction();
                 }
                 if (port[col] < qty) {
-                    sendEnvelope(playerId, {
-                        type: ServerMsgType.Error,
-                        message: 'Insufficient port inventory',
-                    });
+                    sendError(playerId, 'Insufficient port inventory');
                     throw new AbortTransaction();
                 }
-                if (
-                    cargo.fuel + cargo.organics + cargo.equipment + cargo.colonists + qty >
-                    cargo.cargo_limit
-                ) {
-                    sendEnvelope(playerId, {
-                        type: ServerMsgType.Error,
-                        message: 'Insufficient cargo holds',
-                    });
+                if (cargoUsed(cargo) + qty > cargo.cargo_limit) {
+                    sendError(playerId, 'Insufficient cargo holds');
                     throw new AbortTransaction();
                 }
 
@@ -611,15 +569,10 @@ export async function handlePortTransaction(
 
                 cargo[col] += qty;
                 cargo.credits -= cost;
-                const used = cargo.fuel + cargo.organics + cargo.equipment + cargo.colonists;
+                const used = cargoUsed(cargo);
                 return {
                     credits: cargo.credits,
-                    cargo: {
-                        fuel: cargo.fuel,
-                        organics: cargo.organics,
-                        equipment: cargo.equipment,
-                        colonists: cargo.colonists,
-                    },
+                    cargo: formatCargo(cargo),
                     emptyHolds: Math.max(0, cargo.cargo_limit - used),
                     turnsUsed: turnResult.turnsUsed,
                 };
@@ -627,17 +580,11 @@ export async function handlePortTransaction(
 
             // sell
             if (cargo[col] < qty) {
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.Error,
-                    message: 'Insufficient cargo',
-                });
+                sendError(playerId, 'Insufficient cargo');
                 throw new AbortTransaction();
             }
             if (port[col] < qty) {
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.Error,
-                    message: 'Port cannot buy that many',
-                });
+                sendError(playerId, 'Port cannot buy that many');
                 throw new AbortTransaction();
             }
 
@@ -648,15 +595,10 @@ export async function handlePortTransaction(
 
             cargo[col] -= qty;
             cargo.credits += revenue;
-            const used = cargo.fuel + cargo.organics + cargo.equipment + cargo.colonists;
+            const used = cargoUsed(cargo);
             return {
                 credits: cargo.credits,
-                cargo: {
-                    fuel: cargo.fuel,
-                    organics: cargo.organics,
-                    equipment: cargo.equipment,
-                    colonists: cargo.colonists,
-                },
+                cargo: formatCargo(cargo),
                 emptyHolds: Math.max(0, cargo.cargo_limit - used),
             };
         });
@@ -672,7 +614,7 @@ export async function handlePortTransaction(
         });
     } catch (err) {
         console.error('Trade error', err);
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Internal server error' });
+        sendError(playerId, 'Internal server error');
     }
 }
 
@@ -681,19 +623,13 @@ export async function handleDockStarbase(playerId: number): Promise<void> {
     if (!player) return;
 
     if (player.pendingEncounter) {
-        sendEnvelope(playerId, {
-            type: ServerMsgType.Error,
-            message: 'Resolve drone encounter first',
-        });
+        sendError(playerId, 'Resolve drone encounter first');
         return;
     }
 
     const portClass = await getPortClassAtSector(player.sector, player.universeId);
     if (portClass !== 9) {
-        sendEnvelope(playerId, {
-            type: ServerMsgType.Error,
-            message: 'Starbase not found in this sector',
-        });
+        sendError(playerId, 'Starbase not found in this sector');
         return;
     }
 
@@ -712,7 +648,7 @@ export async function handleLeaveStarbase(playerId: number): Promise<void> {
     if (!player) return;
 
     if (!player.at_starbase) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not at Starbase' });
+        sendError(playerId, 'Not at Starbase');
         return;
     }
 

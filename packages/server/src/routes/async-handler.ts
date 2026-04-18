@@ -21,12 +21,7 @@ export function asyncHandler(fn: AsyncRouteHandler): RequestHandler {
 }
 
 /** Express error middleware — registered once at the end of the route stack. */
-export function errorHandler(
-    err: unknown,
-    req: Request,
-    res: Response,
-    _next: NextFunction,
-): void {
+export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction): void {
     if (res.headersSent) return;
     if (err instanceof HttpError) {
         res.status(err.status).json({ error: err.message });

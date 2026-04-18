@@ -1,5 +1,11 @@
 import { ServerMsgType } from '@twnr/shared';
-import { sendEnvelope, getPlayerUniverseId, players, setPlayerMenu } from '../game-state.js';
+import {
+    sendEnvelope,
+    sendError,
+    getPlayerUniverseId,
+    players,
+    setPlayerMenu,
+} from '../game-state.js';
 import { withTransaction, AbortTransaction } from '../db/index.js';
 import {
     getShipTypeByName,
@@ -35,7 +41,7 @@ export async function handleBuyShipTradein(
 
     const player = players[playerId];
     if (!player?.at_starbase) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not at Starbase' });
+        sendError(playerId, 'Not at Starbase');
         return;
     }
 
@@ -49,21 +55,18 @@ export async function handleBuyShipTradein(
                 client,
             );
             if (!targetType) {
-                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Unknown ship' });
+                sendError(playerId, 'Unknown ship');
                 throw new AbortTransaction();
             }
 
             const data = await getPlayerShipTradeInfoForUpdate(playerId, client);
             if (!data) {
-                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
+                sendError(playerId, 'Player not found');
                 throw new AbortTransaction();
             }
 
             if (data.ship_name === targetShipName) {
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.Error,
-                    message: 'Already on that ship',
-                });
+                sendError(playerId, 'Already on that ship');
                 throw new AbortTransaction();
             }
 
@@ -77,10 +80,7 @@ export async function handleBuyShipTradein(
             });
             const cost = targetPrice - currentPrice;
             if (cost > 0 && data.credits < cost) {
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.Error,
-                    message: 'Insufficient credits',
-                });
+                sendError(playerId, 'Insufficient credits');
                 throw new AbortTransaction();
             }
 
@@ -117,7 +117,7 @@ export async function handleBuyShipTradein(
         });
     } catch (err) {
         console.error('ship-exchange error:', err);
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Internal server error' });
+        sendError(playerId, 'Internal server error');
     }
 }
 
@@ -127,7 +127,7 @@ export async function handleBuyShipNew(playerId: number, targetShipName: string)
 
     const player = players[playerId];
     if (!player?.at_starbase) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Not at Starbase' });
+        sendError(playerId, 'Not at Starbase');
         return;
     }
 
@@ -137,30 +137,24 @@ export async function handleBuyShipNew(playerId: number, targetShipName: string)
         const result = await withTransaction(async (client) => {
             const targetType = await getShipTypeByName(targetShipName, client);
             if (!targetType) {
-                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Unknown ship' });
+                sendError(playerId, 'Unknown ship');
                 throw new AbortTransaction();
             }
             const price = calculateShipPrice(targetType);
 
             const data = await getPlayerShipBuyInfoForUpdate(playerId, client);
             if (!data) {
-                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
+                sendError(playerId, 'Player not found');
                 throw new AbortTransaction();
             }
 
             if (data.ship_name === targetShipName) {
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.Error,
-                    message: 'Already on that ship',
-                });
+                sendError(playerId, 'Already on that ship');
                 throw new AbortTransaction();
             }
 
             if (data.credits < price) {
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.Error,
-                    message: 'Insufficient credits',
-                });
+                sendError(playerId, 'Insufficient credits');
                 throw new AbortTransaction();
             }
 
@@ -196,6 +190,6 @@ export async function handleBuyShipNew(playerId: number, targetShipName: string)
         });
     } catch (err) {
         console.error('ship-exchange error:', err);
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Internal server error' });
+        sendError(playerId, 'Internal server error');
     }
 }
