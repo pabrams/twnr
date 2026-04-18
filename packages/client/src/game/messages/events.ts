@@ -16,9 +16,13 @@ export const EVENT = makeDomain('EVENT', {
     attackStat: '  [by]{label}[/by]: {value}',
 
     deployDronesInfo:
-        '[by]Deploy Drones[/by] — Sector: [w]{sector}[/w], Ship: [w]{ship}[/w]/[c]{max}[/c]',
-    deployDronesPrompt: '[c]How many drones to leave in sector?[/c] [w](Q to cancel)[/w] ',
-    deployDronesResult: '\r\n[bg]Deployed.[/bg] Sector: [w]{sector}[/w], Ship: [w]{ship}[/w]',
+        'You have [by]{ship + sector}[/by] drones available.\r\n' +
+        'Your ship can support a maximum of [y]{max}[/y] drones, so you have to leave at least [y]{Max(ship + sector - max, 0)}[/y].',
+
+    deployDronesPrompt: '[g]How many drones do you want defending this sector?[/g]',
+
+    deployDronesResult:
+        '\r\n[bc]Done. You have [by]{ship}[/by] drones in close support and [by]{sector}[/by] defending the sector.[/bc]',
 
     combatLost:
         '[by]Combat:[/by] Lost [br]{lost}[/br] drones. Sector drones remaining: [br]{remaining}[/br]. Ship drones: [w]{ship}[/w]',
