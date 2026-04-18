@@ -1,6 +1,6 @@
 import { ServerMsgType } from '@twnr/shared';
 import { sendEnvelope, getPlayerUniverseId, players, setPlayerMenu } from '../game-state.js';
-import { pool } from '../db/index.js';
+import { withTransaction, AbortTransaction } from '../db/index.js';
 import {
     getShipTypeByName,
     getPlayerShipTradeInfoForUpdate,
@@ -42,74 +42,82 @@ export async function handleBuyShipTradein(
     // Always return to shipyards menu regardless of outcome
     await setPlayerMenu(playerId, 'shipyards');
 
-    const client = await pool.connect();
     try {
-        await client.query('BEGIN');
+        const result = await withTransaction(async (client) => {
+            const targetType: ShipTypeRow | undefined = await getShipTypeByName(
+                targetShipName,
+                client,
+            );
+            if (!targetType) {
+                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Unknown ship' });
+                throw new AbortTransaction();
+            }
 
-        const targetType: ShipTypeRow | undefined = await getShipTypeByName(targetShipName, client);
-        if (!targetType) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Unknown ship' });
-            return;
-        }
+            const data = await getPlayerShipTradeInfoForUpdate(playerId, client);
+            if (!data) {
+                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
+                throw new AbortTransaction();
+            }
 
-        const data = await getPlayerShipTradeInfoForUpdate(playerId, client);
-        if (!data) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
-            return;
-        }
+            if (data.ship_name === targetShipName) {
+                sendEnvelope(playerId, {
+                    type: ServerMsgType.Error,
+                    message: 'Already on that ship',
+                });
+                throw new AbortTransaction();
+            }
 
-        if (data.ship_name === targetShipName) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Already on that ship' });
-            return;
-        }
+            const targetPrice = calculateShipPrice(targetType);
+            const currentPrice = calculateShipPrice({
+                cost_drive: data.current_cost_drive,
+                cost_computer: data.current_cost_computer,
+                cost_hull: data.current_cost_hull,
+                hold_cost: data.current_hold_cost,
+                starting_holds: data.current_starting_holds,
+            });
+            const cost = targetPrice - currentPrice;
+            if (cost > 0 && data.credits < cost) {
+                sendEnvelope(playerId, {
+                    type: ServerMsgType.Error,
+                    message: 'Insufficient credits',
+                });
+                throw new AbortTransaction();
+            }
 
-        const targetPrice = calculateShipPrice(targetType);
-        const currentPrice = calculateShipPrice({
-            cost_drive: data.current_cost_drive,
-            cost_computer: data.current_cost_computer,
-            cost_hull: data.current_cost_hull,
-            hold_cost: data.current_hold_cost,
-            starting_holds: data.current_starting_holds,
+            const newCargoLimit = targetType.starting_holds;
+
+            const newShipId = await insertEmptyShip(
+                playerId,
+                targetType.id,
+                data.current_sector_id,
+                newCargoLimit,
+                targetType.turns_per_warp,
+                client,
+            );
+            await setPlayerShipAndDeductCredits(playerId, newShipId, cost, client);
+            await deleteShipById(data.ship_id, client);
+
+            return {
+                credits: data.credits - cost,
+                maxDrones: targetType.max_drones,
+                maxShields: targetType.max_shields,
+                cargoLimit: newCargoLimit,
+            };
         });
-        const cost = targetPrice - currentPrice;
-        if (cost > 0 && data.credits < cost) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient credits' });
-            return;
-        }
 
-        const newCargoLimit = targetType.starting_holds;
-
-        const newShipId = await insertEmptyShip(
-            playerId,
-            targetType.id,
-            data.current_sector_id,
-            newCargoLimit,
-            targetType.turns_per_warp,
-            client,
-        );
-        await setPlayerShipAndDeductCredits(playerId, newShipId, cost, client);
-        await deleteShipById(data.ship_id, client);
-
-        await client.query('COMMIT');
+        if (!result) return;
 
         sendEnvelope(playerId, {
             type: ServerMsgType.BuyShipTradeinResult,
             shipName: targetShipName,
-            credits: data.credits - cost,
-            maxDrones: targetType.max_drones,
-            maxShields: targetType.max_shields,
-            cargoLimit: newCargoLimit,
+            credits: result.credits,
+            maxDrones: result.maxDrones,
+            maxShields: result.maxShields,
+            cargoLimit: result.cargoLimit,
         });
     } catch (err) {
         console.error('ship-exchange error:', err);
-        await client.query('ROLLBACK');
         sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Internal server error' });
-    } finally {
-        client.release();
     }
 }
 
@@ -125,64 +133,69 @@ export async function handleBuyShipNew(playerId: number, targetShipName: string)
 
     await setPlayerMenu(playerId, 'shipyards');
 
-    const client = await pool.connect();
     try {
-        await client.query('BEGIN');
+        const result = await withTransaction(async (client) => {
+            const targetType = await getShipTypeByName(targetShipName, client);
+            if (!targetType) {
+                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Unknown ship' });
+                throw new AbortTransaction();
+            }
+            const price = calculateShipPrice(targetType);
 
-        const targetType = await getShipTypeByName(targetShipName, client);
-        if (!targetType) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Unknown ship' });
-            return;
-        }
-        const price = calculateShipPrice(targetType);
+            const data = await getPlayerShipBuyInfoForUpdate(playerId, client);
+            if (!data) {
+                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
+                throw new AbortTransaction();
+            }
 
-        const data = await getPlayerShipBuyInfoForUpdate(playerId, client);
-        if (!data) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
-            return;
-        }
+            if (data.ship_name === targetShipName) {
+                sendEnvelope(playerId, {
+                    type: ServerMsgType.Error,
+                    message: 'Already on that ship',
+                });
+                throw new AbortTransaction();
+            }
 
-        if (data.ship_name === targetShipName) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Already on that ship' });
-            return;
-        }
+            if (data.credits < price) {
+                sendEnvelope(playerId, {
+                    type: ServerMsgType.Error,
+                    message: 'Insufficient credits',
+                });
+                throw new AbortTransaction();
+            }
 
-        if (data.credits < price) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient credits' });
-            return;
-        }
+            const newCargoLimit = targetType.starting_holds;
 
-        const newCargoLimit = targetType.starting_holds;
+            const newShipId = await insertEmptyShip(
+                playerId,
+                targetType.id,
+                data.current_sector_id,
+                newCargoLimit,
+                targetType.turns_per_warp,
+                client,
+            );
+            await setPlayerShipAndDeductCredits(playerId, newShipId, price, client);
 
-        const newShipId = await insertEmptyShip(
-            playerId,
-            targetType.id,
-            data.current_sector_id,
-            newCargoLimit,
-            targetType.turns_per_warp,
-            client,
-        );
-        await setPlayerShipAndDeductCredits(playerId, newShipId, price, client);
+            return {
+                credits: data.credits - price,
+                maxDrones: targetType.max_drones,
+                maxShields: targetType.max_shields,
+                cargoLimit: newCargoLimit,
+            };
+        });
 
-        await client.query('COMMIT');
+        if (!result) return;
 
         sendEnvelope(playerId, {
             type: ServerMsgType.BuyShipNewResult,
             shipName: targetShipName,
-            credits: data.credits - price,
-            maxDrones: targetType.max_drones,
-            maxShields: targetType.max_shields,
-            cargoLimit: newCargoLimit,
+            credits: result.credits,
+            maxDrones: result.maxDrones,
+            maxShields: result.maxShields,
+            cargoLimit: result.cargoLimit,
         });
     } catch (err) {
         console.error('ship-exchange error:', err);
-        await client.query('ROLLBACK');
         sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Internal server error' });
-    } finally {
-        client.release();
     }
 }

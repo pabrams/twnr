@@ -1,6 +1,6 @@
 import { ServerMsgType, type BuyHardwareResultObject } from '@twnr/shared';
 import { players, sendEnvelope, setPlayerMenu } from '../game-state.js';
-import { pool } from '../db/index.js';
+import { withTransaction, AbortTransaction } from '../db/index.js';
 import { getCreditsForUpdate, deductCredits } from '../db/queries/player.js';
 import {
     getHardwareItemByName,
@@ -52,47 +52,47 @@ async function buyStackable(
     }
 
     const cost = qty * unitPrice;
-    const client = await pool.connect();
     try {
-        await client.query('BEGIN');
+        const result = await withTransaction(async (client) => {
+            const capacity = await getShipHardwareCapacityForUpdate(playerId, hw.id, client);
+            if (!capacity) {
+                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Ship not found' });
+                throw new AbortTransaction();
+            }
 
-        const capacity = await getShipHardwareCapacityForUpdate(playerId, hw.id, client);
-        if (!capacity) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Ship not found' });
-            return;
-        }
+            const { ship_id, current_qty, max_qty } = capacity;
 
-        const { ship_id, current_qty, max_qty } = capacity;
+            if (max_qty <= 0) {
+                sendEnvelope(playerId, {
+                    type: ServerMsgType.Error,
+                    message: `Your ship cannot carry ${hw.label}`,
+                });
+                throw new AbortTransaction();
+            }
 
-        if (max_qty <= 0) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, {
-                type: ServerMsgType.Error,
-                message: `Your ship cannot carry ${hw.label}`,
-            });
-            return;
-        }
+            if (current_qty + qty > max_qty) {
+                sendEnvelope(playerId, {
+                    type: ServerMsgType.Error,
+                    message: `Cannot hold that many ${hw.label} (max ${max_qty})`,
+                });
+                throw new AbortTransaction();
+            }
 
-        if (current_qty + qty > max_qty) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, {
-                type: ServerMsgType.Error,
-                message: `Cannot hold that many ${hw.label} (max ${max_qty})`,
-            });
-            return;
-        }
+            const credits = await getCreditsForUpdate(playerId, client);
+            if (credits === undefined || credits < cost) {
+                sendEnvelope(playerId, {
+                    type: ServerMsgType.Error,
+                    message: 'Insufficient credits',
+                });
+                throw new AbortTransaction();
+            }
 
-        const credits = await getCreditsForUpdate(playerId, client);
-        if (credits === undefined || credits < cost) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient credits' });
-            return;
-        }
+            await deductCredits(playerId, cost, client);
+            await upsertShipHardwareQuantity(ship_id, hw.id, qty, client);
+            return { credits, current_qty };
+        });
 
-        await deductCredits(playerId, cost, client);
-        await upsertShipHardwareQuantity(ship_id, hw.id, qty, client);
-        await client.query('COMMIT');
+        if (!result) return;
 
         await setPlayerMenu(playerId, 'starbaseHardware');
         sendEnvelope(playerId, {
@@ -101,59 +101,56 @@ async function buyStackable(
             label: hw.label,
             kind: 'stackable',
             quantity: qty,
-            totalOnShip: current_qty + qty,
-            credits: credits - cost,
+            totalOnShip: result.current_qty + qty,
+            credits: result.credits - cost,
             ...(hw.result_extra ?? {}),
         } as BuyHardwareResultObject);
     } catch (err) {
-        await client.query('ROLLBACK');
         console.error('Buy hardware error', err);
         sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Internal server error' });
-    } finally {
-        client.release();
     }
 }
 
 async function buyToggle(playerId: number, hw: HardwareItemRow, unitPrice: number): Promise<void> {
-    const client = await pool.connect();
     try {
-        await client.query('BEGIN');
+        const result = await withTransaction(async (client) => {
+            const capacity = await getShipHardwareCapacityForUpdate(playerId, hw.id, client);
+            if (!capacity) {
+                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Ship not found' });
+                throw new AbortTransaction();
+            }
 
-        const capacity = await getShipHardwareCapacityForUpdate(playerId, hw.id, client);
-        if (!capacity) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Ship not found' });
-            return;
-        }
+            if (capacity.max_qty <= 0) {
+                sendEnvelope(playerId, {
+                    type: ServerMsgType.Error,
+                    message: `Ship cannot equip ${hw.label}`,
+                });
+                throw new AbortTransaction();
+            }
 
-        if (capacity.max_qty <= 0) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, {
-                type: ServerMsgType.Error,
-                message: `Ship cannot equip ${hw.label}`,
-            });
-            return;
-        }
+            if (capacity.current_qty > 0) {
+                sendEnvelope(playerId, {
+                    type: ServerMsgType.Error,
+                    message: `Ship already has ${hw.label}`,
+                });
+                throw new AbortTransaction();
+            }
 
-        if (capacity.current_qty > 0) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, {
-                type: ServerMsgType.Error,
-                message: `Ship already has ${hw.label}`,
-            });
-            return;
-        }
+            const credits = await getCreditsForUpdate(playerId, client);
+            if (credits === undefined || credits < unitPrice) {
+                sendEnvelope(playerId, {
+                    type: ServerMsgType.Error,
+                    message: 'Insufficient credits',
+                });
+                throw new AbortTransaction();
+            }
 
-        const credits = await getCreditsForUpdate(playerId, client);
-        if (credits === undefined || credits < unitPrice) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient credits' });
-            return;
-        }
+            await setShipHardwareInstalled(capacity.ship_id, hw.id, client);
+            await deductCredits(playerId, unitPrice, client);
+            return { credits };
+        });
 
-        await setShipHardwareInstalled(capacity.ship_id, hw.id, client);
-        await deductCredits(playerId, unitPrice, client);
-        await client.query('COMMIT');
+        if (!result) return;
 
         await setPlayerMenu(playerId, 'starbaseHardware');
         sendEnvelope(playerId, {
@@ -161,14 +158,11 @@ async function buyToggle(playerId: number, hw: HardwareItemRow, unitPrice: numbe
             itemName: hw.name,
             label: hw.label,
             kind: 'toggle',
-            credits: credits - unitPrice,
+            credits: result.credits - unitPrice,
             ...(hw.result_extra ?? {}),
         } as BuyHardwareResultObject);
     } catch (err) {
-        await client.query('ROLLBACK');
         console.error('Buy hardware error', err);
         sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Internal server error' });
-    } finally {
-        client.release();
     }
 }
