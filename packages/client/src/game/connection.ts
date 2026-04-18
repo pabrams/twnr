@@ -593,8 +593,8 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     ctx.term.writeln(
                         render(PANEL.landedColonists, {
                             fuel: msg.colonists_fuel ?? 0,
-                            org: msg.colonists_organics ?? 0,
-                            equ: msg.colonists_equipment ?? 0,
+                            organics: msg.colonists_organics ?? 0,
+                            equipment: msg.colonists_equipment ?? 0,
                         }),
                     );
                     showPlanetMenuOptions(ctx);
@@ -616,8 +616,8 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 ctx.term.writeln(
                     render(PANEL.landedColonists, {
                         fuel: msg.colonists_fuel,
-                        org: msg.colonists_organics,
-                        equ: msg.colonists_equipment,
+                        organics: msg.colonists_organics,
+                        equipment: msg.colonists_equipment,
                     }),
                 );
                 break;
@@ -730,8 +730,8 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                         ctx.term.writeln(
                             render(PANEL.listPlanetsColonists, {
                                 fuel: p.colonists_fuel,
-                                org: p.colonists_organics,
-                                equ: p.colonists_equipment,
+                                organics: p.colonists_organics,
+                                equipment: p.colonists_equipment,
                             }),
                         );
                     }

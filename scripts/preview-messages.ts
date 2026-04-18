@@ -168,19 +168,51 @@ const SAMPLES: Record<string, Record<string, unknown>> = {
     'PANEL.landedHeader': { name: 'Earth' },
     'PANEL.landedType': { type: 'Terran' },
     'PANEL.landedStats': { drones: 50, fuel: 10, organics: 20, equipment: 15 },
-    'PANEL.landedColonists': { fuel: 100, org: 200, equ: 150 },
+    'PANEL.landedColonists': { fuel: 100, organics: 200, equipment: 150 },
     'PANEL.planetDisplayHeader': { name: 'Earth', type: 'Terran' },
     'PANEL.deployedDronesRow': { sector: 42, qty: 25 },
     'PANEL.listPlanetsRow': { sector: 42, name: 'Earth', type: 'Terran' },
-    'PANEL.listPlanetsColonists': { fuel: 100, org: 200, equ: 150 },
+    'PANEL.listPlanetsColonists': { fuel: 100, organics: 200, equipment: 150 },
 };
 
 const SKIP_EXPORTS = new Set(['HELP_LINES']);
+
+/** Domain → output file path. The path for a filtered preview sits next to
+ *  the source file that defines the domain so you can open source + preview
+ *  side-by-side in VS Code. */
+const DOMAIN_OUTPUT: Record<string, string> = {
+    MSG: '../packages/client/src/game/messages.preview.ansi',
+    COMMON: '../packages/client/src/game/messages/common.preview.ansi',
+    SECTOR: '../packages/client/src/game/messages/sector.preview.ansi',
+    HELP: '../packages/client/src/game/messages/help.preview.ansi',
+    PORT: '../packages/client/src/game/messages/port.preview.ansi',
+    PLANET: '../packages/client/src/game/messages/planet.preview.ansi',
+    STARBASE: '../packages/client/src/game/messages/starbase.preview.ansi',
+    COMPUTER: '../packages/client/src/game/messages/computer.preview.ansi',
+    COMBAT: '../packages/client/src/game/messages/combat.preview.ansi',
+    NOTIFY: '../packages/client/src/game/messages/notifications.preview.ansi',
+    TRANSACTION: '../packages/client/src/game/messages/transactions.preview.ansi',
+    EVENT: '../packages/client/src/game/messages/events.preview.ansi',
+    PANEL: '../packages/client/src/game/messages/panels.preview.ansi',
+};
+
+const args = process.argv.slice(2).map((a) => a.toUpperCase());
+const filter = args.length > 0 ? new Set(args) : null;
+
+if (filter) {
+    const unknown = [...filter].filter((d) => !(d in DOMAIN_OUTPUT));
+    if (unknown.length > 0) {
+        process.stderr.write(`Unknown domain(s): ${unknown.join(', ')}\n`);
+        process.stderr.write(`Valid: ${Object.keys(DOMAIN_OUTPUT).join(', ')}\n`);
+        process.exit(1);
+    }
+}
 
 const lines: string[] = [];
 for (const [domain, group] of Object.entries(MESSAGES)) {
     if (SKIP_EXPORTS.has(domain)) continue;
     if (typeof group !== 'object' || group === null) continue;
+    if (filter && !filter.has(domain)) continue;
     lines.push(`\x1b[1;36m── ${domain} ──\x1b[0m`);
     for (const [key, template] of Object.entries(group as Record<string, string>)) {
         const sampleKey = `${domain}.${key}`;
@@ -194,9 +226,12 @@ for (const [domain, group] of Object.entries(MESSAGES)) {
 const output = lines.join('\n');
 process.stdout.write(output);
 
-const target = resolve(
-    import.meta.dirname,
-    '../packages/client/src/game/messages.preview.ansi',
-);
+// Write target: if filtering to a single domain, use that domain's file; else
+// write the full combined preview.
+const targetRel =
+    filter && filter.size === 1
+        ? DOMAIN_OUTPUT[[...filter][0]]
+        : '../packages/client/src/game/messages.preview.ansi';
+const target = resolve(import.meta.dirname, targetRel);
 writeFileSync(target, output);
 process.stderr.write(`\n→ wrote ${target}\n`);

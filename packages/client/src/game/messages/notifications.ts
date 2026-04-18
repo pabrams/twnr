@@ -3,7 +3,9 @@
  * simple "invalid input" messages.
  */
 
-export const NOTIFY = {
+import { makeDomain } from './_domain.js';
+
+export const NOTIFY = makeDomain('NOTIFY', {
     connected: '[g]Connected to TWNR.[/g]',
     connectionError: '\r\n[br]Connection error.[/br]',
 
@@ -23,4 +25,4 @@ export const NOTIFY = {
     usageMove: 'Usage: move <sector>',
 
     autopilotEngaged: '\r\n[bg]Autopilot engaged.[/bg]',
-} as const;
+});

@@ -3,7 +3,9 @@
  * Tag cheat sheet in /game/messages/README or /game/renderer.ts.
  */
 
-export const COMMON = {
+import { makeDomain } from './_domain.js';
+
+export const COMMON = makeDomain('COMMON', {
     /** Standard menu row — `  [c]K[/c]  label` */
     menuRow: '  [c]{key}[/c]  {text}',
 
@@ -24,4 +26,4 @@ export const COMMON = {
 
     /** Red error line */
     errorLine: '[br]{text}[/br]',
-} as const;
+});

@@ -3,7 +3,9 @@
  * Also the main command prompt, player-info header, autopilot prompts.
  */
 
-export const SECTOR = {
+import { makeDomain } from './_domain.js';
+
+export const SECTOR = makeDomain('SECTOR', {
     header: '[bg]Sector[/bg]  [by]:[/by] [bc]{sector}[/bc]',
 
     port: '[mg]Port[/mg]    [by]:[/by] [bc]{name}[/bc][by],[/by] [mg]Class[/mg] [bc]{class}[/bc] [mg]([/mg][bw]{label}[/bw][mg])[/mg]',
@@ -33,8 +35,8 @@ export const SECTOR = {
 
     prompt: '\r\n[mg]Command[/mg] [mg][[/mg][bc]{sector}[/bc][mg]][/mg] [mg]([/mg][by]?[/by]=[by]Help[/by][mg])[/mg] [by]:[/by] ',
 
-    playerInfoName: '[bg]Player[/bg]: [bc]{name}[/bc]',
-    playerInfoSector: '[bg]Sector[/bg]: [bc]{sector}[/bc]',
+    playerInfoName: '{{MSG.playerInfoName}}',
+    playerInfoSector: '{{MSG.playerInfoSector}}',
 
     jettisonConfirm:
         '\r\n[by]Jettison all cargo?[/by] This cannot be undone. [mg]([/mg][by]Y[/by]/[by]Z[/by][mg])[/mg] ',
@@ -47,4 +49,4 @@ export const SECTOR = {
 
     noPlanet:
         '[w]There is no planet in this sector. You could create one with a Terraform Device.[/w]',
-} as const;
+});

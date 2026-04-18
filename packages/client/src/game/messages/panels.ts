@@ -3,14 +3,24 @@
  * planet detail, list panels.
  */
 
-export const PANEL = {
-    shipName: '[w]Ship:[/w] [bc]{name}[/bc]',
-    shipDronesShields:
-        '  [by]Drones[/by]: [w]{drones}[/w]/[c]{maxDrones}[/c]  [by]Shields[/by]: [w]{shields}[/w]/[c]{maxShields}[/c]',
+import { makeDomain } from './_domain.js';
+
+export const PANEL = makeDomain('PANEL', {
+    playerInfo: '{{MSG.playerInfoName}}',
+    playerInfoSector: '{{MSG.playerInfoSector}}',
+    shipName: '[mg]Ship Type[/mg]      [by]:[/by] [bc]{name}[/bc]',
+    shipDronesShields: 
+        '[mg]Drones[/mg]         [by]:[/by] [bc]{drones}[/bc] [g]/[/g] [c]{maxDrones}[/c] \r\n' +
+        '[mg]Shields[/mg]        [by]:[/by] [bc]{shields}[/bc] [g]/[/g] [c]{maxShields}[/c] ',
     shipHolds:
-        '  [by]Cargo holds[/by]: [bg]{free} free[/bg] / [w]{total} total[/w] [mg]([/mg]max {max}[mg])[/mg]',
+        '[mg]Cargo holds[/mg]    [by]:[/by] [bc]{free}[/bc] [g]free[/g] [g]/[/g] [c]{total}[/c] ' +
+        '[g]total[/g] [mg]([/mg][g]max[/g] [c]{max}[/c][mg])[/mg]',
     shipCargo:
-        '  [by]Fuel[/by]: {fuel}  [by]Organics[/by]: {organics}  [by]Equipment[/by]: {equipment}  [by]Colonists[/by]: {colonists}',
+        '[mg]Cargo[/mg]          [by]:[/by] ' + 
+        '{{MSG.fuelQuantity}} ' +
+        '{{MSG.orgQuantity}} ' +
+        '{{MSG.equQuantity}} ' + 
+        '{{MSG.colosQuantity}}',
     shipCreditsTurns:
         '  [by]Credits[/by]: [by]{credits}[/by]  [by]Turns[/by]: [w]{turns}[/w]',
 
@@ -28,9 +38,9 @@ export const PANEL = {
     landedHeader: '[bg]Landed on[/bg] [bc]{name}[/bc]',
     landedType: '  [by]Type[/by]: {type}',
     landedStats:
-        '  [by]Drones[/by]: {drones}  [by]Fuel[/by]: {fuel}  [by]Organics[/by]: {organics}  [by]Equipment[/by]: {equipment}',
+        '  [by]Drones[/by]: {drones}  ',
     landedColonists:
-        '  [by]Colonists[/by]: Fuel={fuel}, Org={org}, Equ={equ}',
+        '  [by]Colonists[/by]: {{MSG.fuelQuantity}}, {{MSG.orgQuantity}}, {{MSG.equQuantity}}',
 
     planetDisplayHeader: '[bc]{name}[/bc] ({type})',
 
@@ -43,5 +53,6 @@ export const PANEL = {
     listPlanetsRow:
         '  [by]Sector {sector}[/by] — [bc]{name}[/bc] ([w]{type}[/w])',
     listPlanetsColonists:
-        '    Fuel col: {fuel}  Org col: {org}  Equ col: {equ}',
-} as const;
+        '  Colonists: {{MSG.fuelQuantity}}, {{MSG.orgQuantity}}, {{MSG.equQuantity}}',
+});
+

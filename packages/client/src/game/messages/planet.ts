@@ -2,7 +2,9 @@
  * Planet menus: landing, Earth, take/leave colonists, commodity selection.
  */
 
-export const PLANET = {
+import { makeDomain } from './_domain.js';
+
+export const PLANET = makeDomain('PLANET', {
     landing: '[bg]Landing on[/bg] [bc]{name}[/bc][by]...[/by]',
     colonists: '  [by]Colonists[/by]: [w]{count}[/w]',
 
@@ -15,4 +17,4 @@ export const PLANET = {
 
     takeCommodityHeader: '[bc]Which colonists to take?[/bc]',
     leaveCommodityHeader: '[bc]Assign colonists to which commodity?[/bc]',
-} as const;
+});

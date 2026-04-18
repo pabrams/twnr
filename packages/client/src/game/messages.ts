@@ -10,7 +10,9 @@
  * {name} placeholders are replaced via render(template, vars).
  */
 
-export const MSG = {
+import { makeDomain } from './messages/_domain.js';
+
+export const MSG = makeDomain('MSG', {
     sectorHeader: '[bg]Sector[/bg]  [by]:[/by] [bc]{sector}[/bc]',
 
     portLine:
@@ -60,6 +62,10 @@ export const MSG = {
     commerceFooter:
         '[mg]You have[/mg] [by]{credits}[/by] [mg]credits and[/mg] [by]{holds}[/by] [mg]empty cargo holds.[/mg]',
 
-    playerInfoName: '[bg]Player[/bg]: [bc]{name}[/bc]',
-    playerInfoSector: '[bg]Sector[/bg]: [bc]{sector}[/bc]',
-} as const;
+    playerInfoName: '[mg]Merchant Name[/mg]  [by]:[/by] [g]{name}[/g]',
+    playerInfoSector: '[mg]Sector[/mg]         [by]:[/by] [bc]{sector}[/bc]',
+    fuelQuantity: '[g]Fuel[/g][by]=[/by][bc]{fuel}[/bc]',
+    orgQuantity: '[g]Org[/g][by]=[/by][bc]{organics}[/bc]',
+    equQuantity: '[g]Equ[/g][by]=[/by][bc]{equipment}[/bc]',
+    colosQuantity: '[g]Colos[/g][by]=[/by][bc]{colonists}[/bc]',
+});
