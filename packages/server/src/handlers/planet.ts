@@ -1,6 +1,6 @@
 import { ServerMsgType } from '@twnr/shared';
 import { players, sendEnvelope, buildSectorDisplayData, setPlayerMenu } from '../game-state.js';
-import { pool } from '../db/index.js';
+import { withTransaction, AbortTransaction } from '../db/index.js';
 import {
     getEarthId,
     getPlanetInSector,
@@ -168,22 +168,16 @@ export async function handleDestroyPlanet(playerId: number): Promise<void> {
         return;
     }
 
-    const client = await pool.connect();
     try {
-        await client.query('BEGIN');
-
-        await decrementShipHardwareByName(playerId, 'planet_buster', client);
-        await setOnPlanet(playerId, null, client);
-        await deletePlanet(onPlanetId, client);
-
-        await client.query('COMMIT');
+        await withTransaction(async (client) => {
+            await decrementShipHardwareByName(playerId, 'planet_buster', client);
+            await setOnPlanet(playerId, null, client);
+            await deletePlanet(onPlanetId, client);
+        });
     } catch (err) {
-        await client.query('ROLLBACK');
         console.error('Destroy planet error', err);
         sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Failed to destroy planet.' });
         return;
-    } finally {
-        client.release();
     }
 
     await setPlayerMenu(playerId, 'sector');
@@ -242,67 +236,73 @@ export async function handleUseTerraformDevice(playerId: number): Promise<void> 
         return;
     }
 
-    const client = await pool.connect();
     try {
-        await client.query('BEGIN');
-
-        const universeInfo = await getTerraformConfigForUniverse(universeId, client);
-        if (!universeInfo) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Universe not found' });
-            return;
-        }
-
-        const existingPlanetIds = await getPlanetIdsInSectorForUpdate(sectorDbId, client);
-
-        await decrementShipHardwareByName(playerId, 'terraform_device', client);
-
-        const types = Object.keys(planetConfigs);
-        const randomType = types[Math.floor(Math.random() * types.length)] || 'Terran';
-        const randomName = 'Planet-' + Math.random().toString(36).substring(2, 8).toUpperCase();
-
-        const newPlanetId = await insertPlanet(
-            sectorDbId,
-            randomName,
-            randomType,
-            playerId,
-            client,
-        );
-
-        let collision = false;
-        if (existingPlanetIds.length >= universeInfo.max_planets_per_sector) {
-            const rand = Math.floor(Math.random() * 100) + 1;
-            if (rand <= universeInfo.planet_collision_likelihood) {
-                collision = true;
-                const collidingWithId =
-                    existingPlanetIds[Math.floor(Math.random() * existingPlanetIds.length)];
-
-                const minH = universeInfo.planet_collision_min_hours;
-                const maxH = universeInfo.planet_collision_max_hours;
-                const hours = Math.floor(Math.random() * (maxH - minH + 1)) + minH;
-
-                await insertPlanetCollision(newPlanetId, collidingWithId, hours, client);
+        const result = await withTransaction(async (client) => {
+            const universeInfo = await getTerraformConfigForUniverse(universeId, client);
+            if (!universeInfo) {
+                sendEnvelope(playerId, {
+                    type: ServerMsgType.Error,
+                    message: 'Universe not found',
+                });
+                throw new AbortTransaction();
             }
-        }
 
-        await client.query('COMMIT');
+            const existingPlanetIds = await getPlanetIdsInSectorForUpdate(sectorDbId, client);
+
+            await decrementShipHardwareByName(playerId, 'terraform_device', client);
+
+            const types = Object.keys(planetConfigs);
+            const randomType = types[Math.floor(Math.random() * types.length)] || 'Terran';
+            const randomName =
+                'Planet-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+
+            const newPlanetId = await insertPlanet(
+                sectorDbId,
+                randomName,
+                randomType,
+                playerId,
+                client,
+            );
+
+            let collision = false;
+            if (existingPlanetIds.length >= universeInfo.max_planets_per_sector) {
+                const rand = Math.floor(Math.random() * 100) + 1;
+                if (rand <= universeInfo.planet_collision_likelihood) {
+                    collision = true;
+                    const collidingWithId =
+                        existingPlanetIds[Math.floor(Math.random() * existingPlanetIds.length)];
+
+                    const minH = universeInfo.planet_collision_min_hours;
+                    const maxH = universeInfo.planet_collision_max_hours;
+                    const hours = Math.floor(Math.random() * (maxH - minH + 1)) + minH;
+
+                    await insertPlanetCollision(newPlanetId, collidingWithId, hours, client);
+                }
+            }
+
+            return { newPlanetId, randomName, randomType, collision };
+        });
+
+        if (!result) return;
 
         sendEnvelope(playerId, {
             type: ServerMsgType.UseTerraformDeviceResult,
             success: true,
-            planet: { id: newPlanetId, name: randomName, type: randomType, sectorId },
-            collision,
+            planet: {
+                id: result.newPlanetId,
+                name: result.randomName,
+                type: result.randomType,
+                sectorId,
+            },
+            collision: result.collision,
             terraformDevices: terraformQty - 1,
         });
     } catch (err) {
-        await client.query('ROLLBACK');
         console.error('Use terraform device error', err);
         sendEnvelope(playerId, {
             type: ServerMsgType.Error,
             message: 'Failed to use terraform device.',
         });
-    } finally {
-        client.release();
     }
 }
 
@@ -326,44 +326,42 @@ export async function handleTakeColonists(
         return;
     }
 
-    const client = await pool.connect();
     try {
-        await client.query('BEGIN');
+        const toTake = await withTransaction(async (client) => {
+            const available = await getPlanetColonistsForUpdate(onPlanetId, col, client);
+            if (available === undefined) {
+                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Planet not found' });
+                throw new AbortTransaction();
+            }
 
-        const available = await getPlanetColonistsForUpdate(onPlanetId, col, client);
-        if (available === undefined) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Planet not found' });
-            return;
-        }
+            const actual = Math.min(quantity, available);
+            if (actual <= 0) {
+                sendEnvelope(playerId, {
+                    type: ServerMsgType.Error,
+                    message: 'No colonists available to take',
+                });
+                throw new AbortTransaction();
+            }
 
-        const actual = Math.min(quantity, available);
-        if (actual <= 0) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, {
-                type: ServerMsgType.Error,
-                message: 'No colonists available to take',
-            });
-            return;
-        }
+            const ship = await getShipHoldsAndCargoForUpdate(playerId, client);
+            if (!ship) {
+                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'No ship' });
+                throw new AbortTransaction();
+            }
+            const used = ship.fuel + ship.organics + ship.equipment + ship.colonists;
+            const free = ship.holds - used;
+            const take = Math.min(actual, free);
+            if (take <= 0) {
+                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'No free holds' });
+                throw new AbortTransaction();
+            }
 
-        const ship = await getShipHoldsAndCargoForUpdate(playerId, client);
-        if (!ship) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'No ship' });
-            return;
-        }
-        const used = ship.fuel + ship.organics + ship.equipment + ship.colonists;
-        const free = ship.holds - used;
-        const toTake = Math.min(actual, free);
-        if (toTake <= 0) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'No free holds' });
-        } else {
-            await updatePlanetColonists(onPlanetId, col, -toTake, client);
-            await incrementShipColonists(playerId, toTake, client);
-            await client.query('COMMIT');
+            await updatePlanetColonists(onPlanetId, col, -take, client);
+            await incrementShipColonists(playerId, take, client);
+            return take;
+        });
 
+        if (toTake !== undefined) {
             const planetRemaining = await getPlanetColonistsRemaining(onPlanetId, col);
             const shipColonists = await getShipColonists(playerId);
 
@@ -376,11 +374,8 @@ export async function handleTakeColonists(
             });
         }
     } catch (err) {
-        await client.query('ROLLBACK');
         console.error('Take colonists error', err);
         sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Failed to take colonists' });
-    } finally {
-        client.release();
     }
 
     // Auto-leave planet after taking colonists (success or no-holds)
@@ -412,26 +407,25 @@ export async function handleLeaveColonists(
         return;
     }
 
-    const client = await pool.connect();
     try {
-        await client.query('BEGIN');
+        const actual = await withTransaction(async (client) => {
+            const shipColonists = await getShipColonistsForUpdate(playerId, client);
+            if (shipColonists === undefined || shipColonists <= 0) {
+                sendEnvelope(playerId, {
+                    type: ServerMsgType.Error,
+                    message: 'No colonists on ship',
+                });
+                throw new AbortTransaction();
+            }
 
-        const shipColonists = await getShipColonistsForUpdate(playerId, client);
-        if (shipColonists === undefined || shipColonists <= 0) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, {
-                type: ServerMsgType.Error,
-                message: 'No colonists on ship',
-            });
-            return;
-        }
+            const leave = Math.min(quantity, shipColonists);
 
-        const actual = Math.min(quantity, shipColonists);
+            await incrementShipColonists(playerId, -leave, client);
+            await updatePlanetColonists(onPlanetId, col, leave, client);
+            return leave;
+        });
 
-        await incrementShipColonists(playerId, -actual, client);
-        await updatePlanetColonists(onPlanetId, col, actual, client);
-
-        await client.query('COMMIT');
+        if (actual === undefined) return;
 
         const planetRemaining = await getPlanetColonistsRemaining(onPlanetId, col);
         const shipColonistsNow = await getShipColonists(playerId);
@@ -444,14 +438,11 @@ export async function handleLeaveColonists(
             shipColonists: shipColonistsNow ?? 0,
         });
     } catch (err) {
-        await client.query('ROLLBACK');
         console.error('Leave colonists error', err);
         sendEnvelope(playerId, {
             type: ServerMsgType.Error,
             message: 'Failed to leave colonists',
         });
-    } finally {
-        client.release();
     }
 }
 

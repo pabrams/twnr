@@ -2,7 +2,7 @@ import { ServerMsgType } from '@twnr/shared';
 import type { ServerResult } from '@twnr/shared';
 
 import { players, sendEnvelope, setPlayerMenu } from '../game-state.js';
-import { pool } from '../db/index.js';
+import { withTransaction, AbortTransaction } from '../db/index.js';
 import {
     getShipDronesForUpdate,
     getShipDronesAndShieldsForUpdate,
@@ -57,58 +57,57 @@ export async function handleAttackShip(
         return;
     }
 
-    const client = await pool.connect();
     try {
-        await client.query('BEGIN');
+        const result = await withTransaction(async (client) => {
+            const attackerDrones = await getShipDronesForUpdate(attackerId, client);
+            const targetShip = await getShipDronesAndShieldsForUpdate(targetPlayerId, client);
 
-        const attackerDrones = await getShipDronesForUpdate(attackerId, client);
-        const targetShip = await getShipDronesAndShieldsForUpdate(targetPlayerId, client);
+            if (attackerDrones === undefined || targetShip === undefined) {
+                sendEnvelope(attackerId, { type: ServerMsgType.Error, message: 'Ship not found' });
+                throw new AbortTransaction();
+            }
 
-        if (attackerDrones === undefined || targetShip === undefined) {
-            await client.query('ROLLBACK');
-            sendEnvelope(attackerId, { type: ServerMsgType.Error, message: 'Ship not found' });
-            return;
-        }
+            if (drones > attackerDrones) {
+                sendEnvelope(attackerId, {
+                    type: ServerMsgType.Error,
+                    message: 'Not enough drones',
+                });
+                throw new AbortTransaction();
+            }
 
-        let targetShields = targetShip.shields;
-        let targetDrones = targetShip.drones;
+            let targetShields = targetShip.shields;
+            let targetDrones = targetShip.drones;
+            let remainingAttack = drones;
 
-        if (drones > attackerDrones) {
-            await client.query('ROLLBACK');
-            sendEnvelope(attackerId, { type: ServerMsgType.Error, message: 'Not enough drones' });
-            return;
-        }
+            const shieldsLost = Math.min(targetShields, remainingAttack);
+            targetShields -= shieldsLost;
+            remainingAttack -= shieldsLost;
 
-        let remainingAttack = drones;
-        let shieldsLost = 0;
-        let defenderDronesLost = 0;
+            let defenderDronesLost = 0;
+            if (remainingAttack > 0) {
+                defenderDronesLost = Math.min(targetDrones, remainingAttack);
+                targetDrones -= defenderDronesLost;
+                remainingAttack -= defenderDronesLost;
+            }
 
-        const shieldAbsorb = Math.min(targetShields, remainingAttack);
-        shieldsLost = shieldAbsorb;
-        targetShields -= shieldAbsorb;
-        remainingAttack -= shieldAbsorb;
+            const destroyed = remainingAttack > 0;
+            const attackerDronesLost = shieldsLost + defenderDronesLost;
 
-        if (remainingAttack > 0) {
-            const droneAbsorb = Math.min(targetDrones, remainingAttack);
-            defenderDronesLost = droneAbsorb;
-            targetDrones -= droneAbsorb;
-            remainingAttack -= droneAbsorb;
-        }
+            await setShipDrones(attackerId, attackerDrones - attackerDronesLost, client);
 
-        const destroyed = remainingAttack > 0;
-        const attackerDronesLost = shieldsLost + defenderDronesLost;
-        const newAttackerDrones = attackerDrones - attackerDronesLost;
+            if (destroyed) {
+                await deleteShipByOwner(targetPlayerId, client);
+                await markPlayerShipDestroyed(targetPlayerId, client);
+            } else {
+                await setShipDronesAndShields(targetPlayerId, targetDrones, targetShields, client);
+            }
 
-        await setShipDrones(attackerId, newAttackerDrones, client);
+            return { destroyed, attackerDronesLost, defenderDronesLost, shieldsLost };
+        });
 
-        if (destroyed) {
-            await deleteShipByOwner(targetPlayerId, client);
-            await markPlayerShipDestroyed(targetPlayerId, client);
-        } else {
-            await setShipDronesAndShields(targetPlayerId, targetDrones, targetShields, client);
-        }
+        if (!result) return;
 
-        await client.query('COMMIT');
+        const { destroyed, attackerDronesLost, defenderDronesLost, shieldsLost } = result;
 
         await setPlayerMenu(attackerId, 'sector');
         const resultMsg: ServerResult = {
@@ -135,10 +134,7 @@ export async function handleAttackShip(
             }
         }
     } catch (e) {
-        await client.query('ROLLBACK');
         console.error('Attack error', e);
         sendEnvelope(attackerId, { type: ServerMsgType.Error, message: 'Internal server error' });
-    } finally {
-        client.release();
     }
 }

@@ -8,7 +8,7 @@ import {
     buildSectorDisplayData,
     setPlayerMenu,
 } from '../game-state.js';
-import { pool } from '../db/index.js';
+import { withTransaction, AbortTransaction } from '../db/index.js';
 import { setDocked, getCurrentSector, deductCredits, addCredits } from '../db/queries/player.js';
 import {
     getPortAtSector,
@@ -320,162 +320,165 @@ export async function handleTradeConfirmResponse(
         return;
     }
 
-    const client = await pool.connect();
+    type TradeOutcome =
+        | { kind: 'advance' }
+        | { kind: 'undock' }
+        | {
+              kind: 'skip';
+              reason:
+                  | 'insufficientTurns'
+                  | 'insufficientCredits'
+                  | 'insufficientPortInventory'
+                  | 'insufficientCargoHolds'
+                  | 'insufficientCargo'
+                  | 'portCannotBuy';
+          }
+        | {
+              kind: 'complete';
+              credits: number;
+              cargo: { fuel: number; organics: number; equipment: number; colonists: number };
+              emptyHolds: number;
+              turnsUsed?: number;
+          };
+
+    let outcome: TradeOutcome = { kind: 'advance' } as TradeOutcome;
+
     try {
-        await client.query('BEGIN');
-
-        const currentSector = await getCurrentSector(playerId, client);
-        if (currentSector === undefined) {
-            await client.query('ROLLBACK');
-            player.tradeState.stepIndex++;
-            await advanceTradeFlow(playerId);
-            return;
-        }
-
-        const port = await getPortTradeInfoForUpdate(currentSector, player.universeId, client);
-        if (!port) {
-            await client.query('ROLLBACK');
-            await undockPlayer(playerId);
-            return;
-        }
-
-        const cargo = await getShipCargoWithCreditsForUpdate(playerId, client);
-        if (!cargo) {
-            await client.query('ROLLBACK');
-            await undockPlayer(playerId);
-            return;
-        }
-
-        const col = step.commodity;
-        const price = step.price;
-
-        if (step.action === 'buy') {
-            const turnResult = await checkAndDeductTurns(playerId, player.universeId, 1, client);
-            if (!turnResult.allowed) {
-                await client.query('ROLLBACK');
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.TradeSkipped,
-                    reason: 'insufficientTurns',
-                });
-                player.tradeState.pendingQty = undefined;
-                player.tradeState.stepIndex++;
-                await advanceTradeFlow(playerId);
+        await withTransaction(async (client) => {
+            const currentSector = await getCurrentSector(playerId, client);
+            if (currentSector === undefined) {
+                outcome = { kind: 'advance' };
                 return;
             }
 
-            const cost = qty * price;
-            if (cargo.credits < cost) {
-                await client.query('ROLLBACK');
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.TradeSkipped,
-                    reason: 'insufficientCredits',
-                });
-                player.tradeState.pendingQty = undefined;
-                player.tradeState.stepIndex++;
-                await advanceTradeFlow(playerId);
-                return;
-            }
-            if (port[col] < qty) {
-                await client.query('ROLLBACK');
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.TradeSkipped,
-                    reason: 'insufficientPortInventory',
-                });
-                player.tradeState.pendingQty = undefined;
-                player.tradeState.stepIndex++;
-                await advanceTradeFlow(playerId);
-                return;
-            }
-            const used = cargo.fuel + cargo.organics + cargo.equipment + cargo.colonists;
-            if (used + qty > cargo.cargo_limit) {
-                await client.query('ROLLBACK');
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.TradeSkipped,
-                    reason: 'insufficientCargoHolds',
-                });
-                player.tradeState.pendingQty = undefined;
-                player.tradeState.stepIndex++;
-                await advanceTradeFlow(playerId);
+            const port = await getPortTradeInfoForUpdate(currentSector, player.universeId, client);
+            if (!port) {
+                outcome = { kind: 'undock' };
                 return;
             }
 
-            await decrementPortCommodity(port.port_id, col, qty, client);
-            await incrementShipCommodity(playerId, col, qty, client);
-            await deductCredits(playerId, cost, client);
-            await client.query('COMMIT');
-
-            cargo[col] += qty;
-            cargo.credits -= cost;
-            const usedAfter = cargo.fuel + cargo.organics + cargo.equipment + cargo.colonists;
-            sendEnvelope(playerId, {
-                type: ServerMsgType.TradeComplete,
-                credits: cargo.credits,
-                cargo: {
-                    fuel: cargo.fuel,
-                    organics: cargo.organics,
-                    equipment: cargo.equipment,
-                    colonists: cargo.colonists,
-                },
-                emptyHolds: Math.max(0, cargo.cargo_limit - usedAfter),
-                turnsUsed: turnResult.turnsUsed,
-            });
-        } else {
-            // Sell
-            if (cargo[col] < qty) {
-                await client.query('ROLLBACK');
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.TradeSkipped,
-                    reason: 'insufficientCargo',
-                });
-                player.tradeState.pendingQty = undefined;
-                player.tradeState.stepIndex++;
-                await advanceTradeFlow(playerId);
-                return;
-            }
-            if (port[col] < qty) {
-                await client.query('ROLLBACK');
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.TradeSkipped,
-                    reason: 'portCannotBuy',
-                });
-                player.tradeState.pendingQty = undefined;
-                player.tradeState.stepIndex++;
-                await advanceTradeFlow(playerId);
+            const cargo = await getShipCargoWithCreditsForUpdate(playerId, client);
+            if (!cargo) {
+                outcome = { kind: 'undock' };
                 return;
             }
 
-            const revenue = qty * price;
-            await decrementPortCommodity(port.port_id, col, qty, client);
-            await incrementShipCommodity(playerId, col, -qty, client);
-            await addCredits(playerId, revenue, client);
-            await client.query('COMMIT');
+            const col = step.commodity;
+            const price = step.price;
 
-            cargo[col] -= qty;
-            cargo.credits += revenue;
-            const usedAfter = cargo.fuel + cargo.organics + cargo.equipment + cargo.colonists;
-            sendEnvelope(playerId, {
-                type: ServerMsgType.TradeComplete,
-                credits: cargo.credits,
-                cargo: {
-                    fuel: cargo.fuel,
-                    organics: cargo.organics,
-                    equipment: cargo.equipment,
-                    colonists: cargo.colonists,
-                },
-                emptyHolds: Math.max(0, cargo.cargo_limit - usedAfter),
-            });
-        }
+            if (step.action === 'buy') {
+                const turnResult = await checkAndDeductTurns(
+                    playerId,
+                    player.universeId,
+                    1,
+                    client,
+                );
+                if (!turnResult.allowed) {
+                    outcome = { kind: 'skip', reason: 'insufficientTurns' };
+                    return;
+                }
 
-        player.tradeState.pendingQty = undefined;
-        player.tradeState.stepIndex++;
-        await advanceTradeFlow(playerId);
+                const cost = qty * price;
+                if (cargo.credits < cost) {
+                    outcome = { kind: 'skip', reason: 'insufficientCredits' };
+                    throw new AbortTransaction();
+                }
+                if (port[col] < qty) {
+                    outcome = { kind: 'skip', reason: 'insufficientPortInventory' };
+                    throw new AbortTransaction();
+                }
+                const used = cargo.fuel + cargo.organics + cargo.equipment + cargo.colonists;
+                if (used + qty > cargo.cargo_limit) {
+                    outcome = { kind: 'skip', reason: 'insufficientCargoHolds' };
+                    throw new AbortTransaction();
+                }
+
+                await decrementPortCommodity(port.port_id, col, qty, client);
+                await incrementShipCommodity(playerId, col, qty, client);
+                await deductCredits(playerId, cost, client);
+
+                cargo[col] += qty;
+                cargo.credits -= cost;
+                const usedAfter = cargo.fuel + cargo.organics + cargo.equipment + cargo.colonists;
+                outcome = {
+                    kind: 'complete',
+                    credits: cargo.credits,
+                    cargo: {
+                        fuel: cargo.fuel,
+                        organics: cargo.organics,
+                        equipment: cargo.equipment,
+                        colonists: cargo.colonists,
+                    },
+                    emptyHolds: Math.max(0, cargo.cargo_limit - usedAfter),
+                    turnsUsed: turnResult.turnsUsed,
+                };
+            } else {
+                if (cargo[col] < qty) {
+                    outcome = { kind: 'skip', reason: 'insufficientCargo' };
+                    return;
+                }
+                if (port[col] < qty) {
+                    outcome = { kind: 'skip', reason: 'portCannotBuy' };
+                    return;
+                }
+
+                const revenue = qty * price;
+                await decrementPortCommodity(port.port_id, col, qty, client);
+                await incrementShipCommodity(playerId, col, -qty, client);
+                await addCredits(playerId, revenue, client);
+
+                cargo[col] -= qty;
+                cargo.credits += revenue;
+                const usedAfter = cargo.fuel + cargo.organics + cargo.equipment + cargo.colonists;
+                outcome = {
+                    kind: 'complete',
+                    credits: cargo.credits,
+                    cargo: {
+                        fuel: cargo.fuel,
+                        organics: cargo.organics,
+                        equipment: cargo.equipment,
+                        colonists: cargo.colonists,
+                    },
+                    emptyHolds: Math.max(0, cargo.cargo_limit - usedAfter),
+                };
+            }
+        });
     } catch (err) {
-        await client.query('ROLLBACK');
         console.error('Trade error', err);
         sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Internal server error' });
         await undockPlayer(playerId);
-    } finally {
-        client.release();
+        return;
+    }
+
+    switch (outcome.kind) {
+        case 'advance':
+            player.tradeState.stepIndex++;
+            await advanceTradeFlow(playerId);
+            return;
+        case 'undock':
+            await undockPlayer(playerId);
+            return;
+        case 'skip':
+            sendEnvelope(playerId, {
+                type: ServerMsgType.TradeSkipped,
+                reason: outcome.reason,
+            });
+            player.tradeState.pendingQty = undefined;
+            player.tradeState.stepIndex++;
+            await advanceTradeFlow(playerId);
+            return;
+        case 'complete':
+            sendEnvelope(playerId, {
+                type: ServerMsgType.TradeComplete,
+                credits: outcome.credits,
+                cargo: outcome.cargo,
+                emptyHolds: outcome.emptyHolds,
+                ...(outcome.turnsUsed !== undefined ? { turnsUsed: outcome.turnsUsed } : {}),
+            });
+            player.tradeState.pendingQty = undefined;
+            player.tradeState.stepIndex++;
+            await advanceTradeFlow(playerId);
+            return;
     }
 }
 
@@ -528,139 +531,125 @@ export async function handlePortTransaction(
         equipment: 'equ_price',
     };
 
-    const client = await pool.connect();
     try {
-        await client.query('BEGIN');
-
-        const currentSector = await getCurrentSector(playerId, client);
-        if (currentSector === undefined) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
-            return;
-        }
-
-        const port = await getPortTradeInfoForUpdate(currentSector, universeId, client);
-        if (!port) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, {
-                type: ServerMsgType.Error,
-                message: 'No port in this sector',
-            });
-            return;
-        }
-
-        const portActions = PORT_CLASS_ACTIONS[port.class];
-        if (
-            !portActions ||
-            (action === 'buy' && portActions[col] !== 'S') ||
-            (action === 'sell' && portActions[col] !== 'B')
-        ) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, {
-                type: ServerMsgType.Error,
-                message: 'Port does not trade this commodity',
-            });
-            return;
-        }
-
-        const price: number = port[priceColMap[col]];
-
-        const cargo = await getShipCargoWithCreditsForUpdate(playerId, client);
-        if (!cargo) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
-            return;
-        }
-
-        if (action === 'buy') {
-            const turnResult = await checkAndDeductTurns(playerId, universeId, 1, client);
-            if (!turnResult.allowed) {
-                await client.query('ROLLBACK');
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.Error,
-                    message: 'Insufficient turns',
-                });
-                return;
+        const result = await withTransaction(async (client) => {
+            const currentSector = await getCurrentSector(playerId, client);
+            if (currentSector === undefined) {
+                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
+                throw new AbortTransaction();
             }
 
-            const cost = qty * price;
-            if (cargo.credits < cost) {
-                await client.query('ROLLBACK');
+            const port = await getPortTradeInfoForUpdate(currentSector, universeId, client);
+            if (!port) {
                 sendEnvelope(playerId, {
                     type: ServerMsgType.Error,
-                    message: 'Insufficient credits',
+                    message: 'No port in this sector',
                 });
-                return;
+                throw new AbortTransaction();
             }
-            if (port[col] < qty) {
-                await client.query('ROLLBACK');
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.Error,
-                    message: 'Insufficient port inventory',
-                });
-                return;
-            }
+
+            const portActions = PORT_CLASS_ACTIONS[port.class];
             if (
-                cargo.fuel + cargo.organics + cargo.equipment + cargo.colonists + qty >
-                cargo.cargo_limit
+                !portActions ||
+                (action === 'buy' && portActions[col] !== 'S') ||
+                (action === 'sell' && portActions[col] !== 'B')
             ) {
-                await client.query('ROLLBACK');
                 sendEnvelope(playerId, {
                     type: ServerMsgType.Error,
-                    message: 'Insufficient cargo holds',
+                    message: 'Port does not trade this commodity',
                 });
-                return;
+                throw new AbortTransaction();
             }
 
-            await decrementPortCommodity(port.port_id, col, qty, client);
-            await incrementShipCommodity(playerId, col, qty, client);
-            await deductCredits(playerId, cost, client);
-            await client.query('COMMIT');
+            const price: number = port[priceColMap[col]];
 
-            cargo[col] += qty;
-            cargo.credits -= cost;
-            const usedAfterBuy = cargo.fuel + cargo.organics + cargo.equipment + cargo.colonists;
-            sendEnvelope(playerId, {
-                type: ServerMsgType.PortTransactionResult,
-                credits: cargo.credits,
-                cargo: {
-                    fuel: cargo.fuel,
-                    organics: cargo.organics,
-                    equipment: cargo.equipment,
-                    colonists: cargo.colonists,
-                },
-                emptyHolds: Math.max(0, cargo.cargo_limit - usedAfterBuy),
-                turnsUsed: turnResult.turnsUsed,
-            });
-        } else {
-            const revenue = qty * price;
+            const cargo = await getShipCargoWithCreditsForUpdate(playerId, client);
+            if (!cargo) {
+                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
+                throw new AbortTransaction();
+            }
+
+            if (action === 'buy') {
+                const turnResult = await checkAndDeductTurns(playerId, universeId, 1, client);
+                if (!turnResult.allowed) {
+                    sendEnvelope(playerId, {
+                        type: ServerMsgType.Error,
+                        message: 'Insufficient turns',
+                    });
+                    throw new AbortTransaction();
+                }
+
+                const cost = qty * price;
+                if (cargo.credits < cost) {
+                    sendEnvelope(playerId, {
+                        type: ServerMsgType.Error,
+                        message: 'Insufficient credits',
+                    });
+                    throw new AbortTransaction();
+                }
+                if (port[col] < qty) {
+                    sendEnvelope(playerId, {
+                        type: ServerMsgType.Error,
+                        message: 'Insufficient port inventory',
+                    });
+                    throw new AbortTransaction();
+                }
+                if (
+                    cargo.fuel + cargo.organics + cargo.equipment + cargo.colonists + qty >
+                    cargo.cargo_limit
+                ) {
+                    sendEnvelope(playerId, {
+                        type: ServerMsgType.Error,
+                        message: 'Insufficient cargo holds',
+                    });
+                    throw new AbortTransaction();
+                }
+
+                await decrementPortCommodity(port.port_id, col, qty, client);
+                await incrementShipCommodity(playerId, col, qty, client);
+                await deductCredits(playerId, cost, client);
+
+                cargo[col] += qty;
+                cargo.credits -= cost;
+                const used = cargo.fuel + cargo.organics + cargo.equipment + cargo.colonists;
+                return {
+                    credits: cargo.credits,
+                    cargo: {
+                        fuel: cargo.fuel,
+                        organics: cargo.organics,
+                        equipment: cargo.equipment,
+                        colonists: cargo.colonists,
+                    },
+                    emptyHolds: Math.max(0, cargo.cargo_limit - used),
+                    turnsUsed: turnResult.turnsUsed,
+                };
+            }
+
+            // sell
             if (cargo[col] < qty) {
-                await client.query('ROLLBACK');
                 sendEnvelope(playerId, {
                     type: ServerMsgType.Error,
                     message: 'Insufficient cargo',
                 });
-                return;
+                throw new AbortTransaction();
             }
             if (port[col] < qty) {
-                await client.query('ROLLBACK');
                 sendEnvelope(playerId, {
                     type: ServerMsgType.Error,
                     message: 'Port cannot buy that many',
                 });
-                return;
+                throw new AbortTransaction();
             }
 
+            const revenue = qty * price;
             await decrementPortCommodity(port.port_id, col, qty, client);
             await incrementShipCommodity(playerId, col, -qty, client);
             await addCredits(playerId, revenue, client);
-            await client.query('COMMIT');
 
             cargo[col] -= qty;
             cargo.credits += revenue;
-            const usedAfterSell = cargo.fuel + cargo.organics + cargo.equipment + cargo.colonists;
-            sendEnvelope(playerId, {
-                type: ServerMsgType.PortTransactionResult,
+            const used = cargo.fuel + cargo.organics + cargo.equipment + cargo.colonists;
+            return {
                 credits: cargo.credits,
                 cargo: {
                     fuel: cargo.fuel,
@@ -668,15 +657,22 @@ export async function handlePortTransaction(
                     equipment: cargo.equipment,
                     colonists: cargo.colonists,
                 },
-                emptyHolds: Math.max(0, cargo.cargo_limit - usedAfterSell),
-            });
-        }
+                emptyHolds: Math.max(0, cargo.cargo_limit - used),
+            };
+        });
+
+        if (!result) return;
+
+        sendEnvelope(playerId, {
+            type: ServerMsgType.PortTransactionResult,
+            credits: result.credits,
+            cargo: result.cargo,
+            emptyHolds: result.emptyHolds,
+            ...('turnsUsed' in result ? { turnsUsed: result.turnsUsed } : {}),
+        });
     } catch (err) {
-        await client.query('ROLLBACK');
         console.error('Trade error', err);
         sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Internal server error' });
-    } finally {
-        client.release();
     }
 }
 

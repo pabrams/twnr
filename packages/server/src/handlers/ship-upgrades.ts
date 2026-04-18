@@ -1,6 +1,6 @@
 import { ServerMsgType } from '@twnr/shared';
 import { sendEnvelope, getPlayerUniverseId, setPlayerMenu, players } from '../game-state.js';
-import { pool } from '../db/index.js';
+import { withTransaction, AbortTransaction } from '../db/index.js';
 import { getCurrentSector, deductCredits } from '../db/queries/player.js';
 import {
     getShipUpgradeInfoForUpdate,
@@ -35,54 +35,51 @@ export async function handleBuyDrones(playerId: number, quantity: number): Promi
     const universeId = getPlayerUniverseId(playerId);
     if (universeId === undefined) return;
 
-    const client = await pool.connect();
     try {
-        await client.query('BEGIN');
+        const result = await withTransaction(async (client) => {
+            if (!(await isAtClass0OrStarbase(playerId, universeId, client))) {
+                sendEnvelope(playerId, {
+                    type: ServerMsgType.Error,
+                    message: 'Not at a class 0 port or starbase',
+                });
+                throw new AbortTransaction();
+            }
 
-        if (!(await isAtClass0OrStarbase(playerId, universeId, client))) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, {
-                type: ServerMsgType.Error,
-                message: 'Not at a class 0 port or starbase',
-            });
-            return;
-        }
+            const data = await getShipUpgradeInfoForUpdate(playerId, client);
+            if (!data) {
+                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
+                throw new AbortTransaction();
+            }
 
-        const data = await getShipUpgradeInfoForUpdate(playerId, client);
-        if (!data) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
-            return;
-        }
+            if (data.drones + qty > data.max_drones) {
+                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Exceeds maximum' });
+                throw new AbortTransaction();
+            }
 
-        if (data.drones + qty > data.max_drones) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Exceeds maximum' });
-            return;
-        }
+            const cost = qty * class0Prices.dronePrice;
+            if (data.credits < cost) {
+                sendEnvelope(playerId, {
+                    type: ServerMsgType.Error,
+                    message: 'Insufficient credits',
+                });
+                throw new AbortTransaction();
+            }
 
-        const cost = qty * class0Prices.dronePrice;
-        if (data.credits < cost) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient credits' });
-            return;
-        }
+            await incrementShipDrones(playerId, qty, client);
+            await deductCredits(playerId, cost, client);
+            return { credits: data.credits - cost, drones: data.drones + qty };
+        });
 
-        await incrementShipDrones(playerId, qty, client);
-        await deductCredits(playerId, cost, client);
-        await client.query('COMMIT');
+        if (!result) return;
 
         await setPlayerMenu(playerId, 'class0');
         sendEnvelope(playerId, {
             type: ServerMsgType.BuyDronesResult,
-            credits: data.credits - cost,
-            drones: data.drones + qty,
+            credits: result.credits,
+            drones: result.drones,
         });
     } catch {
-        await client.query('ROLLBACK');
         sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Internal server error' });
-    } finally {
-        client.release();
     }
 }
 
@@ -96,54 +93,51 @@ export async function handleBuyShields(playerId: number, quantity: number): Prom
     const universeId = getPlayerUniverseId(playerId);
     if (universeId === undefined) return;
 
-    const client = await pool.connect();
     try {
-        await client.query('BEGIN');
+        const result = await withTransaction(async (client) => {
+            if (!(await isAtClass0OrStarbase(playerId, universeId, client))) {
+                sendEnvelope(playerId, {
+                    type: ServerMsgType.Error,
+                    message: 'Not at a class 0 port or starbase',
+                });
+                throw new AbortTransaction();
+            }
 
-        if (!(await isAtClass0OrStarbase(playerId, universeId, client))) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, {
-                type: ServerMsgType.Error,
-                message: 'Not at a class 0 port or starbase',
-            });
-            return;
-        }
+            const data = await getShipUpgradeInfoForUpdate(playerId, client);
+            if (!data) {
+                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
+                throw new AbortTransaction();
+            }
 
-        const data = await getShipUpgradeInfoForUpdate(playerId, client);
-        if (!data) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
-            return;
-        }
+            if (data.shields + qty > data.max_shields) {
+                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Exceeds maximum' });
+                throw new AbortTransaction();
+            }
 
-        if (data.shields + qty > data.max_shields) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Exceeds maximum' });
-            return;
-        }
+            const cost = qty * class0Prices.shieldPrice;
+            if (data.credits < cost) {
+                sendEnvelope(playerId, {
+                    type: ServerMsgType.Error,
+                    message: 'Insufficient credits',
+                });
+                throw new AbortTransaction();
+            }
 
-        const cost = qty * class0Prices.shieldPrice;
-        if (data.credits < cost) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient credits' });
-            return;
-        }
+            await incrementShipShields(playerId, qty, client);
+            await deductCredits(playerId, cost, client);
+            return { credits: data.credits - cost, shields: data.shields + qty };
+        });
 
-        await incrementShipShields(playerId, qty, client);
-        await deductCredits(playerId, cost, client);
-        await client.query('COMMIT');
+        if (!result) return;
 
         await setPlayerMenu(playerId, 'class0');
         sendEnvelope(playerId, {
             type: ServerMsgType.BuyShieldsResult,
-            credits: data.credits - cost,
-            shields: data.shields + qty,
+            credits: result.credits,
+            shields: result.shields,
         });
     } catch {
-        await client.query('ROLLBACK');
         sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Internal server error' });
-    } finally {
-        client.release();
     }
 }
 
@@ -157,61 +151,64 @@ export async function handleBuyHolds(playerId: number, quantity: number): Promis
     const universeId = getPlayerUniverseId(playerId);
     if (universeId === undefined) return;
 
-    const client = await pool.connect();
     try {
-        await client.query('BEGIN');
+        const result = await withTransaction(async (client) => {
+            if (!(await isAtClass0OrStarbase(playerId, universeId, client))) {
+                sendEnvelope(playerId, {
+                    type: ServerMsgType.Error,
+                    message: 'Not at a class 0 port or starbase',
+                });
+                throw new AbortTransaction();
+            }
 
-        if (!(await isAtClass0OrStarbase(playerId, universeId, client))) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, {
-                type: ServerMsgType.Error,
-                message: 'Not at a class 0 port or starbase',
-            });
-            return;
-        }
+            const turnResult = await checkAndDeductTurns(playerId, universeId, 1, client);
+            if (!turnResult.allowed) {
+                sendEnvelope(playerId, {
+                    type: ServerMsgType.Error,
+                    message: 'Insufficient turns',
+                });
+                throw new AbortTransaction();
+            }
 
-        const turnResult = await checkAndDeductTurns(playerId, universeId, 1, client);
-        if (!turnResult.allowed) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient turns' });
-            return;
-        }
+            const data = await getShipUpgradeInfoForUpdate(playerId, client);
+            if (!data) {
+                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
+                throw new AbortTransaction();
+            }
 
-        const data = await getShipUpgradeInfoForUpdate(playerId, client);
-        if (!data) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
-            return;
-        }
+            if (data.holds + qty > data.max_holds) {
+                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Exceeds maximum' });
+                throw new AbortTransaction();
+            }
 
-        if (data.holds + qty > data.max_holds) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Exceeds maximum' });
-            return;
-        }
+            const cost = qty * class0Prices.holdPrice;
+            if (data.credits < cost) {
+                sendEnvelope(playerId, {
+                    type: ServerMsgType.Error,
+                    message: 'Insufficient credits',
+                });
+                throw new AbortTransaction();
+            }
 
-        const cost = qty * class0Prices.holdPrice;
-        if (data.credits < cost) {
-            await client.query('ROLLBACK');
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient credits' });
-            return;
-        }
+            await incrementShipHolds(playerId, qty, client);
+            await deductCredits(playerId, cost, client);
+            return {
+                credits: data.credits - cost,
+                cargoLimit: data.holds + qty,
+                turnsUsed: turnResult.turnsUsed,
+            };
+        });
 
-        await incrementShipHolds(playerId, qty, client);
-        await deductCredits(playerId, cost, client);
-        await client.query('COMMIT');
+        if (!result) return;
 
         await setPlayerMenu(playerId, 'class0');
         sendEnvelope(playerId, {
             type: ServerMsgType.BuyHoldsResult,
-            credits: data.credits - cost,
-            cargoLimit: data.holds + qty,
-            turnsUsed: turnResult.turnsUsed,
+            credits: result.credits,
+            cargoLimit: result.cargoLimit,
+            turnsUsed: result.turnsUsed,
         });
     } catch {
-        await client.query('ROLLBACK');
         sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Internal server error' });
-    } finally {
-        client.release();
     }
 }
