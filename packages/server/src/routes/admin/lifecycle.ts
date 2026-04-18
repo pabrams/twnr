@@ -62,10 +62,7 @@ export function createAdminLifecycleRoutes(
             }
             const sectorCount = parseInt(sectors, 10);
             if (!sectors || isNaN(sectorCount) || sectorCount < 20 || sectorCount > 25000) {
-                throw new HttpError(
-                    400,
-                    'sectors is required and must be between 20 and 25000',
-                );
+                throw new HttpError(400, 'sectors is required and must be between 20 and 25000');
             }
 
             let parsedWarpDist: number[] | undefined;
@@ -97,12 +94,7 @@ export function createAdminLifecycleRoutes(
 
             const universeId = await withTransaction(async (client) => {
                 const editId = await getEditIdByName(edit_name, client);
-                const newUniverseId = await insertUniverseFull(
-                    name,
-                    result.seed,
-                    editId,
-                    client,
-                );
+                const newUniverseId = await insertUniverseFull(name, result.seed, editId, client);
 
                 const sectorIdMap = new Map<number, number>();
                 for (const s of result.sectors) {

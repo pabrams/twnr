@@ -1,12 +1,13 @@
 import { ServerMsgType } from '@twnr/shared';
-import { sendEnvelope } from '../game-state.js';
+import { sendEnvelope, sendError } from '../game-state.js';
 import { getShipInfo } from '../db/queries/ship.js';
 import { getShipHardwareQuantities, getShipTypeHardwareMax } from '../db/queries/hardware.js';
+import { cargoUsed } from './cargo-utils.js';
 
 export async function handleShipInfo(playerId: number): Promise<void> {
     const row = await getShipInfo(playerId);
     if (!row) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Ship not found' });
+        sendError(playerId, 'Ship not found');
         return;
     }
 
@@ -20,7 +21,7 @@ export async function handleShipInfo(playerId: number): Promise<void> {
         hwMaxRows.map((r) => [r.name, r.max_quantity]),
     );
 
-    const holdsAvailable = row.holds - (row.fuel + row.organics + row.equipment + row.colonists);
+    const holdsAvailable = row.holds - cargoUsed(row);
     sendEnvelope(playerId, {
         type: ServerMsgType.ShipInfoResult,
         playerId,

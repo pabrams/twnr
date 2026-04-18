@@ -1,5 +1,5 @@
 import { ServerMsgType } from '@twnr/shared';
-import { players, sendEnvelope, setPlayerMenu } from '../game-state.js';
+import { players, sendEnvelope, sendError, setPlayerMenu } from '../game-state.js';
 import { canTransitionToMenu } from '../db/queries/menu.js';
 
 /**
@@ -11,16 +11,13 @@ export async function handleChangeMenu(playerId: number, targetMenu: string): Pr
     if (!player) return;
 
     if (!targetMenu || typeof targetMenu !== 'string') {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid menu' });
+        sendError(playerId, 'Invalid menu');
         return;
     }
 
     const allowed = await canTransitionToMenu(player.currentMenu, targetMenu);
     if (!allowed) {
-        sendEnvelope(playerId, {
-            type: ServerMsgType.Error,
-            message: `Cannot navigate to ${targetMenu} from ${player.currentMenu}`,
-        });
+        sendError(playerId, `Cannot navigate to ${targetMenu} from ${player.currentMenu}`);
         return;
     }
 

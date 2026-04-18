@@ -1,5 +1,6 @@
 import { WebSocket } from 'ws';
 import type { ServerResult } from '@twnr/shared';
+import { ServerMsgType } from '@twnr/shared';
 import { getPlanetsInSector, getCollisionsInSector } from './db/queries/sector.js';
 import {
     listSectorNumbers,
@@ -129,6 +130,10 @@ export function sendEnvelope(playerId: number, data: ServerResult) {
     const player = players[playerId];
     if (!player || player.ws.readyState !== 1) return;
     player.ws.send(JSON.stringify({ menu: player.currentMenu, payload: data }));
+}
+
+export function sendError(playerId: number, message: string): void {
+    sendEnvelope(playerId, { type: ServerMsgType.Error, message });
 }
 
 export function broadcastEnvelope(data: ServerResult, targetPlayerIds: number[]) {

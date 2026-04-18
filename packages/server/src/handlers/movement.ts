@@ -3,6 +3,7 @@ import { ServerMsgType } from '@twnr/shared';
 import {
     players,
     sendEnvelope,
+    sendError,
     broadcastTo,
     getGraph,
     getWarpRefs,
@@ -168,7 +169,7 @@ export async function handleSectorDisplay(playerId: number): Promise<void> {
 
 export async function handleWarpsOut(playerId: number, id: number): Promise<void> {
     if (!Number.isInteger(id) || id <= 0) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid sector ID' });
+        sendError(playerId, 'Invalid sector ID');
         return;
     }
 
@@ -177,7 +178,7 @@ export async function handleWarpsOut(playerId: number, id: number): Promise<void
 
     const sectorDbId = await getSectorDbId(id, universeId);
     if (!sectorDbId) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Sector not found' });
+        sendError(playerId, 'Sector not found');
         return;
     }
 
@@ -191,7 +192,7 @@ export async function handleShortestPath(
     to: number,
 ): Promise<void> {
     if (!Number.isInteger(from) || from <= 0 || !Number.isInteger(to) || to <= 0) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid sector ID' });
+        sendError(playerId, 'Invalid sector ID');
         return;
     }
 
@@ -200,7 +201,7 @@ export async function handleShortestPath(
 
     const foundSectors = await findSectorsByNumbers([from, to], universeId);
     if (!foundSectors.has(from) || !foundSectors.has(to)) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Sector not found' });
+        sendError(playerId, 'Sector not found');
         return;
     }
 
@@ -240,5 +241,5 @@ export async function handleShortestPath(
         }
     }
 
-    sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'No path found' });
+    sendError(playerId, 'No path found');
 }

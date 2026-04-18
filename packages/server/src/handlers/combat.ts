@@ -1,7 +1,7 @@
 import { ServerMsgType } from '@twnr/shared';
 import type { ServerResult } from '@twnr/shared';
 
-import { players, sendEnvelope, setPlayerMenu } from '../game-state.js';
+import { players, sendEnvelope, sendError, setPlayerMenu } from '../game-state.js';
 import { withTransaction, AbortTransaction } from '../db/index.js';
 import {
     getShipDronesForUpdate,
@@ -18,18 +18,12 @@ export async function handleAttackShip(
     drones: number,
 ): Promise<void> {
     if (!Number.isInteger(drones) || drones <= 0) {
-        sendEnvelope(attackerId, {
-            type: ServerMsgType.Error,
-            message: 'Invalid number of drones',
-        });
+        sendError(attackerId, 'Invalid number of drones');
         return;
     }
 
     if (attackerId === targetPlayerId) {
-        sendEnvelope(attackerId, {
-            type: ServerMsgType.Error,
-            message: 'You cannot attack yourself',
-        });
+        sendError(attackerId, 'You cannot attack yourself');
         return;
     }
 
@@ -42,18 +36,12 @@ export async function handleAttackShip(
         attacker.sector !== target.sector ||
         attacker.universeId !== target.universeId
     ) {
-        sendEnvelope(attackerId, {
-            type: ServerMsgType.Error,
-            message: 'Target is not in this sector',
-        });
+        sendError(attackerId, 'Target is not in this sector');
         return;
     }
 
     if (target.docked) {
-        sendEnvelope(attackerId, {
-            type: ServerMsgType.Error,
-            message: 'Target is docked at a port',
-        });
+        sendError(attackerId, 'Target is docked at a port');
         return;
     }
 
@@ -63,15 +51,12 @@ export async function handleAttackShip(
             const targetShip = await getShipDronesAndShieldsForUpdate(targetPlayerId, client);
 
             if (attackerDrones === undefined || targetShip === undefined) {
-                sendEnvelope(attackerId, { type: ServerMsgType.Error, message: 'Ship not found' });
+                sendError(attackerId, 'Ship not found');
                 throw new AbortTransaction();
             }
 
             if (drones > attackerDrones) {
-                sendEnvelope(attackerId, {
-                    type: ServerMsgType.Error,
-                    message: 'Not enough drones',
-                });
+                sendError(attackerId, 'Not enough drones');
                 throw new AbortTransaction();
             }
 
@@ -135,6 +120,6 @@ export async function handleAttackShip(
         }
     } catch (e) {
         console.error('Attack error', e);
-        sendEnvelope(attackerId, { type: ServerMsgType.Error, message: 'Internal server error' });
+        sendError(attackerId, 'Internal server error');
     }
 }

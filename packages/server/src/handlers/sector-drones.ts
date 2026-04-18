@@ -3,6 +3,7 @@ import { ServerMsgType } from '@twnr/shared';
 import {
     players,
     sendEnvelope,
+    sendError,
     getSectorDrones,
     broadcastTo,
     buildSectorDisplayData,
@@ -31,18 +32,12 @@ export async function handleDeployDronesInfo(playerId: number): Promise<void> {
     if (!player) return;
 
     if (player.docked) {
-        sendEnvelope(playerId, {
-            type: ServerMsgType.Error,
-            message: 'Cannot deploy while docked',
-        });
+        sendError(playerId, 'Cannot deploy while docked');
         return;
     }
 
     if (player.pendingEncounter) {
-        sendEnvelope(playerId, {
-            type: ServerMsgType.Error,
-            message: 'Resolve drone encounter first',
-        });
+        sendError(playerId, 'Resolve drone encounter first');
         return;
     }
 
@@ -54,10 +49,7 @@ export async function handleDeployDronesInfo(playerId: number): Promise<void> {
     const sectorDrones = await getSectorDrones(player.sector, player.universeId);
 
     if (sectorDrones && sectorDrones.ownerId !== playerId) {
-        sendEnvelope(playerId, {
-            type: ServerMsgType.Error,
-            message: 'Sector contains hostile drones',
-        });
+        sendError(playerId, 'Sector contains hostile drones');
         return;
     }
 
@@ -72,7 +64,7 @@ export async function handleDeployDronesInfo(playerId: number): Promise<void> {
 
 export async function handleDeployDrones(playerId: number, target: number): Promise<void> {
     if (!Number.isInteger(target) || target < 0) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid target quantity' });
+        sendError(playerId, 'Invalid target quantity');
         return;
     }
 
@@ -80,18 +72,12 @@ export async function handleDeployDrones(playerId: number, target: number): Prom
     if (!player) return;
 
     if (player.docked) {
-        sendEnvelope(playerId, {
-            type: ServerMsgType.Error,
-            message: 'Cannot deploy while docked',
-        });
+        sendError(playerId, 'Cannot deploy while docked');
         return;
     }
 
     if (player.pendingEncounter) {
-        sendEnvelope(playerId, {
-            type: ServerMsgType.Error,
-            message: 'Resolve drone encounter first',
-        });
+        sendError(playerId, 'Resolve drone encounter first');
         return;
     }
 
@@ -111,7 +97,7 @@ export async function handleDeployDrones(playerId: number, target: number): Prom
 
             const sectorDbId = await getSectorDbId(sectorId, universeId);
             if (!sectorDbId) {
-                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Sector not found' });
+                sendError(playerId, 'Sector not found');
                 throw new AbortTransaction();
             }
 
@@ -120,10 +106,7 @@ export async function handleDeployDrones(playerId: number, target: number): Prom
             let currentInSector = 0;
             if (existing) {
                 if (existing.owner_id !== playerId) {
-                    sendEnvelope(playerId, {
-                        type: ServerMsgType.Error,
-                        message: 'Sector contains hostile drones',
-                    });
+                    sendError(playerId, 'Sector contains hostile drones');
                     throw new AbortTransaction();
                 }
                 currentInSector = existing.quantity;
@@ -132,18 +115,12 @@ export async function handleDeployDrones(playerId: number, target: number): Prom
             const delta = target - currentInSector;
 
             if (delta > 0 && delta > shipDrones) {
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.Error,
-                    message: `Cannot deploy ${delta} drones; only ${shipDrones} on ship`,
-                });
+                sendError(playerId, `Cannot deploy ${delta} drones; only ${shipDrones} on ship`);
                 throw new AbortTransaction();
             }
 
             if (delta < 0 && shipDrones - delta > maxDrones) {
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.Error,
-                    message: `Ship can hold only ${maxDrones - shipDrones} more drones`,
-                });
+                sendError(playerId, `Ship can hold only ${maxDrones - shipDrones} more drones`);
                 throw new AbortTransaction();
             }
 
@@ -171,7 +148,7 @@ export async function handleDeployDrones(playerId: number, target: number): Prom
         });
     } catch (err) {
         console.error('Deploy drones error', err);
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Internal server error' });
+        sendError(playerId, 'Internal server error');
     }
 }
 
@@ -180,10 +157,7 @@ export async function handleAttackSectorDrones(
     dronesToAttack: number,
 ): Promise<void> {
     if (!Number.isInteger(dronesToAttack) || dronesToAttack <= 0) {
-        sendEnvelope(playerId, {
-            type: ServerMsgType.Error,
-            message: 'Invalid number of drones',
-        });
+        sendError(playerId, 'Invalid number of drones');
         return;
     }
 
@@ -191,10 +165,7 @@ export async function handleAttackSectorDrones(
     if (!player) return;
 
     if (!player.pendingEncounter) {
-        sendEnvelope(playerId, {
-            type: ServerMsgType.Error,
-            message: 'No drone encounter pending',
-        });
+        sendError(playerId, 'No drone encounter pending');
         return;
     }
 
@@ -212,24 +183,18 @@ export async function handleAttackSectorDrones(
             }
 
             if (dronesToAttack > shipDrones) {
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.Error,
-                    message: `Not enough drones on ship (have ${shipDrones})`,
-                });
+                sendError(playerId, `Not enough drones on ship (have ${shipDrones})`);
                 throw new AbortTransaction();
             }
 
             if (!sectorDbId) {
-                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Sector not found' });
+                sendError(playerId, 'Sector not found');
                 throw new AbortTransaction();
             }
             const existing = await getSectorDronesRowForUpdate(sectorDbId, client);
             if (!existing || existing.quantity <= 0) {
                 player.pendingEncounter = undefined;
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.Error,
-                    message: 'No hostile drones in sector',
-                });
+                sendError(playerId, 'No hostile drones in sector');
                 throw new AbortTransaction();
             }
 
@@ -282,7 +247,7 @@ export async function handleAttackSectorDrones(
         }
     } catch (err) {
         console.error('Attack sector drones error', err);
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Internal server error' });
+        sendError(playerId, 'Internal server error');
     }
 }
 
@@ -291,10 +256,7 @@ export async function handleRetreatFromDrones(playerId: number): Promise<void> {
     if (!player) return;
 
     if (!player.pendingEncounter) {
-        sendEnvelope(playerId, {
-            type: ServerMsgType.Error,
-            message: 'No drone encounter pending',
-        });
+        sendError(playerId, 'No drone encounter pending');
         return;
     }
 

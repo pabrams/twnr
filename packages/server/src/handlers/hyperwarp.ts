@@ -1,5 +1,5 @@
 import { ServerMsgType } from '@twnr/shared';
-import { players, sendEnvelope, getGraph, resolveSectorId } from '../game-state.js';
+import { players, sendEnvelope, sendError, getGraph, resolveSectorId } from '../game-state.js';
 import { getOnPlanetId, moveToSector, markSectorVisited } from '../db/queries/player.js';
 import {
     getShipFuel,
@@ -17,18 +17,12 @@ export async function handleListDeployedDrones(playerId: number): Promise<void> 
     if (!player) return;
 
     if (player.docked || player.at_starbase) {
-        sendEnvelope(playerId, {
-            type: ServerMsgType.Error,
-            message: 'Cannot use this command while docked',
-        });
+        sendError(playerId, 'Cannot use this command while docked');
         return;
     }
     const onPlanetId = await getOnPlanetId(playerId);
     if (onPlanetId) {
-        sendEnvelope(playerId, {
-            type: ServerMsgType.Error,
-            message: 'Cannot use this command while on a planet',
-        });
+        sendError(playerId, 'Cannot use this command while on a planet');
         return;
     }
 
@@ -45,32 +39,23 @@ export async function handleHyperspaceJump(playerId: number, targetSector: numbe
     if (!player) return;
 
     if (player.docked || player.at_starbase) {
-        sendEnvelope(playerId, {
-            type: ServerMsgType.Error,
-            message: 'Cannot use this command while docked',
-        });
+        sendError(playerId, 'Cannot use this command while docked');
         return;
     }
 
     const onPlanetId = await getOnPlanetId(playerId);
     if (onPlanetId) {
-        sendEnvelope(playerId, {
-            type: ServerMsgType.Error,
-            message: 'Cannot use this command while on a planet',
-        });
+        sendError(playerId, 'Cannot use this command while on a planet');
         return;
     }
 
     const shipRow = await getShipHyperspaceInfo(playerId);
     if (!shipRow) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Ship not found' });
+        sendError(playerId, 'Ship not found');
         return;
     }
     if (!shipRow.has_hyperspace_1 && !shipRow.has_hyperspace_2) {
-        sendEnvelope(playerId, {
-            type: ServerMsgType.Error,
-            message: 'Hyperspace drive not equipped',
-        });
+        sendError(playerId, 'Hyperspace drive not equipped');
         return;
     }
 
@@ -79,10 +64,7 @@ export async function handleHyperspaceJump(playerId: number, targetSector: numbe
     // Check drones in target sector
     const targetDrones = await getDeployedDronesByOwnerBySector(targetSector, playerId);
     if (targetDrones === 0) {
-        sendEnvelope(playerId, {
-            type: ServerMsgType.Error,
-            message: 'No signal from drones in target sector',
-        });
+        sendError(playerId, 'No signal from drones in target sector');
         return;
     }
 
@@ -122,7 +104,7 @@ export async function handleHyperspaceJump(playerId: number, targetSector: numbe
     }
 
     if (pathHops < 0) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'No path to target sector' });
+        sendError(playerId, 'No path to target sector');
         return;
     }
 
@@ -130,16 +112,13 @@ export async function handleHyperspaceJump(playerId: number, targetSector: numbe
 
     const shipFuel = await getShipFuel(playerId);
     if (shipFuel === undefined || shipFuel < fuelCost) {
-        sendEnvelope(playerId, {
-            type: ServerMsgType.Error,
-            message: 'Insufficient fuel for hyperspace jump',
-        });
+        sendError(playerId, 'Insufficient fuel for hyperspace jump');
         return;
     }
 
     const turnResult = await checkAndDeductTurns(playerId, universeId, shipRow.turns_per_warp);
     if (!turnResult.allowed) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient turns' });
+        sendError(playerId, 'Insufficient turns');
         return;
     }
 
