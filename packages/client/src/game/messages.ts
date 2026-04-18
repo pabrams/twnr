@@ -44,23 +44,10 @@ export const MSG = makeDomain('MSG', {
     helpLineText: '[c]{label}:[/c] {text}',
     helpLineKey: "[c]{label}:[/c] [by]'{key}'[/by] {text}",
 
-    portMenuHeader:
-        '[bc]{name}[/bc][by],[/by] [mg]Class[/mg] [bc]{class}[/bc] [mg]([/mg][bw]{label}[/bw][mg])[/mg]',
     portMenuNoPort: '\r\n[br]No port in this sector.[/br]',
     portMenuStarbase: '  [c]S[/c]  Enter Starbase',
     portMenuTrade: '  [c]T[/c]  Trade at this port',
     portMenuCancel: '  [c]Q[/c]  Never mind',
-
-    commerceHeader: '[bg]Commerce report for[/bg] [bc]{name}[/bc]',
-    commerceColumns:
-        ' [bw]{items}[/bw][bw]{status}[/bw][bw]{trading}[/bw] [bw]{pct}[/bw] [bw]{onBoard}[/bw]',
-    commerceDividers: ' [w]{items}[/w][w]{status}[/w][w]{trading}[/w] [w]{pct}[/w] [w]{onBoard}[/w]',
-    commerceRowBuying:
-        ' [bc]{name}[/bc][g]{status}[/g][bc]{trading}[/bc] [g]{pct}[/g] [c]{onBoard}[/c]',
-    commerceRowSelling:
-        ' [bc]{name}[/bc][g]{status}[/g][bc]{trading}[/bc] [g]{pct}[/g] [c]{onBoard}[/c]',
-    commerceFooter:
-        '[mg]You have[/mg] [by]{credits}[/by] [mg]credits and[/mg] [by]{holds}[/by] [mg]empty cargo holds.[/mg]',
 
     playerInfoName: '[mg]Merchant Name[/mg]  [by]:[/by] [g]{name}[/g]',
     playerInfoSector: '[mg]Sector[/mg]         [by]:[/by] [bc]{sector}[/bc]',

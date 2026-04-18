@@ -450,9 +450,18 @@ export type TradeCompleteObject = {
     turnsUsed?: number;
 };
 
+export type TradeSkipReason =
+    | 'noTrade'
+    | 'insufficientTurns'
+    | 'insufficientCredits'
+    | 'insufficientPortInventory'
+    | 'insufficientCargoHolds'
+    | 'insufficientCargo'
+    | 'portCannotBuy';
+
 export type TradeSkippedObject = {
     type: typeof ServerMsgType.TradeSkipped;
-    reason: string;
+    reason: TradeSkipReason;
 };
 
 export type ServerResult =

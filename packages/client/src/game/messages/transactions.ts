@@ -7,7 +7,6 @@ import { makeDomain } from './_domain.js';
 export const TRANSACTION = makeDomain('TRANSACTION', {
     tradeComplete:
         '\r\n[bg]Transaction complete.[/bg] [mg]Credits:[/mg] [by]{credits}[/by]',
-    tradeSkipped: '\r\n[br]{reason}[/br]',
     tradeConfirmSell:
         '\r\n[mg]We\'ll[/mg] sell [mg]them for[/mg] [by]{total}[/by] [mg]credits.[/mg]',
     tradeConfirmBuy:
