@@ -86,6 +86,7 @@ export function handleJettisonConfirmInput(ctx: GameContext, line: string) {
             ctx.sendMsg({ type: ClientMsgType.Jettison });
             ctx.changeMenu(Menu.Sector);
             break;
+        case '':
         case 'n':
             ctx.changeMenu(Menu.Sector);
             showPrompt(ctx);

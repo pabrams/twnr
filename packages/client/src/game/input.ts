@@ -307,6 +307,7 @@ function handleTradeQtyInput(ctx: GameContext, line: string) {
 
 function handleTradeConfirmInput(ctx: GameContext, line: string) {
     switch (line.toLowerCase()) {
+        case '':
         case 'y':
             ctx.sendMsg({ type: ClientMsgType.TradeConfirmResponse, confirmed: true });
             break;
