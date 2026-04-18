@@ -47,7 +47,6 @@ import { render } from './renderer.js';
 import { NOTIFY } from './messages/index.js';
 
 /**
- * Check if a key is valid for the current menu based on the cached registry.
  * Returns 'single' for immediate single-char commands, 'buffered' for keys
  * that begin or continue a multi-char input, or false to reject.
  */
@@ -58,7 +57,6 @@ function isValidKeyForMenu(ctx: GameContext, key: string): 'single' | 'buffered'
     const lower = key.toLowerCase();
     const hasNumberCmd = menu.commands.some((c) => c.keyPattern === '<number>');
     const hasLetterCmd = menu.commands.some((c) => c.keyPattern === '<letter>');
-    const hasMultiWordCmd = menu.commands.some((c) => c.keyPattern.includes(' '));
 
     for (const cmd of menu.commands) {
         const kp = cmd.keyPattern;
@@ -70,15 +68,6 @@ function isValidKeyForMenu(ctx: GameContext, key: string): 'single' | 'buffered'
     if (hasNumberCmd && /\d/.test(key)) return 'buffered';
     // Letter selection (ship catalog, planet specs)
     if (hasLetterCmd && /[a-zA-Z]/.test(key)) return 'single';
-    // Multi-word command first char (e.g. 'b' for 'b <good> <qty>') or 'm' for 'move <sector>'
-    if (hasMultiWordCmd || hasNumberCmd) {
-        // Allow letters that start multi-word patterns
-        for (const cmd of menu.commands) {
-            if (cmd.keyPattern.includes(' ') && cmd.keyPattern[0] === lower) return 'buffered';
-        }
-        // Allow 'm' as alias prefix for move in menus with <number> commands
-        if (hasNumberCmd && lower === 'm') return 'buffered';
-    }
 
     return false;
 }
@@ -223,7 +212,7 @@ function handleInput(ctx: GameContext, line: string) {
     }
 
     // Sector mode
-    const [cmd, ...args] = line.split(/\s+/);
+    const cmd = line.trim();
     if (/^\d+$/.test(cmd)) {
         ctx.sendMsg({ type: ClientMsgType.Move, sector: parseInt(cmd, 10) });
         return;
@@ -284,15 +273,8 @@ function handleInput(ctx: GameContext, line: string) {
         case '#':
             ctx.sendMsg({ type: ClientMsgType.PlayersOnline });
             break;
-        case 'm':
-        case 'move': {
-            const sector = parseInt(args[0], 10);
-            if (!isNaN(sector)) ctx.sendMsg({ type: ClientMsgType.Move, sector });
-            else ctx.term.writeln('Usage: move <sector>');
-            break;
-        }
         default:
-            if (line) ctx.term.writeln(`Unknown command: ${cmd}`);
+            if (line) ctx.term.writeln(render(NOTIFY.unknownCommand, { cmd }));
             showPrompt(ctx);
     }
 }
