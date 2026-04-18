@@ -1,6 +1,6 @@
 import { ClientMsgType, ServerMsgType, type ClientCommand } from '@twnr/shared';
 import { players, sendEnvelope, getVisitedSectors } from '../game-state.js';
-import { pool } from '../db/index.js';
+import { countSectorsInUniverse } from '../db/queries/sector.js';
 import { handleChangeMenu } from './menu.js';
 import { handleMove, handleSectorDisplay, handleWarpsOut, handleShortestPath } from './movement.js';
 import {
@@ -127,13 +127,11 @@ async function handleVisitedSectors(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
     const sectors = await getVisitedSectors(playerId);
-    const totalRes = await pool.query('SELECT COUNT(*)::int FROM sectors WHERE universe_id = $1', [
-        player.universeId,
-    ]);
+    const totalSectors = await countSectorsInUniverse(player.universeId);
     sendEnvelope(playerId, {
         type: ServerMsgType.VisitedSectorsResult,
         sectors,
-        totalSectors: totalRes.rows[0].count,
+        totalSectors,
     });
 }
 

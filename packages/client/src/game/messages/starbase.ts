@@ -35,6 +35,5 @@ export const STARBASE = makeDomain('STARBASE', {
     tradeinConfirm:
         '\r\n[c]Trade in your current ship?[/c] [mg]([/mg][by]Y[/by]/[by]N[/by]/[by]Q[/by]uit[mg])[/mg] ',
 
-    class0EquipmentPrompt:
-        '\r\n[mg]<[/mg][bc]Shipyards Equipment[/bc][mg]>[/mg] ',
+    class0EquipmentPrompt: '\r\n[mg]<[/mg][bc]Shipyards Equipment[/bc][mg]>[/mg] ',
 });

@@ -29,9 +29,7 @@ export function showDroneEncounter(
 ) {
     ctx.term.writeln('');
     ctx.term.writeln(render(COMBAT.droneEncounterHeader));
-    ctx.term.writeln(
-        render(COMBAT.droneSectorCount, { count: sectorDrones, owner: ownerName }),
-    );
+    ctx.term.writeln(render(COMBAT.droneSectorCount, { count: sectorDrones, owner: ownerName }));
     ctx.term.writeln(render(COMBAT.droneShipCount, { count: shipDrones }));
     if (shipDrones === 0) {
         ctx.term.writeln(render(COMBAT.droneNoDrones));

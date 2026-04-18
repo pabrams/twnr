@@ -54,9 +54,7 @@ export function renderVisitedSectorsResult(
     if (mode === 'explored') {
         const explored = msg.sectors.sort((a, b) => a - b);
         ctx.term.writeln(render(COMPUTER.exploredHeader, { count: explored.length }));
-        ctx.term.writeln(
-            explored.map((s) => render(COMPUTER.exploredSector, { n: s })).join(' '),
-        );
+        ctx.term.writeln(explored.map((s) => render(COMPUTER.exploredSector, { n: s })).join(' '));
     } else {
         const unexplored: number[] = [];
         for (let i = 1; i <= msg.totalSectors; i++) {
@@ -242,9 +240,7 @@ export async function showTraderList(ctx: GameContext) {
         const traders: { name: string; shipName: string }[] = await res.json();
         ctx.term.writeln('');
         ctx.term.writeln(render(COMPUTER.traderListHeader));
-        ctx.term.writeln(
-            render(COMPUTER.traderListColumns, { name: 'Name'.padEnd(24) }),
-        );
+        ctx.term.writeln(render(COMPUTER.traderListColumns, { name: 'Name'.padEnd(24) }));
         for (const t of traders) {
             ctx.term.writeln(
                 render(COMPUTER.traderListRow, {

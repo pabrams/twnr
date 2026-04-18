@@ -1,5 +1,48 @@
 import { pool } from '../index.js';
-import type { CollisionRow } from '../types.js';
+import type { Queryable, CollisionRow, SectorNumberRow } from '../types.js';
+
+export async function countSectorsInUniverse(
+    universeId: number,
+    db: Queryable = pool,
+): Promise<number> {
+    const res = await db.query<{ count: number }>(
+        'SELECT COUNT(*)::int FROM sectors WHERE universe_id = $1',
+        [universeId],
+    );
+    return res.rows[0]?.count ?? 0;
+}
+
+/** Look up which of the given sector numbers exist in a universe. */
+export async function findSectorsByNumbers(
+    sectorNumbers: number[],
+    universeId: number,
+    db: Queryable = pool,
+): Promise<Set<number>> {
+    if (sectorNumbers.length === 0) return new Set();
+    const res = await db.query<SectorNumberRow>(
+        'SELECT sector_number FROM sectors WHERE sector_number = ANY($1::int[]) AND universe_id = $2',
+        [sectorNumbers, universeId],
+    );
+    return new Set(res.rows.map((r) => r.sector_number));
+}
+
+/** For a given set of sector numbers, return the subset the player has visited. */
+export async function findVisitedSectorsInSet(
+    playerId: number,
+    universeId: number,
+    sectorNumbers: number[],
+    db: Queryable = pool,
+): Promise<Set<number>> {
+    if (sectorNumbers.length === 0) return new Set();
+    const res = await db.query<SectorNumberRow>(
+        `SELECT s.sector_number FROM visited_sectors vs
+         JOIN sectors s ON vs.sector_id = s.id
+         WHERE vs.player_id = $1 AND s.universe_id = $2
+           AND s.sector_number = ANY($3::int[])`,
+        [playerId, universeId, sectorNumbers],
+    );
+    return new Set(res.rows.map((r) => r.sector_number));
+}
 
 export async function getPlanetsInSector(
     sectorNumber: number,

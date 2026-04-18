@@ -22,10 +22,8 @@ export const PORT = makeDomain('PORT', {
     classLabelUnknown: '[br]???[/br]',
 
     commerceHeader: '[bg]Commerce report for[/bg] [bc]{name}[/bc]',
-    commerceColumns:
-        ' [g]{items}{status}{trading} {pct} {onBoard}[/g]',
-    commerceDividers:
-        ' [mg]{items}{status}{trading} {pct} {onBoard}[/mg]',
+    commerceColumns: ' [g]{items}{status}{trading} {pct} {onBoard}[/g]',
+    commerceDividers: ' [mg]{items}{status}{trading} {pct} {onBoard}[/mg]',
     commerceRowBuying:
         ' [bc]{name}[/bc][g]{status}[/g][bc]{trading}[/bc] [g]{pct}[br]%[/br][/g] [c]{onBoard}[/c]',
     commerceRowSelling:
@@ -33,8 +31,7 @@ export const PORT = makeDomain('PORT', {
     commerceFooter:
         '[mg]You have[/mg] [by]{credits}[/by] [mg]credits and[/mg] [by]{holds}[/by] [mg]empty cargo holds.[/mg]',
 
-    noTrade:
-        '[bc]You don\'t have anything they want, and they don\'t have anything you need.[/bc]',
+    noTrade: "[bc]You don't have anything they want, and they don't have anything you need.[/bc]",
     skipInsufficientTurns: '[br]Insufficient turns.[/br]',
     skipInsufficientCredits: '[br]Insufficient credits.[/br]',
     skipInsufficientPortInventory: '[br]Insufficient port inventory.[/br]',

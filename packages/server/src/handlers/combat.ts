@@ -3,6 +3,14 @@ import type { ServerResult } from '@twnr/shared';
 
 import { players, sendEnvelope, setPlayerMenu } from '../game-state.js';
 import { pool } from '../db/index.js';
+import {
+    getShipDronesForUpdate,
+    getShipDronesAndShieldsForUpdate,
+    setShipDrones,
+    setShipDronesAndShields,
+    deleteShipByOwner,
+    markPlayerShipDestroyed,
+} from '../db/queries/ship.js';
 
 export async function handleAttackShip(
     attackerId: number,
@@ -53,24 +61,17 @@ export async function handleAttackShip(
     try {
         await client.query('BEGIN');
 
-        const attackerShipRes = await client.query(
-            'SELECT drones FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1) FOR UPDATE',
-            [attackerId],
-        );
-        const targetShipRes = await client.query(
-            'SELECT drones, shields FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1) FOR UPDATE',
-            [targetPlayerId],
-        );
+        const attackerDrones = await getShipDronesForUpdate(attackerId, client);
+        const targetShip = await getShipDronesAndShieldsForUpdate(targetPlayerId, client);
 
-        if (attackerShipRes.rows.length === 0 || targetShipRes.rows.length === 0) {
+        if (attackerDrones === undefined || targetShip === undefined) {
             await client.query('ROLLBACK');
             sendEnvelope(attackerId, { type: ServerMsgType.Error, message: 'Ship not found' });
             return;
         }
 
-        const attackerDrones = attackerShipRes.rows[0].drones;
-        let targetShields = targetShipRes.rows[0].shields;
-        let targetDrones = targetShipRes.rows[0].drones;
+        let targetShields = targetShip.shields;
+        let targetDrones = targetShip.drones;
 
         if (drones > attackerDrones) {
             await client.query('ROLLBACK');
@@ -98,22 +99,13 @@ export async function handleAttackShip(
         const attackerDronesLost = shieldsLost + defenderDronesLost;
         const newAttackerDrones = attackerDrones - attackerDronesLost;
 
-        await client.query(
-            'UPDATE ships SET drones = $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)',
-            [newAttackerDrones, attackerId],
-        );
+        await setShipDrones(attackerId, newAttackerDrones, client);
 
         if (destroyed) {
-            await client.query('DELETE FROM ships WHERE owner_id = $1', [targetPlayerId]);
-            await client.query(
-                'UPDATE players SET ship_id = NULL, ship_destroyed_date = NOW() WHERE id = $1',
-                [targetPlayerId],
-            );
+            await deleteShipByOwner(targetPlayerId, client);
+            await markPlayerShipDestroyed(targetPlayerId, client);
         } else {
-            await client.query(
-                'UPDATE ships SET drones = $1, shields = $2 WHERE id = (SELECT ship_id FROM players WHERE id = $3)',
-                [targetDrones, targetShields, targetPlayerId],
-            );
+            await setShipDronesAndShields(targetPlayerId, targetDrones, targetShields, client);
         }
 
         await client.query('COMMIT');

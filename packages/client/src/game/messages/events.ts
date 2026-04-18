@@ -17,10 +17,8 @@ export const EVENT = makeDomain('EVENT', {
 
     deployDronesInfo:
         '[by]Deploy Drones[/by] — Sector: [w]{sector}[/w], Ship: [w]{ship}[/w]/[c]{max}[/c]',
-    deployDronesPrompt:
-        '[c]How many drones to leave in sector?[/c] [w](Q to cancel)[/w] ',
-    deployDronesResult:
-        '\r\n[bg]Deployed.[/bg] Sector: [w]{sector}[/w], Ship: [w]{ship}[/w]',
+    deployDronesPrompt: '[c]How many drones to leave in sector?[/c] [w](Q to cancel)[/w] ',
+    deployDronesResult: '\r\n[bg]Deployed.[/bg] Sector: [w]{sector}[/w], Ship: [w]{ship}[/w]',
 
     combatLost:
         '[by]Combat:[/by] Lost [br]{lost}[/br] drones. Sector drones remaining: [br]{remaining}[/br]. Ship drones: [w]{ship}[/w]',
@@ -36,8 +34,7 @@ export const EVENT = makeDomain('EVENT', {
 
     planetDestroyed: '\r\n[br]Planet {name} destroyed![/br]',
 
-    terraformSuccess:
-        '\r\n[bg]Terraform successful![/bg] Created [bc]{name}[/bc] ({type})',
+    terraformSuccess: '\r\n[bg]Terraform successful![/bg] Created [bc]{name}[/bc] ({type})',
     terraformCollision: '[by]Warning: planetary collision detected![/by]',
     terraformDevicesRemaining: '  [by]Terraform devices remaining[/by]: {count}',
     terraformFailure: '\r\n[br]{reason}[/br]',

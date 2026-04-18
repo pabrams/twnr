@@ -11,8 +11,7 @@ export const SECTOR = makeDomain('SECTOR', {
     port: '[mg]Port[/mg]    [by]:[/by] [bc]{name}[/bc][by],[/by] [mg]Class[/mg] [bc]{class}[/bc] [mg]([/mg]{label}[mg])[/mg]',
 
     dronesYours: '[mg]Drones[/mg]  [by]:[/by] [bg]{qty}[/bg] [mg]([bw]yours[/bw])[/mg]',
-    dronesEnemy:
-        '[mg]Drones[/mg]  [by]:[/by] [br]{qty}[/br] [mg]([/mg][by]{owner}[/by][mg])[/mg]',
+    dronesEnemy: '[mg]Drones[/mg]  [by]:[/by] [br]{qty}[/br] [mg]([/mg][by]{owner}[/by][mg])[/mg]',
 
     planetsLine: '[mg]Planets[/mg] [by]:[/by] {list}',
     planetItem: '[bc]{name}[/bc] [mg]([/mg][w]{type}[/w][mg])[/mg]',
@@ -44,8 +43,7 @@ export const SECTOR = makeDomain('SECTOR', {
     autopilotNotAdjacent:
         '[by]That sector is not adjacent.[/by] Shortest path [mg]([/mg][bc]{hops}[/bc] hops[mg])[/mg]:',
     autopilotPathSeparator: ' [g]>[/g] ',
-    autopilotConfirm:
-        '\r\n[c]Engage autopilot?[/c] [mg]([/mg][by]Y[/by]/[by]N[/by][mg])[/mg] ',
+    autopilotConfirm: '\r\n[c]Engage autopilot?[/c] [mg]([/mg][by]Y[/by]/[by]N[/by][mg])[/mg] ',
 
     noPlanet:
         '[w]There is no planet in this sector. You could create one with a Terraform Device.[/w]',
