@@ -1,3 +1,5 @@
+import path from 'path';
+import { fileURLToPath } from 'url';
 import express from 'express';
 import { Socket } from 'net';
 import helmet from 'helmet';
@@ -63,6 +65,15 @@ app.use(
         ADMIN_API_KEY: auth.ADMIN_API_KEY,
     }),
 );
+
+// Serve static frontend in production
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const clientDist = path.resolve(__dirname, '../../client/dist');
+app.use(express.static(clientDist));
+app.get('*', (req, res, next) => {
+    if (req.url.startsWith('/api') || req.url.startsWith('/ws')) return next();
+    res.sendFile(path.join(clientDist, 'index.html'));
+});
 
 wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
     const cookies = auth.parseCookies(req.headers.cookie);

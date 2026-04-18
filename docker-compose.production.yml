@@ -1,0 +1,34 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: twnr
+      POSTGRES_USER: twnr_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.production}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U twnr_user -d twnr"]
+      interval: 5s
+      retries: 5
+
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "80:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: "3000"
+      PGHOST: db
+      PGDATABASE: twnr
+      PGUSER: twnr_user
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env.production}
+      ADMIN_API_KEY: ${ADMIN_API_KEY:-}
+
+volumes:
+  pgdata:
