@@ -7,7 +7,7 @@ import { makeDomain } from './_domain.js';
 
 export const COMMON = makeDomain('COMMON', {
     /** Standard menu row — `  [c]K[/c]  label` */
-    menuRow: '  [c]{key}[/c]  {text}',
+    menuRow: '  [mg]<[/mg][g]{key}[/g][mg]>[/mg]  [g]{text}[/g]',
 
     /** Row with a bold-yellow letter/index rather than cyan */
     indexRow: '  [by]{key}[/by]  {text}',

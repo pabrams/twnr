@@ -46,7 +46,7 @@ export const MSG = makeDomain('MSG', {
 
     portMenuNoPort: '\r\n[br]No port in this sector.[/br]',
     portMenuStarbase: '  [c]S[/c]  Enter Starbase',
-    portMenuTrade: '  [c]T[/c]  Trade at this port',
+    portMenuTrade: '  [c]T[/c]  [g]Trade at this port[/g]',
     portMenuCancel: '  [c]Q[/c]  Never mind',
 
     playerInfoName: '[mg]Merchant Name[/mg]  [by]:[/by] [g]{name}[/g]',
