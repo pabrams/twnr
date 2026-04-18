@@ -95,7 +95,7 @@ export function setupInput(term: Terminal, ctx: GameContext) {
                 return;
             }
             if (inputBuffer === '' && validity === 'single') {
-                term.writeln(key);
+                term.writeln('');
                 handleInput(ctx, key.toLowerCase());
             } else {
                 inputBuffer += key;
