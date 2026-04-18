@@ -180,7 +180,7 @@ export function showCommerceReport(
                 name: g.name.padEnd(12),
                 status: g.status.padEnd(10),
                 trading: String(g.trading).padStart(7),
-                pct: (pct + '%').padStart(8),
+                pct: String(pct).padStart(7),
                 onBoard: String(g.onBoard).padStart(7),
             }),
         );

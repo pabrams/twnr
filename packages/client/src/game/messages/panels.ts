@@ -25,8 +25,6 @@ export const PANEL = makeDomain('PANEL', {
         '[mg]Turns[/mg]          [by]:[/by] [bc]{turns}[/bc]\r\n' +
         '[mg]Credits[/mg]        [by]:[/by] [bc]{credits}[/bc]',
 
-    cargoInfoCredits: '  [by]Credits[/by]: [by]{credits}[/by]',
-
     playersOnlineHeader: '[bc]Players Online[/bc] ({count}):',
     playersOnlineRow: '  [by]{name}[/by]{suffix}',
     playersOnlineYouTag: ' [bg](you)[/bg]',

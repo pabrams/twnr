@@ -11,13 +11,13 @@ export const PORT = makeDomain('PORT', {
 
     commerceHeader: '[bg]Commerce report for[/bg] [bc]{name}[/bc]',
     commerceColumns:
-        ' [bw]{items}[/bw][bw]{status}[/bw][bw]{trading}[/bw] [bw]{pct}[/bw] [bw]{onBoard}[/bw]',
+        ' [g]{items}{status}{trading} {pct} {onBoard}[/g]',
     commerceDividers:
-        ' [w]{items}[/w][w]{status}[/w][w]{trading}[/w] [w]{pct}[/w] [w]{onBoard}[/w]',
+        ' [mg]{items}{status}{trading} {pct} {onBoard}[/mg]',
     commerceRowBuying:
-        ' [by]{name}[/by][bg]{status}[/bg][w]{trading}[/w] [w]{pct}[/w] [w]{onBoard}[/w]',
+        ' [bc]{name}[/bc][g]{status}[/g][bc]{trading}[/bc] [g]{pct}[br]%[/br][/g] [c]{onBoard}[/c]',
     commerceRowSelling:
-        ' [by]{name}[/by][br]{status}[/br][w]{trading}[/w] [w]{pct}[/w] [w]{onBoard}[/w]',
+        ' [bc]{name}[/bc][g]{status}[/g][bc]{trading}[/bc] [g]{pct}[br]%[/br][/g] [c]{onBoard}[/c]',
     commerceFooter:
         '[mg]You have[/mg] [by]{credits}[/by] [mg]credits and[/mg] [by]{holds}[/by] [mg]empty cargo holds.[/mg]',
 
@@ -29,9 +29,9 @@ export const PORT = makeDomain('PORT', {
     tradeQtyInfoSell:
         '[mg]We are[/mg] [bg]buying[/bg] [mg]up to[/mg] [by]{portTrading}[/by][mg].[/mg] [mg]You have[/mg] [by]{onBoard}[/by] [mg]in your holds.[/mg]',
     tradeQtyPromptBuy:
-        '[mg]How many holds of[/mg] [bc]{commodity}[/bc] [mg]do you want to[/mg] [br]buy[/br] [mg][[/mg][by]{maxQty}[/by][mg]]?[/mg] ',
+        '[mg]How many holds of[/mg] [bc]{commodity}[/bc] [mg]do you want to buy [[/mg][by]{maxQty}[/by][mg]]?[/mg] ',
     tradeQtyPromptSell:
-        '[mg]How many holds of[/mg] [bc]{commodity}[/bc] [mg]do you want to[/mg] [bg]sell[/bg] [mg][[/mg][by]{maxQty}[/by][mg]]?[/mg] ',
+        '[mg]How many holds of[/mg] [bc]{commodity}[/bc] [mg]do you want to sell [[/mg][by]{maxQty}[/by][mg]]?[/mg] ',
 
     tradeConfirmSell:
         '\r\n[mg]We\'ll[/mg] sell [mg]them for[/mg] [by]{total}[/by] [mg]credits.[/mg]',

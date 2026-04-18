@@ -100,18 +100,6 @@ describe('Trading System', () => {
     await closeWS(wsConn);
   });
 
-  it('cargo query returns cargo and credits', async () => {
-    const { ws: wsConn, welcome } = await ws();
-    const msg = await wsRequest(wsConn, { type: ClientMsgType.CargoInfo }, ServerMsgType.CargoInfoResult);
-    assert.equal(msg.type, ServerMsgType.CargoInfoResult);
-    assert.equal(msg.playerId, welcome.playerId);
-    assert.equal(msg.credits, 10000);
-    assert.equal(msg.fuel, 0);
-    assert.equal(msg.organics, 0);
-    assert.equal(msg.equipment, 0);
-    await closeWS(wsConn);
-  });
-
   it('trade buy succeeds and updates cargo and credits', async () => {
     const { ws: wsConn, welcome } = await ws();
     const portSector = await findPortSelling(wsConn, 'fuel');
