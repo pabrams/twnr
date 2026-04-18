@@ -71,24 +71,3 @@ export async function handleShipInfo(playerId: number): Promise<void> {
     });
 }
 
-export async function handleCargoInfo(playerId: number): Promise<void> {
-    const cargoRes = await pool.query(
-        'SELECT s.fuel, s.organics, s.equipment, s.colonists, p.credits FROM players p JOIN ships s ON p.ship_id = s.id WHERE p.id = $1',
-        [playerId],
-    );
-    if (cargoRes.rows.length === 0) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
-        return;
-    }
-
-    const c = cargoRes.rows[0];
-    sendEnvelope(playerId, {
-        type: ServerMsgType.CargoInfoResult,
-        playerId,
-        fuel: c.fuel,
-        organics: c.organics,
-        equipment: c.equipment,
-        colonists: c.colonists,
-        credits: c.credits,
-    });
-}

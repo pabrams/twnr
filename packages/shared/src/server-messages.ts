@@ -152,16 +152,6 @@ export type ShipInfoResultObject = {
     credits: number;
 };
 
-export type CargoInfoResultObject = {
-    type: typeof ServerMsgType.CargoInfoResult;
-    playerId: number;
-    fuel: number;
-    organics: number;
-    equipment: number;
-    colonists: number;
-    credits: number;
-};
-
 export type PortTransactionResultObject = {
     type: typeof ServerMsgType.PortTransactionResult;
     credits: number;
@@ -483,7 +473,6 @@ export type ServerResult =
     | ShortestPathResultObject
     | PortInfoResultObject
     | ShipInfoResultObject
-    | CargoInfoResultObject
     | PortTransactionResultObject
     | BuyDronesResultObject
     | BuyShieldsResultObject

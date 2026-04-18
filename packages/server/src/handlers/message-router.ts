@@ -13,7 +13,7 @@ import {
     handleDockStarbase,
     handleLeaveStarbase,
 } from './port.js';
-import { handleShipInfo, handleCargoInfo } from './ship-info.js';
+import { handleShipInfo } from './ship-info.js';
 import { handleBuyDrones, handleBuyShields, handleBuyHolds } from './ship-upgrades.js';
 import { handleBuyShipTradein, handleBuyShipNew } from './ship-exchange.js';
 import { handleJettison } from './ship-cargo.js';
@@ -54,8 +54,6 @@ export async function handleMessage(playerId: number, data: ClientCommand): Prom
             return handlePortInfo(playerId, data.sectorId);
         case ClientMsgType.ShipInfo:
             return handleShipInfo(playerId);
-        case ClientMsgType.CargoInfo:
-            return handleCargoInfo(playerId);
         case ClientMsgType.PortTransaction:
             return handlePortTransaction(playerId, data.good, data.quantity, data.action);
         case ClientMsgType.BuyDrones:

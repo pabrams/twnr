@@ -242,9 +242,6 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 );
                 if (ctx.mode === Menu.Sector) showPrompt(ctx);
                 break;
-            case ServerMsgType.CargoInfoResult:
-                ctx.term.writeln(render(PANEL.cargoInfoCredits, { credits: msg.credits }));
-                break;
             case ServerMsgType.PlayersOnlineResult: {
                 ctx.term.writeln('');
                 ctx.term.writeln(
