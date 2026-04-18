@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import type { RouteDeps, Middleware } from '../middleware.js';
+import { asyncHandler, HttpError } from '../async-handler.js';
 import { universeExists } from '../../db/queries/universe.js';
 import { getSectorDbId } from '../../db/queries/sector.js';
 import {
@@ -56,12 +57,14 @@ export function createAdminPortRoutes(
     const { authenticateAdmin } = middleware;
     void deps;
 
-    router.get('/api/admin/universes/:id/ports', authenticateAdmin, async (req, res) => {
-        const universeId = parseInt(req.params.id as string, 10);
+    router.get(
+        '/api/admin/universes/:id/ports',
+        authenticateAdmin,
+        asyncHandler(async (req, res) => {
+            const universeId = parseInt(req.params.id as string, 10);
 
-        try {
             if (!(await universeExists(universeId))) {
-                return res.status(404).json({ error: 'Universe not found' });
+                throw new HttpError(404, 'Universe not found');
             }
 
             const rows = await listPortsInUniverse(universeId);
@@ -77,32 +80,29 @@ export function createAdminPortRoutes(
             }));
 
             res.json(ports);
-        } catch (err) {
-            console.error('List ports error', err);
-            res.status(500).json({ error: 'Internal server error' });
-        }
-    });
+        }),
+    );
 
-    router.put('/api/admin/universes/:id/ports/:sectorId', authenticateAdmin, async (req, res) => {
-        const universeId = parseInt(req.params.id as string, 10);
-        const sectorId = parseInt(req.params.sectorId as string, 10);
+    router.put(
+        '/api/admin/universes/:id/ports/:sectorId',
+        authenticateAdmin,
+        asyncHandler(async (req, res) => {
+            const universeId = parseInt(req.params.id as string, 10);
+            const sectorId = parseInt(req.params.sectorId as string, 10);
 
-        try {
             if (!(await universeExists(universeId))) {
-                return res.status(404).json({ error: 'Universe not found' });
+                throw new HttpError(404, 'Universe not found');
             }
 
             const existing = await getPortAdminRowByUniverseSector(sectorId, universeId);
             if (!existing) {
-                return res.status(404).json({ error: 'Port not found' });
+                throw new HttpError(404, 'Port not found');
             }
 
-            // Reject special ports
             if (existing.class === 0 || existing.class === 9) {
-                return res.status(403).json({ error: 'Cannot modify special port' });
+                throw new HttpError(403, 'Cannot modify special port');
             }
 
-            // Merge updates with existing values
             const newClass =
                 req.body.class !== undefined ? parseInt(req.body.class, 10) : existing.class;
             const newFuel =
@@ -129,7 +129,7 @@ export function createAdminPortRoutes(
                     : existing.equ_price;
 
             if (newClass < 1 || newClass > 8) {
-                return res.status(400).json({ error: 'class must be 1-8' });
+                throw new HttpError(400, 'class must be 1-8');
             }
 
             for (const [name, val] of [
@@ -138,13 +138,13 @@ export function createAdminPortRoutes(
                 ['equipment', newEquipment],
             ] as const) {
                 if (val < 0 || val > 5000) {
-                    return res.status(400).json({ error: `${name} must be 0-5000` });
+                    throw new HttpError(400, `${name} must be 0-5000`);
                 }
             }
 
             const priceError = validatePortPrices(newClass, newFuelPrice, newOrgPrice, newEquPrice);
             if (priceError) {
-                return res.status(400).json({ error: priceError });
+                throw new HttpError(400, priceError);
             }
 
             await updatePortFull(existing.id, {
@@ -167,28 +167,27 @@ export function createAdminPortRoutes(
                 equipment: newEquipment,
                 equPrice: newEquPrice,
             });
-        } catch (err) {
-            console.error('Update port error', err);
-            res.status(500).json({ error: 'Internal server error' });
-        }
-    });
+        }),
+    );
 
-    router.post('/api/admin/universes/:id/ports/:sectorId', authenticateAdmin, async (req, res) => {
-        const universeId = parseInt(req.params.id as string, 10);
-        const sectorId = parseInt(req.params.sectorId as string, 10);
+    router.post(
+        '/api/admin/universes/:id/ports/:sectorId',
+        authenticateAdmin,
+        asyncHandler(async (req, res) => {
+            const universeId = parseInt(req.params.id as string, 10);
+            const sectorId = parseInt(req.params.sectorId as string, 10);
 
-        try {
             if (!(await universeExists(universeId))) {
-                return res.status(404).json({ error: 'Universe not found' });
+                throw new HttpError(404, 'Universe not found');
             }
 
             const sectorDbId = await getSectorDbId(sectorId, universeId);
             if (sectorDbId === undefined) {
-                return res.status(404).json({ error: 'Sector not found' });
+                throw new HttpError(404, 'Sector not found');
             }
 
             if (await portExistsForSector(sectorDbId)) {
-                return res.status(409).json({ error: 'Port already exists' });
+                throw new HttpError(409, 'Port already exists');
             }
 
             const {
@@ -203,7 +202,7 @@ export function createAdminPortRoutes(
 
             const cls = parseInt(portClass, 10);
             if (isNaN(cls) || cls < 1 || cls > 8) {
-                return res.status(400).json({ error: 'class must be 1-8 for trading ports' });
+                throw new HttpError(400, 'class must be 1-8 for trading ports');
             }
 
             const fuelQty = parseInt(fuel, 10);
@@ -215,7 +214,7 @@ export function createAdminPortRoutes(
                 ['equipment', equQty],
             ] as const) {
                 if (isNaN(val) || val < 0 || val > 5000) {
-                    return res.status(400).json({ error: `${name} must be 0-5000` });
+                    throw new HttpError(400, `${name} must be 0-5000`);
                 }
             }
 
@@ -224,12 +223,12 @@ export function createAdminPortRoutes(
             const ep = parseInt(equPrice, 10);
 
             if (isNaN(fp) || isNaN(op) || isNaN(ep)) {
-                return res.status(400).json({ error: 'all price fields are required' });
+                throw new HttpError(400, 'all price fields are required');
             }
 
             const priceError = validatePortPrices(cls, fp, op, ep);
             if (priceError) {
-                return res.status(400).json({ error: priceError });
+                throw new HttpError(400, priceError);
             }
 
             await insertPort(sectorDbId, {
@@ -252,40 +251,32 @@ export function createAdminPortRoutes(
                 equipment: equQty,
                 equPrice: ep,
             });
-        } catch (err) {
-            console.error('Create port error', err);
-            res.status(500).json({ error: 'Internal server error' });
-        }
-    });
+        }),
+    );
 
     router.delete(
         '/api/admin/universes/:id/ports/:sectorId',
         authenticateAdmin,
-        async (req, res) => {
+        asyncHandler(async (req, res) => {
             const universeId = parseInt(req.params.id as string, 10);
             const sectorId = parseInt(req.params.sectorId as string, 10);
 
-            try {
-                if (!(await universeExists(universeId))) {
-                    return res.status(404).json({ error: 'Universe not found' });
-                }
-
-                const portRow = await getPortAdminRowByUniverseSector(sectorId, universeId);
-                if (!portRow) {
-                    return res.status(404).json({ error: 'Port not found' });
-                }
-
-                if (portRow.class === 0 || portRow.class === 9) {
-                    return res.status(403).json({ error: 'Cannot delete special port' });
-                }
-
-                await deletePort(portRow.id);
-
-                res.json({ deleted: true, sectorId });
-            } catch (err) {
-                console.error('Delete port error', err);
-                res.status(500).json({ error: 'Internal server error' });
+            if (!(await universeExists(universeId))) {
+                throw new HttpError(404, 'Universe not found');
             }
-        },
+
+            const portRow = await getPortAdminRowByUniverseSector(sectorId, universeId);
+            if (!portRow) {
+                throw new HttpError(404, 'Port not found');
+            }
+
+            if (portRow.class === 0 || portRow.class === 9) {
+                throw new HttpError(403, 'Cannot delete special port');
+            }
+
+            await deletePort(portRow.id);
+
+            res.json({ deleted: true, sectorId });
+        }),
     );
 }

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import type { AuthResponse, LogoutResponse } from '@twnr/shared';
 import type { RouteDeps, Middleware } from './middleware.js';
+import { asyncHandler, HttpError } from './async-handler.js';
 import { newPlayerConfig } from '../game-config.js';
 import { bumpUserTokenVersion, createUser, getUserByEmail } from '../db/queries/user.js';
 import {
@@ -29,32 +30,41 @@ export function createAuthRoutes(router: Router, deps: RouteDeps, middleware: Mi
 
     // ─── Logout ────────────────────────────────────────────────────────
 
-    router.post('/api/auth/logout', authenticateToken, async (req, res) => {
-        const { userId } = getAuthenticatedPlayer(req);
-        try {
+    router.post(
+        '/api/auth/logout',
+        authenticateToken,
+        asyncHandler(async (req, res) => {
+            const { userId } = getAuthenticatedPlayer(req);
             await bumpUserTokenVersion(userId);
             res.clearCookie(AUTH_COOKIE_NAME, { path: '/' });
             const body: LogoutResponse = { success: true };
             res.json(body);
-        } catch (err) {
-            console.error('Logout error', err);
-            res.status(500).json({ error: 'Internal server error' });
-        }
-    });
+        }),
+    );
 
     // ─── Register ──────────────────────────────────────────────────────
 
-    router.post('/api/auth/register', registerLimiter, async (req, res) => {
-        const { name, email, password } = req.body;
-        if (!name || !email || !password) {
-            return res.status(400).json({ error: 'name, email and password are required' });
-        }
+    router.post(
+        '/api/auth/register',
+        registerLimiter,
+        asyncHandler(async (req, res) => {
+            const { name, email, password } = req.body;
+            if (!name || !email || !password) {
+                throw new HttpError(400, 'name, email and password are required');
+            }
 
-        const hash = hashPassword(password);
-        const role = 'player';
+            const hash = hashPassword(password);
+            const role = 'player';
 
-        try {
-            const user = await createUser(email, hash, role);
+            let user;
+            try {
+                user = await createUser(email, hash, role);
+            } catch (err) {
+                if ((err as { code?: string }).code === '23505') {
+                    throw new HttpError(409, 'Email already registered');
+                }
+                throw err;
+            }
 
             const token = signPlayerToken({
                 userId: user.id,
@@ -71,27 +81,23 @@ export function createAuthRoutes(router: Router, deps: RouteDeps, middleware: Mi
                 token,
             };
             res.status(201).json(body);
-        } catch (err) {
-            if ((err as { code?: string }).code === '23505') {
-                return res.status(409).json({ error: 'Email already registered' });
-            }
-            console.error('Register error', err);
-            res.status(500).json({ error: 'Internal server error' });
-        }
-    });
+        }),
+    );
 
     // ─── Login ─────────────────────────────────────────────────────────
 
-    router.post('/api/auth/login', loginLimiter, async (req, res) => {
-        const { email, password } = req.body;
-        if (!email || !password) {
-            return res.status(400).json({ error: 'email and password are required' });
-        }
+    router.post(
+        '/api/auth/login',
+        loginLimiter,
+        asyncHandler(async (req, res) => {
+            const { email, password } = req.body;
+            if (!email || !password) {
+                throw new HttpError(400, 'email and password are required');
+            }
 
-        try {
             const user = await getUserByEmail(email);
             if (!user || !verifyPassword(password, user.password_hash)) {
-                return res.status(401).json({ error: 'Invalid credentials' });
+                throw new HttpError(401, 'Invalid credentials');
             }
 
             // Check ship_destroyed_date for any player of this user
@@ -107,9 +113,10 @@ export function createAuthRoutes(router: Router, deps: RouteDeps, middleware: Mi
 
                     if (elapsedSecs < delaySecs) {
                         const remaining = Math.ceil(delaySecs - elapsedSecs);
-                        return res.status(403).json({
-                            error: `Your ship was destroyed. You can login in ${remaining} seconds.`,
-                        });
+                        throw new HttpError(
+                            403,
+                            `Your ship was destroyed. You can login in ${remaining} seconds.`,
+                        );
                     }
 
                     // Delay passed — clear destroyed date and give new ship
@@ -160,9 +167,6 @@ export function createAuthRoutes(router: Router, deps: RouteDeps, middleware: Mi
                 token,
             };
             res.json(body);
-        } catch (err) {
-            console.error('Login error', err);
-            res.status(500).json({ error: 'Internal server error' });
-        }
-    });
+        }),
+    );
 }

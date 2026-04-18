@@ -3,6 +3,7 @@ import type { ServerStatsResponse } from '@twnr/shared';
 import type { RouteDeps, Middleware } from '../middleware.js';
 import { countAllPlayers } from '../../db/queries/player.js';
 import { countAllSectors } from '../../db/queries/sector.js';
+import { asyncHandler } from '../async-handler.js';
 
 export function createAdminStatsRoutes(
     router: Router,
@@ -12,8 +13,10 @@ export function createAdminStatsRoutes(
     const { players } = deps;
     const { authenticateAdmin } = middleware;
 
-    router.get('/api/admin/server-stats', authenticateAdmin, async (_req, res) => {
-        try {
+    router.get(
+        '/api/admin/server-stats',
+        authenticateAdmin,
+        asyncHandler(async (_req, res) => {
             const [totalPlayers, totalSectors] = await Promise.all([
                 countAllPlayers(),
                 countAllSectors(),
@@ -27,8 +30,6 @@ export function createAdminStatsRoutes(
                 platform: process.platform,
             };
             res.json(body);
-        } catch {
-            res.status(500).json({ error: 'Internal server error' });
-        }
-    });
+        }),
+    );
 }

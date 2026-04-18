@@ -1,7 +1,8 @@
 import { Router } from 'express';
-import { pool } from '../../db/index.js';
+import { withTransaction } from '../../db/index.js';
 import { generateUniverse } from '../../bigbang/index.js';
 import type { RouteDeps, Middleware } from '../middleware.js';
+import { asyncHandler, HttpError } from '../async-handler.js';
 import {
     universeExists,
     getUniverseBasicInfo,
@@ -42,49 +43,50 @@ export function createAdminLifecycleRoutes(
     const { authenticateAdmin } = middleware;
     void deps;
 
-    router.post('/api/admin/universes/generate', authenticateAdmin, async (req, res) => {
-        const {
-            name,
-            sectors,
-            seed,
-            portDensity,
-            twoWayPct,
-            warpDist,
-            edit_name = 'stock',
-        } = req.body;
+    router.post(
+        '/api/admin/universes/generate',
+        authenticateAdmin,
+        asyncHandler(async (req, res) => {
+            const {
+                name,
+                sectors,
+                seed,
+                portDensity,
+                twoWayPct,
+                warpDist,
+                edit_name = 'stock',
+            } = req.body;
 
-        if (!name || !String(name).trim()) {
-            return res.status(400).json({ error: 'name is required' });
-        }
-        const sectorCount = parseInt(sectors, 10);
-        if (!sectors || isNaN(sectorCount) || sectorCount < 20 || sectorCount > 25000) {
-            return res
-                .status(400)
-                .json({ error: 'sectors is required and must be between 20 and 25000' });
-        }
-
-        // Validate warpDist if provided
-        let parsedWarpDist: number[] | undefined;
-        if (warpDist != null) {
-            if (
-                !Array.isArray(warpDist) ||
-                warpDist.length !== 6 ||
-                warpDist.some((v: unknown) => typeof v !== 'number' || v < 0)
-            ) {
-                return res.status(400).json({
-                    error: 'warpDist must be an array of 6 non-negative numbers (degrees 1-6)',
-                });
+            if (!name || !String(name).trim()) {
+                throw new HttpError(400, 'name is required');
             }
-            const sum = warpDist.reduce((a: number, b: number) => a + b, 0);
-            if (Math.abs(sum - 100) > 0.01) {
-                return res.status(400).json({
-                    error: `warpDist values must sum to 100 (got ${sum})`,
-                });
+            const sectorCount = parseInt(sectors, 10);
+            if (!sectors || isNaN(sectorCount) || sectorCount < 20 || sectorCount > 25000) {
+                throw new HttpError(
+                    400,
+                    'sectors is required and must be between 20 and 25000',
+                );
             }
-            parsedWarpDist = [0, ...warpDist];
-        }
 
-        try {
+            let parsedWarpDist: number[] | undefined;
+            if (warpDist != null) {
+                if (
+                    !Array.isArray(warpDist) ||
+                    warpDist.length !== 6 ||
+                    warpDist.some((v: unknown) => typeof v !== 'number' || v < 0)
+                ) {
+                    throw new HttpError(
+                        400,
+                        'warpDist must be an array of 6 non-negative numbers (degrees 1-6)',
+                    );
+                }
+                const sum = warpDist.reduce((a: number, b: number) => a + b, 0);
+                if (Math.abs(sum - 100) > 0.01) {
+                    throw new HttpError(400, `warpDist values must sum to 100 (got ${sum})`);
+                }
+                parsedWarpDist = [0, ...warpDist];
+            }
+
             const result = generateUniverse({
                 sectors: sectorCount,
                 seed: seed != null ? Math.floor(Number(seed)) : undefined,
@@ -93,26 +95,25 @@ export function createAdminLifecycleRoutes(
                 warpDist: parsedWarpDist,
             });
 
-            const client = await pool.connect();
-            try {
-                await client.query('BEGIN');
-
+            const universeId = await withTransaction(async (client) => {
                 const editId = await getEditIdByName(edit_name, client);
-                const universeId = await insertUniverseFull(name, result.seed, editId, client);
+                const newUniverseId = await insertUniverseFull(
+                    name,
+                    result.seed,
+                    editId,
+                    client,
+                );
 
-                // Insert sectors and build sector_number → id map
                 const sectorIdMap = new Map<number, number>();
                 for (const s of result.sectors) {
-                    const id = await insertSector(universeId, s.id, s.name, client);
+                    const id = await insertSector(newUniverseId, s.id, s.name, client);
                     sectorIdMap.set(s.id, id);
                 }
 
-                // Insert warps
                 for (const w of result.warps) {
                     await insertWarp(sectorIdMap.get(w.from)!, sectorIdMap.get(w.to)!, client);
                 }
 
-                // Insert trading ports
                 for (const p of result.ports) {
                     await insertGeneratedPort(
                         sectorIdMap.get(p.sector)!,
@@ -129,12 +130,10 @@ export function createAdminLifecycleRoutes(
                     );
                 }
 
-                // Seed Class 0 port in Sector 1
                 const sector1Id = sectorIdMap.get(1)!;
                 await upsertSpecialPort(sector1Id, 0, client);
 
-                // Seed Class 9 port at Starbase
-                const starbaseSectorNumber = await getStarbaseSectorNumber(universeId, client);
+                const starbaseSectorNumber = await getStarbaseSectorNumber(newUniverseId, client);
                 if (starbaseSectorNumber !== null) {
                     const starbaseSectorDbId = sectorIdMap.get(starbaseSectorNumber);
                     if (starbaseSectorDbId !== undefined) {
@@ -142,46 +141,38 @@ export function createAdminLifecycleRoutes(
                     }
                 }
 
-                // Seed Earth in Sector 1 with starting colonists
                 await upsertEarthPlanet(sector1Id, client);
                 const earthCol = await getEarthStartingColonistsForEdit(editId, client);
                 await setEarthColonists(sector1Id, earthCol, client);
 
-                await client.query('COMMIT');
+                return newUniverseId;
+            });
 
-                // Count actual data
-                const [warpCount, portCount] = await Promise.all([
-                    countWarpsInUniverse(universeId),
-                    countPortsInUniverse(universeId),
-                ]);
+            const [warpCount, portCount] = await Promise.all([
+                countWarpsInUniverse(universeId!),
+                countPortsInUniverse(universeId!),
+            ]);
 
-                res.status(201).json({
-                    id: universeId,
-                    name,
-                    seed: result.seed,
-                    sectorCount: result.sectors.length,
-                    warpCount,
-                    portCount,
-                });
-            } catch (err) {
-                await client.query('ROLLBACK');
-                throw err;
-            } finally {
-                client.release();
-            }
-        } catch (err) {
-            console.error('Generate universe error', err);
-            res.status(500).json({ error: 'Internal server error' });
-        }
-    });
+            res.status(201).json({
+                id: universeId,
+                name,
+                seed: result.seed,
+                sectorCount: result.sectors.length,
+                warpCount,
+                portCount,
+            });
+        }),
+    );
 
-    router.get('/api/admin/universes/:id/stats', authenticateAdmin, async (req, res) => {
-        const universeId = parseInt(req.params.id as string, 10);
+    router.get(
+        '/api/admin/universes/:id/stats',
+        authenticateAdmin,
+        asyncHandler(async (req, res) => {
+            const universeId = parseInt(req.params.id as string, 10);
 
-        try {
             const univ = await getUniverseBasicInfo(universeId);
             if (!univ) {
-                return res.status(404).json({ error: 'Universe not found' });
+                throw new HttpError(404, 'Universe not found');
             }
 
             const [sectorCount, warpCount, portCount, playerCount] = await Promise.all([
@@ -201,24 +192,20 @@ export function createAdminLifecycleRoutes(
                 portCount,
                 playerCount,
             });
-        } catch (err) {
-            console.error('Universe stats error', err);
-            res.status(500).json({ error: 'Internal server error' });
-        }
-    });
+        }),
+    );
 
-    router.delete('/api/admin/universes/:id', authenticateAdmin, async (req, res) => {
-        const universeId = parseInt(req.params.id as string, 10);
+    router.delete(
+        '/api/admin/universes/:id',
+        authenticateAdmin,
+        asyncHandler(async (req, res) => {
+            const universeId = parseInt(req.params.id as string, 10);
 
-        try {
             if (!(await universeExists(universeId))) {
-                return res.status(404).json({ error: 'Universe not found' });
+                throw new HttpError(404, 'Universe not found');
             }
 
-            const client = await pool.connect();
-            try {
-                await client.query('BEGIN');
-
+            await withTransaction(async (client) => {
                 const playerIds = await listPlayerIdsInUniverse(universeId, client);
                 if (playerIds.length > 0) {
                     await deleteVisitedSectorsForPlayers(playerIds, client);
@@ -229,49 +216,40 @@ export function createAdminLifecycleRoutes(
 
                 // CASCADE handles sectors, warps, ports, planets, sector_drones
                 await deleteUniverse(universeId, client);
+            });
 
-                await client.query('COMMIT');
+            res.json({ deleted: true, id: universeId });
+        }),
+    );
 
-                res.json({ deleted: true, id: universeId });
-            } catch (err) {
-                await client.query('ROLLBACK');
-                throw err;
-            } finally {
-                client.release();
+    router.put(
+        '/api/admin/universes/:id',
+        authenticateAdmin,
+        asyncHandler(async (req, res) => {
+            const universeId = parseInt(req.params.id as string, 10);
+            const { name } = req.body;
+
+            if (!name || !String(name).trim()) {
+                throw new HttpError(400, 'name is required');
             }
-        } catch (err) {
-            console.error('Delete universe error', err);
-            res.status(500).json({ error: 'Internal server error' });
-        }
-    });
 
-    router.put('/api/admin/universes/:id', authenticateAdmin, async (req, res) => {
-        const universeId = parseInt(req.params.id as string, 10);
-        const { name } = req.body;
-
-        if (!name || !String(name).trim()) {
-            return res.status(400).json({ error: 'name is required' });
-        }
-
-        try {
             const renamed = await renameUniverse(universeId, name);
             if (!renamed) {
-                return res.status(404).json({ error: 'Universe not found' });
+                throw new HttpError(404, 'Universe not found');
             }
 
             res.json({ id: renamed.id, name: renamed.name });
-        } catch (err) {
-            console.error('Rename universe error', err);
-            res.status(500).json({ error: 'Internal server error' });
-        }
-    });
+        }),
+    );
 
-    router.get('/api/admin/universes/:id/topology', authenticateAdmin, async (req, res) => {
-        const universeId = parseInt(req.params.id as string, 10);
+    router.get(
+        '/api/admin/universes/:id/topology',
+        authenticateAdmin,
+        asyncHandler(async (req, res) => {
+            const universeId = parseInt(req.params.id as string, 10);
 
-        try {
             if (!(await universeExists(universeId))) {
-                return res.status(404).json({ error: 'Universe not found' });
+                throw new HttpError(404, 'Universe not found');
             }
 
             const [totalSectors, warps] = await Promise.all([
@@ -280,7 +258,6 @@ export function createAdminLifecycleRoutes(
             ]);
             const totalWarps = warps.length;
 
-            // Count bidirectional pairs (each pair counted once)
             const warpSet = new Set(warps.map((w) => `${w.from},${w.to}`));
             const counted = new Set<string>();
             let bidirectionalPairs = 0;
@@ -294,7 +271,6 @@ export function createAdminLifecycleRoutes(
                 }
             }
 
-            // Compute out-degree per sector
             const outDeg = new Map<number, number>();
             for (const w of warps) {
                 outDeg.set(w.from, (outDeg.get(w.from) || 0) + 1);
@@ -302,14 +278,12 @@ export function createAdminLifecycleRoutes(
             const avgOut =
                 totalSectors > 0 ? Math.round((totalWarps / totalSectors) * 100) / 100 : 0;
 
-            // Dead-end sectors: exactly 1 outgoing warp
             const deadEndSectors: number[] = [];
             for (const [sector, deg] of outDeg) {
                 if (deg === 1) deadEndSectors.push(sector);
             }
             deadEndSectors.sort((a, b) => a - b);
 
-            // BFS connectivity from sector 1
             const adj = new Map<number, number[]>();
             for (const w of warps) {
                 if (!adj.has(w.from)) adj.set(w.from, []);
@@ -337,9 +311,6 @@ export function createAdminLifecycleRoutes(
                 deadEndSectors,
                 isConnected,
             });
-        } catch (err) {
-            console.error('Topology error', err);
-            res.status(500).json({ error: 'Internal server error' });
-        }
-    });
+        }),
+    );
 }

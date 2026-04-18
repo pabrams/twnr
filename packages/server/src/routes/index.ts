@@ -6,6 +6,7 @@ import { createAdminStatsRoutes } from './admin/stats.js';
 import { createAdminLifecycleRoutes } from './admin/lifecycle.js';
 import { createAdminPortRoutes } from './admin/ports.js';
 import { createCatalogRoutes } from './catalog.js';
+import { errorHandler } from './async-handler.js';
 import type { RouteDeps } from './middleware.js';
 
 export type { RouteDeps };
@@ -20,6 +21,8 @@ export function createRoutes(deps: RouteDeps): Router {
     createAdminLifecycleRoutes(router, deps, middleware);
     createAdminPortRoutes(router, deps, middleware);
     createCatalogRoutes(router, middleware);
+
+    router.use(errorHandler);
 
     return router;
 }
