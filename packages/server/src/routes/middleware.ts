@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { rateLimit } from 'express-rate-limit';
-import { pool } from '../db/index.js';
 import type { AuthTokenPayload, ShipConfig } from '@twnr/shared';
 import type WebSocket from 'ws';
+import { getUserTokenVersion } from '../db/queries/user.js';
 
 declare module 'express' {
     interface Request {
@@ -54,10 +54,8 @@ export function createMiddleware(deps: RouteDeps): Middleware {
         }
 
         try {
-            const result = await pool.query('SELECT token_version FROM users WHERE id = $1', [
-                payload.userId,
-            ]);
-            if (result.rows.length === 0 || result.rows[0].token_version !== payload.tokenVersion) {
+            const tokenVersion = await getUserTokenVersion(payload.userId);
+            if (tokenVersion === undefined || tokenVersion !== payload.tokenVersion) {
                 res.status(401).json({ error: 'Token has been revoked' });
                 return;
             }

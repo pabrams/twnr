@@ -11,8 +11,20 @@ import {
 } from '../game-state.js';
 import { pool } from '../db/index.js';
 import { moveToSector } from '../db/queries/player.js';
-import { moveShipToSector } from '../db/queries/ship.js';
+import {
+    moveShipToSector,
+    setShipDrones,
+    getShipDronesAndMaxInfo,
+    getShipDronesAndMaxForUpdate,
+    getShipDronesForUpdate,
+} from '../db/queries/ship.js';
 import { getSectorDbId } from '../db/queries/sector.js';
+import {
+    getSectorDronesRowForUpdate,
+    updateSectorDroneQuantity,
+    insertSectorDrones,
+    deleteSectorDrones,
+} from '../db/queries/drones.js';
 
 export async function handleDeployDronesInfo(playerId: number): Promise<void> {
     const player = players[playerId];
@@ -34,19 +46,13 @@ export async function handleDeployDronesInfo(playerId: number): Promise<void> {
         return;
     }
 
-    const shipRes = await pool.query(
-        `SELECT s.drones, st.name as ship_name, st.max_drones
-         FROM ships s JOIN ship_types st ON s.ship_type_id = st.id
-         WHERE s.id = (SELECT ship_id FROM players WHERE id = $1)`,
-        [playerId],
-    );
-    if (shipRes.rows.length === 0) {
+    const shipInfo = await getShipDronesAndMaxInfo(playerId);
+    if (!shipInfo) {
         sendEnvelope(playerId, { type: ServerMsgType.NoShip });
         return;
     }
     const sectorDrones = await getSectorDrones(player.sector, player.universeId);
 
-    // Only show own drones or no drones; can't deploy into hostile sector
     if (sectorDrones && sectorDrones.ownerId !== playerId) {
         sendEnvelope(playerId, {
             type: ServerMsgType.Error,
@@ -59,8 +65,8 @@ export async function handleDeployDronesInfo(playerId: number): Promise<void> {
     sendEnvelope(playerId, {
         type: ServerMsgType.DeployDronesInfoResult,
         sectorDrones: sectorDrones?.quantity ?? 0,
-        shipDrones: shipRes.rows[0].drones,
-        shipMaxDrones: shipRes.rows[0].max_drones ?? 0,
+        shipDrones: shipInfo.drones,
+        shipMaxDrones: shipInfo.max_drones ?? 0,
     });
 }
 
@@ -96,22 +102,16 @@ export async function handleDeployDrones(playerId: number, target: number): Prom
     try {
         await client.query('BEGIN');
 
-        const shipRes = await client.query(
-            `SELECT s.drones, st.max_drones
-             FROM ships s JOIN ship_types st ON s.ship_type_id = st.id
-             WHERE s.id = (SELECT ship_id FROM players WHERE id = $1) FOR UPDATE`,
-            [playerId],
-        );
-        if (shipRes.rows.length === 0) {
+        const shipInfo = await getShipDronesAndMaxForUpdate(playerId, client);
+        if (!shipInfo) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, { type: ServerMsgType.NoShip });
             return;
         }
 
-        const shipDrones = shipRes.rows[0].drones;
-        const maxDrones = shipRes.rows[0].max_drones ?? 0;
+        const shipDrones = shipInfo.drones;
+        const maxDrones = shipInfo.max_drones ?? 0;
 
-        // Look up sector DB id
         const sectorDbId = await getSectorDbId(sectorId, universeId);
         if (!sectorDbId) {
             await client.query('ROLLBACK');
@@ -119,15 +119,11 @@ export async function handleDeployDrones(playerId: number, target: number): Prom
             return;
         }
 
-        // Lock existing sector drones row if present
-        const sfRes = await client.query(
-            'SELECT quantity, owner_id FROM sector_drones WHERE sector_id = $1 FOR UPDATE',
-            [sectorDbId],
-        );
+        const existing = await getSectorDronesRowForUpdate(sectorDbId, client);
 
         let currentInSector = 0;
-        if (sfRes.rows.length > 0) {
-            if (sfRes.rows[0].owner_id !== playerId) {
+        if (existing) {
+            if (existing.owner_id !== playerId) {
                 await client.query('ROLLBACK');
                 sendEnvelope(playerId, {
                     type: ServerMsgType.Error,
@@ -135,12 +131,11 @@ export async function handleDeployDrones(playerId: number, target: number): Prom
                 });
                 return;
             }
-            currentInSector = sfRes.rows[0].quantity;
+            currentInSector = existing.quantity;
         }
 
         const delta = target - currentInSector;
 
-        // Deploying more drones
         if (delta > 0 && delta > shipDrones) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, {
@@ -150,7 +145,6 @@ export async function handleDeployDrones(playerId: number, target: number): Prom
             return;
         }
 
-        // Retrieving drones — check ship capacity
         if (delta < 0) {
             const returning = -delta;
             if (shipDrones + returning > maxDrones) {
@@ -165,28 +159,14 @@ export async function handleDeployDrones(playerId: number, target: number): Prom
 
         const newShipDrones = shipDrones - delta;
 
-        // Update ship
-        await client.query(
-            'UPDATE ships SET drones = $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)',
-            [newShipDrones, playerId],
-        );
+        await setShipDrones(playerId, newShipDrones, client);
 
-        // Update sector drones
-        if (target === 0 && sfRes.rows.length > 0) {
-            await client.query('DELETE FROM sector_drones WHERE sector_id = $1 AND owner_id = $2', [
-                sectorDbId,
-                playerId,
-            ]);
-        } else if (sfRes.rows.length > 0) {
-            await client.query(
-                'UPDATE sector_drones SET quantity = $1 WHERE sector_id = $2 AND owner_id = $3',
-                [target, sectorDbId, playerId],
-            );
+        if (target === 0 && existing) {
+            await deleteSectorDrones(sectorDbId, playerId, client);
+        } else if (existing) {
+            await updateSectorDroneQuantity(sectorDbId, playerId, target, client);
         } else if (target > 0) {
-            await client.query(
-                'INSERT INTO sector_drones (sector_id, owner_id, quantity) VALUES ($1, $2, $3)',
-                [sectorDbId, playerId, target],
-            );
+            await insertSectorDrones(sectorDbId, playerId, target, client);
         }
 
         await client.query('COMMIT');
@@ -232,24 +212,19 @@ export async function handleAttackSectorDrones(
     const sectorId = player.sector;
     const universeId = player.universeId;
 
-    // Look up sector DB id
     const sectorDbId = await getSectorDbId(sectorId, universeId);
 
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
 
-        const shipRes = await client.query(
-            'SELECT drones FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1) FOR UPDATE',
-            [playerId],
-        );
-        if (shipRes.rows.length === 0) {
+        const shipDrones = await getShipDronesForUpdate(playerId, client);
+        if (shipDrones === undefined) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, { type: ServerMsgType.NoShip });
             return;
         }
 
-        const shipDrones = shipRes.rows[0].drones;
         if (dronesToAttack > shipDrones) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, {
@@ -259,11 +234,13 @@ export async function handleAttackSectorDrones(
             return;
         }
 
-        const sfRes = await client.query(
-            'SELECT quantity, owner_id FROM sector_drones WHERE sector_id = $1 FOR UPDATE',
-            [sectorDbId],
-        );
-        if (sfRes.rows.length === 0 || sfRes.rows[0].quantity <= 0) {
+        if (!sectorDbId) {
+            await client.query('ROLLBACK');
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Sector not found' });
+            return;
+        }
+        const existing = await getSectorDronesRowForUpdate(sectorDbId, client);
+        if (!existing || existing.quantity <= 0) {
             await client.query('ROLLBACK');
             player.pendingEncounter = undefined;
             sendEnvelope(playerId, {
@@ -273,32 +250,20 @@ export async function handleAttackSectorDrones(
             return;
         }
 
-        const sectorDroneQty = sfRes.rows[0].quantity;
-        const ownerId = sfRes.rows[0].owner_id;
+        const sectorDroneQty = existing.quantity;
+        const ownerId = existing.owner_id;
 
-        // 1:1 attrition
         const k = Math.min(dronesToAttack, sectorDroneQty);
         const newShipDrones = shipDrones - k;
         const newSectorDrones = sectorDroneQty - k;
         const victory = dronesToAttack >= sectorDroneQty;
 
-        // Update ship drones
-        await client.query(
-            'UPDATE ships SET drones = $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)',
-            [newShipDrones, playerId],
-        );
+        await setShipDrones(playerId, newShipDrones, client);
 
-        // Update or delete sector drones
         if (newSectorDrones <= 0) {
-            await client.query('DELETE FROM sector_drones WHERE sector_id = $1 AND owner_id = $2', [
-                sectorDbId,
-                ownerId,
-            ]);
+            await deleteSectorDrones(sectorDbId, ownerId, client);
         } else {
-            await client.query(
-                'UPDATE sector_drones SET quantity = $1 WHERE sector_id = $2 AND owner_id = $3',
-                [newSectorDrones, sectorDbId, ownerId],
-            );
+            await updateSectorDroneQuantity(sectorDbId, ownerId, newSectorDrones, client);
         }
 
         await client.query('COMMIT');
@@ -316,7 +281,6 @@ export async function handleAttackSectorDrones(
             shipDrones: newShipDrones,
         });
 
-        // Alert the owner
         const owner = players[ownerId];
         if (owner && owner.ws.readyState === 1) {
             sendEnvelope(ownerId, {
@@ -353,7 +317,6 @@ export async function handleRetreatFromDrones(playerId: number): Promise<void> {
     const universeId = player.universeId;
     const currentSector = player.sector;
 
-    // Move player back
     const retreatSectorId = await resolveSectorId(retreatSector, universeId);
     player.sector = retreatSector;
     player.sectorId = retreatSectorId;
@@ -362,7 +325,6 @@ export async function handleRetreatFromDrones(playerId: number): Promise<void> {
         moveShipToSector(playerId, retreatSectorId),
     ]);
 
-    // Broadcast movement
     const oldSectorClients = new Set<WebSocket>();
     const newSectorClients = new Set<WebSocket>();
     for (const [idStr, p] of Object.entries(players)) {
@@ -389,7 +351,6 @@ export async function handleRetreatFromDrones(playerId: number): Promise<void> {
         sector: retreatSector,
     });
 
-    // Send sector display for the retreat sector
     const sectorData = await buildSectorDisplayData(playerId, retreatSector);
     if (sectorData) {
         sendEnvelope(playerId, { type: ServerMsgType.SectorDisplayResult, ...sectorData });

@@ -1,21 +1,15 @@
 import { ServerMsgType, type BuyHardwareResultObject } from '@twnr/shared';
 import { players, sendEnvelope, setPlayerMenu } from '../game-state.js';
 import { pool } from '../db/index.js';
-
-/** Get hardware price for a universe: check hardware_price for the edit, fall back to default_price. */
-async function getHardwarePrice(
-    universeId: number,
-    hardwareItemId: number,
-    defaultPrice: number,
-): Promise<number> {
-    const res = await pool.query(
-        `SELECT hp.price FROM hardware_price hp
-         JOIN universes u ON u.edit_id = hp.edit_id
-         WHERE u.id = $1 AND hp.hardware_item_id = $2`,
-        [universeId, hardwareItemId],
-    );
-    return res.rows[0]?.price ?? defaultPrice;
-}
+import { getCreditsForUpdate, deductCredits } from '../db/queries/player.js';
+import {
+    getHardwareItemByName,
+    getHardwarePriceForUniverse,
+    getShipHardwareCapacityForUpdate,
+    upsertShipHardwareQuantity,
+    setShipHardwareInstalled,
+    type HardwareItemRow,
+} from '../db/queries/hardware.js';
 
 /** Unified handler for buying any hardware item. */
 export async function handleBuyHardware(
@@ -29,18 +23,14 @@ export async function handleBuyHardware(
         return;
     }
 
-    // Look up the hardware item
-    const hwRes = await pool.query(
-        'SELECT id, name, label, kind, default_price, result_extra FROM hardware_item WHERE name = $1',
-        [itemName],
-    );
-    if (hwRes.rows.length === 0) {
+    const hw = await getHardwareItemByName(itemName);
+    if (!hw) {
         sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Unknown hardware item' });
         return;
     }
-    const hw = hwRes.rows[0];
 
-    const unitPrice = await getHardwarePrice(player.universeId, hw.id, hw.default_price);
+    const priceOverride = await getHardwarePriceForUniverse(player.universeId, hw.id);
+    const unitPrice = priceOverride ?? hw.default_price;
 
     if (hw.kind === 'stackable') {
         await buyStackable(playerId, hw, unitPrice, quantity ?? 0);
@@ -51,13 +41,7 @@ export async function handleBuyHardware(
 
 async function buyStackable(
     playerId: number,
-    hw: {
-        id: number;
-        name: string;
-        label: string;
-        kind: string;
-        result_extra: Record<string, unknown> | null;
-    },
+    hw: HardwareItemRow,
     unitPrice: number,
     quantity: number,
 ): Promise<void> {
@@ -72,25 +56,14 @@ async function buyStackable(
     try {
         await client.query('BEGIN');
 
-        // Get ship id and current quantity
-        const shipRes = await client.query(
-            `SELECT s.id as ship_id,
-                    COALESCE(sh.quantity, 0) as current_qty,
-                    COALESCE(sth.max_quantity, 0) as max_qty
-             FROM ships s
-             LEFT JOIN ship_hardware sh ON sh.ship_id = s.id AND sh.hardware_item_id = $2
-             LEFT JOIN ship_type_hardware sth ON sth.ship_type_id = s.ship_type_id AND sth.hardware_item_id = $2
-             WHERE s.id = (SELECT ship_id FROM players WHERE id = $1)
-             FOR UPDATE OF s`,
-            [playerId, hw.id],
-        );
-        if (shipRes.rows.length === 0) {
+        const capacity = await getShipHardwareCapacityForUpdate(playerId, hw.id, client);
+        if (!capacity) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Ship not found' });
             return;
         }
 
-        const { ship_id, current_qty, max_qty } = shipRes.rows[0];
+        const { ship_id, current_qty, max_qty } = capacity;
 
         if (max_qty <= 0) {
             await client.query('ROLLBACK');
@@ -110,25 +83,15 @@ async function buyStackable(
             return;
         }
 
-        const credRes = await client.query('SELECT credits FROM players WHERE id = $1 FOR UPDATE', [
-            playerId,
-        ]);
-        if (credRes.rows.length === 0 || credRes.rows[0].credits < cost) {
+        const credits = await getCreditsForUpdate(playerId, client);
+        if (credits === undefined || credits < cost) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient credits' });
             return;
         }
 
-        await client.query('UPDATE players SET credits = credits - $1 WHERE id = $2', [
-            cost,
-            playerId,
-        ]);
-        await client.query(
-            `INSERT INTO ship_hardware (ship_id, hardware_item_id, quantity)
-             VALUES ($1, $2, $3)
-             ON CONFLICT (ship_id, hardware_item_id) DO UPDATE SET quantity = ship_hardware.quantity + $3`,
-            [ship_id, hw.id, qty],
-        );
+        await deductCredits(playerId, cost, client);
+        await upsertShipHardwareQuantity(ship_id, hw.id, qty, client);
         await client.query('COMMIT');
 
         await setPlayerMenu(playerId, 'starbaseHardware');
@@ -139,7 +102,7 @@ async function buyStackable(
             kind: 'stackable',
             quantity: qty,
             totalOnShip: current_qty + qty,
-            credits: credRes.rows[0].credits - cost,
+            credits: credits - cost,
             ...(hw.result_extra ?? {}),
         } as BuyHardwareResultObject);
     } catch (err) {
@@ -151,39 +114,19 @@ async function buyStackable(
     }
 }
 
-async function buyToggle(
-    playerId: number,
-    hw: {
-        id: number;
-        name: string;
-        label: string;
-        kind: string;
-        result_extra: Record<string, unknown> | null;
-    },
-    unitPrice: number,
-): Promise<void> {
+async function buyToggle(playerId: number, hw: HardwareItemRow, unitPrice: number): Promise<void> {
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
 
-        const shipRes = await client.query(
-            `SELECT s.id as ship_id,
-                    COALESCE(sh.quantity, 0) as has_item,
-                    COALESCE(sth.max_quantity, 0) as can_have
-             FROM ships s
-             LEFT JOIN ship_hardware sh ON sh.ship_id = s.id AND sh.hardware_item_id = $2
-             LEFT JOIN ship_type_hardware sth ON sth.ship_type_id = s.ship_type_id AND sth.hardware_item_id = $2
-             WHERE s.id = (SELECT ship_id FROM players WHERE id = $1)
-             FOR UPDATE OF s`,
-            [playerId, hw.id],
-        );
-        if (shipRes.rows.length === 0) {
+        const capacity = await getShipHardwareCapacityForUpdate(playerId, hw.id, client);
+        if (!capacity) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Ship not found' });
             return;
         }
 
-        if (!shipRes.rows[0].can_have) {
+        if (capacity.max_qty <= 0) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, {
                 type: ServerMsgType.Error,
@@ -192,7 +135,7 @@ async function buyToggle(
             return;
         }
 
-        if (shipRes.rows[0].has_item > 0) {
+        if (capacity.current_qty > 0) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, {
                 type: ServerMsgType.Error,
@@ -201,25 +144,15 @@ async function buyToggle(
             return;
         }
 
-        const credRes = await client.query('SELECT credits FROM players WHERE id = $1 FOR UPDATE', [
-            playerId,
-        ]);
-        if (credRes.rows.length === 0 || credRes.rows[0].credits < unitPrice) {
+        const credits = await getCreditsForUpdate(playerId, client);
+        if (credits === undefined || credits < unitPrice) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient credits' });
             return;
         }
 
-        await client.query(
-            `INSERT INTO ship_hardware (ship_id, hardware_item_id, quantity)
-             VALUES ($1, $2, 1)
-             ON CONFLICT (ship_id, hardware_item_id) DO UPDATE SET quantity = 1`,
-            [shipRes.rows[0].ship_id, hw.id],
-        );
-        await client.query('UPDATE players SET credits = credits - $1 WHERE id = $2', [
-            unitPrice,
-            playerId,
-        ]);
+        await setShipHardwareInstalled(capacity.ship_id, hw.id, client);
+        await deductCredits(playerId, unitPrice, client);
         await client.query('COMMIT');
 
         await setPlayerMenu(playerId, 'starbaseHardware');
@@ -228,7 +161,7 @@ async function buyToggle(
             itemName: hw.name,
             label: hw.label,
             kind: 'toggle',
-            credits: credRes.rows[0].credits - unitPrice,
+            credits: credits - unitPrice,
             ...(hw.result_extra ?? {}),
         } as BuyHardwareResultObject);
     } catch (err) {

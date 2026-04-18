@@ -1,6 +1,15 @@
 import { ServerMsgType } from '@twnr/shared';
 import { sendEnvelope, getPlayerUniverseId, players, setPlayerMenu } from '../game-state.js';
 import { pool } from '../db/index.js';
+import {
+    getShipTypeByName,
+    getPlayerShipTradeInfoForUpdate,
+    getPlayerShipBuyInfoForUpdate,
+    insertEmptyShip,
+    setPlayerShipAndDeductCredits,
+    deleteShipById,
+    type ShipTypeRow,
+} from '../db/queries/ship.js';
 
 function calculateShipPrice(shipType: {
     cost_drive: number;
@@ -37,44 +46,20 @@ export async function handleBuyShipTradein(
     try {
         await client.query('BEGIN');
 
-        // Look up the target ship type
-        const targetTypeRes = await client.query(
-            `SELECT id, name, starting_holds, max_holds, max_drones, max_shields,
-                    cost_drive, cost_computer, cost_hull, hold_cost,
-                    turns_per_warp
-             FROM ship_types WHERE name = $1`,
-            [targetShipName],
-        );
-        if (targetTypeRes.rows.length === 0) {
+        const targetType: ShipTypeRow | undefined = await getShipTypeByName(targetShipName, client);
+        if (!targetType) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Unknown ship' });
             return;
         }
-        const targetType = targetTypeRes.rows[0];
 
-        const cargoRes = await client.query(
-            `
-            SELECT p.credits, p.current_sector_id,
-                   st.name AS ship_name,
-                   st.cost_drive AS current_cost_drive, st.cost_computer AS current_cost_computer,
-                   st.cost_hull AS current_cost_hull, st.hold_cost AS current_hold_cost,
-                   st.starting_holds AS current_starting_holds,
-                   s.id AS ship_id
-            FROM players p
-            JOIN ships s ON p.ship_id = s.id
-            JOIN ship_types st ON s.ship_type_id = st.id
-            WHERE p.id = $1 FOR UPDATE
-        `,
-            [playerId],
-        );
-
-        if (cargoRes.rows.length === 0) {
+        const data = await getPlayerShipTradeInfoForUpdate(playerId, client);
+        if (!data) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
             return;
         }
 
-        const data = cargoRes.rows[0];
         if (data.ship_name === targetShipName) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Already on that ship' });
@@ -98,28 +83,16 @@ export async function handleBuyShipTradein(
 
         const newCargoLimit = targetType.starting_holds;
 
-        // Create new empty ship (old ship + cargo get deleted)
-        const newShipRes = await client.query(
-            `INSERT INTO ships (owner_id, ship_type_id, sector_id, drones, shields, holds, turns_per_warp, fuel, organics, equipment, colonists)
-             VALUES ($1, $2, $3, 0, 0, $4, $5, 0, 0, 0, 0)
-             RETURNING id`,
-            [
-                playerId,
-                targetType.id,
-                data.current_sector_id,
-                newCargoLimit,
-                targetType.turns_per_warp,
-            ],
+        const newShipId = await insertEmptyShip(
+            playerId,
+            targetType.id,
+            data.current_sector_id,
+            newCargoLimit,
+            targetType.turns_per_warp,
+            client,
         );
-
-        // Update player to point to new ship and deduct credits
-        await client.query(
-            'UPDATE players SET ship_id = $1, credits = credits - $2 WHERE id = $3',
-            [newShipRes.rows[0].id, cost, playerId],
-        );
-
-        // Delete old ship (no multiple active ships yet)
-        await client.query('DELETE FROM ships WHERE id = $1', [data.ship_id]);
+        await setPlayerShipAndDeductCredits(playerId, newShipId, cost, client);
+        await deleteShipById(data.ship_id, client);
 
         await client.query('COMMIT');
 
@@ -150,43 +123,26 @@ export async function handleBuyShipNew(playerId: number, targetShipName: string)
         return;
     }
 
-    // Always return to shipyards menu regardless of outcome
     await setPlayerMenu(playerId, 'shipyards');
 
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
 
-        const targetTypeRes = await client.query(
-            `SELECT id, name, starting_holds, max_holds, max_drones, max_shields,
-                    cost_drive, cost_computer, cost_hull, hold_cost,
-                    turns_per_warp
-             FROM ship_types WHERE name = $1`,
-            [targetShipName],
-        );
-        if (targetTypeRes.rows.length === 0) {
+        const targetType = await getShipTypeByName(targetShipName, client);
+        if (!targetType) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Unknown ship' });
             return;
         }
-        const targetType = targetTypeRes.rows[0];
         const price = calculateShipPrice(targetType);
 
-        const pRes = await client.query(
-            `SELECT p.credits, p.current_sector_id, sh.id AS ship_id,
-                    st.name AS ship_name
-             FROM players p
-             JOIN ships sh ON p.ship_id = sh.id
-             JOIN ship_types st ON sh.ship_type_id = st.id
-             WHERE p.id = $1 FOR UPDATE`,
-            [playerId],
-        );
-        if (pRes.rows.length === 0) {
+        const data = await getPlayerShipBuyInfoForUpdate(playerId, client);
+        if (!data) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Player not found' });
             return;
         }
-        const data = pRes.rows[0];
 
         if (data.ship_name === targetShipName) {
             await client.query('ROLLBACK');
@@ -202,25 +158,15 @@ export async function handleBuyShipNew(playerId: number, targetShipName: string)
 
         const newCargoLimit = targetType.starting_holds;
 
-        // Create new ship (empty — old ship keeps its cargo)
-        const newShipRes = await client.query(
-            `INSERT INTO ships (owner_id, ship_type_id, sector_id, drones, shields, holds, turns_per_warp, fuel, organics, equipment, colonists)
-             VALUES ($1, $2, $3, 0, 0, $4, $5, 0, 0, 0, 0)
-             RETURNING id`,
-            [
-                playerId,
-                targetType.id,
-                data.current_sector_id,
-                newCargoLimit,
-                targetType.turns_per_warp,
-            ],
+        const newShipId = await insertEmptyShip(
+            playerId,
+            targetType.id,
+            data.current_sector_id,
+            newCargoLimit,
+            targetType.turns_per_warp,
+            client,
         );
-
-        // Update player to new ship and deduct credits
-        await client.query(
-            'UPDATE players SET ship_id = $1, credits = credits - $2 WHERE id = $3',
-            [newShipRes.rows[0].id, price, playerId],
-        );
+        await setPlayerShipAndDeductCredits(playerId, newShipId, price, client);
 
         await client.query('COMMIT');
 

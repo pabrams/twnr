@@ -1,15 +1,35 @@
 import { ServerMsgType } from '@twnr/shared';
 import { players, sendEnvelope, buildSectorDisplayData, setPlayerMenu } from '../game-state.js';
 import { pool } from '../db/index.js';
-import type { PlayerPlanetRow } from '../db/types.js';
 import {
     getEarthId,
     getPlanetInSector,
     getPlanetDisplayData,
     getPlanetName,
+    deletePlanet,
+    getSectorByNumber,
+    getTerraformConfigForUniverse,
+    getPlanetIdsInSectorForUpdate,
+    insertPlanet,
+    insertPlanetCollision,
+    getPlanetColonistsForUpdate,
+    updatePlanetColonists,
+    getPlanetColonistsRemaining,
+    listPlayerPlanets,
+    type ColonistCommodity,
 } from '../db/queries/planet.js';
 import { getPlanetsInSector } from '../db/queries/sector.js';
 import { getOnPlanetId, setDocked, setOnPlanet } from '../db/queries/player.js';
+import {
+    getShipHardwareQuantityByName,
+    decrementShipHardwareByName,
+} from '../db/queries/hardware.js';
+import {
+    getShipHoldsAndCargoForUpdate,
+    getShipColonistsForUpdate,
+    getShipColonists,
+    incrementShipColonists,
+} from '../db/queries/ship.js';
 import { planetConfigs } from '../planet-config.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 
@@ -72,7 +92,6 @@ export async function handleLandOnPlanet(playerId: number, planetId: number): Pr
 
     await setOnPlanet(playerId, planetId);
 
-    // Use special menu for Earth in sector 1
     const isEarth = player.sector === 1 && planet.name === 'Earth';
     await setPlayerMenu(playerId, isEarth ? 'planetEarth' : 'planet');
 
@@ -134,13 +153,8 @@ export async function handleDestroyPlanet(playerId: number): Promise<void> {
         return;
     }
 
-    const shipRes = await pool.query(
-        `SELECT sh.quantity FROM ship_hardware sh
-         JOIN hardware_item hi ON hi.id = sh.hardware_item_id
-         WHERE hi.name = 'planet_buster' AND sh.ship_id = (SELECT ship_id FROM players WHERE id = $1)`,
-        [playerId],
-    );
-    if (shipRes.rows.length === 0 || shipRes.rows[0].quantity < 1) {
+    const busters = await getShipHardwareQuantityByName(playerId, 'planet_buster');
+    if (busters < 1) {
         sendEnvelope(playerId, {
             type: ServerMsgType.Error,
             message: 'You do not have a planet buster.',
@@ -158,14 +172,9 @@ export async function handleDestroyPlanet(playerId: number): Promise<void> {
     try {
         await client.query('BEGIN');
 
-        await client.query(
-            `UPDATE ship_hardware SET quantity = quantity - 1
-             WHERE hardware_item_id = (SELECT id FROM hardware_item WHERE name = 'planet_buster')
-             AND ship_id = (SELECT ship_id FROM players WHERE id = $1)`,
-            [playerId],
-        );
+        await decrementShipHardwareByName(playerId, 'planet_buster', client);
         await setOnPlanet(playerId, null, client);
-        await client.query('DELETE FROM planets WHERE id = $1', [onPlanetId]);
+        await deletePlanet(onPlanetId, client);
 
         await client.query('COMMIT');
     } catch (err) {
@@ -185,7 +194,6 @@ export async function handleDestroyPlanet(playerId: number): Promise<void> {
         planetName,
     });
 
-    // Follow up with sector display so client sees updated sector
     const data = await buildSectorDisplayData(playerId);
     if (data) sendEnvelope(playerId, { type: ServerMsgType.SectorDisplayResult, ...data });
 }
@@ -205,12 +213,9 @@ export async function handleUseTerraformDevice(playerId: number): Promise<void> 
         return;
     }
 
-    const sectorRes = await pool.query(
-        'SELECT id, name FROM sectors WHERE sector_number = $1 AND universe_id = $2',
-        [sectorId, universeId],
-    );
-    const sectorName = sectorRes.rows[0]?.name;
-    const sectorDbId = sectorRes.rows[0]?.id;
+    const sector = await getSectorByNumber(sectorId, universeId);
+    const sectorName = sector?.name;
+    const sectorDbId = sector?.id;
 
     if (sectorId === 1 || sectorName === 'Starbase') {
         sendEnvelope(playerId, {
@@ -221,14 +226,8 @@ export async function handleUseTerraformDevice(playerId: number): Promise<void> 
         return;
     }
 
-    const shipRes = await pool.query(
-        `SELECT COALESCE(sh.quantity, 0) as quantity FROM ships s
-         LEFT JOIN ship_hardware sh ON sh.ship_id = s.id
-           AND sh.hardware_item_id = (SELECT id FROM hardware_item WHERE name = 'terraform_device')
-         WHERE s.id = (SELECT ship_id FROM players WHERE id = $1)`,
-        [playerId],
-    );
-    if (shipRes.rows.length === 0 || shipRes.rows[0].quantity < 1) {
+    const terraformQty = await getShipHardwareQuantityByName(playerId, 'terraform_device');
+    if (terraformQty < 1) {
         sendEnvelope(playerId, {
             type: ServerMsgType.UseTerraformDeviceResult,
             success: false,
@@ -238,59 +237,51 @@ export async function handleUseTerraformDevice(playerId: number): Promise<void> 
         return;
     }
 
+    if (!sectorDbId) {
+        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Sector not found' });
+        return;
+    }
+
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
 
-        const univRes = await client.query(
-            `SELECT COALESCE(e.max_planets_per_sector, 2) as max_planets_per_sector,
-                    COALESCE(e.planet_collision_likelihood, 50) as planet_collision_likelihood,
-                    COALESCE(e.planet_collision_min_hours, 24) as planet_collision_min_hours,
-                    COALESCE(e.planet_collision_max_hours, 24) as planet_collision_max_hours
-             FROM universes u LEFT JOIN edits e ON u.edit_id = e.id WHERE u.id = $1`,
-            [universeId],
-        );
-        const universeInfo = univRes.rows[0];
+        const universeInfo = await getTerraformConfigForUniverse(universeId, client);
+        if (!universeInfo) {
+            await client.query('ROLLBACK');
+            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Universe not found' });
+            return;
+        }
 
-        const planetsRes = await client.query(
-            'SELECT id FROM planets WHERE sector_id = $1 FOR UPDATE',
-            [sectorDbId],
-        );
+        const existingPlanetIds = await getPlanetIdsInSectorForUpdate(sectorDbId, client);
 
-        await client.query(
-            `UPDATE ship_hardware SET quantity = quantity - 1
-             WHERE hardware_item_id = (SELECT id FROM hardware_item WHERE name = 'terraform_device')
-             AND ship_id = (SELECT ship_id FROM players WHERE id = $1)`,
-            [playerId],
-        );
+        await decrementShipHardwareByName(playerId, 'terraform_device', client);
 
         const types = Object.keys(planetConfigs);
         const randomType = types[Math.floor(Math.random() * types.length)] || 'Terran';
         const randomName = 'Planet-' + Math.random().toString(36).substring(2, 8).toUpperCase();
 
-        const insertRes = await client.query(
-            'INSERT INTO planets (sector_id, name, type, owner_player_id) VALUES ($1, $2, $3, $4) RETURNING id',
-            [sectorDbId, randomName, randomType, playerId],
+        const newPlanetId = await insertPlanet(
+            sectorDbId,
+            randomName,
+            randomType,
+            playerId,
+            client,
         );
-        const newPlanetId = insertRes.rows[0].id;
 
         let collision = false;
-        if (planetsRes.rows.length >= universeInfo.max_planets_per_sector) {
+        if (existingPlanetIds.length >= universeInfo.max_planets_per_sector) {
             const rand = Math.floor(Math.random() * 100) + 1;
             if (rand <= universeInfo.planet_collision_likelihood) {
                 collision = true;
                 const collidingWithId =
-                    planetsRes.rows[Math.floor(Math.random() * planetsRes.rows.length)].id;
+                    existingPlanetIds[Math.floor(Math.random() * existingPlanetIds.length)];
 
                 const minH = universeInfo.planet_collision_min_hours;
                 const maxH = universeInfo.planet_collision_max_hours;
                 const hours = Math.floor(Math.random() * (maxH - minH + 1)) + minH;
 
-                await client.query(
-                    `INSERT INTO planet_collisions (collision_planet, colliding_with, collision_at)
-                     VALUES ($1, $2, NOW() + interval '${hours} hours')`,
-                    [newPlanetId, collidingWithId],
-                );
+                await insertPlanetCollision(newPlanetId, collidingWithId, hours, client);
             }
         }
 
@@ -301,7 +292,7 @@ export async function handleUseTerraformDevice(playerId: number): Promise<void> 
             success: true,
             planet: { id: newPlanetId, name: randomName, type: randomType, sectorId },
             collision,
-            terraformDevices: shipRes.rows[0].quantity - 1,
+            terraformDevices: terraformQty - 1,
         });
     } catch (err) {
         await client.query('ROLLBACK');
@@ -315,12 +306,6 @@ export async function handleUseTerraformDevice(playerId: number): Promise<void> 
     }
 }
 
-const COLONIST_COLUMNS = {
-    fuel: 'colonists_fuel',
-    organics: 'colonists_organics',
-    equipment: 'colonists_equipment',
-} as const;
-
 export async function handleTakeColonists(
     playerId: number,
     quantity: number,
@@ -329,11 +314,11 @@ export async function handleTakeColonists(
     const player = players[playerId];
     if (!player) return;
 
-    const col = COLONIST_COLUMNS[commodity as keyof typeof COLONIST_COLUMNS];
-    if (!col) {
+    if (commodity !== 'fuel' && commodity !== 'organics' && commodity !== 'equipment') {
         sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid commodity' });
         return;
     }
+    const col = commodity as ColonistCommodity;
 
     const onPlanetId = await getOnPlanetId(playerId);
     if (!onPlanetId) {
@@ -345,17 +330,13 @@ export async function handleTakeColonists(
     try {
         await client.query('BEGIN');
 
-        const planetRes = await client.query(
-            `SELECT ${col} as available FROM planets WHERE id = $1 FOR UPDATE`,
-            [onPlanetId],
-        );
-        if (planetRes.rows.length === 0) {
+        const available = await getPlanetColonistsForUpdate(onPlanetId, col, client);
+        if (available === undefined) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Planet not found' });
             return;
         }
 
-        const available = planetRes.rows[0].available;
         const actual = Math.min(quantity, available);
         if (actual <= 0) {
             await client.query('ROLLBACK');
@@ -366,18 +347,12 @@ export async function handleTakeColonists(
             return;
         }
 
-        // Check ship holds
-        const shipRes = await client.query(
-            `SELECT s.holds, s.fuel, s.organics, s.equipment, s.colonists
-             FROM ships s WHERE s.id = (SELECT ship_id FROM players WHERE id = $1) FOR UPDATE`,
-            [playerId],
-        );
-        if (shipRes.rows.length === 0) {
+        const ship = await getShipHoldsAndCargoForUpdate(playerId, client);
+        if (!ship) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'No ship' });
             return;
         }
-        const ship = shipRes.rows[0];
         const used = ship.fuel + ship.organics + ship.equipment + ship.colonists;
         const free = ship.holds - used;
         const toTake = Math.min(actual, free);
@@ -385,31 +360,19 @@ export async function handleTakeColonists(
             await client.query('ROLLBACK');
             sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'No free holds' });
         } else {
-            await client.query(`UPDATE planets SET ${col} = ${col} - $1 WHERE id = $2`, [
-                toTake,
-                onPlanetId,
-            ]);
-            await client.query(
-                'UPDATE ships SET colonists = colonists + $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)',
-                [toTake, playerId],
-            );
+            await updatePlanetColonists(onPlanetId, col, -toTake, client);
+            await incrementShipColonists(playerId, toTake, client);
             await client.query('COMMIT');
 
-            const updatedPlanet = await pool.query(
-                `SELECT ${col} as remaining FROM planets WHERE id = $1`,
-                [onPlanetId],
-            );
-            const updatedShip = await pool.query(
-                'SELECT colonists FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)',
-                [playerId],
-            );
+            const planetRemaining = await getPlanetColonistsRemaining(onPlanetId, col);
+            const shipColonists = await getShipColonists(playerId);
 
             sendEnvelope(playerId, {
                 type: ServerMsgType.TakeColonistsResult,
                 quantity: toTake,
-                commodity: commodity as 'fuel' | 'organics' | 'equipment',
-                planetColonists: updatedPlanet.rows[0].remaining,
-                shipColonists: updatedShip.rows[0].colonists,
+                commodity: col,
+                planetColonists: planetRemaining ?? 0,
+                shipColonists: shipColonists ?? 0,
             });
         }
     } catch (err) {
@@ -437,11 +400,11 @@ export async function handleLeaveColonists(
     const player = players[playerId];
     if (!player) return;
 
-    const col = COLONIST_COLUMNS[commodity as keyof typeof COLONIST_COLUMNS];
-    if (!col) {
+    if (commodity !== 'fuel' && commodity !== 'organics' && commodity !== 'equipment') {
         sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid commodity' });
         return;
     }
+    const col = commodity as ColonistCommodity;
 
     const onPlanetId = await getOnPlanetId(playerId);
     if (!onPlanetId) {
@@ -453,11 +416,8 @@ export async function handleLeaveColonists(
     try {
         await client.query('BEGIN');
 
-        const shipRes = await client.query(
-            'SELECT colonists FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1) FOR UPDATE',
-            [playerId],
-        );
-        if (shipRes.rows.length === 0 || shipRes.rows[0].colonists <= 0) {
+        const shipColonists = await getShipColonistsForUpdate(playerId, client);
+        if (shipColonists === undefined || shipColonists <= 0) {
             await client.query('ROLLBACK');
             sendEnvelope(playerId, {
                 type: ServerMsgType.Error,
@@ -466,35 +426,22 @@ export async function handleLeaveColonists(
             return;
         }
 
-        const actual = Math.min(quantity, shipRes.rows[0].colonists);
+        const actual = Math.min(quantity, shipColonists);
 
-        await client.query(
-            'UPDATE ships SET colonists = colonists - $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)',
-            [actual, playerId],
-        );
-        await client.query(`UPDATE planets SET ${col} = ${col} + $1 WHERE id = $2`, [
-            actual,
-            onPlanetId,
-        ]);
+        await incrementShipColonists(playerId, -actual, client);
+        await updatePlanetColonists(onPlanetId, col, actual, client);
 
         await client.query('COMMIT');
 
-        const updatedPlanet = await pool.query(
-            `SELECT ${col} as remaining FROM planets WHERE id = $1`,
-            [onPlanetId],
-        );
-
-        const updatedShip = await pool.query(
-            'SELECT colonists FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)',
-            [playerId],
-        );
+        const planetRemaining = await getPlanetColonistsRemaining(onPlanetId, col);
+        const shipColonistsNow = await getShipColonists(playerId);
 
         sendEnvelope(playerId, {
             type: ServerMsgType.LeaveColonistsResult,
             quantity: actual,
-            commodity: commodity as 'fuel' | 'organics' | 'equipment',
-            planetColonists: updatedPlanet.rows[0].remaining,
-            shipColonists: updatedShip.rows[0].colonists,
+            commodity: col,
+            planetColonists: planetRemaining ?? 0,
+            shipColonists: shipColonistsNow ?? 0,
         });
     } catch (err) {
         await client.query('ROLLBACK');
@@ -512,20 +459,11 @@ export async function handleListPlanets(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
-    const res = await pool.query<PlayerPlanetRow>(
-        `SELECT p.id, s.sector_number, p.name, p.type,
-                p.fuel, p.organics, p.equipment,
-                p.colonists_fuel, p.colonists_organics, p.colonists_equipment
-         FROM planets p
-         JOIN sectors s ON p.sector_id = s.id
-         WHERE p.owner_player_id = $1 AND s.universe_id = $2
-         ORDER BY s.sector_number, p.id`,
-        [playerId, player.universeId],
-    );
+    const rows = await listPlayerPlanets(playerId, player.universeId);
 
     sendEnvelope(playerId, {
         type: ServerMsgType.ListPlanetsResult,
-        planets: res.rows.map((r) => ({
+        planets: rows.map((r) => ({
             id: r.id,
             sectorNumber: r.sector_number,
             name: r.name,

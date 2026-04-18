@@ -4,9 +4,14 @@ import path from 'path';
 import { shipConfigs, SHIPS_DIR, reloadShipConfigs } from '../ship-config.js';
 import { planetConfigs, PLANETS_DIR, reloadPlanetConfigs } from '../planet-config.js';
 import { class0Prices } from '../game-config.js';
-import { pool } from '../db/pool.js';
 import type { Middleware } from './middleware.js';
-import type { ShipTypeRow, ShipTypeHardwareJoinRow, MenuRow, MenuCommandRow } from '../db/types.js';
+import type { MenuRow } from '../db/types.js';
+import {
+    listShipTypes,
+    listShipTypeHardware,
+    listMenus,
+    listMenuCommands,
+} from '../db/queries/catalog.js';
 
 function slugify(name: string): string {
     return name
@@ -26,15 +31,7 @@ export function createCatalogRoutes(router: Router, middleware: Middleware): voi
 
     router.get('/api/ships', async (_req, res) => {
         try {
-            const { rows: shipTypes } = await pool.query<ShipTypeRow>(
-                'SELECT * FROM ship_types ORDER BY sort_order, id',
-            );
-            // Attach hardware capacities to each ship type
-            const { rows: allHw } = await pool.query<ShipTypeHardwareJoinRow>(
-                `SELECT sth.ship_type_id, hi.name, sth.max_quantity
-                 FROM ship_type_hardware sth
-                 JOIN hardware_item hi ON hi.id = sth.hardware_item_id`,
-            );
+            const [shipTypes, allHw] = await Promise.all([listShipTypes(), listShipTypeHardware()]);
             const hwByType: Record<number, Record<string, number>> = {};
             for (const h of allHw) {
                 if (!hwByType[h.ship_type_id]) hwByType[h.ship_type_id] = {};
@@ -59,17 +56,7 @@ export function createCatalogRoutes(router: Router, middleware: Middleware): voi
     // Menu registry: menus + commands, cached by client for the session
     router.get('/api/menu-registry', async (_req, res) => {
         try {
-            const { rows: menus } = await pool.query<MenuRow>(
-                `SELECT id, name, label, parent_menu_id FROM menu ORDER BY id`,
-            );
-            const { rows: commands } = await pool.query<MenuCommandRow>(
-                `SELECT mc.menu_id, mc.command_id, mc.key_pattern, mc.label as mc_label,
-                        mc.client_msg_type, mc.target_menu_id, mc.sort_order,
-                        c.name as command_name, c.label as command_label
-                 FROM menu_command mc
-                 JOIN command c ON mc.command_id = c.id
-                 ORDER BY mc.menu_id, mc.sort_order`,
-            );
+            const [menus, commands] = await Promise.all([listMenus(), listMenuCommands()]);
 
             // Build a map of menu_name -> commands
             const menuMap = new Map<number, MenuRow>(menus.map((m) => [m.id, m]));

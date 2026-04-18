@@ -88,3 +88,110 @@ export async function getSectorDbId(
     );
     return res.rows[0]?.id;
 }
+
+/** Return all sector numbers in a universe, ordered ascending. */
+export async function listSectorNumbers(
+    universeId: number,
+    db: Queryable = pool,
+): Promise<number[]> {
+    const res = await db.query<{ sector_number: number }>(
+        'SELECT sector_number FROM sectors WHERE universe_id = $1 ORDER BY sector_number ASC',
+        [universeId],
+    );
+    return res.rows.map((r) => r.sector_number);
+}
+
+/** Return all warp edges (from, to) in a universe, as sector numbers. */
+export async function listWarpEdges(
+    universeId: number,
+    db: Queryable = pool,
+): Promise<{ from: number; to: number }[]> {
+    const res = await db.query<{ sector_from: number; sector_to: number }>(
+        `SELECT s_from.sector_number as sector_from, s_to.sector_number as sector_to
+         FROM warps w
+         JOIN sectors s_from ON w.from_sector_id = s_from.id
+         JOIN sectors s_to ON w.to_sector_id = s_to.id
+         WHERE s_from.universe_id = $1`,
+        [universeId],
+    );
+    return res.rows.map((r) => ({ from: r.sector_from, to: r.sector_to }));
+}
+
+/** Insert a sector at universe-generation time; returns its id. */
+export async function insertSector(
+    universeId: number,
+    sectorNumber: number,
+    name: string,
+    db: Queryable = pool,
+): Promise<number> {
+    const res = await db.query<{ id: number }>(
+        'INSERT INTO sectors (universe_id, sector_number, name) VALUES ($1, $2, $3) RETURNING id',
+        [universeId, sectorNumber, name],
+    );
+    return res.rows[0].id;
+}
+
+/** Insert a warp edge by internal sector ids (generation time). */
+export async function insertWarp(
+    fromSectorId: number,
+    toSectorId: number,
+    db: Queryable = pool,
+): Promise<void> {
+    await db.query('INSERT INTO warps (from_sector_id, to_sector_id) VALUES ($1, $2)', [
+        fromSectorId,
+        toSectorId,
+    ]);
+}
+
+/** Count warps in a universe (joined through sectors). */
+export async function countWarpsInUniverse(
+    universeId: number,
+    db: Queryable = pool,
+): Promise<number> {
+    const res = await db.query<{ count: number }>(
+        `SELECT COUNT(*)::int FROM warps w
+         JOIN sectors s ON w.from_sector_id = s.id
+         WHERE s.universe_id = $1`,
+        [universeId],
+    );
+    return res.rows[0]?.count ?? 0;
+}
+
+/** Count total sectors across all universes (admin stats). */
+export async function countAllSectors(db: Queryable = pool): Promise<number> {
+    const res = await db.query<{ count: number }>('SELECT COUNT(*)::int FROM sectors');
+    return res.rows[0]?.count ?? 0;
+}
+
+/** Sector number of the sector named 'Starbase' in a universe, if any. */
+export async function getStarbaseSectorNumber(
+    universeId: number,
+    db: Queryable = pool,
+): Promise<number | null> {
+    const res = await db.query<{ sector_number: number }>(
+        "SELECT sector_number FROM sectors WHERE name = 'Starbase' AND universe_id = $1 LIMIT 1",
+        [universeId],
+    );
+    return res.rows[0]?.sector_number ?? null;
+}
+
+/** Warp destinations from a sector, each with a per-player visited flag. */
+export async function getWarpRefsForPlayer(
+    playerId: number,
+    sectorNumber: number,
+    universeId: number,
+    db: Queryable = pool,
+): Promise<{ sector: number; visited: boolean }[]> {
+    const res = await db.query<{ sector_number: number; visited: boolean }>(
+        `SELECT DISTINCT s_to.sector_number,
+                (vs.player_id IS NOT NULL) AS visited
+         FROM warps w
+         JOIN sectors s_from ON w.from_sector_id = s_from.id
+         JOIN sectors s_to   ON w.to_sector_id   = s_to.id
+         LEFT JOIN visited_sectors vs ON vs.sector_id = s_to.id AND vs.player_id = $1
+         WHERE s_from.sector_number = $2 AND s_from.universe_id = $3
+         ORDER BY s_to.sector_number`,
+        [playerId, sectorNumber, universeId],
+    );
+    return res.rows.map((r) => ({ sector: r.sector_number, visited: r.visited }));
+}
