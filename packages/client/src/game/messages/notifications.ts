@@ -22,7 +22,6 @@ export const NOTIFY = makeDomain('NOTIFY', {
     invalidSelection: '[br]Invalid selection.[/br]',
 
     unknownCommand: 'Unknown command: {cmd}',
-    usageMove: 'Usage: move <sector>',
 
     autopilotEngaged: '\r\n[bg]Autopilot engaged.[/bg]',
 });
