@@ -190,14 +190,10 @@ export function showTradeinPrompt(
 ) {
     ctx.changeMenu(Menu.ShipyardsTradein);
     ctx.term.writeln('');
-    ctx.term.writeln(
-        render(STARBASE.tradeinHeader, { ship: shipName, price: fmt(price) }),
-    );
+    ctx.term.writeln(render(STARBASE.tradeinHeader, { ship: shipName, price: fmt(price) }));
     if (tradeinCredit > 0) {
         ctx.term.writeln(render(STARBASE.tradeinCredit, { credit: fmt(tradeinCredit) }));
-        ctx.term.writeln(
-            render(STARBASE.tradeinNet, { net: fmt(price - tradeinCredit) }),
-        );
+        ctx.term.writeln(render(STARBASE.tradeinNet, { net: fmt(price - tradeinCredit) }));
     }
     ctx.term.write(render(STARBASE.tradeinConfirm));
 }

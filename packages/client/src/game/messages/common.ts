@@ -13,7 +13,8 @@ export const COMMON = makeDomain('COMMON', {
     indexRow: '  [by]{key}[/by]  {text}',
 
     /** "Back" / "Cancel" / "Quit" style tail row */
-    backRow: '  [c]Q[/c]  {text}',
+    backRow: '[mg]<[/mg][g]Q[/g][mg]>[/mg]  [g]{text}[/g]',
+    // backRow: '  [c]Q[/c]  {text}',
 
     /** Generic `(Y/N)` confirmation prompt suffix */
     yesNoPrompt: '[mg]([/mg][by]Y[/by]/[by]N[/by][mg])[/mg]',

@@ -76,9 +76,7 @@ export function showSectorDisplay(
     }
 
     if (players.length > 0) {
-        const list = players
-            .map((p) => render(SECTOR.playerItem, { name: p.name }))
-            .join(comma);
+        const list = players.map((p) => render(SECTOR.playerItem, { name: p.name })).join(comma);
         term.writeln(render(SECTOR.playersLine, { list }));
     }
 

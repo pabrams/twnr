@@ -37,8 +37,7 @@ export const MSG = makeDomain('MSG', {
     shipsHeader: '[mg]Ships[/mg]   [by]:[/by] {list}',
     shipItem: '[bc]{type}[/bc] [mg]([/mg][by]{owner}[/by][mg])[/mg]',
 
-    prompt:
-        '\r\n[mg]Command[/mg] [mg][[/mg][bc]{sector}[/bc][mg]][/mg] [mg]([/mg][by]?[/by]=[by]Help[/by][mg])[/mg] [by]:[/by] ',
+    prompt: '\r\n[mg]Command[/mg] [mg][[/mg][bc]{sector}[/bc][mg]][/mg] [mg]([/mg][by]?[/by]=[by]Help[/by][mg])[/mg] [by]:[/by] ',
 
     helpHeader: '[c]Help:[/c]',
     helpLineText: '[c]{label}:[/c] {text}',

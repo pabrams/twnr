@@ -56,7 +56,9 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 ctx.sendMsg({ type: ClientMsgType.SectorDisplay });
                 break;
             case ServerMsgType.PlayerMoved:
-                ctx.term.writeln(render(msg.direction === 'in' ? NOTIFY.playerIn : NOTIFY.playerOut));
+                ctx.term.writeln(
+                    render(msg.direction === 'in' ? NOTIFY.playerIn : NOTIFY.playerOut),
+                );
                 break;
             case ServerMsgType.RateLimited:
                 if (ctx.autopilotPath.length > 0) {
@@ -158,7 +160,10 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 );
                 break;
             case ServerMsgType.TradeConfirmPrompt: {
-                const tpl = msg.action === 'buy' ? TRANSACTION.tradeConfirmSell : TRANSACTION.tradeConfirmBuy;
+                const tpl =
+                    msg.action === 'buy'
+                        ? TRANSACTION.tradeConfirmSell
+                        : TRANSACTION.tradeConfirmBuy;
                 ctx.term.writeln(render(tpl, { total: fmt(msg.totalPrice) }));
                 ctx.term.write(render(TRANSACTION.tradeConfirmAccept));
                 break;
@@ -205,9 +210,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     ]
                         .filter(Boolean)
                         .join(', ');
-                    ctx.term.writeln(
-                        render(TRANSACTION.jettisoned, { items: items || 'nothing' }),
-                    );
+                    ctx.term.writeln(render(TRANSACTION.jettisoned, { items: items || 'nothing' }));
                 } else {
                     ctx.term.writeln(render(NOTIFY.error, { message: msg.message }));
                 }
@@ -249,9 +252,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 break;
             case ServerMsgType.PlayersOnlineResult: {
                 ctx.term.writeln('');
-                ctx.term.writeln(
-                    render(PANEL.playersOnlineHeader, { count: msg.players.length }),
-                );
+                ctx.term.writeln(render(PANEL.playersOnlineHeader, { count: msg.players.length }));
                 for (const p of msg.players) {
                     const suffix = p.id === ctx.playerId ? render(PANEL.playersOnlineYouTag) : '';
                     ctx.term.writeln(render(PANEL.playersOnlineRow, { name: p.name, suffix }));
@@ -381,7 +382,9 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 ctx.term.writeln('');
                 ctx.term.writeln(
                     render(msg.destroyed ? EVENT.attackDestroyed : EVENT.attackCompleted, {
-                        message: msg.message || (msg.destroyed ? 'Target destroyed!' : 'Attack completed.'),
+                        message:
+                            msg.message ||
+                            (msg.destroyed ? 'Target destroyed!' : 'Attack completed.'),
                     }),
                 );
                 ctx.term.writeln(
@@ -435,9 +438,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 ctx.term.writeln(
                     render(PANEL.planetColonistsLine, { count: fmt(msg.planetColonists) }),
                 );
-                ctx.term.writeln(
-                    render(PANEL.shipColonistsLine, { count: msg.shipColonists }),
-                );
+                ctx.term.writeln(render(PANEL.shipColonistsLine, { count: msg.shipColonists }));
                 break;
             }
             case ServerMsgType.LeaveColonistsResult: {
@@ -451,9 +452,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 ctx.term.writeln(
                     render(PANEL.planetColonistsLine, { count: fmt(msg.planetColonists) }),
                 );
-                ctx.term.writeln(
-                    render(PANEL.shipColonistsLine, { count: msg.shipColonists }),
-                );
+                ctx.term.writeln(render(PANEL.shipColonistsLine, { count: msg.shipColonists }));
                 break;
             }
             case ServerMsgType.DroneEncounter: {
@@ -678,7 +677,10 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     ctx.term.writeln(render(PANEL.deployedDronesHeader));
                     for (const d of msg.drones) {
                         ctx.term.writeln(
-                            render(PANEL.deployedDronesRow, { sector: d.sectorId, qty: d.quantity }),
+                            render(PANEL.deployedDronesRow, {
+                                sector: d.sectorId,
+                                qty: d.quantity,
+                            }),
                         );
                     }
                 }

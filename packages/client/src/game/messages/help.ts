@@ -11,8 +11,7 @@ export const HELP = makeDomain('HELP', {
 });
 
 export const HELP_LINES: Array<
-    | { label: string; text: string }
-    | { label: string; key: string; text: string }
+    { label: string; text: string } | { label: string; key: string; text: string }
 > = [
     { label: 'Command', text: 'Move to a sector by typing its number.' },
     { label: 'Display', key: 'D', text: 'refresh sector display.' },

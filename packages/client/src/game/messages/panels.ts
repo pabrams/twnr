@@ -9,17 +9,17 @@ export const PANEL = makeDomain('PANEL', {
     playerInfo: '{{MSG.playerInfoName}}',
     playerInfoSector: '{{MSG.playerInfoSector}}',
     shipName: '[mg]Ship Type[/mg]      [by]:[/by] [bc]{name}[/bc]',
-    shipDronesShields: 
+    shipDronesShields:
         '[mg]Drones[/mg]         [by]:[/by] [bc]{drones}[/bc] [g]/[/g] [c]{maxDrones}[/c] \r\n' +
         '[mg]Shields[/mg]        [by]:[/by] [bc]{shields}[/bc] [g]/[/g] [c]{maxShields}[/c] ',
     shipHolds:
         '[mg]Cargo holds[/mg]    [by]:[/by] [bc]{free}[/bc] [g]free[/g] [g]/[/g] [c]{total}[/c] ' +
         '[g]total[/g] [mg]([/mg][g]max[/g] [c]{max}[/c][mg])[/mg]',
     shipCargo:
-        '[mg]Cargo[/mg]          [by]:[/by] ' + 
+        '[mg]Cargo[/mg]          [by]:[/by] ' +
         '{{MSG.fuelQuantity}} ' +
         '{{MSG.orgQuantity}} ' +
-        '{{MSG.equQuantity}} ' + 
+        '{{MSG.equQuantity}} ' +
         '{{MSG.colosQuantity}}',
     shipCreditsTurns:
         '[mg]Turns[/mg]          [by]:[/by] [bc]{turns}[/bc]\r\n' +
@@ -36,8 +36,7 @@ export const PANEL = makeDomain('PANEL', {
 
     landedHeader: '[bg]Landed on[/bg] [bc]{name}[/bc]',
     landedType: '  [by]Type[/by]: {type}',
-    landedStats:
-        '  [by]Drones[/by]: {drones}  ',
+    landedStats: '  [by]Drones[/by]: {drones}  ',
     landedColonists:
         '  [by]Colonists[/by]: {{MSG.fuelQuantity}}, {{MSG.orgQuantity}}, {{MSG.equQuantity}}',
 
@@ -49,9 +48,7 @@ export const PANEL = makeDomain('PANEL', {
 
     listPlanetsEmpty: '[w]You own no planets.[/w]',
     listPlanetsHeader: '[bc]=== Your Planets ===[/bc]',
-    listPlanetsRow:
-        '  [by]Sector {sector}[/by] — [bc]{name}[/bc] ([w]{type}[/w])',
+    listPlanetsRow: '  [by]Sector {sector}[/by] — [bc]{name}[/bc] ([w]{type}[/w])',
     listPlanetsColonists:
         '  Colonists: {{MSG.fuelQuantity}}, {{MSG.orgQuantity}}, {{MSG.equQuantity}}',
 });
-

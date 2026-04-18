@@ -258,9 +258,7 @@ function handleInput(ctx: GameContext, line: string) {
             break;
         case 'v':
             if (ctx.starbaseSector != null) {
-                ctx.term.writeln(
-                    render(NOTIFY.starbaseLocation, { sector: ctx.starbaseSector }),
-                );
+                ctx.term.writeln(render(NOTIFY.starbaseLocation, { sector: ctx.starbaseSector }));
             } else {
                 ctx.term.writeln(render(NOTIFY.noStarbase));
             }

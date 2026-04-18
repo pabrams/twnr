@@ -11,8 +11,15 @@ export function createAdminLifecycleRoutes(
     const { authenticateAdmin } = middleware;
 
     router.post('/api/admin/universes/generate', authenticateAdmin, async (req, res) => {
-        const { name, sectors, seed, portDensity, twoWayPct, warpDist, edit_name = 'stock' } =
-            req.body;
+        const {
+            name,
+            sectors,
+            seed,
+            portDensity,
+            twoWayPct,
+            warpDist,
+            edit_name = 'stock',
+        } = req.body;
 
         if (!name || !String(name).trim()) {
             return res.status(400).json({ error: 'name is required' });
