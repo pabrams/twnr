@@ -11,6 +11,13 @@ export class HttpError extends Error {
     }
 }
 
+/** Parse a numeric route/query param; throw HttpError(400) on NaN. */
+export function parseIntParam(val: unknown, name: string): number {
+    const n = parseInt(typeof val === 'string' ? val : '', 10);
+    if (isNaN(n)) throw new HttpError(400, `${name} must be a number`);
+    return n;
+}
+
 type AsyncRouteHandler = (req: Request, res: Response, next: NextFunction) => Promise<unknown>;
 
 /** Wraps an async route handler so thrown errors reach the Express error middleware. */

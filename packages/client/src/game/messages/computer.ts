@@ -12,7 +12,7 @@ export const COMPUTER = makeDomain('COMPUTER', {
     deactivated: '\r\n[bc]<Computer deactivated>[/bc]',
 
     knownUniversePrompt:
-        '\r\n[bc]Known Universe[/bc] — [c]E[/c]xplored, [c]U[/c]nexplored, [c]Q[/c]uit? ',
+        '\r\n[bc]Known Universe[/bc] — [by]E[/by]xplored, [by]U[/by]nexplored, [by]Q[/by]uit? ',
 
     exploredHeader: '[bc]Explored sectors[/bc] ({count}):',
     exploredSector: '[bc]{n}[/bc]',
@@ -20,7 +20,7 @@ export const COMPUTER = makeDomain('COMPUTER', {
     unexploredSector: '[br]{n}[/br]',
 
     shipCatalogHeader: '[bc]=== Ship Catalog ===[/bc]',
-    shipCatalogRow: '  [by]{letter}[/by]  [w]{name}[/w]',
+    shipCatalogRow: '  [mg]<[/mg][by]{letter}[/by][mg]>[/mg]  [g]{name}[/g]',
 
     shipDetailHeader: '[bc]=== {name} ===[/bc]',
     shipDetailLine: '  [by]{label}[/by] [w]{value}[/w]',
@@ -28,7 +28,7 @@ export const COMPUTER = makeDomain('COMPUTER', {
     shipDetailBoolNo: '[w]No[/w]',
 
     planetSpecsHeader: '[bc]=== Planetary Specifications ===[/bc]',
-    planetSpecsRow: '  [by]{letter}[/by]  [w]{type}[/w]',
+    planetSpecsRow: '  [mg]<[/mg][by]{letter}[/by][mg]>[/mg]  [g]{type}[/g]',
     planetDetailHeader: '[bc]=== {type} ===[/bc]',
     planetDetailDescription: '  [w]{description}[/w]',
     planetDetailLine: '  [by]{label}[/by] [w]{value}[/w]',

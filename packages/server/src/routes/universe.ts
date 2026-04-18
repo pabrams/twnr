@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { RouteDeps, Middleware } from './middleware.js';
-import { asyncHandler, HttpError } from './async-handler.js';
+import { asyncHandler, HttpError, parseIntParam } from './async-handler.js';
 import { newPlayerConfig } from '../game-config.js';
 import {
     createUniverse,
@@ -60,7 +60,7 @@ export function createUniverseRoutes(
         authenticateToken,
         asyncHandler(async (req, res) => {
             const { userId } = getAuthenticatedPlayer(req);
-            const universeId = parseInt(req.params.id as string, 10);
+            const universeId = parseIntParam(req.params.id, 'id');
             const { name } = req.body;
 
             if (!name || !name.trim()) {
@@ -125,7 +125,7 @@ export function createUniverseRoutes(
         '/api/universes/:id/players',
         authenticateToken,
         asyncHandler(async (req, res) => {
-            const universeId = parseInt(req.params.id as string, 10);
+            const universeId = parseIntParam(req.params.id, 'id');
             const rows = await listPlayersInUniverse(universeId);
             res.json(
                 rows.map((r) => ({

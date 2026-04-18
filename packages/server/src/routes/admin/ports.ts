@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import type { RouteDeps, Middleware } from '../middleware.js';
-import { asyncHandler, HttpError } from '../async-handler.js';
+import { asyncHandler, HttpError, parseIntParam } from '../async-handler.js';
+import { PORT_CLASS_ACTIONS } from '../../game-state.js';
 import { universeExists } from '../../db/queries/universe.js';
 import { getSectorDbId } from '../../db/queries/sector.js';
 import {
@@ -10,18 +11,57 @@ import {
     updatePortFull,
     insertPort,
     deletePort,
+    type PortAdminRow,
 } from '../../db/queries/port.js';
 
-export const PORT_CLASS_ACTIONS: Record<number, [string, string, string]> = {
-    1: ['B', 'B', 'S'],
-    2: ['B', 'S', 'B'],
-    3: ['S', 'B', 'B'],
-    4: ['S', 'S', 'B'],
-    5: ['B', 'S', 'S'],
-    6: ['S', 'B', 'S'],
-    7: ['S', 'S', 'S'],
-    8: ['B', 'B', 'B'],
-};
+interface PortFields {
+    class: number;
+    fuel: number;
+    fuelPrice: number;
+    organics: number;
+    orgPrice: number;
+    equipment: number;
+    equPrice: number;
+}
+
+/**
+ * Parse port fields from a request body. When `existing` is provided, missing
+ * fields fall back to the existing row's values (PUT semantics); otherwise all
+ * fields are required (POST semantics). Throws HttpError(400) on bad input.
+ */
+function parsePortFields(body: Record<string, unknown>, existing?: PortAdminRow): PortFields {
+    const pick = (bodyKey: string, existingVal?: number): number => {
+        const raw = body[bodyKey];
+        if (raw !== undefined) {
+            const n = parseInt(String(raw), 10);
+            if (isNaN(n)) throw new HttpError(400, `${bodyKey} must be a number`);
+            return n;
+        }
+        if (existingVal !== undefined) return existingVal;
+        throw new HttpError(400, `${bodyKey} is required`);
+    };
+
+    return {
+        class: pick('class', existing?.class),
+        fuel: pick('fuel', existing?.fuel),
+        fuelPrice: pick('fuelPrice', existing?.fuel_price),
+        organics: pick('organics', existing?.organics),
+        orgPrice: pick('orgPrice', existing?.org_price),
+        equipment: pick('equipment', existing?.equipment),
+        equPrice: pick('equPrice', existing?.equ_price),
+    };
+}
+
+function validateCommodityQuantities(f: PortFields): string | null {
+    for (const [name, val] of [
+        ['fuel', f.fuel],
+        ['organics', f.organics],
+        ['equipment', f.equipment],
+    ] as const) {
+        if (val < 0 || val > 5000) return `${name} must be 0-5000`;
+    }
+    return null;
+}
 
 export function validatePortPrices(
     portClass: number,
@@ -33,9 +73,9 @@ export function validatePortPrices(
     if (!actions) return null;
 
     const commodities = [
-        { name: 'fuel', action: actions[0], price: fuelPrice },
-        { name: 'organics', action: actions[1], price: orgPrice },
-        { name: 'equipment', action: actions[2], price: equPrice },
+        { name: 'fuel', action: actions.fuel, price: fuelPrice },
+        { name: 'organics', action: actions.organics, price: orgPrice },
+        { name: 'equipment', action: actions.equipment, price: equPrice },
     ];
 
     for (const c of commodities) {
@@ -61,7 +101,7 @@ export function createAdminPortRoutes(
         '/api/admin/universes/:id/ports',
         authenticateAdmin,
         asyncHandler(async (req, res) => {
-            const universeId = parseInt(req.params.id as string, 10);
+            const universeId = parseIntParam(req.params.id, 'id');
 
             if (!(await universeExists(universeId))) {
                 throw new HttpError(404, 'Universe not found');
@@ -87,8 +127,8 @@ export function createAdminPortRoutes(
         '/api/admin/universes/:id/ports/:sectorId',
         authenticateAdmin,
         asyncHandler(async (req, res) => {
-            const universeId = parseInt(req.params.id as string, 10);
-            const sectorId = parseInt(req.params.sectorId as string, 10);
+            const universeId = parseIntParam(req.params.id, 'id');
+            const sectorId = parseIntParam(req.params.sectorId, 'sectorId');
 
             if (!(await universeExists(universeId))) {
                 throw new HttpError(404, 'Universe not found');
@@ -103,70 +143,26 @@ export function createAdminPortRoutes(
                 throw new HttpError(403, 'Cannot modify special port');
             }
 
-            const newClass =
-                req.body.class !== undefined ? parseInt(req.body.class, 10) : existing.class;
-            const newFuel =
-                req.body.fuel !== undefined ? parseInt(req.body.fuel, 10) : existing.fuel;
-            const newFuelPrice =
-                req.body.fuelPrice !== undefined
-                    ? parseInt(req.body.fuelPrice, 10)
-                    : existing.fuel_price;
-            const newOrganics =
-                req.body.organics !== undefined
-                    ? parseInt(req.body.organics, 10)
-                    : existing.organics;
-            const newOrgPrice =
-                req.body.orgPrice !== undefined
-                    ? parseInt(req.body.orgPrice, 10)
-                    : existing.org_price;
-            const newEquipment =
-                req.body.equipment !== undefined
-                    ? parseInt(req.body.equipment, 10)
-                    : existing.equipment;
-            const newEquPrice =
-                req.body.equPrice !== undefined
-                    ? parseInt(req.body.equPrice, 10)
-                    : existing.equ_price;
+            const fields = parsePortFields(req.body, existing);
 
-            if (newClass < 1 || newClass > 8) {
+            if (fields.class < 1 || fields.class > 8) {
                 throw new HttpError(400, 'class must be 1-8');
             }
 
-            for (const [name, val] of [
-                ['fuel', newFuel],
-                ['organics', newOrganics],
-                ['equipment', newEquipment],
-            ] as const) {
-                if (val < 0 || val > 5000) {
-                    throw new HttpError(400, `${name} must be 0-5000`);
-                }
-            }
+            const qtyError = validateCommodityQuantities(fields);
+            if (qtyError) throw new HttpError(400, qtyError);
 
-            const priceError = validatePortPrices(newClass, newFuelPrice, newOrgPrice, newEquPrice);
-            if (priceError) {
-                throw new HttpError(400, priceError);
-            }
+            const priceError = validatePortPrices(
+                fields.class,
+                fields.fuelPrice,
+                fields.orgPrice,
+                fields.equPrice,
+            );
+            if (priceError) throw new HttpError(400, priceError);
 
-            await updatePortFull(existing.id, {
-                class: newClass,
-                fuel: newFuel,
-                fuelPrice: newFuelPrice,
-                organics: newOrganics,
-                orgPrice: newOrgPrice,
-                equipment: newEquipment,
-                equPrice: newEquPrice,
-            });
+            await updatePortFull(existing.id, fields);
 
-            res.json({
-                sectorId,
-                class: newClass,
-                fuel: newFuel,
-                fuelPrice: newFuelPrice,
-                organics: newOrganics,
-                orgPrice: newOrgPrice,
-                equipment: newEquipment,
-                equPrice: newEquPrice,
-            });
+            res.json({ sectorId, ...fields });
         }),
     );
 
@@ -174,8 +170,8 @@ export function createAdminPortRoutes(
         '/api/admin/universes/:id/ports/:sectorId',
         authenticateAdmin,
         asyncHandler(async (req, res) => {
-            const universeId = parseInt(req.params.id as string, 10);
-            const sectorId = parseInt(req.params.sectorId as string, 10);
+            const universeId = parseIntParam(req.params.id, 'id');
+            const sectorId = parseIntParam(req.params.sectorId, 'sectorId');
 
             if (!(await universeExists(universeId))) {
                 throw new HttpError(404, 'Universe not found');
@@ -190,67 +186,26 @@ export function createAdminPortRoutes(
                 throw new HttpError(409, 'Port already exists');
             }
 
-            const {
-                class: portClass,
-                fuel,
-                fuelPrice,
-                organics,
-                orgPrice,
-                equipment,
-                equPrice,
-            } = req.body;
+            const fields = parsePortFields(req.body);
 
-            const cls = parseInt(portClass, 10);
-            if (isNaN(cls) || cls < 1 || cls > 8) {
+            if (fields.class < 1 || fields.class > 8) {
                 throw new HttpError(400, 'class must be 1-8 for trading ports');
             }
 
-            const fuelQty = parseInt(fuel, 10);
-            const orgQty = parseInt(organics, 10);
-            const equQty = parseInt(equipment, 10);
-            for (const [name, val] of [
-                ['fuel', fuelQty],
-                ['organics', orgQty],
-                ['equipment', equQty],
-            ] as const) {
-                if (isNaN(val) || val < 0 || val > 5000) {
-                    throw new HttpError(400, `${name} must be 0-5000`);
-                }
-            }
+            const qtyError = validateCommodityQuantities(fields);
+            if (qtyError) throw new HttpError(400, qtyError);
 
-            const fp = parseInt(fuelPrice, 10);
-            const op = parseInt(orgPrice, 10);
-            const ep = parseInt(equPrice, 10);
+            const priceError = validatePortPrices(
+                fields.class,
+                fields.fuelPrice,
+                fields.orgPrice,
+                fields.equPrice,
+            );
+            if (priceError) throw new HttpError(400, priceError);
 
-            if (isNaN(fp) || isNaN(op) || isNaN(ep)) {
-                throw new HttpError(400, 'all price fields are required');
-            }
+            await insertPort(sectorDbId, fields);
 
-            const priceError = validatePortPrices(cls, fp, op, ep);
-            if (priceError) {
-                throw new HttpError(400, priceError);
-            }
-
-            await insertPort(sectorDbId, {
-                class: cls,
-                fuel: fuelQty,
-                fuelPrice: fp,
-                organics: orgQty,
-                orgPrice: op,
-                equipment: equQty,
-                equPrice: ep,
-            });
-
-            res.status(201).json({
-                sectorId,
-                class: cls,
-                fuel: fuelQty,
-                fuelPrice: fp,
-                organics: orgQty,
-                orgPrice: op,
-                equipment: equQty,
-                equPrice: ep,
-            });
+            res.status(201).json({ sectorId, ...fields });
         }),
     );
 
@@ -258,8 +213,8 @@ export function createAdminPortRoutes(
         '/api/admin/universes/:id/ports/:sectorId',
         authenticateAdmin,
         asyncHandler(async (req, res) => {
-            const universeId = parseInt(req.params.id as string, 10);
-            const sectorId = parseInt(req.params.sectorId as string, 10);
+            const universeId = parseIntParam(req.params.id, 'id');
+            const sectorId = parseIntParam(req.params.sectorId, 'sectorId');
 
             if (!(await universeExists(universeId))) {
                 throw new HttpError(404, 'Universe not found');
