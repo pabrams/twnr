@@ -24,10 +24,10 @@ export const SECTOR = makeDomain('SECTOR', {
     warpUnvisited: '[mg]([/mg][br]{sector}[/br][mg])[/mg]',
     warpSeparator: ' [g]-[/g] ',
 
-    playersLine: '[mg]Players[/mg] [by]:[/by] {list}',
+    playersLine: '[mg]Merchants[/mg] [by]:[/by] {list}',
     playerItem: '[by]{name}[/by]',
 
-    shipsLine: '[mg]Ships[/mg]   [by]:[/by] {list}',
+    shipsLine: '[mg]Ships[/mg]     [by]:[/by] {list}',
     shipItem: '[bc]{type}[/bc] [mg]([/mg][by]{owner}[/by][mg])[/mg]',
 
     commaJoin: '[by], [/by]',
