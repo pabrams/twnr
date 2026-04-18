@@ -17,9 +17,9 @@ export const EVENT = makeDomain('EVENT', {
 
     deployDronesInfo:
         'You have [by]{ship + sector}[/by] drones available.\r\n' +
-        'Your ship can support a maximum of [y]{max}[/y] drones, so you have to leave at least [y]{Max(ship + sector - max, 0)}[/y].',
+        'Your ship can support a maximum of [by]{max}[/by] drones, so you have to leave at least [by]{Max(ship + sector - max, 0)}[/by].',
 
-    deployDronesPrompt: '[g]How many drones do you want defending this sector?[/g]',
+    deployDronesPrompt: '[g]How many drones do you want defending this sector? [{Max(ship + sector - max, 0)}][/g]',
 
     deployDronesResult:
         '\r\n[bc]Done. You have [by]{ship}[/by] drones in close support and [by]{sector}[/by] defending the sector.[/bc]',
@@ -30,21 +30,21 @@ export const EVENT = makeDomain('EVENT', {
     retreated: '\r\n[by]Retreated to sector[/by] [bc]{sector}[/bc]',
 
     alertIntrusion:
-        '[by]Alert:[/by] [br]{intruder}[/br] entered sector [bc]{sector}[/bc] with your drones!',
+        '[by]Alert:[/by] Drones in sector [bc]{sector}[/bc] report [bm]{intruder}[/bm] warped into the sector.',
     alertAttacked:
-        '[br]Alert:[/br] [br]{intruder}[/br] attacked your drones in sector [bc]{sector}[/bc]! Lost: {lost}, remaining: {remaining}',
+        '[br]Alert:[/br] [bm]{intruder}[/bm] destroyed [by]{lost}[/by] of your drones in sector [bc]{sector}[/bc]!',
     alertDestroyed:
-        '[br]Alert:[/br] [br]{intruder}[/br] destroyed all your drones in sector [bc]{sector}[/bc]!',
+        '[br]Alert:[/br] [bm]{intruder}[/bm] destroyed all your drones in sector [bc]{sector}[/bc]!',
 
     planetDestroyed: '\r\n[br]Planet {name} destroyed![/br]',
 
     terraformSuccess: '\r\n[bg]Terraform successful![/bg] Created [bc]{name}[/bc] ({type})',
-    terraformCollision: '[by]Warning: planetary collision detected![/by]',
-    terraformDevicesRemaining: '  [by]Terraform devices remaining[/by]: {count}',
+    terraformCollision: '[by:r]*** Warning ***: intersecting orbits detected![/by:r]',
+    terraformDevicesRemaining: '  [by]Terraform devices remaining[/by]: [bc]{count}[/bc]',
     terraformFailure: '\r\n[br]{reason}[/br]',
 
     hyperspaceJump:
-        '\r\n[bg]Hyperspace jump![/bg] Arrived at sector [bc]{sector}[/bc]. Fuel used: {fuel}, Turns: {turns}',
+        '\r\n[bg]Hyperspace jump![/bg] Arrived in sector [bc]{sector}[/bc]. Fuel used: [by]{fuel}[/by], Turns: [by]{turns}[/by]',
 
     leftPlanet: '\r\n[w]You return to your ship and leave the planet.[/w]',
     noPlanetsToLand: '\r\n[w]No planets in this sector.[/w]',

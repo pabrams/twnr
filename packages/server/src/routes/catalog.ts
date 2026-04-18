@@ -6,6 +6,7 @@ import { planetConfigs, PLANETS_DIR, reloadPlanetConfigs } from '../planet-confi
 import { class0Prices } from '../game-config.js';
 import type { Middleware } from './middleware.js';
 import type { MenuRow } from '../db/types.js';
+import { asyncHandler } from './async-handler.js';
 import {
     listShipTypes,
     listShipTypeHardware,
@@ -23,14 +24,14 @@ function slugify(name: string): string {
 export function createCatalogRoutes(router: Router, middleware: Middleware): void {
     const { authenticateAdmin } = middleware;
 
-    // ─── Public: list configs ──────────────────────────────────────
 
     router.get('/api/class0-prices', (_req, res) => {
         res.json(class0Prices);
     });
 
-    router.get('/api/ships', async (_req, res) => {
-        try {
+    router.get(
+        '/api/ships',
+        asyncHandler(async (_req, res) => {
             const [shipTypes, allHw] = await Promise.all([listShipTypes(), listShipTypeHardware()]);
             const hwByType: Record<number, Record<string, number>> = {};
             for (const h of allHw) {
@@ -42,11 +43,8 @@ export function createCatalogRoutes(router: Router, middleware: Middleware): voi
                 hardware: hwByType[st.id] ?? {},
             }));
             res.json(result);
-        } catch (err) {
-            console.error('Ship catalog error:', err);
-            res.status(500).json({ error: 'Failed to load ship catalog' });
-        }
-    });
+        }),
+    );
 
     router.get('/api/planets', (_req, res) => {
         const planets = Object.values(planetConfigs).sort((a, b) => a.type.localeCompare(b.type));
@@ -54,11 +52,11 @@ export function createCatalogRoutes(router: Router, middleware: Middleware): voi
     });
 
     // Menu registry: menus + commands, cached by client for the session
-    router.get('/api/menu-registry', async (_req, res) => {
-        try {
+    router.get(
+        '/api/menu-registry',
+        asyncHandler(async (_req, res) => {
             const [menus, commands] = await Promise.all([listMenus(), listMenuCommands()]);
 
-            // Build a map of menu_name -> commands
             const menuMap = new Map<number, MenuRow>(menus.map((m) => [m.id, m]));
             const registry = menus.map((m) => ({
                 name: m.name,
@@ -79,13 +77,10 @@ export function createCatalogRoutes(router: Router, middleware: Middleware): voi
             }));
 
             res.json(registry);
-        } catch (err) {
-            console.error('Menu registry error:', err);
-            res.status(500).json({ error: 'Failed to load menu registry' });
-        }
-    });
+        }),
+    );
 
-    // ─── Admin: ship CRUD ──────────────────────────────────────────
+
 
     router.get('/api/admin/ships/:name', authenticateAdmin, (req, res) => {
         const ship = shipConfigs[req.params.name as string];
@@ -141,7 +136,6 @@ export function createCatalogRoutes(router: Router, middleware: Middleware): voi
         }
     });
 
-    // ─── Admin: planet CRUD ────────────────────────────────────────
 
     router.get('/api/admin/planets/:type', authenticateAdmin, (req, res) => {
         const planet = planetConfigs[req.params.type as string];

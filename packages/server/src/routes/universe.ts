@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import type { RouteDeps, Middleware } from './middleware.js';
+import { asyncHandler, HttpError } from './async-handler.js';
 import { newPlayerConfig } from '../game-config.js';
 import {
     createUniverse,
@@ -23,24 +24,25 @@ export function createUniverseRoutes(
     const { getAuthenticatedPlayer } = deps;
     const { authenticateToken } = middleware;
 
-    router.post('/api/universes', authenticateToken, async (req, res) => {
-        const { name } = req.body;
-        if (!name || !name.trim()) {
-            return res.status(400).json({ error: 'name is required' });
-        }
+    router.post(
+        '/api/universes',
+        authenticateToken,
+        asyncHandler(async (req, res) => {
+            const { name } = req.body;
+            if (!name || !name.trim()) {
+                throw new HttpError(400, 'name is required');
+            }
 
-        try {
             const universe = await createUniverse(name);
             res.status(201).json({ universeId: universe.id, name: universe.name });
-        } catch (err) {
-            console.error('Create universe error', err);
-            res.status(500).json({ error: 'Internal server error' });
-        }
-    });
+        }),
+    );
 
-    router.get('/api/universes', authenticateToken, async (req, res) => {
-        const { userId } = getAuthenticatedPlayer(req);
-        try {
+    router.get(
+        '/api/universes',
+        authenticateToken,
+        asyncHandler(async (req, res) => {
+            const { userId } = getAuthenticatedPlayer(req);
             const rows = await listUniversesForUser(userId);
             const universes = rows.map((r) => ({
                 id: r.id,
@@ -50,25 +52,24 @@ export function createUniverseRoutes(
                 playerName: r.player_name ?? null,
             }));
             res.json(universes);
-        } catch (err) {
-            console.error('List universes error', err);
-            res.status(500).json({ error: 'Internal server error' });
-        }
-    });
+        }),
+    );
 
-    router.post('/api/universes/:id/join', authenticateToken, async (req, res) => {
-        const { userId } = getAuthenticatedPlayer(req);
-        const universeId = parseInt(req.params.id as string, 10);
-        const { name } = req.body;
+    router.post(
+        '/api/universes/:id/join',
+        authenticateToken,
+        asyncHandler(async (req, res) => {
+            const { userId } = getAuthenticatedPlayer(req);
+            const universeId = parseInt(req.params.id as string, 10);
+            const { name } = req.body;
 
-        if (!name || !name.trim()) {
-            return res.status(400).json({ error: 'name is required' });
-        }
+            if (!name || !name.trim()) {
+                throw new HttpError(400, 'name is required');
+            }
 
-        try {
             const editDefaults = await getUniverseEditDefaults(universeId);
             if (!editDefaults) {
-                return res.status(404).json({ error: 'Universe not found' });
+                throw new HttpError(404, 'Universe not found');
             }
 
             const startSector = newPlayerConfig.startingSector;
@@ -80,17 +81,25 @@ export function createUniverseRoutes(
 
             const startSectorId = await getSectorDbId(startSector, universeId);
             if (startSectorId === undefined) {
-                return res.status(500).json({ error: 'Starting sector not found' });
+                throw new HttpError(500, 'Starting sector not found');
             }
 
-            const playerId = await insertPlayer(
-                name,
-                userId,
-                universeId,
-                startSectorId,
-                startingCredits,
-                startingTurns,
-            );
+            let playerId: number;
+            try {
+                playerId = await insertPlayer(
+                    name,
+                    userId,
+                    universeId,
+                    startSectorId,
+                    startingCredits,
+                    startingTurns,
+                );
+            } catch (err) {
+                if ((err as { code?: string }).code === '23505') {
+                    throw new HttpError(409, 'Already joined this universe');
+                }
+                throw err;
+            }
 
             const startShipType = await getStartingShipTypeByName(startingShip);
             if (startShipType) {
@@ -109,22 +118,14 @@ export function createUniverseRoutes(
             await markSectorVisited(playerId, startSectorId);
 
             res.status(201).json({ playerId, universeId });
-        } catch (err) {
-            if (
-                err instanceof Error &&
-                'code' in err &&
-                (err as Record<string, unknown>).code === '23505'
-            ) {
-                return res.status(409).json({ error: 'Already joined this universe' });
-            }
-            console.error('Join universe error', err);
-            res.status(500).json({ error: 'Internal server error' });
-        }
-    });
+        }),
+    );
 
-    router.get('/api/universes/:id/players', authenticateToken, async (req, res) => {
-        const universeId = parseInt(req.params.id as string, 10);
-        try {
+    router.get(
+        '/api/universes/:id/players',
+        authenticateToken,
+        asyncHandler(async (req, res) => {
+            const universeId = parseInt(req.params.id as string, 10);
             const rows = await listPlayersInUniverse(universeId);
             res.json(
                 rows.map((r) => ({
@@ -132,9 +133,6 @@ export function createUniverseRoutes(
                     shipName: r.ship_name,
                 })),
             );
-        } catch (err) {
-            console.error('List players error', err);
-            res.status(500).json({ error: 'Internal server error' });
-        }
-    });
+        }),
+    );
 }
