@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { withTransaction } from '../../db/index.js';
 import { generateUniverse } from '../../bigbang/index.js';
 import type { RouteDeps, Middleware } from '../middleware.js';
-import { asyncHandler, HttpError } from '../async-handler.js';
+import { asyncHandler, HttpError, parseIntParam } from '../async-handler.js';
 import {
     universeExists,
     getUniverseBasicInfo,
@@ -160,7 +160,7 @@ export function createAdminLifecycleRoutes(
         '/api/admin/universes/:id/stats',
         authenticateAdmin,
         asyncHandler(async (req, res) => {
-            const universeId = parseInt(req.params.id as string, 10);
+            const universeId = parseIntParam(req.params.id, 'id');
 
             const univ = await getUniverseBasicInfo(universeId);
             if (!univ) {
@@ -191,7 +191,7 @@ export function createAdminLifecycleRoutes(
         '/api/admin/universes/:id',
         authenticateAdmin,
         asyncHandler(async (req, res) => {
-            const universeId = parseInt(req.params.id as string, 10);
+            const universeId = parseIntParam(req.params.id, 'id');
 
             if (!(await universeExists(universeId))) {
                 throw new HttpError(404, 'Universe not found');
@@ -218,7 +218,7 @@ export function createAdminLifecycleRoutes(
         '/api/admin/universes/:id',
         authenticateAdmin,
         asyncHandler(async (req, res) => {
-            const universeId = parseInt(req.params.id as string, 10);
+            const universeId = parseIntParam(req.params.id, 'id');
             const { name } = req.body;
 
             if (!name || !String(name).trim()) {
@@ -238,7 +238,7 @@ export function createAdminLifecycleRoutes(
         '/api/admin/universes/:id/topology',
         authenticateAdmin,
         asyncHandler(async (req, res) => {
-            const universeId = parseInt(req.params.id as string, 10);
+            const universeId = parseIntParam(req.params.id, 'id');
 
             if (!(await universeExists(universeId))) {
                 throw new HttpError(404, 'Universe not found');

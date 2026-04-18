@@ -61,7 +61,10 @@ export async function getPlayerShip(playerId: number) {
 
 export const players: Record<number, Player> = {};
 
-export const PORT_CLASS_ACTIONS: Record<number, Record<string, 'B' | 'S'>> = {
+export type PortAction = 'B' | 'S';
+export type PortClassActions = Record<'fuel' | 'organics' | 'equipment', PortAction>;
+
+export const PORT_CLASS_ACTIONS: Record<number, PortClassActions> = {
     1: { fuel: 'B', organics: 'B', equipment: 'S' },
     2: { fuel: 'B', organics: 'S', equipment: 'B' },
     3: { fuel: 'S', organics: 'B', equipment: 'B' },
