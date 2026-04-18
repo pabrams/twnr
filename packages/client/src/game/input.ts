@@ -43,7 +43,8 @@ import {
     handleShipyardsClass0Input,
     handleShipyardsClass0QtyInput,
 } from './input-starbase.js';
-import { colors } from './constants.js';
+import { render } from './renderer.js';
+import { NOTIFY } from './messages/index.js';
 
 /**
  * Check if a key is valid for the current menu based on the cached registry.
@@ -269,15 +270,15 @@ function handleInput(ctx: GameContext, line: string) {
         case 'v':
             if (ctx.starbaseSector != null) {
                 ctx.term.writeln(
-                    `\r\n${colors.boldCyan('Starbase')} is in sector ${colors.boldCyan(String(ctx.starbaseSector))}`,
+                    render(NOTIFY.starbaseLocation, { sector: ctx.starbaseSector }),
                 );
             } else {
-                ctx.term.writeln(`\r\n${colors.white('No Starbase in this universe.')}`);
+                ctx.term.writeln(render(NOTIFY.noStarbase));
             }
             showPrompt(ctx);
             break;
         case 'q':
-            ctx.term.writeln(`\r\n${colors.white('Goodbye!')}`);
+            ctx.term.writeln(render(NOTIFY.goodbye));
             ctx.ws.close();
             return;
         case '#':

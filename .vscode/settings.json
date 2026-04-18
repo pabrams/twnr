@@ -1,0 +1,85 @@
+{
+  "highlight.regexes": {
+    "(\\[mg\\])([^\\[]*?)(\\[/mg\\])": {
+      "regexFlags": "g",
+      "filterFileRegex": ".*\\.(ts|tsx|js|jsx)$",
+      "decorations": [
+        { "textDecoration": "none; display: none;" },
+        { "color": "#CC66CC" },
+        { "textDecoration": "none; display: none;" }
+      ]
+    },
+    "(\\[bg\\])([^\\[]*?)(\\[/bg\\])": {
+      "regexFlags": "g",
+      "filterFileRegex": ".*\\.(ts|tsx|js|jsx)$",
+      "decorations": [
+        { "textDecoration": "none; display: none;" },
+        { "color": "#33FF66", "fontWeight": "bold" },
+        { "textDecoration": "none; display: none;" }
+      ]
+    },
+    "(\\[by\\])([^\\[]*?)(\\[/by\\])": {
+      "regexFlags": "g",
+      "filterFileRegex": ".*\\.(ts|tsx|js|jsx)$",
+      "decorations": [
+        { "textDecoration": "none; display: none;" },
+        { "color": "#FFFF66", "fontWeight": "bold" },
+        { "textDecoration": "none; display: none;" }
+      ]
+    },
+    "(\\[bc\\])([^\\[]*?)(\\[/bc\\])": {
+      "regexFlags": "g",
+      "filterFileRegex": ".*\\.(ts|tsx|js|jsx)$",
+      "decorations": [
+        { "textDecoration": "none; display: none;" },
+        { "color": "#66FFFF", "fontWeight": "bold" },
+        { "textDecoration": "none; display: none;" }
+      ]
+    },
+    "(\\[br\\])([^\\[]*?)(\\[/br\\])": {
+      "regexFlags": "g",
+      "filterFileRegex": ".*\\.(ts|tsx|js|jsx)$",
+      "decorations": [
+        { "textDecoration": "none; display: none;" },
+        { "color": "#FF5555", "fontWeight": "bold" },
+        { "textDecoration": "none; display: none;" }
+      ]
+    },
+    "(\\[bw\\])([^\\[]*?)(\\[/bw\\])": {
+      "regexFlags": "g",
+      "filterFileRegex": ".*\\.(ts|tsx|js|jsx)$",
+      "decorations": [
+        { "textDecoration": "none; display: none;" },
+        { "color": "#FFFFFF", "fontWeight": "bold" },
+        { "textDecoration": "none; display: none;" }
+      ]
+    },
+    "(\\[w\\])([^\\[]*?)(\\[/w\\])": {
+      "regexFlags": "g",
+      "filterFileRegex": ".*\\.(ts|tsx|js|jsx)$",
+      "decorations": [
+        { "textDecoration": "none; display: none;" },
+        { "color": "#C0C0C0" },
+        { "textDecoration": "none; display: none;" }
+      ]
+    },
+    "(\\[c\\])([^\\[]*?)(\\[/c\\])": {
+      "regexFlags": "g",
+      "filterFileRegex": ".*\\.(ts|tsx|js|jsx)$",
+      "decorations": [
+        { "textDecoration": "none; display: none;" },
+        { "color": "#339999" },
+        { "textDecoration": "none; display: none;" }
+      ]
+    },
+    "(\\[g\\])([^\\[]*?)(\\[/g\\])": {
+      "regexFlags": "g",
+      "filterFileRegex": ".*\\.(ts|tsx|js|jsx)$",
+      "decorations": [
+        { "textDecoration": "none; display: none;" },
+        { "color": "#339933" },
+        { "textDecoration": "none; display: none;" }
+      ]
+    }
+  }
+}

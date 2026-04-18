@@ -10,7 +10,8 @@ import {
     showPlanetMenuOptions,
     showPlanetHelp,
 } from './display-planet.js';
-import { colors } from './constants.js';
+import { render } from './renderer.js';
+import { NOTIFY } from './messages/index.js';
 
 export function handleClass0Input(ctx: GameContext, line: string) {
     switch (line.toLowerCase()) {
@@ -64,7 +65,7 @@ export function handleClass0QtyInput(ctx: GameContext, line: string) {
 export function handleAutopilotPromptInput(ctx: GameContext, line: string) {
     switch (line.toLowerCase()) {
         case 'y': {
-            ctx.term.writeln(`\r\n${colors.boldGreen('Autopilot engaged.')}`);
+            ctx.term.writeln(render(NOTIFY.autopilotEngaged));
             const nextSector = ctx.autopilotPath[1];
             ctx.autopilotStep = 2;
             ctx.sendMsg({ type: ClientMsgType.Move, sector: nextSector });

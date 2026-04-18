@@ -2,6 +2,8 @@ import { ServerMsgType, ClientMsgType, Menu } from '@twnr/shared';
 import type { ServerResult, MenuName } from '@twnr/shared';
 import type { GameContext } from './types.js';
 
+import { render } from './renderer.js';
+import { NOTIFY, TRANSACTION, EVENT, PANEL } from './messages/index.js';
 import { showSectorDisplay, showCommerceReport, showPrompt } from './display.js';
 import { showClass0Menu, showAutopilotPrompt, showTradeQtyPrompt } from './display-port.js';
 import {
@@ -19,12 +21,15 @@ import {
     showShipyardsClass0Menu,
 } from './display-starbase.js';
 import { renderVisitedSectorsResult, showComputerPrompt } from './display-computer.js';
-import { colors, PORT_CLASS_ACTIONS } from './constants.js';
-const mg = colors.magenta;
+import { PORT_CLASS_ACTIONS } from './constants.js';
+
+function fmt(n: number): string {
+    return n.toLocaleString();
+}
 
 export function setupConnection(ws: WebSocket, ctx: GameContext) {
     ws.addEventListener('open', () => {
-        ctx.term.writeln(colors.green('Connected to TWNR.'));
+        ctx.term.writeln(render(NOTIFY.connected));
     });
 
     ws.addEventListener('message', (event) => {
@@ -36,10 +41,8 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 ctx.term.writeln(`\x1b[38;5;243m  ${lines[i]}\x1b[0m`);
             }
         }
-        // Support envelope format: { menu, payload } or legacy bare messages
         const msg: ServerResult = raw.payload ?? raw;
         if (raw.menu) {
-            // Server is authoritative on menu state
             ctx.mode = raw.menu as MenuName;
         }
         switch (msg.type) {
@@ -49,19 +52,14 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 ctx.totalSectors = msg.totalSectors;
                 ctx.currentShipName = msg.shipName;
                 ctx.starbaseSector = msg.starbaseSector;
-                ctx.term.writeln(`\r\n${colors.boldGreen(`Welcome, ${msg.name}.`)}`);
+                ctx.term.writeln(render(NOTIFY.welcome, { name: msg.name }));
                 ctx.sendMsg({ type: ClientMsgType.SectorDisplay });
                 break;
             case ServerMsgType.PlayerMoved:
-                if (msg.direction === 'in') {
-                    ctx.term.writeln(`\r\n${colors.boldYellow('Player warped into the sector.')}`);
-                } else {
-                    ctx.term.writeln(`\r\n${colors.white('Player warped out of the sector.')}`);
-                }
+                ctx.term.writeln(render(msg.direction === 'in' ? NOTIFY.playerIn : NOTIFY.playerOut));
                 break;
             case ServerMsgType.RateLimited:
                 if (ctx.autopilotPath.length > 0) {
-                    // Rate limited during autopilot — retry after a short delay
                     const retrySector = ctx.autopilotPath[ctx.autopilotStep - 1];
                     if (retrySector !== undefined) {
                         setTimeout(() => {
@@ -83,13 +81,11 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     msg.ships,
                     msg.collisions,
                 );
-                // Advance autopilot if in progress
                 if (ctx.autopilotPath.length > 0 && ctx.autopilotStep < ctx.autopilotPath.length) {
                     const nextSector = ctx.autopilotPath[ctx.autopilotStep];
                     ctx.autopilotStep = ctx.autopilotStep + 1;
                     ctx.sendMsg({ type: ClientMsgType.Move, sector: nextSector });
                 } else if (ctx.autopilotPath.length > 0) {
-                    // Arrived at destination
                     ctx.autopilotPath = [];
                     ctx.autopilotStep = 0;
                 }
@@ -100,7 +96,6 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     if (msg.port.class === 0) {
                         showClass0Menu(ctx);
                     } else {
-                        // Show commerce report — server drives the trade flow from here
                         const actions = PORT_CLASS_ACTIONS[msg.port.class];
                         if (!actions) break;
                         const cargo = msg.cargo ?? {
@@ -163,27 +158,21 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 );
                 break;
             case ServerMsgType.TradeConfirmPrompt: {
-                const verb = msg.action === 'buy' ? 'sell' : 'buy';
-                ctx.term.writeln(
-                    `\r\n${mg("We'll")} ${verb} ${mg('them for')} ${colors.boldYellow(msg.totalPrice.toLocaleString())} ${mg('credits.')}`,
-                );
-                ctx.term.write(
-                    `${mg('Accept?')} ${mg('(')}${colors.boldYellow('Y')}${mg('/')}${colors.boldYellow('N')}${mg(')')} `,
-                );
+                const tpl = msg.action === 'buy' ? TRANSACTION.tradeConfirmSell : TRANSACTION.tradeConfirmBuy;
+                ctx.term.writeln(render(tpl, { total: fmt(msg.totalPrice) }));
+                ctx.term.write(render(TRANSACTION.tradeConfirmAccept));
                 break;
             }
             case ServerMsgType.TradeComplete:
-                ctx.term.writeln(
-                    `\r\n${colors.boldGreen('Transaction complete.')} ${mg('Credits:')} ${colors.boldYellow(msg.credits.toLocaleString())}`,
-                );
+                ctx.term.writeln(render(TRANSACTION.tradeComplete, { credits: fmt(msg.credits) }));
                 break;
             case ServerMsgType.TradeSkipped:
-                ctx.term.writeln(`\r\n${colors.boldRed(msg.reason)}`);
+                ctx.term.writeln(render(TRANSACTION.tradeSkipped, { reason: msg.reason }));
                 break;
             case ServerMsgType.UndockResult:
                 if (msg.outcome === 'success') {
                     ctx.dockedPortInfo = null;
-                    ctx.term.writeln(`\r\n${colors.white('You undock from the port.')}`);
+                    ctx.term.writeln(render(TRANSACTION.undocked));
                     ctx.sectorPlayers = msg.players;
                     showSectorDisplay(
                         ctx,
@@ -197,7 +186,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                         msg.collisions,
                     );
                 } else {
-                    ctx.term.writeln(`\r\n${colors.boldRed('Error:')} ${colors.red(msg.message)}`);
+                    ctx.term.writeln(render(NOTIFY.error, { message: msg.message }));
                 }
                 break;
             case ServerMsgType.JettisonResult:
@@ -212,48 +201,59 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                         .filter(Boolean)
                         .join(', ');
                     ctx.term.writeln(
-                        `\r\n${colors.boldYellow('Jettisoned:')} ${items || 'nothing'}`,
+                        render(TRANSACTION.jettisoned, { items: items || 'nothing' }),
                     );
                 } else {
-                    ctx.term.writeln(`\r\n${colors.boldRed('Error:')} ${colors.red(msg.message)}`);
+                    ctx.term.writeln(render(NOTIFY.error, { message: msg.message }));
                 }
                 showPrompt(ctx);
                 break;
             case ServerMsgType.PortTransactionResult:
-                // Legacy handler — kept for backwards compat but trade flow now uses TradeComplete
-                ctx.term.writeln(
-                    `\r\n${colors.boldGreen('Transaction complete.')} ${mg('Credits:')} ${colors.boldYellow(msg.credits.toLocaleString())}`,
-                );
+                ctx.term.writeln(render(TRANSACTION.tradeComplete, { credits: fmt(msg.credits) }));
                 break;
             case ServerMsgType.ShipInfoResult:
                 ctx.currentShipName = msg.shipName;
                 ctx.term.writeln('');
-                ctx.term.writeln(`${colors.white('Ship:')} ${colors.boldCyan(msg.shipName)}`);
+                ctx.term.writeln(render(PANEL.shipName, { name: msg.shipName }));
                 ctx.term.writeln(
-                    `  ${colors.boldYellow('Drones')}: ${colors.white(`${msg.drones}`)}/${colors.cyan(`${msg.maxDrones}`)}  ${colors.boldYellow('Shields')}: ${colors.white(`${msg.shields}`)}/${colors.cyan(`${msg.maxShields}`)}`,
+                    render(PANEL.shipDronesShields, {
+                        drones: msg.drones,
+                        maxDrones: msg.maxDrones,
+                        shields: msg.shields,
+                        maxShields: msg.maxShields,
+                    }),
                 );
                 ctx.term.writeln(
-                    `  ${colors.boldYellow('Cargo holds')}: ${colors.boldGreen(`${msg.holdsAvailable} free`)} / ${colors.white(`${msg.cargoLimit} total`)} ${mg('(')}max ${msg.maxHolds}${mg(')')}`,
+                    render(PANEL.shipHolds, {
+                        free: msg.holdsAvailable,
+                        total: msg.cargoLimit,
+                        max: msg.maxHolds,
+                    }),
                 );
                 ctx.term.writeln(
-                    `  ${colors.boldYellow('Fuel')}: ${msg.cargoFuel}  ${colors.boldYellow('Organics')}: ${msg.cargoOrganics}  ${colors.boldYellow('Equipment')}: ${msg.cargoEquipment}  ${colors.boldYellow('Colonists')}: ${msg.cargoColonists}`,
+                    render(PANEL.shipCargo, {
+                        fuel: msg.cargoFuel,
+                        organics: msg.cargoOrganics,
+                        equipment: msg.cargoEquipment,
+                        colonists: msg.cargoColonists,
+                    }),
                 );
                 ctx.term.writeln(
-                    `  ${colors.boldYellow('Credits')}: ${colors.boldYellow(String(msg.credits))}  ${colors.boldYellow('Turns')}: ${colors.white(String(msg.turns))}`,
+                    render(PANEL.shipCreditsTurns, { credits: msg.credits, turns: msg.turns }),
                 );
                 if (ctx.mode === Menu.Sector) showPrompt(ctx);
                 break;
             case ServerMsgType.CargoInfoResult:
-                ctx.term.writeln(
-                    `  ${colors.boldYellow('Credits')}: ${colors.boldYellow(String(msg.credits))}`,
-                );
+                ctx.term.writeln(render(PANEL.cargoInfoCredits, { credits: msg.credits }));
                 break;
             case ServerMsgType.PlayersOnlineResult: {
                 ctx.term.writeln('');
-                ctx.term.writeln(`${colors.boldCyan('Players Online')} (${msg.players.length}):`);
+                ctx.term.writeln(
+                    render(PANEL.playersOnlineHeader, { count: msg.players.length }),
+                );
                 for (const p of msg.players) {
-                    const tag = p.id === ctx.playerId ? colors.boldGreen(' (you)') : '';
-                    ctx.term.writeln(`  ${colors.boldYellow(p.name)}${tag}`);
+                    const suffix = p.id === ctx.playerId ? render(PANEL.playersOnlineYouTag) : '';
+                    ctx.term.writeln(render(PANEL.playersOnlineRow, { name: p.name, suffix }));
                 }
                 showPrompt(ctx);
                 break;
@@ -294,9 +294,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                         showSectorDisplay(ctx, msg.sector, msg.warps, msg.players, msg.port);
                         if (ctx.autopilotPath.length > 0) {
                             ctx.autopilotPaused = true;
-                            ctx.term.writeln(
-                                `\r\n${colors.boldRed('Autopilot disengaged — hostile drones!')}`,
-                            );
+                            ctx.term.writeln(render(EVENT.autopilotDisengaged));
                         }
                         showDroneEncounter(ctx, msg.sectorDrones, msg.ownerName, msg.shipDrones);
                         break;
@@ -313,9 +311,9 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                             ctx.autopilotPath = [];
                             ctx.autopilotStep = 0;
                             ctx.autopilotPaused = false;
-                            ctx.term.writeln(`\r\n${colors.boldRed('Autopilot cancelled.')}`);
+                            ctx.term.writeln(render(EVENT.autopilotCancelled));
                         }
-                        ctx.term.writeln(`\r\n${colors.boldRed('You do not have a ship.')}`);
+                        ctx.term.writeln(render(EVENT.noShip));
                         showPrompt(ctx);
                         break;
                     case 'error':
@@ -323,17 +321,14 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                             ctx.autopilotPath = [];
                             ctx.autopilotStep = 0;
                             ctx.autopilotPaused = false;
-                            ctx.term.writeln(`\r\n${colors.boldRed('Autopilot cancelled.')}`);
+                            ctx.term.writeln(render(EVENT.autopilotCancelled));
                         }
-                        ctx.term.writeln(
-                            `\r\n${colors.boldRed('Error:')} ${colors.red(msg.message)}`,
-                        );
+                        ctx.term.writeln(render(NOTIFY.error, { message: msg.message }));
                         showPrompt(ctx);
                         break;
                 }
                 break;
             case ServerMsgType.NonAdjacentMoveRequested:
-                // Legacy — kept for backwards compatibility during refactor
                 ctx.sendMsg({
                     type: ClientMsgType.ShortestPath,
                     from: ctx.currentSector,
@@ -344,111 +339,119 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 if (msg.path.length > 1) {
                     showAutopilotPrompt(ctx, msg.path, msg.hops);
                 } else {
-                    ctx.term.writeln(`\r\n${colors.boldRed('No path found to that sector.')}`);
+                    ctx.term.writeln(render(EVENT.noPathFound));
                     showPrompt(ctx);
                 }
                 break;
             case ServerMsgType.BuyDronesResult:
-                ctx.term.writeln(`\r\n${colors.boldGreen('Purchase complete.')}`);
+                ctx.term.writeln(render(TRANSACTION.purchaseComplete));
                 ctx.term.writeln(
-                    `  ${colors.boldYellow('Credits')}: ${msg.credits}  ${colors.boldYellow('Drones')}: ${msg.drones}`,
+                    render(TRANSACTION.purchaseStatsDrones, {
+                        credits: msg.credits,
+                        drones: msg.drones,
+                    }),
                 );
-                if (ctx.mode === Menu.Class0Qty) {
-                    showClass0Menu(ctx);
-                } else if (ctx.mode === Menu.ShipyardsClass0Qty) {
-                    showShipyardsClass0Menu(ctx);
-                }
+                if (ctx.mode === Menu.Class0Qty) showClass0Menu(ctx);
+                else if (ctx.mode === Menu.ShipyardsClass0Qty) showShipyardsClass0Menu(ctx);
                 break;
             case ServerMsgType.BuyShieldsResult:
-                ctx.term.writeln(`\r\n${colors.boldGreen('Purchase complete.')}`);
+                ctx.term.writeln(render(TRANSACTION.purchaseComplete));
                 ctx.term.writeln(
-                    `  ${colors.boldYellow('Credits')}: ${msg.credits}  ${colors.boldYellow('Shields')}: ${msg.shields}`,
+                    render(TRANSACTION.purchaseStatsShields, {
+                        credits: msg.credits,
+                        shields: msg.shields,
+                    }),
                 );
-                if (ctx.mode === Menu.Class0Qty) {
-                    showClass0Menu(ctx);
-                } else if (ctx.mode === Menu.ShipyardsClass0Qty) {
-                    showShipyardsClass0Menu(ctx);
-                }
+                if (ctx.mode === Menu.Class0Qty) showClass0Menu(ctx);
+                else if (ctx.mode === Menu.ShipyardsClass0Qty) showShipyardsClass0Menu(ctx);
                 break;
             case ServerMsgType.BuyHoldsResult:
-                ctx.term.writeln(`\r\n${colors.boldGreen('Purchase complete.')}`);
+                ctx.term.writeln(render(TRANSACTION.purchaseComplete));
                 ctx.term.writeln(
-                    `  ${colors.boldYellow('Credits')}: ${msg.credits}  ${colors.boldYellow('Holds')}: ${msg.cargoLimit}`,
+                    render(TRANSACTION.purchaseStatsHolds, {
+                        credits: msg.credits,
+                        holds: msg.cargoLimit,
+                    }),
                 );
-                if (ctx.mode === Menu.Class0Qty) {
-                    showClass0Menu(ctx);
-                } else if (ctx.mode === Menu.ShipyardsClass0Qty) {
-                    showShipyardsClass0Menu(ctx);
-                }
+                if (ctx.mode === Menu.Class0Qty) showClass0Menu(ctx);
+                else if (ctx.mode === Menu.ShipyardsClass0Qty) showShipyardsClass0Menu(ctx);
                 break;
             case ServerMsgType.AttackShipResult:
                 ctx.term.writeln('');
-                if (msg.destroyed) {
-                    ctx.term.writeln(colors.boldRed(msg.message || 'Target destroyed!'));
-                } else {
-                    ctx.term.writeln(colors.boldYellow(msg.message || 'Attack completed.'));
-                }
                 ctx.term.writeln(
-                    `  ${colors.boldYellow('Your drones lost')}: ${msg.attackerDronesLost}`,
+                    render(msg.destroyed ? EVENT.attackDestroyed : EVENT.attackCompleted, {
+                        message: msg.message || (msg.destroyed ? 'Target destroyed!' : 'Attack completed.'),
+                    }),
                 );
                 ctx.term.writeln(
-                    `  ${colors.boldYellow('Defender shields lost')}: ${msg.defenderShieldsLost}`,
+                    render(EVENT.attackStat, {
+                        label: 'Your drones lost',
+                        value: msg.attackerDronesLost,
+                    }),
                 );
                 ctx.term.writeln(
-                    `  ${colors.boldYellow('Defender drones lost')}: ${msg.defenderDronesLost}`,
+                    render(EVENT.attackStat, {
+                        label: 'Defender shields lost',
+                        value: msg.defenderShieldsLost,
+                    }),
+                );
+                ctx.term.writeln(
+                    render(EVENT.attackStat, {
+                        label: 'Defender drones lost',
+                        value: msg.defenderDronesLost,
+                    }),
                 );
                 showPrompt(ctx);
                 break;
             case ServerMsgType.BuyShipTradeinResult:
                 ctx.currentShipName = msg.shipName;
+                ctx.term.writeln(render(TRANSACTION.shipExchanged, { name: msg.shipName }));
                 ctx.term.writeln(
-                    `\r\n${colors.boldGreen('Ship exchanged!')} Now flying: ${colors.boldCyan(msg.shipName)}`,
-                );
-                ctx.term.writeln(
-                    `  ${colors.boldYellow('Credits')}: ${msg.credits.toLocaleString()}`,
+                    render(TRANSACTION.shipCreditsLine, { credits: fmt(msg.credits) }),
                 );
                 showShipyardsMenu(ctx);
                 break;
             case ServerMsgType.BuyShipNewResult:
                 ctx.currentShipName = msg.shipName;
+                ctx.term.writeln(render(TRANSACTION.shipPurchased, { name: msg.shipName }));
                 ctx.term.writeln(
-                    `\r\n${colors.boldGreen('New ship purchased!')} Now flying: ${colors.boldCyan(msg.shipName)}`,
-                );
-                ctx.term.writeln(
-                    `  ${colors.boldYellow('Credits')}: ${msg.credits.toLocaleString()}`,
+                    render(TRANSACTION.shipCreditsLine, { credits: fmt(msg.credits) }),
                 );
                 showShipyardsMenu(ctx);
                 break;
             case ServerMsgType.PlanetInfoResult:
-                if (msg.hasPlanet) {
-                    showPlanetMenu(ctx, msg.name, msg.colonists);
-                } else {
-                    showNoPlanet(ctx);
-                }
+                if (msg.hasPlanet) showPlanetMenu(ctx, msg.name, msg.colonists);
+                else showNoPlanet(ctx);
                 break;
             case ServerMsgType.TakeColonistsResult: {
                 ctx.term.writeln('');
                 ctx.term.writeln(
-                    `${colors.boldGreen(`You took ${msg.quantity.toLocaleString()} ${msg.commodity} colonists.`)}`,
+                    render(PANEL.takeColonistsHeader, {
+                        qty: fmt(msg.quantity),
+                        commodity: msg.commodity,
+                    }),
                 );
                 ctx.term.writeln(
-                    `  ${colors.boldYellow('Planet colonists')}: ${colors.white(msg.planetColonists.toLocaleString())}`,
+                    render(PANEL.planetColonistsLine, { count: fmt(msg.planetColonists) }),
                 );
                 ctx.term.writeln(
-                    `  ${colors.boldYellow('Ship colonists')}: ${colors.white(String(msg.shipColonists))}`,
+                    render(PANEL.shipColonistsLine, { count: msg.shipColonists }),
                 );
                 break;
             }
             case ServerMsgType.LeaveColonistsResult: {
                 ctx.term.writeln('');
                 ctx.term.writeln(
-                    `${colors.boldGreen(`You left ${msg.quantity.toLocaleString()} ${msg.commodity} colonists.`)}`,
+                    render(PANEL.leaveColonistsHeader, {
+                        qty: fmt(msg.quantity),
+                        commodity: msg.commodity,
+                    }),
                 );
                 ctx.term.writeln(
-                    `  ${colors.boldYellow('Planet colonists')}: ${colors.white(msg.planetColonists.toLocaleString())}`,
+                    render(PANEL.planetColonistsLine, { count: fmt(msg.planetColonists) }),
                 );
                 ctx.term.writeln(
-                    `  ${colors.boldYellow('Ship colonists')}: ${colors.white(String(msg.shipColonists))}`,
+                    render(PANEL.shipColonistsLine, { count: msg.shipColonists }),
                 );
                 break;
             }
@@ -458,52 +461,53 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 ctx.currentSector = msg.sector;
                 ctx.currentPort = msg.port ?? null;
                 ctx.encounterOwnerName = msg.ownerName;
-
-                // Show sector info first
                 showSectorDisplay(ctx, msg.sector, msg.warps, msg.players, msg.port);
-
                 if (ctx.autopilotPath.length > 0) {
                     ctx.autopilotPaused = true;
-                    ctx.term.writeln(
-                        `\r\n${colors.boldRed('Autopilot disengaged — hostile drones!')}`,
-                    );
+                    ctx.term.writeln(render(EVENT.autopilotDisengaged));
                 }
-
                 showDroneEncounter(ctx, msg.sectorDrones, msg.ownerName, msg.shipDrones);
                 break;
             }
             case ServerMsgType.DeployDronesInfoResult:
                 ctx.term.writeln('');
                 ctx.term.writeln(
-                    `${colors.boldYellow('Deploy Drones')} — Sector: ${colors.white(String(msg.sectorDrones))}, Ship: ${colors.white(String(msg.shipDrones))}/${colors.cyan(String(msg.shipMaxDrones))}`,
+                    render(EVENT.deployDronesInfo, {
+                        sector: msg.sectorDrones,
+                        ship: msg.shipDrones,
+                        max: msg.shipMaxDrones,
+                    }),
                 );
-                ctx.term.write(
-                    `${colors.cyan('How many drones to leave in sector?')} ${colors.white('(Q to cancel)')} `,
-                );
+                ctx.term.write(render(EVENT.deployDronesPrompt));
                 break;
             case ServerMsgType.DeployDronesResult:
                 ctx.term.writeln(
-                    `\r\n${colors.boldGreen('Deployed.')} Sector: ${colors.white(String(msg.sectorDrones))}, Ship: ${colors.white(String(msg.shipDrones))}`,
+                    render(EVENT.deployDronesResult, {
+                        sector: msg.sectorDrones,
+                        ship: msg.shipDrones,
+                    }),
                 );
                 showPrompt(ctx);
                 break;
             case ServerMsgType.AttackSectorDronesResult:
                 ctx.term.writeln('');
                 ctx.term.writeln(
-                    `${colors.boldYellow('Combat:')} Lost ${colors.boldRed(String(msg.dronesLost))} drones. Sector drones remaining: ${colors.boldRed(String(msg.sectorDronesRemaining))}. Ship drones: ${colors.white(String(msg.shipDrones))}`,
+                    render(EVENT.combatLost, {
+                        lost: msg.dronesLost,
+                        remaining: msg.sectorDronesRemaining,
+                        ship: msg.shipDrones,
+                    }),
                 );
                 if (msg.victory) {
-                    ctx.term.writeln(colors.boldGreen('Sector cleared!'));
+                    ctx.term.writeln(render(EVENT.sectorCleared));
                     if (ctx.autopilotPaused) {
-                        ctx.term.writeln(colors.boldCyan('Autopilot resuming...'));
+                        ctx.term.writeln(render(EVENT.autopilotResuming));
                         ctx.autopilotPaused = false;
-                        // Server will send SectorDisplay which triggers autopilot advance
                         ctx.sendMsg({ type: ClientMsgType.SectorDisplay });
                     } else {
                         showPrompt(ctx);
                     }
                 } else {
-                    // Re-show encounter with updated numbers
                     showDroneEncounter(
                         ctx,
                         msg.sectorDronesRemaining,
@@ -513,33 +517,37 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 }
                 break;
             case ServerMsgType.RetreatFromDronesResult:
-                ctx.term.writeln(
-                    `\r\n${colors.boldYellow('Retreated to sector')} ${colors.boldCyan(String(msg.sector))}`,
-                );
+                ctx.term.writeln(render(EVENT.retreated, { sector: msg.sector }));
                 if (ctx.autopilotPaused) {
                     ctx.autopilotPath = [];
                     ctx.autopilotStep = 0;
                     ctx.autopilotPaused = false;
-                    ctx.term.writeln(colors.boldRed('Autopilot cancelled.'));
+                    ctx.term.writeln(render(EVENT.autopilotCancelled));
                 }
-                // SectorDisplay follows from server
                 break;
-            case ServerMsgType.SectorDronesAlert:
+            case ServerMsgType.SectorDronesAlert: {
                 ctx.term.writeln('');
-                if (msg.event === 'intrusion') {
-                    ctx.term.writeln(
-                        `${colors.boldYellow('Alert:')} ${colors.boldRed(msg.intruderName)} entered sector ${colors.boldCyan(String(msg.sector))} with your drones!`,
-                    );
-                } else if (msg.event === 'attacked') {
-                    ctx.term.writeln(
-                        `${colors.boldRed('Alert:')} ${colors.boldRed(msg.intruderName)} attacked your drones in sector ${colors.boldCyan(String(msg.sector))}! Lost: ${msg.dronesLost}, remaining: ${msg.dronesRemaining}`,
-                    );
-                } else if (msg.event === 'destroyed') {
-                    ctx.term.writeln(
-                        `${colors.boldRed('Alert:')} ${colors.boldRed(msg.intruderName)} destroyed all your drones in sector ${colors.boldCyan(String(msg.sector))}!`,
-                    );
+                const tpl =
+                    msg.event === 'intrusion'
+                        ? EVENT.alertIntrusion
+                        : msg.event === 'attacked'
+                          ? EVENT.alertAttacked
+                          : msg.event === 'destroyed'
+                            ? EVENT.alertDestroyed
+                            : null;
+                if (tpl) {
+                    const vars: Record<string, unknown> = {
+                        intruder: msg.intruderName,
+                        sector: msg.sector,
+                    };
+                    if (msg.event === 'attacked') {
+                        vars.lost = msg.dronesLost;
+                        vars.remaining = msg.dronesRemaining;
+                    }
+                    ctx.term.writeln(render(tpl, vars));
                 }
                 break;
+            }
             case ServerMsgType.DockStarbaseResult:
                 ctx.hardwarePrices = msg.prices;
                 showStarbaseMenu(ctx);
@@ -563,7 +571,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     ctx.landablePlanets = msg.planets;
                     showPlanetSelectMenu(ctx, msg.planets);
                 } else {
-                    ctx.term.writeln(`\r\n${colors.white('No planets in this sector.')}`);
+                    ctx.term.writeln(render(EVENT.noPlanetsToLand));
                     showPrompt(ctx);
                 }
                 break;
@@ -572,48 +580,64 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     showEarthMenu(ctx, msg.colonists_fuel ?? 0);
                 } else {
                     ctx.term.writeln('');
+                    ctx.term.writeln(render(PANEL.landedHeader, { name: msg.name }));
+                    ctx.term.writeln(render(PANEL.landedType, { type: msg.planetType }));
                     ctx.term.writeln(
-                        `${colors.boldGreen('Landed on')} ${colors.boldCyan(msg.name)}`,
+                        render(PANEL.landedStats, {
+                            drones: msg.drones,
+                            fuel: msg.fuel,
+                            organics: msg.organics,
+                            equipment: msg.equipment,
+                        }),
                     );
-                    ctx.term.writeln(`  ${colors.boldYellow('Type')}: ${msg.planetType}`);
                     ctx.term.writeln(
-                        `  ${colors.boldYellow('Drones')}: ${msg.drones}  ${colors.boldYellow('Fuel')}: ${msg.fuel}  ${colors.boldYellow('Organics')}: ${msg.organics}  ${colors.boldYellow('Equipment')}: ${msg.equipment}`,
-                    );
-                    ctx.term.writeln(
-                        `  ${colors.boldYellow('Colonists')}: Fuel=${msg.colonists_fuel ?? 0}, Org=${msg.colonists_organics ?? 0}, Equ=${msg.colonists_equipment ?? 0}`,
+                        render(PANEL.landedColonists, {
+                            fuel: msg.colonists_fuel ?? 0,
+                            org: msg.colonists_organics ?? 0,
+                            equ: msg.colonists_equipment ?? 0,
+                        }),
                     );
                     showPlanetMenuOptions(ctx);
                 }
                 break;
             case ServerMsgType.PlanetDisplayResult:
                 ctx.term.writeln('');
-                ctx.term.writeln(`${colors.boldCyan(msg.name)} (${msg.planetType})`);
                 ctx.term.writeln(
-                    `  ${colors.boldYellow('Drones')}: ${msg.drones}  ${colors.boldYellow('Fuel')}: ${msg.fuel}  ${colors.boldYellow('Organics')}: ${msg.organics}  ${colors.boldYellow('Equipment')}: ${msg.equipment}`,
+                    render(PANEL.planetDisplayHeader, { name: msg.name, type: msg.planetType }),
                 );
                 ctx.term.writeln(
-                    `  ${colors.boldYellow('Colonists')}: Fuel=${msg.colonists_fuel}, Org=${msg.colonists_organics}, Equ=${msg.colonists_equipment}`,
+                    render(PANEL.landedStats, {
+                        drones: msg.drones,
+                        fuel: msg.fuel,
+                        organics: msg.organics,
+                        equipment: msg.equipment,
+                    }),
+                );
+                ctx.term.writeln(
+                    render(PANEL.landedColonists, {
+                        fuel: msg.colonists_fuel,
+                        org: msg.colonists_organics,
+                        equ: msg.colonists_equipment,
+                    }),
                 );
                 break;
             case ServerMsgType.DestroyPlanetResult:
                 if (msg.destroyed) {
-                    ctx.term.writeln(
-                        `\r\n${colors.boldRed(`Planet ${msg.planetName} destroyed!`)}`,
-                    );
+                    ctx.term.writeln(render(EVENT.planetDestroyed, { name: msg.planetName }));
                 }
                 showPrompt(ctx);
                 break;
             case ServerMsgType.UseTerraformDeviceResult:
                 if (msg.success && msg.planet) {
                     ctx.term.writeln(
-                        `\r\n${colors.boldGreen('Terraform successful!')} Created ${colors.boldCyan(msg.planet.name)} (${msg.planet.type})`,
+                        render(EVENT.terraformSuccess, {
+                            name: msg.planet.name,
+                            type: msg.planet.type,
+                        }),
                     );
-                    if (msg.collision)
-                        ctx.term.writeln(
-                            colors.boldYellow('Warning: planetary collision detected!'),
-                        );
+                    if (msg.collision) ctx.term.writeln(render(EVENT.terraformCollision));
                     ctx.term.writeln(
-                        `  ${colors.boldYellow('Terraform devices remaining')}: ${msg.terraformDevices}`,
+                        render(EVENT.terraformDevicesRemaining, { count: msg.terraformDevices }),
                     );
                 } else {
                     const reason =
@@ -622,18 +646,25 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                             : msg.reason === 'restricted_sector'
                               ? 'Cannot terraform in this sector.'
                               : 'Terraform failed.';
-                    ctx.term.writeln(`\r\n${colors.boldRed(reason)}`);
+                    ctx.term.writeln(render(EVENT.terraformFailure, { reason }));
                 }
                 showPrompt(ctx);
                 break;
             case ServerMsgType.BuyHardwareResult:
                 if (msg.kind === 'toggle') {
                     ctx.term.writeln(
-                        `\r\n${colors.boldGreen(`${msg.label} installed!`)} Credits: ${msg.credits}`,
+                        render(TRANSACTION.hardwareInstalled, {
+                            label: msg.label,
+                            credits: msg.credits,
+                        }),
                     );
                 } else {
                     ctx.term.writeln(
-                        `\r\n${colors.boldGreen('Purchase complete.')} ${msg.label}: ${msg.totalOnShip}, Credits: ${msg.credits}`,
+                        render(TRANSACTION.hardwareStacked, {
+                            label: msg.label,
+                            total: msg.totalOnShip,
+                            credits: msg.credits,
+                        }),
                     );
                 }
                 showHardwareMenu(ctx);
@@ -641,12 +672,12 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
             case ServerMsgType.ListDeployedDronesResult:
                 ctx.term.writeln('');
                 if (msg.drones.length === 0) {
-                    ctx.term.writeln(colors.white('No drones deployed.'));
+                    ctx.term.writeln(render(PANEL.deployedDronesEmpty));
                 } else {
-                    ctx.term.writeln(colors.boldCyan('Deployed Drones:'));
+                    ctx.term.writeln(render(PANEL.deployedDronesHeader));
                     for (const d of msg.drones) {
                         ctx.term.writeln(
-                            `  Sector ${colors.boldYellow(String(d.sectorId))}: ${colors.white(String(d.quantity))} drones`,
+                            render(PANEL.deployedDronesRow, { sector: d.sectorId, qty: d.quantity }),
                         );
                     }
                 }
@@ -654,14 +685,16 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 break;
             case ServerMsgType.HyperspaceJumpResult:
                 ctx.term.writeln(
-                    `\r\n${colors.boldGreen('Hyperspace jump!')} Arrived at sector ${colors.boldCyan(String(msg.targetSector))}. Fuel used: ${msg.fuelUsed}, Turns: ${msg.turnsUsed}`,
+                    render(EVENT.hyperspaceJump, {
+                        sector: msg.targetSector,
+                        fuel: msg.fuelUsed,
+                        turns: msg.turnsUsed,
+                    }),
                 );
                 ctx.sendMsg({ type: ClientMsgType.SectorDisplay });
                 break;
             case ServerMsgType.LeavePlanetResult:
-                ctx.term.writeln(
-                    `\r\n${colors.white('You return to your ship and leave the planet.')}`,
-                );
+                ctx.term.writeln(render(EVENT.leftPlanet));
                 ctx.sectorPlayers = msg.players;
                 showSectorDisplay(
                     ctx,
@@ -676,7 +709,6 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 );
                 break;
             case ServerMsgType.MenuChanged:
-                // Acknowledged by server, menu already set via envelope
                 break;
             case ServerMsgType.VisitedSectorsResult:
                 renderVisitedSectorsResult(ctx, msg);
@@ -684,15 +716,23 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
             case ServerMsgType.ListPlanetsResult: {
                 ctx.term.writeln('');
                 if (msg.planets.length === 0) {
-                    ctx.term.writeln(colors.white('You own no planets.'));
+                    ctx.term.writeln(render(PANEL.listPlanetsEmpty));
                 } else {
-                    ctx.term.writeln(colors.boldCyan('=== Your Planets ==='));
+                    ctx.term.writeln(render(PANEL.listPlanetsHeader));
                     for (const p of msg.planets) {
                         ctx.term.writeln(
-                            `  ${colors.boldYellow(`Sector ${p.sectorNumber}`)} — ${colors.boldCyan(p.name)} (${colors.white(p.type)})`,
+                            render(PANEL.listPlanetsRow, {
+                                sector: p.sectorNumber,
+                                name: p.name,
+                                type: p.type,
+                            }),
                         );
                         ctx.term.writeln(
-                            `    Fuel col: ${p.colonists_fuel}  Org col: ${p.colonists_organics}  Equ col: ${p.colonists_equipment}`,
+                            render(PANEL.listPlanetsColonists, {
+                                fuel: p.colonists_fuel,
+                                org: p.colonists_organics,
+                                equ: p.colonists_equipment,
+                            }),
                         );
                     }
                 }
@@ -700,14 +740,13 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 break;
             }
             case ServerMsgType.Error:
-                ctx.term.writeln(`\r\n${colors.boldRed('Error:')} ${colors.red(msg.message)}`);
+                ctx.term.writeln(render(NOTIFY.error, { message: msg.message }));
                 if (ctx.mode === Menu.TradeQty || ctx.mode === Menu.TradeConfirm) {
-                    // Trade error — undock and return to sector
                     ctx.sendMsg({ type: ClientMsgType.Undock });
                 } else if (ctx.mode === Menu.DeployDronesQty) {
                     showPrompt(ctx);
                 } else if (ctx.mode === Menu.DroneEncounter || ctx.mode === Menu.DroneAttackQty) {
-                    // Stay in encounter mode — re-prompt
+                    // stay in encounter mode
                 } else if (ctx.mode.startsWith(Menu.Shipyards)) {
                     showShipyardsMenu(ctx);
                 } else if (ctx.mode === Menu.Sector) showPrompt(ctx);
@@ -715,6 +754,6 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
         }
     });
     ws.addEventListener('error', () => {
-        ctx.term.writeln(`\r\n${colors.boldRed('Connection error.')}`);
+        ctx.term.writeln(render(NOTIFY.connectionError));
     });
 }
