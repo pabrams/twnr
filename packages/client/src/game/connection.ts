@@ -213,7 +213,6 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 break;
             case ServerMsgType.ShipInfoResult:
                 ctx.currentShipName = msg.shipName;
-                ctx.term.writeln('');
                 ctx.term.writeln(render(PANEL.shipName, { name: msg.shipName }));
                 ctx.term.writeln(
                     render(PANEL.shipDronesShields, {

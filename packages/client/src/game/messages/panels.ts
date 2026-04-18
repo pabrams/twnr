@@ -22,7 +22,8 @@ export const PANEL = makeDomain('PANEL', {
         '{{MSG.equQuantity}} ' + 
         '{{MSG.colosQuantity}}',
     shipCreditsTurns:
-        '  [by]Credits[/by]: [by]{credits}[/by]  [by]Turns[/by]: [w]{turns}[/w]',
+        '[mg]Turns[/mg]          [by]:[/by] [bc]{turns}[/bc]\r\n' +
+        '[mg]Credits[/mg]        [by]:[/by] [bc]{credits}[/bc]',
 
     cargoInfoCredits: '  [by]Credits[/by]: [by]{credits}[/by]',
 
