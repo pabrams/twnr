@@ -1,7 +1,6 @@
 import { ClientMsgType } from '@twnr/shared';
 import type { SectorRef } from '@twnr/shared';
 import type { GameContext } from './types.js';
-import { colors, PORT_CLASS_LABELS } from './constants.js';
 import { render } from './renderer.js';
 import { SECTOR, HELP, HELP_LINES, PORT, COMMON } from './messages/index.js';
 
@@ -10,12 +9,10 @@ function colorSectorRef(ref: SectorRef): string {
     return render(tpl, { sector: ref.sector });
 }
 
-function colorPortClassLabel(label: string): string {
-    if (label === 'Special') return colors.boldCyan(label);
-    return label
-        .split('')
-        .map((ch) => (ch === 'B' ? colors.green(ch) : colors.boldCyan(ch)))
-        .join('');
+function portClassLabel(cls: number): string {
+    const key = `classLabel${cls}`;
+    const tpl = (PORT as Record<string, string>)[key] ?? PORT.classLabelUnknown;
+    return render(tpl);
 }
 
 export function showSectorDisplay(
@@ -38,12 +35,11 @@ export function showSectorDisplay(
     term.writeln(render(SECTOR.header, { sector }));
 
     if (port) {
-        const rawLabel = PORT_CLASS_LABELS[port.class] ?? '???';
         term.writeln(
             render(SECTOR.port, {
                 name: port.name,
                 class: port.class,
-                label: colorPortClassLabel(rawLabel),
+                label: portClassLabel(port.class),
             }),
         );
     }
@@ -116,13 +112,12 @@ export function showPortMenu(ctx: GameContext) {
         showPrompt(ctx);
         return;
     }
-    const label = PORT_CLASS_LABELS[ctx.currentPort.class] ?? '???';
     ctx.term.writeln('');
     ctx.term.writeln(
         render(PORT.menuHeader, {
             name: ctx.currentPort.name,
             class: ctx.currentPort.class,
-            label,
+            label: portClassLabel(ctx.currentPort.class),
         }),
     );
     ctx.term.writeln(
