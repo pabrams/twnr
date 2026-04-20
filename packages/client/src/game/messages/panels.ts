@@ -24,6 +24,12 @@ export const PANEL = makeDomain('PANEL', {
     shipCreditsTurns:
         '[mg]Turns[/mg]          [by]:[/by] [bc]{turns}[/bc]\r\n' +
         '[mg]Credits[/mg]        [by]:[/by] [bc]{credits}[/bc]',
+    shipTurnsPerWarp: '[mg]Turns per warp[/mg] [by]:[/by] [bc]{turns}[/bc]',
+    shipHardwareHeader: '[mg]Hardware[/mg]       [by]:[/by]',
+    shipHardwareRowStackable: '  [mg]{label}[/mg] [by]:[/by] [bc]{qty}[/bc] [g]/[/g] [c]{max}[/c]',
+    shipHardwareRowToggleOn: '  [mg]{label}[/mg] [by]:[/by] [bg]installed[/bg]',
+    shipHardwareRowToggleOff: '  [mg]{label}[/mg] [by]:[/by] [w]—[/w]',
+    shipHardwareRowUnavailable: '  [mg]{label}[/mg] [by]:[/by] [w]n/a[/w]',
 
     playersOnlineHeader: '[bc]Players Online[/bc] ({count}):',
     playersOnlineRow: '  [by]{name}[/by]{suffix}',

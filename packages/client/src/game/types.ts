@@ -22,6 +22,8 @@ export interface GameContext {
     // ─── Mutable state ───────────────────────────────────────────────
     mode: MenuName;
     currentSector: number;
+    /** The sector the player was in just before the current one; 0 if none. */
+    previousSector: number;
     currentPort: { class: number; name: string } | null;
     dockedPortInfo: PortInfoResultObject | null;
     visitedSet: Set<number>;
@@ -31,6 +33,17 @@ export interface GameContext {
     sectorPlayers: { id: number; name: string }[];
     attackTarget: number | null;
     class0BuyType: 'drones' | 'shields' | 'holds' | null;
+    class0ShipState: {
+        shipName: string;
+        credits: number;
+        drones: number;
+        maxDrones: number;
+        shields: number;
+        maxShields: number;
+        holds: number;
+        maxHolds: number;
+    } | null;
+    hardwareCatalog: { name: string; label: string; kind: 'stackable' | 'toggle' }[] | null;
     shipConfigs: ShipCatalogEntry[] | null;
     planetConfigs: PlanetConfig[] | null;
     currentShipName: string;

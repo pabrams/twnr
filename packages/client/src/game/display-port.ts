@@ -1,6 +1,34 @@
 import type { GameContext } from './types.js';
 import { render } from './renderer.js';
-import { SECTOR, PORT, COMMON } from './messages/index.js';
+import { SECTOR, PORT } from './messages/index.js';
+
+/** Max units of a given item the player can buy right now. */
+export function class0MaxBuy(kind: 'drones' | 'shields' | 'holds', ctx: GameContext): number {
+    const s = ctx.class0ShipState;
+    const p = ctx.class0Prices;
+    if (!s || !p) return 0;
+    let roomLeft: number;
+    let unitPrice: number;
+    if (kind === 'drones') {
+        roomLeft = Math.max(0, s.maxDrones - s.drones);
+        unitPrice = p.dronePrice;
+    } else if (kind === 'shields') {
+        roomLeft = Math.max(0, s.maxShields - s.shields);
+        unitPrice = p.shieldPrice;
+    } else {
+        roomLeft = Math.max(0, s.maxHolds - s.holds);
+        unitPrice = p.holdPrice;
+    }
+    const affordable = unitPrice > 0 ? Math.floor(s.credits / unitPrice) : 0;
+    return Math.min(roomLeft, affordable);
+}
+
+function formatTimestamp(): string {
+    const d = new Date();
+    const time = d.toLocaleTimeString('en-US', { hour12: true });
+    const date = d.toDateString();
+    return `${time} ${date}`;
+}
 
 export function showAutopilotPrompt(
     ctx: GameContext,
@@ -23,7 +51,7 @@ export function showAutopilotPrompt(
     term.write(render(SECTOR.autopilotConfirm));
 }
 
-export async function showClass0Menu(ctx: GameContext) {
+export async function showClass0Menu(ctx: GameContext, initial = false) {
     if (!ctx.class0Prices) {
         try {
             const res = await fetch('/api/class0-prices');
@@ -34,31 +62,51 @@ export async function showClass0Menu(ctx: GameContext) {
     }
     const p = ctx.class0Prices!;
     const { term } = ctx;
+    const canBuyHolds = class0MaxBuy('holds', ctx);
+    const canBuyDrones = class0MaxBuy('drones', ctx);
+    const canBuyShields = class0MaxBuy('shields', ctx);
+    const pad = (n: number) => String(n).padStart(6);
+
     term.writeln('');
-    term.writeln(render(PORT.class0DockHeader));
+    if (initial) {
+        term.writeln(render(PORT.class0Docking));
+    }
+    if (ctx.class0ShipState) {
+        term.writeln(
+            render(PORT.class0CreditsLine, {
+                credits: ctx.class0ShipState.credits.toLocaleString(),
+            }),
+        );
+    }
+    term.writeln(render(PORT.class0CommerceHeader, { timestamp: formatTimestamp() }));
     term.writeln(
-        render(COMMON.menuRow, {
-            key: 'F',
-            text: `Buy Drones ${render(PORT.class0Drones, { price: p.dronePrice })}`,
-        }),
+        render(PORT.class0RowHolds, { price: pad(p.holdPrice), canBuy: pad(canBuyHolds) }),
     );
     term.writeln(
-        render(COMMON.menuRow, {
-            key: 'S',
-            text: `Buy Shields ${render(PORT.class0Shields, { price: p.shieldPrice })}`,
-        }),
+        render(PORT.class0RowDrones, { price: pad(p.dronePrice), canBuy: pad(canBuyDrones) }),
     );
     term.writeln(
-        render(COMMON.menuRow, {
-            key: 'H',
-            text: `Buy Holds ${render(PORT.class0Holds, { price: p.holdPrice })}`,
-        }),
+        render(PORT.class0RowShields, { price: pad(p.shieldPrice), canBuy: pad(canBuyShields) }),
     );
-    term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Leave port' }));
+    term.write(render(PORT.class0BuyPrompt));
 }
 
-export function showClass0QtyPrompt(ctx: GameContext, buyType: string) {
-    ctx.term.write(render(COMMON.howManyPrompt, { item: buyType }));
+export function showClass0QtyPrompt(ctx: GameContext, buyType: 'drones' | 'shields' | 'holds') {
+    const s = ctx.class0ShipState;
+    const max = class0MaxBuy(buyType, ctx);
+    const shipName = s?.shipName ?? ctx.currentShipName ?? '';
+
+    const { term } = ctx;
+    if (buyType === 'drones') {
+        term.writeln(render(PORT.class0QtyYouHaveFighters, { qty: s?.drones ?? 0 }));
+        term.write(render(PORT.class0QtyPromptFighters, { shipName, max }));
+    } else if (buyType === 'shields') {
+        term.writeln(render(PORT.class0QtyYouHaveShields, { qty: s?.shields ?? 0 }));
+        term.write(render(PORT.class0QtyPromptShields, { max }));
+    } else {
+        term.writeln(render(PORT.class0QtyYouHaveHolds, { qty: s?.holds ?? 0 }));
+        term.write(render(PORT.class0QtyPromptHolds, { max }));
+    }
 }
 
 export function showTradeQtyPrompt(

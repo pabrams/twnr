@@ -24,4 +24,5 @@ export const NOTIFY = makeDomain('NOTIFY', {
     unknownCommand: 'Unknown command: {cmd}',
 
     autopilotEngaged: '\r\n[bg]Autopilot engaged.[/bg]',
+    noPreviousSector: '\r\n[w]No previous sector to return to.[/w]',
 });

@@ -3,6 +3,7 @@ import type { ShipCatalogEntry } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { render } from './renderer.js';
 import { STARBASE, COMMON } from './messages/index.js';
+import { showClass0Menu, showClass0QtyPrompt } from './display-port.js';
 
 export function showStarbasePrompt(ctx: GameContext) {
     ctx.term.write(render(STARBASE.rootPrompt));
@@ -200,15 +201,13 @@ export function showTradeinPrompt(
 
 export function showShipyardsClass0Menu(ctx: GameContext) {
     ctx.changeMenu(Menu.ShipyardsClass0);
-    ctx.term.writeln('');
-    ctx.term.writeln(render(COMMON.menuRow, { key: 'F', text: 'Buy drones' }));
-    ctx.term.writeln(render(COMMON.menuRow, { key: 'S', text: 'Buy shields' }));
-    ctx.term.writeln(render(COMMON.menuRow, { key: 'H', text: 'Buy holds' }));
-    ctx.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
-    ctx.term.write(render(STARBASE.class0EquipmentPrompt));
+    showClass0Menu(ctx);
 }
 
-export function showShipyardsClass0QtyPrompt(ctx: GameContext, item: string) {
+export function showShipyardsClass0QtyPrompt(
+    ctx: GameContext,
+    item: 'drones' | 'shields' | 'holds',
+) {
     ctx.changeMenu(Menu.ShipyardsClass0Qty);
-    ctx.term.write(render(STARBASE.buyQtyPrompt, { item }));
+    showClass0QtyPrompt(ctx, item);
 }
