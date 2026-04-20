@@ -102,6 +102,7 @@ type ServerMsgType = typeof ServerMsgType;
 
 export const ClientMsgType = {
     Move: 'move',
+    MoveToPrevious: 'moveToPrevious',
     SectorDisplay: 'sectorDisplay',
     PlayersOnline: 'playersOnline',
     WarpsOut: 'warpsOut',

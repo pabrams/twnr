@@ -41,7 +41,6 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
     }
 
     const ctx: GameContext = {
-        // Services
         term,
         ws,
         universeId,
@@ -55,10 +54,8 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
             term.writeln(`\r\n\x1b[38;5;243m[debug ${on ? 'ON' : 'OFF'}]\x1b[0m`);
         },
 
-        // Mutable state
         mode: Menu.Sector,
         currentSector: 0,
-        previousSector: 0,
         currentPort: null,
         dockedPortInfo: null,
         visitedSet: new Set<number>(),
@@ -84,14 +81,12 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
         hardwarePrices: null,
         colonistCommodity: null,
 
-        // Transient UI state
         knownUniverseMode: 'explored',
         starbaseBuyItemName: null,
         shipyardsBuyTarget: null,
         landablePlanets: null,
     };
 
-    // Fetch menu registry and cache for the session
     fetch('/api/menu-registry')
         .then((res) => res.json())
         .then((entries: MenuEntry[]) => {

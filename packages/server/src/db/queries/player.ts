@@ -67,7 +67,23 @@ export async function moveToSector(
     sectorId: number,
     db: Queryable = pool,
 ): Promise<void> {
-    await db.query('UPDATE players SET current_sector_id = $1 WHERE id = $2', [sectorId, playerId]);
+    await db.query(
+        'UPDATE players SET previous_sector_id = current_sector_id, current_sector_id = $1 WHERE id = $2',
+        [sectorId, playerId],
+    );
+}
+
+export async function getPreviousSectorNumber(
+    playerId: number,
+    db: Queryable = pool,
+): Promise<number | null> {
+    const res = await db.query<{ sector_number: number }>(
+        `SELECT s.sector_number FROM players p
+         JOIN sectors s ON p.previous_sector_id = s.id
+         WHERE p.id = $1`,
+        [playerId],
+    );
+    return res.rows[0]?.sector_number ?? null;
 }
 
 export async function markSectorVisited(

@@ -12,7 +12,12 @@ import {
     setPlayerMenu,
     resolveSectorId,
 } from '../game-state.js';
-import { setDocked, moveToSector, markSectorVisited } from '../db/queries/player.js';
+import {
+    setDocked,
+    moveToSector,
+    markSectorVisited,
+    getPreviousSectorNumber,
+} from '../db/queries/player.js';
 import { getShipDrones, moveShipToSector } from '../db/queries/ship.js';
 import {
     getSectorDbId,
@@ -156,6 +161,15 @@ export async function handleMove(playerId: number, targetSector: number): Promis
         ...sectorData,
         turnsUsed: turnResult.turnsUsed,
     });
+}
+
+export async function handleMoveToPrevious(playerId: number): Promise<void> {
+    const prev = await getPreviousSectorNumber(playerId);
+    if (prev === null) {
+        sendEnvelope(playerId, { type: ServerMsgType.MoveResult, outcome: 'noPrevious' });
+        return;
+    }
+    await handleMove(playerId, prev);
 }
 
 export async function handleSectorDisplay(playerId: number): Promise<void> {

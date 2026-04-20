@@ -147,6 +147,7 @@ export const connectDB = async (): Promise<void> => {
         user_id INTEGER NOT NULL REFERENCES users(id),
         universe_id INTEGER NOT NULL REFERENCES universes(id),
         current_sector_id INTEGER REFERENCES sectors(id),
+        previous_sector_id INTEGER REFERENCES sectors(id),
         ship_id INTEGER,
         credits INTEGER NOT NULL DEFAULT 10000,
         reputation INTEGER NOT NULL DEFAULT 0,
@@ -319,6 +320,9 @@ export const connectDB = async (): Promise<void> => {
       -- Edits: starting shields, earth colonists
       ALTER TABLE edits ADD COLUMN IF NOT EXISTS starting_shields INTEGER NOT NULL DEFAULT 0;
       ALTER TABLE edits ADD COLUMN IF NOT EXISTS starting_earth_colonists INTEGER NOT NULL DEFAULT 1000000;
+
+      -- Players: previous sector, for the return-to-previous shortcut
+      ALTER TABLE players ADD COLUMN IF NOT EXISTS previous_sector_id INTEGER REFERENCES sectors(id);
 
       -- Migration: drop old hardware price columns from edits (now in hardware_price table)
       ALTER TABLE edits DROP COLUMN IF EXISTS price_terraform_device;
