@@ -257,12 +257,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                         colonists: msg.cargoColonists,
                     }),
                 );
-                ctx.term.writeln(
-                    render(PANEL.shipCreditsTurns, { credits: msg.credits, turns: msg.turns }),
-                );
-                ctx.term.writeln(render(PANEL.shipTurnsPerWarp, { turns: msg.turnsPerWarp }));
                 if (ctx.hardwareCatalog && ctx.hardwareCatalog.length > 0) {
-                    ctx.term.writeln(render(PANEL.shipHardwareHeader));
                     for (const item of ctx.hardwareCatalog) {
                         const max = msg.hardwareMax[item.name];
                         if (max === undefined || max === 0) {
@@ -276,13 +271,13 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                                     qty > 0
                                         ? PANEL.shipHardwareRowToggleOn
                                         : PANEL.shipHardwareRowToggleOff,
-                                    { label: item.label },
+                                    { label: item.label.padEnd(18) },
                                 ),
                             );
                         } else {
                             ctx.term.writeln(
                                 render(PANEL.shipHardwareRowStackable, {
-                                    label: item.label,
+                                    label: item.label.padEnd(18),
                                     qty,
                                     max,
                                 }),
@@ -290,6 +285,10 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                         }
                     }
                 }
+                ctx.term.writeln(
+                    render(PANEL.shipCreditsTurns, { credits: msg.credits, turns: msg.turns }),
+                );
+                ctx.term.writeln(render(PANEL.shipTurnsPerWarp, { turns: msg.turnsPerWarp }));
                 if (ctx.mode === Menu.Sector) showPrompt(ctx);
                 break;
             case ServerMsgType.PlayersOnlineResult: {
