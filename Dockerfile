@@ -37,6 +37,7 @@ COPY --from=build /app/packages/shared/dist packages/shared/dist
 COPY --from=build /app/packages/client/dist packages/client/dist
 COPY --from=build /app/packages/server/dist packages/server/dist
 COPY packages/server/scripts packages/server/scripts
+COPY packages/server/config /app/config
 COPY docker-entrypoint.sh /app/
 
 EXPOSE 3000
