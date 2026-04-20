@@ -25,6 +25,7 @@ export function showSectorDisplay(
     planets?: { id: number; name: string; type: string }[],
     ships?: { id: number; name: string; typeName: string; ownerName: string }[],
     collisions?: { planetName: string; collidingWithName: string; collisionAt: string }[],
+    withPrompt = true,
 ) {
     ctx.visitedSet.add(sector);
     ctx.currentSector = sector;
@@ -88,7 +89,7 @@ export function showSectorDisplay(
         term.writeln(render(SECTOR.shipsLine, { list }));
     }
 
-    showPrompt(ctx);
+    if (withPrompt) showPrompt(ctx);
 }
 
 export function showPrompt(ctx: GameContext) {

@@ -8,6 +8,8 @@ export const EVENT = makeDomain('EVENT', {
     autopilotDisengaged: '\r\n[br]Autopilot disengaged — hostile drones![/br]',
     autopilotCancelled: '\r\n[br]Autopilot cancelled.[/br]',
     autopilotResuming: '[bc]Autopilot resuming...[/bc]',
+    autopilotWarping: '\r\n[y]Auto-warping to sector [by]{sector}[/by][/y]',
+    autopilotArrived: '\r\n[bc]Arriving at sector [by]{sector}[/by]. Autopilot disengaging.[/bc]',
     noPathFound: '\r\n[br]No path found to that sector.[/br]',
     noShip: '\r\n[br]You do not have a ship.[/br]',
 
@@ -48,5 +50,6 @@ export const EVENT = makeDomain('EVENT', {
         '\r\n[bg]Hyperspace jump![/bg] Arrived in sector [bc]{sector}[/bc]. Fuel used: [by]{fuel}[/by], Turns: [by]{turns}[/by]',
 
     leftPlanet: '\r\n[w]You return to your ship and leave the planet.[/w]',
-    noPlanetsToLand: '\r\n[w]No planets in this sector.[/w]',
+    noPlanetsToLand: '\r\n[g]There\'s no planet in this sector.[/g]' +
+                     '\r\n[g]You can create one with a terraform device.[/g]',
 });

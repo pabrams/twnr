@@ -10,7 +10,7 @@ export const STARBASE = makeDomain('STARBASE', {
 
     hardwarePrompt:
         '\r\n[mg]<[/mg][bc]Starbase Hardware[/bc][mg]>[/mg] [mg]What do you need[/mg] [mg]([/mg][by]?[/by][mg])[/mg][mg]?[/mg] ',
-    hardwareItemRow: '  [c]{key}[/c]  {label} [w]{price}[/w]',
+    hardwareItemRow: '  [mg]<[/mg][g]{key}[/g][mg]>[/mg]  [c]{label}[/c] [y]{price}[/y]',
     hardwareLoading: '\r\n[w]Loading hardware catalog...[/w]',
 
     buyQtyPrompt: '\r\n[c]How many {item}?[/c] ',

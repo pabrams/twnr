@@ -1034,8 +1034,8 @@ export const connectDB = async (): Promise<void> => {
         ('recon_drone',      'Recon Drones',            'stackable', 1500,   'buyHardwareResult', NULL),
         ('visual_scanner',   'Visual Scanner',          'toggle',    50000,  'buyHardwareResult', NULL),
         ('planet_scanner',   'Planet Scanner',          'toggle',    20000,  'buyHardwareResult', NULL),
-        ('hyperspace_1',     'Hyperspace Drive Type 1', 'toggle',    100000, 'buyHardwareResult', '{"driveType": 1}'),
-        ('hyperspace_2',     'Hyperspace Drive Type 2', 'toggle',    150000, 'buyHardwareResult', '{"driveType": 2}')
+        ('hyperspace_1',     'Hyperspace Type 1', 'toggle',    100000, 'buyHardwareResult', '{"driveType": 1}'),
+        ('hyperspace_2',     'Hyperspace Type 2', 'toggle',    150000, 'buyHardwareResult', '{"driveType": 2}')
       ON CONFLICT (name) DO UPDATE SET
         label = EXCLUDED.label,
         kind = EXCLUDED.kind,

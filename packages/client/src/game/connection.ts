@@ -303,8 +303,14 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
             }
             case ServerMsgType.MoveResult:
                 switch (msg.outcome) {
-                    case 'success':
+                    case 'success': {
                         ctx.sectorPlayers = msg.players;
+                        const inAutopilot = ctx.autopilotPath.length > 0;
+                        const moreHops =
+                            inAutopilot && ctx.autopilotStep < ctx.autopilotPath.length;
+                        // Render sector body. Suppress the command prompt when still
+                        // mid-autopilot, or when this is the final hop (so the
+                        // "arrived" banner can land between body and prompt).
                         showSectorDisplay(
                             ctx,
                             msg.sector,
@@ -315,19 +321,25 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                             msg.planets,
                             msg.ships,
                             msg.collisions,
+                            !inAutopilot,
                         );
-                        if (
-                            ctx.autopilotPath.length > 0 &&
-                            ctx.autopilotStep < ctx.autopilotPath.length
-                        ) {
+                        if (moreHops) {
                             const nextSector = ctx.autopilotPath[ctx.autopilotStep];
                             ctx.autopilotStep = ctx.autopilotStep + 1;
+                            ctx.term.writeln(
+                                render(EVENT.autopilotWarping, { sector: nextSector }),
+                            );
                             ctx.sendMsg({ type: ClientMsgType.Move, sector: nextSector });
-                        } else if (ctx.autopilotPath.length > 0) {
+                        } else if (inAutopilot) {
+                            ctx.term.writeln(
+                                render(EVENT.autopilotArrived, { sector: msg.sector }),
+                            );
                             ctx.autopilotPath = [];
                             ctx.autopilotStep = 0;
+                            showPrompt(ctx);
                         }
                         break;
+                    }
                     case 'encounter': {
                         ctx.sectorPlayers = msg.players;
                         ctx.encounterOwnerName = msg.ownerName;
