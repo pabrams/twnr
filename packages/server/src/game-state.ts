@@ -24,6 +24,7 @@ export interface TradeStep {
 export interface TradeState {
     steps: TradeStep[];
     stepIndex: number;
+    prompted: Set<'fuel' | 'organics' | 'equipment'>;
     pendingQty?: number;
 }
 
