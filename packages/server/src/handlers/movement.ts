@@ -31,12 +31,6 @@ export async function handleMove(playerId: number, targetSector: number): Promis
         return;
     }
 
-    const shipId = await getShipId(playerId);
-    if (!shipId) {
-        sendEnvelope(playerId, { type: ServerMsgType.MoveResult, outcome: 'noShip' });
-        return;
-    }
-
     const player = players[playerId];
     if (!player) return;
 
@@ -51,9 +45,18 @@ export async function handleMove(playerId: number, targetSector: number): Promis
     }
 
     const universeId = player.universeId;
-    const warps = await getGraph(universeId);
-    const currentSector = player.sector;
+    const [shipId, warps, turnsPerWarp] = await Promise.all([
+        getShipId(playerId),
+        getGraph(universeId),
+        getTurnsPerWarp(playerId),
+    ]);
 
+    if (!shipId) {
+        sendEnvelope(playerId, { type: ServerMsgType.MoveResult, outcome: 'noShip' });
+        return;
+    }
+
+    const currentSector = player.sector;
     if (!warps[currentSector]?.includes(targetSector)) {
         sendEnvelope(playerId, {
             type: ServerMsgType.MoveResult,
@@ -63,8 +66,6 @@ export async function handleMove(playerId: number, targetSector: number): Promis
         return;
     }
 
-    // Check turns
-    const turnsPerWarp = await getTurnsPerWarp(playerId);
     const turnResult = await checkAndDeductTurns(playerId, universeId, turnsPerWarp);
     if (!turnResult.allowed) {
         sendEnvelope(playerId, {

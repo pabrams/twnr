@@ -26,6 +26,7 @@ import {
     upsertSpecialPort,
 } from '../../db/queries/port.js';
 import { upsertEarthPlanet, setEarthColonists } from '../../db/queries/planet.js';
+import { invalidateGraphCache } from '../../game-state.js';
 import {
     countPlayersInUniverse,
     listPlayerIdsInUniverse,
@@ -140,6 +141,8 @@ export function createAdminLifecycleRoutes(
                 return newUniverseId;
             });
 
+            invalidateGraphCache(universeId!);
+
             const [warpCount, portCount] = await Promise.all([
                 countWarpsInUniverse(universeId!),
                 countPortsInUniverse(universeId!),
@@ -209,6 +212,8 @@ export function createAdminLifecycleRoutes(
                 // CASCADE handles sectors, warps, ports, planets, sector_drones
                 await deleteUniverse(universeId, client);
             });
+
+            invalidateGraphCache(universeId);
 
             res.json({ deleted: true, id: universeId });
         }),
