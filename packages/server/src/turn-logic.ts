@@ -6,6 +6,76 @@ export interface TurnResult {
     turnsUsed: number;
 }
 
+export interface MoveTurnContext {
+    shipId: number | null;
+    turns: number;
+    turnsPerWarp: number;
+    turnsPerDay: number;
+    turnDelay: number;
+}
+
+/**
+ * One-shot fetch of everything the move handler needs to decide whether a warp
+ * is allowed: ship existence, current turns, per-warp cost, and the universe's
+ * turn-economy config.
+ */
+export async function fetchMoveTurnContext(
+    playerId: number,
+    universeId: number,
+): Promise<MoveTurnContext | null> {
+    const res = await pool.query<{
+        ship_id: number | null;
+        turns: number;
+        turns_per_warp: number | null;
+        turns_per_day: number;
+        turn_delay: number;
+    }>(
+        `SELECT p.ship_id,
+                p.turns,
+                s.turns_per_warp,
+                COALESCE(e.turns_per_day, 500) AS turns_per_day,
+                COALESCE(e.turn_delay, 100) AS turn_delay
+         FROM players p
+         LEFT JOIN ships s ON p.ship_id = s.id
+         JOIN universes u ON u.id = $2
+         LEFT JOIN edits e ON u.edit_id = e.id
+         WHERE p.id = $1`,
+        [playerId, universeId],
+    );
+    const row = res.rows[0];
+    if (!row) return null;
+    return {
+        shipId: row.ship_id,
+        turns: row.turns,
+        turnsPerWarp: row.turns_per_warp ?? 1,
+        turnsPerDay: row.turns_per_day,
+        turnDelay: row.turn_delay,
+    };
+}
+
+/**
+ * Deduct turns using already-fetched context — skips the read queries that
+ * checkAndDeductTurns would otherwise run. Enforces turn_delay even in
+ * unlimited-turn games.
+ */
+export async function deductTurns(
+    playerId: number,
+    cost: number,
+    ctx: { turns: number; turnsPerDay: number; turnDelay: number },
+): Promise<TurnResult> {
+    const delayMs = cost * ctx.turnDelay;
+
+    if (ctx.turnsPerDay === 0) {
+        if (delayMs > 0) await sleep(delayMs);
+        return { allowed: true, turnsUsed: 0 };
+    }
+
+    if (ctx.turns < cost) return { allowed: false, turnsUsed: 0 };
+    await pool.query('UPDATE players SET turns = turns - $1 WHERE id = $2', [cost, playerId]);
+    if (delayMs > 0) await sleep(delayMs);
+    return { allowed: true, turnsUsed: cost };
+}
+
 /**
  * Check and deduct turns for an action. Enforces the universe's turn_delay
  * (cost * turn_delay ms) before returning, even in unlimited-turn games.

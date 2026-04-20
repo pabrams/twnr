@@ -12,14 +12,14 @@ import {
     setPlayerMenu,
     resolveSectorId,
 } from '../game-state.js';
-import { getShipId, setDocked, moveToSector, markSectorVisited } from '../db/queries/player.js';
-import { getTurnsPerWarp, getShipDrones, moveShipToSector } from '../db/queries/ship.js';
+import { setDocked, moveToSector, markSectorVisited } from '../db/queries/player.js';
+import { getShipDrones, moveShipToSector } from '../db/queries/ship.js';
 import {
     getSectorDbId,
     findSectorsByNumbers,
     findVisitedSectorsInSet,
 } from '../db/queries/sector.js';
-import { checkAndDeductTurns } from '../turn-logic.js';
+import { deductTurns, fetchMoveTurnContext } from '../turn-logic.js';
 
 export async function handleMove(playerId: number, targetSector: number): Promise<void> {
     if (!Number.isInteger(targetSector) || targetSector <= 0) {
@@ -45,13 +45,12 @@ export async function handleMove(playerId: number, targetSector: number): Promis
     }
 
     const universeId = player.universeId;
-    const [shipId, warps, turnsPerWarp] = await Promise.all([
-        getShipId(playerId),
+    const [ctx, warps] = await Promise.all([
+        fetchMoveTurnContext(playerId, universeId),
         getGraph(universeId),
-        getTurnsPerWarp(playerId),
     ]);
 
-    if (!shipId) {
+    if (!ctx || !ctx.shipId) {
         sendEnvelope(playerId, { type: ServerMsgType.MoveResult, outcome: 'noShip' });
         return;
     }
@@ -66,7 +65,7 @@ export async function handleMove(playerId: number, targetSector: number): Promis
         return;
     }
 
-    const turnResult = await checkAndDeductTurns(playerId, universeId, turnsPerWarp);
+    const turnResult = await deductTurns(playerId, ctx.turnsPerWarp, ctx);
     if (!turnResult.allowed) {
         sendEnvelope(playerId, {
             type: ServerMsgType.MoveResult,
