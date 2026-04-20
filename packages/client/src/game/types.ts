@@ -53,6 +53,8 @@ export interface GameContext {
     starbaseSector: number | null;
     hardwarePrices: HardwarePriceItem[] | null;
     colonistCommodity: 'fuel' | 'organics' | 'equipment' | null;
+    planetEmptyHolds: number;
+    shipColonists: number;
 
     knownUniverseMode: 'explored' | 'unexplored';
     starbaseBuyItemName: string | null;

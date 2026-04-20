@@ -253,6 +253,8 @@ export type PlanetDisplayData = {
     colonists_fuel: number;
     colonists_organics: number;
     colonists_equipment: number;
+    empty_holds: number;
+    ship_colonists: number;
     created_at: Date | string;
     updated_at?: Date | string | null;
 };

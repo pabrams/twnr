@@ -497,6 +497,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 else showNoPlanet(ctx);
                 break;
             case ServerMsgType.TakeColonistsResult: {
+                ctx.shipColonists = msg.shipColonists;
                 ctx.term.writeln('');
                 ctx.term.writeln(
                     render(PANEL.takeColonistsHeader, {
@@ -511,6 +512,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 break;
             }
             case ServerMsgType.LeaveColonistsResult: {
+                ctx.shipColonists = msg.shipColonists;
                 ctx.term.writeln('');
                 ctx.term.writeln(
                     render(PANEL.leaveColonistsHeader, {
@@ -522,6 +524,11 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     render(PANEL.planetColonistsLine, { count: fmt(msg.planetColonists) }),
                 );
                 ctx.term.writeln(render(PANEL.shipColonistsLine, { count: msg.shipColonists }));
+                if (ctx.mode === Menu.PlanetEarth) {
+                    showEarthMenu(ctx, msg.planetColonists);
+                } else if (ctx.mode === Menu.Planet) {
+                    showPlanetMenuOptions(ctx);
+                }
                 break;
             }
             case ServerMsgType.DroneEncounter: {
@@ -658,6 +665,8 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 }
                 break;
             case ServerMsgType.LandOnPlanetResult:
+                ctx.planetEmptyHolds = msg.empty_holds;
+                ctx.shipColonists = msg.ship_colonists;
                 if (ctx.mode === Menu.PlanetEarth) {
                     showEarthMenu(ctx, msg.colonists_fuel ?? 0);
                 } else {
@@ -683,6 +692,8 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 }
                 break;
             case ServerMsgType.PlanetDisplayResult:
+                ctx.planetEmptyHolds = msg.empty_holds;
+                ctx.shipColonists = msg.ship_colonists;
                 ctx.term.writeln('');
                 ctx.term.writeln(
                     render(PANEL.planetDisplayHeader, { name: msg.name, type: msg.planetType }),
