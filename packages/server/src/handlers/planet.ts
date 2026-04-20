@@ -35,6 +35,7 @@ import {
     getShipColonistsForUpdate,
     getShipColonists,
     incrementShipColonists,
+    getShipCargoWithCredits,
 } from '../db/queries/ship.js';
 import { planetConfigs } from '../planet-config.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
@@ -98,7 +99,22 @@ export async function handleLandOnPlanet(playerId: number, planetId: number): Pr
         sendError(playerId, 'Planet no longer exists');
         return;
     }
-    sendEnvelope(playerId, { type: ServerMsgType.LandOnPlanetResult, ...data });
+    const [empty_holds, ship_colonists] = await getShipPlanetContext(playerId);
+    sendEnvelope(playerId, {
+        type: ServerMsgType.LandOnPlanetResult,
+        ...data,
+        empty_holds,
+        ship_colonists,
+    });
+}
+
+async function getShipPlanetContext(playerId: number): Promise<[number, number]> {
+    const [ship, shipColonists] = await Promise.all([
+        getShipCargoWithCredits(playerId),
+        getShipColonists(playerId),
+    ]);
+    const emptyHolds = ship ? Math.max(0, ship.cargo_limit - cargoUsed(ship)) : 0;
+    return [emptyHolds, shipColonists ?? 0];
 }
 
 export async function handlePlanetDisplay(playerId: number): Promise<void> {
@@ -116,7 +132,13 @@ export async function handlePlanetDisplay(playerId: number): Promise<void> {
         sendError(playerId, 'Planet no longer exists');
         return;
     }
-    sendEnvelope(playerId, { type: ServerMsgType.PlanetDisplayResult, ...data });
+    const [empty_holds, ship_colonists] = await getShipPlanetContext(playerId);
+    sendEnvelope(playerId, {
+        type: ServerMsgType.PlanetDisplayResult,
+        ...data,
+        empty_holds,
+        ship_colonists,
+    });
 }
 
 export async function handleLeavePlanet(playerId: number): Promise<void> {
@@ -319,7 +341,9 @@ export async function handleTakeColonists(
                 throw new AbortTransaction();
             }
 
-            const actual = Math.min(quantity, available);
+            // -1 = accept default (take as many as available; clamped by holds below)
+            const requested = quantity === -1 ? available : quantity;
+            const actual = Math.min(requested, available);
             if (actual <= 0) {
                 sendError(playerId, 'No colonists available to take');
                 throw new AbortTransaction();
@@ -389,6 +413,10 @@ export async function handleLeaveColonists(
         return;
     }
 
+    // Return to the planet command menu (Earth menu if on Earth, else regular planet)
+    // BEFORE doing the work — any sendError below will then carry the updated menu.
+    await setPlayerMenu(playerId, player.sector === 1 ? 'planetEarth' : 'planet');
+
     try {
         const actual = await withTransaction(async (client) => {
             const shipColonists = await getShipColonistsForUpdate(playerId, client);
@@ -397,7 +425,9 @@ export async function handleLeaveColonists(
                 throw new AbortTransaction();
             }
 
-            const leave = Math.min(quantity, shipColonists);
+            // -1 = accept default (leave all ship colonists)
+            const requested = quantity === -1 ? shipColonists : quantity;
+            const leave = Math.min(requested, shipColonists);
 
             await incrementShipColonists(playerId, -leave, client);
             await updatePlanetColonists(onPlanetId, col, leave, client);

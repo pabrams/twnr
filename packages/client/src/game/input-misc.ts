@@ -199,13 +199,15 @@ export function handlePlanetLeaveCommodityInput(ctx: GameContext, line: string) 
 }
 
 export function handlePlanetTakeQtyInput(ctx: GameContext, line: string) {
-    if (line.toLowerCase() === 'q') {
+    const trimmed = line.trim();
+    if (trimmed.toLowerCase() === 'q') {
         ctx.changeMenu(Menu.Sector);
         showPrompt(ctx);
         return;
     }
-    const qty = parseInt(line, 10);
-    if (isNaN(qty) || qty <= 0) {
+    // Empty Enter → accept default (fill free holds; server computes)
+    const qty = trimmed === '' ? -1 : parseInt(trimmed, 10);
+    if (qty !== -1 && (isNaN(qty) || qty <= 0)) {
         ctx.term.writeln('Enter a positive number.');
         return;
     }
@@ -217,13 +219,16 @@ export function handlePlanetTakeQtyInput(ctx: GameContext, line: string) {
 }
 
 export function handlePlanetLeaveQtyInput(ctx: GameContext, line: string) {
-    if (line.toLowerCase() === 'q') {
-        ctx.changeMenu(Menu.Sector);
-        showPrompt(ctx);
+    const trimmed = line.trim();
+    if (trimmed.toLowerCase() === 'q') {
+        const target = ctx.currentSector === 1 ? Menu.PlanetEarth : Menu.Planet;
+        ctx.changeMenu(target);
+        showPlanetMenuOptions(ctx);
         return;
     }
-    const qty = parseInt(line, 10);
-    if (isNaN(qty) || qty <= 0) {
+    // Empty Enter → accept default (leave all ship colonists; server computes)
+    const qty = trimmed === '' ? -1 : parseInt(trimmed, 10);
+    if (qty !== -1 && (isNaN(qty) || qty <= 0)) {
         ctx.term.writeln('Enter a positive number.');
         return;
     }

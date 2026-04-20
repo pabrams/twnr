@@ -38,11 +38,11 @@ export function showEarthMenu(ctx: GameContext, colonistsFuel: number) {
 }
 
 export function showPlanetTakePrompt(ctx: GameContext) {
-    ctx.term.write(render(PLANET.takePrompt));
+    ctx.term.write(render(PLANET.takePrompt, { emptyHolds: ctx.planetEmptyHolds }));
 }
 
 export function showPlanetLeavePrompt(ctx: GameContext) {
-    ctx.term.write(render(PLANET.leavePrompt));
+    ctx.term.write(render(PLANET.leavePrompt, { shipColonists: ctx.shipColonists }));
 }
 
 export function showPlanetTakeCommodityMenu(ctx: GameContext) {

@@ -12,8 +12,10 @@ export const PLANET = makeDomain('PLANET', {
 
     earthHeader: '[bg]Earth[/bg] — [by]Colonists[/by]: [w]{count}[/w]',
 
-    takePrompt: '\r\n[by]How many colonists to take?[/by] ',
-    leavePrompt: '\r\n[by]How many colonists to leave?[/by] ',
+    takePrompt:
+        '\r\n[by]How many colonists to take?[/by] [mg]([/mg][bc]{emptyHolds}[/bc] [g]free holds[/g][mg])[/mg] [mg][[/mg][bc]{emptyHolds}[/bc][mg]][/mg] ',
+    leavePrompt:
+        '\r\n[by]How many colonists to leave?[/by] [mg]([/mg][bc]{shipColonists}[/bc] [g]on board[/g][mg])[/mg] [mg][[/mg][bc]{shipColonists}[/bc][mg]][/mg] ',
 
     takeCommodityHeader: '[bc]Which colonists to take?[/bc]',
     leaveCommodityHeader: '[bc]Assign colonists to which commodity?[/bc]',

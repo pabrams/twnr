@@ -81,6 +81,8 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
         starbaseSector: null,
         hardwarePrices: null,
         colonistCommodity: null,
+        planetEmptyHolds: 0,
+        shipColonists: 0,
 
         knownUniverseMode: 'explored',
         starbaseBuyItemName: null,
