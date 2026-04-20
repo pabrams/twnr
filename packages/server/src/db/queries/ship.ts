@@ -48,14 +48,6 @@ export async function moveShipToSector(
     );
 }
 
-export async function getTurnsPerWarp(playerId: number): Promise<number> {
-    const res = await pool.query(
-        `SELECT s.turns_per_warp FROM ships s WHERE s.id = ${SHIP_ID_SUBSELECT}`,
-        [playerId],
-    );
-    return res.rows[0]?.turns_per_warp ?? 1;
-}
-
 export async function getShipFuel(playerId: number): Promise<number | undefined> {
     const res = await pool.query(`SELECT fuel FROM ships WHERE id = ${SHIP_ID_SUBSELECT}`, [
         playerId,

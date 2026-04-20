@@ -34,14 +34,6 @@ export async function getCreditsForUpdate(
     return res.rows[0]?.credits;
 }
 
-export async function getShipId(playerId: number): Promise<number | null> {
-    const res = await pool.query<{ ship_id: number | null }>(
-        'SELECT ship_id FROM players WHERE id = $1',
-        [playerId],
-    );
-    return res.rows[0]?.ship_id ?? null;
-}
-
 export async function setDocked(playerId: number, docked: boolean): Promise<void> {
     await pool.query('UPDATE players SET docked = $1 WHERE id = $2', [docked, playerId]);
 }
