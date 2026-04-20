@@ -102,21 +102,34 @@ export async function getPortForSector(
 
 /**
  * Builds the sector warp adjacency list for a specific universe.
+ * Cached in memory — warps only change on universe create/delete (admin).
  */
+const graphCache = new Map<number, number[][]>();
+
 export async function getGraph(universeId: number): Promise<number[][]> {
-    const sectorNumbers = await listSectorNumbers(universeId);
+    const cached = graphCache.get(universeId);
+    if (cached) return cached;
+
+    const [sectorNumbers, edges] = await Promise.all([
+        listSectorNumbers(universeId),
+        listWarpEdges(universeId),
+    ]);
     if (sectorNumbers.length === 0) return [];
 
     const maxId = sectorNumbers[sectorNumbers.length - 1];
     const adjacencyList: number[][] = [];
     for (let i = 0; i <= maxId; i++) adjacencyList[i] = [];
 
-    const edges = await listWarpEdges(universeId);
     for (const e of edges) {
         if (adjacencyList[e.from]) adjacencyList[e.from].push(e.to);
     }
 
+    graphCache.set(universeId, adjacencyList);
     return adjacencyList;
+}
+
+export function invalidateGraphCache(universeId: number): void {
+    graphCache.delete(universeId);
 }
 
 export function broadcastTo(data: ServerResult, targetClients: Set<WebSocket> | WebSocket[]) {
