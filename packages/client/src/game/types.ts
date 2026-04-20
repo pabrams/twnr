@@ -26,6 +26,7 @@ export interface GameContext {
     playerId: number;
     totalSectors: number;
     sectorPlayers: { id: number; name: string }[];
+    currentWarps: { sector: number; visited: boolean }[];
     attackTarget: number | null;
     class0BuyType: 'drones' | 'shields' | 'holds' | null;
     class0ShipState: {

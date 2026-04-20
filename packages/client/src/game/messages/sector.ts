@@ -47,4 +47,9 @@ export const SECTOR = makeDomain('SECTOR', {
 
     noPlanet:
         '[w]There is no planet in this sector. You could create one with a Terraform Device.[/w]',
+
+    moveMenuHeader: '[bm]Adjacent sectors[/bm]',
+    moveMenuRow: '  [mg]<[/mg][g]{n}[/g][mg]>[/mg] {sector}',
+    moveMenuQuit: '  [mg]<[/mg][g]Q[/g][mg]>[/mg] [by]Cancel[/by]',
+    moveMenuPrompt: '\r\n[mg]Select warp[/mg] [mg]([/mg][by]1[/by]-[by]{max}[/by],[by]Q[/by][mg])[/mg] [by]:[/by] ',
 });
