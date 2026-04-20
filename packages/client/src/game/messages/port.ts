@@ -60,7 +60,7 @@ export const PORT = makeDomain('PORT', {
     class0RowHolds:
         ' [bc]A[/bc]  [mg]Cargo holds[/mg]     [by]:[/by] [by]{price}[/by] [mg]credits / next hold[/mg]        [c]{canBuy}[/c]',
     class0RowDrones:
-        ' [bc]B[/bc]  [mg]Drones[/mg]        [by]:[/by] [by]{price}[/by] [mg]credits per fighter[/mg]        [c]{canBuy}[/c]',
+        ' [bc]B[/bc]  [mg]Drones[/mg]          [by]:[/by] [by]{price}[/by] [mg]credits per fighter[/mg]        [c]{canBuy}[/c]',
     class0RowShields:
         ' [bc]C[/bc]  [mg]Shield Points[/mg]   [by]:[/by] [by]{price}[/by] [mg]credits per point[/mg]          [c]{canBuy}[/c]',
     class0BuyPrompt:
