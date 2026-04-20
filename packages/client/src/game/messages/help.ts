@@ -8,7 +8,7 @@ export const HELP = makeDomain('HELP', {
     header: '[by]Move to a Sector by typing its number, and hitting Enter.[/by]\r\n' + 
             '[by]Use [g]CR[/g] to re-display the sector.[/by]\r\n',
     lineText: '[c]{label}:[/c] {text}',
-    lineKey: " [mg]<[/mg][g]{key}[/g][mg]>[/mg] [bc]{text}[/bc]",
+    lineKey: "   [mg]<[/mg][g]{key}[/g][mg]>[/mg] [bc]{text}[/bc]",
 });
 
 export const HELP_LINES: Array<

@@ -235,6 +235,10 @@ function handleInput(ctx: GameContext, line: string) {
             showHelp(ctx);
             break;
         case 'a':
+            if (ctx.sectorPlayers.length === 0) {
+                showAttackMenu(ctx);
+                break;
+            }
             ctx.changeMenu(Menu.Attack);
             showAttackMenu(ctx);
             break;
