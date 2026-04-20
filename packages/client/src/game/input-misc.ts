@@ -1,7 +1,7 @@
 import { ClientMsgType, Menu } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { showPrompt } from './display.js';
-import { showClass0Menu, showClass0QtyPrompt } from './display-port.js';
+import { showClass0Menu, showClass0QtyPrompt, class0MaxBuy } from './display-port.js';
 import {
     showPlanetTakePrompt,
     showPlanetLeavePrompt,
@@ -10,45 +10,56 @@ import {
     showPlanetMenuOptions,
     showPlanetHelp,
 } from './display-planet.js';
-import { colors } from './constants.js';
+import { render } from './renderer.js';
+import { NOTIFY } from './messages/index.js';
 
 export function handleClass0Input(ctx: GameContext, line: string) {
+    const choose = (kind: 'drones' | 'shields' | 'holds') => {
+        ctx.class0BuyType = kind;
+        ctx.changeMenu(Menu.Class0Qty);
+        showClass0QtyPrompt(ctx, kind);
+    };
     switch (line.toLowerCase()) {
-        case 'f':
-            ctx.class0BuyType = 'drones';
-            ctx.changeMenu(Menu.Class0Qty);
-            showClass0QtyPrompt(ctx, 'drones');
+        case 'a':
+            choose('holds');
             break;
-        case 's':
-            ctx.class0BuyType = 'shields';
-            ctx.changeMenu(Menu.Class0Qty);
-            showClass0QtyPrompt(ctx, 'shields');
+        case 'b':
+            choose('drones');
             break;
-        case 'h':
-            ctx.class0BuyType = 'holds';
-            ctx.changeMenu(Menu.Class0Qty);
-            showClass0QtyPrompt(ctx, 'holds');
+        case 'c':
+            choose('shields');
             break;
         case 'q':
             ctx.sendMsg({ type: ClientMsgType.Undock });
             break;
+        case '?':
         default:
             showClass0Menu(ctx);
     }
 }
 
 export function handleClass0QtyInput(ctx: GameContext, line: string) {
-    if (line.toLowerCase() === 'q') {
+    const trimmed = line.trim();
+    if (trimmed.toLowerCase() === 'q') {
         ctx.changeMenu(Menu.Class0);
         showClass0Menu(ctx);
         return;
     }
-    const qty = parseInt(line, 10);
-    if (isNaN(qty) || qty <= 0) {
-        ctx.term.writeln('Enter a positive number.');
+    const kind = ctx.class0BuyType;
+    if (!kind) return;
+    const max = class0MaxBuy(kind, ctx);
+    // Empty input = accept default (max)
+    const qty = trimmed === '' ? max : parseInt(trimmed, 10);
+    if (isNaN(qty) || qty < 0) {
+        ctx.term.writeln('Enter a non-negative number.');
         return;
     }
-    switch (ctx.class0BuyType) {
+    if (qty === 0) {
+        ctx.changeMenu(Menu.Class0);
+        showClass0Menu(ctx);
+        return;
+    }
+    switch (kind) {
         case 'drones':
             ctx.sendMsg({ type: ClientMsgType.BuyDrones, quantity: qty });
             break;
@@ -64,7 +75,7 @@ export function handleClass0QtyInput(ctx: GameContext, line: string) {
 export function handleAutopilotPromptInput(ctx: GameContext, line: string) {
     switch (line.toLowerCase()) {
         case 'y': {
-            ctx.term.writeln(`\r\n${colors.boldGreen('Autopilot engaged.')}`);
+            ctx.term.writeln(render(NOTIFY.autopilotEngaged));
             const nextSector = ctx.autopilotPath[1];
             ctx.autopilotStep = 2;
             ctx.sendMsg({ type: ClientMsgType.Move, sector: nextSector });
@@ -85,6 +96,7 @@ export function handleJettisonConfirmInput(ctx: GameContext, line: string) {
             ctx.sendMsg({ type: ClientMsgType.Jettison });
             ctx.changeMenu(Menu.Sector);
             break;
+        case '':
         case 'n':
             ctx.changeMenu(Menu.Sector);
             showPrompt(ctx);

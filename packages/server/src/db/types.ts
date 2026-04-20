@@ -2,7 +2,7 @@ import type { QueryResult } from 'pg';
 
 /** Minimal interface satisfied by both Pool and PoolClient. */
 export type Queryable = {
-    query: <T extends Record<string, unknown> = Record<string, unknown>>(
+    query: <T extends object = Record<string, unknown>>(
         text: string,
         params?: unknown[],
     ) => Promise<QueryResult<T>>;

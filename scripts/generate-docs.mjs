@@ -106,7 +106,6 @@ const clientInputMap = {
     ShortestPath:        [{ mode: '(auto)', key: 'non-adjacent move' }],
     PortInfo:            [],  // no client UI
     ShipInfo:            [{ mode: 'sector', key: 'i (auto)' }],
-    CargoInfo:           [{ mode: 'sector', key: 'i (auto)' }],
     PortTransaction:     [{ mode: 'docked', key: `b &lt;good&gt; ${Q}` }, { mode: 'docked', key: `s &lt;good&gt; ${Q}` }],
     BuyDrones:           [{ mode: 'class0Qty', key: Q }, { mode: 'shipyardsClass0Qty', key: Q }],
     BuyShields:          [{ mode: 'class0Qty', key: Q }, { mode: 'shipyardsClass0Qty', key: Q }],

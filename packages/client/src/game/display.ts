@@ -1,14 +1,18 @@
 import { ClientMsgType } from '@twnr/shared';
 import type { SectorRef } from '@twnr/shared';
 import type { GameContext } from './types.js';
-import { colors, PORT_CLASS_LABELS } from './constants.js';
-
-const mg = colors.magenta;
+import { render } from './renderer.js';
+import { SECTOR, HELP, HELP_LINES, PORT, COMMON } from './messages/index.js';
 
 function colorSectorRef(ref: SectorRef): string {
-    const num = String(ref.sector);
-    if (ref.visited) return colors.boldCyan(num);
-    return `${mg('(')}${colors.boldRed(num)}${mg(')')}`;
+    const tpl = ref.visited ? SECTOR.warpVisited : SECTOR.warpUnvisited;
+    return render(tpl, { sector: ref.sector });
+}
+
+function portClassLabel(cls: number): string {
+    const key = `classLabel${cls}`;
+    const tpl = (PORT as Record<string, string>)[key] ?? PORT.classLabelUnknown;
+    return render(tpl);
 }
 
 export function showSectorDisplay(
@@ -23,119 +27,107 @@ export function showSectorDisplay(
     collisions?: { planetName: string; collidingWithName: string; collisionAt: string }[],
 ) {
     ctx.visitedSet.add(sector);
+    if (ctx.currentSector !== 0 && ctx.currentSector !== sector) {
+        ctx.previousSector = ctx.currentSector;
+    }
     ctx.currentSector = sector;
     ctx.currentPort = port ?? null;
-    ctx.term.writeln('');
-    const cl = colors.boldYellow(':');
-    ctx.term.writeln(`${colors.boldGreen('Sector')}  ${cl} ${colors.boldCyan(String(sector))}`);
+    const { term } = ctx;
+    const comma = render(SECTOR.commaJoin);
+    term.writeln('');
+    term.writeln(render(SECTOR.header, { sector }));
+
     if (port) {
-        const label = PORT_CLASS_LABELS[port.class] ?? '???';
-        const coloredLabel =
-            label === 'Special'
-                ? colors.boldCyan(label)
-                : label
-                      .split('')
-                      .map((ch) => (ch === 'B' ? colors.green(ch) : colors.boldCyan(ch)))
-                      .join('');
-        ctx.term.writeln(
-            `${mg('Port')}    ${cl} ${colors.boldCyan(port.name)}${colors.boldYellow(',')} ${mg('Class')} ${colors.boldCyan(String(port.class))} ${mg('(')}${coloredLabel}${mg(')')}`,
+        term.writeln(
+            render(SECTOR.port, {
+                name: port.name,
+                class: port.class,
+                label: portClassLabel(port.class),
+            }),
         );
     }
+
     if (sectorDrones && sectorDrones.quantity > 0) {
-        const label =
-            sectorDrones.ownerId === ctx.playerId
-                ? `${colors.boldGreen(String(sectorDrones.quantity))} ${mg('(yours)')}`
-                : `${colors.boldRed(String(sectorDrones.quantity))} ${mg('(')}${colors.boldYellow(sectorDrones.ownerName)}${mg(')')}`;
-        ctx.term.writeln(`${mg('Drones')}  ${cl} ${label}`);
+        const tpl = sectorDrones.ownerId === ctx.playerId ? SECTOR.dronesYours : SECTOR.dronesEnemy;
+        term.writeln(render(tpl, { qty: sectorDrones.quantity, owner: sectorDrones.ownerName }));
     }
+
     if (planets && planets.length > 0) {
-        ctx.term.writeln(
-            `${mg('Planets')} ${cl} ${planets.map((p) => `${colors.boldCyan(p.name)} ${mg('(')}${colors.white(p.type)}${mg(')')}`).join(colors.boldYellow(', '))}`,
-        );
+        const list = planets
+            .map((p) => render(SECTOR.planetItem, { name: p.name, type: p.type }))
+            .join(comma);
+        term.writeln(render(SECTOR.planetsLine, { list }));
     }
+
     if (collisions && collisions.length > 0) {
         for (const c of collisions) {
             const eta = new Date(c.collisionAt);
-            const hoursLeft = Math.max(0, Math.round((eta.getTime() - Date.now()) / 3600000));
-            ctx.term.writeln(
-                `${colors.boldRed('WARNING')}: ${colors.boldYellow(c.planetName)} on collision course with ${colors.boldYellow(c.collidingWithName)}! ${mg('(')}ETA: ${colors.boldRed(String(hoursLeft))}h${mg(')')}`,
+            const hours = Math.max(0, Math.round((eta.getTime() - Date.now()) / 3600000));
+            term.writeln(
+                render(SECTOR.collisionWarning, {
+                    planet: c.planetName,
+                    target: c.collidingWithName,
+                    hours,
+                }),
             );
         }
     }
+
     if (warps.length > 0) {
-        ctx.term.writeln(
-            `${colors.boldGreen('Warps')}   ${cl} ${warps.map((w) => colorSectorRef(w)).join(` ${colors.green('-')} `)}`,
-        );
+        const list = warps.map((w) => colorSectorRef(w)).join(render(SECTOR.warpSeparator));
+        term.writeln(render(SECTOR.warpsLine, { list }));
     }
+
     if (players.length > 0) {
-        ctx.term.writeln(
-            `${mg('Players')} ${cl} ${players.map((p) => colors.boldYellow(p.name)).join(colors.boldYellow(', '))}`,
-        );
+        const list = players.map((p) => render(SECTOR.playerItem, { name: p.name })).join(comma);
+        term.writeln(render(SECTOR.playersLine, { list }));
     }
+
     if (ships && ships.length > 0) {
-        ctx.term.writeln(
-            `${mg('Ships')}   ${cl} ${ships.map((s) => `${colors.boldCyan(s.typeName)} ${mg('(')}${colors.boldYellow(s.ownerName)}${mg(')')}`).join(colors.boldYellow(', '))}`,
-        );
+        const list = ships
+            .map((s) => render(SECTOR.shipItem, { type: s.typeName, owner: s.ownerName }))
+            .join(comma);
+        term.writeln(render(SECTOR.shipsLine, { list }));
     }
+
     showPrompt(ctx);
 }
 
 export function showPrompt(ctx: GameContext) {
-    ctx.term.write(
-        `\r\n${mg('Command')} ${mg('[')}${colors.boldCyan(String(ctx.currentSector))}${mg(']')} ${mg('(')}${colors.boldYellow('?')}=${colors.boldYellow('Help')}${mg(')')} ${colors.boldYellow(':')} `,
-    );
+    ctx.term.write(render(SECTOR.prompt, { sector: ctx.currentSector }));
 }
 
 export function showHelp(ctx: GameContext) {
     ctx.term.writeln('');
-    ctx.term.writeln(colors.cyan('Help:'));
-    ctx.term.writeln(`${colors.cyan('Command:')} Move to a sector by typing its number.`);
-    ctx.term.writeln(
-        `${colors.cyan('Display:')} ${colors.boldYellow("'D'")} refresh sector display.`,
-    );
-    ctx.term.writeln(`${colors.cyan('Port:')} ${colors.boldYellow("'P'")} access a port.`);
-    ctx.term.writeln(
-        `${colors.cyan('Info:')} ${colors.boldYellow("'I'")} view player and ship info.`,
-    );
-    ctx.term.writeln(
-        `${colors.cyan('Attack:')} ${colors.boldYellow("'A'")} attack a player in your sector.`,
-    );
-    ctx.term.writeln(`${colors.cyan('Jettison:')} ${colors.boldYellow("'J'")} jettison all cargo.`);
-    ctx.term.writeln(`${colors.cyan('Drones:')} ${colors.boldYellow("'F'")} deploy sector drones.`);
-    ctx.term.writeln(
-        `${colors.cyan('Deployed:')} ${colors.boldYellow("'G'")} list deployed drones.`,
-    );
-    ctx.term.writeln(`${colors.cyan('Land:')} ${colors.boldYellow("'L'")} land on a planet.`);
-    ctx.term.writeln(
-        `${colors.cyan('Terraform:')} ${colors.boldYellow("'U'")} use terraform device.`,
-    );
-    ctx.term.writeln(`${colors.cyan('Computer:')} ${colors.boldYellow("'C'")} ship computer.`);
-    ctx.term.writeln(
-        `${colors.cyan('Starbase:')} ${colors.boldYellow("'V'")} show Starbase location.`,
-    );
-    ctx.term.writeln(`${colors.cyan('Who:')} ${colors.boldYellow("'#'")} players online.`);
-    ctx.term.writeln(`${colors.cyan('Help:')} ${colors.boldYellow("'?'")} this help.`);
-    ctx.term.writeln(`${colors.cyan('Quit:')} ${colors.boldYellow("'Q'")} quit the game.`);
+    ctx.term.writeln(render(HELP.header));
+    for (const line of HELP_LINES) {
+        const tpl = 'key' in line ? HELP.lineKey : HELP.lineText;
+        ctx.term.writeln(render(tpl, line));
+    }
     showPrompt(ctx);
 }
 
 export function showPortMenu(ctx: GameContext) {
     if (!ctx.currentPort) {
-        ctx.term.writeln(`\r\n${colors.boldRed('No port in this sector.')}`);
+        ctx.term.writeln(render(PORT.menuNoPort));
         showPrompt(ctx);
         return;
     }
-    const label = PORT_CLASS_LABELS[ctx.currentPort.class] ?? '???';
     ctx.term.writeln('');
     ctx.term.writeln(
-        `${colors.boldCyan(ctx.currentPort.name)}${colors.boldYellow(',')} ${mg('Class')} ${colors.boldCyan(String(ctx.currentPort.class))} ${mg('(')}${colors.boldWhite(label)}${mg(')')}`,
+        render(PORT.menuHeader, {
+            name: ctx.currentPort.name,
+            class: ctx.currentPort.class,
+            label: portClassLabel(ctx.currentPort.class),
+        }),
     );
-    if (ctx.currentPort.class === 9) {
-        ctx.term.writeln(`  ${colors.cyan('S')}  Enter Starbase`);
-    } else {
-        ctx.term.writeln(`  ${colors.cyan('T')}  Trade at this port`);
-    }
-    ctx.term.writeln(`  ${colors.cyan('Q')}  Never mind`);
+    ctx.term.writeln(
+        render(COMMON.menuRow, {
+            key: ctx.currentPort.class === 9 ? 'S' : 'T',
+            text: ctx.currentPort.class === 9 ? 'Enter Starbase' : 'Trade at this port',
+        }),
+    );
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Never mind' }));
 }
 
 export function showCommerceReport(
@@ -153,36 +145,63 @@ export function showCommerceReport(
     credits: number,
     emptyHolds: number,
 ) {
-    ctx.term.writeln('');
-    ctx.term.writeln(`${colors.boldGreen('Commerce report for')} ${colors.boldCyan(portName)}`);
-    ctx.term.writeln('');
-    ctx.term.writeln(
-        ` ${colors.boldWhite('Items'.padEnd(12))}${colors.boldWhite('Status'.padEnd(10))}${colors.boldWhite('Trading'.padStart(7))} ${colors.boldWhite('% of max'.padStart(8))} ${colors.boldWhite('OnBoard'.padStart(7))}`,
+    void portClass;
+    const { term } = ctx;
+    term.writeln('');
+    term.writeln(render(PORT.commerceHeader, { name: portName }));
+    term.writeln('');
+    term.writeln(
+        render(PORT.commerceColumns, {
+            items: 'Items'.padEnd(12),
+            status: 'Status'.padEnd(10),
+            trading: 'Trading'.padStart(7),
+            pct: '% of max'.padStart(8),
+            onBoard: 'OnBoard'.padStart(7),
+        }),
     );
-    ctx.term.writeln(
-        ` ${colors.white('-----'.padEnd(12))}${colors.white('------'.padEnd(10))}${colors.white('-------'.padStart(7))} ${colors.white('--------'.padStart(8))} ${colors.white('-------'.padStart(7))}`,
+    term.writeln(
+        render(PORT.commerceDividers, {
+            items: '-----'.padEnd(12),
+            status: '------'.padEnd(10),
+            trading: '-------'.padStart(7),
+            pct: '--------'.padStart(8),
+            onBoard: '-------'.padStart(7),
+        }),
     );
     for (const g of goods) {
         const pct = g.max > 0 ? Math.round((g.trading / g.max) * 100) : 0;
-        const statusColor =
-            g.status === 'Buying'
-                ? colors.boldGreen(g.status.padEnd(10))
-                : colors.boldRed(g.status.padEnd(10));
-        ctx.term.writeln(
-            ` ${colors.boldYellow(g.name.padEnd(12))}${statusColor}${colors.white(String(g.trading).padStart(7))} ${colors.white((pct + '%').padStart(8))} ${colors.white(String(g.onBoard).padStart(7))}`,
+        const tpl = g.status === 'Buying' ? PORT.commerceRowBuying : PORT.commerceRowSelling;
+        term.writeln(
+            render(tpl, {
+                name: g.name.padEnd(12),
+                status: g.status.padEnd(10),
+                trading: String(g.trading).padStart(7),
+                pct: String(pct).padStart(7),
+                onBoard: String(g.onBoard).padStart(7),
+            }),
         );
     }
-    ctx.term.writeln('');
-    ctx.term.writeln(
-        `${mg('You have')} ${colors.boldYellow(credits.toLocaleString())} ${mg('credits and')} ${colors.boldYellow(String(emptyHolds))} ${mg('empty cargo holds.')}`,
+    term.writeln('');
+    term.writeln(
+        render(PORT.commerceFooter, {
+            credits: credits.toLocaleString(),
+            holds: emptyHolds,
+        }),
     );
 }
 
-export function showPlayerInfo(ctx: GameContext) {
+export async function showPlayerInfo(ctx: GameContext) {
     ctx.term.writeln('');
-    ctx.term.writeln(`${colors.boldGreen('Player')}: ${colors.boldCyan(ctx.playerName)}`);
-    ctx.term.writeln(
-        `${colors.boldGreen('Sector')}: ${colors.boldCyan(String(ctx.currentSector))}`,
-    );
+    ctx.term.writeln(render(SECTOR.playerInfoName, { name: ctx.playerName }));
+    ctx.term.writeln(render(SECTOR.playerInfoSector, { sector: ctx.currentSector }));
+    // Prefetch hardware catalog so the ShipInfo panel can label hardware items.
+    if (!ctx.hardwareCatalog) {
+        try {
+            const res = await fetch('/api/hardware');
+            ctx.hardwareCatalog = await res.json();
+        } catch {
+            ctx.hardwareCatalog = [];
+        }
+    }
     ctx.sendMsg({ type: ClientMsgType.ShipInfo });
 }

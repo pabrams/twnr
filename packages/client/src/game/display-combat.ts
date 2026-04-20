@@ -1,23 +1,24 @@
 import type { GameContext } from './types.js';
-import { colors } from './constants.js';
+import { render } from './renderer.js';
+import { COMBAT, COMMON } from './messages/index.js';
 import { showPrompt } from './display.js';
 
 export function showAttackMenu(ctx: GameContext) {
     if (ctx.sectorPlayers.length === 0) {
-        ctx.term.writeln(`\r\n${colors.boldRed('No other players in this sector.')}`);
+        ctx.term.writeln(render(COMBAT.attackNoTargets));
         showPrompt(ctx);
         return;
     }
     ctx.term.writeln('');
-    ctx.term.writeln(colors.cyan('Attack — Select target:'));
+    ctx.term.writeln(render(COMBAT.attackHeader));
     ctx.sectorPlayers.forEach((p, i) => {
-        ctx.term.writeln(`  ${colors.boldYellow(String(i + 1))}  ${colors.white(p.name)}`);
+        ctx.term.writeln(render(COMBAT.attackTarget, { n: i + 1, name: p.name }));
     });
-    ctx.term.writeln(`  ${colors.cyan('Q')}  Cancel`);
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Cancel' }));
 }
 
 export function showAttackDronesPrompt(ctx: GameContext) {
-    ctx.term.write(`\r\n${colors.cyan('How many drones to attack with?')} `);
+    ctx.term.write(render(COMBAT.attackQtyPrompt));
 }
 
 export function showDroneEncounter(
@@ -27,20 +28,16 @@ export function showDroneEncounter(
     shipDrones: number,
 ) {
     ctx.term.writeln('');
-    ctx.term.writeln(colors.boldRed('=== HOSTILE DRONES DETECTED ==='));
-    ctx.term.writeln(
-        `  ${colors.boldYellow('Sector drones')}: ${colors.boldRed(String(sectorDrones))} (owned by ${colors.boldYellow(ownerName)})`,
-    );
-    ctx.term.writeln(
-        `  ${colors.boldYellow('Your ship drones')}: ${colors.white(String(shipDrones))}`,
-    );
+    ctx.term.writeln(render(COMBAT.droneEncounterHeader));
+    ctx.term.writeln(render(COMBAT.droneSectorCount, { count: sectorDrones, owner: ownerName }));
+    ctx.term.writeln(render(COMBAT.droneShipCount, { count: shipDrones }));
     if (shipDrones === 0) {
-        ctx.term.writeln(colors.boldRed('You have no drones! You must retreat.'));
+        ctx.term.writeln(render(COMBAT.droneNoDrones));
     }
-    ctx.term.writeln(`  ${colors.cyan('A')}  Attack`);
-    ctx.term.writeln(`  ${colors.cyan('R')}  Retreat`);
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'A', text: 'Attack' }));
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'R', text: 'Retreat' }));
 }
 
 export function showDroneAttackQtyPrompt(ctx: GameContext) {
-    ctx.term.write(`\r\n${colors.cyan('How many drones to send?')} `);
+    ctx.term.write(render(COMBAT.droneAttackQtyPrompt));
 }

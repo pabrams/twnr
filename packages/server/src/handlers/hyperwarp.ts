@@ -1,42 +1,36 @@
 import { ServerMsgType } from '@twnr/shared';
-import { players, sendEnvelope, getGraph, resolveSectorId } from '../game-state.js';
-import { pool } from '../db/index.js';
+import { players, sendEnvelope, sendError, getGraph, resolveSectorId } from '../game-state.js';
 import { getOnPlanetId, moveToSector, markSectorVisited } from '../db/queries/player.js';
-import { getShipFuel } from '../db/queries/ship.js';
+import {
+    getShipFuel,
+    getShipHyperspaceInfo,
+    deductShipFuelAndMoveShip,
+} from '../db/queries/ship.js';
+import {
+    getDeployedDronesByOwner,
+    getDeployedDronesByOwnerBySector,
+} from '../db/queries/drones.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
-import type { DeployedDroneRow } from '../db/types.js';
 
 export async function handleListDeployedDrones(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
     if (player.docked || player.at_starbase) {
-        sendEnvelope(playerId, {
-            type: ServerMsgType.Error,
-            message: 'Cannot use this command while docked',
-        });
+        sendError(playerId, 'Cannot use this command while docked');
         return;
     }
     const onPlanetId = await getOnPlanetId(playerId);
     if (onPlanetId) {
-        sendEnvelope(playerId, {
-            type: ServerMsgType.Error,
-            message: 'Cannot use this command while on a planet',
-        });
+        sendError(playerId, 'Cannot use this command while on a planet');
         return;
     }
 
-    const res = await pool.query<DeployedDroneRow>(
-        `SELECT s.sector_number as sector_id, sf.quantity
-         FROM sector_drones sf
-         JOIN sectors s ON sf.sector_id = s.id
-         WHERE sf.owner_id = $1 AND sf.quantity > 0`,
-        [playerId],
-    );
+    const rows = await getDeployedDronesByOwner(playerId);
 
     sendEnvelope(playerId, {
         type: ServerMsgType.ListDeployedDronesResult,
-        drones: res.rows.map((r) => ({ sectorId: r.sector_id, quantity: r.quantity })),
+        drones: rows.map((r) => ({ sectorId: r.sector_id, quantity: r.quantity })),
     });
 }
 
@@ -45,62 +39,32 @@ export async function handleHyperspaceJump(playerId: number, targetSector: numbe
     if (!player) return;
 
     if (player.docked || player.at_starbase) {
-        sendEnvelope(playerId, {
-            type: ServerMsgType.Error,
-            message: 'Cannot use this command while docked',
-        });
+        sendError(playerId, 'Cannot use this command while docked');
         return;
     }
 
     const onPlanetId = await getOnPlanetId(playerId);
     if (onPlanetId) {
-        sendEnvelope(playerId, {
-            type: ServerMsgType.Error,
-            message: 'Cannot use this command while on a planet',
-        });
+        sendError(playerId, 'Cannot use this command while on a planet');
         return;
     }
 
-    // Check has hyperspace drive (type 1 or 2)
-    const shipRes = await pool.query(
-        `SELECT s.id as ship_id, s.turns_per_warp,
-                COALESCE(sh1.quantity, 0) as has_hyperspace_1,
-                COALESCE(sh2.quantity, 0) as has_hyperspace_2
-         FROM ships s
-         JOIN players p ON p.ship_id = s.id
-         LEFT JOIN ship_hardware sh1 ON sh1.ship_id = s.id
-           AND sh1.hardware_item_id = (SELECT id FROM hardware_item WHERE name = 'hyperspace_1')
-         LEFT JOIN ship_hardware sh2 ON sh2.ship_id = s.id
-           AND sh2.hardware_item_id = (SELECT id FROM hardware_item WHERE name = 'hyperspace_2')
-         WHERE p.id = $1`,
-        [playerId],
-    );
-    if (shipRes.rows.length === 0) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Ship not found' });
+    const shipRow = await getShipHyperspaceInfo(playerId);
+    if (!shipRow) {
+        sendError(playerId, 'Ship not found');
         return;
     }
-    if (!shipRes.rows[0].has_hyperspace_1 && !shipRes.rows[0].has_hyperspace_2) {
-        sendEnvelope(playerId, {
-            type: ServerMsgType.Error,
-            message: 'Hyperspace drive not equipped',
-        });
+    if (!shipRow.has_hyperspace_1 && !shipRow.has_hyperspace_2) {
+        sendError(playerId, 'Hyperspace drive not equipped');
         return;
     }
 
     const universeId = player.universeId;
 
     // Check drones in target sector
-    const droneRes = await pool.query(
-        `SELECT sf.quantity FROM sector_drones sf
-         JOIN sectors s ON sf.sector_id = s.id
-         WHERE s.sector_number = $1 AND s.universe_id = $2 AND sf.owner_id = $3 AND sf.quantity > 0`,
-        [targetSector, universeId, playerId],
-    );
-    if (droneRes.rows.length === 0) {
-        sendEnvelope(playerId, {
-            type: ServerMsgType.Error,
-            message: 'No signal from drones in target sector',
-        });
+    const targetDrones = await getDeployedDronesByOwnerBySector(targetSector, playerId);
+    if (targetDrones === 0) {
+        sendError(playerId, 'No signal from drones in target sector');
         return;
     }
 
@@ -140,37 +104,26 @@ export async function handleHyperspaceJump(playerId: number, targetSector: numbe
     }
 
     if (pathHops < 0) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'No path to target sector' });
+        sendError(playerId, 'No path to target sector');
         return;
     }
 
     const fuelCost = pathHops * 3;
 
-    // Check fuel
     const shipFuel = await getShipFuel(playerId);
     if (shipFuel === undefined || shipFuel < fuelCost) {
-        sendEnvelope(playerId, {
-            type: ServerMsgType.Error,
-            message: 'Insufficient fuel for hyperspace jump',
-        });
+        sendError(playerId, 'Insufficient fuel for hyperspace jump');
         return;
     }
 
-    // Check turns
-    const turnsPerWarp = shipRes.rows[0].turns_per_warp;
-    const turnResult = await checkAndDeductTurns(playerId, universeId, turnsPerWarp);
+    const turnResult = await checkAndDeductTurns(playerId, universeId, shipRow.turns_per_warp);
     if (!turnResult.allowed) {
-        sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Insufficient turns' });
+        sendError(playerId, 'Insufficient turns');
         return;
     }
 
-    // Deduct fuel and move
     const targetSectorId = await resolveSectorId(targetSector, universeId);
-    await pool.query('UPDATE ships SET fuel = fuel - $1, sector_id = $2 WHERE id = $3', [
-        fuelCost,
-        targetSectorId,
-        shipRes.rows[0].ship_id,
-    ]);
+    await deductShipFuelAndMoveShip(shipRow.ship_id, fuelCost, targetSectorId);
     player.sector = targetSector;
     player.sectorId = targetSectorId;
     await Promise.all([
