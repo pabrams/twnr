@@ -100,15 +100,15 @@ export function createMiddleware(deps: RouteDeps): Middleware {
 
     const loginLimiter = rateLimit({
         windowMs: 15 * 60 * 1000,
-        limit: 10,
+        limit: 30,
         standardHeaders: 'draft-7',
         legacyHeaders: false,
         skip: () => skipRateLimit,
     });
 
     const registerLimiter = rateLimit({
-        windowMs: 60 * 60 * 1000,
-        limit: 5,
+        windowMs: 10 * 60 * 1000,
+        limit: 10,
         standardHeaders: 'draft-7',
         legacyHeaders: false,
         skip: () => skipRateLimit,
