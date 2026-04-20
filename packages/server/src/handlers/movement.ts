@@ -18,7 +18,7 @@ import {
     markSectorVisited,
     getPreviousSectorNumber,
 } from '../db/queries/player.js';
-import { getShipDrones, moveShipToSector } from '../db/queries/ship.js';
+import { getShipDrones, getShipTurnsPerWarp, moveShipToSector } from '../db/queries/ship.js';
 import {
     getSectorDbId,
     findSectorsByNumbers,
@@ -224,9 +224,12 @@ export async function handleShortestPath(
             type: ServerMsgType.ShortestPathResult,
             path: [{ sector: from, visited: true }],
             hops: 0,
+            turns: 0,
         });
         return;
     }
+
+    const turnsPerWarp = await getShipTurnsPerWarp(playerId);
 
     const warps = await getGraph(universeId);
     const queue: { sector: number; path: number[] }[] = [{ sector: from, path: [from] }];
@@ -241,10 +244,12 @@ export async function handleShortestPath(
                 const finalPath = [...path, neighbor];
                 const visitedSet = await findVisitedSectorsInSet(playerId, universeId, finalPath);
                 await setPlayerMenu(playerId, 'autopilotPrompt');
+                const hops = finalPath.length - 1;
                 sendEnvelope(playerId, {
                     type: ServerMsgType.ShortestPathResult,
                     path: finalPath.map((s) => ({ sector: s, visited: visitedSet.has(s) })),
-                    hops: finalPath.length - 1,
+                    hops,
+                    turns: hops * turnsPerWarp,
                 });
                 return;
             }

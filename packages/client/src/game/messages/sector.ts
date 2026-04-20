@@ -41,9 +41,10 @@ export const SECTOR = makeDomain('SECTOR', {
         '\r\n[by]Jettison all cargo?[/by] This cannot be undone. [mg]([/mg][by]y[/by]/[by]n[/by][mg])[/mg] [mg][[/mg][by]N[/by][mg]][/mg] ',
 
     autopilotNotAdjacent:
-        '[by]That sector is not adjacent.[/by] Shortest path [mg]([/mg][bc]{hops}[/bc] hops[mg])[/mg]:',
+        '[g]That sector is not adjacent.[g]\r\n' +
+        '\r\n[g]The Shortest path [mg]({hops} hops, {turns} turns)[/mg] from sector [by]{from}[/by] to sector [by]{to}[/by] is [by]:[/by]',
     autopilotPathSeparator: ' [g]>[/g] ',
-    autopilotConfirm: '\r\n[c]Engage autopilot?[/c] [mg]([/mg][by]Y[/by]/[by]N[/by][mg])[/mg] ',
+    autopilotConfirm: '\r\n[mg]Engage the autopilot?[/mg] [mg]([/mg][by]Y[/by]/[by]N[/by][mg]) [Y][/mg] ',
 
     noPlanet:
         '[w]There is no planet in this sector. You could create one with a Terraform Device.[/w]',
