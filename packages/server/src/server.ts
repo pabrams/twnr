@@ -15,7 +15,17 @@ import { players, sendEnvelope, broadcastTo } from './game-state.js';
 import { handleMessage } from './handlers/message-router.js';
 
 const app: ReturnType<typeof express> = express();
-app.use(helmet());
+app.use(
+    helmet({
+        contentSecurityPolicy: {
+            directives: {
+                ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+                'upgrade-insecure-requests': null,
+            },
+        },
+        strictTransportSecurity: false,
+    }),
+);
 app.use(express.json());
 const server: Server = createServer(app);
 const wss = new WebSocketServer({ server });
