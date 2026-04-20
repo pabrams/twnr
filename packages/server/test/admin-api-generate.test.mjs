@@ -40,15 +40,15 @@ describe('Admin API - Generate Universe', () => {
     assert.equal(res.status, 201);
     const uid = res.body.id;
 
-    // Default portDensity=50: expect ~50% of sectors to have trading ports
+    // Default portDensity=80: target 32 ports on 40 sectors, minus 1 starbase (class 9) = ~31 trading ports (class 1-8)
     const portRes = await pool.query(
       'SELECT COUNT(*) as cnt FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE s.universe_id = $1 AND p.class BETWEEN 1 AND 8', [uid]
     );
     const tradingPorts = parseInt(portRes.rows[0].cnt, 10);
-    assert.ok(tradingPorts >= 15 && tradingPorts <= 25,
-      `Expected ~19 trading ports with default 50% density on 40 sectors, got ${tradingPorts}`);
+    assert.ok(tradingPorts >= 27 && tradingPorts <= 35,
+      `Expected ~31 trading ports with default 80% density on 40 sectors, got ${tradingPorts}`);
 
-    // Default twoWayPct=90: expect ~90% bidirectional warps
+    // Default twoWayPct=95: expect ~95% bidirectional warps
     const warpRes = await pool.query(
       'SELECT s_from.sector_number as sector_from, s_to.sector_number as sector_to FROM warps w JOIN sectors s_from ON w.from_sector_id = s_from.id JOIN sectors s_to ON w.to_sector_id = s_to.id WHERE s_from.universe_id = $1', [uid]
     );
@@ -63,8 +63,8 @@ describe('Admin API - Generate Universe', () => {
       }
     }
     const biPct = (biCount * 2 / warpRes.rows.length) * 100;
-    assert.ok(biPct >= 75 && biPct <= 100,
-      `Expected ~90% bidirectional warps with default, got ${biPct.toFixed(1)}%`);
+    assert.ok(biPct >= 85 && biPct <= 100,
+      `Expected ~95% bidirectional warps with default, got ${biPct.toFixed(1)}%`);
   });
 
   it('returns 400 when name is missing', async () => {
@@ -83,8 +83,8 @@ describe('Admin API - Generate Universe', () => {
     assert.equal(res.status, 400);
   });
 
-  it('returns 400 when sectors is above 500', async () => {
-    const res = await adminKeyPost('/api/admin/universes/generate', { name: 'Huge', sectors: 1000 });
+  it('returns 400 when sectors is above 25000', async () => {
+    const res = await adminKeyPost('/api/admin/universes/generate', { name: 'Huge', sectors: 30000 });
     assert.equal(res.status, 400);
   });
 

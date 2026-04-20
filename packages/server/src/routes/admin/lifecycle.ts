@@ -27,7 +27,6 @@ import {
 } from '../../db/queries/port.js';
 import { upsertEarthPlanet, setEarthColonists } from '../../db/queries/planet.js';
 import { invalidateGraphCache } from '../../game-state.js';
-import { invalidateUniverseConfigCache } from '../../turn-logic.js';
 import {
     countPlayersInUniverse,
     listPlayerIdsInUniverse,
@@ -143,7 +142,6 @@ export function createAdminLifecycleRoutes(
             });
 
             invalidateGraphCache(universeId!);
-            invalidateUniverseConfigCache(universeId!);
 
             const [warpCount, portCount] = await Promise.all([
                 countWarpsInUniverse(universeId!),
@@ -216,7 +214,6 @@ export function createAdminLifecycleRoutes(
             });
 
             invalidateGraphCache(universeId);
-            invalidateUniverseConfigCache(universeId);
 
             res.json({ deleted: true, id: universeId });
         }),

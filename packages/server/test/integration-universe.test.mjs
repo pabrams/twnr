@@ -87,13 +87,14 @@ describe('Universe Generation', () => {
     assert.ok(row.min_e >= 0 && row.max_e <= 5000, `equipment range out of bounds: ${row.min_e}-${row.max_e}`);
   });
 
-  it('approximately 50% of sectors have ports', async () => {
+  it('approximately 80% of sectors have ports', async () => {
     const res = await pool.query(
       `SELECT COUNT(*)::int AS count FROM ports p
        JOIN sectors s ON p.sector_id = s.id
        WHERE s.universe_id = $1`, [UNIVERSE_ID]
     );
     const count = res.rows[0].count;
-    assert.ok(count >= 20 && count <= 80, `Expected roughly 50 ports, got ${count}`);
+    // 100 sectors @ 80% density: 80 generated ports + 1 class-0 at sector 1 = ~81
+    assert.ok(count >= 75 && count <= 85, `Expected roughly 81 ports, got ${count}`);
   });
 });
