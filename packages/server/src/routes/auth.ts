@@ -56,9 +56,7 @@ export function createAuthRoutes(router: Router, deps: RouteDeps, middleware: Mi
 
             const hash = hashPassword(password);
             const role =
-                ADMIN_API_KEY && req.headers['x-admin-key'] === ADMIN_API_KEY
-                    ? 'admin'
-                    : 'player';
+                ADMIN_API_KEY && req.headers['x-admin-key'] === ADMIN_API_KEY ? 'admin' : 'player';
 
             let user;
             try {
