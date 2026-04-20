@@ -96,7 +96,19 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 if (msg.docked && msg.port) {
                     ctx.dockedPortInfo = msg.port;
                     if (msg.port.class === 0) {
-                        showClass0Menu(ctx);
+                        if (msg.shipInfo) {
+                            ctx.class0ShipState = {
+                                shipName: msg.shipInfo.shipName,
+                                credits: msg.credits ?? 0,
+                                drones: msg.shipInfo.drones,
+                                maxDrones: msg.shipInfo.maxDrones,
+                                shields: msg.shipInfo.shields,
+                                maxShields: msg.shipInfo.maxShields,
+                                holds: msg.shipInfo.holds,
+                                maxHolds: msg.shipInfo.maxHolds,
+                            };
+                        }
+                        showClass0Menu(ctx, true);
                     } else {
                         const actions = PORT_CLASS_ACTIONS[msg.port.class];
                         if (!actions) break;
@@ -193,6 +205,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
             case ServerMsgType.UndockResult:
                 if (msg.outcome === 'success') {
                     ctx.dockedPortInfo = null;
+                    ctx.class0ShipState = null;
                     ctx.sectorPlayers = msg.players;
                     showPrompt(ctx);
                 } else {
@@ -248,6 +261,36 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 ctx.term.writeln(
                     render(PANEL.shipCreditsTurns, { credits: msg.credits, turns: msg.turns }),
                 );
+                ctx.term.writeln(render(PANEL.shipTurnsPerWarp, { turns: msg.turnsPerWarp }));
+                if (ctx.hardwareCatalog && ctx.hardwareCatalog.length > 0) {
+                    ctx.term.writeln(render(PANEL.shipHardwareHeader));
+                    for (const item of ctx.hardwareCatalog) {
+                        const max = msg.hardwareMax[item.name];
+                        if (max === undefined || max === 0) {
+                            // Ship type can't carry this item — skip.
+                            continue;
+                        }
+                        const qty = msg.hardware[item.name] ?? 0;
+                        if (item.kind === 'toggle') {
+                            ctx.term.writeln(
+                                render(
+                                    qty > 0
+                                        ? PANEL.shipHardwareRowToggleOn
+                                        : PANEL.shipHardwareRowToggleOff,
+                                    { label: item.label },
+                                ),
+                            );
+                        } else {
+                            ctx.term.writeln(
+                                render(PANEL.shipHardwareRowStackable, {
+                                    label: item.label,
+                                    qty,
+                                    max,
+                                }),
+                            );
+                        }
+                    }
+                }
                 if (ctx.mode === Menu.Sector) showPrompt(ctx);
                 break;
             case ServerMsgType.PlayersOnlineResult: {
@@ -289,9 +332,6 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                         break;
                     case 'encounter': {
                         ctx.sectorPlayers = msg.players;
-                        ctx.visitedSet.add(msg.sector);
-                        ctx.currentSector = msg.sector;
-                        ctx.currentPort = msg.port ?? null;
                         ctx.encounterOwnerName = msg.ownerName;
                         showSectorDisplay(ctx, msg.sector, msg.warps, msg.players, msg.port);
                         if (ctx.autopilotPath.length > 0) {
@@ -353,8 +393,15 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                         drones: msg.drones,
                     }),
                 );
-                if (ctx.mode === Menu.Class0Qty) showClass0Menu(ctx);
-                else if (ctx.mode === Menu.ShipyardsClass0Qty) showShipyardsClass0Menu(ctx);
+                if (ctx.class0ShipState) {
+                    ctx.class0ShipState.credits = msg.credits;
+                    ctx.class0ShipState.drones = msg.drones;
+                }
+                if (ctx.dockedPortInfo?.class === 0) {
+                    showClass0Menu(ctx);
+                } else if (ctx.class0ShipState) {
+                    showShipyardsClass0Menu(ctx);
+                }
                 break;
             case ServerMsgType.BuyShieldsResult:
                 ctx.term.writeln(render(TRANSACTION.purchaseComplete));
@@ -364,8 +411,15 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                         shields: msg.shields,
                     }),
                 );
-                if (ctx.mode === Menu.Class0Qty) showClass0Menu(ctx);
-                else if (ctx.mode === Menu.ShipyardsClass0Qty) showShipyardsClass0Menu(ctx);
+                if (ctx.class0ShipState) {
+                    ctx.class0ShipState.credits = msg.credits;
+                    ctx.class0ShipState.shields = msg.shields;
+                }
+                if (ctx.dockedPortInfo?.class === 0) {
+                    showClass0Menu(ctx);
+                } else if (ctx.class0ShipState) {
+                    showShipyardsClass0Menu(ctx);
+                }
                 break;
             case ServerMsgType.BuyHoldsResult:
                 ctx.term.writeln(render(TRANSACTION.purchaseComplete));
@@ -375,8 +429,15 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                         holds: msg.cargoLimit,
                     }),
                 );
-                if (ctx.mode === Menu.Class0Qty) showClass0Menu(ctx);
-                else if (ctx.mode === Menu.ShipyardsClass0Qty) showShipyardsClass0Menu(ctx);
+                if (ctx.class0ShipState) {
+                    ctx.class0ShipState.credits = msg.credits;
+                    ctx.class0ShipState.holds = msg.cargoLimit;
+                }
+                if (ctx.dockedPortInfo?.class === 0) {
+                    showClass0Menu(ctx);
+                } else if (ctx.class0ShipState) {
+                    showShipyardsClass0Menu(ctx);
+                }
                 break;
             case ServerMsgType.AttackShipResult:
                 ctx.term.writeln('');
@@ -457,9 +518,6 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
             }
             case ServerMsgType.DroneEncounter: {
                 ctx.sectorPlayers = msg.players;
-                ctx.visitedSet.add(msg.sector);
-                ctx.currentSector = msg.sector;
-                ctx.currentPort = msg.port ?? null;
                 ctx.encounterOwnerName = msg.ownerName;
                 showSectorDisplay(ctx, msg.sector, msg.warps, msg.players, msg.port);
                 if (ctx.autopilotPath.length > 0) {
@@ -550,9 +608,22 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
             }
             case ServerMsgType.DockStarbaseResult:
                 ctx.hardwarePrices = msg.prices;
+                if (msg.shipInfo) {
+                    ctx.class0ShipState = {
+                        shipName: msg.shipInfo.shipName,
+                        credits: msg.credits ?? 0,
+                        drones: msg.shipInfo.drones,
+                        maxDrones: msg.shipInfo.maxDrones,
+                        shields: msg.shipInfo.shields,
+                        maxShields: msg.shipInfo.maxShields,
+                        holds: msg.shipInfo.holds,
+                        maxHolds: msg.shipInfo.maxHolds,
+                    };
+                }
                 showStarbaseMenu(ctx);
                 break;
             case ServerMsgType.LeaveStarbaseResult:
+                ctx.class0ShipState = null;
                 ctx.sectorPlayers = msg.players;
                 showSectorDisplay(
                     ctx,

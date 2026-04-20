@@ -18,6 +18,14 @@ import { getPortClassAtSector } from '../db/queries/port.js';
 import { class0Prices } from '../game-config.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 
+/**
+ * After a Class-0 purchase, return the player to the menu they came from:
+ * shipyardsClass0 (inside starbase shipyards) or plain class0 (regular port).
+ */
+function class0ReturnMenu(playerId: number): 'shipyardsClass0' | 'class0' {
+    return players[playerId]?.currentMenu === 'shipyardsClass0Qty' ? 'shipyardsClass0' : 'class0';
+}
+
 /** Returns true iff player is at a place where they can buy Class-0 upgrades. */
 async function isAtClass0OrStarbase(
     playerId: number,
@@ -72,7 +80,7 @@ export async function handleBuyDrones(playerId: number, quantity: number): Promi
 
         if (!result) return;
 
-        await setPlayerMenu(playerId, 'class0');
+        await setPlayerMenu(playerId, class0ReturnMenu(playerId));
         sendEnvelope(playerId, {
             type: ServerMsgType.BuyDronesResult,
             credits: result.credits,
@@ -124,7 +132,7 @@ export async function handleBuyShields(playerId: number, quantity: number): Prom
 
         if (!result) return;
 
-        await setPlayerMenu(playerId, 'class0');
+        await setPlayerMenu(playerId, class0ReturnMenu(playerId));
         sendEnvelope(playerId, {
             type: ServerMsgType.BuyShieldsResult,
             credits: result.credits,
@@ -186,7 +194,7 @@ export async function handleBuyHolds(playerId: number, quantity: number): Promis
 
         if (!result) return;
 
-        await setPlayerMenu(playerId, 'class0');
+        await setPlayerMenu(playerId, class0ReturnMenu(playerId));
         sendEnvelope(playerId, {
             type: ServerMsgType.BuyHoldsResult,
             credits: result.credits,

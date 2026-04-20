@@ -23,6 +23,7 @@ import {
 import {
     getShipCargoWithCredits,
     getShipCargoWithCreditsForUpdate,
+    getShipInfo,
     incrementShipCommodity,
 } from '../db/queries/ship.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
@@ -114,6 +115,7 @@ export async function handleDock(playerId: number): Promise<void> {
 
     if (p.class === 0) {
         await setPlayerMenu(playerId, 'class0');
+        const ship = await getShipInfo(playerId);
         sendEnvelope(playerId, {
             type: ServerMsgType.DockResult,
             docked: true,
@@ -121,6 +123,17 @@ export async function handleDock(playerId: number): Promise<void> {
             credits,
             cargo: cargoOut,
             emptyHolds,
+            shipInfo: ship
+                ? {
+                      shipName: ship.ship_name,
+                      drones: ship.drones,
+                      maxDrones: ship.max_drones,
+                      shields: ship.shields,
+                      maxShields: ship.max_shields,
+                      holds: ship.holds,
+                      maxHolds: ship.max_holds,
+                  }
+                : undefined,
         });
         return;
     }
@@ -636,10 +649,25 @@ export async function handleDockStarbase(playerId: number): Promise<void> {
     player.at_starbase = true;
     await setPlayerMenu(playerId, 'starbase');
 
-    const priceRows = await getHardwarePricesForUniverse(player.universeId);
+    const [priceRows, ship] = await Promise.all([
+        getHardwarePricesForUniverse(player.universeId),
+        getShipInfo(playerId),
+    ]);
     sendEnvelope(playerId, {
         type: ServerMsgType.DockStarbaseResult,
         prices: priceRows.map((r) => ({ name: r.name, label: r.label, price: r.price })),
+        credits: ship?.credits,
+        shipInfo: ship
+            ? {
+                  shipName: ship.ship_name,
+                  drones: ship.drones,
+                  maxDrones: ship.max_drones,
+                  shields: ship.shields,
+                  maxShields: ship.max_shields,
+                  holds: ship.holds,
+                  maxHolds: ship.max_holds,
+              }
+            : undefined,
     });
 }
 

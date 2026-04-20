@@ -217,6 +217,15 @@ function handleInput(ctx: GameContext, line: string) {
         ctx.sendMsg({ type: ClientMsgType.Move, sector: parseInt(cmd, 10) });
         return;
     }
+    if (cmd === '<') {
+        if (ctx.previousSector > 0) {
+            ctx.sendMsg({ type: ClientMsgType.Move, sector: ctx.previousSector });
+        } else {
+            ctx.term.writeln(render(NOTIFY.noPreviousSector));
+            showPrompt(ctx);
+        }
+        return;
+    }
     switch (cmd.toLowerCase()) {
         case '':
         case 'd':

@@ -204,6 +204,16 @@ export type DockResultObject = {
     credits?: number;
     cargo?: { fuel: number; organics: number; equipment: number; colonists: number };
     emptyHolds?: number;
+    /** Included when docking at a Class-0 port — drives the Commerce report UI. */
+    shipInfo?: {
+        shipName: string;
+        drones: number;
+        maxDrones: number;
+        shields: number;
+        maxShields: number;
+        holds: number;
+        maxHolds: number;
+    };
 };
 
 export type PlanetInfoResultObject = {
@@ -279,6 +289,16 @@ export type HardwarePriceItem = {
 export type DockStarbaseResultObject = {
     type: typeof ServerMsgType.DockStarbaseResult;
     prices: HardwarePriceItem[];
+    credits?: number;
+    shipInfo?: {
+        shipName: string;
+        drones: number;
+        maxDrones: number;
+        shields: number;
+        maxShields: number;
+        holds: number;
+        maxHolds: number;
+    };
 };
 
 export type TakeColonistsResultObject = {

@@ -27,6 +27,9 @@ export function showSectorDisplay(
     collisions?: { planetName: string; collidingWithName: string; collisionAt: string }[],
 ) {
     ctx.visitedSet.add(sector);
+    if (ctx.currentSector !== 0 && ctx.currentSector !== sector) {
+        ctx.previousSector = ctx.currentSector;
+    }
     ctx.currentSector = sector;
     ctx.currentPort = port ?? null;
     const { term } = ctx;
@@ -187,9 +190,18 @@ export function showCommerceReport(
     );
 }
 
-export function showPlayerInfo(ctx: GameContext) {
+export async function showPlayerInfo(ctx: GameContext) {
     ctx.term.writeln('');
     ctx.term.writeln(render(SECTOR.playerInfoName, { name: ctx.playerName }));
     ctx.term.writeln(render(SECTOR.playerInfoSector, { sector: ctx.currentSector }));
+    // Prefetch hardware catalog so the ShipInfo panel can label hardware items.
+    if (!ctx.hardwareCatalog) {
+        try {
+            const res = await fetch('/api/hardware');
+            ctx.hardwareCatalog = await res.json();
+        } catch {
+            ctx.hardwareCatalog = [];
+        }
+    }
     ctx.sendMsg({ type: ClientMsgType.ShipInfo });
 }

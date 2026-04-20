@@ -13,6 +13,7 @@ import {
     listMenus,
     listMenuCommands,
 } from '../db/queries/catalog.js';
+import { listHardwareCatalog } from '../db/queries/hardware.js';
 
 function slugify(name: string): string {
     return name
@@ -49,6 +50,14 @@ export function createCatalogRoutes(router: Router, middleware: Middleware): voi
         const planets = Object.values(planetConfigs).sort((a, b) => a.type.localeCompare(b.type));
         res.json(planets);
     });
+
+    router.get(
+        '/api/hardware',
+        asyncHandler(async (_req, res) => {
+            const items = await listHardwareCatalog();
+            res.json(items);
+        }),
+    );
 
     // Menu registry: menus + commands, cached by client for the session
     router.get(
