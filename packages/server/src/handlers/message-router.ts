@@ -2,7 +2,13 @@ import { ClientMsgType, ServerMsgType, type ClientCommand } from '@twnr/shared';
 import { players, sendEnvelope, sendError, getVisitedSectors } from '../game-state.js';
 import { countSectorsInUniverse } from '../db/queries/sector.js';
 import { handleChangeMenu } from './menu.js';
-import { handleMove, handleSectorDisplay, handleWarpsOut, handleShortestPath } from './movement.js';
+import {
+    handleMove,
+    handleMoveToPrevious,
+    handleSectorDisplay,
+    handleWarpsOut,
+    handleShortestPath,
+} from './movement.js';
 import {
     handlePortInfo,
     handleDock,
@@ -42,6 +48,8 @@ export async function handleMessage(playerId: number, data: ClientCommand): Prom
     switch (data.type) {
         case ClientMsgType.Move:
             return handleMove(playerId, data.sector);
+        case ClientMsgType.MoveToPrevious:
+            return handleMoveToPrevious(playerId);
         case ClientMsgType.SectorDisplay:
             return handleSectorDisplay(playerId);
         case ClientMsgType.PlayersOnline:

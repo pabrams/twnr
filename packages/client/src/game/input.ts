@@ -217,16 +217,10 @@ function handleInput(ctx: GameContext, line: string) {
         ctx.sendMsg({ type: ClientMsgType.Move, sector: parseInt(cmd, 10) });
         return;
     }
-    if (cmd === '<') {
-        if (ctx.previousSector > 0) {
-            ctx.sendMsg({ type: ClientMsgType.Move, sector: ctx.previousSector });
-        } else {
-            ctx.term.writeln(render(NOTIFY.noPreviousSector));
-            showPrompt(ctx);
-        }
-        return;
-    }
     switch (cmd.toLowerCase()) {
+        case '<':
+            ctx.sendMsg({ type: ClientMsgType.MoveToPrevious });
+            break;
         case '':
         case 'd':
             ctx.sendMsg({ type: ClientMsgType.SectorDisplay });
@@ -307,7 +301,7 @@ function handlePortInput(ctx: GameContext, line: string) {
 
 function handleTradeQtyInput(ctx: GameContext, line: string) {
     const trimmed = line.trim();
-    // Empty input = accept default (server will clamp)
+    // Empty input = accept default
     const qty = trimmed === '' ? -1 : parseInt(trimmed, 10);
     if (isNaN(qty) || qty < -1) return;
     // -1 signals "use default maxQty" to the server, 0 = skip

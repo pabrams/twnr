@@ -27,9 +27,6 @@ export function showSectorDisplay(
     collisions?: { planetName: string; collidingWithName: string; collisionAt: string }[],
 ) {
     ctx.visitedSet.add(sector);
-    if (ctx.currentSector !== 0 && ctx.currentSector !== sector) {
-        ctx.previousSector = ctx.currentSector;
-    }
     ctx.currentSector = sector;
     ctx.currentPort = port ?? null;
     const { term } = ctx;

@@ -7,6 +7,10 @@ export type MoveCommand = {
     sector: number;
 };
 
+export type MoveToPreviousCommand = {
+    type: typeof ClientMsgType.MoveToPrevious;
+};
+
 export type SectorDisplayCommand = {
     type: typeof ClientMsgType.SectorDisplay;
 };
@@ -187,6 +191,7 @@ export type TradeConfirmResponseCommand = {
 
 export type ClientCommand =
     | MoveCommand
+    | MoveToPreviousCommand
     | SectorDisplayCommand
     | PlayersOnlineCommand
     | WarpsOutCommand

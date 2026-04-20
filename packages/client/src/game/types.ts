@@ -10,20 +10,15 @@ import type {
 } from '@twnr/shared';
 
 export interface GameContext {
-    // ─── Services (methods) ──────────────────────────────────────────
     term: Terminal;
     ws: WebSocket;
     universeId: number;
     sendMsg: (msg: ClientCommand) => void;
-    /** Set mode locally AND notify server */
     changeMenu: (menu: MenuName) => void;
     setDebug: (on: boolean) => void;
 
-    // ─── Mutable state ───────────────────────────────────────────────
     mode: MenuName;
     currentSector: number;
-    /** The sector the player was in just before the current one; 0 if none. */
-    previousSector: number;
     currentPort: { class: number; name: string } | null;
     dockedPortInfo: PortInfoResultObject | null;
     visitedSet: Set<number>;
@@ -58,7 +53,6 @@ export interface GameContext {
     hardwarePrices: HardwarePriceItem[] | null;
     colonistCommodity: 'fuel' | 'organics' | 'equipment' | null;
 
-    // ─── Transient UI state (was ad-hoc via `as any`) ────────────────
     knownUniverseMode: 'explored' | 'unexplored';
     starbaseBuyItemName: string | null;
     shipyardsBuyTarget: string | null;

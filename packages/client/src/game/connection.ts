@@ -356,6 +356,10 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                         ctx.term.writeln(render(EVENT.noShip));
                         showPrompt(ctx);
                         break;
+                    case 'noPrevious':
+                        ctx.term.writeln(render(NOTIFY.noPreviousSector));
+                        showPrompt(ctx);
+                        break;
                     case 'error':
                         if (ctx.autopilotPath.length > 0) {
                             ctx.autopilotPath = [];

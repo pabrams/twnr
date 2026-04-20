@@ -196,6 +196,7 @@ async function advanceTradeFlow(playerId: number): Promise<void> {
     }
 
     const { steps } = player.tradeState;
+    const initialStepIndex = player.tradeState.stepIndex;
 
     while (player.tradeState.stepIndex < steps.length) {
         const step = steps[player.tradeState.stepIndex];
@@ -238,10 +239,13 @@ async function advanceTradeFlow(playerId: number): Promise<void> {
         player.tradeState.stepIndex++;
     }
 
-    sendEnvelope(playerId, {
-        type: ServerMsgType.TradeSkipped,
-        reason: 'noTrade',
-    });
+    // Only show "nothing to trade" if no trade prompts were ever shown this docking.
+    if (initialStepIndex === 0) {
+        sendEnvelope(playerId, {
+            type: ServerMsgType.TradeSkipped,
+            reason: 'noTrade',
+        });
+    }
     await undockPlayer(playerId);
 }
 
