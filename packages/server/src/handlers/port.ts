@@ -172,7 +172,7 @@ export async function handleDock(playerId: number): Promise<void> {
         });
     }
 
-    player.tradeState = { steps, stepIndex: 0 };
+    player.tradeState = { steps, stepIndex: 0, prompted: new Set() };
     await advanceTradeFlow(playerId);
 }
 
@@ -195,11 +195,11 @@ async function advanceTradeFlow(playerId: number): Promise<void> {
         return;
     }
 
-    const { steps } = player.tradeState;
-    const initialStepIndex = player.tradeState.stepIndex;
+    const { steps, prompted } = player.tradeState;
 
-    while (player.tradeState.stepIndex < steps.length) {
-        const step = steps[player.tradeState.stepIndex];
+    for (let i = 0; i < steps.length; i++) {
+        const step = steps[i];
+        if (prompted.has(step.commodity)) continue;
 
         const [port, cargo] = await Promise.all([
             getPortInventoryAtSector(player.sector, player.universeId),
@@ -219,28 +219,28 @@ async function advanceTradeFlow(playerId: number): Promise<void> {
                 ? Math.min(emptyHolds, portTrading)
                 : Math.min(onBoard, portTrading);
 
-        if (maxQty > 0) {
-            await setPlayerMenu(playerId, 'tradeQty');
-            sendEnvelope(playerId, {
-                type: ServerMsgType.TradePrompt,
-                commodity: step.commodity,
-                commodityLabel: step.commodityLabel,
-                action: step.action,
-                portTrading,
-                onBoard,
-                maxQty,
-                price: step.price,
-                credits: cargo.credits,
-                emptyHolds,
-            });
-            return;
-        }
+        if (maxQty <= 0) continue;
 
-        player.tradeState.stepIndex++;
+        player.tradeState.stepIndex = i;
+        prompted.add(step.commodity);
+        await setPlayerMenu(playerId, 'tradeQty');
+        sendEnvelope(playerId, {
+            type: ServerMsgType.TradePrompt,
+            commodity: step.commodity,
+            commodityLabel: step.commodityLabel,
+            action: step.action,
+            portTrading,
+            onBoard,
+            maxQty,
+            price: step.price,
+            credits: cargo.credits,
+            emptyHolds,
+        });
+        return;
     }
 
-    // Only show "nothing to trade" if no trade prompts were ever shown this docking.
-    if (initialStepIndex === 0) {
+    // Nothing to prompt. If we never prompted anything, show the "nothing to trade" message.
+    if (prompted.size === 0) {
         sendEnvelope(playerId, {
             type: ServerMsgType.TradeSkipped,
             reason: 'noTrade',
