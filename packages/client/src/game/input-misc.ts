@@ -107,7 +107,7 @@ export function handleJettisonConfirmInput(ctx: GameContext, line: string) {
 }
 
 export function handlePlanetInput(ctx: GameContext, line: string) {
-    switch (line.toLowerCase()) {
+    switch (line.trim().toLowerCase()) {
         case 't':
             ctx.changeMenu(Menu.PlanetTakeCommodity);
             showPlanetTakeCommodityMenu(ctx);
@@ -116,6 +116,7 @@ export function handlePlanetInput(ctx: GameContext, line: string) {
             ctx.changeMenu(Menu.PlanetLeaveCommodity);
             showPlanetLeaveCommodityMenu(ctx);
             break;
+        case '':
         case 'd':
             ctx.sendMsg({ type: ClientMsgType.PlanetDisplay });
             break;

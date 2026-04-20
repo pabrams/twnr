@@ -702,6 +702,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                         equipment: msg.colonists_equipment,
                     }),
                 );
+                showPlanetMenuOptions(ctx);
                 break;
             case ServerMsgType.DestroyPlanetResult:
                 if (msg.destroyed) {
