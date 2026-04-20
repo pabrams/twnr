@@ -35,10 +35,6 @@ export type ShipInfoCommand = {
     type: typeof ClientMsgType.ShipInfo;
 };
 
-export type CargoInfoCommand = {
-    type: typeof ClientMsgType.CargoInfo;
-};
-
 export type PortTransactionCommand = {
     type: typeof ClientMsgType.PortTransaction;
     good: string;
@@ -197,7 +193,6 @@ export type ClientCommand =
     | ShortestPathCommand
     | PortInfoCommand
     | ShipInfoCommand
-    | CargoInfoCommand
     | PortTransactionCommand
     | BuyDronesCommand
     | BuyShieldsCommand

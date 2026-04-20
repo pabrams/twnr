@@ -16,7 +16,8 @@ import {
     showCurrentShipSpecs,
     showTraderList,
 } from './display-computer.js';
-import { colors } from './constants.js';
+import { render } from './renderer.js';
+import { NOTIFY } from './messages/index.js';
 
 export function handleComputerInput(ctx: GameContext, line: string) {
     switch (line.toLowerCase()) {
@@ -81,7 +82,7 @@ export function handleShipCatalogInput(ctx: GameContext, line: string) {
     if (ctx.shipConfigs && idx >= 0 && idx < ctx.shipConfigs.length) {
         showShipDetail(ctx, ctx.shipConfigs[idx]);
     } else {
-        ctx.term.writeln(colors.boldRed('Invalid selection.'));
+        ctx.term.writeln(render(NOTIFY.invalidSelection));
     }
 }
 
@@ -95,6 +96,6 @@ export function handlePlanetSpecsInput(ctx: GameContext, line: string) {
     if (ctx.planetConfigs && idx >= 0 && idx < ctx.planetConfigs.length) {
         showPlanetDetail(ctx, ctx.planetConfigs[idx]);
     } else {
-        ctx.term.writeln(colors.boldRed('Invalid selection.'));
+        ctx.term.writeln(render(NOTIFY.invalidSelection));
     }
 }

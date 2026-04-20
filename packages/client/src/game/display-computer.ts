@@ -1,42 +1,37 @@
 import { ClientMsgType, Menu } from '@twnr/shared';
 import type { ShipCatalogEntry, PlanetConfig } from '@twnr/shared';
 import type { GameContext } from './types.js';
-import { colors } from './constants.js';
+import { render } from './renderer.js';
+import { COMPUTER, COMMON, STARBASE } from './messages/index.js';
 import { indexToLetter } from './display-starbase.js';
 
-const mg = colors.magenta;
-
 export function showComputerPrompt(ctx: GameContext) {
-    ctx.term.write(
-        `\r\n${mg('Computer command')} ${mg('[')}${colors.boldCyan(String(ctx.currentSector))}${mg(']')} ${mg('(')}${colors.boldYellow('?')}=${colors.boldYellow('Help')}${mg(')')} ${colors.boldYellow(':')} `,
-    );
+    ctx.term.write(render(COMPUTER.prompt, { sector: ctx.currentSector }));
 }
 
 export function showComputerActivated(ctx: GameContext) {
-    ctx.term.writeln(`\r\n${colors.boldCyan('<Computer activated>')}`);
+    ctx.term.writeln(render(COMPUTER.activated));
     showComputerPrompt(ctx);
 }
 
 export function showComputerDeactivated(ctx: GameContext) {
-    ctx.term.writeln(`\r\n${colors.boldCyan('<Computer deactivated>')}`);
+    ctx.term.writeln(render(COMPUTER.deactivated));
 }
 
 export function showComputerHelp(ctx: GameContext) {
     ctx.term.writeln('');
-    ctx.term.writeln(`  ${colors.cyan('K')}  Known Universe`);
-    ctx.term.writeln(`  ${colors.cyan('L')}  List Traders`);
-    ctx.term.writeln(`  ${colors.cyan('C')}  Ship Catalog`);
-    ctx.term.writeln(`  ${colors.cyan('J')}  Planetary Specs`);
-    ctx.term.writeln(`  ${colors.cyan(';')}  Current Ship Specs`);
-    ctx.term.writeln(`  ${colors.cyan('Y')}  Your Planets`);
-    ctx.term.writeln(`  ${colors.cyan('Q')}  Exit Computer`);
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'K', text: 'Known Universe' }));
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'L', text: 'List Traders' }));
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'C', text: 'Ship Catalog' }));
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'J', text: 'Planetary Specs' }));
+    ctx.term.writeln(render(COMMON.menuRow, { key: ';', text: 'Current Ship Specs' }));
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'Y', text: 'Your Planets' }));
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Exit Computer' }));
     showComputerPrompt(ctx);
 }
 
 export function showKnownUniverseMenu(ctx: GameContext) {
-    ctx.term.write(
-        `\r\n${colors.boldCyan('Known Universe')} — ${colors.cyan('E')}xplored, ${colors.cyan('U')}nexplored, ${colors.cyan('Q')}uit? `,
-    );
+    ctx.term.write(render(COMPUTER.knownUniversePrompt));
 }
 
 export function showExploredSectors(ctx: GameContext) {
@@ -55,54 +50,62 @@ export function renderVisitedSectorsResult(
 ) {
     const mode = ctx.knownUniverseMode;
     const visited = new Set(msg.sectors);
+    ctx.term.writeln('');
     if (mode === 'explored') {
         const explored = msg.sectors.sort((a, b) => a - b);
-        ctx.term.writeln('');
-        ctx.term.writeln(`${colors.boldCyan('Explored sectors')} (${explored.length}):`);
-        ctx.term.writeln(explored.map((s) => colors.boldCyan(String(s))).join(' '));
+        ctx.term.writeln(render(COMPUTER.exploredHeader, { count: explored.length }));
+        ctx.term.writeln(explored.map((s) => render(COMPUTER.exploredSector, { n: s })).join(' '));
     } else {
         const unexplored: number[] = [];
         for (let i = 1; i <= msg.totalSectors; i++) {
             if (!visited.has(i)) unexplored.push(i);
         }
-        ctx.term.writeln('');
-        ctx.term.writeln(`${colors.boldCyan('Unexplored sectors')} (${unexplored.length}):`);
-        ctx.term.writeln(unexplored.map((s) => colors.boldRed(String(s))).join(' '));
+        ctx.term.writeln(render(COMPUTER.unexploredHeader, { count: unexplored.length }));
+        ctx.term.writeln(
+            unexplored.map((s) => render(COMPUTER.unexploredSector, { n: s })).join(' '),
+        );
     }
     ctx.changeMenu(Menu.Computer);
     showComputerPrompt(ctx);
 }
 
-export async function showShipCatalog(ctx: GameContext) {
-    if (!ctx.shipConfigs) {
-        ctx.term.writeln(`\r\n${colors.white('Loading ship catalog...')}`);
-        try {
-            const res = await fetch('/api/ships');
-            ctx.shipConfigs = await res.json();
-        } catch {
-            ctx.term.writeln(colors.boldRed('Failed to load ship catalog.'));
-            showComputerPrompt(ctx);
-            return;
-        }
+async function loadShipConfigs(ctx: GameContext): Promise<boolean> {
+    if (ctx.shipConfigs) return true;
+    ctx.term.writeln(render(STARBASE.loadingShipCatalog));
+    try {
+        const res = await fetch('/api/ships');
+        ctx.shipConfigs = await res.json();
+        return true;
+    } catch {
+        ctx.term.writeln(render(STARBASE.shipCatalogFailed));
+        showComputerPrompt(ctx);
+        return false;
     }
-    ctx.term.writeln('');
-    ctx.term.writeln(colors.boldCyan('=== Ship Catalog ==='));
-    ctx.shipConfigs!.forEach((ship, i) => {
-        const letter = indexToLetter(i);
-        ctx.term.writeln(`  ${colors.boldYellow(letter)}  ${colors.white(ship.name)}`);
-    });
-    ctx.term.writeln(`  ${colors.cyan('Q')}  Back`);
 }
 
-function shipLine(label: string, value: string | number | boolean, pad = 22): string {
-    return `  ${colors.boldYellow(label.padEnd(pad))} ${colors.white(String(value))}`;
+export async function showShipCatalog(ctx: GameContext) {
+    if (!(await loadShipConfigs(ctx))) return;
+    ctx.term.writeln('');
+    ctx.term.writeln(render(COMPUTER.shipCatalogHeader));
+    ctx.shipConfigs!.forEach((ship, i) => {
+        ctx.term.writeln(
+            render(COMPUTER.shipCatalogRow, { letter: indexToLetter(i), name: ship.name }),
+        );
+    });
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
+}
+
+function detailLine(label: string, value: string | number | boolean, pad = 22): string {
+    return render(COMPUTER.shipDetailLine, {
+        label: label.padEnd(pad),
+        value: String(value),
+    });
 }
 
 function boolStr(val: boolean): string {
-    return val ? colors.boldGreen('Yes') : colors.white('No');
+    return render(val ? COMPUTER.shipDetailBoolYes : COMPUTER.shipDetailBoolNo);
 }
 
-// Hardware display labels (order matters for display)
 const HW_DISPLAY: { name: string; label: string; isToggle?: boolean }[] = [
     { name: 'hyperspace_1', label: 'Hyperspace 1', isToggle: true },
     { name: 'hyperspace_2', label: 'Hyperspace 2', isToggle: true },
@@ -122,98 +125,107 @@ const HW_DISPLAY: { name: string; label: string; isToggle?: boolean }[] = [
 ];
 
 export function showShipDetail(ctx: GameContext, ship: ShipCatalogEntry) {
-    ctx.term.writeln('');
-    ctx.term.writeln(colors.boldCyan(`=== ${ship.name} ===`));
-    if (ship.make) ctx.term.writeln(shipLine('Make', ship.make));
-    ctx.term.writeln(shipLine('Price', ship.base_cost?.toLocaleString() ?? '?'));
-    ctx.term.writeln(shipLine('Speed', ship.speed));
-    ctx.term.writeln(shipLine('Turns/Warp', ship.turns_per_warp));
-    ctx.term.writeln(shipLine('Starting Holds', ship.starting_holds));
-    ctx.term.writeln(shipLine('Max Holds', ship.max_holds));
-    ctx.term.writeln(shipLine('Max Drones', ship.max_drones));
-    ctx.term.writeln(shipLine('Max Shields', ship.max_shields));
-    ctx.term.writeln(shipLine('Odds Offensive', ship.odds_offensive));
-    ctx.term.writeln(shipLine('Odds Defensive', ship.odds_defensive));
-    ctx.term.writeln(shipLine('Max Drone Attack', ship.max_drone_attack));
-    ctx.term.writeln(shipLine('Transporter Range', ship.transporter_range));
-    ctx.term.writeln(shipLine('Has Escape Pod', boolStr(ship.has_pod)));
-    ctx.term.writeln(shipLine('Can Land', boolStr(ship.can_land)));
-    ctx.term.writeln(shipLine('Has Tractor', boolStr(ship.has_tractor)));
-    ctx.term.writeln(shipLine('Has Interdictor', boolStr(ship.has_interdictor)));
+    const { term } = ctx;
+    term.writeln('');
+    term.writeln(render(COMPUTER.shipDetailHeader, { name: ship.name }));
+    if (ship.make) term.writeln(detailLine('Make', ship.make));
+    term.writeln(detailLine('Price', ship.base_cost?.toLocaleString() ?? '?'));
+    term.writeln(detailLine('Speed', ship.speed));
+    term.writeln(detailLine('Turns/Warp', ship.turns_per_warp));
+    term.writeln(detailLine('Starting Holds', ship.starting_holds));
+    term.writeln(detailLine('Max Holds', ship.max_holds));
+    term.writeln(detailLine('Max Drones', ship.max_drones));
+    term.writeln(detailLine('Max Shields', ship.max_shields));
+    term.writeln(detailLine('Odds Offensive', ship.odds_offensive));
+    term.writeln(detailLine('Odds Defensive', ship.odds_defensive));
+    term.writeln(detailLine('Max Drone Attack', ship.max_drone_attack));
+    term.writeln(detailLine('Transporter Range', ship.transporter_range));
+    term.writeln(detailLine('Has Escape Pod', boolStr(ship.has_pod)));
+    term.writeln(detailLine('Can Land', boolStr(ship.can_land)));
+    term.writeln(detailLine('Has Tractor', boolStr(ship.has_tractor)));
+    term.writeln(detailLine('Has Interdictor', boolStr(ship.has_interdictor)));
     const hw = ship.hardware ?? {};
     for (const h of HW_DISPLAY) {
         const val = hw[h.name] ?? 0;
-        if (h.isToggle) {
-            ctx.term.writeln(shipLine(h.label, boolStr(val > 0)));
-        } else {
-            ctx.term.writeln(shipLine(h.label, val));
-        }
+        term.writeln(detailLine(h.label, h.isToggle ? boolStr(val > 0) : val));
     }
-    if (ship.notes) ctx.term.writeln(shipLine('Notes', ship.notes));
+    if (ship.notes) term.writeln(detailLine('Notes', ship.notes));
 }
 
 export async function showPlanetSpecs(ctx: GameContext) {
     if (!ctx.planetConfigs) {
-        ctx.term.writeln(`\r\n${colors.white('Loading planetary specs...')}`);
+        ctx.term.writeln(render(COMPUTER.planetSpecsLoading));
         try {
             const res = await fetch('/api/planets');
             ctx.planetConfigs = await res.json();
         } catch {
-            ctx.term.writeln(colors.boldRed('Failed to load planetary specs.'));
+            ctx.term.writeln(render(COMPUTER.planetSpecsFailed));
             showComputerPrompt(ctx);
             return;
         }
     }
     ctx.term.writeln('');
-    ctx.term.writeln(colors.boldCyan('=== Planetary Specifications ==='));
+    ctx.term.writeln(render(COMPUTER.planetSpecsHeader));
     ctx.planetConfigs!.forEach((planet, i) => {
-        const letter = indexToLetter(i);
-        ctx.term.writeln(`  ${colors.boldYellow(letter)}  ${colors.white(planet.type)}`);
+        ctx.term.writeln(
+            render(COMPUTER.planetSpecsRow, {
+                letter: indexToLetter(i),
+                type: planet.type,
+            }),
+        );
     });
-    ctx.term.writeln(`  ${colors.cyan('Q')}  Back`);
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
 }
 
 export function showPlanetDetail(ctx: GameContext, planet: PlanetConfig) {
-    ctx.term.writeln('');
-    ctx.term.writeln(colors.boldCyan(`=== ${planet.type} ===`));
-    ctx.term.writeln(`  ${colors.white(planet.description)}`);
-    ctx.term.writeln(
-        `  ${colors.boldYellow('Max Colonists'.padEnd(20))} ${colors.white(String(planet.maxColonists))}`,
+    const { term } = ctx;
+    term.writeln('');
+    term.writeln(render(COMPUTER.planetDetailHeader, { type: planet.type }));
+    term.writeln(render(COMPUTER.planetDetailDescription, { description: planet.description }));
+    const pad = (s: string) => s.padEnd(20);
+    term.writeln(
+        render(COMPUTER.planetDetailLine, {
+            label: pad('Max Colonists'),
+            value: planet.maxColonists,
+        }),
     );
-    ctx.term.writeln(
-        `  ${colors.boldYellow('Max Citadel'.padEnd(20))} ${colors.white(String(planet.maxCitadel))}`,
+    term.writeln(
+        render(COMPUTER.planetDetailLine, {
+            label: pad('Max Citadel'),
+            value: planet.maxCitadel,
+        }),
     );
-    ctx.term.writeln(
-        `  ${colors.boldYellow('Fuel Production'.padEnd(20))} ${colors.white(String(planet.fuelProduction))}`,
+    term.writeln(
+        render(COMPUTER.planetDetailLine, {
+            label: pad('Fuel Production'),
+            value: planet.fuelProduction,
+        }),
     );
-    ctx.term.writeln(
-        `  ${colors.boldYellow('Organics Production'.padEnd(20))} ${colors.white(String(planet.organicsProduction))}`,
+    term.writeln(
+        render(COMPUTER.planetDetailLine, {
+            label: pad('Organics Production'),
+            value: planet.organicsProduction,
+        }),
     );
-    ctx.term.writeln(
-        `  ${colors.boldYellow('Equip Production'.padEnd(20))} ${colors.white(String(planet.equipmentProduction))}`,
+    term.writeln(
+        render(COMPUTER.planetDetailLine, {
+            label: pad('Equip Production'),
+            value: planet.equipmentProduction,
+        }),
     );
 }
 
 export async function showCurrentShipSpecs(ctx: GameContext) {
-    if (!ctx.shipConfigs) {
-        try {
-            const res = await fetch('/api/ships');
-            ctx.shipConfigs = await res.json();
-        } catch {
-            ctx.term.writeln(colors.boldRed('Failed to load ship catalog.'));
-            showComputerPrompt(ctx);
-            return;
-        }
-    }
+    if (!(await loadShipConfigs(ctx))) return;
     if (!ctx.currentShipName) {
-        ctx.term.writeln(colors.white('Requesting ship data...'));
+        ctx.term.writeln(render(COMPUTER.shipDataRequesting));
         ctx.sendMsg({ type: ClientMsgType.ShipInfo });
         showComputerPrompt(ctx);
         return;
     }
     const ship = ctx.shipConfigs!.find((s) => s.name === ctx.currentShipName);
     if (!ship) {
-        ctx.term.writeln(colors.boldRed(`Ship config not found for: ${ctx.currentShipName}`));
+        ctx.term.writeln(render(COMPUTER.shipConfigNotFound, { name: ctx.currentShipName }));
         showComputerPrompt(ctx);
         return;
     }
@@ -222,20 +234,23 @@ export async function showCurrentShipSpecs(ctx: GameContext) {
 }
 
 export async function showTraderList(ctx: GameContext) {
-    ctx.term.writeln(`\r\n${colors.white('Loading traders...')}`);
+    ctx.term.writeln(render(COMPUTER.traderListLoading));
     try {
         const res = await fetch(`/api/universes/${ctx.universeId}/players`);
         const traders: { name: string; shipName: string }[] = await res.json();
         ctx.term.writeln('');
-        ctx.term.writeln(colors.boldCyan('=== Traders in Universe ==='));
-        ctx.term.writeln(`  ${colors.boldWhite('Name'.padEnd(24))} ${colors.boldWhite('Ship')}`);
+        ctx.term.writeln(render(COMPUTER.traderListHeader));
+        ctx.term.writeln(render(COMPUTER.traderListColumns, { name: 'Name'.padEnd(24) }));
         for (const t of traders) {
             ctx.term.writeln(
-                `  ${colors.boldYellow(t.name.padEnd(24))} ${colors.white(t.shipName)}`,
+                render(COMPUTER.traderListRow, {
+                    name: t.name.padEnd(24),
+                    ship: t.shipName,
+                }),
             );
         }
     } catch {
-        ctx.term.writeln(colors.boldRed('Failed to load trader list.'));
+        ctx.term.writeln(render(COMPUTER.traderListFailed));
     }
     showComputerPrompt(ctx);
 }

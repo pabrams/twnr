@@ -1,7 +1,39 @@
 import { Router } from 'express';
-import { pool } from '../../db/index.js';
+import { withTransaction } from '../../db/index.js';
 import { generateUniverse } from '../../bigbang/index.js';
 import type { RouteDeps, Middleware } from '../middleware.js';
+import { asyncHandler, HttpError, parseIntParam } from '../async-handler.js';
+import {
+    universeExists,
+    getUniverseBasicInfo,
+    insertUniverseFull,
+    renameUniverse,
+    deleteUniverse,
+    getEditIdByName,
+    getEarthStartingColonistsForEdit,
+} from '../../db/queries/universe.js';
+import {
+    countSectorsInUniverse,
+    countWarpsInUniverse,
+    insertSector,
+    insertWarp,
+    listWarpEdges,
+    getStarbaseSectorNumber,
+} from '../../db/queries/sector.js';
+import {
+    countPortsInUniverse,
+    insertGeneratedPort,
+    upsertSpecialPort,
+} from '../../db/queries/port.js';
+import { upsertEarthPlanet, setEarthColonists } from '../../db/queries/planet.js';
+import {
+    countPlayersInUniverse,
+    listPlayerIdsInUniverse,
+    deleteVisitedSectorsForPlayers,
+    clearShipIdsForPlayers,
+    deleteShipsByOwners,
+    deletePlayersInUniverse,
+} from '../../db/queries/player.js';
 
 export function createAdminLifecycleRoutes(
     router: Router,
@@ -9,43 +41,49 @@ export function createAdminLifecycleRoutes(
     middleware: Middleware,
 ): void {
     const { authenticateAdmin } = middleware;
+    void deps;
 
-    router.post('/api/admin/universes/generate', authenticateAdmin, async (req, res) => {
-        const { name, sectors, seed, portDensity, twoWayPct, warpDist, edit_name = 'stock' } =
-            req.body;
+    router.post(
+        '/api/admin/universes/generate',
+        authenticateAdmin,
+        asyncHandler(async (req, res) => {
+            const {
+                name,
+                sectors,
+                seed,
+                portDensity,
+                twoWayPct,
+                warpDist,
+                edit_name = 'stock',
+            } = req.body;
 
-        if (!name || !String(name).trim()) {
-            return res.status(400).json({ error: 'name is required' });
-        }
-        const sectorCount = parseInt(sectors, 10);
-        if (!sectors || isNaN(sectorCount) || sectorCount < 20 || sectorCount > 25000) {
-            return res
-                .status(400)
-                .json({ error: 'sectors is required and must be between 20 and 25000' });
-        }
-
-        // Validate warpDist if provided
-        let parsedWarpDist: number[] | undefined;
-        if (warpDist != null) {
-            if (
-                !Array.isArray(warpDist) ||
-                warpDist.length !== 6 ||
-                warpDist.some((v: unknown) => typeof v !== 'number' || v < 0)
-            ) {
-                return res.status(400).json({
-                    error: 'warpDist must be an array of 6 non-negative numbers (degrees 1-6)',
-                });
+            if (!name || !String(name).trim()) {
+                throw new HttpError(400, 'name is required');
             }
-            const sum = warpDist.reduce((a: number, b: number) => a + b, 0);
-            if (Math.abs(sum - 100) > 0.01) {
-                return res.status(400).json({
-                    error: `warpDist values must sum to 100 (got ${sum})`,
-                });
+            const sectorCount = parseInt(sectors, 10);
+            if (!sectors || isNaN(sectorCount) || sectorCount < 20 || sectorCount > 25000) {
+                throw new HttpError(400, 'sectors is required and must be between 20 and 25000');
             }
-            parsedWarpDist = [0, ...warpDist];
-        }
 
-        try {
+            let parsedWarpDist: number[] | undefined;
+            if (warpDist != null) {
+                if (
+                    !Array.isArray(warpDist) ||
+                    warpDist.length !== 6 ||
+                    warpDist.some((v: unknown) => typeof v !== 'number' || v < 0)
+                ) {
+                    throw new HttpError(
+                        400,
+                        'warpDist must be an array of 6 non-negative numbers (degrees 1-6)',
+                    );
+                }
+                const sum = warpDist.reduce((a: number, b: number) => a + b, 0);
+                if (Math.abs(sum - 100) > 0.01) {
+                    throw new HttpError(400, `warpDist values must sum to 100 (got ${sum})`);
+                }
+                parsedWarpDist = [0, ...warpDist];
+            }
+
             const result = generateUniverse({
                 sectors: sectorCount,
                 seed: seed != null ? Math.floor(Number(seed)) : undefined,
@@ -54,336 +92,194 @@ export function createAdminLifecycleRoutes(
                 warpDist: parsedWarpDist,
             });
 
-            const client = await pool.connect();
-            try {
-                await client.query('BEGIN');
+            const universeId = await withTransaction(async (client) => {
+                const editId = await getEditIdByName(edit_name, client);
+                const newUniverseId = await insertUniverseFull(name, result.seed, editId, client);
 
-                // Look up the edit
-                const editRes = await client.query('SELECT id FROM edits WHERE name = $1', [
-                    edit_name,
-                ]);
-                const editId = editRes.rows[0]?.id ?? null;
-
-                // Create universe row
-                const univRes = await client.query(
-                    'INSERT INTO universes (name, seed, edit_id) VALUES ($1, $2, $3) RETURNING id',
-                    [name, result.seed, editId],
-                );
-                const universeId = univRes.rows[0].id;
-
-                // Insert sectors and build sector_number → id map
                 const sectorIdMap = new Map<number, number>();
                 for (const s of result.sectors) {
-                    const sRes = await client.query(
-                        'INSERT INTO sectors (universe_id, sector_number, name) VALUES ($1, $2, $3) RETURNING id',
-                        [universeId, s.id, s.name],
-                    );
-                    sectorIdMap.set(s.id, sRes.rows[0].id);
+                    const id = await insertSector(newUniverseId, s.id, s.name, client);
+                    sectorIdMap.set(s.id, id);
                 }
 
-                // Insert warps
                 for (const w of result.warps) {
-                    await client.query(
-                        'INSERT INTO warps (from_sector_id, to_sector_id) VALUES ($1, $2)',
-                        [sectorIdMap.get(w.from), sectorIdMap.get(w.to)],
-                    );
+                    await insertWarp(sectorIdMap.get(w.from)!, sectorIdMap.get(w.to)!, client);
                 }
 
-                // Insert trading ports
                 for (const p of result.ports) {
-                    await client.query(
-                        `INSERT INTO ports (sector_id, class, fuel, fuel_max, fuel_price, organics, org_max, org_price, equipment, equ_max, equ_price)
-                             VALUES ($1, $2, $3, $3, $4, $5, $5, $6, $7, $7, $8)`,
-                        [
-                            sectorIdMap.get(p.sector),
-                            p.class,
-                            p.fuel_qty,
-                            p.fuel_price,
-                            p.org_qty,
-                            p.org_price,
-                            p.equ_qty,
-                            p.equ_price,
-                        ],
+                    await insertGeneratedPort(
+                        sectorIdMap.get(p.sector)!,
+                        p.class,
+                        {
+                            fuelQty: p.fuel_qty,
+                            fuelPrice: p.fuel_price,
+                            orgQty: p.org_qty,
+                            orgPrice: p.org_price,
+                            equQty: p.equ_qty,
+                            equPrice: p.equ_price,
+                        },
+                        client,
                     );
                 }
 
-                // Seed Class 0 port in Sector 1
                 const sector1Id = sectorIdMap.get(1)!;
-                await client.query(
-                    `INSERT INTO ports (sector_id, class, fuel, fuel_max, fuel_price, organics, org_max, org_price, equipment, equ_max, equ_price)
-                         VALUES ($1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-                         ON CONFLICT (sector_id) DO UPDATE
-                         SET class = 0, fuel = 0, fuel_max = 0, fuel_price = 0, organics = 0, org_max = 0, org_price = 0, equipment = 0, equ_max = 0, equ_price = 0`,
-                    [sector1Id],
-                );
+                await upsertSpecialPort(sector1Id, 0, client);
 
-                // Seed Class 9 port at Starbase
-                const starbaseRes = await client.query(
-                    `SELECT id FROM sectors WHERE name = 'Starbase' AND universe_id = $1`,
-                    [universeId],
-                );
-                if (starbaseRes.rows.length > 0) {
-                    await client.query(
-                        `INSERT INTO ports (sector_id, class, fuel, fuel_max, fuel_price, organics, org_max, org_price, equipment, equ_max, equ_price)
-                             VALUES ($1, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-                             ON CONFLICT (sector_id) DO UPDATE
-                             SET class = 9, fuel = 0, fuel_max = 0, fuel_price = 0, organics = 0, org_max = 0, org_price = 0, equipment = 0, equ_max = 0, equ_price = 0`,
-                        [starbaseRes.rows[0].id],
-                    );
+                const starbaseSectorNumber = await getStarbaseSectorNumber(newUniverseId, client);
+                if (starbaseSectorNumber !== null) {
+                    const starbaseSectorDbId = sectorIdMap.get(starbaseSectorNumber);
+                    if (starbaseSectorDbId !== undefined) {
+                        await upsertSpecialPort(starbaseSectorDbId, 9, client);
+                    }
                 }
 
-                // Seed Earth in Sector 1 with starting colonists
-                await client.query(
-                    `INSERT INTO planets (sector_id, name, type)
-                         VALUES ($1, 'Earth', 'Terran')
-                         ON CONFLICT DO NOTHING`,
-                    [sector1Id],
-                );
-                const earthColRes = await client.query(
-                    `SELECT COALESCE(e.starting_earth_colonists, 1000000) as col
-                         FROM edits e WHERE e.id = $1`,
-                    [editId],
-                );
-                const earthCol = earthColRes.rows[0]?.col ?? 1000000;
-                await client.query(
-                    `UPDATE planets SET colonists_fuel = $1
-                         WHERE sector_id = $2 AND name = 'Earth'`,
-                    [earthCol, sector1Id],
-                );
+                await upsertEarthPlanet(sector1Id, client);
+                const earthCol = await getEarthStartingColonistsForEdit(editId, client);
+                await setEarthColonists(sector1Id, earthCol, client);
 
-                await client.query('COMMIT');
+                return newUniverseId;
+            });
 
-                // Count actual data
-                const warpCountRes = await pool.query(
-                    `SELECT COUNT(*) FROM warps w
-                         JOIN sectors s ON w.from_sector_id = s.id
-                         WHERE s.universe_id = $1`,
-                    [universeId],
-                );
-                const portCountRes = await pool.query(
-                    `SELECT COUNT(*) FROM ports p
-                         JOIN sectors s ON p.sector_id = s.id
-                         WHERE s.universe_id = $1`,
-                    [universeId],
-                );
+            const [warpCount, portCount] = await Promise.all([
+                countWarpsInUniverse(universeId!),
+                countPortsInUniverse(universeId!),
+            ]);
 
-                res.status(201).json({
-                    id: universeId,
-                    name,
-                    seed: result.seed,
-                    sectorCount: result.sectors.length,
-                    warpCount: parseInt(warpCountRes.rows[0].count, 10),
-                    portCount: parseInt(portCountRes.rows[0].count, 10),
-                });
-            } catch (err) {
-                await client.query('ROLLBACK');
-                throw err;
-            } finally {
-                client.release();
-            }
-        } catch (err) {
-            console.error('Generate universe error', err);
-            res.status(500).json({ error: 'Internal server error' });
-        }
-    });
+            res.status(201).json({
+                id: universeId,
+                name,
+                seed: result.seed,
+                sectorCount: result.sectors.length,
+                warpCount,
+                portCount,
+            });
+        }),
+    );
 
-    router.get('/api/admin/universes/:id/stats', authenticateAdmin, async (req, res) => {
-        const universeId = parseInt(req.params.id as string, 10);
+    router.get(
+        '/api/admin/universes/:id/stats',
+        authenticateAdmin,
+        asyncHandler(async (req, res) => {
+            const universeId = parseIntParam(req.params.id, 'id');
 
-        try {
-            const univRes = await pool.query(
-                'SELECT id, name, seed, created_at FROM universes WHERE id = $1',
-                [universeId],
-            );
-            if (univRes.rows.length === 0) {
-                return res.status(404).json({ error: 'Universe not found' });
+            const univ = await getUniverseBasicInfo(universeId);
+            if (!univ) {
+                throw new HttpError(404, 'Universe not found');
             }
 
-            const univ = univRes.rows[0];
-            const sectorCount = await pool.query(
-                'SELECT COUNT(*) FROM sectors WHERE universe_id = $1',
-                [universeId],
-            );
-            const warpCount = await pool.query(
-                `SELECT COUNT(*) FROM warps w
-                     JOIN sectors s ON w.from_sector_id = s.id
-                     WHERE s.universe_id = $1`,
-                [universeId],
-            );
-            const portCount = await pool.query(
-                `SELECT COUNT(*) FROM ports p
-                     JOIN sectors s ON p.sector_id = s.id
-                     WHERE s.universe_id = $1`,
-                [universeId],
-            );
-            const playerCount = await pool.query(
-                'SELECT COUNT(*) FROM players WHERE universe_id = $1',
-                [universeId],
-            );
+            const [sectorCount, warpCount, portCount, playerCount] = await Promise.all([
+                countSectorsInUniverse(universeId),
+                countWarpsInUniverse(universeId),
+                countPortsInUniverse(universeId),
+                countPlayersInUniverse(universeId),
+            ]);
 
             res.json({
                 id: univ.id,
                 name: univ.name,
                 seed: univ.seed,
                 createdAt: univ.created_at,
-                sectorCount: parseInt(sectorCount.rows[0].count, 10),
-                warpCount: parseInt(warpCount.rows[0].count, 10),
-                portCount: parseInt(portCount.rows[0].count, 10),
-                playerCount: parseInt(playerCount.rows[0].count, 10),
+                sectorCount,
+                warpCount,
+                portCount,
+                playerCount,
             });
-        } catch (err) {
-            console.error('Universe stats error', err);
-            res.status(500).json({ error: 'Internal server error' });
-        }
-    });
+        }),
+    );
 
-    router.delete('/api/admin/universes/:id', authenticateAdmin, async (req, res) => {
-        const universeId = parseInt(req.params.id as string, 10);
+    router.delete(
+        '/api/admin/universes/:id',
+        authenticateAdmin,
+        asyncHandler(async (req, res) => {
+            const universeId = parseIntParam(req.params.id, 'id');
 
-        try {
-            // Check universe exists
-            const univRes = await pool.query('SELECT id FROM universes WHERE id = $1', [
-                universeId,
-            ]);
-            if (univRes.rows.length === 0) {
-                return res.status(404).json({ error: 'Universe not found' });
+            if (!(await universeExists(universeId))) {
+                throw new HttpError(404, 'Universe not found');
             }
 
-            const client = await pool.connect();
-            try {
-                await client.query('BEGIN');
-
-                // Get player IDs for this universe
-                const playerRes = await client.query(
-                    'SELECT id FROM players WHERE universe_id = $1',
-                    [universeId],
-                );
-                const playerIds = playerRes.rows.map((r: { id: number }) => r.id);
-
+            await withTransaction(async (client) => {
+                const playerIds = await listPlayerIdsInUniverse(universeId, client);
                 if (playerIds.length > 0) {
-                    // Delete player-related data
-                    await client.query(
-                        'DELETE FROM visited_sectors WHERE player_id = ANY($1::int[])',
-                        [playerIds],
-                    );
-                    await client.query(
-                        'UPDATE players SET ship_id = NULL WHERE id = ANY($1::int[])',
-                        [playerIds],
-                    );
-                    await client.query('DELETE FROM ships WHERE owner_id = ANY($1::int[])', [
-                        playerIds,
-                    ]);
-                    await client.query('DELETE FROM players WHERE universe_id = $1', [universeId]);
+                    await deleteVisitedSectorsForPlayers(playerIds, client);
+                    await clearShipIdsForPlayers(playerIds, client);
+                    await deleteShipsByOwners(playerIds, client);
+                    await deletePlayersInUniverse(universeId, client);
                 }
 
-                // Delete universe — CASCADE handles sectors, warps, ports, planets, sector_drones
-                await client.query('DELETE FROM universes WHERE id = $1', [universeId]);
+                // CASCADE handles sectors, warps, ports, planets, sector_drones
+                await deleteUniverse(universeId, client);
+            });
 
-                await client.query('COMMIT');
+            res.json({ deleted: true, id: universeId });
+        }),
+    );
 
-                res.json({ deleted: true, id: universeId });
-            } catch (err) {
-                await client.query('ROLLBACK');
-                throw err;
-            } finally {
-                client.release();
-            }
-        } catch (err) {
-            console.error('Delete universe error', err);
-            res.status(500).json({ error: 'Internal server error' });
-        }
-    });
+    router.put(
+        '/api/admin/universes/:id',
+        authenticateAdmin,
+        asyncHandler(async (req, res) => {
+            const universeId = parseIntParam(req.params.id, 'id');
+            const { name } = req.body;
 
-    router.put('/api/admin/universes/:id', authenticateAdmin, async (req, res) => {
-        const universeId = parseInt(req.params.id as string, 10);
-        const { name } = req.body;
-
-        if (!name || !String(name).trim()) {
-            return res.status(400).json({ error: 'name is required' });
-        }
-
-        try {
-            const result = await pool.query(
-                'UPDATE universes SET name = $1 WHERE id = $2 RETURNING id, name',
-                [name, universeId],
-            );
-            if (result.rows.length === 0) {
-                return res.status(404).json({ error: 'Universe not found' });
+            if (!name || !String(name).trim()) {
+                throw new HttpError(400, 'name is required');
             }
 
-            res.json({ id: result.rows[0].id, name: result.rows[0].name });
-        } catch (err) {
-            console.error('Rename universe error', err);
-            res.status(500).json({ error: 'Internal server error' });
-        }
-    });
+            const renamed = await renameUniverse(universeId, name);
+            if (!renamed) {
+                throw new HttpError(404, 'Universe not found');
+            }
 
-    router.get('/api/admin/universes/:id/topology', authenticateAdmin, async (req, res) => {
-        const universeId = parseInt(req.params.id as string, 10);
+            res.json({ id: renamed.id, name: renamed.name });
+        }),
+    );
 
-        try {
-            const univRes = await pool.query('SELECT id FROM universes WHERE id = $1', [
-                universeId,
+    router.get(
+        '/api/admin/universes/:id/topology',
+        authenticateAdmin,
+        asyncHandler(async (req, res) => {
+            const universeId = parseIntParam(req.params.id, 'id');
+
+            if (!(await universeExists(universeId))) {
+                throw new HttpError(404, 'Universe not found');
+            }
+
+            const [totalSectors, warps] = await Promise.all([
+                countSectorsInUniverse(universeId),
+                listWarpEdges(universeId),
             ]);
-            if (univRes.rows.length === 0) {
-                return res.status(404).json({ error: 'Universe not found' });
-            }
+            const totalWarps = warps.length;
 
-            const sectorRes = await pool.query(
-                'SELECT COUNT(*) FROM sectors WHERE universe_id = $1',
-                [universeId],
-            );
-            const totalSectors = parseInt(sectorRes.rows[0].count, 10);
-
-            const warpRes = await pool.query(
-                `SELECT s_from.sector_number as sector_from, s_to.sector_number as sector_to
-                     FROM warps w
-                     JOIN sectors s_from ON w.from_sector_id = s_from.id
-                     JOIN sectors s_to ON w.to_sector_id = s_to.id
-                     WHERE s_from.universe_id = $1`,
-                [universeId],
-            );
-            const totalWarps = warpRes.rows.length;
-
-            // Count bidirectional pairs (each pair counted once)
-            const warpSet = new Set(
-                warpRes.rows.map(
-                    (w: { sector_from: number; sector_to: number }) =>
-                        `${w.sector_from},${w.sector_to}`,
-                ),
-            );
+            const warpSet = new Set(warps.map((w) => `${w.from},${w.to}`));
             const counted = new Set<string>();
             let bidirectionalPairs = 0;
-            for (const w of warpRes.rows) {
-                const a = Math.min(w.sector_from, w.sector_to);
-                const b = Math.max(w.sector_from, w.sector_to);
+            for (const w of warps) {
+                const a = Math.min(w.from, w.to);
+                const b = Math.max(w.from, w.to);
                 const key = `${a},${b}`;
-                if (!counted.has(key) && warpSet.has(`${w.sector_to},${w.sector_from}`)) {
+                if (!counted.has(key) && warpSet.has(`${w.to},${w.from}`)) {
                     bidirectionalPairs++;
                     counted.add(key);
                 }
             }
 
-            // Compute out-degree per sector
             const outDeg = new Map<number, number>();
-            for (const w of warpRes.rows) {
-                outDeg.set(w.sector_from, (outDeg.get(w.sector_from) || 0) + 1);
+            for (const w of warps) {
+                outDeg.set(w.from, (outDeg.get(w.from) || 0) + 1);
             }
             const avgOut =
                 totalSectors > 0 ? Math.round((totalWarps / totalSectors) * 100) / 100 : 0;
 
-            // Dead-end sectors: exactly 1 outgoing warp
             const deadEndSectors: number[] = [];
             for (const [sector, deg] of outDeg) {
                 if (deg === 1) deadEndSectors.push(sector);
             }
             deadEndSectors.sort((a, b) => a - b);
 
-            // BFS connectivity from sector 1
             const adj = new Map<number, number[]>();
-            for (const w of warpRes.rows) {
-                if (!adj.has(w.sector_from)) adj.set(w.sector_from, []);
-                adj.get(w.sector_from)!.push(w.sector_to);
+            for (const w of warps) {
+                if (!adj.has(w.from)) adj.set(w.from, []);
+                adj.get(w.from)!.push(w.to);
             }
             const visited = new Set<number>();
             const queue = [1];
@@ -407,9 +303,6 @@ export function createAdminLifecycleRoutes(
                 deadEndSectors,
                 isConnected,
             });
-        } catch (err) {
-            console.error('Topology error', err);
-            res.status(500).json({ error: 'Internal server error' });
-        }
-    });
+        }),
+    );
 }

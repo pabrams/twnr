@@ -1,14 +1,12 @@
 import { Menu } from '@twnr/shared';
 import type { ShipCatalogEntry } from '@twnr/shared';
 import type { GameContext } from './types.js';
-import { colors } from './constants.js';
-
-const mg = colors.magenta;
+import { render } from './renderer.js';
+import { STARBASE, COMMON } from './messages/index.js';
+import { showClass0Menu, showClass0QtyPrompt } from './display-port.js';
 
 export function showStarbasePrompt(ctx: GameContext) {
-    ctx.term.write(
-        `\r\n${mg('<')}${colors.boldCyan('Starbase')}${mg('>')} ${mg('Where to?')} ${mg('(')}${colors.boldYellow('?')}=${colors.boldYellow('Help')}${mg(')')} `,
-    );
+    ctx.term.write(render(STARBASE.rootPrompt));
 }
 
 export function showStarbaseMenu(ctx: GameContext) {
@@ -17,16 +15,14 @@ export function showStarbaseMenu(ctx: GameContext) {
 
 export function showStarbaseHelp(ctx: GameContext) {
     ctx.term.writeln('');
-    ctx.term.writeln(`  ${colors.cyan('S')}  Shipyards`);
-    ctx.term.writeln(`  ${colors.cyan('H')}  Hardware Store`);
-    ctx.term.writeln(`  ${colors.cyan('Q')}  Leave Starbase`);
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'S', text: 'Shipyards' }));
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'H', text: 'Hardware Store' }));
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Leave Starbase' }));
     showStarbasePrompt(ctx);
 }
 
 export function showHardwarePrompt(ctx: GameContext) {
-    ctx.term.write(
-        `\r\n${mg('<')}${colors.boldCyan('Starbase Hardware')}${mg('>')} ${mg('What do you need')} ${mg('(')}${colors.boldYellow('?')}${mg(')')}${mg('?')} `,
-    );
+    ctx.term.write(render(STARBASE.hardwarePrompt));
 }
 
 function fmt(n: number): string {
@@ -37,7 +33,6 @@ export function showHardwareMenu(ctx: GameContext) {
     showHardwarePrompt(ctx);
 }
 
-// Map hardware_item name to menu key for display
 const HW_KEY_MAP: Record<string, string> = {
     terraform_device: 'T',
     planet_buster: 'B',
@@ -63,16 +58,20 @@ export function showHardwareHelp(ctx: GameContext) {
         for (const item of items) {
             const key = HW_KEY_MAP[item.name] ?? '?';
             ctx.term.writeln(
-                `  ${colors.cyan(key)}  ${item.label.padEnd(19)} ${colors.white(fmt(item.price))}`,
+                render(STARBASE.hardwareItemRow, {
+                    key,
+                    label: item.label.padEnd(19),
+                    price: fmt(item.price),
+                }),
             );
         }
     }
-    ctx.term.writeln(`  ${colors.cyan('Q')}  Back`);
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
     showHardwarePrompt(ctx);
 }
 
 export function showBuyQtyPrompt(ctx: GameContext, item: string) {
-    ctx.term.write(`\r\n${colors.cyan(`How many ${item}?`)} `);
+    ctx.term.write(render(STARBASE.buyQtyPrompt, { item }));
 }
 
 export function showPlanetSelectMenu(
@@ -80,21 +79,19 @@ export function showPlanetSelectMenu(
     planets: { id: number; name: string; type: string }[],
 ) {
     ctx.term.writeln('');
-    ctx.term.writeln(colors.boldCyan('=== Select a Planet ==='));
+    ctx.term.writeln(render(STARBASE.planetSelectHeader));
     planets.forEach((p, i) => {
         ctx.term.writeln(
-            `  ${colors.boldYellow(String(i + 1))}  ${colors.white(p.name)} (${p.type})`,
+            render(STARBASE.planetSelectRow, { n: i + 1, name: p.name, type: p.type }),
         );
     });
-    ctx.term.writeln(`  ${colors.cyan('Q')}  Back`);
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
 }
 
 // --- Shipyards ---
 
 export function showShipyardsPrompt(ctx: GameContext) {
-    ctx.term.write(
-        `\r\n${mg('<')}${colors.boldCyan('Shipyards')}${mg('>')} ${mg('What do you need')} ${mg('(')}${colors.boldYellow('?')}${mg(')')}${mg('?')} `,
-    );
+    ctx.term.write(render(STARBASE.shipyardsPrompt));
 }
 
 export function showShipyardsMenu(ctx: GameContext) {
@@ -103,24 +100,23 @@ export function showShipyardsMenu(ctx: GameContext) {
 
 export function showShipyardsHelp(ctx: GameContext) {
     ctx.term.writeln('');
-    ctx.term.writeln(`  ${colors.cyan('B')}  Buy a new ship`);
-    ctx.term.writeln(`  ${colors.cyan('E')}  Examine ship specs`);
-    ctx.term.writeln(`  ${colors.cyan('P')}  Purchase equipment (Class 0)`);
-    ctx.term.writeln(`  ${colors.cyan('Q')}  Back to Starbase`);
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'B', text: 'Buy a new ship' }));
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'E', text: 'Examine ship specs' }));
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'P', text: 'Purchase equipment (Class 0)' }));
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back to Starbase' }));
     showShipyardsPrompt(ctx);
 }
 
 /** Map index to letter, skipping Q (reserved for quit). */
 export function indexToLetter(i: number): string {
-    // A=0..O=14 then skip P→Q, so 15=R, 16=S, etc.
-    const code = 65 + i + (i >= 16 ? 1 : 0); // 16 = index where Q would be
+    const code = 65 + i + (i >= 16 ? 1 : 0);
     return String.fromCharCode(code);
 }
 
 /** Reverse: letter back to index, accounting for skipped Q. */
 export function letterToIndex(letter: string): number {
     const code = letter.toUpperCase().charCodeAt(0) - 65;
-    if (code > 16) return code - 1; // after Q, shift back
+    if (code > 16) return code - 1;
     return code;
 }
 
@@ -133,57 +129,58 @@ function calculateShipPrice(ship: ShipCatalogEntry): number {
     );
 }
 
+async function loadShipConfigs(ctx: GameContext): Promise<boolean> {
+    if (ctx.shipConfigs) return true;
+    ctx.term.writeln(render(STARBASE.loadingShipCatalog));
+    try {
+        const res = await fetch('/api/ships');
+        ctx.shipConfigs = await res.json();
+        return true;
+    } catch {
+        ctx.term.writeln(render(STARBASE.shipCatalogFailed));
+        showShipyardsPrompt(ctx);
+        return false;
+    }
+}
+
 export async function showShipBuyList(ctx: GameContext) {
     ctx.changeMenu(Menu.ShipyardsBuy);
-    if (!ctx.shipConfigs) {
-        ctx.term.writeln(`\r\n${colors.white('Loading ship catalog...')}`);
-        try {
-            const res = await fetch('/api/ships');
-            ctx.shipConfigs = await res.json();
-        } catch {
-            ctx.term.writeln(colors.boldRed('Failed to load ship catalog.'));
-            showShipyardsPrompt(ctx);
-            return;
-        }
-    }
+    if (!(await loadShipConfigs(ctx))) return;
     ctx.term.writeln('');
-    ctx.term.writeln(colors.boldCyan('=== Shipyards - Buy ==='));
+    ctx.term.writeln(render(STARBASE.shipyardsBuyHeader));
     ctx.shipConfigs!.forEach((ship, i) => {
-        const letter = indexToLetter(i);
-        const price = calculateShipPrice(ship);
         const current =
-            ship.name === ctx.currentShipName ? ` ${colors.boldGreen('(current)')}` : '';
+            ship.name === ctx.currentShipName ? render(STARBASE.shipyardsBuyCurrent) : '';
         ctx.term.writeln(
-            `  ${colors.boldYellow(letter)}  ${colors.white(ship.name.padEnd(24))} ${colors.boldYellow(price.toLocaleString().padStart(10))} cr${current}`,
+            render(STARBASE.shipyardsBuyRow, {
+                letter: indexToLetter(i),
+                name: ship.name.padEnd(24),
+                price: calculateShipPrice(ship).toLocaleString().padStart(10),
+                current,
+            }),
         );
     });
-    ctx.term.writeln(`  ${colors.cyan('Q')}  Back`);
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
 }
 
 export function showShipExamineList(ctx: GameContext) {
     ctx.changeMenu(Menu.ShipyardsExamine);
-    showShipBuyListInternal(ctx, 'Examine');
+    showShipListInternal(ctx, 'Examine');
 }
 
-async function showShipBuyListInternal(ctx: GameContext, label: string) {
-    if (!ctx.shipConfigs) {
-        ctx.term.writeln(`\r\n${colors.white('Loading ship catalog...')}`);
-        try {
-            const res = await fetch('/api/ships');
-            ctx.shipConfigs = await res.json();
-        } catch {
-            ctx.term.writeln(colors.boldRed('Failed to load ship catalog.'));
-            showShipyardsPrompt(ctx);
-            return;
-        }
-    }
+async function showShipListInternal(ctx: GameContext, label: string) {
+    if (!(await loadShipConfigs(ctx))) return;
     ctx.term.writeln('');
-    ctx.term.writeln(colors.boldCyan(`=== Shipyards - ${label} ===`));
+    ctx.term.writeln(render(STARBASE.shipyardsExamineHeader, { label }));
     ctx.shipConfigs!.forEach((ship, i) => {
-        const letter = indexToLetter(i);
-        ctx.term.writeln(`  ${colors.boldYellow(letter)}  ${colors.white(ship.name)}`);
+        ctx.term.writeln(
+            render(STARBASE.shipyardsExamineRow, {
+                letter: indexToLetter(i),
+                name: ship.name,
+            }),
+        );
     });
-    ctx.term.writeln(`  ${colors.cyan('Q')}  Back`);
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
 }
 
 export function showTradeinPrompt(
@@ -194,33 +191,23 @@ export function showTradeinPrompt(
 ) {
     ctx.changeMenu(Menu.ShipyardsTradein);
     ctx.term.writeln('');
-    ctx.term.writeln(
-        `${colors.boldCyan(shipName)} — ${colors.boldYellow('Price')}: ${colors.white(price.toLocaleString())} cr`,
-    );
+    ctx.term.writeln(render(STARBASE.tradeinHeader, { ship: shipName, price: fmt(price) }));
     if (tradeinCredit > 0) {
-        ctx.term.writeln(
-            `${colors.boldYellow('Trade-in credit')}: ${colors.white(tradeinCredit.toLocaleString())} cr`,
-        );
-        ctx.term.writeln(
-            `${colors.boldYellow('Net cost with trade-in')}: ${colors.white((price - tradeinCredit).toLocaleString())} cr`,
-        );
+        ctx.term.writeln(render(STARBASE.tradeinCredit, { credit: fmt(tradeinCredit) }));
+        ctx.term.writeln(render(STARBASE.tradeinNet, { net: fmt(price - tradeinCredit) }));
     }
-    ctx.term.write(
-        `\r\n${colors.cyan('Trade in your current ship?')} ${mg('(')}${colors.boldYellow('Y')}/${colors.boldYellow('N')}/${colors.boldYellow('Q')}uit${mg(')')} `,
-    );
+    ctx.term.write(render(STARBASE.tradeinConfirm));
 }
 
 export function showShipyardsClass0Menu(ctx: GameContext) {
     ctx.changeMenu(Menu.ShipyardsClass0);
-    ctx.term.writeln('');
-    ctx.term.writeln(`  ${colors.cyan('F')}  Buy drones`);
-    ctx.term.writeln(`  ${colors.cyan('S')}  Buy shields`);
-    ctx.term.writeln(`  ${colors.cyan('H')}  Buy holds`);
-    ctx.term.writeln(`  ${colors.cyan('Q')}  Back`);
-    ctx.term.write(`\r\n${mg('<')}${colors.boldCyan('Shipyards Equipment')}${mg('>')} `);
+    showClass0Menu(ctx);
 }
 
-export function showShipyardsClass0QtyPrompt(ctx: GameContext, item: string) {
+export function showShipyardsClass0QtyPrompt(
+    ctx: GameContext,
+    item: 'drones' | 'shields' | 'holds',
+) {
     ctx.changeMenu(Menu.ShipyardsClass0Qty);
-    ctx.term.write(`\r\n${colors.cyan(`How many ${item}?`)} `);
+    showClass0QtyPrompt(ctx, item);
 }

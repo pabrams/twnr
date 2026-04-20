@@ -58,6 +58,7 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
         // Mutable state
         mode: Menu.Sector,
         currentSector: 0,
+        previousSector: 0,
         currentPort: null,
         dockedPortInfo: null,
         visitedSet: new Set<number>(),
@@ -67,6 +68,8 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
         sectorPlayers: [],
         attackTarget: null,
         class0BuyType: null,
+        class0ShipState: null,
+        hardwareCatalog: null,
         shipConfigs: null,
         planetConfigs: null,
         currentShipName: '',

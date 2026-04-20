@@ -5,14 +5,24 @@ import { Socket } from 'net';
 import helmet from 'helmet';
 import { createServer, Server, IncomingMessage } from 'http';
 import { WebSocket, WebSocketServer } from 'ws';
-import { connectDB, pool } from './db/index.js';
+import { connectDB } from './db/index.js';
 import { createRoutes } from './routes/index.js';
 import * as auth from './auth/index.js';
 import { ServerMsgType } from '@twnr/shared';
 import type { AuthTokenPayload, ClientCommand, ServerResult } from '@twnr/shared';
 import { shipConfigs } from './ship-config.js';
-import { players, sendEnvelope, broadcastTo } from './game-state.js';
+import { players, sendEnvelope, sendError, broadcastTo } from './game-state.js';
 import { handleMessage } from './handlers/message-router.js';
+import { getUserTokenVersion, markUserConnected } from './db/queries/user.js';
+import {
+    getPlayerConnectInfo,
+    markPlayerLoggedIn,
+    markPlayerLoggedOut,
+    markSectorVisited,
+    setPlayerCurrentMenu,
+    logPlayerCommand,
+} from './db/queries/player.js';
+import { countSectorsInUniverse, getStarbaseSectorNumber } from './db/queries/sector.js';
 
 const app: ReturnType<typeof express> = express();
 app.use(
@@ -111,53 +121,30 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
     }
 
     try {
-        // Look up user's token version
-        const userRes = await pool.query('SELECT token_version FROM users WHERE id = $1', [userId]);
-        if (userRes.rows.length === 0) {
+        const tokenVersion = await getUserTokenVersion(userId);
+        if (tokenVersion === undefined) {
             ws.close(1008, 'User not found');
             return;
         }
-        if (userRes.rows[0].token_version !== authPayload.tokenVersion) {
+        if (tokenVersion !== authPayload.tokenVersion) {
             ws.close(1008, 'Token has been revoked');
             return;
         }
 
-        // Look up player for this user in this universe
-        const playerRes = await pool.query(
-            `SELECT p.id, p.name, p.current_sector_id, p.ship_id, s.sector_number,
-                    st.name AS ship_name
-             FROM players p
-             JOIN sectors s ON p.current_sector_id = s.id
-             LEFT JOIN ships sh ON p.ship_id = sh.id
-             LEFT JOIN ship_types st ON sh.ship_type_id = st.id
-             WHERE p.user_id = $1 AND p.universe_id = $2`,
-            [userId, universeId],
-        );
-        if (playerRes.rows.length === 0) {
+        const playerRow = await getPlayerConnectInfo(userId, universeId);
+        if (!playerRow) {
             ws.close(1008, 'No player in this universe');
             return;
         }
-        const playerRow = playerRes.rows[0];
         const playerId = playerRow.id;
         const sectorId: number = playerRow.current_sector_id;
         const sector: number = playerRow.sector_number;
 
-        // Undock on connect (in case of prior disconnect while docked) and set login timestamp
-        await pool.query('UPDATE players SET docked = FALSE, last_login_at = NOW() WHERE id = $1', [
-            playerId,
-        ]);
-        // Update user last connected timestamp
-        await pool.query('UPDATE users SET last_connected_at = NOW() WHERE id = $1', [userId]);
-        // Mark current sector as visited
-        await pool.query(
-            'INSERT INTO visited_sectors (player_id, sector_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-            [playerId, sectorId],
-        );
-        // Set initial menu to sector
-        await pool.query(
-            `UPDATE players SET current_menu_id = (SELECT id FROM menu WHERE name = 'sector') WHERE id = $1`,
-            [playerId],
-        );
+        await markPlayerLoggedIn(playerId);
+        await markUserConnected(userId);
+        await markSectorVisited(playerId, sectorId);
+        await setPlayerCurrentMenu(playerId, 'sector');
+
         players[playerId] = {
             ws,
             sector,
@@ -168,15 +155,10 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             docked: false,
             currentMenu: 'sector',
         };
-        const [sectorCountRes, starbaseRes] = await Promise.all([
-            pool.query('SELECT COUNT(*) FROM sectors WHERE universe_id = $1', [universeId]),
-            pool.query(
-                "SELECT sector_number FROM sectors WHERE name = 'Starbase' AND universe_id = $1 LIMIT 1",
-                [universeId],
-            ),
+        const [totalSectors, starbaseSector] = await Promise.all([
+            countSectorsInUniverse(universeId),
+            getStarbaseSectorNumber(universeId),
         ]);
-        const totalSectors = parseInt(sectorCountRes.rows[0].count, 10);
-        const starbaseSector = starbaseRes.rows[0]?.sector_number ?? null;
         const welcomeMsg: ServerResult = {
             type: ServerMsgType.Welcome,
             playerId,
@@ -189,7 +171,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
                 userId,
                 name: playerRow.name,
                 role: authPayload.role,
-                tokenVersion: userRes.rows[0].token_version,
+                tokenVersion,
             }),
         };
         ws.send(JSON.stringify({ menu: 'sector', payload: welcomeMsg }));
@@ -210,7 +192,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             try {
                 data = JSON.parse(message.toString()) as ClientCommand;
             } catch {
-                sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Invalid JSON' });
+                sendError(playerId, 'Invalid JSON');
                 return;
             }
 
@@ -218,17 +200,13 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
                 await handleMessage(playerId, data);
             } catch (err) {
                 console.error('Message handler error:', err);
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.Error,
-                    message: 'Internal server error',
-                });
+                sendError(playerId, 'Internal server error');
             }
 
             // Log command (fire-and-forget)
-            pool.query(
-                'INSERT INTO command_log (player_id, universe_id, command_type, payload) VALUES ($1, $2, $3, $4)',
-                [playerId, universeId, data.type, JSON.stringify(data)],
-            ).catch((err) => console.error('Command log error:', err));
+            logPlayerCommand(playerId, universeId, data.type, data).catch((err) =>
+                console.error('Command log error:', err),
+            );
         });
 
         ws.on('close', () => {
@@ -238,8 +216,8 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             delete players[playerId];
 
             // Record logout/disconnect timestamp
-            pool.query('UPDATE players SET last_logout_at = NOW() WHERE id = $1', [playerId]).catch(
-                (err) => console.error('Failed to set last_logout_at:', err),
+            markPlayerLoggedOut(playerId).catch((err) =>
+                console.error('Failed to set last_logout_at:', err),
             );
 
             if (lastSector && lastUniverse) {

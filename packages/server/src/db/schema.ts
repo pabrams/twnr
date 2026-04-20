@@ -678,7 +678,8 @@ export const connectDB = async (): Promise<void> => {
         ('examine_ships', 'Examine ship specs'),
         ('shipyards_equipment', 'Purchase equipment'),
         ('tradein_yes', 'Trade in'),
-        ('tradein_no', 'Keep old ship')
+        ('tradein_no', 'Keep old ship'),
+        ('move_previous', 'Move to previous sector')
       ON CONFLICT (name) DO NOTHING;
 
       -- Seed menu_command join rows
@@ -687,6 +688,7 @@ export const connectDB = async (): Promise<void> => {
       -- === Sector ===
       INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
         ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='move'), '<number>', 'Move to sector','move', NULL, 10),
+        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='move_previous'), '<', 'Previous sector', NULL, NULL, 15),
         ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='display_sector'), 'd', 'Display sector','sectorDisplay', NULL, 20),
         ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='port_menu'), 'p', 'Port',NULL, (SELECT id FROM menu WHERE name='port'), 30),
         ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='player_info'), 'i', 'Player info',NULL, (SELECT id FROM menu WHERE name='playerInfo'), 40),
@@ -710,10 +712,11 @@ export const connectDB = async (): Promise<void> => {
 
       -- === Class0 ===
       INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='class0'), (SELECT id FROM command WHERE name='choose_drones'), 'f', 'Buy drones',NULL, (SELECT id FROM menu WHERE name='class0Qty'), 10),
-        ((SELECT id FROM menu WHERE name='class0'), (SELECT id FROM command WHERE name='choose_shields'), 's', 'Buy shields',NULL, (SELECT id FROM menu WHERE name='class0Qty'), 20),
-        ((SELECT id FROM menu WHERE name='class0'), (SELECT id FROM command WHERE name='choose_holds'), 'h', 'Buy holds',NULL, (SELECT id FROM menu WHERE name='class0Qty'), 30),
-        ((SELECT id FROM menu WHERE name='class0'), (SELECT id FROM command WHERE name='leave_port'), 'q', 'Leave','undock', NULL, 40)
+        ((SELECT id FROM menu WHERE name='class0'), (SELECT id FROM command WHERE name='choose_holds'), 'a', 'Cargo holds',NULL, (SELECT id FROM menu WHERE name='class0Qty'), 10),
+        ((SELECT id FROM menu WHERE name='class0'), (SELECT id FROM command WHERE name='choose_drones'), 'b', 'Fighters',NULL, (SELECT id FROM menu WHERE name='class0Qty'), 20),
+        ((SELECT id FROM menu WHERE name='class0'), (SELECT id FROM command WHERE name='choose_shields'), 'c', 'Shield Points',NULL, (SELECT id FROM menu WHERE name='class0Qty'), 30),
+        ((SELECT id FROM menu WHERE name='class0'), (SELECT id FROM command WHERE name='leave_port'), 'q', 'Quit, nevermind','undock', NULL, 40),
+        ((SELECT id FROM menu WHERE name='class0'), (SELECT id FROM command WHERE name='help_menu'), '?', 'Help',NULL, NULL, 50)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === Class0Qty ===
@@ -913,10 +916,11 @@ export const connectDB = async (): Promise<void> => {
 
       -- === Shipyards Class 0 ===
       INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='shipyardsClass0'), (SELECT id FROM command WHERE name='choose_drones'), 'f', 'Buy drones', NULL, (SELECT id FROM menu WHERE name='shipyardsClass0Qty'), 10),
-        ((SELECT id FROM menu WHERE name='shipyardsClass0'), (SELECT id FROM command WHERE name='choose_shields'), 's', 'Buy shields', NULL, (SELECT id FROM menu WHERE name='shipyardsClass0Qty'), 20),
-        ((SELECT id FROM menu WHERE name='shipyardsClass0'), (SELECT id FROM command WHERE name='choose_holds'), 'h', 'Buy holds', NULL, (SELECT id FROM menu WHERE name='shipyardsClass0Qty'), 30),
-        ((SELECT id FROM menu WHERE name='shipyardsClass0'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', NULL, (SELECT id FROM menu WHERE name='shipyards'), 40)
+        ((SELECT id FROM menu WHERE name='shipyardsClass0'), (SELECT id FROM command WHERE name='choose_holds'), 'a', 'Cargo holds', NULL, (SELECT id FROM menu WHERE name='shipyardsClass0Qty'), 10),
+        ((SELECT id FROM menu WHERE name='shipyardsClass0'), (SELECT id FROM command WHERE name='choose_drones'), 'b', 'Fighters', NULL, (SELECT id FROM menu WHERE name='shipyardsClass0Qty'), 20),
+        ((SELECT id FROM menu WHERE name='shipyardsClass0'), (SELECT id FROM command WHERE name='choose_shields'), 'c', 'Shield Points', NULL, (SELECT id FROM menu WHERE name='shipyardsClass0Qty'), 30),
+        ((SELECT id FROM menu WHERE name='shipyardsClass0'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', NULL, (SELECT id FROM menu WHERE name='shipyards'), 40),
+        ((SELECT id FROM menu WHERE name='shipyardsClass0'), (SELECT id FROM command WHERE name='help_menu'), '?', 'Help', NULL, NULL, 50)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === Shipyards Class 0 Qty ===

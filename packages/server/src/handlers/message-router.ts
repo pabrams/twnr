@@ -1,6 +1,6 @@
 import { ClientMsgType, ServerMsgType, type ClientCommand } from '@twnr/shared';
-import { players, sendEnvelope, getVisitedSectors } from '../game-state.js';
-import { pool } from '../db/index.js';
+import { players, sendEnvelope, sendError, getVisitedSectors } from '../game-state.js';
+import { countSectorsInUniverse } from '../db/queries/sector.js';
 import { handleChangeMenu } from './menu.js';
 import { handleMove, handleSectorDisplay, handleWarpsOut, handleShortestPath } from './movement.js';
 import {
@@ -13,7 +13,7 @@ import {
     handleDockStarbase,
     handleLeaveStarbase,
 } from './port.js';
-import { handleShipInfo, handleCargoInfo } from './ship-info.js';
+import { handleShipInfo } from './ship-info.js';
 import { handleBuyDrones, handleBuyShields, handleBuyHolds } from './ship-upgrades.js';
 import { handleBuyShipTradein, handleBuyShipNew } from './ship-exchange.js';
 import { handleJettison } from './ship-cargo.js';
@@ -54,8 +54,6 @@ export async function handleMessage(playerId: number, data: ClientCommand): Prom
             return handlePortInfo(playerId, data.sectorId);
         case ClientMsgType.ShipInfo:
             return handleShipInfo(playerId);
-        case ClientMsgType.CargoInfo:
-            return handleCargoInfo(playerId);
         case ClientMsgType.PortTransaction:
             return handlePortTransaction(playerId, data.good, data.quantity, data.action);
         case ClientMsgType.BuyDrones:
@@ -121,7 +119,7 @@ export async function handleMessage(playerId: number, data: ClientCommand): Prom
         case ClientMsgType.VisitedSectors:
             return handleVisitedSectors(playerId);
         default:
-            sendEnvelope(playerId, { type: ServerMsgType.Error, message: 'Unknown message type' });
+            sendError(playerId, 'Unknown message type');
     }
 }
 
@@ -129,13 +127,11 @@ async function handleVisitedSectors(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
     const sectors = await getVisitedSectors(playerId);
-    const totalRes = await pool.query('SELECT COUNT(*)::int FROM sectors WHERE universe_id = $1', [
-        player.universeId,
-    ]);
+    const totalSectors = await countSectorsInUniverse(player.universeId);
     sendEnvelope(playerId, {
         type: ServerMsgType.VisitedSectorsResult,
         sectors,
-        totalSectors: totalRes.rows[0].count,
+        totalSectors,
     });
 }
 

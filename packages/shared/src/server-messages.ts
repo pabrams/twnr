@@ -152,16 +152,6 @@ export type ShipInfoResultObject = {
     credits: number;
 };
 
-export type CargoInfoResultObject = {
-    type: typeof ServerMsgType.CargoInfoResult;
-    playerId: number;
-    fuel: number;
-    organics: number;
-    equipment: number;
-    colonists: number;
-    credits: number;
-};
-
 export type PortTransactionResultObject = {
     type: typeof ServerMsgType.PortTransactionResult;
     credits: number;
@@ -214,6 +204,16 @@ export type DockResultObject = {
     credits?: number;
     cargo?: { fuel: number; organics: number; equipment: number; colonists: number };
     emptyHolds?: number;
+    /** Included when docking at a Class-0 port — drives the Commerce report UI. */
+    shipInfo?: {
+        shipName: string;
+        drones: number;
+        maxDrones: number;
+        shields: number;
+        maxShields: number;
+        holds: number;
+        maxHolds: number;
+    };
 };
 
 export type PlanetInfoResultObject = {
@@ -289,6 +289,16 @@ export type HardwarePriceItem = {
 export type DockStarbaseResultObject = {
     type: typeof ServerMsgType.DockStarbaseResult;
     prices: HardwarePriceItem[];
+    credits?: number;
+    shipInfo?: {
+        shipName: string;
+        drones: number;
+        maxDrones: number;
+        shields: number;
+        maxShields: number;
+        holds: number;
+        maxHolds: number;
+    };
 };
 
 export type TakeColonistsResultObject = {
@@ -460,9 +470,18 @@ export type TradeCompleteObject = {
     turnsUsed?: number;
 };
 
+export type TradeSkipReason =
+    | 'noTrade'
+    | 'insufficientTurns'
+    | 'insufficientCredits'
+    | 'insufficientPortInventory'
+    | 'insufficientCargoHolds'
+    | 'insufficientCargo'
+    | 'portCannotBuy';
+
 export type TradeSkippedObject = {
     type: typeof ServerMsgType.TradeSkipped;
-    reason: string;
+    reason: TradeSkipReason;
 };
 
 export type ServerResult =
@@ -483,7 +502,6 @@ export type ServerResult =
     | ShortestPathResultObject
     | PortInfoResultObject
     | ShipInfoResultObject
-    | CargoInfoResultObject
     | PortTransactionResultObject
     | BuyDronesResultObject
     | BuyShieldsResultObject
