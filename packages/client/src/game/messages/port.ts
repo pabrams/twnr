@@ -60,17 +60,17 @@ export const PORT = makeDomain('PORT', {
     class0RowHolds:
         ' [bc]A[/bc]  [mg]Cargo holds[/mg]     [by]:[/by] [by]{price}[/by] [mg]credits / next hold[/mg]        [c]{canBuy}[/c]',
     class0RowDrones:
-        ' [bc]B[/bc]  [mg]Fighters[/mg]        [by]:[/by] [by]{price}[/by] [mg]credits per fighter[/mg]        [c]{canBuy}[/c]',
+        ' [bc]B[/bc]  [mg]Drones[/mg]        [by]:[/by] [by]{price}[/by] [mg]credits per fighter[/mg]        [c]{canBuy}[/c]',
     class0RowShields:
         ' [bc]C[/bc]  [mg]Shield Points[/mg]   [by]:[/by] [by]{price}[/by] [mg]credits per point[/mg]          [c]{canBuy}[/c]',
     class0BuyPrompt:
         '\r\n[mg]Which item do you wish to buy?[/mg] [mg]([/mg][by]A[/by][mg],[/mg][by]B[/by][mg],[/mg][by]C[/by][mg],[/mg][by]Q[/by][mg],[/mg][by]?[/by][mg])[/mg] [by]:[/by] ',
 
-    class0QtyYouHaveFighters: '\r\n[mg]You have[/mg] [by]{qty}[/by] [mg]fighters.[/mg]',
+    class0QtyYouHaveFighters: '\r\n[mg]You have[/mg] [by]{qty}[/by] [mg]drones.[/mg]',
     class0QtyYouHaveShields: '\r\n[mg]You have[/mg] [by]{qty}[/by] [mg]shield points.[/mg]',
     class0QtyYouHaveHolds: '\r\n[mg]You have[/mg] [by]{qty}[/by] [mg]cargo holds.[/mg]',
     class0QtyPromptFighters:
-        '[mg]How many[/mg] [bc]{shipName}[/bc] [mg]fighters do you want to buy ([/mg][by]Max {max}[/by][mg]) [[/mg][by]{max}[/by][mg]] ?[/mg] ',
+        '[mg]How many[/mg] [bc]{shipName}[/bc] [mg]drones do you want to buy ([/mg][by]Max {max}[/by][mg]) [[/mg][by]{max}[/by][mg]] ?[/mg] ',
     class0QtyPromptShields:
         '[mg]How many shield points do you want to buy ([/mg][by]Max {max}[/by][mg]) [[/mg][by]{max}[/by][mg]] ?[/mg] ',
     class0QtyPromptHolds:
