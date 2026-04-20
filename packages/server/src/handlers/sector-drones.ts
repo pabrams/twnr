@@ -63,7 +63,7 @@ export async function handleDeployDronesInfo(playerId: number): Promise<void> {
 }
 
 export async function handleDeployDrones(playerId: number, target: number): Promise<void> {
-    if (!Number.isInteger(target) || target < 0) {
+    if (!Number.isInteger(target) || target < -1) {
         sendError(playerId, 'Invalid target quantity');
         return;
     }
@@ -110,6 +110,11 @@ export async function handleDeployDrones(playerId: number, target: number): Prom
                     throw new AbortTransaction();
                 }
                 currentInSector = existing.quantity;
+            }
+
+            // -1 = accept default: leave the minimum required so ship is filled to max.
+            if (target === -1) {
+                target = Math.max(0, shipDrones + currentInSector - maxDrones);
             }
 
             const delta = target - currentInSector;

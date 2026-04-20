@@ -40,12 +40,18 @@ export function handleAttackDronesInput(ctx: GameContext, line: string) {
 }
 
 export function handleDeployDronesQtyInput(ctx: GameContext, line: string) {
-    if (line.toLowerCase() === 'q') {
+    const trimmed = line.trim();
+    if (trimmed.toLowerCase() === 'q') {
         ctx.changeMenu(Menu.Sector);
         showPrompt(ctx);
         return;
     }
-    const qty = parseInt(line, 10);
+    // Empty Enter → accept default (server computes it)
+    if (trimmed === '') {
+        ctx.sendMsg({ type: ClientMsgType.DeployDrones, quantity: -1 });
+        return;
+    }
+    const qty = parseInt(trimmed, 10);
     if (isNaN(qty) || qty < 0) {
         ctx.term.writeln('Enter a non-negative number (0 to retrieve all).');
         return;

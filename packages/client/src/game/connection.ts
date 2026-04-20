@@ -523,17 +523,20 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 showDroneEncounter(ctx, msg.sectorDrones, msg.ownerName, msg.shipDrones);
                 break;
             }
-            case ServerMsgType.DeployDronesInfoResult:
+            case ServerMsgType.DeployDronesInfoResult: {
+                const total = msg.shipDrones + msg.sectorDrones;
+                const minInSector = Math.max(0, total - msg.shipMaxDrones);
                 ctx.term.writeln('');
                 ctx.term.writeln(
                     render(EVENT.deployDronesInfo, {
-                        sector: msg.sectorDrones,
-                        ship: msg.shipDrones,
+                        total,
                         max: msg.shipMaxDrones,
+                        minInSector,
                     }),
                 );
-                ctx.term.write(render(EVENT.deployDronesPrompt));
+                ctx.term.write(render(EVENT.deployDronesPrompt, { minInSector }));
                 break;
+            }
             case ServerMsgType.DeployDronesResult:
                 ctx.term.writeln(
                     render(EVENT.deployDronesResult, {
