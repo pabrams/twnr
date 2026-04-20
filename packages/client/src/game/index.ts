@@ -63,6 +63,7 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
         playerId: 0,
         totalSectors: 0,
         sectorPlayers: [],
+        currentWarps: [],
         attackTarget: null,
         class0BuyType: null,
         class0ShipState: null,

@@ -1,7 +1,7 @@
 import type { Terminal } from '@xterm/xterm';
 import { ClientMsgType, Menu } from '@twnr/shared';
 import type { GameContext } from './types.js';
-import { showPrompt, showPortMenu, showHelp, showPlayerInfo } from './display.js';
+import { showPrompt, showPortMenu, showHelp, showPlayerInfo, showMoveMenu } from './display.js';
 import { showAttackMenu } from './display-combat.js';
 import { showComputerActivated } from './display-computer.js';
 import { showJettisonConfirm } from './display-port.js';
@@ -209,6 +209,9 @@ function handleInput(ctx: GameContext, line: string) {
         case Menu.HyperspaceJumpTarget:
             handleHyperspaceJumpInput(ctx, line);
             return;
+        case Menu.Move:
+            handleMoveMenuInput(ctx, line);
+            return;
     }
 
     // Sector mode
@@ -246,6 +249,10 @@ function handleInput(ctx: GameContext, line: string) {
             ctx.changeMenu(Menu.Computer);
             showComputerActivated(ctx);
             break;
+        case 'm':
+            ctx.changeMenu(Menu.Move);
+            showMoveMenu(ctx);
+            break;
         case 'd':
             ctx.sendMsg({ type: ClientMsgType.DeployDronesInfo });
             break;
@@ -281,6 +288,27 @@ function handleInput(ctx: GameContext, line: string) {
             if (line) ctx.term.writeln(render(NOTIFY.unknownCommand, { cmd }));
             showPrompt(ctx);
     }
+}
+
+function handleMoveMenuInput(ctx: GameContext, line: string) {
+    const cmd = line.trim();
+    if (cmd === '') {
+        showMoveMenu(ctx);
+        return;
+    }
+    if (cmd.toLowerCase() === 'q') {
+        ctx.changeMenu(Menu.Sector);
+        showPrompt(ctx);
+        return;
+    }
+    const warps = ctx.currentWarps.slice(0, 6);
+    const idx = parseInt(cmd, 10) - 1;
+    if (idx >= 0 && idx < warps.length) {
+        ctx.sendMsg({ type: ClientMsgType.Move, sector: warps[idx].sector });
+        return;
+    }
+    ctx.term.writeln(render(NOTIFY.invalidSelection));
+    showMoveMenu(ctx);
 }
 
 function handlePortInput(ctx: GameContext, line: string) {

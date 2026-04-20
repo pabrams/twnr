@@ -29,6 +29,7 @@ export function showSectorDisplay(
     ctx.visitedSet.add(sector);
     ctx.currentSector = sector;
     ctx.currentPort = port ?? null;
+    ctx.currentWarps = warps;
     const { term } = ctx;
     const comma = render(SECTOR.commaJoin);
     term.writeln('');
@@ -92,6 +93,20 @@ export function showSectorDisplay(
 
 export function showPrompt(ctx: GameContext) {
     ctx.term.write(render(SECTOR.prompt, { sector: ctx.currentSector }));
+}
+
+export function showMoveMenu(ctx: GameContext) {
+    const warps = ctx.currentWarps.slice(0, 6);
+    const { term } = ctx;
+    term.writeln('');
+    term.writeln(render(SECTOR.moveMenuHeader));
+    warps.forEach((w, i) => {
+        const tpl = w.visited ? SECTOR.warpVisited : '[br]{sector}[/br]';
+        const sector = render(tpl, { sector: w.sector });
+        term.writeln(render(SECTOR.moveMenuRow, { n: i + 1, sector }));
+    });
+    term.writeln(render(SECTOR.moveMenuQuit));
+    term.write(render(SECTOR.moveMenuPrompt, { max: warps.length }));
 }
 
 export function showHelp(ctx: GameContext) {
