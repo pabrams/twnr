@@ -32,36 +32,36 @@ after(async () => {
 
 describe('Rate Limiting', () => {
   describe('Login endpoint', () => {
-    it('allows 10 attempts then returns 429', async () => {
+    it('allows 30 attempts then returns 429', async () => {
       const statuses = [];
-      for (let i = 0; i < 11; i++) {
+      for (let i = 0; i < 31; i++) {
         statuses.push(await post('/api/auth/login', { email: 'nobody@example.com', password: 'wrong' }));
       }
-      // First 10 should be 401 (bad credentials, not rate limited)
-      for (let i = 0; i < 10; i++) {
+      // First 30 should be 401 (bad credentials, not rate limited)
+      for (let i = 0; i < 30; i++) {
         assert.equal(statuses[i], 401, `Request ${i + 1} should be 401, got ${statuses[i]}`);
       }
-      // 11th should be rate limited
-      assert.equal(statuses[10], 429, `Request 11 should be 429, got ${statuses[10]}`);
+      // 31st should be rate limited
+      assert.equal(statuses[30], 429, `Request 31 should be 429, got ${statuses[30]}`);
     });
   });
 
   describe('Register endpoint', () => {
-    it('allows 5 attempts then returns 429', async () => {
+    it('allows 10 attempts then returns 429', async () => {
       const statuses = [];
-      for (let i = 0; i < 6; i++) {
+      for (let i = 0; i < 11; i++) {
         statuses.push(await post('/api/auth/register', {
           name: `Reg User ${i}`,
           email: `ratelimit_${i}@example.com`,
           password: 'testpassword123',
         }));
       }
-      // First 5 should go through (201 created)
-      for (let i = 0; i < 5; i++) {
+      // First 10 should go through (201 created)
+      for (let i = 0; i < 10; i++) {
         assert.equal(statuses[i], 201, `Request ${i + 1} should be 201, got ${statuses[i]}`);
       }
-      // 6th should be rate limited
-      assert.equal(statuses[5], 429, `Request 6 should be 429, got ${statuses[5]}`);
+      // 11th should be rate limited
+      assert.equal(statuses[10], 429, `Request 11 should be 429, got ${statuses[10]}`);
     });
   });
 
