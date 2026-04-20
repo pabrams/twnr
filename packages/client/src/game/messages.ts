@@ -48,8 +48,8 @@ export const MSG = makeDomain('MSG', {
     portMenuTrade: '  [c]T[/c]  [g]Trade at this port[/g]',
     portMenuCancel: '  [c]Q[/c]  Never mind',
 
-    playerInfoName: '[mg]Merchant Name[/mg]     [by]:[/by] [g]{name}[/g]',
-    playerInfoSector: '[mg]Sector[/mg]            [by]:[/by] [bc]{sector}[/bc]',
+    playerInfoName: '[mg]Merchant Name[/mg]      [by]:[/by] [g]{name}[/g]',
+    playerInfoSector: '[mg]Sector[/mg]             [by]:[/by] [bc]{sector}[/bc]',
     fuelQuantity: '[g]Fuel[/g][by]=[/by][bc]{fuel}[/bc]',
     orgQuantity: '[g]Org[/g][by]=[/by][bc]{organics}[/bc]',
     equQuantity: '[g]Equ[/g][by]=[/by][bc]{equipment}[/bc]',
