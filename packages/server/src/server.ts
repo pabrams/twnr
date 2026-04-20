@@ -25,6 +25,7 @@ import {
 import { countSectorsInUniverse, getStarbaseSectorNumber } from './db/queries/sector.js';
 
 const app: ReturnType<typeof express> = express();
+app.set('trust proxy', 1);
 app.use(
     helmet({
         contentSecurityPolicy: {
