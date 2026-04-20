@@ -11,7 +11,7 @@ import {
     showPlanetHelp,
 } from './display-planet.js';
 import { render } from './renderer.js';
-import { NOTIFY } from './messages/index.js';
+import { NOTIFY, EVENT } from './messages/index.js';
 
 export function handleClass0Input(ctx: GameContext, line: string) {
     const choose = (kind: 'drones' | 'shields' | 'holds') => {
@@ -73,11 +73,13 @@ export function handleClass0QtyInput(ctx: GameContext, line: string) {
 }
 
 export function handleAutopilotPromptInput(ctx: GameContext, line: string) {
-    switch (line.toLowerCase()) {
+    switch (line.trim().toLowerCase()) {
+        case '':
         case 'y': {
             ctx.term.writeln(render(NOTIFY.autopilotEngaged));
             const nextSector = ctx.autopilotPath[1];
             ctx.autopilotStep = 2;
+            ctx.term.writeln(render(EVENT.autopilotWarping, { sector: nextSector }));
             ctx.sendMsg({ type: ClientMsgType.Move, sector: nextSector });
             break;
         }

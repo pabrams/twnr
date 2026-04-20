@@ -42,7 +42,7 @@ export const SECTOR = makeDomain('SECTOR', {
 
     autopilotNotAdjacent:
         '[g]That sector is not adjacent.[g]\r\n' +
-        '\r\n[g]The Shortest path [mg]({hops} hops, {turns} turns)[/mg] from sector [by]{from}[/by] to sector [by]{to}[/by] is [by]:[/by]',
+        '\r\n[g]The Shortest path [mg]({hops} hops, {turns} turns)[/mg] from sector [by]{from}[/by] to sector [by]{to}[/by] is[by]:[/by]',
     autopilotPathSeparator: ' [g]>[/g] ',
     autopilotConfirm: '\r\n[mg]Engage the autopilot?[/mg] [mg]([/mg][by]Y[/by]/[by]N[/by][mg]) [Y][/mg] ',
 
