@@ -12,6 +12,7 @@ export function createAuthRoutes(router: Router, deps: RouteDeps, middleware: Mi
         setAuthCookie,
         getAuthenticatedPlayer,
         AUTH_COOKIE_NAME,
+        ADMIN_API_KEY,
     } = deps;
     const { authenticateToken, loginLimiter, registerLimiter } = middleware;
 
@@ -41,7 +42,8 @@ export function createAuthRoutes(router: Router, deps: RouteDeps, middleware: Mi
         }
 
         const hash = hashPassword(password);
-        const role = 'player';
+        const role =
+            ADMIN_API_KEY && req.headers['x-admin-key'] === ADMIN_API_KEY ? 'admin' : 'player';
 
         try {
             const result = await pool.query(
