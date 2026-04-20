@@ -222,7 +222,6 @@ function handleInput(ctx: GameContext, line: string) {
             ctx.sendMsg({ type: ClientMsgType.MoveToPrevious });
             break;
         case '':
-        case 'd':
             ctx.sendMsg({ type: ClientMsgType.SectorDisplay });
             break;
         case 'p':
@@ -243,7 +242,7 @@ function handleInput(ctx: GameContext, line: string) {
             ctx.changeMenu(Menu.Computer);
             showComputerActivated(ctx);
             break;
-        case 'f':
+        case 'd':
             ctx.sendMsg({ type: ClientMsgType.DeployDronesInfo });
             break;
         case 'j':

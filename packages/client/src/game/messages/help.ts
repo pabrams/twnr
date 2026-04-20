@@ -5,27 +5,25 @@
 import { makeDomain } from './_domain.js';
 
 export const HELP = makeDomain('HELP', {
-    header: '[c]Help:[/c]',
+    header: '[by]Move to a Sector by typing its number, and hitting Enter.[/by]\r\n' + 
+            '[by]Use [g]CR[/g] to re-display the sector.[/by]\r\n',
     lineText: '[c]{label}:[/c] {text}',
-    lineKey: "[c]{label}:[/c] [by]'{key}'[/by] {text}",
+    lineKey: " [mg]<[/mg][g]{key}[/g][mg]>[/mg] [bc]{text}[/bc]",
 });
 
 export const HELP_LINES: Array<
     { label: string; text: string } | { label: string; key: string; text: string }
 > = [
-    { label: 'Command', text: 'Move to a sector by typing its number.' },
-    { label: 'Display', key: 'D', text: 'refresh sector display.' },
-    { label: 'Port', key: 'P', text: 'access a port.' },
-    { label: 'Info', key: 'I', text: 'view player and ship info.' },
-    { label: 'Attack', key: 'A', text: 'attack a player in your sector.' },
-    { label: 'Jettison', key: 'J', text: 'jettison all cargo.' },
-    { label: 'Drones', key: 'F', text: 'deploy sector drones.' },
-    { label: 'Deployed', key: 'G', text: 'list deployed drones.' },
-    { label: 'Land', key: 'L', text: 'land on a planet.' },
-    { label: 'Terraform', key: 'U', text: 'use terraform device.' },
+    { label: 'Port', key: 'P', text: 'Port and Trade' },
+    { label: 'Info', key: 'I', text: 'Ship Information' },
+    { label: 'Attack', key: 'A', text: 'Attack Enemy Ship' },
+    { label: 'Jettison', key: 'J', text: 'Jettison Cargo.' },
+    { label: 'Drones', key: 'D', text: 'Drone Deployment' },
+    { label: 'Deployed', key: 'G', text: 'Show Deployed Drones' },
+    { label: 'Land', key: 'L', text: 'Land on a Planet.' },
+    { label: 'Terraform', key: 'U', text: 'Use Terraform Device.' },
     { label: 'Computer', key: 'C', text: 'ship computer.' },
-    { label: 'Starbase', key: 'V', text: 'show Starbase location.' },
-    { label: 'Who', key: '#', text: 'players online.' },
-    { label: 'Help', key: '?', text: 'this help.' },
-    { label: 'Quit', key: 'Q', text: 'quit the game.' },
+    { label: 'Starbase', key: 'V', text: 'View Starbase Location.' },
+    { label: 'Who', key: '#', text: 'Who\'s Playing' },
+    { label: 'Quit', key: 'Q', text: 'Quit and Exit' },
 ];
