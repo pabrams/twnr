@@ -5,10 +5,12 @@
 import { makeDomain } from './_domain.js';
 
 export const HELP = makeDomain('HELP', {
-    header: '[by]Move to a Sector by typing its number, and hitting Enter.[/by]\r\n' + 
-            '[by]Use [g]CR[/g] to re-display the sector.[/by]\r\n',
+    header: '[mg]       Sector Commands[/mg]\r\n' + 
+            '[by]       =[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]=',
     lineText: '[c]{label}:[/c] {text}',
     lineKey: "   [mg]<[/mg][g]{key}[/g][mg]>[/mg] [bc]{text}[/bc]",
+    footer: '\r\n   [by]Move to a Sector by typing its number, and hitting Enter.[/by]\r\n' +
+            '   [by]Use [mg]<[/mg][g]ENTER[/g][mg]>[/mg] to re-display the sector.[/by]\r\n',
 });
 
 export const HELP_LINES: Array<

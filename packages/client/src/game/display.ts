@@ -101,6 +101,7 @@ export function showHelp(ctx: GameContext) {
         const tpl = 'key' in line ? HELP.lineKey : HELP.lineText;
         ctx.term.writeln(render(tpl, line));
     }
+    ctx.term.writeln(render(HELP.footer));
     showPrompt(ctx);
 }
 
