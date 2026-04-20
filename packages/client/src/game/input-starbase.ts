@@ -20,7 +20,7 @@ import {
     letterToIndex,
 } from './display-starbase.js';
 import { showShipDetail } from './display-computer.js';
-import { class0MaxBuy } from './display-port.js';
+import { class0MaxBuy, showClass0Menu } from './display-port.js';
 import { render } from './renderer.js';
 import { NOTIFY, COMMON } from './messages/index.js';
 
@@ -263,7 +263,7 @@ export function handleShipyardsClass0Input(ctx: GameContext, line: string) {
             break;
         case '?':
         default:
-            showShipyardsClass0Menu(ctx);
+            showClass0Menu(ctx);
     }
 }
 

@@ -18,7 +18,6 @@ import {
     showHardwareMenu,
     showPlanetSelectMenu,
     showShipyardsMenu,
-    showShipyardsClass0Menu,
 } from './display-starbase.js';
 import { renderVisitedSectorsResult, showComputerPrompt } from './display-computer.js';
 import { PORT_CLASS_ACTIONS } from './constants.js';
@@ -397,10 +396,8 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     ctx.class0ShipState.credits = msg.credits;
                     ctx.class0ShipState.drones = msg.drones;
                 }
-                if (ctx.dockedPortInfo?.class === 0) {
+                if (ctx.dockedPortInfo?.class === 0 || ctx.class0ShipState) {
                     showClass0Menu(ctx);
-                } else if (ctx.class0ShipState) {
-                    showShipyardsClass0Menu(ctx);
                 }
                 break;
             case ServerMsgType.BuyShieldsResult:
@@ -415,10 +412,8 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     ctx.class0ShipState.credits = msg.credits;
                     ctx.class0ShipState.shields = msg.shields;
                 }
-                if (ctx.dockedPortInfo?.class === 0) {
+                if (ctx.dockedPortInfo?.class === 0 || ctx.class0ShipState) {
                     showClass0Menu(ctx);
-                } else if (ctx.class0ShipState) {
-                    showShipyardsClass0Menu(ctx);
                 }
                 break;
             case ServerMsgType.BuyHoldsResult:
@@ -433,10 +428,8 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     ctx.class0ShipState.credits = msg.credits;
                     ctx.class0ShipState.holds = msg.cargoLimit;
                 }
-                if (ctx.dockedPortInfo?.class === 0) {
+                if (ctx.dockedPortInfo?.class === 0 || ctx.class0ShipState) {
                     showClass0Menu(ctx);
-                } else if (ctx.class0ShipState) {
-                    showShipyardsClass0Menu(ctx);
                 }
                 break;
             case ServerMsgType.AttackShipResult:
