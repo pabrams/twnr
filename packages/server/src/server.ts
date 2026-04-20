@@ -70,7 +70,7 @@ app.use(
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const clientDist = path.resolve(__dirname, '../../client/dist');
 app.use(express.static(clientDist));
-app.get('*', (req, res, next) => {
+app.get(/.*/, (req, res, next) => {
     if (req.url.startsWith('/api') || req.url.startsWith('/ws')) return next();
     res.sendFile(path.join(clientDist, 'index.html'));
 });
