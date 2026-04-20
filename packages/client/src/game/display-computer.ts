@@ -20,13 +20,15 @@ export function showComputerDeactivated(ctx: GameContext) {
 
 export function showComputerHelp(ctx: GameContext) {
     ctx.term.writeln('');
-    ctx.term.writeln(render(COMMON.menuRow, { key: 'K', text: 'Known Universe' }));
-    ctx.term.writeln(render(COMMON.menuRow, { key: 'L', text: 'List Traders' }));
-    ctx.term.writeln(render(COMMON.menuRow, { key: 'C', text: 'Ship Catalog' }));
-    ctx.term.writeln(render(COMMON.menuRow, { key: 'J', text: 'Planetary Specs' }));
-    ctx.term.writeln(render(COMMON.menuRow, { key: ';', text: 'Current Ship Specs' }));
-    ctx.term.writeln(render(COMMON.menuRow, { key: 'Y', text: 'Your Planets' }));
-    ctx.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Exit Computer' }));
+    ctx.term.writeln(render('[mg]   Computer Commands[/mg]')); 
+    ctx.term.writeln(render('[by]   =[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]='));
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'K', text: '[bc]Known Universe[/bc]' }));
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'L', text: '[bc]List Traders[/bc]' }));
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'C', text: '[bc]Ship Catalog[/bc]' }));
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'J', text: '[bc]Planetary Specs[/bc]' }));
+    ctx.term.writeln(render(COMMON.menuRow, { key: ';', text: '[bc]Current Ship Specs[/bc]' }));
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'Y', text: '[bc]Your Planets[/bc]' }));
+    ctx.term.writeln(render(COMMON.menuRow, { key: 'Q', text: '[bc]Exit Computer[/bc]' }));
     showComputerPrompt(ctx);
 }
 

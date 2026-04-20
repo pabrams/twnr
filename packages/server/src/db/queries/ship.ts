@@ -4,6 +4,17 @@ import type { Queryable } from '../types.js';
 /** Subselect for the player's ship — used in WHERE clauses. */
 const SHIP_ID_SUBSELECT = '(SELECT ship_id FROM players WHERE id = $1)';
 
+export async function getShipTurnsPerWarp(
+    playerId: number,
+    db: Queryable = pool,
+): Promise<number> {
+    const res = await db.query<{ turns_per_warp: number }>(
+        `SELECT turns_per_warp FROM ships WHERE id = ${SHIP_ID_SUBSELECT}`,
+        [playerId],
+    );
+    return res.rows[0]?.turns_per_warp ?? 1;
+}
+
 export async function getShipDrones(
     playerId: number,
     db: Queryable = pool,

@@ -381,7 +381,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 break;
             case ServerMsgType.ShortestPathResult:
                 if (msg.path.length > 1) {
-                    showAutopilotPrompt(ctx, msg.path, msg.hops);
+                    showAutopilotPrompt(ctx, msg.path, msg.hops, msg.turns);
                 } else {
                     ctx.term.writeln(render(EVENT.noPathFound));
                     showPrompt(ctx);

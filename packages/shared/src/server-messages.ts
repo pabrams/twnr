@@ -112,6 +112,7 @@ export type ShortestPathResultObject = {
     type: typeof ServerMsgType.ShortestPathResult;
     path: SectorRef[];
     hops: number;
+    turns: number;
 };
 
 export type PortInfoResultObject = {

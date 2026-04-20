@@ -34,12 +34,15 @@ export function showAutopilotPrompt(
     ctx: GameContext,
     path: { sector: number; visited: boolean }[],
     hops: number,
+    turns: number,
 ) {
     ctx.autopilotPath = path.map((p) => p.sector);
     ctx.autopilotStep = 0;
     const { term } = ctx;
     term.writeln('');
-    term.writeln(render(SECTOR.autopilotNotAdjacent, { hops }));
+    const from = path[0]?.sector ?? 0;
+    const to = path[path.length - 1]?.sector ?? 0;
+    term.writeln(render(SECTOR.autopilotNotAdjacent, { hops, turns, from, to }));
     const sep = render(SECTOR.autopilotPathSeparator);
     const list = path
         .map((p) => {
