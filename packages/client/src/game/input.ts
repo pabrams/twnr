@@ -2,6 +2,7 @@ import type { Terminal } from '@xterm/xterm';
 import { ClientMsgType, Menu } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { showPrompt, showPortMenu, showHelp, showPlayerInfo, showMoveMenu } from './display.js';
+import { COMMAND } from './messages/index.js';
 import { showComputerActivated } from './display-computer.js';
 import { showJettisonConfirm } from './display-port.js';
 import {
@@ -211,6 +212,12 @@ function handleInput(ctx: GameContext, line: string) {
         case Menu.Move:
             handleMoveMenuInput(ctx, line);
             return;
+        case Menu.QuitConfirm:
+            handleQuitConfirmInput(ctx, line);
+            return;
+        case Menu.TerraformConfirm:
+            handleTerraformConfirmInput(ctx, line);
+            return;
     }
 
     // Sector mode
@@ -265,21 +272,55 @@ function handleInput(ctx: GameContext, line: string) {
             ctx.sendMsg({ type: ClientMsgType.Land });
             break;
         case 'u':
-            ctx.sendMsg({ type: ClientMsgType.UseTerraformDevice });
+            ctx.sendMsg({ type: ClientMsgType.TerraformInfo });
             break;
         case 'v':
             ctx.sendMsg({ type: ClientMsgType.StarbaseInfo });
             break;
         case 'q':
-            ctx.term.writeln(render(NOTIFY.goodbye));
-            ctx.ws.close();
-            return;
+            ctx.term.writeln(render(COMMAND.quit));
+            ctx.changeMenu(Menu.QuitConfirm);
+            ctx.term.write(render(NOTIFY.quitConfirm));
+            break;
         case '#':
             ctx.sendMsg({ type: ClientMsgType.PlayersOnline });
             break;
         default:
             if (line) ctx.term.writeln(render(NOTIFY.unknownCommand, { cmd }));
             showPrompt(ctx);
+    }
+}
+
+function handleQuitConfirmInput(ctx: GameContext, line: string) {
+    const t = line.trim().toLowerCase();
+    switch (t) {
+        case 'y':
+            ctx.term.writeln(render(NOTIFY.goodbye));
+            ctx.ws.close();
+            return;
+        case '':
+        case 'n':
+            ctx.changeMenu(Menu.Sector);
+            showPrompt(ctx);
+            return;
+        default:
+            ctx.term.write(render(NOTIFY.quitConfirm));
+    }
+}
+
+function handleTerraformConfirmInput(ctx: GameContext, line: string) {
+    const t = line.trim().toLowerCase();
+    switch (t) {
+        case 'y':
+            ctx.sendMsg({ type: ClientMsgType.UseTerraformDevice });
+            return;
+        case '':
+        case 'n':
+            ctx.changeMenu(Menu.Sector);
+            showPrompt(ctx);
+            return;
+        default:
+            ctx.term.write(render(NOTIFY.terraformConfirm));
     }
 }
 

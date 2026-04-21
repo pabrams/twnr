@@ -839,6 +839,20 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 ctx.sectorPlayers = msg.players;
                 showAttackMenu(ctx);
                 break;
+            case ServerMsgType.TerraformInfoResult:
+                if (msg.canTerraform) {
+                    ctx.term.writeln(
+                        render(NOTIFY.terraformDevicesAvailable, { count: msg.devices }),
+                    );
+                    ctx.term.write(render(NOTIFY.terraformConfirm));
+                } else if (msg.reason === 'no_devices') {
+                    ctx.term.writeln(render(NOTIFY.terraformNoDevices));
+                    showPrompt(ctx);
+                } else {
+                    ctx.term.writeln(render(NOTIFY.error, { message: 'Cannot terraform here.' }));
+                    showPrompt(ctx);
+                }
+                break;
             case ServerMsgType.StarbaseInfoResult:
                 ctx.starbaseSector = msg.sector;
                 if (msg.sector != null) {
@@ -866,6 +880,8 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                     // stay in encounter mode
                 } else if (ctx.mode.startsWith(Menu.Shipyards)) {
                     showShipyardsMenu(ctx);
+                } else if (ctx.mode === Menu.StarbaseHardware) {
+                    showHardwareMenu(ctx);
                 } else if (ctx.mode === Menu.Sector) showPrompt(ctx);
                 break;
         }

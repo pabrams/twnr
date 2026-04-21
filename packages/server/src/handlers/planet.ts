@@ -209,6 +209,54 @@ export async function handleDestroyPlanet(playerId: number): Promise<void> {
     if (data) sendEnvelope(playerId, { type: ServerMsgType.SectorDisplayResult, ...data });
 }
 
+/**
+ * Pre-check for the 'U' command from the sector menu. Returns the device count
+ * and whether the player can terraform here. If they can, transitions menu
+ * server-side to terraformConfirm so the client can show a Y/N prompt.
+ */
+export async function handleTerraformInfo(playerId: number): Promise<void> {
+    const player = players[playerId];
+    if (!player) return;
+
+    if (player.pendingEncounter) {
+        sendError(playerId, 'Resolve drone encounter first');
+        return;
+    }
+
+    const sectorId = player.sector;
+    const universeId = player.universeId;
+    const sector = await getSectorByNumber(sectorId, universeId);
+    const restricted = sectorId === 1 || sector?.name === 'Starbase';
+
+    if (restricted) {
+        sendEnvelope(playerId, {
+            type: ServerMsgType.TerraformInfoResult,
+            canTerraform: false,
+            devices: 0,
+            reason: 'restricted_sector',
+        });
+        return;
+    }
+
+    const devices = await getShipHardwareQuantityByName(playerId, 'terraform_device');
+    if (devices < 1) {
+        sendEnvelope(playerId, {
+            type: ServerMsgType.TerraformInfoResult,
+            canTerraform: false,
+            devices: 0,
+            reason: 'no_devices',
+        });
+        return;
+    }
+
+    await setPlayerMenu(playerId, 'terraformConfirm');
+    sendEnvelope(playerId, {
+        type: ServerMsgType.TerraformInfoResult,
+        canTerraform: true,
+        devices,
+    });
+}
+
 export async function handleUseTerraformDevice(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
@@ -220,6 +268,9 @@ export async function handleUseTerraformDevice(playerId: number): Promise<void> 
         sendError(playerId, 'Resolve drone encounter first');
         return;
     }
+
+    // We were in terraformConfirm; whatever happens, drop back to the sector menu.
+    await setPlayerMenu(playerId, 'sector');
 
     const sector = await getSectorByNumber(sectorId, universeId);
     const sectorName = sector?.name;

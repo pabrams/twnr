@@ -23,6 +23,10 @@ export async function handleBuyHardware(
         return;
     }
 
+    // Return the player to the hardware store menu BEFORE doing the work, so any
+    // sendError below carries the corrected menu in its envelope.
+    await setPlayerMenu(playerId, 'starbaseHardware');
+
     const hw = await getHardwareItemByName(itemName);
     if (!hw) {
         sendError(playerId, 'Unknown hardware item');

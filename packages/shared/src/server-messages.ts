@@ -502,6 +502,13 @@ export type StarbaseInfoResultObject = {
     sector: number | null;
 };
 
+export type TerraformInfoResultObject = {
+    type: typeof ServerMsgType.TerraformInfoResult;
+    canTerraform: boolean;
+    devices: number;
+    reason?: 'restricted_sector' | 'no_devices';
+};
+
 export type ServerResult =
     | WelcomeEvent
     | PlayerMovedEvent
@@ -556,4 +563,5 @@ export type ServerResult =
     | PreviousSectorResultObject
     | AttackMenuResultObject
     | StarbaseInfoResultObject
+    | TerraformInfoResultObject
     | ErrorResultObject;
