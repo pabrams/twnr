@@ -10,15 +10,15 @@ export const NOTIFY = makeDomain('NOTIFY', {
     connectionError: '\r\n[br]Connection error.[/br]',
 
     welcome: '\r\n[bg]Welcome, {name}.[/bg]',
-    goodbye: '\r\n[w]Goodbye![/w]',
+    goodbye: '\r\n[w]Disconnecting...[/w]',
 
-    playerIn: '\r\n[bc][mg]{name}[/mg] warped into the sector.[/bc]',
-    playerOut: '\r\n[c][mg]{name}[/mg] warped out of the sector.[/c]',
+    playerIn: '\r\n[by][bm]{name}[/bm] warped into the sector.[/by]',
+    playerOut: '\r\n[y][bm]{name}[/bm] warped out of the sector.[/y]',
 
-    starbaseLocation: '\r\n[bc]Starbase[/bc] [g]is in sector[/g] [bc]{sector}[/bc]',
+    starbaseLocation: '\r\n[bc]Starbase[/bc] [g]is in sector[/g] [by]{sector}[/by].',
     noStarbase: '\r\n[w]No Starbase in this universe.[/w]',
 
-    error: '\r\n[br]Error:[/br] [r]{message}[/r]',
+    error: '\r\n[r]{message}[/r]',
     invalidSelection: '[br]Invalid selection.[/br]',
 
     unknownCommand: 'Unknown command: {cmd}',
