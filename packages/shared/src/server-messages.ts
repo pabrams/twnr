@@ -75,7 +75,6 @@ export type MoveResultObject =
       }
     | { type: typeof ServerMsgType.MoveResult; outcome: 'nonAdjacent'; sector: number }
     | { type: typeof ServerMsgType.MoveResult; outcome: 'noShip' }
-    | { type: typeof ServerMsgType.MoveResult; outcome: 'noPrevious' }
     | { type: typeof ServerMsgType.MoveResult; outcome: 'error'; message: string };
 
 export type PlayerLeftEvent = {
@@ -488,6 +487,21 @@ export type TradeSkippedObject = {
     reason: TradeSkipReason;
 };
 
+export type PreviousSectorResultObject = {
+    type: typeof ServerMsgType.PreviousSectorResult;
+    sector: number | null;
+};
+
+export type AttackMenuResultObject = {
+    type: typeof ServerMsgType.AttackMenuResult;
+    players: { id: number; name: string }[];
+};
+
+export type StarbaseInfoResultObject = {
+    type: typeof ServerMsgType.StarbaseInfoResult;
+    sector: number | null;
+};
+
 export type ServerResult =
     | WelcomeEvent
     | PlayerMovedEvent
@@ -539,4 +553,7 @@ export type ServerResult =
     | TradeConfirmPromptObject
     | TradeCompleteObject
     | TradeSkippedObject
+    | PreviousSectorResultObject
+    | AttackMenuResultObject
+    | StarbaseInfoResultObject
     | ErrorResultObject;

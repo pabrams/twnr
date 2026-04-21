@@ -12,6 +12,29 @@ import {
     markPlayerShipDestroyed,
 } from '../db/queries/ship.js';
 
+/**
+ * Player pressed 'A' in the sector menu. Returns the attack roster for the
+ * current sector; transitions to the Attack menu if there are targets,
+ * otherwise leaves the player at the Sector menu.
+ */
+export async function handleAttack(playerId: number): Promise<void> {
+    const player = players[playerId];
+    if (!player) return;
+
+    const roster: { id: number; name: string }[] = [];
+    for (const [idStr, p] of Object.entries(players)) {
+        const pid = Number(idStr);
+        if (pid === playerId) continue;
+        if (p.universeId !== player.universeId) continue;
+        if (p.sector !== player.sector) continue;
+        if (p.docked) continue;
+        roster.push({ id: pid, name: p.name });
+    }
+
+    await setPlayerMenu(playerId, roster.length > 0 ? 'attack' : 'sector');
+    sendEnvelope(playerId, { type: ServerMsgType.AttackMenuResult, players: roster });
+}
+
 export async function handleAttackShip(
     attackerId: number,
     targetPlayerId: number,

@@ -205,9 +205,6 @@ export function showCommerceReport(
 }
 
 export async function showPlayerInfo(ctx: GameContext) {
-    ctx.term.writeln('');
-    ctx.term.writeln(render(SECTOR.playerInfoName, { name: ctx.playerName }));
-    ctx.term.writeln(render(SECTOR.playerInfoSector, { sector: ctx.currentSector }));
     // Prefetch hardware catalog so the ShipInfo panel can label hardware items.
     if (!ctx.hardwareCatalog) {
         try {

@@ -165,11 +165,7 @@ export async function handleMove(playerId: number, targetSector: number): Promis
 
 export async function handleMoveToPrevious(playerId: number): Promise<void> {
     const prev = await getPreviousSectorNumber(playerId);
-    if (prev === null) {
-        sendEnvelope(playerId, { type: ServerMsgType.MoveResult, outcome: 'noPrevious' });
-        return;
-    }
-    await handleMove(playerId, prev);
+    sendEnvelope(playerId, { type: ServerMsgType.PreviousSectorResult, sector: prev });
 }
 
 export async function handleSectorDisplay(playerId: number): Promise<void> {
