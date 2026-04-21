@@ -37,12 +37,16 @@ gcloud compute ssh "$INSTANCE" --zone="$ZONE" --command="bash -s" <<EOF
 set -euo pipefail
 cd ~/twnr
 git pull --ff-only
-docker run --rm \\
-  -v /var/run/docker.sock:/var/run/docker.sock \\
-  -v "\$PWD:\$PWD" -w "\$PWD" \\
-  --env-file $ENV_FILE \\
-  docker:cli \\
-  compose -f $COMPOSE_FILE up -d --build
+compose() {
+  docker run --rm \\
+    -v /var/run/docker.sock:/var/run/docker.sock \\
+    -v "\$PWD:\$PWD" -w "\$PWD" \\
+    --env-file $ENV_FILE \\
+    docker:cli \\
+    compose -f $COMPOSE_FILE "\$@"
+}
+compose down --remove-orphans
+compose up -d --build
 docker ps --format 'table {{.Names}}\t{{.Status}}'
 EOF
 
