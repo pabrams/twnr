@@ -22,6 +22,7 @@ export type WelcomeEvent = {
 export type PlayerMovedEvent = {
     type: typeof ServerMsgType.PlayerMoved;
     playerId: number;
+    playerName: string;
     sector: number;
     direction: 'in' | 'out';
 };
