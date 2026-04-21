@@ -12,6 +12,7 @@ import { NOTIFY } from './notifications.js';
 import { TRANSACTION } from './transactions.js';
 import { EVENT } from './events.js';
 import { PANEL } from './panels.js';
+import { COMMAND } from './commands.js';
 
 export {
     MSG,
@@ -28,6 +29,7 @@ export {
     TRANSACTION,
     EVENT,
     PANEL,
+    COMMAND,
 };
 
 /** Registration order matters for bare-key collisions (first wins). MSG
@@ -48,6 +50,7 @@ function buildAndRegister() {
         TRANSACTION,
         EVENT,
         PANEL,
+        COMMAND,
     };
     const flat: Record<string, string> = {};
     for (const [domain, group] of Object.entries(DOMAINS)) {

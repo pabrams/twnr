@@ -3,7 +3,7 @@ import type { ServerResult, MenuName } from '@twnr/shared';
 import type { GameContext } from './types.js';
 
 import { render } from './renderer.js';
-import { NOTIFY, TRANSACTION, EVENT, PANEL, PORT } from './messages/index.js';
+import { NOTIFY, TRANSACTION, EVENT, PANEL, PORT, SECTOR } from './messages/index.js';
 import { showSectorDisplay, showCommerceReport, showPrompt } from './display.js';
 import { showClass0Menu, showAutopilotPrompt, showTradeQtyPrompt } from './display-port.js';
 import {
@@ -12,7 +12,7 @@ import {
     showEarthMenu,
     showNoPlanet,
 } from './display-planet.js';
-import { showDroneEncounter } from './display-combat.js';
+import { showDroneEncounter, showAttackMenu } from './display-combat.js';
 import {
     showStarbaseMenu,
     showHardwareMenu,
@@ -233,6 +233,9 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 break;
             case ServerMsgType.ShipInfoResult:
                 ctx.currentShipName = msg.shipName;
+                ctx.term.writeln('');
+                ctx.term.writeln(render(SECTOR.playerInfoName, { name: ctx.playerName }));
+                ctx.term.writeln(render(SECTOR.playerInfoSector, { sector: ctx.currentSector }));
                 ctx.term.writeln(render(PANEL.shipName, { name: msg.shipName }));
                 ctx.term.writeln(
                     render(PANEL.shipDronesShields, {
@@ -366,10 +369,6 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                             ctx.term.writeln(render(EVENT.autopilotCancelled));
                         }
                         ctx.term.writeln(render(EVENT.noShip));
-                        showPrompt(ctx);
-                        break;
-                    case 'noPrevious':
-                        ctx.term.writeln(render(NOTIFY.noPreviousSector));
                         showPrompt(ctx);
                         break;
                     case 'error':
@@ -836,6 +835,27 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 showComputerPrompt(ctx);
                 break;
             }
+            case ServerMsgType.AttackMenuResult:
+                ctx.sectorPlayers = msg.players;
+                showAttackMenu(ctx);
+                break;
+            case ServerMsgType.StarbaseInfoResult:
+                ctx.starbaseSector = msg.sector;
+                if (msg.sector != null) {
+                    ctx.term.writeln(render(NOTIFY.starbaseLocation, { sector: msg.sector }));
+                } else {
+                    ctx.term.writeln(render(NOTIFY.noStarbase));
+                }
+                showPrompt(ctx);
+                break;
+            case ServerMsgType.PreviousSectorResult:
+                if (msg.sector === null) {
+                    ctx.term.writeln(render(NOTIFY.noPreviousSector));
+                    showPrompt(ctx);
+                } else {
+                    ctx.sendMsg({ type: ClientMsgType.Move, sector: msg.sector });
+                }
+                break;
             case ServerMsgType.Error:
                 ctx.term.writeln(render(NOTIFY.error, { message: msg.message }));
                 if (ctx.mode === Menu.TradeQty || ctx.mode === Menu.TradeConfirm) {

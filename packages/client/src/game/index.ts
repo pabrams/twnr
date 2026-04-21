@@ -5,6 +5,8 @@ import type { ClientCommand, MenuEntry } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { setupConnection } from './connection.js';
 import { setupInput } from './input.js';
+import { COMMAND } from './messages/index.js';
+import { render } from './renderer.js';
 
 export function startGame(universeId: number, termDiv: HTMLElement) {
     const term = new Terminal({
@@ -28,16 +30,22 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
     const ws = new WebSocket(`${wsProtocol}://${location.host}/ws?universe=${universeId}`);
 
     function sendMsg(msg: ClientCommand) {
-        if (ws.readyState === WebSocket.OPEN) {
-            if (ctx.debug) {
-                const lines = JSON.stringify(msg, null, 2).split('\n');
-                term.writeln(`\r\n\x1b[38;5;243m→ ${lines[0]}\x1b[0m`);
-                for (let i = 1; i < lines.length; i++) {
-                    term.writeln(`\x1b[38;5;243m  ${lines[i]}\x1b[0m`);
-                }
-            }
-            ws.send(JSON.stringify(msg));
+        if (ws.readyState !== WebSocket.OPEN) return;
+
+        // Echo command to the terminal (skip if no template exists for this type)
+        const tpl = (COMMAND as Record<string, string | undefined>)[msg.type];
+        if (tpl) {
+            term.writeln(render(tpl, msg as unknown as Record<string, unknown>));
         }
+
+        if (ctx.debug) {
+            const lines = JSON.stringify(msg, null, 2).split('\n');
+            term.writeln(`\r\n\x1b[38;5;243m→ ${lines[0]}\x1b[0m`);
+            for (let i = 1; i < lines.length; i++) {
+                term.writeln(`\x1b[38;5;243m  ${lines[i]}\x1b[0m`);
+            }
+        }
+        ws.send(JSON.stringify(msg));
     }
 
     const ctx: GameContext = {

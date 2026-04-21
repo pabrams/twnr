@@ -2,7 +2,6 @@ import type { Terminal } from '@xterm/xterm';
 import { ClientMsgType, Menu } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { showPrompt, showPortMenu, showHelp, showPlayerInfo, showMoveMenu } from './display.js';
-import { showAttackMenu } from './display-combat.js';
 import { showComputerActivated } from './display-computer.js';
 import { showJettisonConfirm } from './display-port.js';
 import {
@@ -228,6 +227,10 @@ function handleInput(ctx: GameContext, line: string) {
             ctx.sendMsg({ type: ClientMsgType.SectorDisplay });
             break;
         case 'p':
+            if (!ctx.currentPort) {
+                showPortMenu(ctx); // renders "No port in this sector." + sector prompt
+                break;
+            }
             ctx.changeMenu(Menu.Port);
             showPortMenu(ctx);
             break;
@@ -238,12 +241,7 @@ function handleInput(ctx: GameContext, line: string) {
             showHelp(ctx);
             break;
         case 'a':
-            if (ctx.sectorPlayers.length === 0) {
-                showAttackMenu(ctx);
-                break;
-            }
-            ctx.changeMenu(Menu.Attack);
-            showAttackMenu(ctx);
+            ctx.sendMsg({ type: ClientMsgType.Attack });
             break;
         case 'c':
             ctx.changeMenu(Menu.Computer);
@@ -270,12 +268,7 @@ function handleInput(ctx: GameContext, line: string) {
             ctx.sendMsg({ type: ClientMsgType.UseTerraformDevice });
             break;
         case 'v':
-            if (ctx.starbaseSector != null) {
-                ctx.term.writeln(render(NOTIFY.starbaseLocation, { sector: ctx.starbaseSector }));
-            } else {
-                ctx.term.writeln(render(NOTIFY.noStarbase));
-            }
-            showPrompt(ctx);
+            ctx.sendMsg({ type: ClientMsgType.StarbaseInfo });
             break;
         case 'q':
             ctx.term.writeln(render(NOTIFY.goodbye));

@@ -98,12 +98,17 @@ export const ServerMsgType = {
     TradeConfirmPrompt: 'tradeConfirmPrompt',
     TradeComplete: 'tradeComplete',
     TradeSkipped: 'tradeSkipped',
+    PreviousSectorResult: 'previousSectorResult',
+    AttackMenuResult: 'attackMenuResult',
+    StarbaseInfoResult: 'starbaseInfoResult',
 } as const;
 type ServerMsgType = typeof ServerMsgType;
 
 export const ClientMsgType = {
     Move: 'move',
     MoveToPrevious: 'moveToPrevious',
+    Attack: 'attack',
+    StarbaseInfo: 'starbaseInfo',
     SectorDisplay: 'sectorDisplay',
     PlayersOnline: 'playersOnline',
     WarpsOut: 'warpsOut',

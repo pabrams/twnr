@@ -11,6 +11,14 @@ export type MoveToPreviousCommand = {
     type: typeof ClientMsgType.MoveToPrevious;
 };
 
+export type AttackCommand = {
+    type: typeof ClientMsgType.Attack;
+};
+
+export type StarbaseInfoCommand = {
+    type: typeof ClientMsgType.StarbaseInfo;
+};
+
 export type SectorDisplayCommand = {
     type: typeof ClientMsgType.SectorDisplay;
 };
@@ -192,6 +200,8 @@ export type TradeConfirmResponseCommand = {
 export type ClientCommand =
     | MoveCommand
     | MoveToPreviousCommand
+    | AttackCommand
+    | StarbaseInfoCommand
     | SectorDisplayCommand
     | PlayersOnlineCommand
     | WarpsOutCommand
