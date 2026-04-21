@@ -760,7 +760,8 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                         }),
                     );
                 }
-                showHardwareMenu(ctx);
+                // Refresh store state from the server (credits + ship qtys changed).
+                ctx.sendMsg({ type: ClientMsgType.HardwareStoreInfo });
                 break;
             case ServerMsgType.ListDeployedDronesResult:
                 ctx.term.writeln('');
@@ -838,6 +839,11 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
             case ServerMsgType.AttackMenuResult:
                 ctx.sectorPlayers = msg.players;
                 showAttackMenu(ctx);
+                break;
+            case ServerMsgType.HardwareStoreInfoResult:
+                ctx.hardwareStoreCredits = msg.credits;
+                ctx.hardwareStoreItems = msg.items;
+                showHardwareMenu(ctx);
                 break;
             case ServerMsgType.TerraformInfoResult:
                 if (msg.canTerraform) {

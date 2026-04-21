@@ -9,6 +9,7 @@ import {
     showHardwareHelp,
     showHardwarePrompt,
     showBuyQtyPrompt,
+    showHardwareItemDetail,
     showShipyardsMenu,
     showShipyardsHelp,
     showShipyardsPrompt,
@@ -31,8 +32,7 @@ export function handleStarbaseInput(ctx: GameContext, line: string) {
             showShipyardsMenu(ctx);
             break;
         case 'h':
-            ctx.changeMenu(Menu.StarbaseHardware);
-            showHardwareMenu(ctx);
+            ctx.sendMsg({ type: ClientMsgType.HardwareStoreInfo });
             break;
         case '?':
             showStarbaseHelp(ctx);
@@ -60,31 +60,37 @@ const STACKABLE_HARDWARE: Record<string, { itemName: string; label: string }> = 
     r: { itemName: 'recon_drone', label: 'Recon Drones' },
 };
 
+const TOGGLE_HARDWARE: Record<string, string> = {
+    '1': 'hyperspace_1',
+    '2': 'hyperspace_2',
+    v: 'visual_scanner',
+    n: 'planet_scanner',
+};
+
 export function handleHardwareInput(ctx: GameContext, line: string) {
     const key = line.toLowerCase();
-    // Toggle hardware (no quantity needed)
-    if (key === '1') {
-        ctx.sendMsg({ type: ClientMsgType.BuyHardware, itemName: 'hyperspace_1' });
+
+    // Toggle hardware (no quantity step): show detail, then fire buy.
+    const toggleItem = TOGGLE_HARDWARE[key];
+    if (toggleItem) {
+        showHardwareItemDetail(ctx, toggleItem);
+        ctx.sendMsg({ type: ClientMsgType.BuyHardware, itemName: toggleItem });
         return;
     }
-    if (key === '2') {
-        ctx.sendMsg({ type: ClientMsgType.BuyHardware, itemName: 'hyperspace_2' });
-        return;
-    }
-    if (key === 'v') {
-        ctx.sendMsg({ type: ClientMsgType.BuyHardware, itemName: 'visual_scanner' });
-        return;
-    }
-    if (key === 'n') {
-        ctx.sendMsg({ type: ClientMsgType.BuyHardware, itemName: 'planet_scanner' });
-        return;
-    }
-    // Stackable hardware (needs quantity)
+
+    // Stackable hardware: show detail, then transition to qty prompt with default max.
     const hw = STACKABLE_HARDWARE[key];
     if (hw) {
+        const canBuy = showHardwareItemDetail(ctx, hw.itemName);
+        if (canBuy <= 0) {
+            // Nothing to buy (no capacity or no credits) — stay in the hardware menu.
+            showHardwarePrompt(ctx);
+            return;
+        }
         ctx.starbaseBuyItemName = hw.itemName;
+        ctx.starbaseBuyDefault = canBuy;
         ctx.changeMenu(Menu.StarbaseBuyQty);
-        showBuyQtyPrompt(ctx, hw.label);
+        showBuyQtyPrompt(ctx, hw.label, canBuy);
         return;
     }
     if (key === '?') {
@@ -100,14 +106,22 @@ export function handleHardwareInput(ctx: GameContext, line: string) {
 }
 
 export function handleStarbaseBuyQtyInput(ctx: GameContext, line: string) {
-    if (line.toLowerCase() === 'q') {
+    const trimmed = line.trim();
+    // Q or 0 cancels back to the hardware menu.
+    if (trimmed.toLowerCase() === 'q' || trimmed === '0') {
         ctx.changeMenu(Menu.StarbaseHardware);
         showHardwareMenu(ctx);
         return;
     }
-    const qty = parseInt(line, 10);
-    if (isNaN(qty) || qty <= 0) {
-        ctx.term.writeln('Enter a positive number.');
+    // Empty Enter → accept default (max we can buy). If the default is 0, cancel.
+    const qty = trimmed === '' ? ctx.starbaseBuyDefault : parseInt(trimmed, 10);
+    if (qty === 0) {
+        ctx.changeMenu(Menu.StarbaseHardware);
+        showHardwareMenu(ctx);
+        return;
+    }
+    if (isNaN(qty) || qty < 0) {
+        ctx.term.writeln('Enter a non-negative number (0 to cancel).');
         return;
     }
     const itemName = ctx.starbaseBuyItemName;

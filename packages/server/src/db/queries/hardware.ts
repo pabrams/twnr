@@ -32,6 +32,46 @@ export async function listHardwareCatalog(
     return res.rows;
 }
 
+/** One-shot: player credits + every hardware item with per-universe price, ship's current qty, ship-type max. */
+export type HardwareStoreRow = {
+    credits: number;
+    name: string;
+    label: string;
+    kind: 'stackable' | 'toggle';
+    price: number;
+    current_qty: number;
+    max_qty: number;
+};
+export async function getHardwareStoreRows(
+    playerId: number,
+    universeId: number,
+    db: Queryable = pool,
+): Promise<HardwareStoreRow[]> {
+    const res = await db.query<HardwareStoreRow>(
+        `SELECT p.credits,
+                hi.name,
+                hi.label,
+                hi.kind,
+                COALESCE(hp.price, hi.default_price) AS price,
+                COALESCE(sh.quantity, 0) AS current_qty,
+                COALESCE(sth.max_quantity, 0) AS max_qty
+         FROM players p
+         JOIN ships s ON s.id = p.ship_id
+         CROSS JOIN hardware_item hi
+         LEFT JOIN hardware_price hp
+           ON hp.hardware_item_id = hi.id
+           AND hp.edit_id = (SELECT edit_id FROM universes WHERE id = $2)
+         LEFT JOIN ship_hardware sh
+           ON sh.ship_id = s.id AND sh.hardware_item_id = hi.id
+         LEFT JOIN ship_type_hardware sth
+           ON sth.ship_type_id = s.ship_type_id AND sth.hardware_item_id = hi.id
+         WHERE p.id = $1
+         ORDER BY hi.id`,
+        [playerId, universeId],
+    );
+    return res.rows;
+}
+
 /** Resolve the hardware price for a universe, falling back to the item's default. */
 export async function getHardwarePriceForUniverse(
     universeId: number,

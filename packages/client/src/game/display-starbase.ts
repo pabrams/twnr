@@ -30,7 +30,33 @@ function fmt(n: number): string {
 }
 
 export function showHardwareMenu(ctx: GameContext) {
+    ctx.term.writeln(
+        render(STARBASE.hardwareCredits, { credits: fmt(ctx.hardwareStoreCredits) }),
+    );
     showHardwarePrompt(ctx);
+}
+
+/**
+ * Given the item chosen by the user, compute how many they can afford to buy
+ * (bounded by remaining capacity and credits) and print a one-line detail.
+ * Returns the capped maximum so the qty prompt can use it as a default.
+ */
+export function showHardwareItemDetail(ctx: GameContext, itemName: string): number {
+    const item = ctx.hardwareStoreItems.find((i) => i.name === itemName);
+    if (!item) return 0;
+    const remaining = Math.max(0, item.maxQty - item.currentQty);
+    const affordable = item.price > 0 ? Math.floor(ctx.hardwareStoreCredits / item.price) : remaining;
+    const canBuy = Math.min(remaining, affordable);
+    ctx.term.writeln(
+        render(STARBASE.hardwareItemDetail, {
+            label: item.label,
+            price: fmt(item.price),
+            current: item.currentQty,
+            max: item.maxQty,
+            canBuy: fmt(canBuy),
+        }),
+    );
+    return canBuy;
 }
 
 const HW_KEY_MAP: Record<string, string> = {
@@ -70,8 +96,8 @@ export function showHardwareHelp(ctx: GameContext) {
     showHardwarePrompt(ctx);
 }
 
-export function showBuyQtyPrompt(ctx: GameContext, item: string) {
-    ctx.term.write(render(STARBASE.buyQtyPrompt, { item }));
+export function showBuyQtyPrompt(ctx: GameContext, item: string, canBuy: number) {
+    ctx.term.write(render(STARBASE.buyQtyPrompt, { item, canBuy }));
 }
 
 export function showPlanetSelectMenu(

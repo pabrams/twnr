@@ -8,8 +8,40 @@ import {
     getShipHardwareCapacityForUpdate,
     upsertShipHardwareQuantity,
     setShipHardwareInstalled,
+    getHardwareStoreRows,
     type HardwareItemRow,
 } from '../db/queries/hardware.js';
+
+/**
+ * Pre-fetch for the hardware store UI: current credits and every hardware item
+ * with per-universe price, ship's current quantity, and ship-type maximum.
+ * Also transitions the player into the starbaseHardware menu.
+ */
+export async function handleHardwareStoreInfo(playerId: number): Promise<void> {
+    const player = players[playerId];
+    if (!player?.at_starbase) {
+        sendError(playerId, 'Not at Starbase');
+        return;
+    }
+
+    const rows = await getHardwareStoreRows(playerId, player.universeId);
+    const credits = rows[0]?.credits ?? 0;
+    const items = rows.map((r) => ({
+        name: r.name,
+        label: r.label,
+        kind: r.kind,
+        price: r.price,
+        currentQty: r.current_qty,
+        maxQty: r.max_qty,
+    }));
+
+    await setPlayerMenu(playerId, 'starbaseHardware');
+    sendEnvelope(playerId, {
+        type: ServerMsgType.HardwareStoreInfoResult,
+        credits,
+        items,
+    });
+}
 
 /** Unified handler for buying any hardware item. */
 export async function handleBuyHardware(

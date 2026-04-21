@@ -509,6 +509,21 @@ export type TerraformInfoResultObject = {
     reason?: 'restricted_sector' | 'no_devices';
 };
 
+export type HardwareStoreItem = {
+    name: string;
+    label: string;
+    kind: 'stackable' | 'toggle';
+    price: number;
+    currentQty: number;
+    maxQty: number;
+};
+
+export type HardwareStoreInfoResultObject = {
+    type: typeof ServerMsgType.HardwareStoreInfoResult;
+    credits: number;
+    items: HardwareStoreItem[];
+};
+
 export type ServerResult =
     | WelcomeEvent
     | PlayerMovedEvent
@@ -564,4 +579,5 @@ export type ServerResult =
     | AttackMenuResultObject
     | StarbaseInfoResultObject
     | TerraformInfoResultObject
+    | HardwareStoreInfoResultObject
     | ErrorResultObject;

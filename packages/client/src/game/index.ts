@@ -91,9 +91,12 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
         colonistCommodity: null,
         planetEmptyHolds: 0,
         shipColonists: 0,
+        hardwareStoreCredits: 0,
+        hardwareStoreItems: [],
 
         knownUniverseMode: 'explored',
         starbaseBuyItemName: null,
+        starbaseBuyDefault: 0,
         shipyardsBuyTarget: null,
         landablePlanets: null,
     };
