@@ -12,8 +12,11 @@ export const STARBASE = makeDomain('STARBASE', {
         '\r\n[mg]<[/mg][bc]Starbase Hardware[/bc][mg]>[/mg] [mg]What do you need[/mg] [mg]([/mg][by]?[/by][mg])[/mg][mg]?[/mg] ',
     hardwareItemRow: '  [mg]<[/mg][g]{key}[/g][mg]>[/mg]  [c]{label}[/c] [y]{price}[/y]',
     hardwareLoading: '\r\n[w]Loading hardware catalog...[/w]',
+    hardwareCredits: '\r\n[mg]Credits[/mg] [by]:[/by] [bc]{credits}[/bc]',
+    hardwareItemDetail:
+        '\r\n[c]{label}[/c]  [g]price[/g] [by]{price}[/by]  [g]on board[/g] [bc]{current}[/bc][g]/[/g][c]{max}[/c]  [g]can buy[/g] [by]{canBuy}[/by]',
 
-    buyQtyPrompt: '\r\n[c]How many {item}?[/c] ',
+    buyQtyPrompt: '\r\n[c]How many {item}?[/c] [mg][[/mg][bc]{canBuy}[/bc][mg]][/mg] ',
 
     planetSelectHeader: '[bc]=== Select a Planet ===[/bc]',
     planetSelectRow: '  [by]{n}[/by]  [w]{name}[/w] ({type})',

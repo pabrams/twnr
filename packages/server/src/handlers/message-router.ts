@@ -44,7 +44,7 @@ import {
     handleRetreatFromDrones,
 } from './sector-drones.js';
 import { handleListDeployedDrones, handleHyperspaceJump } from './hyperwarp.js';
-import { handleBuyHardware } from './hardware-store.js';
+import { handleBuyHardware, handleHardwareStoreInfo } from './hardware-store.js';
 
 export async function handleMessage(playerId: number, data: ClientCommand): Promise<void> {
     switch (data.type) {
@@ -80,6 +80,8 @@ export async function handleMessage(playerId: number, data: ClientCommand): Prom
             return handleStarbaseInfo(playerId);
         case ClientMsgType.TerraformInfo:
             return handleTerraformInfo(playerId);
+        case ClientMsgType.HardwareStoreInfo:
+            return handleHardwareStoreInfo(playerId);
         case ClientMsgType.AttackShip:
             return handleAttackShip(playerId, data.targetPlayerId, data.drones);
         case ClientMsgType.Dock:

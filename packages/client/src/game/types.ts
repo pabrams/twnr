@@ -5,6 +5,7 @@ import type {
     PortInfoResultObject,
     MenuEntry,
     HardwarePriceItem,
+    HardwareStoreItem,
     ShipCatalogEntry,
     PlanetConfig,
 } from '@twnr/shared';
@@ -55,9 +56,12 @@ export interface GameContext {
     colonistCommodity: 'fuel' | 'organics' | 'equipment' | null;
     planetEmptyHolds: number;
     shipColonists: number;
+    hardwareStoreCredits: number;
+    hardwareStoreItems: HardwareStoreItem[];
 
     knownUniverseMode: 'explored' | 'unexplored';
     starbaseBuyItemName: string | null;
+    starbaseBuyDefault: number;
     shipyardsBuyTarget: string | null;
     landablePlanets: { id: number; name: string; type: string }[] | null;
 }

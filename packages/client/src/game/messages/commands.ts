@@ -37,6 +37,7 @@ export const COMMAND = makeDomain('COMMAND', {
     dockStarbase: '[bw]<Enter Starbase>[/bw]',
     leaveStarbase: '[bw]<Leave Starbase>[/bw]',
     buyHardware: '[bw]<Buy Hardware>[/bw]',
+    hardwareStoreInfo: '[bw]<Hardware Store>[/bw]',
     buyDrones: '[bw]<Buy Drones>[/bw]',
     buyShields: '[bw]<Buy Shields>[/bw]',
     buyHolds: '[bw]<Buy Holds>[/bw]',

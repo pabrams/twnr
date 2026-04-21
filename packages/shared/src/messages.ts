@@ -104,6 +104,7 @@ export const ServerMsgType = {
     AttackMenuResult: 'attackMenuResult',
     StarbaseInfoResult: 'starbaseInfoResult',
     TerraformInfoResult: 'terraformInfoResult',
+    HardwareStoreInfoResult: 'hardwareStoreInfoResult',
 } as const;
 type ServerMsgType = typeof ServerMsgType;
 
@@ -113,6 +114,7 @@ export const ClientMsgType = {
     Attack: 'attack',
     StarbaseInfo: 'starbaseInfo',
     TerraformInfo: 'terraformInfo',
+    HardwareStoreInfo: 'hardwareStoreInfo',
     SectorDisplay: 'sectorDisplay',
     PlayersOnline: 'playersOnline',
     WarpsOut: 'warpsOut',
