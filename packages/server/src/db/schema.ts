@@ -549,7 +549,9 @@ export const connectDB = async (): Promise<void> => {
         ('shipyardsExamine', 'Examine Ships'),
         ('shipyardsClass0', 'Shipyards Equipment'),
         ('shipyardsClass0Qty', 'Equipment Quantity'),
-        ('move', 'Move to adjacent sector')
+        ('move', 'Move to adjacent sector'),
+        ('quitConfirm', 'Confirm quit'),
+        ('terraformConfirm', 'Confirm terraform')
       ON CONFLICT (name) DO NOTHING;
 
       -- Set parent menu relationships
@@ -986,6 +988,22 @@ export const connectDB = async (): Promise<void> => {
       -- Sector 'd' is now Deploy drones (was 'f'); Display sector is Enter-only (not in registry)
       DELETE FROM menu_command WHERE menu_id = (SELECT id FROM menu WHERE name='sector') AND command_id = (SELECT id FROM command WHERE name='display_sector');
       UPDATE menu_command SET key_pattern = 'd', sort_order = 80 WHERE menu_id = (SELECT id FROM menu WHERE name='sector') AND command_id = (SELECT id FROM command WHERE name='deploy_drones_info');
+
+      -- Sector 'q' now opens the quit confirm menu instead of closing immediately
+      UPDATE menu_command SET client_msg_type = NULL, target_menu_id = (SELECT id FROM menu WHERE name='quitConfirm')
+        WHERE menu_id = (SELECT id FROM menu WHERE name='sector') AND command_id = (SELECT id FROM command WHERE name='quit_game');
+
+      -- Sector 'u' now sends a TerraformInfo lookup; server transitions to terraformConfirm
+      UPDATE menu_command SET client_msg_type = 'terraformInfo', target_menu_id = NULL
+        WHERE menu_id = (SELECT id FROM menu WHERE name='sector') AND command_id = (SELECT id FROM command WHERE name='use_terraform_device');
+
+      -- Confirm-menu key bindings (y/n)
+      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
+        ((SELECT id FROM menu WHERE name='quitConfirm'),      (SELECT id FROM command WHERE name='confirm_yes'), 'y', 'Yes', NULL, NULL, 10),
+        ((SELECT id FROM menu WHERE name='quitConfirm'),      (SELECT id FROM command WHERE name='confirm_no'),  'n', 'No',  NULL, (SELECT id FROM menu WHERE name='sector'), 20),
+        ((SELECT id FROM menu WHERE name='terraformConfirm'), (SELECT id FROM command WHERE name='confirm_yes'), 'y', 'Yes', 'useTerraformDevice', NULL, 10),
+        ((SELECT id FROM menu WHERE name='terraformConfirm'), (SELECT id FROM command WHERE name='confirm_no'),  'n', 'No',  NULL, (SELECT id FROM menu WHERE name='sector'), 20)
+      ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === Sector: add terraform and list deployed drones ===
       INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES

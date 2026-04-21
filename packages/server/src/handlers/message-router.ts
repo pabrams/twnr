@@ -32,6 +32,7 @@ import {
     handleLeavePlanet,
     handleDestroyPlanet,
     handleUseTerraformDevice,
+    handleTerraformInfo,
     handleTakeColonists,
     handleLeaveColonists,
     handleListPlanets,
@@ -77,6 +78,8 @@ export async function handleMessage(playerId: number, data: ClientCommand): Prom
             return handleAttack(playerId);
         case ClientMsgType.StarbaseInfo:
             return handleStarbaseInfo(playerId);
+        case ClientMsgType.TerraformInfo:
+            return handleTerraformInfo(playerId);
         case ClientMsgType.AttackShip:
             return handleAttackShip(playerId, data.targetPlayerId, data.drones);
         case ClientMsgType.Dock:

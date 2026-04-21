@@ -19,6 +19,10 @@ export type StarbaseInfoCommand = {
     type: typeof ClientMsgType.StarbaseInfo;
 };
 
+export type TerraformInfoCommand = {
+    type: typeof ClientMsgType.TerraformInfo;
+};
+
 export type SectorDisplayCommand = {
     type: typeof ClientMsgType.SectorDisplay;
 };
@@ -202,6 +206,7 @@ export type ClientCommand =
     | MoveToPreviousCommand
     | AttackCommand
     | StarbaseInfoCommand
+    | TerraformInfoCommand
     | SectorDisplayCommand
     | PlayersOnlineCommand
     | WarpsOutCommand

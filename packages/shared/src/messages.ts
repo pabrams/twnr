@@ -41,6 +41,8 @@ export const Menu = {
     ShipyardsClass0: 'shipyardsClass0',
     ShipyardsClass0Qty: 'shipyardsClass0Qty',
     Move: 'move',
+    QuitConfirm: 'quitConfirm',
+    TerraformConfirm: 'terraformConfirm',
 } as const;
 export type MenuName = (typeof Menu)[keyof typeof Menu];
 
@@ -101,6 +103,7 @@ export const ServerMsgType = {
     PreviousSectorResult: 'previousSectorResult',
     AttackMenuResult: 'attackMenuResult',
     StarbaseInfoResult: 'starbaseInfoResult',
+    TerraformInfoResult: 'terraformInfoResult',
 } as const;
 type ServerMsgType = typeof ServerMsgType;
 
@@ -109,6 +112,7 @@ export const ClientMsgType = {
     MoveToPrevious: 'moveToPrevious',
     Attack: 'attack',
     StarbaseInfo: 'starbaseInfo',
+    TerraformInfo: 'terraformInfo',
     SectorDisplay: 'sectorDisplay',
     PlayersOnline: 'playersOnline',
     WarpsOut: 'warpsOut',
