@@ -56,7 +56,9 @@ export function setupConnection(ws: WebSocket, ctx: GameContext) {
                 break;
             case ServerMsgType.PlayerMoved:
                 ctx.term.writeln(
-                    render(msg.direction === 'in' ? NOTIFY.playerIn : NOTIFY.playerOut),
+                    render(msg.direction === 'in' ? NOTIFY.playerIn : NOTIFY.playerOut, {
+                        name: msg.playerName,
+                    }),
                 );
                 break;
             case ServerMsgType.RateLimited:

@@ -287,11 +287,23 @@ export async function handleRetreatFromDrones(playerId: number): Promise<void> {
         else if (p.sector === retreatSector) newSectorClients.add(p.ws);
     }
     broadcastTo(
-        { type: ServerMsgType.PlayerMoved, playerId, sector: retreatSector, direction: 'out' },
+        {
+            type: ServerMsgType.PlayerMoved,
+            playerId,
+            playerName: player.name,
+            sector: retreatSector,
+            direction: 'out',
+        },
         oldSectorClients,
     );
     broadcastTo(
-        { type: ServerMsgType.PlayerMoved, playerId, sector: retreatSector, direction: 'in' },
+        {
+            type: ServerMsgType.PlayerMoved,
+            playerId,
+            playerName: player.name,
+            sector: retreatSector,
+            direction: 'in',
+        },
         newSectorClients,
     );
 

@@ -105,11 +105,23 @@ export async function handleMove(playerId: number, targetSector: number): Promis
         else if (p.sector === targetSector) newSectorClients.add(p.ws);
     }
     broadcastTo(
-        { type: ServerMsgType.PlayerMoved, playerId, sector: targetSector, direction: 'out' },
+        {
+            type: ServerMsgType.PlayerMoved,
+            playerId,
+            playerName: player.name,
+            sector: targetSector,
+            direction: 'out',
+        },
         oldSectorClients,
     );
     broadcastTo(
-        { type: ServerMsgType.PlayerMoved, playerId, sector: targetSector, direction: 'in' },
+        {
+            type: ServerMsgType.PlayerMoved,
+            playerId,
+            playerName: player.name,
+            sector: targetSector,
+            direction: 'in',
+        },
         newSectorClients,
     );
 

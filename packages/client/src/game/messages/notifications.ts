@@ -12,8 +12,8 @@ export const NOTIFY = makeDomain('NOTIFY', {
     welcome: '\r\n[bg]Welcome, {name}.[/bg]',
     goodbye: '\r\n[w]Goodbye![/w]',
 
-    playerIn: '\r\n[by]Player warped into the sector.[/by]',
-    playerOut: '\r\n[w]Player warped out of the sector.[/w]',
+    playerIn: '\r\n[bc][mg]{name}[/mg] warped into the sector.[/bc]',
+    playerOut: '\r\n[c][mg]{name}[/mg] warped out of the sector.[/c]',
 
     starbaseLocation: '\r\n[bc]Starbase[/bc] [g]is in sector[/g] [bc]{sector}[/bc]',
     noStarbase: '\r\n[w]No Starbase in this universe.[/w]',
