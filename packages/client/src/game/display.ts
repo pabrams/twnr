@@ -72,11 +72,6 @@ export function showSectorDisplay(
         }
     }
 
-    if (warps.length > 0) {
-        const list = warps.map((w) => colorSectorRef(w)).join(render(SECTOR.warpSeparator));
-        term.writeln(render(SECTOR.warpsLine, { list }));
-    }
-
     if (players.length > 0) {
         const list = players.map((p) => render(SECTOR.playerItem, { name: p.name })).join(comma);
         term.writeln(render(SECTOR.playersLine, { list }));
@@ -87,6 +82,11 @@ export function showSectorDisplay(
             .map((s) => render(SECTOR.shipItem, { type: s.typeName, owner: s.ownerName }))
             .join(comma);
         term.writeln(render(SECTOR.shipsLine, { list }));
+    }
+
+    if (warps.length > 0) {
+        const list = warps.map((w) => colorSectorRef(w)).join(render(SECTOR.warpSeparator));
+        term.writeln(render(SECTOR.warpsLine, { list }));
     }
 
     if (withPrompt) showPrompt(ctx);
