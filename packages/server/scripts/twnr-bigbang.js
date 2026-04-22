@@ -8,11 +8,11 @@ import { DEFAULT_WARP_DIST } from '../dist/bigbang/types.js';
 
 const args = process.argv.slice(2);
 let outDir = null;
-let sectors = 5000;
+let sectors = 25000;
 let portDensity = 80;
-let planetDensity = 5;
+let planetDensity = 0;
 let twoWayPct = 95;
-let seed = null;
+let seed = 42;
 let warpDist = [...DEFAULT_WARP_DIST];
 
 for (let i = 0; i < args.length; i++) {
@@ -65,11 +65,11 @@ for (let i = 0; i < args.length; i++) {
 if (!outDir) {
     console.error("Usage: node twnr-bigbang.js <output-dir> [--sectors N] [OPTIONS]");
     console.error("Options:");
-    console.error("  --sectors N             Number of sectors (20-25000, default 5000)");
-    console.error("  --port-density N        Port density 1-100 (default 80)");
-    console.error("  --planet-density N      Planet density 0-100 (default 5)");
-    console.error("  --two-way-pct N         Two-way warp percentage 0-100 (default 95)");
-    console.error("  --warp-dist D1,...,D6   Warp-out degree distribution for 1-6 (default: 12,18,20,20,15,15)");
+    console.error("  --sectors N             Number of sectors");
+    console.error("  --port-density N        Port density 1-100");
+    console.error("  --planet-density N      Planet density 0-100");
+    console.error("  --two-way-pct N         Two-way warp percentage 0-100");
+    console.error("  --warp-dist D1,...,D6   Warp-out degree distribution for 1-6");
     console.error("  --seed N                Random seed (default: random)");
     process.exit(1);
 }
