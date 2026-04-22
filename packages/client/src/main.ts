@@ -45,7 +45,9 @@ const { showUniverseSelect } = setupUniverseScreen(
     showScreen,
     (universeId) => {
         showScreen('game');
-        startGame(universeId, termDiv);
+        startGame(universeId, termDiv, () => {
+            showUniverseSelect();
+        });
     },
 );
 

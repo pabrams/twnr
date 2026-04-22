@@ -5,6 +5,7 @@ export interface ColorConfig {
 }
 
 export interface ColorPalette {
+    black: ColorConfig;
     red: ColorConfig;
     green: ColorConfig;
     blue: ColorConfig;
@@ -23,6 +24,7 @@ export interface ColorPalette {
 
 // Non-bold colors use 153 (0x99), bold colors use 255 (0xFF)
 export const colorPalette: ColorPalette = {
+    black: { r: 0, g: 0, b: 0 },
     red: { r: 153, g: 0, b: 0 },
     green: { r: 0, g: 153, b: 0 },
     blue: { r: 0, g: 0, b: 153 },

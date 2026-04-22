@@ -1,5 +1,6 @@
 {
   "name": "Lyran Gunboat",
+  "displayName": "[by]Destroyer[/by]",
   "sortOrder": 4,
   "speed": 20,
   "startingHolds": 16,

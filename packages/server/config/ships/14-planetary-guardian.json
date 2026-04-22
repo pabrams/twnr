@@ -1,5 +1,6 @@
 {
   "name": "Planetary Guardian",
+  "displayName": "[by:b]Planetary Guardian[/by:b]",
   "sortOrder": 14,
   "speed": 20,
   "startingHolds": 10,

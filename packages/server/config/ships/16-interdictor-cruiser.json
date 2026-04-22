@@ -1,5 +1,6 @@
 {
   "name": "Interdictor Cruiser",
+  "displayName": "[b:r]Interdictor[/b:r]",
   "sortOrder": 16,
   "speed": 5,
   "startingHolds": 10,

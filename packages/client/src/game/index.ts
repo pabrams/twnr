@@ -8,7 +8,7 @@ import { setupInput } from './input.js';
 import { COMMAND } from './messages/index.js';
 import { render } from './renderer.js';
 
-export function startGame(universeId: number, termDiv: HTMLElement) {
+export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect: () => void) {
     const term = new Terminal({
         cursorBlink: true,
         fontFamily: 'Courier New, Courier, monospace',
@@ -110,6 +110,10 @@ export function startGame(universeId: number, termDiv: HTMLElement) {
         })
         .catch((err) => console.error('Failed to fetch menu registry:', err));
 
-    setupConnection(ws, ctx);
+    setupConnection(ws, ctx, () => {
+        term.dispose();
+        termDiv.innerHTML = '';
+        onDisconnect();
+    });
     setupInput(term, ctx);
 }

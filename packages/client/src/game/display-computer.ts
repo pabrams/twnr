@@ -239,15 +239,23 @@ export async function showTraderList(ctx: GameContext) {
     ctx.term.writeln(render(COMPUTER.traderListLoading));
     try {
         const res = await fetch(`/api/universes/${ctx.universeId}/players`);
-        const traders: { name: string; shipName: string }[] = await res.json();
+        const traders: {
+            name: string;
+            shipName: string | null;
+            shipDisplayName: string | null;
+        }[] = await res.json();
         ctx.term.writeln('');
         ctx.term.writeln(render(COMPUTER.traderListHeader));
         ctx.term.writeln(render(COMPUTER.traderListColumns, { name: 'Name'.padEnd(24) }));
         for (const t of traders) {
+            const ship =
+                t.shipName === null
+                    ? render(COMPUTER.traderListShipDestroyed)
+                    : (t.shipDisplayName ?? t.shipName);
             ctx.term.writeln(
                 render(COMPUTER.traderListRow, {
                     name: t.name.padEnd(24),
-                    ship: t.shipName,
+                    ship,
                 }),
             );
         }

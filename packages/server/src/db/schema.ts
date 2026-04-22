@@ -79,6 +79,7 @@ export const connectDB = async (): Promise<void> => {
       CREATE TABLE IF NOT EXISTS ship_types (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) UNIQUE NOT NULL,
+        display_name VARCHAR(512),
         make VARCHAR(255),
         sort_order SMALLINT NOT NULL DEFAULT 0,
         max_drones INTEGER NOT NULL DEFAULT 0,
@@ -1088,7 +1089,7 @@ export const connectDB = async (): Promise<void> => {
         for (const ship of Object.values(shipConfigs)) {
             const stRes = await client.query(
                 `INSERT INTO ship_types (
-                    name, make, sort_order,
+                    name, display_name, make, sort_order,
                     max_drones, max_shields, starting_holds, max_holds,
                     odds_offensive, odds_defensive,
                     has_pod, can_land, has_interdictor,
@@ -1099,17 +1100,18 @@ export const connectDB = async (): Promise<void> => {
                     has_tractor,
                     piloting_restriction, notes
                  ) VALUES (
-                    $1, $2, $3,
-                    $4, $5, $6, $7,
-                    $8, $9,
-                    $10, $11, $12,
-                    $13, $14,
-                    $15, $16,
-                    $17, $18, $19, $20,
-                    $21, $22,
-                    $23,
-                    $24, $25
+                    $1, $2, $3, $4,
+                    $5, $6, $7, $8,
+                    $9, $10,
+                    $11, $12, $13,
+                    $14, $15,
+                    $16, $17,
+                    $18, $19, $20, $21,
+                    $22, $23,
+                    $24,
+                    $25, $26
                  ) ON CONFLICT (name) DO UPDATE SET
+                    display_name = EXCLUDED.display_name,
                     make = EXCLUDED.make,
                     sort_order = EXCLUDED.sort_order,
                     max_drones = EXCLUDED.max_drones,
@@ -1137,6 +1139,7 @@ export const connectDB = async (): Promise<void> => {
                  RETURNING id`,
                 [
                     ship.name,
+                    ship.displayName ?? null,
                     ship.make || null,
                     ship.sortOrder ?? 0,
                     ship.maxDrones ?? 0,

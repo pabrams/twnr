@@ -131,6 +131,7 @@ export function createUniverseRoutes(
                 rows.map((r) => ({
                     name: r.name,
                     shipName: r.ship_name,
+                    shipDisplayName: r.ship_display_name,
                 })),
             );
         }),

@@ -1,5 +1,6 @@
 {
   "name": "Royal Warship",
+  "displayName": "[bw:bb]Royal Warship[/bw:bb]",
   "sortOrder": 9,
   "speed": 25,
   "startingHolds": 40,

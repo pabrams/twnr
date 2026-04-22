@@ -1,5 +1,6 @@
 {
   "name": "Corporate FlagShip",
+  "displayName": "[r]Corporate Flagship[/r]",
   "sortOrder": 5,
   "speed": 30,
   "startingHolds": 20,
