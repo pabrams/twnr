@@ -175,14 +175,15 @@ export async function setPlayerShipId(
 /** Roster of players in a universe with their current ship type name. */
 export type UniversePlayerRosterRow = {
     name: string;
-    ship_name: string;
+    ship_name: string | null;
+    ship_display_name: string | null;
 };
 export async function listPlayersInUniverse(
     universeId: number,
     db: Queryable = pool,
 ): Promise<UniversePlayerRosterRow[]> {
     const res = await db.query<UniversePlayerRosterRow>(
-        `SELECT p.name, COALESCE(st.name, 'No ship') AS ship_name
+        `SELECT p.name, st.name AS ship_name, st.display_name AS ship_display_name
          FROM players p
          LEFT JOIN ships s ON p.ship_id = s.id
          LEFT JOIN ship_types st ON s.ship_type_id = st.id

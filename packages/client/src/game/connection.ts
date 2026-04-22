@@ -26,9 +26,13 @@ function fmt(n: number): string {
     return n.toLocaleString();
 }
 
-export function setupConnection(ws: WebSocket, ctx: GameContext) {
+export function setupConnection(ws: WebSocket, ctx: GameContext, onDisconnect: () => void) {
     ws.addEventListener('open', () => {
         ctx.term.writeln(render(NOTIFY.connected));
+    });
+
+    ws.addEventListener('close', () => {
+        onDisconnect();
     });
 
     ws.addEventListener('message', (event) => {

@@ -40,6 +40,7 @@ export const COMPUTER = makeDomain('COMPUTER', {
     traderListHeader: '[bc]=== Traders in Universe ===[/bc]',
     traderListColumns: '  [bw]{name}[/bw] [bw]Ship[/bw]',
     traderListRow: '  [by]{name}[/by] [w]{ship}[/w]',
+    traderListShipDestroyed: '[bb]### [y]SHIP DESTROYED[/y] ###[/bb]',
     traderListFailed: '[br]Failed to load trader list.[/br]',
 
     shipDataRequesting: '[w]Requesting ship data...[/w]',

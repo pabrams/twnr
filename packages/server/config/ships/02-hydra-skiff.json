@@ -1,5 +1,6 @@
 {
   "name": "Hydra Skiff",
+  "displayName": "[mg]Scout[/mg]",
   "sortOrder": 2,
   "speed": 50,
   "startingHolds": 10,

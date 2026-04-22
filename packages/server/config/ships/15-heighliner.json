@@ -1,5 +1,6 @@
 {
   "name": "Heighliner",
+  "displayName": "[r:w]Heighliner[/r:w]",
   "sortOrder": 15,
   "speed": 15,
   "startingHolds": 60,

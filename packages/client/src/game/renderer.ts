@@ -1,6 +1,7 @@
 import { colorPalette, type ColorConfig, type ColorPalette } from '../config/colors.js';
 
 const TAG_TO_COLOR: Record<string, ColorConfig> = {
+    k: colorPalette.black,
     mg: colorPalette.magenta,
     bg: colorPalette.boldGreen,
     by: colorPalette.boldYellow,

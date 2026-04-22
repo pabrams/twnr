@@ -1,5 +1,6 @@
 {
   "name": "Mega-Barge",
+  "displayName": "[c]Colony Ship[/c]",
   "sortOrder": 6,
   "speed": 10,
   "startingHolds": 50,

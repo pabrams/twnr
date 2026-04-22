@@ -2,6 +2,7 @@
 
 export type ShipConfig = {
     name: string;
+    displayName?: string;
     sortOrder: number;
     speed: number;
     startingHolds: number;
@@ -58,6 +59,7 @@ export type PlanetConfig = {
 export type ShipCatalogEntry = {
     id: number;
     name: string;
+    display_name: string | null;
     make: string | null;
     sort_order: number;
     max_drones: number;

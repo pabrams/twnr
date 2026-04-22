@@ -84,6 +84,7 @@ export interface PlayerPlanetRow {
 export interface ShipTypeRow {
     id: number;
     name: string;
+    display_name: string | null;
     make: string | null;
     sort_order: number;
     max_drones: number;

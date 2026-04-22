@@ -1,5 +1,6 @@
 {
   "name": "Torpedo Boat",
+  "displayName": "[y]Torpedo Boat[/y]",
   "sortOrder": 3,
   "speed": 30,
   "startingHolds": 12,
