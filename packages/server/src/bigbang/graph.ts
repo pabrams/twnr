@@ -50,13 +50,15 @@ export function generateGraph(
         }
     }
 
-    // Find biPairsTarget that gives pct within ±1% of T
+    // Find biPairsTarget that gives pct within TOLERANCE of T. Small graphs need
+    // slack because integer bp values can't hit arbitrary percentages cleanly.
+    const TOLERANCE = 5.0;
     function findBiPairs(total: number): number {
         const base = Math.round((total * T) / 200);
         for (const bp of [base, base - 1, base + 1]) {
             if (bp < 0 || 2 * bp > total) continue;
             const pct = ((2 * bp) / total) * 100;
-            if (Math.abs(pct - T) <= 1.0001) return bp;
+            if (Math.abs(pct - T) <= TOLERANCE) return bp;
         }
         return -1;
     }
@@ -103,8 +105,8 @@ export function generateGraph(
 
     // Retry loop
     for (let attempt = 0; ; attempt++) {
-        if (attempt > 500) {
-            throw new Error('Failed to generate graph after 500 attempts.');
+        if (attempt > 2000) {
+            throw new Error('Failed to generate graph after 2000 attempts.');
         }
 
         const outDeg = new Int32Array(N + 1);
@@ -236,7 +238,7 @@ export function generateGraph(
             if (edges.has(`${b},${a}`)) biCount++;
         }
         const actualPct = (biCount / edges.size) * 100;
-        if (Math.abs(actualPct - T) > 1.0001) continue;
+        if (Math.abs(actualPct - T) > TOLERANCE) continue;
 
         const result: GeneratedWarp[] = [];
         for (const e of edges) {
