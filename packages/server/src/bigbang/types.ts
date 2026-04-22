@@ -1,11 +1,11 @@
 /** Default warp-out degree distribution for degrees 1-6 (index 0 unused). */
-export const DEFAULT_WARP_DIST = [0, 12, 18, 20, 20, 15, 15];
+export const DEFAULT_WARP_DIST = [0, 20, 30, 25, 15, 8, 2];
 
 export interface BigBangOptions {
     sectors: number;
     seed?: number;
-    portDensity?: number; // 1-100, default 80
-    twoWayPct?: number; // 0-100, default 95
+    portDensity?: number; // 1-100
+    twoWayPct?: number; // 0-100
     warpDist?: number[]; // 6-element array for degrees 1-6, default DEFAULT_WARP_DIST
 }
 
