@@ -44,7 +44,8 @@ export const SECTOR = makeDomain('SECTOR', {
         '[g]That sector is not adjacent.[g]\r\n' +
         '\r\n[g]The Shortest path [mg]({hops} hops, {turns} turns)[/mg] from sector [by]{from}[/by] to sector [by]{to}[/by] is[by]:[/by]',
     autopilotPathSeparator: ' [g]>[/g] ',
-    autopilotConfirm: '\r\n[mg]Engage the autopilot?[/mg] [mg]([/mg][by]Y[/by]/[by]N[/by][mg]) [Y][/mg] ',
+    autopilotConfirm:
+        '\r\n[mg]Engage the autopilot?[/mg] [mg]([/mg][by]Y[/by]/[by]N[/by][mg]) [Y][/mg] ',
 
     noPlanet:
         '[w]There is no planet in this sector. You could create one with a Terraform Device.[/w]',
@@ -52,5 +53,6 @@ export const SECTOR = makeDomain('SECTOR', {
     moveMenuHeader: '[bm]Adjacent sectors[/bm]',
     moveMenuRow: '  [mg]<[/mg][g]{n}[/g][mg]>[/mg] {sector}',
     moveMenuQuit: '  [mg]<[/mg][g]Q[/g][mg]>[/mg] [by]Cancel[/by]',
-    moveMenuPrompt: '\r\n[mg]Select warp[/mg] [mg]([/mg][by]1[/by]-[by]{max}[/by],[by]Q[/by][mg])[/mg] [by]:[/by] ',
+    moveMenuPrompt:
+        '\r\n[mg]Select warp[/mg] [mg]([/mg][by]1[/by]-[by]{max}[/by],[by]Q[/by][mg])[/mg] [by]:[/by] ',
 });
