@@ -21,8 +21,7 @@ export const EVENT = makeDomain('EVENT', {
         '[g]You have [by]{total}[/by] drones available.[/g]\r\n' +
         '[g]Your ship can support a maximum of [by]{max}[/by] drones, so you have to leave at least [by]{minInSector}[/by].[/g]',
 
-    deployDronesPrompt:
-        '[g]How many drones do you want defending this sector? [{minInSector}][/g]',
+    deployDronesPrompt: '[g]How many drones do you want defending this sector? [{minInSector}][/g]',
 
     deployDronesResult:
         '\r\n[bc]Done. You have [by]{ship}[/by] drones in close support and [by]{sector}[/by] defending the sector.[/bc]',
@@ -50,6 +49,7 @@ export const EVENT = makeDomain('EVENT', {
         '\r\n[bg]Hyperspace jump![/bg] Arrived in sector [bc]{sector}[/bc]. Fuel used: [by]{fuel}[/by], Turns: [by]{turns}[/by]',
 
     leftPlanet: '\r\n[w]You return to your ship and leave the planet.[/w]',
-    noPlanetsToLand: '\r\n[g]There\'s no planet in this sector.[/g]' +
-                     '\r\n[g]You can create one with a terraform device.[/g]',
+    noPlanetsToLand:
+        "\r\n[g]There's no planet in this sector.[/g]" +
+        '\r\n[g]You can create one with a terraform device.[/g]',
 });

@@ -21,8 +21,9 @@ export const TRANSACTION = makeDomain('TRANSACTION', {
     shipCreditsLine: '  [by]Credits[/by]: {credits}',
 
     hardwareInstalled: '\r\n[bg]{label} installed![/bg] Credits: {credits}',
-    hardwareStacked: '\r\n[bg]Purchase complete.[/bg]\r\n' +
-                     '[mg]{label}: [by]{total}[/by], Credits: [by]{credits}[/by]',
+    hardwareStacked:
+        '\r\n[bg]Purchase complete.[/bg]\r\n' +
+        '[mg]{label}: [by]{total}[/by], Credits: [by]{credits}[/by]',
 
     undocked: '\r\n[w]You undock from the port.[/w]',
 

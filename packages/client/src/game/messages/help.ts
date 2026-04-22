@@ -5,21 +5,23 @@
 import { makeDomain } from './_domain.js';
 
 export const HELP = makeDomain('HELP', {
-    header: '[mg]     Sector Commands[/mg]\r\n' + 
-            '[by]     =[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]=',
+    header:
+        '[mg]     Sector Commands[/mg]\r\n' +
+        '[by]     =[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]=',
     lineText: '[c]{label}:[/c] {text}',
-    lineKey: "   [mg]<[/mg][g]{key}[/g][mg]>[/mg] [bc]{text}[/bc]",
-    footer: '\r\n   [c]Move to any Sector by typing its number.[/c]\r\n' +
-            '   [c]Attempting to move to a non-adjacent sector will prompt to engage auto-pilot.[/c]\r\n' +
-            '   [c]Quick-move to an adjacent sector using the [mg]<[/mg][g]M[/g][mg]>[/mg] command.[/c]\r\n' +
-            '   [c]Use [mg]<[/mg][g]ENTER[/g][mg]>[/mg] to re-display the sector.[/c]\r\n' +
-            '   [br]*[/br] [bc]Note that some warps are one-way![/bc]',
+    lineKey: '   [mg]<[/mg][g]{key}[/g][mg]>[/mg] [bc]{text}[/bc]',
+    footer:
+        '\r\n   [c]Move to any Sector by typing its number.[/c]\r\n' +
+        '   [c]Attempting to move to a non-adjacent sector will prompt to engage auto-pilot.[/c]\r\n' +
+        '   [c]Quick-move to an adjacent sector using the [mg]<[/mg][g]M[/g][mg]>[/mg] command.[/c]\r\n' +
+        '   [c]Use [mg]<[/mg][g]ENTER[/g][mg]>[/mg] to re-display the sector.[/c]\r\n' +
+        '   [br]*[/br] [bc]Note that some warps are one-way![/bc]',
 });
 
 export const HELP_LINES: Array<
     { label: string; text: string } | { label: string; key: string; text: string }
 > = [
-    { label: 'Who', key: '#', text: 'Who\'s Playing' },
+    { label: 'Who', key: '#', text: "Who's Playing" },
     { label: 'Info', key: 'I', text: 'Ship Information' },
     { label: 'Quickmove', key: 'M', text: 'Quick-move to adjacent sector' },
     { label: 'Quickmove', key: '<', text: 'Return to previous sector [br]*[/br]' },

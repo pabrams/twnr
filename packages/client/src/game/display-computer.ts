@@ -20,8 +20,10 @@ export function showComputerDeactivated(ctx: GameContext) {
 
 export function showComputerHelp(ctx: GameContext) {
     ctx.term.writeln('');
-    ctx.term.writeln(render('[mg]   Computer Commands[/mg]')); 
-    ctx.term.writeln(render('[by]   =[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]='));
+    ctx.term.writeln(render('[mg]   Computer Commands[/mg]'));
+    ctx.term.writeln(
+        render('[by]   =[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]='),
+    );
     ctx.term.writeln(render(COMMON.menuRow, { key: 'K', text: '[bc]Known Universe[/bc]' }));
     ctx.term.writeln(render(COMMON.menuRow, { key: 'L', text: '[bc]List Traders[/bc]' }));
     ctx.term.writeln(render(COMMON.menuRow, { key: 'C', text: '[bc]Ship Catalog[/bc]' }));

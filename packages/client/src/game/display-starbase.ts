@@ -30,9 +30,7 @@ function fmt(n: number): string {
 }
 
 export function showHardwareMenu(ctx: GameContext) {
-    ctx.term.writeln(
-        render(STARBASE.hardwareCredits, { credits: fmt(ctx.hardwareStoreCredits) }),
-    );
+    ctx.term.writeln(render(STARBASE.hardwareCredits, { credits: fmt(ctx.hardwareStoreCredits) }));
     showHardwarePrompt(ctx);
 }
 
@@ -45,7 +43,8 @@ export function showHardwareItemDetail(ctx: GameContext, itemName: string): numb
     const item = ctx.hardwareStoreItems.find((i) => i.name === itemName);
     if (!item) return 0;
     const remaining = Math.max(0, item.maxQty - item.currentQty);
-    const affordable = item.price > 0 ? Math.floor(ctx.hardwareStoreCredits / item.price) : remaining;
+    const affordable =
+        item.price > 0 ? Math.floor(ctx.hardwareStoreCredits / item.price) : remaining;
     const canBuy = Math.min(remaining, affordable);
     ctx.term.writeln(
         render(STARBASE.hardwareItemDetail, {
