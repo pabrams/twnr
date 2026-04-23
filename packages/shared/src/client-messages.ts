@@ -205,6 +205,11 @@ export type TradeConfirmResponseCommand = {
     confirmed: boolean;
 };
 
+export type GetNeighborhoodCommand = {
+    type: typeof ClientMsgType.GetNeighborhood;
+    depth: number;
+};
+
 export type ClientCommand =
     | MoveCommand
     | MoveToPreviousCommand
@@ -249,4 +254,5 @@ export type ClientCommand =
     | ChangeMenuCommand
     | VisitedSectorsCommand
     | TradeResponseCommand
-    | TradeConfirmResponseCommand;
+    | TradeConfirmResponseCommand
+    | GetNeighborhoodCommand;

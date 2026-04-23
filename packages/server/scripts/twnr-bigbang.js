@@ -3,6 +3,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { generateGraph } from '../dist/bigbang/graph.js';
+import { generateProximalGraph } from '../dist/bigbang/graph-proximal.js';
+import { scatterPositions } from '../dist/bigbang/positions.js';
 import { mulberry32 } from '../dist/bigbang/prng.js';
 import { DEFAULT_WARP_DIST } from '../dist/bigbang/types.js';
 
@@ -14,6 +16,7 @@ let planetDensity = 0;
 let twoWayPct = 95;
 let seed = 42;
 let warpDist = [...DEFAULT_WARP_DIST];
+let topology = 'random';
 
 for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -33,6 +36,17 @@ for (let i = 0; i < args.length; i++) {
             process.exit(1);
         }
         warpDist = [0, ...parts];
+    } else if (arg === '--topology') {
+        if (i + 1 >= args.length) {
+            console.error('Error: --topology requires a value');
+            process.exit(1);
+        }
+        const val = args[++i];
+        if (val !== 'random' && val !== 'proximal') {
+            console.error("Error: --topology must be 'random' or 'proximal'");
+            process.exit(1);
+        }
+        topology = val;
     } else if (['--sectors', '--port-density', '--planet-density', '--two-way-pct', '--seed'].includes(arg)) {
         if (i + 1 >= args.length) {
             console.error(`Error: ${arg} requires a value`);
@@ -70,6 +84,7 @@ if (!outDir) {
     console.error("  --planet-density N      Planet density 0-100");
     console.error("  --two-way-pct N         Two-way warp percentage 0-100");
     console.error("  --warp-dist D1,...,D6   Warp-out degree distribution for 1-6");
+    console.error("  --topology MODE         'random' (default) or 'proximal'");
     console.error("  --seed N                Random seed (default: random)");
     process.exit(1);
 }
@@ -120,7 +135,11 @@ sectorNames[1] = "Federation Space";
 const starbaseId = randomInt(2, N);
 sectorNames[starbaseId] = "Starbase";
 
-const warps = generateGraph(N, twoWayPct, rng, warpDist);
+const positions = topology === 'proximal' ? scatterPositions(N, rng) : null;
+
+const warps = positions
+    ? generateProximalGraph(N, twoWayPct, rng, positions, warpDist)
+    : generateGraph(N, twoWayPct, rng, warpDist);
 
 // Print generation stats
 {
@@ -131,7 +150,7 @@ const warps = generateGraph(N, twoWayPct, rng, warpDist);
     const warpSet = new Set(warps.map(w => `${w.from},${w.to}`));
     let bi = 0;
     for (const w of warps) if (warpSet.has(`${w.to},${w.from}`)) bi++;
-    console.error(`Sectors: ${N}, Warps: ${warps.length}, Two-way: ${(bi / warps.length * 100).toFixed(1)}%`);
+    console.error(`Topology: ${topology}, Sectors: ${N}, Warps: ${warps.length}, Two-way: ${(bi / warps.length * 100).toFixed(1)}%`);
     console.error(`Degree dist: ${degDist.slice(1).map((c, i) => `${i + 1}=${c}`).join(', ')}`);
 }
 
@@ -251,6 +270,7 @@ planets.sort((a, b) => a.sector !== b.sector ? a.sector - b.sector : a.planet_na
 
 function toCSVLine(arr) {
     return arr.map(v => {
+        if (v === null || v === undefined) return '';
         let str = String(v);
         if (str.includes(',')) return `"${str}"`;
         return str;
@@ -259,9 +279,12 @@ function toCSVLine(arr) {
 
 const sectorsRows = [];
 for (let i = 1; i <= N; i++) {
-    sectorsRows.push(toCSVLine([i, sectorNames[i]]));
+    const pos = positions ? positions[i - 1] : null;
+    const x = pos ? pos.x : null;
+    const y = pos ? pos.y : null;
+    sectorsRows.push(toCSVLine([i, sectorNames[i], x, y]));
 }
-fs.writeFileSync(path.join(outDir, 'sectors.csv'), 'id,name\n' + sectorsRows.join('\n') + '\n');
+fs.writeFileSync(path.join(outDir, 'sectors.csv'), 'id,name,x,y\n' + sectorsRows.join('\n') + '\n');
 
 const warpsRows = warps.map(w => toCSVLine([w.from, w.to]));
 fs.writeFileSync(path.join(outDir, 'warps.csv'), 'from_sector_id,to_sector_id\n' + warpsRows.join('\n') + '\n');
@@ -277,11 +300,16 @@ fs.writeFileSync(path.join(outDir, 'ports.csv'), 'sector,class,fuel_qty,fuel_pri
 const planetsRows = planets.map(p => toCSVLine([p.sector, p.planet_name, p.planet_type]));
 fs.writeFileSync(path.join(outDir, 'planets.csv'), 'sector,planet_name,planet_type\n' + planetsRows.join('\n') + '\n');
 
+const manifest = { topology, seed, sectorCount: N };
+fs.writeFileSync(path.join(outDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
+
 const sql = `BEGIN;
 
 CREATE TABLE sectors (
     id INTEGER PRIMARY KEY,
-    name VARCHAR(255)
+    name VARCHAR(255),
+    x DOUBLE PRECISION,
+    y DOUBLE PRECISION
 );
 
 CREATE TABLE warps (

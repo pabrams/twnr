@@ -103,6 +103,15 @@ export function setupInput(term: Terminal, ctx: GameContext) {
             }
         }
     });
+
+    // Mini-map click injection: route through the same input handler the user
+    // reaches with Enter, so map clicks behave exactly like typed commands.
+    ctx.submitLineFromMap = (line: string) => {
+        const trimmed = line.trim();
+        if (trimmed.length > 0) term.writeln(trimmed);
+        else term.writeln('');
+        handleInput(ctx, trimmed);
+    };
 }
 
 function handleInput(ctx: GameContext, line: string) {

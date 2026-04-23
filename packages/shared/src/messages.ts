@@ -105,6 +105,7 @@ export const ServerMsgType = {
     StarbaseInfoResult: 'starbaseInfoResult',
     TerraformInfoResult: 'terraformInfoResult',
     HardwareStoreInfoResult: 'hardwareStoreInfoResult',
+    NeighborhoodResult: 'neighborhoodResult',
 } as const;
 type ServerMsgType = typeof ServerMsgType;
 
@@ -153,5 +154,6 @@ export const ClientMsgType = {
     VisitedSectors: 'visitedSectors',
     TradeResponse: 'tradeResponse',
     TradeConfirmResponse: 'tradeConfirmResponse',
+    GetNeighborhood: 'getNeighborhood',
 } as const;
 type ClientMsgType = typeof ClientMsgType;

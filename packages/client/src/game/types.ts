@@ -9,6 +9,7 @@ import type {
     ShipCatalogEntry,
     PlanetConfig,
 } from '@twnr/shared';
+import type { Minimap } from './minimap.js';
 
 export interface GameContext {
     term: Terminal;
@@ -64,4 +65,9 @@ export interface GameContext {
     starbaseBuyDefault: number;
     shipyardsBuyTarget: string | null;
     landablePlanets: { id: number; name: string; type: string }[] | null;
+
+    /** Mini-map panel (undefined if the panel element is missing). */
+    minimap?: Minimap;
+    /** Submit a text line as if the user had typed it into the xterm (used by the mini-map). */
+    submitLineFromMap: (line: string) => void;
 }

@@ -19,8 +19,8 @@ describe('Sector Generation', () => {
   });
   after(() => { rmSync(outdir, { recursive: true, force: true }); });
 
-  it('sectors.csv has header: id, name', () => {
-    assert.deepStrictEqual(header, ['id', 'name']);
+  it('sectors.csv has header: id, name, x, y', () => {
+    assert.deepStrictEqual(header, ['id', 'name', 'x', 'y']);
   });
 
   it('produces exactly N sector rows', () => {

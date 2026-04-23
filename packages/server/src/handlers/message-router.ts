@@ -45,6 +45,7 @@ import {
 } from './sector-drones.js';
 import { handleListDeployedDrones, handleHyperspaceJump } from './hyperwarp.js';
 import { handleBuyHardware, handleHardwareStoreInfo } from './hardware-store.js';
+import { handleGetNeighborhood } from './neighborhood.js';
 
 export async function handleMessage(playerId: number, data: ClientCommand): Promise<void> {
     switch (data.type) {
@@ -136,6 +137,17 @@ export async function handleMessage(playerId: number, data: ClientCommand): Prom
             return handleChangeMenu(playerId, data.menu);
         case ClientMsgType.VisitedSectors:
             return handleVisitedSectors(playerId);
+        case ClientMsgType.GetNeighborhood: {
+            // Wire-level validation: non-numeric/missing depth is rejected as
+            // a malformed frame. NaN/±Infinity fall back to the default depth
+            // inside the handler.
+            const raw = (data as { depth?: unknown }).depth;
+            if (typeof raw !== 'number') {
+                sendError(playerId, 'Invalid GET_NEIGHBORHOOD: depth must be a number');
+                return;
+            }
+            return handleGetNeighborhood(playerId, raw);
+        }
         default:
             sendError(playerId, 'Unknown message type');
     }

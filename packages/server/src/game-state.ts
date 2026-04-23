@@ -13,6 +13,7 @@ import { getShipHardwareQuantities, getShipTypeHardwareMax } from './db/queries/
 import { getSectorDroneDisplayInfo } from './db/queries/drones.js';
 import { getPortForSectorDisplay } from './db/queries/port.js';
 import { setPlayerCurrentMenu, getVisitedSectorNumbers } from './db/queries/player.js';
+import { recordSectorObservation } from './db/queries/observations.js';
 
 export interface TradeStep {
     commodity: 'fuel' | 'organics' | 'equipment';
@@ -183,14 +184,16 @@ export async function buildSectorDisplayData(playerId: number, sectorNumber?: nu
     const sector = sectorNumber ?? player.sector;
     const universeId = player.universeId;
 
-    const [port, warps, sectorDrones, planets, collisions, emptyShips] = await Promise.all([
-        getPortForSector(sector, universeId),
-        getWarpRefs(playerId, sector, universeId),
-        getSectorDrones(sector, universeId),
-        getPlanetsInSector(sector, universeId),
-        getCollisionsInSector(sector, universeId),
-        getEmptyShipsInSector(sector, universeId),
-    ]);
+    const [port, warps, sectorDrones, planets, collisions, emptyShips, sectorDbId] =
+        await Promise.all([
+            getPortForSector(sector, universeId),
+            getWarpRefs(playerId, sector, universeId),
+            getSectorDrones(sector, universeId),
+            getPlanetsInSector(sector, universeId),
+            getCollisionsInSector(sector, universeId),
+            getEmptyShipsInSector(sector, universeId),
+            getSectorDbId(sector, universeId),
+        ]);
 
     const playersInSector = Object.entries(players)
         .filter(
@@ -201,6 +204,16 @@ export async function buildSectorDisplayData(playerId: number, sectorNumber?: nu
                 Number(id) !== playerId,
         )
         .map(([id, p]) => ({ id: Number(id), name: p.name }));
+
+    // Fog-of-war: record the player's observation of this sector's contents.
+    if (sectorDbId !== undefined) {
+        await recordSectorObservation(
+            playerId,
+            sectorDbId,
+            port ? { class: port.class } : null,
+            planets.map((p) => ({ name: p.name, type: p.type ?? null })),
+        ).catch((err) => console.error('recordSectorObservation failed:', err));
+    }
 
     return {
         sector,

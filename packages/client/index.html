@@ -7,7 +7,43 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { width: 100%; height: 100%; background: #000; color: #c0c0c0; font-family: 'Courier New', Courier, monospace; }
-    #terminal { width: 100%; height: 100%; display: none; }
+    #game-container { display: none; width: 100%; height: 100%; flex-direction: row; }
+    #terminal { flex: 1; min-width: 0; height: 100%; position: relative; border: 2px solid transparent; transition: border-color 0.1s; }
+    #terminal.flash-border { border-color: #ff8800; }
+    #minimap {
+      width: 400px; flex-shrink: 0; height: 100%; border-left: 1px solid #444;
+      background: #050510; display: flex; flex-direction: column; color: #c0c0c0; font-size: 12px;
+    }
+    #minimap .minimap-header {
+      padding: 6px 10px; border-bottom: 1px solid #333; display: flex; gap: 8px;
+      align-items: center; background: #0a0a16;
+    }
+    #minimap .minimap-header label { color: #888; font-size: 11px; }
+    #minimap .depth-btn {
+      background: #222; color: #c0c0c0; border: 1px solid #444; padding: 2px 8px;
+      font-family: inherit; font-size: 11px; cursor: pointer; min-width: 22px;
+    }
+    #minimap .depth-btn:hover { background: #333; }
+    #minimap .depth-btn.active { background: #0ff; color: #000; border-color: #0ff; }
+    #minimap .minimap-body {
+      flex: 1; position: relative; overflow: hidden;
+    }
+    #minimap .empty-state {
+      position: absolute; inset: 0; display: flex; align-items: center;
+      justify-content: center; color: #666; font-style: italic; text-align: center;
+      padding: 20px;
+    }
+    #minimap svg { width: 100%; height: 100%; display: block; }
+    #minimap .sector-node { cursor: pointer; }
+    #minimap .sector-node:focus { outline: 1px solid #0ff; }
+    #minimap .tooltip {
+      position: absolute; background: #000; color: #c0c0c0; border: 1px solid #444;
+      padding: 6px 8px; font-size: 11px; pointer-events: none;
+      max-width: 220px; z-index: 10; display: none; white-space: pre-wrap; line-height: 1.3;
+    }
+    @media (max-width: 900px) {
+      #minimap { width: 280px; }
+    }
     #auth {
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       height: 100%; gap: 12px;
@@ -129,7 +165,23 @@
     <div class="error" id="player-name-error"></div>
     <button id="player-name-submit">Join Universe</button>
   </div>
-  <div id="terminal"></div>
+  <div id="game-container">
+    <div id="terminal"></div>
+    <div id="minimap">
+      <div class="minimap-header">
+        <label>Depth:</label>
+        <button type="button" class="depth-btn" data-depth="2">2</button>
+        <button type="button" class="depth-btn active" data-depth="3">3</button>
+        <button type="button" class="depth-btn" data-depth="4">4</button>
+        <button type="button" class="depth-btn" data-depth="5">5</button>
+      </div>
+      <div class="minimap-body">
+        <div class="empty-state" style="display: none;">No map data for this universe.</div>
+        <svg class="minimap-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+        <div class="tooltip"></div>
+      </div>
+    </div>
+  </div>
   <script type="module" src="/src/main.ts"></script>
 </body>
 </html>

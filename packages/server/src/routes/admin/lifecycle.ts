@@ -55,6 +55,7 @@ export function createAdminLifecycleRoutes(
                 portDensity,
                 twoWayPct,
                 warpDist,
+                topology,
                 edit_name = 'stock',
             } = req.body;
 
@@ -85,21 +86,36 @@ export function createAdminLifecycleRoutes(
                 parsedWarpDist = [0, ...warpDist];
             }
 
+            let parsedTopology: 'random' | 'proximal' | undefined;
+            if (topology != null) {
+                if (topology !== 'random' && topology !== 'proximal') {
+                    throw new HttpError(400, "topology must be 'random' or 'proximal'");
+                }
+                parsedTopology = topology;
+            }
+
             const result = generateUniverse({
                 sectors: sectorCount,
                 seed: seed != null ? Math.floor(Number(seed)) : undefined,
                 portDensity: portDensity != null ? Number(portDensity) : undefined,
                 twoWayPct: twoWayPct != null ? Number(twoWayPct) : undefined,
                 warpDist: parsedWarpDist,
+                topology: parsedTopology,
             });
 
             const universeId = await withTransaction(async (client) => {
                 const editId = await getEditIdByName(edit_name, client);
-                const newUniverseId = await insertUniverseFull(name, result.seed, editId, client);
+                const newUniverseId = await insertUniverseFull(
+                    name,
+                    result.seed,
+                    editId,
+                    client,
+                    result.topology,
+                );
 
                 const sectorIdMap = new Map<number, number>();
                 for (const s of result.sectors) {
-                    const id = await insertSector(newUniverseId, s.id, s.name, client);
+                    const id = await insertSector(newUniverseId, s.id, s.name, client, s.x, s.y);
                     sectorIdMap.set(s.id, id);
                 }
 
@@ -152,6 +168,7 @@ export function createAdminLifecycleRoutes(
                 id: universeId,
                 name,
                 seed: result.seed,
+                topology: result.topology,
                 sectorCount: result.sectors.length,
                 warpCount,
                 portCount,

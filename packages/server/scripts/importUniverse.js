@@ -10,7 +10,7 @@
  * Run this while the server is not running to avoid state conflicts.
  */
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pool } from '../dist/db/pool.js';
 import { connectDB } from '../dist/db/schema.js';
@@ -60,16 +60,37 @@ function readCSV(filepath) {
 
 async function main() {
   await connectDB();
+
+  let topology = 'random';
+  const manifestPath = join(universeDir, 'manifest.json');
+  if (existsSync(manifestPath)) {
+    try {
+      const m = JSON.parse(readFileSync(manifestPath, 'utf8'));
+      if (m.topology === 'random' || m.topology === 'proximal') topology = m.topology;
+    } catch (err) {
+      console.warn(`Warning: failed to parse ${manifestPath}: ${err.message}`);
+    }
+  }
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
 
-    // Ensure universe row exists, linked to stock edit
+    // Ensure universe row exists, linked to stock edit. Sets topology from the
+    // bigbang manifest on insert; preserves it on conflict unless still default.
     await client.query(
-      `INSERT INTO universes (id, name, edit_id)
-       VALUES ($1, $2, (SELECT id FROM edits WHERE name = 'stock'))
-       ON CONFLICT (id) DO UPDATE SET edit_id = COALESCE(universes.edit_id, (SELECT id FROM edits WHERE name = 'stock'))`,
-      [universeId, `Universe ${universeId}`],
+      `INSERT INTO universes (id, name, edit_id, topology)
+       VALUES ($1, $2, (SELECT id FROM edits WHERE name = 'stock'), $3)
+       ON CONFLICT (id) DO UPDATE SET
+         edit_id = COALESCE(universes.edit_id, (SELECT id FROM edits WHERE name = 'stock')),
+         topology = EXCLUDED.topology`,
+      [universeId, `Universe ${universeId}`, topology],
+    );
+
+    // Bump the SERIAL sequence past any explicitly-inserted id so subsequent
+    // auto-id inserts (e.g. admin API generate) don't collide.
+    await client.query(
+      `SELECT setval('universes_id_seq', GREATEST((SELECT COALESCE(MAX(id), 0) FROM universes), 1))`,
     );
 
     // Clear existing data for this universe (CASCADE from sectors handles warps, ports, etc.)
@@ -83,9 +104,11 @@ async function main() {
     const { rows: sectorRows } = readCSV(join(universeDir, 'sectors.csv'));
     for (const row of sectorRows) {
       const sectorNumber = parseInt(row[0], 10);
+      const x = row[2] === undefined || row[2] === '' ? null : Number(row[2]);
+      const y = row[3] === undefined || row[3] === '' ? null : Number(row[3]);
       const res = await client.query(
-        'INSERT INTO sectors (universe_id, sector_number, name) VALUES ($1, $2, $3) RETURNING id',
-        [universeId, sectorNumber, row[1]],
+        'INSERT INTO sectors (universe_id, sector_number, name, x, y) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+        [universeId, sectorNumber, row[1], x, y],
       );
       sectorIdMap.set(sectorNumber, res.rows[0].id);
     }
