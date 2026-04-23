@@ -1,3 +1,7 @@
+// Canonical default warp-out degree distribution for degrees 1-6 (percentages, must sum to 100).
+// Both the server's graph generator and the admin UI read from this so they stay in sync.
+export const DEFAULT_WARP_DIST_1_6: readonly number[] = [20, 30, 25, 15, 8, 2];
+
 // Config types (loaded from JSON on server, sent to client via API)
 
 export type ShipConfig = {

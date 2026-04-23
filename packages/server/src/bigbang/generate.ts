@@ -1,7 +1,15 @@
-import type { BigBangOptions, BigBangResult, GeneratedSector, GeneratedPort } from './types.js';
+import type {
+    BigBangOptions,
+    BigBangResult,
+    GeneratedSector,
+    GeneratedPort,
+    Topology,
+} from './types.js';
 import { DEFAULT_WARP_DIST } from './types.js';
 import { mulberry32 } from './prng.js';
 import { generateGraph } from './graph.js';
+import { generateProximalGraph } from './graph-proximal.js';
+import { scatterPositions } from './positions.js';
 
 const portClasses: Record<number, string[]> = {
     1: ['B', 'B', 'S'],
@@ -20,6 +28,7 @@ export function generateUniverse(options: BigBangOptions): BigBangResult {
     const twoWayPct = options.twoWayPct ?? 95;
     const warpDist = options.warpDist ?? DEFAULT_WARP_DIST;
     const seed = options.seed ?? Math.floor(Math.random() * 2147483647);
+    const topology: Topology = options.topology ?? 'random';
 
     const rng = mulberry32(seed);
 
@@ -33,13 +42,25 @@ export function generateUniverse(options: BigBangOptions): BigBangResult {
     const starbaseId = randomInt(2, N);
     sectorNames[starbaseId] = 'Starbase';
 
+    // Position scatter (proximal only) must happen before graph generation so
+    // the RNG stream is seed-determined across topology modes.
+    const positions = topology === 'proximal' ? scatterPositions(N, rng) : null;
+
     // Generate graph
-    const warps = generateGraph(N, twoWayPct, rng, warpDist);
+    const warps =
+        topology === 'proximal' && positions
+            ? generateProximalGraph(N, twoWayPct, rng, positions, warpDist)
+            : generateGraph(N, twoWayPct, rng, warpDist);
 
     // Generate sectors
     const sectors: GeneratedSector[] = [];
     for (let i = 1; i <= N; i++) {
-        sectors.push({ id: i, name: sectorNames[i] });
+        sectors.push({
+            id: i,
+            name: sectorNames[i],
+            x: positions ? positions[i - 1].x : null,
+            y: positions ? positions[i - 1].y : null,
+        });
     }
 
     // Generate ports
@@ -114,5 +135,5 @@ export function generateUniverse(options: BigBangOptions): BigBangResult {
 
     ports.sort((a, b) => a.sector - b.sector);
 
-    return { seed, sectors, warps, ports };
+    return { seed, topology, sectors, warps, ports };
 }

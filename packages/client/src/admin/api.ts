@@ -36,6 +36,7 @@ export interface GenerateUniverseParams {
     portDensity?: number;
     twoWayPct?: number;
     warpDist?: number[];
+    topology?: 'random' | 'proximal';
 }
 
 export interface GenerateUniverseResult {

@@ -7,6 +7,7 @@ import { setupConnection } from './connection.js';
 import { setupInput } from './input.js';
 import { COMMAND } from './messages/index.js';
 import { render } from './renderer.js';
+import { createMinimap, flashTerminalBorder } from './minimap.js';
 
 export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect: () => void) {
     const term = new Terminal({
@@ -99,6 +100,10 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
         starbaseBuyDefault: 0,
         shipyardsBuyTarget: null,
         landablePlanets: null,
+
+        submitLineFromMap: () => {
+            /* populated by setupInput */
+        },
     };
 
     fetch('/api/menu-registry')
@@ -109,6 +114,31 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
             ctx.menuRegistry = map;
         })
         .catch((err) => console.error('Failed to fetch menu registry:', err));
+
+    // Mini-map setup. The mini-map lives in the adjacent #minimap panel and
+    // uses the same xterm input pipeline for click-injection.
+    const minimapEl = document.getElementById('minimap');
+    if (minimapEl) {
+        const minimap = createMinimap(minimapEl, (sectorNumber, currentSectorNumber) => {
+            // If the clicked sector is the current sector, submit an empty line
+            // (re-display). Otherwise: if the target isn't an outgoing
+            // single-hop warp, flash the terminal border as a visual hint that
+            // this will trigger autopilot rather than a direct move.
+            if (sectorNumber === currentSectorNumber || sectorNumber === ctx.currentSector) {
+                ctx.submitLineFromMap('');
+                return;
+            }
+            const isAdjacent = ctx.currentWarps.some((w) => w.sector === sectorNumber);
+            if (!isAdjacent) {
+                flashTerminalBorder(termDiv);
+            }
+            ctx.submitLineFromMap(String(sectorNumber));
+        });
+        ctx.minimap = minimap;
+        minimap.onRequestRefresh(() => {
+            ctx.sendMsg({ type: ClientMsgType.GetNeighborhood, depth: minimap.getDepth() });
+        });
+    }
 
     setupConnection(ws, ctx, () => {
         term.dispose();

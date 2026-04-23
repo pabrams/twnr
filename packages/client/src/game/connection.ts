@@ -27,6 +27,11 @@ function fmt(n: number): string {
 }
 
 export function setupConnection(ws: WebSocket, ctx: GameContext, onDisconnect: () => void) {
+    function refreshMinimap() {
+        if (!ctx.minimap) return;
+        ctx.sendMsg({ type: ClientMsgType.GetNeighborhood, depth: ctx.minimap.getDepth() });
+    }
+
     ws.addEventListener('open', () => {
         ctx.term.writeln(render(NOTIFY.connected));
     });
@@ -57,6 +62,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext, onDisconnect: (
                 ctx.starbaseSector = msg.starbaseSector;
                 ctx.term.writeln(render(NOTIFY.welcome, { name: msg.name }));
                 ctx.sendMsg({ type: ClientMsgType.SectorDisplay });
+                refreshMinimap();
                 break;
             case ServerMsgType.PlayerMoved:
                 ctx.term.writeln(
@@ -88,6 +94,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext, onDisconnect: (
                     msg.ships,
                     msg.collisions,
                 );
+                refreshMinimap();
                 if (ctx.autopilotPath.length > 0 && ctx.autopilotStep < ctx.autopilotPath.length) {
                     const nextSector = ctx.autopilotPath[ctx.autopilotStep];
                     ctx.autopilotStep = ctx.autopilotStep + 1;
@@ -212,6 +219,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext, onDisconnect: (
                     ctx.dockedPortInfo = null;
                     ctx.class0ShipState = null;
                     ctx.sectorPlayers = msg.players;
+                    refreshMinimap();
                     showPrompt(ctx);
                 } else {
                     ctx.term.writeln(render(NOTIFY.error, { message: msg.message }));
@@ -332,6 +340,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext, onDisconnect: (
                             msg.collisions,
                             !inAutopilot,
                         );
+                        refreshMinimap();
                         if (moreHops) {
                             const nextSector = ctx.autopilotPath[ctx.autopilotStep];
                             ctx.autopilotStep = ctx.autopilotStep + 1;
@@ -540,6 +549,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext, onDisconnect: (
                 ctx.sectorPlayers = msg.players;
                 ctx.encounterOwnerName = msg.ownerName;
                 showSectorDisplay(ctx, msg.sector, msg.warps, msg.players, msg.port);
+                refreshMinimap();
                 if (ctx.autopilotPath.length > 0) {
                     ctx.autopilotPaused = true;
                     ctx.term.writeln(render(EVENT.autopilotDisengaged));
@@ -659,6 +669,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext, onDisconnect: (
                     msg.ships,
                     msg.collisions,
                 );
+                refreshMinimap();
                 break;
             case ServerMsgType.LandResult:
                 if (msg.planets.length > 0) {
@@ -810,6 +821,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext, onDisconnect: (
                     msg.ships,
                     msg.collisions,
                 );
+                refreshMinimap();
                 break;
             case ServerMsgType.MenuChanged:
                 break;
@@ -881,6 +893,9 @@ export function setupConnection(ws: WebSocket, ctx: GameContext, onDisconnect: (
                 } else {
                     ctx.sendMsg({ type: ClientMsgType.Move, sector: msg.sector });
                 }
+                break;
+            case ServerMsgType.NeighborhoodResult:
+                ctx.minimap?.update(msg, ctx.currentSector);
                 break;
             case ServerMsgType.Error:
                 ctx.term.writeln(render(NOTIFY.error, { message: msg.message }));

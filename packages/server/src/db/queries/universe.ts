@@ -65,12 +65,26 @@ export async function insertUniverseFull(
     seed: number,
     editId: number | null,
     db: Queryable = pool,
+    topology: 'random' | 'proximal' = 'random',
 ): Promise<number> {
     const res = await db.query<{ id: number }>(
-        'INSERT INTO universes (name, seed, edit_id) VALUES ($1, $2, $3) RETURNING id',
-        [name, seed, editId],
+        'INSERT INTO universes (name, seed, edit_id, topology) VALUES ($1, $2, $3, $4) RETURNING id',
+        [name, seed, editId, topology],
     );
     return res.rows[0].id;
+}
+
+/** Fetch a universe's topology (defaults to 'random' for legacy rows). */
+export async function getUniverseTopology(
+    universeId: number,
+    db: Queryable = pool,
+): Promise<'random' | 'proximal'> {
+    const res = await db.query<{ topology: string }>(
+        'SELECT topology FROM universes WHERE id = $1',
+        [universeId],
+    );
+    const t = res.rows[0]?.topology;
+    return t === 'proximal' ? 'proximal' : 'random';
 }
 
 /** Rename an existing universe; returns undefined if not found. */

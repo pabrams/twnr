@@ -525,6 +525,30 @@ export type HardwareStoreInfoResultObject = {
     items: HardwareStoreItem[];
 };
 
+export type NeighborhoodSector = {
+    id: number;
+    sector_number: number;
+    x: number | null;
+    y: number | null;
+    visibility: 'visited' | 'glimpsed';
+    port: { class: number; observed_at: string } | null;
+    planets: Array<{ name: string; type: string | null; observed_at: string }>;
+};
+
+export type NeighborhoodWarp = {
+    from_sector_id: number;
+    to_sector_id: number;
+    known_two_way: boolean;
+};
+
+export type NeighborhoodResultObject = {
+    type: typeof ServerMsgType.NeighborhoodResult;
+    topology: 'random' | 'proximal';
+    current_sector_id: number;
+    sectors: NeighborhoodSector[];
+    warps: NeighborhoodWarp[];
+};
+
 export type ServerResult =
     | WelcomeEvent
     | PlayerMovedEvent
@@ -581,4 +605,5 @@ export type ServerResult =
     | StarbaseInfoResultObject
     | TerraformInfoResultObject
     | HardwareStoreInfoResultObject
+    | NeighborhoodResultObject
     | ErrorResultObject;

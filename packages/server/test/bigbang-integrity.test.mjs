@@ -145,9 +145,9 @@ describe('CSV Formatting', () => {
     });
   }
 
-  it('sectors.csv first line is "id,name"', () => {
+  it('sectors.csv first line is "id,name,x,y"', () => {
     const first = readFileSync(join(outdir, 'sectors.csv'), 'utf8').split('\n')[0].trim();
-    assert.equal(first, 'id,name');
+    assert.equal(first, 'id,name,x,y');
   });
 
   it('warps.csv first line is "from_sector_id,to_sector_id"', () => {

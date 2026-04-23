@@ -5,6 +5,7 @@ import { setupAdminScreen } from './screens/admin.js';
 import { startGame } from './game/index.js';
 
 const authDiv = document.getElementById('auth')!;
+const gameContainer = document.getElementById('game-container')!;
 const termDiv = document.getElementById('terminal')!;
 const nameInput = document.getElementById('auth-name') as HTMLInputElement;
 const emailInput = document.getElementById('auth-email') as HTMLInputElement;
@@ -29,7 +30,7 @@ function showScreen(screen: 'auth' | 'universes' | 'playerName' | 'game' | 'admi
     authDiv.style.display = screen === 'auth' ? 'flex' : 'none';
     universeDiv.style.display = screen === 'universes' ? 'flex' : 'none';
     playerNameDiv.style.display = screen === 'playerName' ? 'flex' : 'none';
-    termDiv.style.display = screen === 'game' ? 'block' : 'none';
+    gameContainer.style.display = screen === 'game' ? 'flex' : 'none';
     adminDiv.style.display = screen === 'admin' ? 'flex' : 'none';
 }
 

@@ -318,75 +318,17 @@ export const connectDB = async (): Promise<void> => {
         END IF;
       END $$;
 
-      -- Edits: starting shields, earth colonists
       ALTER TABLE edits ADD COLUMN IF NOT EXISTS starting_shields INTEGER NOT NULL DEFAULT 0;
       ALTER TABLE edits ADD COLUMN IF NOT EXISTS starting_earth_colonists INTEGER NOT NULL DEFAULT 1000000;
 
       -- Players: previous sector, for the return-to-previous shortcut
       ALTER TABLE players ADD COLUMN IF NOT EXISTS previous_sector_id INTEGER REFERENCES sectors(id);
 
-      -- Migration: drop old hardware price columns from edits (now in hardware_price table)
-      ALTER TABLE edits DROP COLUMN IF EXISTS price_terraform_device;
-      ALTER TABLE edits DROP COLUMN IF EXISTS price_planet_buster;
-      ALTER TABLE edits DROP COLUMN IF EXISTS price_space_buoy;
-      ALTER TABLE edits DROP COLUMN IF EXISTS price_proximity_mine;
-      ALTER TABLE edits DROP COLUMN IF EXISTS price_seeker_mine;
-      ALTER TABLE edits DROP COLUMN IF EXISTS price_orbital_mine;
-      ALTER TABLE edits DROP COLUMN IF EXISTS price_mine_disruptor;
-      ALTER TABLE edits DROP COLUMN IF EXISTS price_hyperspace_1;
-      ALTER TABLE edits DROP COLUMN IF EXISTS price_hyperspace_2;
-      ALTER TABLE edits DROP COLUMN IF EXISTS price_visual_scanner;
-      ALTER TABLE edits DROP COLUMN IF EXISTS price_planet_scanner;
-      ALTER TABLE edits DROP COLUMN IF EXISTS price_cloaking_device;
-      ALTER TABLE edits DROP COLUMN IF EXISTS price_corbomite;
-      ALTER TABLE edits DROP COLUMN IF EXISTS price_photon_torpedo;
-      ALTER TABLE edits DROP COLUMN IF EXISTS price_recon_drone;
-
-      -- Migration: drop old hardware columns from ship_types (now in ship_type_hardware table)
-      ALTER TABLE ship_types DROP COLUMN IF EXISTS max_buoy;
-      ALTER TABLE ship_types DROP COLUMN IF EXISTS max_proximity;
-      ALTER TABLE ship_types DROP COLUMN IF EXISTS max_orbital;
-      ALTER TABLE ship_types DROP COLUMN IF EXISTS max_seeker;
-      ALTER TABLE ship_types DROP COLUMN IF EXISTS can_have_hyperspace_1;
-      ALTER TABLE ship_types DROP COLUMN IF EXISTS can_have_hyperspace_2;
-      ALTER TABLE ship_types DROP COLUMN IF EXISTS can_have_visual_scanner;
-      ALTER TABLE ship_types DROP COLUMN IF EXISTS can_have_planet_scanner;
-      ALTER TABLE ship_types DROP COLUMN IF EXISTS max_photon;
-      ALTER TABLE ship_types DROP COLUMN IF EXISTS max_cloaking;
-      ALTER TABLE ship_types DROP COLUMN IF EXISTS max_corbomite;
-      ALTER TABLE ship_types DROP COLUMN IF EXISTS max_planet_busters;
-      ALTER TABLE ship_types DROP COLUMN IF EXISTS max_terraform_devices;
-      ALTER TABLE ship_types DROP COLUMN IF EXISTS max_disruptors;
-      ALTER TABLE ship_types DROP COLUMN IF EXISTS max_recon_drones;
-
-      -- Migration: drop old hardware columns from ships (now in ship_hardware table)
-      ALTER TABLE ships DROP COLUMN IF EXISTS planet_busters;
-      ALTER TABLE ships DROP COLUMN IF EXISTS terraform_devices;
-      ALTER TABLE ships DROP COLUMN IF EXISTS has_hyperspace_1;
-      ALTER TABLE ships DROP COLUMN IF EXISTS has_hyperspace_2;
-      ALTER TABLE ships DROP COLUMN IF EXISTS has_visual_scanner;
-      ALTER TABLE ships DROP COLUMN IF EXISTS has_planet_scanner;
-      ALTER TABLE ships DROP COLUMN IF EXISTS cloaking_devices;
-      ALTER TABLE ships DROP COLUMN IF EXISTS corbomite;
-      ALTER TABLE ships DROP COLUMN IF EXISTS photon_torpedoes;
-      ALTER TABLE ships DROP COLUMN IF EXISTS buoys;
-      ALTER TABLE ships DROP COLUMN IF EXISTS proximity_mines;
-      ALTER TABLE ships DROP COLUMN IF EXISTS orbital_mines;
-      ALTER TABLE ships DROP COLUMN IF EXISTS seeker_mines;
-      ALTER TABLE ships DROP COLUMN IF EXISTS mine_disruptors;
-      ALTER TABLE ships DROP COLUMN IF EXISTS recon_drones;
-
-      -- Migration: drop old hardware table (replaced by hardware_item)
-      DROP TABLE IF EXISTS hardware CASCADE;
-
-      -- Command: flag for news generation
       ALTER TABLE command ADD COLUMN IF NOT EXISTS generates_news BOOLEAN NOT NULL DEFAULT FALSE;
 
-      -- Ship types: calculated cost columns
       ALTER TABLE ship_types ADD COLUMN IF NOT EXISTS basic_hold_cost INTEGER GENERATED ALWAYS AS (starting_holds * hold_cost) STORED;
       ALTER TABLE ship_types ADD COLUMN IF NOT EXISTS base_cost INTEGER GENERATED ALWAYS AS (cost_drive + cost_computer + cost_hull + starting_holds * hold_cost) STORED;
 
-      -- Planet types reference table
       CREATE TABLE IF NOT EXISTS planet_types (
         name VARCHAR(255) PRIMARY KEY,
         description TEXT,
@@ -397,7 +339,6 @@ export const connectDB = async (): Promise<void> => {
         equipment_production SMALLINT NOT NULL DEFAULT 0
       );
 
-      -- Corporations
       CREATE TABLE IF NOT EXISTS corporations (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
@@ -407,11 +348,9 @@ export const connectDB = async (): Promise<void> => {
         UNIQUE (name, universe_id)
       );
 
-      -- Players: knighted status and corporation membership
       ALTER TABLE players ADD COLUMN IF NOT EXISTS is_knighted BOOLEAN NOT NULL DEFAULT FALSE;
       ALTER TABLE players ADD COLUMN IF NOT EXISTS corporation_id INTEGER REFERENCES corporations(id) ON DELETE SET NULL;
 
-      -- Ships: corporation ownership (at most one owner type)
       ALTER TABLE ships ADD COLUMN IF NOT EXISTS corp_owner_id INTEGER REFERENCES corporations(id) ON DELETE SET NULL;
       DO $$ BEGIN
         IF NOT EXISTS (
@@ -423,7 +362,6 @@ export const connectDB = async (): Promise<void> => {
         END IF;
       END $$;
 
-      -- Ports: max columns, name, and buy/sell direction for each commodity
       ALTER TABLE ports ADD COLUMN IF NOT EXISTS fuel_max INTEGER NOT NULL DEFAULT 1000;
       ALTER TABLE ports ADD COLUMN IF NOT EXISTS org_max INTEGER NOT NULL DEFAULT 1000;
       ALTER TABLE ports ADD COLUMN IF NOT EXISTS equ_max INTEGER NOT NULL DEFAULT 1000;
@@ -432,12 +370,10 @@ export const connectDB = async (): Promise<void> => {
       ALTER TABLE ports ADD COLUMN IF NOT EXISTS org_buys BOOLEAN NOT NULL DEFAULT TRUE;
       ALTER TABLE ports ADD COLUMN IF NOT EXISTS equ_buys BOOLEAN NOT NULL DEFAULT TRUE;
 
-      -- Planets: widen colonist columns from SMALLINT to INTEGER (Earth needs 1M)
       ALTER TABLE planets ALTER COLUMN colonists_fuel TYPE INTEGER;
       ALTER TABLE planets ALTER COLUMN colonists_organics TYPE INTEGER;
       ALTER TABLE planets ALTER COLUMN colonists_equipment TYPE INTEGER;
 
-      -- Planets: shields, base, ownership
       ALTER TABLE planets ADD COLUMN IF NOT EXISTS shields INTEGER NOT NULL DEFAULT 0;
       ALTER TABLE planets ADD COLUMN IF NOT EXISTS has_base BOOLEAN NOT NULL DEFAULT FALSE;
       ALTER TABLE planets ADD COLUMN IF NOT EXISTS owner_player_id INTEGER REFERENCES players(id) ON DELETE SET NULL;
@@ -452,7 +388,6 @@ export const connectDB = async (): Promise<void> => {
         END IF;
       END $$;
 
-      -- Sector drones: corporation ownership
       ALTER TABLE sector_drones ADD COLUMN IF NOT EXISTS corp_owner_id INTEGER REFERENCES corporations(id) ON DELETE SET NULL;
       DO $$ BEGIN
         IF NOT EXISTS (
@@ -464,7 +399,6 @@ export const connectDB = async (): Promise<void> => {
         END IF;
       END $$;
 
-      -- Sector mines (each mine type per sector has its own owner)
       CREATE TABLE IF NOT EXISTS sector_mines (
         sector_id INTEGER NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
         mine_type VARCHAR(20) NOT NULL CHECK (mine_type IN ('proximity', 'orbital', 'seeker')),
@@ -475,7 +409,6 @@ export const connectDB = async (): Promise<void> => {
         CHECK (NOT (owner_player_id IS NOT NULL AND owner_corp_id IS NOT NULL))
       );
 
-      -- Sector beacons (0 or 1 per sector)
       CREATE TABLE IF NOT EXISTS sector_beacons (
         sector_id INTEGER PRIMARY KEY REFERENCES sectors(id) ON DELETE CASCADE,
         owner_player_id INTEGER REFERENCES players(id) ON DELETE SET NULL,
@@ -484,11 +417,9 @@ export const connectDB = async (): Promise<void> => {
         CHECK (NOT (owner_player_id IS NOT NULL AND owner_corp_id IS NOT NULL))
       );
 
-      -- Visited sectors: add timestamp and snapshot
       ALTER TABLE visited_sectors ADD COLUMN IF NOT EXISTS visited_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
       ALTER TABLE visited_sectors ADD COLUMN IF NOT EXISTS snapshot JSONB;
 
-      -- Visited ports: track docking history with snapshots
       CREATE TABLE IF NOT EXISTS visited_ports (
         player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
         port_id INTEGER NOT NULL REFERENCES ports(id) ON DELETE CASCADE,
@@ -497,7 +428,6 @@ export const connectDB = async (): Promise<void> => {
         PRIMARY KEY (player_id, port_id)
       );
 
-      -- News
       CREATE TABLE IF NOT EXISTS news (
         id BIGSERIAL PRIMARY KEY,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -505,6 +435,38 @@ export const connectDB = async (): Promise<void> => {
         text TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_news_universe ON news (universe_id, created_at);
+
+      -- Proximal-topology coordinates on sectors. NULL in random-topology universes.
+      ALTER TABLE sectors ADD COLUMN IF NOT EXISTS x DOUBLE PRECISION;
+      ALTER TABLE sectors ADD COLUMN IF NOT EXISTS y DOUBLE PRECISION;
+
+      ALTER TABLE universes
+        ADD COLUMN IF NOT EXISTS topology VARCHAR(16) NOT NULL DEFAULT 'random';
+
+      CREATE TABLE IF NOT EXISTS player_visited_sectors (
+        player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+        sector_id INTEGER NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
+        first_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (player_id, sector_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS player_port_observations (
+        player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+        sector_id INTEGER NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
+        port_class INTEGER NOT NULL,
+        observed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (player_id, sector_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS player_planet_observations (
+        player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+        sector_id INTEGER NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
+        planet_name TEXT NOT NULL,
+        planet_type TEXT,
+        observed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (player_id, sector_id, planet_name)
+      );
     `);
 
         // Seed menu registry data (idempotent)

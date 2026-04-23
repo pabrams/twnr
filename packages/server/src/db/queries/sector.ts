@@ -123,10 +123,12 @@ export async function insertSector(
     sectorNumber: number,
     name: string,
     db: Queryable = pool,
+    x: number | null = null,
+    y: number | null = null,
 ): Promise<number> {
     const res = await db.query<{ id: number }>(
-        'INSERT INTO sectors (universe_id, sector_number, name) VALUES ($1, $2, $3) RETURNING id',
-        [universeId, sectorNumber, name],
+        'INSERT INTO sectors (universe_id, sector_number, name, x, y) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+        [universeId, sectorNumber, name, x, y],
     );
     return res.rows[0].id;
 }

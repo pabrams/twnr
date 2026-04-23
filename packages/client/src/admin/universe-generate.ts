@@ -1,6 +1,5 @@
+import { DEFAULT_WARP_DIST_1_6 } from '@twnr/shared';
 import { generateUniverse } from './api.js';
-
-const DEFAULT_WARP_DIST = [12, 18, 20, 20, 15, 15];
 
 function makeInput(
     label: string,
@@ -33,6 +32,73 @@ function makeInput(
     row.appendChild(input);
 
     return { row, input };
+}
+
+function makeTopologyField(): {
+    row: HTMLElement;
+    getValue: () => 'random' | 'proximal';
+} {
+    const row = document.createElement('div');
+    row.style.marginBottom = '8px';
+
+    const lbl = document.createElement('label');
+    lbl.textContent = 'Topology';
+    lbl.style.display = 'block';
+    lbl.style.color = '#888';
+    lbl.style.fontSize = '12px';
+    lbl.style.marginBottom = '2px';
+    row.appendChild(lbl);
+
+    const group = document.createElement('div');
+    group.style.display = 'flex';
+    group.style.gap = '12px';
+    row.appendChild(group);
+
+    const inputs: HTMLInputElement[] = [];
+    const values: Array<'random' | 'proximal'> = ['random', 'proximal'];
+    const descriptions: Record<'random' | 'proximal', string> = {
+        random: 'Abstract graph; no sector coordinates.',
+        proximal: '2D-scatter layout; enables the mini-map.',
+    };
+    for (const val of values) {
+        const wrap = document.createElement('label');
+        wrap.style.display = 'flex';
+        wrap.style.alignItems = 'center';
+        wrap.style.gap = '4px';
+        wrap.style.color = '#c0c0c0';
+        wrap.style.fontSize = '13px';
+        wrap.style.cursor = 'pointer';
+
+        const input = document.createElement('input');
+        input.type = 'radio';
+        input.name = 'topology';
+        input.value = val;
+        if (val === 'random') input.checked = true;
+        wrap.appendChild(input);
+        wrap.appendChild(document.createTextNode(val));
+        group.appendChild(wrap);
+        inputs.push(input);
+    }
+
+    const hint = document.createElement('div');
+    hint.style.color = '#666';
+    hint.style.fontSize = '11px';
+    hint.style.marginTop = '4px';
+    hint.textContent = descriptions.random;
+    row.appendChild(hint);
+    for (const input of inputs) {
+        input.addEventListener('change', () => {
+            if (input.checked)
+                hint.textContent = descriptions[input.value as 'random' | 'proximal'];
+        });
+    }
+
+    function getValue(): 'random' | 'proximal' {
+        const sel = inputs.find((i) => i.checked);
+        return (sel?.value as 'random' | 'proximal') ?? 'random';
+    }
+
+    return { row, getValue };
 }
 
 function makeWarpDistField(): {
@@ -85,7 +151,7 @@ function makeWarpDistField(): {
         input.type = 'number';
         input.min = '0';
         input.max = '100';
-        input.value = String(DEFAULT_WARP_DIST[d - 1]);
+        input.value = String(DEFAULT_WARP_DIST_1_6[d - 1]);
         cell.appendChild(input);
 
         grid.appendChild(cell);
@@ -167,6 +233,9 @@ export function renderUniverseGenerator(container: HTMLElement, onGenerated: () 
     twoWayField.input.value = '95';
     form.appendChild(twoWayField.row);
 
+    const topologyField = makeTopologyField();
+    form.appendChild(topologyField.row);
+
     const warpDistField = makeWarpDistField();
     form.appendChild(warpDistField.row);
 
@@ -234,6 +303,7 @@ export function renderUniverseGenerator(container: HTMLElement, onGenerated: () 
             portDensity: isNaN(portDensity) ? undefined : portDensity,
             twoWayPct: isNaN(twoWayPct) ? undefined : twoWayPct,
             warpDist,
+            topology: topologyField.getValue(),
         })
             .then((result) => {
                 resultDiv.style.color = '#0ff';
