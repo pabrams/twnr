@@ -33,7 +33,7 @@ export const connectDB = async (): Promise<void> => {
         starting_turns INTEGER NOT NULL DEFAULT 500,
         max_turns INTEGER NOT NULL DEFAULT 2000,
         starting_ship VARCHAR(255) NOT NULL DEFAULT 'Vulpeculan Cruiser',
-        starting_drones INTEGER NOT NULL DEFAULT 0,
+        starting_drones INTEGER NOT NULL DEFAULT 100,
         starting_credits INTEGER NOT NULL DEFAULT 10000,
         starting_port_density SMALLINT NOT NULL DEFAULT 50,
         max_port_density SMALLINT NOT NULL DEFAULT 100,
