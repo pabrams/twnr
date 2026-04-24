@@ -183,17 +183,15 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             return;
         }
 
-        // Force-directed relaxation. The server stores absolute positions, but
-        // the visible subset is often clumpy with large empty patches. Repel
-        // nearby nodes toward a target spacing while a weak anchor tugs each
-        // node back toward its original position — clusters expand, overall
-        // orientation is preserved, distances are no longer strictly to scale.
-        type DispPos = { x: number; y: number; ox: number; oy: number };
-        const disp = new Map<number, DispPos>();
-        // Fringe sectors keep their raw server positions (used only as a
-        // direction vector for the warp stub) and don't participate in the
-        // force-directed relaxation — they'd pull visible pills around for
-        // no rendering benefit, since they themselves aren't drawn.
+        // Use server positions directly. The server runs Fruchterman-Reingold
+        // once per universe, so its coordinates are already globally
+        // consistent and edge-spread. Re-relaxing per neighborhood re-flowed
+        // the layout every render and made directions between pairs appear
+        // to rotate as the player moved — now the relative angle between any
+        // two sectors is fixed for the lifetime of the universe.
+        const disp = new Map<number, { x: number; y: number }>();
+        // Fringe sectors live in a separate map — they're never drawn as pills
+        // but their positions are used as direction vectors for warp stubs.
         const fringePos = new Map<number, { x: number; y: number }>();
         for (const s of sectors) {
             if (s.x == null || s.y == null) continue;
@@ -201,134 +199,20 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
                 fringePos.set(s.id, { x: s.x, y: s.y });
                 continue;
             }
-            disp.set(s.id, { x: s.x, y: s.y, ox: s.x, oy: s.y });
-        }
-        const dispIds = Array.from(disp.keys());
-        const dispN = dispIds.length;
-        const extent = Math.max(maxX - minX, maxY - minY, 1);
-        // Minimum spacing floor: keep wider pills (multi-digit sector numbers)
-        // from overlapping even in dense neighborhoods. Converted from target
-        // on-screen pixels using the panel's current width.
-        let maxDigits = 1;
-        for (const s of sectors) {
-            if (s.x == null || s.y == null) continue;
-            const len = String(s.sector_number).length;
-            if (len > maxDigits) maxDigits = len;
-        }
-        const panelPxEst = body.clientWidth || 320;
-        const worldPerPxEst = Math.max(extent, 200) / panelPxEst;
-        const labelPx = 13;
-        const minPxSpacing = maxDigits * labelPx * 0.62 + labelPx * 2.4;
-        const minWorldSpacing = minPxSpacing * worldPerPxEst;
-        const targetSpacing = Math.max(
-            (extent / Math.max(Math.sqrt(dispN), 1)) * 1.2,
-            minWorldSpacing,
-        );
-
-        // BFS hop-distance from the current sector through the visible warp
-        // subgraph (undirected for layout purposes — direction doesn't matter
-        // when spacing things visually). Used to bias the relaxation so pairs
-        // involving low-hop nodes get bigger spacing and weaker anchor pull,
-        // opening up the area around the current sector while leaving distant
-        // clumps alone.
-        const hop = new Map<number, number>();
-        if (current && disp.has(current.id)) {
-            const adj = new Map<number, Set<number>>();
-            for (const w of state.data.warps) {
-                if (!disp.has(w.from_sector_id) || !disp.has(w.to_sector_id)) continue;
-                if (!adj.has(w.from_sector_id)) adj.set(w.from_sector_id, new Set());
-                if (!adj.has(w.to_sector_id)) adj.set(w.to_sector_id, new Set());
-                adj.get(w.from_sector_id)!.add(w.to_sector_id);
-                adj.get(w.to_sector_id)!.add(w.from_sector_id);
-            }
-            hop.set(current.id, 0);
-            const bq: number[] = [current.id];
-            while (bq.length > 0) {
-                const u = bq.shift()!;
-                const d = hop.get(u)!;
-                for (const v of adj.get(u) ?? []) {
-                    if (hop.has(v)) continue;
-                    hop.set(v, d + 1);
-                    bq.push(v);
-                }
-            }
-        }
-        const hopOf = (id: number): number => hop.get(id) ?? 99;
-        // Spacing multiplier for a pair, keyed by the closer-to-current node.
-        // Hop 0 (pair with current) or 1 (immediate-neighbour pair): big spread.
-        // Hop 2: a touch more breathing room. Further: unchanged.
-        const spacingMult = (minHop: number): number =>
-            minHop <= 1 ? 1.8 : minHop === 2 ? 1.25 : 1.0;
-        // Anchor multiplier per node. Weaker pull for low-hop nodes lets them
-        // drift further from their server positions to use available space.
-        const anchorMult = (h: number): number => (h <= 1 ? 0.3 : h === 2 ? 0.7 : 1.0);
-
-        const ANCHOR = 0.04;
-        const ITERS = 100;
-        for (let iter = 0; iter < ITERS; iter++) {
-            const cool = 1 - iter / ITERS;
-            for (let i = 0; i < dispN; i++) {
-                const a = disp.get(dispIds[i])!;
-                const ha = hopOf(dispIds[i]);
-                for (let j = i + 1; j < dispN; j++) {
-                    const b = disp.get(dispIds[j])!;
-                    const hb = hopOf(dispIds[j]);
-                    const pairSpacing = targetSpacing * spacingMult(Math.min(ha, hb));
-                    let dx = b.x - a.x;
-                    let dy = b.y - a.y;
-                    let d2 = dx * dx + dy * dy;
-                    if (d2 < 1e-6) {
-                        // Coincident points: nudge along a deterministic axis
-                        // derived from their indices so layout stays stable.
-                        dx = (i - j) * 0.01;
-                        dy = (j - i) * 0.013;
-                        d2 = dx * dx + dy * dy;
-                    }
-                    if (d2 < pairSpacing * pairSpacing) {
-                        const d = Math.sqrt(d2);
-                        const push = (pairSpacing - d) * 0.5 * cool;
-                        const ux = dx / d;
-                        const uy = dy / d;
-                        a.x -= ux * push;
-                        a.y -= uy * push;
-                        b.x += ux * push;
-                        b.y += uy * push;
-                    }
-                }
-            }
-            for (const id of dispIds) {
-                const p = disp.get(id)!;
-                const a = ANCHOR * anchorMult(hopOf(id));
-                p.x += (p.ox - p.x) * a;
-                p.y += (p.oy - p.y) * a;
-            }
+            disp.set(s.id, { x: s.x, y: s.y });
         }
 
-        // Recompute bbox/pivot from adjusted positions. ViewSize is 2 × max
-        // reach from the pivot, so the farthest visible sector sits at an edge
-        // and the current sector stays dead-center.
-        let minDX = Infinity;
-        let maxDX = -Infinity;
-        let minDY = Infinity;
-        let maxDY = -Infinity;
-        for (const p of disp.values()) {
-            if (p.x < minDX) minDX = p.x;
-            if (p.x > maxDX) maxDX = p.x;
-            if (p.y < minDY) minDY = p.y;
-            if (p.y > maxDY) maxDY = p.y;
-        }
-        const currentDisp = current ? (disp.get(current.id) ?? null) : null;
-        const pivotX = currentDisp?.x ?? (minDX + maxDX) / 2;
-        const pivotY = currentDisp?.y ?? (minDY + maxDY) / 2;
-        let maxReach = 0;
-        for (const p of disp.values()) {
-            const dx = Math.abs(p.x - pivotX);
-            const dy = Math.abs(p.y - pivotY);
-            if (dx > maxReach) maxReach = dx;
-            if (dy > maxReach) maxReach = dy;
-        }
-        const reachPad = Math.max(maxReach * 0.12, 50);
-        const viewSize = Math.max(maxReach * 2 + reachPad * 2, 200);
+        // Frame the view on the bbox of visible (non-fringe) pills. The
+        // current sector is no longer forced to the center of the viewport;
+        // a stable bbox pivot keeps the map from rotating/shifting dramatically
+        // as the player moves between sectors.
+        const spanX = maxX - minX;
+        const spanY = maxY - minY;
+        const pivotX = (minX + maxX) / 2;
+        const pivotY = (minY + maxY) / 2;
+        const spanMax = Math.max(spanX, spanY, 1);
+        const reachPad = Math.max(spanMax * 0.1, 50);
+        const viewSize = Math.max(spanMax + reachPad * 2, 200);
         svg.setAttribute(
             'viewBox',
             `${pivotX - viewSize / 2} ${pivotY - viewSize / 2} ${viewSize} ${viewSize}`,
