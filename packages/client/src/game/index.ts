@@ -13,7 +13,7 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
     const term = new Terminal({
         cursorBlink: true,
         fontFamily: 'Courier New, Courier, monospace',
-        fontSize: 14,
+        fontSize: 17,
         scrollback: 50000,
         theme: {
             background: '#000000',

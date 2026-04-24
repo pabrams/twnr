@@ -205,7 +205,7 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
         }
         const panelPxEst = body.clientWidth || 320;
         const worldPerPxEst = Math.max(extent, 200) / panelPxEst;
-        const labelPx = 9;
+        const labelPx = 13;
         const minPxSpacing = maxDigits * labelPx * 0.62 + labelPx * 2.4;
         const minWorldSpacing = minPxSpacing * worldPerPxEst;
         const targetSpacing = Math.max(
@@ -345,8 +345,8 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
         // constant pixel size regardless of how far the player has explored.
         const panelPx = body.clientWidth || 320;
         const worldPerPx = viewSize / panelPx;
-        const labelSize = 8 * worldPerPx;
-        const strokeW = 1.2 * worldPerPx;
+        const labelSize = 12 * worldPerPx;
+        const strokeW = 1.7 * worldPerPx;
 
         // Precompute pill bounds so warp lines can be trimmed to each pill's
         // edge, leaving arrowheads visible outside the destination pill.
