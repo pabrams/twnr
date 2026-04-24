@@ -138,6 +138,11 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
         minimap.onRequestRefresh(() => {
             ctx.sendMsg({ type: ClientMsgType.GetNeighborhood, depth: minimap.getDepth() });
         });
+        // The minimap has no inputs that need keyboard focus, so push focus
+        // back to the terminal after any click inside the panel.
+        minimapEl.addEventListener('click', () => {
+            term.focus();
+        });
     }
 
     setupConnection(ws, ctx, () => {
