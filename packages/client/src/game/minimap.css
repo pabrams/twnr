@@ -5,6 +5,10 @@
  * they can track the current SVG viewBox.
  */
 
+#minimap {
+    background: #000;
+}
+
 /* Warp lines between sectors */
 .minimap-warp {
     stroke-linecap: round;
