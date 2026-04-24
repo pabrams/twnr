@@ -26,6 +26,17 @@ function fmt(n: number): string {
     return n.toLocaleString();
 }
 
+/** Render a non-negative duration in seconds as the largest sensible unit. */
+function formatDuration(totalSeconds: number): string {
+    if (totalSeconds < 60) return `${totalSeconds} second${totalSeconds === 1 ? '' : 's'}`;
+    const minutes = Math.round(totalSeconds / 60);
+    if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'}`;
+    const hours = Math.round(totalSeconds / 3600);
+    if (hours < 48) return `${hours} hour${hours === 1 ? '' : 's'}`;
+    const days = Math.round(totalSeconds / 86400);
+    return `${days} day${days === 1 ? '' : 's'}`;
+}
+
 export function setupConnection(ws: WebSocket, ctx: GameContext, onDisconnect: () => void) {
     function refreshMinimap() {
         if (!ctx.minimap) return;
@@ -891,15 +902,94 @@ export function setupConnection(ws: WebSocket, ctx: GameContext, onDisconnect: (
                     showPrompt(ctx);
                 }
                 break;
-            case ServerMsgType.StarbaseInfoResult:
+            case ServerMsgType.StarbaseInfoResult: {
                 ctx.starbaseSector = msg.sector;
                 if (msg.sector != null) {
                     ctx.term.writeln(render(NOTIFY.starbaseLocation, { sector: msg.sector }));
                 } else {
                     ctx.term.writeln(render(NOTIFY.noStarbase));
                 }
+                ctx.term.writeln(render(NOTIFY.universeStatsHeader, { name: msg.universeName }));
+                const createdDate = (() => {
+                    try {
+                        return new Date(msg.createdAt).toLocaleString();
+                    } catch {
+                        return msg.createdAt;
+                    }
+                })();
+                ctx.term.writeln(
+                    render(NOTIFY.universeStatsCreated, {
+                        date: createdDate,
+                        days: msg.daysElapsed,
+                    }),
+                );
+                ctx.term.writeln(
+                    render(NOTIFY.universeStatsLine, {
+                        label: 'Sectors           ',
+                        value: fmt(msg.sectorCount),
+                    }),
+                );
+                ctx.term.writeln(
+                    render(NOTIFY.universeStatsLine, {
+                        label: 'Ports at creation ',
+                        value: fmt(msg.portCount),
+                    }),
+                );
+                ctx.term.writeln(
+                    render(NOTIFY.universeStatsLine, {
+                        label: 'Max planets/sector',
+                        value: fmt(msg.maxPlanetsPerSector),
+                    }),
+                );
+                ctx.term.writeln(
+                    render(NOTIFY.universeStatsLine, {
+                        label: 'Starting credits  ',
+                        value: fmt(msg.startingCredits),
+                    }),
+                );
+                ctx.term.writeln(
+                    render(NOTIFY.universeStatsLine, {
+                        label: 'Starting turns    ',
+                        value: fmt(msg.startingTurns),
+                    }),
+                );
+                ctx.term.writeln(
+                    render(NOTIFY.universeStatsLine, {
+                        label: 'Starting drones   ',
+                        value: fmt(msg.startingDrones),
+                    }),
+                );
+                ctx.term.writeln(
+                    render(NOTIFY.universeStatsLine, {
+                        label: 'Starting holds    ',
+                        value: fmt(msg.startingHolds),
+                    }),
+                );
+                if (msg.respawnDelaySeconds <= 0) {
+                    ctx.term.writeln(render(NOTIFY.universeStatsRespawnNone));
+                } else {
+                    ctx.term.writeln(
+                        render(NOTIFY.universeStatsRespawnSeconds, {
+                            value: formatDuration(msg.respawnDelaySeconds),
+                        }),
+                    );
+                }
+                ctx.term.writeln(render(NOTIFY.universeStatsDegHeader));
+                for (let deg = 1; deg <= 6; deg++) {
+                    const count = msg.outWarpDistribution[deg] ?? 0;
+                    if (count === 0) continue;
+                    ctx.term.writeln(
+                        render(NOTIFY.universeStatsDegRow, {
+                            degree: deg,
+                            s: deg === 1 ? '' : 's',
+                            count: fmt(count),
+                            ss: count === 1 ? '' : 's',
+                        }),
+                    );
+                }
                 showPrompt(ctx);
                 break;
+            }
             case ServerMsgType.PreviousSectorResult:
                 if (msg.sector === null) {
                     ctx.term.writeln(render(NOTIFY.noPreviousSector));
