@@ -1,5 +1,6 @@
 import { pool } from './db/index.js';
 import type { Queryable } from './db/types.js';
+import { universeConfig } from './universe-config.js';
 
 export interface TurnResult {
     allowed: boolean;
@@ -33,8 +34,8 @@ export async function fetchMoveTurnContext(
         `SELECT p.ship_id,
                 p.turns,
                 s.turns_per_warp,
-                COALESCE(e.turns_per_day, 500) AS turns_per_day,
-                COALESCE(e.turn_delay, 100) AS turn_delay
+                COALESCE(e.turns_per_day, ${universeConfig.turnsPerDay}) AS turns_per_day,
+                COALESCE(e.turn_delay, ${universeConfig.turnDelay}) AS turn_delay
          FROM players p
          LEFT JOIN ships s ON p.ship_id = s.id
          JOIN universes u ON u.id = $2
@@ -88,8 +89,8 @@ export async function checkAndDeductTurns(
 ): Promise<TurnResult> {
     const db = queryFn ?? pool;
     const univRes = await db.query<{ turns_per_day: number; turn_delay: number }>(
-        `SELECT COALESCE(e.turns_per_day, 500) as turns_per_day,
-                COALESCE(e.turn_delay, 100) as turn_delay
+        `SELECT COALESCE(e.turns_per_day, ${universeConfig.turnsPerDay}) as turns_per_day,
+                COALESCE(e.turn_delay, ${universeConfig.turnDelay}) as turn_delay
          FROM universes u LEFT JOIN edits e ON u.edit_id = e.id WHERE u.id = $1`,
         [universeId],
     );

@@ -5,7 +5,7 @@ type MinimapState = {
     depth: number;
     data: NeighborhoodResultObject | null;
     currentSectorNumber: number;
-    /** When non-null, the six adjacent-warp targets for the open quick-move menu (sector numbers, 1-indexed by order). */
+    /** The six adjacent-warp targets for the open quick-move menu (sector numbers, 1-indexed by order). */
     quickMoveTargets: number[] | null;
 };
 

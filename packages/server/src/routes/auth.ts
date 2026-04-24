@@ -2,7 +2,7 @@ import { Router } from 'express';
 import type { AuthResponse, LogoutResponse } from '@twnr/shared';
 import type { RouteDeps, Middleware } from './middleware.js';
 import { asyncHandler, HttpError } from './async-handler.js';
-import { newPlayerConfig } from '../game-config.js';
+import { universeConfig } from '../universe-config.js';
 import { bumpUserTokenVersion, createUser, getUserByEmail } from '../db/queries/user.js';
 import {
     listPlayersForUser,
@@ -107,7 +107,8 @@ export function createAuthRoutes(router: Router, deps: RouteDeps, middleware: Mi
             for (const player of userPlayers) {
                 if (player.ship_destroyed_date) {
                     const delaySecs = parseInt(
-                        process.env.SHIP_DESTROYED_LOGIN_DELAY_SECONDS || '0',
+                        process.env.SHIP_DESTROYED_LOGIN_DELAY_SECONDS ||
+                            String(universeConfig.respawnDelaySeconds),
                         10,
                     );
                     const elapsedSecs =
@@ -123,7 +124,7 @@ export function createAuthRoutes(router: Router, deps: RouteDeps, middleware: Mi
 
                     // Delay passed — clear destroyed date and give new ship
                     const startSectorId = await getSectorDbId(
-                        newPlayerConfig.startingSector,
+                        universeConfig.startingSector,
                         player.universe_id,
                     );
                     if (startSectorId === undefined) continue;
@@ -132,15 +133,15 @@ export function createAuthRoutes(router: Router, deps: RouteDeps, middleware: Mi
                     await deleteShipByOwner(player.id);
 
                     const startShipType = await getStartingShipTypeByName(
-                        newPlayerConfig.startingShip,
+                        universeConfig.startingShip,
                     );
                     if (startShipType) {
                         const newShipId = await insertStartingShip(
                             player.id,
                             startShipType.id,
                             startSectorId,
-                            newPlayerConfig.startingDrones,
-                            newPlayerConfig.startingShields,
+                            universeConfig.startingDrones,
+                            universeConfig.startingShields,
                             startShipType.starting_holds,
                             startShipType.turns_per_warp,
                         );
@@ -148,7 +149,7 @@ export function createAuthRoutes(router: Router, deps: RouteDeps, middleware: Mi
                             player.id,
                             startSectorId,
                             newShipId,
-                            newPlayerConfig.startingCredits,
+                            universeConfig.startingCredits,
                         );
                     } else {
                         await respawnPlayerNoShip(player.id, startSectorId);

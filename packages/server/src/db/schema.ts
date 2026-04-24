@@ -1,7 +1,7 @@
 import { pool } from './pool.js';
 import { shipConfigs } from '../ship-config.js';
 import { planetConfigs } from '../planet-config.js';
-import { newPlayerConfig } from '../game-config.js';
+import { universeConfig } from '../universe-config.js';
 import type { ShipConfig } from '@twnr/shared';
 
 let isConnected = false;
@@ -26,12 +26,12 @@ export const connectDB = async (): Promise<void> => {
       CREATE TABLE IF NOT EXISTS edits (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) UNIQUE NOT NULL,
-        max_planets_per_sector SMALLINT NOT NULL DEFAULT 2,
-        planet_collision_likelihood SMALLINT NOT NULL DEFAULT 50,
-        planet_collision_min_hours SMALLINT NOT NULL DEFAULT 24,
-        planet_collision_max_hours SMALLINT NOT NULL DEFAULT 24,
-        turns_per_day INTEGER NOT NULL DEFAULT 500,
-        starting_turns INTEGER NOT NULL DEFAULT 500,
+        max_planets_per_sector SMALLINT NOT NULL DEFAULT ${universeConfig.maxPlanetsPerSector},
+        planet_collision_likelihood SMALLINT NOT NULL DEFAULT ${universeConfig.planetCollisionLikelihood},
+        planet_collision_min_hours SMALLINT NOT NULL DEFAULT ${universeConfig.planetCollisionMinHours},
+        planet_collision_max_hours SMALLINT NOT NULL DEFAULT ${universeConfig.planetCollisionMaxHours},
+        turns_per_day INTEGER NOT NULL DEFAULT ${universeConfig.turnsPerDay},
+        starting_turns INTEGER NOT NULL DEFAULT ${universeConfig.startingTurns},
         max_turns INTEGER NOT NULL DEFAULT 2000,
         starting_ship VARCHAR(255) NOT NULL DEFAULT 'Vulpeculan Cruiser',
         starting_drones INTEGER NOT NULL DEFAULT 100,
@@ -43,7 +43,7 @@ export const connectDB = async (): Promise<void> => {
         max_players INTEGER NOT NULL DEFAULT 100,
         max_age_days INTEGER NOT NULL DEFAULT 0,
         max_planets INTEGER NOT NULL DEFAULT 500,
-        turn_delay INTEGER NOT NULL DEFAULT 100,
+        turn_delay INTEGER NOT NULL DEFAULT ${universeConfig.turnDelay},
         is_speed_warp_delay_on BOOLEAN NOT NULL DEFAULT TRUE,
         photons_allowed BOOLEAN NOT NULL DEFAULT TRUE,
         photon_blast_time_seconds INTEGER NOT NULL DEFAULT 5,
@@ -1027,25 +1027,39 @@ export const connectDB = async (): Promise<void> => {
 
       -- === Seed default edit ===
       -- The 'stock' edit is the universal template; new universes inherit
-      -- from it. Values that overlap with new-player.json are pushed in via
-      -- a parameterised UPDATE just below so the JSON file is the single
+      -- from it. Values that overlap with universeConfig are pushed in via
+      -- a parameterised UPDATE just below so universeConfig is the single
       -- source of truth for those defaults.
       INSERT INTO edits (name) VALUES ('stock') ON CONFLICT (name) DO NOTHING;
     `);
 
-        // Sync 'stock' edit fields with new-player.json (the source of truth
-        // for new-player defaults that overlap with edit columns). Runs every
-        // boot so JSON edits propagate without manual SQL.
+        // Sync 'stock' edit fields with universeConfig (the single source of
+        // truth for new-universe defaults that overlap with edit columns).
+        // Runs every boot so config changes propagate without manual SQL.
         await client.query(
             `UPDATE edits
              SET starting_credits = $1,
                  starting_drones = $2,
-                 starting_ship = $3
+                 starting_ship = $3,
+                 starting_turns = $4,
+                 turns_per_day = $5,
+                 turn_delay = $6,
+                 max_planets_per_sector = $7,
+                 planet_collision_likelihood = $8,
+                 planet_collision_min_hours = $9,
+                 planet_collision_max_hours = $10
              WHERE name = 'stock'`,
             [
-                newPlayerConfig.startingCredits,
-                newPlayerConfig.startingDrones,
-                newPlayerConfig.startingShip,
+                universeConfig.startingCredits,
+                universeConfig.startingDrones,
+                universeConfig.startingShip,
+                universeConfig.startingTurns,
+                universeConfig.turnsPerDay,
+                universeConfig.turnDelay,
+                universeConfig.maxPlanetsPerSector,
+                universeConfig.planetCollisionLikelihood,
+                universeConfig.planetCollisionMinHours,
+                universeConfig.planetCollisionMaxHours,
             ],
         );
 

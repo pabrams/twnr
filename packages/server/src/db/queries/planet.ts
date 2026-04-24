@@ -1,5 +1,6 @@
 import { pool } from '../index.js';
 import type { Queryable, PlayerPlanetRow } from '../types.js';
+import { universeConfig } from '../../universe-config.js';
 
 /** Whitelisted colonist commodity columns on `planets`. */
 const COLONIST_COLUMN: Record<'fuel' | 'organics' | 'equipment', string> = {
@@ -59,10 +60,10 @@ export async function getTerraformConfigForUniverse(
     db: Queryable = pool,
 ): Promise<TerraformConfigRow | undefined> {
     const res = await db.query<TerraformConfigRow>(
-        `SELECT COALESCE(e.max_planets_per_sector, 2) as max_planets_per_sector,
-                COALESCE(e.planet_collision_likelihood, 50) as planet_collision_likelihood,
-                COALESCE(e.planet_collision_min_hours, 24) as planet_collision_min_hours,
-                COALESCE(e.planet_collision_max_hours, 24) as planet_collision_max_hours
+        `SELECT COALESCE(e.max_planets_per_sector, ${universeConfig.maxPlanetsPerSector}) as max_planets_per_sector,
+                COALESCE(e.planet_collision_likelihood, ${universeConfig.planetCollisionLikelihood}) as planet_collision_likelihood,
+                COALESCE(e.planet_collision_min_hours, ${universeConfig.planetCollisionMinHours}) as planet_collision_min_hours,
+                COALESCE(e.planet_collision_max_hours, ${universeConfig.planetCollisionMaxHours}) as planet_collision_max_hours
          FROM universes u LEFT JOIN edits e ON u.edit_id = e.id WHERE u.id = $1`,
         [universeId],
     );

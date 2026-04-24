@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { RouteDeps, Middleware } from './middleware.js';
 import { asyncHandler, HttpError, parseIntParam } from './async-handler.js';
-import { newPlayerConfig } from '../game-config.js';
+import { universeConfig } from '../universe-config.js';
 import {
     createUniverse,
     listUniversesForUser,
@@ -72,12 +72,12 @@ export function createUniverseRoutes(
                 throw new HttpError(404, 'Universe not found');
             }
 
-            const startSector = newPlayerConfig.startingSector;
-            const startingTurns = editDefaults.starting_turns ?? 500;
+            const startSector = universeConfig.startingSector;
+            const startingTurns = editDefaults.starting_turns ?? universeConfig.startingTurns;
             const startingCredits =
-                editDefaults.starting_credits ?? newPlayerConfig.startingCredits;
-            const startingShip = editDefaults.starting_ship ?? newPlayerConfig.startingShip;
-            const startingDrones = editDefaults.starting_drones ?? newPlayerConfig.startingDrones;
+                editDefaults.starting_credits ?? universeConfig.startingCredits;
+            const startingShip = editDefaults.starting_ship ?? universeConfig.startingShip;
+            const startingDrones = editDefaults.starting_drones ?? universeConfig.startingDrones;
 
             const startSectorId = await getSectorDbId(startSector, universeId);
             if (startSectorId === undefined) {
@@ -108,7 +108,7 @@ export function createUniverseRoutes(
                     startShipType.id,
                     startSectorId,
                     startingDrones,
-                    newPlayerConfig.startingShields,
+                    universeConfig.startingShields,
                     startShipType.starting_holds,
                     startShipType.turns_per_warp,
                 );
