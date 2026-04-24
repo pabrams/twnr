@@ -87,7 +87,7 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
 
     function tooltipText(sector: NeighborhoodSector): string {
         if (sector.visibility === 'glimpsed') {
-            return `Sector ${sector.sector_number} (glimpsed)`;
+            return `Sector ${sector.sector_number}`;
         }
         const lines: string[] = [`Sector ${sector.sector_number}`];
         if (sector.port) {
@@ -271,6 +271,10 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             <marker id="arrDim" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5"
                 orient="auto-start-reverse">
               <path d="M 0 0 L 10 5 L 0 10 z" fill="#667" />
+            </marker>
+            <marker id="arrRed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5"
+                orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#f55" />
             </marker>`;
         svg.appendChild(defs);
 
@@ -281,6 +285,43 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
         const worldPerPx = viewSize / panelPx;
         const labelSize = 8 * worldPerPx;
         const strokeW = 1.2 * worldPerPx;
+
+        // Precompute pill bounds so warp lines can be trimmed to each pill's
+        // edge, leaving arrowheads visible outside the destination pill.
+        const pillById = new Map<number, { rw: number; rh: number }>();
+        for (const s of sectors) {
+            if (!disp.has(s.id)) continue;
+            const isCurrent = s.id === currentId;
+            const fontPx = isCurrent ? labelSize * 1.2 : labelSize;
+            const cw = fontPx * 0.62;
+            const px = fontPx * 0.5;
+            const py = fontPx * 0.3;
+            const rw = String(s.sector_number).length * cw + px * 2;
+            const rh = fontPx + py * 2;
+            pillById.set(s.id, { rw, rh });
+        }
+
+        // Trim a line from `fromPt` toward a pill centered at `centerPt` so it
+        // ends exactly `pad` world units outside the pill's axis-aligned bbox.
+        function trimToPill(
+            fromPt: { x: number; y: number },
+            centerPt: { x: number; y: number },
+            rw: number,
+            rh: number,
+            pad: number,
+        ): { x: number; y: number } {
+            const dx = fromPt.x - centerPt.x;
+            const dy = fromPt.y - centerPt.y;
+            const adx = Math.abs(dx);
+            const ady = Math.abs(dy);
+            if (adx < 1e-6 && ady < 1e-6) return { x: centerPt.x, y: centerPt.y };
+            const halfW = rw / 2 + pad;
+            const halfH = rh / 2 + pad;
+            const tx = adx > 1e-6 ? halfW / adx : Infinity;
+            const ty = ady > 1e-6 ? halfH / ady : Infinity;
+            const t = Math.min(tx, ty);
+            return { x: centerPt.x + dx * t, y: centerPt.y + dy * t };
+        }
 
         // Draw warps first so they sit behind nodes.
         const warpGroup = document.createElementNS(SVG_NS, 'g');
@@ -294,24 +335,38 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             const srcP = disp.get(w.from_sector_id);
             const dstP = disp.get(w.to_sector_id);
             if (!srcP || !dstP) continue;
+            const srcPill = pillById.get(w.from_sector_id);
+            const dstPill = pillById.get(w.to_sector_id);
+            if (!srcPill || !dstPill) continue;
             const srcVisited = src.visibility === 'visited';
             const dstVisited = dst.visibility === 'visited';
-            const line = document.createElementNS(SVG_NS, 'line');
-            line.setAttribute('x1', String(srcP.x));
-            line.setAttribute('y1', String(srcP.y));
-            line.setAttribute('x2', String(dstP.x));
-            line.setAttribute('y2', String(dstP.y));
-            line.setAttribute('stroke-width', String(strokeW));
-            if (srcVisited && dstVisited && w.known_two_way) {
+            const isTwoWay = srcVisited && dstVisited && w.known_two_way;
+            if (isTwoWay) {
                 const key = `${Math.min(w.from_sector_id, w.to_sector_id)}-${Math.max(w.from_sector_id, w.to_sector_id)}`;
                 if (drawnBi.has(key)) continue;
                 drawnBi.add(key);
+            }
+            // Bigger destination pad when an arrowhead needs to clear the pill.
+            const dstPad = isTwoWay ? strokeW * 0.5 : strokeW * 3;
+            const srcPad = strokeW * 0.5;
+            const start = trimToPill(dstP, srcP, srcPill.rw, srcPill.rh, srcPad);
+            const end = trimToPill(srcP, dstP, dstPill.rw, dstPill.rh, dstPad);
+
+            const line = document.createElementNS(SVG_NS, 'line');
+            line.setAttribute('x1', String(start.x));
+            line.setAttribute('y1', String(start.y));
+            line.setAttribute('x2', String(end.x));
+            line.setAttribute('y2', String(end.y));
+            line.setAttribute('stroke-width', String(strokeW));
+            if (isTwoWay) {
                 line.setAttribute('stroke', '#7af');
                 line.setAttribute('stroke-linecap', 'round');
             } else if (srcVisited && dstVisited) {
-                line.setAttribute('stroke', '#7af');
+                // Both endpoints visited but reverse warp absent from the
+                // universe — confirmed one-way. Draw in red with arrowhead.
+                line.setAttribute('stroke', '#f55');
                 line.setAttribute('stroke-linecap', 'round');
-                line.setAttribute('marker-end', 'url(#arr)');
+                line.setAttribute('marker-end', 'url(#arrRed)');
             } else {
                 // source visited, target glimpsed: dotted line with arrowhead
                 line.setAttribute('stroke', '#667');
