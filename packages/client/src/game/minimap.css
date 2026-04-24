@@ -58,7 +58,7 @@
     font-weight: bold;
 }
 .minimap-sector-label--visited {
-    fill: #fff;
+    fill: #FF0;
 }
 .minimap-sector-label--glimpsed {
     fill: #080;
