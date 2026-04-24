@@ -1,0 +1,82 @@
+/*
+ * Minimap visual styles. Colors, weights, and other static presentation live
+ * here; dynamic, viewport-scaled values (stroke-width, stroke-dasharray,
+ * font-size, positions, transforms) are still set inline from minimap.ts so
+ * they can track the current SVG viewBox.
+ */
+
+/* Warp lines between sectors */
+.minimap-warp {
+    stroke-linecap: round;
+    fill: none;
+}
+.minimap-warp--two-way {
+    stroke: #7af;
+}
+.minimap-warp--one-way-confirmed {
+    stroke: #f55;
+}
+.minimap-warp--unexplored {
+    stroke: #667;
+}
+
+/* Arrowhead marker paths (inside <defs>) */
+.minimap-arrowhead--neutral {
+    fill: #c0c0c0;
+}
+.minimap-arrowhead--dim {
+    fill: #667;
+}
+.minimap-arrowhead--danger {
+    fill: #f55;
+}
+
+/* Sector pill backgrounds */
+.minimap-sector-pill--current {
+    fill: #ff0;
+    stroke: #fff;
+}
+.minimap-sector-pill--visited {
+    fill: #357;
+    stroke: #9cf;
+}
+.minimap-sector-pill--glimpsed {
+    fill: none;
+    stroke: #778;
+    /* fill:none kills pointer events on the pill's interior; force the whole
+       area clickable so glimpsed nodes can still trigger autopilot. */
+    pointer-events: all;
+}
+
+/* Sector number labels */
+.minimap-sector-label {
+    font-family: 'Courier New', Courier, monospace;
+    pointer-events: none;
+}
+.minimap-sector-label--current {
+    fill: #000;
+    font-weight: bold;
+}
+.minimap-sector-label--visited {
+    fill: #e0e0f0;
+}
+.minimap-sector-label--glimpsed {
+    fill: #aab;
+}
+
+/* Planet marker glyph above a visited pill */
+.minimap-planet-glyph {
+    fill: #fc6;
+}
+
+/* Visibility toggles (base display lives in the inline stylesheet in
+   index.html; these are the modifier states minimap.ts flips). */
+#minimap.is-hidden {
+    display: none;
+}
+#minimap .empty-state.is-hidden {
+    display: none;
+}
+#minimap .tooltip.is-visible {
+    display: block;
+}

@@ -1,4 +1,5 @@
 import type { NeighborhoodResultObject, NeighborhoodSector } from '@twnr/shared';
+import './minimap.css';
 
 type MinimapState = {
     depth: number;
@@ -74,7 +75,7 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
 
     function showTooltip(evt: MouseEvent, text: string): void {
         tooltip.textContent = text;
-        tooltip.style.display = 'block';
+        tooltip.classList.add('is-visible');
         const rect = body.getBoundingClientRect();
         const x = Math.min(evt.clientX - rect.left + 10, rect.width - 230);
         const y = Math.min(evt.clientY - rect.top + 10, rect.height - 80);
@@ -82,7 +83,7 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
         tooltip.style.top = Math.max(4, y) + 'px';
     }
     function hideTooltip(): void {
-        tooltip.style.display = 'none';
+        tooltip.classList.remove('is-visible');
     }
 
     function tooltipText(sector: NeighborhoodSector): string {
@@ -119,21 +120,21 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
         svg.replaceChildren();
         if (state.data && state.data.topology === 'random') {
             // Hide the whole panel; the terminal flexes to full width.
-            container.style.display = 'none';
+            container.classList.add('is-hidden');
             return;
         }
-        container.style.display = '';
+        container.classList.remove('is-hidden');
         if (!state.data) {
-            emptyState.style.display = 'flex';
+            emptyState.classList.remove('is-hidden');
             emptyState.textContent = 'Loading map…';
             return;
         }
         if (state.data.sectors.length === 0) {
-            emptyState.style.display = 'flex';
+            emptyState.classList.remove('is-hidden');
             emptyState.textContent = 'No visited sectors yet — move to populate the map.';
             return;
         }
-        emptyState.style.display = 'none';
+        emptyState.classList.add('is-hidden');
 
         const sectors = state.data.sectors;
         const currentId = state.data.current_sector_id;
@@ -156,7 +157,7 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             if (s.y > maxY) maxY = s.y;
         }
         if (positionedCount === 0) {
-            emptyState.style.display = 'flex';
+            emptyState.classList.remove('is-hidden');
             emptyState.textContent = 'No positioned sectors in view.';
             return;
         }
@@ -266,15 +267,15 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
         defs.innerHTML = `
             <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5"
                 orient="auto-start-reverse">
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="#c0c0c0" />
+              <path class="minimap-arrowhead--neutral" d="M 0 0 L 10 5 L 0 10 z" />
             </marker>
             <marker id="arrDim" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5"
                 orient="auto-start-reverse">
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="#667" />
+              <path class="minimap-arrowhead--dim" d="M 0 0 L 10 5 L 0 10 z" />
             </marker>
             <marker id="arrRed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5"
                 orient="auto-start-reverse">
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="#f55" />
+              <path class="minimap-arrowhead--danger" d="M 0 0 L 10 5 L 0 10 z" />
             </marker>`;
         svg.appendChild(defs);
 
@@ -353,25 +354,23 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             const end = trimToPill(srcP, dstP, dstPill.rw, dstPill.rh, dstPad);
 
             const line = document.createElementNS(SVG_NS, 'line');
+            line.classList.add('minimap-warp');
             line.setAttribute('x1', String(start.x));
             line.setAttribute('y1', String(start.y));
             line.setAttribute('x2', String(end.x));
             line.setAttribute('y2', String(end.y));
             line.setAttribute('stroke-width', String(strokeW));
             if (isTwoWay) {
-                line.setAttribute('stroke', '#7af');
-                line.setAttribute('stroke-linecap', 'round');
+                line.classList.add('minimap-warp--two-way');
             } else if (srcVisited && dstVisited) {
                 // Both endpoints visited but reverse warp absent from the
                 // universe — confirmed one-way. Draw in red with arrowhead.
-                line.setAttribute('stroke', '#f55');
-                line.setAttribute('stroke-linecap', 'round');
+                line.classList.add('minimap-warp--one-way-confirmed');
                 line.setAttribute('marker-end', 'url(#arrRed)');
             } else {
                 // source visited, target glimpsed: dotted line with arrowhead
-                line.setAttribute('stroke', '#667');
+                line.classList.add('minimap-warp--unexplored');
                 line.setAttribute('stroke-dasharray', `${strokeW * 2} ${strokeW * 2}`);
-                line.setAttribute('stroke-linecap', 'round');
                 line.setAttribute('marker-end', 'url(#arrDim)');
             }
             warpGroup.appendChild(line);
@@ -406,36 +405,30 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             rect.setAttribute('rx', String(rx));
             rect.setAttribute('ry', String(rx));
             if (isCurrent) {
-                rect.setAttribute('fill', '#ff0');
-                rect.setAttribute('stroke', '#fff');
+                rect.classList.add('minimap-sector-pill--current');
                 rect.setAttribute('stroke-width', String(strokeW * 1.5));
             } else if (s.visibility === 'visited') {
-                rect.setAttribute('fill', '#357');
-                rect.setAttribute('stroke', '#9cf');
+                rect.classList.add('minimap-sector-pill--visited');
                 rect.setAttribute('stroke-width', String(strokeW));
             } else {
-                rect.setAttribute('fill', 'none');
-                rect.setAttribute('stroke', '#778');
+                rect.classList.add('minimap-sector-pill--glimpsed');
                 rect.setAttribute('stroke-width', String(strokeW * 0.8));
                 rect.setAttribute('stroke-dasharray', `${strokeW} ${strokeW}`);
-                // fill="none" kills pointer events on the rect's interior;
-                // force the whole area clickable so glimpsed nodes can
-                // trigger autopilot.
-                rect.setAttribute('pointer-events', 'all');
             }
             group.appendChild(rect);
 
             const label = document.createElementNS(SVG_NS, 'text');
+            label.classList.add('minimap-sector-label');
+            if (isCurrent) {
+                label.classList.add('minimap-sector-label--current');
+            } else if (s.visibility === 'visited') {
+                label.classList.add('minimap-sector-label--visited');
+            } else {
+                label.classList.add('minimap-sector-label--glimpsed');
+            }
             label.setAttribute('text-anchor', 'middle');
             label.setAttribute('dominant-baseline', 'central');
             label.setAttribute('font-size', String(fontPx));
-            label.setAttribute('font-weight', isCurrent ? 'bold' : 'normal');
-            label.setAttribute(
-                'fill',
-                isCurrent ? '#000' : s.visibility === 'visited' ? '#e0e0f0' : '#aab',
-            );
-            label.setAttribute('font-family', "'Courier New', Courier, monospace");
-            label.setAttribute('pointer-events', 'none');
             label.textContent = labelText;
             group.appendChild(label);
 
@@ -443,11 +436,11 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             // top-right corner so it doesn't compete with the number.
             if (s.visibility === 'visited' && s.planets.length > 0) {
                 const planetGlyph = document.createElementNS(SVG_NS, 'text');
+                planetGlyph.classList.add('minimap-planet-glyph');
                 planetGlyph.setAttribute('text-anchor', 'start');
                 planetGlyph.setAttribute('x', String(rw / 2 - fontPx * 0.15));
                 planetGlyph.setAttribute('y', String(-rh / 2 - fontPx * 0.15));
                 planetGlyph.setAttribute('font-size', String(fontPx * 0.9));
-                planetGlyph.setAttribute('fill', '#fc6');
                 planetGlyph.textContent = s.planets.length > 1 ? `◉${s.planets.length}` : '◉';
                 group.appendChild(planetGlyph);
             }
