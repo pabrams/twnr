@@ -139,6 +139,29 @@
     }
     #player-name-prompt button:hover { background: #444; }
     #player-name-prompt .error { color: #f44; font-size: 13px; min-height: 1em; }
+
+    /* Mobile/touch notice: hidden by default, shown on small screens or
+       touch-primary devices. Clickable "Continue anyway" button dismisses it
+       for the session. */
+    #mobile-notice {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.96);
+      z-index: 1000; align-items: center; justify-content: center; padding: 24px;
+    }
+    @media (max-width: 768px), (pointer: coarse) {
+      #mobile-notice { display: flex; }
+    }
+    #mobile-notice.dismissed { display: none !important; }
+    #mobile-notice .inner {
+      max-width: 420px; color: #c0c0c0; text-align: center; border: 1px solid #444;
+      padding: 24px 20px; background: #0a0a0a;
+    }
+    #mobile-notice h1 { color: #ff8800; font-size: 20px; margin-bottom: 12px; }
+    #mobile-notice p { font-size: 14px; line-height: 1.5; margin-bottom: 18px; }
+    #mobile-notice button {
+      background: #333; color: #c0c0c0; border: 1px solid #555;
+      padding: 10px 20px; font-family: inherit; font-size: 14px; cursor: pointer;
+    }
+    #mobile-notice button:hover { background: #444; }
   </style>
 </head>
 <body>
@@ -182,6 +205,18 @@
       </div>
     </div>
   </div>
+  <div id="mobile-notice">
+    <div class="inner">
+      <h1>Desktop recommended</h1>
+      <p>TWNR is a keyboard-driven terminal game designed for desktop play. On mobile the interface is cramped and many commands are difficult to enter.</p>
+      <button id="mobile-notice-dismiss" type="button">Continue anyway</button>
+    </div>
+  </div>
+  <script>
+    document.getElementById('mobile-notice-dismiss')?.addEventListener('click', () => {
+      document.getElementById('mobile-notice')?.classList.add('dismissed');
+    });
+  </script>
   <script type="module" src="/src/main.ts"></script>
 </body>
 </html>
