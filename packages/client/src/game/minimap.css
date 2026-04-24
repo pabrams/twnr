@@ -14,24 +14,23 @@
     fill: none;
 }
 .minimap-warp--two-way {
-    stroke: #7af;
+    stroke: #00F;
 }
 .minimap-warp--one-way-confirmed {
-    stroke: #f55;
+    stroke: #F00;
 }
 .minimap-warp--unexplored {
-    stroke: #667;
+    stroke: #808;
 }
-
 
 .minimap-arrowhead--neutral {
-    fill: #c0c0c0;
+    fill: #808;
 }
 .minimap-arrowhead--dim {
-    fill: #667;
+    fill: #808;
 }
 .minimap-arrowhead--danger {
-    fill: #f55;
+    fill: #F00;
 }
 
 .minimap-sector-pill--current {
@@ -39,12 +38,12 @@
     stroke: #fff;
 }
 .minimap-sector-pill--visited {
-    fill: #357;
-    stroke: #9cf;
+    fill: #00C;
+    stroke: #0F0;
 }
 .minimap-sector-pill--glimpsed {
     fill: none;
-    stroke: #778;
+    stroke: #808;
     /* fill:none kills pointer events on the pill's interior; force the whole
        area clickable so glimpsed nodes can still trigger autopilot. */
     pointer-events: all;
@@ -59,10 +58,10 @@
     font-weight: bold;
 }
 .minimap-sector-label--visited {
-    fill: #e0e0f0;
+    fill: #fff;
 }
 .minimap-sector-label--glimpsed {
-    fill: #aab;
+    fill: #080;
 }
 
 .minimap-planet-glyph {
