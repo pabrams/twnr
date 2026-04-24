@@ -65,6 +65,24 @@ export function fruchtermanReingold(
     const dispX = new Float64Array(N);
     const dispY = new Float64Array(N);
 
+    // CSR adjacency for the per-iteration angular-spread pass. For each node,
+    // adjIdx[adjStart[n] .. adjStart[n+1]] lists its undirected neighbours.
+    const degree = new Int32Array(N);
+    for (let e = 0; e < E; e++) {
+        degree[edgeA[e]]++;
+        degree[edgeB[e]]++;
+    }
+    const adjStart = new Int32Array(N + 1);
+    for (let i = 0; i < N; i++) adjStart[i + 1] = adjStart[i] + degree[i];
+    const adjIdx = new Int32Array(2 * E);
+    const adjCursor = new Int32Array(N);
+    for (let e = 0; e < E; e++) {
+        const a = edgeA[e];
+        const b = edgeB[e];
+        adjIdx[adjStart[a] + adjCursor[a]++] = b;
+        adjIdx[adjStart[b] + adjCursor[b]++] = a;
+    }
+
     // ---- Quadtree (flat typed arrays, reused across iterations) ----
     // Each node entry holds center of its bbox, half side length, mass (point
     // count), accumulated centroid sums (comSumX/Y; divide by mass for the
@@ -339,6 +357,86 @@ export function fruchtermanReingold(
 
         temperature -= cooling;
         if (temperature < 0.5) temperature = 0.5;
+    }
+
+    // Dedicated angular-spread pass after FR has settled. Running it DURING
+    // FR lost to attraction/repulsion (especially in dense local clusters
+    // where siblings share mutual edges and FR binds them tightly). Running
+    // it post-FR with no opposing forces lets it actually rotate siblings
+    // apart around each shared parent.
+    //
+    // Each pair of siblings whose directions from a common node fall within
+    // the target angle gets a tangential nudge that rotates them apart. A
+    // weak return-to-FR anchor prevents runaway drift.
+    {
+        const postIters = 120;
+        const anchorX = new Float64Array(posX); // FR-settled positions
+        const anchorY = new Float64Array(posY);
+        for (let iter = 0; iter < postIters; iter++) {
+            for (let i = 0; i < N; i++) {
+                dispX[i] = 0;
+                dispY[i] = 0;
+            }
+            const cool = 1 - iter / postIters;
+            for (let n = 0; n < N; n++) {
+                const start = adjStart[n];
+                const end = adjStart[n + 1];
+                const deg = end - start;
+                if (deg < 2) continue;
+                // Target angular spacing: even split for the node's degree,
+                // capped at 60° so a degree-2 node doesn't try for 180°
+                // separation (that'd fight topology).
+                const target = Math.min(Math.PI / 3, (2 * Math.PI) / deg);
+                const pnx = posX[n];
+                const pny = posY[n];
+                for (let i = start; i < end; i++) {
+                    const a = adjIdx[i];
+                    const ax = posX[a] - pnx;
+                    const ay = posY[a] - pny;
+                    const aDistSq = ax * ax + ay * ay;
+                    if (aDistSq < 1e-6) continue;
+                    const aDist = Math.sqrt(aDistSq);
+                    const aAngle = Math.atan2(ay, ax);
+                    for (let j = i + 1; j < end; j++) {
+                        const b = adjIdx[j];
+                        const bx = posX[b] - pnx;
+                        const by = posY[b] - pny;
+                        const bDistSq = bx * bx + by * by;
+                        if (bDistSq < 1e-6) continue;
+                        const bDist = Math.sqrt(bDistSq);
+                        const bAngle = Math.atan2(by, bx);
+                        let diff = bAngle - aAngle;
+                        if (diff > Math.PI) diff -= 2 * Math.PI;
+                        else if (diff < -Math.PI) diff += 2 * Math.PI;
+                        const absDiff = Math.abs(diff);
+                        if (absDiff >= target) continue;
+                        const deficit = target - absDiff;
+                        const sign = diff >= 0 ? 1 : -1;
+                        const taX = Math.sin(aAngle) * sign;
+                        const taY = -Math.cos(aAngle) * sign;
+                        const tbX = -Math.sin(bAngle) * sign;
+                        const tbY = Math.cos(bAngle) * sign;
+                        // Angular deficit (radians) × radius ≈ tangential arc
+                        // distance. Scale by cool + a small per-step factor.
+                        const stepA = deficit * aDist * 0.08 * cool;
+                        const stepB = deficit * bDist * 0.08 * cool;
+                        dispX[a] += taX * stepA;
+                        dispY[a] += taY * stepA;
+                        dispX[b] += tbX * stepB;
+                        dispY[b] += tbY * stepB;
+                    }
+                }
+            }
+            // Apply displacements with a weak anchor back toward the FR
+            // settled positions. Anchor keeps well-spread regions stable;
+            // clumps with large angular deficits drift far enough to
+            // redistribute their neighbours around each parent.
+            const anchor = 0.02;
+            for (let i = 0; i < N; i++) {
+                posX[i] += dispX[i] + (anchorX[i] - posX[i]) * anchor;
+                posY[i] += dispY[i] + (anchorY[i] - posY[i]) * anchor;
+            }
+        }
     }
 
     // Rescale the final layout into [0, size] × [0, size] preserving aspect
