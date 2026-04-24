@@ -13,8 +13,18 @@
     stroke-linecap: round;
     fill: none;
 }
+/* Halo drawn immediately behind each two-way warp. A later warp's halo
+   covers earlier warp lines where they cross, creating a visible "tunnel
+   under" gap that clarifies which segments connect. */
+.minimap-warp-halo {
+    stroke: #000;
+    stroke-linecap: round;
+    fill: none;
+}
+/* Matches the visited-pill border so the warp visually flows into the pill
+   at its endpoints. */
 .minimap-warp--two-way {
-    stroke: #00F;
+    stroke: #080;
 }
 .minimap-warp--one-way-confirmed {
     stroke: #F00;
