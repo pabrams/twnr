@@ -4,6 +4,7 @@ import type { GameContext } from './types.js';
 import { render } from './renderer.js';
 import { STARBASE, COMMON } from './messages/index.js';
 import { showClass0Menu, showClass0QtyPrompt } from './display-port.js';
+import { showShipInterestPrompt } from './display-computer.js';
 
 export function showStarbasePrompt(ctx: GameContext) {
     ctx.term.write(render(STARBASE.rootPrompt));
@@ -217,6 +218,7 @@ async function showShipListInternal(ctx: GameContext, label: string) {
         );
     });
     ctx.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
+    showShipInterestPrompt(ctx);
 }
 
 export function showTradeinPrompt(

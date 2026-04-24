@@ -22,10 +22,14 @@ export const COMPUTER = makeDomain('COMPUTER', {
     shipCatalogHeader: '[bc]=== Ship Catalog ===[/bc]',
     shipCatalogRow: '  [mg]<[/mg][by]{letter}[/by][mg]>[/mg]  [g]{name}[/g]',
 
-    shipDetailHeader: '[bc]=== {name} ===[/bc]',
-    shipDetailLine: '  [by]{label}[/by] [w]{value}[/w]',
-    shipDetailBoolYes: '[bg]Yes[/bg]',
-    shipDetailBoolNo: '[w]No[/w]',
+    shipDetailHeader: '[bc]{name}[/bc]',
+    shipDetailLine: '  [g]{label}[/g] [bc]{value}[/bc]',
+    shipDetailBoolYes: '[bc]Yes[/bc]',
+    shipDetailBoolNo: '[bc]No[/bc]',
+    shipDetailRow: '  {row}',
+    shipDetailColon: '[by]:[/by] ',
+    shipInterestPrompt:
+        '\r\n[mg]Which ship are you interested in ([/mg][by]?[/by][mg]=List, [/mg][by]Q[/by][mg]=Quit) [/mg][by]?[/by] ',
 
     planetSpecsHeader: '[bc]=== Planetary Specifications ===[/bc]',
     planetSpecsRow: '  [mg]<[/mg][by]{letter}[/by][mg]>[/mg]  [g]{type}[/g]',
