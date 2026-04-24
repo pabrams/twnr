@@ -353,6 +353,41 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             const start = trimToPill(dstP, srcP, srcPill.rw, srcPill.rh, srcPad);
             const end = trimToPill(srcP, dstP, dstPill.rw, dstPill.rh, dstPad);
 
+            // Offset directed warps slightly to the RIGHT of their direction
+            // of travel. Opposite-direction warps between the same pair end
+            // up on opposite sides of the axis, so overlapping one-ways
+            // separate visually instead of drawing on top of each other.
+            if (!isTwoWay) {
+                const dx = dstP.x - srcP.x;
+                const dy = dstP.y - srcP.y;
+                const len = Math.sqrt(dx * dx + dy * dy);
+                if (len > 1e-6) {
+                    const off = 3 * worldPerPx; // ~3 on-screen pixels
+                    // Right-perpendicular in SVG y-down coords: (-uy, ux).
+                    const offX = (-dy / len) * off;
+                    const offY = (dx / len) * off;
+                    start.x += offX;
+                    start.y += offY;
+                    end.x += offX;
+                    end.y += offY;
+                }
+            }
+
+            // Two-way warps get a slightly wider black halo drawn immediately
+            // behind the colored line. At crossings, a later warp's halo
+            // punches a visible gap through earlier warps, making it clear
+            // which segments are connected (the "tunnel under" effect).
+            if (isTwoWay) {
+                const halo = document.createElementNS(SVG_NS, 'line');
+                halo.classList.add('minimap-warp-halo');
+                halo.setAttribute('x1', String(start.x));
+                halo.setAttribute('y1', String(start.y));
+                halo.setAttribute('x2', String(end.x));
+                halo.setAttribute('y2', String(end.y));
+                halo.setAttribute('stroke-width', String(strokeW * 2.4));
+                warpGroup.appendChild(halo);
+            }
+
             const line = document.createElementNS(SVG_NS, 'line');
             line.classList.add('minimap-warp');
             line.setAttribute('x1', String(start.x));
