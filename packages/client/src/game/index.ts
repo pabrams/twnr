@@ -14,6 +14,7 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
         cursorBlink: true,
         fontFamily: 'Courier New, Courier, monospace',
         fontSize: 14,
+        scrollback: 50000,
         theme: {
             background: '#000000',
             foreground: '#ffffff',
@@ -26,6 +27,19 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
     fitAddon.fit();
 
     window.addEventListener('resize', () => fitAddon.fit());
+
+    // xterm's viewport captures wheel events to scroll its scrollback buffer,
+    // regardless of modifier keys. When the mouse is over the terminal that
+    // eats the event before the browser sees Ctrl+wheel as a zoom gesture.
+    // Stop propagation at capture phase for Ctrl+wheel so xterm never sees it
+    // and the browser handles it as a page zoom (no preventDefault).
+    termDiv.addEventListener(
+        'wheel',
+        (e) => {
+            if (e.ctrlKey) e.stopPropagation();
+        },
+        { capture: true },
+    );
 
     const wsProtocol = location.protocol === 'https:' ? 'wss' : 'ws';
     const ws = new WebSocket(`${wsProtocol}://${location.host}/ws?universe=${universeId}`);
