@@ -160,7 +160,9 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             });
         }
 
-        // Compute bbox from all positioned sectors.
+        // Compute bbox from all positioned sectors. Fringe sectors (beyond the
+        // max-depth frontier) are excluded so they don't blow up the viewBox —
+        // their warp stubs emanate from the pill edge of visible sectors.
         let minX = Infinity;
         let minY = Infinity;
         let maxX = -Infinity;
@@ -168,6 +170,7 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
         let positionedCount = 0;
         for (const s of sectors) {
             if (s.x == null || s.y == null) continue;
+            if (s.fringe) continue;
             positionedCount++;
             if (s.x < minX) minX = s.x;
             if (s.x > maxX) maxX = s.x;
@@ -187,8 +190,17 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
         // orientation is preserved, distances are no longer strictly to scale.
         type DispPos = { x: number; y: number; ox: number; oy: number };
         const disp = new Map<number, DispPos>();
+        // Fringe sectors keep their raw server positions (used only as a
+        // direction vector for the warp stub) and don't participate in the
+        // force-directed relaxation — they'd pull visible pills around for
+        // no rendering benefit, since they themselves aren't drawn.
+        const fringePos = new Map<number, { x: number; y: number }>();
         for (const s of sectors) {
             if (s.x == null || s.y == null) continue;
+            if (s.fringe) {
+                fringePos.set(s.id, { x: s.x, y: s.y });
+                continue;
+            }
             disp.set(s.id, { x: s.x, y: s.y, ox: s.x, oy: s.y });
         }
         const dispIds = Array.from(disp.keys());
@@ -337,6 +349,10 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             <marker id="arrRed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5"
                 orient="auto-start-reverse">
               <path class="minimap-arrowhead--danger" d="M 0 0 L 10 5 L 0 10 z" />
+            </marker>
+            <marker id="arrTwoWay" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5"
+                orient="auto-start-reverse">
+              <path class="minimap-arrowhead--two-way" d="M 0 0 L 10 5 L 0 10 z" />
             </marker>`;
         svg.appendChild(defs);
 
@@ -390,18 +406,22 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
         svg.appendChild(warpGroup);
         // De-dupe bi-pairs: draw one line per undirected pair when known_two_way.
         const drawnBi = new Set<string>();
+        const FRINGE_STUB_PX = 30; // stub length in on-screen pixels
         for (const w of state.data.warps) {
             const src = byId.get(w.from_sector_id);
             const dst = byId.get(w.to_sector_id);
             if (!src || !dst) continue;
             const srcP = disp.get(w.from_sector_id);
-            const dstP = disp.get(w.to_sector_id);
+            // Destination may be fringe (no pill); fall back to its raw server
+            // position so we still have a direction vector for the stub.
+            const dstP = disp.get(w.to_sector_id) ?? fringePos.get(w.to_sector_id);
             if (!srcP || !dstP) continue;
             const srcPill = pillById.get(w.from_sector_id);
             const dstPill = pillById.get(w.to_sector_id);
-            if (!srcPill || !dstPill) continue;
+            if (!srcPill) continue;
             const srcVisited = src.visibility === 'visited';
             const dstVisited = dst.visibility === 'visited';
+            const isFringe = dst.fringe === true;
             const isTwoWay = srcVisited && dstVisited && w.known_two_way;
             if (isTwoWay) {
                 const key = `${Math.min(w.from_sector_id, w.to_sector_id)}-${Math.max(w.from_sector_id, w.to_sector_id)}`;
@@ -412,7 +432,23 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             const dstPad = isTwoWay ? strokeW * 0.5 : strokeW * 3;
             const srcPad = strokeW * 0.5;
             const start = trimToPill(dstP, srcP, srcPill.rw, srcPill.rh, srcPad);
-            const end = trimToPill(srcP, dstP, dstPill.rw, dstPill.rh, dstPad);
+            // Fringe target: end at a fixed-length stub in the source→target
+            // direction rather than trimming to a (non-existent) pill.
+            let end: { x: number; y: number };
+            if (isFringe) {
+                const dx = dstP.x - srcP.x;
+                const dy = dstP.y - srcP.y;
+                const len = Math.sqrt(dx * dx + dy * dy) || 1;
+                const stub = FRINGE_STUB_PX * worldPerPx;
+                end = {
+                    x: start.x + (dx / len) * stub,
+                    y: start.y + (dy / len) * stub,
+                };
+            } else if (dstPill) {
+                end = trimToPill(srcP, dstP, dstPill.rw, dstPill.rh, dstPad);
+            } else {
+                continue;
+            }
 
             // Offset directed warps slightly to the RIGHT of their direction
             // of travel. Opposite-direction warps between the same pair end
@@ -465,6 +501,12 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             }
             if (isTwoWay) {
                 line.classList.add('minimap-warp--two-way');
+                // Fringe stubs read better with an arrow pointing toward the
+                // off-map target. Non-fringe two-ways stay arrowless — the
+                // warp body alone is enough once both pills are visible.
+                if (isFringe) {
+                    line.setAttribute('marker-end', 'url(#arrTwoWay)');
+                }
             } else if (srcVisited && dstVisited) {
                 // Both endpoints visited but reverse warp absent from the
                 // universe — confirmed one-way. Draw in red with arrowhead.

@@ -535,6 +535,10 @@ export type NeighborhoodSector = {
     x: number | null;
     y: number | null;
     visibility: 'visited' | 'glimpsed';
+    /**
+     * Fringe sectors show only the warps, not the sectors on the other ends.
+     */
+    fringe: boolean;
     port: { class: number; observed_at: string } | null;
     planets: Array<{ name: string; type: string | null; observed_at: string }>;
 };
