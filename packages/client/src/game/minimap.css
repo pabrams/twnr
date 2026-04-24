@@ -34,12 +34,12 @@
 }
 
 .minimap-sector-pill--current {
-    fill: #ff0;
-    stroke: #fff;
+    fill: #00F;
+    stroke: #0f0;
 }
 .minimap-sector-pill--visited {
-    fill: #00C;
-    stroke: #0F0;
+    fill: #008;
+    stroke: #080;
 }
 .minimap-sector-pill--glimpsed {
     fill: none;
@@ -54,7 +54,7 @@
     pointer-events: none;
 }
 .minimap-sector-label--current {
-    fill: #000;
+    fill: #FF0;
     font-weight: bold;
 }
 .minimap-sector-label--visited {
