@@ -85,15 +85,14 @@ export async function handleGetNeighborhood(playerId: number, depth: number): Pr
         sectorMeta.set(row.id, row);
     }
 
-    // Adjacency maps restricted to this universe's sectors.
+    // Forward adjacency restricted to this universe's sectors. edgeSet is
+    // the universe-wide set, used to detect confirmed one-way warps when both
+    // endpoints are visited.
     const outAdj = new Map<number, number[]>();
-    const inAdj = new Map<number, number[]>();
     const edgeSet = new Set<string>();
     for (const w of warpRes.rows) {
         if (!outAdj.has(w.from_id)) outAdj.set(w.from_id, []);
         outAdj.get(w.from_id)!.push(w.to_id);
-        if (!inAdj.has(w.to_id)) inAdj.set(w.to_id, []);
-        inAdj.get(w.to_id)!.push(w.from_id);
         edgeSet.add(`${w.from_id},${w.to_id}`);
     }
 
@@ -113,10 +112,12 @@ export async function handleGetNeighborhood(playerId: number, depth: number): Pr
         const u = queue.shift()!;
         const d = distance.get(u)!;
         if (d >= normalizedDepth) continue;
+        // Only expand along outgoing warps. Including incoming warps here
+        // would pull in sectors the player has no in-game knowledge of — you
+        // only learn a sector exists by seeing an outbound warp to it from a
+        // sector you've visited.
         const forward = outAdj.get(u) ?? [];
-        const reverse = inAdj.get(u) ?? [];
-        const neighbors = new Set<number>([...forward, ...reverse]);
-        for (const v of neighbors) {
+        for (const v of forward) {
             if (!sectorMeta.has(v)) continue;
             includedSectors.add(v);
             // Only expand through visited sectors (BFS may not pass through
