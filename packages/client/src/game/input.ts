@@ -1,7 +1,14 @@
 import type { Terminal } from '@xterm/xterm';
 import { ClientMsgType, Menu } from '@twnr/shared';
 import type { GameContext } from './types.js';
-import { showPrompt, showPortMenu, showHelp, showPlayerInfo, showMoveMenu } from './display.js';
+import {
+    showPrompt,
+    showPortMenu,
+    showHelp,
+    showPlayerInfo,
+    showMoveMenu,
+    hideMoveMenuOverlay,
+} from './display.js';
 import { COMMAND } from './messages/index.js';
 import { showComputerActivated } from './display-computer.js';
 import { showJettisonConfirm } from './display-port.js';
@@ -340,6 +347,7 @@ function handleMoveMenuInput(ctx: GameContext, line: string) {
         return;
     }
     if (cmd.toLowerCase() === 'q') {
+        hideMoveMenuOverlay(ctx);
         ctx.changeMenu(Menu.Sector);
         showPrompt(ctx);
         return;
@@ -347,6 +355,7 @@ function handleMoveMenuInput(ctx: GameContext, line: string) {
     const warps = ctx.currentWarps.slice(0, 6);
     const idx = parseInt(cmd, 10) - 1;
     if (idx >= 0 && idx < warps.length) {
+        hideMoveMenuOverlay(ctx);
         ctx.sendMsg({ type: ClientMsgType.Move, sector: warps[idx].sector });
         return;
     }

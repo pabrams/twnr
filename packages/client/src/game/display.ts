@@ -108,6 +108,13 @@ export function showMoveMenu(ctx: GameContext) {
     });
     term.writeln(render(SECTOR.moveMenuQuit));
     term.write(render(SECTOR.moveMenuPrompt, { max: warps.length }));
+    // Light up the minimap with 1..N badges for each adjacent sector.
+    ctx.minimap?.setQuickMove(warps.map((w) => w.sector));
+}
+
+/** Clear the minimap quick-move overlay. Call whenever the Move menu closes. */
+export function hideMoveMenuOverlay(ctx: GameContext) {
+    ctx.minimap?.setQuickMove(null);
 }
 
 export function showHelp(ctx: GameContext) {
