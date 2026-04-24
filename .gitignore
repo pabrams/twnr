@@ -7,3 +7,4 @@ server.log
 *.tsbuildinfo
 *.preview.ansi
 docs
+/.claude/worktrees/
