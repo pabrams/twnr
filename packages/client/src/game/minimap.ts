@@ -263,6 +263,73 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             pillById.set(s.id, { rw, rh });
         }
 
+        // Collision-only relaxation. Pairs of pills whose centres are closer
+        // than (rA + rB) × pad feel a pairwise push proportional to overlap;
+        // well-separated pills are untouched, preserving the stable
+        // orientation that using server positions directly gives us. Fixes
+        // local clumping where the server graph has dense sibling clusters.
+        const PILL_PAD = 1.15;
+        const COLLISION_ITERS = 60;
+        const dispIds = Array.from(disp.keys());
+        for (let iter = 0; iter < COLLISION_ITERS; iter++) {
+            for (let i = 0; i < dispIds.length; i++) {
+                const idA = dispIds[i];
+                const pA = disp.get(idA)!;
+                const pillA = pillById.get(idA);
+                if (!pillA) continue;
+                const rA = Math.max(pillA.rw, pillA.rh) / 2;
+                for (let j = i + 1; j < dispIds.length; j++) {
+                    const idB = dispIds[j];
+                    const pB = disp.get(idB)!;
+                    const pillB = pillById.get(idB);
+                    if (!pillB) continue;
+                    const rB = Math.max(pillB.rw, pillB.rh) / 2;
+                    const minDist = (rA + rB) * PILL_PAD;
+                    let dx = pB.x - pA.x;
+                    let dy = pB.y - pA.y;
+                    let d2 = dx * dx + dy * dy;
+                    if (d2 >= minDist * minDist) continue;
+                    let d = Math.sqrt(d2);
+                    if (d < 1e-3) {
+                        // Near-coincident: pick a deterministic direction
+                        // from the sector ids so renders stay stable.
+                        dx = (((idA * 2654435761) & 0xffff) / 0x8000 - 1) || 1;
+                        dy = (((idB * 2246822519) & 0xffff) / 0x8000 - 1) || 1;
+                        d = Math.sqrt(dx * dx + dy * dy) || 1;
+                    }
+                    const push = (minDist - d) * 0.5;
+                    const ux = dx / d;
+                    const uy = dy / d;
+                    pA.x -= ux * push;
+                    pA.y -= uy * push;
+                    pB.x += ux * push;
+                    pB.y += uy * push;
+                }
+            }
+        }
+
+        // Recompute bbox from collision-adjusted positions so the viewBox
+        // includes any spread the pass introduced.
+        let cMinX = Infinity;
+        let cMaxX = -Infinity;
+        let cMinY = Infinity;
+        let cMaxY = -Infinity;
+        for (const p of disp.values()) {
+            if (p.x < cMinX) cMinX = p.x;
+            if (p.x > cMaxX) cMaxX = p.x;
+            if (p.y < cMinY) cMinY = p.y;
+            if (p.y > cMaxY) cMaxY = p.y;
+        }
+        const cSpanMax = Math.max(cMaxX - cMinX, cMaxY - cMinY, 1);
+        const cPad = Math.max(cSpanMax * 0.1, 50);
+        const cViewSize = Math.max(cSpanMax + cPad * 2, 200);
+        const cPivotX = (cMinX + cMaxX) / 2;
+        const cPivotY = (cMinY + cMaxY) / 2;
+        svg.setAttribute(
+            'viewBox',
+            `${cPivotX - cViewSize / 2} ${cPivotY - cViewSize / 2} ${cViewSize} ${cViewSize}`,
+        );
+
         // Trim a line from `fromPt` toward a pill centered at `centerPt` so it
         // ends exactly `pad` world units outside the pill's axis-aligned bbox.
         function trimToPill(
@@ -416,7 +483,20 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
         // The current sector gets a scaled-up pill so it reads at a glance.
         const nodeGroup = document.createElementNS(SVG_NS, 'g');
         svg.appendChild(nodeGroup);
-        for (const s of sectors) {
+        // z-order safety net: if pills still visually overlap after collision
+        // resolution, the most important ones stay readable. Background
+        // sectors first, then adjacent out-warp targets, then the current
+        // sector on top.
+        const currentAdjSet = new Set<number>();
+        for (const w of state.data.warps) {
+            if (w.from_sector_id === currentId) currentAdjSet.add(w.to_sector_id);
+        }
+        const drawOrder = [...sectors].sort((a, b) => {
+            const aPrio = a.id === currentId ? 2 : currentAdjSet.has(a.id) ? 1 : 0;
+            const bPrio = b.id === currentId ? 2 : currentAdjSet.has(b.id) ? 1 : 0;
+            return aPrio - bPrio;
+        });
+        for (const s of drawOrder) {
             const p = disp.get(s.id);
             if (!p) continue;
             const isCurrent = s.id === currentId;
