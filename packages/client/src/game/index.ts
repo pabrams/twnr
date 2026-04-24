@@ -80,6 +80,7 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
         shipConfigs: null,
         planetConfigs: null,
         currentShipName: '',
+        currentColoredShipName: null,
         class0Prices: null,
         autopilotPath: [],
         autopilotStep: 0,

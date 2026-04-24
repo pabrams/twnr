@@ -45,6 +45,7 @@ export interface GameContext {
     shipConfigs: ShipCatalogEntry[] | null;
     planetConfigs: PlanetConfig[] | null;
     currentShipName: string;
+    currentColoredShipName: string | null;
     class0Prices: { dronePrice: number; shieldPrice: number; holdPrice: number } | null;
     autopilotPath: number[];
     autopilotStep: number;

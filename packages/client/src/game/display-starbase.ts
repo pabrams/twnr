@@ -29,6 +29,17 @@ function fmt(n: number): string {
     return n.toLocaleString();
 }
 
+/** Strip [tag]/[/tag] markup to measure the on-screen width of a colored string. */
+function visibleLength(s: string): number {
+    return s.replace(/\[\/?[a-zA-Z:0-9]+\]/g, '').length;
+}
+
+/** padEnd that counts visible characters, so color-tagged strings still align. */
+function padVisible(s: string, width: number): string {
+    const n = visibleLength(s);
+    return n >= width ? s : s + ' '.repeat(width - n);
+}
+
 export function showHardwareMenu(ctx: GameContext) {
     ctx.term.writeln(render(STARBASE.hardwareCredits, { credits: fmt(ctx.hardwareStoreCredits) }));
     showHardwarePrompt(ctx);
@@ -179,7 +190,7 @@ export async function showShipBuyList(ctx: GameContext) {
         ctx.term.writeln(
             render(STARBASE.shipyardsBuyRow, {
                 letter: indexToLetter(i),
-                name: ship.name.padEnd(24),
+                name: padVisible(ship.display_name ?? ship.name, 24),
                 price: calculateShipPrice(ship).toLocaleString().padStart(10),
                 current,
             }),
@@ -201,7 +212,7 @@ async function showShipListInternal(ctx: GameContext, label: string) {
         ctx.term.writeln(
             render(STARBASE.shipyardsExamineRow, {
                 letter: indexToLetter(i),
-                name: ship.name,
+                name: ship.display_name ?? ship.name,
             }),
         );
     });

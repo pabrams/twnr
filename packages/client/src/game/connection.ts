@@ -59,6 +59,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext, onDisconnect: (
                 ctx.playerId = msg.playerId;
                 ctx.totalSectors = msg.totalSectors;
                 ctx.currentShipName = msg.shipName;
+                ctx.currentColoredShipName = msg.coloredShipName;
                 ctx.starbaseSector = msg.starbaseSector;
                 ctx.term.writeln(render(NOTIFY.welcome, { name: msg.name }));
                 ctx.sendMsg({ type: ClientMsgType.SectorDisplay });
@@ -247,10 +248,13 @@ export function setupConnection(ws: WebSocket, ctx: GameContext, onDisconnect: (
                 break;
             case ServerMsgType.ShipInfoResult:
                 ctx.currentShipName = msg.shipName;
+                ctx.currentColoredShipName = msg.coloredShipName;
                 ctx.term.writeln('');
                 ctx.term.writeln(render(SECTOR.playerInfoName, { name: ctx.playerName }));
                 ctx.term.writeln(render(SECTOR.playerInfoSector, { sector: ctx.currentSector }));
-                ctx.term.writeln(render(PANEL.shipName, { name: msg.shipName }));
+                ctx.term.writeln(
+                    render(PANEL.shipName, { name: msg.coloredShipName ?? msg.shipName }),
+                );
                 ctx.term.writeln(
                     render(PANEL.shipDronesShields, {
                         drones: msg.drones,
@@ -492,7 +496,12 @@ export function setupConnection(ws: WebSocket, ctx: GameContext, onDisconnect: (
                 break;
             case ServerMsgType.BuyShipTradeinResult:
                 ctx.currentShipName = msg.shipName;
-                ctx.term.writeln(render(TRANSACTION.shipExchanged, { name: msg.shipName }));
+                ctx.currentColoredShipName = msg.coloredShipName;
+                ctx.term.writeln(
+                    render(TRANSACTION.shipExchanged, {
+                        name: msg.coloredShipName ?? msg.shipName,
+                    }),
+                );
                 ctx.term.writeln(
                     render(TRANSACTION.shipCreditsLine, { credits: fmt(msg.credits) }),
                 );
@@ -500,7 +509,12 @@ export function setupConnection(ws: WebSocket, ctx: GameContext, onDisconnect: (
                 break;
             case ServerMsgType.BuyShipNewResult:
                 ctx.currentShipName = msg.shipName;
-                ctx.term.writeln(render(TRANSACTION.shipPurchased, { name: msg.shipName }));
+                ctx.currentColoredShipName = msg.coloredShipName;
+                ctx.term.writeln(
+                    render(TRANSACTION.shipPurchased, {
+                        name: msg.coloredShipName ?? msg.shipName,
+                    }),
+                );
                 ctx.term.writeln(
                     render(TRANSACTION.shipCreditsLine, { credits: fmt(msg.credits) }),
                 );
