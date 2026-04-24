@@ -5,6 +5,8 @@ type MinimapState = {
     depth: number;
     data: NeighborhoodResultObject | null;
     currentSectorNumber: number;
+    /** When non-null, the six adjacent-warp targets for the open quick-move menu (sector numbers, 1-indexed by order). */
+    quickMoveTargets: number[] | null;
 };
 
 export type MinimapInjectionHandler = (sectorNumber: number, currentSector: number) => void;
@@ -16,6 +18,8 @@ export interface Minimap {
     getDepth(): number;
     /** Register a handler invoked on every redraw request, e.g. to refetch. */
     onRequestRefresh(handler: () => void): void;
+    /** Highlight these sector numbers as 1..N quick-move targets, or clear with null. */
+    setQuickMove(targets: number[] | null): void;
 }
 
 const DEFAULT_DEPTH = 3;
@@ -43,6 +47,7 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
         depth: DEFAULT_DEPTH,
         data: null,
         currentSectorNumber: 0,
+        quickMoveTargets: null,
     };
 
     const body = container.querySelector<HTMLElement>('.minimap-body')!;
@@ -141,6 +146,19 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
         const byId = new Map<number, NeighborhoodSector>();
         for (const s of sectors) byId.set(s.id, s);
         const current = byId.get(currentId);
+
+        // Quick-move: map each target sector_number (from the open move menu)
+        // to its 1-based slot, and resolve those to sector_ids we can match
+        // against warp endpoints + pills below.
+        const quickMoveIndexById = new Map<number, number>();
+        if (state.quickMoveTargets && state.quickMoveTargets.length > 0) {
+            const numberToId = new Map<number, number>();
+            for (const s of sectors) numberToId.set(s.sector_number, s.id);
+            state.quickMoveTargets.forEach((secNum, i) => {
+                const id = numberToId.get(secNum);
+                if (id !== undefined) quickMoveIndexById.set(id, i + 1);
+            });
+        }
 
         // Compute bbox from all positioned sectors.
         let minX = Infinity;
@@ -438,6 +456,13 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             line.setAttribute('x2', String(end.x));
             line.setAttribute('y2', String(end.y));
             line.setAttribute('stroke-width', String(strokeW));
+            // Outgoing warp from the current sector to a quick-move target:
+            // highlight so the player can see which number leads where.
+            const isQuickMoveWarp =
+                w.from_sector_id === currentId && quickMoveIndexById.has(w.to_sector_id);
+            if (isQuickMoveWarp) {
+                line.classList.add('minimap-warp--quick-move');
+            }
             if (isTwoWay) {
                 line.classList.add('minimap-warp--two-way');
             } else if (srcVisited && dstVisited) {
@@ -493,6 +518,11 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
                 rect.setAttribute('stroke-width', String(strokeW * 0.8));
                 rect.setAttribute('stroke-dasharray', `${strokeW} ${strokeW}`);
             }
+            const quickMoveIndex = quickMoveIndexById.get(s.id);
+            if (quickMoveIndex !== undefined) {
+                rect.classList.add('minimap-sector-pill--quick-move');
+                rect.setAttribute('stroke-width', String(strokeW * 1.8));
+            }
             group.appendChild(rect);
 
             const label = document.createElementNS(SVG_NS, 'text');
@@ -523,6 +553,30 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
                 group.appendChild(planetGlyph);
             }
 
+            // Quick-move badge: a small circle with the 1..6 slot number,
+            // placed below the pill so it doesn't compete with the sector
+            // number. Only drawn while the move menu is open.
+            if (quickMoveIndex !== undefined) {
+                const badgeR = fontPx * 0.65;
+                const badgeY = rh / 2 + badgeR + fontPx * 0.25;
+                const badgeCircle = document.createElementNS(SVG_NS, 'circle');
+                badgeCircle.classList.add('minimap-quick-move-badge');
+                badgeCircle.setAttribute('cx', '0');
+                badgeCircle.setAttribute('cy', String(badgeY));
+                badgeCircle.setAttribute('r', String(badgeR));
+                badgeCircle.setAttribute('stroke-width', String(strokeW));
+                group.appendChild(badgeCircle);
+                const badgeText = document.createElementNS(SVG_NS, 'text');
+                badgeText.classList.add('minimap-quick-move-badge-text');
+                badgeText.setAttribute('text-anchor', 'middle');
+                badgeText.setAttribute('dominant-baseline', 'central');
+                badgeText.setAttribute('x', '0');
+                badgeText.setAttribute('y', String(badgeY));
+                badgeText.setAttribute('font-size', String(fontPx * 0.95));
+                badgeText.textContent = String(quickMoveIndex);
+                group.appendChild(badgeText);
+            }
+
             // Interaction.
             const tip = tooltipText(s);
             group.addEventListener('mouseenter', (ev) => showTooltip(ev as MouseEvent, tip));
@@ -548,6 +602,10 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
         },
         onRequestRefresh(handler) {
             refreshHandler = handler;
+        },
+        setQuickMove(targets) {
+            state.quickMoveTargets = targets && targets.length > 0 ? [...targets] : null;
+            render();
         },
     };
 }

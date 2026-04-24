@@ -78,6 +78,27 @@
     fill: #fc6;
 }
 
+/* Quick-move overlay: applied only while the player's Move menu is open.
+   The warps out of the current sector + the target pills light up bright
+   green, and a numbered badge is drawn below each target pill so the
+   player can see which 1..6 slot corresponds to which sector. */
+.minimap-warp--quick-move {
+    stroke: #0f0;
+}
+.minimap-sector-pill--quick-move {
+    stroke: #0f0;
+}
+.minimap-quick-move-badge {
+    fill: #0f0;
+    stroke: #000;
+}
+.minimap-quick-move-badge-text {
+    fill: #000;
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: bold;
+    pointer-events: none;
+}
+
 
 #minimap.is-hidden {
     display: none;

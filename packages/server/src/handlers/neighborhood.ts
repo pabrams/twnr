@@ -85,14 +85,17 @@ export async function handleGetNeighborhood(playerId: number, depth: number): Pr
         sectorMeta.set(row.id, row);
     }
 
-    // Forward adjacency restricted to this universe's sectors. edgeSet is
-    // the universe-wide set, used to detect confirmed one-way warps when both
-    // endpoints are visited.
+    // Forward + reverse adjacency restricted to this universe's sectors.
+    // edgeSet is the universe-wide set, used to detect confirmed one-way
+    // warps when both endpoints are visited.
     const outAdj = new Map<number, number[]>();
+    const inAdj = new Map<number, number[]>();
     const edgeSet = new Set<string>();
     for (const w of warpRes.rows) {
         if (!outAdj.has(w.from_id)) outAdj.set(w.from_id, []);
         outAdj.get(w.from_id)!.push(w.to_id);
+        if (!inAdj.has(w.to_id)) inAdj.set(w.to_id, []);
+        inAdj.get(w.to_id)!.push(w.from_id);
         edgeSet.add(`${w.from_id},${w.to_id}`);
     }
 
@@ -112,34 +115,37 @@ export async function handleGetNeighborhood(playerId: number, depth: number): Pr
         const u = queue.shift()!;
         const d = distance.get(u)!;
         if (d >= normalizedDepth) continue;
-        // Only expand along outgoing warps. Including incoming warps here
-        // would pull in sectors the player has no in-game knowledge of — you
-        // only learn a sector exists by seeing an outbound warp to it from a
-        // sector you've visited.
+
+        // Forward warps: include the target (even glimpsed), but only continue
+        // BFS through visited targets — you learn a sector exists by seeing
+        // an outbound warp to it from somewhere you've been.
         const forward = outAdj.get(u) ?? [];
         for (const v of forward) {
             if (!sectorMeta.has(v)) continue;
             includedSectors.add(v);
-            // Only expand through visited sectors (BFS may not pass through
-            // glimpsed-only nodes).
             if (!traversable.has(v)) continue;
             if (!distance.has(v)) {
                 distance.set(v, d + 1);
                 queue.push(v);
             }
         }
-    }
 
-    // Pull in visited sectors that have a known warp LANDING in the current
-    // neighborhood. This keeps edges the player has already discovered visible
-    // even when the current sector is only reachable from them via a one-way
-    // inbound warp (otherwise forward-only BFS would hide the source). The
-    // source must be traversable (visited), so we never expose sectors the
-    // player has no in-game knowledge of.
-    for (const w of warpRes.rows) {
-        if (!traversable.has(w.from_id)) continue;
-        if (!includedSectors.has(w.to_id)) continue;
-        includedSectors.add(w.from_id);
+        // Reverse warps: only follow when the source is a visited sector.
+        // The player already knows about that sector from previous trips, so
+        // this doesn't leak any information they shouldn't have — it just
+        // preserves their memory of incoming one-way edges after following
+        // one. Each reverse hop still costs depth, so the selected depth
+        // limit is respected in both directions.
+        const reverse = inAdj.get(u) ?? [];
+        for (const v of reverse) {
+            if (!traversable.has(v)) continue;
+            if (!sectorMeta.has(v)) continue;
+            includedSectors.add(v);
+            if (!distance.has(v)) {
+                distance.set(v, d + 1);
+                queue.push(v);
+            }
+        }
     }
 
     // Build sector payloads.
