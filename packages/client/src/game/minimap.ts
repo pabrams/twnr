@@ -194,14 +194,56 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             (extent / Math.max(Math.sqrt(dispN), 1)) * 1.2,
             minWorldSpacing,
         );
+
+        // BFS hop-distance from the current sector through the visible warp
+        // subgraph (undirected for layout purposes — direction doesn't matter
+        // when spacing things visually). Used to bias the relaxation so pairs
+        // involving low-hop nodes get bigger spacing and weaker anchor pull,
+        // opening up the area around the current sector while leaving distant
+        // clumps alone.
+        const hop = new Map<number, number>();
+        if (current && disp.has(current.id)) {
+            const adj = new Map<number, Set<number>>();
+            for (const w of state.data.warps) {
+                if (!disp.has(w.from_sector_id) || !disp.has(w.to_sector_id)) continue;
+                if (!adj.has(w.from_sector_id)) adj.set(w.from_sector_id, new Set());
+                if (!adj.has(w.to_sector_id)) adj.set(w.to_sector_id, new Set());
+                adj.get(w.from_sector_id)!.add(w.to_sector_id);
+                adj.get(w.to_sector_id)!.add(w.from_sector_id);
+            }
+            hop.set(current.id, 0);
+            const bq: number[] = [current.id];
+            while (bq.length > 0) {
+                const u = bq.shift()!;
+                const d = hop.get(u)!;
+                for (const v of adj.get(u) ?? []) {
+                    if (hop.has(v)) continue;
+                    hop.set(v, d + 1);
+                    bq.push(v);
+                }
+            }
+        }
+        const hopOf = (id: number): number => hop.get(id) ?? 99;
+        // Spacing multiplier for a pair, keyed by the closer-to-current node.
+        // Hop 0 (pair with current) or 1 (immediate-neighbour pair): big spread.
+        // Hop 2: a touch more breathing room. Further: unchanged.
+        const spacingMult = (minHop: number): number =>
+            minHop <= 1 ? 1.8 : minHop === 2 ? 1.25 : 1.0;
+        // Anchor multiplier per node. Weaker pull for low-hop nodes lets them
+        // drift further from their server positions to use available space.
+        const anchorMult = (h: number): number => (h <= 1 ? 0.3 : h === 2 ? 0.7 : 1.0);
+
         const ANCHOR = 0.04;
         const ITERS = 100;
         for (let iter = 0; iter < ITERS; iter++) {
             const cool = 1 - iter / ITERS;
             for (let i = 0; i < dispN; i++) {
                 const a = disp.get(dispIds[i])!;
+                const ha = hopOf(dispIds[i]);
                 for (let j = i + 1; j < dispN; j++) {
                     const b = disp.get(dispIds[j])!;
+                    const hb = hopOf(dispIds[j]);
+                    const pairSpacing = targetSpacing * spacingMult(Math.min(ha, hb));
                     let dx = b.x - a.x;
                     let dy = b.y - a.y;
                     let d2 = dx * dx + dy * dy;
@@ -212,9 +254,9 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
                         dy = (j - i) * 0.013;
                         d2 = dx * dx + dy * dy;
                     }
-                    if (d2 < targetSpacing * targetSpacing) {
+                    if (d2 < pairSpacing * pairSpacing) {
                         const d = Math.sqrt(d2);
-                        const push = (targetSpacing - d) * 0.5 * cool;
+                        const push = (pairSpacing - d) * 0.5 * cool;
                         const ux = dx / d;
                         const uy = dy / d;
                         a.x -= ux * push;
@@ -226,8 +268,9 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             }
             for (const id of dispIds) {
                 const p = disp.get(id)!;
-                p.x += (p.ox - p.x) * ANCHOR;
-                p.y += (p.oy - p.y) * ANCHOR;
+                const a = ANCHOR * anchorMult(hopOf(id));
+                p.x += (p.ox - p.x) * a;
+                p.y += (p.oy - p.y) * a;
             }
         }
 
