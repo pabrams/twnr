@@ -111,6 +111,83 @@ export async function getEditIdByName(name: string, db: Queryable = pool): Promi
     return res.rows[0]?.id ?? null;
 }
 
+/**
+ * Insert a NULL-named copy of the given template edit and return the new id.
+ * Per-universe edit rows live alongside the named templates in the same
+ * `edits` table; the NULL name flags them as snapshots that should never be
+ * touched by the boot-time template-sync UPDATE.
+ */
+export async function cloneEditAsSnapshot(
+    templateName: string,
+    db: Queryable = pool,
+): Promise<number | null> {
+    const res = await db.query<{ id: number }>(
+        `INSERT INTO edits (
+            name,
+            max_planets_per_sector,
+            planet_collision_likelihood,
+            planet_collision_min_hours,
+            planet_collision_max_hours,
+            turns_per_day,
+            starting_turns,
+            max_turns,
+            starting_ship,
+            starting_drones,
+            starting_credits,
+            starting_port_density,
+            max_port_density,
+            port_production_rate,
+            port_memory_hours,
+            max_players,
+            max_age_days,
+            max_planets,
+            turn_delay,
+            is_speed_warp_delay_on,
+            photons_allowed,
+            photon_blast_time_seconds,
+            planet_spawn_density,
+            max_ships_allowed,
+            max_corp_size,
+            max_ships_in_protected_space,
+            truce_time_hours,
+            is_automation_enabled
+         )
+         SELECT
+            NULL,
+            max_planets_per_sector,
+            planet_collision_likelihood,
+            planet_collision_min_hours,
+            planet_collision_max_hours,
+            turns_per_day,
+            starting_turns,
+            max_turns,
+            starting_ship,
+            starting_drones,
+            starting_credits,
+            starting_port_density,
+            max_port_density,
+            port_production_rate,
+            port_memory_hours,
+            max_players,
+            max_age_days,
+            max_planets,
+            turn_delay,
+            is_speed_warp_delay_on,
+            photons_allowed,
+            photon_blast_time_seconds,
+            planet_spawn_density,
+            max_ships_allowed,
+            max_corp_size,
+            max_ships_in_protected_space,
+            truce_time_hours,
+            is_automation_enabled
+         FROM edits WHERE name = $1
+         RETURNING id`,
+        [templateName],
+    );
+    return res.rows[0]?.id ?? null;
+}
+
 /** Earth starting colonists for an edit (falls back to 1,000,000). */
 export async function getEarthStartingColonistsForEdit(
     editId: number | null,
