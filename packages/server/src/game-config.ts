@@ -15,7 +15,7 @@ function loadJson<T>(file: string, fallback: T): T {
 export const newPlayerConfig = loadJson('new-player.json', {
     startingShip: 'Vulpeculan Cruiser',
     startingCredits: 10000,
-    startingDrones: 0,
+    startingDrones: 100,
     startingShields: 0,
     startingSector: 1,
 });
