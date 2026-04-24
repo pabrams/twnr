@@ -160,17 +160,96 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             emptyState.textContent = 'No positioned sectors in view.';
             return;
         }
-        // Center the viewBox on the current sector (§5: "re-center on the new
-        // current sector"). ViewSize is 2 × max reach from the pivot, so the
-        // farthest visible sector sits at an edge and the current sector stays
-        // dead-center regardless of exploration asymmetry.
-        const pivotX = current?.x ?? (minX + maxX) / 2;
-        const pivotY = current?.y ?? (minY + maxY) / 2;
-        let maxReach = 0;
+
+        // Force-directed relaxation. The server stores absolute positions, but
+        // the visible subset is often clumpy with large empty patches. Repel
+        // nearby nodes toward a target spacing while a weak anchor tugs each
+        // node back toward its original position — clusters expand, overall
+        // orientation is preserved, distances are no longer strictly to scale.
+        type DispPos = { x: number; y: number; ox: number; oy: number };
+        const disp = new Map<number, DispPos>();
         for (const s of sectors) {
             if (s.x == null || s.y == null) continue;
-            const dx = Math.abs(s.x - pivotX);
-            const dy = Math.abs(s.y - pivotY);
+            disp.set(s.id, { x: s.x, y: s.y, ox: s.x, oy: s.y });
+        }
+        const dispIds = Array.from(disp.keys());
+        const dispN = dispIds.length;
+        const extent = Math.max(maxX - minX, maxY - minY, 1);
+        // Minimum spacing floor: keep wider pills (multi-digit sector numbers)
+        // from overlapping even in dense neighborhoods. Converted from target
+        // on-screen pixels using the panel's current width.
+        let maxDigits = 1;
+        for (const s of sectors) {
+            if (s.x == null || s.y == null) continue;
+            const len = String(s.sector_number).length;
+            if (len > maxDigits) maxDigits = len;
+        }
+        const panelPxEst = body.clientWidth || 320;
+        const worldPerPxEst = Math.max(extent, 200) / panelPxEst;
+        const labelPx = 9;
+        const minPxSpacing = maxDigits * labelPx * 0.62 + labelPx * 2.4;
+        const minWorldSpacing = minPxSpacing * worldPerPxEst;
+        const targetSpacing = Math.max(
+            (extent / Math.max(Math.sqrt(dispN), 1)) * 1.2,
+            minWorldSpacing,
+        );
+        const ANCHOR = 0.04;
+        const ITERS = 100;
+        for (let iter = 0; iter < ITERS; iter++) {
+            const cool = 1 - iter / ITERS;
+            for (let i = 0; i < dispN; i++) {
+                const a = disp.get(dispIds[i])!;
+                for (let j = i + 1; j < dispN; j++) {
+                    const b = disp.get(dispIds[j])!;
+                    let dx = b.x - a.x;
+                    let dy = b.y - a.y;
+                    let d2 = dx * dx + dy * dy;
+                    if (d2 < 1e-6) {
+                        // Coincident points: nudge along a deterministic axis
+                        // derived from their indices so layout stays stable.
+                        dx = (i - j) * 0.01;
+                        dy = (j - i) * 0.013;
+                        d2 = dx * dx + dy * dy;
+                    }
+                    if (d2 < targetSpacing * targetSpacing) {
+                        const d = Math.sqrt(d2);
+                        const push = (targetSpacing - d) * 0.5 * cool;
+                        const ux = dx / d;
+                        const uy = dy / d;
+                        a.x -= ux * push;
+                        a.y -= uy * push;
+                        b.x += ux * push;
+                        b.y += uy * push;
+                    }
+                }
+            }
+            for (const id of dispIds) {
+                const p = disp.get(id)!;
+                p.x += (p.ox - p.x) * ANCHOR;
+                p.y += (p.oy - p.y) * ANCHOR;
+            }
+        }
+
+        // Recompute bbox/pivot from adjusted positions. ViewSize is 2 × max
+        // reach from the pivot, so the farthest visible sector sits at an edge
+        // and the current sector stays dead-center.
+        let minDX = Infinity;
+        let maxDX = -Infinity;
+        let minDY = Infinity;
+        let maxDY = -Infinity;
+        for (const p of disp.values()) {
+            if (p.x < minDX) minDX = p.x;
+            if (p.x > maxDX) maxDX = p.x;
+            if (p.y < minDY) minDY = p.y;
+            if (p.y > maxDY) maxDY = p.y;
+        }
+        const currentDisp = current ? (disp.get(current.id) ?? null) : null;
+        const pivotX = currentDisp?.x ?? (minDX + maxDX) / 2;
+        const pivotY = currentDisp?.y ?? (minDY + maxDY) / 2;
+        let maxReach = 0;
+        for (const p of disp.values()) {
+            const dx = Math.abs(p.x - pivotX);
+            const dy = Math.abs(p.y - pivotY);
             if (dx > maxReach) maxReach = dx;
             if (dy > maxReach) maxReach = dy;
         }
@@ -200,10 +279,7 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
         // constant pixel size regardless of how far the player has explored.
         const panelPx = body.clientWidth || 320;
         const worldPerPx = viewSize / panelPx;
-        const nodeR = 6 * worldPerPx;
-        const currentR = 10 * worldPerPx;
-        const labelSize = 12 * worldPerPx;
-        const badgeSize = 9 * worldPerPx;
+        const labelSize = 8 * worldPerPx;
         const strokeW = 1.2 * worldPerPx;
 
         // Draw warps first so they sit behind nodes.
@@ -215,14 +291,16 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             const src = byId.get(w.from_sector_id);
             const dst = byId.get(w.to_sector_id);
             if (!src || !dst) continue;
-            if (src.x == null || src.y == null || dst.x == null || dst.y == null) continue;
+            const srcP = disp.get(w.from_sector_id);
+            const dstP = disp.get(w.to_sector_id);
+            if (!srcP || !dstP) continue;
             const srcVisited = src.visibility === 'visited';
             const dstVisited = dst.visibility === 'visited';
             const line = document.createElementNS(SVG_NS, 'line');
-            line.setAttribute('x1', String(src.x));
-            line.setAttribute('y1', String(src.y));
-            line.setAttribute('x2', String(dst.x));
-            line.setAttribute('y2', String(dst.y));
+            line.setAttribute('x1', String(srcP.x));
+            line.setAttribute('y1', String(srcP.y));
+            line.setAttribute('x2', String(dstP.x));
+            line.setAttribute('y2', String(dstP.y));
             line.setAttribute('stroke-width', String(strokeW));
             if (srcVisited && dstVisited && w.known_two_way) {
                 const key = `${Math.min(w.from_sector_id, w.to_sector_id)}-${Math.max(w.from_sector_id, w.to_sector_id)}`;
@@ -244,110 +322,76 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             warpGroup.appendChild(line);
         }
 
-        // Draw sector nodes. Labels are tracked so we can run a collision
-        // pass after all nodes are placed.
-        type LabelSlot = {
-            label: SVGTextElement;
-            sx: number;
-            sy: number;
-            r: number;
-            hasBadgeBelow: boolean;
-            text: string;
-        };
-        const labelSlots: LabelSlot[] = [];
+        // Draw sector nodes as rounded pills with the sector number inside.
+        // The current sector gets a scaled-up pill so it reads at a glance.
         const nodeGroup = document.createElementNS(SVG_NS, 'g');
         svg.appendChild(nodeGroup);
         for (const s of sectors) {
-            if (s.x == null || s.y == null) continue;
+            const p = disp.get(s.id);
+            if (!p) continue;
+            const isCurrent = s.id === currentId;
+            const labelText = String(s.sector_number);
+            const fontPx = isCurrent ? labelSize * 1.2 : labelSize;
+            const cw = fontPx * 0.62;
+            const px = fontPx * 0.5;
+            const py = fontPx * 0.3;
+            const rw = labelText.length * cw + px * 2;
+            const rh = fontPx + py * 2;
+            const rx = fontPx * 0.35;
+
             const group = document.createElementNS(SVG_NS, 'g');
             group.classList.add('sector-node');
-            group.setAttribute('transform', `translate(${s.x}, ${s.y})`);
+            group.setAttribute('transform', `translate(${p.x}, ${p.y})`);
 
-            const isCurrent = s.id === currentId;
-            const circle = document.createElementNS(SVG_NS, 'circle');
+            const rect = document.createElementNS(SVG_NS, 'rect');
+            rect.setAttribute('x', String(-rw / 2));
+            rect.setAttribute('y', String(-rh / 2));
+            rect.setAttribute('width', String(rw));
+            rect.setAttribute('height', String(rh));
+            rect.setAttribute('rx', String(rx));
+            rect.setAttribute('ry', String(rx));
             if (isCurrent) {
-                circle.setAttribute('r', String(currentR));
-                circle.setAttribute('fill', '#ff0');
-                circle.setAttribute('stroke', '#fff');
-                circle.setAttribute('stroke-width', String(strokeW * 1.5));
+                rect.setAttribute('fill', '#ff0');
+                rect.setAttribute('stroke', '#fff');
+                rect.setAttribute('stroke-width', String(strokeW * 1.5));
             } else if (s.visibility === 'visited') {
-                circle.setAttribute('r', String(nodeR));
-                circle.setAttribute('fill', '#357');
-                circle.setAttribute('stroke', '#9cf');
-                circle.setAttribute('stroke-width', String(strokeW));
+                rect.setAttribute('fill', '#357');
+                rect.setAttribute('stroke', '#9cf');
+                rect.setAttribute('stroke-width', String(strokeW));
             } else {
-                circle.setAttribute('r', String(nodeR * 0.85));
-                circle.setAttribute('fill', 'none');
-                circle.setAttribute('stroke', '#778');
-                circle.setAttribute('stroke-width', String(strokeW * 0.8));
-                circle.setAttribute('stroke-dasharray', `${strokeW} ${strokeW}`);
-                // SVG fill="none" kills pointer events on the circle's
-                // interior by default; force the whole area to be clickable
-                // so glimpsed nodes can trigger autopilot (§6).
-                circle.setAttribute('pointer-events', 'all');
+                rect.setAttribute('fill', 'none');
+                rect.setAttribute('stroke', '#778');
+                rect.setAttribute('stroke-width', String(strokeW * 0.8));
+                rect.setAttribute('stroke-dasharray', `${strokeW} ${strokeW}`);
+                // fill="none" kills pointer events on the rect's interior;
+                // force the whole area clickable so glimpsed nodes can
+                // trigger autopilot.
+                rect.setAttribute('pointer-events', 'all');
             }
-            group.appendChild(circle);
+            group.appendChild(rect);
 
-            const nr = isCurrent ? currentR : nodeR;
-            const labelText = String(s.sector_number);
             const label = document.createElementNS(SVG_NS, 'text');
             label.setAttribute('text-anchor', 'middle');
-            label.setAttribute('y', String(-nr - labelSize * 0.3));
-            label.setAttribute('font-size', String(labelSize));
+            label.setAttribute('dominant-baseline', 'central');
+            label.setAttribute('font-size', String(fontPx));
             label.setAttribute('font-weight', isCurrent ? 'bold' : 'normal');
             label.setAttribute(
                 'fill',
-                isCurrent ? '#ff0' : s.visibility === 'visited' ? '#e0e0f0' : '#99a',
+                isCurrent ? '#000' : s.visibility === 'visited' ? '#e0e0f0' : '#aab',
             );
             label.setAttribute('font-family', "'Courier New', Courier, monospace");
+            label.setAttribute('pointer-events', 'none');
             label.textContent = labelText;
             group.appendChild(label);
-            labelSlots.push({
-                label,
-                sx: s.x,
-                sy: s.y,
-                r: nr,
-                hasBadgeBelow: s.visibility === 'visited' && s.port != null,
-                text: labelText,
-            });
 
-            // Port badge (below the node) — visited only.
-            if (s.visibility === 'visited' && s.port) {
-                const triplet = PORT_CLASS_TRIPLET[s.port.class] ?? '???';
-                const badgeY = (isCurrent ? currentR : nodeR) + badgeSize * 1.1;
-                const bgWidth = badgeSize * 2.4;
-                const bg = document.createElementNS(SVG_NS, 'rect');
-                bg.setAttribute('x', String(-bgWidth / 2));
-                bg.setAttribute('y', String(badgeY - badgeSize * 0.9));
-                bg.setAttribute('width', String(bgWidth));
-                bg.setAttribute('height', String(badgeSize * 1.2));
-                bg.setAttribute('fill', '#000');
-                bg.setAttribute('stroke', '#333');
-                bg.setAttribute('stroke-width', String(strokeW * 0.5));
-                group.appendChild(bg);
-                // One <text> with three <tspan>s, green for B, cyan for S.
-                const txt = document.createElementNS(SVG_NS, 'text');
-                txt.setAttribute('text-anchor', 'middle');
-                txt.setAttribute('y', String(badgeY));
-                txt.setAttribute('font-size', String(badgeSize));
-                txt.setAttribute('font-family', "'Courier New', Courier, monospace");
-                txt.setAttribute('font-weight', 'bold');
-                for (const ch of triplet) {
-                    const span = document.createElementNS(SVG_NS, 'tspan');
-                    span.textContent = ch;
-                    span.setAttribute('fill', ch === 'B' ? '#4f4' : ch === 'S' ? '#4ff' : '#888');
-                    txt.appendChild(span);
-                }
-                group.appendChild(txt);
-            }
-
-            // Planet glyph — visited only.
+            // Planet glyph — visited only. Sits just above the pill's
+            // top-right corner so it doesn't compete with the number.
             if (s.visibility === 'visited' && s.planets.length > 0) {
                 const planetGlyph = document.createElementNS(SVG_NS, 'text');
-                planetGlyph.setAttribute('text-anchor', 'middle');
-                planetGlyph.setAttribute('x', String((isCurrent ? currentR : nodeR) * 1.1));
-                planetGlyph.setAttribute('y', String(-(isCurrent ? currentR : nodeR) * 0.4));
-                planetGlyph.setAttribute('font-size', String(labelSize * 0.9));
+                planetGlyph.setAttribute('text-anchor', 'start');
+                planetGlyph.setAttribute('x', String(rw / 2 - fontPx * 0.15));
+                planetGlyph.setAttribute('y', String(-rh / 2 - fontPx * 0.15));
+                planetGlyph.setAttribute('font-size', String(fontPx * 0.9));
                 planetGlyph.setAttribute('fill', '#fc6');
                 planetGlyph.textContent = s.planets.length > 1 ? `◉${s.planets.length}` : '◉';
                 group.appendChild(planetGlyph);
@@ -364,75 +408,6 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             });
 
             nodeGroup.appendChild(group);
-        }
-
-        // Label collision resolution: greedy pass over all labels. For each,
-        // estimate its world-space bbox at the default (above) position; if
-        // it overlaps any already-placed label, try alternates (below, right,
-        // left) and pick the first non-overlapping slot. Falls back to the
-        // default position when all candidates collide.
-        const placedRects: { x: number; y: number; w: number; h: number }[] = [];
-        const charW = labelSize * 0.62;
-        const pad = labelSize * 0.15;
-        for (const slot of labelSlots) {
-            const w = slot.text.length * charW + pad * 2;
-            const h = labelSize + pad * 2;
-            const half = w / 2;
-            const above = {
-                x: slot.sx - half,
-                y: slot.sy - slot.r - labelSize - pad,
-                w,
-                h,
-            };
-            const below = {
-                x: slot.sx - half,
-                y: slot.sy + slot.r + pad,
-                w,
-                h,
-            };
-            const right = {
-                x: slot.sx + slot.r * 1.2,
-                y: slot.sy - h / 2,
-                w,
-                h,
-            };
-            const left = {
-                x: slot.sx - slot.r * 1.2 - w,
-                y: slot.sy - h / 2,
-                w,
-                h,
-            };
-            const candidates = slot.hasBadgeBelow
-                ? [above, right, left]
-                : [above, below, right, left];
-            let chosen = above;
-            for (const c of candidates) {
-                let overlaps = false;
-                for (const p of placedRects) {
-                    if (c.x < p.x + p.w && c.x + c.w > p.x && c.y < p.y + p.h && c.y + c.h > p.y) {
-                        overlaps = true;
-                        break;
-                    }
-                }
-                if (!overlaps) {
-                    chosen = c;
-                    break;
-                }
-            }
-            if (chosen === above) {
-                // already the default — no changes needed
-            } else if (chosen === below) {
-                slot.label.setAttribute('y', String(slot.r + labelSize * 0.95));
-            } else if (chosen === right) {
-                slot.label.setAttribute('text-anchor', 'start');
-                slot.label.setAttribute('x', String(slot.r * 1.2));
-                slot.label.setAttribute('y', String(labelSize * 0.35));
-            } else if (chosen === left) {
-                slot.label.setAttribute('text-anchor', 'end');
-                slot.label.setAttribute('x', String(-slot.r * 1.2));
-                slot.label.setAttribute('y', String(labelSize * 0.35));
-            }
-            placedRects.push(chosen);
         }
     }
 
