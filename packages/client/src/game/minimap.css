@@ -42,6 +42,10 @@
 .minimap-arrowhead--danger {
     fill: #F00;
 }
+/* Two-way fringe warps: same colour as the warp body. */
+.minimap-arrowhead--two-way {
+    fill: #080;
+}
 
 .minimap-sector-pill--current {
     fill: #00F;

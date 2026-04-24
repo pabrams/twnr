@@ -148,6 +148,21 @@ export async function handleGetNeighborhood(playerId: number, depth: number): Pr
         }
     }
 
+    // Fringe pass: for visited sectors exactly at the max depth, include
+    // their outgoing-warp targets (one hop beyond the normal limit) so the
+    // client can render those warps as directional stubs.
+    const fringeIds = new Set<number>();
+    for (const [u, d] of distance) {
+        if (d !== normalizedDepth) continue;
+        if (!traversable.has(u)) continue;
+        for (const v of outAdj.get(u) ?? []) {
+            if (!sectorMeta.has(v)) continue;
+            if (includedSectors.has(v)) continue; // already shown fully
+            includedSectors.add(v);
+            fringeIds.add(v);
+        }
+    }
+
     // Build sector payloads.
     const planetRows = await listPlanetObservationsForSectors(
         playerId,
@@ -190,6 +205,7 @@ export async function handleGetNeighborhood(playerId: number, depth: number): Pr
             x: meta.x,
             y: meta.y,
             visibility,
+            fringe: fringeIds.has(id),
             port,
             planets,
         });
