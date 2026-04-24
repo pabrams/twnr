@@ -167,6 +167,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             sector,
             totalSectors,
             shipName: playerRow.ship_name ?? '',
+            coloredShipName: playerRow.ship_display_name ?? null,
             starbaseSector,
             token: auth.signPlayerToken({
                 userId,

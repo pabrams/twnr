@@ -93,7 +93,10 @@ export async function showShipCatalog(ctx: GameContext) {
     ctx.term.writeln(render(COMPUTER.shipCatalogHeader));
     ctx.shipConfigs!.forEach((ship, i) => {
         ctx.term.writeln(
-            render(COMPUTER.shipCatalogRow, { letter: indexToLetter(i), name: ship.name }),
+            render(COMPUTER.shipCatalogRow, {
+                letter: indexToLetter(i),
+                name: ship.display_name ?? ship.name,
+            }),
         );
     });
     ctx.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
@@ -131,7 +134,7 @@ const HW_DISPLAY: { name: string; label: string; isToggle?: boolean }[] = [
 export function showShipDetail(ctx: GameContext, ship: ShipCatalogEntry) {
     const { term } = ctx;
     term.writeln('');
-    term.writeln(render(COMPUTER.shipDetailHeader, { name: ship.name }));
+    term.writeln(render(COMPUTER.shipDetailHeader, { name: ship.display_name ?? ship.name }));
     if (ship.make) term.writeln(detailLine('Make', ship.make));
     term.writeln(detailLine('Price', ship.base_cost?.toLocaleString() ?? '?'));
     term.writeln(detailLine('Speed', ship.speed));
@@ -244,7 +247,7 @@ export async function showTraderList(ctx: GameContext) {
         const traders: {
             name: string;
             shipName: string | null;
-            shipDisplayName: string | null;
+            coloredShipName: string | null;
         }[] = await res.json();
         ctx.term.writeln('');
         ctx.term.writeln(render(COMPUTER.traderListHeader));
@@ -253,7 +256,7 @@ export async function showTraderList(ctx: GameContext) {
             const ship =
                 t.shipName === null
                     ? render(COMPUTER.traderListShipDestroyed)
-                    : (t.shipDisplayName ?? t.shipName);
+                    : (t.coloredShipName ?? t.shipName);
             ctx.term.writeln(
                 render(COMPUTER.traderListRow, {
                     name: t.name.padEnd(24),

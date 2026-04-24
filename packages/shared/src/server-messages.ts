@@ -16,6 +16,7 @@ export type WelcomeEvent = {
     token: string;
     totalSectors: number;
     shipName: string;
+    coloredShipName: string | null;
     starbaseSector: number | null;
 };
 
@@ -135,6 +136,7 @@ export type ShipInfoResultObject = {
     type: typeof ServerMsgType.ShipInfoResult;
     playerId: number;
     shipName: string;
+    coloredShipName: string | null;
     drones: number;
     shields: number;
     maxDrones: number;
@@ -184,6 +186,7 @@ export type BuyHoldsResultObject = {
 export type BuyShipTradeinResultObject = {
     type: typeof ServerMsgType.BuyShipTradeinResult;
     shipName: string;
+    coloredShipName: string | null;
     credits: number;
     maxDrones: number;
     maxShields: number;
@@ -394,6 +397,7 @@ export type LeaveStarbaseResultObject = {
 export type BuyShipNewResultObject = {
     type: typeof ServerMsgType.BuyShipNewResult;
     shipName: string;
+    coloredShipName: string | null;
     credits: number;
     maxDrones: number;
     maxShields: number;

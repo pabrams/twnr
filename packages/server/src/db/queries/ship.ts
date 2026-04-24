@@ -130,6 +130,7 @@ export async function zeroShipCargo(playerId: number, db: Queryable = pool): Pro
 
 export type ShipInfoRow = {
     ship_name: string;
+    ship_display_name: string | null;
     ship_id: number;
     ship_type_id: number;
     drones: number;
@@ -154,7 +155,8 @@ export async function getShipInfo(
     db: Queryable = pool,
 ): Promise<ShipInfoRow | undefined> {
     const res = await db.query<ShipInfoRow>(
-        `SELECT st.name AS ship_name, s.id AS ship_id, s.ship_type_id,
+        `SELECT st.name AS ship_name, st.display_name AS ship_display_name,
+                s.id AS ship_id, s.ship_type_id,
                 s.drones, s.shields, s.holds,
                 s.turns_per_warp, s.has_density_scanner,
                 s.fuel, s.organics, s.equipment, s.colonists,
@@ -309,6 +311,7 @@ export async function getShipDronesAndMaxForUpdate(
 export type ShipTypeRow = {
     id: number;
     name: string;
+    display_name: string | null;
     starting_holds: number;
     max_holds: number;
     max_drones: number;
@@ -326,7 +329,7 @@ export async function getShipTypeByName(
     db: Queryable = pool,
 ): Promise<ShipTypeRow | undefined> {
     const res = await db.query<ShipTypeRow>(
-        `SELECT id, name, starting_holds, max_holds, max_drones, max_shields,
+        `SELECT id, name, display_name, starting_holds, max_holds, max_drones, max_shields,
                 cost_drive, cost_computer, cost_hull, hold_cost, turns_per_warp
          FROM ship_types WHERE name = $1`,
         [name],

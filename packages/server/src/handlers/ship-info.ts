@@ -26,6 +26,7 @@ export async function handleShipInfo(playerId: number): Promise<void> {
         type: ServerMsgType.ShipInfoResult,
         playerId,
         shipName: row.ship_name,
+        coloredShipName: row.ship_display_name,
         drones: row.drones,
         shields: row.shields,
         maxDrones: row.max_drones,

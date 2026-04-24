@@ -214,7 +214,7 @@ export function handleShipyardsBuyInput(ctx: GameContext, line: string) {
         const price = calculateShipPrice(ship);
         const tradeinCredit = getCurrentShipPrice(ctx);
         ctx.shipyardsBuyTarget = ship.name;
-        showTradeinPrompt(ctx, ship.name, price, tradeinCredit);
+        showTradeinPrompt(ctx, ship.display_name ?? ship.name, price, tradeinCredit);
     } else {
         ctx.term.writeln(render(NOTIFY.invalidSelection));
     }

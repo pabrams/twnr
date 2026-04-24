@@ -117,6 +117,7 @@ export type PlayerConnectRow = {
     ship_id: number | null;
     sector_number: number;
     ship_name: string | null;
+    ship_display_name: string | null;
 };
 
 /** Look up a user's player record in a specific universe, with joined sector + ship. */
@@ -127,7 +128,7 @@ export async function getPlayerConnectInfo(
 ): Promise<PlayerConnectRow | undefined> {
     const res = await db.query<PlayerConnectRow>(
         `SELECT p.id, p.name, p.current_sector_id, p.ship_id, s.sector_number,
-                st.name AS ship_name
+                st.name AS ship_name, st.display_name AS ship_display_name
          FROM players p
          JOIN sectors s ON p.current_sector_id = s.id
          LEFT JOIN ships sh ON p.ship_id = sh.id

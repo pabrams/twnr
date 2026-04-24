@@ -97,7 +97,7 @@ export async function showClass0Menu(ctx: GameContext, initial = false) {
 export function showClass0QtyPrompt(ctx: GameContext, buyType: 'drones' | 'shields' | 'holds') {
     const s = ctx.class0ShipState;
     const max = class0MaxBuy(buyType, ctx);
-    const shipName = s?.shipName ?? ctx.currentShipName ?? '';
+    const shipName = ctx.currentColoredShipName ?? s?.shipName ?? ctx.currentShipName ?? '';
 
     const { term } = ctx;
     if (buyType === 'drones') {

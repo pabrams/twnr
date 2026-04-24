@@ -102,6 +102,7 @@ export async function handleBuyShipTradein(
                 maxDrones: targetType.max_drones,
                 maxShields: targetType.max_shields,
                 cargoLimit: newCargoLimit,
+                coloredName: targetType.display_name,
             };
         });
 
@@ -110,6 +111,7 @@ export async function handleBuyShipTradein(
         sendEnvelope(playerId, {
             type: ServerMsgType.BuyShipTradeinResult,
             shipName: targetShipName,
+            coloredShipName: result.coloredName,
             credits: result.credits,
             maxDrones: result.maxDrones,
             maxShields: result.maxShields,
@@ -175,6 +177,7 @@ export async function handleBuyShipNew(playerId: number, targetShipName: string)
                 maxDrones: targetType.max_drones,
                 maxShields: targetType.max_shields,
                 cargoLimit: newCargoLimit,
+                coloredName: targetType.display_name,
             };
         });
 
@@ -183,6 +186,7 @@ export async function handleBuyShipNew(playerId: number, targetShipName: string)
         sendEnvelope(playerId, {
             type: ServerMsgType.BuyShipNewResult,
             shipName: targetShipName,
+            coloredShipName: result.coloredName,
             credits: result.credits,
             maxDrones: result.maxDrones,
             maxShields: result.maxShields,
