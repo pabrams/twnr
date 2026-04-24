@@ -492,10 +492,17 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             line.setAttribute('x2', String(end.x));
             line.setAttribute('y2', String(end.y));
             line.setAttribute('stroke-width', String(strokeW));
-            // Outgoing warp from the current sector to a quick-move target:
-            // highlight so the player can see which number leads where.
+            // Quick-move highlight: true for any warp between the current
+            // sector and a quick-move target, regardless of which direction
+            // we ended up drawing. Two-ways come through the payload in both
+            // directions and the dedupe picks whichever one iterates first —
+            // checking only `from === currentId` misses cases where the
+            // incoming edge won the dedupe race.
             const isQuickMoveWarp =
-                w.from_sector_id === currentId && quickMoveIndexById.has(w.to_sector_id);
+                (w.from_sector_id === currentId &&
+                    quickMoveIndexById.has(w.to_sector_id)) ||
+                (w.to_sector_id === currentId &&
+                    quickMoveIndexById.has(w.from_sector_id));
             if (isQuickMoveWarp) {
                 line.classList.add('minimap-warp--quick-move');
             }
