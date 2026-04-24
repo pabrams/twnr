@@ -130,6 +130,18 @@ export async function handleGetNeighborhood(playerId: number, depth: number): Pr
         }
     }
 
+    // Pull in visited sectors that have a known warp LANDING in the current
+    // neighborhood. This keeps edges the player has already discovered visible
+    // even when the current sector is only reachable from them via a one-way
+    // inbound warp (otherwise forward-only BFS would hide the source). The
+    // source must be traversable (visited), so we never expose sectors the
+    // player has no in-game knowledge of.
+    for (const w of warpRes.rows) {
+        if (!traversable.has(w.from_id)) continue;
+        if (!includedSectors.has(w.to_id)) continue;
+        includedSectors.add(w.from_id);
+    }
+
     // Build sector payloads.
     const planetRows = await listPlanetObservationsForSectors(
         playerId,
