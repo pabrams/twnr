@@ -18,6 +18,16 @@ export const NOTIFY = makeDomain('NOTIFY', {
     starbaseLocation: '\r\n[bc]Starbase[/bc] [g]is in sector[/g] [by]{sector}[/by].',
     noStarbase: '\r\n[w]No Starbase in this universe.[/w]',
 
+    // Starbase info — universe stats panel (V command).
+    universeStatsHeader: '\r\n[bc]=== Universe «{name}» ===[/bc]',
+    universeStatsLine: '  [g]{label}[/g] [by]:[/by] [bc]{value}[/bc]',
+    universeStatsCreated:
+        '  [g]Created[/g] [by]:[/by] [bc]{date}[/bc] [g]([/g][by]{days}[/by] [g]days ago)[/g]',
+    universeStatsDegHeader: '\r\n[bc]Out-warp degree distribution[/bc]',
+    universeStatsDegRow: '  [g]{degree} warp{s}:[/g] [by]{count}[/by] [g]sector{ss}[/g]',
+    universeStatsRespawnNone: '  [g]Respawn delay[/g] [by]:[/by] [bc]none[/bc]',
+    universeStatsRespawnSeconds: '  [g]Respawn delay[/g] [by]:[/by] [bc]{value}[/bc]',
+
     error: '\r\n[r]{message}[/r]',
     invalidSelection: '[br]Invalid selection.[/br]',
 

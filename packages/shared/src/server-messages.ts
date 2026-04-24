@@ -505,6 +505,20 @@ export type AttackMenuResultObject = {
 export type StarbaseInfoResultObject = {
     type: typeof ServerMsgType.StarbaseInfoResult;
     sector: number | null;
+    universeName: string;
+    sectorCount: number;
+    portCount: number;
+    createdAt: string; // ISO8601
+    daysElapsed: number;
+    /** Out-warp degree distribution: index = degree (0..6), value = sector count. */
+    outWarpDistribution: number[];
+    maxPlanetsPerSector: number;
+    startingCredits: number;
+    startingTurns: number;
+    startingDrones: number;
+    startingHolds: number;
+    /** Cool-down between ship destruction and being able to log back in. */
+    respawnDelaySeconds: number;
 };
 
 export type TerraformInfoResultObject = {

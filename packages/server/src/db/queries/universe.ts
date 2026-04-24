@@ -125,6 +125,61 @@ export async function getEarthStartingColonistsForEdit(
     return res.rows[0]?.col ?? 1_000_000;
 }
 
+/** Stats bundle for the in-game V (Starbase Info) screen. */
+export type UniverseStatsRow = {
+    name: string;
+    created_at: Date;
+    sector_count: number;
+    port_count: number;
+    max_planets_per_sector: number | null;
+    starting_turns: number | null;
+    starting_credits: number | null;
+    starting_drones: number | null;
+    starting_ship: string | null;
+};
+export async function getUniverseStats(
+    universeId: number,
+    db: Queryable = pool,
+): Promise<UniverseStatsRow | undefined> {
+    const res = await db.query<UniverseStatsRow>(
+        `SELECT u.name, u.created_at,
+                (SELECT COUNT(*)::int FROM sectors s WHERE s.universe_id = u.id) AS sector_count,
+                (SELECT COUNT(*)::int FROM ports p
+                   JOIN sectors s ON p.sector_id = s.id
+                   WHERE s.universe_id = u.id) AS port_count,
+                e.max_planets_per_sector,
+                e.starting_turns, e.starting_credits, e.starting_drones, e.starting_ship
+         FROM universes u
+         LEFT JOIN edits e ON u.edit_id = e.id
+         WHERE u.id = $1`,
+        [universeId],
+    );
+    return res.rows[0];
+}
+
+/**
+ * Out-warp degree distribution for a universe: how many sectors have
+ * exactly N outgoing warps. Returned as a Map<degree, count>.
+ */
+export async function getOutWarpDegreeDistribution(
+    universeId: number,
+    db: Queryable = pool,
+): Promise<Map<number, number>> {
+    const res = await db.query<{ degree: number; count: number }>(
+        `SELECT degree, COUNT(*)::int AS count FROM (
+             SELECT s.id, COUNT(w.to_sector_id)::int AS degree
+             FROM sectors s
+             LEFT JOIN warps w ON w.from_sector_id = s.id
+             WHERE s.universe_id = $1
+             GROUP BY s.id
+         ) t GROUP BY degree ORDER BY degree`,
+        [universeId],
+    );
+    const out = new Map<number, number>();
+    for (const r of res.rows) out.set(r.degree, r.count);
+    return out;
+}
+
 /** New-player defaults for a universe (falls back to NULL if no edit). */
 export type UniverseEditDefaults = {
     id: number;

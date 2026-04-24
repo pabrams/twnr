@@ -1,6 +1,7 @@
 import { pool } from './pool.js';
 import { shipConfigs } from '../ship-config.js';
 import { planetConfigs } from '../planet-config.js';
+import { newPlayerConfig } from '../game-config.js';
 import type { ShipConfig } from '@twnr/shared';
 
 let isConnected = false;
@@ -1025,8 +1026,28 @@ export const connectDB = async (): Promise<void> => {
         result_extra = EXCLUDED.result_extra;
 
       -- === Seed default edit ===
+      -- The 'stock' edit is the universal template; new universes inherit
+      -- from it. Values that overlap with new-player.json are pushed in via
+      -- a parameterised UPDATE just below so the JSON file is the single
+      -- source of truth for those defaults.
       INSERT INTO edits (name) VALUES ('stock') ON CONFLICT (name) DO NOTHING;
     `);
+
+        // Sync 'stock' edit fields with new-player.json (the source of truth
+        // for new-player defaults that overlap with edit columns). Runs every
+        // boot so JSON edits propagate without manual SQL.
+        await client.query(
+            `UPDATE edits
+             SET starting_credits = $1,
+                 starting_drones = $2,
+                 starting_ship = $3
+             WHERE name = 'stock'`,
+            [
+                newPlayerConfig.startingCredits,
+                newPlayerConfig.startingDrones,
+                newPlayerConfig.startingShip,
+            ],
+        );
 
         // Seed ship_types from config files (idempotent)
         // Hardware config field -> hardware_item name mapping
