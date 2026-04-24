@@ -24,19 +24,10 @@ function loadJson<T>(file: string): T {
     }
 }
 
-export interface NewPlayerConfig {
-    startingShip: string;
-    startingCredits: number;
-    startingDrones: number;
-    startingShields: number;
-    startingSector: number;
-}
-
 export interface Class0Prices {
     dronePrice: number;
     shieldPrice: number;
     holdPrice: number;
 }
 
-export const newPlayerConfig: NewPlayerConfig = loadJson<NewPlayerConfig>('new-player.json');
 export const class0Prices: Class0Prices = loadJson<Class0Prices>('class0-prices.json');

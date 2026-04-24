@@ -6,6 +6,7 @@ import {
     getOutWarpDegreeDistribution,
 } from '../db/queries/universe.js';
 import { getStartingShipTypeByName } from '../db/queries/ship.js';
+import { universeConfig } from '../universe-config.js';
 
 export async function handleStarbaseInfo(playerId: number): Promise<void> {
     const player = players[playerId];
@@ -36,7 +37,8 @@ export async function handleStarbaseInfo(playerId: number): Promise<void> {
     );
 
     const respawnDelaySeconds = parseInt(
-        process.env.SHIP_DESTROYED_LOGIN_DELAY_SECONDS || '0',
+        process.env.SHIP_DESTROYED_LOGIN_DELAY_SECONDS ||
+            String(universeConfig.respawnDelaySeconds),
         10,
     );
 
