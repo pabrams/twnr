@@ -9,7 +9,7 @@ import {
     insertUniverseFull,
     renameUniverse,
     deleteUniverse,
-    getEditIdByName,
+    cloneEditAsSnapshot,
     getEarthStartingColonistsForEdit,
 } from '../../db/queries/universe.js';
 import {
@@ -104,7 +104,10 @@ export function createAdminLifecycleRoutes(
             });
 
             const universeId = await withTransaction(async (client) => {
-                const editId = await getEditIdByName(edit_name, client);
+                // Clone the named template into a fresh, NULL-named snapshot
+                // so this universe's settings are crystallised at creation
+                // and never re-touched by subsequent template edits.
+                const editId = await cloneEditAsSnapshot(edit_name, client);
                 const newUniverseId = await insertUniverseFull(
                     name,
                     result.seed,

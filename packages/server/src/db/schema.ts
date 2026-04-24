@@ -23,9 +23,16 @@ export const connectDB = async (): Promise<void> => {
         last_connected_at TIMESTAMPTZ
       );
 
+      -- The edits table holds two kinds of rows:
+      --   1. Templates with a non-null name (e.g. stock). Editable;
+      --      universeConfig pushes its values into stock on every boot.
+      --   2. Per-universe snapshots with a NULL name. Created by cloning
+      --      a template at universe-creation time, then never touched by
+      --      template updates again. A universe settings are crystallised
+      --      at creation and stay stable for that universe lifetime.
       CREATE TABLE IF NOT EXISTS edits (
         id SERIAL PRIMARY KEY,
-        name VARCHAR(255) UNIQUE NOT NULL,
+        name VARCHAR(255) UNIQUE,
         max_planets_per_sector SMALLINT NOT NULL DEFAULT ${universeConfig.maxPlanetsPerSector},
         planet_collision_likelihood SMALLINT NOT NULL DEFAULT ${universeConfig.planetCollisionLikelihood},
         planet_collision_min_hours SMALLINT NOT NULL DEFAULT ${universeConfig.planetCollisionMinHours},
@@ -1025,6 +1032,11 @@ export const connectDB = async (): Promise<void> => {
         result_msg_type = EXCLUDED.result_msg_type,
         result_extra = EXCLUDED.result_extra;
 
+      -- Existing databases were created with edits.name as NOT NULL. Drop
+      -- the constraint so per-universe snapshot rows (which have NULL name)
+      -- can be inserted alongside named template rows.
+      ALTER TABLE edits ALTER COLUMN name DROP NOT NULL;
+
       -- === Seed default edit ===
       -- The 'stock' edit is the universal template; new universes inherit
       -- from it. Values that overlap with universeConfig are pushed in via
@@ -1062,6 +1074,57 @@ export const connectDB = async (): Promise<void> => {
                 universeConfig.planetCollisionMaxHours,
             ],
         );
+
+        // One-time migration: any existing universe still pointing at a
+        // named template (legacy data model from before per-universe edit
+        // snapshots existed) gets a fresh copy of that template's current
+        // values, and is re-pointed at the copy. After it runs, no live
+        // universe shares a template, so the boot-time template UPDATE
+        // above only ever changes templates themselves — existing
+        // universes' settings are crystallised.
+        const stillSharing = await client.query<{ universe_id: number; template_name: string }>(
+            `SELECT u.id AS universe_id, e.name AS template_name
+             FROM universes u JOIN edits e ON u.edit_id = e.id
+             WHERE e.name IS NOT NULL`,
+        );
+        for (const row of stillSharing.rows) {
+            const inserted = await client.query<{ id: number }>(
+                `INSERT INTO edits (
+                    name, max_planets_per_sector, planet_collision_likelihood,
+                    planet_collision_min_hours, planet_collision_max_hours,
+                    turns_per_day, starting_turns, max_turns, starting_ship,
+                    starting_drones, starting_credits, starting_port_density,
+                    max_port_density, port_production_rate, port_memory_hours,
+                    max_players, max_age_days, max_planets, turn_delay,
+                    is_speed_warp_delay_on, photons_allowed,
+                    photon_blast_time_seconds, planet_spawn_density,
+                    max_ships_allowed, max_corp_size,
+                    max_ships_in_protected_space, truce_time_hours,
+                    is_automation_enabled
+                 )
+                 SELECT
+                    NULL, max_planets_per_sector, planet_collision_likelihood,
+                    planet_collision_min_hours, planet_collision_max_hours,
+                    turns_per_day, starting_turns, max_turns, starting_ship,
+                    starting_drones, starting_credits, starting_port_density,
+                    max_port_density, port_production_rate, port_memory_hours,
+                    max_players, max_age_days, max_planets, turn_delay,
+                    is_speed_warp_delay_on, photons_allowed,
+                    photon_blast_time_seconds, planet_spawn_density,
+                    max_ships_allowed, max_corp_size,
+                    max_ships_in_protected_space, truce_time_hours,
+                    is_automation_enabled
+                 FROM edits WHERE name = $1
+                 RETURNING id`,
+                [row.template_name],
+            );
+            if (inserted.rows[0]) {
+                await client.query(`UPDATE universes SET edit_id = $1 WHERE id = $2`, [
+                    inserted.rows[0].id,
+                    row.universe_id,
+                ]);
+            }
+        }
 
         // Seed ship_types from config files (idempotent)
         // Hardware config field -> hardware_item name mapping
