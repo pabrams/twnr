@@ -20,11 +20,11 @@
     stroke: #F00;
 }
 .minimap-warp--unexplored {
-    stroke: #808;
+    stroke: #080;
 }
 
 .minimap-arrowhead--neutral {
-    fill: #808;
+    fill: #080;
 }
 .minimap-arrowhead--dim {
     fill: #808;
