@@ -4,6 +4,7 @@ import type { GameContext } from './types.js';
 import { render } from './renderer.js';
 import { COMPUTER, COMMON, STARBASE } from './messages/index.js';
 import { indexToLetter } from './display-starbase.js';
+import { centerVisible, threeColRows } from './display-utils.js';
 
 export function showComputerPrompt(ctx: GameContext) {
     ctx.term.write(render(COMPUTER.prompt, { sector: ctx.currentSector }));
@@ -100,17 +101,21 @@ export async function showShipCatalog(ctx: GameContext) {
         );
     });
     ctx.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
+    showShipInterestPrompt(ctx);
 }
 
-function detailLine(label: string, value: string | number | boolean, pad = 22): string {
-    return render(COMPUTER.shipDetailLine, {
-        label: label.padEnd(pad),
-        value: String(value),
-    });
-}
-
+/**
+ * Return the raw tag-markup form so the outer `render()` on the whole row
+ * processes it. If we pre-rendered here, the string would already contain
+ * ANSI escapes, and padding helpers (which strip `[tag]` markup, not ANSI)
+ * would miscount its visible length and misalign the column.
+ */
 function boolStr(val: boolean): string {
-    return render(val ? COMPUTER.shipDetailBoolYes : COMPUTER.shipDetailBoolNo);
+    return val ? COMPUTER.shipDetailBoolYes : COMPUTER.shipDetailBoolNo;
+}
+
+function fmtNum(n: number): string {
+    return n.toLocaleString();
 }
 
 const HW_DISPLAY: { name: string; label: string; isToggle?: boolean }[] = [
@@ -119,44 +124,109 @@ const HW_DISPLAY: { name: string; label: string; isToggle?: boolean }[] = [
     { name: 'visual_scanner', label: 'Visual Scanner', isToggle: true },
     { name: 'planet_scanner', label: 'Planet Scanner', isToggle: true },
     { name: 'buoy', label: 'Max Buoys' },
-    { name: 'proximity_mine', label: 'Max Proximity Mines' },
+    { name: 'proximity_mine', label: 'Max Prox Mines' },
     { name: 'seeker_mine', label: 'Max Seeker Mines' },
     { name: 'orbital_mine', label: 'Max Orbital Mines' },
     { name: 'cloaking_device', label: 'Max Cloaking' },
     { name: 'corbomite', label: 'Max Corbomite' },
-    { name: 'photon_torpedo', label: 'Max Photon Torpedoes' },
+    { name: 'photon_torpedo', label: 'Max Photon Torps' },
     { name: 'mine_disruptor', label: 'Max Disruptors' },
     { name: 'recon_drone', label: 'Max Recon Drones' },
     { name: 'planet_buster', label: 'Max Planet Busters' },
-    { name: 'terraform_device', label: 'Max Terraform Dev.' },
+    { name: 'terraform_device', label: 'Max Terraform' },
 ];
+
+// Visible width of the 3-column grid: 3 cells of (labelWidth + ": " + valueWidth)
+// = 3*(18+2+10) = 90, plus two 1-space gaps between cells = 92. Label width 18
+// fits "Max Planet Busters" (widest hw label); value width 10 fits seven-digit
+// costs with commas (e.g. "9,999,999" for colony-ship-class hulls).
+const SHIP_DETAIL_LABEL_WIDTH = 18;
+const SHIP_DETAIL_VALUE_WIDTH = 10;
+const SHIP_DETAIL_BODY_WIDTH = 92;
 
 export function showShipDetail(ctx: GameContext, ship: ShipCatalogEntry) {
     const { term } = ctx;
     term.writeln('');
-    term.writeln(render(COMPUTER.shipDetailHeader, { name: ship.display_name ?? ship.name }));
-    if (ship.make) term.writeln(detailLine('Make', ship.make));
-    term.writeln(detailLine('Price', ship.base_cost?.toLocaleString() ?? '?'));
-    term.writeln(detailLine('Speed', ship.speed));
-    term.writeln(detailLine('Turns/Warp', ship.turns_per_warp));
-    term.writeln(detailLine('Starting Holds', ship.starting_holds));
-    term.writeln(detailLine('Max Holds', ship.max_holds));
-    term.writeln(detailLine('Max Drones', ship.max_drones));
-    term.writeln(detailLine('Max Shields', ship.max_shields));
-    term.writeln(detailLine('Odds Offensive', ship.odds_offensive));
-    term.writeln(detailLine('Odds Defensive', ship.odds_defensive));
-    term.writeln(detailLine('Max Drone Attack', ship.max_drone_attack));
-    term.writeln(detailLine('Transporter Range', ship.transporter_range));
-    term.writeln(detailLine('Has Escape Pod', boolStr(ship.has_pod)));
-    term.writeln(detailLine('Can Land', boolStr(ship.can_land)));
-    term.writeln(detailLine('Has Tractor', boolStr(ship.has_tractor)));
-    term.writeln(detailLine('Has Interdictor', boolStr(ship.has_interdictor)));
-    const hw = ship.hardware ?? {};
-    for (const h of HW_DISPLAY) {
-        const val = hw[h.name] ?? 0;
-        term.writeln(detailLine(h.label, h.isToggle ? boolStr(val > 0) : val));
+    const headerText = render(COMPUTER.shipDetailHeader, {
+        name: ship.display_name ?? ship.name,
+    });
+    term.writeln('  ' + centerVisible(headerText, SHIP_DETAIL_BODY_WIDTH));
+    term.writeln('');
+    if (ship.make) {
+        term.writeln(render(COMPUTER.shipDetailLine, { label: 'Make', value: ship.make }));
     }
-    if (ship.notes) term.writeln(detailLine('Notes', ship.notes));
+
+    // Primary specs. Laid out in a 3-column grid with right-justified labels.
+    const hw = ship.hardware ?? {};
+    const specs: { label: string; value: string }[] = [
+        { label: 'Main Drive Cost', value: fmtNum(ship.cost_drive ?? 0) },
+        { label: 'Initial Holds', value: fmtNum(ship.starting_holds) },
+        { label: 'Maximum Shields', value: fmtNum(ship.max_shields) },
+        { label: 'Computer Cost', value: fmtNum(ship.cost_computer ?? 0) },
+        { label: 'Maximum Holds', value: fmtNum(ship.max_holds) },
+        { label: 'Max Drones', value: fmtNum(ship.max_drones) },
+        { label: 'Ship Hull Cost', value: fmtNum(ship.cost_hull ?? 0) },
+        { label: 'Basic Hold Cost', value: fmtNum(ship.hold_cost ?? 0) },
+        { label: 'Max Drone Attack', value: fmtNum(ship.max_drone_attack) },
+        { label: 'Ship Base Cost', value: fmtNum(ship.base_cost ?? 0) },
+        { label: 'Turns Per Warp', value: fmtNum(ship.turns_per_warp) },
+        { label: 'Transport Range', value: fmtNum(ship.transporter_range) },
+        { label: 'Speed', value: fmtNum(ship.speed) },
+        { label: 'Offensive Odds', value: String(ship.odds_offensive) },
+        { label: 'Defensive Odds', value: String(ship.odds_defensive) },
+        { label: 'Escape Pod', value: boolStr(ship.has_pod) },
+        { label: 'Can Land', value: boolStr(ship.can_land) },
+        { label: 'Tractor Beam', value: boolStr(ship.has_tractor) },
+        { label: 'Interdictor', value: boolStr(ship.has_interdictor) },
+        { label: 'Visual Scanner', value: boolStr((hw.visual_scanner ?? 0) > 0) },
+        { label: 'Planet Scanner', value: boolStr((hw.planet_scanner ?? 0) > 0) },
+    ];
+    for (const row of threeColRows(specs, {
+        labelWidth: SHIP_DETAIL_LABEL_WIDTH,
+        valueWidth: SHIP_DETAIL_VALUE_WIDTH,
+        separator: COMPUTER.shipDetailColon,
+        labelColor: 'g',
+        valueColor: 'bc',
+    })) {
+        term.writeln(render(COMPUTER.shipDetailRow, { row }));
+    }
+
+    // Hardware capacities (after specs). Toggles become Yes/No; stackables
+    // show their max count.
+    const hwItems: { label: string; value: string }[] = [];
+    for (const h of HW_DISPLAY) {
+        if (h.name === 'visual_scanner' || h.name === 'planet_scanner') continue; // shown above
+        const val = hw[h.name] ?? 0;
+        hwItems.push({
+            label: h.label,
+            value: h.isToggle ? boolStr(val > 0) : fmtNum(val),
+        });
+    }
+    if (hwItems.length > 0) {
+        term.writeln('');
+        for (const row of threeColRows(hwItems, {
+            labelWidth: SHIP_DETAIL_LABEL_WIDTH,
+            valueWidth: SHIP_DETAIL_VALUE_WIDTH,
+            separator: COMPUTER.shipDetailColon,
+            labelColor: 'g',
+            valueColor: 'bc',
+        })) {
+            term.writeln(render(COMPUTER.shipDetailRow, { row }));
+        }
+    }
+
+    if (ship.notes) {
+        term.writeln('');
+        term.writeln(render(COMPUTER.shipDetailLine, { label: 'Notes', value: ship.notes }));
+    }
+}
+
+/**
+ * Repeat prompt shown after a ship's stats. Both the Computer ship-catalog
+ * flow and the Shipyards examine flow reuse it so behavior stays consistent.
+ */
+export function showShipInterestPrompt(ctx: GameContext) {
+    ctx.term.write(render(COMPUTER.shipInterestPrompt));
 }
 
 export async function showPlanetSpecs(ctx: GameContext) {

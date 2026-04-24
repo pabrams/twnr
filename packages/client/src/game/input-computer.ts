@@ -11,6 +11,7 @@ import {
     showUnexploredSectors,
     showShipCatalog,
     showShipDetail,
+    showShipInterestPrompt,
     showPlanetSpecs,
     showPlanetDetail,
     showCurrentShipSpecs,
@@ -73,16 +74,24 @@ export function handleKnownUniverseInput(ctx: GameContext, line: string) {
 }
 
 export function handleShipCatalogInput(ctx: GameContext, line: string) {
-    if (line.toLowerCase() === 'q') {
+    const lower = line.toLowerCase();
+    if (lower === 'q') {
         ctx.changeMenu(Menu.Computer);
         showComputerPrompt(ctx);
+        return;
+    }
+    if (lower === '?') {
+        showShipCatalog(ctx);
+        showShipInterestPrompt(ctx);
         return;
     }
     const idx = letterToIndex(line);
     if (ctx.shipConfigs && idx >= 0 && idx < ctx.shipConfigs.length) {
         showShipDetail(ctx, ctx.shipConfigs[idx]);
+        showShipInterestPrompt(ctx);
     } else {
         ctx.term.writeln(render(NOTIFY.invalidSelection));
+        showShipInterestPrompt(ctx);
     }
 }
 

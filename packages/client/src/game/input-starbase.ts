@@ -20,7 +20,7 @@ import {
     showShipyardsClass0QtyPrompt,
     letterToIndex,
 } from './display-starbase.js';
-import { showShipDetail } from './display-computer.js';
+import { showShipDetail, showShipInterestPrompt } from './display-computer.js';
 import { class0MaxBuy, showClass0Menu } from './display-port.js';
 import { render } from './renderer.js';
 import { NOTIFY, COMMON } from './messages/index.js';
@@ -243,16 +243,24 @@ export function handleShipyardsTradeinInput(ctx: GameContext, line: string) {
 }
 
 export function handleShipyardsExamineInput(ctx: GameContext, line: string) {
-    if (line.toLowerCase() === 'q') {
+    const lower = line.toLowerCase();
+    if (lower === 'q') {
         ctx.changeMenu(Menu.Shipyards);
         showShipyardsMenu(ctx);
+        return;
+    }
+    if (lower === '?') {
+        showShipExamineList(ctx);
+        showShipInterestPrompt(ctx);
         return;
     }
     const idx = letterToIndex(line);
     if (ctx.shipConfigs && idx >= 0 && idx < ctx.shipConfigs.length) {
         showShipDetail(ctx, ctx.shipConfigs[idx]);
+        showShipInterestPrompt(ctx);
     } else {
         ctx.term.writeln(render(NOTIFY.invalidSelection));
+        showShipInterestPrompt(ctx);
     }
 }
 
