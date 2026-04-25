@@ -60,7 +60,7 @@ export async function getHardwareStoreRows(
          CROSS JOIN hardware_item hi
          LEFT JOIN hardware_price hp
            ON hp.hardware_item_id = hi.id
-           AND hp.edit_id = (SELECT edit_id FROM universes WHERE id = $2)
+           AND hp.template_id = (SELECT template_id FROM universes WHERE id = $2)
          LEFT JOIN ship_hardware sh
            ON sh.ship_id = s.id AND sh.hardware_item_id = hi.id
          LEFT JOIN ship_type_hardware sth
@@ -80,7 +80,7 @@ export async function getHardwarePriceForUniverse(
 ): Promise<number | undefined> {
     const res = await db.query<{ price: number }>(
         `SELECT hp.price FROM hardware_price hp
-         JOIN universes u ON u.edit_id = hp.edit_id
+         JOIN universes u ON u.template_id = hp.template_id
          WHERE u.id = $1 AND hp.hardware_item_id = $2`,
         [universeId, hardwareItemId],
     );

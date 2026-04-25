@@ -59,17 +59,17 @@ export async function getUniverseBasicInfo(
     return res.rows[0];
 }
 
-/** Create a universe at generation time (with seed + edit). Returns id. */
+/** Create a universe at generation time (with seed + content template). Returns id. */
 export async function insertUniverseFull(
     name: string,
     seed: number,
-    editId: number | null,
+    templateId: number | null,
     db: Queryable = pool,
     topology: 'random' | 'proximal' = 'random',
 ): Promise<number> {
     const res = await db.query<{ id: number }>(
-        'INSERT INTO universes (name, seed, edit_id, topology) VALUES ($1, $2, $3, $4) RETURNING id',
-        [name, seed, editId, topology],
+        'INSERT INTO universes (name, seed, template_id, topology) VALUES ($1, $2, $3, $4) RETURNING id',
+        [name, seed, templateId, topology],
     );
     return res.rows[0].id;
 }
@@ -105,99 +105,66 @@ export async function deleteUniverse(universeId: number, db: Queryable = pool): 
     await db.query('DELETE FROM universes WHERE id = $1', [universeId]);
 }
 
-/** Look up an edit by name; returns id (or null if not found). */
-export async function getEditIdByName(name: string, db: Queryable = pool): Promise<number | null> {
-    const res = await db.query<{ id: number }>('SELECT id FROM edits WHERE name = $1', [name]);
+/** Look up a settings template by name; returns id (or null if not found). */
+export async function getTemplateIdByName(
+    name: string,
+    db: Queryable = pool,
+): Promise<number | null> {
+    const res = await db.query<{ id: number }>('SELECT id FROM edit_templates WHERE name = $1', [
+        name,
+    ]);
     return res.rows[0]?.id ?? null;
 }
 
 /**
- * Insert a NULL-named copy of the given template edit and return the new id.
- * Per-universe edit rows live alongside the named templates in the same
- * `edits` table; the NULL name flags them as snapshots that should never be
- * touched by the boot-time template-sync UPDATE.
+ * Snapshot the given template's column values into universe_settings for the
+ * specified universe. Run exactly once at universe creation; the resulting
+ * row is the universe's frozen settings and is never mutated by subsequent
+ * template edits.
  */
-export async function cloneEditAsSnapshot(
+export async function snapshotTemplateForUniverse(
+    universeId: number,
     templateName: string,
     db: Queryable = pool,
-): Promise<number | null> {
-    const res = await db.query<{ id: number }>(
-        `INSERT INTO edits (
-            name,
-            max_planets_per_sector,
-            planet_collision_likelihood,
-            planet_collision_min_hours,
-            planet_collision_max_hours,
-            turns_per_day,
-            starting_turns,
-            max_turns,
-            starting_ship,
-            starting_drones,
-            starting_credits,
-            starting_port_density,
-            max_port_density,
-            port_production_rate,
-            port_memory_hours,
-            max_players,
-            max_age_days,
-            max_planets,
-            turn_delay,
-            is_speed_warp_delay_on,
-            photons_allowed,
-            photon_blast_time_seconds,
-            planet_spawn_density,
-            max_ships_allowed,
-            max_corp_size,
-            max_ships_in_protected_space,
-            truce_time_hours,
-            is_automation_enabled
+): Promise<void> {
+    await db.query(
+        `INSERT INTO universe_settings (
+            universe_id, max_planets_per_sector, planet_collision_likelihood,
+            planet_collision_min_hours, planet_collision_max_hours,
+            turns_per_day, starting_turns, max_turns, starting_ship,
+            starting_drones, starting_credits, starting_port_density,
+            max_port_density, port_production_rate, port_memory_hours,
+            max_players, max_age_days, max_planets, turn_delay,
+            is_speed_warp_delay_on, photons_allowed, photon_blast_time_seconds,
+            planet_spawn_density, max_ships_allowed, max_corp_size,
+            max_ships_in_protected_space, truce_time_hours, is_automation_enabled,
+            starting_shields, starting_earth_colonists
          )
-         SELECT
-            NULL,
-            max_planets_per_sector,
-            planet_collision_likelihood,
-            planet_collision_min_hours,
-            planet_collision_max_hours,
-            turns_per_day,
-            starting_turns,
-            max_turns,
-            starting_ship,
-            starting_drones,
-            starting_credits,
-            starting_port_density,
-            max_port_density,
-            port_production_rate,
-            port_memory_hours,
-            max_players,
-            max_age_days,
-            max_planets,
-            turn_delay,
-            is_speed_warp_delay_on,
-            photons_allowed,
-            photon_blast_time_seconds,
-            planet_spawn_density,
-            max_ships_allowed,
-            max_corp_size,
-            max_ships_in_protected_space,
-            truce_time_hours,
-            is_automation_enabled
-         FROM edits WHERE name = $1
-         RETURNING id`,
-        [templateName],
+         SELECT $1, max_planets_per_sector, planet_collision_likelihood,
+                planet_collision_min_hours, planet_collision_max_hours,
+                turns_per_day, starting_turns, max_turns, starting_ship,
+                starting_drones, starting_credits, starting_port_density,
+                max_port_density, port_production_rate, port_memory_hours,
+                max_players, max_age_days, max_planets, turn_delay,
+                is_speed_warp_delay_on, photons_allowed, photon_blast_time_seconds,
+                planet_spawn_density, max_ships_allowed, max_corp_size,
+                max_ships_in_protected_space, truce_time_hours, is_automation_enabled,
+                starting_shields, starting_earth_colonists
+         FROM edit_templates WHERE name = $2
+         ON CONFLICT (universe_id) DO NOTHING`,
+        [universeId, templateName],
     );
-    return res.rows[0]?.id ?? null;
 }
 
-/** Earth starting colonists for an edit (falls back to 1,000,000). */
-export async function getEarthStartingColonistsForEdit(
-    editId: number | null,
+/** Earth starting colonists for a universe (falls back to 1,000,000 if no row). */
+export async function getEarthStartingColonistsForUniverse(
+    universeId: number,
     db: Queryable = pool,
 ): Promise<number> {
-    if (editId === null) return 1_000_000;
     const res = await db.query<{ col: number }>(
-        `SELECT COALESCE(e.starting_earth_colonists, 1000000) as col
-         FROM edits e WHERE e.id = $1`,
-        [editId],
+        `SELECT starting_earth_colonists AS col
+         FROM universe_settings WHERE universe_id = $1`,
+        [universeId],
     );
     return res.rows[0]?.col ?? 1_000_000;
 }
@@ -224,10 +191,10 @@ export async function getUniverseStats(
                 (SELECT COUNT(*)::int FROM ports p
                    JOIN sectors s ON p.sector_id = s.id
                    WHERE s.universe_id = u.id) AS port_count,
-                e.max_planets_per_sector,
-                e.starting_turns, e.starting_credits, e.starting_drones, e.starting_ship
+                us.max_planets_per_sector,
+                us.starting_turns, us.starting_credits, us.starting_drones, us.starting_ship
          FROM universes u
-         LEFT JOIN edits e ON u.edit_id = e.id
+         LEFT JOIN universe_settings us ON us.universe_id = u.id
          WHERE u.id = $1`,
         [universeId],
     );
@@ -257,7 +224,7 @@ export async function getOutWarpDegreeDistribution(
     return out;
 }
 
-/** New-player defaults for a universe (falls back to NULL if no edit). */
+/** New-player defaults for a universe (falls back to NULL if no settings row). */
 export type UniverseEditDefaults = {
     id: number;
     starting_turns: number | null;
@@ -270,9 +237,9 @@ export async function getUniverseEditDefaults(
     db: Queryable = pool,
 ): Promise<UniverseEditDefaults | undefined> {
     const res = await db.query<UniverseEditDefaults>(
-        `SELECT u.id, e.starting_turns, e.starting_credits, e.starting_ship, e.starting_drones
+        `SELECT u.id, us.starting_turns, us.starting_credits, us.starting_ship, us.starting_drones
          FROM universes u
-         LEFT JOIN edits e ON u.edit_id = e.id
+         LEFT JOIN universe_settings us ON us.universe_id = u.id
          WHERE u.id = $1`,
         [universeId],
     );

@@ -329,7 +329,7 @@ export async function getHardwarePricesForUniverse(
         `SELECT hi.name, hi.label, COALESCE(hp.price, hi.default_price) as price
          FROM hardware_item hi
          LEFT JOIN hardware_price hp ON hp.hardware_item_id = hi.id
-           AND hp.edit_id = (SELECT edit_id FROM universes WHERE id = $1)
+           AND hp.template_id = (SELECT template_id FROM universes WHERE id = $1)
          ORDER BY hi.id`,
         [universeId],
     );

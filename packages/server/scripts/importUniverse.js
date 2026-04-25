@@ -76,15 +76,46 @@ async function main() {
   try {
     await client.query('BEGIN');
 
-    // Ensure universe row exists, linked to stock edit. Sets topology from the
-    // bigbang manifest on insert; preserves it on conflict unless still default.
+    // Ensure universe row exists, linked to the stock template. Sets topology
+    // from the bigbang manifest on insert; preserves it on conflict unless
+    // still default. Settings are snapshotted into universe_settings just
+    // below so the universe gets its own frozen copy.
     await client.query(
-      `INSERT INTO universes (id, name, edit_id, topology)
-       VALUES ($1, $2, (SELECT id FROM edits WHERE name = 'stock'), $3)
+      `INSERT INTO universes (id, name, template_id, topology)
+       VALUES ($1, $2, (SELECT id FROM edit_templates WHERE name = 'stock'), $3)
        ON CONFLICT (id) DO UPDATE SET
-         edit_id = COALESCE(universes.edit_id, (SELECT id FROM edits WHERE name = 'stock')),
+         template_id = COALESCE(universes.template_id, (SELECT id FROM edit_templates WHERE name = 'stock')),
          topology = EXCLUDED.topology`,
       [universeId, `Universe ${universeId}`, topology],
+    );
+
+    // Snapshot the stock template into universe_settings (no-op on re-run).
+    await client.query(
+      `INSERT INTO universe_settings (
+          universe_id, max_planets_per_sector, planet_collision_likelihood,
+          planet_collision_min_hours, planet_collision_max_hours,
+          turns_per_day, starting_turns, max_turns, starting_ship,
+          starting_drones, starting_credits, starting_port_density,
+          max_port_density, port_production_rate, port_memory_hours,
+          max_players, max_age_days, max_planets, turn_delay,
+          is_speed_warp_delay_on, photons_allowed, photon_blast_time_seconds,
+          planet_spawn_density, max_ships_allowed, max_corp_size,
+          max_ships_in_protected_space, truce_time_hours, is_automation_enabled,
+          starting_shields, starting_earth_colonists
+       )
+       SELECT $1, max_planets_per_sector, planet_collision_likelihood,
+              planet_collision_min_hours, planet_collision_max_hours,
+              turns_per_day, starting_turns, max_turns, starting_ship,
+              starting_drones, starting_credits, starting_port_density,
+              max_port_density, port_production_rate, port_memory_hours,
+              max_players, max_age_days, max_planets, turn_delay,
+              is_speed_warp_delay_on, photons_allowed, photon_blast_time_seconds,
+              planet_spawn_density, max_ships_allowed, max_corp_size,
+              max_ships_in_protected_space, truce_time_hours, is_automation_enabled,
+              starting_shields, starting_earth_colonists
+       FROM edit_templates WHERE name = 'stock'
+       ON CONFLICT (universe_id) DO NOTHING`,
+      [universeId],
     );
 
     // Bump the SERIAL sequence past any explicitly-inserted id so subsequent
@@ -179,7 +210,8 @@ async function main() {
       ON CONFLICT DO NOTHING
     `, [sector1Id]);
     const earthColRes = await client.query(
-      `SELECT COALESCE(e.starting_earth_colonists, 1000000) as col FROM edits e WHERE e.name = 'stock'`
+      `SELECT starting_earth_colonists AS col FROM universe_settings WHERE universe_id = $1`,
+      [universeId]
     );
     const earthCol = earthColRes.rows[0]?.col ?? 1000000;
     await client.query(

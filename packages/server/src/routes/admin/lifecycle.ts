@@ -9,8 +9,9 @@ import {
     insertUniverseFull,
     renameUniverse,
     deleteUniverse,
-    cloneEditAsSnapshot,
-    getEarthStartingColonistsForEdit,
+    getTemplateIdByName,
+    snapshotTemplateForUniverse,
+    getEarthStartingColonistsForUniverse,
 } from '../../db/queries/universe.js';
 import {
     countSectorsInUniverse,
@@ -104,17 +105,19 @@ export function createAdminLifecycleRoutes(
             });
 
             const universeId = await withTransaction(async (client) => {
-                // Clone the named template into a fresh, NULL-named snapshot
-                // so this universe's settings are crystallised at creation
-                // and never re-touched by subsequent template edits.
-                const editId = await cloneEditAsSnapshot(edit_name, client);
+                // Two steps: keep a pointer to the named template (for
+                // content lookups like hardware prices) AND snapshot the
+                // template's column values into universe_settings so the
+                // universe's setting values are crystallised at creation.
+                const templateId = await getTemplateIdByName(edit_name, client);
                 const newUniverseId = await insertUniverseFull(
                     name,
                     result.seed,
-                    editId,
+                    templateId,
                     client,
                     result.topology,
                 );
+                await snapshotTemplateForUniverse(newUniverseId, edit_name, client);
 
                 const sectorIdMap = new Map<number, number>();
                 for (const s of result.sectors) {
@@ -154,7 +157,7 @@ export function createAdminLifecycleRoutes(
                 }
 
                 await upsertEarthPlanet(sector1Id, client);
-                const earthCol = await getEarthStartingColonistsForEdit(editId, client);
+                const earthCol = await getEarthStartingColonistsForUniverse(newUniverseId, client);
                 await setEarthColonists(sector1Id, earthCol, client);
 
                 return newUniverseId;

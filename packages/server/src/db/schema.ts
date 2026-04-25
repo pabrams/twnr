@@ -23,16 +23,25 @@ export const connectDB = async (): Promise<void> => {
         last_connected_at TIMESTAMPTZ
       );
 
-      -- The edits table holds two kinds of rows:
-      --   1. Templates with a non-null name (e.g. stock). Editable;
-      --      universeConfig pushes its values into stock on every boot.
-      --   2. Per-universe snapshots with a NULL name. Created by cloning
-      --      a template at universe-creation time, then never touched by
-      --      template updates again. A universe settings are crystallised
-      --      at creation and stay stable for that universe lifetime.
-      CREATE TABLE IF NOT EXISTS edits (
+      -- Tracks which one-shot data migrations have been applied so we can
+      -- skip them on subsequent boots (instead of re-running them every time).
+      CREATE TABLE IF NOT EXISTS _schema_version (
+        version INTEGER PRIMARY KEY,
+        applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      -- Editable settings templates. Each row is a named, reusable preset
+      -- whose values are interpolated from universeConfig on every boot
+      -- (so editing the TS file + restarting propagates to NEW universes
+      -- only). Existing universes never read from this table for settings;
+      -- they have their own frozen row in universe_settings.
+      --
+      -- Junction tables (hardware_price, ship_types_edits, planet_types_edits)
+      -- still reference templates for content-availability lookups; settings
+      -- are split off into universe_settings so they can be frozen.
+      CREATE TABLE IF NOT EXISTS edit_templates (
         id SERIAL PRIMARY KEY,
-        name VARCHAR(255) UNIQUE,
+        name VARCHAR(255) UNIQUE NOT NULL,
         max_planets_per_sector SMALLINT NOT NULL DEFAULT ${universeConfig.maxPlanetsPerSector},
         planet_collision_likelihood SMALLINT NOT NULL DEFAULT ${universeConfig.planetCollisionLikelihood},
         planet_collision_min_hours SMALLINT NOT NULL DEFAULT ${universeConfig.planetCollisionMinHours},
@@ -59,7 +68,9 @@ export const connectDB = async (): Promise<void> => {
         max_corp_size SMALLINT NOT NULL DEFAULT 10,
         max_ships_in_protected_space SMALLINT NOT NULL DEFAULT 1,
         truce_time_hours SMALLINT NOT NULL DEFAULT 0,
-        is_automation_enabled BOOLEAN NOT NULL DEFAULT TRUE
+        is_automation_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+        starting_shields INTEGER NOT NULL DEFAULT ${universeConfig.startingShields},
+        starting_earth_colonists INTEGER NOT NULL DEFAULT 1000000
       );
 
       CREATE TABLE IF NOT EXISTS universes (
@@ -67,7 +78,44 @@ export const connectDB = async (): Promise<void> => {
         name VARCHAR(255) NOT NULL,
         seed INTEGER,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        edit_id INTEGER REFERENCES edits(id) ON DELETE SET NULL
+        template_id INTEGER REFERENCES edit_templates(id) ON DELETE SET NULL
+      );
+
+      -- Frozen per-universe settings. Populated exactly once at universe
+      -- creation by cloning the chosen template's column values. Never
+      -- updated by template edits afterwards. Cascades on universe delete
+      -- so there are no orphan rows.
+      CREATE TABLE IF NOT EXISTS universe_settings (
+        universe_id INTEGER PRIMARY KEY REFERENCES universes(id) ON DELETE CASCADE,
+        max_planets_per_sector SMALLINT NOT NULL,
+        planet_collision_likelihood SMALLINT NOT NULL,
+        planet_collision_min_hours SMALLINT NOT NULL,
+        planet_collision_max_hours SMALLINT NOT NULL,
+        turns_per_day INTEGER NOT NULL,
+        starting_turns INTEGER NOT NULL,
+        max_turns INTEGER NOT NULL,
+        starting_ship VARCHAR(255) NOT NULL,
+        starting_drones INTEGER NOT NULL,
+        starting_credits INTEGER NOT NULL,
+        starting_port_density SMALLINT NOT NULL,
+        max_port_density SMALLINT NOT NULL,
+        port_production_rate SMALLINT NOT NULL,
+        port_memory_hours INTEGER NOT NULL,
+        max_players INTEGER NOT NULL,
+        max_age_days INTEGER NOT NULL,
+        max_planets INTEGER NOT NULL,
+        turn_delay INTEGER NOT NULL,
+        is_speed_warp_delay_on BOOLEAN NOT NULL,
+        photons_allowed BOOLEAN NOT NULL,
+        photon_blast_time_seconds INTEGER NOT NULL,
+        planet_spawn_density SMALLINT NOT NULL,
+        max_ships_allowed INTEGER NOT NULL,
+        max_corp_size SMALLINT NOT NULL,
+        max_ships_in_protected_space SMALLINT NOT NULL,
+        truce_time_hours SMALLINT NOT NULL,
+        is_automation_enabled BOOLEAN NOT NULL,
+        starting_shields INTEGER NOT NULL,
+        starting_earth_colonists INTEGER NOT NULL
       );
 
       CREATE TABLE IF NOT EXISTS sectors (
@@ -125,10 +173,10 @@ export const connectDB = async (): Promise<void> => {
       );
 
       CREATE TABLE IF NOT EXISTS hardware_price (
-        edit_id INTEGER NOT NULL REFERENCES edits(id) ON DELETE CASCADE,
+        template_id INTEGER NOT NULL REFERENCES edit_templates(id) ON DELETE CASCADE,
         hardware_item_id INTEGER NOT NULL REFERENCES hardware_item(id) ON DELETE CASCADE,
         price INTEGER NOT NULL,
-        PRIMARY KEY (edit_id, hardware_item_id)
+        PRIMARY KEY (template_id, hardware_item_id)
       );
 
       CREATE TABLE IF NOT EXISTS ship_type_hardware (
@@ -140,14 +188,14 @@ export const connectDB = async (): Promise<void> => {
 
       CREATE TABLE IF NOT EXISTS ship_types_edits (
         ship_type_id INTEGER NOT NULL REFERENCES ship_types(id) ON DELETE CASCADE,
-        edit_id INTEGER NOT NULL REFERENCES edits(id) ON DELETE CASCADE,
-        PRIMARY KEY (ship_type_id, edit_id)
+        template_id INTEGER NOT NULL REFERENCES edit_templates(id) ON DELETE CASCADE,
+        PRIMARY KEY (ship_type_id, template_id)
       );
 
       CREATE TABLE IF NOT EXISTS planet_types_edits (
         planet_type VARCHAR(255) NOT NULL,
-        edit_id INTEGER NOT NULL REFERENCES edits(id) ON DELETE CASCADE,
-        PRIMARY KEY (planet_type, edit_id)
+        template_id INTEGER NOT NULL REFERENCES edit_templates(id) ON DELETE CASCADE,
+        PRIMARY KEY (planet_type, template_id)
       );
 
       CREATE TABLE IF NOT EXISTS players (
@@ -326,8 +374,8 @@ export const connectDB = async (): Promise<void> => {
         END IF;
       END $$;
 
-      ALTER TABLE edits ADD COLUMN IF NOT EXISTS starting_shields INTEGER NOT NULL DEFAULT 0;
-      ALTER TABLE edits ADD COLUMN IF NOT EXISTS starting_earth_colonists INTEGER NOT NULL DEFAULT 1000000;
+      -- (Legacy ALTERs targeted the old edits table; the new
+      --  edit_templates schema declares both columns directly.)
 
       -- Players: previous sector, for the return-to-previous shortcut
       ALTER TABLE players ADD COLUMN IF NOT EXISTS previous_sector_id INTEGER REFERENCES sectors(id);
@@ -1032,38 +1080,35 @@ export const connectDB = async (): Promise<void> => {
         result_msg_type = EXCLUDED.result_msg_type,
         result_extra = EXCLUDED.result_extra;
 
-      -- Existing databases were created with edits.name as NOT NULL. Drop
-      -- the constraint so per-universe snapshot rows (which have NULL name)
-      -- can be inserted alongside named template rows.
-      ALTER TABLE edits ALTER COLUMN name DROP NOT NULL;
-
-      -- === Seed default edit ===
-      -- The 'stock' edit is the universal template; new universes inherit
-      -- from it. Values that overlap with universeConfig are pushed in via
-      -- a parameterised UPDATE just below so universeConfig is the single
-      -- source of truth for those defaults.
-      INSERT INTO edits (name) VALUES ('stock') ON CONFLICT (name) DO NOTHING;
+      -- Seed the 'stock' template. Values that overlap with universeConfig
+      -- are pushed via a parameterised UPDATE just below — universeConfig is
+      -- the single source of truth for those defaults.
+      INSERT INTO edit_templates (name) VALUES ('stock') ON CONFLICT (name) DO NOTHING;
     `);
 
-        // Sync 'stock' edit fields with universeConfig (the single source of
-        // truth for new-universe defaults that overlap with edit columns).
-        // Runs every boot so config changes propagate without manual SQL.
+        // Sync 'stock' template fields with universeConfig (single source of
+        // truth for the values that overlap with template columns). Runs
+        // every boot so config changes propagate to NEW universes without
+        // manual SQL — existing universes have their own universe_settings
+        // row and are unaffected.
         await client.query(
-            `UPDATE edits
+            `UPDATE edit_templates
              SET starting_credits = $1,
                  starting_drones = $2,
-                 starting_ship = $3,
-                 starting_turns = $4,
-                 turns_per_day = $5,
-                 turn_delay = $6,
-                 max_planets_per_sector = $7,
-                 planet_collision_likelihood = $8,
-                 planet_collision_min_hours = $9,
-                 planet_collision_max_hours = $10
+                 starting_shields = $3,
+                 starting_ship = $4,
+                 starting_turns = $5,
+                 turns_per_day = $6,
+                 turn_delay = $7,
+                 max_planets_per_sector = $8,
+                 planet_collision_likelihood = $9,
+                 planet_collision_min_hours = $10,
+                 planet_collision_max_hours = $11
              WHERE name = 'stock'`,
             [
                 universeConfig.startingCredits,
                 universeConfig.startingDrones,
+                universeConfig.startingShields,
                 universeConfig.startingShip,
                 universeConfig.startingTurns,
                 universeConfig.turnsPerDay,
@@ -1075,22 +1120,22 @@ export const connectDB = async (): Promise<void> => {
             ],
         );
 
-        // One-time migration: any existing universe still pointing at a
-        // named template (legacy data model from before per-universe edit
-        // snapshots existed) gets a fresh copy of that template's current
-        // values, and is re-pointed at the copy. After it runs, no live
-        // universe shares a template, so the boot-time template UPDATE
-        // above only ever changes templates themselves — existing
-        // universes' settings are crystallised.
-        const stillSharing = await client.query<{ universe_id: number; template_name: string }>(
-            `SELECT u.id AS universe_id, e.name AS template_name
-             FROM universes u JOIN edits e ON u.edit_id = e.id
-             WHERE e.name IS NOT NULL`,
+        // One-time migration v1: split the legacy `edits` table into
+        // edit_templates + universe_settings, then drop the old table and
+        // its FK column on universes.
+        const v1 = await client.query<{ count: number }>(
+            `SELECT COUNT(*)::int AS count FROM _schema_version WHERE version = 1`,
         );
-        for (const row of stillSharing.rows) {
-            const inserted = await client.query<{ id: number }>(
-                `INSERT INTO edits (
-                    name, max_planets_per_sector, planet_collision_likelihood,
+        const oldEditsExists = await client.query<{ exists: boolean }>(
+            `SELECT EXISTS (
+                SELECT FROM information_schema.tables WHERE table_name = 'edits'
+             ) AS exists`,
+        );
+        if (v1.rows[0].count === 0 && oldEditsExists.rows[0].exists) {
+            // 1. Move named templates from edits → edit_templates.
+            await client.query(`
+                INSERT INTO edit_templates (
+                    id, name, max_planets_per_sector, planet_collision_likelihood,
                     planet_collision_min_hours, planet_collision_max_hours,
                     turns_per_day, starting_turns, max_turns, starting_ship,
                     starting_drones, starting_credits, starting_port_density,
@@ -1100,10 +1145,37 @@ export const connectDB = async (): Promise<void> => {
                     photon_blast_time_seconds, planet_spawn_density,
                     max_ships_allowed, max_corp_size,
                     max_ships_in_protected_space, truce_time_hours,
-                    is_automation_enabled
-                 )
-                 SELECT
-                    NULL, max_planets_per_sector, planet_collision_likelihood,
+                    is_automation_enabled, starting_shields,
+                    starting_earth_colonists
+                )
+                SELECT id, name, max_planets_per_sector, planet_collision_likelihood,
+                       planet_collision_min_hours, planet_collision_max_hours,
+                       turns_per_day, starting_turns, max_turns, starting_ship,
+                       starting_drones, starting_credits, starting_port_density,
+                       max_port_density, port_production_rate, port_memory_hours,
+                       max_players, max_age_days, max_planets, turn_delay,
+                       is_speed_warp_delay_on, photons_allowed,
+                       photon_blast_time_seconds, planet_spawn_density,
+                       max_ships_allowed, max_corp_size,
+                       max_ships_in_protected_space, truce_time_hours,
+                       is_automation_enabled,
+                       COALESCE(starting_shields, 0),
+                       COALESCE(starting_earth_colonists, 1000000)
+                FROM edits
+                WHERE name IS NOT NULL
+                ON CONFLICT (id) DO NOTHING;
+
+                -- Sync the SERIAL counter so future inserts don't collide.
+                SELECT setval(pg_get_serial_sequence('edit_templates', 'id'),
+                              COALESCE((SELECT MAX(id) FROM edit_templates), 1));
+            `);
+            // 2. For each universe, copy column values from its old edits
+            //    row into universe_settings. Works whether the old row was
+            //    a named template or a NULL-named snapshot — either way we
+            //    capture the values that universe was actually using.
+            await client.query(`
+                INSERT INTO universe_settings (
+                    universe_id, max_planets_per_sector, planet_collision_likelihood,
                     planet_collision_min_hours, planet_collision_max_hours,
                     turns_per_day, starting_turns, max_turns, starting_ship,
                     starting_drones, starting_credits, starting_port_density,
@@ -1113,17 +1185,88 @@ export const connectDB = async (): Promise<void> => {
                     photon_blast_time_seconds, planet_spawn_density,
                     max_ships_allowed, max_corp_size,
                     max_ships_in_protected_space, truce_time_hours,
-                    is_automation_enabled
-                 FROM edits WHERE name = $1
-                 RETURNING id`,
-                [row.template_name],
-            );
-            if (inserted.rows[0]) {
-                await client.query(`UPDATE universes SET edit_id = $1 WHERE id = $2`, [
-                    inserted.rows[0].id,
-                    row.universe_id,
-                ]);
-            }
+                    is_automation_enabled, starting_shields,
+                    starting_earth_colonists
+                )
+                SELECT u.id, e.max_planets_per_sector, e.planet_collision_likelihood,
+                       e.planet_collision_min_hours, e.planet_collision_max_hours,
+                       e.turns_per_day, e.starting_turns, e.max_turns, e.starting_ship,
+                       e.starting_drones, e.starting_credits, e.starting_port_density,
+                       e.max_port_density, e.port_production_rate, e.port_memory_hours,
+                       e.max_players, e.max_age_days, e.max_planets, e.turn_delay,
+                       e.is_speed_warp_delay_on, e.photons_allowed,
+                       e.photon_blast_time_seconds, e.planet_spawn_density,
+                       e.max_ships_allowed, e.max_corp_size,
+                       e.max_ships_in_protected_space, e.truce_time_hours,
+                       e.is_automation_enabled,
+                       COALESCE(e.starting_shields, 0),
+                       COALESCE(e.starting_earth_colonists, 1000000)
+                FROM universes u
+                JOIN edits e ON u.edit_id = e.id
+                ON CONFLICT (universe_id) DO NOTHING;
+            `);
+            // 3. Add universes.template_id and populate it. NULL-named
+            //    snapshots came from 'stock' (only template that ever
+            //    existed); named rows map to their own edit_templates entry.
+            await client.query(`
+                ALTER TABLE universes ADD COLUMN IF NOT EXISTS template_id
+                    INTEGER REFERENCES edit_templates(id) ON DELETE SET NULL;
+
+                UPDATE universes u
+                SET template_id = COALESCE(
+                    (SELECT et.id FROM edits e
+                     JOIN edit_templates et ON et.name = e.name
+                     WHERE e.id = u.edit_id),
+                    (SELECT id FROM edit_templates WHERE name = 'stock')
+                )
+                WHERE u.template_id IS NULL AND u.edit_id IS NOT NULL;
+            `);
+            // 4. Migrate junction tables (hardware_price, ship_types_edits,
+            //    planet_types_edits) from edit_id → template_id. They only
+            //    ever pointed at named templates so the mapping is direct.
+            await client.query(`
+                ALTER TABLE hardware_price ADD COLUMN IF NOT EXISTS template_id
+                    INTEGER REFERENCES edit_templates(id) ON DELETE CASCADE;
+                UPDATE hardware_price hp
+                SET template_id = (SELECT et.id FROM edits e
+                                   JOIN edit_templates et ON et.name = e.name
+                                   WHERE e.id = hp.edit_id)
+                WHERE hp.template_id IS NULL;
+                ALTER TABLE hardware_price DROP CONSTRAINT IF EXISTS hardware_price_pkey;
+                ALTER TABLE hardware_price DROP COLUMN IF EXISTS edit_id;
+                ALTER TABLE hardware_price ADD PRIMARY KEY (template_id, hardware_item_id);
+
+                ALTER TABLE ship_types_edits ADD COLUMN IF NOT EXISTS template_id
+                    INTEGER REFERENCES edit_templates(id) ON DELETE CASCADE;
+                UPDATE ship_types_edits ste
+                SET template_id = (SELECT et.id FROM edits e
+                                   JOIN edit_templates et ON et.name = e.name
+                                   WHERE e.id = ste.edit_id)
+                WHERE ste.template_id IS NULL;
+                ALTER TABLE ship_types_edits DROP CONSTRAINT IF EXISTS ship_types_edits_pkey;
+                ALTER TABLE ship_types_edits DROP COLUMN IF EXISTS edit_id;
+                ALTER TABLE ship_types_edits ADD PRIMARY KEY (ship_type_id, template_id);
+
+                ALTER TABLE planet_types_edits ADD COLUMN IF NOT EXISTS template_id
+                    INTEGER REFERENCES edit_templates(id) ON DELETE CASCADE;
+                UPDATE planet_types_edits pte
+                SET template_id = (SELECT et.id FROM edits e
+                                   JOIN edit_templates et ON et.name = e.name
+                                   WHERE e.id = pte.edit_id)
+                WHERE pte.template_id IS NULL;
+                ALTER TABLE planet_types_edits DROP CONSTRAINT IF EXISTS planet_types_edits_pkey;
+                ALTER TABLE planet_types_edits DROP COLUMN IF EXISTS edit_id;
+                ALTER TABLE planet_types_edits ADD PRIMARY KEY (planet_type, template_id);
+            `);
+            // 5. Drop the legacy table and the universes.edit_id column.
+            await client.query(`
+                ALTER TABLE universes DROP COLUMN IF EXISTS edit_id;
+                DROP TABLE IF EXISTS edits CASCADE;
+            `);
+            await client.query(`INSERT INTO _schema_version (version) VALUES (1)`);
+        } else if (v1.rows[0].count === 0) {
+            // Fresh install: no legacy table, just record the version.
+            await client.query(`INSERT INTO _schema_version (version) VALUES (1)`);
         }
 
         // Seed ship_types from config files (idempotent)
@@ -1246,13 +1389,13 @@ export const connectDB = async (): Promise<void> => {
             }
         }
 
-        // Seed hardware_price: set default prices for 'stock' edit from hardware_item defaults
+        // Seed hardware_price: default prices for the 'stock' template.
         await client.query(`
-            INSERT INTO hardware_price (edit_id, hardware_item_id, price)
-            SELECT e.id, hi.id, hi.default_price
-            FROM edits e, hardware_item hi
-            WHERE e.name = 'stock'
-            ON CONFLICT (edit_id, hardware_item_id) DO UPDATE SET price = EXCLUDED.price
+            INSERT INTO hardware_price (template_id, hardware_item_id, price)
+            SELECT et.id, hi.id, hi.default_price
+            FROM edit_templates et, hardware_item hi
+            WHERE et.name = 'stock'
+            ON CONFLICT (template_id, hardware_item_id) DO UPDATE SET price = EXCLUDED.price
         `);
 
         // Seed planet_types from config files (idempotent)
@@ -1279,36 +1422,36 @@ export const connectDB = async (): Promise<void> => {
             );
         }
 
-        // Seed ship_types_edits: link all ship types to 'stock' edit
+        // Seed ship_types_edits: link all ship types to the 'stock' template.
         await client.query(`
-            INSERT INTO ship_types_edits (ship_type_id, edit_id)
-            SELECT st.id, e.id FROM ship_types st, edits e WHERE e.name = 'stock'
+            INSERT INTO ship_types_edits (ship_type_id, template_id)
+            SELECT st.id, et.id FROM ship_types st, edit_templates et WHERE et.name = 'stock'
             ON CONFLICT DO NOTHING
         `);
 
-        // Seed planet_types_edits: link all planet types to 'stock' edit
+        // Seed planet_types_edits: link all planet types to the 'stock' template.
         await client.query(`
-            INSERT INTO planet_types_edits (planet_type, edit_id)
-            SELECT DISTINCT p.type, e.id FROM planets p, edits e WHERE e.name = 'stock'
+            INSERT INTO planet_types_edits (planet_type, template_id)
+            SELECT DISTINCT p.type, et.id FROM planets p, edit_templates et WHERE et.name = 'stock'
             ON CONFLICT DO NOTHING
         `);
 
-        // Also seed default planet types even if no planets exist yet
+        // Also seed default planet types even if no planets exist yet.
         await client.query(`
-            INSERT INTO planet_types_edits (planet_type, edit_id)
+            INSERT INTO planet_types_edits (planet_type, template_id)
             VALUES
-                ('Terran', (SELECT id FROM edits WHERE name = 'stock')),
-                ('Agricultural', (SELECT id FROM edits WHERE name = 'stock')),
-                ('Barren', (SELECT id FROM edits WHERE name = 'stock')),
-                ('Crystalline', (SELECT id FROM edits WHERE name = 'stock')),
-                ('Desert', (SELECT id FROM edits WHERE name = 'stock')),
-                ('Gas Giant', (SELECT id FROM edits WHERE name = 'stock')),
-                ('Glacial', (SELECT id FROM edits WHERE name = 'stock')),
-                ('Jungle', (SELECT id FROM edits WHERE name = 'stock')),
-                ('Mountainous', (SELECT id FROM edits WHERE name = 'stock')),
-                ('Oceanic', (SELECT id FROM edits WHERE name = 'stock')),
-                ('Toxic', (SELECT id FROM edits WHERE name = 'stock')),
-                ('Volcanic', (SELECT id FROM edits WHERE name = 'stock'))
+                ('Terran', (SELECT id FROM edit_templates WHERE name = 'stock')),
+                ('Agricultural', (SELECT id FROM edit_templates WHERE name = 'stock')),
+                ('Barren', (SELECT id FROM edit_templates WHERE name = 'stock')),
+                ('Crystalline', (SELECT id FROM edit_templates WHERE name = 'stock')),
+                ('Desert', (SELECT id FROM edit_templates WHERE name = 'stock')),
+                ('Gas Giant', (SELECT id FROM edit_templates WHERE name = 'stock')),
+                ('Glacial', (SELECT id FROM edit_templates WHERE name = 'stock')),
+                ('Jungle', (SELECT id FROM edit_templates WHERE name = 'stock')),
+                ('Mountainous', (SELECT id FROM edit_templates WHERE name = 'stock')),
+                ('Oceanic', (SELECT id FROM edit_templates WHERE name = 'stock')),
+                ('Toxic', (SELECT id FROM edit_templates WHERE name = 'stock')),
+                ('Volcanic', (SELECT id FROM edit_templates WHERE name = 'stock'))
             ON CONFLICT DO NOTHING
         `);
 

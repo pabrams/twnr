@@ -34,12 +34,12 @@ export async function fetchMoveTurnContext(
         `SELECT p.ship_id,
                 p.turns,
                 s.turns_per_warp,
-                COALESCE(e.turns_per_day, ${universeConfig.turnsPerDay}) AS turns_per_day,
-                COALESCE(e.turn_delay, ${universeConfig.turnDelay}) AS turn_delay
+                COALESCE(us.turns_per_day, ${universeConfig.turnsPerDay}) AS turns_per_day,
+                COALESCE(us.turn_delay, ${universeConfig.turnDelay}) AS turn_delay
          FROM players p
          LEFT JOIN ships s ON p.ship_id = s.id
          JOIN universes u ON u.id = $2
-         LEFT JOIN edits e ON u.edit_id = e.id
+         LEFT JOIN universe_settings us ON us.universe_id = u.id
          WHERE p.id = $1`,
         [playerId, universeId],
     );
@@ -89,9 +89,9 @@ export async function checkAndDeductTurns(
 ): Promise<TurnResult> {
     const db = queryFn ?? pool;
     const univRes = await db.query<{ turns_per_day: number; turn_delay: number }>(
-        `SELECT COALESCE(e.turns_per_day, ${universeConfig.turnsPerDay}) as turns_per_day,
-                COALESCE(e.turn_delay, ${universeConfig.turnDelay}) as turn_delay
-         FROM universes u LEFT JOIN edits e ON u.edit_id = e.id WHERE u.id = $1`,
+        `SELECT COALESCE(us.turns_per_day, ${universeConfig.turnsPerDay}) as turns_per_day,
+                COALESCE(us.turn_delay, ${universeConfig.turnDelay}) as turn_delay
+         FROM universes u LEFT JOIN universe_settings us ON us.universe_id = u.id WHERE u.id = $1`,
         [universeId],
     );
     const { turns_per_day, turn_delay } = univRes.rows[0];
