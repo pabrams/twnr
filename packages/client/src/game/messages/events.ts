@@ -48,7 +48,7 @@ export const EVENT = makeDomain('EVENT', {
     hyperspaceJump:
         '\r\n[bg]Hyperspace jump![/bg] Arrived in sector [bc]{sector}[/bc]. Fuel used: [by]{fuel}[/by], Turns: [by]{turns}[/by]',
 
-    leftPlanet: '\r\n[w]You return to your ship and leave the planet.[/w]',
+    leftPlanet: '\r\n[r]You return to your ship and leave the planet.[/r]',
     noPlanetsToLand:
         "\r\n[g]There's no planet in this sector.[/g]" +
         '\r\n[g]You can create one with a terraform device.[/g]',

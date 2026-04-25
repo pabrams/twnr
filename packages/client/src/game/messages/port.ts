@@ -70,7 +70,7 @@ export const PORT = makeDomain('PORT', {
     class0QtyYouHaveShields: '\r\n[mg]You have[/mg] [by]{qty}[/by] [mg]shield points.[/mg]',
     class0QtyYouHaveHolds: '\r\n[mg]You have[/mg] [by]{qty}[/by] [mg]cargo holds.[/mg]',
     class0QtyPromptFighters:
-        '[mg]How many[/mg] [bc]{shipName}[/bc] [mg]drones do you want to buy ([/mg][by]Max {max}[/by][mg]) [[/mg][by]{max}[/by][mg]] ?[/mg] ',
+        '[mg]How many drones do you want to buy ([/mg][by]Max {max}[/by][mg]) [[/mg][by]{max}[/by][mg]] ?[/mg] ',
     class0QtyPromptShields:
         '[mg]How many shield points do you want to buy ([/mg][by]Max {max}[/by][mg]) [[/mg][by]{max}[/by][mg]] ?[/mg] ',
     class0QtyPromptHolds:

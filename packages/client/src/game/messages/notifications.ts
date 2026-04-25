@@ -15,7 +15,7 @@ export const NOTIFY = makeDomain('NOTIFY', {
     playerIn: '\r\n[by][bm]{name}[/bm] warped into the sector.[/by]',
     playerOut: '\r\n[y][bm]{name}[/bm] warped out of the sector.[/y]',
 
-    starbaseLocation: '\r\n[bc]Starbase[/bc] [g]is in sector[/g] [by]{sector}[/by].',
+    starbaseLocation: '\r\n[br]***[/br] [bc]Starbase[/bc] [g]is in sector[/g] [by]{sector}[/by] [br]***[/br] ',
     noStarbase: '\r\n[w]No Starbase in this universe.[/w]',
 
     // Starbase info — universe stats panel (V command).
@@ -33,12 +33,12 @@ export const NOTIFY = makeDomain('NOTIFY', {
 
     unknownCommand: 'Unknown command: {cmd}',
 
-    autopilotEngaged: '\r\n[g:bb]<Autopilot engaging>[/g:bb]',
+    autopilotEngaged: '\r\n[bg:b]<Autopilot engaging>[/bg:b]',
     noPreviousSector: '\r\n[w]No previous sector to return to.[/w]',
     quitConfirm:
         '\r\n[by]Are you sure you want to quit?[/by] [mg]([/mg][by]Y[/by]/[by]N[/by][mg])[/mg] [mg][[/mg][by]N[/by][mg]][/mg] ',
     terraformDevicesAvailable: '\r\n[g]You have[/g] [bc]{count}[/bc] [g]Terraform Devices.[/g]',
     terraformConfirm:
         '[by]Terraform this sector?[/by] [mg]([/mg][by]Y[/by]/[by]N[/by][mg])[/mg] [mg][[/mg][by]N[/by][mg]][/mg] ',
-    terraformNoDevices: '\r\n[w]You have no Terraform Devices.[/w]',
+    terraformNoDevices: '\r\n[bg]You have no Terraform Devices.[/bg]',
 });

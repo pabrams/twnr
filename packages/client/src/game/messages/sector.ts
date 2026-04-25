@@ -38,7 +38,7 @@ export const SECTOR = makeDomain('SECTOR', {
     playerInfoSector: '{{MSG.playerInfoSector}}',
 
     jettisonConfirm:
-        '\r\n[by]Jettison all cargo?[/by] This cannot be undone. [mg]([/mg][by]y[/by]/[by]n[/by][mg])[/mg] [mg][[/mg][by]N[/by][mg]][/mg] ',
+        '\r\n[br]Are you sure you want to jettison all your cargo?[/br] [mg]([/mg][by]Y[/by]/[by]N[/by][mg])[/mg] [mg][[/mg][by]N[/by][mg]][/mg] ',
 
     autopilotNotAdjacent:
         '[g]That sector is not adjacent.[g]\r\n' +
