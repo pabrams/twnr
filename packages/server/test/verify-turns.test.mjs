@@ -158,19 +158,19 @@ after(async () => {
 
 // --- Schema tests ---
 
-describe('Schema - Edits columns (turns settings)', () => {
-  it('edits.turns_per_day column exists with default 500', async () => {
-    const res = await pool.query(`SELECT data_type, column_default, is_nullable FROM information_schema.columns WHERE table_name = 'edits' AND column_name = 'turns_per_day'`);
+describe('Schema - edit_templates columns (turns settings)', () => {
+  it('edit_templates.turns_per_day column exists with default 500', async () => {
+    const res = await pool.query(`SELECT data_type, column_default, is_nullable FROM information_schema.columns WHERE table_name = 'edit_templates' AND column_name = 'turns_per_day'`);
     assert.equal(res.rows.length, 1); assert.match(res.rows[0].data_type, /int/i);
     assert.equal(res.rows[0].is_nullable, 'NO'); assert.match(res.rows[0].column_default, /500/);
   });
-  it('edits.starting_turns column exists with default 500', async () => {
-    const res = await pool.query(`SELECT data_type, column_default, is_nullable FROM information_schema.columns WHERE table_name = 'edits' AND column_name = 'starting_turns'`);
+  it('edit_templates.starting_turns column exists with default 500', async () => {
+    const res = await pool.query(`SELECT data_type, column_default, is_nullable FROM information_schema.columns WHERE table_name = 'edit_templates' AND column_name = 'starting_turns'`);
     assert.equal(res.rows.length, 1); assert.match(res.rows[0].data_type, /int/i);
     assert.equal(res.rows[0].is_nullable, 'NO'); assert.match(res.rows[0].column_default, /500/);
   });
-  it('edits.max_turns column exists with default 2000', async () => {
-    const res = await pool.query(`SELECT data_type, column_default, is_nullable FROM information_schema.columns WHERE table_name = 'edits' AND column_name = 'max_turns'`);
+  it('edit_templates.max_turns column exists with default 2000', async () => {
+    const res = await pool.query(`SELECT data_type, column_default, is_nullable FROM information_schema.columns WHERE table_name = 'edit_templates' AND column_name = 'max_turns'`);
     assert.equal(res.rows.length, 1); assert.match(res.rows[0].data_type, /int/i);
     assert.equal(res.rows[0].is_nullable, 'NO'); assert.match(res.rows[0].column_default, /2000/);
   });
