@@ -5,20 +5,15 @@ type MinimapState = {
     depth: number;
     data: NeighborhoodResultObject | null;
     currentSectorNumber: number;
-    /** The six adjacent-warp targets for the open quick-move menu (sector numbers, 1-indexed by order). */
     quickMoveTargets: number[] | null;
 };
 
 export type MinimapInjectionHandler = (sectorNumber: number, currentSector: number) => void;
 
 export interface Minimap {
-    /** Update with a NEIGHBORHOOD result from the server. */
     update(data: NeighborhoodResultObject, currentSectorNumber: number): void;
-    /** Current hop-depth (for refetching). */
     getDepth(): number;
-    /** Register a handler invoked on every redraw request, e.g. to refetch. */
     onRequestRefresh(handler: () => void): void;
-    /** Highlight these sector numbers as 1..N quick-move targets, or clear with null. */
     setQuickMove(targets: number[] | null): void;
 }
 
@@ -26,7 +21,6 @@ const DEFAULT_DEPTH = 3;
 const MIN_DEPTH = 2;
 const MAX_DEPTH = 5;
 
-// Port class to three-letter B/S triplet (matches server port_classes table).
 const PORT_CLASS_TRIPLET: Record<number, string> = {
     1: 'BBS',
     2: 'BSB',
@@ -124,7 +118,6 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
     function render(): void {
         svg.replaceChildren();
         if (state.data && state.data.topology === 'random') {
-            // Hide the whole panel; the terminal flexes to full width.
             container.classList.add('is-hidden');
             return;
         }
@@ -149,7 +142,7 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
 
         // Quick-move: map each target sector_number (from the open move menu)
         // to its 1-based slot, and resolve those to sector_ids we can match
-        // against warp endpoints + pills below.
+        // against adjacent warps
         const quickMoveIndexById = new Map<number, number>();
         if (state.quickMoveTargets && state.quickMoveTargets.length > 0) {
             const numberToId = new Map<number, number>();
@@ -160,9 +153,7 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             });
         }
 
-        // Compute bbox from all positioned sectors. Fringe sectors (beyond the
-        // max-depth frontier) are excluded so they don't blow up the viewBox —
-        // their warp stubs emanate from the pill edge of visible sectors.
+        // Compute bbox from all positioned sectors.
         let minX = Infinity;
         let minY = Infinity;
         let maxX = -Infinity;
@@ -183,12 +174,8 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             return;
         }
 
-        // Use server positions directly. The server runs Fruchterman-Reingold
-        // once per universe, so its coordinates are already globally
-        // consistent and edge-spread.
         const disp = new Map<number, { x: number; y: number }>();
-        // Fringe sectors live in a separate map — they're never drawn as pills
-        // but their positions are used as direction vectors for warp stubs.
+        // Fringe sectors positions are used as direction vectors for warp stubs.
         const fringePos = new Map<number, { x: number; y: number }>();
         for (const s of sectors) {
             if (s.x == null || s.y == null) continue;
@@ -199,10 +186,6 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             disp.set(s.id, { x: s.x, y: s.y });
         }
 
-        // Frame the view on the bbox of visible (non-fringe) pills. The
-        // current sector is no longer forced to the center of the viewport;
-        // a stable bbox pivot keeps the map from rotating/shifting dramatically
-        // as the player moves between sectors.
         const spanX = maxX - minX;
         const spanY = maxY - minY;
         const pivotX = (minX + maxX) / 2;
@@ -238,8 +221,7 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
         svg.appendChild(defs);
 
         // Pixel-space sizing: convert target on-screen pixel sizes into world
-        // units using the panel's rendered width, so labels/nodes stay a
-        // constant pixel size regardless of how far the player has explored.
+        // units using the panel's rendered width
         const panelPx = body.clientWidth || 320;
         const worldPerPx = viewSize / panelPx;
         const labelSize = 12 * worldPerPx;
@@ -260,11 +242,6 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             pillById.set(s.id, { rw, rh });
         }
 
-        // Collision-only relaxation. Pairs of pills whose centres are closer
-        // than (rA + rB) × pad feel a pairwise push proportional to overlap;
-        // well-separated pills are untouched, preserving the stable
-        // orientation that using server positions directly gives us. Fixes
-        // local clumping where the server graph has dense sibling clusters.
         const PILL_PAD = 1.15;
         const COLLISION_ITERS = 60;
         const dispIds = Array.from(disp.keys());
@@ -349,19 +326,15 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             return { x: centerPt.x + dx * t, y: centerPt.y + dy * t };
         }
 
-        // Draw warps first so they sit behind nodes.
         const warpGroup = document.createElementNS(SVG_NS, 'g');
         svg.appendChild(warpGroup);
-        // De-dupe bi-pairs: draw one line per undirected pair when known_two_way.
         const drawnBi = new Set<string>();
-        const FRINGE_STUB_PX = 30; // stub length in on-screen pixels
+        const FRINGE_STUB_LEN_PX = 30;
         for (const w of state.data.warps) {
             const src = byId.get(w.from_sector_id);
             const dst = byId.get(w.to_sector_id);
             if (!src || !dst) continue;
             const srcP = disp.get(w.from_sector_id);
-            // Destination may be fringe (no pill); fall back to its raw server
-            // position so we still have a direction vector for the stub.
             const dstP = disp.get(w.to_sector_id) ?? fringePos.get(w.to_sector_id);
             if (!srcP || !dstP) continue;
             const srcPill = pillById.get(w.from_sector_id);
@@ -376,18 +349,15 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
                 if (drawnBi.has(key)) continue;
                 drawnBi.add(key);
             }
-            // Bigger destination pad when an arrowhead needs to clear the pill.
             const dstPad = isTwoWay ? strokeW * 0.5 : strokeW * 3;
             const srcPad = strokeW * 0.5;
             const start = trimToPill(dstP, srcP, srcPill.rw, srcPill.rh, srcPad);
-            // Fringe target: end at a fixed-length stub in the source→target
-            // direction rather than trimming to a (non-existent) pill.
             let end: { x: number; y: number };
             if (isFringe) {
                 const dx = dstP.x - srcP.x;
                 const dy = dstP.y - srcP.y;
                 const len = Math.sqrt(dx * dx + dy * dy) || 1;
-                const stub = FRINGE_STUB_PX * worldPerPx;
+                const stub = FRINGE_STUB_LEN_PX * worldPerPx;
                 end = {
                     x: start.x + (dx / len) * stub,
                     y: start.y + (dy / len) * stub,
@@ -402,6 +372,7 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             // of travel. Opposite-direction warps between the same pair end
             // up on opposite sides of the axis, so overlapping one-ways
             // separate visually instead of drawing on top of each other.
+            // TODO: Do we need this?
             if (!isTwoWay) {
                 const dx = dstP.x - srcP.x;
                 const dy = dstP.y - srcP.y;
@@ -440,12 +411,7 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             line.setAttribute('x2', String(end.x));
             line.setAttribute('y2', String(end.y));
             line.setAttribute('stroke-width', String(strokeW));
-            // Quick-move highlight: true for any warp between the current
-            // sector and a quick-move target, regardless of which direction
-            // we ended up drawing. Two-ways come through the payload in both
-            // directions and the dedupe picks whichever one iterates first —
-            // checking only `from === currentId` misses cases where the
-            // incoming edge won the dedupe race.
+
             const isQuickMoveWarp =
                 (w.from_sector_id === currentId && quickMoveIndexById.has(w.to_sector_id)) ||
                 (w.to_sector_id === currentId && quickMoveIndexById.has(w.from_sector_id));
@@ -454,15 +420,10 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             }
             if (isTwoWay) {
                 line.classList.add('minimap-warp--two-way');
-                // Fringe stubs read better with an arrow pointing toward the
-                // off-map target. Non-fringe two-ways stay arrowless — the
-                // warp body alone is enough once both pills are visible.
                 if (isFringe) {
                     line.setAttribute('marker-end', 'url(#arrTwoWay)');
                 }
             } else if (srcVisited && dstVisited) {
-                // Both endpoints visited but reverse warp absent from the
-                // universe — confirmed one-way. Draw in red with arrowhead.
                 line.classList.add('minimap-warp--one-way-confirmed');
                 line.setAttribute('marker-end', 'url(#arrRed)');
             } else {
@@ -474,11 +435,10 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             warpGroup.appendChild(line);
         }
 
-        // Draw sector nodes as rounded pills with the sector number inside.
-        // The current sector gets a scaled-up pill so it reads at a glance.
         const nodeGroup = document.createElementNS(SVG_NS, 'g');
         svg.appendChild(nodeGroup);
-        // z-order safety net: if pills still visually overlap after collision
+
+        // z-order: if pills still visually overlap after collision
         // resolution, the most important ones stay readable. Background
         // sectors first, then adjacent out-warp targets, then the current
         // sector on top.
@@ -585,7 +545,6 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
                 group.appendChild(badgeText);
             }
 
-            // Interaction.
             const tip = tooltipText(s);
             group.addEventListener('mouseenter', (ev) => showTooltip(ev as MouseEvent, tip));
             group.addEventListener('mousemove', (ev) => showTooltip(ev as MouseEvent, tip));
@@ -618,7 +577,6 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
     };
 }
 
-/** Apply a short border-flash animation to the terminal element. */
 export function flashTerminalBorder(termEl: HTMLElement, duration = 800): void {
     termEl.classList.add('flash-border');
     window.setTimeout(() => termEl.classList.remove('flash-border'), duration);
