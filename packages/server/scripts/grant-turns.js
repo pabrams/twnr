@@ -13,11 +13,11 @@ async function grantTurns() {
     try {
         await client.query('BEGIN');
 
-        // Get all universes with turns enabled (settings in edits table)
+        // Get all universes with turns enabled (settings in universe_settings).
         const univRes = await client.query(
-            `SELECT u.id, COALESCE(e.turns_per_day, 500) as turns_per_day, COALESCE(e.max_turns, 2000) as max_turns
-             FROM universes u LEFT JOIN edits e ON u.edit_id = e.id
-             WHERE COALESCE(e.turns_per_day, 500) > 0`,
+            `SELECT u.id, COALESCE(us.turns_per_day, 500) as turns_per_day, COALESCE(us.max_turns, 2000) as max_turns
+             FROM universes u LEFT JOIN universe_settings us ON us.universe_id = u.id
+             WHERE COALESCE(us.turns_per_day, 500) > 0`,
         );
 
         let totalUpdated = 0;

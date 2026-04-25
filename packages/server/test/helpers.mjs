@@ -22,8 +22,8 @@ export async function createTestUser(pool) {
  */
 export async function createTestPlayer(pool, userId, universeId, name, sector = 1, drones = 0, shields = 0) {
   const univRes = await pool.query(
-    `SELECT COALESCE(e.starting_turns, 500) as starting_turns
-     FROM universes u LEFT JOIN edits e ON u.edit_id = e.id WHERE u.id = $1`,
+    `SELECT COALESCE(us.starting_turns, 500) as starting_turns
+     FROM universes u LEFT JOIN universe_settings us ON us.universe_id = u.id WHERE u.id = $1`,
     [universeId],
   );
   const startingTurns = univRes.rows[0]?.starting_turns ?? 500;

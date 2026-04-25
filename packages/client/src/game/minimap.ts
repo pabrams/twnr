@@ -185,10 +185,7 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
 
         // Use server positions directly. The server runs Fruchterman-Reingold
         // once per universe, so its coordinates are already globally
-        // consistent and edge-spread. Re-relaxing per neighborhood re-flowed
-        // the layout every render and made directions between pairs appear
-        // to rotate as the player moved — now the relative angle between any
-        // two sectors is fixed for the lifetime of the universe.
+        // consistent and edge-spread.
         const disp = new Map<number, { x: number; y: number }>();
         // Fringe sectors live in a separate map — they're never drawn as pills
         // but their positions are used as direction vectors for warp stubs.
@@ -293,8 +290,8 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
                     if (d < 1e-3) {
                         // Near-coincident: pick a deterministic direction
                         // from the sector ids so renders stay stable.
-                        dx = (((idA * 2654435761) & 0xffff) / 0x8000 - 1) || 1;
-                        dy = (((idB * 2246822519) & 0xffff) / 0x8000 - 1) || 1;
+                        dx = ((idA * 2654435761) & 0xffff) / 0x8000 - 1 || 1;
+                        dy = ((idB * 2246822519) & 0xffff) / 0x8000 - 1 || 1;
                         d = Math.sqrt(dx * dx + dy * dy) || 1;
                     }
                     const push = (minDist - d) * 0.5;
@@ -450,10 +447,8 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             // checking only `from === currentId` misses cases where the
             // incoming edge won the dedupe race.
             const isQuickMoveWarp =
-                (w.from_sector_id === currentId &&
-                    quickMoveIndexById.has(w.to_sector_id)) ||
-                (w.to_sector_id === currentId &&
-                    quickMoveIndexById.has(w.from_sector_id));
+                (w.from_sector_id === currentId && quickMoveIndexById.has(w.to_sector_id)) ||
+                (w.to_sector_id === currentId && quickMoveIndexById.has(w.from_sector_id));
             if (isQuickMoveWarp) {
                 line.classList.add('minimap-warp--quick-move');
             }

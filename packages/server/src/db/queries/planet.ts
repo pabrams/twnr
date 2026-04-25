@@ -60,11 +60,11 @@ export async function getTerraformConfigForUniverse(
     db: Queryable = pool,
 ): Promise<TerraformConfigRow | undefined> {
     const res = await db.query<TerraformConfigRow>(
-        `SELECT COALESCE(e.max_planets_per_sector, ${universeConfig.maxPlanetsPerSector}) as max_planets_per_sector,
-                COALESCE(e.planet_collision_likelihood, ${universeConfig.planetCollisionLikelihood}) as planet_collision_likelihood,
-                COALESCE(e.planet_collision_min_hours, ${universeConfig.planetCollisionMinHours}) as planet_collision_min_hours,
-                COALESCE(e.planet_collision_max_hours, ${universeConfig.planetCollisionMaxHours}) as planet_collision_max_hours
-         FROM universes u LEFT JOIN edits e ON u.edit_id = e.id WHERE u.id = $1`,
+        `SELECT COALESCE(us.max_planets_per_sector, ${universeConfig.maxPlanetsPerSector}) as max_planets_per_sector,
+                COALESCE(us.planet_collision_likelihood, ${universeConfig.planetCollisionLikelihood}) as planet_collision_likelihood,
+                COALESCE(us.planet_collision_min_hours, ${universeConfig.planetCollisionMinHours}) as planet_collision_min_hours,
+                COALESCE(us.planet_collision_max_hours, ${universeConfig.planetCollisionMaxHours}) as planet_collision_max_hours
+         FROM universes u LEFT JOIN universe_settings us ON us.universe_id = u.id WHERE u.id = $1`,
         [universeId],
     );
     return res.rows[0];

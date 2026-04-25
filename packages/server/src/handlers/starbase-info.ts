@@ -1,10 +1,7 @@
 import { ServerMsgType } from '@twnr/shared';
 import { players, sendEnvelope } from '../game-state.js';
 import { getStarbaseSectorNumber } from '../db/queries/sector.js';
-import {
-    getUniverseStats,
-    getOutWarpDegreeDistribution,
-} from '../db/queries/universe.js';
+import { getUniverseStats, getOutWarpDegreeDistribution } from '../db/queries/universe.js';
 import { getStartingShipTypeByName } from '../db/queries/ship.js';
 import { universeConfig } from '../universe-config.js';
 
@@ -32,9 +29,7 @@ export async function handleStarbaseInfo(playerId: number): Promise<void> {
     }
 
     const createdAt = stats?.created_at ?? new Date(0);
-    const daysElapsed = Math.floor(
-        (Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24),
-    );
+    const daysElapsed = Math.floor((Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
 
     const respawnDelaySeconds = parseInt(
         process.env.SHIP_DESTROYED_LOGIN_DELAY_SECONDS ||

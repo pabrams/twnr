@@ -215,13 +215,13 @@ describe('Ship configs', () => {
 
 describe('Player initialization', () => {
   it('New player gets turns = starting_turns', async () => {
-    await pool.query('UPDATE edits SET starting_turns = 250 FROM universes WHERE universes.edit_id = edits.id AND universes.id = $1', [UNIVERSE_ID]);
+    await pool.query('UPDATE universe_settings SET starting_turns = 250 WHERE universe_id = $1', [UNIVERSE_ID]);
     try {
       const { playerId } = await joinUniverse(pool);
       const r = await pool.query('SELECT turns FROM players WHERE id = $1', [playerId]);
       assert.equal(r.rows[0].turns, 250);
     } finally {
-      await pool.query('UPDATE edits SET starting_turns = 500 FROM universes WHERE universes.edit_id = edits.id AND universes.id = $1', [UNIVERSE_ID]);
+      await pool.query('UPDATE universe_settings SET starting_turns = 500 WHERE universe_id = $1', [UNIVERSE_ID]);
     }
   });
 
@@ -397,8 +397,8 @@ describe('Warp turn costs', () => {
 // --- Unlimited universe warp ---
 
 describe('Unlimited universe - warp', () => {
-  before(() => pool.query('UPDATE edits SET turns_per_day = 0 FROM universes WHERE universes.edit_id = edits.id AND universes.id = $1', [UNIVERSE_ID]));
-  after(() => pool.query('UPDATE edits SET turns_per_day = 500 FROM universes WHERE universes.edit_id = edits.id AND universes.id = $1', [UNIVERSE_ID]));
+  before(() => pool.query('UPDATE universe_settings SET turns_per_day = 0 WHERE universe_id = $1', [UNIVERSE_ID]));
+  after(() => pool.query('UPDATE universe_settings SET turns_per_day = 500 WHERE universe_id = $1', [UNIVERSE_ID]));
 
   it('Unlimited: warp turnsUsed = 0, no deduction', async () => {
     const { token, playerId } = await joinUniverse(pool);
@@ -642,8 +642,8 @@ describe('Zero-cost actions', () => {
 // --- Unlimited non-warp ---
 
 describe('Unlimited universe - non-warp', () => {
-  before(() => pool.query('UPDATE edits SET turns_per_day = 0 FROM universes WHERE universes.edit_id = edits.id AND universes.id = $1', [UNIVERSE_ID]));
-  after(() => pool.query('UPDATE edits SET turns_per_day = 500 FROM universes WHERE universes.edit_id = edits.id AND universes.id = $1', [UNIVERSE_ID]));
+  before(() => pool.query('UPDATE universe_settings SET turns_per_day = 0 WHERE universe_id = $1', [UNIVERSE_ID]));
+  after(() => pool.query('UPDATE universe_settings SET turns_per_day = 500 WHERE universe_id = $1', [UNIVERSE_ID]));
 
   it('Unlimited: buying cargo turnsUsed = 0', async () => {
     const { token, playerId } = await joinUniverse(pool);
@@ -728,8 +728,8 @@ describe('Unlimited universe - non-warp', () => {
 // --- Grant turns script ---
 
 describe('Grant turns script', () => {
-  before(() => pool.query('UPDATE edits SET turns_per_day = 240, max_turns = 100 FROM universes WHERE universes.edit_id = edits.id AND universes.id = $1', [UNIVERSE_ID]));
-  after(() => pool.query('UPDATE edits SET turns_per_day = 500, max_turns = 2000 FROM universes WHERE universes.edit_id = edits.id AND universes.id = $1', [UNIVERSE_ID]));
+  before(() => pool.query('UPDATE universe_settings SET turns_per_day = 240, max_turns = 100 WHERE universe_id = $1', [UNIVERSE_ID]));
+  after(() => pool.query('UPDATE universe_settings SET turns_per_day = 500, max_turns = 2000 WHERE universe_id = $1', [UNIVERSE_ID]));
 
   it('Script runs without error and prints player count', () => {
     const output = execFileSync('node', ['scripts/grant-turns.js'], { cwd: PROJECT_ROOT, env: testEnv(), encoding: 'utf8' });
@@ -761,12 +761,12 @@ describe('Grant turns script', () => {
   });
 
   it('Skips unlimited universes', async () => {
-    await pool.query('UPDATE edits SET turns_per_day = 0 FROM universes WHERE universes.edit_id = edits.id AND universes.id = $1', [UNIVERSE_ID]);
+    await pool.query('UPDATE universe_settings SET turns_per_day = 0 WHERE universe_id = $1', [UNIVERSE_ID]);
     const { playerId } = await joinUniverse(pool);
     await pool.query(`UPDATE players SET turns = 5, last_turns_granted_at = NOW() - interval '10 hours' WHERE id = $1`, [playerId]);
     execFileSync('node', ['scripts/grant-turns.js'], { cwd: PROJECT_ROOT, env: testEnv(), encoding: 'utf8' });
     assert.equal((await pool.query('SELECT turns FROM players WHERE id = $1', [playerId])).rows[0].turns, 5);
-    await pool.query('UPDATE edits SET turns_per_day = 240 FROM universes WHERE universes.edit_id = edits.id AND universes.id = $1', [UNIVERSE_ID]);
+    await pool.query('UPDATE universe_settings SET turns_per_day = 240 WHERE universe_id = $1', [UNIVERSE_ID]);
   });
 
   it('Grants 0 when less than 1 hour elapsed', async () => {
@@ -1104,7 +1104,7 @@ describe('HyperspaceJump', () => {
   });
 
   it('In unlimited universe, turnsUsed = 0 and no turn deduction', async () => {
-    await pool.query('UPDATE edits SET turns_per_day = 0 FROM universes WHERE universes.edit_id = edits.id AND universes.id = $1', [UNIVERSE_ID]);
+    await pool.query('UPDATE universe_settings SET turns_per_day = 0 WHERE universe_id = $1', [UNIVERSE_ID]);
     try {
       const { ws: wsConn, playerId } = await setupJumpPlayer();
       const { targetSector, hops } = await findDistantSector(wsConn);
@@ -1124,12 +1124,12 @@ describe('HyperspaceJump', () => {
       await pool.query('DELETE FROM sector_drones WHERE owner_id = $1', [playerId]);
       await closeWS(wsConn);
     } finally {
-      await pool.query('UPDATE edits SET turns_per_day = 500 FROM universes WHERE universes.edit_id = edits.id AND universes.id = $1', [UNIVERSE_ID]);
+      await pool.query('UPDATE universe_settings SET turns_per_day = 500 WHERE universe_id = $1', [UNIVERSE_ID]);
     }
   });
 
   it('In unlimited universe, jump succeeds even with 0 turns', async () => {
-    await pool.query('UPDATE edits SET turns_per_day = 0 FROM universes WHERE universes.edit_id = edits.id AND universes.id = $1', [UNIVERSE_ID]);
+    await pool.query('UPDATE universe_settings SET turns_per_day = 0 WHERE universe_id = $1', [UNIVERSE_ID]);
     try {
       const { ws: wsConn, playerId } = await setupJumpPlayer();
       const adj = await getAdjacentSector(wsConn);
@@ -1144,7 +1144,7 @@ describe('HyperspaceJump', () => {
       await pool.query('DELETE FROM sector_drones WHERE owner_id = $1', [playerId]);
       await closeWS(wsConn);
     } finally {
-      await pool.query('UPDATE edits SET turns_per_day = 500 FROM universes WHERE universes.edit_id = edits.id AND universes.id = $1', [UNIVERSE_ID]);
+      await pool.query('UPDATE universe_settings SET turns_per_day = 500 WHERE universe_id = $1', [UNIVERSE_ID]);
     }
   });
 

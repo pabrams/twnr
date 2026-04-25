@@ -74,8 +74,7 @@ export function createUniverseRoutes(
 
             const startSector = universeConfig.startingSector;
             const startingTurns = editDefaults.starting_turns ?? universeConfig.startingTurns;
-            const startingCredits =
-                editDefaults.starting_credits ?? universeConfig.startingCredits;
+            const startingCredits = editDefaults.starting_credits ?? universeConfig.startingCredits;
             const startingShip = editDefaults.starting_ship ?? universeConfig.startingShip;
             const startingDrones = editDefaults.starting_drones ?? universeConfig.startingDrones;
 
