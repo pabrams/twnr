@@ -29,7 +29,7 @@ after(async () => {
 // ─── Login restriction for destroyed players ────────────────────────────────
 
 describe('Login restriction after ship destruction', () => {
-  it('allows login and gives new ship when delay has passed (default delay=0)', async () => {
+  it('allows login and gives new ship when delay has passed', async () => {
     const ts = Date.now() + Math.random();
     const email = `destroyed_${ts}@test.com`;
     const password = 'testpass123';
@@ -57,7 +57,12 @@ describe('Login restriction after ship destruction', () => {
     assert.equal(joinRes.status, 201);
     const { playerId } = await joinRes.json();
 
-    await pool.query('UPDATE players SET ship_destroyed_date = NOW() WHERE id = $1', [playerId]);
+    // Set ship_destroyed_date to 30 days ago so any reasonable cooldown
+    // (universeConfig.respawnDelaySeconds defaults to 24h) has passed.
+    await pool.query(
+      "UPDATE players SET ship_destroyed_date = NOW() - INTERVAL '30 days' WHERE id = $1",
+      [playerId],
+    );
 
     const loginRes = await fetch(`${BASE}/api/auth/login`, {
       method: 'POST',
@@ -73,7 +78,8 @@ describe('Login restriction after ship destruction', () => {
     const shipRes = await pool.query('SELECT s.drones, s.shields, s.holds, st.name as ship_name FROM ships s JOIN ship_types st ON s.ship_type_id = st.id WHERE s.id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
     assert.equal(shipRes.rows.length, 1, 'Should have a new ship');
     assert.equal(shipRes.rows[0].ship_name, 'Vulpeculan Cruiser');
-    assert.equal(shipRes.rows[0].drones, 0);
+    // Defaults come from universeConfig (startingDrones=100, startingShields=0).
+    assert.equal(shipRes.rows[0].drones, 100);
     assert.equal(shipRes.rows[0].shields, 0);
 
     const creditsRes = await pool.query('SELECT credits FROM players WHERE id = $1', [playerId]);
@@ -156,8 +162,9 @@ describe('Login restriction after ship destruction', () => {
 
     await pool.query('UPDATE players SET ship_id = NULL WHERE id = $1', [playerId]);
     await pool.query('DELETE FROM ships WHERE owner_id = $1', [playerId]);
+    // 30 days back so any reasonable cooldown (default 24h) has elapsed.
     await pool.query(
-      `UPDATE players SET ship_destroyed_date = NOW() - INTERVAL '1 hour' WHERE id = $1`,
+      `UPDATE players SET ship_destroyed_date = NOW() - INTERVAL '30 days' WHERE id = $1`,
       [playerId],
     );
 
@@ -174,7 +181,8 @@ describe('Login restriction after ship destruction', () => {
     );
     assert.equal(ship.rows.length, 1);
     assert.equal(ship.rows[0].ship_name, 'Vulpeculan Cruiser');
-    assert.equal(ship.rows[0].drones, 0);
+    // Defaults come from universeConfig.
+    assert.equal(ship.rows[0].drones, 100);
     assert.equal(ship.rows[0].shields, 0);
 
     const credits = await pool.query('SELECT credits FROM players WHERE id = $1', [playerId]);

@@ -153,7 +153,8 @@ describe('Join Universe', () => {
     );
     assert.equal(shipRes.rows.length, 1);
     assert.equal(shipRes.rows[0].ship_name, 'Vulpeculan Cruiser');
-    assert.equal(shipRes.rows[0].drones, 0);
+    // Defaults come from universeConfig (startingDrones=100, startingShields=0).
+    assert.equal(shipRes.rows[0].drones, 100);
     assert.equal(shipRes.rows[0].shields, 0);
 
     // Verify holds matches Vulpeculan Cruiser startingHolds (20)

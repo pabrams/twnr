@@ -321,11 +321,11 @@ describe('multiple planets per sector', () => {
   });
 });
 
-// ==================== edits table (planet settings) ====================
+// ==================== edit_templates table (planet settings) ====================
 
-describe('edits table (planet settings)', () => {
+describe('edit_templates table (planet settings)', () => {
   let cols;
-  before(async () => { cols = await getColumns('edits'); });
+  before(async () => { cols = await getColumns('edit_templates'); });
 
   it('has max_planets_per_sector (SMALLINT NOT NULL)', () => {
     assert.ok(cols.max_planets_per_sector, 'max_planets_per_sector missing');
@@ -1516,7 +1516,7 @@ describe('WS: buy hardware credit deduction', () => {
 
   after(() => { player?.close(); });
 
-  it('buyPlanetBusters deducts credits per buster (price from edits)', async () => {
+  it('buyPlanetBusters deducts credits per buster (price from universe_settings)', async () => {
     // Find a ship that can carry planet busters
     const allConfigs = readdirSync(CONFIG_SHIPS_DIR).filter(f => f.endsWith('.json')).map(f => JSON.parse(readFileSync(join(CONFIG_SHIPS_DIR, f), 'utf8')));
     const busterShip = allConfigs.find(c => c.maxPlanetBusters >= 2);
@@ -1529,12 +1529,12 @@ describe('WS: buy hardware credit deduction', () => {
     const msg = await player.waitForMessage('buyHardwareResult');
     assert.equal(msg.type, 'buyHardwareResult');
     assert.equal(msg.quantity, 2);
-    // Price comes from edits table (default 40000 per buster)
+    // Price comes from universe_settings (default 40000 per buster)
     assert.equal(msg.credits, 120000, 'should deduct 80000 (2 * 40000) from 200000');
     assert.equal(msg.totalOnShip, 2);
   });
 
-  it('buyTerraformDevices deducts credits per device (price from edits)', async () => {
+  it('buyTerraformDevices deducts credits per device (price from universe_settings)', async () => {
     // Find a ship that can carry terraform devices
     const allConfigs = readdirSync(CONFIG_SHIPS_DIR).filter(f => f.endsWith('.json')).map(f => JSON.parse(readFileSync(join(CONFIG_SHIPS_DIR, f), 'utf8')));
     const terraShip = allConfigs.find(c => c.maxTerraformDevices >= 2);
@@ -1547,7 +1547,7 @@ describe('WS: buy hardware credit deduction', () => {
     const msg = await player.waitForMessage('buyHardwareResult');
     assert.equal(msg.type, 'buyHardwareResult');
     assert.equal(msg.quantity, 2);
-    // Price comes from edits table (default 25000 per device)
+    // Price comes from universe_settings (default 25000 per device)
     assert.equal(msg.credits, 150000, 'should deduct 50000 (2 * 25000) from 200000');
     assert.equal(msg.totalOnShip, 2);
   });

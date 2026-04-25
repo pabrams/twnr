@@ -88,7 +88,7 @@ after(async () => {
 // ─── Login after ship destruction ───────────────────────────────────────────
 
 describe('Login after ship destruction', () => {
-  it('allows login when ship_destroyed_date is set and delay has passed (default=0)', async () => {
+  it('allows login when ship_destroyed_date is set and delay has passed', async () => {
     const ts = Date.now();
     const email = `dest_${ts}@test.com`;
     const reg = await createTestUser(`dest_${ts}`, email, 'pass123');
@@ -96,8 +96,12 @@ describe('Login after ship destruction', () => {
     await seedUniverseSectors(pool, univ.body.universeId);
     const join = await joinUniverse(reg.token, univ.body.universeId, 'Destroyed');
 
-    // Simulate destruction
-    await pool.query('UPDATE players SET ship_destroyed_date = NOW(), ship_id = NULL WHERE id = $1', [join.body.playerId]);
+    // Simulate destruction 30 days ago so any reasonable cooldown
+    // (universeConfig.respawnDelaySeconds defaults to 24h) has passed.
+    await pool.query(
+      "UPDATE players SET ship_destroyed_date = NOW() - INTERVAL '30 days', ship_id = NULL WHERE id = $1",
+      [join.body.playerId],
+    );
     await pool.query('DELETE FROM ships WHERE owner_id = $1', [join.body.playerId]);
 
     const login = await loginUser(email, 'pass123');
