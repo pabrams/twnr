@@ -34,9 +34,9 @@ export const PANEL = makeDomain('PANEL', {
     playersOnlineRow: '  [by]{name}[/by]{suffix}',
     playersOnlineYouTag: ' [bg](you)[/bg]',
 
-    takeColonistsHeader: '[bg]You took {qty} {commodity} colonists.[/bg]',
-    leaveColonistsHeader: '[bg]You left {qty} {commodity} colonists.[/bg]',
-    planetColonistsLine: '  [by]Planet colonists[/by]: [w]{count}[/w]',
+    takeColonistsHeader: '[bg]You took [bc]{qty}[/bc] colonists.[/bg]',
+    leaveColonistsHeader: '[bg]You left [bc]{qty}[/bc] colonists.[/bg]',
+    planetColonistsLine: '  [g]There are [/g]: [by]{count}[/by] colonists remaining on the planet.',
     shipColonistsLine: '  [by]Ship colonists[/by]: [w]{count}[/w]',
 
     landedHeader: '[bg]Landed on[/bg] [bc]{name}[/bc]',
@@ -47,11 +47,11 @@ export const PANEL = makeDomain('PANEL', {
 
     planetDisplayHeader: '[bc]{name}[/bc] ({type})',
 
-    deployedDronesEmpty: '[w]No drones deployed.[/w]',
+    deployedDronesEmpty: '[g]No drones deployed.[/g]',
     deployedDronesHeader: '[bc]Deployed Drones:[/bc]',
-    deployedDronesRow: '  Sector [by]{sector}[/by]: [w]{qty}[/w] drones',
+    deployedDronesRow: '  Sector [by]{sector}[/by]: [bc]{qty}[/bc] drones',
 
-    listPlanetsEmpty: '[w]You own no planets.[/w]',
+    listPlanetsEmpty: '[br]You own no planets.[/br]',
     listPlanetsHeader: '[bc]=== Your Planets ===[/bc]',
     listPlanetsRow: '  [by]Sector {sector}[/by] — [bc]{name}[/bc] ([w]{type}[/w])',
     listPlanetsColonists:

@@ -25,7 +25,7 @@ export const TRANSACTION = makeDomain('TRANSACTION', {
         '\r\n[bg]Purchase complete.[/bg]\r\n' +
         '[mg]{label}: [by]{total}[/by], Credits: [by]{credits}[/by]',
 
-    undocked: '\r\n[w]You undock from the port.[/w]',
+    undocked: '\r\n[bg]You undock from the port.[/bg]',
 
     jettisoned: '\r\n[by]Jettisoned:[/by] {items}',
 });
