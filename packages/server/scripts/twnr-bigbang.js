@@ -16,7 +16,7 @@ let planetDensity = 0;
 let twoWayPct = 95;
 let seed = 42;
 let warpDist = [...DEFAULT_WARP_DIST];
-let topology = 'random';
+let topology = 'proximal';
 
 for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -84,7 +84,7 @@ if (!outDir) {
     console.error("  --planet-density N      Planet density 0-100");
     console.error("  --two-way-pct N         Two-way warp percentage 0-100");
     console.error("  --warp-dist D1,...,D6   Warp-out degree distribution for 1-6");
-    console.error("  --topology MODE         'random' (default) or 'proximal'");
+    console.error("  --topology MODE         'proximal' (default) or 'random'");
     console.error("  --seed N                Random seed (default: random)");
     process.exit(1);
 }
