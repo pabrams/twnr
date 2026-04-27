@@ -61,3 +61,30 @@ export async function createUser(
     );
     return res.rows[0];
 }
+
+/** Create a guest user account (is_guest=true). Same shape as createUser. */
+export async function createGuestUser(
+    email: string,
+    passwordHash: string,
+    db: Queryable = pool,
+): Promise<UserCreatedRow> {
+    const res = await db.query<UserCreatedRow>(
+        `INSERT INTO users (email, password_hash, role, is_guest)
+         VALUES ($1, $2, 'player', TRUE) RETURNING id, email, role, token_version`,
+        [email, passwordHash],
+    );
+    return res.rows[0];
+}
+
+/** True if the user is a guest account (cleaned up on disconnect). */
+export async function isGuestUser(userId: number, db: Queryable = pool): Promise<boolean> {
+    const res = await db.query<{ is_guest: boolean }>('SELECT is_guest FROM users WHERE id = $1', [
+        userId,
+    ]);
+    return res.rows[0]?.is_guest === true;
+}
+
+/** Delete a user row by id (used to clean up guest accounts post-disconnect). */
+export async function deleteUserById(userId: number, db: Queryable = pool): Promise<void> {
+    await db.query('DELETE FROM users WHERE id = $1', [userId]);
+}

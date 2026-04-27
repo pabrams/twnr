@@ -18,6 +18,8 @@ export type WelcomeEvent = {
     shipName: string;
     coloredShipName: string | null;
     starbaseSector: number | null;
+    /** Guest/demo account — UI shows a warning that the account is ephemeral. */
+    isGuest: boolean;
 };
 
 export type PlayerMovedEvent = {

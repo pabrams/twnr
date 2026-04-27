@@ -253,6 +253,11 @@ export async function deletePlayersInUniverse(
     await db.query('DELETE FROM players WHERE universe_id = $1', [universeId]);
 }
 
+/** Delete a single player row by id. */
+export async function deletePlayerById(playerId: number, db: Queryable = pool): Promise<void> {
+    await db.query('DELETE FROM players WHERE id = $1', [playerId]);
+}
+
 /** Players belonging to a user — used during login to check ship_destroyed_date. */
 export type UserPlayerRow = {
     id: number;
