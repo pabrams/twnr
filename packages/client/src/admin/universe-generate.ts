@@ -73,7 +73,7 @@ function makeTopologyField(): {
         input.type = 'radio';
         input.name = 'topology';
         input.value = val;
-        if (val === 'random') input.checked = true;
+        if (val === 'proximal') input.checked = true;
         wrap.appendChild(input);
         wrap.appendChild(document.createTextNode(val));
         group.appendChild(wrap);
@@ -84,7 +84,7 @@ function makeTopologyField(): {
     hint.style.color = '#666';
     hint.style.fontSize = '11px';
     hint.style.marginTop = '4px';
-    hint.textContent = descriptions.random;
+    hint.textContent = descriptions.proximal;
     row.appendChild(hint);
     for (const input of inputs) {
         input.addEventListener('change', () => {

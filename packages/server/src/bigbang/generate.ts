@@ -29,7 +29,7 @@ export function generateUniverse(options: BigBangOptions): BigBangResult {
     const twoWayPct = options.twoWayPct ?? 95;
     const warpDist = options.warpDist ?? DEFAULT_WARP_DIST;
     const seed = options.seed ?? Math.floor(Math.random() * 2147483647);
-    const topology: Topology = options.topology ?? 'random';
+    const topology: Topology = options.topology ?? 'proximal';
 
     const rng = mulberry32(seed);
 

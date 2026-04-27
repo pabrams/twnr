@@ -61,7 +61,7 @@ function readCSV(filepath) {
 async function main() {
   await connectDB();
 
-  let topology = 'random';
+  let topology = 'proximal';
   const manifestPath = join(universeDir, 'manifest.json');
   if (existsSync(manifestPath)) {
     try {
