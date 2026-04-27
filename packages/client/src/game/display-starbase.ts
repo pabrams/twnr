@@ -1,4 +1,4 @@
-import { Menu } from '@twnr/shared';
+import { ClientMsgType, Menu } from '@twnr/shared';
 import type { ShipCatalogEntry } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { render } from './renderer.js';
@@ -22,10 +22,6 @@ export function showStarbaseHelp(ctx: GameContext) {
     showStarbasePrompt(ctx);
 }
 
-export function showHardwarePrompt(ctx: GameContext) {
-    ctx.term.write(render(STARBASE.hardwarePrompt));
-}
-
 function fmt(n: number): string {
     return n.toLocaleString();
 }
@@ -39,11 +35,6 @@ function visibleLength(s: string): number {
 function padVisible(s: string, width: number): string {
     const n = visibleLength(s);
     return n >= width ? s : s + ' '.repeat(width - n);
-}
-
-export function showHardwareMenu(ctx: GameContext) {
-    ctx.term.writeln(render(STARBASE.hardwareCredits, { credits: fmt(ctx.hardwareStoreCredits) }));
-    showHardwarePrompt(ctx);
 }
 
 /**
@@ -88,7 +79,7 @@ const HW_KEY_MAP: Record<string, string> = {
     recon_drone: 'R',
 };
 
-export function showHardwareHelp(ctx: GameContext) {
+export function showHardwareMenu(ctx: GameContext) {
     const items = ctx.hardwarePrices;
     ctx.term.writeln('');
     if (items) {
@@ -104,7 +95,8 @@ export function showHardwareHelp(ctx: GameContext) {
         }
     }
     ctx.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
-    showHardwarePrompt(ctx);
+    ctx.term.writeln(render(STARBASE.hardwareCredits, { credits: fmt(ctx.hardwareStoreCredits) }));
+    ctx.term.write(render(STARBASE.hardwarePrompt));
 }
 
 export function showBuyQtyPrompt(ctx: GameContext, item: string, canBuy: number) {
@@ -181,7 +173,7 @@ async function loadShipConfigs(ctx: GameContext): Promise<boolean> {
 }
 
 export async function showShipBuyList(ctx: GameContext) {
-    ctx.changeMenu(Menu.ShipyardsBuy);
+    ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsBuy });
     if (!(await loadShipConfigs(ctx))) return;
     ctx.term.writeln('');
     ctx.term.writeln(render(STARBASE.shipyardsBuyHeader));
@@ -201,7 +193,7 @@ export async function showShipBuyList(ctx: GameContext) {
 }
 
 export function showShipExamineList(ctx: GameContext) {
-    ctx.changeMenu(Menu.ShipyardsExamine);
+    ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsExamine });
     showShipListInternal(ctx, 'Examine');
 }
 
@@ -227,7 +219,7 @@ export function showTradeinPrompt(
     price: number,
     tradeinCredit: number,
 ) {
-    ctx.changeMenu(Menu.ShipyardsTradein);
+    ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsTradein });
     ctx.term.writeln('');
     ctx.term.writeln(render(STARBASE.tradeinHeader, { ship: shipName, price: fmt(price) }));
     if (tradeinCredit > 0) {
@@ -238,7 +230,7 @@ export function showTradeinPrompt(
 }
 
 export function showShipyardsClass0Menu(ctx: GameContext) {
-    ctx.changeMenu(Menu.ShipyardsClass0);
+    ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsClass0 });
     showClass0Menu(ctx);
 }
 
@@ -246,6 +238,6 @@ export function showShipyardsClass0QtyPrompt(
     ctx: GameContext,
     item: 'drones' | 'shields' | 'holds',
 ) {
-    ctx.changeMenu(Menu.ShipyardsClass0Qty);
+    ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsClass0Qty });
     showClass0QtyPrompt(ctx, item);
 }

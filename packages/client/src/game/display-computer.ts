@@ -70,7 +70,7 @@ export function renderVisitedSectorsResult(
             unexplored.map((s) => render(COMPUTER.unexploredSector, { n: s })).join(' '),
         );
     }
-    ctx.changeMenu(Menu.Computer);
+    ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Computer });
     showComputerPrompt(ctx);
 }
 

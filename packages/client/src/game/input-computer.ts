@@ -1,6 +1,6 @@
 import { ClientMsgType, Menu } from '@twnr/shared';
 import type { GameContext } from './types.js';
-import { showPrompt } from './display.js';
+import { echoCommand, showPrompt } from './display.js';
 import { letterToIndex } from './display-starbase.js';
 import {
     showComputerHelp,
@@ -23,24 +23,25 @@ import { NOTIFY } from './messages/index.js';
 export function handleComputerInput(ctx: GameContext, line: string) {
     switch (line.toLowerCase()) {
         case 'k':
-            ctx.changeMenu(Menu.KnownUniverse);
+            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.KnownUniverse });
             showKnownUniverseMenu(ctx);
             break;
         case 'l':
             showTraderList(ctx);
             break;
         case 'c':
-            ctx.changeMenu(Menu.ShipCatalog);
+            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipCatalog });
             showShipCatalog(ctx);
             break;
         case 'j':
-            ctx.changeMenu(Menu.PlanetSpecs);
+            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.PlanetSpecs });
             showPlanetSpecs(ctx);
             break;
         case ';':
             showCurrentShipSpecs(ctx);
             break;
         case 'y':
+            echoCommand(ctx, 'listPlanets');
             ctx.sendMsg({ type: ClientMsgType.ListPlanets });
             break;
         case '?':
@@ -48,7 +49,7 @@ export function handleComputerInput(ctx: GameContext, line: string) {
             break;
         case 'q':
             showComputerDeactivated(ctx);
-            ctx.changeMenu(Menu.Sector);
+            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
             showPrompt(ctx);
             break;
         default:
@@ -65,7 +66,7 @@ export function handleKnownUniverseInput(ctx: GameContext, line: string) {
             showUnexploredSectors(ctx);
             break;
         case 'q':
-            ctx.changeMenu(Menu.Computer);
+            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Computer });
             showComputerPrompt(ctx);
             break;
         default:
@@ -76,7 +77,7 @@ export function handleKnownUniverseInput(ctx: GameContext, line: string) {
 export function handleShipCatalogInput(ctx: GameContext, line: string) {
     const lower = line.toLowerCase();
     if (lower === 'q') {
-        ctx.changeMenu(Menu.Computer);
+        ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Computer });
         showComputerPrompt(ctx);
         return;
     }
@@ -97,7 +98,7 @@ export function handleShipCatalogInput(ctx: GameContext, line: string) {
 
 export function handlePlanetSpecsInput(ctx: GameContext, line: string) {
     if (line.toLowerCase() === 'q') {
-        ctx.changeMenu(Menu.Computer);
+        ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Computer });
         showComputerPrompt(ctx);
         return;
     }

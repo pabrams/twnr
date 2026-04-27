@@ -2,6 +2,7 @@ import type { Terminal } from '@xterm/xterm';
 import { ClientMsgType, Menu } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import {
+    echoCommand,
     showPrompt,
     showPortMenu,
     showHelp,
@@ -9,7 +10,6 @@ import {
     showMoveMenu,
     hideMoveMenuOverlay,
 } from './display.js';
-import { COMMAND } from './messages/index.js';
 import { showComputerActivated } from './display-computer.js';
 import { showJettisonConfirm } from './display-port.js';
 import {
@@ -239,14 +239,18 @@ function handleInput(ctx: GameContext, line: string) {
     // Sector mode
     const cmd = line.trim();
     if (/^\d+$/.test(cmd)) {
-        ctx.sendMsg({ type: ClientMsgType.Move, sector: parseInt(cmd, 10) });
+        const sector = parseInt(cmd, 10);
+        echoCommand(ctx, 'move', { sector });
+        ctx.sendMsg({ type: ClientMsgType.Move, sector });
         return;
     }
     switch (cmd.toLowerCase()) {
         case '<':
+            echoCommand(ctx, 'moveToPrevious');
             ctx.sendMsg({ type: ClientMsgType.MoveToPrevious });
             break;
         case '':
+            echoCommand(ctx, 'sectorDisplay');
             ctx.sendMsg({ type: ClientMsgType.SectorDisplay });
             break;
         case 'p':
@@ -254,51 +258,61 @@ function handleInput(ctx: GameContext, line: string) {
                 showPortMenu(ctx); // renders "No port in this sector." + sector prompt
                 break;
             }
-            ctx.changeMenu(Menu.Port);
+            echoCommand(ctx, 'portInfo');
+            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Port });
             showPortMenu(ctx);
             break;
         case 'i':
+            echoCommand(ctx, 'shipInfo');
             showPlayerInfo(ctx);
             break;
         case '?':
             showHelp(ctx);
             break;
         case 'a':
+            echoCommand(ctx, 'attack');
             ctx.sendMsg({ type: ClientMsgType.Attack });
             break;
         case 'c':
-            ctx.changeMenu(Menu.Computer);
+            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Computer });
             showComputerActivated(ctx);
             break;
         case 'm':
-            ctx.changeMenu(Menu.Move);
+            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Move });
             showMoveMenu(ctx);
             break;
         case 'd':
+            echoCommand(ctx, 'deployDronesInfo');
             ctx.sendMsg({ type: ClientMsgType.DeployDronesInfo });
             break;
         case 'j':
-            ctx.changeMenu(Menu.JettisonConfirm);
+            echoCommand(ctx, 'jettison');
+            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.JettisonConfirm });
             showJettisonConfirm(ctx);
             break;
         case 'g':
+            echoCommand(ctx, 'listDeployedDrones');
             ctx.sendMsg({ type: ClientMsgType.ListDeployedDrones });
             break;
         case 'l':
+            echoCommand(ctx, 'land');
             ctx.sendMsg({ type: ClientMsgType.Land });
             break;
         case 'u':
+            echoCommand(ctx, 'terraformInfo');
             ctx.sendMsg({ type: ClientMsgType.TerraformInfo });
             break;
         case 'v':
+            echoCommand(ctx, 'starbaseInfo');
             ctx.sendMsg({ type: ClientMsgType.StarbaseInfo });
             break;
         case 'q':
-            ctx.term.writeln(render(COMMAND.quit));
-            ctx.changeMenu(Menu.QuitConfirm);
+            echoCommand(ctx, 'quit');
+            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.QuitConfirm });
             ctx.term.write(render(NOTIFY.quitConfirm));
             break;
         case '#':
+            echoCommand(ctx, 'playersOnline');
             ctx.sendMsg({ type: ClientMsgType.PlayersOnline });
             break;
         default:
@@ -316,7 +330,7 @@ function handleQuitConfirmInput(ctx: GameContext, line: string) {
             return;
         case '':
         case 'n':
-            ctx.changeMenu(Menu.Sector);
+            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
             showPrompt(ctx);
             return;
         default:
@@ -328,11 +342,12 @@ function handleTerraformConfirmInput(ctx: GameContext, line: string) {
     const t = line.trim().toLowerCase();
     switch (t) {
         case 'y':
+            echoCommand(ctx, 'useTerraformDevice');
             ctx.sendMsg({ type: ClientMsgType.UseTerraformDevice });
             return;
         case '':
         case 'n':
-            ctx.changeMenu(Menu.Sector);
+            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
             showPrompt(ctx);
             return;
         default:
@@ -348,7 +363,7 @@ function handleMoveMenuInput(ctx: GameContext, line: string) {
     }
     if (cmd.toLowerCase() === 'q') {
         hideMoveMenuOverlay(ctx);
-        ctx.changeMenu(Menu.Sector);
+        ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
         showPrompt(ctx);
         return;
     }
@@ -356,7 +371,9 @@ function handleMoveMenuInput(ctx: GameContext, line: string) {
     const idx = parseInt(cmd, 10) - 1;
     if (idx >= 0 && idx < warps.length) {
         hideMoveMenuOverlay(ctx);
-        ctx.sendMsg({ type: ClientMsgType.Move, sector: warps[idx].sector });
+        const sector = warps[idx].sector;
+        echoCommand(ctx, 'move', { sector });
+        ctx.sendMsg({ type: ClientMsgType.Move, sector });
         return;
     }
     ctx.term.writeln(render(NOTIFY.invalidSelection));
@@ -367,16 +384,18 @@ function handlePortInput(ctx: GameContext, line: string) {
     switch (line.toLowerCase()) {
         case 't':
             if (ctx.currentPort?.class !== 9) {
+                echoCommand(ctx, 'dock');
                 ctx.sendMsg({ type: ClientMsgType.Dock });
             }
             break;
         case 's':
             if (ctx.currentPort?.class === 9) {
+                echoCommand(ctx, 'dockStarbase');
                 ctx.sendMsg({ type: ClientMsgType.DockStarbase });
             }
             break;
         case 'q':
-            ctx.changeMenu(Menu.Sector);
+            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
             showPrompt(ctx);
             break;
     }
@@ -387,7 +406,10 @@ function handleTradeQtyInput(ctx: GameContext, line: string) {
     // Empty input = accept default
     const qty = trimmed === '' ? -1 : parseInt(trimmed, 10);
     if (isNaN(qty) || qty < -1) return;
-    // -1 signals "use default maxQty" to the server, 0 = skip
+    // -1 signals "use default maxQty" to the server, 0 = skip.
+    // The TradeResponse here is the qty submission for an in-progress
+    // trade flow (the <Trade at Port> echo already fired when the user
+    // pressed T at the port menu); no echo at this step.
     ctx.sendMsg({ type: ClientMsgType.TradeResponse, quantity: qty === -1 ? -1 : qty });
 }
 
