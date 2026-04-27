@@ -15,8 +15,9 @@ export interface GameContext {
     term: Terminal;
     ws: WebSocket;
     universeId: number;
+    /** Send a client→server command. Pure network dispatch — UI echoes are
+     *  the input handler's responsibility (see `echoCommand` in display.ts). */
     sendMsg: (msg: ClientCommand) => void;
-    changeMenu: (menu: MenuName) => void;
     setDebug: (on: boolean) => void;
 
     mode: MenuName;
@@ -66,8 +67,6 @@ export interface GameContext {
     starbaseBuyDefault: number;
     shipyardsBuyTarget: string | null;
     landablePlanets: { id: number; name: string; type: string }[] | null;
-
-    /** Mini-map panel (undefined if the panel element is missing). */
     minimap?: Minimap;
     /** Submit a text line as if the user had typed it into the xterm (used by the mini-map). */
     submitLineFromMap: (line: string) => void;

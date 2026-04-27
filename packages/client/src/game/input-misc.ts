@@ -1,6 +1,6 @@
 import { ClientMsgType, Menu } from '@twnr/shared';
 import type { GameContext } from './types.js';
-import { showPrompt } from './display.js';
+import { echoCommand, showPrompt } from './display.js';
 import { showClass0Menu, showClass0QtyPrompt, class0MaxBuy } from './display-port.js';
 import {
     showPlanetTakePrompt,
@@ -11,25 +11,27 @@ import {
     showPlanetHelp,
 } from './display-planet.js';
 import { render } from './renderer.js';
-import { NOTIFY, EVENT } from './messages/index.js';
+import { COMMAND, NOTIFY, EVENT } from './messages/index.js';
 
 export function handleClass0Input(ctx: GameContext, line: string) {
-    const choose = (kind: 'drones' | 'shields' | 'holds') => {
+    const choose = (kind: 'drones' | 'shields' | 'holds', echoKey: keyof typeof COMMAND) => {
+        echoCommand(ctx, echoKey);
         ctx.class0BuyType = kind;
-        ctx.changeMenu(Menu.Class0Qty);
+        ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Class0Qty });
         showClass0QtyPrompt(ctx, kind);
     };
     switch (line.toLowerCase()) {
         case 'a':
-            choose('holds');
+            choose('holds', 'buyHolds');
             break;
         case 'b':
-            choose('drones');
+            choose('drones', 'buyDrones');
             break;
         case 'c':
-            choose('shields');
+            choose('shields', 'buyShields');
             break;
         case 'q':
+            echoCommand(ctx, 'undock');
             ctx.sendMsg({ type: ClientMsgType.Undock });
             break;
         case '?':
@@ -41,7 +43,7 @@ export function handleClass0Input(ctx: GameContext, line: string) {
 export function handleClass0QtyInput(ctx: GameContext, line: string) {
     const trimmed = line.trim();
     if (trimmed.toLowerCase() === 'q') {
-        ctx.changeMenu(Menu.Class0);
+        ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Class0 });
         showClass0Menu(ctx);
         return;
     }
@@ -55,10 +57,12 @@ export function handleClass0QtyInput(ctx: GameContext, line: string) {
         return;
     }
     if (qty === 0) {
-        ctx.changeMenu(Menu.Class0);
+        ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Class0 });
         showClass0Menu(ctx);
         return;
     }
+    // qty submission for an in-progress Buy flow — the echo already fired
+    // when the user picked A/B/C from the commerce report.
     switch (kind) {
         case 'drones':
             ctx.sendMsg({ type: ClientMsgType.BuyDrones, quantity: qty });
@@ -86,7 +90,7 @@ export function handleAutopilotPromptInput(ctx: GameContext, line: string) {
         case 'n':
             ctx.autopilotPath = [];
             ctx.autopilotStep = 0;
-            ctx.changeMenu(Menu.Sector);
+            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
             showPrompt(ctx);
             break;
     }
@@ -95,12 +99,14 @@ export function handleAutopilotPromptInput(ctx: GameContext, line: string) {
 export function handleJettisonConfirmInput(ctx: GameContext, line: string) {
     switch (line.toLowerCase()) {
         case 'y':
+            // Confirmation step — the <Jettison> echo fired when the user
+            // pressed J at the sector menu.
             ctx.sendMsg({ type: ClientMsgType.Jettison });
-            ctx.changeMenu(Menu.Sector);
+            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
             break;
         case '':
         case 'n':
-            ctx.changeMenu(Menu.Sector);
+            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
             showPrompt(ctx);
             break;
     }
@@ -109,21 +115,28 @@ export function handleJettisonConfirmInput(ctx: GameContext, line: string) {
 export function handlePlanetInput(ctx: GameContext, line: string) {
     switch (line.trim().toLowerCase()) {
         case 't':
-            ctx.changeMenu(Menu.PlanetTakeCommodity);
+            // Multi-step flow: echo at the user keystroke, gather commodity
+            // + qty client-side, then ship one ClientMsg at the end.
+            echoCommand(ctx, 'takeColonists');
+            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.PlanetTakeCommodity });
             showPlanetTakeCommodityMenu(ctx);
             break;
         case 'l':
-            ctx.changeMenu(Menu.PlanetLeaveCommodity);
+            echoCommand(ctx, 'leaveColonists');
+            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.PlanetLeaveCommodity });
             showPlanetLeaveCommodityMenu(ctx);
             break;
         case '':
         case 'd':
+            echoCommand(ctx, 'planetDisplay');
             ctx.sendMsg({ type: ClientMsgType.PlanetDisplay });
             break;
         case 'z':
+            echoCommand(ctx, 'destroyPlanet');
             ctx.sendMsg({ type: ClientMsgType.DestroyPlanet });
             break;
         case 'q':
+            echoCommand(ctx, 'leavePlanet');
             ctx.sendMsg({ type: ClientMsgType.LeavePlanet });
             break;
         case '?':
@@ -135,16 +148,19 @@ export function handlePlanetInput(ctx: GameContext, line: string) {
 export function handlePlanetEarthInput(ctx: GameContext, line: string) {
     switch (line.toLowerCase()) {
         case 't':
+            echoCommand(ctx, 'takeColonists');
             ctx.colonistCommodity = 'fuel';
-            ctx.changeMenu(Menu.PlanetTakeQty);
+            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.PlanetTakeQty });
             showPlanetTakePrompt(ctx);
             break;
         case 'l':
+            echoCommand(ctx, 'leaveColonists');
             ctx.colonistCommodity = 'fuel';
-            ctx.changeMenu(Menu.PlanetLeaveQty);
+            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.PlanetLeaveQty });
             showPlanetLeavePrompt(ctx);
             break;
         case 'q':
+            echoCommand(ctx, 'leavePlanet');
             ctx.sendMsg({ type: ClientMsgType.LeavePlanet });
             break;
     }
@@ -154,21 +170,21 @@ export function handlePlanetTakeCommodityInput(ctx: GameContext, line: string) {
     switch (line.toLowerCase()) {
         case 'f':
             ctx.colonistCommodity = 'fuel';
-            ctx.changeMenu(Menu.PlanetTakeQty);
+            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.PlanetTakeQty });
             showPlanetTakePrompt(ctx);
             break;
         case 'o':
             ctx.colonistCommodity = 'organics';
-            ctx.changeMenu(Menu.PlanetTakeQty);
+            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.PlanetTakeQty });
             showPlanetTakePrompt(ctx);
             break;
         case 'e':
             ctx.colonistCommodity = 'equipment';
-            ctx.changeMenu(Menu.PlanetTakeQty);
+            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.PlanetTakeQty });
             showPlanetTakePrompt(ctx);
             break;
         case 'q':
-            ctx.changeMenu(Menu.Planet);
+            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Planet });
             showPlanetMenuOptions(ctx);
             break;
     }
@@ -178,39 +194,51 @@ export function handlePlanetLeaveCommodityInput(ctx: GameContext, line: string) 
     switch (line.toLowerCase()) {
         case 'f':
             ctx.colonistCommodity = 'fuel';
-            ctx.changeMenu(Menu.PlanetLeaveQty);
+            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.PlanetLeaveQty });
             showPlanetLeavePrompt(ctx);
             break;
         case 'o':
             ctx.colonistCommodity = 'organics';
-            ctx.changeMenu(Menu.PlanetLeaveQty);
+            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.PlanetLeaveQty });
             showPlanetLeavePrompt(ctx);
             break;
         case 'e':
             ctx.colonistCommodity = 'equipment';
-            ctx.changeMenu(Menu.PlanetLeaveQty);
+            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.PlanetLeaveQty });
             showPlanetLeavePrompt(ctx);
             break;
         case 'q':
-            ctx.changeMenu(Menu.Planet);
+            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Planet });
             showPlanetMenuOptions(ctx);
             break;
     }
 }
 
+function backToPlanetMenu(ctx: GameContext) {
+    const target = ctx.currentSector === 1 ? Menu.PlanetEarth : Menu.Planet;
+    ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: target });
+    showPlanetMenuOptions(ctx);
+}
+
 export function handlePlanetTakeQtyInput(ctx: GameContext, line: string) {
     const trimmed = line.trim();
     if (trimmed.toLowerCase() === 'q') {
-        ctx.changeMenu(Menu.Sector);
-        showPrompt(ctx);
+        backToPlanetMenu(ctx);
         return;
     }
-    // Empty Enter → accept default (fill free holds; server computes)
+    // Empty Enter → accept default (fill free holds; server computes).
     const qty = trimmed === '' ? -1 : parseInt(trimmed, 10);
-    if (qty !== -1 && (isNaN(qty) || qty <= 0)) {
+    if (qty === 0) {
+        // 0 colonists = nothing to do; cancel back to the planet menu.
+        backToPlanetMenu(ctx);
+        return;
+    }
+    if (qty !== -1 && (isNaN(qty) || qty < 0)) {
         ctx.term.writeln('Enter a positive number.');
         return;
     }
+    // qty submission for an in-progress take-colonists flow — the echo
+    // already fired when the user pressed T at the planet menu.
     ctx.sendMsg({
         type: ClientMsgType.TakeColonists,
         quantity: qty,
@@ -221,17 +249,21 @@ export function handlePlanetTakeQtyInput(ctx: GameContext, line: string) {
 export function handlePlanetLeaveQtyInput(ctx: GameContext, line: string) {
     const trimmed = line.trim();
     if (trimmed.toLowerCase() === 'q') {
-        const target = ctx.currentSector === 1 ? Menu.PlanetEarth : Menu.Planet;
-        ctx.changeMenu(target);
-        showPlanetMenuOptions(ctx);
+        backToPlanetMenu(ctx);
         return;
     }
-    // Empty Enter → accept default (leave all ship colonists; server computes)
+    // Empty Enter → accept default (leave all ship colonists; server computes).
     const qty = trimmed === '' ? -1 : parseInt(trimmed, 10);
-    if (qty !== -1 && (isNaN(qty) || qty <= 0)) {
+    if (qty === 0) {
+        backToPlanetMenu(ctx);
+        return;
+    }
+    if (qty !== -1 && (isNaN(qty) || qty < 0)) {
         ctx.term.writeln('Enter a positive number.');
         return;
     }
+    // qty submission for an in-progress leave-colonists flow — the echo
+    // already fired when the user pressed L at the planet menu.
     ctx.sendMsg({
         type: ClientMsgType.LeaveColonists,
         quantity: qty,

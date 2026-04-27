@@ -2,7 +2,24 @@ import { ClientMsgType } from '@twnr/shared';
 import type { SectorRef } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { render } from './renderer.js';
-import { SECTOR, HELP, HELP_LINES, PORT, COMMON } from './messages/index.js';
+import { COMMAND, SECTOR, HELP, HELP_LINES, PORT, COMMON } from './messages/index.js';
+
+/**
+ * Echo a command-name banner (e.g. `<Move>`, `<Take Colonists>`) to the
+ * terminal. Called from input handlers when the user keys a command at a
+ * menu — *not* from sendMsg. The two are deliberately decoupled because
+ * multi-step flows (e.g. Take Colonists → commodity → qty) start with a
+ * user keystroke that should echo immediately, but the corresponding
+ * ClientMsg isn't sent until the prompts are filled in.
+ */
+export function echoCommand(
+    ctx: GameContext,
+    key: keyof typeof COMMAND,
+    vars?: Record<string, unknown>,
+): void {
+    const tpl = COMMAND[key];
+    if (tpl) ctx.term.writeln(render(tpl, vars ?? {}));
+}
 
 function colorSectorRef(ref: SectorRef): string {
     const tpl = ref.visited ? SECTOR.warpVisited : SECTOR.warpUnvisited;

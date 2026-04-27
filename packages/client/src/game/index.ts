@@ -5,8 +5,6 @@ import type { ClientCommand, MenuEntry } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { setupConnection } from './connection.js';
 import { setupInput } from './input.js';
-import { COMMAND } from './messages/index.js';
-import { render } from './renderer.js';
 import { createMinimap, flashTerminalBorder } from './minimap.js';
 
 export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect: () => void) {
@@ -46,13 +44,6 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
 
     function sendMsg(msg: ClientCommand) {
         if (ws.readyState !== WebSocket.OPEN) return;
-
-        // Echo command to the terminal (skip if no template exists for this type)
-        const tpl = (COMMAND as Record<string, string | undefined>)[msg.type];
-        if (tpl) {
-            term.writeln(render(tpl, msg as unknown as Record<string, unknown>));
-        }
-
         if (ctx.debug) {
             const lines = JSON.stringify(msg, null, 2).split('\n');
             term.writeln(`\r\n\x1b[38;5;243m→ ${lines[0]}\x1b[0m`);
@@ -68,10 +59,6 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
         ws,
         universeId,
         sendMsg,
-        changeMenu: (m) => {
-            ctx.mode = m;
-            sendMsg({ type: ClientMsgType.ChangeMenu, menu: m });
-        },
         setDebug: (on) => {
             ctx.debug = on;
             term.writeln(`\r\n\x1b[38;5;243m[debug ${on ? 'ON' : 'OFF'}]\x1b[0m`);

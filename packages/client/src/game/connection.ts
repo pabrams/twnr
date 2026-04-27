@@ -506,31 +506,39 @@ export function setupConnection(ws: WebSocket, ctx: GameContext, onDisconnect: (
                 showPrompt(ctx);
                 break;
             case ServerMsgType.BuyShipTradeinResult:
+            case ServerMsgType.BuyShipNewResult: {
                 ctx.currentShipName = msg.shipName;
                 ctx.currentColoredShipName = msg.coloredShipName;
+                const tpl =
+                    msg.type === ServerMsgType.BuyShipTradeinResult
+                        ? TRANSACTION.shipExchanged
+                        : TRANSACTION.shipPurchased;
                 ctx.term.writeln(
-                    render(TRANSACTION.shipExchanged, {
-                        name: msg.coloredShipName ?? msg.shipName,
-                    }),
+                    render(tpl, { name: msg.coloredShipName ?? msg.shipName }),
                 );
                 ctx.term.writeln(
                     render(TRANSACTION.shipCreditsLine, { credits: fmt(msg.credits) }),
                 );
+                // Refresh class0ShipState so the next commerce report reflects
+                // the new ship's max stats. The new ship starts empty (drones=0,
+                // shields=0); current cargoLimit comes from the result, and
+                // maxHolds comes from the catalog (server doesn't include it).
+                if (ctx.class0ShipState) {
+                    const cfg = ctx.shipConfigs?.find((s) => s.name === msg.shipName);
+                    ctx.class0ShipState = {
+                        shipName: msg.shipName,
+                        credits: msg.credits,
+                        drones: 0,
+                        maxDrones: msg.maxDrones,
+                        shields: 0,
+                        maxShields: msg.maxShields,
+                        holds: msg.cargoLimit,
+                        maxHolds: cfg?.max_holds ?? msg.cargoLimit,
+                    };
+                }
                 showShipyardsMenu(ctx);
                 break;
-            case ServerMsgType.BuyShipNewResult:
-                ctx.currentShipName = msg.shipName;
-                ctx.currentColoredShipName = msg.coloredShipName;
-                ctx.term.writeln(
-                    render(TRANSACTION.shipPurchased, {
-                        name: msg.coloredShipName ?? msg.shipName,
-                    }),
-                );
-                ctx.term.writeln(
-                    render(TRANSACTION.shipCreditsLine, { credits: fmt(msg.credits) }),
-                );
-                showShipyardsMenu(ctx);
-                break;
+            }
             case ServerMsgType.PlanetInfoResult:
                 if (msg.hasPlanet) showPlanetMenu(ctx, msg.name, msg.colonists);
                 else showNoPlanet(ctx);
@@ -848,8 +856,6 @@ export function setupConnection(ws: WebSocket, ctx: GameContext, onDisconnect: (
                 );
                 refreshMinimap();
                 break;
-            case ServerMsgType.MenuChanged:
-                break;
             case ServerMsgType.VisitedSectorsResult:
                 renderVisitedSectorsResult(ctx, msg);
                 break;
@@ -1009,6 +1015,15 @@ export function setupConnection(ws: WebSocket, ctx: GameContext, onDisconnect: (
                     showPrompt(ctx);
                 } else if (ctx.mode === Menu.DroneEncounter || ctx.mode === Menu.DroneAttackQty) {
                     // stay in encounter mode
+                } else if (ctx.mode === Menu.ShipyardsClass0Qty) {
+                    // Failed buy from the shipyards Class-0 menu — drop back
+                    // to that Class-0 menu (not all the way to Shipyards) so
+                    // the user can pick a different item.
+                    ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsClass0 });
+                    showClass0Menu(ctx);
+                } else if (ctx.mode === Menu.Class0Qty) {
+                    ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Class0 });
+                    showClass0Menu(ctx);
                 } else if (ctx.mode.startsWith(Menu.Shipyards)) {
                     showShipyardsMenu(ctx);
                 } else if (ctx.mode === Menu.StarbaseHardware) {

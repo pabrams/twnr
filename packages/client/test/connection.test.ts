@@ -64,7 +64,6 @@ function createMockCtx(overrides: Partial<GameContext> = {}): GameContext {
         ws: {} as WebSocket,
         universeId: 1,
         sendMsg: vi.fn(),
-        changeMenu: vi.fn(),
         setDebug: vi.fn(),
         mode: Menu.Sector as MenuName,
         currentSector: 1,
