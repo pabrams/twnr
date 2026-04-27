@@ -12,6 +12,7 @@ const emailInput = document.getElementById('auth-email') as HTMLInputElement;
 const passwordInput = document.getElementById('auth-password') as HTMLInputElement;
 const submitBtn = document.getElementById('auth-submit') as HTMLButtonElement;
 const toggleBtn = document.getElementById('auth-toggle') as HTMLButtonElement;
+const guestBtn = document.getElementById('auth-guest') as HTMLButtonElement;
 const errorDiv = document.getElementById('auth-error')!;
 
 const universeDiv = document.getElementById('universe-select')!;
@@ -64,7 +65,7 @@ adminBtn.addEventListener('click', () => {
 });
 
 setupAuthScreen(
-    { nameInput, emailInput, passwordInput, submitBtn, toggleBtn, errorDiv },
+    { nameInput, emailInput, passwordInput, submitBtn, toggleBtn, guestBtn, errorDiv },
     (data) => {
         if (data.role === 'admin') {
             adminBtn.style.display = '';
@@ -72,5 +73,13 @@ setupAuthScreen(
             adminBtn.style.display = 'none';
         }
         showUniverseSelect();
+    },
+    (universeId) => {
+        // Guest: skip universe-select, drop straight into the assigned universe.
+        adminBtn.style.display = 'none';
+        showScreen('game');
+        startGame(universeId, termDiv, () => {
+            showUniverseSelect();
+        });
     },
 );

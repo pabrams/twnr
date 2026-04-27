@@ -13,7 +13,12 @@ import type { AuthTokenPayload, ClientCommand, ServerResult } from '@twnr/shared
 import { shipConfigs } from './ship-config.js';
 import { players, sendEnvelope, sendError, broadcastTo } from './game-state.js';
 import { handleMessage } from './handlers/message-router.js';
-import { getUserTokenVersion, markUserConnected } from './db/queries/user.js';
+import {
+    getUserTokenVersion,
+    markUserConnected,
+    isGuestUser,
+    deleteUserById,
+} from './db/queries/user.js';
 import {
     getPlayerConnectInfo,
     markPlayerLoggedIn,
@@ -21,6 +26,10 @@ import {
     markSectorVisited,
     setPlayerCurrentMenu,
     logPlayerCommand,
+    deleteVisitedSectorsForPlayers,
+    clearShipIdsForPlayers,
+    deleteShipsByOwners,
+    deletePlayerById,
 } from './db/queries/player.js';
 import { countSectorsInUniverse, getStarbaseSectorNumber } from './db/queries/sector.js';
 
@@ -156,9 +165,10 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             docked: false,
             currentMenu: 'sector',
         };
-        const [totalSectors, starbaseSector] = await Promise.all([
+        const [totalSectors, starbaseSector, guestFlag] = await Promise.all([
             countSectorsInUniverse(universeId),
             getStarbaseSectorNumber(universeId),
+            isGuestUser(userId),
         ]);
         const welcomeMsg: ServerResult = {
             type: ServerMsgType.Welcome,
@@ -169,6 +179,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             shipName: playerRow.ship_name ?? '',
             coloredShipName: playerRow.ship_display_name ?? null,
             starbaseSector,
+            isGuest: guestFlag,
             token: auth.signPlayerToken({
                 userId,
                 name: playerRow.name,
@@ -217,10 +228,24 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             const lastUniverse = players[playerId]?.universeId;
             delete players[playerId];
 
-            // Record logout/disconnect timestamp
-            markPlayerLoggedOut(playerId).catch((err) =>
-                console.error('Failed to set last_logout_at:', err),
-            );
+            (async () => {
+                // Guest accounts are ephemeral: delete the player row, the
+                // ship, visited-sector history, and finally the user. For
+                // non-guest users we just stamp the disconnect timestamp.
+                try {
+                    if (await isGuestUser(userId)) {
+                        await deleteVisitedSectorsForPlayers([playerId]);
+                        await clearShipIdsForPlayers([playerId]);
+                        await deleteShipsByOwners([playerId]);
+                        await deletePlayerById(playerId);
+                        await deleteUserById(userId);
+                    } else {
+                        await markPlayerLoggedOut(playerId);
+                    }
+                } catch (err) {
+                    console.error('Disconnect cleanup error:', err);
+                }
+            })();
 
             if (lastSector && lastUniverse) {
                 const clientsToNotify = new Set<WebSocket>();

@@ -10,6 +10,10 @@ export const NOTIFY = makeDomain('NOTIFY', {
     connectionError: '\r\n[br]Connection error.[/br]',
 
     welcome: '\r\n[bg]Welcome, {name}.[/bg]',
+    welcomeGuest:
+        '\r\n[by]*** Guest demo account ***[/by]' +
+        '\r\n[y]This account and its progress will be deleted when you log out or disconnect.[/y]' +
+        '\r\n[y]Register an email account to keep your progress.[/y]',
     goodbye: '\r\n[w]Disconnecting...[/w]',
 
     playerIn: '\r\n[by][bm]{name}[/bm] warped into the sector.[/by]',

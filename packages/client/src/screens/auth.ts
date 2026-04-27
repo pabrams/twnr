@@ -5,9 +5,11 @@ export function setupAuthScreen(
         passwordInput: HTMLInputElement;
         submitBtn: HTMLButtonElement;
         toggleBtn: HTMLButtonElement;
+        guestBtn: HTMLButtonElement;
         errorDiv: HTMLElement;
     },
     onSuccess: (data: { userId?: number; role?: string }) => void,
+    onGuestSuccess: (universeId: number) => void,
 ) {
     let isLogin = false;
 
@@ -51,11 +53,32 @@ export function setupAuthScreen(
         }
     }
 
+    async function handleGuest() {
+        elements.errorDiv.textContent = '';
+        elements.guestBtn.disabled = true;
+        try {
+            const res = await fetch('/api/auth/guest', { method: 'POST' });
+            const data = await res.json();
+            if (!res.ok) {
+                elements.errorDiv.textContent = data.error || 'Could not create guest session.';
+                return;
+            }
+            // Guest path bypasses universe-select and jumps straight into the
+            // game with the universe id the server picked/bootstrapped.
+            onGuestSuccess(data.universeId);
+        } catch {
+            elements.errorDiv.textContent = 'Could not reach server.';
+        } finally {
+            elements.guestBtn.disabled = false;
+        }
+    }
+
     elements.toggleBtn.addEventListener('click', () => {
         isLogin = !isLogin;
         updateAuthMode();
     });
     elements.submitBtn.addEventListener('click', handleAuth);
+    elements.guestBtn.addEventListener('click', handleGuest);
     elements.passwordInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') handleAuth();
     });

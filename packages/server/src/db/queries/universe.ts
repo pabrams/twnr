@@ -41,6 +41,12 @@ export async function universeExists(universeId: number, db: Queryable = pool): 
     return res.rows.length > 0;
 }
 
+/** Lowest-id universe (the "first" one). null if none exist. */
+export async function getFirstUniverseId(db: Queryable = pool): Promise<number | null> {
+    const res = await db.query<{ id: number }>('SELECT id FROM universes ORDER BY id ASC LIMIT 1');
+    return res.rows[0]?.id ?? null;
+}
+
 /** Basic universe metadata for a stats display. */
 export type UniverseBasicInfoRow = {
     id: number;

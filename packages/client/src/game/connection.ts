@@ -172,6 +172,9 @@ export function setupConnection(ws: WebSocket, ctx: GameContext, onDisconnect: (
                 ctx.currentColoredShipName = msg.coloredShipName;
                 ctx.starbaseSector = msg.starbaseSector;
                 ctx.term.writeln(render(NOTIFY.welcome, { name: msg.name }));
+                if (msg.isGuest) {
+                    ctx.term.writeln(render(NOTIFY.welcomeGuest));
+                }
                 ctx.sendMsg({ type: ClientMsgType.SectorDisplay });
                 refreshMinimap();
                 break;

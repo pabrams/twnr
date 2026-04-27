@@ -20,7 +20,8 @@ export const connectDB = async (): Promise<void> => {
         password_hash VARCHAR(255) NOT NULL,
         role VARCHAR(50) NOT NULL DEFAULT 'player',
         token_version INTEGER NOT NULL DEFAULT 1,
-        last_connected_at TIMESTAMPTZ
+        last_connected_at TIMESTAMPTZ,
+        is_guest BOOLEAN NOT NULL DEFAULT FALSE
       );
 
       -- Tracks which one-shot data migrations have been applied so we can
