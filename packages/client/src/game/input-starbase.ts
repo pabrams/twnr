@@ -269,7 +269,10 @@ export function handleShipyardsExamineInput(ctx: GameContext, line: string) {
 }
 
 export function handleShipyardsClass0Input(ctx: GameContext, line: string) {
-    const choose = (kind: 'drones' | 'shields' | 'holds', echoKey: 'buyHolds' | 'buyDrones' | 'buyShields') => {
+    const choose = (
+        kind: 'drones' | 'shields' | 'holds',
+        echoKey: 'buyHolds' | 'buyDrones' | 'buyShields',
+    ) => {
         echoCommand(ctx, echoKey);
         ctx.class0BuyType = kind;
         ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsClass0Qty });

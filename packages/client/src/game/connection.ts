@@ -612,9 +612,7 @@ export function setupConnection(ws: WebSocket, ctx: GameContext, onDisconnect: (
                     msg.type === ServerMsgType.BuyShipTradeinResult
                         ? TRANSACTION.shipExchanged
                         : TRANSACTION.shipPurchased;
-                ctx.term.writeln(
-                    render(tpl, { name: msg.coloredShipName ?? msg.shipName }),
-                );
+                ctx.term.writeln(render(tpl, { name: msg.coloredShipName ?? msg.shipName }));
                 ctx.term.writeln(
                     render(TRANSACTION.shipCreditsLine, { credits: fmt(msg.credits) }),
                 );
