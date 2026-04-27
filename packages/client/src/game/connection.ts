@@ -4,27 +4,126 @@ import type { GameContext } from './types.js';
 
 import { render } from './renderer.js';
 import { NOTIFY, TRANSACTION, EVENT, PANEL, PORT, SECTOR } from './messages/index.js';
-import { showSectorDisplay, showCommerceReport, showPrompt } from './display.js';
-import { showClass0Menu, showAutopilotPrompt, showTradeQtyPrompt } from './display-port.js';
+import {
+    showSectorDisplay,
+    showCommerceReport,
+    showPrompt,
+    showMoveMenu,
+    showPortMenu,
+} from './display.js';
+import {
+    showClass0Menu,
+    showClass0QtyPrompt,
+    showAutopilotPrompt,
+    showTradeQtyPrompt,
+    showJettisonConfirm,
+} from './display-port.js';
 import {
     showPlanetMenu,
     showPlanetMenuOptions,
     showEarthMenu,
     showNoPlanet,
+    showPlanetTakePrompt,
+    showPlanetLeavePrompt,
+    showPlanetTakeCommodityMenu,
+    showPlanetLeaveCommodityMenu,
 } from './display-planet.js';
-import { showDroneEncounter, showAttackMenu } from './display-combat.js';
+import {
+    showDroneEncounter,
+    showAttackMenu,
+    showAttackDronesPrompt,
+    showDroneAttackQtyPrompt,
+} from './display-combat.js';
 import {
     showStarbaseMenu,
     showHardwareMenu,
     showPlanetSelectMenu,
     showShipyardsMenu,
+    showShipBuyList,
+    showShipExamineList,
+    showTradeinPrompt,
+    showShipyardsClass0Menu,
+    showShipyardsClass0QtyPrompt,
+    showBuyQtyPrompt,
 } from './display-starbase.js';
-import { renderVisitedSectorsResult, showComputerPrompt } from './display-computer.js';
+import {
+    renderVisitedSectorsResult,
+    showComputerPrompt,
+    showKnownUniverseMenu,
+    showShipCatalog,
+    showPlanetSpecs,
+} from './display-computer.js';
 import { PORT_CLASS_ACTIONS } from './constants.js';
+import { drainInputQueue } from './input.js';
 
 function fmt(n: number): string {
     return n.toLocaleString();
 }
+
+/**
+ * Dispatch table for the MenuChanged envelope: maps each menu the player can
+ * land in via plain `ChangeMenu` to the render
+ * call that paints it. Every entry takes only `ctx` and reads any extra args
+ * from ctx fields stashed by the input handler before the transition was sent.
+ *
+ * Menus *not* listed here are entered via a specific Result type (e.g.
+ * SectorDisplayResult, HardwareStoreInfoResult, DockResult) whose handler does
+ * its own rendering — the dispatcher should be a no-op in those cases.
+ */
+const MENU_RENDERERS: Partial<Record<MenuName, (ctx: GameContext) => void>> = {
+    [Menu.Sector]: showPrompt,
+    [Menu.Computer]: showComputerPrompt,
+    [Menu.KnownUniverse]: showKnownUniverseMenu,
+    [Menu.ShipCatalog]: (ctx) => {
+        showShipCatalog(ctx);
+    },
+    [Menu.PlanetSpecs]: (ctx) => {
+        showPlanetSpecs(ctx);
+    },
+    [Menu.Starbase]: showStarbaseMenu,
+    [Menu.Shipyards]: showShipyardsMenu,
+    [Menu.ShipyardsBuy]: (ctx) => {
+        showShipBuyList(ctx);
+    },
+    [Menu.ShipyardsExamine]: showShipExamineList,
+    [Menu.ShipyardsTradein]: (ctx) =>
+        showTradeinPrompt(
+            ctx,
+            ctx.shipyardsBuyDisplayName ?? '',
+            ctx.shipyardsBuyPrice,
+            ctx.shipyardsBuyTradein,
+        ),
+    [Menu.ShipyardsClass0]: showShipyardsClass0Menu,
+    [Menu.ShipyardsClass0Qty]: (ctx) => {
+        if (ctx.class0BuyType) showShipyardsClass0QtyPrompt(ctx, ctx.class0BuyType);
+    },
+    [Menu.StarbaseBuyQty]: (ctx) =>
+        showBuyQtyPrompt(ctx, ctx.starbaseBuyLabel ?? '', ctx.starbaseBuyDefault),
+    [Menu.StarbaseHardware]: showHardwareMenu,
+    [Menu.Class0]: (ctx) => {
+        showClass0Menu(ctx);
+    },
+    [Menu.Class0Qty]: (ctx) => {
+        if (ctx.class0BuyType) showClass0QtyPrompt(ctx, ctx.class0BuyType);
+    },
+    [Menu.Move]: showMoveMenu,
+    [Menu.JettisonConfirm]: showJettisonConfirm,
+    [Menu.QuitConfirm]: (ctx) => {
+        ctx.term.write(render(NOTIFY.quitConfirm));
+    },
+    [Menu.TerraformConfirm]: (ctx) => {
+        ctx.term.write(render(NOTIFY.terraformConfirm));
+    },
+    [Menu.Planet]: showPlanetMenuOptions,
+    [Menu.PlanetEarth]: showPlanetMenuOptions,
+    [Menu.PlanetTakeCommodity]: showPlanetTakeCommodityMenu,
+    [Menu.PlanetLeaveCommodity]: showPlanetLeaveCommodityMenu,
+    [Menu.PlanetTakeQty]: showPlanetTakePrompt,
+    [Menu.PlanetLeaveQty]: showPlanetLeavePrompt,
+    [Menu.AttackDrones]: showAttackDronesPrompt,
+    [Menu.DroneAttackQty]: showDroneAttackQtyPrompt,
+    [Menu.Port]: showPortMenu,
+};
 
 /** Render a non-negative duration in seconds as the largest sensible unit. */
 function formatDuration(totalSeconds: number): string {
@@ -889,6 +988,11 @@ export function setupConnection(ws: WebSocket, ctx: GameContext, onDisconnect: (
                 ctx.sectorPlayers = msg.players;
                 showAttackMenu(ctx);
                 break;
+            case ServerMsgType.MenuChanged: {
+                const renderer = MENU_RENDERERS[ctx.mode];
+                if (renderer) renderer(ctx);
+                break;
+            }
             case ServerMsgType.HardwareStoreInfoResult:
                 ctx.hardwareStoreCredits = msg.credits;
                 ctx.hardwareStoreItems = msg.items;
@@ -1031,6 +1135,11 @@ export function setupConnection(ws: WebSocket, ctx: GameContext, onDisconnect: (
                 } else if (ctx.mode === Menu.Sector) showPrompt(ctx);
                 break;
         }
+        // After every server message: clear in-flight and drain the burst/script
+        // queue. Direct user keystrokes don't go through the queue, so this only
+        // affects programmatic input sources.
+        ctx.inFlight = false;
+        drainInputQueue(ctx);
     });
     ws.addEventListener('error', () => {
         ctx.term.writeln(render(NOTIFY.connectionError));

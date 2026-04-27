@@ -51,6 +51,7 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
                 term.writeln(`\x1b[38;5;243m  ${lines[i]}\x1b[0m`);
             }
         }
+        ctx.inFlight = true;
         ws.send(JSON.stringify(msg));
     }
 
@@ -100,8 +101,17 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
         knownUniverseMode: 'explored',
         starbaseBuyItemName: null,
         starbaseBuyDefault: 0,
+        starbaseBuyLabel: null,
         shipyardsBuyTarget: null,
+        shipyardsBuyDisplayName: null,
+        shipyardsBuyPrice: 0,
+        shipyardsBuyTradein: 0,
         landablePlanets: null,
+
+        userInputBuffer: [],
+        inputQueue: [],
+        inFlight: false,
+        inputAssembly: '',
 
         submitLineFromMap: () => {
             /* populated by setupInput */
