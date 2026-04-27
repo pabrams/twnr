@@ -11,7 +11,7 @@
     #terminal { flex: 1; min-width: 0; height: 100%; position: relative; border: 2px solid transparent; transition: border-color 0.1s; }
     #terminal.flash-border { border-color: #ff8800; }
     #minimap {
-      width: 560px; flex-shrink: 0; height: 100%; border-left: 1px solid #444;
+      width: 560px; flex-shrink: 0; height: 100%; border-right: 1px solid #444;
       display: flex; flex-direction: column; color: #c0c0c0; font-size: 16px;
     }
     #minimap .minimap-header {
@@ -184,7 +184,6 @@
     <button id="player-name-submit">Join Universe</button>
   </div>
   <div id="game-container">
-    <div id="terminal"></div>
     <div id="minimap">
       <div class="minimap-header">
         <label>Depth:</label>
@@ -199,6 +198,7 @@
       </div>
       <div class="minimap-info-panel"></div>
     </div>
+    <div id="terminal"></div>
   </div>
   <div id="mobile-notice">
     <div class="inner">
