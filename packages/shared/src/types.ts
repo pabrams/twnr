@@ -1,8 +1,5 @@
-// Canonical default warp-out degree distribution for degrees 1-6 (percentages, must sum to 100).
-// Both the server's graph generator and the admin UI read from this so they stay in sync.
-export const DEFAULT_WARP_DIST_1_6: readonly number[] = [20, 30, 25, 15, 8, 2];
 
-// Config types (loaded from JSON on server, sent to client via API)
+export const DEFAULT_WARP_DIST_1_6: readonly number[] = [25, 25, 25, 15, 8, 2];
 
 export type ShipConfig = {
     name: string;
@@ -58,7 +55,6 @@ export type PlanetConfig = {
     equipmentProduction: number;
 };
 
-// Ship catalog entry — what /api/ships returns (DB snake_case + hardware map)
 
 export type ShipCatalogEntry = {
     id: number;
@@ -124,13 +120,11 @@ export type ServerStatsResponse = {
     platform: string;
 };
 
-// Server envelope: wraps every WS response with the player's current menu
 export type ServerEnvelope<T = import('./server-messages.js').ServerResult> = {
     menu: string;
     payload: T;
 };
 
-// Menu registry types (fetched via /api/menu-registry)
 export type MenuCommandEntry = {
     command: string;
     keyPattern: string;
