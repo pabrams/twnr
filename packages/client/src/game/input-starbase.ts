@@ -1,21 +1,14 @@
 import { ClientMsgType, Menu, type ShipCatalogEntry } from '@twnr/shared';
 import type { GameContext } from './types.js';
-import { echoCommand, showPrompt } from './display.js';
+import { echoCommand } from './display.js';
 import {
-    showStarbaseMenu,
     showStarbaseHelp,
     showStarbasePrompt,
     showHardwareMenu,
-    showBuyQtyPrompt,
     showHardwareItemDetail,
-    showShipyardsMenu,
     showShipyardsHelp,
     showShipyardsPrompt,
-    showShipBuyList,
     showShipExamineList,
-    showTradeinPrompt,
-    showShipyardsClass0Menu,
-    showShipyardsClass0QtyPrompt,
     letterToIndex,
 } from './display-starbase.js';
 import { showShipDetail, showShipInterestPrompt } from './display-computer.js';
@@ -28,7 +21,6 @@ export function handleStarbaseInput(ctx: GameContext, line: string) {
         case 's':
             echoCommand(ctx, 'shipyards');
             ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Shipyards });
-            showShipyardsMenu(ctx);
             break;
         case 'h':
             echoCommand(ctx, 'hardwareStoreInfo');
@@ -94,8 +86,8 @@ export function handleHardwareInput(ctx: GameContext, line: string) {
         }
         ctx.starbaseBuyItemName = hw.itemName;
         ctx.starbaseBuyDefault = canBuy;
+        ctx.starbaseBuyLabel = hw.label;
         ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.StarbaseBuyQty });
-        showBuyQtyPrompt(ctx, hw.label, canBuy);
         return;
     }
     if (key === '?') {
@@ -105,7 +97,6 @@ export function handleHardwareInput(ctx: GameContext, line: string) {
     if (key === 'q') {
         echoCommand(ctx, 'starbase');
         ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Starbase });
-        showStarbaseMenu(ctx);
         return;
     }
     showHardwareMenu(ctx);
@@ -116,16 +107,14 @@ export function handleStarbaseBuyQtyInput(ctx: GameContext, line: string) {
     // Q or 0 cancels back to the hardware menu.
     if (trimmed.toLowerCase() === 'q' || trimmed === '0') {
         echoCommand(ctx, 'hardwareStoreInfo');
-        ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.StarbaseHardware });
-        showHardwareMenu(ctx);
+        ctx.sendMsg({ type: ClientMsgType.HardwareStoreInfo });
         return;
     }
     // Empty Enter → accept default (max we can buy). If the default is 0, cancel.
     const qty = trimmed === '' ? ctx.starbaseBuyDefault : parseInt(trimmed, 10);
     if (qty === 0) {
         echoCommand(ctx, 'hardwareStoreInfo');
-        ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.StarbaseHardware });
-        showHardwareMenu(ctx);
+        ctx.sendMsg({ type: ClientMsgType.HardwareStoreInfo });
         return;
     }
     if (isNaN(qty) || qty < 0) {
@@ -141,7 +130,6 @@ export function handleStarbaseBuyQtyInput(ctx: GameContext, line: string) {
 export function handlePlanetSelectInput(ctx: GameContext, line: string) {
     if (line.toLowerCase() === 'q') {
         ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
-        showPrompt(ctx);
         return;
     }
     const idx = parseInt(line, 10) - 1;
@@ -189,15 +177,15 @@ export function handleShipyardsInput(ctx: GameContext, line: string) {
     switch (line.toLowerCase()) {
         case 'b':
             echoCommand(ctx, 'shipyardsBuy');
-            showShipBuyList(ctx);
+            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsBuy });
             break;
         case 'e':
             echoCommand(ctx, 'shipyardsExamine');
-            showShipExamineList(ctx);
+            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsExamine });
             break;
         case 'p':
             echoCommand(ctx, 'shipyardsEquipment');
-            showShipyardsClass0Menu(ctx);
+            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsClass0 });
             break;
         case '?':
             showShipyardsHelp(ctx);
@@ -205,7 +193,6 @@ export function handleShipyardsInput(ctx: GameContext, line: string) {
         case 'q':
             echoCommand(ctx, 'starbase');
             ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Starbase });
-            showStarbaseMenu(ctx);
             break;
         default:
             showShipyardsPrompt(ctx);
@@ -216,7 +203,6 @@ export function handleShipyardsBuyInput(ctx: GameContext, line: string) {
     if (line.toLowerCase() === 'q') {
         echoCommand(ctx, 'shipyards');
         ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Shipyards });
-        showShipyardsMenu(ctx);
         return;
     }
     const idx = letterToIndex(line);
@@ -226,10 +212,11 @@ export function handleShipyardsBuyInput(ctx: GameContext, line: string) {
             ctx.term.writeln(render(COMMON.errorLine, { text: 'Already flying that ship.' }));
             return;
         }
-        const price = calculateShipPrice(ship);
-        const tradeinCredit = getCurrentShipPrice(ctx);
         ctx.shipyardsBuyTarget = ship.name;
-        showTradeinPrompt(ctx, ship.display_name ?? ship.name, price, tradeinCredit);
+        ctx.shipyardsBuyDisplayName = ship.display_name ?? ship.name;
+        ctx.shipyardsBuyPrice = calculateShipPrice(ship);
+        ctx.shipyardsBuyTradein = getCurrentShipPrice(ctx);
+        ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsTradein });
     } else {
         ctx.term.writeln(render(NOTIFY.invalidSelection));
     }
@@ -239,7 +226,6 @@ export function handleShipyardsTradeinInput(ctx: GameContext, line: string) {
     const targetShipName = ctx.shipyardsBuyTarget;
     if (!targetShipName) {
         ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Shipyards });
-        showShipyardsMenu(ctx);
         return;
     }
     switch (line.toLowerCase()) {
@@ -253,7 +239,7 @@ export function handleShipyardsTradeinInput(ctx: GameContext, line: string) {
             break;
         case 'q':
             echoCommand(ctx, 'shipyardsBuy');
-            showShipBuyList(ctx);
+            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsBuy });
             break;
         default:
             ctx.term.write(render('[c]Trade in?[/c] (Y/N/Q) '));
@@ -265,7 +251,6 @@ export function handleShipyardsExamineInput(ctx: GameContext, line: string) {
     if (lower === 'q') {
         echoCommand(ctx, 'shipyards');
         ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Shipyards });
-        showShipyardsMenu(ctx);
         return;
     }
     if (lower === '?') {
@@ -287,7 +272,7 @@ export function handleShipyardsClass0Input(ctx: GameContext, line: string) {
     const choose = (kind: 'drones' | 'shields' | 'holds', echoKey: 'buyHolds' | 'buyDrones' | 'buyShields') => {
         echoCommand(ctx, echoKey);
         ctx.class0BuyType = kind;
-        showShipyardsClass0QtyPrompt(ctx, kind);
+        ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsClass0Qty });
     };
     switch (line.toLowerCase()) {
         case 'a':
@@ -302,7 +287,6 @@ export function handleShipyardsClass0Input(ctx: GameContext, line: string) {
         case 'q':
             echoCommand(ctx, 'shipyards');
             ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Shipyards });
-            showShipyardsMenu(ctx);
             break;
         case '?':
         default:
@@ -314,7 +298,7 @@ export function handleShipyardsClass0QtyInput(ctx: GameContext, line: string) {
     const trimmed = line.trim();
     if (trimmed.toLowerCase() === 'q') {
         echoCommand(ctx, 'shipyardsEquipment');
-        showShipyardsClass0Menu(ctx);
+        ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsClass0 });
         return;
     }
     const kind = ctx.class0BuyType;
@@ -327,7 +311,7 @@ export function handleShipyardsClass0QtyInput(ctx: GameContext, line: string) {
     }
     if (qty === 0) {
         echoCommand(ctx, 'shipyardsEquipment');
-        showShipyardsClass0Menu(ctx);
+        ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsClass0 });
         return;
     }
     switch (kind) {

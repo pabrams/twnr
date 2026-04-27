@@ -1,6 +1,6 @@
 import type { Terminal } from '@xterm/xterm';
 import { ClientMsgType, Menu } from '@twnr/shared';
-import type { GameContext } from './types.js';
+import type { GameContext, KeystrokeEvent } from './types.js';
 import {
     echoCommand,
     showPrompt,
@@ -11,7 +11,6 @@ import {
     hideMoveMenuOverlay,
 } from './display.js';
 import { showComputerActivated } from './display-computer.js';
-import { showJettisonConfirm } from './display-port.js';
 import {
     handleAttackInput,
     handleAttackDronesInput,
@@ -79,36 +78,82 @@ function isValidKeyForMenu(ctx: GameContext, key: string): 'single' | 'buffered'
     return false;
 }
 
+/**
+ * Layer 1 — process one keystroke. Direct xterm keys go straight through this;
+ * the burst/script queue drains via the same path so digit assembly and
+ * single-char dispatch behave identically regardless of source.
+ */
+function processKeystroke(ctx: GameContext, ev: KeystrokeEvent) {
+    if (ev.isEnter) {
+        ctx.term.writeln('');
+        handleInput(ctx, ctx.inputAssembly.trim());
+        ctx.inputAssembly = '';
+        return;
+    }
+    if (ev.isBackspace) {
+        if (ctx.inputAssembly.length > 0) {
+            ctx.inputAssembly = ctx.inputAssembly.slice(0, -1);
+            ctx.term.write('\b \b');
+        }
+        return;
+    }
+    const validity = isValidKeyForMenu(ctx, ev.key);
+    if (validity === false) {
+        // Invalid key for current menu — reject silently
+        return;
+    }
+    if (ctx.inputAssembly === '' && validity === 'single') {
+        ctx.term.writeln('');
+        handleInput(ctx, ev.key.toLowerCase());
+    } else {
+        ctx.inputAssembly += ev.key;
+        ctx.term.write(ev.key);
+    }
+}
+
+/**
+ * Drain after every server envelope. Layer 1 (user-typed during a roundtrip)
+ * runs first with swallow-on-invalid — fast typing that's still wrong against
+ * the new menu was a user typo, drop it. Layer 2 (burst/script) runs after
+ * Layer 1 is empty with park-on-invalid — a programmatic burst stays coherent
+ * even if the menu state diverged, and the user unjams via Layer 3's clear.
+ * Both stop the moment a dispatch causes another roundtrip (sets inFlight).
+ */
+export function drainInputQueue(ctx: GameContext) {
+    while (!ctx.inFlight && ctx.userInputBuffer.length > 0) {
+        const head = ctx.userInputBuffer.shift()!;
+        processKeystroke(ctx, head);
+    }
+    while (!ctx.inFlight && ctx.inputQueue.length > 0) {
+        const head = ctx.inputQueue[0];
+        const isSpecial = head.isEnter || head.isBackspace;
+        if (!isSpecial && isValidKeyForMenu(ctx, head.key) === false) {
+            break;
+        }
+        ctx.inputQueue.shift();
+        processKeystroke(ctx, head);
+    }
+}
+
 export function setupInput(term: Terminal, ctx: GameContext) {
-    let inputBuffer = '';
     term.onKey(({ key, domEvent }) => {
         if (key === '~') {
             ctx.setDebug(!ctx.debug);
             return;
         }
-        if (domEvent.key === 'Enter') {
-            term.writeln('');
-            handleInput(ctx, inputBuffer.trim());
-            inputBuffer = '';
-        } else if (domEvent.key === 'Backspace') {
-            if (inputBuffer.length > 0) {
-                inputBuffer = inputBuffer.slice(0, -1);
-                term.write('\b \b');
-            }
-        } else {
-            const validity = isValidKeyForMenu(ctx, key);
-            if (validity === false) {
-                // Invalid key for current menu — reject silently
-                return;
-            }
-            if (inputBuffer === '' && validity === 'single') {
-                term.writeln('');
-                handleInput(ctx, key.toLowerCase());
-            } else {
-                inputBuffer += key;
-                term.write(key);
-            }
+        const ev: KeystrokeEvent = {
+            key,
+            isEnter: domEvent.key === 'Enter',
+            isBackspace: domEvent.key === 'Backspace',
+        };
+        // While a server roundtrip is in flight, queue the user's keystroke at
+        // Layer 1 so fast typing isn't dropped by the stale ctx.mode. The drain
+        // after the next envelope replays it against the (possibly new) menu.
+        if (ctx.inFlight) {
+            ctx.userInputBuffer.push(ev);
+            return;
         }
+        processKeystroke(ctx, ev);
     });
 
     // Mini-map click injection: route through the same input handler the user
@@ -260,7 +305,6 @@ function handleInput(ctx: GameContext, line: string) {
             }
             echoCommand(ctx, 'portInfo');
             ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Port });
-            showPortMenu(ctx);
             break;
         case 'i':
             echoCommand(ctx, 'shipInfo');
@@ -274,12 +318,13 @@ function handleInput(ctx: GameContext, line: string) {
             ctx.sendMsg({ type: ClientMsgType.Attack });
             break;
         case 'c':
-            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Computer });
+            // Computer activation banner is local UI flourish; the real menu
+            // prompt is rendered by the MenuChanged dispatcher.
             showComputerActivated(ctx);
+            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Computer });
             break;
         case 'm':
             ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Move });
-            showMoveMenu(ctx);
             break;
         case 'd':
             echoCommand(ctx, 'deployDronesInfo');
@@ -288,7 +333,6 @@ function handleInput(ctx: GameContext, line: string) {
         case 'j':
             echoCommand(ctx, 'jettison');
             ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.JettisonConfirm });
-            showJettisonConfirm(ctx);
             break;
         case 'g':
             echoCommand(ctx, 'listDeployedDrones');
@@ -309,7 +353,6 @@ function handleInput(ctx: GameContext, line: string) {
         case 'q':
             echoCommand(ctx, 'quit');
             ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.QuitConfirm });
-            ctx.term.write(render(NOTIFY.quitConfirm));
             break;
         case '#':
             echoCommand(ctx, 'playersOnline');
@@ -331,7 +374,6 @@ function handleQuitConfirmInput(ctx: GameContext, line: string) {
         case '':
         case 'n':
             ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
-            showPrompt(ctx);
             return;
         default:
             ctx.term.write(render(NOTIFY.quitConfirm));
@@ -348,7 +390,6 @@ function handleTerraformConfirmInput(ctx: GameContext, line: string) {
         case '':
         case 'n':
             ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
-            showPrompt(ctx);
             return;
         default:
             ctx.term.write(render(NOTIFY.terraformConfirm));
@@ -364,7 +405,6 @@ function handleMoveMenuInput(ctx: GameContext, line: string) {
     if (cmd.toLowerCase() === 'q') {
         hideMoveMenuOverlay(ctx);
         ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
-        showPrompt(ctx);
         return;
     }
     const warps = ctx.currentWarps.slice(0, 6);
@@ -396,7 +436,6 @@ function handlePortInput(ctx: GameContext, line: string) {
             break;
         case 'q':
             ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
-            showPrompt(ctx);
             break;
     }
 }

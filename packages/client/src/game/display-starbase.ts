@@ -1,4 +1,3 @@
-import { ClientMsgType, Menu } from '@twnr/shared';
 import type { ShipCatalogEntry } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { render } from './renderer.js';
@@ -173,7 +172,6 @@ async function loadShipConfigs(ctx: GameContext): Promise<boolean> {
 }
 
 export async function showShipBuyList(ctx: GameContext) {
-    ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsBuy });
     if (!(await loadShipConfigs(ctx))) return;
     ctx.term.writeln('');
     ctx.term.writeln(render(STARBASE.shipyardsBuyHeader));
@@ -193,7 +191,6 @@ export async function showShipBuyList(ctx: GameContext) {
 }
 
 export function showShipExamineList(ctx: GameContext) {
-    ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsExamine });
     showShipListInternal(ctx, 'Examine');
 }
 
@@ -219,7 +216,6 @@ export function showTradeinPrompt(
     price: number,
     tradeinCredit: number,
 ) {
-    ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsTradein });
     ctx.term.writeln('');
     ctx.term.writeln(render(STARBASE.tradeinHeader, { ship: shipName, price: fmt(price) }));
     if (tradeinCredit > 0) {
@@ -230,7 +226,6 @@ export function showTradeinPrompt(
 }
 
 export function showShipyardsClass0Menu(ctx: GameContext) {
-    ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsClass0 });
     showClass0Menu(ctx);
 }
 
@@ -238,6 +233,5 @@ export function showShipyardsClass0QtyPrompt(
     ctx: GameContext,
     item: 'drones' | 'shields' | 'holds',
 ) {
-    ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsClass0Qty });
     showClass0QtyPrompt(ctx, item);
 }

@@ -1,21 +1,18 @@
 import { ClientMsgType, Menu } from '@twnr/shared';
 import type { GameContext } from './types.js';
-import { echoCommand, showPrompt } from './display.js';
-import { showAttackDronesPrompt, showDroneAttackQtyPrompt } from './display-combat.js';
+import { echoCommand } from './display.js';
 import { render } from './renderer.js';
 import { NOTIFY, COMMON } from './messages/index.js';
 
 export function handleAttackInput(ctx: GameContext, line: string) {
     if (line.toLowerCase() === 'q') {
         ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
-        showPrompt(ctx);
         return;
     }
     const idx = parseInt(line, 10) - 1;
     if (idx >= 0 && idx < ctx.sectorPlayers.length) {
         ctx.attackTarget = ctx.sectorPlayers[idx].id;
         ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.AttackDrones });
-        showAttackDronesPrompt(ctx);
     } else {
         ctx.term.writeln(render(NOTIFY.invalidSelection));
     }
@@ -24,7 +21,6 @@ export function handleAttackInput(ctx: GameContext, line: string) {
 export function handleAttackDronesInput(ctx: GameContext, line: string) {
     if (line.toLowerCase() === 'q') {
         ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
-        showPrompt(ctx);
         return;
     }
     const qty = parseInt(line, 10);
@@ -45,7 +41,6 @@ export function handleDeployDronesQtyInput(ctx: GameContext, line: string) {
     const trimmed = line.trim();
     if (trimmed.toLowerCase() === 'q') {
         ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
-        showPrompt(ctx);
         return;
     }
     // Empty Enter → accept default (server computes it). The <Deploy Drones>
@@ -69,7 +64,6 @@ export function handleDroneEncounterInput(ctx: GameContext, line: string) {
             // is the qty submission, no echo at that step.
             echoCommand(ctx, 'attackSectorDrones');
             ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.DroneAttackQty });
-            showDroneAttackQtyPrompt(ctx);
             break;
         case 'r':
             echoCommand(ctx, 'retreatFromDrones');

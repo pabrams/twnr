@@ -10,20 +10,30 @@ vi.mock('../src/game/display.js', () => ({
     showPortMenu: vi.fn(),
     showHelp: vi.fn(),
     showPlayerInfo: vi.fn(),
+    showMoveMenu: vi.fn(),
 }));
 vi.mock('../src/game/display-port.js', () => ({
     showClass0Menu: vi.fn(),
+    showClass0QtyPrompt: vi.fn(),
     showAutopilotPrompt: vi.fn(),
     showTradeQtyPrompt: vi.fn(),
+    showJettisonConfirm: vi.fn(),
 }));
 vi.mock('../src/game/display-planet.js', () => ({
     showPlanetMenu: vi.fn(),
     showPlanetMenuOptions: vi.fn(),
     showEarthMenu: vi.fn(),
     showNoPlanet: vi.fn(),
+    showPlanetTakePrompt: vi.fn(),
+    showPlanetLeavePrompt: vi.fn(),
+    showPlanetTakeCommodityMenu: vi.fn(),
+    showPlanetLeaveCommodityMenu: vi.fn(),
 }));
 vi.mock('../src/game/display-combat.js', () => ({
     showDroneEncounter: vi.fn(),
+    showAttackMenu: vi.fn(),
+    showAttackDronesPrompt: vi.fn(),
+    showDroneAttackQtyPrompt: vi.fn(),
 }));
 vi.mock('../src/game/display-starbase.js', () => ({
     showStarbaseMenu: vi.fn(),
@@ -31,10 +41,21 @@ vi.mock('../src/game/display-starbase.js', () => ({
     showPlanetSelectMenu: vi.fn(),
     showShipyardsMenu: vi.fn(),
     showShipyardsClass0Menu: vi.fn(),
+    showShipyardsClass0QtyPrompt: vi.fn(),
+    showShipBuyList: vi.fn(),
+    showShipExamineList: vi.fn(),
+    showTradeinPrompt: vi.fn(),
+    showBuyQtyPrompt: vi.fn(),
 }));
 vi.mock('../src/game/display-computer.js', () => ({
     renderVisitedSectorsResult: vi.fn(),
     showComputerPrompt: vi.fn(),
+    showKnownUniverseMenu: vi.fn(),
+    showShipCatalog: vi.fn(),
+    showPlanetSpecs: vi.fn(),
+}));
+vi.mock('../src/game/input.js', () => ({
+    drainInputQueue: vi.fn(),
 }));
 
 import { setupConnection } from '../src/game/connection.js';
@@ -110,7 +131,7 @@ describe('connection message handler', () => {
                 autopilotPath: [1, 10, 20, 30],
                 autopilotStep: 3,
             });
-            setupConnection(ws as unknown as WebSocket, ctx);
+            setupConnection(ws as unknown as WebSocket, ctx, () => {});
             ws.fire('message', envelope('sector', { type: ServerMsgType.RateLimited }));
             vi.advanceTimersByTime(500);
             expect(ctx.sendMsg).toHaveBeenCalled();
@@ -125,7 +146,7 @@ describe('connection message handler', () => {
                 autopilotPath: [1, 10, 20],
                 autopilotStep: 3,
             });
-            setupConnection(ws as unknown as WebSocket, ctx);
+            setupConnection(ws as unknown as WebSocket, ctx, () => {});
 
             ws.fire('message', envelope('sector', { type: ServerMsgType.RateLimited }));
             vi.advanceTimersByTime(500);
