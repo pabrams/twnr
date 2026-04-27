@@ -36,11 +36,6 @@
     #minimap svg { width: 100%; height: 100%; display: block; }
     #minimap .sector-node { cursor: pointer; }
     #minimap .sector-node:focus { outline: 1px solid #0ff; }
-    #minimap .tooltip {
-      position: absolute; background: #000; color: #c0c0c0; border: 1px solid #444;
-      padding: 8px 11px; font-size: 14px; pointer-events: none;
-      max-width: 280px; z-index: 10; display: none; white-space: pre-wrap; line-height: 1.3;
-    }
     @media (max-width: 900px) {
       #minimap { width: 380px; }
     }
@@ -201,8 +196,8 @@
       <div class="minimap-body">
         <div class="empty-state is-hidden">No map data for this universe.</div>
         <svg class="minimap-svg" xmlns="http://www.w3.org/2000/svg"></svg>
-        <div class="tooltip"></div>
       </div>
+      <div class="minimap-info-panel"></div>
     </div>
   </div>
   <div id="mobile-notice">

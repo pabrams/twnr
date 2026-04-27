@@ -15,7 +15,8 @@ export const NOTIFY = makeDomain('NOTIFY', {
     playerIn: '\r\n[by][bm]{name}[/bm] warped into the sector.[/by]',
     playerOut: '\r\n[y][bm]{name}[/bm] warped out of the sector.[/y]',
 
-    starbaseLocation: '\r\n[br]***[/br] [bc]Starbase[/bc] [g]is in sector[/g] [by]{sector}[/by] [br]***[/br] ',
+    starbaseLocation:
+        '\r\n[br]***[/br] [bc]Starbase[/bc] [g]is in sector[/g] [by]{sector}[/by] [br]***[/br] ',
     noStarbase: '\r\n[w]No Starbase in this universe.[/w]',
 
     // Starbase info — universe stats panel (V command).

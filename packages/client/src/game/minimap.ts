@@ -1,5 +1,35 @@
 import type { NeighborhoodResultObject, NeighborhoodSector } from '@twnr/shared';
+import { colorPalette } from '../config/colors.js';
 import './minimap.css';
+
+/** Convert one of the palette entries to an `rgb(...)` CSS string. */
+function rgb(c: { r: number; g: number; b: number }): string {
+    return `rgb(${c.r}, ${c.g}, ${c.b})`;
+}
+
+const COLORS = {
+    sectorLabel: rgb(colorPalette.boldGreen),
+    sep: rgb(colorPalette.boldYellow),
+    sectorNumber: rgb(colorPalette.boldCyan),
+    portLabel: rgb(colorPalette.magenta),
+    portClass: rgb(colorPalette.boldCyan),
+    portTripletParens: rgb(colorPalette.magenta),
+    portTripletS: rgb(colorPalette.boldCyan),
+    portTripletB: rgb(colorPalette.green),
+    planetsLabel: rgb(colorPalette.magenta),
+    planetCount: rgb(colorPalette.boldYellow),
+    planetName: rgb(colorPalette.boldCyan),
+    planetType: rgb(colorPalette.white),
+    observedLabel: rgb(colorPalette.cyan),
+    observedValue: rgb(colorPalette.yellow),
+};
+
+function span(text: string, color?: string): HTMLSpanElement {
+    const s = document.createElement('span');
+    s.textContent = text;
+    if (color) s.style.color = color;
+    return s;
+}
 
 type MinimapState = {
     depth: number;
@@ -47,7 +77,7 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
     const body = container.querySelector<HTMLElement>('.minimap-body')!;
     const svg = container.querySelector<SVGSVGElement>('.minimap-svg')!;
     const emptyState = container.querySelector<HTMLElement>('.empty-state')!;
-    const tooltip = container.querySelector<HTMLElement>('.tooltip')!;
+    const infoPanel = container.querySelector<HTMLElement>('.minimap-info-panel')!;
     const depthBtns = Array.from(container.querySelectorAll<HTMLButtonElement>('.depth-btn'));
 
     let refreshHandler: (() => void) | null = null;
@@ -72,38 +102,84 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
 
     setActiveDepthButton(state.depth);
 
-    function showTooltip(evt: MouseEvent, text: string): void {
-        tooltip.textContent = text;
-        tooltip.classList.add('is-visible');
-        const rect = body.getBoundingClientRect();
-        const x = Math.min(evt.clientX - rect.left + 10, rect.width - 230);
-        const y = Math.min(evt.clientY - rect.top + 10, rect.height - 80);
-        tooltip.style.left = Math.max(4, x) + 'px';
-        tooltip.style.top = Math.max(4, y) + 'px';
+    function setHoveredInfo(sector: NeighborhoodSector): void {
+        renderInfoPanel(sector);
+        infoPanel.classList.add('is-hovering');
     }
-    function hideTooltip(): void {
-        tooltip.classList.remove('is-visible');
+    function clearHoveredInfo(currentSector: NeighborhoodSector | undefined): void {
+        renderInfoPanel(currentSector);
+        infoPanel.classList.remove('is-hovering');
     }
 
-    function tooltipText(sector: NeighborhoodSector): string {
-        if (sector.visibility === 'glimpsed') {
-            return `Sector ${sector.sector_number}`;
-        }
-        const lines: string[] = [`Sector ${sector.sector_number}`];
-        if (sector.port) {
-            const triplet = PORT_CLASS_TRIPLET[sector.port.class] ?? '???';
-            lines.push(`Port class ${sector.port.class} (${triplet})`);
-            lines.push(`Observed: ${formatObserved(sector.port.observed_at)}`);
-        }
-        if (sector.planets.length > 0) {
-            lines.push(`Planets (${sector.planets.length}):`);
-            for (const p of sector.planets) {
-                const type = p.type ? ` [${p.type}]` : '';
-                lines.push(`  • ${p.name}${type}`);
-                lines.push(`    observed ${formatObserved(p.observed_at)}`);
+    /**
+     * Build the info panel as a body (scrollable) + footer (Observed line,
+     * pinned to the bottom regardless of how much body content there is).
+     */
+    function renderInfoPanel(sector: NeighborhoodSector | undefined): void {
+        infoPanel.replaceChildren();
+        if (!sector) return;
+
+        const body = document.createElement('div');
+        body.className = 'info-body';
+
+        body.appendChild(span('Sector', COLORS.sectorLabel));
+        body.appendChild(span(' : ', COLORS.sep));
+        body.appendChild(span(`${sector.sector_number}\n`, COLORS.sectorNumber));
+
+        if (sector.visibility !== 'glimpsed') {
+            if (sector.port) {
+                const triplet = PORT_CLASS_TRIPLET[sector.port.class] ?? '???';
+                body.appendChild(span('Port', COLORS.portLabel));
+                body.appendChild(span(' : ', COLORS.sep));
+                body.appendChild(span(`Class ${sector.port.class} `, COLORS.portClass));
+                body.appendChild(span('(', COLORS.portTripletParens));
+                for (const ch of triplet) {
+                    if (ch === 'S') body.appendChild(span('S', COLORS.portTripletS));
+                    else if (ch === 'B') body.appendChild(span('B', COLORS.portTripletB));
+                    else body.appendChild(document.createTextNode(ch));
+                }
+                body.appendChild(span(')', COLORS.portTripletParens));
+                body.appendChild(document.createTextNode('\n'));
+            }
+            if (sector.planets.length > 0) {
+                body.appendChild(span('Planets', COLORS.planetsLabel));
+                body.appendChild(span(' : ', COLORS.sep));
+                body.appendChild(span(`${sector.planets.length}\n`, COLORS.planetCount));
+                for (const p of sector.planets) {
+                    body.appendChild(document.createTextNode('  • '));
+                    body.appendChild(span(p.name, COLORS.planetName));
+                    if (p.type) {
+                        body.appendChild(document.createTextNode(' '));
+                        body.appendChild(span(`(${p.type})`, COLORS.planetType));
+                    }
+                    body.appendChild(document.createTextNode('\n'));
+                }
             }
         }
-        return lines.join('\n');
+        infoPanel.appendChild(body);
+
+        const latest = latestObservation(sector);
+        if (latest) {
+            const footer = document.createElement('div');
+            footer.className = 'info-footer';
+            footer.appendChild(span('Observed', COLORS.observedLabel));
+            footer.appendChild(span(' : ', COLORS.sep));
+            footer.appendChild(span(formatObserved(latest), COLORS.observedValue));
+            infoPanel.appendChild(footer);
+        }
+    }
+
+    /**
+     * Most recent observation timestamp across the sector's port and planets.
+     * Returns null if nothing's been observed (glimpsed-only sectors).
+     */
+    function latestObservation(sector: NeighborhoodSector): string | null {
+        let latest: string | null = null;
+        if (sector.port) latest = sector.port.observed_at;
+        for (const p of sector.planets) {
+            if (latest === null || p.observed_at > latest) latest = p.observed_at;
+        }
+        return latest;
     }
 
     function formatObserved(iso: string): string {
@@ -125,11 +201,13 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
         if (!state.data) {
             emptyState.classList.remove('is-hidden');
             emptyState.textContent = 'Loading map…';
+            clearHoveredInfo(undefined);
             return;
         }
         if (state.data.sectors.length === 0) {
             emptyState.classList.remove('is-hidden');
             emptyState.textContent = 'No visited sectors yet — move to populate the map.';
+            clearHoveredInfo(undefined);
             return;
         }
         emptyState.classList.add('is-hidden');
@@ -139,6 +217,8 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
         const byId = new Map<number, NeighborhoodSector>();
         for (const s of sectors) byId.set(s.id, s);
         const current = byId.get(currentId);
+
+        clearHoveredInfo(current);
 
         // Quick-move: map each target sector_number (from the open move menu)
         // to its 1-based slot, and resolve those to sector_ids we can match
@@ -329,6 +409,9 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
         const warpGroup = document.createElementNS(SVG_NS, 'g');
         svg.appendChild(warpGroup);
         const drawnBi = new Set<string>();
+
+        const warpLines: SVGLineElement[] = [];
+        const pillRectsBySectorId = new Map<number, SVGRectElement>();
         const FRINGE_STUB_LEN_PX = 30;
         for (const w of state.data.warps) {
             const src = byId.get(w.from_sector_id);
@@ -412,6 +495,11 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             line.setAttribute('y2', String(end.y));
             line.setAttribute('stroke-width', String(strokeW));
 
+            line.dataset.fromId = String(w.from_sector_id);
+            line.dataset.toId = String(w.to_sector_id);
+            if (isTwoWay) line.dataset.twoWay = 'true';
+            warpLines.push(line);
+
             const isQuickMoveWarp =
                 (w.from_sector_id === currentId && quickMoveIndexById.has(w.to_sector_id)) ||
                 (w.to_sector_id === currentId && quickMoveIndexById.has(w.from_sector_id));
@@ -491,6 +579,7 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
                 rect.classList.add('minimap-sector-pill--quick-move');
                 rect.setAttribute('stroke-width', String(strokeW * 1.8));
             }
+            pillRectsBySectorId.set(s.id, rect);
             group.appendChild(rect);
 
             const label = document.createElementNS(SVG_NS, 'text');
@@ -508,8 +597,6 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             label.textContent = labelText;
             group.appendChild(label);
 
-            // Planet glyph — visited only. Sits just above the pill's
-            // top-right corner so it doesn't compete with the number.
             if (s.visibility === 'visited' && s.planets.length > 0) {
                 const planetGlyph = document.createElementNS(SVG_NS, 'text');
                 planetGlyph.classList.add('minimap-planet-glyph');
@@ -521,9 +608,6 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
                 group.appendChild(planetGlyph);
             }
 
-            // Quick-move badge: a small circle with the 1..6 slot number,
-            // placed below the pill so it doesn't compete with the sector
-            // number. Only drawn while the move menu is open.
             if (quickMoveIndex !== undefined) {
                 const badgeR = fontPx * 0.65;
                 const badgeY = rh / 2 + badgeR + fontPx * 0.25;
@@ -545,12 +629,38 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
                 group.appendChild(badgeText);
             }
 
-            const tip = tooltipText(s);
-            group.addEventListener('mouseenter', (ev) => showTooltip(ev as MouseEvent, tip));
-            group.addEventListener('mousemove', (ev) => showTooltip(ev as MouseEvent, tip));
-            group.addEventListener('mouseleave', hideTooltip);
+            const hoverSectorId = s.id;
+            const applyHoverHighlight = () => {
+                rect.classList.add('minimap-sector-pill--hover-source');
+                for (const line of warpLines) {
+                    const fromId = Number(line.dataset.fromId);
+                    const toId = Number(line.dataset.toId);
+                    const twoWay = line.dataset.twoWay === 'true';
+                    let otherId: number | null = null;
+                    if (fromId === hoverSectorId) otherId = toId;
+                    else if (twoWay && toId === hoverSectorId) otherId = fromId;
+                    if (otherId === null) continue;
+                    line.classList.add('minimap-warp--hover-out');
+                    const targetRect = pillRectsBySectorId.get(otherId);
+                    if (targetRect) targetRect.classList.add('minimap-sector-pill--hover-target');
+                }
+            };
+            const clearHoverHighlight = () => {
+                rect.classList.remove('minimap-sector-pill--hover-source');
+                for (const line of warpLines) line.classList.remove('minimap-warp--hover-out');
+                for (const r of pillRectsBySectorId.values()) {
+                    r.classList.remove('minimap-sector-pill--hover-target');
+                }
+            };
+            group.addEventListener('mouseenter', () => {
+                setHoveredInfo(s);
+                applyHoverHighlight();
+            });
+            group.addEventListener('mouseleave', () => {
+                clearHoveredInfo(current);
+                clearHoverHighlight();
+            });
             group.addEventListener('click', () => {
-                hideTooltip();
                 onInject(s.sector_number, current?.sector_number ?? state.currentSectorNumber);
             });
 
