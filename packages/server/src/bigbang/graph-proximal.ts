@@ -8,8 +8,17 @@ const MAX_IN = 6;
 /**
  * Generate a warp graph whose edges prefer nearby sectors in a bounded 2D
  * plane. Nodes are indexed 1..N with `positions[i-1]` giving the position of
- * sector i. Satisfies the same degree-distribution and two-way percentage
- * guarantees as `generateGraph`, plus weak connectivity from sector 1.
+ * sector i.
+ *
+ * Connectivity backbone: a budget-aware spanning tree rooted at sector 1.
+ * Each non-root node accepts up to (targetOut - 1) children — its last
+ * out-slot is reserved for a *back-edge to parent*, which automatically
+ * forms a two-way pair. This means a degree-1 leaf becomes a round-trip
+ * dead-end (one warp in via parent, one warp out back to parent) without
+ * any post-hoc bumping of the requested degree distribution. Earlier the
+ * Phase-A backbone was a Hamiltonian cycle, which forced every node —
+ * including dead-end candidates — to spend its only out-slot on the cycle,
+ * leaving nothing free for pair-forming.
  */
 export function generateProximalGraph(
     N: number,
@@ -17,12 +26,19 @@ export function generateProximalGraph(
     rng: () => number,
     positions: Position[],
     warpDist: number[] = DEFAULT_WARP_DIST,
+    forcedMaxOutSectors: readonly number[] = [],
 ): GeneratedWarp[] {
     if (positions.length !== N) {
         throw new Error(`generateProximalGraph: expected ${N} positions, got ${positions.length}`);
     }
 
     const targetOut = assignTargetOutDegrees(N, twoWayPercentage, rng, warpDist);
+    // Hard-override after random assignment so callers can guarantee certain
+    // landmark sectors (e.g. Federation HQ + Starbase) always have the full
+    // MAX_OUT regardless of the configured warp distribution.
+    for (const sid of forcedMaxOutSectors) {
+        if (sid >= 1 && sid <= N) targetOut[sid] = MAX_OUT;
+    }
     let totalEdges = 0;
     for (let i = 1; i <= N; i++) totalEdges += targetOut[i];
 
@@ -58,26 +74,14 @@ export function generateProximalGraph(
         biPairsTarget = findBiPairs(totalEdges);
     }
 
-    if (twoWayPercentage < 99) {
-        const minMargin = Math.max(5, Math.ceil(N * 0.02));
-        function getMargin(): number {
-            let d1 = 0;
-            for (let i = 1; i <= N; i++) if (targetOut[i] === 1) d1++;
-            const remaining = totalEdges - N;
-            const maxPhaseB = N - d1;
-            return Math.floor((remaining + maxPhaseB) / 2) - biPairsTarget;
-        }
-        for (let targetDeg = MAX_OUT - 1; targetDeg >= 1 && getMargin() < minMargin; targetDeg--) {
-            for (let i = 1; i <= N && getMargin() < minMargin; i++) {
-                if (targetOut[i] === targetDeg) {
-                    targetOut[i]++;
-                    totalEdges++;
-                    const bp = findBiPairs(totalEdges);
-                    if (bp >= 0) biPairsTarget = bp;
-                }
-            }
-        }
-    }
+    // Tree-feasibility: each non-root needs a parent (consumes 1 of the
+    // parent's out-slots). Reserving 1 slot per non-root for a back-edge
+    // means each parent can adopt at most (targetOut - 1) children. The sum
+    // of (targetOut - 1) across all nodes must be ≥ N-1 for a connected
+    // tree to exist with back-edges everywhere; equivalently, totalEdges ≥
+    // 2N - 1. If a user picks a too-sparse distribution we relax the
+    // back-edge reservation rather than fail.
+    const reserveBackEdge = totalEdges >= 2 * N - 1;
 
     // Precompute k-nearest-neighbors for each node, sorted by distance.
     const K = Math.min(40, N - 1);
@@ -88,38 +92,128 @@ export function generateProximalGraph(
         const inDeg = new Int32Array(N + 1);
         const edges = new Set<string>();
 
-        function addEdge(u: number, v: number) {
-            edges.add(`${u},${v}`);
+        function addEdge(u: number, v: number): boolean {
+            const key = `${u},${v}`;
+            if (edges.has(key)) return false;
+            edges.add(key);
             outDeg[u]++;
             inDeg[v]++;
+            return true;
         }
 
-        // Phase A: Hamiltonian cycle via greedy nearest-neighbor tour from
-        // sector 1. Resulting cycle edges are short and guarantee weak
-        // connectivity.
-        const perm = nearestNeighborTour(N, positions, 1);
-        for (let i = 0; i < N; i++) {
-            addEdge(perm[i], perm[(i + 1) % N]);
+        // Phase A: budget-aware spanning tree from sector 1. Each parent
+        // can adopt up to (targetOut - reserveSlot) children.
+        const parent = new Int32Array(N + 1).fill(0);
+        parent[1] = -1;
+        const treeBudget = new Int32Array(N + 1);
+        for (let i = 1; i <= N; i++) {
+            treeBudget[i] = targetOut[i] - (reserveBackEdge ? 1 : 0);
+            if (treeBudget[i] < 0) treeBudget[i] = 0;
+        }
+        // Root has no parent → no back-edge reservation needed there.
+        if (reserveBackEdge) treeBudget[1] = targetOut[1];
+
+        const inTree = new Uint8Array(N + 1);
+        inTree[1] = 1;
+        let treeSize = 1;
+
+        // Prim's algorithm with maintained "best in-tree neighbor with
+        // budget" per out-of-tree node. Pure O(N²) — no priority queue, no
+        // fallback global rescan.
+        const distToTree = new Float64Array(N + 1).fill(Infinity);
+        const nearestInTree = new Int32Array(N + 1);
+        // Initialize from root.
+        for (let c = 2; c <= N; c++) {
+            const dx = positions[0].x - positions[c - 1].x;
+            const dy = positions[0].y - positions[c - 1].y;
+            distToTree[c] = dx * dx + dy * dy;
+            nearestInTree[c] = 1;
         }
 
-        // Phase B: flip some cycle edges to bidirectional.
-        let biPairsPlaced = 0;
-        const cycleIdx = Array.from({ length: N }, (_, i) => i);
-        shuffle(cycleIdx, rng);
-        for (const ci of cycleIdx) {
-            if (biPairsPlaced >= biPairsTarget) break;
-            const u = perm[ci];
-            const v = perm[(ci + 1) % N];
-            if (outDeg[v] < targetOut[v] && inDeg[u] < MAX_IN) {
-                addEdge(v, u);
-                biPairsPlaced++;
+        while (treeSize < N) {
+            // Pick the closest out-of-tree node whose nearest in-tree
+            // partner still has budget. If a candidate's nearest has run
+            // out of budget, recompute that candidate's nearest from
+            // scratch — this is rare so the amortized cost stays O(N²).
+            let bestC = -1;
+            let bestD = Infinity;
+            for (let c = 2; c <= N; c++) {
+                if (inTree[c]) continue;
+                if (treeBudget[nearestInTree[c]] <= 0) {
+                    // Stale: rescan in-tree nodes for a budgeted parent.
+                    let nd = Infinity;
+                    let np = -1;
+                    for (let p = 1; p <= N; p++) {
+                        if (!inTree[p] || treeBudget[p] <= 0) continue;
+                        const dx = positions[p - 1].x - positions[c - 1].x;
+                        const dy = positions[p - 1].y - positions[c - 1].y;
+                        const d = dx * dx + dy * dy;
+                        if (d < nd) {
+                            nd = d;
+                            np = p;
+                        }
+                    }
+                    if (np === -1) {
+                        // No budgeted parent exists for this child — the
+                        // tree can't span. Fall through; outer guard will
+                        // detect treeSize < N and retry.
+                        distToTree[c] = Infinity;
+                        nearestInTree[c] = 0;
+                        continue;
+                    }
+                    distToTree[c] = nd;
+                    nearestInTree[c] = np;
+                }
+                if (distToTree[c] < bestD) {
+                    bestD = distToTree[c];
+                    bestC = c;
+                }
+            }
+            if (bestC === -1) break;
+
+            const newParent = nearestInTree[bestC];
+            parent[bestC] = newParent;
+            treeBudget[newParent]--;
+            addEdge(newParent, bestC);
+            inTree[bestC] = 1;
+            treeSize++;
+
+            // Relax: maybe bestC is now closer to remaining out-of-tree
+            // nodes than their current nearestInTree.
+            for (let c = 2; c <= N; c++) {
+                if (inTree[c]) continue;
+                const dx = positions[bestC - 1].x - positions[c - 1].x;
+                const dy = positions[bestC - 1].y - positions[c - 1].y;
+                const d = dx * dx + dy * dy;
+                if (d < distToTree[c]) {
+                    distToTree[c] = d;
+                    nearestInTree[c] = bestC;
+                }
             }
         }
+        if (treeSize < N) continue;
 
-        let biPairsNeeded = biPairsTarget - biPairsPlaced;
+        // Phase B: place back-edges child → parent for every non-root.
+        // Each becomes a two-way pair with the corresponding tree edge.
+        // Skip if either endpoint is at its limit (MAX_IN for parent, or
+        // out-budget for child after later fills — though here outDeg[c]
+        // is still 0 so it's always free).
+        let pairsPlaced = 0;
+        // Order back-edge placement by leaf-first so degree-1 leaves are
+        // guaranteed their pair before slot pressure builds up.
+        const backOrder = Array.from({ length: N - 1 }, (_, i) => i + 2);
+        backOrder.sort((a, b) => targetOut[a] - targetOut[b]);
+        for (const c of backOrder) {
+            const p = parent[c];
+            if (p < 0) continue;
+            if (outDeg[c] >= targetOut[c]) continue;
+            if (inDeg[p] >= MAX_IN) continue;
+            if (addEdge(c, p)) pairsPlaced++;
+        }
 
-        // Fill pass 1: bidirectional pairs. Walk each node's KNN list to find
-        // a short, feasible target. Loops until no placement is possible.
+        // Phase C: any further pairs needed to hit biPairsTarget come from
+        // KNN scans, exactly like the old fill pass 1.
+        let biPairsNeeded = biPairsTarget - pairsPlaced;
         if (biPairsNeeded > 0) {
             const order = Array.from({ length: N }, (_, i) => i + 1);
             let stalled = 0;
@@ -129,8 +223,7 @@ export function generateProximalGraph(
                 for (const u of order) {
                     if (biPairsNeeded <= 0) break;
                     if (outDeg[u] >= targetOut[u]) continue;
-                    const candidates = knn[u];
-                    for (const v of candidates) {
+                    for (const v of knn[u]) {
                         if (v === u) continue;
                         if (edges.has(`${u},${v}`)) continue;
                         if (inDeg[v] >= MAX_IN) continue;
@@ -155,7 +248,7 @@ export function generateProximalGraph(
         }
         if (biPairsNeeded > 0) continue;
 
-        // Fill pass 2: unidirectional edges, preferring nearby candidates.
+        // Phase D: fill remaining out-slots with one-way edges.
         let allFilled = true;
         for (let u = 1; u <= N; u++) {
             if (outDeg[u] >= targetOut[u]) continue;
@@ -167,7 +260,6 @@ export function generateProximalGraph(
                 if (inDeg[v] >= MAX_IN) continue;
                 addEdge(u, v);
             }
-            // Fallback: expand beyond KNN if still under target.
             if (outDeg[u] < targetOut[u]) {
                 let tries = 0;
                 while (outDeg[u] < targetOut[u]) {
@@ -258,7 +350,6 @@ function assignTargetOutDegrees(
 /** For each node i (1-indexed), return a list of `K` neighbor ids sorted by distance. */
 function buildKNN(N: number, positions: { x: number; y: number }[], K: number): number[][] {
     const result: number[][] = [[]];
-    // Each node's KNN: initial pass stores (dist, id) in a heap-ish max-heap of size K.
     for (let i = 1; i <= N; i++) {
         const pi = positions[i - 1];
         const entries: { id: number; d: number }[] = [];
@@ -284,37 +375,4 @@ function shuffle<T>(arr: T[], rng: () => number): void {
         const j = Math.floor(rng() * (k + 1));
         [arr[k], arr[j]] = [arr[j], arr[k]];
     }
-}
-
-/** Greedy nearest-neighbor Hamiltonian tour starting from `start`. */
-function nearestNeighborTour(
-    N: number,
-    positions: { x: number; y: number }[],
-    start: number,
-): number[] {
-    const visited = new Uint8Array(N + 1);
-    const tour: number[] = new Array(N);
-    let current = start;
-    visited[current] = 1;
-    tour[0] = current;
-    for (let step = 1; step < N; step++) {
-        const pc = positions[current - 1];
-        let best = -1;
-        let bestD = Infinity;
-        for (let j = 1; j <= N; j++) {
-            if (visited[j]) continue;
-            const pj = positions[j - 1];
-            const dx = pc.x - pj.x;
-            const dy = pc.y - pj.y;
-            const d = dx * dx + dy * dy;
-            if (d < bestD) {
-                bestD = d;
-                best = j;
-            }
-        }
-        visited[best] = 1;
-        tour[step] = best;
-        current = best;
-    }
-    return tour;
 }
