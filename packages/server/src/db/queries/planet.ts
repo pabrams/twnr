@@ -2,7 +2,6 @@ import { pool } from '../index.js';
 import type { Queryable, PlayerPlanetRow } from '../types.js';
 import { universeConfig } from '../../universe-config.js';
 
-/** Whitelisted colonist commodity columns on `planets`. */
 const COLONIST_COLUMN: Record<'fuel' | 'organics' | 'equipment', string> = {
     fuel: 'colonists_fuel',
     organics: 'colonists_organics',
@@ -10,7 +9,6 @@ const COLONIST_COLUMN: Record<'fuel' | 'organics' | 'equipment', string> = {
 };
 export type ColonistCommodity = keyof typeof COLONIST_COLUMN;
 
-/** Seed Earth (Terran) in sector 1; no-op if already present. */
 export async function upsertEarthPlanet(sectorDbId: number, db: Queryable = pool): Promise<void> {
     await db.query(
         `INSERT INTO planets (sector_id, name, type) VALUES ($1, 'Earth', 'Terran') ON CONFLICT DO NOTHING`,
@@ -18,7 +16,6 @@ export async function upsertEarthPlanet(sectorDbId: number, db: Queryable = pool
     );
 }
 
-/** Set Earth's fuel-colonist count in a sector. */
 export async function setEarthColonists(
     sectorDbId: number,
     colonists: number,
@@ -30,12 +27,10 @@ export async function setEarthColonists(
     );
 }
 
-/** Delete a planet by id (used by planet-buster). */
 export async function deletePlanet(planetId: number, db: Queryable = pool): Promise<void> {
     await db.query('DELETE FROM planets WHERE id = $1', [planetId]);
 }
 
-/** Look up a sector's internal id + name by universe-scoped sector number. */
 export async function getSectorByNumber(
     sectorNumber: number,
     universeId: number,
@@ -70,7 +65,6 @@ export async function getTerraformConfigForUniverse(
     return res.rows[0];
 }
 
-/** List the planet ids already in a sector (locked for update). */
 export async function getPlanetIdsInSectorForUpdate(
     sectorDbId: number,
     db: Queryable = pool,
@@ -82,7 +76,6 @@ export async function getPlanetIdsInSectorForUpdate(
     return res.rows.map((r) => r.id);
 }
 
-/** Create a new planet owned by the given player; returns its id. */
 export async function insertPlanet(
     sectorDbId: number,
     name: string,
@@ -97,7 +90,19 @@ export async function insertPlanet(
     return res.rows[0].id;
 }
 
-/** Record a planet-collision event between two planets. */
+export async function insertUnownedPlanet(
+    sectorDbId: number,
+    name: string,
+    type: string,
+    db: Queryable = pool,
+): Promise<void> {
+    await db.query(
+        `INSERT INTO planets (sector_id, name, type) VALUES ($1, $2, $3)
+         ON CONFLICT DO NOTHING`,
+        [sectorDbId, name, type],
+    );
+}
+
 export async function insertPlanetCollision(
     collisionPlanetId: number,
     collidingWithId: number,
@@ -111,7 +116,6 @@ export async function insertPlanetCollision(
     );
 }
 
-/** Fetch a commodity column's colonist count on a planet with row lock. */
 export async function getPlanetColonistsForUpdate(
     planetId: number,
     commodity: ColonistCommodity,
@@ -125,7 +129,6 @@ export async function getPlanetColonistsForUpdate(
     return res.rows[0]?.available;
 }
 
-/** Apply a +/- delta to a commodity's colonist count on a planet. */
 export async function updatePlanetColonists(
     planetId: number,
     commodity: ColonistCommodity,
@@ -136,7 +139,6 @@ export async function updatePlanetColonists(
     await db.query(`UPDATE planets SET ${col} = ${col} + $1 WHERE id = $2`, [delta, planetId]);
 }
 
-/** Read the remaining count for a commodity column on a planet (post-write). */
 export async function getPlanetColonistsRemaining(
     planetId: number,
     commodity: ColonistCommodity,
@@ -150,7 +152,6 @@ export async function getPlanetColonistsRemaining(
     return res.rows[0]?.remaining;
 }
 
-/** List all planets owned by a player in their universe. */
 export async function listPlayerPlanets(
     playerId: number,
     universeId: number,
@@ -168,8 +169,6 @@ export async function listPlayerPlanets(
     );
     return res.rows;
 }
-
-// ─── (existing below) ───────────────────────────────────────────────────────
 
 export async function getEarthId(universeId: number): Promise<number | null> {
     const res = await pool.query(

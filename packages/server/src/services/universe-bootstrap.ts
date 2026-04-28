@@ -8,7 +8,7 @@ import {
 } from '../db/queries/universe.js';
 import { insertSector, insertWarp, getStarbaseSectorNumber } from '../db/queries/sector.js';
 import { insertGeneratedPort, upsertSpecialPort } from '../db/queries/port.js';
-import { upsertEarthPlanet, setEarthColonists } from '../db/queries/planet.js';
+import { insertUnownedPlanet, setEarthColonists } from '../db/queries/planet.js';
 import { invalidateGraphCache } from '../game-state.js';
 
 /**
@@ -74,7 +74,11 @@ export async function bootstrapUniverse(name: string): Promise<number> {
             }
         }
 
-        await upsertEarthPlanet(sector1Id, client);
+        for (const p of result.planets) {
+            const sectorDbId = sectorIdMap.get(p.sector);
+            if (sectorDbId === undefined) continue;
+            await insertUnownedPlanet(sectorDbId, p.name, p.type, client);
+        }
         const earthCol = await getEarthStartingColonistsForUniverse(newUniverseId, client);
         await setEarthColonists(sector1Id, earthCol, client);
 
