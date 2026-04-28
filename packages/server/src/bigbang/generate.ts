@@ -3,6 +3,7 @@ import type {
     BigBangResult,
     GeneratedSector,
     GeneratedPort,
+    GeneratedPlanet,
     Topology,
 } from './types.js';
 import {
@@ -31,6 +32,7 @@ const portClasses: Record<number, string[]> = {
 export function generateUniverse(options: BigBangOptions): BigBangResult {
     const N = options.sectors;
     const portDensity = options.portDensity ?? DEFAULT_PORT_DENSITY;
+    const planetDensity = options.planetDensity ?? 0;
     const twoWayPct = options.twoWayPct ?? DEFAULT_TWO_WAY_PCT;
     const warpDist = options.warpDist ?? DEFAULT_WARP_DIST;
     const seed = options.seed ?? Math.floor(Math.random() * 2147483647);
@@ -42,7 +44,6 @@ export function generateUniverse(options: BigBangOptions): BigBangResult {
         return Math.floor(rng() * (max - min + 1)) + min;
     }
 
-    // Generate sector names
     const sectorNames = new Array(N + 1).fill('');
     sectorNames[1] = 'Federation Space';
     const starbaseId = randomInt(2, N);
@@ -52,15 +53,12 @@ export function generateUniverse(options: BigBangOptions): BigBangResult {
     // the RNG stream is seed-determined across topology modes.
     const positions = topology === 'proximal' ? scatterPositions(N, rng) : null;
 
-    // Generate graph. Sector 1 (Federation HQ) and the starbase sector are
-    // forced to emit the full MAX_OUT regardless of the configured warp
-    // distribution — they're the universe's two biggest hubs and always
-    // need the maximum branching.
-    const forcedMaxOutSectors: number[] = [1, starbaseId];
+
+    const forcedHubSectors: number[] = [1, starbaseId];
     const warps =
         topology === 'proximal' && positions
-            ? generateProximalGraph(N, twoWayPct, rng, positions, warpDist, forcedMaxOutSectors)
-            : generateGraph(N, twoWayPct, rng, warpDist, forcedMaxOutSectors);
+            ? generateProximalGraph(N, twoWayPct, rng, positions, warpDist, forcedHubSectors)
+            : generateGraph(N, twoWayPct, rng, warpDist, forcedHubSectors);
 
     // Relax positions with Fruchterman-Reingold so the stored coordinates
     // reflect the warp graph: connected sectors pull together, unconnected
@@ -87,7 +85,6 @@ export function generateUniverse(options: BigBangOptions): BigBangResult {
         });
     }
 
-    // Generate ports
     const totalPortsTarget = Math.max(1, Math.round((N * portDensity) / 100));
     const ports: GeneratedPort[] = [];
 
@@ -159,5 +156,51 @@ export function generateUniverse(options: BigBangOptions): BigBangResult {
 
     ports.sort((a, b) => a.sector - b.sector);
 
-    return { seed, topology, sectors, warps, ports };
+    const planets: GeneratedPlanet[] = [{ sector: 1, name: 'Earth', type: 'Terran' }];
+
+    if (planetDensity > 0) {
+        let totalPlanetSectors = Math.round((N * planetDensity) / 100);
+        if (totalPlanetSectors > N - 1) totalPlanetSectors = N - 1;
+
+        const availableSectorsForPlanets: number[] = [];
+        for (let i = 2; i <= N; i++) availableSectorsForPlanets.push(i);
+        for (let i = availableSectorsForPlanets.length - 1; i > 0; i--) {
+            const j = Math.floor(rng() * (i + 1));
+            [availableSectorsForPlanets[i], availableSectorsForPlanets[j]] = [
+                availableSectorsForPlanets[j],
+                availableSectorsForPlanets[i],
+            ];
+        }
+
+        const planetTypesPool = ['Terran', 'Volcanic', 'Glacial', 'Gas Giant', 'Mountainous'];
+        let pTypePool: string[] = [];
+        function getNextPlanetType(): string {
+            if (pTypePool.length === 0) {
+                pTypePool = [...planetTypesPool];
+                for (let i = pTypePool.length - 1; i > 0; i--) {
+                    const j = Math.floor(rng() * (i + 1));
+                    [pTypePool[i], pTypePool[j]] = [pTypePool[j], pTypePool[i]];
+                }
+            }
+            return pTypePool.pop()!;
+        }
+
+        for (let i = 0; i < totalPlanetSectors; i++) {
+            const sectorId = availableSectorsForPlanets[i];
+            const numPlanets = randomInt(1, 3);
+            for (let p = 1; p <= numPlanets; p++) {
+                const pType = getNextPlanetType();
+                planets.push({
+                    sector: sectorId,
+                    name: `${pType}-${sectorId}-${p}`,
+                    type: pType,
+                });
+            }
+        }
+        planets.sort((a, b) =>
+            a.sector !== b.sector ? a.sector - b.sector : a.name.localeCompare(b.name),
+        );
+    }
+
+    return { seed, topology, sectors, warps, ports, planets };
 }

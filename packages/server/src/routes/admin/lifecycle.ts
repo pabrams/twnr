@@ -26,7 +26,7 @@ import {
     insertGeneratedPort,
     upsertSpecialPort,
 } from '../../db/queries/port.js';
-import { upsertEarthPlanet, setEarthColonists } from '../../db/queries/planet.js';
+import { insertUnownedPlanet, setEarthColonists } from '../../db/queries/planet.js';
 import { invalidateGraphCache } from '../../game-state.js';
 import {
     countPlayersInUniverse,
@@ -156,7 +156,14 @@ export function createAdminLifecycleRoutes(
                     }
                 }
 
-                await upsertEarthPlanet(sector1Id, client);
+                // Persist all planets the generator emitted (always includes
+                // Earth at sector 1; may include scattered planets if
+                // planetDensity > 0).
+                for (const p of result.planets) {
+                    const sectorDbId = sectorIdMap.get(p.sector);
+                    if (sectorDbId === undefined) continue;
+                    await insertUnownedPlanet(sectorDbId, p.name, p.type, client);
+                }
                 const earthCol = await getEarthStartingColonistsForUniverse(newUniverseId, client);
                 await setEarthColonists(sector1Id, earthCol, client);
 

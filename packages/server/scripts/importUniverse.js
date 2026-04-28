@@ -176,17 +176,17 @@ async function main() {
       );
     }
 
-    // Import planets (if planets.csv exists)
+    // Import planets. The CSV always contains Earth at sector 1 (emitted by
+    // generateUniverse) plus any random scatter from planetDensity > 0.
     try {
       const { rows: planetRows } = readCSV(join(universeDir, 'planets.csv'));
-      const seenSectors = new Set();
       for (const row of planetRows) {
         const sectorNumber = parseInt(row[0], 10);
-        if (seenSectors.has(sectorNumber)) continue;
-        seenSectors.add(sectorNumber);
         const sectorDbId = sectorIdMap.get(sectorNumber);
+        if (sectorDbId === undefined) continue;
         await client.query(
-          'INSERT INTO planets (sector_id, name, type) VALUES ($1, $2, $3)',
+          `INSERT INTO planets (sector_id, name, type) VALUES ($1, $2, $3)
+           ON CONFLICT DO NOTHING`,
           [sectorDbId, row[1], row[2]],
         );
       }
@@ -203,12 +203,8 @@ async function main() {
       SET class = 0, fuel = 0, fuel_price = 0, organics = 0, org_price = 0, equipment = 0, equ_price = 0
     `, [sector1Id]);
 
-    // Seed Earth in Sector 1 with starting colonists
-    await client.query(`
-      INSERT INTO planets (sector_id, name, type)
-      VALUES ($1, 'Earth', 'Terran')
-      ON CONFLICT DO NOTHING
-    `, [sector1Id]);
+    // Earth is now imported via planets.csv (above); just set its starting
+    // colonists from universe_settings.
     const earthColRes = await client.query(
       `SELECT starting_earth_colonists AS col FROM universe_settings WHERE universe_id = $1`,
       [universeId]
