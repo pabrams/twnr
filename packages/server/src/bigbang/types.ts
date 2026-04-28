@@ -1,7 +1,16 @@
-import { DEFAULT_WARP_DIST_1_6 } from '@twnr/shared';
+import {
+    DEFAULT_WARP_DIST_1_6,
+    DEFAULT_TWO_WAY_PCT,
+    DEFAULT_PORT_DENSITY,
+    DEFAULT_TOPOLOGY,
+} from '@twnr/shared';
 
 /** Default warp-out degree distribution for degrees 1-6 (index 0 unused). */
 export const DEFAULT_WARP_DIST: number[] = [0, ...DEFAULT_WARP_DIST_1_6];
+
+// Re-export the shared generation defaults so server-internal callers don't
+// have to reach into @twnr/shared themselves.
+export { DEFAULT_TWO_WAY_PCT, DEFAULT_PORT_DENSITY, DEFAULT_TOPOLOGY };
 
 export type Topology = 'random' | 'proximal';
 

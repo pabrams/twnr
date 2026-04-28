@@ -6,17 +6,22 @@ import { generateGraph } from '../dist/bigbang/graph.js';
 import { generateProximalGraph } from '../dist/bigbang/graph-proximal.js';
 import { scatterPositions } from '../dist/bigbang/positions.js';
 import { mulberry32 } from '../dist/bigbang/prng.js';
-import { DEFAULT_WARP_DIST } from '../dist/bigbang/types.js';
+import {
+    DEFAULT_WARP_DIST,
+    DEFAULT_TWO_WAY_PCT,
+    DEFAULT_PORT_DENSITY,
+    DEFAULT_TOPOLOGY,
+} from '../dist/bigbang/types.js';
 
 const args = process.argv.slice(2);
 let outDir = null;
 let sectors = 25000;
-let portDensity = 80;
+let portDensity = DEFAULT_PORT_DENSITY;
 let planetDensity = 0;
-let twoWayPct = 95;
+let twoWayPct = DEFAULT_TWO_WAY_PCT;
 let seed = 42;
 let warpDist = [...DEFAULT_WARP_DIST];
-let topology = 'proximal';
+let topology = DEFAULT_TOPOLOGY;
 
 for (let i = 0; i < args.length; i++) {
     const arg = args[i];

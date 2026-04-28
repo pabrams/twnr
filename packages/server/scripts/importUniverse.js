@@ -13,13 +13,13 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pool } from '../dist/db/pool.js';
+import { DEFAULT_TOPOLOGY } from '../dist/bigbang/types.js';
 import { connectDB } from '../dist/db/schema.js';
 
 const args = process.argv.slice(2);
 const universeDir = args.find(a => !a.startsWith('--'));
 const force = args.includes('--force');
 
-// Parse --universe-id flag
 let universeId = 1; // default
 const uidIdx = args.indexOf('--universe-id');
 if (uidIdx !== -1 && args[uidIdx + 1]) {
@@ -61,7 +61,7 @@ function readCSV(filepath) {
 async function main() {
   await connectDB();
 
-  let topology = 'proximal';
+  let topology = DEFAULT_TOPOLOGY;
   const manifestPath = join(universeDir, 'manifest.json');
   if (existsSync(manifestPath)) {
     try {

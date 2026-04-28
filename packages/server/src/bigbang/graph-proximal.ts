@@ -13,7 +13,7 @@ const MAX_IN = 6;
  */
 export function generateProximalGraph(
     N: number,
-    T: number,
+    twoWayPercentage: number,
     rng: () => number,
     positions: Position[],
     warpDist: number[] = DEFAULT_WARP_DIST,
@@ -22,11 +22,11 @@ export function generateProximalGraph(
         throw new Error(`generateProximalGraph: expected ${N} positions, got ${positions.length}`);
     }
 
-    const targetOut = assignTargetOutDegrees(N, T, rng, warpDist);
+    const targetOut = assignTargetOutDegrees(N, twoWayPercentage, rng, warpDist);
     let totalEdges = 0;
     for (let i = 1; i <= N; i++) totalEdges += targetOut[i];
 
-    if (T >= 99 && totalEdges % 2 !== 0) {
+    if (twoWayPercentage >= 99 && totalEdges % 2 !== 0) {
         for (let i = 1; i <= N; i++) {
             if (targetOut[i] < MAX_OUT) {
                 targetOut[i]++;
@@ -38,11 +38,11 @@ export function generateProximalGraph(
 
     const TOLERANCE = 5.0;
     function findBiPairs(total: number): number {
-        const base = Math.round((total * T) / 200);
+        const base = Math.round((total * twoWayPercentage) / 200);
         for (const bp of [base, base - 1, base + 1]) {
             if (bp < 0 || 2 * bp > total) continue;
             const pct = ((2 * bp) / total) * 100;
-            if (Math.abs(pct - T) <= TOLERANCE) return bp;
+            if (Math.abs(pct - twoWayPercentage) <= TOLERANCE) return bp;
         }
         return -1;
     }
@@ -58,7 +58,7 @@ export function generateProximalGraph(
         biPairsTarget = findBiPairs(totalEdges);
     }
 
-    if (T < 99) {
+    if (twoWayPercentage < 99) {
         const minMargin = Math.max(5, Math.ceil(N * 0.02));
         function getMargin(): number {
             let d1 = 0;
@@ -67,7 +67,7 @@ export function generateProximalGraph(
             const maxPhaseB = N - d1;
             return Math.floor((remaining + maxPhaseB) / 2) - biPairsTarget;
         }
-        for (let targetDeg = 1; targetDeg < MAX_OUT && getMargin() < minMargin; targetDeg++) {
+        for (let targetDeg = MAX_OUT - 1; targetDeg >= 1 && getMargin() < minMargin; targetDeg--) {
             for (let i = 1; i <= N && getMargin() < minMargin; i++) {
                 if (targetOut[i] === targetDeg) {
                     targetOut[i]++;
@@ -205,7 +205,7 @@ export function generateProximalGraph(
             if (edges.has(`${b},${a}`)) biCount++;
         }
         const actualPct = (biCount / edges.size) * 100;
-        if (Math.abs(actualPct - T) > TOLERANCE) continue;
+        if (Math.abs(actualPct - twoWayPercentage) > TOLERANCE) continue;
 
         const result: GeneratedWarp[] = [];
         for (const e of edges) {

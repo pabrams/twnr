@@ -1,4 +1,9 @@
-import { DEFAULT_WARP_DIST_1_6 } from '@twnr/shared';
+import {
+    DEFAULT_WARP_DIST_1_6,
+    DEFAULT_TWO_WAY_PCT,
+    DEFAULT_PORT_DENSITY,
+    DEFAULT_TOPOLOGY,
+} from '@twnr/shared';
 import { generateUniverse } from './api.js';
 
 function makeInput(
@@ -73,7 +78,7 @@ function makeTopologyField(): {
         input.type = 'radio';
         input.name = 'topology';
         input.value = val;
-        if (val === 'proximal') input.checked = true;
+        if (val === DEFAULT_TOPOLOGY) input.checked = true;
         wrap.appendChild(input);
         wrap.appendChild(document.createTextNode(val));
         group.appendChild(wrap);
@@ -84,7 +89,7 @@ function makeTopologyField(): {
     hint.style.color = '#666';
     hint.style.fontSize = '11px';
     hint.style.marginTop = '4px';
-    hint.textContent = descriptions.proximal;
+    hint.textContent = descriptions[DEFAULT_TOPOLOGY];
     row.appendChild(hint);
     for (const input of inputs) {
         input.addEventListener('change', () => {
@@ -217,20 +222,20 @@ export function renderUniverseGenerator(container: HTMLElement, onGenerated: () 
 
     const portDensityField = makeInput('Port Density % (0-100)', {
         type: 'number',
-        placeholder: '80',
+        placeholder: String(DEFAULT_PORT_DENSITY),
         min: '0',
         max: '100',
     });
-    portDensityField.input.value = '80';
+    portDensityField.input.value = String(DEFAULT_PORT_DENSITY);
     form.appendChild(portDensityField.row);
 
     const twoWayField = makeInput('Two-Way Warp % (0-100)', {
         type: 'number',
-        placeholder: '95',
+        placeholder: String(DEFAULT_TWO_WAY_PCT),
         min: '0',
         max: '100',
     });
-    twoWayField.input.value = '95';
+    twoWayField.input.value = String(DEFAULT_TWO_WAY_PCT);
     form.appendChild(twoWayField.row);
 
     const topologyField = makeTopologyField();

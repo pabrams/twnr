@@ -1,5 +1,8 @@
 
 export const DEFAULT_WARP_DIST_1_6: readonly number[] = [25, 25, 25, 15, 8, 2];
+export const DEFAULT_TWO_WAY_PCT = 98;
+export const DEFAULT_PORT_DENSITY = 80;
+export const DEFAULT_TOPOLOGY: 'random' | 'proximal' = 'proximal';
 
 export type ShipConfig = {
     name: string;
