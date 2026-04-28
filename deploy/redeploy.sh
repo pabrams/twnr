@@ -4,7 +4,12 @@
 # and tail logs. Run from the repo root on your dev machine.
 #
 # Usage:
-#   ./deploy/redeploy.sh [--skip-push] [--no-tail]
+#   ./deploy/redeploy.sh [--skip-push] [--no-tail] [--reset-db] [--seed]
+#
+# --reset-db   Drop all DB tables before starting the new app container.
+#              connectDB() recreates the schema fresh on first connect.
+
+# --seed       After the app is up, run the universe seeder once.
 
 set -euo pipefail
 
@@ -15,10 +20,14 @@ ENV_FILE=".env.production"
 
 skip_push=0
 tail_logs=1
+reset_db=0
+seed_universe=0
 for arg in "$@"; do
   case "$arg" in
     --skip-push) skip_push=1 ;;
     --no-tail)   tail_logs=0 ;;
+    --reset-db)  reset_db=1 ;;
+    --seed)      seed_universe=1 ;;
     *) echo "unknown flag: $arg" >&2; exit 2 ;;
   esac
 done
@@ -31,8 +40,6 @@ fi
 
 echo "==> Redeploying on $INSTANCE ($ZONE)"
 
-# The heredoc runs on the VM. Uses docker:cli image so we don't depend on
-# a host-installed compose (COS has no writable+exec path for plugins).
 gcloud compute ssh "$INSTANCE" --zone="$ZONE" --command="bash -s" <<EOF
 set -euo pipefail
 cd ~/twnr
@@ -46,7 +53,30 @@ compose() {
     compose -f $COMPOSE_FILE "\$@"
 }
 compose down --remove-orphans
-compose up -d --build
+compose build app
+
+# Bring up just the db first if we need to run pre-app data ops.
+if [[ "$reset_db" -eq 1 || "$seed_universe" -eq 1 ]]; then
+  compose up -d db
+  for i in 1 2 3 4 5 6 7 8 9 10; do
+    if compose ps db | grep -q "(healthy)"; then break; fi
+    sleep 2
+  done
+fi
+
+if [[ "$reset_db" -eq 1 ]]; then
+  echo "==> Dropping all tables (--reset-db)"
+  compose run --rm app node packages/server/scripts/deleteDatabase.js
+fi
+
+if [[ "$seed_universe" -eq 1 ]]; then
+  echo "==> Seeding universe (--seed)"
+  compose run --rm app sh -c '\
+    node packages/server/scripts/twnr-bigbang.js packages/server/data/universe/ --sectors 2000 --seed 42 && \
+    node packages/server/scripts/importUniverse.js packages/server/data/universe --force'
+fi
+
+compose up -d
 docker ps --format 'table {{.Names}}\t{{.Status}}'
 EOF
 
