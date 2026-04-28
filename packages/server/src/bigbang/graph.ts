@@ -6,6 +6,7 @@ export function generateGraph(
     T: number,
     rng: () => number,
     warpDist: number[] = DEFAULT_WARP_DIST,
+    forcedMaxOutSectors: readonly number[] = [],
 ): GeneratedWarp[] {
     const MAX_OUT = 6;
     const MAX_IN = 6;
@@ -27,6 +28,12 @@ export function generateGraph(
             }
         }
         if (targetOut[i] === 0) targetOut[i] = MAX_OUT;
+    }
+
+    // Hard-override landmark sectors (e.g. Federation HQ + Starbase) so they
+    // always emit MAX_OUT warps regardless of the configured distribution.
+    for (const sid of forcedMaxOutSectors) {
+        if (sid >= 1 && sid <= N) targetOut[sid] = MAX_OUT;
     }
 
     // For T >= 99: bump degree-1 nodes to 2 so full bidirectional is possible

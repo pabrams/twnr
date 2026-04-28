@@ -52,11 +52,15 @@ export function generateUniverse(options: BigBangOptions): BigBangResult {
     // the RNG stream is seed-determined across topology modes.
     const positions = topology === 'proximal' ? scatterPositions(N, rng) : null;
 
-    // Generate graph
+    // Generate graph. Sector 1 (Federation HQ) and the starbase sector are
+    // forced to emit the full MAX_OUT regardless of the configured warp
+    // distribution — they're the universe's two biggest hubs and always
+    // need the maximum branching.
+    const forcedMaxOutSectors: number[] = [1, starbaseId];
     const warps =
         topology === 'proximal' && positions
-            ? generateProximalGraph(N, twoWayPct, rng, positions, warpDist)
-            : generateGraph(N, twoWayPct, rng, warpDist);
+            ? generateProximalGraph(N, twoWayPct, rng, positions, warpDist, forcedMaxOutSectors)
+            : generateGraph(N, twoWayPct, rng, warpDist, forcedMaxOutSectors);
 
     // Relax positions with Fruchterman-Reingold so the stored coordinates
     // reflect the warp graph: connected sectors pull together, unconnected
