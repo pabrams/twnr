@@ -19,9 +19,11 @@ import { invalidateGraphCache } from '../game-state.js';
  * Returns the new universe id. Defaults are tuned for a quick demo.
  */
 export async function bootstrapUniverse(name: string): Promise<number> {
+    // Topology + warp distribution + two-way pct + port density all come from
+    // the shared DEFAULT_* constants via generateUniverse — don't override
+    // them here.
     const result = generateUniverse({
         sectors: 200,
-        topology: 'proximal',
     });
 
     const universeId = await withTransaction(async (client) => {

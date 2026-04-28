@@ -1,3 +1,4 @@
+import { DEFAULT_TOPOLOGY } from '@twnr/shared';
 import { pool } from '../index.js';
 import type { Queryable } from '../types.js';
 
@@ -71,7 +72,7 @@ export async function insertUniverseFull(
     seed: number,
     templateId: number | null,
     db: Queryable = pool,
-    topology: 'random' | 'proximal' = 'random',
+    topology: 'random' | 'proximal' = DEFAULT_TOPOLOGY,
 ): Promise<number> {
     const res = await db.query<{ id: number }>(
         'INSERT INTO universes (name, seed, template_id, topology) VALUES ($1, $2, $3, $4) RETURNING id',

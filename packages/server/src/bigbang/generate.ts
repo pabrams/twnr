@@ -5,7 +5,12 @@ import type {
     GeneratedPort,
     Topology,
 } from './types.js';
-import { DEFAULT_WARP_DIST } from './types.js';
+import {
+    DEFAULT_WARP_DIST,
+    DEFAULT_TWO_WAY_PCT,
+    DEFAULT_PORT_DENSITY,
+    DEFAULT_TOPOLOGY,
+} from './types.js';
 import { mulberry32 } from './prng.js';
 import { generateGraph } from './graph.js';
 import { generateProximalGraph } from './graph-proximal.js';
@@ -25,11 +30,11 @@ const portClasses: Record<number, string[]> = {
 
 export function generateUniverse(options: BigBangOptions): BigBangResult {
     const N = options.sectors;
-    const portDensity = options.portDensity ?? 80;
-    const twoWayPct = options.twoWayPct ?? 95;
+    const portDensity = options.portDensity ?? DEFAULT_PORT_DENSITY;
+    const twoWayPct = options.twoWayPct ?? DEFAULT_TWO_WAY_PCT;
     const warpDist = options.warpDist ?? DEFAULT_WARP_DIST;
     const seed = options.seed ?? Math.floor(Math.random() * 2147483647);
-    const topology: Topology = options.topology ?? 'proximal';
+    const topology: Topology = options.topology ?? DEFAULT_TOPOLOGY;
 
     const rng = mulberry32(seed);
 
