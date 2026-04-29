@@ -29,6 +29,7 @@ export const COMMAND = makeDomain('COMMAND', {
     hyperspaceJumpTargetBack: '[bg:b]<Back>[/bg:b]',
     jettisonConfirmBack: '[bg:b]<Back>[/bg:b]',
     moveMenuBack: '[bg:b]<Back>[/bg:b]',
+    portBack: '[bg:b]<Back>[/bg:b]',
     planetLeaveCommodityBack: '[bg:b]<Back>[/bg:b]',
     planetLeaveQtyBack: '[bg:b]<Back>[/bg:b]',
     planetSelectBack: '[bg:b]<Back>[/bg:b]',
