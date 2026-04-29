@@ -18,8 +18,6 @@ import {
     showPlanetMenuOptions,
     showEarthMenu,
     showNoPlanet,
-    showPlanetTakeCommodityMenu,
-    showPlanetLeaveCommodityMenu,
 } from './display-planet.js';
 import { showDroneEncounter, showAttackMenu } from './display-combat.js';
 import {
@@ -67,14 +65,7 @@ const MENU_RENDERERS: Partial<Record<MenuName, (ctx: GameContext) => void>> = {
         ),
     [Menu.ShipyardsClass0]: showShipyardsClass0Menu,
     [Menu.StarbaseHardware]: showHardwareMenu,
-    [Menu.Class0]: (ctx) => {
-        showClass0Menu(ctx);
-    },
     [Menu.Move]: showMoveMenu,
-    [Menu.Planet]: showPlanetMenuOptions,
-    [Menu.PlanetEarth]: showPlanetMenuOptions,
-    [Menu.PlanetTakeCommodity]: showPlanetTakeCommodityMenu,
-    [Menu.PlanetLeaveCommodity]: showPlanetLeaveCommodityMenu,
     [Menu.Port]: showPortMenu,
 };
 
