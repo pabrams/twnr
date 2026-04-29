@@ -973,7 +973,13 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             refreshHandler = handler;
         },
         setQuickMove(targets) {
-            state.quickMoveTargets = targets && targets.length > 0 ? [...targets] : null;
+            const hasTargets = !!(targets && targets.length > 0);
+            state.quickMoveTargets = hasTargets ? [...targets] : null;
+            // Opening the move menu (M): recenter on the player.
+            if (hasTargets && state.viewportCenter !== null) {
+                state.viewportCenter = null;
+                refreshHandler?.();
+            }
             render();
         },
         setAdminMode(adminMode) {
