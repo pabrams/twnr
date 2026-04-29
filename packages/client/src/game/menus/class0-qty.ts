@@ -1,0 +1,42 @@
+import { ClientMsgType, Menu } from '@twnr/shared';
+import { class0MaxBuy, showClass0QtyPrompt } from '../display-port.js';
+import { registerMenu } from './types.js';
+
+registerMenu(Menu.Class0Qty, {
+    enter(ctx) {
+        if (ctx.class0BuyType) showClass0QtyPrompt(ctx, ctx.class0BuyType);
+    },
+    input(ctx, line) {
+        const trimmed = line.trim();
+        if (trimmed.toLowerCase() === 'q') {
+            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Class0 });
+            return;
+        }
+        const kind = ctx.class0BuyType;
+        if (!kind) return;
+        const max = class0MaxBuy(kind, ctx);
+        // Empty input = accept default (max)
+        const qty = trimmed === '' ? max : parseInt(trimmed, 10);
+        if (isNaN(qty) || qty < 0) {
+            ctx.term.writeln('Enter a non-negative number.');
+            return;
+        }
+        if (qty === 0) {
+            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Class0 });
+            return;
+        }
+        // qty submission for an in-progress Buy flow — the echo already
+        // fired when the user picked A/B/C from the commerce report.
+        switch (kind) {
+            case 'drones':
+                ctx.sendMsg({ type: ClientMsgType.BuyDrones, quantity: qty });
+                break;
+            case 'shields':
+                ctx.sendMsg({ type: ClientMsgType.BuyShields, quantity: qty });
+                break;
+            case 'holds':
+                ctx.sendMsg({ type: ClientMsgType.BuyHolds, quantity: qty });
+                break;
+        }
+    },
+});

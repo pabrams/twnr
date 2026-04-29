@@ -102,60 +102,6 @@ export function handleHardwareInput(ctx: GameContext, line: string) {
     showHardwareMenu(ctx);
 }
 
-export function handleStarbaseBuyQtyInput(ctx: GameContext, line: string) {
-    const trimmed = line.trim();
-    // Q or 0 cancels back to the hardware menu.
-    if (trimmed.toLowerCase() === 'q' || trimmed === '0') {
-        echoCommand(ctx, 'hardwareStoreInfo');
-        ctx.sendMsg({ type: ClientMsgType.HardwareStoreInfo });
-        return;
-    }
-    // Empty Enter → accept default (max we can buy). If the default is 0, cancel.
-    const qty = trimmed === '' ? ctx.starbaseBuyDefault : parseInt(trimmed, 10);
-    if (qty === 0) {
-        echoCommand(ctx, 'hardwareStoreInfo');
-        ctx.sendMsg({ type: ClientMsgType.HardwareStoreInfo });
-        return;
-    }
-    if (isNaN(qty) || qty < 0) {
-        ctx.term.writeln('Enter a non-negative number (0 to cancel).');
-        return;
-    }
-    const itemName = ctx.starbaseBuyItemName;
-    if (itemName) {
-        ctx.sendMsg({ type: ClientMsgType.BuyHardware, itemName, quantity: qty });
-    }
-}
-
-export function handlePlanetSelectInput(ctx: GameContext, line: string) {
-    if (line.toLowerCase() === 'q') {
-        ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
-        return;
-    }
-    const idx = parseInt(line, 10) - 1;
-    const planets = ctx.landablePlanets;
-    if (planets && idx >= 0 && idx < planets.length) {
-        echoCommand(ctx, 'landOnPlanet');
-        ctx.sendMsg({ type: ClientMsgType.LandOnPlanet, planetId: planets[idx].id });
-    } else {
-        ctx.term.writeln(render(NOTIFY.invalidSelection));
-    }
-}
-
-export function handleHyperspaceJumpInput(ctx: GameContext, line: string) {
-    if (line.toLowerCase() === 'q') {
-        ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Computer });
-        return;
-    }
-    const sector = parseInt(line, 10);
-    if (isNaN(sector) || sector <= 0) {
-        ctx.term.writeln('Enter a valid sector number.');
-        return;
-    }
-    echoCommand(ctx, 'hyperspaceJump');
-    ctx.sendMsg({ type: ClientMsgType.HyperspaceJump, targetSector: sector });
-}
-
 // --- Shipyards ---
 
 function calculateShipPrice(ship: ShipCatalogEntry): number {
@@ -294,38 +240,5 @@ export function handleShipyardsClass0Input(ctx: GameContext, line: string) {
         case '?':
         default:
             showClass0Menu(ctx);
-    }
-}
-
-export function handleShipyardsClass0QtyInput(ctx: GameContext, line: string) {
-    const trimmed = line.trim();
-    if (trimmed.toLowerCase() === 'q') {
-        echoCommand(ctx, 'shipyardsEquipment');
-        ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsClass0 });
-        return;
-    }
-    const kind = ctx.class0BuyType;
-    if (!kind) return;
-    const max = class0MaxBuy(kind, ctx);
-    const qty = trimmed === '' ? max : parseInt(trimmed, 10);
-    if (isNaN(qty) || qty < 0) {
-        ctx.term.writeln('Enter a non-negative number.');
-        return;
-    }
-    if (qty === 0) {
-        echoCommand(ctx, 'shipyardsEquipment');
-        ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsClass0 });
-        return;
-    }
-    switch (kind) {
-        case 'drones':
-            ctx.sendMsg({ type: ClientMsgType.BuyDrones, quantity: qty });
-            break;
-        case 'shields':
-            ctx.sendMsg({ type: ClientMsgType.BuyShields, quantity: qty });
-            break;
-        case 'holds':
-            ctx.sendMsg({ type: ClientMsgType.BuyHolds, quantity: qty });
-            break;
     }
 }

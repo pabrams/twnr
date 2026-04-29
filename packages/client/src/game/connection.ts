@@ -94,27 +94,15 @@ const MENU_RENDERERS: Partial<Record<MenuName, (ctx: GameContext) => void>> = {
             ctx.shipyardsBuyTradein,
         ),
     [Menu.ShipyardsClass0]: showShipyardsClass0Menu,
-    [Menu.ShipyardsClass0Qty]: (ctx) => {
-        if (ctx.class0BuyType) showShipyardsClass0QtyPrompt(ctx, ctx.class0BuyType);
-    },
-    [Menu.StarbaseBuyQty]: (ctx) =>
-        showBuyQtyPrompt(ctx, ctx.starbaseBuyLabel ?? '', ctx.starbaseBuyDefault),
     [Menu.StarbaseHardware]: showHardwareMenu,
     [Menu.Class0]: (ctx) => {
         showClass0Menu(ctx);
-    },
-    [Menu.Class0Qty]: (ctx) => {
-        if (ctx.class0BuyType) showClass0QtyPrompt(ctx, ctx.class0BuyType);
     },
     [Menu.Move]: showMoveMenu,
     [Menu.Planet]: showPlanetMenuOptions,
     [Menu.PlanetEarth]: showPlanetMenuOptions,
     [Menu.PlanetTakeCommodity]: showPlanetTakeCommodityMenu,
     [Menu.PlanetLeaveCommodity]: showPlanetLeaveCommodityMenu,
-    [Menu.PlanetTakeQty]: showPlanetTakePrompt,
-    [Menu.PlanetLeaveQty]: showPlanetLeavePrompt,
-    [Menu.AttackDrones]: showAttackDronesPrompt,
-    [Menu.DroneAttackQty]: showDroneAttackQtyPrompt,
     [Menu.Port]: showPortMenu,
 };
 
