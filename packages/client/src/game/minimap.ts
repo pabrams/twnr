@@ -808,6 +808,33 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
                 ltext.textContent = dstNum;
                 labelGroup.appendChild(ltext);
 
+                // Quick-move target sitting off-screen: keep the label
+                // always-visible (not hover-only) while the move menu is
+                // open, and tack on the same green numbered badge the
+                // on-screen quick-move pills show.
+                const qIdx = isQuickMoveWarp ? quickMoveIndexById.get(w.to_sector_id) : undefined;
+                if (qIdx !== undefined) {
+                    labelGroup.classList.add('minimap-warp-end-label--quick-move');
+                    const badgeR = fontPx * 0.65;
+                    const badgeY = lrh / 2 + badgeR + fontPx * 0.25;
+                    const badgeCircle = document.createElementNS(SVG_NS, 'circle');
+                    badgeCircle.classList.add('minimap-quick-move-badge');
+                    badgeCircle.setAttribute('cx', '0');
+                    badgeCircle.setAttribute('cy', String(badgeY));
+                    badgeCircle.setAttribute('r', String(badgeR));
+                    badgeCircle.setAttribute('stroke-width', String(strokeW));
+                    labelGroup.appendChild(badgeCircle);
+                    const badgeText = document.createElementNS(SVG_NS, 'text');
+                    badgeText.classList.add('minimap-quick-move-badge-text');
+                    badgeText.setAttribute('text-anchor', 'middle');
+                    badgeText.setAttribute('dominant-baseline', 'central');
+                    badgeText.setAttribute('x', '0');
+                    badgeText.setAttribute('y', String(badgeY));
+                    badgeText.setAttribute('font-size', String(fontPx * 0.95));
+                    badgeText.textContent = String(qIdx);
+                    labelGroup.appendChild(badgeText);
+                }
+
                 overlayGroup.appendChild(labelGroup);
                 if (!endLabelsBySrcId.has(w.from_sector_id)) {
                     endLabelsBySrcId.set(w.from_sector_id, []);

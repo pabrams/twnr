@@ -51,6 +51,11 @@
 .minimap-warp-end-label.is-visible {
     display: block;
 }
+/* Quick-move targets shown off-screen: keep the pill visible the whole
+   time the move menu is open, regardless of hover state. */
+.minimap-warp-end-label--quick-move {
+    display: block;
+}
 .minimap-warp-end-label-text {
     font-family: 'Courier New', Courier, monospace;
     font-weight: bold;
