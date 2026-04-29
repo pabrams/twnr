@@ -92,7 +92,7 @@ export interface GameContext {
     knownUniverseMode: 'explored' | 'unexplored';
     starbaseBuyItemName: string | null;
     starbaseBuyDefault: number;
-    /** Label for the qty-prompt header, stashed for the MenuChanged dispatcher. */
+    /** Label for the qty-prompt header, stashed for the menu's enter() to read. */
     starbaseBuyLabel: string | null;
     shipyardsBuyTarget: string | null;
     /** Args stashed before transitioning to ShipyardsTradein, read by the dispatcher. */

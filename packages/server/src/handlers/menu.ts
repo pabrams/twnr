@@ -1,4 +1,3 @@
-import { ServerMsgType } from '@twnr/shared';
 import { players, setPlayerMenu } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { canTransitionToMenu } from '../db/queries/menu.js';
@@ -23,5 +22,8 @@ export async function handleChangeMenu(playerId: number, targetMenu: string): Pr
     }
 
     await setPlayerMenu(playerId, targetMenu);
-    sendEnvelope(playerId, { type: ServerMsgType.MenuChanged });
+    // Pure menu transition — no payload. The envelope's `menu` field is
+    // the only content; the client mirrors it into ctx.mode and renders
+    // the new menu's prompt.
+    sendEnvelope(playerId);
 }

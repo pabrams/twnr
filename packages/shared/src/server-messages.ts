@@ -425,10 +425,6 @@ export type ErrorResultObject = {
     message: string;
 };
 
-export type MenuChangedResultObject = {
-    type: typeof ServerMsgType.MenuChanged;
-};
-
 export type VisitedSectorsResultObject = {
     type: typeof ServerMsgType.VisitedSectorsResult;
     sectors: number[];
@@ -620,7 +616,6 @@ export type ServerResult =
     | ListDeployedDronesResultObject
     | ListPlanetsResultObject
     | HyperspaceJumpResultObject
-    | MenuChangedResultObject
     | VisitedSectorsResultObject
     | TradePromptObject
     | TradeConfirmPromptObject

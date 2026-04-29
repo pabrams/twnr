@@ -12,28 +12,16 @@ import {
     showMoveMenu,
     showPortMenu,
 } from './display.js';
-import {
-    showClass0Menu,
-    showClass0QtyPrompt,
-    showAutopilotPrompt,
-    showTradeQtyPrompt,
-} from './display-port.js';
+import { showClass0Menu, showAutopilotPrompt, showTradeQtyPrompt } from './display-port.js';
 import {
     showPlanetMenu,
     showPlanetMenuOptions,
     showEarthMenu,
     showNoPlanet,
-    showPlanetTakePrompt,
-    showPlanetLeavePrompt,
     showPlanetTakeCommodityMenu,
     showPlanetLeaveCommodityMenu,
 } from './display-planet.js';
-import {
-    showDroneEncounter,
-    showAttackMenu,
-    showAttackDronesPrompt,
-    showDroneAttackQtyPrompt,
-} from './display-combat.js';
+import { showDroneEncounter, showAttackMenu } from './display-combat.js';
 import {
     showStarbaseMenu,
     showHardwareMenu,
@@ -43,8 +31,6 @@ import {
     showShipExamineList,
     showTradeinPrompt,
     showShipyardsClass0Menu,
-    showShipyardsClass0QtyPrompt,
-    showBuyQtyPrompt,
 } from './display-starbase.js';
 import {
     renderVisitedSectorsResult,
@@ -61,14 +47,14 @@ function fmt(n: number): string {
 }
 
 /**
- * Dispatch table for the MenuChanged envelope: maps each menu the player can
- * land in via plain `ChangeMenu` to the render
- * call that paints it. Every entry takes only `ctx` and reads any extra args
- * from ctx fields stashed by the input handler before the transition was sent.
+ * Legacy dispatch table for plain-menu-transition envelopes (the wire frame
+ * with no payload). Maps each menu enterable via `ChangeMenu` to the render
+ * call that paints it. Each entry reads extra args from ctx fields stashed
+ * by the input handler before the transition was sent.
  *
- * Menus *not* listed here are entered via a specific Result type (e.g.
- * SectorDisplayResult, HardwareStoreInfoResult, DockResult) whose handler does
- * its own rendering — the dispatcher should be a no-op in those cases.
+ * Strangler-fig fallback: when a menu has been migrated to menus/<name>.ts,
+ * its `enter` is called instead of looking up this table. Once every menu
+ * is migrated this table goes away.
  */
 const MENU_RENDERERS: Partial<Record<MenuName, (ctx: GameContext) => void>> = {
     [Menu.Sector]: showPrompt,
@@ -147,10 +133,23 @@ export function setupConnection(ws: WebSocket, ctx: GameContext, onDisconnect: (
                 ctx.term.writeln(`\x1b[38;5;243m  ${lines[i]}\x1b[0m`);
             }
         }
-        const msg: ServerResult = raw.payload ?? raw;
         if (raw.menu) {
             ctx.mode = raw.menu as MenuName;
         }
+        // No payload ⇔ pure menu transition.
+        if (raw.payload === undefined) {
+            const handler = getMenuHandler(ctx.mode);
+            if (handler?.enter) {
+                handler.enter(ctx);
+            } else {
+                const renderer = MENU_RENDERERS[ctx.mode];
+                if (renderer) renderer(ctx);
+            }
+            ctx.inFlight = false;
+            drainInputQueue(ctx);
+            return;
+        }
+        const msg: ServerResult = raw.payload;
         switch (msg.type) {
             case ServerMsgType.Welcome:
                 ctx.playerName = msg.name;
@@ -979,19 +978,6 @@ export function setupConnection(ws: WebSocket, ctx: GameContext, onDisconnect: (
                 ctx.sectorPlayers = msg.players;
                 showAttackMenu(ctx);
                 break;
-            case ServerMsgType.MenuChanged: {
-                // Strangler-fig: per-menu modules handle `enter` themselves.
-                // Anything not yet migrated still goes through the legacy
-                // MENU_RENDERERS dispatch table.
-                const handler = getMenuHandler(ctx.mode);
-                if (handler?.enter) {
-                    handler.enter(ctx);
-                    break;
-                }
-                const renderer = MENU_RENDERERS[ctx.mode];
-                if (renderer) renderer(ctx);
-                break;
-            }
             case ServerMsgType.HardwareStoreInfoResult:
                 ctx.hardwareStoreCredits = msg.credits;
                 ctx.hardwareStoreItems = msg.items;

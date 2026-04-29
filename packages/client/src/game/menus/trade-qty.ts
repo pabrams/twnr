@@ -2,7 +2,7 @@ import { ClientMsgType, Menu } from '@twnr/shared';
 import { registerMenu } from './types.js';
 
 // TradeQty has no `enter`: its prompt is rendered by the TradeQtyResult
-// handler in connection.ts, not by MenuChanged.
+// handler in connection.ts.
 registerMenu(Menu.TradeQty, {
     input(ctx, line) {
         const trimmed = line.trim();

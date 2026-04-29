@@ -8,6 +8,7 @@ import { makeDomain } from './_domain.js';
 
 export const COMMAND = makeDomain('COMMAND', {
     move: '[bg:b]<Move>[/bg:b] [g]Warping to sector[/g] [bc]{sector}[/bc]',
+    moveMenu: '[bg:b]<Move>[/bg:b]',
     moveToPrevious: '[bw:b]<Move to Previous>[/bw:b]',
     sectorDisplay: '[bg:b]<Re-Display>[/bg:b]',
     playersOnline: '[bg:b]<Players Online>[/bg:b]',
@@ -27,6 +28,7 @@ export const COMMAND = makeDomain('COMMAND', {
     deployDrones: '[bg:b]<Deploy Drones>[/bg:b]',
     attack: '[bg:b]<Attack>[/bg:b]',
     starbaseInfo: '[bg:b]<Universe Information>[/bg:b]',
+    computer: '\r\n[bc]<Computer activated>[/bc]',
     quit: '[bg:b]<Quit>[/bg:b]',
     terraformInfo: '[bg:b]<Terraform>[/bg:b]',
     attackShip: '[bg:b]<Attack Ship>[/bg:b]',
