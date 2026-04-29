@@ -34,20 +34,6 @@ function fmt(n: number): string {
     return n.toLocaleString();
 }
 
-/**
- * Legacy dispatch table for plain-menu-transition envelopes (the wire frame
- * with no payload). Maps each menu enterable via `ChangeMenu` to the render
- * call that paints it. Each entry reads extra args from ctx fields stashed
- * by the input handler before the transition was sent.
- *
- * Strangler-fig fallback: when a menu has been migrated to menus/<name>.ts,
- * its `enter` is called instead of looking up this table. Once every menu
- * is migrated this table goes away.
- */
-const MENU_RENDERERS: Partial<Record<MenuName, (ctx: GameContext) => void>> = {
-    [Menu.Sector]: showPrompt,
-};
-
 /** Render a non-negative duration in seconds as the largest sensible unit. */
 function formatDuration(totalSeconds: number): string {
     if (totalSeconds < 60) return `${totalSeconds} second${totalSeconds === 1 ? '' : 's'}`;
@@ -92,15 +78,11 @@ export function setupConnection(ws: WebSocket, ctx: GameContext, onDisconnect: (
         if (raw.menu) {
             ctx.mode = raw.menu as MenuName;
         }
-        // No payload ⇔ pure menu transition.
+        // No payload ⇔ pure menu transition. The envelope's `menu` field
+        // (already mirrored into ctx.mode above) is the entire content;
+        // the new menu's enter() — if it has one — paints the prompt.
         if (raw.payload === undefined) {
-            const handler = getMenuHandler(ctx.mode);
-            if (handler?.enter) {
-                handler.enter(ctx);
-            } else {
-                const renderer = MENU_RENDERERS[ctx.mode];
-                if (renderer) renderer(ctx);
-            }
+            getMenuHandler(ctx.mode)?.enter?.(ctx);
             ctx.inFlight = false;
             drainInputQueue(ctx);
             return;
