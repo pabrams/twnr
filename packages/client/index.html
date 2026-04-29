@@ -36,8 +36,13 @@
     #minimap svg { width: 100%; height: 100%; display: block; }
     #minimap .sector-node { cursor: pointer; }
     #minimap .sector-node:focus { outline: 1px solid #0ff; }
+    /* Admin-mode minimap takes most of the viewport so a deep BFS has room
+       to render without sectors piling on top of each other. The terminal
+       is still beside it for typing movement commands. */
+    #minimap.is-admin-mode { width: 70vw; }
     @media (max-width: 900px) {
       #minimap { width: 380px; }
+      #minimap.is-admin-mode { width: 60vw; }
     }
     #auth {
       display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -188,10 +193,6 @@
     <div id="minimap">
       <div class="minimap-header">
         <label>Depth:</label>
-        <button type="button" class="depth-btn" data-depth="2">2</button>
-        <button type="button" class="depth-btn active" data-depth="3">3</button>
-        <button type="button" class="depth-btn" data-depth="4">4</button>
-        <button type="button" class="depth-btn" data-depth="5">5</button>
       </div>
       <div class="minimap-body">
         <div class="empty-state is-hidden">No map data for this universe.</div>

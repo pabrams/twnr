@@ -37,6 +37,7 @@ export interface Player {
     name: string;
     universeId: number;
     docked: boolean;
+    isAdmin: boolean;
     at_starbase?: boolean;
     pendingEncounter?: { retreatSector: number };
     currentMenu: string;

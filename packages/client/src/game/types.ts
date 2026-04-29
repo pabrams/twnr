@@ -101,6 +101,8 @@ export interface GameContext {
     shipyardsBuyTradein: number;
     landablePlanets: { id: number; name: string; type: string }[] | null;
     minimap?: Minimap;
+    /** Set by Welcome — admins get full-vision minimap with deeper depth options. */
+    isAdmin: boolean;
     /** Submit a text line as if the user had typed it into the xterm (used by the mini-map). */
     submitLineFromMap: (line: string) => void;
 }

@@ -99,6 +99,7 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
         hardwareStoreItems: [],
 
         knownUniverseMode: 'explored',
+        isAdmin: false,
         starbaseBuyItemName: null,
         starbaseBuyDefault: 0,
         starbaseBuyLabel: null,

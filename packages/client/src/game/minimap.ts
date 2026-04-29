@@ -36,6 +36,7 @@ type MinimapState = {
     data: NeighborhoodResultObject | null;
     currentSectorNumber: number;
     quickMoveTargets: number[] | null;
+    adminMode: boolean;
 };
 
 export type MinimapInjectionHandler = (sectorNumber: number, currentSector: number) => void;
@@ -45,11 +46,13 @@ export interface Minimap {
     getDepth(): number;
     onRequestRefresh(handler: () => void): void;
     setQuickMove(targets: number[] | null): void;
+    setAdminMode(adminMode: boolean): void;
 }
 
 const DEFAULT_DEPTH = 3;
-const MIN_DEPTH = 2;
-const MAX_DEPTH = 5;
+const ADMIN_DEFAULT_DEPTH = 10;
+const PLAYER_DEPTH_OPTIONS = [2, 3, 4, 5];
+const ADMIN_DEPTH_OPTIONS = [3, 5, 10, 25, 50];
 
 const PORT_CLASS_TRIPLET: Record<number, string> = {
     1: 'BBS',
@@ -72,35 +75,41 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
         data: null,
         currentSectorNumber: 0,
         quickMoveTargets: null,
+        adminMode: false,
     };
 
     const body = container.querySelector<HTMLElement>('.minimap-body')!;
     const svg = container.querySelector<SVGSVGElement>('.minimap-svg')!;
     const emptyState = container.querySelector<HTMLElement>('.empty-state')!;
     const infoPanel = container.querySelector<HTMLElement>('.minimap-info-panel')!;
-    const depthBtns = Array.from(container.querySelectorAll<HTMLButtonElement>('.depth-btn'));
+    const header = container.querySelector<HTMLElement>('.minimap-header')!;
 
     let refreshHandler: (() => void) | null = null;
 
-    function setActiveDepthButton(depth: number): void {
-        for (const btn of depthBtns) {
-            const btnDepth = Number(btn.dataset.depth);
-            btn.classList.toggle('active', btnDepth === depth);
+    function rebuildDepthButtons(): void {
+        // Clear existing depth buttons but keep the "Depth:" label.
+        for (const btn of Array.from(header.querySelectorAll('.depth-btn'))) btn.remove();
+        const options = state.adminMode ? ADMIN_DEPTH_OPTIONS : PLAYER_DEPTH_OPTIONS;
+        for (const depth of options) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'depth-btn';
+            btn.dataset.depth = String(depth);
+            btn.textContent = String(depth);
+            if (depth === state.depth) btn.classList.add('active');
+            btn.addEventListener('click', () => {
+                if (depth === state.depth) return;
+                state.depth = depth;
+                for (const b of header.querySelectorAll<HTMLButtonElement>('.depth-btn')) {
+                    b.classList.toggle('active', Number(b.dataset.depth) === depth);
+                }
+                refreshHandler?.();
+            });
+            header.appendChild(btn);
         }
     }
 
-    for (const btn of depthBtns) {
-        btn.addEventListener('click', () => {
-            const d = Number(btn.dataset.depth);
-            if (!Number.isFinite(d) || d < MIN_DEPTH || d > MAX_DEPTH) return;
-            if (d === state.depth) return;
-            state.depth = d;
-            setActiveDepthButton(d);
-            refreshHandler?.();
-        });
-    }
-
-    setActiveDepthButton(state.depth);
+    rebuildDepthButtons();
 
     function setHoveredInfo(sector: NeighborhoodSector): void {
         renderInfoPanel(sector);
@@ -683,6 +692,19 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
         setQuickMove(targets) {
             state.quickMoveTargets = targets && targets.length > 0 ? [...targets] : null;
             render();
+        },
+        setAdminMode(adminMode) {
+            if (state.adminMode === adminMode) return;
+            state.adminMode = adminMode;
+            container.classList.toggle('is-admin-mode', adminMode);
+            // Pick a sensible default depth for the new mode if the current
+            // depth isn't in the new option set. Caller is responsible for
+            // triggering the next neighborhood fetch.
+            const options = adminMode ? ADMIN_DEPTH_OPTIONS : PLAYER_DEPTH_OPTIONS;
+            if (!options.includes(state.depth)) {
+                state.depth = adminMode ? ADMIN_DEFAULT_DEPTH : DEFAULT_DEPTH;
+            }
+            rebuildDepthButtons();
         },
     };
 }

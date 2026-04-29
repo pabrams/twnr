@@ -171,6 +171,8 @@ export function setupConnection(ws: WebSocket, ctx: GameContext, onDisconnect: (
                 ctx.currentShipName = msg.shipName;
                 ctx.currentColoredShipName = msg.coloredShipName;
                 ctx.starbaseSector = msg.starbaseSector;
+                ctx.isAdmin = msg.isAdmin;
+                if (msg.isAdmin) ctx.minimap?.setAdminMode(true);
                 ctx.term.writeln(render(NOTIFY.welcome, { name: msg.name }));
                 if (msg.isGuest) {
                     ctx.term.writeln(render(NOTIFY.welcomeGuest));
