@@ -4,6 +4,7 @@ import type { GameContext } from './types.js';
 
 import { render } from './renderer.js';
 import { NOTIFY, TRANSACTION, EVENT, PANEL, PORT, SECTOR } from './messages/index.js';
+import { getMenuHandler } from './menus/index.js';
 import {
     showSectorDisplay,
     showCommerceReport,
@@ -16,7 +17,6 @@ import {
     showClass0QtyPrompt,
     showAutopilotPrompt,
     showTradeQtyPrompt,
-    showJettisonConfirm,
 } from './display-port.js';
 import {
     showPlanetMenu,
@@ -107,13 +107,6 @@ const MENU_RENDERERS: Partial<Record<MenuName, (ctx: GameContext) => void>> = {
         if (ctx.class0BuyType) showClass0QtyPrompt(ctx, ctx.class0BuyType);
     },
     [Menu.Move]: showMoveMenu,
-    [Menu.JettisonConfirm]: showJettisonConfirm,
-    [Menu.QuitConfirm]: (ctx) => {
-        ctx.term.write(render(NOTIFY.quitConfirm));
-    },
-    [Menu.TerraformConfirm]: (ctx) => {
-        ctx.term.write(render(NOTIFY.terraformConfirm));
-    },
     [Menu.Planet]: showPlanetMenuOptions,
     [Menu.PlanetEarth]: showPlanetMenuOptions,
     [Menu.PlanetTakeCommodity]: showPlanetTakeCommodityMenu,
@@ -999,6 +992,14 @@ export function setupConnection(ws: WebSocket, ctx: GameContext, onDisconnect: (
                 showAttackMenu(ctx);
                 break;
             case ServerMsgType.MenuChanged: {
+                // Strangler-fig: per-menu modules handle `enter` themselves.
+                // Anything not yet migrated still goes through the legacy
+                // MENU_RENDERERS dispatch table.
+                const handler = getMenuHandler(ctx.mode);
+                if (handler?.enter) {
+                    handler.enter(ctx);
+                    break;
+                }
                 const renderer = MENU_RENDERERS[ctx.mode];
                 if (renderer) renderer(ctx);
                 break;
