@@ -149,7 +149,14 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
         });
         ctx.minimap = minimap;
         minimap.onRequestRefresh(() => {
-            ctx.sendMsg({ type: ClientMsgType.GetNeighborhood, depth: minimap.getDepth() });
+            const vp = minimap.getViewport();
+            ctx.sendMsg({
+                type: ClientMsgType.GetNeighborhood,
+                halfWidthWorld: vp.halfWidthWorld,
+                halfHeightWorld: vp.halfHeightWorld,
+                centerXWorld: vp.centerXWorld,
+                centerYWorld: vp.centerYWorld,
+            });
         });
         // The minimap has no inputs that need keyboard focus, so push focus
         // back to the terminal after any click inside the panel.

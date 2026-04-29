@@ -1,8 +1,14 @@
-
 export const DEFAULT_WARP_DIST_1_6: readonly number[] = [25, 25, 25, 15, 8, 2];
 export const DEFAULT_TWO_WAY_PCT = 98;
 export const DEFAULT_PORT_DENSITY = 80;
 export const DEFAULT_TOPOLOGY: 'random' | 'proximal' = 'proximal';
+/** Fraction of hex grid cells that hold a sector (0–1). Lower = more empty space. */
+export const DEFAULT_FILL_DENSITY = 0.5;
+/** Diameter target for wormhole sprinkling: BFS eccentricity ≤ this. */
+export const DEFAULT_MAX_PATH_LENGTH = 50;
+/** Center-to-center distance between adjacent hex cells (world units). Shared so
+ *  the client can size labels relative to a hex cell. */
+export const HEX_CELL_SIZE = 100;
 
 export type ShipConfig = {
     name: string;
@@ -57,7 +63,6 @@ export type PlanetConfig = {
     organicsProduction: number;
     equipmentProduction: number;
 };
-
 
 export type ShipCatalogEntry = {
     id: number;

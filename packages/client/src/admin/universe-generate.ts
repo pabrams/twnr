@@ -3,6 +3,8 @@ import {
     DEFAULT_TWO_WAY_PCT,
     DEFAULT_PORT_DENSITY,
     DEFAULT_TOPOLOGY,
+    DEFAULT_FILL_DENSITY,
+    DEFAULT_MAX_PATH_LENGTH,
 } from '@twnr/shared';
 import { generateUniverse } from './api.js';
 
@@ -238,6 +240,25 @@ export function renderUniverseGenerator(container: HTMLElement, onGenerated: () 
     twoWayField.input.value = String(DEFAULT_TWO_WAY_PCT);
     form.appendChild(twoWayField.row);
 
+    const fillDensityField = makeInput('Fill Density (0.1–1.0, hex grid only)', {
+        type: 'number',
+        placeholder: String(DEFAULT_FILL_DENSITY),
+        min: '0.1',
+        max: '1.0',
+        step: '0.05',
+    });
+    fillDensityField.input.value = String(DEFAULT_FILL_DENSITY);
+    form.appendChild(fillDensityField.row);
+
+    const maxPathField = makeInput('Max Path Length (wormhole target)', {
+        type: 'number',
+        placeholder: String(DEFAULT_MAX_PATH_LENGTH),
+        min: '5',
+        max: '10000',
+    });
+    maxPathField.input.value = String(DEFAULT_MAX_PATH_LENGTH);
+    form.appendChild(maxPathField.row);
+
     const topologyField = makeTopologyField();
     form.appendChild(topologyField.row);
 
@@ -291,6 +312,8 @@ export function renderUniverseGenerator(container: HTMLElement, onGenerated: () 
         const seed = seedVal ? parseInt(seedVal, 10) : undefined;
         const portDensity = parseInt(portDensityField.input.value, 10);
         const twoWayPct = parseInt(twoWayField.input.value, 10);
+        const fillDensity = parseFloat(fillDensityField.input.value);
+        const maxPathLength = parseInt(maxPathField.input.value, 10);
         const warpDist = warpDistField.getValues();
 
         if (!warpDist) {
@@ -309,6 +332,8 @@ export function renderUniverseGenerator(container: HTMLElement, onGenerated: () 
             twoWayPct: isNaN(twoWayPct) ? undefined : twoWayPct,
             warpDist,
             topology: topologyField.getValue(),
+            fillDensity: isNaN(fillDensity) ? undefined : fillDensity,
+            maxPathLength: isNaN(maxPathLength) ? undefined : maxPathLength,
         })
             .then((result) => {
                 resultDiv.style.color = '#0ff';

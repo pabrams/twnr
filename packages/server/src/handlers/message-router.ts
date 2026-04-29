@@ -138,15 +138,39 @@ export async function handleMessage(playerId: number, data: ClientCommand): Prom
         case ClientMsgType.VisitedSectors:
             return handleVisitedSectors(playerId);
         case ClientMsgType.GetNeighborhood: {
-            // Wire-level validation: non-numeric/missing depth is rejected as
-            // a malformed frame. NaN/±Infinity fall back to the default depth
-            // inside the handler.
-            const raw = (data as { depth?: unknown }).depth;
-            if (typeof raw !== 'number') {
-                sendError(playerId, 'Invalid GET_NEIGHBORHOOD: depth must be a number');
+            // Wire-level validation: both half-extents must be numbers.
+            // Optional centerX/Y, when present, must also be numbers; absent
+            // falls back to the current sector position inside the handler.
+            const raw = data as {
+                halfWidthWorld?: unknown;
+                halfHeightWorld?: unknown;
+                centerXWorld?: unknown;
+                centerYWorld?: unknown;
+            };
+            if (typeof raw.halfWidthWorld !== 'number' || typeof raw.halfHeightWorld !== 'number') {
+                sendError(
+                    playerId,
+                    'Invalid GET_NEIGHBORHOOD: halfWidthWorld and halfHeightWorld must be numbers',
+                );
                 return;
             }
-            return handleGetNeighborhood(playerId, raw);
+            const cx = raw.centerXWorld;
+            const cy = raw.centerYWorld;
+            if (cx !== undefined && typeof cx !== 'number') {
+                sendError(playerId, 'Invalid GET_NEIGHBORHOOD: centerXWorld must be a number');
+                return;
+            }
+            if (cy !== undefined && typeof cy !== 'number') {
+                sendError(playerId, 'Invalid GET_NEIGHBORHOOD: centerYWorld must be a number');
+                return;
+            }
+            return handleGetNeighborhood(
+                playerId,
+                raw.halfWidthWorld,
+                raw.halfHeightWorld,
+                typeof cx === 'number' ? cx : undefined,
+                typeof cy === 'number' ? cy : undefined,
+            );
         }
         default:
             sendError(playerId, 'Unknown message type');

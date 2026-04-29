@@ -1,5 +1,5 @@
 export { generateUniverse } from './generate.js';
-export { DEFAULT_WARP_DIST, PROXIMAL_PLANE_SIZE } from './types.js';
+export { DEFAULT_WARP_DIST, HEX_CELL_SIZE } from './types.js';
 export type {
     BigBangOptions,
     GeneratedSector,

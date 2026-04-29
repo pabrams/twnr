@@ -3,15 +3,23 @@ import {
     DEFAULT_TWO_WAY_PCT,
     DEFAULT_PORT_DENSITY,
     DEFAULT_TOPOLOGY,
+    DEFAULT_FILL_DENSITY,
+    DEFAULT_MAX_PATH_LENGTH,
+    HEX_CELL_SIZE,
 } from '@twnr/shared';
 
 export const DEFAULT_WARP_DIST: number[] = [0, ...DEFAULT_WARP_DIST_1_6];
 
-export { DEFAULT_TWO_WAY_PCT, DEFAULT_PORT_DENSITY, DEFAULT_TOPOLOGY };
+export {
+    DEFAULT_TWO_WAY_PCT,
+    DEFAULT_PORT_DENSITY,
+    DEFAULT_TOPOLOGY,
+    DEFAULT_FILL_DENSITY,
+    DEFAULT_MAX_PATH_LENGTH,
+    HEX_CELL_SIZE,
+};
 
 export type Topology = 'random' | 'proximal';
-
-export const PROXIMAL_PLANE_SIZE = 10000;
 
 export interface BigBangOptions {
     sectors: number;
@@ -21,6 +29,10 @@ export interface BigBangOptions {
     twoWayPct?: number;
     warpDist?: number[];
     topology?: Topology;
+    /** Hex layout: fraction of cells in the bounding rectangle that are occupied (0.1–1.0). */
+    fillDensity?: number;
+    /** Hex layout: diameter cap; wormholes are added until BFS eccentricity drops below this. */
+    maxPathLength?: number;
 }
 
 export interface GeneratedSector {

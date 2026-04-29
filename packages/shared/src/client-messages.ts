@@ -207,7 +207,21 @@ export type TradeConfirmResponseCommand = {
 
 export type GetNeighborhoodCommand = {
     type: typeof ClientMsgType.GetNeighborhood;
-    depth: number;
+    /**
+     * Half-extent of the visible viewport in world units (axis-aligned bbox).
+     * Server returns sectors with |x - cx| ≤ halfWidthWorld and
+     * |y - cy| ≤ halfHeightWorld, still scoped by the player's
+     * visited/glimpsed set unless they are an admin.
+     */
+    halfWidthWorld: number;
+    halfHeightWorld: number;
+    /**
+     * Optional viewport center in world units. When omitted, the server
+     * centers on the player's current sector. Used by the client when the
+     * user has panned/zoomed-toward-cursor away from the player position.
+     */
+    centerXWorld?: number;
+    centerYWorld?: number;
 };
 
 export type ClientCommand =

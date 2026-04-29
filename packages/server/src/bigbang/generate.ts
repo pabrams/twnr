@@ -11,12 +11,13 @@ import {
     DEFAULT_TWO_WAY_PCT,
     DEFAULT_PORT_DENSITY,
     DEFAULT_TOPOLOGY,
+    DEFAULT_FILL_DENSITY,
+    DEFAULT_MAX_PATH_LENGTH,
 } from './types.js';
 import { mulberry32 } from './prng.js';
 import { generateGraph } from './graph.js';
 import { generateProximalGraph } from './graph-proximal.js';
 import { scatterPositions } from './positions.js';
-import { fruchtermanReingold } from './graph-layout.js';
 
 const portClasses: Record<number, string[]> = {
     1: ['B', 'B', 'S'],
@@ -37,6 +38,8 @@ export function generateUniverse(options: BigBangOptions): BigBangResult {
     const warpDist = options.warpDist ?? DEFAULT_WARP_DIST;
     const seed = options.seed ?? Math.floor(Math.random() * 2147483647);
     const topology: Topology = options.topology ?? DEFAULT_TOPOLOGY;
+    const fillDensity = options.fillDensity ?? DEFAULT_FILL_DENSITY;
+    const maxPathLength = options.maxPathLength ?? DEFAULT_MAX_PATH_LENGTH;
 
     const rng = mulberry32(seed);
 
@@ -49,39 +52,32 @@ export function generateUniverse(options: BigBangOptions): BigBangResult {
     const starbaseId = randomInt(2, N);
     sectorNames[starbaseId] = 'Starbase';
 
-    // Position scatter (proximal only) must happen before graph generation so
-    // the RNG stream is seed-determined across topology modes.
-    const positions = topology === 'proximal' ? scatterPositions(N, rng) : null;
-
+    // Hex layout (proximal only) must happen before graph generation so the
+    // RNG stream is seed-determined across topology modes.
+    const layout = topology === 'proximal' ? scatterPositions(N, rng, fillDensity) : null;
 
     const forcedHubSectors: number[] = [1, starbaseId];
     const warps =
-        topology === 'proximal' && positions
-            ? generateProximalGraph(N, twoWayPct, rng, positions, warpDist, forcedHubSectors)
+        topology === 'proximal' && layout
+            ? generateProximalGraph(
+                  N,
+                  twoWayPct,
+                  rng,
+                  layout.cells,
+                  maxPathLength,
+                  forcedHubSectors,
+              )
             : generateGraph(N, twoWayPct, rng, warpDist, forcedHubSectors);
 
-    // Relax positions with Fruchterman-Reingold so the stored coordinates
-    // reflect the warp graph: connected sectors pull together, unconnected
-    // sectors repel, and max-degree-6 naturally resolves into hex-ish local
-    // clusters. Seeded from the Poisson-scatter above so the layout is
-    // reproducible for a given seed.
-    const finalPositions =
-        positions !== null
-            ? fruchtermanReingold(
-                  positions,
-                  warps.map((w) => ({ a: w.from - 1, b: w.to - 1 })),
-                  rng,
-              )
-            : null;
-
-    // Generate sectors
+    // Generate sectors. Hex centers are authoritative; no client-side or
+    // post-hoc relaxation moves them.
     const sectors: GeneratedSector[] = [];
     for (let i = 1; i <= N; i++) {
         sectors.push({
             id: i,
             name: sectorNames[i],
-            x: finalPositions ? finalPositions[i - 1].x : null,
-            y: finalPositions ? finalPositions[i - 1].y : null,
+            x: layout ? layout.positions[i - 1].x : null,
+            y: layout ? layout.positions[i - 1].y : null,
         });
     }
 
