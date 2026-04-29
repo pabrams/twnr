@@ -11,12 +11,6 @@ import {
     hideMoveMenuOverlay,
 } from './display.js';
 import {
-    handleComputerInput,
-    handleKnownUniverseInput,
-    handleShipCatalogInput,
-    handlePlanetSpecsInput,
-} from './input-computer.js';
-import {
     handleClass0Input,
     handlePlanetInput,
     handlePlanetEarthInput,
@@ -166,18 +160,6 @@ function handleInput(ctx: GameContext, line: string) {
     switch (ctx.mode) {
         case Menu.Port:
             handlePortInput(ctx, line);
-            return;
-        case Menu.Computer:
-            handleComputerInput(ctx, line);
-            return;
-        case Menu.KnownUniverse:
-            handleKnownUniverseInput(ctx, line);
-            return;
-        case Menu.ShipCatalog:
-            handleShipCatalogInput(ctx, line);
-            return;
-        case Menu.PlanetSpecs:
-            handlePlanetSpecsInput(ctx, line);
             return;
         case Menu.Class0:
             handleClass0Input(ctx, line);

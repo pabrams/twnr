@@ -32,13 +32,7 @@ import {
     showTradeinPrompt,
     showShipyardsClass0Menu,
 } from './display-starbase.js';
-import {
-    renderVisitedSectorsResult,
-    showComputerPrompt,
-    showKnownUniverseMenu,
-    showShipCatalog,
-    showPlanetSpecs,
-} from './display-computer.js';
+import { renderVisitedSectorsResult, showComputerPrompt } from './display-computer.js';
 import { PORT_CLASS_ACTIONS } from './constants.js';
 import { drainInputQueue } from './input.js';
 
@@ -58,14 +52,6 @@ function fmt(n: number): string {
  */
 const MENU_RENDERERS: Partial<Record<MenuName, (ctx: GameContext) => void>> = {
     [Menu.Sector]: showPrompt,
-    [Menu.Computer]: showComputerPrompt,
-    [Menu.KnownUniverse]: showKnownUniverseMenu,
-    [Menu.ShipCatalog]: (ctx) => {
-        showShipCatalog(ctx);
-    },
-    [Menu.PlanetSpecs]: (ctx) => {
-        showPlanetSpecs(ctx);
-    },
     [Menu.Starbase]: showStarbaseMenu,
     [Menu.Shipyards]: showShipyardsMenu,
     [Menu.ShipyardsBuy]: (ctx) => {
