@@ -51,14 +51,25 @@
 .minimap-warp-end-label.is-visible {
     display: block;
 }
-.minimap-warp-end-label rect {
+.minimap-warp-end-label-text {
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: bold;
+}
+/* Visited target — dark yellow with bright yellow border, dark text. */
+.minimap-warp-end-label--visited rect {
     fill: #aa8800;
     stroke: #ff0;
 }
-.minimap-warp-end-label-text {
+.minimap-warp-end-label--visited .minimap-warp-end-label-text {
     fill: #000;
-    font-family: 'Courier New', Courier, monospace;
-    font-weight: bold;
+}
+/* Glimpsed (unvisited) target — magenta with bright outline, light text. */
+.minimap-warp-end-label--glimpsed rect {
+    fill: #808;
+    stroke: #f0f;
+}
+.minimap-warp-end-label--glimpsed .minimap-warp-end-label-text {
+    fill: #fff;
 }
 
 .minimap-arrowhead--neutral {
