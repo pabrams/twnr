@@ -11,13 +11,6 @@ import {
     hideMoveMenuOverlay,
 } from './display.js';
 import {
-    handleClass0Input,
-    handlePlanetInput,
-    handlePlanetEarthInput,
-    handlePlanetTakeCommodityInput,
-    handlePlanetLeaveCommodityInput,
-} from './input-misc.js';
-import {
     handleStarbaseInput,
     handleHardwareInput,
     handleShipyardsInput,
@@ -160,21 +153,6 @@ function handleInput(ctx: GameContext, line: string) {
     switch (ctx.mode) {
         case Menu.Port:
             handlePortInput(ctx, line);
-            return;
-        case Menu.Class0:
-            handleClass0Input(ctx, line);
-            return;
-        case Menu.Planet:
-            handlePlanetInput(ctx, line);
-            return;
-        case Menu.PlanetEarth:
-            handlePlanetEarthInput(ctx, line);
-            return;
-        case Menu.PlanetTakeCommodity:
-            handlePlanetTakeCommodityInput(ctx, line);
-            return;
-        case Menu.PlanetLeaveCommodity:
-            handlePlanetLeaveCommodityInput(ctx, line);
             return;
         case Menu.Starbase:
             handleStarbaseInput(ctx, line);
