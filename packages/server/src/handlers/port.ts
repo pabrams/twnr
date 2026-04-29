@@ -1,7 +1,7 @@
-import { ServerMsgType } from '@twnr/shared';
+import { ServerMsgType, PORT_CLASS_ACTIONS } from '@twnr/shared';
 import { players, getPlayerUniverseId, setPlayerMenu } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
-import { PORT_CLASS_ACTIONS, portName } from '../domain/port-classes.js';
+import { portName } from '../domain/port-classes.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
 import { withTransaction, AbortTransaction } from '../db/index.js';
 import { setDocked, getCurrentSector, deductCredits, addCredits } from '../db/queries/player.js';

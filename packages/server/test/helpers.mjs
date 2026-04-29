@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
-import { ClientMsgType, ServerMsgType } from '@twnr/shared';
+import { ClientMsgType, ServerMsgType, PORT_CLASS_ACTIONS } from '@twnr/shared';
 import { BASE as BASE_URL, WS_BASE as WS_URL, createPool, createTestUserWithToken } from './global-setup.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -175,17 +175,6 @@ export async function httpPost(path, data, options = {}) {
   });
   return { status: res.status, body: await res.json() };
 }
-
-const PORT_CLASS_ACTIONS = {
-  1: { fuel: 'B', organics: 'B', equipment: 'S' },
-  2: { fuel: 'B', organics: 'S', equipment: 'B' },
-  3: { fuel: 'S', organics: 'B', equipment: 'B' },
-  4: { fuel: 'S', organics: 'S', equipment: 'B' },
-  5: { fuel: 'B', organics: 'S', equipment: 'S' },
-  6: { fuel: 'S', organics: 'B', equipment: 'S' },
-  7: { fuel: 'S', organics: 'S', equipment: 'S' },
-  8: { fuel: 'B', organics: 'B', equipment: 'B' },
-};
 
 export async function findPortSector(ws) {
   for (let i = 1; i <= 100; i++) {

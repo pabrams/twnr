@@ -27,7 +27,7 @@ import {
     showShipyardsMenu,
 } from './display-starbase.js';
 import { renderVisitedSectorsResult, showComputerPrompt } from './display-computer.js';
-import { PORT_CLASS_ACTIONS } from './constants.js';
+import { PORT_CLASS_ACTIONS, type PortClassActions } from '@twnr/shared';
 import { drainInputQueue } from './input.js';
 
 function fmt(n: number): string {
@@ -173,7 +173,13 @@ export function setupConnection(ws: WebSocket, ctx: GameContext, onDisconnect: (
                         };
                         const credits = msg.credits ?? 0;
                         const emptyHolds = msg.emptyHolds ?? 0;
-                        const commodities = [
+                        const commodities: Array<{
+                            key: keyof PortClassActions;
+                            label: string;
+                            trading: number;
+                            max: number;
+                            onBoard: number;
+                        }> = [
                             {
                                 key: 'fuel',
                                 label: 'Fuel',
