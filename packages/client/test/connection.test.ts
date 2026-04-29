@@ -79,43 +79,76 @@ function createMockWS() {
     };
 }
 
-function createMockCtx(overrides: Partial<GameContext> = {}): GameContext {
+function createMockCtx(overrides: { autopilot?: Partial<GameContext['autopilot']> } = {}): GameContext {
     return {
-        term: { writeln: vi.fn(), write: vi.fn() } as unknown as GameContext['term'],
-        ws: {} as WebSocket,
-        universeId: 1,
-        sendMsg: vi.fn(),
-        setDebug: vi.fn(),
-        mode: Menu.Sector as MenuName,
-        currentSector: 1,
-        currentPort: null,
-        dockedPortInfo: null,
-        visitedSet: new Set<number>(),
-        playerName: 'Test',
-        playerId: 1,
-        totalSectors: 100,
-        sectorPlayers: [],
-        attackTarget: null,
-        class0BuyType: null,
-        shipConfigs: null,
-        planetConfigs: null,
-        currentShipName: 'Vulpeculan Cruiser',
-        class0Prices: null,
-        autopilotPath: [],
-        autopilotStep: 0,
-        autopilotPaused: false,
-        encounterOwnerName: '',
-        debug: false,
-        menuRegistry: new Map(),
-        starbaseSector: null,
-        hardwarePrices: null,
-        colonistCommodity: null,
-        knownUniverseMode: 'explored',
-        starbaseBuyItemName: null,
-        shipyardsBuyTarget: null,
-        landablePlanets: null,
-        ...overrides,
-    } as GameContext;
+        io: {
+            term: {
+                writeln: vi.fn(),
+                write: vi.fn(),
+            } as unknown as GameContext['io']['term'],
+            ws: {} as WebSocket,
+            sendMsg: vi.fn(),
+            setDebug: vi.fn(),
+            debug: false,
+            submitLineFromMap: vi.fn(),
+        },
+        input: {
+            userInputBuffer: [],
+            inputQueue: [],
+            inFlight: false,
+            inputAssembly: '',
+        },
+        player: {
+            universeId: 1,
+            name: 'Test',
+            id: 1,
+            isAdmin: false,
+        },
+        world: {
+            mode: Menu.Sector as MenuName,
+            currentSector: 1,
+            currentPort: null,
+            dockedPortInfo: null,
+            visitedSet: new Set<number>(),
+            totalSectors: 100,
+            sectorPlayers: [],
+            currentWarps: [],
+            starbaseSector: null,
+        },
+        ship: {
+            currentShipName: 'Vulpeculan Cruiser',
+            currentColoredShipName: null,
+            shipColonists: 0,
+            planetEmptyHolds: 0,
+        },
+        autopilot: {
+            path: [],
+            step: 0,
+            paused: false,
+            ...overrides.autopilot,
+        },
+        encounter: {
+            attackTarget: null,
+            ownerName: '',
+        },
+        catalogs: {
+            hardware: null,
+            ships: null,
+            planets: null,
+            class0Prices: null,
+            hardwarePrices: null,
+            menus: new Map(),
+        },
+        starbase: {
+            class0ShipState: null,
+            hardwareStoreCredits: 0,
+            hardwareStoreItems: [],
+        },
+        minimap: {
+            knownUniverseMode: 'explored',
+        },
+        pendingMenuArgs: null,
+    };
 }
 
 function envelope(menu: string, payload: unknown) {
@@ -128,13 +161,12 @@ describe('connection message handler', () => {
             vi.useFakeTimers();
             const ws = createMockWS();
             const ctx = createMockCtx({
-                autopilotPath: [1, 10, 20, 30],
-                autopilotStep: 3,
+                autopilot: { path: [1, 10, 20, 30], step: 3 },
             });
             setupConnection(ws as unknown as WebSocket, ctx, () => {});
             ws.fire('message', envelope('sector', { type: ServerMsgType.RateLimited }));
             vi.advanceTimersByTime(500);
-            expect(ctx.sendMsg).toHaveBeenCalled();
+            expect(ctx.io.sendMsg).toHaveBeenCalled();
 
             vi.useRealTimers();
         });
@@ -143,8 +175,7 @@ describe('connection message handler', () => {
             vi.useFakeTimers();
             const ws = createMockWS();
             const ctx = createMockCtx({
-                autopilotPath: [1, 10, 20],
-                autopilotStep: 3,
+                autopilot: { path: [1, 10, 20], step: 3 },
             });
             setupConnection(ws as unknown as WebSocket, ctx, () => {});
 
@@ -166,8 +197,8 @@ describe('connection message handler', () => {
                 }),
             );
 
-            expect(ctx.autopilotPath).toEqual([]);
-            expect(ctx.autopilotStep).toBe(0);
+            expect(ctx.autopilot.path).toEqual([]);
+            expect(ctx.autopilot.step).toBe(0);
 
             vi.useRealTimers();
         });
