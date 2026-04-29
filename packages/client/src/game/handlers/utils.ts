@@ -1,6 +1,8 @@
 import { ClientMsgType } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 
+export type RefreshMinimapDeps = Pick<GameContext, 'io' | 'minimap'>;
+
 export function fmt(n: number): string {
     return n.toLocaleString();
 }
@@ -15,7 +17,7 @@ export function formatDuration(totalSeconds: number): string {
     return `${days} day${days === 1 ? '' : 's'}`;
 }
 
-export function refreshMinimap(ctx: GameContext): void {
+export function refreshMinimap(ctx: RefreshMinimapDeps): void {
     if (!ctx.minimap.handle) return;
     const vp = ctx.minimap.handle.getViewport();
     ctx.io.sendMsg({

@@ -4,6 +4,8 @@ import type { GameContext } from './types.js';
 import { render } from './renderer.js';
 import { COMMAND, SECTOR, HELP, HELP_LINES, PORT, COMMON } from './messages/index.js';
 
+export type DisplayCtx = Pick<GameContext, 'catalogs' | 'io' | 'minimap' | 'player' | 'world'>;
+
 /**
  * Echo a command-name banner (e.g. `<Move>`, `<Take Colonists>`) to the
  * terminal. Called from input handlers when the user keys a command at a
@@ -13,7 +15,7 @@ import { COMMAND, SECTOR, HELP, HELP_LINES, PORT, COMMON } from './messages/inde
  * ClientMsg isn't sent until the prompts are filled in.
  */
 export function echoCommand(
-    ctx: GameContext,
+    ctx: DisplayCtx,
     key: keyof typeof COMMAND,
     vars?: Record<string, unknown>,
 ): void {
@@ -33,7 +35,7 @@ function portClassLabel(cls: number): string {
 }
 
 export function showSectorDisplay(
-    ctx: GameContext,
+    ctx: DisplayCtx,
     sector: number,
     warps: SectorRef[],
     players: { id: number; name: string }[],
@@ -110,11 +112,11 @@ export function showSectorDisplay(
     if (withPrompt) showPrompt(ctx);
 }
 
-export function showPrompt(ctx: GameContext) {
+export function showPrompt(ctx: DisplayCtx) {
     ctx.io.term.write(render(SECTOR.prompt, { sector: ctx.world.currentSector }));
 }
 
-export function showMoveMenu(ctx: GameContext) {
+export function showMoveMenu(ctx: DisplayCtx) {
     const warps = ctx.world.currentWarps.slice(0, 6);
     const { term } = ctx.io;
     term.writeln('');
@@ -131,11 +133,11 @@ export function showMoveMenu(ctx: GameContext) {
 }
 
 /** Clear the minimap quick-move overlay. Call whenever the Move menu closes. */
-export function hideMoveMenuOverlay(ctx: GameContext) {
+export function hideMoveMenuOverlay(ctx: DisplayCtx) {
     ctx.minimap.handle?.setQuickMove(null);
 }
 
-export function showHelp(ctx: GameContext) {
+export function showHelp(ctx: DisplayCtx) {
     ctx.io.term.writeln('');
     ctx.io.term.writeln(render(HELP.header));
     for (const line of HELP_LINES) {
@@ -146,7 +148,7 @@ export function showHelp(ctx: GameContext) {
     showPrompt(ctx);
 }
 
-export function showPortMenu(ctx: GameContext) {
+export function showPortMenu(ctx: DisplayCtx) {
     if (!ctx.world.currentPort) {
         ctx.io.term.writeln(render(PORT.menuNoPort));
         showPrompt(ctx);
@@ -170,7 +172,7 @@ export function showPortMenu(ctx: GameContext) {
 }
 
 export function showCommerceReport(
-    ctx: GameContext,
+    ctx: DisplayCtx,
     portName: string,
     portClass: number,
     goods: {
@@ -229,7 +231,7 @@ export function showCommerceReport(
     );
 }
 
-export async function showPlayerInfo(ctx: GameContext) {
+export async function showPlayerInfo(ctx: DisplayCtx) {
     // Prefetch hardware catalog so the ShipInfo panel can label hardware items.
     if (!ctx.catalogs.hardware) {
         try {

@@ -1,13 +1,20 @@
 import { PORT_CLASS_ACTIONS, type PortClassActions } from '@twnr/shared';
+import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { NOTIFY, TRANSACTION, PORT } from '../messages/index.js';
-import { showCommerceReport, showPrompt, showSectorDisplay } from '../display.js';
-import { showClass0Menu, showTradeQtyPrompt } from '../display-port.js';
-import { showStarbaseMenu } from '../display-starbase.js';
+import { showCommerceReport, showPrompt, showSectorDisplay, type DisplayCtx } from '../display.js';
+import { showClass0Menu, showTradeQtyPrompt, type DisplayPortCtx } from '../display-port.js';
+import { showStarbaseMenu, type DisplayStarbaseCtx } from '../display-starbase.js';
 import type { Handler } from './index.js';
-import { fmt, refreshMinimap } from './utils.js';
+import { fmt, refreshMinimap, type RefreshMinimapDeps } from './utils.js';
 
-export const dock: Handler<'dockResult'> = (ctx, msg) => {
+type PortDeps = Pick<GameContext, 'catalogs' | 'io' | 'starbase' | 'world'> &
+    DisplayCtx &
+    DisplayPortCtx &
+    DisplayStarbaseCtx &
+    RefreshMinimapDeps;
+
+export const dock: Handler<'dockResult', PortDeps> = (ctx, msg) => {
     if (!msg.docked || !msg.port) return;
     ctx.world.dockedPortInfo = msg.port;
     if (msg.port.class === 0) {
@@ -77,7 +84,7 @@ export const dock: Handler<'dockResult'> = (ctx, msg) => {
     );
 };
 
-export const tradePrompt: Handler<'tradePrompt'> = (ctx, msg) => {
+export const tradePrompt: Handler<'tradePrompt', PortDeps> = (ctx, msg) => {
     showTradeQtyPrompt(
         ctx,
         msg.commodityLabel,
@@ -88,17 +95,17 @@ export const tradePrompt: Handler<'tradePrompt'> = (ctx, msg) => {
     );
 };
 
-export const tradeConfirmPrompt: Handler<'tradeConfirmPrompt'> = (ctx, msg) => {
+export const tradeConfirmPrompt: Handler<'tradeConfirmPrompt', PortDeps> = (ctx, msg) => {
     const tpl = msg.action === 'buy' ? TRANSACTION.tradeConfirmSell : TRANSACTION.tradeConfirmBuy;
     ctx.io.term.writeln(render(tpl, { total: fmt(msg.totalPrice) }));
     ctx.io.term.write(render(TRANSACTION.tradeConfirmAccept));
 };
 
-export const tradeComplete: Handler<'tradeComplete'> = (ctx, msg) => {
+export const tradeComplete: Handler<'tradeComplete', PortDeps> = (ctx, msg) => {
     ctx.io.term.writeln(render(TRANSACTION.tradeComplete, { credits: fmt(msg.credits) }));
 };
 
-export const tradeSkipped: Handler<'tradeSkipped'> = (ctx, msg) => {
+export const tradeSkipped: Handler<'tradeSkipped', PortDeps> = (ctx, msg) => {
     const tpl =
         msg.reason === 'noTrade'
             ? PORT.noTrade
@@ -117,7 +124,7 @@ export const tradeSkipped: Handler<'tradeSkipped'> = (ctx, msg) => {
     ctx.io.term.writeln(render(tpl));
 };
 
-export const undock: Handler<'undockResult'> = (ctx, msg) => {
+export const undock: Handler<'undockResult', PortDeps> = (ctx, msg) => {
     if (msg.outcome === 'success') {
         ctx.world.dockedPortInfo = null;
         ctx.starbase.class0ShipState = null;
@@ -129,7 +136,7 @@ export const undock: Handler<'undockResult'> = (ctx, msg) => {
     }
 };
 
-export const jettison: Handler<'jettisonResult'> = (ctx, msg) => {
+export const jettison: Handler<'jettisonResult', PortDeps> = (ctx, msg) => {
     if (msg.outcome === 'success') {
         const j = msg.jettisoned;
         const items = [
@@ -147,11 +154,11 @@ export const jettison: Handler<'jettisonResult'> = (ctx, msg) => {
     showPrompt(ctx);
 };
 
-export const portTransaction: Handler<'portTransactionResult'> = (ctx, msg) => {
+export const portTransaction: Handler<'portTransactionResult', PortDeps> = (ctx, msg) => {
     ctx.io.term.writeln(render(TRANSACTION.tradeComplete, { credits: fmt(msg.credits) }));
 };
 
-export const dockStarbase: Handler<'dockStarbaseResult'> = (ctx, msg) => {
+export const dockStarbase: Handler<'dockStarbaseResult', PortDeps> = (ctx, msg) => {
     ctx.catalogs.hardwarePrices = msg.prices;
     if (msg.shipInfo) {
         ctx.starbase.class0ShipState = {
@@ -168,7 +175,7 @@ export const dockStarbase: Handler<'dockStarbaseResult'> = (ctx, msg) => {
     showStarbaseMenu(ctx);
 };
 
-export const leaveStarbase: Handler<'leaveStarbaseResult'> = (ctx, msg) => {
+export const leaveStarbase: Handler<'leaveStarbaseResult', PortDeps> = (ctx, msg) => {
     ctx.starbase.class0ShipState = null;
     ctx.world.sectorPlayers = msg.players;
     showSectorDisplay(

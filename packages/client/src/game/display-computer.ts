@@ -6,11 +6,16 @@ import { COMPUTER, COMMON, STARBASE } from './messages/index.js';
 import { indexToLetter } from './display-starbase.js';
 import { centerVisible, threeColRows } from './display-utils.js';
 
-export function showComputerPrompt(ctx: GameContext) {
+export type DisplayComputerCtx = Pick<
+    GameContext,
+    'catalogs' | 'io' | 'minimap' | 'player' | 'ship' | 'world'
+>;
+
+export function showComputerPrompt(ctx: DisplayComputerCtx) {
     ctx.io.term.write(render(COMPUTER.prompt, { sector: ctx.world.currentSector }));
 }
 
-export function showComputerHelp(ctx: GameContext) {
+export function showComputerHelp(ctx: DisplayComputerCtx) {
     ctx.io.term.writeln('');
     ctx.io.term.writeln(render('[mg]   Computer Commands[/mg]'));
     ctx.io.term.writeln(
@@ -26,22 +31,22 @@ export function showComputerHelp(ctx: GameContext) {
     showComputerPrompt(ctx);
 }
 
-export function showKnownUniverseMenu(ctx: GameContext) {
+export function showKnownUniverseMenu(ctx: DisplayComputerCtx) {
     ctx.io.term.write(render(COMPUTER.knownUniversePrompt));
 }
 
-export function showExploredSectors(ctx: GameContext) {
+export function showExploredSectors(ctx: DisplayComputerCtx) {
     ctx.minimap.knownUniverseMode = 'explored';
     ctx.io.sendMsg({ type: ClientMsgType.VisitedSectors });
 }
 
-export function showUnexploredSectors(ctx: GameContext) {
+export function showUnexploredSectors(ctx: DisplayComputerCtx) {
     ctx.minimap.knownUniverseMode = 'unexplored';
     ctx.io.sendMsg({ type: ClientMsgType.VisitedSectors });
 }
 
 export function renderVisitedSectorsResult(
-    ctx: GameContext,
+    ctx: DisplayComputerCtx,
     msg: { sectors: number[]; totalSectors: number },
 ) {
     const mode = ctx.minimap.knownUniverseMode;
@@ -67,7 +72,7 @@ export function renderVisitedSectorsResult(
     showComputerPrompt(ctx);
 }
 
-async function loadShipConfigs(ctx: GameContext): Promise<boolean> {
+async function loadShipConfigs(ctx: DisplayComputerCtx): Promise<boolean> {
     if (ctx.catalogs.ships) return true;
     ctx.io.term.writeln(render(STARBASE.loadingShipCatalog));
     try {
@@ -81,7 +86,7 @@ async function loadShipConfigs(ctx: GameContext): Promise<boolean> {
     }
 }
 
-export async function showShipCatalog(ctx: GameContext) {
+export async function showShipCatalog(ctx: DisplayComputerCtx) {
     if (!(await loadShipConfigs(ctx))) return;
     ctx.io.term.writeln('');
     ctx.io.term.writeln(render(COMPUTER.shipCatalogHeader));
@@ -137,7 +142,7 @@ const SHIP_DETAIL_LABEL_WIDTH = 18;
 const SHIP_DETAIL_VALUE_WIDTH = 10;
 const SHIP_DETAIL_BODY_WIDTH = 92;
 
-export function showShipDetail(ctx: GameContext, ship: ShipCatalogEntry) {
+export function showShipDetail(ctx: DisplayComputerCtx, ship: ShipCatalogEntry) {
     const { term } = ctx.io;
     term.writeln('');
     const headerText = render(COMPUTER.shipDetailHeader, {
@@ -218,11 +223,11 @@ export function showShipDetail(ctx: GameContext, ship: ShipCatalogEntry) {
  * Repeat prompt shown after a ship's stats. Both the Computer ship-catalog
  * flow and the Shipyards examine flow reuse it so behavior stays consistent.
  */
-export function showShipInterestPrompt(ctx: GameContext) {
+export function showShipInterestPrompt(ctx: DisplayComputerCtx) {
     ctx.io.term.write(render(COMPUTER.shipInterestPrompt));
 }
 
-export async function showPlanetSpecs(ctx: GameContext) {
+export async function showPlanetSpecs(ctx: DisplayComputerCtx) {
     if (!ctx.catalogs.planets) {
         ctx.io.term.writeln(render(COMPUTER.planetSpecsLoading));
         try {
@@ -247,7 +252,7 @@ export async function showPlanetSpecs(ctx: GameContext) {
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
 }
 
-export function showPlanetDetail(ctx: GameContext, planet: PlanetConfig) {
+export function showPlanetDetail(ctx: DisplayComputerCtx, planet: PlanetConfig) {
     const { term } = ctx.io;
     term.writeln('');
     term.writeln(render(COMPUTER.planetDetailHeader, { type: planet.type }));
@@ -285,7 +290,7 @@ export function showPlanetDetail(ctx: GameContext, planet: PlanetConfig) {
     );
 }
 
-export async function showCurrentShipSpecs(ctx: GameContext) {
+export async function showCurrentShipSpecs(ctx: DisplayComputerCtx) {
     if (!(await loadShipConfigs(ctx))) return;
     if (!ctx.ship.currentShipName) {
         ctx.io.term.writeln(render(COMPUTER.shipDataRequesting));
@@ -305,7 +310,7 @@ export async function showCurrentShipSpecs(ctx: GameContext) {
     showComputerPrompt(ctx);
 }
 
-export async function showTraderList(ctx: GameContext) {
+export async function showTraderList(ctx: DisplayComputerCtx) {
     ctx.io.term.writeln(render(COMPUTER.traderListLoading));
     try {
         const res = await fetch(`/api/universes/${ctx.player.universeId}/players`);

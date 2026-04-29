@@ -2,8 +2,13 @@ import type { GameContext } from './types.js';
 import { render } from './renderer.js';
 import { SECTOR, PORT } from './messages/index.js';
 
+export type DisplayPortCtx = Pick<
+    GameContext,
+    'autopilot' | 'catalogs' | 'io' | 'ship' | 'starbase'
+>;
+
 /** Max units of a given item the player can buy right now. */
-export function class0MaxBuy(kind: 'drones' | 'shields' | 'holds', ctx: GameContext): number {
+export function class0MaxBuy(kind: 'drones' | 'shields' | 'holds', ctx: DisplayPortCtx): number {
     const s = ctx.starbase.class0ShipState;
     const p = ctx.catalogs.class0Prices;
     if (!s || !p) return 0;
@@ -31,7 +36,7 @@ function formatTimestamp(): string {
 }
 
 export function showAutopilotPrompt(
-    ctx: GameContext,
+    ctx: DisplayPortCtx,
     path: { sector: number; visited: boolean }[],
     hops: number,
     turns: number,
@@ -54,7 +59,7 @@ export function showAutopilotPrompt(
     term.write(render(SECTOR.autopilotConfirm));
 }
 
-export async function showClass0Menu(ctx: GameContext, initial = false) {
+export async function showClass0Menu(ctx: DisplayPortCtx, initial = false) {
     if (!ctx.catalogs.class0Prices) {
         try {
             const res = await fetch('/api/class0-prices');
@@ -94,7 +99,7 @@ export async function showClass0Menu(ctx: GameContext, initial = false) {
     term.write(render(PORT.class0BuyPrompt));
 }
 
-export function showClass0QtyPrompt(ctx: GameContext, buyType: 'drones' | 'shields' | 'holds') {
+export function showClass0QtyPrompt(ctx: DisplayPortCtx, buyType: 'drones' | 'shields' | 'holds') {
     const s = ctx.starbase.class0ShipState;
     const max = class0MaxBuy(buyType, ctx);
     const shipName =
@@ -114,7 +119,7 @@ export function showClass0QtyPrompt(ctx: GameContext, buyType: 'drones' | 'shiel
 }
 
 export function showTradeQtyPrompt(
-    ctx: GameContext,
+    ctx: DisplayPortCtx,
     commodity: string,
     action: 'buy' | 'sell',
     portTrading: number,
@@ -128,7 +133,7 @@ export function showTradeQtyPrompt(
     ctx.io.term.write(render(promptTpl, { commodity, maxQty }));
 }
 
-export function showNoTradeMessage(ctx: GameContext) {
+export function showNoTradeMessage(ctx: DisplayPortCtx) {
     ctx.io.term.writeln('');
     ctx.io.term.writeln(render(PORT.noTrade));
 }

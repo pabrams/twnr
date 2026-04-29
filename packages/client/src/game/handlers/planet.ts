@@ -1,25 +1,35 @@
 import { Menu } from '@twnr/shared';
+import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { NOTIFY, EVENT, PANEL } from '../messages/index.js';
-import { showPrompt, showSectorDisplay } from '../display.js';
+import { showPrompt, showSectorDisplay, type DisplayCtx } from '../display.js';
 import {
     showPlanetMenu,
     showPlanetMenuOptions,
     showEarthMenu,
     showNoPlanet,
+    type DisplayPlanetCtx,
 } from '../display-planet.js';
-import { showPlanetSelectMenu } from '../display-starbase.js';
-import { showComputerPrompt } from '../display-computer.js';
-import { setMenuArgs } from '../menus/types.js';
+import { showPlanetSelectMenu, type DisplayStarbaseCtx } from '../display-starbase.js';
+import { showComputerPrompt, type DisplayComputerCtx } from '../display-computer.js';
+import { setMenuArgs, type MenuArgsSlot } from '../menus/types.js';
 import type { Handler } from './index.js';
-import { fmt, refreshMinimap } from './utils.js';
+import { fmt, refreshMinimap, type RefreshMinimapDeps } from './utils.js';
 
-export const planetInfo: Handler<'planetInfoResult'> = (ctx, msg) => {
+type PlanetDeps = Pick<GameContext, 'io' | 'ship' | 'world'> &
+    DisplayCtx &
+    DisplayPlanetCtx &
+    DisplayStarbaseCtx &
+    DisplayComputerCtx &
+    RefreshMinimapDeps &
+    MenuArgsSlot;
+
+export const planetInfo: Handler<'planetInfoResult', PlanetDeps> = (ctx, msg) => {
     if (msg.hasPlanet) showPlanetMenu(ctx, msg.name, msg.colonists);
     else showNoPlanet(ctx);
 };
 
-export const takeColonists: Handler<'takeColonistsResult'> = (ctx, msg) => {
+export const takeColonists: Handler<'takeColonistsResult', PlanetDeps> = (ctx, msg) => {
     ctx.ship.shipColonists = msg.shipColonists;
     ctx.io.term.writeln('');
     ctx.io.term.writeln(
@@ -32,7 +42,7 @@ export const takeColonists: Handler<'takeColonistsResult'> = (ctx, msg) => {
     ctx.io.term.writeln(render(PANEL.shipColonistsLine, { count: msg.shipColonists }));
 };
 
-export const leaveColonists: Handler<'leaveColonistsResult'> = (ctx, msg) => {
+export const leaveColonists: Handler<'leaveColonistsResult', PlanetDeps> = (ctx, msg) => {
     ctx.ship.shipColonists = msg.shipColonists;
     ctx.io.term.writeln('');
     ctx.io.term.writeln(
@@ -50,7 +60,7 @@ export const leaveColonists: Handler<'leaveColonistsResult'> = (ctx, msg) => {
     }
 };
 
-export const land: Handler<'landResult'> = (ctx, msg) => {
+export const land: Handler<'landResult', PlanetDeps> = (ctx, msg) => {
     if (msg.planets.length > 0) {
         setMenuArgs(ctx, { menu: Menu.PlanetSelect, planets: msg.planets });
         showPlanetSelectMenu(ctx, msg.planets);
@@ -60,7 +70,7 @@ export const land: Handler<'landResult'> = (ctx, msg) => {
     }
 };
 
-export const landOnPlanet: Handler<'landOnPlanetResult'> = (ctx, msg) => {
+export const landOnPlanet: Handler<'landOnPlanetResult', PlanetDeps> = (ctx, msg) => {
     ctx.ship.planetEmptyHolds = msg.empty_holds;
     ctx.ship.shipColonists = msg.ship_colonists;
     if (ctx.world.mode === Menu.PlanetEarth) {
@@ -88,7 +98,7 @@ export const landOnPlanet: Handler<'landOnPlanetResult'> = (ctx, msg) => {
     }
 };
 
-export const planetDisplay: Handler<'planetDisplayResult'> = (ctx, msg) => {
+export const planetDisplay: Handler<'planetDisplayResult', PlanetDeps> = (ctx, msg) => {
     ctx.ship.planetEmptyHolds = msg.empty_holds;
     ctx.ship.shipColonists = msg.ship_colonists;
     ctx.io.term.writeln('');
@@ -113,14 +123,14 @@ export const planetDisplay: Handler<'planetDisplayResult'> = (ctx, msg) => {
     showPlanetMenuOptions(ctx);
 };
 
-export const destroyPlanet: Handler<'destroyPlanetResult'> = (ctx, msg) => {
+export const destroyPlanet: Handler<'destroyPlanetResult', PlanetDeps> = (ctx, msg) => {
     if (msg.destroyed) {
         ctx.io.term.writeln(render(EVENT.planetDestroyed, { name: msg.planetName }));
     }
     showPrompt(ctx);
 };
 
-export const useTerraformDevice: Handler<'useTerraformDeviceResult'> = (ctx, msg) => {
+export const useTerraformDevice: Handler<'useTerraformDeviceResult', PlanetDeps> = (ctx, msg) => {
     if (msg.success && msg.planet) {
         ctx.io.term.writeln(
             render(EVENT.terraformSuccess, {
@@ -144,7 +154,7 @@ export const useTerraformDevice: Handler<'useTerraformDeviceResult'> = (ctx, msg
     showPrompt(ctx);
 };
 
-export const leavePlanet: Handler<'leavePlanetResult'> = (ctx, msg) => {
+export const leavePlanet: Handler<'leavePlanetResult', PlanetDeps> = (ctx, msg) => {
     ctx.io.term.writeln(render(EVENT.leftPlanet));
     ctx.world.sectorPlayers = msg.players;
     showSectorDisplay(
@@ -161,7 +171,7 @@ export const leavePlanet: Handler<'leavePlanetResult'> = (ctx, msg) => {
     refreshMinimap(ctx);
 };
 
-export const listPlanets: Handler<'listPlanetsResult'> = (ctx, msg) => {
+export const listPlanets: Handler<'listPlanetsResult', PlanetDeps> = (ctx, msg) => {
     ctx.io.term.writeln('');
     if (msg.planets.length === 0) {
         ctx.io.term.writeln(render(PANEL.listPlanetsEmpty));
@@ -187,7 +197,7 @@ export const listPlanets: Handler<'listPlanetsResult'> = (ctx, msg) => {
     showComputerPrompt(ctx);
 };
 
-export const terraformInfo: Handler<'terraformInfoResult'> = (ctx, msg) => {
+export const terraformInfo: Handler<'terraformInfoResult', PlanetDeps> = (ctx, msg) => {
     if (msg.canTerraform) {
         ctx.io.term.writeln(render(NOTIFY.terraformDevicesAvailable, { count: msg.devices }));
         ctx.io.term.write(render(NOTIFY.terraformConfirm));
