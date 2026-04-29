@@ -1,5 +1,6 @@
 import { ClientMsgType, Menu } from '@twnr/shared';
 import { class0MaxBuy, showClass0QtyPrompt } from '../display-port.js';
+import { echoCommand } from '../display.js';
 import { registerMenu } from './types.js';
 
 registerMenu(Menu.Class0Qty, {
@@ -9,6 +10,7 @@ registerMenu(Menu.Class0Qty, {
     input(ctx, line) {
         const trimmed = line.trim();
         if (trimmed.toLowerCase() === 'q') {
+            echoCommand(ctx, 'class0QtyBack');
             ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Class0 });
             return;
         }
@@ -22,6 +24,7 @@ registerMenu(Menu.Class0Qty, {
             return;
         }
         if (qty === 0) {
+            echoCommand(ctx, 'class0QtyBack');
             ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Class0 });
             return;
         }

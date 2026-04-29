@@ -1,6 +1,7 @@
 import { ClientMsgType, Menu } from '@twnr/shared';
 import { render } from '../renderer.js';
 import { SECTOR } from '../messages/index.js';
+import { echoCommand } from '../display.js';
 import { registerMenu } from './types.js';
 
 registerMenu(Menu.JettisonConfirm, {
@@ -17,6 +18,7 @@ registerMenu(Menu.JettisonConfirm, {
                 break;
             case '':
             case 'n':
+                echoCommand(ctx, 'jettisonConfirmBack');
                 ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
                 break;
         }

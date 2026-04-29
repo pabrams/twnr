@@ -7,6 +7,7 @@ import { registerMenu } from './types.js';
 registerMenu(Menu.HyperspaceJumpTarget, {
     input(ctx, line) {
         if (line.toLowerCase() === 'q') {
+            echoCommand(ctx, 'hyperspaceJumpTargetBack');
             ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Computer });
             return;
         }

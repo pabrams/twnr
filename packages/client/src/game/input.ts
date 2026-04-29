@@ -310,6 +310,7 @@ function handleMoveMenuInput(ctx: GameContext, line: string) {
     }
     if (cmd.toLowerCase() === 'q') {
         hideMoveMenuOverlay(ctx);
+        echoCommand(ctx, 'moveMenuBack');
         ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
         return;
     }
