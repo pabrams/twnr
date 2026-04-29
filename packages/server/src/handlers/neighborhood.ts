@@ -137,9 +137,15 @@ export async function handleGetNeighborhood(
 
     // Visibility rule for non-admins: the sector must be visited, OR it must
     // be the target of an outbound warp from a visited sector (glimpsed).
-    // Admins skip this filter entirely.
+    // Admins skip this filter entirely. We also include warp targets that
+    // sit *outside* the bbox so the client can draw stub lines pointing
+    // toward them — important for keeping wormhole edges visible when the
+    // far end is off-screen. Such targets are flagged fringe (no pill, just
+    // a position).
     const includedSectors = new Set<number>();
     const fringeIds = new Set<number>();
+    const sourceKnowable = (sid: number): boolean =>
+        isAdmin || visitedIds.has(sid) || sid === currentSectorId;
     if (isAdmin) {
         for (const id of inBbox) includedSectors.add(id);
     } else {
@@ -148,16 +154,25 @@ export async function handleGetNeighborhood(
         for (const id of inBbox) {
             if (visitedIds.has(id) || id === currentSectorId) includedSectors.add(id);
         }
-        // Glimpsed: any sector in bbox that is the destination of a warp
-        // from a visited sector.
+        // Glimpsed-in-bbox: targets in bbox of warps from visited sources.
         for (const w of warpRes.rows) {
             if (!inBbox.has(w.to_id)) continue;
             if (includedSectors.has(w.to_id)) continue;
-            const sourceVisited = visitedIds.has(w.from_id) || w.from_id === currentSectorId;
-            if (!sourceVisited) continue;
+            if (!sourceKnowable(w.from_id)) continue;
             includedSectors.add(w.to_id);
             fringeIds.add(w.to_id);
         }
+    }
+    // Out-of-bbox warp targets: include them as fringe so the client can draw
+    // stub lines toward them. Source must be in-bbox and knowable so we don't
+    // leak warps for sectors the player can't see.
+    for (const w of warpRes.rows) {
+        if (!includedSectors.has(w.from_id)) continue;
+        if (!sourceKnowable(w.from_id)) continue;
+        if (includedSectors.has(w.to_id)) continue;
+        if (!sectorMeta.has(w.to_id)) continue;
+        includedSectors.add(w.to_id);
+        fringeIds.add(w.to_id);
     }
 
     // Build planet payload only for visited sectors that made it into the
@@ -215,8 +230,6 @@ export async function handleGetNeighborhood(
     // Warp payload: every warp whose source is "knowable" by the player
     // (visited for non-admin, anything for admin) and whose target is in the
     // result. known_two_way needs both endpoints knowable + reverse edge.
-    const sourceKnowable = (sid: number): boolean =>
-        isAdmin || visitedIds.has(sid) || sid === currentSectorId;
     const warps: NeighborhoodWarp[] = [];
     const emittedKeys = new Set<string>();
     for (const w of warpRes.rows) {
