@@ -244,7 +244,6 @@ export function generateProximalGraph(
     // and random pair selection can't find any addable pair for several
     // rounds, we stop. ITER_BOUND is a paranoid backstop only.
     const ITER_BOUND = Math.max(1000, N * 10);
-    let placed = 0;
     let stalled = 0;
     let iter = 0;
     while (stalled < 5 && iter++ < ITER_BOUND) {
@@ -299,7 +298,6 @@ export function generateProximalGraph(
         }
         addEdge(u, v);
         addEdge(v, u);
-        placed++;
         stalled = 0;
     }
 
