@@ -1,13 +1,20 @@
 import { ClientMsgType } from '@twnr/shared';
+import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { NOTIFY, EVENT } from '../messages/index.js';
-import { showSectorDisplay, showPrompt } from '../display.js';
-import { showAutopilotPrompt } from '../display-port.js';
-import { showDroneEncounter } from '../display-combat.js';
+import { showSectorDisplay, showPrompt, type DisplayCtx } from '../display.js';
+import { showAutopilotPrompt, type DisplayPortCtx } from '../display-port.js';
+import { showDroneEncounter, type DisplayCombatCtx } from '../display-combat.js';
 import type { Handler } from './index.js';
-import { refreshMinimap } from './utils.js';
+import { refreshMinimap, type RefreshMinimapDeps } from './utils.js';
 
-export const sectorDisplay: Handler<'sectorDisplayResult'> = (ctx, msg) => {
+type MovementDeps = Pick<GameContext, 'autopilot' | 'encounter' | 'io' | 'world'> &
+    DisplayCtx &
+    DisplayPortCtx &
+    DisplayCombatCtx &
+    RefreshMinimapDeps;
+
+export const sectorDisplay: Handler<'sectorDisplayResult', MovementDeps> = (ctx, msg) => {
     ctx.world.sectorPlayers = msg.players;
     showSectorDisplay(
         ctx,
@@ -31,7 +38,7 @@ export const sectorDisplay: Handler<'sectorDisplayResult'> = (ctx, msg) => {
     }
 };
 
-export const move: Handler<'moveResult'> = (ctx, msg) => {
+export const move: Handler<'moveResult', MovementDeps> = (ctx, msg) => {
     switch (msg.outcome) {
         case 'success': {
             ctx.world.sectorPlayers = msg.players;
@@ -104,7 +111,7 @@ export const move: Handler<'moveResult'> = (ctx, msg) => {
     }
 };
 
-export const nonAdjacent: Handler<'nonAdjacentMoveRequested'> = (ctx, msg) => {
+export const nonAdjacent: Handler<'nonAdjacentMoveRequested', MovementDeps> = (ctx, msg) => {
     ctx.io.sendMsg({
         type: ClientMsgType.ShortestPath,
         from: ctx.world.currentSector,
@@ -112,7 +119,7 @@ export const nonAdjacent: Handler<'nonAdjacentMoveRequested'> = (ctx, msg) => {
     });
 };
 
-export const shortestPath: Handler<'shortestPathResult'> = (ctx, msg) => {
+export const shortestPath: Handler<'shortestPathResult', MovementDeps> = (ctx, msg) => {
     if (msg.path.length > 1) {
         showAutopilotPrompt(ctx, msg.path, msg.hops, msg.turns);
     } else {
@@ -121,7 +128,7 @@ export const shortestPath: Handler<'shortestPathResult'> = (ctx, msg) => {
     }
 };
 
-export const hyperspaceJump: Handler<'hyperspaceJumpResult'> = (ctx, msg) => {
+export const hyperspaceJump: Handler<'hyperspaceJumpResult', MovementDeps> = (ctx, msg) => {
     ctx.io.term.writeln(
         render(EVENT.hyperspaceJump, {
             sector: msg.targetSector,
@@ -132,7 +139,7 @@ export const hyperspaceJump: Handler<'hyperspaceJumpResult'> = (ctx, msg) => {
     ctx.io.sendMsg({ type: ClientMsgType.SectorDisplay });
 };
 
-export const previousSector: Handler<'previousSectorResult'> = (ctx, msg) => {
+export const previousSector: Handler<'previousSectorResult', MovementDeps> = (ctx, msg) => {
     if (msg.sector === null) {
         ctx.io.term.writeln(render(NOTIFY.noPreviousSector));
         showPrompt(ctx);

@@ -1,14 +1,29 @@
 import { ClientMsgType, Menu } from '@twnr/shared';
+import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { NOTIFY, PANEL } from '../messages/index.js';
-import { showPrompt } from '../display.js';
-import { showClass0Menu } from '../display-port.js';
-import { showShipyardsMenu, showHardwareMenu } from '../display-starbase.js';
-import { renderVisitedSectorsResult } from '../display-computer.js';
+import { showPrompt, type DisplayCtx } from '../display.js';
+import { showClass0Menu, type DisplayPortCtx } from '../display-port.js';
+import {
+    showShipyardsMenu,
+    showHardwareMenu,
+    type DisplayStarbaseCtx,
+} from '../display-starbase.js';
+import { renderVisitedSectorsResult, type DisplayComputerCtx } from '../display-computer.js';
 import type { Handler } from './index.js';
-import { fmt, formatDuration, refreshMinimap } from './utils.js';
+import { fmt, formatDuration, refreshMinimap, type RefreshMinimapDeps } from './utils.js';
 
-export const welcome: Handler<'welcome'> = (ctx, msg) => {
+type LifecycleDeps = Pick<
+    GameContext,
+    'autopilot' | 'io' | 'minimap' | 'player' | 'ship' | 'world'
+> &
+    DisplayCtx &
+    DisplayPortCtx &
+    DisplayStarbaseCtx &
+    DisplayComputerCtx &
+    RefreshMinimapDeps;
+
+export const welcome: Handler<'welcome', LifecycleDeps> = (ctx, msg) => {
     ctx.player.name = msg.name;
     ctx.player.id = msg.playerId;
     ctx.world.totalSectors = msg.totalSectors;
@@ -25,7 +40,7 @@ export const welcome: Handler<'welcome'> = (ctx, msg) => {
     refreshMinimap(ctx);
 };
 
-export const playerMoved: Handler<'playerMoved'> = (ctx, msg) => {
+export const playerMoved: Handler<'playerMoved', LifecycleDeps> = (ctx, msg) => {
     ctx.io.term.writeln(
         render(msg.direction === 'in' ? NOTIFY.playerIn : NOTIFY.playerOut, {
             name: msg.playerName,
@@ -33,7 +48,7 @@ export const playerMoved: Handler<'playerMoved'> = (ctx, msg) => {
     );
 };
 
-export const rateLimited: Handler<'rateLimited'> = (ctx) => {
+export const rateLimited: Handler<'rateLimited', LifecycleDeps> = (ctx) => {
     if (ctx.autopilot.path.length > 0) {
         const retrySector = ctx.autopilot.path[ctx.autopilot.step - 1];
         if (retrySector !== undefined) {
@@ -44,7 +59,7 @@ export const rateLimited: Handler<'rateLimited'> = (ctx) => {
     }
 };
 
-export const playersOnline: Handler<'playersOnlineResult'> = (ctx, msg) => {
+export const playersOnline: Handler<'playersOnlineResult', LifecycleDeps> = (ctx, msg) => {
     ctx.io.term.writeln('');
     ctx.io.term.writeln(render(PANEL.playersOnlineHeader, { count: msg.players.length }));
     for (const p of msg.players) {
@@ -54,15 +69,15 @@ export const playersOnline: Handler<'playersOnlineResult'> = (ctx, msg) => {
     showPrompt(ctx);
 };
 
-export const visitedSectors: Handler<'visitedSectorsResult'> = (ctx, msg) => {
+export const visitedSectors: Handler<'visitedSectorsResult', LifecycleDeps> = (ctx, msg) => {
     renderVisitedSectorsResult(ctx, msg);
 };
 
-export const neighborhood: Handler<'neighborhoodResult'> = (ctx, msg) => {
+export const neighborhood: Handler<'neighborhoodResult', LifecycleDeps> = (ctx, msg) => {
     ctx.minimap.handle?.update(msg, ctx.world.currentSector);
 };
 
-export const starbaseInfo: Handler<'starbaseInfoResult'> = (ctx, msg) => {
+export const starbaseInfo: Handler<'starbaseInfoResult', LifecycleDeps> = (ctx, msg) => {
     ctx.world.starbaseSector = msg.sector;
     if (msg.sector != null) {
         ctx.io.term.writeln(render(NOTIFY.starbaseLocation, { sector: msg.sector }));
@@ -147,7 +162,7 @@ export const starbaseInfo: Handler<'starbaseInfoResult'> = (ctx, msg) => {
     showPrompt(ctx);
 };
 
-export const error: Handler<'error'> = (ctx, msg) => {
+export const error: Handler<'error', LifecycleDeps> = (ctx, msg) => {
     ctx.io.term.writeln(render(NOTIFY.error, { message: msg.message }));
     if (ctx.world.mode === Menu.TradeQty || ctx.world.mode === Menu.TradeConfirm) {
         ctx.io.sendMsg({ type: ClientMsgType.Undock });

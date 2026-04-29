@@ -1,12 +1,18 @@
 import { ClientMsgType } from '@twnr/shared';
+import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { EVENT } from '../messages/index.js';
-import { showPrompt, showSectorDisplay } from '../display.js';
-import { showDroneEncounter, showAttackMenu } from '../display-combat.js';
+import { showPrompt, showSectorDisplay, type DisplayCtx } from '../display.js';
+import { showDroneEncounter, showAttackMenu, type DisplayCombatCtx } from '../display-combat.js';
 import type { Handler } from './index.js';
-import { refreshMinimap } from './utils.js';
+import { refreshMinimap, type RefreshMinimapDeps } from './utils.js';
 
-export const attackShip: Handler<'attackShipResult'> = (ctx, msg) => {
+type CombatDeps = Pick<GameContext, 'autopilot' | 'encounter' | 'io' | 'world'> &
+    DisplayCtx &
+    DisplayCombatCtx &
+    RefreshMinimapDeps;
+
+export const attackShip: Handler<'attackShipResult', CombatDeps> = (ctx, msg) => {
     ctx.io.term.writeln('');
     ctx.io.term.writeln(
         render(msg.destroyed ? EVENT.attackDestroyed : EVENT.attackCompleted, {
@@ -34,12 +40,12 @@ export const attackShip: Handler<'attackShipResult'> = (ctx, msg) => {
     showPrompt(ctx);
 };
 
-export const attackMenu: Handler<'attackMenuResult'> = (ctx, msg) => {
+export const attackMenu: Handler<'attackMenuResult', CombatDeps> = (ctx, msg) => {
     ctx.world.sectorPlayers = msg.players;
     showAttackMenu(ctx);
 };
 
-export const droneEncounter: Handler<'droneEncounter'> = (ctx, msg) => {
+export const droneEncounter: Handler<'droneEncounter', CombatDeps> = (ctx, msg) => {
     ctx.world.sectorPlayers = msg.players;
     ctx.encounter.ownerName = msg.ownerName;
     showSectorDisplay(ctx, msg.sector, msg.warps, msg.players, msg.port);
@@ -51,7 +57,7 @@ export const droneEncounter: Handler<'droneEncounter'> = (ctx, msg) => {
     showDroneEncounter(ctx, msg.sectorDrones, msg.ownerName, msg.shipDrones);
 };
 
-export const deployDronesInfo: Handler<'deployDronesInfoResult'> = (ctx, msg) => {
+export const deployDronesInfo: Handler<'deployDronesInfoResult', CombatDeps> = (ctx, msg) => {
     const total = msg.shipDrones + msg.sectorDrones;
     const minInSector = Math.max(0, total - msg.shipMaxDrones);
     ctx.io.term.writeln('');
@@ -65,7 +71,7 @@ export const deployDronesInfo: Handler<'deployDronesInfoResult'> = (ctx, msg) =>
     ctx.io.term.write(render(EVENT.deployDronesPrompt, { minInSector }));
 };
 
-export const deployDrones: Handler<'deployDronesResult'> = (ctx, msg) => {
+export const deployDrones: Handler<'deployDronesResult', CombatDeps> = (ctx, msg) => {
     ctx.io.term.writeln(
         render(EVENT.deployDronesResult, {
             sector: msg.sectorDrones,
@@ -75,7 +81,7 @@ export const deployDrones: Handler<'deployDronesResult'> = (ctx, msg) => {
     showPrompt(ctx);
 };
 
-export const attackSectorDrones: Handler<'attackSectorDronesResult'> = (ctx, msg) => {
+export const attackSectorDrones: Handler<'attackSectorDronesResult', CombatDeps> = (ctx, msg) => {
     ctx.io.term.writeln('');
     ctx.io.term.writeln(
         render(EVENT.combatLost, {
@@ -98,7 +104,7 @@ export const attackSectorDrones: Handler<'attackSectorDronesResult'> = (ctx, msg
     }
 };
 
-export const retreatFromDrones: Handler<'retreatFromDronesResult'> = (ctx, msg) => {
+export const retreatFromDrones: Handler<'retreatFromDronesResult', CombatDeps> = (ctx, msg) => {
     ctx.io.term.writeln(render(EVENT.retreated, { sector: msg.sector }));
     if (ctx.autopilot.paused) {
         ctx.autopilot.path = [];
@@ -108,7 +114,7 @@ export const retreatFromDrones: Handler<'retreatFromDronesResult'> = (ctx, msg) 
     }
 };
 
-export const sectorDronesAlert: Handler<'sectorDronesAlert'> = (ctx, msg) => {
+export const sectorDronesAlert: Handler<'sectorDronesAlert', CombatDeps> = (ctx, msg) => {
     ctx.io.term.writeln('');
     const tpl =
         msg.event === 'intrusion'

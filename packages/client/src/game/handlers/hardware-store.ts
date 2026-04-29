@@ -1,12 +1,18 @@
 import { ClientMsgType } from '@twnr/shared';
+import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { TRANSACTION, PANEL } from '../messages/index.js';
-import { showPrompt } from '../display.js';
-import { showClass0Menu } from '../display-port.js';
-import { showHardwareMenu } from '../display-starbase.js';
+import { showPrompt, type DisplayCtx } from '../display.js';
+import { showClass0Menu, type DisplayPortCtx } from '../display-port.js';
+import { showHardwareMenu, type DisplayStarbaseCtx } from '../display-starbase.js';
 import type { Handler } from './index.js';
 
-export const buyDrones: Handler<'buyDronesResult'> = (ctx, msg) => {
+type HardwareStoreDeps = Pick<GameContext, 'io' | 'starbase' | 'world'> &
+    DisplayCtx &
+    DisplayPortCtx &
+    DisplayStarbaseCtx;
+
+export const buyDrones: Handler<'buyDronesResult', HardwareStoreDeps> = (ctx, msg) => {
     ctx.io.term.writeln(render(TRANSACTION.purchaseComplete));
     ctx.io.term.writeln(
         render(TRANSACTION.purchaseStatsDrones, {
@@ -23,7 +29,7 @@ export const buyDrones: Handler<'buyDronesResult'> = (ctx, msg) => {
     }
 };
 
-export const buyShields: Handler<'buyShieldsResult'> = (ctx, msg) => {
+export const buyShields: Handler<'buyShieldsResult', HardwareStoreDeps> = (ctx, msg) => {
     ctx.io.term.writeln(render(TRANSACTION.purchaseComplete));
     ctx.io.term.writeln(
         render(TRANSACTION.purchaseStatsShields, {
@@ -40,7 +46,7 @@ export const buyShields: Handler<'buyShieldsResult'> = (ctx, msg) => {
     }
 };
 
-export const buyHolds: Handler<'buyHoldsResult'> = (ctx, msg) => {
+export const buyHolds: Handler<'buyHoldsResult', HardwareStoreDeps> = (ctx, msg) => {
     ctx.io.term.writeln(render(TRANSACTION.purchaseComplete));
     ctx.io.term.writeln(
         render(TRANSACTION.purchaseStatsHolds, {
@@ -57,7 +63,7 @@ export const buyHolds: Handler<'buyHoldsResult'> = (ctx, msg) => {
     }
 };
 
-export const buyHardware: Handler<'buyHardwareResult'> = (ctx, msg) => {
+export const buyHardware: Handler<'buyHardwareResult', HardwareStoreDeps> = (ctx, msg) => {
     if (msg.kind === 'toggle') {
         ctx.io.term.writeln(
             render(TRANSACTION.hardwareInstalled, { label: msg.label, credits: msg.credits }),
@@ -74,13 +80,19 @@ export const buyHardware: Handler<'buyHardwareResult'> = (ctx, msg) => {
     ctx.io.sendMsg({ type: ClientMsgType.HardwareStoreInfo });
 };
 
-export const hardwareStoreInfo: Handler<'hardwareStoreInfoResult'> = (ctx, msg) => {
+export const hardwareStoreInfo: Handler<'hardwareStoreInfoResult', HardwareStoreDeps> = (
+    ctx,
+    msg,
+) => {
     ctx.starbase.hardwareStoreCredits = msg.credits;
     ctx.starbase.hardwareStoreItems = msg.items;
     showHardwareMenu(ctx);
 };
 
-export const listDeployedDrones: Handler<'listDeployedDronesResult'> = (ctx, msg) => {
+export const listDeployedDrones: Handler<'listDeployedDronesResult', HardwareStoreDeps> = (
+    ctx,
+    msg,
+) => {
     ctx.io.term.writeln('');
     if (msg.drones.length === 0) {
         ctx.io.term.writeln(render(PANEL.deployedDronesEmpty));

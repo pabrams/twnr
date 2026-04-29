@@ -33,13 +33,15 @@ export function getMenuHandler(name: MenuName): MenuHandler | undefined {
     return menuHandlers.get(name);
 }
 
+export type MenuArgsSlot = Pick<GameContext, 'pendingMenuArgs'>;
+
 /**
  * Stash typed args for the next menu. Source menu calls this before sending
- * `ChangeMenu`; the destination menu's `renderPrompt`/`input` reads (and
- * clears) the slot via `consumeMenuArgs`. The discriminated union ensures
- * each side sees the right shape.
+ * `ChangeMenu`; the destination menu's `renderPrompt`/`input` reads it via
+ * `getMenuArgs`. The discriminated union ensures each side sees the right
+ * shape.
  */
-export function setMenuArgs(ctx: GameContext, args: MenuArgs): void {
+export function setMenuArgs(ctx: MenuArgsSlot, args: MenuArgs): void {
     ctx.pendingMenuArgs = args;
 }
 
@@ -50,7 +52,7 @@ export function setMenuArgs(ctx: GameContext, args: MenuArgs): void {
  * holds args for a different menu — defensive against state drift.
  */
 export function getMenuArgs<M extends MenuArgs['menu']>(
-    ctx: GameContext,
+    ctx: MenuArgsSlot,
     menu: M,
 ): Extract<MenuArgs, { menu: M }> | null {
     const args = ctx.pendingMenuArgs;

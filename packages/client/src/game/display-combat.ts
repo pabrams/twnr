@@ -1,9 +1,11 @@
 import type { GameContext } from './types.js';
 import { render } from './renderer.js';
 import { COMBAT, COMMON } from './messages/index.js';
-import { showPrompt } from './display.js';
+import { showPrompt, type DisplayCtx } from './display.js';
 
-export function showAttackMenu(ctx: GameContext) {
+export type DisplayCombatCtx = Pick<GameContext, 'io' | 'world'> & DisplayCtx;
+
+export function showAttackMenu(ctx: DisplayCombatCtx) {
     if (ctx.world.sectorPlayers.length === 0) {
         ctx.io.term.writeln(render(COMBAT.attackNoTargets));
         showPrompt(ctx);
@@ -17,12 +19,12 @@ export function showAttackMenu(ctx: GameContext) {
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Cancel' }));
 }
 
-export function showAttackDronesPrompt(ctx: GameContext) {
+export function showAttackDronesPrompt(ctx: DisplayCombatCtx) {
     ctx.io.term.write(render(COMBAT.attackQtyPrompt));
 }
 
 export function showDroneEncounter(
-    ctx: GameContext,
+    ctx: DisplayCombatCtx,
     sectorDrones: number,
     ownerName: string,
     shipDrones: number,
@@ -38,6 +40,6 @@ export function showDroneEncounter(
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'R', text: 'Retreat' }));
 }
 
-export function showDroneAttackQtyPrompt(ctx: GameContext) {
+export function showDroneAttackQtyPrompt(ctx: DisplayCombatCtx) {
     ctx.io.term.write(render(COMBAT.droneAttackQtyPrompt));
 }

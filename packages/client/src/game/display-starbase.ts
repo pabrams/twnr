@@ -2,18 +2,22 @@ import type { ShipCatalogEntry } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { render } from './renderer.js';
 import { STARBASE, COMMON } from './messages/index.js';
-import { showClass0Menu, showClass0QtyPrompt } from './display-port.js';
-import { showShipInterestPrompt } from './display-computer.js';
+import { showClass0Menu, showClass0QtyPrompt, type DisplayPortCtx } from './display-port.js';
+import { showShipInterestPrompt, type DisplayComputerCtx } from './display-computer.js';
 
-export function showStarbasePrompt(ctx: GameContext) {
+export type DisplayStarbaseCtx = Pick<GameContext, 'catalogs' | 'io' | 'ship' | 'starbase'> &
+    DisplayPortCtx &
+    DisplayComputerCtx;
+
+export function showStarbasePrompt(ctx: DisplayStarbaseCtx) {
     ctx.io.term.write(render(STARBASE.rootPrompt));
 }
 
-export function showStarbaseMenu(ctx: GameContext) {
+export function showStarbaseMenu(ctx: DisplayStarbaseCtx) {
     showStarbasePrompt(ctx);
 }
 
-export function showStarbaseHelp(ctx: GameContext) {
+export function showStarbaseHelp(ctx: DisplayStarbaseCtx) {
     ctx.io.term.writeln('');
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'S', text: 'Shipyards' }));
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'H', text: 'Hardware Store' }));
@@ -41,7 +45,7 @@ function padVisible(s: string, width: number): string {
  * (bounded by remaining capacity and credits) and print a one-line detail.
  * Returns the capped maximum so the qty prompt can use it as a default.
  */
-export function showHardwareItemDetail(ctx: GameContext, itemName: string): number {
+export function showHardwareItemDetail(ctx: DisplayStarbaseCtx, itemName: string): number {
     const item = ctx.starbase.hardwareStoreItems.find((i) => i.name === itemName);
     if (!item) return 0;
     const remaining = Math.max(0, item.maxQty - item.currentQty);
@@ -78,7 +82,7 @@ const HW_KEY_MAP: Record<string, string> = {
     recon_drone: 'R',
 };
 
-export function showHardwareMenu(ctx: GameContext) {
+export function showHardwareMenu(ctx: DisplayStarbaseCtx) {
     const items = ctx.catalogs.hardwarePrices;
     ctx.io.term.writeln('');
     if (items) {
@@ -100,12 +104,12 @@ export function showHardwareMenu(ctx: GameContext) {
     ctx.io.term.write(render(STARBASE.hardwarePrompt));
 }
 
-export function showBuyQtyPrompt(ctx: GameContext, item: string, canBuy: number) {
+export function showBuyQtyPrompt(ctx: DisplayStarbaseCtx, item: string, canBuy: number) {
     ctx.io.term.write(render(STARBASE.buyQtyPrompt, { item, canBuy }));
 }
 
 export function showPlanetSelectMenu(
-    ctx: GameContext,
+    ctx: DisplayStarbaseCtx,
     planets: { id: number; name: string; type: string }[],
 ) {
     ctx.io.term.writeln('');
@@ -120,15 +124,15 @@ export function showPlanetSelectMenu(
 
 // --- Shipyards ---
 
-export function showShipyardsPrompt(ctx: GameContext) {
+export function showShipyardsPrompt(ctx: DisplayStarbaseCtx) {
     ctx.io.term.write(render(STARBASE.shipyardsPrompt));
 }
 
-export function showShipyardsMenu(ctx: GameContext) {
+export function showShipyardsMenu(ctx: DisplayStarbaseCtx) {
     showShipyardsPrompt(ctx);
 }
 
-export function showShipyardsHelp(ctx: GameContext) {
+export function showShipyardsHelp(ctx: DisplayStarbaseCtx) {
     ctx.io.term.writeln('');
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'B', text: 'Buy a new ship' }));
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'E', text: 'Examine ship specs' }));
@@ -159,7 +163,7 @@ function calculateShipPrice(ship: ShipCatalogEntry): number {
     );
 }
 
-async function loadShipConfigs(ctx: GameContext): Promise<boolean> {
+async function loadShipConfigs(ctx: DisplayStarbaseCtx): Promise<boolean> {
     if (ctx.catalogs.ships) return true;
     ctx.io.term.writeln(render(STARBASE.loadingShipCatalog));
     try {
@@ -173,7 +177,7 @@ async function loadShipConfigs(ctx: GameContext): Promise<boolean> {
     }
 }
 
-export async function showShipBuyList(ctx: GameContext) {
+export async function showShipBuyList(ctx: DisplayStarbaseCtx) {
     if (!(await loadShipConfigs(ctx))) return;
     ctx.io.term.writeln('');
     ctx.io.term.writeln(render(STARBASE.shipyardsBuyHeader));
@@ -192,11 +196,11 @@ export async function showShipBuyList(ctx: GameContext) {
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
 }
 
-export function showShipExamineList(ctx: GameContext) {
+export function showShipExamineList(ctx: DisplayStarbaseCtx) {
     showShipListInternal(ctx, 'Examine');
 }
 
-async function showShipListInternal(ctx: GameContext, label: string) {
+async function showShipListInternal(ctx: DisplayStarbaseCtx, label: string) {
     if (!(await loadShipConfigs(ctx))) return;
     ctx.io.term.writeln('');
     ctx.io.term.writeln(render(STARBASE.shipyardsExamineHeader, { label }));
@@ -213,7 +217,7 @@ async function showShipListInternal(ctx: GameContext, label: string) {
 }
 
 export function showTradeinPrompt(
-    ctx: GameContext,
+    ctx: DisplayStarbaseCtx,
     shipName: string,
     price: number,
     tradeinCredit: number,
@@ -227,12 +231,12 @@ export function showTradeinPrompt(
     ctx.io.term.write(render(STARBASE.tradeinConfirm));
 }
 
-export function showShipyardsClass0Menu(ctx: GameContext) {
+export function showShipyardsClass0Menu(ctx: DisplayStarbaseCtx) {
     showClass0Menu(ctx);
 }
 
 export function showShipyardsClass0QtyPrompt(
-    ctx: GameContext,
+    ctx: DisplayStarbaseCtx,
     item: 'drones' | 'shields' | 'holds',
 ) {
     showClass0QtyPrompt(ctx, item);

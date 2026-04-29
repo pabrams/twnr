@@ -1,12 +1,20 @@
 import { ServerMsgType, Menu } from '@twnr/shared';
+import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { TRANSACTION, SECTOR, PANEL } from '../messages/index.js';
-import { showPrompt } from '../display.js';
-import { showShipyardsMenu } from '../display-starbase.js';
+import { showPrompt, type DisplayCtx } from '../display.js';
+import { showShipyardsMenu, type DisplayStarbaseCtx } from '../display-starbase.js';
 import type { Handler } from './index.js';
 import { fmt } from './utils.js';
 
-export const shipInfo: Handler<'shipInfoResult'> = (ctx, msg) => {
+type ShipExchangeDeps = Pick<
+    GameContext,
+    'catalogs' | 'io' | 'player' | 'ship' | 'starbase' | 'world'
+> &
+    DisplayCtx &
+    DisplayStarbaseCtx;
+
+export const shipInfo: Handler<'shipInfoResult', ShipExchangeDeps> = (ctx, msg) => {
     ctx.ship.currentShipName = msg.shipName;
     ctx.ship.currentColoredShipName = msg.coloredShipName;
     ctx.io.term.writeln('');
@@ -68,7 +76,7 @@ export const shipInfo: Handler<'shipInfoResult'> = (ctx, msg) => {
 };
 
 function applyBuyShipResult(
-    ctx: Parameters<Handler<'buyShipTradeinResult'>>[0],
+    ctx: ShipExchangeDeps,
     msg:
         | Parameters<Handler<'buyShipTradeinResult'>>[1]
         | Parameters<Handler<'buyShipNewResult'>>[1],
@@ -101,5 +109,5 @@ function applyBuyShipResult(
     showShipyardsMenu(ctx);
 }
 
-export const buyShipTradein: Handler<'buyShipTradeinResult'> = applyBuyShipResult;
-export const buyShipNew: Handler<'buyShipNewResult'> = applyBuyShipResult;
+export const buyShipTradein: Handler<'buyShipTradeinResult', ShipExchangeDeps> = applyBuyShipResult;
+export const buyShipNew: Handler<'buyShipNewResult', ShipExchangeDeps> = applyBuyShipResult;
