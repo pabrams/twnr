@@ -232,9 +232,20 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
     // Middle-mouse drag pans the viewport. mousedown starts the gesture on
     // the panel; move/up listeners attach to the document so dragging
     // outside the panel still tracks. The center is updated locally on each
-    // mousemove (immediate visual feedback) and a server refresh fires once
-    // on mouseup so the new bbox gets fresh sector data.
+    // mousemove (immediate visual feedback). A throttled refresh fires
+    // during drag so the server streams sectors into the new bbox while
+    // panning — without this, pills don't appear until mouseup. A final
+    // refresh on mouseup makes sure we end with up-to-date data.
+    const PAN_REFRESH_MS = 150;
     let panState: { lastX: number; lastY: number } | null = null;
+    let panRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+    function schedulePanRefresh(): void {
+        if (panRefreshTimer !== null) return;
+        panRefreshTimer = setTimeout(() => {
+            panRefreshTimer = null;
+            refreshHandler?.();
+        }, PAN_REFRESH_MS);
+    }
     body.addEventListener('mousedown', (e: MouseEvent) => {
         if (e.button !== 1) return;
         e.preventDefault();
@@ -267,12 +278,17 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             y: state.viewportCenter.y - (dyPx * vbh) / rect.height,
         };
         render();
+        schedulePanRefresh();
     });
     document.addEventListener('mouseup', (e: MouseEvent) => {
         if (!panState) return;
         if (e.button !== 1) return;
         panState = null;
         body.classList.remove('is-panning');
+        if (panRefreshTimer !== null) {
+            clearTimeout(panRefreshTimer);
+            panRefreshTimer = null;
+        }
         refreshHandler?.();
     });
 
@@ -543,6 +559,9 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
 
         const warpGroup = document.createElementNS(SVG_NS, 'g');
         svg.appendChild(warpGroup);
+        // Top-of-z overlay for hover-only end-labels — appended last so the
+        // labels can never be obscured by sector pills or warp lines.
+        const overlayGroup = document.createElementNS(SVG_NS, 'g');
         const drawnBi = new Set<string>();
 
         const warpLines: SVGLineElement[] = [];
@@ -598,7 +617,14 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             const srcVisited = src.visibility === 'visited';
             const dstVisited = dst.visibility === 'visited';
             const isFringe = dst.fringe === true;
+            const srcOnscreen = inViewBox(srcP);
             const dstOnscreen = inViewBox(dstP);
+            // Suppress warps whose source is off-screen. Without this, the
+            // "extend to viewBox edge" treatment for off-screen targets
+            // produces ghost lines that cut across the panel from a source
+            // we can't even see — particularly noticeable mid-drag when
+            // pan moves loaded data outside the new viewport.
+            if (!srcOnscreen) continue;
             const dxFull = dstP.x - srcP.x;
             const dyFull = dstP.y - srcP.y;
             const distSq = dxFull * dxFull + dyFull * dyFull;
@@ -767,7 +793,7 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
                 ltext.textContent = dstNum;
                 labelGroup.appendChild(ltext);
 
-                warpGroup.appendChild(labelGroup);
+                overlayGroup.appendChild(labelGroup);
                 if (!endLabelsBySrcId.has(w.from_sector_id)) {
                     endLabelsBySrcId.set(w.from_sector_id, []);
                 }
@@ -777,6 +803,8 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
 
         const nodeGroup = document.createElementNS(SVG_NS, 'g');
         svg.appendChild(nodeGroup);
+        // Hover labels go on top of everything else.
+        svg.appendChild(overlayGroup);
 
         // z-order: if pills still visually overlap after collision
         // resolution, the most important ones stay readable. Background
