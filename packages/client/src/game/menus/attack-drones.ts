@@ -16,8 +16,6 @@ registerMenu(Menu.AttackDrones, {
             ctx.term.writeln('Enter a positive number.');
             return;
         }
-        // qty submission for an in-progress Attack flow — the <Attack>
-        // echo already fired when the player pressed A at the sector menu.
         ctx.sendMsg({
             type: ClientMsgType.AttackShip,
             targetPlayerId: ctx.attackTarget!,
