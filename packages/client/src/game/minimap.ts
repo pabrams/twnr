@@ -416,6 +416,10 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             <marker id="arrTwoWay" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5"
                 orient="auto-start-reverse">
               <path class="minimap-arrowhead--two-way" d="M 0 0 L 10 5 L 0 10 z" />
+            </marker>
+            <marker id="arrWormhole" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5"
+                orient="auto-start-reverse">
+              <path class="minimap-arrowhead--wormhole" d="M 0 0 L 10 5 L 0 10 z" />
             </marker>`;
         svg.appendChild(defs);
 
@@ -426,7 +430,6 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
         const worldPerPx = viewSize / panelPx;
         const labelSize = HEX_CELL_SIZE * LABEL_FRACTION_OF_CELL;
         const strokeW = HEX_CELL_SIZE * 0.04;
-        void worldPerPx;
 
         // Precompute pill bounds so warp lines can be trimmed to each pill's
         // edge, leaving arrowheads visible outside the destination pill.
@@ -472,6 +475,37 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
         const warpLines: SVGLineElement[] = [];
         const pillRectsBySectorId = new Map<number, SVGRectElement>();
         const FRINGE_STUB_LEN_PX = 30;
+        // Distance threshold for "wormhole". With flat-top hex
+        // `size = HEX_CELL_SIZE`, adjacent center-to-center distance is
+        // √3 × HEX_CELL_SIZE (~1.732); the closest non-adjacent pair sits at
+        // 3 × HEX_CELL_SIZE. A threshold of 2 × HEX_CELL_SIZE cleanly
+        // separates locals from any long-range wormhole.
+        const WORMHOLE_DIST_SQ = (HEX_CELL_SIZE * 2) ** 2;
+        const vbLeft = cxView - halfW;
+        const vbRight = cxView + halfW;
+        const vbTop = cyView - halfH;
+        const vbBottom = cyView + halfH;
+        const inViewBox = (p: { x: number; y: number }): boolean =>
+            p.x >= vbLeft && p.x <= vbRight && p.y >= vbTop && p.y <= vbBottom;
+        // Clip a ray (start, dir) to the rendered viewBox; returns the exit
+        // point with a small inset so the arrowhead sits inside the panel.
+        const insetWorldPx = HEX_CELL_SIZE * 0.05;
+        function clipToViewBox(
+            startPt: { x: number; y: number },
+            dir: { x: number; y: number },
+        ): { x: number; y: number } {
+            let tMax = Infinity;
+            if (dir.x > 1e-9) tMax = Math.min(tMax, (vbRight - startPt.x) / dir.x);
+            else if (dir.x < -1e-9) tMax = Math.min(tMax, (vbLeft - startPt.x) / dir.x);
+            if (dir.y > 1e-9) tMax = Math.min(tMax, (vbBottom - startPt.y) / dir.y);
+            else if (dir.y < -1e-9) tMax = Math.min(tMax, (vbTop - startPt.y) / dir.y);
+            if (!Number.isFinite(tMax) || tMax <= 0) return startPt;
+            const dirLen = Math.sqrt(dir.x * dir.x + dir.y * dir.y) || 1;
+            const insetT = insetWorldPx / dirLen;
+            const t = Math.max(0, tMax - insetT);
+            return { x: startPt.x + dir.x * t, y: startPt.y + dir.y * t };
+        }
+
         for (const w of state.data.warps) {
             const src = byId.get(w.from_sector_id);
             const dst = byId.get(w.to_sector_id);
@@ -485,6 +519,13 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             const srcVisited = src.visibility === 'visited';
             const dstVisited = dst.visibility === 'visited';
             const isFringe = dst.fringe === true;
+            const dstOnscreen = inViewBox(dstP);
+            const dxFull = dstP.x - srcP.x;
+            const dyFull = dstP.y - srcP.y;
+            const distSq = dxFull * dxFull + dyFull * dyFull;
+            // Wormhole label: visited→visited long-range edge. Glimpsed
+            // targets keep their existing magenta-dotted styling regardless.
+            const isWormhole = srcVisited && dstVisited && distSq > WORMHOLE_DIST_SQ;
             const isTwoWay = srcVisited && dstVisited && w.known_two_way;
             if (isTwoWay) {
                 const key = `${Math.min(w.from_sector_id, w.to_sector_id)}-${Math.max(w.from_sector_id, w.to_sector_id)}`;
@@ -495,14 +536,18 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             const srcPad = strokeW * 0.5;
             const start = trimToPill(dstP, srcP, srcPill.rw, srcPill.rh, srcPad);
             let end: { x: number; y: number };
-            if (isFringe) {
-                const dx = dstP.x - srcP.x;
-                const dy = dstP.y - srcP.y;
-                const len = Math.sqrt(dx * dx + dy * dy) || 1;
+            if (!dstOnscreen) {
+                // Target outside the viewBox — extend the line to the panel
+                // edge so the user sees there's an outgoing warp + which
+                // direction it goes. Used for wormholes (dark-yellow dotted)
+                // and for long-range glimpsed warps (magenta dotted).
+                end = clipToViewBox(start, { x: dxFull, y: dyFull });
+            } else if (isFringe) {
+                const len = Math.sqrt(distSq) || 1;
                 const stub = FRINGE_STUB_LEN_PX * worldPerPx;
                 end = {
-                    x: start.x + (dx / len) * stub,
-                    y: start.y + (dy / len) * stub,
+                    x: start.x + (dxFull / len) * stub,
+                    y: start.y + (dyFull / len) * stub,
                 };
             } else if (dstPill) {
                 end = trimToPill(srcP, dstP, dstPill.rw, dstPill.rh, dstPad);
@@ -565,19 +610,36 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             if (isQuickMoveWarp) {
                 line.classList.add('minimap-warp--quick-move');
             }
-            if (isTwoWay) {
-                line.classList.add('minimap-warp--two-way');
-                if (isFringe) {
-                    line.setAttribute('marker-end', 'url(#arrTwoWay)');
-                }
-            } else if (srcVisited && dstVisited) {
-                line.classList.add('minimap-warp--one-way-confirmed');
-                line.setAttribute('marker-end', 'url(#arrRed)');
-            } else {
-                // source visited, target glimpsed: dotted line with arrowhead
+            if (!srcVisited || !dstVisited) {
+                // Glimpsed target (or unrecognised source): magenta dotted
+                // stub with arrowhead, regardless of distance or whether
+                // the target is on/off-screen.
                 line.classList.add('minimap-warp--unexplored');
                 line.setAttribute('stroke-dasharray', `${strokeW * 2} ${strokeW * 2}`);
                 line.setAttribute('marker-end', 'url(#arrDim)');
+            } else if (isWormhole) {
+                // Long-range visited→visited edge. Dark yellow; dotted +
+                // arrowhead when the far end is off-screen so it's clear
+                // this isn't a local hop.
+                if (!dstOnscreen) {
+                    line.classList.add('minimap-warp--wormhole-stub');
+                    line.setAttribute('stroke-dasharray', `${strokeW * 2} ${strokeW * 2}`);
+                    line.setAttribute('marker-end', 'url(#arrWormhole)');
+                } else {
+                    line.classList.add('minimap-warp--wormhole');
+                    if (!isTwoWay) line.setAttribute('marker-end', 'url(#arrWormhole)');
+                }
+            } else if (isTwoWay) {
+                line.classList.add('minimap-warp--two-way');
+                if (isFringe || !dstOnscreen) {
+                    line.setAttribute('marker-end', 'url(#arrTwoWay)');
+                }
+            } else {
+                line.classList.add('minimap-warp--one-way-confirmed');
+                line.setAttribute('marker-end', 'url(#arrRed)');
+                if (!dstOnscreen) {
+                    line.setAttribute('stroke-dasharray', `${strokeW * 2} ${strokeW * 2}`);
+                }
             }
             warpGroup.appendChild(line);
         }

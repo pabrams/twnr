@@ -31,6 +31,15 @@
 .minimap-warp--unexplored {
     stroke: #080;
 }
+/* Wormhole edges (long-range warps in the hex layout). Dark yellow keeps
+   them visually separate from the cyan/red local warp pairs. The "stub"
+   variant is dotted and used when the far end is off-screen. */
+.minimap-warp--wormhole {
+    stroke: #aa8800;
+}
+.minimap-warp--wormhole-stub {
+    stroke: #aa8800;
+}
 
 .minimap-arrowhead--neutral {
     fill: #080;
@@ -44,6 +53,9 @@
 /* Two-way fringe warps: same colour as the warp body. */
 .minimap-arrowhead--two-way {
     fill: #080;
+}
+.minimap-arrowhead--wormhole {
+    fill: #aa8800;
 }
 
 .minimap-sector-pill--current {
