@@ -640,7 +640,10 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             const distSq = dxFull * dxFull + dyFull * dyFull;
             // Wormhole label: visited→visited long-range edge. Glimpsed
             // targets keep their existing magenta-dotted styling regardless.
-            const isWormhole = srcVisited && dstVisited && distSq > WORMHOLE_DIST_SQ;
+            // Wormhole-ness is a property of the edge geometry (long-range),
+            // not target visibility — a wormhole to an unvisited sector is
+            // still a wormhole and should render in dark yellow.
+            const isWormhole = srcVisited && distSq > WORMHOLE_DIST_SQ;
             const isTwoWay = srcVisited && dstVisited && w.known_two_way;
             if (isTwoWay) {
                 const key = `${Math.min(w.from_sector_id, w.to_sector_id)}-${Math.max(w.from_sector_id, w.to_sector_id)}`;
@@ -718,17 +721,12 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             if (isQuickMoveWarp) {
                 line.classList.add('minimap-warp--quick-move');
             }
-            if (!srcVisited || !dstVisited) {
-                // Glimpsed target (or unrecognised source): magenta dotted
-                // stub with arrowhead, regardless of distance or whether
-                // the target is on/off-screen.
-                line.classList.add('minimap-warp--unexplored');
-                line.setAttribute('stroke-dasharray', `${strokeW * 2} ${strokeW * 2}`);
-                line.setAttribute('marker-end', 'url(#arrDim)');
-            } else if (isWormhole) {
-                // Long-range visited→visited edge. Dark yellow; dotted +
-                // arrowhead when the far end is off-screen so it's clear
-                // this isn't a local hop.
+            if (isWormhole) {
+                // Long-range edge — dark yellow regardless of target
+                // visibility. Dotted + arrowhead when the far end is
+                // off-screen so it's clear this isn't a local hop. Wins
+                // over the glimpsed-target style; a wormhole to an
+                // unvisited sector still reads as a wormhole.
                 if (!dstOnscreen) {
                     line.classList.add('minimap-warp--wormhole-stub');
                     line.setAttribute('stroke-dasharray', `${strokeW * 2} ${strokeW * 2}`);
@@ -737,6 +735,13 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
                     line.classList.add('minimap-warp--wormhole');
                     if (!isTwoWay) line.setAttribute('marker-end', 'url(#arrWormhole)');
                 }
+            } else if (!srcVisited || !dstVisited) {
+                // Local edge to a glimpsed target: dotted with the dim
+                // arrowhead. (Wormholes to glimpsed targets were handled
+                // above.)
+                line.classList.add('minimap-warp--unexplored');
+                line.setAttribute('stroke-dasharray', `${strokeW * 2} ${strokeW * 2}`);
+                line.setAttribute('marker-end', 'url(#arrDim)');
             } else if (isTwoWay) {
                 line.classList.add('minimap-warp--two-way');
                 if (isFringe || !dstOnscreen) {
