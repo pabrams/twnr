@@ -122,6 +122,32 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
     }
     updateZoomReadout();
 
+    function makeHeaderBtn(label: string, title: string, onClick: () => void): HTMLButtonElement {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'minimap-action-btn';
+        btn.textContent = label;
+        btn.title = title;
+        btn.addEventListener('click', onClick);
+        return btn;
+    }
+
+    header.appendChild(
+        makeHeaderBtn('1×', 'Reset zoom (100%)', () => {
+            if (Math.abs(state.zoom - 1) < 1e-4) return;
+            state.zoom = 1;
+            updateZoomReadout();
+            refreshHandler?.();
+        }),
+    );
+    header.appendChild(
+        makeHeaderBtn('⌖', 'Center on current sector', () => {
+            if (state.viewportCenter === null) return;
+            state.viewportCenter = null;
+            refreshHandler?.();
+        }),
+    );
+
     /**
      * Half-extents of the viewport in world units. At zoom = 1, the panel
      * width spans BASE_CELLS_ACROSS hex cells; height scales by aspect ratio.
@@ -202,6 +228,53 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
         },
         { passive: false },
     );
+
+    // Middle-mouse drag pans the viewport. mousedown starts the gesture on
+    // the panel; move/up listeners attach to the document so dragging
+    // outside the panel still tracks. The center is updated locally on each
+    // mousemove (immediate visual feedback) and a server refresh fires once
+    // on mouseup so the new bbox gets fresh sector data.
+    let panState: { lastX: number; lastY: number } | null = null;
+    body.addEventListener('mousedown', (e: MouseEvent) => {
+        if (e.button !== 1) return;
+        e.preventDefault();
+        // Initialize viewportCenter from the current sector if we were still
+        // "following the player" — otherwise the first pan tick has nothing
+        // to shift.
+        if (state.viewportCenter === null) {
+            const cur = currentSectorWorld();
+            if (cur) state.viewportCenter = { x: cur.x, y: cur.y };
+            else return;
+        }
+        panState = { lastX: e.clientX, lastY: e.clientY };
+        body.classList.add('is-panning');
+    });
+    document.addEventListener('mousemove', (e: MouseEvent) => {
+        if (!panState || !state.viewportCenter) return;
+        const rect = svg.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) return;
+        const vbAttr = svg.getAttribute('viewBox');
+        if (!vbAttr) return;
+        const [, , vbw, vbh] = vbAttr.split(/\s+/).map(Number);
+        if (!Number.isFinite(vbw) || !Number.isFinite(vbh)) return;
+        const dxPx = e.clientX - panState.lastX;
+        const dyPx = e.clientY - panState.lastY;
+        panState.lastX = e.clientX;
+        panState.lastY = e.clientY;
+        // Drag right → see what's to the left → camera moves left.
+        state.viewportCenter = {
+            x: state.viewportCenter.x - (dxPx * vbw) / rect.width,
+            y: state.viewportCenter.y - (dyPx * vbh) / rect.height,
+        };
+        render();
+    });
+    document.addEventListener('mouseup', (e: MouseEvent) => {
+        if (!panState) return;
+        if (e.button !== 1) return;
+        panState = null;
+        body.classList.remove('is-panning');
+        refreshHandler?.();
+    });
 
     /** World position of the player's current sector if we know it from the last payload. */
     function currentSectorWorld(): { x: number; y: number } | null {
@@ -474,6 +547,12 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
 
         const warpLines: SVGLineElement[] = [];
         const pillRectsBySectorId = new Map<number, SVGRectElement>();
+        // For each visited source sector that has wormhole(s) leading off the
+        // panel, an end-label pill (hidden by default) sits at the line's
+        // clipped endpoint, and shows the destination sector_number on
+        // hover. Keyed by source-sector id so multiple offscreen wormholes
+        // from the same source all light up together.
+        const endLabelsBySrcId = new Map<number, SVGGElement[]>();
         const FRINGE_STUB_LEN_PX = 30;
         // Distance threshold for "wormhole". With flat-top hex
         // `size = HEX_CELL_SIZE`, adjacent center-to-center distance is
@@ -642,6 +721,58 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
                 }
             }
             warpGroup.appendChild(line);
+
+            // Hover-only end-label: shows the destination sector_number for
+            // wormholes that exit the panel, so the user can identify where
+            // each long-range warp leads without clicking. Positioned a hair
+            // inside the screen edge along the warp's direction so the pill
+            // is fully visible. Visibility is toggled on source-sector
+            // hover (see applyHoverHighlight below).
+            if (isWormhole && !dstOnscreen) {
+                const ldx = end.x - start.x;
+                const ldy = end.y - start.y;
+                const llen = Math.sqrt(ldx * ldx + ldy * ldy) || 1;
+                const labelInset = HEX_CELL_SIZE * 0.6;
+                const labelX = end.x - (ldx / llen) * labelInset;
+                const labelY = end.y - (ldy / llen) * labelInset;
+
+                const labelGroup = document.createElementNS(SVG_NS, 'g');
+                labelGroup.classList.add('minimap-warp-end-label');
+                labelGroup.setAttribute('transform', `translate(${labelX}, ${labelY})`);
+
+                const dstNum = String(dst.sector_number);
+                const fontPx = labelSize * 0.95;
+                const cw = fontPx * 0.62;
+                const ppx = fontPx * 0.45;
+                const ppy = fontPx * 0.28;
+                const lrw = dstNum.length * cw + ppx * 2;
+                const lrh = fontPx + ppy * 2;
+                const lrx = fontPx * 0.3;
+
+                const lrect = document.createElementNS(SVG_NS, 'rect');
+                lrect.setAttribute('x', String(-lrw / 2));
+                lrect.setAttribute('y', String(-lrh / 2));
+                lrect.setAttribute('width', String(lrw));
+                lrect.setAttribute('height', String(lrh));
+                lrect.setAttribute('rx', String(lrx));
+                lrect.setAttribute('ry', String(lrx));
+                lrect.setAttribute('stroke-width', String(strokeW));
+                labelGroup.appendChild(lrect);
+
+                const ltext = document.createElementNS(SVG_NS, 'text');
+                ltext.classList.add('minimap-warp-end-label-text');
+                ltext.setAttribute('text-anchor', 'middle');
+                ltext.setAttribute('dominant-baseline', 'central');
+                ltext.setAttribute('font-size', String(fontPx));
+                ltext.textContent = dstNum;
+                labelGroup.appendChild(ltext);
+
+                warpGroup.appendChild(labelGroup);
+                if (!endLabelsBySrcId.has(w.from_sector_id)) {
+                    endLabelsBySrcId.set(w.from_sector_id, []);
+                }
+                endLabelsBySrcId.get(w.from_sector_id)!.push(labelGroup);
+            }
         }
 
         const nodeGroup = document.createElementNS(SVG_NS, 'g');
@@ -765,6 +896,8 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
                     const targetRect = pillRectsBySectorId.get(otherId);
                     if (targetRect) targetRect.classList.add('minimap-sector-pill--hover-target');
                 }
+                const labels = endLabelsBySrcId.get(hoverSectorId);
+                if (labels) for (const l of labels) l.classList.add('is-visible');
             };
             const clearHoverHighlight = () => {
                 rect.classList.remove('minimap-sector-pill--hover-source');
@@ -772,6 +905,8 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
                 for (const r of pillRectsBySectorId.values()) {
                     r.classList.remove('minimap-sector-pill--hover-target');
                 }
+                const labels = endLabelsBySrcId.get(hoverSectorId);
+                if (labels) for (const l of labels) l.classList.remove('is-visible');
             };
             group.addEventListener('mouseenter', () => {
                 setHoveredInfo(s);
