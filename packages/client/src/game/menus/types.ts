@@ -14,7 +14,11 @@ import type { GameContext } from '../types.js';
 export interface MenuHandler {
     /** Process a submitted input line for this menu. */
     input?: (ctx: GameContext, line: string) => void;
-    /** Render the menu's prompt/screen when entered via MenuChanged. */
+    /**
+     * Render the menu's prompt/screen when the server replies with a pure
+     * menu-transition envelope (no payload). Not called when a content
+     * result handler renders the menu itself.
+     */
     enter?: (ctx: GameContext) => void;
 }
 

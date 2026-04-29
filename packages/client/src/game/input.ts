@@ -10,7 +10,6 @@ import {
     showMoveMenu,
     hideMoveMenuOverlay,
 } from './display.js';
-import { showComputerActivated } from './display-computer.js';
 import {
     handleComputerInput,
     handleKnownUniverseInput,
@@ -258,12 +257,11 @@ function handleInput(ctx: GameContext, line: string) {
             ctx.sendMsg({ type: ClientMsgType.Attack });
             break;
         case 'c':
-            // Computer activation banner is local UI flourish; the real menu
-            // prompt is rendered by the MenuChanged dispatcher.
-            showComputerActivated(ctx);
+            echoCommand(ctx, 'computer');
             ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Computer });
             break;
         case 'm':
+            echoCommand(ctx, 'moveMenu');
             ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Move });
             break;
         case 'd':

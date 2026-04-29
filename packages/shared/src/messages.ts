@@ -94,7 +94,6 @@ export const ServerMsgType = {
     ListDeployedDronesResult: 'listDeployedDronesResult',
     ListPlanetsResult: 'listPlanetsResult',
     HyperspaceJumpResult: 'hyperspaceJumpResult',
-    MenuChanged: 'menuChanged',
     VisitedSectorsResult: 'visitedSectorsResult',
     TradePrompt: 'tradePrompt',
     TradeConfirmPrompt: 'tradeConfirmPrompt',

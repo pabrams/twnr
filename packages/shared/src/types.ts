@@ -128,9 +128,17 @@ export type ServerStatsResponse = {
     platform: string;
 };
 
+/**
+ * Wire envelope for every server response. `menu` always reflects the
+ * player's current menu (the client mirrors it into ctx.mode every frame,
+ * so menu transitions are conveyed by the wrapper itself). `payload` is
+ * omitted when the server has nothing to send beyond the menu transition
+ * — formerly expressed as a no-op MenuChangedResultObject, now just an
+ * absent field.
+ */
 export type ServerEnvelope<T = import('./server-messages.js').ServerResult> = {
     menu: string;
-    payload: T;
+    payload?: T;
 };
 
 export type MenuCommandEntry = {

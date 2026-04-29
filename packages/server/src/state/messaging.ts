@@ -20,11 +20,14 @@ export function broadcastTo(data: ServerResult, targetClients: Set<WebSocket> | 
     }
 }
 
-/** Send a server result to a single player by id. No-op if the player is offline. */
-export function sendEnvelope(playerId: number, data: ServerResult): void {
+/**
+ * Send a server result to a single player by id.
+ */
+export function sendEnvelope(playerId: number, data?: ServerResult): void {
     const player = players[playerId];
     if (!player || player.ws.readyState !== 1) return;
-    player.ws.send(JSON.stringify({ menu: player.currentMenu, payload: data }));
+    const frame = data ? { menu: player.currentMenu, payload: data } : { menu: player.currentMenu };
+    player.ws.send(JSON.stringify(frame));
 }
 
 /** Convenience: emit an Error result to a single player. */

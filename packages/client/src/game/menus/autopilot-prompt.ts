@@ -3,9 +3,8 @@ import { render } from '../renderer.js';
 import { NOTIFY, EVENT } from '../messages/index.js';
 import { registerMenu } from './types.js';
 
-// AutopilotPrompt has no `enter` because its prompt is rendered as part of
-// the ShortestPathResult handler in connection.ts (showAutopilotPrompt) —
-// it's not a MenuChanged-triggered prompt.
+// AutopilotPrompt has no `enter`: its prompt is rendered by the
+// ShortestPathResult handler in connection.ts via showAutopilotPrompt.
 registerMenu(Menu.AutopilotPrompt, {
     input(ctx, line) {
         switch (line.trim().toLowerCase()) {
