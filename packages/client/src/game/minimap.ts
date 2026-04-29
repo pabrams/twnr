@@ -1,5 +1,5 @@
 import type { NeighborhoodResultObject, NeighborhoodSector } from '@twnr/shared';
-import { HEX_CELL_SIZE, HEX_SPACING_MULTIPLIER } from '@twnr/shared';
+import { HEX_CELL_SIZE, HEX_SPACING_MULTIPLIER, portClassTriplet } from '@twnr/shared';
 import { colorPalette } from '../config/colors.js';
 import './minimap.css';
 
@@ -80,18 +80,6 @@ const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 8.0;
 const ZOOM_STEP = 1.15;
 
-const PORT_CLASS_TRIPLET: Record<number, string> = {
-    1: 'BBS',
-    2: 'BSB',
-    3: 'SBB',
-    4: 'SSB',
-    5: 'BSS',
-    6: 'SBS',
-    7: 'SSS',
-    8: 'BBB',
-    9: '---',
-    0: '---',
-};
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -326,15 +314,18 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
 
         if (sector.visibility !== 'glimpsed') {
             if (sector.port) {
-                const triplet = PORT_CLASS_TRIPLET[sector.port.class] ?? '???';
+                const triplet = portClassTriplet(sector.port.class);
                 body.appendChild(span('Port', COLORS.portLabel));
                 body.appendChild(span(' : ', COLORS.sep));
                 body.appendChild(span(`Class ${sector.port.class} `, COLORS.portClass));
                 body.appendChild(span('(', COLORS.portTripletParens));
-                for (const ch of triplet) {
-                    if (ch === 'S') body.appendChild(span('S', COLORS.portTripletS));
-                    else if (ch === 'B') body.appendChild(span('B', COLORS.portTripletB));
-                    else body.appendChild(document.createTextNode(ch));
+                if (triplet) {
+                    for (const ch of triplet) {
+                        if (ch === 'S') body.appendChild(span('S', COLORS.portTripletS));
+                        else if (ch === 'B') body.appendChild(span('B', COLORS.portTripletB));
+                    }
+                } else {
+                    body.appendChild(span('Special', COLORS.portClass));
                 }
                 body.appendChild(span(')', COLORS.portTripletParens));
                 body.appendChild(document.createTextNode('\n'));
