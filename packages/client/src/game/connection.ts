@@ -46,8 +46,6 @@ function fmt(n: number): string {
  */
 const MENU_RENDERERS: Partial<Record<MenuName, (ctx: GameContext) => void>> = {
     [Menu.Sector]: showPrompt,
-    [Menu.Move]: showMoveMenu,
-    [Menu.Port]: showPortMenu,
 };
 
 /** Render a non-negative duration in seconds as the largest sensible unit. */

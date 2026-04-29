@@ -1,15 +1,7 @@
 import type { Terminal } from '@xterm/xterm';
 import { ClientMsgType, Menu } from '@twnr/shared';
 import type { GameContext, KeystrokeEvent } from './types.js';
-import {
-    echoCommand,
-    showPrompt,
-    showPortMenu,
-    showHelp,
-    showPlayerInfo,
-    showMoveMenu,
-    hideMoveMenuOverlay,
-} from './display.js';
+import { echoCommand, showPortMenu, showHelp, showPlayerInfo, showPrompt } from './display.js';
 import { render } from './renderer.js';
 import { NOTIFY } from './messages/index.js';
 import { getMenuHandler } from './menus/index.js';
@@ -141,15 +133,6 @@ function handleInput(ctx: GameContext, line: string) {
         return;
     }
 
-    switch (ctx.mode) {
-        case Menu.Port:
-            handlePortInput(ctx, line);
-            return;
-        case Menu.Move:
-            handleMoveMenuInput(ctx, line);
-            return;
-    }
-
     // Sector mode
     const cmd = line.trim();
     if (/^\d+$/.test(cmd)) {
@@ -229,50 +212,5 @@ function handleInput(ctx: GameContext, line: string) {
         default:
             if (line) ctx.term.writeln(render(NOTIFY.unknownCommand, { cmd }));
             showPrompt(ctx);
-    }
-}
-
-function handleMoveMenuInput(ctx: GameContext, line: string) {
-    const cmd = line.trim();
-    if (cmd === '') {
-        showMoveMenu(ctx);
-        return;
-    }
-    if (cmd.toLowerCase() === 'q') {
-        hideMoveMenuOverlay(ctx);
-        echoCommand(ctx, 'moveMenuBack');
-        ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
-        return;
-    }
-    const warps = ctx.currentWarps.slice(0, 6);
-    const idx = parseInt(cmd, 10) - 1;
-    if (idx >= 0 && idx < warps.length) {
-        hideMoveMenuOverlay(ctx);
-        const sector = warps[idx].sector;
-        echoCommand(ctx, 'move', { sector });
-        ctx.sendMsg({ type: ClientMsgType.Move, sector });
-        return;
-    }
-    ctx.term.writeln(render(NOTIFY.invalidSelection));
-    showMoveMenu(ctx);
-}
-
-function handlePortInput(ctx: GameContext, line: string) {
-    switch (line.toLowerCase()) {
-        case 't':
-            if (ctx.currentPort?.class !== 9) {
-                echoCommand(ctx, 'dock');
-                ctx.sendMsg({ type: ClientMsgType.Dock });
-            }
-            break;
-        case 's':
-            if (ctx.currentPort?.class === 9) {
-                echoCommand(ctx, 'dockStarbase');
-                ctx.sendMsg({ type: ClientMsgType.DockStarbase });
-            }
-            break;
-        case 'q':
-            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
-            break;
     }
 }
