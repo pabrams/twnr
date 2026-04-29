@@ -6,6 +6,7 @@ import {
     DEFAULT_FILL_DENSITY,
     DEFAULT_MAX_PATH_LENGTH,
     HEX_CELL_SIZE,
+    HEX_SPACING_MULTIPLIER,
 } from '@twnr/shared';
 
 export const DEFAULT_WARP_DIST: number[] = [0, ...DEFAULT_WARP_DIST_1_6];
@@ -17,6 +18,7 @@ export {
     DEFAULT_FILL_DENSITY,
     DEFAULT_MAX_PATH_LENGTH,
     HEX_CELL_SIZE,
+    HEX_SPACING_MULTIPLIER,
 };
 
 export type Topology = 'random' | 'proximal';
