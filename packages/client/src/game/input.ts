@@ -10,15 +10,6 @@ import {
     showMoveMenu,
     hideMoveMenuOverlay,
 } from './display.js';
-import {
-    handleStarbaseInput,
-    handleHardwareInput,
-    handleShipyardsInput,
-    handleShipyardsBuyInput,
-    handleShipyardsTradeinInput,
-    handleShipyardsExamineInput,
-    handleShipyardsClass0Input,
-} from './input-starbase.js';
 import { render } from './renderer.js';
 import { NOTIFY } from './messages/index.js';
 import { getMenuHandler } from './menus/index.js';
@@ -153,27 +144,6 @@ function handleInput(ctx: GameContext, line: string) {
     switch (ctx.mode) {
         case Menu.Port:
             handlePortInput(ctx, line);
-            return;
-        case Menu.Starbase:
-            handleStarbaseInput(ctx, line);
-            return;
-        case Menu.StarbaseHardware:
-            handleHardwareInput(ctx, line);
-            return;
-        case Menu.Shipyards:
-            handleShipyardsInput(ctx, line);
-            return;
-        case Menu.ShipyardsBuy:
-            handleShipyardsBuyInput(ctx, line);
-            return;
-        case Menu.ShipyardsTradein:
-            handleShipyardsTradeinInput(ctx, line);
-            return;
-        case Menu.ShipyardsExamine:
-            handleShipyardsExamineInput(ctx, line);
-            return;
-        case Menu.ShipyardsClass0:
-            handleShipyardsClass0Input(ctx, line);
             return;
         case Menu.Move:
             handleMoveMenuInput(ctx, line);
