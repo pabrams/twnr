@@ -1,15 +1,9 @@
 import { WebSocket } from 'ws';
 import { ServerMsgType } from '@twnr/shared';
-import {
-    players,
-    sendEnvelope,
-    sendError,
-    getSectorDrones,
-    broadcastTo,
-    buildSectorDisplayData,
-    setPlayerMenu,
-    resolveSectorId,
-} from '../game-state.js';
+import { players, setPlayerMenu } from '../state/players.js';
+import { sendEnvelope, sendError, broadcastTo } from '../state/messaging.js';
+import { getSectorDrones, resolveSectorId } from '../services/sector-lookup.js';
+import { buildSectorDisplayData } from '../services/sector-display.js';
 import { withTransaction, AbortTransaction } from '../db/index.js';
 import { moveToSector } from '../db/queries/player.js';
 import {

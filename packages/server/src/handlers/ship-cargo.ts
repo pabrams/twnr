@@ -1,5 +1,6 @@
 import { ServerMsgType } from '@twnr/shared';
-import { sendEnvelope, setPlayerMenu } from '../game-state.js';
+import { setPlayerMenu } from '../state/players.js';
+import { sendEnvelope } from '../state/messaging.js';
 import { getShipCargo, zeroShipCargo } from '../db/queries/ship.js';
 
 export async function handleJettison(playerId: number): Promise<void> {

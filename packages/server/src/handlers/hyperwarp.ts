@@ -1,5 +1,8 @@
 import { ServerMsgType } from '@twnr/shared';
-import { players, sendEnvelope, sendError, getGraph, resolveSectorId } from '../game-state.js';
+import { players } from '../state/players.js';
+import { sendEnvelope, sendError } from '../state/messaging.js';
+import { getGraph } from '../state/graph-cache.js';
+import { resolveSectorId } from '../services/sector-lookup.js';
 import { getOnPlanetId, moveToSector, markSectorVisited } from '../db/queries/player.js';
 import {
     getShipFuel,

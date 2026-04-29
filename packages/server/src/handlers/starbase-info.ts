@@ -1,5 +1,6 @@
 import { ServerMsgType } from '@twnr/shared';
-import { players, sendEnvelope } from '../game-state.js';
+import { players } from '../state/players.js';
+import { sendEnvelope } from '../state/messaging.js';
 import { getStarbaseSectorNumber } from '../db/queries/sector.js';
 import { getUniverseStats, getOutWarpDegreeDistribution } from '../db/queries/universe.js';
 import { getStartingShipTypeByName } from '../db/queries/ship.js';

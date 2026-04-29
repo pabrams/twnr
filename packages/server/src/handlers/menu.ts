@@ -1,5 +1,6 @@
 import { ServerMsgType } from '@twnr/shared';
-import { players, sendEnvelope, sendError, setPlayerMenu } from '../game-state.js';
+import { players, setPlayerMenu } from '../state/players.js';
+import { sendEnvelope, sendError } from '../state/messaging.js';
 import { canTransitionToMenu } from '../db/queries/menu.js';
 
 /**

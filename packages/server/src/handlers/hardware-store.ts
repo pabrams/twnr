@@ -1,5 +1,6 @@
 import { ServerMsgType, type BuyHardwareResultObject } from '@twnr/shared';
-import { players, sendEnvelope, sendError, setPlayerMenu } from '../game-state.js';
+import { players, setPlayerMenu } from '../state/players.js';
+import { sendEnvelope, sendError } from '../state/messaging.js';
 import { withTransaction, AbortTransaction } from '../db/index.js';
 import { getCreditsForUpdate, deductCredits } from '../db/queries/player.js';
 import {

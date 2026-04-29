@@ -1,14 +1,8 @@
 import { ServerMsgType } from '@twnr/shared';
-import {
-    players,
-    sendEnvelope,
-    sendError,
-    getPlayerUniverseId,
-    PORT_CLASS_ACTIONS,
-    portName,
-    buildSectorDisplayData,
-    setPlayerMenu,
-} from '../game-state.js';
+import { players, getPlayerUniverseId, setPlayerMenu } from '../state/players.js';
+import { sendEnvelope, sendError } from '../state/messaging.js';
+import { PORT_CLASS_ACTIONS, portName } from '../domain/port-classes.js';
+import { buildSectorDisplayData } from '../services/sector-display.js';
 import { withTransaction, AbortTransaction } from '../db/index.js';
 import { setDocked, getCurrentSector, deductCredits, addCredits } from '../db/queries/player.js';
 import {
@@ -160,7 +154,7 @@ export async function handleDock(playerId: number): Promise<void> {
         { key: 'equipment', label: 'Equipment', price: p.equ_price },
     ];
 
-    const steps: import('../game-state.js').TradeStep[] = [];
+    const steps: import('../state/players.js').TradeStep[] = [];
     for (const c of COMMODITIES) {
         const dir = actions[c.key];
         if (!dir) continue;

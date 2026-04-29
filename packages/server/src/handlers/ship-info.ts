@@ -1,5 +1,5 @@
 import { ServerMsgType } from '@twnr/shared';
-import { sendEnvelope, sendError } from '../game-state.js';
+import { sendEnvelope, sendError } from '../state/messaging.js';
 import { getShipInfo } from '../db/queries/ship.js';
 import { getShipHardwareQuantities, getShipTypeHardwareMax } from '../db/queries/hardware.js';
 import { cargoUsed } from './cargo-utils.js';
