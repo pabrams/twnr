@@ -10,20 +10,20 @@ import { pool } from '../db/pool.js';
 
 const DEFAULT_DEPTH = 3;
 const MIN_DEPTH = 1;
-const MAX_DEPTH = 5;
-const ADMIN_MAX_DEPTH = 50;
+const MAX_DEPTH = 200;
 
 /**
- * Clamp a raw depth value per spec: floor + clamp to [1, MAX]; fall back to
+ * Clamp a raw depth value: floor + clamp to [1, MAX_DEPTH]; fall back to the
  * default for NaN/±Infinity. Non-numeric is rejected earlier at the wire
- * layer. Admins get a much higher ceiling so they can render the whole map.
+ * layer. The cap exists only to bound BFS work; non-admins are scoped by
+ * their visited set anyway, so a high request just reaches the edge of what
+ * they've explored. The client sets depth dynamically from its zoom level.
  */
-function normalizeDepth(raw: number, isAdmin = false): number {
-    const max = isAdmin ? ADMIN_MAX_DEPTH : MAX_DEPTH;
+function normalizeDepth(raw: number): number {
     if (!Number.isFinite(raw)) return DEFAULT_DEPTH;
     const floored = Math.floor(raw);
     if (floored < MIN_DEPTH) return MIN_DEPTH;
-    if (floored > max) return max;
+    if (floored > MAX_DEPTH) return MAX_DEPTH;
     return floored;
 }
 
@@ -33,7 +33,7 @@ export async function handleGetNeighborhood(playerId: number, depth: number): Pr
     const universeId = player.universeId;
     const currentSectorId = player.sectorId;
     const isAdmin = player.isAdmin === true;
-    const normalizedDepth = normalizeDepth(depth, isAdmin);
+    const normalizedDepth = normalizeDepth(depth);
 
     const topology = await getUniverseTopology(universeId);
 

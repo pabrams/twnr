@@ -32,7 +32,7 @@ function span(text: string, color?: string): HTMLSpanElement {
 }
 
 type MinimapState = {
-    depth: number;
+    zoom: number;
     data: NeighborhoodResultObject | null;
     currentSectorNumber: number;
     quickMoveTargets: number[] | null;
@@ -43,16 +43,22 @@ export type MinimapInjectionHandler = (sectorNumber: number, currentSector: numb
 
 export interface Minimap {
     update(data: NeighborhoodResultObject, currentSectorNumber: number): void;
+    /** Computed depth based on zoom + container size */
     getDepth(): number;
     onRequestRefresh(handler: () => void): void;
     setQuickMove(targets: number[] | null): void;
     setAdminMode(adminMode: boolean): void;
 }
 
-const DEFAULT_DEPTH = 3;
-const ADMIN_DEFAULT_DEPTH = 10;
-const PLAYER_DEPTH_OPTIONS = [2, 3, 4, 5];
-const ADMIN_DEPTH_OPTIONS = [3, 5, 10, 25, 50];
+/** Base on-screen pill-label size in CSS pixels at zoom = 1. */
+const BASE_LABEL_PX = 12;
+/** How much area each pill effectively claims (label² × this). Empirical. */
+const PILL_AREA_FACTOR = 16;
+const MIN_DEPTH = 1;
+const MAX_DEPTH = 200;
+const MIN_ZOOM = 0.25;
+const MAX_ZOOM = 4.0;
+const ZOOM_STEP = 1.1;
 
 const PORT_CLASS_TRIPLET: Record<number, string> = {
     1: 'BBS',
@@ -71,7 +77,7 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 
 export function createMinimap(container: HTMLElement, onInject: MinimapInjectionHandler): Minimap {
     const state: MinimapState = {
-        depth: DEFAULT_DEPTH,
+        zoom: 1.0,
         data: null,
         currentSectorNumber: 0,
         quickMoveTargets: null,
@@ -86,30 +92,47 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
 
     let refreshHandler: (() => void) | null = null;
 
-    function rebuildDepthButtons(): void {
-        // Clear existing depth buttons but keep the "Depth:" label.
-        for (const btn of Array.from(header.querySelectorAll('.depth-btn'))) btn.remove();
-        const options = state.adminMode ? ADMIN_DEPTH_OPTIONS : PLAYER_DEPTH_OPTIONS;
-        for (const depth of options) {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'depth-btn';
-            btn.dataset.depth = String(depth);
-            btn.textContent = String(depth);
-            if (depth === state.depth) btn.classList.add('active');
-            btn.addEventListener('click', () => {
-                if (depth === state.depth) return;
-                state.depth = depth;
-                for (const b of header.querySelectorAll<HTMLButtonElement>('.depth-btn')) {
-                    b.classList.toggle('active', Number(b.dataset.depth) === depth);
-                }
-                refreshHandler?.();
-            });
-            header.appendChild(btn);
-        }
+    const zoomReadout = document.createElement('span');
+    zoomReadout.className = 'minimap-zoom-readout';
+    header.appendChild(zoomReadout);
+    function updateZoomReadout(): void {
+        zoomReadout.textContent = `Zoom: ${Math.round(state.zoom * 100)}%`;
+    }
+    updateZoomReadout();
+
+    /**
+     * Pick a BFS depth that should fill the panel at the current zoom: estimate
+     * how many pills fit, then derive a planar BFS-ball radius. Always called
+     * fresh because panel size and zoom both change at runtime.
+     */
+    function computeDepth(): number {
+        const panelW = body.clientWidth || 320;
+        const panelH = body.clientHeight || 320;
+        const labelPx = BASE_LABEL_PX * state.zoom;
+        const pillArea = labelPx * labelPx * PILL_AREA_FACTOR;
+        const targetCount = Math.max(1, Math.floor((panelW * panelH) / pillArea));
+        const radius = Math.round(Math.sqrt(targetCount / Math.PI) + 1);
+        if (radius < MIN_DEPTH) return MIN_DEPTH;
+        if (radius > MAX_DEPTH) return MAX_DEPTH;
+        return radius;
     }
 
-    rebuildDepthButtons();
+    // Alt+wheel adjusts minimap zoom independently of browser zoom (Ctrl+wheel).
+    container.addEventListener(
+        'wheel',
+        (e: WheelEvent) => {
+            if (!e.altKey) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const factor = e.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP;
+            const next = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, state.zoom * factor));
+            if (Math.abs(next - state.zoom) < 1e-4) return;
+            state.zoom = next;
+            updateZoomReadout();
+            refreshHandler?.();
+        },
+        { passive: false },
+    );
 
     function setHoveredInfo(sector: NeighborhoodSector): void {
         renderInfoPanel(sector);
@@ -310,11 +333,12 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
         svg.appendChild(defs);
 
         // Pixel-space sizing: convert target on-screen pixel sizes into world
-        // units using the panel's rendered width
+        // units using the panel's rendered width. zoom scales label/pill size
+        // independently of browser zoom (alt+wheel control).
         const panelPx = body.clientWidth || 320;
         const worldPerPx = viewSize / panelPx;
-        const labelSize = 12 * worldPerPx;
-        const strokeW = 1.7 * worldPerPx;
+        const labelSize = BASE_LABEL_PX * state.zoom * worldPerPx;
+        const strokeW = 1.7 * state.zoom * worldPerPx;
 
         // Precompute pill bounds so warp lines can be trimmed to each pill's
         // edge, leaving arrowheads visible outside the destination pill.
@@ -684,7 +708,7 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             render();
         },
         getDepth() {
-            return state.depth;
+            return computeDepth();
         },
         onRequestRefresh(handler) {
             refreshHandler = handler;
@@ -697,14 +721,6 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             if (state.adminMode === adminMode) return;
             state.adminMode = adminMode;
             container.classList.toggle('is-admin-mode', adminMode);
-            // Pick a sensible default depth for the new mode if the current
-            // depth isn't in the new option set. Caller is responsible for
-            // triggering the next neighborhood fetch.
-            const options = adminMode ? ADMIN_DEPTH_OPTIONS : PLAYER_DEPTH_OPTIONS;
-            if (!options.includes(state.depth)) {
-                state.depth = adminMode ? ADMIN_DEFAULT_DEPTH : DEFAULT_DEPTH;
-            }
-            rebuildDepthButtons();
         },
     };
 }
