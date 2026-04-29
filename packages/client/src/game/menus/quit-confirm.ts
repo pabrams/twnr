@@ -1,6 +1,7 @@
 import { ClientMsgType, Menu } from '@twnr/shared';
 import { render } from '../renderer.js';
 import { NOTIFY } from '../messages/index.js';
+import { echoCommand } from '../display.js';
 import { registerMenu } from './types.js';
 
 registerMenu(Menu.QuitConfirm, {
@@ -16,6 +17,7 @@ registerMenu(Menu.QuitConfirm, {
                 return;
             case '':
             case 'n':
+                echoCommand(ctx, 'quitConfirmBack');
                 ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
                 return;
             default:

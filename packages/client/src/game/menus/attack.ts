@@ -1,6 +1,7 @@
 import { ClientMsgType, Menu } from '@twnr/shared';
 import { render } from '../renderer.js';
 import { NOTIFY } from '../messages/index.js';
+import { echoCommand } from '../display.js';
 import { registerMenu } from './types.js';
 
 // Attack has no `enter`: AttackMenuResult drives the display via
@@ -8,6 +9,7 @@ import { registerMenu } from './types.js';
 registerMenu(Menu.Attack, {
     input(ctx, line) {
         if (line.toLowerCase() === 'q') {
+            echoCommand(ctx, 'attackBack');
             ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
             return;
         }

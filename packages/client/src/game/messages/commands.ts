@@ -9,6 +9,28 @@ import { makeDomain } from './_domain.js';
 export const COMMAND = makeDomain('COMMAND', {
     move: '[bg:b]<Move>[/bg:b] [g]Warping to sector[/g] [bc]{sector}[/bc]',
     moveMenu: '[bg:b]<Move>[/bg:b]',
+    /**
+     * Per-menu "user backed out" echoes. Every Q / N-cancel / 0-cancel
+     * branch that triggers a ChangeMenu sends one of these so the xterm
+     * history reflects every server trip the user caused. Keyed per
+     * source menu so each one can be customised (or silenced — set the
+     * template to '') independently.
+     */
+    attackBack: '[bg:b]<Back>[/bg:b]',
+    attackDronesBack: '[bg:b]<Back>[/bg:b]',
+    class0QtyBack: '[bg:b]<Back>[/bg:b]',
+    deployDronesQtyBack: '[bg:b]<Back>[/bg:b]',
+    droneAttackQtyBack: '[bg:b]<Back>[/bg:b]',
+    hyperspaceJumpTargetBack: '[bg:b]<Back>[/bg:b]',
+    jettisonConfirmBack: '[bg:b]<Back>[/bg:b]',
+    moveMenuBack: '[bg:b]<Back>[/bg:b]',
+    planetLeaveCommodityBack: '[bg:b]<Back>[/bg:b]',
+    planetLeaveQtyBack: '[bg:b]<Back>[/bg:b]',
+    planetSelectBack: '[bg:b]<Back>[/bg:b]',
+    planetTakeCommodityBack: '[bg:b]<Back>[/bg:b]',
+    planetTakeQtyBack: '[bg:b]<Back>[/bg:b]',
+    quitConfirmBack: '[bg:b]<Back>[/bg:b]',
+    terraformConfirmBack: '[bg:b]<Back>[/bg:b]',
     moveToPrevious: '[bw:b]<Move to Previous>[/bw:b]',
     sectorDisplay: '[bg:b]<Re-Display>[/bg:b]',
     playersOnline: '[bg:b]<Players Online>[/bg:b]',

@@ -9,6 +9,7 @@ import { registerMenu } from './types.js';
 registerMenu(Menu.PlanetSelect, {
     input(ctx, line) {
         if (line.toLowerCase() === 'q') {
+            echoCommand(ctx, 'planetSelectBack');
             ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
             return;
         }

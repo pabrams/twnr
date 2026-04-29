@@ -1,4 +1,5 @@
 import { ClientMsgType, Menu } from '@twnr/shared';
+import { echoCommand } from '../display.js';
 import { registerMenu } from './types.js';
 
 // DeployDronesQty has no `enter`: prompt is rendered by the
@@ -7,6 +8,7 @@ registerMenu(Menu.DeployDronesQty, {
     input(ctx, line) {
         const trimmed = line.trim();
         if (trimmed.toLowerCase() === 'q') {
+            echoCommand(ctx, 'deployDronesQtyBack');
             ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
             return;
         }

@@ -1,11 +1,13 @@
 import { ClientMsgType, Menu } from '@twnr/shared';
 import { showDroneAttackQtyPrompt } from '../display-combat.js';
+import { echoCommand } from '../display.js';
 import { registerMenu } from './types.js';
 
 registerMenu(Menu.DroneAttackQty, {
     enter: showDroneAttackQtyPrompt,
     input(ctx, line) {
         if (line.toLowerCase() === 'q') {
+            echoCommand(ctx, 'droneAttackQtyBack');
             ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.DroneEncounter });
             return;
         }

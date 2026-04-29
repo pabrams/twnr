@@ -96,6 +96,7 @@ export function handlePlanetTakeCommodityInput(ctx: GameContext, line: string) {
             ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.PlanetTakeQty });
             break;
         case 'q':
+            echoCommand(ctx, 'planetTakeCommodityBack');
             ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Planet });
             break;
     }
@@ -116,6 +117,7 @@ export function handlePlanetLeaveCommodityInput(ctx: GameContext, line: string) 
             ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.PlanetLeaveQty });
             break;
         case 'q':
+            echoCommand(ctx, 'planetLeaveCommodityBack');
             ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Planet });
             break;
     }

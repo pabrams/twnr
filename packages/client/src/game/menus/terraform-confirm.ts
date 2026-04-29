@@ -17,6 +17,7 @@ registerMenu(Menu.TerraformConfirm, {
                 return;
             case '':
             case 'n':
+                echoCommand(ctx, 'terraformConfirmBack');
                 ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
                 return;
             default:

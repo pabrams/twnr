@@ -1,9 +1,11 @@
 import { ClientMsgType, Menu } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { showPlanetTakePrompt } from '../display-planet.js';
+import { echoCommand } from '../display.js';
 import { registerMenu } from './types.js';
 
 function backToPlanetMenu(ctx: GameContext): void {
+    echoCommand(ctx, 'planetTakeQtyBack');
     const target = ctx.currentSector === 1 ? Menu.PlanetEarth : Menu.Planet;
     ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: target });
 }
