@@ -10,7 +10,7 @@
     "rebuild": "pnpm clean && pnpm build",
     "dev": "pnpm --parallel --filter @twnr/server --filter @twnr/client run dev",
     "build": "pnpm -r run build && pnpm run docs",
-    "test": "pnpm lint && pnpm format:check && pnpm --filter @twnr/client test && pnpm --filter @twnr/server test",
+    "test": "pnpm lint && pnpm format:check && pnpm -r --no-bail run test",
     "start": "pnpm --filter @twnr/server start",
     "db:seed": "pnpm --filter @twnr/server db:seed",
     "db:import": "pnpm --filter @twnr/server db:import",
