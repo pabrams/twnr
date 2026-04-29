@@ -3,6 +3,7 @@ import {
     DEFAULT_TWO_WAY_PCT,
     DEFAULT_PORT_DENSITY,
     DEFAULT_TOPOLOGY,
+    DEFAULT_SECTOR_COUNT,
     DEFAULT_FILL_DENSITY,
     DEFAULT_MAX_PATH_LENGTH,
 } from '@twnr/shared';
@@ -212,11 +213,11 @@ export function renderUniverseGenerator(container: HTMLElement, onGenerated: () 
 
     const sectorsField = makeInput('Sectors (20-25000)', {
         type: 'number',
-        placeholder: '5000',
+        placeholder: String(DEFAULT_SECTOR_COUNT),
         min: '20',
         max: '25000',
     });
-    sectorsField.input.value = '5000';
+    sectorsField.input.value = String(DEFAULT_SECTOR_COUNT);
     form.appendChild(sectorsField.row);
 
     const seedField = makeInput('Seed (optional)', { type: 'number', placeholder: 'Random' });
@@ -307,7 +308,7 @@ export function renderUniverseGenerator(container: HTMLElement, onGenerated: () 
             return;
         }
 
-        const sectors = parseInt(sectorsField.input.value, 10) || 5000;
+        const sectors = parseInt(sectorsField.input.value, 10) || DEFAULT_SECTOR_COUNT;
         const seedVal = seedField.input.value.trim();
         const seed = seedVal ? parseInt(seedVal, 10) : undefined;
         const portDensity = parseInt(portDensityField.input.value, 10);

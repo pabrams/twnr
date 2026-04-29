@@ -1,3 +1,4 @@
+import { DEFAULT_SECTOR_COUNT } from '@twnr/shared';
 import { withTransaction } from '../db/index.js';
 import { generateUniverse } from '../bigbang/index.js';
 import {
@@ -23,7 +24,7 @@ export async function bootstrapUniverse(name: string): Promise<number> {
     // the shared DEFAULT_* constants via generateUniverse — don't override
     // them here.
     const result = generateUniverse({
-        sectors: 200,
+        sectors: DEFAULT_SECTOR_COUNT,
     });
 
     const universeId = await withTransaction(async (client) => {

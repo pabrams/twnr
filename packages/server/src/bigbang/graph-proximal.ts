@@ -1,6 +1,6 @@
 import type { GeneratedWarp } from './types.js';
 import { DEFAULT_TWO_WAY_PCT, DEFAULT_MAX_PATH_LENGTH, DEFAULT_WARP_DIST } from './types.js';
-import { HEX_NEIGHBOR_DIRS } from './positions.js';
+import { HEX_NEIGHBOR_DIRS, hexToCartesian } from './positions.js';
 import type { HexCell } from './positions.js';
 
 const MAX_OUT = 6;
@@ -157,6 +157,9 @@ export function generateProximalGraph(
     // components and emit a two-way wormhole from each non-main component
     // into the main one until the graph is weakly connected.
     {
+        // Precompute cartesian positions once so the closest-pair search
+        // doesn't redo hex→xy conversions per iteration.
+        const positions = cells.map((c) => hexToCartesian(c.q, c.r));
         let safety = N + 10;
         while (safety-- > 0) {
             const comp = findWeakComponents(N, adj);
@@ -174,42 +177,54 @@ export function generateProximalGraph(
                     mainId = id;
                 }
             }
-            // Find an island and pick endpoints with room (falling back to
-            // any endpoint if every island/main candidate is at MAX_OUT).
-            let islandNode = -1;
-            for (let i = 1; i <= N; i++) {
-                if (comp[i] === mainId) continue;
-                if (canTakeMore(i)) {
-                    islandNode = i;
+            // Pick any non-main component to merge.
+            let chosenIslandId = -1;
+            for (const id of sizes.keys()) {
+                if (id !== mainId) {
+                    chosenIslandId = id;
                     break;
                 }
             }
-            if (islandNode === -1) {
-                for (let i = 1; i <= N; i++) {
-                    if (comp[i] !== mainId) {
-                        islandNode = i;
-                        break;
-                    }
-                }
-            }
-            let mainNode = -1;
+            if (chosenIslandId === -1) break;
+
+            // Find the *closest* island↔main pair (Euclidean) — singletons
+            // adjacent to the main component bridge with a 1-cell-wide
+            // edge (well under the wormhole-distance threshold), so they
+            // don't show up as long-jump wormholes on the map. Only
+            // genuinely far-apart pockets produce true wormholes here.
+            let bestDist = Infinity;
+            let bestI = -1;
+            let bestJ = -1;
             for (let i = 1; i <= N; i++) {
-                if (comp[i] === mainId && canTakeMore(i)) {
-                    mainNode = i;
-                    break;
-                }
-            }
-            if (mainNode === -1) {
-                for (let i = 1; i <= N; i++) {
-                    if (comp[i] === mainId) {
-                        mainNode = i;
-                        break;
+                if (comp[i] !== chosenIslandId) continue;
+                if (!canTakeMore(i)) continue;
+                const pi = positions[i - 1];
+                for (let j = 1; j <= N; j++) {
+                    if (comp[j] !== mainId) continue;
+                    if (!canTakeMore(j)) continue;
+                    const pj = positions[j - 1];
+                    const dx = pi.x - pj.x;
+                    const dy = pi.y - pj.y;
+                    const d2 = dx * dx + dy * dy;
+                    if (d2 < bestDist) {
+                        bestDist = d2;
+                        bestI = i;
+                        bestJ = j;
                     }
                 }
             }
-            if (islandNode === -1 || mainNode === -1) break;
-            addEdge(islandNode, mainNode);
-            addEdge(mainNode, islandNode);
+            // Fallback: if every endpoint is at MAX_OUT, force-bridge any
+            // pair so we don't leave the graph disconnected.
+            if (bestI === -1 || bestJ === -1) {
+                for (let i = 1; i <= N; i++) {
+                    if (bestI === -1 && comp[i] === chosenIslandId) bestI = i;
+                    if (bestJ === -1 && comp[i] === mainId) bestJ = i;
+                    if (bestI !== -1 && bestJ !== -1) break;
+                }
+            }
+            if (bestI === -1 || bestJ === -1) break;
+            addEdge(bestI, bestJ);
+            addEdge(bestJ, bestI);
         }
     }
 
@@ -221,17 +236,40 @@ export function generateProximalGraph(
     // still over the cap we connect A↔B directly — the most diameter-cutting
     // wormhole possible in that round. If A or B is already at the per-sector
     // out-degree cap, fall back to random pair selection (also cap-aware).
-    const MAX_WORMHOLES = Math.min(N, Math.ceil(N * 0.2) + 10);
+    //
+    // No hard budget cap on wormhole count: the user's `maxPathLength` is the
+    // real constraint, and aggressive targets (e.g. diameter 5 on a large
+    // universe) require many wormholes by small-world math. The `stalled`
+    // counter is the natural safety exit — once every sector hits MAX_OUT
+    // and random pair selection can't find any addable pair for several
+    // rounds, we stop. ITER_BOUND is a paranoid backstop only.
+    const ITER_BOUND = Math.max(1000, N * 10);
     let placed = 0;
     let stalled = 0;
-    while (placed < MAX_WORMHOLES && stalled < 5) {
-        const seed = 1 + Math.floor(rng() * N);
-        const sweep1 = bfsFarthest(N, adj, seed);
-        const sweep2 = bfsFarthest(N, adj, sweep1.node);
-        if (sweep2.dist <= diameterCap) break;
+    let iter = 0;
+    while (stalled < 5 && iter++ < ITER_BOUND) {
+        // Multi-sample double-sweep: a single random source can land in a
+        // central region and underestimate the actual diameter, causing
+        // premature exit when the cap is tight. Take the best (longest)
+        // peripheral pair across SAMPLES sources before deciding.
+        const SAMPLES = 4;
+        let bestU = -1;
+        let bestV = -1;
+        let bestDist = -1;
+        for (let s = 0; s < SAMPLES; s++) {
+            const seed = 1 + Math.floor(rng() * N);
+            const sweep1 = bfsFarthest(N, adj, seed);
+            const sweep2 = bfsFarthest(N, adj, sweep1.node);
+            if (sweep2.dist > bestDist) {
+                bestDist = sweep2.dist;
+                bestU = sweep2.node;
+                bestV = sweep1.node;
+            }
+        }
+        if (bestDist <= diameterCap) break;
 
-        let u = sweep2.node;
-        let v = sweep1.node;
+        let u = bestU;
+        let v = bestV;
         const peripheralOk =
             u !== v &&
             canTakeMore(u) &&
