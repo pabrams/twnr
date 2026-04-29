@@ -18,7 +18,7 @@ export const HEX_CELL_SIZE = 100;
  *  multi-digit sector numbers leave clear visible warp segments between
  *  adjacent pills. Affects new universes only — existing rows in the DB
  *  keep whatever spacing they were generated with. */
-export const HEX_SPACING_MULTIPLIER = 2;
+export const HEX_SPACING_MULTIPLIER = 1.4;
 
 export type ShipConfig = {
     name: string;
