@@ -20,6 +20,8 @@ export type WelcomeEvent = {
     starbaseSector: number | null;
     /** Guest/demo account — UI shows a warning that the account is ephemeral. */
     isGuest: boolean;
+    /** Admin account — client unlocks admin-mode minimap (full vision, deeper depths). */
+    isAdmin: boolean;
 };
 
 export type PlayerMovedEvent = {

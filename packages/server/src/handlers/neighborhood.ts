@@ -11,16 +11,19 @@ import { pool } from '../db/pool.js';
 const DEFAULT_DEPTH = 3;
 const MIN_DEPTH = 1;
 const MAX_DEPTH = 5;
+const ADMIN_MAX_DEPTH = 50;
 
 /**
- * Clamp a raw depth value per spec: floor + clamp to [1, 5]; fall back to 3
- * for NaN/±Infinity. Non-numeric is rejected earlier at the wire layer.
+ * Clamp a raw depth value per spec: floor + clamp to [1, MAX]; fall back to
+ * default for NaN/±Infinity. Non-numeric is rejected earlier at the wire
+ * layer. Admins get a much higher ceiling so they can render the whole map.
  */
-function normalizeDepth(raw: number): number {
+function normalizeDepth(raw: number, isAdmin = false): number {
+    const max = isAdmin ? ADMIN_MAX_DEPTH : MAX_DEPTH;
     if (!Number.isFinite(raw)) return DEFAULT_DEPTH;
     const floored = Math.floor(raw);
     if (floored < MIN_DEPTH) return MIN_DEPTH;
-    if (floored > MAX_DEPTH) return MAX_DEPTH;
+    if (floored > max) return max;
     return floored;
 }
 
@@ -29,7 +32,8 @@ export async function handleGetNeighborhood(playerId: number, depth: number): Pr
     if (!player) return;
     const universeId = player.universeId;
     const currentSectorId = player.sectorId;
-    const normalizedDepth = normalizeDepth(depth);
+    const isAdmin = player.isAdmin === true;
+    const normalizedDepth = normalizeDepth(depth, isAdmin);
 
     const topology = await getUniverseTopology(universeId);
 
@@ -47,7 +51,9 @@ export async function handleGetNeighborhood(playerId: number, depth: number): Pr
         return;
     }
 
-    // Visited sectors: full-information view.
+    // Visited sectors: full-information view. Admins see every sector in the
+    // universe as if visited (no fog), so the BFS reaches the whole graph and
+    // ports/planets render normally for any sector that has been observed.
     const visited = await listVisitedSectorsForUniverse(playerId, universeId);
     const visitedIds = new Set<number>();
     const visitedById = new Map<number, (typeof visited)[number]>();
@@ -101,12 +107,13 @@ export async function handleGetNeighborhood(playerId: number, depth: number): Pr
 
     // BFS outward from current sector, up to `depth` hops. Only visited
     // sectors may be traversed; the walk may step from a visited sector to a
-    // glimpsed-only sector as the final hop but not pass through.
+    // glimpsed-only sector as the final hop but not pass through. Admins are
+    // allowed to traverse every sector in the universe (no fog).
     const distance = new Map<number, number>();
     distance.set(currentSectorId, 0);
     // If the player isn't already in visitedIds (e.g. before any sector has
     // been recorded), seed it as visited so BFS has an origin.
-    const traversable = new Set(visitedIds);
+    const traversable = isAdmin ? new Set(sectorMeta.keys()) : new Set(visitedIds);
     traversable.add(currentSectorId);
     const queue: number[] = [currentSectorId];
     const includedSectors = new Set<number>([currentSectorId]);
@@ -185,7 +192,7 @@ export async function handleGetNeighborhood(playerId: number, depth: number): Pr
     for (const id of includedSectors) {
         const meta = sectorMeta.get(id);
         if (!meta) continue;
-        const isVisited = visitedIds.has(id) || id === currentSectorId;
+        const isVisited = isAdmin || visitedIds.has(id) || id === currentSectorId;
         const visibility: 'visited' | 'glimpsed' = isVisited ? 'visited' : 'glimpsed';
         let port: NeighborhoodSector['port'] = null;
         let planets: NeighborhoodSector['planets'] = [];

@@ -155,6 +155,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
         await markSectorVisited(playerId, sectorId);
         await setPlayerCurrentMenu(playerId, 'sector');
 
+        const isAdmin = authPayload.role === 'admin';
         players[playerId] = {
             ws,
             sector,
@@ -163,6 +164,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             name: playerRow.name,
             universeId,
             docked: false,
+            isAdmin,
             currentMenu: 'sector',
         };
         const [totalSectors, starbaseSector, guestFlag] = await Promise.all([
@@ -180,6 +182,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             coloredShipName: playerRow.ship_display_name ?? null,
             starbaseSector,
             isGuest: guestFlag,
+            isAdmin,
             token: auth.signPlayerToken({
                 userId,
                 name: playerRow.name,
