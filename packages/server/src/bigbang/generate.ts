@@ -66,6 +66,7 @@ export function generateUniverse(options: BigBangOptions): BigBangResult {
                   layout.cells,
                   maxPathLength,
                   forcedHubSectors,
+                  warpDist,
               )
             : generateGraph(N, twoWayPct, rng, warpDist, forcedHubSectors);
 
