@@ -7,12 +7,12 @@ import { showShipDetail, showShipInterestPrompt } from '../display-computer.js';
 import { registerMenu } from './types.js';
 
 registerMenu(Menu.ShipyardsExamine, {
-    enter: showShipExamineList,
+    renderPrompt: showShipExamineList,
     input(ctx, line) {
         const lower = line.toLowerCase();
         if (lower === 'q') {
             echoCommand(ctx, 'shipyards');
-            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Shipyards });
+            ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Shipyards });
             return;
         }
         if (lower === '?') {
@@ -21,11 +21,11 @@ registerMenu(Menu.ShipyardsExamine, {
             return;
         }
         const idx = letterToIndex(line);
-        if (ctx.shipConfigs && idx >= 0 && idx < ctx.shipConfigs.length) {
-            showShipDetail(ctx, ctx.shipConfigs[idx]);
+        if (ctx.catalogs.ships && idx >= 0 && idx < ctx.catalogs.ships.length) {
+            showShipDetail(ctx, ctx.catalogs.ships[idx]);
             showShipInterestPrompt(ctx);
         } else {
-            ctx.term.writeln(render(NOTIFY.invalidSelection));
+            ctx.io.term.writeln(render(NOTIFY.invalidSelection));
             showShipInterestPrompt(ctx);
         }
     },

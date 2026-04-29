@@ -44,79 +44,86 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
 
     function sendMsg(msg: ClientCommand) {
         if (ws.readyState !== WebSocket.OPEN) return;
-        if (ctx.debug) {
+        if (ctx.io.debug) {
             const lines = JSON.stringify(msg, null, 2).split('\n');
             term.writeln(`\r\n\x1b[38;5;243m→ ${lines[0]}\x1b[0m`);
             for (let i = 1; i < lines.length; i++) {
                 term.writeln(`\x1b[38;5;243m  ${lines[i]}\x1b[0m`);
             }
         }
-        ctx.inFlight = true;
+        ctx.input.inFlight = true;
         ws.send(JSON.stringify(msg));
     }
 
     const ctx: GameContext = {
-        term,
-        ws,
-        universeId,
-        sendMsg,
-        setDebug: (on) => {
-            ctx.debug = on;
-            term.writeln(`\r\n\x1b[38;5;243m[debug ${on ? 'ON' : 'OFF'}]\x1b[0m`);
+        io: {
+            term,
+            ws,
+            sendMsg,
+            setDebug: (on) => {
+                ctx.io.debug = on;
+                term.writeln(`\r\n\x1b[38;5;243m[debug ${on ? 'ON' : 'OFF'}]\x1b[0m`);
+            },
+            debug: false,
+            submitLineFromMap: () => {
+                /* populated by setupInput */
+            },
         },
-
-        mode: Menu.Sector,
-        currentSector: 0,
-        currentPort: null,
-        dockedPortInfo: null,
-        visitedSet: new Set<number>(),
-        playerName: '',
-        playerId: 0,
-        totalSectors: 0,
-        sectorPlayers: [],
-        currentWarps: [],
-        attackTarget: null,
-        class0BuyType: null,
-        class0ShipState: null,
-        hardwareCatalog: null,
-        shipConfigs: null,
-        planetConfigs: null,
-        currentShipName: '',
-        currentColoredShipName: null,
-        class0Prices: null,
-        autopilotPath: [],
-        autopilotStep: 0,
-        autopilotPaused: false,
-        encounterOwnerName: '',
-        debug: false,
-        menuRegistry: new Map<string, MenuEntry>(),
-        starbaseSector: null,
-        hardwarePrices: null,
-        colonistCommodity: null,
-        planetEmptyHolds: 0,
-        shipColonists: 0,
-        hardwareStoreCredits: 0,
-        hardwareStoreItems: [],
-
-        knownUniverseMode: 'explored',
-        isAdmin: false,
-        starbaseBuyItemName: null,
-        starbaseBuyDefault: 0,
-        starbaseBuyLabel: null,
-        shipyardsBuyTarget: null,
-        shipyardsBuyDisplayName: null,
-        shipyardsBuyPrice: 0,
-        shipyardsBuyTradein: 0,
-        landablePlanets: null,
-
-        userInputBuffer: [],
-        inputQueue: [],
-        inFlight: false,
-        inputAssembly: '',
-
-        submitLineFromMap: () => {
-            /* populated by setupInput */
+        input: {
+            userInputBuffer: [],
+            inputQueue: [],
+            inFlight: false,
+            inputAssembly: '',
         },
+        player: {
+            universeId,
+            name: '',
+            id: 0,
+            isAdmin: false,
+        },
+        world: {
+            mode: Menu.Sector,
+            currentSector: 0,
+            currentPort: null,
+            dockedPortInfo: null,
+            visitedSet: new Set<number>(),
+            totalSectors: 0,
+            sectorPlayers: [],
+            currentWarps: [],
+            starbaseSector: null,
+        },
+        ship: {
+            currentShipName: '',
+            currentColoredShipName: null,
+            shipColonists: 0,
+            planetEmptyHolds: 0,
+        },
+        autopilot: {
+            path: [],
+            step: 0,
+            paused: false,
+        },
+        encounter: {
+            attackTarget: null,
+            ownerName: '',
+        },
+        catalogs: {
+            hardware: null,
+            ships: null,
+            planets: null,
+            class0Prices: null,
+            hardwarePrices: null,
+            menus: new Map<string, MenuEntry>(),
+        },
+        starbase: {
+            class0ShipState: null,
+            hardwareStoreCredits: 0,
+            hardwareStoreItems: [],
+        },
+        minimap: {
+            knownUniverseMode: 'explored',
+        },
+        pendingMenuArgs: null,
     };
 
     fetch('/api/menu-registry')
@@ -124,7 +131,7 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
         .then((entries: MenuEntry[]) => {
             const map = new Map<string, MenuEntry>();
             for (const entry of entries) map.set(entry.name, entry);
-            ctx.menuRegistry = map;
+            ctx.catalogs.menus = map;
         })
         .catch((err) => console.error('Failed to fetch menu registry:', err));
 
@@ -137,20 +144,20 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
             // (re-display). Otherwise: if the target isn't an outgoing
             // single-hop warp, flash the terminal border as a visual hint that
             // this will trigger autopilot rather than a direct move.
-            if (sectorNumber === currentSectorNumber || sectorNumber === ctx.currentSector) {
-                ctx.submitLineFromMap('');
+            if (sectorNumber === currentSectorNumber || sectorNumber === ctx.world.currentSector) {
+                ctx.io.submitLineFromMap('');
                 return;
             }
-            const isAdjacent = ctx.currentWarps.some((w) => w.sector === sectorNumber);
+            const isAdjacent = ctx.world.currentWarps.some((w) => w.sector === sectorNumber);
             if (!isAdjacent) {
                 flashTerminalBorder(termDiv);
             }
-            ctx.submitLineFromMap(String(sectorNumber));
+            ctx.io.submitLineFromMap(String(sectorNumber));
         });
-        ctx.minimap = minimap;
+        ctx.minimap.handle = minimap;
         minimap.onRequestRefresh(() => {
             const vp = minimap.getViewport();
-            ctx.sendMsg({
+            ctx.io.sendMsg({
                 type: ClientMsgType.GetNeighborhood,
                 halfWidthWorld: vp.halfWidthWorld,
                 halfHeightWorld: vp.halfHeightWorld,

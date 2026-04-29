@@ -4,23 +4,23 @@ import { showStarbaseMenu, showStarbasePrompt, showStarbaseHelp } from '../displ
 import { registerMenu } from './types.js';
 
 registerMenu(Menu.Starbase, {
-    enter: showStarbaseMenu,
+    renderPrompt: showStarbaseMenu,
     input(ctx, line) {
         switch (line.toLowerCase()) {
             case 's':
                 echoCommand(ctx, 'shipyards');
-                ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Shipyards });
+                ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Shipyards });
                 break;
             case 'h':
                 echoCommand(ctx, 'hardwareStoreInfo');
-                ctx.sendMsg({ type: ClientMsgType.HardwareStoreInfo });
+                ctx.io.sendMsg({ type: ClientMsgType.HardwareStoreInfo });
                 break;
             case '?':
                 showStarbaseHelp(ctx);
                 break;
             case 'q':
                 echoCommand(ctx, 'leaveStarbase');
-                ctx.sendMsg({ type: ClientMsgType.LeaveStarbase });
+                ctx.io.sendMsg({ type: ClientMsgType.LeaveStarbase });
                 break;
             default:
                 showStarbasePrompt(ctx);

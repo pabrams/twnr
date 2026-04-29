@@ -16,9 +16,9 @@ export function formatDuration(totalSeconds: number): string {
 }
 
 export function refreshMinimap(ctx: GameContext): void {
-    if (!ctx.minimap) return;
-    const vp = ctx.minimap.getViewport();
-    ctx.sendMsg({
+    if (!ctx.minimap.handle) return;
+    const vp = ctx.minimap.handle.getViewport();
+    ctx.io.sendMsg({
         type: ClientMsgType.GetNeighborhood,
         halfWidthWorld: vp.halfWidthWorld,
         halfHeightWorld: vp.halfHeightWorld,

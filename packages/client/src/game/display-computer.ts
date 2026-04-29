@@ -7,73 +7,75 @@ import { indexToLetter } from './display-starbase.js';
 import { centerVisible, threeColRows } from './display-utils.js';
 
 export function showComputerPrompt(ctx: GameContext) {
-    ctx.term.write(render(COMPUTER.prompt, { sector: ctx.currentSector }));
+    ctx.io.term.write(render(COMPUTER.prompt, { sector: ctx.world.currentSector }));
 }
 
 export function showComputerHelp(ctx: GameContext) {
-    ctx.term.writeln('');
-    ctx.term.writeln(render('[mg]   Computer Commands[/mg]'));
-    ctx.term.writeln(
+    ctx.io.term.writeln('');
+    ctx.io.term.writeln(render('[mg]   Computer Commands[/mg]'));
+    ctx.io.term.writeln(
         render('[by]   =[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]='),
     );
-    ctx.term.writeln(render(COMMON.menuRow, { key: 'K', text: '[bc]Known Universe[/bc]' }));
-    ctx.term.writeln(render(COMMON.menuRow, { key: 'L', text: '[bc]List Traders[/bc]' }));
-    ctx.term.writeln(render(COMMON.menuRow, { key: 'C', text: '[bc]Ship Catalog[/bc]' }));
-    ctx.term.writeln(render(COMMON.menuRow, { key: 'J', text: '[bc]Planetary Specs[/bc]' }));
-    ctx.term.writeln(render(COMMON.menuRow, { key: ';', text: '[bc]Current Ship Specs[/bc]' }));
-    ctx.term.writeln(render(COMMON.menuRow, { key: 'Y', text: '[bc]Your Planets[/bc]' }));
-    ctx.term.writeln(render(COMMON.menuRow, { key: 'Q', text: '[bc]Exit Computer[/bc]' }));
+    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'K', text: '[bc]Known Universe[/bc]' }));
+    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'L', text: '[bc]List Traders[/bc]' }));
+    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'C', text: '[bc]Ship Catalog[/bc]' }));
+    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'J', text: '[bc]Planetary Specs[/bc]' }));
+    ctx.io.term.writeln(render(COMMON.menuRow, { key: ';', text: '[bc]Current Ship Specs[/bc]' }));
+    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Y', text: '[bc]Your Planets[/bc]' }));
+    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: '[bc]Exit Computer[/bc]' }));
     showComputerPrompt(ctx);
 }
 
 export function showKnownUniverseMenu(ctx: GameContext) {
-    ctx.term.write(render(COMPUTER.knownUniversePrompt));
+    ctx.io.term.write(render(COMPUTER.knownUniversePrompt));
 }
 
 export function showExploredSectors(ctx: GameContext) {
-    ctx.knownUniverseMode = 'explored';
-    ctx.sendMsg({ type: ClientMsgType.VisitedSectors });
+    ctx.minimap.knownUniverseMode = 'explored';
+    ctx.io.sendMsg({ type: ClientMsgType.VisitedSectors });
 }
 
 export function showUnexploredSectors(ctx: GameContext) {
-    ctx.knownUniverseMode = 'unexplored';
-    ctx.sendMsg({ type: ClientMsgType.VisitedSectors });
+    ctx.minimap.knownUniverseMode = 'unexplored';
+    ctx.io.sendMsg({ type: ClientMsgType.VisitedSectors });
 }
 
 export function renderVisitedSectorsResult(
     ctx: GameContext,
     msg: { sectors: number[]; totalSectors: number },
 ) {
-    const mode = ctx.knownUniverseMode;
+    const mode = ctx.minimap.knownUniverseMode;
     const visited = new Set(msg.sectors);
-    ctx.term.writeln('');
+    ctx.io.term.writeln('');
     if (mode === 'explored') {
         const explored = msg.sectors.sort((a, b) => a - b);
-        ctx.term.writeln(render(COMPUTER.exploredHeader, { count: explored.length }));
-        ctx.term.writeln(explored.map((s) => render(COMPUTER.exploredSector, { n: s })).join(' '));
+        ctx.io.term.writeln(render(COMPUTER.exploredHeader, { count: explored.length }));
+        ctx.io.term.writeln(
+            explored.map((s) => render(COMPUTER.exploredSector, { n: s })).join(' '),
+        );
     } else {
         const unexplored: number[] = [];
         for (let i = 1; i <= msg.totalSectors; i++) {
             if (!visited.has(i)) unexplored.push(i);
         }
-        ctx.term.writeln(render(COMPUTER.unexploredHeader, { count: unexplored.length }));
-        ctx.term.writeln(
+        ctx.io.term.writeln(render(COMPUTER.unexploredHeader, { count: unexplored.length }));
+        ctx.io.term.writeln(
             unexplored.map((s) => render(COMPUTER.unexploredSector, { n: s })).join(' '),
         );
     }
-    ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Computer });
+    ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Computer });
     showComputerPrompt(ctx);
 }
 
 async function loadShipConfigs(ctx: GameContext): Promise<boolean> {
-    if (ctx.shipConfigs) return true;
-    ctx.term.writeln(render(STARBASE.loadingShipCatalog));
+    if (ctx.catalogs.ships) return true;
+    ctx.io.term.writeln(render(STARBASE.loadingShipCatalog));
     try {
         const res = await fetch('/api/ships');
-        ctx.shipConfigs = await res.json();
+        ctx.catalogs.ships = await res.json();
         return true;
     } catch {
-        ctx.term.writeln(render(STARBASE.shipCatalogFailed));
+        ctx.io.term.writeln(render(STARBASE.shipCatalogFailed));
         showComputerPrompt(ctx);
         return false;
     }
@@ -81,17 +83,17 @@ async function loadShipConfigs(ctx: GameContext): Promise<boolean> {
 
 export async function showShipCatalog(ctx: GameContext) {
     if (!(await loadShipConfigs(ctx))) return;
-    ctx.term.writeln('');
-    ctx.term.writeln(render(COMPUTER.shipCatalogHeader));
-    ctx.shipConfigs!.forEach((ship, i) => {
-        ctx.term.writeln(
+    ctx.io.term.writeln('');
+    ctx.io.term.writeln(render(COMPUTER.shipCatalogHeader));
+    ctx.catalogs.ships!.forEach((ship, i) => {
+        ctx.io.term.writeln(
             render(COMPUTER.shipCatalogRow, {
                 letter: indexToLetter(i),
                 name: ship.display_name ?? ship.name,
             }),
         );
     });
-    ctx.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
+    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
     showShipInterestPrompt(ctx);
 }
 
@@ -136,7 +138,7 @@ const SHIP_DETAIL_VALUE_WIDTH = 10;
 const SHIP_DETAIL_BODY_WIDTH = 92;
 
 export function showShipDetail(ctx: GameContext, ship: ShipCatalogEntry) {
-    const { term } = ctx;
+    const { term } = ctx.io;
     term.writeln('');
     const headerText = render(COMPUTER.shipDetailHeader, {
         name: ship.display_name ?? ship.name,
@@ -217,36 +219,36 @@ export function showShipDetail(ctx: GameContext, ship: ShipCatalogEntry) {
  * flow and the Shipyards examine flow reuse it so behavior stays consistent.
  */
 export function showShipInterestPrompt(ctx: GameContext) {
-    ctx.term.write(render(COMPUTER.shipInterestPrompt));
+    ctx.io.term.write(render(COMPUTER.shipInterestPrompt));
 }
 
 export async function showPlanetSpecs(ctx: GameContext) {
-    if (!ctx.planetConfigs) {
-        ctx.term.writeln(render(COMPUTER.planetSpecsLoading));
+    if (!ctx.catalogs.planets) {
+        ctx.io.term.writeln(render(COMPUTER.planetSpecsLoading));
         try {
             const res = await fetch('/api/planets');
-            ctx.planetConfigs = await res.json();
+            ctx.catalogs.planets = await res.json();
         } catch {
-            ctx.term.writeln(render(COMPUTER.planetSpecsFailed));
+            ctx.io.term.writeln(render(COMPUTER.planetSpecsFailed));
             showComputerPrompt(ctx);
             return;
         }
     }
-    ctx.term.writeln('');
-    ctx.term.writeln(render(COMPUTER.planetSpecsHeader));
-    ctx.planetConfigs!.forEach((planet, i) => {
-        ctx.term.writeln(
+    ctx.io.term.writeln('');
+    ctx.io.term.writeln(render(COMPUTER.planetSpecsHeader));
+    ctx.catalogs.planets!.forEach((planet, i) => {
+        ctx.io.term.writeln(
             render(COMPUTER.planetSpecsRow, {
                 letter: indexToLetter(i),
                 type: planet.type,
             }),
         );
     });
-    ctx.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
+    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
 }
 
 export function showPlanetDetail(ctx: GameContext, planet: PlanetConfig) {
-    const { term } = ctx;
+    const { term } = ctx.io;
     term.writeln('');
     term.writeln(render(COMPUTER.planetDetailHeader, { type: planet.type }));
     term.writeln(render(COMPUTER.planetDetailDescription, { description: planet.description }));
@@ -285,15 +287,17 @@ export function showPlanetDetail(ctx: GameContext, planet: PlanetConfig) {
 
 export async function showCurrentShipSpecs(ctx: GameContext) {
     if (!(await loadShipConfigs(ctx))) return;
-    if (!ctx.currentShipName) {
-        ctx.term.writeln(render(COMPUTER.shipDataRequesting));
-        ctx.sendMsg({ type: ClientMsgType.ShipInfo });
+    if (!ctx.ship.currentShipName) {
+        ctx.io.term.writeln(render(COMPUTER.shipDataRequesting));
+        ctx.io.sendMsg({ type: ClientMsgType.ShipInfo });
         showComputerPrompt(ctx);
         return;
     }
-    const ship = ctx.shipConfigs!.find((s) => s.name === ctx.currentShipName);
+    const ship = ctx.catalogs.ships!.find((s) => s.name === ctx.ship.currentShipName);
     if (!ship) {
-        ctx.term.writeln(render(COMPUTER.shipConfigNotFound, { name: ctx.currentShipName }));
+        ctx.io.term.writeln(
+            render(COMPUTER.shipConfigNotFound, { name: ctx.ship.currentShipName }),
+        );
         showComputerPrompt(ctx);
         return;
     }
@@ -302,23 +306,23 @@ export async function showCurrentShipSpecs(ctx: GameContext) {
 }
 
 export async function showTraderList(ctx: GameContext) {
-    ctx.term.writeln(render(COMPUTER.traderListLoading));
+    ctx.io.term.writeln(render(COMPUTER.traderListLoading));
     try {
-        const res = await fetch(`/api/universes/${ctx.universeId}/players`);
+        const res = await fetch(`/api/universes/${ctx.player.universeId}/players`);
         const traders: {
             name: string;
             shipName: string | null;
             coloredShipName: string | null;
         }[] = await res.json();
-        ctx.term.writeln('');
-        ctx.term.writeln(render(COMPUTER.traderListHeader));
-        ctx.term.writeln(render(COMPUTER.traderListColumns, { name: 'Name'.padEnd(24) }));
+        ctx.io.term.writeln('');
+        ctx.io.term.writeln(render(COMPUTER.traderListHeader));
+        ctx.io.term.writeln(render(COMPUTER.traderListColumns, { name: 'Name'.padEnd(24) }));
         for (const t of traders) {
             const ship =
                 t.shipName === null
                     ? render(COMPUTER.traderListShipDestroyed)
                     : (t.coloredShipName ?? t.shipName);
-            ctx.term.writeln(
+            ctx.io.term.writeln(
                 render(COMPUTER.traderListRow, {
                     name: t.name.padEnd(24),
                     ship,
@@ -326,7 +330,7 @@ export async function showTraderList(ctx: GameContext) {
             );
         }
     } catch {
-        ctx.term.writeln(render(COMPUTER.traderListFailed));
+        ctx.io.term.writeln(render(COMPUTER.traderListFailed));
     }
     showComputerPrompt(ctx);
 }

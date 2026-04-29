@@ -2,18 +2,18 @@ import { ClientMsgType, Menu } from '@twnr/shared';
 import { echoCommand } from '../display.js';
 import { showShipyardsClass0Menu } from '../display-starbase.js';
 import { showClass0Menu } from '../display-port.js';
-import { registerMenu } from './types.js';
+import { registerMenu, setMenuArgs } from './types.js';
 
 registerMenu(Menu.ShipyardsClass0, {
-    enter: showShipyardsClass0Menu,
+    renderPrompt: showShipyardsClass0Menu,
     input(ctx, line) {
         const choose = (
             kind: 'drones' | 'shields' | 'holds',
             echoKey: 'buyHolds' | 'buyDrones' | 'buyShields',
         ) => {
             echoCommand(ctx, echoKey);
-            ctx.class0BuyType = kind;
-            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsClass0Qty });
+            setMenuArgs(ctx, { menu: Menu.ShipyardsClass0Qty, kind });
+            ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsClass0Qty });
         };
         switch (line.toLowerCase()) {
             case 'a':
@@ -27,7 +27,7 @@ registerMenu(Menu.ShipyardsClass0, {
                 break;
             case 'q':
                 echoCommand(ctx, 'shipyards');
-                ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Shipyards });
+                ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Shipyards });
                 break;
             case '?':
             default:

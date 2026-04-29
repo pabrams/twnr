@@ -9,7 +9,7 @@ import { drainInputQueue } from './input.js';
 
 export function setupConnection(ws: WebSocket, ctx: GameContext, onDisconnect: () => void) {
     ws.addEventListener('open', () => {
-        ctx.term.writeln(render(NOTIFY.connected));
+        ctx.io.term.writeln(render(NOTIFY.connected));
     });
 
     ws.addEventListener('close', () => {
@@ -18,34 +18,32 @@ export function setupConnection(ws: WebSocket, ctx: GameContext, onDisconnect: (
 
     ws.addEventListener('message', (event) => {
         const raw = JSON.parse(event.data);
-        if (ctx.debug) {
+        if (ctx.io.debug) {
             const lines = JSON.stringify(raw, null, 2).split('\n');
-            ctx.term.writeln(`\r\n\x1b[38;5;243m← ${lines[0]}\x1b[0m`);
+            ctx.io.term.writeln(`\r\n\x1b[38;5;243m← ${lines[0]}\x1b[0m`);
             for (let i = 1; i < lines.length; i++) {
-                ctx.term.writeln(`\x1b[38;5;243m  ${lines[i]}\x1b[0m`);
+                ctx.io.term.writeln(`\x1b[38;5;243m  ${lines[i]}\x1b[0m`);
             }
         }
         if (raw.menu) {
-            ctx.mode = raw.menu as MenuName;
+            ctx.world.mode = raw.menu as MenuName;
         }
-        // No payload ⇔ pure menu transition. The envelope's `menu` field
-        // (already mirrored into ctx.mode above) is the entire content;
-        // the new menu's enter() — if it has one — paints the prompt.
+        // No payload means pure menu transition.
         if (raw.payload === undefined) {
-            getMenuHandler(ctx.mode)?.enter?.(ctx);
-            ctx.inFlight = false;
+            getMenuHandler(ctx.world.mode)?.renderPrompt?.(ctx);
+            ctx.input.inFlight = false;
             drainInputQueue(ctx);
             return;
         }
         const msg: ServerResult = raw.payload;
         dispatch(ctx, msg);
         // After every server message: clear in-flight and drain the burst/script
-        // queue. Direct user keystrokes don't go through the queue, so this only
+        // queue. Direct user keystrokes don't go through that queue, so this only
         // affects programmatic input sources.
-        ctx.inFlight = false;
+        ctx.input.inFlight = false;
         drainInputQueue(ctx);
     });
     ws.addEventListener('error', () => {
-        ctx.term.writeln(render(NOTIFY.connectionError));
+        ctx.io.term.writeln(render(NOTIFY.connectionError));
     });
 }

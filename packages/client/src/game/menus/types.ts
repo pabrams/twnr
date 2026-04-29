@@ -1,5 +1,5 @@
 import type { MenuName } from '@twnr/shared';
-import type { GameContext } from '../types.js';
+import type { GameContext, MenuArgs } from '../types.js';
 
 /**
  * Per-menu behavior bundle. Each menu lives in its own file under `menus/`
@@ -15,11 +15,12 @@ export interface MenuHandler {
     /** Process a submitted input line for this menu. */
     input?: (ctx: GameContext, line: string) => void;
     /**
-     * Render the menu's prompt/screen when the server replies with a pure
+     * Paint the menu's prompt/screen when the server replies with a pure
      * menu-transition envelope (no payload). Not called when a content
-     * result handler renders the menu itself.
+     * result handler renders the menu itself — those handlers paint the
+     * full screen including the prompt.
      */
-    enter?: (ctx: GameContext) => void;
+    renderPrompt?: (ctx: GameContext) => void;
 }
 
 const menuHandlers = new Map<MenuName, MenuHandler>();
@@ -30,4 +31,31 @@ export function registerMenu(name: MenuName, handler: MenuHandler): void {
 
 export function getMenuHandler(name: MenuName): MenuHandler | undefined {
     return menuHandlers.get(name);
+}
+
+/**
+ * Stash typed args for the next menu. Source menu calls this before sending
+ * `ChangeMenu`; the destination menu's `renderPrompt`/`input` reads (and
+ * clears) the slot via `consumeMenuArgs`. The discriminated union ensures
+ * each side sees the right shape.
+ */
+export function setMenuArgs(ctx: GameContext, args: MenuArgs): void {
+    ctx.pendingMenuArgs = args;
+}
+
+/**
+ * Read the pending args for the destination menu without clearing them.
+ * Args persist (so both `renderPrompt` and `input` can read) until the next
+ * `setMenuArgs` call overwrites them. Returns null if the slot is empty or
+ * holds args for a different menu — defensive against state drift.
+ */
+export function getMenuArgs<M extends MenuArgs['menu']>(
+    ctx: GameContext,
+    menu: M,
+): Extract<MenuArgs, { menu: M }> | null {
+    const args = ctx.pendingMenuArgs;
+    if (args && args.menu === menu) {
+        return args as Extract<MenuArgs, { menu: M }>;
+    }
+    return null;
 }

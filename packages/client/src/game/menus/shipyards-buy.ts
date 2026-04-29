@@ -4,7 +4,7 @@ import { render } from '../renderer.js';
 import { echoCommand } from '../display.js';
 import { showShipBuyList, letterToIndex } from '../display-starbase.js';
 import { NOTIFY, COMMON } from '../messages/index.js';
-import { registerMenu } from './types.js';
+import { registerMenu, setMenuArgs } from './types.js';
 
 function calculateShipPrice(ship: ShipCatalogEntry): number {
     return (
@@ -16,35 +16,40 @@ function calculateShipPrice(ship: ShipCatalogEntry): number {
 }
 
 function getCurrentShipPrice(ctx: GameContext): number {
-    if (!ctx.shipConfigs || !ctx.currentShipName) return 0;
-    const ship = ctx.shipConfigs.find((s) => s.name === ctx.currentShipName);
+    if (!ctx.catalogs.ships || !ctx.ship.currentShipName) return 0;
+    const ship = ctx.catalogs.ships.find((s) => s.name === ctx.ship.currentShipName);
     return ship ? calculateShipPrice(ship) : 0;
 }
 
 registerMenu(Menu.ShipyardsBuy, {
-    enter(ctx) {
+    renderPrompt(ctx) {
         showShipBuyList(ctx);
     },
     input(ctx, line) {
         if (line.toLowerCase() === 'q') {
             echoCommand(ctx, 'shipyards');
-            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Shipyards });
+            ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Shipyards });
             return;
         }
         const idx = letterToIndex(line);
-        if (ctx.shipConfigs && idx >= 0 && idx < ctx.shipConfigs.length) {
-            const ship = ctx.shipConfigs[idx];
-            if (ship.name === ctx.currentShipName) {
-                ctx.term.writeln(render(COMMON.errorLine, { text: 'Already flying that ship.' }));
+        if (ctx.catalogs.ships && idx >= 0 && idx < ctx.catalogs.ships.length) {
+            const ship = ctx.catalogs.ships[idx];
+            if (ship.name === ctx.ship.currentShipName) {
+                ctx.io.term.writeln(
+                    render(COMMON.errorLine, { text: 'Already flying that ship.' }),
+                );
                 return;
             }
-            ctx.shipyardsBuyTarget = ship.name;
-            ctx.shipyardsBuyDisplayName = ship.display_name ?? ship.name;
-            ctx.shipyardsBuyPrice = calculateShipPrice(ship);
-            ctx.shipyardsBuyTradein = getCurrentShipPrice(ctx);
-            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsTradein });
+            setMenuArgs(ctx, {
+                menu: Menu.ShipyardsTradein,
+                target: ship.name,
+                displayName: ship.display_name ?? ship.name,
+                price: calculateShipPrice(ship),
+                tradein: getCurrentShipPrice(ctx),
+            });
+            ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsTradein });
         } else {
-            ctx.term.writeln(render(NOTIFY.invalidSelection));
+            ctx.io.term.writeln(render(NOTIFY.invalidSelection));
         }
     },
 });

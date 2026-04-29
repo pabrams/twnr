@@ -2,19 +2,19 @@ import { ClientMsgType, Menu } from '@twnr/shared';
 import { echoCommand } from '../display.js';
 import { showClass0Menu } from '../display-port.js';
 import { COMMAND } from '../messages/index.js';
-import { registerMenu } from './types.js';
+import { registerMenu, setMenuArgs } from './types.js';
 
 registerMenu(Menu.Class0, {
-    enter(ctx) {
-        // showClass0Menu is async (loads class-0 prices); enter signature
-        // is sync, so the promise is intentionally unawaited.
+    renderPrompt(ctx) {
+        // showClass0Menu is async (loads class-0 prices); renderPrompt
+        // signature is sync, so the promise is intentionally unawaited.
         void showClass0Menu(ctx);
     },
     input(ctx, line) {
         const choose = (kind: 'drones' | 'shields' | 'holds', echoKey: keyof typeof COMMAND) => {
             echoCommand(ctx, echoKey);
-            ctx.class0BuyType = kind;
-            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Class0Qty });
+            setMenuArgs(ctx, { menu: Menu.Class0Qty, kind });
+            ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Class0Qty });
         };
         switch (line.toLowerCase()) {
             case 'a':
@@ -28,7 +28,7 @@ registerMenu(Menu.Class0, {
                 break;
             case 'q':
                 echoCommand(ctx, 'undock');
-                ctx.sendMsg({ type: ClientMsgType.Undock });
+                ctx.io.sendMsg({ type: ClientMsgType.Undock });
                 break;
             case '?':
             default:

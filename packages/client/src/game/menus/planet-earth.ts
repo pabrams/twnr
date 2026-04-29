@@ -1,25 +1,25 @@
 import { ClientMsgType, Menu } from '@twnr/shared';
 import { echoCommand } from '../display.js';
 import { showPlanetMenuOptions } from '../display-planet.js';
-import { registerMenu } from './types.js';
+import { registerMenu, setMenuArgs } from './types.js';
 
 registerMenu(Menu.PlanetEarth, {
-    enter: showPlanetMenuOptions,
+    renderPrompt: showPlanetMenuOptions,
     input(ctx, line) {
         switch (line.toLowerCase()) {
             case 't':
                 echoCommand(ctx, 'takeColonists');
-                ctx.colonistCommodity = 'fuel';
-                ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.PlanetTakeQty });
+                setMenuArgs(ctx, { menu: Menu.PlanetTakeQty, commodity: 'fuel' });
+                ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.PlanetTakeQty });
                 break;
             case 'l':
                 echoCommand(ctx, 'leaveColonists');
-                ctx.colonistCommodity = 'fuel';
-                ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.PlanetLeaveQty });
+                setMenuArgs(ctx, { menu: Menu.PlanetLeaveQty, commodity: 'fuel' });
+                ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.PlanetLeaveQty });
                 break;
             case 'q':
                 echoCommand(ctx, 'leavePlanet');
-                ctx.sendMsg({ type: ClientMsgType.LeavePlanet });
+                ctx.io.sendMsg({ type: ClientMsgType.LeavePlanet });
                 break;
         }
     },
