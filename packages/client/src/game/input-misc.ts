@@ -1,10 +1,9 @@
 import { ClientMsgType, Menu } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { echoCommand } from './display.js';
-import { showClass0Menu, class0MaxBuy } from './display-port.js';
+import { showClass0Menu } from './display-port.js';
 import { showPlanetHelp } from './display-planet.js';
-import { render } from './renderer.js';
-import { COMMAND, NOTIFY, EVENT } from './messages/index.js';
+import { COMMAND } from './messages/index.js';
 
 export function handleClass0Input(ctx: GameContext, line: string) {
     const choose = (kind: 'drones' | 'shields' | 'holds', echoKey: keyof typeof COMMAND) => {
@@ -29,40 +28,6 @@ export function handleClass0Input(ctx: GameContext, line: string) {
         case '?':
         default:
             showClass0Menu(ctx);
-    }
-}
-
-export function handleClass0QtyInput(ctx: GameContext, line: string) {
-    const trimmed = line.trim();
-    if (trimmed.toLowerCase() === 'q') {
-        ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Class0 });
-        return;
-    }
-    const kind = ctx.class0BuyType;
-    if (!kind) return;
-    const max = class0MaxBuy(kind, ctx);
-    // Empty input = accept default (max)
-    const qty = trimmed === '' ? max : parseInt(trimmed, 10);
-    if (isNaN(qty) || qty < 0) {
-        ctx.term.writeln('Enter a non-negative number.');
-        return;
-    }
-    if (qty === 0) {
-        ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Class0 });
-        return;
-    }
-    // qty submission for an in-progress Buy flow — the echo already fired
-    // when the user picked A/B/C from the commerce report.
-    switch (kind) {
-        case 'drones':
-            ctx.sendMsg({ type: ClientMsgType.BuyDrones, quantity: qty });
-            break;
-        case 'shields':
-            ctx.sendMsg({ type: ClientMsgType.BuyShields, quantity: qty });
-            break;
-        case 'holds':
-            ctx.sendMsg({ type: ClientMsgType.BuyHolds, quantity: qty });
-            break;
     }
 }
 
@@ -154,60 +119,4 @@ export function handlePlanetLeaveCommodityInput(ctx: GameContext, line: string) 
             ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Planet });
             break;
     }
-}
-
-function backToPlanetMenu(ctx: GameContext) {
-    const target = ctx.currentSector === 1 ? Menu.PlanetEarth : Menu.Planet;
-    ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: target });
-}
-
-export function handlePlanetTakeQtyInput(ctx: GameContext, line: string) {
-    const trimmed = line.trim();
-    if (trimmed.toLowerCase() === 'q') {
-        backToPlanetMenu(ctx);
-        return;
-    }
-    // Empty Enter → accept default (fill free holds; server computes).
-    const qty = trimmed === '' ? -1 : parseInt(trimmed, 10);
-    if (qty === 0) {
-        // 0 colonists = nothing to do; cancel back to the planet menu.
-        backToPlanetMenu(ctx);
-        return;
-    }
-    if (qty !== -1 && (isNaN(qty) || qty < 0)) {
-        ctx.term.writeln('Enter a positive number.');
-        return;
-    }
-    // qty submission for an in-progress take-colonists flow — the echo
-    // already fired when the user pressed T at the planet menu.
-    ctx.sendMsg({
-        type: ClientMsgType.TakeColonists,
-        quantity: qty,
-        commodity: ctx.colonistCommodity ?? 'fuel',
-    });
-}
-
-export function handlePlanetLeaveQtyInput(ctx: GameContext, line: string) {
-    const trimmed = line.trim();
-    if (trimmed.toLowerCase() === 'q') {
-        backToPlanetMenu(ctx);
-        return;
-    }
-    // Empty Enter → accept default (leave all ship colonists; server computes).
-    const qty = trimmed === '' ? -1 : parseInt(trimmed, 10);
-    if (qty === 0) {
-        backToPlanetMenu(ctx);
-        return;
-    }
-    if (qty !== -1 && (isNaN(qty) || qty < 0)) {
-        ctx.term.writeln('Enter a positive number.');
-        return;
-    }
-    // qty submission for an in-progress leave-colonists flow — the echo
-    // already fired when the user pressed L at the planet menu.
-    ctx.sendMsg({
-        type: ClientMsgType.LeaveColonists,
-        quantity: qty,
-        commodity: ctx.colonistCommodity ?? 'fuel',
-    });
 }

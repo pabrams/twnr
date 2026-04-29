@@ -12,13 +12,6 @@ import {
 } from './display.js';
 import { showComputerActivated } from './display-computer.js';
 import {
-    handleAttackInput,
-    handleAttackDronesInput,
-    handleDeployDronesQtyInput,
-    handleDroneEncounterInput,
-    handleDroneAttackQtyInput,
-} from './input-combat.js';
-import {
     handleComputerInput,
     handleKnownUniverseInput,
     handleShipCatalogInput,
@@ -26,26 +19,19 @@ import {
 } from './input-computer.js';
 import {
     handleClass0Input,
-    handleClass0QtyInput,
     handlePlanetInput,
     handlePlanetEarthInput,
     handlePlanetTakeCommodityInput,
     handlePlanetLeaveCommodityInput,
-    handlePlanetTakeQtyInput,
-    handlePlanetLeaveQtyInput,
 } from './input-misc.js';
 import {
     handleStarbaseInput,
     handleHardwareInput,
-    handleStarbaseBuyQtyInput,
-    handlePlanetSelectInput,
-    handleHyperspaceJumpInput,
     handleShipyardsInput,
     handleShipyardsBuyInput,
     handleShipyardsTradeinInput,
     handleShipyardsExamineInput,
     handleShipyardsClass0Input,
-    handleShipyardsClass0QtyInput,
 } from './input-starbase.js';
 import { render } from './renderer.js';
 import { NOTIFY } from './messages/index.js';
@@ -182,18 +168,6 @@ function handleInput(ctx: GameContext, line: string) {
         case Menu.Port:
             handlePortInput(ctx, line);
             return;
-        case Menu.TradeQty:
-            handleTradeQtyInput(ctx, line);
-            return;
-        case Menu.TradeConfirm:
-            handleTradeConfirmInput(ctx, line);
-            return;
-        case Menu.Attack:
-            handleAttackInput(ctx, line);
-            return;
-        case Menu.AttackDrones:
-            handleAttackDronesInput(ctx, line);
-            return;
         case Menu.Computer:
             handleComputerInput(ctx, line);
             return;
@@ -209,9 +183,6 @@ function handleInput(ctx: GameContext, line: string) {
         case Menu.Class0:
             handleClass0Input(ctx, line);
             return;
-        case Menu.Class0Qty:
-            handleClass0QtyInput(ctx, line);
-            return;
         case Menu.Planet:
             handlePlanetInput(ctx, line);
             return;
@@ -224,29 +195,11 @@ function handleInput(ctx: GameContext, line: string) {
         case Menu.PlanetLeaveCommodity:
             handlePlanetLeaveCommodityInput(ctx, line);
             return;
-        case Menu.PlanetTakeQty:
-            handlePlanetTakeQtyInput(ctx, line);
-            return;
-        case Menu.PlanetLeaveQty:
-            handlePlanetLeaveQtyInput(ctx, line);
-            return;
-        case Menu.DeployDronesQty:
-            handleDeployDronesQtyInput(ctx, line);
-            return;
-        case Menu.DroneEncounter:
-            handleDroneEncounterInput(ctx, line);
-            return;
-        case Menu.DroneAttackQty:
-            handleDroneAttackQtyInput(ctx, line);
-            return;
         case Menu.Starbase:
             handleStarbaseInput(ctx, line);
             return;
         case Menu.StarbaseHardware:
             handleHardwareInput(ctx, line);
-            return;
-        case Menu.StarbaseBuyQty:
-            handleStarbaseBuyQtyInput(ctx, line);
             return;
         case Menu.Shipyards:
             handleShipyardsInput(ctx, line);
@@ -262,15 +215,6 @@ function handleInput(ctx: GameContext, line: string) {
             return;
         case Menu.ShipyardsClass0:
             handleShipyardsClass0Input(ctx, line);
-            return;
-        case Menu.ShipyardsClass0Qty:
-            handleShipyardsClass0QtyInput(ctx, line);
-            return;
-        case Menu.PlanetSelect:
-            handlePlanetSelectInput(ctx, line);
-            return;
-        case Menu.HyperspaceJumpTarget:
-            handleHyperspaceJumpInput(ctx, line);
             return;
         case Menu.Move:
             handleMoveMenuInput(ctx, line);
@@ -400,30 +344,6 @@ function handlePortInput(ctx: GameContext, line: string) {
             break;
         case 'q':
             ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
-            break;
-    }
-}
-
-function handleTradeQtyInput(ctx: GameContext, line: string) {
-    const trimmed = line.trim();
-    // Empty input = accept default
-    const qty = trimmed === '' ? -1 : parseInt(trimmed, 10);
-    if (isNaN(qty) || qty < -1) return;
-    // -1 signals "use default maxQty" to the server, 0 = skip.
-    // The TradeResponse here is the qty submission for an in-progress
-    // trade flow (the <Trade at Port> echo already fired when the user
-    // pressed T at the port menu); no echo at this step.
-    ctx.sendMsg({ type: ClientMsgType.TradeResponse, quantity: qty === -1 ? -1 : qty });
-}
-
-function handleTradeConfirmInput(ctx: GameContext, line: string) {
-    switch (line.toLowerCase()) {
-        case '':
-        case 'y':
-            ctx.sendMsg({ type: ClientMsgType.TradeConfirmResponse, confirmed: true });
-            break;
-        case 'n':
-            ctx.sendMsg({ type: ClientMsgType.TradeConfirmResponse, confirmed: false });
             break;
     }
 }
