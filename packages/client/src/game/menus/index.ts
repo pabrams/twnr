@@ -34,6 +34,7 @@ import './planet-take-commodity.js';
 import './planet-take-qty.js';
 import './port.js';
 import './quit-confirm.js';
+import './sector.js';
 import './ship-catalog.js';
 import './shipyards.js';
 import './shipyards-buy.js';
