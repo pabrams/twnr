@@ -467,13 +467,24 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             cyView = (minY + maxY) / 2;
         }
 
+        // Bucket sectors by where they sit relative to the rendered viewport:
+        //   - disp: anything inside the viewport gets a real pill, including
+        //     in-bbox fringe (glimpsed) sectors which render with the
+        //     existing dashed --glimpsed border.
+        //   - fringePos: out-of-bbox fringe targets used as direction
+        //     vectors only — they get clipped-to-edge stubs and an optional
+        //     hover label, never a pill.
         const disp = new Map<number, { x: number; y: number }>();
-        // Fringe sectors are positioned too; treated identically by render
-        // logic — only the visibility class differs.
         const fringePos = new Map<number, { x: number; y: number }>();
+        const vbLeftPre = cxView - halfW;
+        const vbRightPre = cxView + halfW;
+        const vbTopPre = cyView - halfH;
+        const vbBottomPre = cyView + halfH;
         for (const s of sectors) {
             if (s.x == null || s.y == null) continue;
-            if (s.fringe) {
+            const inBbox =
+                s.x >= vbLeftPre && s.x <= vbRightPre && s.y >= vbTopPre && s.y <= vbBottomPre;
+            if (s.fringe && !inBbox) {
                 fringePos.set(s.id, { x: s.x, y: s.y });
                 continue;
             }
@@ -572,7 +583,6 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
         // hover. Keyed by source-sector id so multiple offscreen wormholes
         // from the same source all light up together.
         const endLabelsBySrcId = new Map<number, SVGGElement[]>();
-        const FRINGE_STUB_LEN_PX = 30;
         // Distance threshold for "wormhole". With flat-top hex
         // `size = HEX_CELL_SIZE`, adjacent center-to-center distance is
         // √3 × HEX_CELL_SIZE (~1.732); the closest non-adjacent pair sits at
@@ -647,13 +657,6 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
                 // direction it goes. Used for wormholes (dark-yellow dotted)
                 // and for long-range glimpsed warps (magenta dotted).
                 end = clipToViewBox(start, { x: dxFull, y: dyFull });
-            } else if (isFringe) {
-                const len = Math.sqrt(distSq) || 1;
-                const stub = FRINGE_STUB_LEN_PX * worldPerPx;
-                end = {
-                    x: start.x + (dxFull / len) * stub,
-                    y: start.y + (dyFull / len) * stub,
-                };
             } else if (dstPill) {
                 end = trimToPill(srcP, dstP, dstPill.rw, dstPill.rh, dstPad);
             } else {
@@ -749,12 +752,13 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             warpGroup.appendChild(line);
 
             // Hover-only end-label: shows the destination sector_number for
-            // wormholes that exit the panel, so the user can identify where
-            // each long-range warp leads without clicking. Positioned a hair
-            // inside the screen edge along the warp's direction so the pill
-            // is fully visible. Visibility is toggled on source-sector
-            // hover (see applyHoverHighlight below).
-            if (isWormhole && !dstOnscreen) {
+            // any warp that exits the panel, so the user can identify each
+            // out-warp without clicking. Two visual variants:
+            //   - --visited: dark yellow (target is a known sector)
+            //   - --glimpsed: magenta (target is unvisited / fringe)
+            // Positioned a hair inside the screen edge along the warp's
+            // direction so the pill is fully visible.
+            if (!dstOnscreen) {
                 const ldx = end.x - start.x;
                 const ldy = end.y - start.y;
                 const llen = Math.sqrt(ldx * ldx + ldy * ldy) || 1;
@@ -764,6 +768,11 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
 
                 const labelGroup = document.createElementNS(SVG_NS, 'g');
                 labelGroup.classList.add('minimap-warp-end-label');
+                labelGroup.classList.add(
+                    dstVisited
+                        ? 'minimap-warp-end-label--visited'
+                        : 'minimap-warp-end-label--glimpsed',
+                );
                 labelGroup.setAttribute('transform', `translate(${labelX}, ${labelY})`);
 
                 const dstNum = String(dst.sector_number);
