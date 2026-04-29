@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { RouteDeps, Middleware } from '../middleware.js';
+import { PORT_CLASS_ACTIONS } from '@twnr/shared';
 import { asyncHandler, HttpError, parseIntParam } from '../async-handler.js';
-import { PORT_CLASS_ACTIONS } from '../../domain/port-classes.js';
 import { universeExists } from '../../db/queries/universe.js';
 import { getSectorDbId } from '../../db/queries/sector.js';
 import {

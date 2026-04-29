@@ -15,13 +15,3 @@ export const PORT_CLASS_LABELS: Record<number, string> = {
     9: 'Special',
 };
 
-export const PORT_CLASS_ACTIONS: Record<number, Record<string, 'B' | 'S'>> = {
-    1: { fuel: 'B', organics: 'B', equipment: 'S' },
-    2: { fuel: 'B', organics: 'S', equipment: 'B' },
-    3: { fuel: 'S', organics: 'B', equipment: 'B' },
-    4: { fuel: 'S', organics: 'S', equipment: 'B' },
-    5: { fuel: 'B', organics: 'S', equipment: 'S' },
-    6: { fuel: 'S', organics: 'B', equipment: 'S' },
-    7: { fuel: 'S', organics: 'S', equipment: 'S' },
-    8: { fuel: 'B', organics: 'B', equipment: 'B' },
-};
