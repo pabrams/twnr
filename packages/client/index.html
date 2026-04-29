@@ -18,13 +18,10 @@
       padding: 8px 14px; border-bottom: 1px solid #333; display: flex; gap: 10px;
       align-items: center; background: #0a0a16;
     }
-    #minimap .minimap-header label { color: #888; font-size: 15px; }
-    #minimap .depth-btn {
-      background: #222; color: #c0c0c0; border: 1px solid #444; padding: 4px 11px;
-      font-family: inherit; font-size: 15px; cursor: pointer; min-width: 30px;
+    #minimap .minimap-zoom-readout {
+      color: #888; font-size: 15px; font-family: 'Courier New', Courier, monospace;
+      letter-spacing: 0.5px;
     }
-    #minimap .depth-btn:hover { background: #333; }
-    #minimap .depth-btn.active { background: #0ff; color: #000; border-color: #0ff; }
     #minimap .minimap-body {
       flex: 1; position: relative; overflow: hidden;
     }
@@ -191,9 +188,7 @@
   </div>
   <div id="game-container">
     <div id="minimap">
-      <div class="minimap-header">
-        <label>Depth:</label>
-      </div>
+      <div class="minimap-header" title="Alt+wheel to zoom"></div>
       <div class="minimap-body">
         <div class="empty-state is-hidden">No map data for this universe.</div>
         <svg class="minimap-svg" xmlns="http://www.w3.org/2000/svg"></svg>
