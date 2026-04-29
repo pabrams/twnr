@@ -8,37 +8,44 @@ import {
 } from '../db/queries/observations.js';
 import { pool } from '../db/pool.js';
 
-const DEFAULT_DEPTH = 3;
-const MIN_DEPTH = 1;
-const MAX_DEPTH = 200;
+/** Smallest viewport extent the client may legitimately request (world units). */
+const MIN_HALF_EXTENT = 50;
+/** Hard upper bound to keep payloads bounded on absurdly zoomed-out admin views. */
+const MAX_HALF_EXTENT = 1_000_000;
+const DEFAULT_HALF_EXTENT = 600;
 
-/**
- * Clamp a raw depth value: floor + clamp to [1, MAX_DEPTH]; fall back to the
- * default for NaN/±Infinity. Non-numeric is rejected earlier at the wire
- * layer. The cap exists only to bound BFS work; non-admins are scoped by
- * their visited set anyway, so a high request just reaches the edge of what
- * they've explored. The client sets depth dynamically from its zoom level.
- */
-function normalizeDepth(raw: number): number {
-    if (!Number.isFinite(raw)) return DEFAULT_DEPTH;
-    const floored = Math.floor(raw);
-    if (floored < MIN_DEPTH) return MIN_DEPTH;
-    if (floored > MAX_DEPTH) return MAX_DEPTH;
-    return floored;
+function clampHalfExtent(raw: number): number {
+    if (!Number.isFinite(raw) || raw <= 0) return DEFAULT_HALF_EXTENT;
+    if (raw < MIN_HALF_EXTENT) return MIN_HALF_EXTENT;
+    if (raw > MAX_HALF_EXTENT) return MAX_HALF_EXTENT;
+    return raw;
 }
 
-export async function handleGetNeighborhood(playerId: number, depth: number): Promise<void> {
+/**
+ * Return sectors within an axis-aligned bbox centered on the player's current
+ * sector. With static hex positions this is a clean positional crop — no BFS
+ * by hop count. Non-admin players still see only sectors they've visited (or
+ * glimpsed via an outbound warp from a visited sector); admins see everything
+ * within the bbox regardless of fog.
+ */
+export async function handleGetNeighborhood(
+    playerId: number,
+    halfWidthWorld: number,
+    halfHeightWorld: number,
+    centerXWorld?: number,
+    centerYWorld?: number,
+): Promise<void> {
     const player = players[playerId];
     if (!player) return;
     const universeId = player.universeId;
     const currentSectorId = player.sectorId;
     const isAdmin = player.isAdmin === true;
-    const normalizedDepth = normalizeDepth(depth);
+    const halfW = clampHalfExtent(halfWidthWorld);
+    const halfH = clampHalfExtent(halfHeightWorld);
 
     const topology = await getUniverseTopology(universeId);
 
-    // Random-topology universes: return empty payload — client renders a
-    // "no map data" state. Never leak positions here even though x/y are NULL.
+    // Random-topology universes: positions are NULL, no map to render.
     if (topology === 'random') {
         const payload: NeighborhoodResultObject = {
             type: ServerMsgType.NeighborhoodResult,
@@ -51,32 +58,11 @@ export async function handleGetNeighborhood(playerId: number, depth: number): Pr
         return;
     }
 
-    // Visited sectors: full-information view. Admins see every sector in the
-    // universe as if visited (no fog), so the BFS reaches the whole graph and
-    // ports/planets render normally for any sector that has been observed.
-    const visited = await listVisitedSectorsForUniverse(playerId, universeId);
-    const visitedIds = new Set<number>();
-    const visitedById = new Map<number, (typeof visited)[number]>();
-    for (const row of visited) {
-        visitedIds.add(row.id);
-        visitedById.set(row.id, row);
-    }
-
-    // All warps in this universe as (from_id, to_id) plus sector-number/x/y
-    // lookup. Pulled once and filtered locally so the BFS can look up either
-    // side of any edge and return sector metadata (sector_number/x/y) for
-    // both visited and glimpsed nodes.
-    const warpRes = await pool.query<{
-        from_id: number;
-        to_id: number;
-    }>(
-        `SELECT w.from_sector_id AS from_id, w.to_sector_id AS to_id
-         FROM warps w
-         JOIN sectors s ON w.from_sector_id = s.id
-         WHERE s.universe_id = $1`,
-        [universeId],
-    );
-
+    // Pull all sector metadata for this universe (id, sector_number, x, y).
+    // Cheap enough for any sane universe size; cropping happens client-side
+    // would push too much data over the wire on big universes, so we filter
+    // here in JS after the fetch. (DB-side bbox query would also work but
+    // requires an index we don't yet have.)
     const sectorMetaRes = await pool.query<{
         id: number;
         sector_number: number;
@@ -91,90 +77,98 @@ export async function handleGetNeighborhood(playerId: number, depth: number): Pr
         sectorMeta.set(row.id, row);
     }
 
-    // Forward + reverse adjacency restricted to this universe's sectors.
-    // edgeSet is the universe-wide set, used to detect confirmed one-way
-    // warps when both endpoints are visited.
-    const outAdj = new Map<number, number[]>();
-    const inAdj = new Map<number, number[]>();
-    const edgeSet = new Set<string>();
-    for (const w of warpRes.rows) {
-        if (!outAdj.has(w.from_id)) outAdj.set(w.from_id, []);
-        outAdj.get(w.from_id)!.push(w.to_id);
-        if (!inAdj.has(w.to_id)) inAdj.set(w.to_id, []);
-        inAdj.get(w.to_id)!.push(w.from_id);
-        edgeSet.add(`${w.from_id},${w.to_id}`);
+    const currentMeta = sectorMeta.get(currentSectorId);
+    // Use the client-supplied viewport center when present (zoom-toward-cursor
+    // / pan), otherwise center on the player's current sector. If neither
+    // exists we can't crop — bail empty.
+    let cx: number;
+    let cy: number;
+    if (typeof centerXWorld === 'number' && typeof centerYWorld === 'number') {
+        cx = centerXWorld;
+        cy = centerYWorld;
+    } else if (currentMeta && currentMeta.x != null && currentMeta.y != null) {
+        cx = currentMeta.x;
+        cy = currentMeta.y;
+    } else {
+        const payload: NeighborhoodResultObject = {
+            type: ServerMsgType.NeighborhoodResult,
+            topology: 'proximal',
+            current_sector_id: currentSectorId,
+            sectors: [],
+            warps: [],
+        };
+        sendEnvelope(playerId, payload);
+        return;
     }
 
-    // BFS outward from current sector, up to `depth` hops. Only visited
-    // sectors may be traversed; the walk may step from a visited sector to a
-    // glimpsed-only sector as the final hop but not pass through. Admins are
-    // allowed to traverse every sector in the universe (no fog).
-    const distance = new Map<number, number>();
-    distance.set(currentSectorId, 0);
-    // If the player isn't already in visitedIds (e.g. before any sector has
-    // been recorded), seed it as visited so BFS has an origin.
-    const traversable = isAdmin ? new Set(sectorMeta.keys()) : new Set(visitedIds);
-    traversable.add(currentSectorId);
-    const queue: number[] = [currentSectorId];
-    const includedSectors = new Set<number>([currentSectorId]);
-
-    while (queue.length > 0) {
-        const u = queue.shift()!;
-        const d = distance.get(u)!;
-        if (d >= normalizedDepth) continue;
-
-        // Forward warps: include the target (even glimpsed), but only continue
-        // BFS through visited targets — you learn a sector exists by seeing
-        // an outbound warp to it from somewhere you've been.
-        const forward = outAdj.get(u) ?? [];
-        for (const v of forward) {
-            if (!sectorMeta.has(v)) continue;
-            includedSectors.add(v);
-            if (!traversable.has(v)) continue;
-            if (!distance.has(v)) {
-                distance.set(v, d + 1);
-                queue.push(v);
-            }
-        }
-
-        // Reverse warps: only follow when the source is a visited sector.
-        // The player already knows about that sector from previous trips, so
-        // this doesn't leak any information they shouldn't have — it just
-        // preserves their memory of incoming one-way edges after following
-        // one. Each reverse hop still costs depth, so the selected depth
-        // limit is respected in both directions.
-        const reverse = inAdj.get(u) ?? [];
-        for (const v of reverse) {
-            if (!traversable.has(v)) continue;
-            if (!sectorMeta.has(v)) continue;
-            includedSectors.add(v);
-            if (!distance.has(v)) {
-                distance.set(v, d + 1);
-                queue.push(v);
-            }
-        }
+    // Visited sectors: full-information view (port + planet observations).
+    // Admins skip the visited filter and see every sector in the bbox.
+    const visited = await listVisitedSectorsForUniverse(playerId, universeId);
+    const visitedIds = new Set<number>();
+    const visitedById = new Map<number, (typeof visited)[number]>();
+    for (const row of visited) {
+        visitedIds.add(row.id);
+        visitedById.set(row.id, row);
     }
 
-    // Fringe pass: for visited sectors exactly at the max depth, include
-    // their outgoing-warp targets (one hop beyond the normal limit) so the
-    // client can render those warps as directional stubs.
-    const fringeIds = new Set<number>();
-    for (const [u, d] of distance) {
-        if (d !== normalizedDepth) continue;
-        if (!traversable.has(u)) continue;
-        for (const v of outAdj.get(u) ?? []) {
-            if (!sectorMeta.has(v)) continue;
-            if (includedSectors.has(v)) continue; // already shown fully
-            includedSectors.add(v);
-            fringeIds.add(v);
-        }
-    }
-
-    // Build sector payloads.
-    const planetRows = await listPlanetObservationsForSectors(
-        playerId,
-        [...visitedIds].filter((id) => includedSectors.has(id)),
+    // All warps in this universe — needed both for emitting result warps and
+    // for computing glimpsed sectors (target of an outbound warp from a
+    // visited source).
+    const warpRes = await pool.query<{ from_id: number; to_id: number }>(
+        `SELECT w.from_sector_id AS from_id, w.to_sector_id AS to_id
+         FROM warps w
+         JOIN sectors s ON w.from_sector_id = s.id
+         WHERE s.universe_id = $1`,
+        [universeId],
     );
+
+    const edgeSet = new Set<string>();
+    for (const w of warpRes.rows) edgeSet.add(`${w.from_id},${w.to_id}`);
+
+    // Determine which sector ids are "in view" (positionally) — the
+    // axis-aligned bbox around the current sector.
+    const inBbox = new Set<number>();
+    for (const meta of sectorMeta.values()) {
+        if (meta.x == null || meta.y == null) continue;
+        if (Math.abs(meta.x - cx) > halfW) continue;
+        if (Math.abs(meta.y - cy) > halfH) continue;
+        inBbox.add(meta.id);
+    }
+
+    // Visibility rule for non-admins: the sector must be visited, OR it must
+    // be the target of an outbound warp from a visited sector (glimpsed).
+    // Admins skip this filter entirely.
+    const includedSectors = new Set<number>();
+    const fringeIds = new Set<number>();
+    if (isAdmin) {
+        for (const id of inBbox) includedSectors.add(id);
+    } else {
+        // Always include the current sector even if visited-table is empty.
+        includedSectors.add(currentSectorId);
+        for (const id of inBbox) {
+            if (visitedIds.has(id) || id === currentSectorId) includedSectors.add(id);
+        }
+        // Glimpsed: any sector in bbox that is the destination of a warp
+        // from a visited sector.
+        for (const w of warpRes.rows) {
+            if (!inBbox.has(w.to_id)) continue;
+            if (includedSectors.has(w.to_id)) continue;
+            const sourceVisited = visitedIds.has(w.from_id) || w.from_id === currentSectorId;
+            if (!sourceVisited) continue;
+            includedSectors.add(w.to_id);
+            fringeIds.add(w.to_id);
+        }
+    }
+
+    // Build planet payload only for visited sectors that made it into the
+    // result (admin sees all sectors as "visited" so the same query covers
+    // them — but only if observations exist, which for unexplored sectors
+    // they won't).
+    const planetSectorIds: number[] = [];
+    for (const id of includedSectors) {
+        if (isAdmin || visitedIds.has(id)) planetSectorIds.push(id);
+    }
+    const planetRows = await listPlanetObservationsForSectors(playerId, planetSectorIds);
     const planetsBySector = new Map<
         number,
         Array<{ name: string; type: string | null; observed_at: string }>
@@ -218,15 +212,21 @@ export async function handleGetNeighborhood(playerId: number, depth: number): Pr
         });
     }
 
-    // Warp payload: every warp whose source is visited and whose target is in
-    // the neighborhood. known_two_way requires both endpoints visited AND the
-    // reverse warp to exist.
+    // Warp payload: every warp whose source is "knowable" by the player
+    // (visited for non-admin, anything for admin) and whose target is in the
+    // result. known_two_way needs both endpoints knowable + reverse edge.
+    const sourceKnowable = (sid: number): boolean =>
+        isAdmin || visitedIds.has(sid) || sid === currentSectorId;
     const warps: NeighborhoodWarp[] = [];
     const emittedKeys = new Set<string>();
     for (const w of warpRes.rows) {
-        if (!traversable.has(w.from_id)) continue;
+        if (!sourceKnowable(w.from_id)) continue;
         if (!includedSectors.has(w.to_id)) continue;
-        const knownTwoWay = traversable.has(w.to_id) && edgeSet.has(`${w.to_id},${w.from_id}`);
+        // Emit warps with the source either in the result OR the source is
+        // current sector (always emitted). For non-admins, glimpsed targets
+        // are reached by exactly this rule.
+        if (!includedSectors.has(w.from_id)) continue;
+        const knownTwoWay = sourceKnowable(w.to_id) && edgeSet.has(`${w.to_id},${w.from_id}`);
         const key = `${w.from_id},${w.to_id}`;
         if (emittedKeys.has(key)) continue;
         emittedKeys.add(key);
@@ -246,5 +246,3 @@ export async function handleGetNeighborhood(playerId: number, depth: number): Pr
     };
     sendEnvelope(playerId, payload);
 }
-
-export { normalizeDepth };

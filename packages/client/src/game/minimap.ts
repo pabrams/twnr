@@ -1,4 +1,5 @@
 import type { NeighborhoodResultObject, NeighborhoodSector } from '@twnr/shared';
+import { HEX_CELL_SIZE } from '@twnr/shared';
 import { colorPalette } from '../config/colors.js';
 import './minimap.css';
 
@@ -35,30 +36,49 @@ type MinimapState = {
     zoom: number;
     data: NeighborhoodResultObject | null;
     currentSectorNumber: number;
+    /** Last known current-sector id, used to detect sector changes and recenter. */
+    currentSectorId: number;
     quickMoveTargets: number[] | null;
     adminMode: boolean;
+    /**
+     * Viewport center in world units. null = "follow current sector"; the
+     * server is told to center on the player. Set to a concrete world point
+     * after the user zooms/pans away. Reset to null when the player moves to
+     * a new sector.
+     */
+    viewportCenter: { x: number; y: number } | null;
 };
 
 export type MinimapInjectionHandler = (sectorNumber: number, currentSector: number) => void;
 
 export interface Minimap {
     update(data: NeighborhoodResultObject, currentSectorNumber: number): void;
-    /** Computed depth based on zoom + container size */
-    getDepth(): number;
+    /**
+     * Viewport spec for the next neighborhood request. centerXWorld/Y are
+     * undefined while the viewport is following the current sector; they
+     * become concrete once the user zooms-toward-cursor or pans.
+     */
+    getViewport(): {
+        halfWidthWorld: number;
+        halfHeightWorld: number;
+        centerXWorld?: number;
+        centerYWorld?: number;
+    };
     onRequestRefresh(handler: () => void): void;
     setQuickMove(targets: number[] | null): void;
     setAdminMode(adminMode: boolean): void;
 }
 
-/** Base on-screen pill-label size in CSS pixels at zoom = 1. */
-const BASE_LABEL_PX = 12;
-/** How much area each pill effectively claims (label² × this). Empirical. */
-const PILL_AREA_FACTOR = 16;
-const MIN_DEPTH = 1;
-const MAX_DEPTH = 200;
-const MIN_ZOOM = 0.25;
-const MAX_ZOOM = 4.0;
-const ZOOM_STEP = 1.1;
+/**
+ * Number of hex cells visible across the panel width at zoom = 1. Higher
+ * zoom shows fewer cells (zoomed in); lower zoom shows more.
+ */
+const BASE_CELLS_ACROSS = 12;
+/** Label/pill height as a fraction of one hex cell, in world units. */
+const LABEL_FRACTION_OF_CELL = 0.45;
+const MIN_ZOOM = 0.1;
+const MAX_ZOOM = 8.0;
+const ZOOM_STEP = 1.15;
 
 const PORT_CLASS_TRIPLET: Record<number, string> = {
     1: 'BBS',
@@ -80,8 +100,10 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
         zoom: 1.0,
         data: null,
         currentSectorNumber: 0,
+        currentSectorId: 0,
         quickMoveTargets: null,
         adminMode: false,
+        viewportCenter: null,
     };
 
     const body = container.querySelector<HTMLElement>('.minimap-body')!;
@@ -101,23 +123,53 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
     updateZoomReadout();
 
     /**
-     * Pick a BFS depth that should fill the panel at the current zoom: estimate
-     * how many pills fit, then derive a planar BFS-ball radius. Always called
-     * fresh because panel size and zoom both change at runtime.
+     * Half-extents of the viewport in world units. At zoom = 1, the panel
+     * width spans BASE_CELLS_ACROSS hex cells; height scales by aspect ratio.
+     * Higher zoom = smaller bbox = fewer cells visible (and labels appear
+     * larger because more pixels per cell). Center is the saved viewport
+     * center if the user has zoomed/panned away from the player; otherwise
+     * undefined, which tells the server to center on the current sector.
      */
-    function computeDepth(): number {
+    function computeViewport(): {
+        halfWidthWorld: number;
+        halfHeightWorld: number;
+        centerXWorld?: number;
+        centerYWorld?: number;
+    } {
         const panelW = body.clientWidth || 320;
         const panelH = body.clientHeight || 320;
-        const labelPx = BASE_LABEL_PX * state.zoom;
-        const pillArea = labelPx * labelPx * PILL_AREA_FACTOR;
-        const targetCount = Math.max(1, Math.floor((panelW * panelH) / pillArea));
-        const radius = Math.round(Math.sqrt(targetCount / Math.PI) + 1);
-        if (radius < MIN_DEPTH) return MIN_DEPTH;
-        if (radius > MAX_DEPTH) return MAX_DEPTH;
-        return radius;
+        const cellsAcross = BASE_CELLS_ACROSS / state.zoom;
+        const worldWidth = cellsAcross * HEX_CELL_SIZE;
+        const worldHeight = (worldWidth * panelH) / panelW;
+        return {
+            halfWidthWorld: worldWidth / 2,
+            halfHeightWorld: worldHeight / 2,
+            centerXWorld: state.viewportCenter?.x,
+            centerYWorld: state.viewportCenter?.y,
+        };
     }
 
-    // Alt+wheel adjusts minimap zoom independently of browser zoom (Ctrl+wheel).
+    /**
+     * Map a screen-space mouse event to its world-space coords inside the
+     * SVG. Returns null if the event isn't over the SVG (so we fall back to
+     * the current center). Linear inversion of the current viewBox.
+     */
+    function mouseToWorld(e: MouseEvent): { x: number; y: number } | null {
+        const rect = svg.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) return null;
+        const sx = (e.clientX - rect.left) / rect.width;
+        const sy = (e.clientY - rect.top) / rect.height;
+        if (sx < 0 || sx > 1 || sy < 0 || sy > 1) return null;
+        const vbAttr = svg.getAttribute('viewBox');
+        if (!vbAttr) return null;
+        const [vbx, vby, vbw, vbh] = vbAttr.split(/\s+/).map(Number);
+        if (![vbx, vby, vbw, vbh].every(Number.isFinite)) return null;
+        return { x: vbx + sx * vbw, y: vby + sy * vbh };
+    }
+
+    // Alt+wheel zooms toward the world point under the cursor (Google Maps
+    // style): the pixel under the mouse stays put while everything else
+    // scales around it. Ctrl+wheel browser zoom is independent.
     container.addEventListener(
         'wheel',
         (e: WheelEvent) => {
@@ -127,12 +179,37 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             const factor = e.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP;
             const next = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, state.zoom * factor));
             if (Math.abs(next - state.zoom) < 1e-4) return;
+
+            // Lock the world point under the cursor before changing zoom,
+            // then shift the viewport center so that point stays under it.
+            const worldUnder = mouseToWorld(e);
+            const oldZoom = state.zoom;
             state.zoom = next;
+            if (worldUnder) {
+                // Find current viewport center: either the saved center, or
+                // (if we're still following) the current sector's position.
+                const oldCenter = state.viewportCenter ?? currentSectorWorld();
+                if (oldCenter) {
+                    const ratio = oldZoom / next;
+                    state.viewportCenter = {
+                        x: worldUnder.x + (oldCenter.x - worldUnder.x) * ratio,
+                        y: worldUnder.y + (oldCenter.y - worldUnder.y) * ratio,
+                    };
+                }
+            }
             updateZoomReadout();
             refreshHandler?.();
         },
         { passive: false },
     );
+
+    /** World position of the player's current sector if we know it from the last payload. */
+    function currentSectorWorld(): { x: number; y: number } | null {
+        if (!state.data) return null;
+        const cur = state.data.sectors.find((s) => s.id === state.data!.current_sector_id);
+        if (!cur || cur.x == null || cur.y == null) return null;
+        return { x: cur.x, y: cur.y };
+    }
 
     function setHoveredInfo(sector: NeighborhoodSector): void {
         renderInfoPanel(sector);
@@ -265,29 +342,45 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             });
         }
 
-        // Compute bbox from all positioned sectors.
-        let minX = Infinity;
-        let minY = Infinity;
-        let maxX = -Infinity;
-        let maxY = -Infinity;
-        let positionedCount = 0;
-        for (const s of sectors) {
-            if (s.x == null || s.y == null) continue;
-            if (s.fringe) continue;
-            positionedCount++;
-            if (s.x < minX) minX = s.x;
-            if (s.x > maxX) maxX = s.x;
-            if (s.y < minY) minY = s.y;
-            if (s.y > maxY) maxY = s.y;
-        }
-        if (positionedCount === 0) {
-            emptyState.classList.remove('is-hidden');
-            emptyState.textContent = 'No positioned sectors in view.';
-            return;
+        // ViewBox is the requested bbox centered on either the user's
+        // saved viewport center (after zoom-toward-cursor) or the player's
+        // current sector. If neither has a position, fall back to the bbox
+        // of returned sectors.
+        const viewport = computeViewport();
+        const halfW = viewport.halfWidthWorld;
+        const halfH = viewport.halfHeightWorld;
+        let cxView: number;
+        let cyView: number;
+        if (state.viewportCenter) {
+            cxView = state.viewportCenter.x;
+            cyView = state.viewportCenter.y;
+        } else if (current && current.x != null && current.y != null) {
+            cxView = current.x;
+            cyView = current.y;
+        } else {
+            let minX = Infinity;
+            let minY = Infinity;
+            let maxX = -Infinity;
+            let maxY = -Infinity;
+            for (const s of sectors) {
+                if (s.x == null || s.y == null) continue;
+                if (s.x < minX) minX = s.x;
+                if (s.x > maxX) maxX = s.x;
+                if (s.y < minY) minY = s.y;
+                if (s.y > maxY) maxY = s.y;
+            }
+            if (!Number.isFinite(minX)) {
+                emptyState.classList.remove('is-hidden');
+                emptyState.textContent = 'No positioned sectors in view.';
+                return;
+            }
+            cxView = (minX + maxX) / 2;
+            cyView = (minY + maxY) / 2;
         }
 
         const disp = new Map<number, { x: number; y: number }>();
-        // Fringe sectors positions are used as direction vectors for warp stubs.
+        // Fringe sectors are positioned too; treated identically by render
+        // logic — only the visibility class differs.
         const fringePos = new Map<number, { x: number; y: number }>();
         for (const s of sectors) {
             if (s.x == null || s.y == null) continue;
@@ -298,16 +391,10 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             disp.set(s.id, { x: s.x, y: s.y });
         }
 
-        const spanX = maxX - minX;
-        const spanY = maxY - minY;
-        const pivotX = (minX + maxX) / 2;
-        const pivotY = (minY + maxY) / 2;
-        const spanMax = Math.max(spanX, spanY, 1);
-        const reachPad = Math.max(spanMax * 0.1, 50);
-        const viewSize = Math.max(spanMax + reachPad * 2, 200);
+        const viewSize = Math.max(halfW, halfH) * 2;
         svg.setAttribute(
             'viewBox',
-            `${pivotX - viewSize / 2} ${pivotY - viewSize / 2} ${viewSize} ${viewSize}`,
+            `${cxView - halfW} ${cyView - halfH} ${halfW * 2} ${halfH * 2}`,
         );
         svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
 
@@ -332,13 +419,14 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             </marker>`;
         svg.appendChild(defs);
 
-        // Pixel-space sizing: convert target on-screen pixel sizes into world
-        // units using the panel's rendered width. zoom scales label/pill size
-        // independently of browser zoom (alt+wheel control).
+        // Sizes live in world units pinned to the hex-cell scale, so labels
+        // and stroke width are a fixed *fraction of a hex cell* — they grow
+        // on screen automatically as zoom shrinks the viewBox.
         const panelPx = body.clientWidth || 320;
         const worldPerPx = viewSize / panelPx;
-        const labelSize = BASE_LABEL_PX * state.zoom * worldPerPx;
-        const strokeW = 1.7 * state.zoom * worldPerPx;
+        const labelSize = HEX_CELL_SIZE * LABEL_FRACTION_OF_CELL;
+        const strokeW = HEX_CELL_SIZE * 0.04;
+        void worldPerPx;
 
         // Precompute pill bounds so warp lines can be trimmed to each pill's
         // edge, leaving arrowheads visible outside the destination pill.
@@ -641,12 +729,20 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
 
     return {
         update(data, currentSectorNumber) {
+            // When the player moves to a new sector, drop any cursor-zoom
+            // pan offset so the viewport snaps back to following the player.
+            // We detect this by comparing the data's current_sector_id to
+            // the last one we rendered.
+            if (state.currentSectorId !== 0 && state.currentSectorId !== data.current_sector_id) {
+                state.viewportCenter = null;
+            }
             state.data = data;
             state.currentSectorNumber = currentSectorNumber;
+            state.currentSectorId = data.current_sector_id;
             render();
         },
-        getDepth() {
-            return computeDepth();
+        getViewport() {
+            return computeViewport();
         },
         onRequestRefresh(handler) {
             refreshHandler = handler;

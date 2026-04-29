@@ -37,6 +37,8 @@ export interface GenerateUniverseParams {
     twoWayPct?: number;
     warpDist?: number[];
     topology?: 'random' | 'proximal';
+    fillDensity?: number;
+    maxPathLength?: number;
 }
 
 export interface GenerateUniverseResult {

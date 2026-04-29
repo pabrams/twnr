@@ -139,7 +139,14 @@ function formatDuration(totalSeconds: number): string {
 export function setupConnection(ws: WebSocket, ctx: GameContext, onDisconnect: () => void) {
     function refreshMinimap() {
         if (!ctx.minimap) return;
-        ctx.sendMsg({ type: ClientMsgType.GetNeighborhood, depth: ctx.minimap.getDepth() });
+        const vp = ctx.minimap.getViewport();
+        ctx.sendMsg({
+            type: ClientMsgType.GetNeighborhood,
+            halfWidthWorld: vp.halfWidthWorld,
+            halfHeightWorld: vp.halfHeightWorld,
+            centerXWorld: vp.centerXWorld,
+            centerYWorld: vp.centerYWorld,
+        });
     }
 
     ws.addEventListener('open', () => {

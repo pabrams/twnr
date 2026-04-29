@@ -57,6 +57,8 @@ export function createAdminLifecycleRoutes(
                 twoWayPct,
                 warpDist,
                 topology,
+                fillDensity,
+                maxPathLength,
                 edit_name = 'stock',
             } = req.body;
 
@@ -95,6 +97,27 @@ export function createAdminLifecycleRoutes(
                 parsedTopology = topology;
             }
 
+            let parsedFillDensity: number | undefined;
+            if (fillDensity != null) {
+                const fd = Number(fillDensity);
+                if (!Number.isFinite(fd) || fd < 0.1 || fd > 1.0) {
+                    throw new HttpError(400, 'fillDensity must be a number between 0.1 and 1.0');
+                }
+                parsedFillDensity = fd;
+            }
+
+            let parsedMaxPathLength: number | undefined;
+            if (maxPathLength != null) {
+                const mp = Math.floor(Number(maxPathLength));
+                if (!Number.isFinite(mp) || mp < 5 || mp > 10000) {
+                    throw new HttpError(
+                        400,
+                        'maxPathLength must be an integer between 5 and 10000',
+                    );
+                }
+                parsedMaxPathLength = mp;
+            }
+
             const result = generateUniverse({
                 sectors: sectorCount,
                 seed: seed != null ? Math.floor(Number(seed)) : undefined,
@@ -102,6 +125,8 @@ export function createAdminLifecycleRoutes(
                 twoWayPct: twoWayPct != null ? Number(twoWayPct) : undefined,
                 warpDist: parsedWarpDist,
                 topology: parsedTopology,
+                fillDensity: parsedFillDensity,
+                maxPathLength: parsedMaxPathLength,
             });
 
             const universeId = await withTransaction(async (client) => {
