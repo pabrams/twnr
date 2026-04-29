@@ -1,26 +1,66 @@
 import type { GeneratedWarp } from './types.js';
-import { DEFAULT_TWO_WAY_PCT, DEFAULT_MAX_PATH_LENGTH } from './types.js';
+import { DEFAULT_TWO_WAY_PCT, DEFAULT_MAX_PATH_LENGTH, DEFAULT_WARP_DIST } from './types.js';
 import { HEX_NEIGHBOR_DIRS } from './positions.js';
 import type { HexCell } from './positions.js';
+
+const MAX_OUT = 6;
+
+/**
+ * Sample a per-sector target out-degree from a 1-indexed cumulative
+ * distribution `warpDist[1..6]`. Forced-hub sectors get MAX_OUT regardless.
+ */
+function assignTargetOutDegrees(
+    N: number,
+    rng: () => number,
+    warpDist: number[],
+    forcedMaxOutSectors: readonly number[],
+): Int32Array {
+    const targetOut = new Int32Array(N + 1);
+    const cumDist = new Float64Array(MAX_OUT + 1);
+    let pctSum = 0;
+    for (let d = 1; d <= MAX_OUT; d++) {
+        pctSum += warpDist[d] ?? 0;
+        cumDist[d] = pctSum;
+    }
+    if (pctSum <= 0) {
+        // Degenerate input — fall back to MAX_OUT for every sector.
+        for (let i = 1; i <= N; i++) targetOut[i] = MAX_OUT;
+    } else {
+        for (let i = 1; i <= N; i++) {
+            const r = rng() * pctSum;
+            for (let d = 1; d <= MAX_OUT; d++) {
+                if (r < cumDist[d]) {
+                    targetOut[i] = d;
+                    break;
+                }
+            }
+            if (targetOut[i] === 0) targetOut[i] = MAX_OUT;
+        }
+    }
+    for (const sid of forcedMaxOutSectors) {
+        if (sid >= 1 && sid <= N) targetOut[sid] = MAX_OUT;
+    }
+    return targetOut;
+}
 
 /**
  * Build a warp graph on a hex layout:
  *
- *   - Phase A: for every occupied hex cell, connect it to each occupied hex
- *     neighbor. By default the connection is a 2-way pair (warp + reverse
- *     warp); a fraction (1 - twoWayPct/100) becomes one-way only. Both ends
- *     are chosen by RNG; the result is degree = number of occupied neighbors
- *     for cells in dense regions.
+ *   - Phase A: each sector gets a target out-degree sampled from `warpDist`
+ *     (1..6). We walk adjacent occupied-cell pairs in random order and emit
+ *     edges only while neither endpoint is over its target. `twoWayPct`
+ *     decides whether a pair becomes bidirectional or one-way; pairs that
+ *     wanted bidirectional but found one endpoint full are skipped (rather
+ *     than degraded to one-way) so the user's twoWayPct is preserved.
  *
- *   - Phase B: keep adding random long-range "wormhole" warps (between
- *     non-adjacent sectors) until BFS eccentricity from a representative
- *     source is ≤ maxPathLength. Capped at a generous edge budget so
- *     pathological graphs still terminate.
+ *   - Phase B: bridge weakly-connected components. Phase A's skip-on-full
+ *     rule can leave isolated mini-components, so we explicitly walk the
+ *     component graph and emit a two-way wormhole from each non-main
+ *     island to the main component until the graph is connected.
  *
- *   - Phase C: ensure the strongly-connected guarantee. After Phase A the
- *     graph is connected within each hex-adjacency component but may have
- *     multiple disjoint components when fillDensity is low. Wormholes also
- *     bridge those components (the BFS check naturally drives this).
+ *   - Phase C: long-range "wormhole" pairs are added until BFS eccentricity
+ *     from sampled sources falls under `maxPathLength`. Wormholes respect
+ *     the hard MAX_OUT cap of 6 outbound warps per sector.
  */
 export function generateProximalGraph(
     N: number,
@@ -29,13 +69,14 @@ export function generateProximalGraph(
     cells: readonly HexCell[],
     maxPathLength: number = DEFAULT_MAX_PATH_LENGTH,
     forcedHubSectors: readonly number[] = [],
+    warpDist: number[] = DEFAULT_WARP_DIST,
 ): GeneratedWarp[] {
     if (cells.length !== N) {
         throw new Error(`generateProximalGraph: expected ${N} cells, got ${cells.length}`);
     }
-    void forcedHubSectors;
     const twoWayPct = Math.max(0, Math.min(100, twoWayPercentage ?? DEFAULT_TWO_WAY_PCT));
     const diameterCap = Math.max(2, Math.floor(maxPathLength));
+    const targetOut = assignTargetOutDegrees(N, rng, warpDist, forcedHubSectors);
 
     // Index occupied hex cells by axial coordinate so neighbor lookup is O(1).
     const cellKey = (q: number, r: number): string => `${q},${r}`;
@@ -54,30 +95,125 @@ export function generateProximalGraph(
         adj[u].push(v);
         return true;
     }
+    function hasRoom(u: number): boolean {
+        return adj[u].length < targetOut[u];
+    }
 
-    // Phase A: hex-adjacency edges. Visit each unordered pair once (only
-    // emit when neighbor's cell index > self in the cells[] order).
+    // Phase A: collect every unordered adjacent occupied-pair, shuffle, then
+    // emit edges respecting per-sector target out-degree. Skipping pairs
+    // when both endpoints are already at target is what gives the user
+    // back the configured warpDist shape — a sector with target degree 2
+    // doesn't get all 6 of its hex neighbors connected.
+    const pairs: { u: number; v: number }[] = [];
     for (let i = 0; i < N; i++) {
         const u = i + 1;
         const cu = cells[i];
         for (const dir of HEX_NEIGHBOR_DIRS) {
             const nv = cellToSector.get(cellKey(cu.q + dir.q, cu.r + dir.r));
-            if (nv === undefined) continue;
-            if (nv <= u) continue;
-            const isTwoWay = rng() * 100 < twoWayPct;
-            if (isTwoWay) {
-                addEdge(u, nv);
-                addEdge(nv, u);
-            } else {
-                // Coin-flip the direction so one-ways aren't biased to the
-                // canonical traversal order.
-                if (rng() < 0.5) addEdge(u, nv);
-                else addEdge(nv, u);
+            if (nv === undefined || nv <= u) continue;
+            pairs.push({ u, v: nv });
+        }
+    }
+    for (let i = pairs.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        [pairs[i], pairs[j]] = [pairs[j], pairs[i]];
+    }
+    for (const { u, v } of pairs) {
+        const uRoom = hasRoom(u);
+        const vRoom = hasRoom(v);
+        if (!uRoom && !vRoom) continue;
+        const wantTwoWay = rng() * 100 < twoWayPct;
+        if (wantTwoWay) {
+            // Only honour two-ways when both endpoints have room. Falling
+            // back to a one-way when one side is full would silently inflate
+            // the one-way count — once a sector hits its target every
+            // remaining pair touching it would degrade. Skip instead so the
+            // emitted twoWayPct ratio stays close to what the user asked
+            // for. Trade-off: some hex-adjacent pairs end up unconnected.
+            if (uRoom && vRoom) {
+                addEdge(u, v);
+                addEdge(v, u);
             }
+        } else if (uRoom && vRoom) {
+            // Want one-way and both have room — pick a direction.
+            if (rng() < 0.5) addEdge(u, v);
+            else addEdge(v, u);
+        } else if (uRoom) {
+            addEdge(u, v);
+        } else {
+            addEdge(v, u);
         }
     }
 
-    // Phase B: wormholes until diameter ≤ cap.
+    function canTakeMore(u: number): boolean {
+        return adj[u].length < MAX_OUT;
+    }
+
+    // Phase B: bridge weakly-connected components. Phase A's "skip rather
+    // than degrade two-way to one-way" rule can leave sectors with too few
+    // (or zero) local edges, producing isolated mini-components — and the
+    // diameter-shrinking loop below doesn't reliably merge tiny islands
+    // (its random seed rarely lands inside them). So we explicitly walk
+    // components and emit a two-way wormhole from each non-main component
+    // into the main one until the graph is weakly connected.
+    {
+        let safety = N + 10;
+        while (safety-- > 0) {
+            const comp = findWeakComponents(N, adj);
+            const sizes = new Map<number, number>();
+            for (let i = 1; i <= N; i++) {
+                sizes.set(comp[i], (sizes.get(comp[i]) ?? 0) + 1);
+            }
+            if (sizes.size <= 1) break;
+            // Pick the largest component as the merge target.
+            let mainId = -1;
+            let mainSize = -1;
+            for (const [id, sz] of sizes) {
+                if (sz > mainSize) {
+                    mainSize = sz;
+                    mainId = id;
+                }
+            }
+            // Find an island and pick endpoints with room (falling back to
+            // any endpoint if every island/main candidate is at MAX_OUT).
+            let islandNode = -1;
+            for (let i = 1; i <= N; i++) {
+                if (comp[i] === mainId) continue;
+                if (canTakeMore(i)) {
+                    islandNode = i;
+                    break;
+                }
+            }
+            if (islandNode === -1) {
+                for (let i = 1; i <= N; i++) {
+                    if (comp[i] !== mainId) {
+                        islandNode = i;
+                        break;
+                    }
+                }
+            }
+            let mainNode = -1;
+            for (let i = 1; i <= N; i++) {
+                if (comp[i] === mainId && canTakeMore(i)) {
+                    mainNode = i;
+                    break;
+                }
+            }
+            if (mainNode === -1) {
+                for (let i = 1; i <= N; i++) {
+                    if (comp[i] === mainId) {
+                        mainNode = i;
+                        break;
+                    }
+                }
+            }
+            if (islandNode === -1 || mainNode === -1) break;
+            addEdge(islandNode, mainNode);
+            addEdge(mainNode, islandNode);
+        }
+    }
+
+    // Phase C: wormholes until diameter ≤ cap.
     //
     // Each iteration runs a "double-sweep" diameter probe: BFS from a random
     // source picks the farthest node A; BFS from A picks the farthest node
@@ -85,15 +221,7 @@ export function generateProximalGraph(
     // still over the cap we connect A↔B directly — the most diameter-cutting
     // wormhole possible in that round. If A or B is already at the per-sector
     // out-degree cap, fall back to random pair selection (also cap-aware).
-    //
-    // Hard out-degree cap: no sector ever gets more than MAX_OUT outbound
-    // warps. Phase A respects this by construction (≤6 hex neighbors); Phase
-    // B has to enforce it explicitly.
-    const MAX_OUT = 6;
     const MAX_WORMHOLES = Math.min(N, Math.ceil(N * 0.2) + 10);
-    function canTakeMore(u: number): boolean {
-        return adj[u].length < MAX_OUT;
-    }
     let placed = 0;
     let stalled = 0;
     while (placed < MAX_WORMHOLES && stalled < 5) {
@@ -150,16 +278,46 @@ export function generateProximalGraph(
 }
 
 /**
+ * Compute weakly-connected component ids for every node. "Weak" means edges
+ * are treated as undirected — if `u→v` exists, both belong to the same
+ * component regardless of whether `v→u` does. Returns a 1-indexed array
+ * `comp` where `comp[i]` is the component id of sector `i`. Component ids
+ * are arbitrary integers, only meaningful for equality comparisons.
+ */
+function findWeakComponents(N: number, adj: number[][]): Int32Array {
+    const undirected: Set<number>[] = Array.from({ length: N + 1 }, () => new Set<number>());
+    for (let u = 1; u <= N; u++) {
+        for (const v of adj[u]) {
+            undirected[u].add(v);
+            undirected[v].add(u);
+        }
+    }
+    const comp = new Int32Array(N + 1).fill(-1);
+    let nextId = 0;
+    for (let start = 1; start <= N; start++) {
+        if (comp[start] !== -1) continue;
+        const id = nextId++;
+        const stack = [start];
+        while (stack.length) {
+            const u = stack.pop()!;
+            if (comp[u] !== -1) continue;
+            comp[u] = id;
+            for (const v of undirected[u]) {
+                if (comp[v] === -1) stack.push(v);
+            }
+        }
+    }
+    return comp;
+}
+
+/**
  * BFS from `src`; returns the farthest reachable node and its distance.
- * Used by the Phase B double-sweep to find peripheral nodes — running this
+ * Used by the Phase C double-sweep to find peripheral nodes — running this
  * twice (once from a random source, then again from the resulting node)
  * yields a tight lower bound on graph diameter and identifies the actual
- * pair to bridge with a wormhole.
- *
- * If parts of the graph are unreachable from `src`, the second sweep will
- * still target the farthest reachable node — which means a disconnected
- * component is treated as having an "infinite" diameter and naturally gets
- * a wormhole connecting it to the main component.
+ * pair to bridge with a wormhole. After the connectivity pass (Phase B)
+ * the graph is guaranteed weakly connected, so unreachable-node fallbacks
+ * here only matter for directed reachability.
  */
 function bfsFarthest(N: number, adj: number[][], src: number): { node: number; dist: number } {
     const dist = new Int32Array(N + 1).fill(-1);
