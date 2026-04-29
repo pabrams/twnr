@@ -19,6 +19,11 @@ export const COMMAND = makeDomain('COMMAND', {
     attackBack: '[bg:b]<Back>[/bg:b]',
     attackDronesBack: '[bg:b]<Back>[/bg:b]',
     class0QtyBack: '[bg:b]<Back>[/bg:b]',
+    /** Computer-menu Q has a long-standing custom flourish; per-menu customisation. */
+    computerBack: '\r\n[bc]<Computer deactivated>[/bc]',
+    knownUniverseBack: '[bg:b]<Back>[/bg:b]',
+    shipCatalogBack: '[bg:b]<Back>[/bg:b]',
+    planetSpecsBack: '[bg:b]<Back>[/bg:b]',
     deployDronesQtyBack: '[bg:b]<Back>[/bg:b]',
     droneAttackQtyBack: '[bg:b]<Back>[/bg:b]',
     hyperspaceJumpTargetBack: '[bg:b]<Back>[/bg:b]',

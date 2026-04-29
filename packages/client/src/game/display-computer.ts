@@ -10,10 +10,6 @@ export function showComputerPrompt(ctx: GameContext) {
     ctx.term.write(render(COMPUTER.prompt, { sector: ctx.currentSector }));
 }
 
-export function showComputerDeactivated(ctx: GameContext) {
-    ctx.term.writeln(render(COMPUTER.deactivated));
-}
-
 export function showComputerHelp(ctx: GameContext) {
     ctx.term.writeln('');
     ctx.term.writeln(render('[mg]   Computer Commands[/mg]'));
