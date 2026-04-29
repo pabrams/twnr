@@ -17,3 +17,9 @@ export const PORT_CLASS_ACTIONS: Record<number, PortClassActions> = {
     7: { fuel: 'S', organics: 'S', equipment: 'S' },
     8: { fuel: 'B', organics: 'B', equipment: 'B' },
 };
+
+/** Three-letter buy/sell label for a port class (e.g. class 1 → "BBS"), or null for special/unknown classes. */
+export function portClassTriplet(cls: number): string | null {
+    const a = PORT_CLASS_ACTIONS[cls];
+    return a ? a.fuel + a.organics + a.equipment : null;
+}
