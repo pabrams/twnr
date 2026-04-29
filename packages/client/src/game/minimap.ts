@@ -36,7 +36,6 @@ type MinimapState = {
     zoom: number;
     data: NeighborhoodResultObject | null;
     currentSectorNumber: number;
-    /** Last known current-sector id, used to detect sector changes and recenter. */
     currentSectorId: number;
     quickMoveTargets: number[] | null;
     adminMode: boolean;
@@ -79,7 +78,6 @@ const LABEL_FRACTION_OF_CELL = 0.45;
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 8.0;
 const ZOOM_STEP = 1.15;
-
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
