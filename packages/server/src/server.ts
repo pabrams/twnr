@@ -11,7 +11,8 @@ import * as auth from './auth/index.js';
 import { ServerMsgType } from '@twnr/shared';
 import type { AuthTokenPayload, ClientCommand, ServerResult } from '@twnr/shared';
 import { shipConfigs } from './ship-config.js';
-import { players, sendEnvelope, sendError, broadcastTo } from './game-state.js';
+import { players } from './state/players.js';
+import { sendEnvelope, sendError, broadcastTo } from './state/messaging.js';
 import { handleMessage } from './handlers/message-router.js';
 import {
     getUserTokenVersion,

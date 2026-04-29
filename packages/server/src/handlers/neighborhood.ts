@@ -1,6 +1,7 @@
 import { ServerMsgType } from '@twnr/shared';
 import type { NeighborhoodResultObject, NeighborhoodSector, NeighborhoodWarp } from '@twnr/shared';
-import { players, sendEnvelope } from '../game-state.js';
+import { players } from '../state/players.js';
+import { sendEnvelope } from '../state/messaging.js';
 import { getUniverseTopology } from '../db/queries/universe.js';
 import {
     listVisitedSectorsForUniverse,

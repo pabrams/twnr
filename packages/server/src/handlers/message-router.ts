@@ -1,5 +1,7 @@
 import { ClientMsgType, ServerMsgType, type ClientCommand } from '@twnr/shared';
-import { players, sendEnvelope, sendError, getVisitedSectors } from '../game-state.js';
+import { players } from '../state/players.js';
+import { sendEnvelope, sendError } from '../state/messaging.js';
+import { getVisitedSectors } from '../services/sector-lookup.js';
 import { countSectorsInUniverse } from '../db/queries/sector.js';
 import { handleChangeMenu } from './menu.js';
 import {

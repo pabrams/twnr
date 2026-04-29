@@ -1,11 +1,6 @@
 import { ServerMsgType } from '@twnr/shared';
-import {
-    sendEnvelope,
-    sendError,
-    getPlayerUniverseId,
-    players,
-    setPlayerMenu,
-} from '../game-state.js';
+import { players, getPlayerUniverseId, setPlayerMenu } from '../state/players.js';
+import { sendEnvelope, sendError } from '../state/messaging.js';
 import { withTransaction, AbortTransaction } from '../db/index.js';
 import {
     getShipTypeByName,

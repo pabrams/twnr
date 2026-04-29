@@ -9,7 +9,7 @@ import {
 import { insertSector, insertWarp, getStarbaseSectorNumber } from '../db/queries/sector.js';
 import { insertGeneratedPort, upsertSpecialPort } from '../db/queries/port.js';
 import { insertUnownedPlanet, setEarthColonists } from '../db/queries/planet.js';
-import { invalidateGraphCache } from '../game-state.js';
+import { invalidateGraphCache } from '../state/graph-cache.js';
 
 /**
  * Generate a universe from defaults and persist all the rows (sectors, warps,

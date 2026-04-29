@@ -545,7 +545,7 @@ export async function incrementShipCommodity(
     );
 }
 
-/** Full player-ship + ship-type row (wide) for game-state snapshotting. */
+/** Full player-ship + ship-type row (wide) — used by ship-lookup to denormalise. */
 export async function getPlayerShipFull(
     playerId: number,
     db: Queryable = pool,

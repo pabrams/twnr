@@ -1,7 +1,8 @@
 import { ServerMsgType } from '@twnr/shared';
 import type { ServerResult } from '@twnr/shared';
 
-import { players, sendEnvelope, sendError, setPlayerMenu } from '../game-state.js';
+import { players, setPlayerMenu } from '../state/players.js';
+import { sendEnvelope, sendError } from '../state/messaging.js';
 import { withTransaction, AbortTransaction } from '../db/index.js';
 import {
     getShipDronesForUpdate,

@@ -1,11 +1,7 @@
 import { ServerMsgType } from '@twnr/shared';
-import {
-    players,
-    sendEnvelope,
-    sendError,
-    buildSectorDisplayData,
-    setPlayerMenu,
-} from '../game-state.js';
+import { players, setPlayerMenu } from '../state/players.js';
+import { sendEnvelope, sendError } from '../state/messaging.js';
+import { buildSectorDisplayData } from '../services/sector-display.js';
 import { withTransaction, AbortTransaction } from '../db/index.js';
 import {
     getEarthId,
