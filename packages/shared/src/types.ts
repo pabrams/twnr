@@ -6,9 +6,16 @@ export const DEFAULT_TOPOLOGY: 'random' | 'proximal' = 'proximal';
 export const DEFAULT_FILL_DENSITY = 0.5;
 /** Diameter target for wormhole sprinkling: BFS eccentricity ≤ this. */
 export const DEFAULT_MAX_PATH_LENGTH = 50;
-/** Center-to-center distance between adjacent hex cells (world units). Shared so
- *  the client can size labels relative to a hex cell. */
+/** Hex "size" parameter in world units — used as the unit for label/pill sizing
+ *  on the client. Adjacent center-to-center distance is √3 × HEX_CELL_SIZE ×
+ *  HEX_SPACING_MULTIPLIER. */
 export const HEX_CELL_SIZE = 100;
+/** Multiplier on the bigbang-time hex layout coordinates to give adjacent
+ *  pills more breathing room without growing the pills themselves. Tuned so
+ *  multi-digit sector numbers leave clear visible warp segments between
+ *  adjacent pills. Affects new universes only — existing rows in the DB
+ *  keep whatever spacing they were generated with. */
+export const HEX_SPACING_MULTIPLIER = 2;
 
 export type ShipConfig = {
     name: string;

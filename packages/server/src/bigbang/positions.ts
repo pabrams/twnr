@@ -1,4 +1,4 @@
-import { HEX_CELL_SIZE, DEFAULT_FILL_DENSITY } from './types.js';
+import { HEX_CELL_SIZE, HEX_SPACING_MULTIPLIER, DEFAULT_FILL_DENSITY } from './types.js';
 
 export interface Position {
     x: number;
@@ -22,11 +22,15 @@ export interface HexLayout {
 
 const SQRT3 = Math.sqrt(3);
 
-/** Convert flat-top axial (q, r) to cartesian center coordinates. */
+/**
+ * Convert flat-top axial (q, r) to cartesian center coordinates. Spacing is
+ * scaled by HEX_SPACING_MULTIPLIER so adjacent pills have visible warp
+ * segments between them even with multi-digit sector labels.
+ */
 export function hexToCartesian(q: number, r: number): Position {
     return {
-        x: HEX_CELL_SIZE * 1.5 * q,
-        y: HEX_CELL_SIZE * SQRT3 * (r + q / 2),
+        x: HEX_CELL_SIZE * HEX_SPACING_MULTIPLIER * 1.5 * q,
+        y: HEX_CELL_SIZE * HEX_SPACING_MULTIPLIER * SQRT3 * (r + q / 2),
     };
 }
 

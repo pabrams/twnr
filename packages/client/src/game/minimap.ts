@@ -1,5 +1,5 @@
 import type { NeighborhoodResultObject, NeighborhoodSector } from '@twnr/shared';
-import { HEX_CELL_SIZE } from '@twnr/shared';
+import { HEX_CELL_SIZE, HEX_SPACING_MULTIPLIER } from '@twnr/shared';
 import { colorPalette } from '../config/colors.js';
 import './minimap.css';
 
@@ -583,12 +583,13 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
         // hover. Keyed by source-sector id so multiple offscreen wormholes
         // from the same source all light up together.
         const endLabelsBySrcId = new Map<number, SVGGElement[]>();
-        // Distance threshold for "wormhole". With flat-top hex
-        // `size = HEX_CELL_SIZE`, adjacent center-to-center distance is
-        // √3 × HEX_CELL_SIZE (~1.732); the closest non-adjacent pair sits at
-        // 3 × HEX_CELL_SIZE. A threshold of 2 × HEX_CELL_SIZE cleanly
-        // separates locals from any long-range wormhole.
-        const WORMHOLE_DIST_SQ = (HEX_CELL_SIZE * 2) ** 2;
+        // Distance threshold for "wormhole". With flat-top hex `size =
+        // HEX_CELL_SIZE` and spacing multiplied by HEX_SPACING_MULTIPLIER,
+        // adjacent center-to-center distance is √3 × HEX_CELL_SIZE × M and
+        // the closest non-adjacent pair sits at 3 × HEX_CELL_SIZE × M. A
+        // threshold of 2 × HEX_CELL_SIZE × M cleanly separates locals from
+        // any long-range wormhole.
+        const WORMHOLE_DIST_SQ = (HEX_CELL_SIZE * 2 * HEX_SPACING_MULTIPLIER) ** 2;
         const vbLeft = cxView - halfW;
         const vbRight = cxView + halfW;
         const vbTop = cyView - halfH;
