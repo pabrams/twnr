@@ -131,7 +131,3 @@ export function showNoTradeMessage(ctx: GameContext) {
     ctx.term.writeln('');
     ctx.term.writeln(render(PORT.noTrade));
 }
-
-export function showJettisonConfirm(ctx: GameContext) {
-    ctx.term.write(render(SECTOR.jettisonConfirm));
-}

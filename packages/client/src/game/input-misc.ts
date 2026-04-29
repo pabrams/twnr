@@ -66,40 +66,6 @@ export function handleClass0QtyInput(ctx: GameContext, line: string) {
     }
 }
 
-export function handleAutopilotPromptInput(ctx: GameContext, line: string) {
-    switch (line.trim().toLowerCase()) {
-        case '':
-        case 'y': {
-            ctx.term.writeln(render(NOTIFY.autopilotEngaged));
-            const nextSector = ctx.autopilotPath[1];
-            ctx.autopilotStep = 2;
-            ctx.term.writeln(render(EVENT.autopilotWarping, { sector: nextSector }));
-            ctx.sendMsg({ type: ClientMsgType.Move, sector: nextSector });
-            break;
-        }
-        case 'n':
-            ctx.autopilotPath = [];
-            ctx.autopilotStep = 0;
-            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
-            break;
-    }
-}
-
-export function handleJettisonConfirmInput(ctx: GameContext, line: string) {
-    switch (line.toLowerCase()) {
-        case 'y':
-            // Confirmation step — the <Jettison> echo fired when the user
-            // pressed J at the sector menu.
-            ctx.sendMsg({ type: ClientMsgType.Jettison });
-            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
-            break;
-        case '':
-        case 'n':
-            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
-            break;
-    }
-}
-
 export function handlePlanetInput(ctx: GameContext, line: string) {
     switch (line.trim().toLowerCase()) {
         case 't':

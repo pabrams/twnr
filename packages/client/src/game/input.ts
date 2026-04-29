@@ -27,8 +27,6 @@ import {
 import {
     handleClass0Input,
     handleClass0QtyInput,
-    handleAutopilotPromptInput,
-    handleJettisonConfirmInput,
     handlePlanetInput,
     handlePlanetEarthInput,
     handlePlanetTakeCommodityInput,
@@ -51,6 +49,7 @@ import {
 } from './input-starbase.js';
 import { render } from './renderer.js';
 import { NOTIFY } from './messages/index.js';
+import { getMenuHandler } from './menus/index.js';
 
 /**
  * Returns 'single' for immediate single-char commands, 'buffered' for keys
@@ -170,6 +169,15 @@ function handleInput(ctx: GameContext, line: string) {
     // Ignore input during autopilot (but allow when paused for encounters)
     if (ctx.autopilotPath.length > 0 && ctx.autopilotStep > 0 && !ctx.autopilotPaused) return;
 
+    // Strangler-fig: consult the per-menu registry first. Menus that have
+    // been migrated to menus/<name>.ts handle their own input. Anything
+    // still on the legacy path falls through to the switch below.
+    const handler = getMenuHandler(ctx.mode);
+    if (handler?.input) {
+        handler.input(ctx, line);
+        return;
+    }
+
     switch (ctx.mode) {
         case Menu.Port:
             handlePortInput(ctx, line);
@@ -203,12 +211,6 @@ function handleInput(ctx: GameContext, line: string) {
             return;
         case Menu.Class0Qty:
             handleClass0QtyInput(ctx, line);
-            return;
-        case Menu.AutopilotPrompt:
-            handleAutopilotPromptInput(ctx, line);
-            return;
-        case Menu.JettisonConfirm:
-            handleJettisonConfirmInput(ctx, line);
             return;
         case Menu.Planet:
             handlePlanetInput(ctx, line);
@@ -272,12 +274,6 @@ function handleInput(ctx: GameContext, line: string) {
             return;
         case Menu.Move:
             handleMoveMenuInput(ctx, line);
-            return;
-        case Menu.QuitConfirm:
-            handleQuitConfirmInput(ctx, line);
-            return;
-        case Menu.TerraformConfirm:
-            handleTerraformConfirmInput(ctx, line);
             return;
     }
 
@@ -361,38 +357,6 @@ function handleInput(ctx: GameContext, line: string) {
         default:
             if (line) ctx.term.writeln(render(NOTIFY.unknownCommand, { cmd }));
             showPrompt(ctx);
-    }
-}
-
-function handleQuitConfirmInput(ctx: GameContext, line: string) {
-    const t = line.trim().toLowerCase();
-    switch (t) {
-        case 'y':
-            ctx.term.writeln(render(NOTIFY.goodbye));
-            ctx.ws.close();
-            return;
-        case '':
-        case 'n':
-            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
-            return;
-        default:
-            ctx.term.write(render(NOTIFY.quitConfirm));
-    }
-}
-
-function handleTerraformConfirmInput(ctx: GameContext, line: string) {
-    const t = line.trim().toLowerCase();
-    switch (t) {
-        case 'y':
-            echoCommand(ctx, 'useTerraformDevice');
-            ctx.sendMsg({ type: ClientMsgType.UseTerraformDevice });
-            return;
-        case '':
-        case 'n':
-            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
-            return;
-        default:
-            ctx.term.write(render(NOTIFY.terraformConfirm));
     }
 }
 
