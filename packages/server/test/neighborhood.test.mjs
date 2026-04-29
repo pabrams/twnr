@@ -35,10 +35,15 @@ function drain(ws, ms = 100) {
   });
 }
 
-function requestNeighborhood(ws, depth = 3) {
+/** Request a neighborhood crop with a square viewport of `halfExtent` world units. */
+function requestNeighborhood(ws, halfExtent = 600) {
   return wsRequest(
     ws,
-    { type: ClientMsgType.GetNeighborhood, depth },
+    {
+      type: ClientMsgType.GetNeighborhood,
+      halfWidthWorld: halfExtent,
+      halfHeightWorld: halfExtent,
+    },
     ServerMsgType.NeighborhoodResult,
   );
 }
@@ -57,16 +62,16 @@ describe('GET_NEIGHBORHOOD wire protocol', () => {
     }
   });
 
-  it('rejects non-numeric depth at the wire layer', async () => {
+  it('rejects non-numeric viewport extents at the wire layer', async () => {
     const { ws } = await connectWS({ pool, universeId: DEFAULT_UNIVERSE_ID });
     try {
       const msg = await wsRequest(
         ws,
-        { type: ClientMsgType.GetNeighborhood, depth: 'three' },
+        { type: ClientMsgType.GetNeighborhood, halfWidthWorld: 'big', halfHeightWorld: 600 },
         ServerMsgType.NeighborhoodResult,
       );
       assert.equal(msg.type, ServerMsgType.Error);
-      assert.match(msg.message, /depth must be a number/i);
+      assert.match(msg.message, /halfWidthWorld and halfHeightWorld must be numbers/i);
     } finally {
       await closeWS(ws);
     }
@@ -170,15 +175,18 @@ describe('GET_NEIGHBORHOOD in a proximal universe', () => {
     }
   });
 
-  it('depth clamp: out-of-range numeric depth is clamped without erroring', async () => {
+  it('viewport extent clamping: out-of-range numeric extents are clamped without erroring', async () => {
     const { ws } = await connect(`P_Clamp_${Date.now()}`);
     try {
       await drain(ws);
+      // Negative → clamped to default.
       const m1 = await requestNeighborhood(ws, -10);
       assert.equal(m1.type, ServerMsgType.NeighborhoodResult);
-      const m2 = await requestNeighborhood(ws, 999);
+      // Below MIN_HALF_EXTENT (50) → clamped up to MIN.
+      const m2 = await requestNeighborhood(ws, 5);
       assert.equal(m2.type, ServerMsgType.NeighborhoodResult);
-      const m3 = await requestNeighborhood(ws, 3.7);
+      // Above MAX_HALF_EXTENT (1_000_000) → clamped down to MAX.
+      const m3 = await requestNeighborhood(ws, 5_000_000);
       assert.equal(m3.type, ServerMsgType.NeighborhoodResult);
     } finally {
       await closeWS(ws);
