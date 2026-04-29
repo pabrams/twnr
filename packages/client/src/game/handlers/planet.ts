@@ -10,6 +10,7 @@ import {
 } from '../display-planet.js';
 import { showPlanetSelectMenu } from '../display-starbase.js';
 import { showComputerPrompt } from '../display-computer.js';
+import { setMenuArgs } from '../menus/types.js';
 import type { Handler } from './index.js';
 import { fmt, refreshMinimap } from './utils.js';
 
@@ -19,56 +20,56 @@ export const planetInfo: Handler<'planetInfoResult'> = (ctx, msg) => {
 };
 
 export const takeColonists: Handler<'takeColonistsResult'> = (ctx, msg) => {
-    ctx.shipColonists = msg.shipColonists;
-    ctx.term.writeln('');
-    ctx.term.writeln(
+    ctx.ship.shipColonists = msg.shipColonists;
+    ctx.io.term.writeln('');
+    ctx.io.term.writeln(
         render(PANEL.takeColonistsHeader, {
             qty: fmt(msg.quantity),
             commodity: msg.commodity,
         }),
     );
-    ctx.term.writeln(render(PANEL.planetColonistsLine, { count: fmt(msg.planetColonists) }));
-    ctx.term.writeln(render(PANEL.shipColonistsLine, { count: msg.shipColonists }));
+    ctx.io.term.writeln(render(PANEL.planetColonistsLine, { count: fmt(msg.planetColonists) }));
+    ctx.io.term.writeln(render(PANEL.shipColonistsLine, { count: msg.shipColonists }));
 };
 
 export const leaveColonists: Handler<'leaveColonistsResult'> = (ctx, msg) => {
-    ctx.shipColonists = msg.shipColonists;
-    ctx.term.writeln('');
-    ctx.term.writeln(
+    ctx.ship.shipColonists = msg.shipColonists;
+    ctx.io.term.writeln('');
+    ctx.io.term.writeln(
         render(PANEL.leaveColonistsHeader, {
             qty: fmt(msg.quantity),
             commodity: msg.commodity,
         }),
     );
-    ctx.term.writeln(render(PANEL.planetColonistsLine, { count: fmt(msg.planetColonists) }));
-    ctx.term.writeln(render(PANEL.shipColonistsLine, { count: msg.shipColonists }));
-    if (ctx.mode === Menu.PlanetEarth) {
+    ctx.io.term.writeln(render(PANEL.planetColonistsLine, { count: fmt(msg.planetColonists) }));
+    ctx.io.term.writeln(render(PANEL.shipColonistsLine, { count: msg.shipColonists }));
+    if (ctx.world.mode === Menu.PlanetEarth) {
         showEarthMenu(ctx, msg.planetColonists);
-    } else if (ctx.mode === Menu.Planet) {
+    } else if (ctx.world.mode === Menu.Planet) {
         showPlanetMenuOptions(ctx);
     }
 };
 
 export const land: Handler<'landResult'> = (ctx, msg) => {
     if (msg.planets.length > 0) {
-        ctx.landablePlanets = msg.planets;
+        setMenuArgs(ctx, { menu: Menu.PlanetSelect, planets: msg.planets });
         showPlanetSelectMenu(ctx, msg.planets);
     } else {
-        ctx.term.writeln(render(EVENT.noPlanetsToLand));
+        ctx.io.term.writeln(render(EVENT.noPlanetsToLand));
         showPrompt(ctx);
     }
 };
 
 export const landOnPlanet: Handler<'landOnPlanetResult'> = (ctx, msg) => {
-    ctx.planetEmptyHolds = msg.empty_holds;
-    ctx.shipColonists = msg.ship_colonists;
-    if (ctx.mode === Menu.PlanetEarth) {
+    ctx.ship.planetEmptyHolds = msg.empty_holds;
+    ctx.ship.shipColonists = msg.ship_colonists;
+    if (ctx.world.mode === Menu.PlanetEarth) {
         showEarthMenu(ctx, msg.colonists_fuel ?? 0);
     } else {
-        ctx.term.writeln('');
-        ctx.term.writeln(render(PANEL.landedHeader, { name: msg.name }));
-        ctx.term.writeln(render(PANEL.landedType, { type: msg.planetType }));
-        ctx.term.writeln(
+        ctx.io.term.writeln('');
+        ctx.io.term.writeln(render(PANEL.landedHeader, { name: msg.name }));
+        ctx.io.term.writeln(render(PANEL.landedType, { type: msg.planetType }));
+        ctx.io.term.writeln(
             render(PANEL.landedStats, {
                 drones: msg.drones,
                 fuel: msg.fuel,
@@ -76,7 +77,7 @@ export const landOnPlanet: Handler<'landOnPlanetResult'> = (ctx, msg) => {
                 equipment: msg.equipment,
             }),
         );
-        ctx.term.writeln(
+        ctx.io.term.writeln(
             render(PANEL.landedColonists, {
                 fuel: msg.colonists_fuel ?? 0,
                 organics: msg.colonists_organics ?? 0,
@@ -88,11 +89,13 @@ export const landOnPlanet: Handler<'landOnPlanetResult'> = (ctx, msg) => {
 };
 
 export const planetDisplay: Handler<'planetDisplayResult'> = (ctx, msg) => {
-    ctx.planetEmptyHolds = msg.empty_holds;
-    ctx.shipColonists = msg.ship_colonists;
-    ctx.term.writeln('');
-    ctx.term.writeln(render(PANEL.planetDisplayHeader, { name: msg.name, type: msg.planetType }));
-    ctx.term.writeln(
+    ctx.ship.planetEmptyHolds = msg.empty_holds;
+    ctx.ship.shipColonists = msg.ship_colonists;
+    ctx.io.term.writeln('');
+    ctx.io.term.writeln(
+        render(PANEL.planetDisplayHeader, { name: msg.name, type: msg.planetType }),
+    );
+    ctx.io.term.writeln(
         render(PANEL.landedStats, {
             drones: msg.drones,
             fuel: msg.fuel,
@@ -100,7 +103,7 @@ export const planetDisplay: Handler<'planetDisplayResult'> = (ctx, msg) => {
             equipment: msg.equipment,
         }),
     );
-    ctx.term.writeln(
+    ctx.io.term.writeln(
         render(PANEL.landedColonists, {
             fuel: msg.colonists_fuel,
             organics: msg.colonists_organics,
@@ -112,21 +115,23 @@ export const planetDisplay: Handler<'planetDisplayResult'> = (ctx, msg) => {
 
 export const destroyPlanet: Handler<'destroyPlanetResult'> = (ctx, msg) => {
     if (msg.destroyed) {
-        ctx.term.writeln(render(EVENT.planetDestroyed, { name: msg.planetName }));
+        ctx.io.term.writeln(render(EVENT.planetDestroyed, { name: msg.planetName }));
     }
     showPrompt(ctx);
 };
 
 export const useTerraformDevice: Handler<'useTerraformDeviceResult'> = (ctx, msg) => {
     if (msg.success && msg.planet) {
-        ctx.term.writeln(
+        ctx.io.term.writeln(
             render(EVENT.terraformSuccess, {
                 name: msg.planet.name,
                 type: msg.planet.type,
             }),
         );
-        if (msg.collision) ctx.term.writeln(render(EVENT.terraformCollision));
-        ctx.term.writeln(render(EVENT.terraformDevicesRemaining, { count: msg.terraformDevices }));
+        if (msg.collision) ctx.io.term.writeln(render(EVENT.terraformCollision));
+        ctx.io.term.writeln(
+            render(EVENT.terraformDevicesRemaining, { count: msg.terraformDevices }),
+        );
     } else {
         const reason =
             msg.reason === 'no_devices'
@@ -134,14 +139,14 @@ export const useTerraformDevice: Handler<'useTerraformDeviceResult'> = (ctx, msg
                 : msg.reason === 'restricted_sector'
                   ? 'Cannot terraform in this sector.'
                   : 'Terraform failed.';
-        ctx.term.writeln(render(EVENT.terraformFailure, { reason }));
+        ctx.io.term.writeln(render(EVENT.terraformFailure, { reason }));
     }
     showPrompt(ctx);
 };
 
 export const leavePlanet: Handler<'leavePlanetResult'> = (ctx, msg) => {
-    ctx.term.writeln(render(EVENT.leftPlanet));
-    ctx.sectorPlayers = msg.players;
+    ctx.io.term.writeln(render(EVENT.leftPlanet));
+    ctx.world.sectorPlayers = msg.players;
     showSectorDisplay(
         ctx,
         msg.sector,
@@ -157,20 +162,20 @@ export const leavePlanet: Handler<'leavePlanetResult'> = (ctx, msg) => {
 };
 
 export const listPlanets: Handler<'listPlanetsResult'> = (ctx, msg) => {
-    ctx.term.writeln('');
+    ctx.io.term.writeln('');
     if (msg.planets.length === 0) {
-        ctx.term.writeln(render(PANEL.listPlanetsEmpty));
+        ctx.io.term.writeln(render(PANEL.listPlanetsEmpty));
     } else {
-        ctx.term.writeln(render(PANEL.listPlanetsHeader));
+        ctx.io.term.writeln(render(PANEL.listPlanetsHeader));
         for (const p of msg.planets) {
-            ctx.term.writeln(
+            ctx.io.term.writeln(
                 render(PANEL.listPlanetsRow, {
                     sector: p.sectorNumber,
                     name: p.name,
                     type: p.type,
                 }),
             );
-            ctx.term.writeln(
+            ctx.io.term.writeln(
                 render(PANEL.listPlanetsColonists, {
                     fuel: p.colonists_fuel,
                     organics: p.colonists_organics,
@@ -184,13 +189,13 @@ export const listPlanets: Handler<'listPlanetsResult'> = (ctx, msg) => {
 
 export const terraformInfo: Handler<'terraformInfoResult'> = (ctx, msg) => {
     if (msg.canTerraform) {
-        ctx.term.writeln(render(NOTIFY.terraformDevicesAvailable, { count: msg.devices }));
-        ctx.term.write(render(NOTIFY.terraformConfirm));
+        ctx.io.term.writeln(render(NOTIFY.terraformDevicesAvailable, { count: msg.devices }));
+        ctx.io.term.write(render(NOTIFY.terraformConfirm));
     } else if (msg.reason === 'no_devices') {
-        ctx.term.writeln(render(NOTIFY.terraformNoDevices));
+        ctx.io.term.writeln(render(NOTIFY.terraformNoDevices));
         showPrompt(ctx);
     } else {
-        ctx.term.writeln(render(NOTIFY.error, { message: 'Cannot terraform here.' }));
+        ctx.io.term.writeln(render(NOTIFY.error, { message: 'Cannot terraform here.' }));
         showPrompt(ctx);
     }
 };

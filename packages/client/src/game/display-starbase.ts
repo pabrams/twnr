@@ -6,7 +6,7 @@ import { showClass0Menu, showClass0QtyPrompt } from './display-port.js';
 import { showShipInterestPrompt } from './display-computer.js';
 
 export function showStarbasePrompt(ctx: GameContext) {
-    ctx.term.write(render(STARBASE.rootPrompt));
+    ctx.io.term.write(render(STARBASE.rootPrompt));
 }
 
 export function showStarbaseMenu(ctx: GameContext) {
@@ -14,10 +14,10 @@ export function showStarbaseMenu(ctx: GameContext) {
 }
 
 export function showStarbaseHelp(ctx: GameContext) {
-    ctx.term.writeln('');
-    ctx.term.writeln(render(COMMON.menuRow, { key: 'S', text: 'Shipyards' }));
-    ctx.term.writeln(render(COMMON.menuRow, { key: 'H', text: 'Hardware Store' }));
-    ctx.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Leave Starbase' }));
+    ctx.io.term.writeln('');
+    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'S', text: 'Shipyards' }));
+    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'H', text: 'Hardware Store' }));
+    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Leave Starbase' }));
     showStarbasePrompt(ctx);
 }
 
@@ -42,13 +42,13 @@ function padVisible(s: string, width: number): string {
  * Returns the capped maximum so the qty prompt can use it as a default.
  */
 export function showHardwareItemDetail(ctx: GameContext, itemName: string): number {
-    const item = ctx.hardwareStoreItems.find((i) => i.name === itemName);
+    const item = ctx.starbase.hardwareStoreItems.find((i) => i.name === itemName);
     if (!item) return 0;
     const remaining = Math.max(0, item.maxQty - item.currentQty);
     const affordable =
-        item.price > 0 ? Math.floor(ctx.hardwareStoreCredits / item.price) : remaining;
+        item.price > 0 ? Math.floor(ctx.starbase.hardwareStoreCredits / item.price) : remaining;
     const canBuy = Math.min(remaining, affordable);
-    ctx.term.writeln(
+    ctx.io.term.writeln(
         render(STARBASE.hardwareItemDetail, {
             label: item.label,
             price: fmt(item.price),
@@ -79,12 +79,12 @@ const HW_KEY_MAP: Record<string, string> = {
 };
 
 export function showHardwareMenu(ctx: GameContext) {
-    const items = ctx.hardwarePrices;
-    ctx.term.writeln('');
+    const items = ctx.catalogs.hardwarePrices;
+    ctx.io.term.writeln('');
     if (items) {
         for (const item of items) {
             const key = HW_KEY_MAP[item.name] ?? '?';
-            ctx.term.writeln(
+            ctx.io.term.writeln(
                 render(STARBASE.hardwareItemRow, {
                     key,
                     label: item.label.padEnd(19),
@@ -93,33 +93,35 @@ export function showHardwareMenu(ctx: GameContext) {
             );
         }
     }
-    ctx.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
-    ctx.term.writeln(render(STARBASE.hardwareCredits, { credits: fmt(ctx.hardwareStoreCredits) }));
-    ctx.term.write(render(STARBASE.hardwarePrompt));
+    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
+    ctx.io.term.writeln(
+        render(STARBASE.hardwareCredits, { credits: fmt(ctx.starbase.hardwareStoreCredits) }),
+    );
+    ctx.io.term.write(render(STARBASE.hardwarePrompt));
 }
 
 export function showBuyQtyPrompt(ctx: GameContext, item: string, canBuy: number) {
-    ctx.term.write(render(STARBASE.buyQtyPrompt, { item, canBuy }));
+    ctx.io.term.write(render(STARBASE.buyQtyPrompt, { item, canBuy }));
 }
 
 export function showPlanetSelectMenu(
     ctx: GameContext,
     planets: { id: number; name: string; type: string }[],
 ) {
-    ctx.term.writeln('');
-    ctx.term.writeln(render(STARBASE.planetSelectHeader));
+    ctx.io.term.writeln('');
+    ctx.io.term.writeln(render(STARBASE.planetSelectHeader));
     planets.forEach((p, i) => {
-        ctx.term.writeln(
+        ctx.io.term.writeln(
             render(STARBASE.planetSelectRow, { n: i + 1, name: p.name, type: p.type }),
         );
     });
-    ctx.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
+    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
 }
 
 // --- Shipyards ---
 
 export function showShipyardsPrompt(ctx: GameContext) {
-    ctx.term.write(render(STARBASE.shipyardsPrompt));
+    ctx.io.term.write(render(STARBASE.shipyardsPrompt));
 }
 
 export function showShipyardsMenu(ctx: GameContext) {
@@ -127,11 +129,11 @@ export function showShipyardsMenu(ctx: GameContext) {
 }
 
 export function showShipyardsHelp(ctx: GameContext) {
-    ctx.term.writeln('');
-    ctx.term.writeln(render(COMMON.menuRow, { key: 'B', text: 'Buy a new ship' }));
-    ctx.term.writeln(render(COMMON.menuRow, { key: 'E', text: 'Examine ship specs' }));
-    ctx.term.writeln(render(COMMON.menuRow, { key: 'P', text: 'Purchase equipment (Class 0)' }));
-    ctx.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back to Starbase' }));
+    ctx.io.term.writeln('');
+    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'B', text: 'Buy a new ship' }));
+    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'E', text: 'Examine ship specs' }));
+    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'P', text: 'Purchase equipment (Class 0)' }));
+    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back to Starbase' }));
     showShipyardsPrompt(ctx);
 }
 
@@ -158,14 +160,14 @@ function calculateShipPrice(ship: ShipCatalogEntry): number {
 }
 
 async function loadShipConfigs(ctx: GameContext): Promise<boolean> {
-    if (ctx.shipConfigs) return true;
-    ctx.term.writeln(render(STARBASE.loadingShipCatalog));
+    if (ctx.catalogs.ships) return true;
+    ctx.io.term.writeln(render(STARBASE.loadingShipCatalog));
     try {
         const res = await fetch('/api/ships');
-        ctx.shipConfigs = await res.json();
+        ctx.catalogs.ships = await res.json();
         return true;
     } catch {
-        ctx.term.writeln(render(STARBASE.shipCatalogFailed));
+        ctx.io.term.writeln(render(STARBASE.shipCatalogFailed));
         showShipyardsPrompt(ctx);
         return false;
     }
@@ -173,12 +175,12 @@ async function loadShipConfigs(ctx: GameContext): Promise<boolean> {
 
 export async function showShipBuyList(ctx: GameContext) {
     if (!(await loadShipConfigs(ctx))) return;
-    ctx.term.writeln('');
-    ctx.term.writeln(render(STARBASE.shipyardsBuyHeader));
-    ctx.shipConfigs!.forEach((ship, i) => {
+    ctx.io.term.writeln('');
+    ctx.io.term.writeln(render(STARBASE.shipyardsBuyHeader));
+    ctx.catalogs.ships!.forEach((ship, i) => {
         const current =
-            ship.name === ctx.currentShipName ? render(STARBASE.shipyardsBuyCurrent) : '';
-        ctx.term.writeln(
+            ship.name === ctx.ship.currentShipName ? render(STARBASE.shipyardsBuyCurrent) : '';
+        ctx.io.term.writeln(
             render(STARBASE.shipyardsBuyRow, {
                 letter: indexToLetter(i),
                 name: padVisible(ship.display_name ?? ship.name, 24),
@@ -187,7 +189,7 @@ export async function showShipBuyList(ctx: GameContext) {
             }),
         );
     });
-    ctx.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
+    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
 }
 
 export function showShipExamineList(ctx: GameContext) {
@@ -196,17 +198,17 @@ export function showShipExamineList(ctx: GameContext) {
 
 async function showShipListInternal(ctx: GameContext, label: string) {
     if (!(await loadShipConfigs(ctx))) return;
-    ctx.term.writeln('');
-    ctx.term.writeln(render(STARBASE.shipyardsExamineHeader, { label }));
-    ctx.shipConfigs!.forEach((ship, i) => {
-        ctx.term.writeln(
+    ctx.io.term.writeln('');
+    ctx.io.term.writeln(render(STARBASE.shipyardsExamineHeader, { label }));
+    ctx.catalogs.ships!.forEach((ship, i) => {
+        ctx.io.term.writeln(
             render(STARBASE.shipyardsExamineRow, {
                 letter: indexToLetter(i),
                 name: ship.display_name ?? ship.name,
             }),
         );
     });
-    ctx.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
+    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
     showShipInterestPrompt(ctx);
 }
 
@@ -216,13 +218,13 @@ export function showTradeinPrompt(
     price: number,
     tradeinCredit: number,
 ) {
-    ctx.term.writeln('');
-    ctx.term.writeln(render(STARBASE.tradeinHeader, { ship: shipName, price: fmt(price) }));
+    ctx.io.term.writeln('');
+    ctx.io.term.writeln(render(STARBASE.tradeinHeader, { ship: shipName, price: fmt(price) }));
     if (tradeinCredit > 0) {
-        ctx.term.writeln(render(STARBASE.tradeinCredit, { credit: fmt(tradeinCredit) }));
-        ctx.term.writeln(render(STARBASE.tradeinNet, { net: fmt(price - tradeinCredit) }));
+        ctx.io.term.writeln(render(STARBASE.tradeinCredit, { credit: fmt(tradeinCredit) }));
+        ctx.io.term.writeln(render(STARBASE.tradeinNet, { net: fmt(price - tradeinCredit) }));
     }
-    ctx.term.write(render(STARBASE.tradeinConfirm));
+    ctx.io.term.write(render(STARBASE.tradeinConfirm));
 }
 
 export function showShipyardsClass0Menu(ctx: GameContext) {

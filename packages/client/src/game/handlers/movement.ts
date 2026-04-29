@@ -8,7 +8,7 @@ import type { Handler } from './index.js';
 import { refreshMinimap } from './utils.js';
 
 export const sectorDisplay: Handler<'sectorDisplayResult'> = (ctx, msg) => {
-    ctx.sectorPlayers = msg.players;
+    ctx.world.sectorPlayers = msg.players;
     showSectorDisplay(
         ctx,
         msg.sector,
@@ -21,22 +21,22 @@ export const sectorDisplay: Handler<'sectorDisplayResult'> = (ctx, msg) => {
         msg.collisions,
     );
     refreshMinimap(ctx);
-    if (ctx.autopilotPath.length > 0 && ctx.autopilotStep < ctx.autopilotPath.length) {
-        const nextSector = ctx.autopilotPath[ctx.autopilotStep];
-        ctx.autopilotStep = ctx.autopilotStep + 1;
-        ctx.sendMsg({ type: ClientMsgType.Move, sector: nextSector });
-    } else if (ctx.autopilotPath.length > 0) {
-        ctx.autopilotPath = [];
-        ctx.autopilotStep = 0;
+    if (ctx.autopilot.path.length > 0 && ctx.autopilot.step < ctx.autopilot.path.length) {
+        const nextSector = ctx.autopilot.path[ctx.autopilot.step];
+        ctx.autopilot.step = ctx.autopilot.step + 1;
+        ctx.io.sendMsg({ type: ClientMsgType.Move, sector: nextSector });
+    } else if (ctx.autopilot.path.length > 0) {
+        ctx.autopilot.path = [];
+        ctx.autopilot.step = 0;
     }
 };
 
 export const move: Handler<'moveResult'> = (ctx, msg) => {
     switch (msg.outcome) {
         case 'success': {
-            ctx.sectorPlayers = msg.players;
-            const inAutopilot = ctx.autopilotPath.length > 0;
-            const moreHops = inAutopilot && ctx.autopilotStep < ctx.autopilotPath.length;
+            ctx.world.sectorPlayers = msg.players;
+            const inAutopilot = ctx.autopilot.path.length > 0;
+            const moreHops = inAutopilot && ctx.autopilot.step < ctx.autopilot.path.length;
             showSectorDisplay(
                 ctx,
                 msg.sector,
@@ -51,63 +51,63 @@ export const move: Handler<'moveResult'> = (ctx, msg) => {
             );
             refreshMinimap(ctx);
             if (moreHops) {
-                const nextSector = ctx.autopilotPath[ctx.autopilotStep];
-                ctx.autopilotStep = ctx.autopilotStep + 1;
-                ctx.term.writeln(render(EVENT.autopilotWarping, { sector: nextSector }));
-                ctx.sendMsg({ type: ClientMsgType.Move, sector: nextSector });
+                const nextSector = ctx.autopilot.path[ctx.autopilot.step];
+                ctx.autopilot.step = ctx.autopilot.step + 1;
+                ctx.io.term.writeln(render(EVENT.autopilotWarping, { sector: nextSector }));
+                ctx.io.sendMsg({ type: ClientMsgType.Move, sector: nextSector });
             } else if (inAutopilot) {
-                ctx.term.writeln(render(EVENT.autopilotArrived, { sector: msg.sector }));
-                ctx.autopilotPath = [];
-                ctx.autopilotStep = 0;
+                ctx.io.term.writeln(render(EVENT.autopilotArrived, { sector: msg.sector }));
+                ctx.autopilot.path = [];
+                ctx.autopilot.step = 0;
                 showPrompt(ctx);
             }
             break;
         }
         case 'encounter': {
-            ctx.sectorPlayers = msg.players;
-            ctx.encounterOwnerName = msg.ownerName;
+            ctx.world.sectorPlayers = msg.players;
+            ctx.encounter.ownerName = msg.ownerName;
             showSectorDisplay(ctx, msg.sector, msg.warps, msg.players, msg.port);
-            if (ctx.autopilotPath.length > 0) {
-                ctx.autopilotPaused = true;
-                ctx.term.writeln(render(EVENT.autopilotDisengaged));
+            if (ctx.autopilot.path.length > 0) {
+                ctx.autopilot.paused = true;
+                ctx.io.term.writeln(render(EVENT.autopilotDisengaged));
             }
             showDroneEncounter(ctx, msg.sectorDrones, msg.ownerName, msg.shipDrones);
             break;
         }
         case 'nonAdjacent':
-            ctx.sendMsg({
+            ctx.io.sendMsg({
                 type: ClientMsgType.ShortestPath,
-                from: ctx.currentSector,
+                from: ctx.world.currentSector,
                 to: msg.sector,
             });
             break;
         case 'noShip':
-            if (ctx.autopilotPath.length > 0) {
-                ctx.autopilotPath = [];
-                ctx.autopilotStep = 0;
-                ctx.autopilotPaused = false;
-                ctx.term.writeln(render(EVENT.autopilotCancelled));
+            if (ctx.autopilot.path.length > 0) {
+                ctx.autopilot.path = [];
+                ctx.autopilot.step = 0;
+                ctx.autopilot.paused = false;
+                ctx.io.term.writeln(render(EVENT.autopilotCancelled));
             }
-            ctx.term.writeln(render(EVENT.noShip));
+            ctx.io.term.writeln(render(EVENT.noShip));
             showPrompt(ctx);
             break;
         case 'error':
-            if (ctx.autopilotPath.length > 0) {
-                ctx.autopilotPath = [];
-                ctx.autopilotStep = 0;
-                ctx.autopilotPaused = false;
-                ctx.term.writeln(render(EVENT.autopilotCancelled));
+            if (ctx.autopilot.path.length > 0) {
+                ctx.autopilot.path = [];
+                ctx.autopilot.step = 0;
+                ctx.autopilot.paused = false;
+                ctx.io.term.writeln(render(EVENT.autopilotCancelled));
             }
-            ctx.term.writeln(render(NOTIFY.error, { message: msg.message }));
+            ctx.io.term.writeln(render(NOTIFY.error, { message: msg.message }));
             showPrompt(ctx);
             break;
     }
 };
 
 export const nonAdjacent: Handler<'nonAdjacentMoveRequested'> = (ctx, msg) => {
-    ctx.sendMsg({
+    ctx.io.sendMsg({
         type: ClientMsgType.ShortestPath,
-        from: ctx.currentSector,
+        from: ctx.world.currentSector,
         to: msg.sector,
     });
 };
@@ -116,27 +116,27 @@ export const shortestPath: Handler<'shortestPathResult'> = (ctx, msg) => {
     if (msg.path.length > 1) {
         showAutopilotPrompt(ctx, msg.path, msg.hops, msg.turns);
     } else {
-        ctx.term.writeln(render(EVENT.noPathFound));
+        ctx.io.term.writeln(render(EVENT.noPathFound));
         showPrompt(ctx);
     }
 };
 
 export const hyperspaceJump: Handler<'hyperspaceJumpResult'> = (ctx, msg) => {
-    ctx.term.writeln(
+    ctx.io.term.writeln(
         render(EVENT.hyperspaceJump, {
             sector: msg.targetSector,
             fuel: msg.fuelUsed,
             turns: msg.turnsUsed,
         }),
     );
-    ctx.sendMsg({ type: ClientMsgType.SectorDisplay });
+    ctx.io.sendMsg({ type: ClientMsgType.SectorDisplay });
 };
 
 export const previousSector: Handler<'previousSectorResult'> = (ctx, msg) => {
     if (msg.sector === null) {
-        ctx.term.writeln(render(NOTIFY.noPreviousSector));
+        ctx.io.term.writeln(render(NOTIFY.noPreviousSector));
         showPrompt(ctx);
     } else {
-        ctx.sendMsg({ type: ClientMsgType.Move, sector: msg.sector });
+        ctx.io.sendMsg({ type: ClientMsgType.Move, sector: msg.sector });
     }
 };

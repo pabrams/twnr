@@ -9,10 +9,10 @@ import { fmt, refreshMinimap } from './utils.js';
 
 export const dock: Handler<'dockResult'> = (ctx, msg) => {
     if (!msg.docked || !msg.port) return;
-    ctx.dockedPortInfo = msg.port;
+    ctx.world.dockedPortInfo = msg.port;
     if (msg.port.class === 0) {
         if (msg.shipInfo) {
-            ctx.class0ShipState = {
+            ctx.starbase.class0ShipState = {
                 shipName: msg.shipInfo.shipName,
                 credits: msg.credits ?? 0,
                 drones: msg.shipInfo.drones,
@@ -90,12 +90,12 @@ export const tradePrompt: Handler<'tradePrompt'> = (ctx, msg) => {
 
 export const tradeConfirmPrompt: Handler<'tradeConfirmPrompt'> = (ctx, msg) => {
     const tpl = msg.action === 'buy' ? TRANSACTION.tradeConfirmSell : TRANSACTION.tradeConfirmBuy;
-    ctx.term.writeln(render(tpl, { total: fmt(msg.totalPrice) }));
-    ctx.term.write(render(TRANSACTION.tradeConfirmAccept));
+    ctx.io.term.writeln(render(tpl, { total: fmt(msg.totalPrice) }));
+    ctx.io.term.write(render(TRANSACTION.tradeConfirmAccept));
 };
 
 export const tradeComplete: Handler<'tradeComplete'> = (ctx, msg) => {
-    ctx.term.writeln(render(TRANSACTION.tradeComplete, { credits: fmt(msg.credits) }));
+    ctx.io.term.writeln(render(TRANSACTION.tradeComplete, { credits: fmt(msg.credits) }));
 };
 
 export const tradeSkipped: Handler<'tradeSkipped'> = (ctx, msg) => {
@@ -113,19 +113,19 @@ export const tradeSkipped: Handler<'tradeSkipped'> = (ctx, msg) => {
                     : msg.reason === 'insufficientCargo'
                       ? PORT.skipInsufficientCargo
                       : PORT.skipPortCannotBuy;
-    ctx.term.writeln('');
-    ctx.term.writeln(render(tpl));
+    ctx.io.term.writeln('');
+    ctx.io.term.writeln(render(tpl));
 };
 
 export const undock: Handler<'undockResult'> = (ctx, msg) => {
     if (msg.outcome === 'success') {
-        ctx.dockedPortInfo = null;
-        ctx.class0ShipState = null;
-        ctx.sectorPlayers = msg.players;
+        ctx.world.dockedPortInfo = null;
+        ctx.starbase.class0ShipState = null;
+        ctx.world.sectorPlayers = msg.players;
         refreshMinimap(ctx);
         showPrompt(ctx);
     } else {
-        ctx.term.writeln(render(NOTIFY.error, { message: msg.message }));
+        ctx.io.term.writeln(render(NOTIFY.error, { message: msg.message }));
     }
 };
 
@@ -140,21 +140,21 @@ export const jettison: Handler<'jettisonResult'> = (ctx, msg) => {
         ]
             .filter(Boolean)
             .join(', ');
-        ctx.term.writeln(render(TRANSACTION.jettisoned, { items: items || 'nothing' }));
+        ctx.io.term.writeln(render(TRANSACTION.jettisoned, { items: items || 'nothing' }));
     } else {
-        ctx.term.writeln(render(NOTIFY.error, { message: msg.message }));
+        ctx.io.term.writeln(render(NOTIFY.error, { message: msg.message }));
     }
     showPrompt(ctx);
 };
 
 export const portTransaction: Handler<'portTransactionResult'> = (ctx, msg) => {
-    ctx.term.writeln(render(TRANSACTION.tradeComplete, { credits: fmt(msg.credits) }));
+    ctx.io.term.writeln(render(TRANSACTION.tradeComplete, { credits: fmt(msg.credits) }));
 };
 
 export const dockStarbase: Handler<'dockStarbaseResult'> = (ctx, msg) => {
-    ctx.hardwarePrices = msg.prices;
+    ctx.catalogs.hardwarePrices = msg.prices;
     if (msg.shipInfo) {
-        ctx.class0ShipState = {
+        ctx.starbase.class0ShipState = {
             shipName: msg.shipInfo.shipName,
             credits: msg.credits ?? 0,
             drones: msg.shipInfo.drones,
@@ -169,8 +169,8 @@ export const dockStarbase: Handler<'dockStarbaseResult'> = (ctx, msg) => {
 };
 
 export const leaveStarbase: Handler<'leaveStarbaseResult'> = (ctx, msg) => {
-    ctx.class0ShipState = null;
-    ctx.sectorPlayers = msg.players;
+    ctx.starbase.class0ShipState = null;
+    ctx.world.sectorPlayers = msg.players;
     showSectorDisplay(
         ctx,
         msg.sector,

@@ -7,25 +7,25 @@ import type { Handler } from './index.js';
 import { refreshMinimap } from './utils.js';
 
 export const attackShip: Handler<'attackShipResult'> = (ctx, msg) => {
-    ctx.term.writeln('');
-    ctx.term.writeln(
+    ctx.io.term.writeln('');
+    ctx.io.term.writeln(
         render(msg.destroyed ? EVENT.attackDestroyed : EVENT.attackCompleted, {
             message: msg.message || (msg.destroyed ? 'Target destroyed!' : 'Attack completed.'),
         }),
     );
-    ctx.term.writeln(
+    ctx.io.term.writeln(
         render(EVENT.attackStat, {
             label: 'Your drones lost',
             value: msg.attackerDronesLost,
         }),
     );
-    ctx.term.writeln(
+    ctx.io.term.writeln(
         render(EVENT.attackStat, {
             label: 'Defender shields lost',
             value: msg.defenderShieldsLost,
         }),
     );
-    ctx.term.writeln(
+    ctx.io.term.writeln(
         render(EVENT.attackStat, {
             label: 'Defender drones lost',
             value: msg.defenderDronesLost,
@@ -35,18 +35,18 @@ export const attackShip: Handler<'attackShipResult'> = (ctx, msg) => {
 };
 
 export const attackMenu: Handler<'attackMenuResult'> = (ctx, msg) => {
-    ctx.sectorPlayers = msg.players;
+    ctx.world.sectorPlayers = msg.players;
     showAttackMenu(ctx);
 };
 
 export const droneEncounter: Handler<'droneEncounter'> = (ctx, msg) => {
-    ctx.sectorPlayers = msg.players;
-    ctx.encounterOwnerName = msg.ownerName;
+    ctx.world.sectorPlayers = msg.players;
+    ctx.encounter.ownerName = msg.ownerName;
     showSectorDisplay(ctx, msg.sector, msg.warps, msg.players, msg.port);
     refreshMinimap(ctx);
-    if (ctx.autopilotPath.length > 0) {
-        ctx.autopilotPaused = true;
-        ctx.term.writeln(render(EVENT.autopilotDisengaged));
+    if (ctx.autopilot.path.length > 0) {
+        ctx.autopilot.paused = true;
+        ctx.io.term.writeln(render(EVENT.autopilotDisengaged));
     }
     showDroneEncounter(ctx, msg.sectorDrones, msg.ownerName, msg.shipDrones);
 };
@@ -54,19 +54,19 @@ export const droneEncounter: Handler<'droneEncounter'> = (ctx, msg) => {
 export const deployDronesInfo: Handler<'deployDronesInfoResult'> = (ctx, msg) => {
     const total = msg.shipDrones + msg.sectorDrones;
     const minInSector = Math.max(0, total - msg.shipMaxDrones);
-    ctx.term.writeln('');
-    ctx.term.writeln(
+    ctx.io.term.writeln('');
+    ctx.io.term.writeln(
         render(EVENT.deployDronesInfo, {
             total,
             max: msg.shipMaxDrones,
             minInSector,
         }),
     );
-    ctx.term.write(render(EVENT.deployDronesPrompt, { minInSector }));
+    ctx.io.term.write(render(EVENT.deployDronesPrompt, { minInSector }));
 };
 
 export const deployDrones: Handler<'deployDronesResult'> = (ctx, msg) => {
-    ctx.term.writeln(
+    ctx.io.term.writeln(
         render(EVENT.deployDronesResult, {
             sector: msg.sectorDrones,
             ship: msg.shipDrones,
@@ -76,8 +76,8 @@ export const deployDrones: Handler<'deployDronesResult'> = (ctx, msg) => {
 };
 
 export const attackSectorDrones: Handler<'attackSectorDronesResult'> = (ctx, msg) => {
-    ctx.term.writeln('');
-    ctx.term.writeln(
+    ctx.io.term.writeln('');
+    ctx.io.term.writeln(
         render(EVENT.combatLost, {
             lost: msg.dronesLost,
             remaining: msg.sectorDronesRemaining,
@@ -85,31 +85,31 @@ export const attackSectorDrones: Handler<'attackSectorDronesResult'> = (ctx, msg
         }),
     );
     if (msg.victory) {
-        ctx.term.writeln(render(EVENT.sectorCleared));
-        if (ctx.autopilotPaused) {
-            ctx.term.writeln(render(EVENT.autopilotResuming));
-            ctx.autopilotPaused = false;
-            ctx.sendMsg({ type: ClientMsgType.SectorDisplay });
+        ctx.io.term.writeln(render(EVENT.sectorCleared));
+        if (ctx.autopilot.paused) {
+            ctx.io.term.writeln(render(EVENT.autopilotResuming));
+            ctx.autopilot.paused = false;
+            ctx.io.sendMsg({ type: ClientMsgType.SectorDisplay });
         } else {
             showPrompt(ctx);
         }
     } else {
-        showDroneEncounter(ctx, msg.sectorDronesRemaining, ctx.encounterOwnerName, msg.shipDrones);
+        showDroneEncounter(ctx, msg.sectorDronesRemaining, ctx.encounter.ownerName, msg.shipDrones);
     }
 };
 
 export const retreatFromDrones: Handler<'retreatFromDronesResult'> = (ctx, msg) => {
-    ctx.term.writeln(render(EVENT.retreated, { sector: msg.sector }));
-    if (ctx.autopilotPaused) {
-        ctx.autopilotPath = [];
-        ctx.autopilotStep = 0;
-        ctx.autopilotPaused = false;
-        ctx.term.writeln(render(EVENT.autopilotCancelled));
+    ctx.io.term.writeln(render(EVENT.retreated, { sector: msg.sector }));
+    if (ctx.autopilot.paused) {
+        ctx.autopilot.path = [];
+        ctx.autopilot.step = 0;
+        ctx.autopilot.paused = false;
+        ctx.io.term.writeln(render(EVENT.autopilotCancelled));
     }
 };
 
 export const sectorDronesAlert: Handler<'sectorDronesAlert'> = (ctx, msg) => {
-    ctx.term.writeln('');
+    ctx.io.term.writeln('');
     const tpl =
         msg.event === 'intrusion'
             ? EVENT.alertIntrusion
@@ -127,6 +127,6 @@ export const sectorDronesAlert: Handler<'sectorDronesAlert'> = (ctx, msg) => {
             vars.lost = msg.dronesLost;
             vars.remaining = msg.dronesRemaining;
         }
-        ctx.term.writeln(render(tpl, vars));
+        ctx.io.term.writeln(render(tpl, vars));
     }
 };

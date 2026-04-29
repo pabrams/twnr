@@ -5,23 +5,23 @@ import { echoCommand } from '../display.js';
 import { registerMenu } from './types.js';
 
 registerMenu(Menu.QuitConfirm, {
-    enter(ctx) {
-        ctx.term.write(render(NOTIFY.quitConfirm));
+    renderPrompt(ctx) {
+        ctx.io.term.write(render(NOTIFY.quitConfirm));
     },
     input(ctx, line) {
         const t = line.trim().toLowerCase();
         switch (t) {
             case 'y':
-                ctx.term.writeln(render(NOTIFY.goodbye));
-                ctx.ws.close();
+                ctx.io.term.writeln(render(NOTIFY.goodbye));
+                ctx.io.ws.close();
                 return;
             case '':
             case 'n':
                 echoCommand(ctx, 'quitConfirmBack');
-                ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
+                ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
                 return;
             default:
-                ctx.term.write(render(NOTIFY.quitConfirm));
+                ctx.io.term.write(render(NOTIFY.quitConfirm));
         }
     },
 });

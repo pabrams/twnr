@@ -8,7 +8,7 @@ import {
 import { registerMenu } from './types.js';
 
 registerMenu(Menu.KnownUniverse, {
-    enter: showKnownUniverseMenu,
+    renderPrompt: showKnownUniverseMenu,
     input(ctx, line) {
         switch (line.toLowerCase()) {
             case 'e':
@@ -19,7 +19,7 @@ registerMenu(Menu.KnownUniverse, {
                 break;
             case 'q':
                 echoCommand(ctx, 'knownUniverseBack');
-                ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Computer });
+                ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Computer });
                 break;
             default:
                 showKnownUniverseMenu(ctx);

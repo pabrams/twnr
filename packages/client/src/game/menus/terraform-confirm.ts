@@ -5,23 +5,23 @@ import { echoCommand } from '../display.js';
 import { registerMenu } from './types.js';
 
 registerMenu(Menu.TerraformConfirm, {
-    enter(ctx) {
-        ctx.term.write(render(NOTIFY.terraformConfirm));
+    renderPrompt(ctx) {
+        ctx.io.term.write(render(NOTIFY.terraformConfirm));
     },
     input(ctx, line) {
         const t = line.trim().toLowerCase();
         switch (t) {
             case 'y':
                 echoCommand(ctx, 'useTerraformDevice');
-                ctx.sendMsg({ type: ClientMsgType.UseTerraformDevice });
+                ctx.io.sendMsg({ type: ClientMsgType.UseTerraformDevice });
                 return;
             case '':
             case 'n':
                 echoCommand(ctx, 'terraformConfirmBack');
-                ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
+                ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
                 return;
             default:
-                ctx.term.write(render(NOTIFY.terraformConfirm));
+                ctx.io.term.write(render(NOTIFY.terraformConfirm));
         }
     },
 });

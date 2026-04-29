@@ -7,7 +7,7 @@ import { getMenuHandler } from './menus/index.js';
  * that begin or continue a multi-char input, or false to reject.
  */
 function isValidKeyForMenu(ctx: GameContext, key: string): 'single' | 'buffered' | false {
-    const menu = ctx.menuRegistry.get(ctx.mode);
+    const menu = ctx.catalogs.menus.get(ctx.world.mode);
     if (!menu) return 'single'; // Registry not loaded yet — permissive fallback
 
     const lower = key.toLowerCase();
@@ -35,15 +35,15 @@ function isValidKeyForMenu(ctx: GameContext, key: string): 'single' | 'buffered'
  */
 function processKeystroke(ctx: GameContext, ev: KeystrokeEvent) {
     if (ev.isEnter) {
-        ctx.term.writeln('');
-        handleInput(ctx, ctx.inputAssembly.trim());
-        ctx.inputAssembly = '';
+        ctx.io.term.writeln('');
+        handleInput(ctx, ctx.input.inputAssembly.trim());
+        ctx.input.inputAssembly = '';
         return;
     }
     if (ev.isBackspace) {
-        if (ctx.inputAssembly.length > 0) {
-            ctx.inputAssembly = ctx.inputAssembly.slice(0, -1);
-            ctx.term.write('\b \b');
+        if (ctx.input.inputAssembly.length > 0) {
+            ctx.input.inputAssembly = ctx.input.inputAssembly.slice(0, -1);
+            ctx.io.term.write('\b \b');
         }
         return;
     }
@@ -52,12 +52,12 @@ function processKeystroke(ctx: GameContext, ev: KeystrokeEvent) {
         // Invalid key for current menu — reject silently
         return;
     }
-    if (ctx.inputAssembly === '' && validity === 'single') {
-        ctx.term.writeln('');
+    if (ctx.input.inputAssembly === '' && validity === 'single') {
+        ctx.io.term.writeln('');
         handleInput(ctx, ev.key.toLowerCase());
     } else {
-        ctx.inputAssembly += ev.key;
-        ctx.term.write(ev.key);
+        ctx.input.inputAssembly += ev.key;
+        ctx.io.term.write(ev.key);
     }
 }
 
@@ -70,17 +70,17 @@ function processKeystroke(ctx: GameContext, ev: KeystrokeEvent) {
  * Both stop the moment a dispatch causes another roundtrip (sets inFlight).
  */
 export function drainInputQueue(ctx: GameContext) {
-    while (!ctx.inFlight && ctx.userInputBuffer.length > 0) {
-        const head = ctx.userInputBuffer.shift()!;
+    while (!ctx.input.inFlight && ctx.input.userInputBuffer.length > 0) {
+        const head = ctx.input.userInputBuffer.shift()!;
         processKeystroke(ctx, head);
     }
-    while (!ctx.inFlight && ctx.inputQueue.length > 0) {
-        const head = ctx.inputQueue[0];
+    while (!ctx.input.inFlight && ctx.input.inputQueue.length > 0) {
+        const head = ctx.input.inputQueue[0];
         const isSpecial = head.isEnter || head.isBackspace;
         if (!isSpecial && isValidKeyForMenu(ctx, head.key) === false) {
             break;
         }
-        ctx.inputQueue.shift();
+        ctx.input.inputQueue.shift();
         processKeystroke(ctx, head);
     }
 }
@@ -88,7 +88,7 @@ export function drainInputQueue(ctx: GameContext) {
 export function setupInput(term: Terminal, ctx: GameContext) {
     term.onKey(({ key, domEvent }) => {
         if (key === '~') {
-            ctx.setDebug(!ctx.debug);
+            ctx.io.setDebug(!ctx.io.debug);
             return;
         }
         const ev: KeystrokeEvent = {
@@ -97,10 +97,10 @@ export function setupInput(term: Terminal, ctx: GameContext) {
             isBackspace: domEvent.key === 'Backspace',
         };
         // While a server roundtrip is in flight, queue the user's keystroke at
-        // Layer 1 so fast typing isn't dropped by the stale ctx.mode. The drain
+        // Layer 1 so fast typing isn't dropped by the stale ctx.world.mode. The drain
         // after the next envelope replays it against the (possibly new) menu.
-        if (ctx.inFlight) {
-            ctx.userInputBuffer.push(ev);
+        if (ctx.input.inFlight) {
+            ctx.input.userInputBuffer.push(ev);
             return;
         }
         processKeystroke(ctx, ev);
@@ -108,7 +108,7 @@ export function setupInput(term: Terminal, ctx: GameContext) {
 
     // Mini-map click injection: route through the same input handler the user
     // reaches with Enter, so map clicks behave exactly like typed commands.
-    ctx.submitLineFromMap = (line: string) => {
+    ctx.io.submitLineFromMap = (line: string) => {
         const trimmed = line.trim();
         if (trimmed.length > 0) term.writeln(trimmed);
         else term.writeln('');
@@ -118,8 +118,8 @@ export function setupInput(term: Terminal, ctx: GameContext) {
 
 function handleInput(ctx: GameContext, line: string) {
     // Ignore input during autopilot (but allow when paused for encounters).
-    if (ctx.autopilotPath.length > 0 && ctx.autopilotStep > 0 && !ctx.autopilotPaused) return;
+    if (ctx.autopilot.path.length > 0 && ctx.autopilot.step > 0 && !ctx.autopilot.paused) return;
     // All menus (including Sector) live in menus/<name>.ts. The dispatcher
     // is now a single registry lookup.
-    getMenuHandler(ctx.mode)?.input?.(ctx, line);
+    getMenuHandler(ctx.world.mode)?.input?.(ctx, line);
 }

@@ -4,8 +4,8 @@ import { SECTOR, PORT } from './messages/index.js';
 
 /** Max units of a given item the player can buy right now. */
 export function class0MaxBuy(kind: 'drones' | 'shields' | 'holds', ctx: GameContext): number {
-    const s = ctx.class0ShipState;
-    const p = ctx.class0Prices;
+    const s = ctx.starbase.class0ShipState;
+    const p = ctx.catalogs.class0Prices;
     if (!s || !p) return 0;
     let roomLeft: number;
     let unitPrice: number;
@@ -36,9 +36,9 @@ export function showAutopilotPrompt(
     hops: number,
     turns: number,
 ) {
-    ctx.autopilotPath = path.map((p) => p.sector);
-    ctx.autopilotStep = 0;
-    const { term } = ctx;
+    ctx.autopilot.path = path.map((p) => p.sector);
+    ctx.autopilot.step = 0;
+    const { term } = ctx.io;
     term.writeln('');
     const from = path[0]?.sector ?? 0;
     const to = path[path.length - 1]?.sector ?? 0;
@@ -55,16 +55,16 @@ export function showAutopilotPrompt(
 }
 
 export async function showClass0Menu(ctx: GameContext, initial = false) {
-    if (!ctx.class0Prices) {
+    if (!ctx.catalogs.class0Prices) {
         try {
             const res = await fetch('/api/class0-prices');
-            ctx.class0Prices = await res.json();
+            ctx.catalogs.class0Prices = await res.json();
         } catch {
-            ctx.class0Prices = { dronePrice: 20, shieldPrice: 10, holdPrice: 50 };
+            ctx.catalogs.class0Prices = { dronePrice: 20, shieldPrice: 10, holdPrice: 50 };
         }
     }
-    const p = ctx.class0Prices!;
-    const { term } = ctx;
+    const p = ctx.catalogs.class0Prices!;
+    const { term } = ctx.io;
     const canBuyHolds = class0MaxBuy('holds', ctx);
     const canBuyDrones = class0MaxBuy('drones', ctx);
     const canBuyShields = class0MaxBuy('shields', ctx);
@@ -74,10 +74,10 @@ export async function showClass0Menu(ctx: GameContext, initial = false) {
     if (initial) {
         term.writeln(render(PORT.class0Docking));
     }
-    if (ctx.class0ShipState) {
+    if (ctx.starbase.class0ShipState) {
         term.writeln(
             render(PORT.class0CreditsLine, {
-                credits: ctx.class0ShipState.credits.toLocaleString(),
+                credits: ctx.starbase.class0ShipState.credits.toLocaleString(),
             }),
         );
     }
@@ -95,11 +95,12 @@ export async function showClass0Menu(ctx: GameContext, initial = false) {
 }
 
 export function showClass0QtyPrompt(ctx: GameContext, buyType: 'drones' | 'shields' | 'holds') {
-    const s = ctx.class0ShipState;
+    const s = ctx.starbase.class0ShipState;
     const max = class0MaxBuy(buyType, ctx);
-    const shipName = ctx.currentColoredShipName ?? s?.shipName ?? ctx.currentShipName ?? '';
+    const shipName =
+        ctx.ship.currentColoredShipName ?? s?.shipName ?? ctx.ship.currentShipName ?? '';
 
-    const { term } = ctx;
+    const { term } = ctx.io;
     if (buyType === 'drones') {
         term.writeln(render(PORT.class0QtyYouHaveFighters, { qty: s?.drones ?? 0 }));
         term.write(render(PORT.class0QtyPromptFighters, { shipName, max }));
@@ -122,12 +123,12 @@ export function showTradeQtyPrompt(
 ) {
     const infoTpl = action === 'buy' ? PORT.tradeQtyInfoBuy : PORT.tradeQtyInfoSell;
     const promptTpl = action === 'buy' ? PORT.tradeQtyPromptBuy : PORT.tradeQtyPromptSell;
-    ctx.term.writeln('');
-    ctx.term.writeln(render(infoTpl, { portTrading, onBoard }));
-    ctx.term.write(render(promptTpl, { commodity, maxQty }));
+    ctx.io.term.writeln('');
+    ctx.io.term.writeln(render(infoTpl, { portTrading, onBoard }));
+    ctx.io.term.write(render(promptTpl, { commodity, maxQty }));
 }
 
 export function showNoTradeMessage(ctx: GameContext) {
-    ctx.term.writeln('');
-    ctx.term.writeln(render(PORT.noTrade));
+    ctx.io.term.writeln('');
+    ctx.io.term.writeln(render(PORT.noTrade));
 }

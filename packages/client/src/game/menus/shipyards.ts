@@ -4,27 +4,27 @@ import { showShipyardsMenu, showShipyardsPrompt, showShipyardsHelp } from '../di
 import { registerMenu } from './types.js';
 
 registerMenu(Menu.Shipyards, {
-    enter: showShipyardsMenu,
+    renderPrompt: showShipyardsMenu,
     input(ctx, line) {
         switch (line.toLowerCase()) {
             case 'b':
                 echoCommand(ctx, 'shipyardsBuy');
-                ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsBuy });
+                ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsBuy });
                 break;
             case 'e':
                 echoCommand(ctx, 'shipyardsExamine');
-                ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsExamine });
+                ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsExamine });
                 break;
             case 'p':
                 echoCommand(ctx, 'shipyardsEquipment');
-                ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsClass0 });
+                ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsClass0 });
                 break;
             case '?':
                 showShipyardsHelp(ctx);
                 break;
             case 'q':
                 echoCommand(ctx, 'starbase');
-                ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Starbase });
+                ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Starbase });
                 break;
             default:
                 showShipyardsPrompt(ctx);

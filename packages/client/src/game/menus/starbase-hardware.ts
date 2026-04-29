@@ -1,7 +1,7 @@
 import { ClientMsgType, Menu } from '@twnr/shared';
 import { echoCommand } from '../display.js';
 import { showHardwareMenu, showHardwareItemDetail } from '../display-starbase.js';
-import { registerMenu } from './types.js';
+import { registerMenu, setMenuArgs } from './types.js';
 
 // Map hardware menu keys to item names and labels for quantity-based purchases.
 const STACKABLE_HARDWARE: Record<string, { itemName: string; label: string }> = {
@@ -26,7 +26,7 @@ const TOGGLE_HARDWARE: Record<string, string> = {
 };
 
 registerMenu(Menu.StarbaseHardware, {
-    enter: showHardwareMenu,
+    renderPrompt: showHardwareMenu,
     input(ctx, line) {
         const key = line.toLowerCase();
 
@@ -35,7 +35,7 @@ registerMenu(Menu.StarbaseHardware, {
         if (toggleItem) {
             echoCommand(ctx, 'buyHardware');
             showHardwareItemDetail(ctx, toggleItem);
-            ctx.sendMsg({ type: ClientMsgType.BuyHardware, itemName: toggleItem });
+            ctx.io.sendMsg({ type: ClientMsgType.BuyHardware, itemName: toggleItem });
             return;
         }
 
@@ -51,10 +51,13 @@ registerMenu(Menu.StarbaseHardware, {
                 showHardwareMenu(ctx);
                 return;
             }
-            ctx.starbaseBuyItemName = hw.itemName;
-            ctx.starbaseBuyDefault = canBuy;
-            ctx.starbaseBuyLabel = hw.label;
-            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.StarbaseBuyQty });
+            setMenuArgs(ctx, {
+                menu: Menu.StarbaseBuyQty,
+                itemName: hw.itemName,
+                defaultQty: canBuy,
+                label: hw.label,
+            });
+            ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.StarbaseBuyQty });
             return;
         }
         if (key === '?') {
@@ -63,7 +66,7 @@ registerMenu(Menu.StarbaseHardware, {
         }
         if (key === 'q') {
             echoCommand(ctx, 'starbase');
-            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Starbase });
+            ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Starbase });
             return;
         }
         showHardwareMenu(ctx);

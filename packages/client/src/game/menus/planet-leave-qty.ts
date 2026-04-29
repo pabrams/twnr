@@ -2,16 +2,16 @@ import { ClientMsgType, Menu } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { showPlanetLeavePrompt } from '../display-planet.js';
 import { echoCommand } from '../display.js';
-import { registerMenu } from './types.js';
+import { registerMenu, getMenuArgs } from './types.js';
 
 function backToPlanetMenu(ctx: GameContext): void {
     echoCommand(ctx, 'planetLeaveQtyBack');
-    const target = ctx.currentSector === 1 ? Menu.PlanetEarth : Menu.Planet;
-    ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: target });
+    const target = ctx.world.currentSector === 1 ? Menu.PlanetEarth : Menu.Planet;
+    ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: target });
 }
 
 registerMenu(Menu.PlanetLeaveQty, {
-    enter: showPlanetLeavePrompt,
+    renderPrompt: showPlanetLeavePrompt,
     input(ctx, line) {
         const trimmed = line.trim();
         if (trimmed.toLowerCase() === 'q') {
@@ -26,15 +26,15 @@ registerMenu(Menu.PlanetLeaveQty, {
             return;
         }
         if (qty !== -1 && (isNaN(qty) || qty < 0)) {
-            ctx.term.writeln('Enter a positive number.');
+            ctx.io.term.writeln('Enter a positive number.');
             return;
         }
         // qty submission for an in-progress leave-colonists flow — the echo
         // already fired when the user pressed L at the planet menu.
-        ctx.sendMsg({
+        ctx.io.sendMsg({
             type: ClientMsgType.LeaveColonists,
             quantity: qty,
-            commodity: ctx.colonistCommodity ?? 'fuel',
+            commodity: getMenuArgs(ctx, Menu.PlanetLeaveQty)?.commodity ?? 'fuel',
         });
     },
 });

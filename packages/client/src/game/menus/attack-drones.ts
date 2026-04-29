@@ -4,21 +4,21 @@ import { echoCommand } from '../display.js';
 import { registerMenu } from './types.js';
 
 registerMenu(Menu.AttackDrones, {
-    enter: showAttackDronesPrompt,
+    renderPrompt: showAttackDronesPrompt,
     input(ctx, line) {
         if (line.toLowerCase() === 'q') {
             echoCommand(ctx, 'attackDronesBack');
-            ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
+            ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
             return;
         }
         const qty = parseInt(line, 10);
         if (isNaN(qty) || qty <= 0) {
-            ctx.term.writeln('Enter a positive number.');
+            ctx.io.term.writeln('Enter a positive number.');
             return;
         }
-        ctx.sendMsg({
+        ctx.io.sendMsg({
             type: ClientMsgType.AttackShip,
-            targetPlayerId: ctx.attackTarget!,
+            targetPlayerId: ctx.encounter.attackTarget!,
             drones: qty,
         });
     },

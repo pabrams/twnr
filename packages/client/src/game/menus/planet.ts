@@ -4,7 +4,7 @@ import { showPlanetMenuOptions, showPlanetHelp } from '../display-planet.js';
 import { registerMenu } from './types.js';
 
 registerMenu(Menu.Planet, {
-    enter: showPlanetMenuOptions,
+    renderPrompt: showPlanetMenuOptions,
     input(ctx, line) {
         switch (line.trim().toLowerCase()) {
             case 't':
@@ -12,24 +12,24 @@ registerMenu(Menu.Planet, {
                 // commodity + qty client-side, then ship one ClientMsg at
                 // the end.
                 echoCommand(ctx, 'takeColonists');
-                ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.PlanetTakeCommodity });
+                ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.PlanetTakeCommodity });
                 break;
             case 'l':
                 echoCommand(ctx, 'leaveColonists');
-                ctx.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.PlanetLeaveCommodity });
+                ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.PlanetLeaveCommodity });
                 break;
             case '':
             case 'd':
                 echoCommand(ctx, 'planetDisplay');
-                ctx.sendMsg({ type: ClientMsgType.PlanetDisplay });
+                ctx.io.sendMsg({ type: ClientMsgType.PlanetDisplay });
                 break;
             case 'z':
                 echoCommand(ctx, 'destroyPlanet');
-                ctx.sendMsg({ type: ClientMsgType.DestroyPlanet });
+                ctx.io.sendMsg({ type: ClientMsgType.DestroyPlanet });
                 break;
             case 'q':
                 echoCommand(ctx, 'leavePlanet');
-                ctx.sendMsg({ type: ClientMsgType.LeavePlanet });
+                ctx.io.sendMsg({ type: ClientMsgType.LeavePlanet });
                 break;
             case '?':
                 showPlanetHelp(ctx);

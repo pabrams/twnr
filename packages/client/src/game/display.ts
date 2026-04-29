@@ -18,7 +18,7 @@ export function echoCommand(
     vars?: Record<string, unknown>,
 ): void {
     const tpl = COMMAND[key];
-    if (tpl) ctx.term.writeln(render(tpl, vars ?? {}));
+    if (tpl) ctx.io.term.writeln(render(tpl, vars ?? {}));
 }
 
 function colorSectorRef(ref: SectorRef): string {
@@ -44,11 +44,11 @@ export function showSectorDisplay(
     collisions?: { planetName: string; collidingWithName: string; collisionAt: string }[],
     withPrompt = true,
 ) {
-    ctx.visitedSet.add(sector);
-    ctx.currentSector = sector;
-    ctx.currentPort = port ?? null;
-    ctx.currentWarps = warps;
-    const { term } = ctx;
+    ctx.world.visitedSet.add(sector);
+    ctx.world.currentSector = sector;
+    ctx.world.currentPort = port ?? null;
+    ctx.world.currentWarps = warps;
+    const { term } = ctx.io;
     const comma = render(SECTOR.commaJoin);
     term.writeln('');
     term.writeln(render(SECTOR.header, { sector }));
@@ -64,7 +64,8 @@ export function showSectorDisplay(
     }
 
     if (sectorDrones && sectorDrones.quantity > 0) {
-        const tpl = sectorDrones.ownerId === ctx.playerId ? SECTOR.dronesYours : SECTOR.dronesEnemy;
+        const tpl =
+            sectorDrones.ownerId === ctx.player.id ? SECTOR.dronesYours : SECTOR.dronesEnemy;
         term.writeln(render(tpl, { qty: sectorDrones.quantity, owner: sectorDrones.ownerName }));
     }
 
@@ -110,12 +111,12 @@ export function showSectorDisplay(
 }
 
 export function showPrompt(ctx: GameContext) {
-    ctx.term.write(render(SECTOR.prompt, { sector: ctx.currentSector }));
+    ctx.io.term.write(render(SECTOR.prompt, { sector: ctx.world.currentSector }));
 }
 
 export function showMoveMenu(ctx: GameContext) {
-    const warps = ctx.currentWarps.slice(0, 6);
-    const { term } = ctx;
+    const warps = ctx.world.currentWarps.slice(0, 6);
+    const { term } = ctx.io;
     term.writeln('');
     term.writeln(render(SECTOR.moveMenuHeader));
     warps.forEach((w, i) => {
@@ -126,46 +127,46 @@ export function showMoveMenu(ctx: GameContext) {
     term.writeln(render(SECTOR.moveMenuQuit));
     term.write(render(SECTOR.moveMenuPrompt, { max: warps.length }));
     // Light up the minimap with 1..N badges for each adjacent sector.
-    ctx.minimap?.setQuickMove(warps.map((w) => w.sector));
+    ctx.minimap.handle?.setQuickMove(warps.map((w) => w.sector));
 }
 
 /** Clear the minimap quick-move overlay. Call whenever the Move menu closes. */
 export function hideMoveMenuOverlay(ctx: GameContext) {
-    ctx.minimap?.setQuickMove(null);
+    ctx.minimap.handle?.setQuickMove(null);
 }
 
 export function showHelp(ctx: GameContext) {
-    ctx.term.writeln('');
-    ctx.term.writeln(render(HELP.header));
+    ctx.io.term.writeln('');
+    ctx.io.term.writeln(render(HELP.header));
     for (const line of HELP_LINES) {
         const tpl = 'key' in line ? HELP.lineKey : HELP.lineText;
-        ctx.term.writeln(render(tpl, line));
+        ctx.io.term.writeln(render(tpl, line));
     }
-    ctx.term.writeln(render(HELP.footer));
+    ctx.io.term.writeln(render(HELP.footer));
     showPrompt(ctx);
 }
 
 export function showPortMenu(ctx: GameContext) {
-    if (!ctx.currentPort) {
-        ctx.term.writeln(render(PORT.menuNoPort));
+    if (!ctx.world.currentPort) {
+        ctx.io.term.writeln(render(PORT.menuNoPort));
         showPrompt(ctx);
         return;
     }
-    ctx.term.writeln('');
-    ctx.term.writeln(
+    ctx.io.term.writeln('');
+    ctx.io.term.writeln(
         render(PORT.menuHeader, {
-            name: ctx.currentPort.name,
-            class: ctx.currentPort.class,
-            label: portClassLabel(ctx.currentPort.class),
+            name: ctx.world.currentPort.name,
+            class: ctx.world.currentPort.class,
+            label: portClassLabel(ctx.world.currentPort.class),
         }),
     );
-    ctx.term.writeln(
+    ctx.io.term.writeln(
         render(COMMON.menuRow, {
-            key: ctx.currentPort.class === 9 ? 'S' : 'T',
-            text: ctx.currentPort.class === 9 ? 'Enter Starbase' : 'Trade at this port',
+            key: ctx.world.currentPort.class === 9 ? 'S' : 'T',
+            text: ctx.world.currentPort.class === 9 ? 'Enter Starbase' : 'Trade at this port',
         }),
     );
-    ctx.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Never mind' }));
+    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Never mind' }));
 }
 
 export function showCommerceReport(
@@ -184,7 +185,7 @@ export function showCommerceReport(
     emptyHolds: number,
 ) {
     void portClass;
-    const { term } = ctx;
+    const { term } = ctx.io;
     term.writeln('');
     term.writeln(render(PORT.commerceHeader, { name: portName }));
     term.writeln('');
@@ -230,13 +231,13 @@ export function showCommerceReport(
 
 export async function showPlayerInfo(ctx: GameContext) {
     // Prefetch hardware catalog so the ShipInfo panel can label hardware items.
-    if (!ctx.hardwareCatalog) {
+    if (!ctx.catalogs.hardware) {
         try {
             const res = await fetch('/api/hardware');
-            ctx.hardwareCatalog = await res.json();
+            ctx.catalogs.hardware = await res.json();
         } catch {
-            ctx.hardwareCatalog = [];
+            ctx.catalogs.hardware = [];
         }
     }
-    ctx.sendMsg({ type: ClientMsgType.ShipInfo });
+    ctx.io.sendMsg({ type: ClientMsgType.ShipInfo });
 }
