@@ -41,6 +41,26 @@
     stroke: #aa8800;
 }
 
+/* Hover-only label at the screen-edge endpoint of an offscreen wormhole.
+   Hidden by default; the source-pill hover handler adds .is-visible to all
+   end-labels for that source. */
+.minimap-warp-end-label {
+    display: none;
+    pointer-events: none;
+}
+.minimap-warp-end-label.is-visible {
+    display: block;
+}
+.minimap-warp-end-label rect {
+    fill: #aa8800;
+    stroke: #ff0;
+}
+.minimap-warp-end-label-text {
+    fill: #000;
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: bold;
+}
+
 .minimap-arrowhead--neutral {
     fill: #080;
 }

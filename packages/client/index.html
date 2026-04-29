@@ -22,6 +22,14 @@
       color: #888; font-size: 15px; font-family: 'Courier New', Courier, monospace;
       letter-spacing: 0.5px;
     }
+    #minimap .minimap-action-btn {
+      background: #222; color: #c0c0c0; border: 1px solid #444; padding: 3px 8px;
+      font-family: 'Courier New', Courier, monospace; font-size: 14px;
+      cursor: pointer; line-height: 1; min-width: 26px;
+    }
+    #minimap .minimap-action-btn:hover { background: #333; color: #fff; }
+    #minimap .minimap-body.is-panning,
+    #minimap .minimap-body.is-panning svg { cursor: grabbing; }
     #minimap .minimap-body {
       flex: 1; position: relative; overflow: hidden;
     }
