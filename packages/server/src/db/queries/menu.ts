@@ -1,7 +1,6 @@
 import { pool } from '../index.js';
 import type { Queryable } from '../types.js';
 
-/** Check whether a menu transition (source → target) is allowed by menu_command. */
 export async function canTransitionToMenu(
     fromMenu: string,
     toMenu: string,

@@ -258,7 +258,7 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
         const dyPx = e.clientY - panState.lastY;
         panState.lastX = e.clientX;
         panState.lastY = e.clientY;
-        // Drag right → see what's to the left → camera moves left.
+        // Drag right -> see what's to the left -> camera moves left.
         state.viewportCenter = {
             x: state.viewportCenter.x - (dxPx * vbw) / rect.width,
             y: state.viewportCenter.y - (dyPx * vbh) / rect.height,
@@ -487,9 +487,8 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
         );
         svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
 
-        // Defs for arrowhead markers.
-        const defs = document.createElementNS(SVG_NS, 'defs');
-        defs.innerHTML = `
+        const arrowHeadDefs = document.createElementNS(SVG_NS, 'defs');
+        arrowHeadDefs.innerHTML = `
             <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5"
                 orient="auto-start-reverse">
               <path class="minimap-arrowhead--neutral" d="M 0 0 L 10 5 L 0 10 z" />
@@ -510,11 +509,10 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
                 orient="auto-start-reverse">
               <path class="minimap-arrowhead--wormhole" d="M 0 0 L 10 5 L 0 10 z" />
             </marker>`;
-        svg.appendChild(defs);
+        svg.appendChild(arrowHeadDefs);
 
         // Sizes live in world units pinned to the hex-cell scale, so labels
-        // and stroke width are a fixed *fraction of a hex cell* — they grow
-        // on screen automatically as zoom shrinks the viewBox.
+        // and stroke width are a fixed fraction of a hex cell
         const panelPx = body.clientWidth || 320;
         const worldPerPx = viewSize / panelPx;
         const labelSize = HEX_CELL_SIZE * LABEL_FRACTION_OF_CELL;
@@ -559,8 +557,7 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
 
         const warpGroup = document.createElementNS(SVG_NS, 'g');
         svg.appendChild(warpGroup);
-        // Top-of-z overlay for hover-only end-labels — appended last so the
-        // labels can never be obscured by sector pills or warp lines.
+        // Top-of-z overlay for hover-only end-labels
         const overlayGroup = document.createElementNS(SVG_NS, 'g');
         const drawnBi = new Set<string>();
 

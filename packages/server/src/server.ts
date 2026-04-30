@@ -70,7 +70,6 @@ server.prependListener('upgrade', (req: IncomingMessage, socket: Socket) => {
     try {
         auth.verifyToken(jwtToken);
 
-        // Require universe parameter
         const universeParam = url.searchParams.get('universe');
         if (!universeParam) {
             auth.rejectWebSocketUpgrade(socket);
@@ -97,7 +96,6 @@ app.use(
     }),
 );
 
-// Serve static frontend in production
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const clientDist = path.resolve(__dirname, '../../client/dist');
 app.use(express.static(clientDist));
@@ -118,7 +116,6 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
 
     const userId = authPayload.userId;
 
-    // Parse universe from query string
     const url = new URL(req.url || '', `http://${req.headers.host}`);
     const universeParam = url.searchParams.get('universe');
     if (!universeParam) {

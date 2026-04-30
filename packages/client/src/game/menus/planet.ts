@@ -8,9 +8,6 @@ registerMenu(Menu.Planet, {
     input(ctx, line) {
         switch (line.trim().toLowerCase()) {
             case 't':
-                // Multi-step flow: echo at the user keystroke, gather
-                // commodity + qty client-side, then ship one ClientMsg at
-                // the end.
                 echoCommand(ctx, 'takeColonists');
                 ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.PlanetTakeCommodity });
                 break;

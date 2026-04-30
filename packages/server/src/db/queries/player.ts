@@ -97,7 +97,6 @@ export async function markSectorVisited(
     );
 }
 
-/** Update a player's `current_menu_id` by menu name. */
 export async function setPlayerCurrentMenu(
     playerId: number,
     menuName: string,

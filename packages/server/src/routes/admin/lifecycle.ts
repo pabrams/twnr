@@ -264,7 +264,6 @@ export function createAdminLifecycleRoutes(
                     await deletePlayersInUniverse(universeId, client);
                 }
 
-                // CASCADE handles sectors, warps, ports, planets, sector_drones
                 await deleteUniverse(universeId, client);
             });
 

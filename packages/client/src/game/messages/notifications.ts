@@ -23,7 +23,6 @@ export const NOTIFY = makeDomain('NOTIFY', {
         '\r\n[br]***[/br] [bc]Starbase[/bc] [g]is in sector[/g] [by]{sector}[/by] [br]***[/br] ',
     noStarbase: '\r\n[w]No Starbase in this universe.[/w]',
 
-    // Starbase info — universe stats panel (V command).
     universeStatsHeader: '\r\n[bc]=== Universe «{name}» ===[/bc]',
     universeStatsLine: '  [g]{label}[/g] [by]:[/by] [bc]{value}[/bc]',
     universeStatsCreated:

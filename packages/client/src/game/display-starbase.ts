@@ -4,6 +4,7 @@ import { render } from './renderer.js';
 import { STARBASE, COMMON } from './messages/index.js';
 import { showClass0Menu, showClass0QtyPrompt, type DisplayPortCtx } from './display-port.js';
 import { showShipInterestPrompt, type DisplayComputerCtx } from './display-computer.js';
+import { padEndVisible } from './display-utils.js';
 
 export type DisplayStarbaseCtx = Pick<GameContext, 'catalogs' | 'io' | 'ship' | 'starbase'> &
     DisplayPortCtx &
@@ -29,22 +30,6 @@ function fmt(n: number): string {
     return n.toLocaleString();
 }
 
-/** Strip [tag]/[/tag] markup to measure the on-screen width of a colored string. */
-function visibleLength(s: string): number {
-    return s.replace(/\[\/?[a-zA-Z:0-9]+\]/g, '').length;
-}
-
-/** padEnd that counts visible characters, so color-tagged strings still align. */
-function padVisible(s: string, width: number): string {
-    const n = visibleLength(s);
-    return n >= width ? s : s + ' '.repeat(width - n);
-}
-
-/**
- * Given the item chosen by the user, compute how many they can afford to buy
- * (bounded by remaining capacity and credits) and print a one-line detail.
- * Returns the capped maximum so the qty prompt can use it as a default.
- */
 export function showHardwareItemDetail(ctx: DisplayStarbaseCtx, itemName: string): number {
     const item = ctx.starbase.hardwareStoreItems.find((i) => i.name === itemName);
     if (!item) return 0;
@@ -122,8 +107,6 @@ export function showPlanetSelectMenu(
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
 }
 
-// --- Shipyards ---
-
 export function showShipyardsPrompt(ctx: DisplayStarbaseCtx) {
     ctx.io.term.write(render(STARBASE.shipyardsPrompt));
 }
@@ -187,7 +170,7 @@ export async function showShipBuyList(ctx: DisplayStarbaseCtx) {
         ctx.io.term.writeln(
             render(STARBASE.shipyardsBuyRow, {
                 letter: indexToLetter(i),
-                name: padVisible(ship.display_name ?? ship.name, 24),
+                name: padEndVisible(ship.display_name ?? ship.name, 24),
                 price: calculateShipPrice(ship).toLocaleString().padStart(10),
                 current,
             }),

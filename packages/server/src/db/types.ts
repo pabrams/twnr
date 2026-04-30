@@ -8,8 +8,6 @@ export type Queryable = {
     ) => Promise<QueryResult<T>>;
 };
 
-// ─── DB row shapes (match SELECT column aliases) ─────────────────────────────
-
 export interface HardwareRow {
     name: string;
     quantity: number;

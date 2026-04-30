@@ -4,8 +4,6 @@ import { NOTIFY } from '../messages/index.js';
 import { echoCommand } from '../display.js';
 import { registerMenu, getMenuArgs } from './types.js';
 
-// PlanetSelect has no `renderPrompt`: the picker is rendered via a result
-// handler (LandResult) that lists the landable planets.
 registerMenu(Menu.PlanetSelect, {
     input(ctx, line) {
         if (line.toLowerCase() === 'q') {

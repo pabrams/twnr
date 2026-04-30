@@ -69,7 +69,6 @@ export function renderUniverseList(
             const list = document.createElement('div');
             container.appendChild(list);
 
-            // Fetch stats for all universes in parallel
             const statsResults = await Promise.allSettled(
                 universes.map((u) => getUniverseStats(u.id)),
             );

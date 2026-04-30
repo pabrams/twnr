@@ -10,7 +10,6 @@ type Tab = 'dashboard' | 'universes' | 'generate' | 'ships' | 'planets';
 export function setupAdminScreen(container: HTMLElement, onBack: () => void): void {
     container.innerHTML = '';
 
-    // Nav bar
     const nav = document.createElement('div');
     Object.assign(nav.style, {
         display: 'flex',
@@ -43,7 +42,6 @@ export function setupAdminScreen(container: HTMLElement, onBack: () => void): vo
         });
     }
 
-    // Content area
     const content = document.createElement('div');
     content.style.padding = '0 4px';
 
@@ -98,7 +96,6 @@ export function setupAdminScreen(container: HTMLElement, onBack: () => void): vo
         nav.appendChild(btn);
     }
 
-    // Back button (right-aligned)
     const spacer = document.createElement('div');
     spacer.style.flex = '1';
     nav.appendChild(spacer);
@@ -126,6 +123,5 @@ export function setupAdminScreen(container: HTMLElement, onBack: () => void): vo
     container.appendChild(nav);
     container.appendChild(content);
 
-    // Default to dashboard
     switchTab('dashboard');
 }

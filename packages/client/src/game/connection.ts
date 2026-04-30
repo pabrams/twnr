@@ -28,7 +28,6 @@ export function setupConnection(ws: WebSocket, ctx: GameContext, onDisconnect: (
         if (raw.menu) {
             ctx.world.mode = raw.menu as MenuName;
         }
-        // No payload means pure menu transition.
         if (raw.payload === undefined) {
             getMenuHandler(ctx.world.mode)?.renderPrompt?.(ctx);
             ctx.input.inFlight = false;

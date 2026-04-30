@@ -16,7 +16,6 @@ registerMenu(Menu.DroneAttackQty, {
             ctx.io.term.writeln('Enter a positive number.');
             return;
         }
-        // qty submission — the echo fired at A-press in DroneEncounter.
         ctx.io.sendMsg({ type: ClientMsgType.AttackSectorDrones, drones: qty });
     },
 });

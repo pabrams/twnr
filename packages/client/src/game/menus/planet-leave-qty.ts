@@ -18,8 +18,6 @@ registerMenu(Menu.PlanetLeaveQty, {
             backToPlanetMenu(ctx);
             return;
         }
-        // Empty Enter → accept default (leave all ship colonists; server
-        // computes).
         const qty = trimmed === '' ? -1 : parseInt(trimmed, 10);
         if (qty === 0) {
             backToPlanetMenu(ctx);
@@ -29,8 +27,6 @@ registerMenu(Menu.PlanetLeaveQty, {
             ctx.io.term.writeln('Enter a positive number.');
             return;
         }
-        // qty submission for an in-progress leave-colonists flow — the echo
-        // already fired when the user pressed L at the planet menu.
         ctx.io.sendMsg({
             type: ClientMsgType.LeaveColonists,
             quantity: qty,
