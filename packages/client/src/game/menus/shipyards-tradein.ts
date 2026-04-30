@@ -1,5 +1,4 @@
 import { ClientMsgType, Menu } from '@twnr/shared';
-import { render } from '../renderer.js';
 import { echoCommand } from '../display.js';
 import { showTradeinPrompt } from '../display-starbase.js';
 import { registerMenu, getMenuArgs } from './types.js';
@@ -29,8 +28,6 @@ registerMenu(Menu.ShipyardsTradein, {
                 echoCommand(ctx, 'shipyardsBuy');
                 ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsBuy });
                 break;
-            default:
-                ctx.io.term.write(render('[c]Trade in?[/c] (Y/N/Q) '));
         }
     },
 });

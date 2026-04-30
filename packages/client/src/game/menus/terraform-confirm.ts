@@ -20,8 +20,6 @@ registerMenu(Menu.TerraformConfirm, {
                 echoCommand(ctx, 'terraformConfirmBack');
                 ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
                 return;
-            default:
-                ctx.io.term.write(render(NOTIFY.terraformConfirm));
         }
     },
 });

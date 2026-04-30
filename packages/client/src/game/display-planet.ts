@@ -54,6 +54,7 @@ export function showPlanetTakeCommodityMenu(ctx: DisplayPlanetCtx) {
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'O', text: 'Organics colonists' }));
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'E', text: 'Equipment colonists' }));
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
+    ctx.io.term.write(render(PLANET.commodityPrompt));
 }
 
 export function showPlanetLeaveCommodityMenu(ctx: DisplayPlanetCtx) {
@@ -63,6 +64,7 @@ export function showPlanetLeaveCommodityMenu(ctx: DisplayPlanetCtx) {
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'O', text: 'Organics' }));
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'E', text: 'Equipment' }));
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
+    ctx.io.term.write(render(PLANET.commodityPrompt));
 }
 
 export function showNoPlanet(ctx: DisplayPlanetCtx) {

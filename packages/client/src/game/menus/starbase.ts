@@ -1,6 +1,6 @@
 import { ClientMsgType, Menu } from '@twnr/shared';
 import { echoCommand } from '../display.js';
-import { showStarbaseMenu, showStarbasePrompt, showStarbaseHelp } from '../display-starbase.js';
+import { showStarbaseMenu, showStarbaseHelp } from '../display-starbase.js';
 import { registerMenu } from './types.js';
 
 registerMenu(Menu.Starbase, {
@@ -22,8 +22,6 @@ registerMenu(Menu.Starbase, {
                 echoCommand(ctx, 'leaveStarbase');
                 ctx.io.sendMsg({ type: ClientMsgType.LeaveStarbase });
                 break;
-            default:
-                showStarbasePrompt(ctx);
         }
     },
 });

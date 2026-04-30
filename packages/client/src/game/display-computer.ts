@@ -245,6 +245,11 @@ export async function showPlanetSpecs(ctx: DisplayComputerCtx) {
         );
     });
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
+    showPlanetSpecsPrompt(ctx);
+}
+
+export function showPlanetSpecsPrompt(ctx: DisplayComputerCtx) {
+    ctx.io.term.write(render(COMPUTER.planetSpecsPrompt));
 }
 
 export function showPlanetDetail(ctx: DisplayComputerCtx, planet: PlanetConfig) {
@@ -283,6 +288,7 @@ export function showPlanetDetail(ctx: DisplayComputerCtx, planet: PlanetConfig) 
             value: planet.equipmentProduction,
         }),
     );
+    showPlanetSpecsPrompt(ctx);
 }
 
 export async function showCurrentShipSpecs(ctx: DisplayComputerCtx) {

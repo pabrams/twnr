@@ -1,6 +1,6 @@
 import { ClientMsgType, Menu } from '@twnr/shared';
 import { echoCommand } from '../display.js';
-import { showShipyardsMenu, showShipyardsPrompt, showShipyardsHelp } from '../display-starbase.js';
+import { showShipyardsMenu, showShipyardsHelp } from '../display-starbase.js';
 import { registerMenu } from './types.js';
 
 registerMenu(Menu.Shipyards, {
@@ -26,8 +26,6 @@ registerMenu(Menu.Shipyards, {
                 echoCommand(ctx, 'starbase');
                 ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Starbase });
                 break;
-            default:
-                showShipyardsPrompt(ctx);
         }
     },
 });

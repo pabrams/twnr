@@ -20,8 +20,6 @@ registerMenu(Menu.QuitConfirm, {
                 echoCommand(ctx, 'quitConfirmBack');
                 ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
                 return;
-            default:
-                ctx.io.term.write(render(NOTIFY.quitConfirm));
         }
     },
 });

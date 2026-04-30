@@ -33,6 +33,8 @@ export const COMPUTER = makeDomain('COMPUTER', {
 
     planetSpecsHeader: '[bc]=== Planetary Specifications ===[/bc]',
     planetSpecsRow: '  [mg]<[/mg][by]{letter}[/by][mg]>[/mg]  [g]{type}[/g]',
+    planetSpecsPrompt:
+        '\r\n[mg]Planet specs[/mg] [mg]([/mg][by]?[/by][mg],[/mg][by]Q[/by][mg])[/mg] [by]?[/by] ',
     planetDetailHeader: '[bc]=== {type} ===[/bc]',
     planetDetailDescription: '  [w]{description}[/w]',
     planetDetailLine: '  [by]{label}[/by] [w]{value}[/w]',

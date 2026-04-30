@@ -14,6 +14,7 @@ registerMenu(Menu.AttackDrones, {
         const qty = parseInt(line, 10);
         if (isNaN(qty) || qty <= 0) {
             ctx.io.term.writeln('Enter a positive number.');
+            showAttackDronesPrompt(ctx);
             return;
         }
         ctx.io.sendMsg({

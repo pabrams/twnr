@@ -2,7 +2,7 @@ import { ClientMsgType, Menu } from '@twnr/shared';
 import { render } from '../renderer.js';
 import { NOTIFY } from '../messages/index.js';
 import { echoCommand } from '../display.js';
-import { showPlanetSpecs, showPlanetDetail } from '../display-computer.js';
+import { showPlanetSpecs, showPlanetDetail, showPlanetSpecsPrompt } from '../display-computer.js';
 import { letterToIndex } from '../display-starbase.js';
 import { registerMenu } from './types.js';
 
@@ -13,9 +13,14 @@ registerMenu(Menu.PlanetSpecs, {
         void showPlanetSpecs(ctx);
     },
     input(ctx, line) {
-        if (line.toLowerCase() === 'q') {
+        const cmd = line.toLowerCase();
+        if (cmd === 'q') {
             echoCommand(ctx, 'planetSpecsBack');
             ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Computer });
+            return;
+        }
+        if (cmd === '?') {
+            void showPlanetSpecs(ctx);
             return;
         }
         const idx = letterToIndex(line);
@@ -23,6 +28,7 @@ registerMenu(Menu.PlanetSpecs, {
             showPlanetDetail(ctx, ctx.catalogs.planets[idx]);
         } else {
             ctx.io.term.writeln(render(NOTIFY.invalidSelection));
+            showPlanetSpecsPrompt(ctx);
         }
     },
 });

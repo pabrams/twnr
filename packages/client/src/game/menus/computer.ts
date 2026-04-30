@@ -38,8 +38,6 @@ registerMenu(Menu.Computer, {
                 echoCommand(ctx, 'computerBack');
                 ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
                 break;
-            default:
-                showComputerPrompt(ctx);
         }
     },
 });

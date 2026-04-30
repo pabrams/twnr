@@ -1,6 +1,4 @@
 import { ClientMsgType, Menu } from '@twnr/shared';
-import { render } from '../renderer.js';
-import { NOTIFY } from '../messages/index.js';
 import { echoCommand, showPortMenu, showHelp, showPlayerInfo, showPrompt } from '../display.js';
 import { registerMenu } from './types.js';
 
@@ -83,9 +81,6 @@ registerMenu(Menu.Sector, {
                 echoCommand(ctx, 'playersOnline');
                 ctx.io.sendMsg({ type: ClientMsgType.PlayersOnline });
                 break;
-            default:
-                if (line) ctx.io.term.writeln(render(NOTIFY.unknownCommand, { cmd }));
-                showPrompt(ctx);
         }
     },
 });

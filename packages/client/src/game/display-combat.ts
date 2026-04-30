@@ -17,6 +17,11 @@ export function showAttackMenu(ctx: DisplayCombatCtx) {
         ctx.io.term.writeln(render(COMBAT.attackTarget, { n: i + 1, name: p.name }));
     });
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Cancel' }));
+    showAttackPrompt(ctx);
+}
+
+export function showAttackPrompt(ctx: DisplayCombatCtx) {
+    ctx.io.term.write(render(COMBAT.attackPrompt));
 }
 
 export function showAttackDronesPrompt(ctx: DisplayCombatCtx) {
@@ -38,6 +43,11 @@ export function showDroneEncounter(
     }
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'A', text: 'Attack' }));
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'R', text: 'Retreat' }));
+    showDroneEncounterPrompt(ctx);
+}
+
+export function showDroneEncounterPrompt(ctx: DisplayCombatCtx) {
+    ctx.io.term.write(render(COMBAT.droneEncounterPrompt));
 }
 
 export function showDroneAttackQtyPrompt(ctx: DisplayCombatCtx) {
