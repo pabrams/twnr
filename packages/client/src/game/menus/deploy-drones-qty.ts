@@ -8,9 +8,7 @@ registerMenu(Menu.DeployDronesQty, {
     renderPrompt(ctx) {
         const args = getMenuArgs(ctx, Menu.DeployDronesQty);
         if (!args) return;
-        ctx.io.term.write(
-            render(EVENT.deployDronesPrompt, { minInSector: args.minInSector }),
-        );
+        ctx.io.term.write(render(EVENT.deployDronesPrompt, { minInSector: args.minInSector }));
     },
     input(ctx, line) {
         const trimmed = line.trim();

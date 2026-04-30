@@ -1,6 +1,6 @@
 import { WebSocket } from 'ws';
 import { ServerMsgType } from '@twnr/shared';
-import { players, setPlayerMenu } from '../state/players.js';
+import { players } from '../state/players.js';
 import { sendEnvelope, sendError, broadcastTo } from '../state/messaging.js';
 import { getSectorDrones, resolveSectorId } from '../services/sector-lookup.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
@@ -47,13 +47,16 @@ export async function handleDeployDronesInfo(playerId: number): Promise<void> {
         return;
     }
 
-    await setPlayerMenu(playerId, 'deployDronesQty');
-    sendEnvelope(playerId, {
-        type: ServerMsgType.DeployDronesInfoResult,
-        sectorDrones: sectorDrones?.quantity ?? 0,
-        shipDrones: shipInfo.drones,
-        shipMaxDrones: shipInfo.max_drones ?? 0,
-    });
+    await sendEnvelope(
+        playerId,
+        {
+            type: ServerMsgType.DeployDronesInfoResult,
+            sectorDrones: sectorDrones?.quantity ?? 0,
+            shipDrones: shipInfo.drones,
+            shipMaxDrones: shipInfo.max_drones ?? 0,
+        },
+        'deployDronesQty',
+    );
 }
 
 export async function handleDeployDrones(playerId: number, target: number): Promise<void> {
@@ -139,12 +142,15 @@ export async function handleDeployDrones(playerId: number, target: number): Prom
 
         if (newShipDrones === undefined) return;
 
-        await setPlayerMenu(playerId, 'sector');
-        sendEnvelope(playerId, {
-            type: ServerMsgType.DeployDronesResult,
-            sectorDrones: target,
-            shipDrones: newShipDrones,
-        });
+        await sendEnvelope(
+            playerId,
+            {
+                type: ServerMsgType.DeployDronesResult,
+                sectorDrones: target,
+                shipDrones: newShipDrones,
+            },
+            'sector',
+        );
     } catch (err) {
         console.error('Deploy drones error', err);
         sendError(playerId, 'Internal server error');
@@ -222,16 +228,19 @@ export async function handleAttackSectorDrones(
 
         if (victory) {
             player.pendingEncounter = undefined;
-            await setPlayerMenu(playerId, 'sector');
         }
 
-        sendEnvelope(playerId, {
-            type: ServerMsgType.AttackSectorDronesResult,
-            victory,
-            dronesLost: k,
-            sectorDronesRemaining: newSectorDrones,
-            shipDrones: newShipDrones,
-        });
+        await sendEnvelope(
+            playerId,
+            {
+                type: ServerMsgType.AttackSectorDronesResult,
+                victory,
+                dronesLost: k,
+                sectorDronesRemaining: newSectorDrones,
+                shipDrones: newShipDrones,
+            },
+            victory ? 'sector' : undefined,
+        );
 
         const owner = players[ownerId];
         if (owner && owner.ws.readyState === 1) {
@@ -302,12 +311,12 @@ export async function handleRetreatFromDrones(playerId: number): Promise<void> {
     );
 
     player.pendingEncounter = undefined;
-    await setPlayerMenu(playerId, 'sector');
 
-    sendEnvelope(playerId, {
-        type: ServerMsgType.RetreatFromDronesResult,
-        sector: retreatSector,
-    });
+    await sendEnvelope(
+        playerId,
+        { type: ServerMsgType.RetreatFromDronesResult, sector: retreatSector },
+        'sector',
+    );
 
     const sectorData = await buildSectorDisplayData(playerId, retreatSector);
     if (sectorData) {

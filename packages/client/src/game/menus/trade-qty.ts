@@ -11,9 +11,7 @@ registerMenu(Menu.TradeQty, {
         const infoTpl = args.action === 'buy' ? PORT.tradeQtyInfoBuy : PORT.tradeQtyInfoSell;
         const promptTpl = args.action === 'buy' ? PORT.tradeQtyPromptBuy : PORT.tradeQtyPromptSell;
         term.writeln('');
-        term.writeln(
-            render(infoTpl, { portTrading: args.portTrading, onBoard: args.onBoard }),
-        );
+        term.writeln(render(infoTpl, { portTrading: args.portTrading, onBoard: args.onBoard }));
         term.write(render(promptTpl, { commodity: args.commodity, maxQty: args.maxQty }));
     },
     input(ctx, line) {

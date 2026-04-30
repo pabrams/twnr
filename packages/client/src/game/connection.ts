@@ -1,4 +1,5 @@
-import type { ServerResult, MenuName } from '@twnr/shared';
+import type { ServerMessage } from '@twnr/shared';
+import { ServerMsgType } from '@twnr/shared';
 import type { GameContext } from './types.js';
 
 import { render } from './renderer.js';
@@ -17,24 +18,21 @@ export function setupConnection(ws: WebSocket, ctx: GameContext, onDisconnect: (
     });
 
     ws.addEventListener('message', (event) => {
-        const raw = JSON.parse(event.data);
+        const msg: ServerMessage = JSON.parse(event.data);
         if (ctx.io.debug) {
-            const lines = JSON.stringify(raw, null, 2).split('\n');
+            const lines = JSON.stringify(msg, null, 2).split('\n');
             ctx.io.term.writeln(`\r\n\x1b[38;5;243m← ${lines[0]}\x1b[0m`);
             for (let i = 1; i < lines.length; i++) {
                 ctx.io.term.writeln(`\x1b[38;5;243m  ${lines[i]}\x1b[0m`);
             }
         }
-        if (raw.menu) {
-            ctx.world.mode = raw.menu as MenuName;
-        }
+        ctx.world.mode = msg.menu;
         // Clear inFlight before dispatch so handlers can re-set it (via sendMsg)
         // when they chain a follow-up roundtrip. After dispatch, renderPrompt
         // only fires if the handler did NOT chain — otherwise we'd flash a
         // prompt for the intermediate state (e.g. autopilot mid-hops).
         ctx.input.inFlight = false;
-        if (raw.payload !== undefined) {
-            const msg: ServerResult = raw.payload;
+        if (msg.type !== ServerMsgType.MenuTransition) {
             dispatch(ctx, msg);
         }
         if (!ctx.input.inFlight) {

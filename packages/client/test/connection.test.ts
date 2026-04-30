@@ -153,8 +153,8 @@ function createMockCtx(overrides: { autopilot?: Partial<GameContext['autopilot']
     };
 }
 
-function envelope(menu: string, payload: unknown) {
-    return { data: JSON.stringify({ menu, payload }) };
+function envelope(menu: string, payload: Record<string, unknown>) {
+    return { data: JSON.stringify({ ...payload, menu }) };
 }
 
 describe('connection message handler', () => {

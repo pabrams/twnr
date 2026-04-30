@@ -188,7 +188,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
                 tokenVersion,
             }),
         };
-        ws.send(JSON.stringify({ menu: 'sector', payload: welcomeMsg }));
+        await sendEnvelope(playerId, welcomeMsg, 'sector');
 
         let tokens = 50;
         const refillInterval = setInterval(() => {

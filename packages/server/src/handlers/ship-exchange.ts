@@ -103,7 +103,7 @@ export async function handleBuyShipTradein(
 
         if (!result) return;
 
-        sendEnvelope(playerId, {
+        await sendEnvelope(playerId, {
             type: ServerMsgType.BuyShipTradeinResult,
             shipName: targetShipName,
             coloredShipName: result.coloredName,
@@ -178,7 +178,7 @@ export async function handleBuyShipNew(playerId: number, targetShipName: string)
 
         if (!result) return;
 
-        sendEnvelope(playerId, {
+        await sendEnvelope(playerId, {
             type: ServerMsgType.BuyShipNewResult,
             shipName: targetShipName,
             coloredShipName: result.coloredName,

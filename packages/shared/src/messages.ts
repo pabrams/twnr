@@ -105,6 +105,8 @@ export const ServerMsgType = {
     TerraformInfoResult: 'terraformInfoResult',
     HardwareStoreInfoResult: 'hardwareStoreInfoResult',
     NeighborhoodResult: 'neighborhoodResult',
+    /** Pure menu transition with no data payload. */
+    MenuTransition: 'menuTransition',
 } as const;
 type ServerMsgType = typeof ServerMsgType;
 
