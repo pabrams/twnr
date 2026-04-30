@@ -5,7 +5,7 @@ export interface UniverseInfo {
     playerName: string | null;
 }
 
-export function setupUniverseScreen(
+export function setupUniverseScreen(opts: {
     elements: {
         universeList: HTMLElement;
         universeError: HTMLElement;
@@ -13,10 +13,11 @@ export function setupUniverseScreen(
         playerNameInput: HTMLInputElement;
         playerNameError: HTMLElement;
         playerNameSubmit: HTMLButtonElement;
-    },
-    showScreen: (screen: 'auth' | 'universes' | 'playerName' | 'game' | 'admin') => void,
-    onStart: (universeId: number) => void,
-) {
+    };
+    showScreen: (screen: 'auth' | 'universes' | 'playerName' | 'game' | 'admin') => void;
+    onStart: (universeId: number) => void;
+}) {
+    const { elements, showScreen, onStart } = opts;
     let selectedUniverse: UniverseInfo | null = null;
 
     async function showUniverseSelect() {

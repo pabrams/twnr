@@ -32,13 +32,13 @@ export function renderPortList(container: HTMLElement, universeId: number): void
         const editorDiv = document.createElement('div');
         editorDiv.style.marginBottom = '12px';
         container.insertBefore(editorDiv, tableContainer);
-        renderPortEditor(
-            editorDiv,
+        renderPortEditor({
+            container: editorDiv,
             universeId,
-            null,
-            () => renderPortList(container, universeId),
-            () => editorDiv.remove(),
-        );
+            existing: null,
+            onSave: () => renderPortList(container, universeId),
+            onCancel: () => editorDiv.remove(),
+        });
     });
     container.appendChild(createBtn);
 
@@ -139,13 +139,13 @@ export function renderPortList(container: HTMLElement, universeId: number): void
                     const editorDiv = document.createElement('div');
                     editorDiv.style.marginBottom = '12px';
                     container.insertBefore(editorDiv, tableContainer);
-                    renderPortEditor(
-                        editorDiv,
+                    renderPortEditor({
+                        container: editorDiv,
                         universeId,
-                        port,
-                        () => renderPortList(container, universeId),
-                        () => editorDiv.remove(),
-                    );
+                        existing: port,
+                        onSave: () => renderPortList(container, universeId),
+                        onCancel: () => editorDiv.remove(),
+                    });
                 });
 
                 const delBtn = document.createElement('button');
@@ -161,7 +161,7 @@ export function renderPortList(container: HTMLElement, universeId: number): void
                 });
                 delBtn.addEventListener('click', () => {
                     if (confirm(`Delete port in sector ${port.sectorId}?`)) {
-                        deletePort(universeId, port.sectorId)
+                        deletePort({ universeId, sectorId: port.sectorId })
                             .then(() => renderPortList(container, universeId))
                             .catch((err: Error) => alert(err.message));
                     }

@@ -39,12 +39,13 @@ function makeField(
     return { row, input };
 }
 
-export function renderShipEditor(
-    container: HTMLElement,
-    existing: ShipConfig | null,
-    onSave: () => void,
-    onCancel: () => void,
-): void {
+export function renderShipEditor(opts: {
+    container: HTMLElement;
+    existing: ShipConfig | null;
+    onSave: () => void;
+    onCancel: () => void;
+}): void {
+    const { container, existing, onSave, onCancel } = opts;
     container.innerHTML = '';
 
     const heading = document.createElement('h3');
