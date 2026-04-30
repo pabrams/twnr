@@ -1,6 +1,6 @@
 // WebSocket messages (server → client)
 
-import { ServerMsgType } from './messages.js';
+import { ServerMsgType, type MenuName } from './messages.js';
 
 /** A sector number with player-specific visited flag. */
 export type SectorRef = {
@@ -571,6 +571,13 @@ export type NeighborhoodResultObject = {
     warps: NeighborhoodWarp[];
 };
 
+/**
+ * Discriminated union of server-built result payloads — the type a handler
+ * returns. Has no `menu` field; the messaging layer adds `menu` at send
+ * time. The wire type — what the client receives — is `ServerMessage`,
+ * which extends every variant with `menu` and adds a `MenuTransition`
+ * variant for pure transitions that carry no other data.
+ */
 export type ServerResult =
     | WelcomeEvent
     | PlayerMovedEvent
@@ -628,3 +635,27 @@ export type ServerResult =
     | HardwareStoreInfoResultObject
     | NeighborhoodResultObject
     | ErrorResultObject;
+
+/**
+ * Pure menu transition — server tells the client "you're now in this menu"
+ * with no accompanying data payload. The client mirrors the `menu` field
+ * into `ctx.world.mode` and the framework re-renders the menu's prompt.
+ */
+export type MenuTransitionResult = {
+    type: typeof ServerMsgType.MenuTransition;
+    menu: MenuName;
+};
+
+/**
+ * Distributive intersection: adds `menu: MenuName` to every variant of T.
+ * Required because `Omit<A | B, K>` does NOT distribute by default; this
+ * conditional-type form does.
+ */
+type WithMenu<T> = T extends unknown ? T & { menu: MenuName } : never;
+
+/**
+ * Wire-format type the client receives. Every server message has both a
+ * `type` discriminator and a `menu` field. `MenuTransitionResult` covers
+ * pure menu changes that carry no other data.
+ */
+export type ServerMessage = WithMenu<ServerResult> | MenuTransitionResult;

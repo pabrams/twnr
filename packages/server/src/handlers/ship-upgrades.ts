@@ -1,5 +1,5 @@
 import { ServerMsgType } from '@twnr/shared';
-import { players, getPlayerUniverseId, setPlayerMenu } from '../state/players.js';
+import { players, getPlayerUniverseId } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { withTransaction, AbortTransaction } from '../db/index.js';
 import { getCurrentSector, deductCredits } from '../db/queries/player.js';
@@ -75,12 +75,15 @@ export async function handleBuyDrones(playerId: number, quantity: number): Promi
 
         if (!result) return;
 
-        await setPlayerMenu(playerId, class0ReturnMenu(playerId));
-        sendEnvelope(playerId, {
-            type: ServerMsgType.BuyDronesResult,
-            credits: result.credits,
-            drones: result.drones,
-        });
+        await sendEnvelope(
+            playerId,
+            {
+                type: ServerMsgType.BuyDronesResult,
+                credits: result.credits,
+                drones: result.drones,
+            },
+            class0ReturnMenu(playerId),
+        );
     } catch {
         sendError(playerId, 'Internal server error');
     }
@@ -127,12 +130,15 @@ export async function handleBuyShields(playerId: number, quantity: number): Prom
 
         if (!result) return;
 
-        await setPlayerMenu(playerId, class0ReturnMenu(playerId));
-        sendEnvelope(playerId, {
-            type: ServerMsgType.BuyShieldsResult,
-            credits: result.credits,
-            shields: result.shields,
-        });
+        await sendEnvelope(
+            playerId,
+            {
+                type: ServerMsgType.BuyShieldsResult,
+                credits: result.credits,
+                shields: result.shields,
+            },
+            class0ReturnMenu(playerId),
+        );
     } catch {
         sendError(playerId, 'Internal server error');
     }
@@ -189,13 +195,16 @@ export async function handleBuyHolds(playerId: number, quantity: number): Promis
 
         if (!result) return;
 
-        await setPlayerMenu(playerId, class0ReturnMenu(playerId));
-        sendEnvelope(playerId, {
-            type: ServerMsgType.BuyHoldsResult,
-            credits: result.credits,
-            cargoLimit: result.cargoLimit,
-            turnsUsed: result.turnsUsed,
-        });
+        await sendEnvelope(
+            playerId,
+            {
+                type: ServerMsgType.BuyHoldsResult,
+                credits: result.credits,
+                cargoLimit: result.cargoLimit,
+                turnsUsed: result.turnsUsed,
+            },
+            class0ReturnMenu(playerId),
+        );
     } catch {
         sendError(playerId, 'Internal server error');
     }

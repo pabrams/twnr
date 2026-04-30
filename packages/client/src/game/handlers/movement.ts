@@ -40,8 +40,6 @@ export const sectorDisplay: Handler<'sectorDisplayResult', MovementDeps> = (ctx,
     }
 };
 
-
-
 export const move: Handler<'moveResult', MovementDeps> = (ctx, msg) => {
     switch (msg.outcome) {
         case 'success': {

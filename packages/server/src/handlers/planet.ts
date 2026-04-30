@@ -56,13 +56,11 @@ export async function handleLand(playerId: number): Promise<void> {
 
     const planets = await getPlanetsInSector(player.sector, player.universeId);
 
-    if (planets.length > 0) {
-        await setPlayerMenu(playerId, 'planetSelect');
-    }
-    sendEnvelope(playerId, {
-        type: ServerMsgType.LandResult,
-        planets,
-    });
+    await sendEnvelope(
+        playerId,
+        { type: ServerMsgType.LandResult, planets },
+        planets.length > 0 ? 'planetSelect' : undefined,
+    );
 }
 
 export async function handleLandOnPlanet(playerId: number, planetId: number): Promise<void> {
@@ -88,20 +86,24 @@ export async function handleLandOnPlanet(playerId: number, planetId: number): Pr
     await setOnPlanet(playerId, planetId);
 
     const isEarth = player.sector === 1 && planet.name === 'Earth';
-    await setPlayerMenu(playerId, isEarth ? 'planetEarth' : 'planet');
+    const planetMenu = isEarth ? 'planetEarth' : 'planet';
 
     const data = await getPlanetDisplayData(playerId);
     if (!data) {
-        sendError(playerId, 'Planet no longer exists');
+        sendError(playerId, 'Planet no longer exists', planetMenu);
         return;
     }
     const [empty_holds, ship_colonists] = await getShipPlanetContext(playerId);
-    sendEnvelope(playerId, {
-        type: ServerMsgType.LandOnPlanetResult,
-        ...data,
-        empty_holds,
-        ship_colonists,
-    });
+    await sendEnvelope(
+        playerId,
+        {
+            type: ServerMsgType.LandOnPlanetResult,
+            ...data,
+            empty_holds,
+            ship_colonists,
+        },
+        planetMenu,
+    );
 }
 
 async function getShipPlanetContext(playerId: number): Promise<[number, number]> {
@@ -148,15 +150,14 @@ export async function handleLeavePlanet(playerId: number): Promise<void> {
     }
 
     await setOnPlanet(playerId, null);
-    await setPlayerMenu(playerId, 'sector');
 
     const data = await buildSectorDisplayData(playerId);
     if (!data) return;
-    sendEnvelope(playerId, {
-        type: ServerMsgType.LeavePlanetResult,
-        ...data,
-        turnsUsed: turnResult.turnsUsed,
-    });
+    await sendEnvelope(
+        playerId,
+        { type: ServerMsgType.LeavePlanetResult, ...data, turnsUsed: turnResult.turnsUsed },
+        'sector',
+    );
 }
 
 export async function handleDestroyPlanet(playerId: number): Promise<void> {
@@ -193,13 +194,16 @@ export async function handleDestroyPlanet(playerId: number): Promise<void> {
         return;
     }
 
-    await setPlayerMenu(playerId, 'sector');
-    sendEnvelope(playerId, {
-        type: ServerMsgType.DestroyPlanetResult,
-        destroyed: true,
-        planetId: onPlanetId,
-        planetName,
-    });
+    await sendEnvelope(
+        playerId,
+        {
+            type: ServerMsgType.DestroyPlanetResult,
+            destroyed: true,
+            planetId: onPlanetId,
+            planetName,
+        },
+        'sector',
+    );
 
     const data = await buildSectorDisplayData(playerId);
     if (data) sendEnvelope(playerId, { type: ServerMsgType.SectorDisplayResult, ...data });
@@ -245,12 +249,11 @@ export async function handleTerraformInfo(playerId: number): Promise<void> {
         return;
     }
 
-    await setPlayerMenu(playerId, 'terraformConfirm');
-    sendEnvelope(playerId, {
-        type: ServerMsgType.TerraformInfoResult,
-        canTerraform: true,
-        devices,
-    });
+    await sendEnvelope(
+        playerId,
+        { type: ServerMsgType.TerraformInfoResult, canTerraform: true, devices },
+        'terraformConfirm',
+    );
 }
 
 export async function handleUseTerraformDevice(playerId: number): Promise<void> {
@@ -433,10 +436,13 @@ export async function handleTakeColonists(
 
     // Auto-leave planet after taking colonists (success or no-holds)
     await setOnPlanet(playerId, null);
-    await setPlayerMenu(playerId, 'sector');
     const sectorData = await buildSectorDisplayData(playerId);
     if (sectorData) {
-        sendEnvelope(playerId, { type: ServerMsgType.LeavePlanetResult, ...sectorData });
+        await sendEnvelope(
+            playerId,
+            { type: ServerMsgType.LeavePlanetResult, ...sectorData },
+            'sector',
+        );
     }
 }
 

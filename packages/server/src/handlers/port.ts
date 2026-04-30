@@ -1,5 +1,5 @@
 import { ServerMsgType, PORT_CLASS_ACTIONS } from '@twnr/shared';
-import { players, getPlayerUniverseId, setPlayerMenu } from '../state/players.js';
+import { players, getPlayerUniverseId } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { portName } from '../domain/port-classes.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
@@ -108,27 +108,30 @@ export async function handleDock(playerId: number): Promise<void> {
     const portInfoPayload = buildPortInfoPayload(p, player.sector);
 
     if (p.class === 0) {
-        await setPlayerMenu(playerId, 'class0');
         const ship = await getShipInfo(playerId);
-        sendEnvelope(playerId, {
-            type: ServerMsgType.DockResult,
-            docked: true,
-            port: portInfoPayload,
-            credits,
-            cargo: cargoOut,
-            emptyHolds,
-            shipInfo: ship
-                ? {
-                      shipName: ship.ship_name,
-                      drones: ship.drones,
-                      maxDrones: ship.max_drones,
-                      shields: ship.shields,
-                      maxShields: ship.max_shields,
-                      holds: ship.holds,
-                      maxHolds: ship.max_holds,
-                  }
-                : undefined,
-        });
+        await sendEnvelope(
+            playerId,
+            {
+                type: ServerMsgType.DockResult,
+                docked: true,
+                port: portInfoPayload,
+                credits,
+                cargo: cargoOut,
+                emptyHolds,
+                shipInfo: ship
+                    ? {
+                          shipName: ship.ship_name,
+                          drones: ship.drones,
+                          maxDrones: ship.max_drones,
+                          shields: ship.shields,
+                          maxShields: ship.max_shields,
+                          holds: ship.holds,
+                          maxHolds: ship.max_holds,
+                      }
+                    : undefined,
+            },
+            'class0',
+        );
         return;
     }
 
@@ -176,10 +179,13 @@ async function undockPlayer(playerId: number): Promise<void> {
     player.docked = false;
     player.tradeState = undefined;
     await setDocked(playerId, false);
-    await setPlayerMenu(playerId, 'sector');
     const sectorData = await buildSectorDisplayData(playerId);
     if (!sectorData) return;
-    sendEnvelope(playerId, { type: ServerMsgType.UndockResult, outcome: 'success', ...sectorData });
+    await sendEnvelope(
+        playerId,
+        { type: ServerMsgType.UndockResult, outcome: 'success', ...sectorData },
+        'sector',
+    );
 }
 
 async function advanceTradeFlow(playerId: number): Promise<void> {
@@ -217,19 +223,22 @@ async function advanceTradeFlow(playerId: number): Promise<void> {
 
         player.tradeState.stepIndex = i;
         prompted.add(step.commodity);
-        await setPlayerMenu(playerId, 'tradeQty');
-        sendEnvelope(playerId, {
-            type: ServerMsgType.TradePrompt,
-            commodity: step.commodity,
-            commodityLabel: step.commodityLabel,
-            action: step.action,
-            portTrading,
-            onBoard,
-            maxQty,
-            price: step.price,
-            credits: cargo.credits,
-            emptyHolds,
-        });
+        await sendEnvelope(
+            playerId,
+            {
+                type: ServerMsgType.TradePrompt,
+                commodity: step.commodity,
+                commodityLabel: step.commodityLabel,
+                action: step.action,
+                portTrading,
+                onBoard,
+                maxQty,
+                price: step.price,
+                credits: cargo.credits,
+                emptyHolds,
+            },
+            'tradeQty',
+        );
         return;
     }
 
@@ -289,15 +298,18 @@ export async function handleTradeResponse(playerId: number, quantity: number): P
     const totalPrice = clampedQty * step.price;
     player.tradeState.pendingQty = clampedQty;
 
-    await setPlayerMenu(playerId, 'tradeConfirm');
-    sendEnvelope(playerId, {
-        type: ServerMsgType.TradeConfirmPrompt,
-        commodity: step.commodity,
-        commodityLabel: step.commodityLabel,
-        action: step.action,
-        quantity: clampedQty,
-        totalPrice,
-    });
+    await sendEnvelope(
+        playerId,
+        {
+            type: ServerMsgType.TradeConfirmPrompt,
+            commodity: step.commodity,
+            commodityLabel: step.commodityLabel,
+            action: step.action,
+            quantity: clampedQty,
+            totalPrice,
+        },
+        'tradeConfirm',
+    );
 }
 
 export async function handleTradeConfirmResponse(
@@ -645,28 +657,31 @@ export async function handleDockStarbase(playerId: number): Promise<void> {
     }
 
     player.at_starbase = true;
-    await setPlayerMenu(playerId, 'starbase');
 
     const [priceRows, ship] = await Promise.all([
         getHardwarePricesForUniverse(player.universeId),
         getShipInfo(playerId),
     ]);
-    sendEnvelope(playerId, {
-        type: ServerMsgType.DockStarbaseResult,
-        prices: priceRows.map((r) => ({ name: r.name, label: r.label, price: r.price })),
-        credits: ship?.credits,
-        shipInfo: ship
-            ? {
-                  shipName: ship.ship_name,
-                  drones: ship.drones,
-                  maxDrones: ship.max_drones,
-                  shields: ship.shields,
-                  maxShields: ship.max_shields,
-                  holds: ship.holds,
-                  maxHolds: ship.max_holds,
-              }
-            : undefined,
-    });
+    await sendEnvelope(
+        playerId,
+        {
+            type: ServerMsgType.DockStarbaseResult,
+            prices: priceRows.map((r) => ({ name: r.name, label: r.label, price: r.price })),
+            credits: ship?.credits,
+            shipInfo: ship
+                ? {
+                      shipName: ship.ship_name,
+                      drones: ship.drones,
+                      maxDrones: ship.max_drones,
+                      shields: ship.shields,
+                      maxShields: ship.max_shields,
+                      holds: ship.holds,
+                      maxHolds: ship.max_holds,
+                  }
+                : undefined,
+        },
+        'starbase',
+    );
 }
 
 export async function handleLeaveStarbase(playerId: number): Promise<void> {
@@ -679,12 +694,12 @@ export async function handleLeaveStarbase(playerId: number): Promise<void> {
     }
 
     player.at_starbase = false;
-    await setPlayerMenu(playerId, 'sector');
 
     const sectorData = await buildSectorDisplayData(playerId);
     if (!sectorData) return;
-    sendEnvelope(playerId, {
-        type: ServerMsgType.LeaveStarbaseResult,
-        ...sectorData,
-    });
+    await sendEnvelope(
+        playerId,
+        { type: ServerMsgType.LeaveStarbaseResult, ...sectorData },
+        'sector',
+    );
 }

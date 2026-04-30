@@ -2,11 +2,7 @@ import { ClientMsgType, Menu, type ShipCatalogEntry } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { echoCommand } from '../display.js';
-import {
-    showShipBuyList,
-    showShipyardsBuyPrompt,
-    letterToIndex,
-} from '../display-starbase.js';
+import { showShipBuyList, showShipyardsBuyPrompt, letterToIndex } from '../display-starbase.js';
 import { NOTIFY, COMMON } from '../messages/index.js';
 import { registerMenu, setMenuArgs } from './types.js';
 

@@ -1,7 +1,7 @@
 import { ServerMsgType } from '@twnr/shared';
 import type { ServerResult } from '@twnr/shared';
 
-import { players, setPlayerMenu } from '../state/players.js';
+import { players } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { withTransaction, AbortTransaction } from '../db/index.js';
 import {
@@ -32,8 +32,11 @@ export async function handleAttack(playerId: number): Promise<void> {
         roster.push({ id: pid, name: p.name });
     }
 
-    await setPlayerMenu(playerId, roster.length > 0 ? 'attack' : 'sector');
-    sendEnvelope(playerId, { type: ServerMsgType.AttackMenuResult, players: roster });
+    await sendEnvelope(
+        playerId,
+        { type: ServerMsgType.AttackMenuResult, players: roster },
+        roster.length > 0 ? 'attack' : 'sector',
+    );
 }
 
 export async function handleAttackShip(
@@ -118,7 +121,6 @@ export async function handleAttackShip(
 
         const { destroyed, attackerDronesLost, defenderDronesLost, shieldsLost } = result;
 
-        await setPlayerMenu(attackerId, 'sector');
         const resultMsg: ServerResult = {
             type: ServerMsgType.AttackShipResult,
             destroyed,
@@ -127,10 +129,10 @@ export async function handleAttackShip(
             defenderShieldsLost: shieldsLost,
             message: destroyed ? 'Target destroyed!' : 'Attack completed.',
         };
-        sendEnvelope(attackerId, resultMsg);
+        await sendEnvelope(attackerId, resultMsg, 'sector');
 
         if (target.ws && target.ws.readyState === 1) {
-            sendEnvelope(targetPlayerId, {
+            await sendEnvelope(targetPlayerId, {
                 type: ServerMsgType.AttackShipResult,
                 destroyed,
                 attackerDronesLost,

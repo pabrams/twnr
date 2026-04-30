@@ -1,6 +1,6 @@
 import { WebSocket } from 'ws';
 import { ServerMsgType } from '@twnr/shared';
-import { players, getPlayerUniverseId, setPlayerMenu } from '../state/players.js';
+import { players, getPlayerUniverseId } from '../state/players.js';
 import { sendEnvelope, sendError, broadcastTo } from '../state/messaging.js';
 import { getGraph } from '../state/graph-cache.js';
 import { getWarpRefs, resolveSectorId } from '../services/sector-lookup.js';
@@ -124,24 +124,27 @@ export async function handleMove(playerId: number, targetSector: number): Promis
     // Hostile drone encounter — send DroneEncounter with embedded sector data
     if (sectorData.sectorDrones && sectorData.sectorDrones.ownerId !== playerId) {
         player.pendingEncounter = { retreatSector: currentSector };
-        await setPlayerMenu(playerId, 'droneEncounter');
 
         const shipDrones = (await getShipDrones(playerId)) ?? 0;
 
-        sendEnvelope(playerId, {
-            type: ServerMsgType.MoveResult,
-            outcome: 'encounter',
-            sector: targetSector,
-            warps: sectorData.warps,
-            players: sectorData.players,
-            port: sectorData.port,
-            sectorDrones: sectorData.sectorDrones.quantity,
-            ownerId: sectorData.sectorDrones.ownerId,
-            ownerName: sectorData.sectorDrones.ownerName,
-            shipDrones,
-            retreatSector: currentSector,
-            turnsUsed: turnResult.turnsUsed,
-        });
+        await sendEnvelope(
+            playerId,
+            {
+                type: ServerMsgType.MoveResult,
+                outcome: 'encounter',
+                sector: targetSector,
+                warps: sectorData.warps,
+                players: sectorData.players,
+                port: sectorData.port,
+                sectorDrones: sectorData.sectorDrones.quantity,
+                ownerId: sectorData.sectorDrones.ownerId,
+                ownerName: sectorData.sectorDrones.ownerName,
+                shipDrones,
+                retreatSector: currentSector,
+                turnsUsed: turnResult.turnsUsed,
+            },
+            'droneEncounter',
+        );
 
         // Alert the owner about the intrusion (skip for rogue drones)
         const ownerId = sectorData.sectorDrones.ownerId;
@@ -159,13 +162,16 @@ export async function handleMove(playerId: number, targetSector: number): Promis
         return;
     }
 
-    await setPlayerMenu(playerId, 'sector');
-    sendEnvelope(playerId, {
-        type: ServerMsgType.MoveResult,
-        outcome: 'success',
-        ...sectorData,
-        turnsUsed: turnResult.turnsUsed,
-    });
+    await sendEnvelope(
+        playerId,
+        {
+            type: ServerMsgType.MoveResult,
+            outcome: 'success',
+            ...sectorData,
+            turnsUsed: turnResult.turnsUsed,
+        },
+        'sector',
+    );
 }
 
 export async function handleMoveToPrevious(playerId: number): Promise<void> {
@@ -244,14 +250,17 @@ export async function handleShortestPath(
             if (neighbor === to) {
                 const finalPath = [...path, neighbor];
                 const visitedSet = await findVisitedSectorsInSet(playerId, universeId, finalPath);
-                await setPlayerMenu(playerId, 'autopilotPrompt');
                 const hops = finalPath.length - 1;
-                sendEnvelope(playerId, {
-                    type: ServerMsgType.ShortestPathResult,
-                    path: finalPath.map((s) => ({ sector: s, visited: visitedSet.has(s) })),
-                    hops,
-                    turns: hops * turnsPerWarp,
-                });
+                await sendEnvelope(
+                    playerId,
+                    {
+                        type: ServerMsgType.ShortestPathResult,
+                        path: finalPath.map((s) => ({ sector: s, visited: visitedSet.has(s) })),
+                        hops,
+                        turns: hops * turnsPerWarp,
+                    },
+                    'autopilotPrompt',
+                );
                 return;
             }
             if (!visited.has(neighbor)) {
