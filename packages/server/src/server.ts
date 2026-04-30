@@ -277,11 +277,14 @@ export async function startServer() {
         });
     } catch (error) {
         console.error('Error during server startup:', error);
-        process.exit(1);
+        throw error;
     }
 }
 
-// Only start the server if this file is run directly
+// Only start the server if this file is run directly. Unhandled rejections
+// from `startServer` propagate to Node's default handler, which terminates
+// the process with a non-zero exit code — same outcome as the previous
+// `process.exit(1)` but lint-clean.
 if (process.argv[1] && process.argv[1].endsWith('server.js')) {
     startServer();
 }
