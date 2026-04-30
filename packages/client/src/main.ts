@@ -35,8 +35,8 @@ function showScreen(screen: 'auth' | 'universes' | 'playerName' | 'game' | 'admi
     adminDiv.style.display = screen === 'admin' ? 'flex' : 'none';
 }
 
-const { showUniverseSelect } = setupUniverseScreen(
-    {
+const { showUniverseSelect } = setupUniverseScreen({
+    elements: {
         universeList,
         universeError,
         playerNameDiv,
@@ -45,13 +45,13 @@ const { showUniverseSelect } = setupUniverseScreen(
         playerNameSubmit,
     },
     showScreen,
-    (universeId) => {
+    onStart: (universeId) => {
         showScreen('game');
         startGame(universeId, termDiv, () => {
             showUniverseSelect();
         });
     },
-);
+});
 
 let adminInitialized = false;
 adminBtn.addEventListener('click', () => {
@@ -64,22 +64,17 @@ adminBtn.addEventListener('click', () => {
     }
 });
 
-setupAuthScreen(
-    { nameInput, emailInput, passwordInput, submitBtn, toggleBtn, guestBtn, errorDiv },
-    (data) => {
-        if (data.role === 'admin') {
-            adminBtn.style.display = '';
-        } else {
-            adminBtn.style.display = 'none';
-        }
+setupAuthScreen({
+    elements: { nameInput, emailInput, passwordInput, submitBtn, toggleBtn, guestBtn, errorDiv },
+    onSuccess: (data) => {
+        adminBtn.style.display = data.role === 'admin' ? '' : 'none';
         showUniverseSelect();
     },
-    (universeId) => {
-        // Guest: skip universe-select, drop straight into the assigned universe.
+    onGuestSuccess: (universeId) => {
         adminBtn.style.display = 'none';
         showScreen('game');
         startGame(universeId, termDiv, () => {
             showUniverseSelect();
         });
     },
-);
+});

@@ -30,12 +30,12 @@ export function renderShipList(container: HTMLElement): void {
         createBtn.style.background = '#333';
     });
     createBtn.addEventListener('click', () => {
-        renderShipEditor(
+        renderShipEditor({
             container,
-            null,
-            () => renderShipList(container),
-            () => renderShipList(container),
-        );
+            existing: null,
+            onSave: () => renderShipList(container),
+            onCancel: () => renderShipList(container),
+        });
     });
     container.appendChild(createBtn);
 
@@ -129,12 +129,12 @@ export function renderShipList(container: HTMLElement): void {
                     marginRight: '4px',
                 });
                 editBtn.addEventListener('click', () => {
-                    renderShipEditor(
+                    renderShipEditor({
                         container,
-                        ship,
-                        () => renderShipList(container),
-                        () => renderShipList(container),
-                    );
+                        existing: ship,
+                        onSave: () => renderShipList(container),
+                        onCancel: () => renderShipList(container),
+                    });
                 });
 
                 const delBtn = document.createElement('button');

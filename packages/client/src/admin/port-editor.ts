@@ -39,13 +39,14 @@ function makeField(
     return { row, input };
 }
 
-export function renderPortEditor(
-    container: HTMLElement,
-    universeId: number,
-    existing: PortInfo | null,
-    onSave: () => void,
-    onCancel: () => void,
-): void {
+export function renderPortEditor(opts: {
+    container: HTMLElement;
+    universeId: number;
+    existing: PortInfo | null;
+    onSave: () => void;
+    onCancel: () => void;
+}): void {
+    const { container, universeId, existing, onSave, onCancel } = opts;
     container.innerHTML = '';
 
     const heading = document.createElement('h3');
@@ -181,7 +182,7 @@ export function renderPortEditor(
         saveBtn.disabled = true;
 
         if (existing) {
-            updatePort(universeId, existing.sectorId, params)
+            updatePort({ universeId, sectorId: existing.sectorId, params })
                 .then(() => onSave())
                 .catch((err: Error) => {
                     errorDiv.textContent = err.message || 'Update failed.';
@@ -196,7 +197,7 @@ export function renderPortEditor(
                 saveBtn.disabled = false;
                 return;
             }
-            createPort(universeId, sectorId, params)
+            createPort({ universeId, sectorId, params })
                 .then(() => onSave())
                 .catch((err: Error) => {
                     errorDiv.textContent = err.message || 'Create failed.';

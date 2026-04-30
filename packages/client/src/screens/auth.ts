@@ -1,4 +1,4 @@
-export function setupAuthScreen(
+export function setupAuthScreen(opts: {
     elements: {
         nameInput: HTMLInputElement;
         emailInput: HTMLInputElement;
@@ -7,10 +7,11 @@ export function setupAuthScreen(
         toggleBtn: HTMLButtonElement;
         guestBtn: HTMLButtonElement;
         errorDiv: HTMLElement;
-    },
-    onSuccess: (data: { userId?: number; role?: string }) => void,
-    onGuestSuccess: (universeId: number) => void,
-) {
+    };
+    onSuccess: (data: { userId?: number; role?: string }) => void;
+    onGuestSuccess: (universeId: number) => void;
+}) {
+    const { elements, onSuccess, onGuestSuccess } = opts;
     let isLogin = false;
 
     function updateAuthMode() {

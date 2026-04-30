@@ -1,5 +1,3 @@
-// Types for API responses
-
 export interface ServerStats {
     uptime: number;
     playersOnline: number;
@@ -50,7 +48,6 @@ export interface GenerateUniverseResult {
     portCount: number;
 }
 
-// API helper
 export async function adminFetch<T>(path: string, options?: RequestInit): Promise<T> {
     const res = await fetch(path, {
         ...options,
@@ -66,12 +63,10 @@ export async function adminFetch<T>(path: string, options?: RequestInit): Promis
     return res.json();
 }
 
-// Server stats
 export function getServerStats(): Promise<ServerStats> {
     return adminFetch('/api/admin/server-stats');
 }
 
-// Universe lifecycle
 export function generateUniverse(params: GenerateUniverseParams): Promise<GenerateUniverseResult> {
     return adminFetch('/api/admin/universes/generate', {
         method: 'POST',

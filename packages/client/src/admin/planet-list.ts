@@ -30,12 +30,12 @@ export function renderPlanetList(container: HTMLElement): void {
         createBtn.style.background = '#333';
     });
     createBtn.addEventListener('click', () => {
-        renderPlanetEditor(
+        renderPlanetEditor({
             container,
-            null,
-            () => renderPlanetList(container),
-            () => renderPlanetList(container),
-        );
+            existing: null,
+            onSave: () => renderPlanetList(container),
+            onCancel: () => renderPlanetList(container),
+        });
     });
     container.appendChild(createBtn);
 
@@ -65,7 +65,6 @@ export function renderPlanetList(container: HTMLElement): void {
             table.style.fontSize = '12px';
             table.style.width = '100%';
 
-            // Header
             const thead = document.createElement('thead');
             const headerRow = document.createElement('tr');
             const headers = [
@@ -119,7 +118,6 @@ export function renderPlanetList(container: HTMLElement): void {
                     tr.appendChild(td);
                 }
 
-                // Actions
                 const actionTd = document.createElement('td');
                 actionTd.style.padding = '3px 8px';
                 actionTd.style.borderBottom = '1px solid #222';
@@ -137,12 +135,12 @@ export function renderPlanetList(container: HTMLElement): void {
                     marginRight: '4px',
                 });
                 editBtn.addEventListener('click', () => {
-                    renderPlanetEditor(
+                    renderPlanetEditor({
                         container,
-                        planet,
-                        () => renderPlanetList(container),
-                        () => renderPlanetList(container),
-                    );
+                        existing: planet,
+                        onSave: () => renderPlanetList(container),
+                        onCancel: () => renderPlanetList(container),
+                    });
                 });
 
                 const delBtn = document.createElement('button');

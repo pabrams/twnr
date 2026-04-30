@@ -35,31 +35,34 @@ export function listPorts(universeId: number): Promise<PortInfo[]> {
     return adminFetch(`/api/admin/universes/${universeId}/ports`);
 }
 
-export function updatePort(
-    universeId: number,
-    sectorId: number,
-    params: PortUpdateParams,
-): Promise<PortInfo> {
+export function updatePort(opts: {
+    universeId: number;
+    sectorId: number;
+    params: PortUpdateParams;
+}): Promise<PortInfo> {
+    const { universeId, sectorId, params } = opts;
     return adminFetch(`/api/admin/universes/${universeId}/ports/${sectorId}`, {
         method: 'PUT',
         body: JSON.stringify(params),
     });
 }
 
-export function createPort(
-    universeId: number,
-    sectorId: number,
-    params: PortCreateParams,
-): Promise<PortInfo> {
+export function createPort(opts: {
+    universeId: number;
+    sectorId: number;
+    params: PortCreateParams;
+}): Promise<PortInfo> {
+    const { universeId, sectorId, params } = opts;
     return adminFetch(`/api/admin/universes/${universeId}/ports/${sectorId}`, {
         method: 'POST',
         body: JSON.stringify(params),
     });
 }
 
-export function deletePort(
-    universeId: number,
-    sectorId: number,
-): Promise<{ deleted: boolean; sectorId: number }> {
+export function deletePort(opts: {
+    universeId: number;
+    sectorId: number;
+}): Promise<{ deleted: boolean; sectorId: number }> {
+    const { universeId, sectorId } = opts;
     return adminFetch(`/api/admin/universes/${universeId}/ports/${sectorId}`, { method: 'DELETE' });
 }
