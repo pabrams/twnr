@@ -31,8 +31,8 @@ registerMenu(Menu.Class0, {
                 ctx.io.sendMsg({ type: ClientMsgType.Undock });
                 break;
             case '?':
-            default:
                 void showClass0Menu(ctx);
+                break;
         }
     },
 });

@@ -26,6 +26,8 @@ export const STARBASE = makeDomain('STARBASE', {
     shipyardsBuyHeader: '[bc]=== Shipyards - Buy ===[/bc]',
     shipyardsBuyRow: '  [by]{letter}[/by]  [w]{name}[/w] [by]{price}[/by] cr{current}',
     shipyardsBuyCurrent: ' [bg](current)[/bg]',
+    shipyardsBuyPrompt:
+        '\r\n[mg]<[/mg][bc]Shipyards Buy[/bc][mg]>[/mg] [mg]([/mg][by]?[/by][mg],[/mg][by]Q[/by][mg])[/mg] [by]?[/by] ',
     shipyardsExamineHeader: '[bc]=== Shipyards - {label} ===[/bc]',
     shipyardsExamineRow: '  [by]{letter}[/by]  [w]{name}[/w]',
 

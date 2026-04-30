@@ -31,7 +31,9 @@ vi.mock('../src/game/display-planet.js', () => ({
 }));
 vi.mock('../src/game/display-combat.js', () => ({
     showDroneEncounter: vi.fn(),
+    showDroneEncounterPrompt: vi.fn(),
     showAttackMenu: vi.fn(),
+    showAttackPrompt: vi.fn(),
     showAttackDronesPrompt: vi.fn(),
     showDroneAttackQtyPrompt: vi.fn(),
 }));
@@ -43,6 +45,7 @@ vi.mock('../src/game/display-starbase.js', () => ({
     showShipyardsClass0Menu: vi.fn(),
     showShipyardsClass0QtyPrompt: vi.fn(),
     showShipBuyList: vi.fn(),
+    showShipyardsBuyPrompt: vi.fn(),
     showShipExamineList: vi.fn(),
     showTradeinPrompt: vi.fn(),
     showBuyQtyPrompt: vi.fn(),
@@ -53,6 +56,7 @@ vi.mock('../src/game/display-computer.js', () => ({
     showKnownUniverseMenu: vi.fn(),
     showShipCatalog: vi.fn(),
     showPlanetSpecs: vi.fn(),
+    showPlanetSpecsPrompt: vi.fn(),
 }));
 vi.mock('../src/game/input.js', () => ({
     drainInputQueue: vi.fn(),

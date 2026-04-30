@@ -21,8 +21,6 @@ registerMenu(Menu.KnownUniverse, {
                 echoCommand(ctx, 'knownUniverseBack');
                 ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Computer });
                 break;
-            default:
-                showKnownUniverseMenu(ctx);
         }
     },
 });

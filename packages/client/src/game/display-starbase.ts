@@ -177,6 +177,11 @@ export async function showShipBuyList(ctx: DisplayStarbaseCtx) {
         );
     });
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
+    showShipyardsBuyPrompt(ctx);
+}
+
+export function showShipyardsBuyPrompt(ctx: DisplayStarbaseCtx) {
+    ctx.io.term.write(render(STARBASE.shipyardsBuyPrompt));
 }
 
 export function showShipExamineList(ctx: DisplayStarbaseCtx) {

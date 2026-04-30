@@ -30,10 +30,8 @@ registerMenu(Menu.ShipyardsClass0, {
                 ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Shipyards });
                 break;
             case '?':
-            default:
-                // showClass0Menu is async (loads class-0 prices on first call);
-                // intentionally fire-and-forget.
                 void showClass0Menu(ctx);
+                break;
         }
     },
 });

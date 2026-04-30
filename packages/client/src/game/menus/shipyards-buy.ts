@@ -2,7 +2,11 @@ import { ClientMsgType, Menu, type ShipCatalogEntry } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { echoCommand } from '../display.js';
-import { showShipBuyList, letterToIndex } from '../display-starbase.js';
+import {
+    showShipBuyList,
+    showShipyardsBuyPrompt,
+    letterToIndex,
+} from '../display-starbase.js';
 import { NOTIFY, COMMON } from '../messages/index.js';
 import { registerMenu, setMenuArgs } from './types.js';
 
@@ -26,9 +30,14 @@ registerMenu(Menu.ShipyardsBuy, {
         showShipBuyList(ctx);
     },
     input(ctx, line) {
-        if (line.toLowerCase() === 'q') {
+        const cmd = line.toLowerCase();
+        if (cmd === 'q') {
             echoCommand(ctx, 'shipyards');
             ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Shipyards });
+            return;
+        }
+        if (cmd === '?') {
+            void showShipBuyList(ctx);
             return;
         }
         const idx = letterToIndex(line);
@@ -38,6 +47,7 @@ registerMenu(Menu.ShipyardsBuy, {
                 ctx.io.term.writeln(
                     render(COMMON.errorLine, { text: 'Already flying that ship.' }),
                 );
+                showShipyardsBuyPrompt(ctx);
                 return;
             }
             setMenuArgs(ctx, {
@@ -50,6 +60,7 @@ registerMenu(Menu.ShipyardsBuy, {
             ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsTradein });
         } else {
             ctx.io.term.writeln(render(NOTIFY.invalidSelection));
+            showShipyardsBuyPrompt(ctx);
         }
     },
 });
