@@ -1,16 +1,18 @@
-import { ClientMsgType } from '@twnr/shared';
+import { ClientMsgType, Menu } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { EVENT } from '../messages/index.js';
-import { showPrompt, showSectorDisplay, type DisplayCtx } from '../display.js';
+import { showSectorDisplay, type DisplayCtx } from '../display.js';
 import { showDroneEncounter, showAttackMenu, type DisplayCombatCtx } from '../display-combat.js';
+import { setMenuArgs, type MenuArgsSlot } from '../menus/types.js';
 import type { Handler } from './index.js';
 import { refreshMinimap, type RefreshMinimapDeps } from './utils.js';
 
 type CombatDeps = Pick<GameContext, 'autopilot' | 'encounter' | 'io' | 'world'> &
     DisplayCtx &
     DisplayCombatCtx &
-    RefreshMinimapDeps;
+    RefreshMinimapDeps &
+    MenuArgsSlot;
 
 export const attackShip: Handler<'attackShipResult', CombatDeps> = (ctx, msg) => {
     ctx.io.term.writeln('');
@@ -37,7 +39,6 @@ export const attackShip: Handler<'attackShipResult', CombatDeps> = (ctx, msg) =>
             value: msg.defenderDronesLost,
         }),
     );
-    showPrompt(ctx);
 };
 
 export const attackMenu: Handler<'attackMenuResult', CombatDeps> = (ctx, msg) => {
@@ -68,7 +69,7 @@ export const deployDronesInfo: Handler<'deployDronesInfoResult', CombatDeps> = (
             minInSector,
         }),
     );
-    ctx.io.term.write(render(EVENT.deployDronesPrompt, { minInSector }));
+    setMenuArgs(ctx, { menu: Menu.DeployDronesQty, minInSector });
 };
 
 export const deployDrones: Handler<'deployDronesResult', CombatDeps> = (ctx, msg) => {
@@ -78,7 +79,6 @@ export const deployDrones: Handler<'deployDronesResult', CombatDeps> = (ctx, msg
             ship: msg.shipDrones,
         }),
     );
-    showPrompt(ctx);
 };
 
 export const attackSectorDrones: Handler<'attackSectorDronesResult', CombatDeps> = (ctx, msg) => {
@@ -96,8 +96,6 @@ export const attackSectorDrones: Handler<'attackSectorDronesResult', CombatDeps>
             ctx.io.term.writeln(render(EVENT.autopilotResuming));
             ctx.autopilot.paused = false;
             ctx.io.sendMsg({ type: ClientMsgType.SectorDisplay });
-        } else {
-            showPrompt(ctx);
         }
     } else {
         showDroneEncounter(ctx, msg.sectorDronesRemaining, ctx.encounter.ownerName, msg.shipDrones);

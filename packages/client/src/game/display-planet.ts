@@ -1,7 +1,7 @@
 import type { GameContext } from './types.js';
 import { render } from './renderer.js';
 import { PLANET, SECTOR, COMMON } from './messages/index.js';
-import { showPrompt, type DisplayCtx } from './display.js';
+import { type DisplayCtx } from './display.js';
 
 export type DisplayPlanetCtx = Pick<GameContext, 'io' | 'ship'> & DisplayCtx;
 
@@ -9,7 +9,6 @@ export function showPlanetMenu(ctx: DisplayPlanetCtx, name: string, colonists: n
     ctx.io.term.writeln('');
     ctx.io.term.writeln(render(PLANET.landing, { name }));
     ctx.io.term.writeln(render(PLANET.colonists, { count: colonists.toLocaleString() }));
-    showPlanetPrompt(ctx);
 }
 
 export function showPlanetMenuOptions(ctx: DisplayPlanetCtx) {
@@ -70,5 +69,4 @@ export function showPlanetLeaveCommodityMenu(ctx: DisplayPlanetCtx) {
 export function showNoPlanet(ctx: DisplayPlanetCtx) {
     ctx.io.term.writeln('');
     ctx.io.term.writeln(render(SECTOR.noPlanet));
-    showPrompt(ctx);
 }

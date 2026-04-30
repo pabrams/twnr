@@ -1,10 +1,11 @@
-import { PORT_CLASS_ACTIONS, type PortClassActions } from '@twnr/shared';
+import { PORT_CLASS_ACTIONS, Menu, type PortClassActions } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { NOTIFY, TRANSACTION, PORT } from '../messages/index.js';
-import { showCommerceReport, showPrompt, showSectorDisplay, type DisplayCtx } from '../display.js';
-import { showClass0Menu, showTradeQtyPrompt, type DisplayPortCtx } from '../display-port.js';
-import { showStarbaseMenu, type DisplayStarbaseCtx } from '../display-starbase.js';
+import { showCommerceReport, showSectorDisplay, type DisplayCtx } from '../display.js';
+import { type DisplayPortCtx } from '../display-port.js';
+import { type DisplayStarbaseCtx } from '../display-starbase.js';
+import { setMenuArgs, type MenuArgsSlot } from '../menus/types.js';
 import type { Handler } from './index.js';
 import { fmt, refreshMinimap, type RefreshMinimapDeps } from './utils.js';
 
@@ -12,7 +13,8 @@ type PortDeps = Pick<GameContext, 'catalogs' | 'io' | 'starbase' | 'world'> &
     DisplayCtx &
     DisplayPortCtx &
     DisplayStarbaseCtx &
-    RefreshMinimapDeps;
+    RefreshMinimapDeps &
+    MenuArgsSlot;
 
 export const dock: Handler<'dockResult', PortDeps> = (ctx, msg) => {
     if (!msg.docked || !msg.port) return;
@@ -30,7 +32,7 @@ export const dock: Handler<'dockResult', PortDeps> = (ctx, msg) => {
                 maxHolds: msg.shipInfo.maxHolds,
             };
         }
-        showClass0Menu(ctx, true);
+        ctx.io.term.writeln(render(PORT.class0Docking));
         return;
     }
     const actions = PORT_CLASS_ACTIONS[msg.port.class];
@@ -85,20 +87,22 @@ export const dock: Handler<'dockResult', PortDeps> = (ctx, msg) => {
 };
 
 export const tradePrompt: Handler<'tradePrompt', PortDeps> = (ctx, msg) => {
-    showTradeQtyPrompt(
-        ctx,
-        msg.commodityLabel,
-        msg.action,
-        msg.portTrading,
-        msg.onBoard,
-        msg.maxQty,
-    );
+    setMenuArgs(ctx, {
+        menu: Menu.TradeQty,
+        commodity: msg.commodityLabel,
+        action: msg.action,
+        portTrading: msg.portTrading,
+        onBoard: msg.onBoard,
+        maxQty: msg.maxQty,
+    });
 };
 
 export const tradeConfirmPrompt: Handler<'tradeConfirmPrompt', PortDeps> = (ctx, msg) => {
-    const tpl = msg.action === 'buy' ? TRANSACTION.tradeConfirmSell : TRANSACTION.tradeConfirmBuy;
-    ctx.io.term.writeln(render(tpl, { total: fmt(msg.totalPrice) }));
-    ctx.io.term.write(render(TRANSACTION.tradeConfirmAccept));
+    setMenuArgs(ctx, {
+        menu: Menu.TradeConfirm,
+        action: msg.action,
+        totalPrice: msg.totalPrice,
+    });
 };
 
 export const tradeComplete: Handler<'tradeComplete', PortDeps> = (ctx, msg) => {
@@ -130,7 +134,6 @@ export const undock: Handler<'undockResult', PortDeps> = (ctx, msg) => {
         ctx.starbase.class0ShipState = null;
         ctx.world.sectorPlayers = msg.players;
         refreshMinimap(ctx);
-        showPrompt(ctx);
     } else {
         ctx.io.term.writeln(render(NOTIFY.error, { message: msg.message }));
     }
@@ -151,7 +154,6 @@ export const jettison: Handler<'jettisonResult', PortDeps> = (ctx, msg) => {
     } else {
         ctx.io.term.writeln(render(NOTIFY.error, { message: msg.message }));
     }
-    showPrompt(ctx);
 };
 
 export const portTransaction: Handler<'portTransactionResult', PortDeps> = (ctx, msg) => {
@@ -172,7 +174,6 @@ export const dockStarbase: Handler<'dockStarbaseResult', PortDeps> = (ctx, msg) 
             maxHolds: msg.shipInfo.maxHolds,
         };
     }
-    showStarbaseMenu(ctx);
 };
 
 export const leaveStarbase: Handler<'leaveStarbaseResult', PortDeps> = (ctx, msg) => {

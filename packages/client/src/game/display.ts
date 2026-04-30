@@ -44,7 +44,6 @@ export function showSectorDisplay(
     planets?: { id: number; name: string; type: string }[],
     ships?: { id: number; name: string; typeName: string; ownerName: string }[],
     collisions?: { planetName: string; collidingWithName: string; collisionAt: string }[],
-    withPrompt = true,
 ) {
     ctx.world.visitedSet.add(sector);
     ctx.world.currentSector = sector;
@@ -108,8 +107,6 @@ export function showSectorDisplay(
         const list = warps.map((w) => colorSectorRef(w)).join(render(SECTOR.warpSeparator));
         term.writeln(render(SECTOR.warpsLine, { list }));
     }
-
-    if (withPrompt) showPrompt(ctx);
 }
 
 export function showPrompt(ctx: DisplayCtx) {

@@ -1,14 +1,13 @@
 import type { GameContext } from './types.js';
 import { render } from './renderer.js';
 import { COMBAT, COMMON } from './messages/index.js';
-import { showPrompt, type DisplayCtx } from './display.js';
+import { type DisplayCtx } from './display.js';
 
 export type DisplayCombatCtx = Pick<GameContext, 'io' | 'world'> & DisplayCtx;
 
 export function showAttackMenu(ctx: DisplayCombatCtx) {
     if (ctx.world.sectorPlayers.length === 0) {
         ctx.io.term.writeln(render(COMBAT.attackNoTargets));
-        showPrompt(ctx);
         return;
     }
     ctx.io.term.writeln('');
@@ -17,7 +16,6 @@ export function showAttackMenu(ctx: DisplayCombatCtx) {
         ctx.io.term.writeln(render(COMBAT.attackTarget, { n: i + 1, name: p.name }));
     });
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Cancel' }));
-    showAttackPrompt(ctx);
 }
 
 export function showAttackPrompt(ctx: DisplayCombatCtx) {
@@ -43,7 +41,6 @@ export function showDroneEncounter(
     }
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'A', text: 'Attack' }));
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'R', text: 'Retreat' }));
-    showDroneEncounterPrompt(ctx);
 }
 
 export function showDroneEncounterPrompt(ctx: DisplayCombatCtx) {
