@@ -185,9 +185,9 @@ export async function getPlanetInSector(
     planetId: number,
     sectorNumber: number,
     universeId: number,
-): Promise<any | null> {
-    const res = await pool.query(
-        `SELECT pl.* FROM planets pl
+): Promise<{ id: number; name: string } | null> {
+    const res = await pool.query<{ id: number; name: string }>(
+        `SELECT pl.id, pl.name FROM planets pl
          JOIN sectors s ON pl.sector_id = s.id
          WHERE pl.id = $1 AND s.sector_number = $2 AND s.universe_id = $3`,
         [planetId, sectorNumber, universeId],
