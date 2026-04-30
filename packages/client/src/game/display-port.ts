@@ -1,6 +1,6 @@
 import type { GameContext } from './types.js';
 import { render } from './renderer.js';
-import { SECTOR, PORT } from './messages/index.js';
+import { PORT } from './messages/index.js';
 
 export type DisplayPortCtx = Pick<
     GameContext,
@@ -35,31 +35,7 @@ function formatTimestamp(): string {
     return `${time} ${date}`;
 }
 
-export function showAutopilotPrompt(
-    ctx: DisplayPortCtx,
-    path: { sector: number; visited: boolean }[],
-    hops: number,
-    turns: number,
-) {
-    ctx.autopilot.path = path.map((p) => p.sector);
-    ctx.autopilot.step = 0;
-    const { term } = ctx.io;
-    term.writeln('');
-    const from = path[0]?.sector ?? 0;
-    const to = path[path.length - 1]?.sector ?? 0;
-    term.writeln(render(SECTOR.autopilotNotAdjacent, { hops, turns, from, to }));
-    const sep = render(SECTOR.autopilotPathSeparator);
-    const list = path
-        .map((p) => {
-            const tpl = p.visited ? SECTOR.warpVisited : SECTOR.warpUnvisited;
-            return render(tpl, { sector: p.sector });
-        })
-        .join(sep);
-    term.writeln(`  ${list}`);
-    term.write(render(SECTOR.autopilotConfirm));
-}
-
-export async function showClass0Menu(ctx: DisplayPortCtx, initial = false) {
+export async function showClass0Menu(ctx: DisplayPortCtx) {
     if (!ctx.catalogs.class0Prices) {
         try {
             const res = await fetch('/api/class0-prices');
@@ -76,9 +52,6 @@ export async function showClass0Menu(ctx: DisplayPortCtx, initial = false) {
     const pad = (n: number) => String(n).padStart(6);
 
     term.writeln('');
-    if (initial) {
-        term.writeln(render(PORT.class0Docking));
-    }
     if (ctx.starbase.class0ShipState) {
         term.writeln(
             render(PORT.class0CreditsLine, {

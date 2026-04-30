@@ -1,10 +1,16 @@
 import { ClientMsgType, Menu } from '@twnr/shared';
 import { render } from '../renderer.js';
-import { NOTIFY } from '../messages/index.js';
+import { STARBASE } from '../messages/index.js';
 import { echoCommand } from '../display.js';
+import { showPlanetSelectMenu } from '../display-starbase.js';
 import { registerMenu, getMenuArgs } from './types.js';
 
 registerMenu(Menu.PlanetSelect, {
+    renderPrompt(ctx) {
+        const args = getMenuArgs(ctx, Menu.PlanetSelect);
+        if (args) showPlanetSelectMenu(ctx, args.planets);
+        ctx.io.term.write(render(STARBASE.planetSelectPrompt));
+    },
     input(ctx, line) {
         if (line.toLowerCase() === 'q') {
             echoCommand(ctx, 'planetSelectBack');
@@ -16,8 +22,6 @@ registerMenu(Menu.PlanetSelect, {
         if (planets && idx >= 0 && idx < planets.length) {
             echoCommand(ctx, 'landOnPlanet');
             ctx.io.sendMsg({ type: ClientMsgType.LandOnPlanet, planetId: planets[idx].id });
-        } else {
-            ctx.io.term.writeln(render(NOTIFY.invalidSelection));
         }
     },
 });

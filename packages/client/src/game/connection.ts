@@ -28,18 +28,18 @@ export function setupConnection(ws: WebSocket, ctx: GameContext, onDisconnect: (
         if (raw.menu) {
             ctx.world.mode = raw.menu as MenuName;
         }
-        if (raw.payload === undefined) {
-            getMenuHandler(ctx.world.mode)?.renderPrompt?.(ctx);
-            ctx.input.inFlight = false;
-            drainInputQueue(ctx);
-            return;
-        }
-        const msg: ServerResult = raw.payload;
-        dispatch(ctx, msg);
-        // After every server message: clear in-flight and drain the burst/script
-        // queue. Direct user keystrokes don't go through that queue, so this only
-        // affects programmatic input sources.
+        // Clear inFlight before dispatch so handlers can re-set it (via sendMsg)
+        // when they chain a follow-up roundtrip. After dispatch, renderPrompt
+        // only fires if the handler did NOT chain — otherwise we'd flash a
+        // prompt for the intermediate state (e.g. autopilot mid-hops).
         ctx.input.inFlight = false;
+        if (raw.payload !== undefined) {
+            const msg: ServerResult = raw.payload;
+            dispatch(ctx, msg);
+        }
+        if (!ctx.input.inFlight) {
+            getMenuHandler(ctx.world.mode)?.renderPrompt?.(ctx);
+        }
         drainInputQueue(ctx);
     });
     ws.addEventListener('error', () => {

@@ -145,6 +145,29 @@ export type MenuArgs =
     | {
           menu: typeof Menu.PlanetSelect;
           planets: { id: number; name: string; type: string }[];
+      }
+    | {
+          menu: typeof Menu.AutopilotPrompt;
+          path: { sector: number; visited: boolean }[];
+          hops: number;
+          turns: number;
+      }
+    | {
+          menu: typeof Menu.TradeQty;
+          commodity: string;
+          action: 'buy' | 'sell';
+          portTrading: number;
+          onBoard: number;
+          maxQty: number;
+      }
+    | {
+          menu: typeof Menu.TradeConfirm;
+          action: 'buy' | 'sell';
+          totalPrice: number;
+      }
+    | {
+          menu: typeof Menu.DeployDronesQty;
+          minInSector: number;
       };
 
 export interface GameContext {

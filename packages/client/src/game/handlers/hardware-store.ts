@@ -2,9 +2,9 @@ import { ClientMsgType } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { TRANSACTION, PANEL } from '../messages/index.js';
-import { showPrompt, type DisplayCtx } from '../display.js';
-import { showClass0Menu, type DisplayPortCtx } from '../display-port.js';
-import { showHardwareMenu, type DisplayStarbaseCtx } from '../display-starbase.js';
+import { type DisplayCtx } from '../display.js';
+import { type DisplayPortCtx } from '../display-port.js';
+import { type DisplayStarbaseCtx } from '../display-starbase.js';
 import type { Handler } from './index.js';
 
 type HardwareStoreDeps = Pick<GameContext, 'io' | 'starbase' | 'world'> &
@@ -24,9 +24,6 @@ export const buyDrones: Handler<'buyDronesResult', HardwareStoreDeps> = (ctx, ms
         ctx.starbase.class0ShipState.credits = msg.credits;
         ctx.starbase.class0ShipState.drones = msg.drones;
     }
-    if (ctx.world.dockedPortInfo?.class === 0 || ctx.starbase.class0ShipState) {
-        showClass0Menu(ctx);
-    }
 };
 
 export const buyShields: Handler<'buyShieldsResult', HardwareStoreDeps> = (ctx, msg) => {
@@ -41,9 +38,6 @@ export const buyShields: Handler<'buyShieldsResult', HardwareStoreDeps> = (ctx, 
         ctx.starbase.class0ShipState.credits = msg.credits;
         ctx.starbase.class0ShipState.shields = msg.shields;
     }
-    if (ctx.world.dockedPortInfo?.class === 0 || ctx.starbase.class0ShipState) {
-        showClass0Menu(ctx);
-    }
 };
 
 export const buyHolds: Handler<'buyHoldsResult', HardwareStoreDeps> = (ctx, msg) => {
@@ -57,9 +51,6 @@ export const buyHolds: Handler<'buyHoldsResult', HardwareStoreDeps> = (ctx, msg)
     if (ctx.starbase.class0ShipState) {
         ctx.starbase.class0ShipState.credits = msg.credits;
         ctx.starbase.class0ShipState.holds = msg.cargoLimit;
-    }
-    if (ctx.world.dockedPortInfo?.class === 0 || ctx.starbase.class0ShipState) {
-        showClass0Menu(ctx);
     }
 };
 
@@ -86,7 +77,6 @@ export const hardwareStoreInfo: Handler<'hardwareStoreInfoResult', HardwareStore
 ) => {
     ctx.starbase.hardwareStoreCredits = msg.credits;
     ctx.starbase.hardwareStoreItems = msg.items;
-    showHardwareMenu(ctx);
 };
 
 export const listDeployedDrones: Handler<'listDeployedDronesResult', HardwareStoreDeps> = (
@@ -104,5 +94,4 @@ export const listDeployedDrones: Handler<'listDeployedDronesResult', HardwareSto
             );
         }
     }
-    showPrompt(ctx);
 };

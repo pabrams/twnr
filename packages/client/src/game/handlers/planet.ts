@@ -2,16 +2,15 @@ import { Menu } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { NOTIFY, EVENT, PANEL } from '../messages/index.js';
-import { showPrompt, showSectorDisplay, type DisplayCtx } from '../display.js';
+import { showSectorDisplay, type DisplayCtx } from '../display.js';
 import {
     showPlanetMenu,
-    showPlanetMenuOptions,
     showEarthMenu,
     showNoPlanet,
     type DisplayPlanetCtx,
 } from '../display-planet.js';
-import { showPlanetSelectMenu, type DisplayStarbaseCtx } from '../display-starbase.js';
-import { showComputerPrompt, type DisplayComputerCtx } from '../display-computer.js';
+import { type DisplayStarbaseCtx } from '../display-starbase.js';
+import { type DisplayComputerCtx } from '../display-computer.js';
 import { setMenuArgs, type MenuArgsSlot } from '../menus/types.js';
 import type { Handler } from './index.js';
 import { fmt, refreshMinimap, type RefreshMinimapDeps } from './utils.js';
@@ -55,18 +54,14 @@ export const leaveColonists: Handler<'leaveColonistsResult', PlanetDeps> = (ctx,
     ctx.io.term.writeln(render(PANEL.shipColonistsLine, { count: msg.shipColonists }));
     if (ctx.world.mode === Menu.PlanetEarth) {
         showEarthMenu(ctx, msg.planetColonists);
-    } else if (ctx.world.mode === Menu.Planet) {
-        showPlanetMenuOptions(ctx);
     }
 };
 
 export const land: Handler<'landResult', PlanetDeps> = (ctx, msg) => {
     if (msg.planets.length > 0) {
         setMenuArgs(ctx, { menu: Menu.PlanetSelect, planets: msg.planets });
-        showPlanetSelectMenu(ctx, msg.planets);
     } else {
         ctx.io.term.writeln(render(EVENT.noPlanetsToLand));
-        showPrompt(ctx);
     }
 };
 
@@ -94,7 +89,6 @@ export const landOnPlanet: Handler<'landOnPlanetResult', PlanetDeps> = (ctx, msg
                 equipment: msg.colonists_equipment ?? 0,
             }),
         );
-        showPlanetMenuOptions(ctx);
     }
 };
 
@@ -120,14 +114,12 @@ export const planetDisplay: Handler<'planetDisplayResult', PlanetDeps> = (ctx, m
             equipment: msg.colonists_equipment,
         }),
     );
-    showPlanetMenuOptions(ctx);
 };
 
 export const destroyPlanet: Handler<'destroyPlanetResult', PlanetDeps> = (ctx, msg) => {
     if (msg.destroyed) {
         ctx.io.term.writeln(render(EVENT.planetDestroyed, { name: msg.planetName }));
     }
-    showPrompt(ctx);
 };
 
 export const useTerraformDevice: Handler<'useTerraformDeviceResult', PlanetDeps> = (ctx, msg) => {
@@ -151,7 +143,6 @@ export const useTerraformDevice: Handler<'useTerraformDeviceResult', PlanetDeps>
                   : 'Terraform failed.';
         ctx.io.term.writeln(render(EVENT.terraformFailure, { reason }));
     }
-    showPrompt(ctx);
 };
 
 export const leavePlanet: Handler<'leavePlanetResult', PlanetDeps> = (ctx, msg) => {
@@ -194,18 +185,14 @@ export const listPlanets: Handler<'listPlanetsResult', PlanetDeps> = (ctx, msg) 
             );
         }
     }
-    showComputerPrompt(ctx);
 };
 
 export const terraformInfo: Handler<'terraformInfoResult', PlanetDeps> = (ctx, msg) => {
     if (msg.canTerraform) {
         ctx.io.term.writeln(render(NOTIFY.terraformDevicesAvailable, { count: msg.devices }));
-        ctx.io.term.write(render(NOTIFY.terraformConfirm));
     } else if (msg.reason === 'no_devices') {
         ctx.io.term.writeln(render(NOTIFY.terraformNoDevices));
-        showPrompt(ctx);
     } else {
         ctx.io.term.writeln(render(NOTIFY.error, { message: 'Cannot terraform here.' }));
-        showPrompt(ctx);
     }
 };

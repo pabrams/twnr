@@ -1,9 +1,37 @@
 import { ClientMsgType, Menu } from '@twnr/shared';
 import { render } from '../renderer.js';
-import { NOTIFY, EVENT } from '../messages/index.js';
-import { registerMenu } from './types.js';
+import { NOTIFY, EVENT, SECTOR } from '../messages/index.js';
+import { registerMenu, getMenuArgs } from './types.js';
 
 registerMenu(Menu.AutopilotPrompt, {
+    renderPrompt(ctx) {
+        const args = getMenuArgs(ctx, Menu.AutopilotPrompt);
+        const { term } = ctx.io;
+        if (args) {
+            ctx.autopilot.path = args.path.map((p) => p.sector);
+            ctx.autopilot.step = 0;
+            const from = args.path[0]?.sector ?? 0;
+            const to = args.path[args.path.length - 1]?.sector ?? 0;
+            term.writeln('');
+            term.writeln(
+                render(SECTOR.autopilotNotAdjacent, {
+                    hops: args.hops,
+                    turns: args.turns,
+                    from,
+                    to,
+                }),
+            );
+            const sep = render(SECTOR.autopilotPathSeparator);
+            const list = args.path
+                .map((p) => {
+                    const tpl = p.visited ? SECTOR.warpVisited : SECTOR.warpUnvisited;
+                    return render(tpl, { sector: p.sector });
+                })
+                .join(sep);
+            term.writeln(`  ${list}`);
+        }
+        term.write(render(SECTOR.autopilotConfirm));
+    },
     input(ctx, line) {
         switch (line.trim().toLowerCase()) {
             case '':

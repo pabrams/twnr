@@ -27,7 +27,8 @@ function getCurrentShipPrice(ctx: GameContext): number {
 
 registerMenu(Menu.ShipyardsBuy, {
     renderPrompt(ctx) {
-        showShipBuyList(ctx);
+        void showShipBuyList(ctx);
+        showShipyardsBuyPrompt(ctx);
     },
     input(ctx, line) {
         const cmd = line.toLowerCase();

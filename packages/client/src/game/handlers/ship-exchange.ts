@@ -1,9 +1,9 @@
-import { ServerMsgType, Menu } from '@twnr/shared';
+import { ServerMsgType } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { TRANSACTION, SECTOR, PANEL } from '../messages/index.js';
-import { showPrompt, type DisplayCtx } from '../display.js';
-import { showShipyardsMenu, type DisplayStarbaseCtx } from '../display-starbase.js';
+import { type DisplayCtx } from '../display.js';
+import { type DisplayStarbaseCtx } from '../display-starbase.js';
 import type { Handler } from './index.js';
 import { fmt } from './utils.js';
 
@@ -72,7 +72,6 @@ export const shipInfo: Handler<'shipInfoResult', ShipExchangeDeps> = (ctx, msg) 
     }
     ctx.io.term.writeln(render(PANEL.shipCreditsTurns, { credits: msg.credits, turns: msg.turns }));
     ctx.io.term.writeln(render(PANEL.shipTurnsPerWarp, { turns: msg.turnsPerWarp }));
-    if (ctx.world.mode === Menu.Sector) showPrompt(ctx);
 };
 
 function applyBuyShipResult(
@@ -106,7 +105,6 @@ function applyBuyShipResult(
             maxHolds: cfg?.max_holds ?? msg.cargoLimit,
         };
     }
-    showShipyardsMenu(ctx);
 }
 
 export const buyShipTradein: Handler<'buyShipTradeinResult', ShipExchangeDeps> = applyBuyShipResult;

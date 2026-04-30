@@ -15,8 +15,6 @@ vi.mock('../src/game/display.js', () => ({
 vi.mock('../src/game/display-port.js', () => ({
     showClass0Menu: vi.fn(),
     showClass0QtyPrompt: vi.fn(),
-    showAutopilotPrompt: vi.fn(),
-    showTradeQtyPrompt: vi.fn(),
     showJettisonConfirm: vi.fn(),
 }));
 vi.mock('../src/game/display-planet.js', () => ({

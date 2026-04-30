@@ -1,8 +1,17 @@
 import { ClientMsgType, Menu } from '@twnr/shared';
+import { render } from '../renderer.js';
+import { EVENT } from '../messages/index.js';
 import { echoCommand } from '../display.js';
-import { registerMenu } from './types.js';
+import { registerMenu, getMenuArgs } from './types.js';
 
 registerMenu(Menu.DeployDronesQty, {
+    renderPrompt(ctx) {
+        const args = getMenuArgs(ctx, Menu.DeployDronesQty);
+        if (!args) return;
+        ctx.io.term.write(
+            render(EVENT.deployDronesPrompt, { minInSector: args.minInSector }),
+        );
+    },
     input(ctx, line) {
         const trimmed = line.trim();
         if (trimmed.toLowerCase() === 'q') {

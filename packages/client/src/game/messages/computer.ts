@@ -14,6 +14,9 @@ export const COMPUTER = makeDomain('COMPUTER', {
     knownUniversePrompt:
         '\r\n[bc]Known Universe[/bc] — [by]E[/by]xplored, [by]U[/by]nexplored, [by]Q[/by]uit? ',
 
+    hyperspaceJumpTargetPrompt:
+        '\r\n[mg]Target sector[/mg] [mg]([/mg][by]#[/by][mg],[/mg][by]Q[/by][mg])[/mg] [by]?[/by] ',
+
     exploredHeader: '[bc]Explored sectors[/bc] ({count}):',
     exploredSector: '[bc]{n}[/bc]',
     unexploredHeader: '[bc]Unexplored sectors[/bc] ({count}):',
