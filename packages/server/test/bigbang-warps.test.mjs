@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { readCSV, generateUniverse } from './bigbang-helpers.mjs';
+import { DEFAULT_TWO_WAY_PCT } from '@twnr/shared';
 
 
 /** Returns a Map of value -> count. */
@@ -197,9 +198,9 @@ describe('Bidirectional Warp Percentage', () => {
     assert.ok(pct <= high, `${label}Bidirectional ${pct.toFixed(1)}% above [${low}%-${high}%] for target ${target}%`);
   }
 
-  it('default (no --two-way-pct) gives ~95%', () => {
+  it(`default (no --two-way-pct) gives ~${DEFAULT_TWO_WAY_PCT}%`, () => {
     const dir = generateUniverse({ sectors: 100, seed: 42 });
-    try { assertTwoWayPctInRange(readCSV(join(dir, 'warps.csv')).rows, 95, 'Default: '); }
+    try { assertTwoWayPctInRange(readCSV(join(dir, 'warps.csv')).rows, DEFAULT_TWO_WAY_PCT, 'Default: '); }
     finally { rmSync(dir, { recursive: true, force: true }); }
   });
 
