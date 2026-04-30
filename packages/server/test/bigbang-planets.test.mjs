@@ -58,9 +58,11 @@ describe('Planet Generation', () => {
     }
   });
 
-  it('sector 1 has no planets', () => {
+  it('sector 1 has exactly one planet — Earth (Terran)', () => {
     const sector1 = rows.filter(r => parseInt(r[0], 10) === 1);
-    assert.equal(sector1.length, 0, 'Sector 1 must not have planets');
+    assert.equal(sector1.length, 1, 'Sector 1 must have exactly one planet (Earth)');
+    assert.equal(sector1[0][1], 'Earth');
+    assert.equal(sector1[0][2], 'Terran');
   });
 
   it('all planet sectors are in range 1-N', () => {

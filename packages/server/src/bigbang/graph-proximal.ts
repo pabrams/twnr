@@ -1,9 +1,10 @@
 import type { GeneratedWarp } from './types.js';
 import { DEFAULT_TWO_WAY_PCT, DEFAULT_MAX_PATH_LENGTH, DEFAULT_WARP_DIST } from './types.js';
-import { HEX_NEIGHBOR_DIRS, hexToCartesian } from './positions.js';
+import { HEX_NEIGHBOR_DIRS } from './positions.js';
 import type { HexCell } from './positions.js';
 
 const MAX_OUT = 6;
+const MAX_IN = 6;
 
 /**
  * Sample a per-sector target out-degree from a 1-indexed cumulative
@@ -48,19 +49,23 @@ function assignTargetOutDegrees(
  *
  *   - Phase A: each sector gets a target out-degree sampled from `warpDist`
  *     (1..6). We walk adjacent occupied-cell pairs in random order and emit
- *     edges only while neither endpoint is over its target. `twoWayPct`
- *     decides whether a pair becomes bidirectional or one-way; pairs that
- *     wanted bidirectional but found one endpoint full are skipped (rather
- *     than degraded to one-way) so the user's twoWayPct is preserved.
+ *     edges only while neither endpoint is over its target *and* neither
+ *     receiver is at MAX_IN. `twoWayPct` decides whether a pair becomes
+ *     bidirectional or one-way; pairs that wanted bidirectional but found
+ *     one endpoint full are skipped (rather than degraded to one-way) so
+ *     the user's twoWayPct is preserved.
  *
- *   - Phase B: bridge weakly-connected components. Phase A's skip-on-full
- *     rule can leave isolated mini-components, so we explicitly walk the
- *     component graph and emit a two-way wormhole from each non-main
- *     island to the main component until the graph is connected.
+ *   - Phase B: enforce strong connectivity. Phase A leaves the directed
+ *     graph in possibly many strongly connected components; we find the
+ *     SCCs and stitch them into a single SCC by adding one-way edges in
+ *     a ring through their representatives. One-way (not two-way) so the
+ *     bridge edges don't inflate the user's bidirectional ratio. The ring
+ *     never adds more than 2 edges per SCC and respects MAX_OUT / MAX_IN.
  *
- *   - Phase C: long-range "wormhole" pairs are added until BFS eccentricity
- *     from sampled sources falls under `maxPathLength`. Wormholes respect
- *     the hard MAX_OUT cap of 6 outbound warps per sector.
+ *   - Phase C: long-range "wormhole" pairs are added until directed-BFS
+ *     eccentricity from sampled sources falls under `maxPathLength`.
+ *     Wormholes respect both MAX_OUT/MAX_IN caps and the user's
+ *     `twoWayPct` (each wormhole flips a coin for direction style).
  */
 export function generateProximalGraph(
     N: number,
@@ -75,6 +80,15 @@ export function generateProximalGraph(
         throw new Error(`generateProximalGraph: expected ${N} cells, got ${cells.length}`);
     }
     const twoWayPct = Math.max(0, Math.min(100, twoWayPercentage ?? DEFAULT_TWO_WAY_PCT));
+    // `twoWayPct` is interpreted as the desired bidirectional ratio on the
+    // *final directed-edge* graph (matching what the test measures: count
+    // of edges whose reverse also exists, divided by total edges). The
+    // per-pair coin we flip is a different quantity though: a 2-way
+    // attempt emits 2 directed edges, a 1-way attempt emits 1. Solving
+    // 2p / (p+1) = twp/100 for p gives the per-pair probability that
+    // produces the requested directed-edge ratio. Examples: twp=50 →
+    // p=33.3%, twp=98 → p=96.08%. Endpoints (0, 100) map to themselves.
+    const pairBidiProb = twoWayPct / Math.max(1, 200 - twoWayPct);
     const diameterCap = Math.max(2, Math.floor(maxPathLength));
     const targetOut = assignTargetOutDegrees(N, rng, warpDist, forcedHubSectors);
 
@@ -87,23 +101,30 @@ export function generateProximalGraph(
 
     const edges = new Set<string>();
     const adj: number[][] = Array.from({ length: N + 1 }, () => []);
+    const inDeg = new Int32Array(N + 1);
     function addEdge(u: number, v: number): boolean {
         if (u === v) return false;
         const key = `${u},${v}`;
         if (edges.has(key)) return false;
+        if (adj[u].length >= MAX_OUT) return false;
+        if (inDeg[v] >= MAX_IN) return false;
         edges.add(key);
         adj[u].push(v);
+        inDeg[v]++;
         return true;
     }
-    function hasRoom(u: number): boolean {
+    function hasOutRoom(u: number): boolean {
         return adj[u].length < targetOut[u];
+    }
+    function hasInRoom(v: number): boolean {
+        return inDeg[v] < MAX_IN;
     }
 
     // Phase A: collect every unordered adjacent occupied-pair, shuffle, then
-    // emit edges respecting per-sector target out-degree. Skipping pairs
-    // when both endpoints are already at target is what gives the user
-    // back the configured warpDist shape — a sector with target degree 2
-    // doesn't get all 6 of its hex neighbors connected.
+    // emit edges respecting per-sector target out-degree AND the hard MAX_IN
+    // cap. Skipping pairs when both endpoints are already at target is what
+    // gives the user back the configured warpDist shape — a sector with
+    // target degree 2 doesn't get all 6 of its hex neighbors connected.
     const pairs: { u: number; v: number }[] = [];
     for (let i = 0; i < N; i++) {
         const u = i + 1;
@@ -119,116 +140,76 @@ export function generateProximalGraph(
         [pairs[i], pairs[j]] = [pairs[j], pairs[i]];
     }
     for (const { u, v } of pairs) {
-        const uRoom = hasRoom(u);
-        const vRoom = hasRoom(v);
-        if (!uRoom && !vRoom) continue;
-        const wantTwoWay = rng() * 100 < twoWayPct;
+        const uOut = hasOutRoom(u);
+        const vOut = hasOutRoom(v);
+        if (!uOut && !vOut) continue;
+        const wantTwoWay = rng() < pairBidiProb;
         if (wantTwoWay) {
-            // Only honour two-ways when both endpoints have room. Falling
-            // back to a one-way when one side is full would silently inflate
-            // the one-way count — once a sector hits its target every
-            // remaining pair touching it would degrade. Skip instead so the
-            // emitted twoWayPct ratio stays close to what the user asked
-            // for. Trade-off: some hex-adjacent pairs end up unconnected.
-            if (uRoom && vRoom) {
+            // Two-way only when both directions have full capacity. Skip
+            // (don't degrade to 1-way) so the bidi/one-way mix stays
+            // proportional — degrading a missed 2-way to a 1-way would
+            // bias the final ratio toward 1-ways. Trade-off: some
+            // hex-adjacent pairs end up unconnected.
+            if (uOut && vOut && hasInRoom(u) && hasInRoom(v)) {
                 addEdge(u, v);
                 addEdge(v, u);
             }
-        } else if (uRoom && vRoom) {
-            // Want one-way and both have room — pick a direction.
-            if (rng() < 0.5) addEdge(u, v);
-            else addEdge(v, u);
-        } else if (uRoom) {
+        } else if (uOut && vOut) {
+            // Want 1-way and both endpoints have out-room. Pick a
+            // direction that respects the receiver's in-cap.
+            const goUtoV = rng() < 0.5;
+            if (goUtoV && hasInRoom(v)) addEdge(u, v);
+            else if (!goUtoV && hasInRoom(u)) addEdge(v, u);
+            else if (hasInRoom(v)) addEdge(u, v);
+            else if (hasInRoom(u)) addEdge(v, u);
+        } else if (uOut && hasInRoom(v)) {
             addEdge(u, v);
-        } else {
+        } else if (vOut && hasInRoom(u)) {
             addEdge(v, u);
         }
     }
 
-    function canTakeMore(u: number): boolean {
-        return adj[u].length < MAX_OUT;
-    }
-
-    // Phase B: bridge weakly-connected components. Phase A's "skip rather
-    // than degrade two-way to one-way" rule can leave sectors with too few
-    // (or zero) local edges, producing isolated mini-components — and the
-    // diameter-shrinking loop below doesn't reliably merge tiny islands
-    // (its random seed rarely lands inside them). So we explicitly walk
-    // components and emit a two-way wormhole from each non-main component
-    // into the main one until the graph is weakly connected.
+    // Phase B: enforce strong connectivity by closing the SCC condensation
+    // into a single ring. Each ring edge flips a coin against `twoWayPct`
+    // for two-way vs one-way, the same as Phase A — that way bridge edges
+    // stay statistically aligned with the user's bidirectional ratio
+    // instead of biasing it. Strong connectivity holds either way: even
+    // when every ring edge is one-way (twp=0), the directed cycle through
+    // the SCC representatives gives mutual reachability.
     {
-        // Precompute cartesian positions once so the closest-pair search
-        // doesn't redo hex→xy conversions per iteration.
-        const positions = cells.map((c) => hexToCartesian(c.q, c.r));
-        let safety = N + 10;
-        while (safety-- > 0) {
-            const comp = findWeakComponents(N, adj);
-            const sizes = new Map<number, number>();
-            for (let i = 1; i <= N; i++) {
-                sizes.set(comp[i], (sizes.get(comp[i]) ?? 0) + 1);
-            }
-            if (sizes.size <= 1) break;
-            // Pick the largest component as the merge target.
-            let mainId = -1;
-            let mainSize = -1;
-            for (const [id, sz] of sizes) {
-                if (sz > mainSize) {
-                    mainSize = sz;
-                    mainId = id;
-                }
-            }
-            // Pick any non-main component to merge.
-            let chosenIslandId = -1;
-            for (const id of sizes.keys()) {
-                if (id !== mainId) {
-                    chosenIslandId = id;
-                    break;
-                }
-            }
-            if (chosenIslandId === -1) break;
+        const { compId, numComps } = findStronglyConnectedComponents(N, adj);
+        if (numComps > 1) {
+            const byComp: number[][] = Array.from({ length: numComps }, () => []);
+            for (let u = 1; u <= N; u++) byComp[compId[u]].push(u);
 
-            // Find the *closest* island↔main pair (Euclidean) — singletons
-            // adjacent to the main component bridge with a 1-cell-wide
-            // edge (well under the wormhole-distance threshold), so they
-            // don't show up as long-jump wormholes on the map. Only
-            // genuinely far-apart pockets produce true wormholes here.
-            let bestDist = Infinity;
-            let bestI = -1;
-            let bestJ = -1;
-            for (let i = 1; i <= N; i++) {
-                if (comp[i] !== chosenIslandId) continue;
-                if (!canTakeMore(i)) continue;
-                const pi = positions[i - 1];
-                for (let j = 1; j <= N; j++) {
-                    if (comp[j] !== mainId) continue;
-                    if (!canTakeMore(j)) continue;
-                    const pj = positions[j - 1];
-                    const dx = pi.x - pj.x;
-                    const dy = pi.y - pj.y;
-                    const d2 = dx * dx + dy * dy;
-                    if (d2 < bestDist) {
-                        bestDist = d2;
-                        bestI = i;
-                        bestJ = j;
-                    }
+            // Pick a sender (out-room first, then any) and a receiver (in-room
+            // first, then any) for each SCC. The ring goes 0 → 1 → … → k-1 → 0
+            // through these representatives. Kosaraju emits SCCs in topological
+            // order of the condensation (sources first, sinks last); closing a
+            // ring through that ordering tends to add the minimum number of
+            // back-edges given the DAG shape.
+            function pickSender(c: number): number {
+                for (const u of byComp[c]) if (adj[u].length < MAX_OUT) return u;
+                return byComp[c][0]!;
+            }
+            function pickReceiver(c: number): number {
+                for (const u of byComp[c]) if (inDeg[u] < MAX_IN) return u;
+                return byComp[c][0]!;
+            }
+            for (let i = 0; i < numComps; i++) {
+                const from = pickSender(i);
+                const to = pickReceiver((i + 1) % numComps);
+                addEdge(from, to);
+                // Also add the reverse direction with probability `twoWayPct`
+                // so bridge edges don't drag the bidi ratio away from target.
+                if (rng() < pairBidiProb) {
+                    addEdge(to, from);
                 }
             }
-            // Fallback: if every endpoint is at MAX_OUT, force-bridge any
-            // pair so we don't leave the graph disconnected.
-            if (bestI === -1 || bestJ === -1) {
-                for (let i = 1; i <= N; i++) {
-                    if (bestI === -1 && comp[i] === chosenIslandId) bestI = i;
-                    if (bestJ === -1 && comp[i] === mainId) bestJ = i;
-                    if (bestI !== -1 && bestJ !== -1) break;
-                }
-            }
-            if (bestI === -1 || bestJ === -1) break;
-            addEdge(bestI, bestJ);
-            addEdge(bestJ, bestI);
         }
     }
 
-    // Phase C: wormholes until diameter ≤ cap.
+    // Phase C: wormholes until directed BFS eccentricity ≤ cap.
     //
     // Each iteration runs a "double-sweep" diameter probe: BFS from a random
     // source picks the farthest node A; BFS from A picks the farthest node
@@ -236,6 +217,10 @@ export function generateProximalGraph(
     // still over the cap we connect A↔B directly — the most diameter-cutting
     // wormhole possible in that round. If A or B is already at the per-sector
     // out-degree cap, fall back to random pair selection (also cap-aware).
+    //
+    // Each wormhole respects `twoWayPct`: bidi vs one-way is chosen the same
+    // way Phase A chooses, so wormhole-bridging doesn't pull the final bidi
+    // ratio away from the user's target.
     //
     // No hard budget cap on wormhole count: the user's `maxPathLength` is the
     // real constraint, and aggressive targets (e.g. diameter 5 on a large
@@ -270,11 +255,7 @@ export function generateProximalGraph(
         let u = bestU;
         let v = bestV;
         const peripheralOk =
-            u !== v &&
-            canTakeMore(u) &&
-            canTakeMore(v) &&
-            !edges.has(`${u},${v}`) &&
-            !edges.has(`${v},${u}`);
+            u !== v && adj[u].length < MAX_OUT && inDeg[v] < MAX_IN && !edges.has(`${u},${v}`);
         if (!peripheralOk) {
             // Peripheral pair is full or already connected — fall back to a
             // random capacity-aware pair. Diameter still drops, just less
@@ -285,8 +266,8 @@ export function generateProximalGraph(
                 const a = 1 + Math.floor(rng() * N);
                 const b = 1 + Math.floor(rng() * N);
                 if (a === b) continue;
-                if (!canTakeMore(a) || !canTakeMore(b)) continue;
-                if (edges.has(`${a},${b}`) || edges.has(`${b},${a}`)) continue;
+                if (adj[a].length >= MAX_OUT || inDeg[b] >= MAX_IN) continue;
+                if (edges.has(`${a},${b}`)) continue;
                 u = a;
                 v = b;
                 break;
@@ -296,9 +277,126 @@ export function generateProximalGraph(
                 continue;
             }
         }
-        addEdge(u, v);
-        addEdge(v, u);
-        stalled = 0;
+        // Honour twoWayPct: wormholes respect the user's bidi target.
+        const wantTwoWay = rng() < pairBidiProb;
+        let added = false;
+        if (wantTwoWay && adj[v].length < MAX_OUT && inDeg[u] < MAX_IN && !edges.has(`${v},${u}`)) {
+            const a = addEdge(u, v);
+            const b = addEdge(v, u);
+            added = a || b;
+        } else {
+            added = addEdge(u, v);
+        }
+        if (added) stalled = 0;
+        else stalled++;
+    }
+
+    // Phase D: rebalance the bidi ratio to land within ±2% of `twoWayPct`.
+    // Phase A's "skip 2-way on no-room" creates an asymmetric skip rate
+    // between 2-way and 1-way attempts that's hard to predict — at low/mid
+    // twp values the surviving graph leans more 1-way than the math
+    // predicts. This pass counts the actual mix and either promotes random
+    // 1-ways (adds reverse direction) or demotes random bidi pairs
+    // (removes one direction) until the ratio matches the target. Demotion
+    // skips edges whose removal would leave the recipient with in-degree
+    // 0; promotion is always safe (only adds edges, can't break SCC).
+    {
+        const X = twoWayPct / 100;
+        // Count current bidi pairs and one-way edges.
+        let bidiPairCount = 0;
+        const oneWayList: [number, number][] = [];
+        for (const e of edges) {
+            const comma = e.indexOf(',');
+            const a = parseInt(e.substring(0, comma), 10);
+            const b = parseInt(e.substring(comma + 1), 10);
+            if (edges.has(`${b},${a}`)) {
+                if (a < b) bidiPairCount++;
+            } else {
+                oneWayList.push([a, b]);
+            }
+        }
+        // Target K such that final bidi% equals X exactly:
+        //   2(B+K) / (2(B+K) + (U - K)) = X
+        // Solving: K = (X*U - 2B*(1-X)) / (2-X)
+        // Positive K → promote K one-ways to bidi.
+        // Negative K → demote |K| bidi pairs to one-way.
+        const B = bidiPairCount;
+        const U = oneWayList.length;
+        const K = Math.round((X * U - 2 * B * (1 - X)) / (2 - X));
+
+        if (K > 0) {
+            // Promote: shuffle one-ways, try adding reverse.
+            for (let i = oneWayList.length - 1; i > 0; i--) {
+                const j = Math.floor(rng() * (i + 1));
+                [oneWayList[i], oneWayList[j]] = [oneWayList[j], oneWayList[i]];
+            }
+            let promoted = 0;
+            for (const [a, b] of oneWayList) {
+                if (promoted >= K) break;
+                if (addEdge(b, a)) promoted++;
+            }
+        } else if (K < 0) {
+            // Demote: pick bidi pairs in random order, remove one direction.
+            // Skip if removing would zero-out the recipient's in-degree
+            // (would break strong connectivity).
+            const target = -K;
+            const bidiPairs: [number, number][] = [];
+            for (const e of edges) {
+                const comma = e.indexOf(',');
+                const a = parseInt(e.substring(0, comma), 10);
+                const b = parseInt(e.substring(comma + 1), 10);
+                if (a < b && edges.has(`${b},${a}`)) bidiPairs.push([a, b]);
+            }
+            for (let i = bidiPairs.length - 1; i > 0; i--) {
+                const j = Math.floor(rng() * (i + 1));
+                [bidiPairs[i], bidiPairs[j]] = [bidiPairs[j], bidiPairs[i]];
+            }
+            let demoted = 0;
+            for (const [a, b] of bidiPairs) {
+                if (demoted >= target) break;
+                // Try removing a→b first (prefer keeping b→a so b stays
+                // reachable from a-side). Only remove if the recipient
+                // (b for a→b, a for b→a) has other inbound edges.
+                const removeAtoB = inDeg[b] > 1 && (rng() < 0.5 || inDeg[a] <= 1);
+                if (removeAtoB) {
+                    edges.delete(`${a},${b}`);
+                    adj[a] = adj[a].filter((x) => x !== b);
+                    inDeg[b]--;
+                    demoted++;
+                } else if (inDeg[a] > 1) {
+                    edges.delete(`${b},${a}`);
+                    adj[b] = adj[b].filter((x) => x !== a);
+                    inDeg[a]--;
+                    demoted++;
+                }
+            }
+        }
+    }
+
+    // Phase E: re-verify strong connectivity after the rebalance pass.
+    // Demotion in Phase D can — rarely — break SCC. Run the same SCC
+    // bridging logic as Phase B once more to catch any regression.
+    {
+        const { compId, numComps } = findStronglyConnectedComponents(N, adj);
+        if (numComps > 1) {
+            const byComp: number[][] = Array.from({ length: numComps }, () => []);
+            for (let u = 1; u <= N; u++) byComp[compId[u]].push(u);
+            for (let i = 0; i < numComps; i++) {
+                let from = byComp[i][0]!;
+                for (const u of byComp[i])
+                    if (adj[u].length < MAX_OUT) {
+                        from = u;
+                        break;
+                    }
+                let to = byComp[(i + 1) % numComps][0]!;
+                for (const u of byComp[(i + 1) % numComps])
+                    if (inDeg[u] < MAX_IN) {
+                        to = u;
+                        break;
+                    }
+                addEdge(from, to);
+            }
+        }
     }
 
     const result: GeneratedWarp[] = [];
@@ -314,36 +412,68 @@ export function generateProximalGraph(
 }
 
 /**
- * Compute weakly-connected component ids for every node. "Weak" means edges
- * are treated as undirected — if `u→v` exists, both belong to the same
- * component regardless of whether `v→u` does. Returns a 1-indexed array
- * `comp` where `comp[i]` is the component id of sector `i`. Component ids
- * are arbitrary integers, only meaningful for equality comparisons.
+ * Kosaraju's strongly-connected-components algorithm. Returns 1-indexed
+ * `compId[i]` giving the SCC id of sector `i`. SCCs are numbered in
+ * topological order of the condensation DAG: SCC 0 is a source (no
+ * incoming cross-SCC edges), SCC numComps-1 is a sink (no outgoing).
+ *
+ * Iterative (no recursion) so it handles N=1000+ without stack overflows.
  */
-function findWeakComponents(N: number, adj: number[][]): Int32Array {
-    const undirected: Set<number>[] = Array.from({ length: N + 1 }, () => new Set<number>());
-    for (let u = 1; u <= N; u++) {
-        for (const v of adj[u]) {
-            undirected[u].add(v);
-            undirected[v].add(u);
-        }
-    }
-    const comp = new Int32Array(N + 1).fill(-1);
-    let nextId = 0;
+function findStronglyConnectedComponents(
+    N: number,
+    adj: number[][],
+): { compId: Int32Array; numComps: number } {
+    const visited = new Uint8Array(N + 1);
+    const finishOrder: number[] = [];
+
+    // First pass: DFS on G, record nodes in finish order.
     for (let start = 1; start <= N; start++) {
-        if (comp[start] !== -1) continue;
-        const id = nextId++;
-        const stack = [start];
-        while (stack.length) {
-            const u = stack.pop()!;
-            if (comp[u] !== -1) continue;
-            comp[u] = id;
-            for (const v of undirected[u]) {
-                if (comp[v] === -1) stack.push(v);
+        if (visited[start]) continue;
+        const stack: { u: number; iter: number }[] = [{ u: start, iter: 0 }];
+        visited[start] = 1;
+        while (stack.length > 0) {
+            const top = stack[stack.length - 1];
+            const neighbors = adj[top.u];
+            if (top.iter < neighbors.length) {
+                const w = neighbors[top.iter++];
+                if (!visited[w]) {
+                    visited[w] = 1;
+                    stack.push({ u: w, iter: 0 });
+                }
+            } else {
+                finishOrder.push(top.u);
+                stack.pop();
             }
         }
     }
-    return comp;
+
+    // Build reversed adjacency list for the second pass.
+    const radj: number[][] = Array.from({ length: N + 1 }, () => []);
+    for (let u = 1; u <= N; u++) {
+        for (const v of adj[u]) radj[v].push(u);
+    }
+
+    // Second pass: DFS on G^T in reverse finish order. Each tree = one SCC.
+    const compId = new Int32Array(N + 1).fill(-1);
+    let nextComp = 0;
+    for (let i = finishOrder.length - 1; i >= 0; i--) {
+        const start = finishOrder[i];
+        if (compId[start] !== -1) continue;
+        compId[start] = nextComp;
+        const stack = [start];
+        while (stack.length > 0) {
+            const u = stack.pop()!;
+            for (const w of radj[u]) {
+                if (compId[w] === -1) {
+                    compId[w] = nextComp;
+                    stack.push(w);
+                }
+            }
+        }
+        nextComp++;
+    }
+
+    return { compId, numComps: nextComp };
 }
 
 /**
@@ -351,9 +481,9 @@ function findWeakComponents(N: number, adj: number[][]): Int32Array {
  * Used by the Phase C double-sweep to find peripheral nodes — running this
  * twice (once from a random source, then again from the resulting node)
  * yields a tight lower bound on graph diameter and identifies the actual
- * pair to bridge with a wormhole. After the connectivity pass (Phase B)
- * the graph is guaranteed weakly connected, so unreachable-node fallbacks
- * here only matter for directed reachability.
+ * pair to bridge with a wormhole. After Phase B's SCC bridging the graph
+ * is guaranteed strongly connected, so the unreachable-node fallback only
+ * matters for defensive correctness if a future phase weakens that.
  */
 function bfsFarthest(N: number, adj: number[][], src: number): { node: number; dist: number } {
     const dist = new Int32Array(N + 1).fill(-1);

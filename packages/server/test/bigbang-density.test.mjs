@@ -10,11 +10,15 @@ import { readCSV, generateUniverse } from './bigbang-helpers.mjs';
 // ---------------------------------------------------------------------------
 
 describe('Density Boundaries', () => {
-  it('--planet-density 0 produces no planet rows', () => {
+  it('--planet-density 0 produces only Earth (sector 1) and no other planets', () => {
     const dir = generateUniverse({ sectors: 50, seed: 99, portDensity: 50, planetDensity: 0 });
     try {
       const { rows } = readCSV(join(dir, 'planets.csv'));
-      assert.equal(rows.length, 0, `Expected 0 planets, got ${rows.length}`);
+      // Earth is always seeded at sector 1 regardless of planet density.
+      assert.equal(rows.length, 1, `Expected 1 planet (Earth), got ${rows.length}`);
+      assert.equal(parseInt(rows[0][0], 10), 1, 'Sole planet should be in sector 1');
+      assert.equal(rows[0][1], 'Earth', 'Sole planet should be named Earth');
+      assert.equal(rows[0][2], 'Terran', 'Earth should be Terran');
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
 
