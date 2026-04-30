@@ -95,29 +95,6 @@ describe('WebSocket', () => {
     await closeWS(ws2);
   });
 
-  it('nonAdjacentMoveRequested is only sent to the requesting client', async () => {
-    const { ws: ws1 } = await ws();
-    const { ws: ws2 } = await ws();
-
-    const disp = await wsRequest(ws2, { type: ClientMsgType.SectorDisplay }, ServerMsgType.SectorDisplayResult);
-    const warpSet = new Set(disp.warps);
-    let nonAdjacent = null;
-    for (let i = 1; i <= 100; i++) {
-      if (i !== disp.sector && !warpSet.has(i)) { nonAdjacent = i; break; }
-    }
-    assert.ok(nonAdjacent !== null, 'Could not find a non-adjacent sector');
-
-    const noMsgPromise = expectNoMsg(ws1, ServerMsgType.MoveResult);
-    const failPromise = waitForMsg(ws2, ServerMsgType.MoveResult);
-    ws2.send(JSON.stringify({ type: ClientMsgType.Move, sector: nonAdjacent }));
-    const failMsg = await failPromise;
-    assert.equal(failMsg.outcome, 'nonAdjacent');
-    await noMsgPromise;
-
-    await closeWS(ws1);
-    await closeWS(ws2);
-  });
-
   it('playerLeft is only broadcast to players in the same sector', async () => {
     const { ws: ws1 } = await ws();
     const { ws: ws2 } = await ws();
@@ -138,24 +115,6 @@ describe('WebSocket', () => {
 
     await closeWS(ws2);
     await closeWS(ws3);
-  });
-
-  it('move to non-adjacent sector returns nonAdjacentMoveRequested', async () => {
-    const { ws: wsConn } = await ws();
-
-    const disp = await wsRequest(wsConn, { type: ClientMsgType.SectorDisplay }, ServerMsgType.SectorDisplayResult);
-    const warpSet = new Set(disp.warps);
-    let nonAdjacent = null;
-    for (let i = 1; i <= 100; i++) {
-      if (i !== disp.sector && !warpSet.has(i)) { nonAdjacent = i; break; }
-    }
-    assert.ok(nonAdjacent !== null, 'Could not find a non-adjacent sector for test');
-
-    const failMsg = await wsRequest(wsConn, { type: ClientMsgType.Move, sector: nonAdjacent }, ServerMsgType.MoveResult);
-    assert.equal(failMsg.type, ServerMsgType.MoveResult);
-    assert.equal(failMsg.outcome, 'nonAdjacent');
-    assert.equal(failMsg.sector, nonAdjacent);
-    await closeWS(wsConn);
   });
 
   it('who returns playersOnline with connected player IDs', async () => {

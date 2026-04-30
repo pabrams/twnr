@@ -49,8 +49,28 @@ function requestNeighborhood(ws, halfExtent = 600) {
 }
 
 describe('GET_NEIGHBORHOOD wire protocol', () => {
+  let randomUniverseId;
+
+  before(async () => {
+    // The default universe (id=DEFAULT_UNIVERSE_ID) is now proximal; spin up
+    // a dedicated random-topology universe so we can exercise the empty-
+    // payload code path without depending on the default's topology.
+    const res = await adminKeyPost('/api/admin/universes/generate', {
+      name: `RandTest_${Date.now()}`, sectors: 50, seed: 7, topology: 'random',
+    });
+    assert.equal(res.status, 201, `generate failed: ${JSON.stringify(res.body)}`);
+    assert.equal(res.body.topology, 'random');
+    randomUniverseId = res.body.id;
+  });
+
+  after(async () => {
+    if (randomUniverseId) {
+      await adminKeyDelete(`/api/admin/universes/${randomUniverseId}`);
+    }
+  });
+
   it('returns empty payload with topology=random in a random universe', async () => {
-    const { ws } = await connectWS({ pool, universeId: DEFAULT_UNIVERSE_ID });
+    const { ws } = await connectWS({ pool, universeId: randomUniverseId });
     try {
       const msg = await requestNeighborhood(ws, 3);
       assert.equal(msg.type, ServerMsgType.NeighborhoodResult);
