@@ -44,7 +44,6 @@ export function renderUniverseDetail(
         .then(([stats, topo]) => {
             loading.remove();
 
-            // Stats section
             const statsSection = document.createElement('div');
             statsSection.style.marginBottom = '20px';
 
@@ -80,7 +79,6 @@ export function renderUniverseDetail(
             statsSection.appendChild(statsTable);
             container.appendChild(statsSection);
 
-            // Topology section
             const topoHeading = document.createElement('h3');
             topoHeading.textContent = 'Topology';
             topoHeading.style.color = '#0ff';
@@ -119,7 +117,6 @@ export function renderUniverseDetail(
             }
             container.appendChild(topoTable);
 
-            // Port list section
             const portSection = document.createElement('div');
             container.appendChild(portSection);
             renderPortList(portSection, universeId);

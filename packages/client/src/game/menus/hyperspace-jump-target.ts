@@ -2,8 +2,6 @@ import { ClientMsgType, Menu } from '@twnr/shared';
 import { echoCommand } from '../display.js';
 import { registerMenu } from './types.js';
 
-// HyperspaceJumpTarget has no `renderPrompt`: the prompt is part of the
-// HyperspaceJumpInfoResult handler in connection.ts.
 registerMenu(Menu.HyperspaceJumpTarget, {
     input(ctx, line) {
         if (line.toLowerCase() === 'q') {

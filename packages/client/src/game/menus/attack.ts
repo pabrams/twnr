@@ -4,8 +4,6 @@ import { NOTIFY } from '../messages/index.js';
 import { echoCommand } from '../display.js';
 import { registerMenu } from './types.js';
 
-// Attack has no `renderPrompt`: AttackMenuResult drives the display via
-// showAttackMenu in connection.ts.
 registerMenu(Menu.Attack, {
     input(ctx, line) {
         if (line.toLowerCase() === 'q') {

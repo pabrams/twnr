@@ -24,7 +24,6 @@ function assignTargetOutDegrees(
         cumDist[d] = pctSum;
     }
     if (pctSum <= 0) {
-        // Degenerate input — fall back to MAX_OUT for every sector.
         for (let i = 1; i <= N; i++) targetOut[i] = MAX_OUT;
     } else {
         for (let i = 1; i <= N; i++) {

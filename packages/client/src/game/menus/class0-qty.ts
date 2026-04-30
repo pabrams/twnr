@@ -18,7 +18,6 @@ registerMenu(Menu.Class0Qty, {
         const kind = getMenuArgs(ctx, Menu.Class0Qty)?.kind;
         if (!kind) return;
         const max = class0MaxBuy(kind, ctx);
-        // Empty input = accept default (max)
         const qty = trimmed === '' ? max : parseInt(trimmed, 10);
         if (isNaN(qty) || qty < 0) {
             ctx.io.term.writeln('Enter a non-negative number.');
@@ -29,8 +28,6 @@ registerMenu(Menu.Class0Qty, {
             ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Class0 });
             return;
         }
-        // qty submission for an in-progress Buy flow — the echo already
-        // fired when the user picked A/B/C from the commerce report.
         switch (kind) {
             case 'drones':
                 ctx.io.sendMsg({ type: ClientMsgType.BuyDrones, quantity: qty });

@@ -134,10 +134,6 @@ const HW_DISPLAY: { name: string; label: string; isToggle?: boolean }[] = [
     { name: 'terraform_device', label: 'Max Terraform' },
 ];
 
-// Visible width of the 3-column grid: 3 cells of (labelWidth + ": " + valueWidth)
-// = 3*(18+2+10) = 90, plus two 1-space gaps between cells = 92. Label width 18
-// fits "Max Planet Busters" (widest hw label); value width 10 fits seven-digit
-// costs with commas (e.g. "9,999,999" for colony-ship-class hulls).
 const SHIP_DETAIL_LABEL_WIDTH = 18;
 const SHIP_DETAIL_VALUE_WIDTH = 10;
 const SHIP_DETAIL_BODY_WIDTH = 92;
@@ -154,7 +150,6 @@ export function showShipDetail(ctx: DisplayComputerCtx, ship: ShipCatalogEntry) 
         term.writeln(render(COMPUTER.shipDetailLine, { label: 'Make', value: ship.make }));
     }
 
-    // Primary specs. Laid out in a 3-column grid with right-justified labels.
     const hw = ship.hardware ?? {};
     const specs: { label: string; value: string }[] = [
         { label: 'Main Drive Cost', value: fmtNum(ship.cost_drive ?? 0) },

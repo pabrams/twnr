@@ -171,7 +171,6 @@ function makeWarpDistField(): {
     errorSpan.style.fontSize = '11px';
     row.appendChild(errorSpan);
 
-    // Live sum validation
     function updateSum() {
         const vals = inputs.map((inp) => parseFloat(inp.value) || 0);
         const sum = vals.reduce((a, b) => a + b, 0);

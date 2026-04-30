@@ -11,8 +11,6 @@ export const connectDB = async (): Promise<void> => {
 
     try {
         const client = await pool.connect();
-
-        // Create tables
         await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -359,7 +357,6 @@ export const connectDB = async (): Promise<void> => {
       ALTER TABLE players ADD COLUMN IF NOT EXISTS current_menu_id INTEGER REFERENCES menu(id) ON DELETE SET NULL;
     `);
 
-        // Schema additions: new tables and columns
         await client.query(`
       -- Sectors: protected space
       ALTER TABLE sectors ADD COLUMN IF NOT EXISTS is_protected BOOLEAN NOT NULL DEFAULT FALSE;
@@ -375,10 +372,6 @@ export const connectDB = async (): Promise<void> => {
         END IF;
       END $$;
 
-      -- (Legacy ALTERs targeted the old edits table; the new
-      --  edit_templates schema declares both columns directly.)
-
-      -- Players: previous sector, for the return-to-previous shortcut
       ALTER TABLE players ADD COLUMN IF NOT EXISTS previous_sector_id INTEGER REFERENCES sectors(id);
 
       ALTER TABLE command ADD COLUMN IF NOT EXISTS generates_news BOOLEAN NOT NULL DEFAULT FALSE;
@@ -493,7 +486,6 @@ export const connectDB = async (): Promise<void> => {
       );
       CREATE INDEX IF NOT EXISTS idx_news_universe ON news (universe_id, created_at);
 
-      -- Proximal-topology coordinates on sectors. NULL in random-topology universes.
       ALTER TABLE sectors ADD COLUMN IF NOT EXISTS x DOUBLE PRECISION;
       ALTER TABLE sectors ADD COLUMN IF NOT EXISTS y DOUBLE PRECISION;
 
@@ -526,9 +518,7 @@ export const connectDB = async (): Promise<void> => {
       );
     `);
 
-        // Seed menu registry data (idempotent)
         await client.query(`
-      -- Seed menus
       INSERT INTO menu (name, label) VALUES
         ('sector', 'Sector'),
         ('port', 'Port'),

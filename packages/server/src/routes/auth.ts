@@ -40,8 +40,6 @@ export function createAuthRoutes(router: Router, deps: RouteDeps, middleware: Mi
     } = deps;
     const { authenticateToken, loginLimiter, registerLimiter } = middleware;
 
-    // ─── Logout ────────────────────────────────────────────────────────
-
     router.post(
         '/api/auth/logout',
         authenticateToken,
@@ -53,8 +51,6 @@ export function createAuthRoutes(router: Router, deps: RouteDeps, middleware: Mi
             res.json(body);
         }),
     );
-
-    // ─── Register ──────────────────────────────────────────────────────
 
     router.post(
         '/api/auth/register',
@@ -189,8 +185,6 @@ export function createAuthRoutes(router: Router, deps: RouteDeps, middleware: Mi
             res.status(201).json(body);
         }),
     );
-
-    // ─── Login ─────────────────────────────────────────────────────────
 
     router.post(
         '/api/auth/login',

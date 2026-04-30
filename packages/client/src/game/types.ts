@@ -21,8 +21,6 @@ export type KeystrokeEvent = {
 export interface IO {
     term: Terminal;
     ws: WebSocket;
-    /** Send a client→server command. Pure network dispatch — UI echoes are
-     *  the input handler's responsibility (see `echoCommand` in display.ts). */
     sendMsg: (msg: ClientCommand) => void;
     setDebug: (on: boolean) => void;
     debug: boolean;

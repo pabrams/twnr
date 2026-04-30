@@ -7,7 +7,7 @@ import { registerMenu, setMenuArgs } from './types.js';
 registerMenu(Menu.Class0, {
     renderPrompt(ctx) {
         // showClass0Menu is async (loads class-0 prices); renderPrompt
-        // signature is sync, so the promise is intentionally unawaited.
+        // signature is sync, so the promise is intentionally unawaited.  TODO: what?
         void showClass0Menu(ctx);
     },
     input(ctx, line) {

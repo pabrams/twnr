@@ -11,8 +11,6 @@ registerMenu(Menu.JettisonConfirm, {
     input(ctx, line) {
         switch (line.toLowerCase()) {
             case 'y':
-                // Confirmation step — the <Jettison> echo fired when the
-                // user pressed J at the sector menu.
                 ctx.io.sendMsg({ type: ClientMsgType.Jettison });
                 ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
                 break;

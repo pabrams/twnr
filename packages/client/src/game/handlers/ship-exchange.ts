@@ -48,7 +48,7 @@ export const shipInfo: Handler<'shipInfoResult', ShipExchangeDeps> = (ctx, msg) 
         for (const item of ctx.catalogs.hardware) {
             const max = msg.hardwareMax[item.name];
             if (max === undefined || max === 0) {
-                // Ship type can't carry this item — skip.
+                // Ship type can't carry this item
                 continue;
             }
             const qty = msg.hardware[item.name] ?? 0;

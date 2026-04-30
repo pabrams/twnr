@@ -68,7 +68,6 @@ export function renderPortList(container: HTMLElement, universeId: number): void
             table.style.fontSize = '12px';
             table.style.width = '100%';
 
-            // Header
             const thead = document.createElement('thead');
             const headerRow = document.createElement('tr');
             const headers = [
@@ -118,7 +117,6 @@ export function renderPortList(container: HTMLElement, universeId: number): void
                     tr.appendChild(td);
                 }
 
-                // Actions
                 const actionTd = document.createElement('td');
                 actionTd.style.padding = '3px 8px';
                 actionTd.style.borderBottom = '1px solid #222';

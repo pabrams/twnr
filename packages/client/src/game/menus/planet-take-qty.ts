@@ -18,10 +18,8 @@ registerMenu(Menu.PlanetTakeQty, {
             backToPlanetMenu(ctx);
             return;
         }
-        // Empty Enter → accept default (fill free holds; server computes).
         const qty = trimmed === '' ? -1 : parseInt(trimmed, 10);
         if (qty === 0) {
-            // 0 colonists = nothing to do; cancel back to the planet menu.
             backToPlanetMenu(ctx);
             return;
         }
@@ -29,8 +27,6 @@ registerMenu(Menu.PlanetTakeQty, {
             ctx.io.term.writeln('Enter a positive number.');
             return;
         }
-        // qty submission for an in-progress take-colonists flow — the echo
-        // already fired when the user pressed T at the planet menu.
         ctx.io.sendMsg({
             type: ClientMsgType.TakeColonists,
             quantity: qty,
