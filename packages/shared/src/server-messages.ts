@@ -563,6 +563,67 @@ export type NeighborhoodWarp = {
     known_two_way: boolean;
 };
 
+export type DeployMineResultObject = {
+    type: typeof ServerMsgType.DeployMineResult;
+    mineType: 'proximity' | 'seeker';
+    deployed: number;
+    sectorTotal: number;
+    shipRemaining: number;
+};
+
+export type DeployedMineEntry = {
+    sectorNumber: number;
+    mineType: 'proximity' | 'seeker';
+    quantity: number;
+};
+
+export type ListDeployedMinesResultObject = {
+    type: typeof ServerMsgType.ListDeployedMinesResult;
+    mines: DeployedMineEntry[];
+};
+
+export type TrackedSeekerMineEntry = {
+    targetShipId: number;
+    targetShipName: string;
+    targetOwnerName: string;
+    sectorNumber: number;
+};
+
+export type TrackSeekerMinesResultObject = {
+    type: typeof ServerMsgType.TrackSeekerMinesResult;
+    targets: TrackedSeekerMineEntry[];
+};
+
+export type MineDisruptorResultObject = {
+    type: typeof ServerMsgType.MineDisruptorResult;
+    targetSector: number;
+    minesDisrupted: number;
+    proximityMinesRemaining: number;
+};
+
+export type ProximityMineHitEvent = {
+    type: typeof ServerMsgType.ProximityMineHit;
+    sector: number;
+    detonations: number;
+    damage: number;
+    shieldsLost: number;
+    dronesLost: number;
+    destroyed: boolean;
+};
+
+export type SeekerMineAttachedEvent = {
+    type: typeof ServerMsgType.SeekerMineAttached;
+    sector: number;
+    droppedPrevious: boolean;
+};
+
+export type SeekerMinePickupAlertEvent = {
+    type: typeof ServerMsgType.SeekerMinePickupAlert;
+    sector: number;
+    targetShipName: string;
+    targetOwnerName: string;
+};
+
 export type NeighborhoodResultObject = {
     type: typeof ServerMsgType.NeighborhoodResult;
     topology: 'random' | 'proximal';
@@ -634,6 +695,13 @@ export type ServerResult =
     | TerraformInfoResultObject
     | HardwareStoreInfoResultObject
     | NeighborhoodResultObject
+    | DeployMineResultObject
+    | ListDeployedMinesResultObject
+    | TrackSeekerMinesResultObject
+    | MineDisruptorResultObject
+    | ProximityMineHitEvent
+    | SeekerMineAttachedEvent
+    | SeekerMinePickupAlertEvent
     | ErrorResultObject;
 
 /**

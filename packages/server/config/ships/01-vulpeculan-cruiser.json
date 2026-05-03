@@ -17,7 +17,6 @@
   "holdCost": 10000,
   "maxBuoy": 50,
   "maxProximity": 50,
-  "maxOrbital": 50,
   "maxSeeker": 50,
   "maxTerraformDevices": 5,
   "maxPlanetBusters": 0,

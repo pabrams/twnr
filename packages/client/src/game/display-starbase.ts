@@ -55,7 +55,6 @@ const HW_KEY_MAP: Record<string, string> = {
     buoy: 'U',
     proximity_mine: 'P',
     seeker_mine: 'S',
-    orbital_mine: 'O',
     mine_disruptor: 'D',
     hyperspace_1: '1',
     hyperspace_2: '2',

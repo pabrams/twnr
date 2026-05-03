@@ -9,6 +9,7 @@ import * as hardwareStore from './hardware-store.js';
 import * as combat from './combat.js';
 import * as planet from './planet.js';
 import * as shipExchange from './ship-exchange.js';
+import * as mines from './mines.js';
 
 /**
  * `Deps` is the slice of `GameContext` the handler actually touches.
@@ -87,6 +88,14 @@ const handlers: HandlerMap = {
     [ServerMsgType.ShipInfoResult]: shipExchange.shipInfo,
     [ServerMsgType.BuyShipTradeinResult]: shipExchange.buyShipTradein,
     [ServerMsgType.BuyShipNewResult]: shipExchange.buyShipNew,
+
+    [ServerMsgType.DeployMineResult]: mines.deployMine,
+    [ServerMsgType.ListDeployedMinesResult]: mines.listDeployedMines,
+    [ServerMsgType.TrackSeekerMinesResult]: mines.trackSeekerMines,
+    [ServerMsgType.MineDisruptorResult]: mines.mineDisruptor,
+    [ServerMsgType.ProximityMineHit]: mines.proximityMineHit,
+    [ServerMsgType.SeekerMineAttached]: mines.seekerMineAttached,
+    [ServerMsgType.SeekerMinePickupAlert]: mines.seekerMinePickupAlert,
 };
 
 export function dispatch(ctx: GameContext, msg: ServerResult): void {

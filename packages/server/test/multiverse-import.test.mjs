@@ -4,7 +4,7 @@ import { execSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { ensureServer, createPool as _gsCreatePool, createTestUserWithToken, BASE } from './global-setup.mjs';
+import { ensureServer, createPool as _gsCreatePool, createTestUserWithToken, BASE, TEST_DB } from './global-setup.mjs';
 
 const SERVER_DIR = process.cwd();
 
@@ -61,7 +61,7 @@ describe('importUniverse.js --universe-id flag', () => {
     const env = {
       ...process.env,
       PGHOST: process.env.PGHOST || 'localhost',
-      PGDATABASE: process.env.PGDATABASE || 'twnr_test',
+      PGDATABASE: TEST_DB,
       PGUSER: process.env.PGUSER,
       PGPASSWORD: process.env.PGPASSWORD,
     };

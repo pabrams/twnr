@@ -39,7 +39,6 @@ export type ShipConfig = {
     holdCost: number;
     maxBuoy: number;
     maxProximity: number;
-    maxOrbital: number;
     maxSeeker: number;
     maxTerraformDevices: number;
     maxPlanetBusters: number;

@@ -205,6 +205,25 @@ export type TradeConfirmResponseCommand = {
     confirmed: boolean;
 };
 
+export type DeployMineCommand = {
+    type: typeof ClientMsgType.DeployMine;
+    mineType: 'proximity' | 'seeker';
+    quantity: number;
+};
+
+export type ListDeployedMinesCommand = {
+    type: typeof ClientMsgType.ListDeployedMines;
+};
+
+export type TrackSeekerMinesCommand = {
+    type: typeof ClientMsgType.TrackSeekerMines;
+};
+
+export type MineDisruptorCommand = {
+    type: typeof ClientMsgType.MineDisruptor;
+    targetSector: number;
+};
+
 export type GetNeighborhoodCommand = {
     type: typeof ClientMsgType.GetNeighborhood;
     /**
@@ -269,4 +288,8 @@ export type ClientCommand =
     | VisitedSectorsCommand
     | TradeResponseCommand
     | TradeConfirmResponseCommand
-    | GetNeighborhoodCommand;
+    | GetNeighborhoodCommand
+    | DeployMineCommand
+    | ListDeployedMinesCommand
+    | TrackSeekerMinesCommand
+    | MineDisruptorCommand;

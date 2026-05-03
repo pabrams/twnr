@@ -43,6 +43,9 @@ export const Menu = {
     Move: 'move',
     QuitConfirm: 'quitConfirm',
     TerraformConfirm: 'terraformConfirm',
+    DeployMines: 'deployMines',
+    DeployMinesQty: 'deployMinesQty',
+    MineDisruptorTarget: 'mineDisruptorTarget',
 } as const;
 export type MenuName = (typeof Menu)[keyof typeof Menu];
 
@@ -105,6 +108,13 @@ export const ServerMsgType = {
     TerraformInfoResult: 'terraformInfoResult',
     HardwareStoreInfoResult: 'hardwareStoreInfoResult',
     NeighborhoodResult: 'neighborhoodResult',
+    DeployMineResult: 'deployMineResult',
+    ListDeployedMinesResult: 'listDeployedMinesResult',
+    TrackSeekerMinesResult: 'trackSeekerMinesResult',
+    MineDisruptorResult: 'mineDisruptorResult',
+    ProximityMineHit: 'proximityMineHit',
+    SeekerMineAttached: 'seekerMineAttached',
+    SeekerMinePickupAlert: 'seekerMinePickupAlert',
     /** Pure menu transition with no data payload. */
     MenuTransition: 'menuTransition',
 } as const;
@@ -156,5 +166,9 @@ export const ClientMsgType = {
     TradeResponse: 'tradeResponse',
     TradeConfirmResponse: 'tradeConfirmResponse',
     GetNeighborhood: 'getNeighborhood',
+    DeployMine: 'deployMine',
+    ListDeployedMines: 'listDeployedMines',
+    TrackSeekerMines: 'trackSeekerMines',
+    MineDisruptor: 'mineDisruptor',
 } as const;
 type ClientMsgType = typeof ClientMsgType;
