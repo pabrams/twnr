@@ -99,6 +99,7 @@ function createMockCtx(overrides: { autopilot?: Partial<GameContext['autopilot']
             inputQueue: [],
             inFlight: false,
             inputAssembly: '',
+            pendingResolver: null,
         },
         player: {
             universeId: 1,

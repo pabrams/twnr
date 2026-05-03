@@ -1,37 +1,11 @@
-import { ClientMsgType, Menu } from '@twnr/shared';
-import { echoCommand } from '../display.js';
+import { Menu } from '@twnr/shared';
 import { showShipyardsClass0Menu } from '../display-starbase.js';
-import { showClass0Menu } from '../display-port.js';
-import { registerMenu, setMenuArgs } from './types.js';
+import { registerMenu } from './types.js';
 
+// Shipyards class-0 buy menu — fully migrated. The choose_holds /
+// choose_drones / choose_shields routines (in shipyards-routines.ts)
+// figure out which qty menu to enter based on ctx.world.mode, since
+// they're shared with the in-port class0 menu.
 registerMenu(Menu.ShipyardsClass0, {
     renderPrompt: showShipyardsClass0Menu,
-    input(ctx, line) {
-        const choose = (
-            kind: 'drones' | 'shields' | 'holds',
-            echoKey: 'buyHolds' | 'buyDrones' | 'buyShields',
-        ) => {
-            echoCommand(ctx, echoKey);
-            setMenuArgs(ctx, { menu: Menu.ShipyardsClass0Qty, kind });
-            ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsClass0Qty });
-        };
-        switch (line.toLowerCase()) {
-            case 'a':
-                choose('holds', 'buyHolds');
-                break;
-            case 'b':
-                choose('drones', 'buyDrones');
-                break;
-            case 'c':
-                choose('shields', 'buyShields');
-                break;
-            case 'q':
-                echoCommand(ctx, 'shipyards');
-                ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Shipyards });
-                break;
-            case '?':
-                void showClass0Menu(ctx);
-                break;
-        }
-    },
 });

@@ -30,10 +30,11 @@
     "generate-env": "node scripts/generate-env.mjs",
     "dev": "node --env-file=.env --watch ./dist/server.js",
     "start": "node --env-file=.env ./dist/server.js",
-    "dropDatabase": "node --env-file=.env ./scripts/deleteDatabase.js",
+    "kill:dev": "fuser -k ${PORT:-3000}/tcp >/dev/null 2>&1; true",
+    "dropDatabase": "pnpm run kill:dev && node --env-file=.env ./scripts/deleteDatabase.js",
     "bigbang": "node ./scripts/twnr-bigbang.js data/universe/",
-    "db:import": "node --env-file=.env ./scripts/importUniverse.js",
-    "db:seed": "node ./scripts/twnr-bigbang.js ./data/universe/ --sectors 2000 --seed 42 && node --env-file=.env ./scripts/importUniverse.js ./data/universe --force",
+    "db:import": "pnpm run kill:dev && node --env-file=.env ./scripts/importUniverse.js",
+    "db:seed": "pnpm run kill:dev && node ./scripts/twnr-bigbang.js ./data/universe/ --sectors 2000 --seed 42 && node --env-file=.env ./scripts/importUniverse.js ./data/universe --force",
     "test": "bash test/run-tests.sh"
   }
 }

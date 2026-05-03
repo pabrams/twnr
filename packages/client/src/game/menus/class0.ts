@@ -1,38 +1,14 @@
-import { ClientMsgType, Menu } from '@twnr/shared';
-import { echoCommand } from '../display.js';
+import { Menu } from '@twnr/shared';
 import { showClass0Menu } from '../display-port.js';
-import { COMMAND } from '../messages/index.js';
-import { registerMenu, setMenuArgs } from './types.js';
+import { registerMenu } from './types.js';
 
+// Class-0 in-port trade menu — fully migrated. The choose_* routines and
+// the leave_port (Q → Undock) routine live in shipyards-routines.ts
+// since they're shared with the shipyards class-0 menu.
 registerMenu(Menu.Class0, {
     renderPrompt(ctx) {
-        // showClass0Menu is async (loads class-0 prices); renderPrompt
-        // signature is sync, so the promise is intentionally unawaited.  TODO: what?
+        // showClass0Menu is async (fetches class-0 prices); the promise
+        // is intentionally unawaited because renderPrompt is sync.
         void showClass0Menu(ctx);
-    },
-    input(ctx, line) {
-        const choose = (kind: 'drones' | 'shields' | 'holds', echoKey: keyof typeof COMMAND) => {
-            echoCommand(ctx, echoKey);
-            setMenuArgs(ctx, { menu: Menu.Class0Qty, kind });
-            ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Class0Qty });
-        };
-        switch (line.toLowerCase()) {
-            case 'a':
-                choose('holds', 'buyHolds');
-                break;
-            case 'b':
-                choose('drones', 'buyDrones');
-                break;
-            case 'c':
-                choose('shields', 'buyShields');
-                break;
-            case 'q':
-                echoCommand(ctx, 'undock');
-                ctx.io.sendMsg({ type: ClientMsgType.Undock });
-                break;
-            case '?':
-                void showClass0Menu(ctx);
-                break;
-        }
     },
 });
