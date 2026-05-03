@@ -12,6 +12,7 @@ export {
     registerRoutine,
     registerMenuRoutine,
     getRoutine,
+    showPrompt,
 } from './types.js';
 export type { MenuHandler, ClientRoutine } from './types.js';
 
@@ -52,7 +53,6 @@ import './shipyards-class0-qty.js';
 import './shipyards-examine.js';
 import './shipyards-tradein.js';
 import './starbase.js';
-import './starbase-buy-qty.js';
 import './starbase-hardware.js';
 import './trade-confirm.js';
 import './trade-qty.js';

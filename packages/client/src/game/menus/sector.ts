@@ -1,5 +1,5 @@
 import { Menu } from '@twnr/shared';
-import { showPrompt } from '../display.js';
+import { showSectorPrompt } from '../display.js';
 import { registerMenu } from './types.js';
 
 /**
@@ -9,5 +9,5 @@ import { registerMenu } from './types.js';
  * `common-routines.ts` (back / help_menu / list_deployed_drones).
  */
 registerMenu(Menu.Sector, {
-    renderPrompt: showPrompt,
+    renderPrompt: showSectorPrompt,
 });

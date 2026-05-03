@@ -154,12 +154,6 @@ export type MenuArgs =
     | { menu: typeof Menu.Class0Qty; kind: 'drones' | 'shields' | 'holds' }
     | { menu: typeof Menu.ShipyardsClass0Qty; kind: 'drones' | 'shields' | 'holds' }
     | {
-          menu: typeof Menu.StarbaseBuyQty;
-          itemName: string;
-          defaultQty: number;
-          label: string;
-      }
-    | {
           menu: typeof Menu.ShipyardsTradein;
           target: string;
           displayName: string;

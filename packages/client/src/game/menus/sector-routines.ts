@@ -1,7 +1,7 @@
 import { ClientMsgType, Menu } from '@twnr/shared';
 import { render } from '../renderer.js';
 import { NOTIFY, SECTOR } from '../messages/index.js';
-import { echoCommand, showPortMenu, showPlayerInfo, showPrompt } from '../display.js';
+import { echoCommand, showPortMenu, showPlayerInfo } from '../display.js';
 import { registerRoutine } from './types.js';
 import { askChar, askConfirm, askNumber } from './prompts.js';
 
@@ -79,9 +79,7 @@ registerRoutine('jettison_menu', async (ctx) => {
     const ok = await askConfirm(ctx, render(SECTOR.jettisonConfirm), { defaultValue: false });
     if (ok) {
         ctx.io.sendMsg({ type: ClientMsgType.Jettison });
-        return;
     }
-    showPrompt(ctx);
 });
 
 // Deploy mines: askChar (proximity / seeker) then askNumber (qty),
@@ -89,19 +87,13 @@ registerRoutine('jettison_menu', async (ctx) => {
 // used to hold these prompts are deleted.
 registerRoutine('deploy_mines_menu', async (ctx) => {
     const typeChar = await askChar(ctx, 'Deploy (P)roximity or (S)eeker mines? ', ['p', 's']);
-    if (typeChar === null) {
-        showPrompt(ctx);
-        return;
-    }
+    if (typeChar === null) return;
     const mineType = typeChar === 'p' ? 'proximity' : 'seeker';
     const label = mineType === 'seeker' ? 'Seeker' : 'Proximity';
     const qty = await askNumber(ctx, `How many ${label} mines to deploy? (Q to cancel) `, {
         min: 1,
     });
-    if (qty === null) {
-        showPrompt(ctx);
-        return;
-    }
+    if (qty === null) return;
     ctx.io.sendMsg({ type: ClientMsgType.DeployMine, mineType, quantity: qty });
 });
 
@@ -115,10 +107,7 @@ registerRoutine('mine_disruptor_menu', async (ctx) => {
     const target = await askNumber(ctx, 'Mine disruptor — adjacent target sector? (Q to cancel) ', {
         min: 1,
     });
-    if (target === null) {
-        showPrompt(ctx);
-        return;
-    }
+    if (target === null) return;
     ctx.io.sendMsg({ type: ClientMsgType.MineDisruptor, targetSector: target });
 });
 
@@ -146,9 +135,7 @@ registerRoutine('quit_game', async (ctx) => {
     if (ok) {
         ctx.io.term.writeln(render(NOTIFY.goodbye));
         ctx.io.ws.close();
-        return;
     }
-    showPrompt(ctx);
 });
 
 registerRoutine('players_online', (ctx) => {
