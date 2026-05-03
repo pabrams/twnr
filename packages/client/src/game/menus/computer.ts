@@ -31,6 +31,9 @@ registerMenu(Menu.Computer, {
                 echoCommand(ctx, 'listPlanets');
                 ctx.io.sendMsg({ type: ClientMsgType.ListPlanets });
                 break;
+            case 'm':
+                ctx.io.sendMsg({ type: ClientMsgType.TrackSeekerMines });
+                break;
             case '?':
                 showComputerHelp(ctx);
                 break;

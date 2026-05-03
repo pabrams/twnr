@@ -10,7 +10,6 @@ const STACKABLE_HARDWARE: Record<string, { itemName: string; label: string }> = 
     u: { itemName: 'buoy', label: 'Space Buoys' },
     p: { itemName: 'proximity_mine', label: 'Proximity Mines' },
     s: { itemName: 'seeker_mine', label: 'Seeker Mines' },
-    o: { itemName: 'orbital_mine', label: 'Orbital Mines' },
     d: { itemName: 'mine_disruptor', label: 'Mine Disruptors' },
     k: { itemName: 'cloaking_device', label: 'Cloaking Devices' },
     c: { itemName: 'corbomite', label: 'Corbomite' },

@@ -5,9 +5,20 @@
 set -e
 cd "$(dirname "$0")/.."
 
-export PGDATABASE="${PGDATABASE:-twnr_test}"
+# Per-worktree test DB: <leaf>_<8-char-hash>_test. Mirrors src/db/pool.ts.
+if [ -z "${PGDATABASE:-}" ]; then
+  if WT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null); then
+    WT_NAME=$(basename "$WT_ROOT" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/_/g; s/^_+|_+$//g')
+    WT_HASH=$(printf '%s' "$WT_ROOT" | sha256sum | cut -c1-8)
+    PGDATABASE="${WT_NAME:-twnr}_${WT_HASH}_test"
+  else
+    PGDATABASE="twnr_test"
+  fi
+fi
+export PGDATABASE
 export PGUSER="${PGUSER:-twnr_user}"
 export PGPASSWORD="${PGPASSWORD:-twnr_pass}"
+export PGHOST="${PGHOST:-localhost}"
 export JWT_SECRET="test-jwt-secret"
 export ADMIN_API_KEY="test-admin-key"
 export WS_ALLOWED_ORIGINS="http://localhost:3001"
@@ -15,6 +26,13 @@ export DISABLE_RATE_LIMIT=1
 export PORT=3001
 
 PROJECT_ROOT="$(pwd)"
+
+# Create the test DB if missing (Postgres has no CREATE DATABASE IF NOT EXISTS).
+if ! psql -h "$PGHOST" -U "$PGUSER" -d postgres -tAc \
+    "SELECT 1 FROM pg_database WHERE datname='$PGDATABASE'" 2>/dev/null | grep -q 1; then
+  echo "==> Creating test DB: $PGDATABASE"
+  psql -h "$PGHOST" -U "$PGUSER" -d postgres -c "CREATE DATABASE \"$PGDATABASE\""
+fi
 
 cleanup() {
   if [ -n "$SERVER_PID" ]; then

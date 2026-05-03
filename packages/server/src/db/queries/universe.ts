@@ -145,7 +145,10 @@ export async function snapshotTemplateForUniverse(
             is_speed_warp_delay_on, photons_allowed, photon_blast_time_seconds,
             planet_spawn_density, max_ships_allowed, max_corp_size,
             max_ships_in_protected_space, truce_time_hours, is_automation_enabled,
-            starting_shields, starting_earth_colonists
+            starting_shields, starting_earth_colonists,
+            proximity_mine_damage, proximity_detonation_pct,
+            seeker_attach_pct, seeker_pickup_detect_pct,
+            mine_disruptor_min, mine_disruptor_max
          )
          SELECT $1, max_planets_per_sector, planet_collision_likelihood,
                 planet_collision_min_hours, planet_collision_max_hours,
@@ -156,7 +159,10 @@ export async function snapshotTemplateForUniverse(
                 is_speed_warp_delay_on, photons_allowed, photon_blast_time_seconds,
                 planet_spawn_density, max_ships_allowed, max_corp_size,
                 max_ships_in_protected_space, truce_time_hours, is_automation_enabled,
-                starting_shields, starting_earth_colonists
+                starting_shields, starting_earth_colonists,
+                proximity_mine_damage, proximity_detonation_pct,
+                seeker_attach_pct, seeker_pickup_detect_pct,
+                mine_disruptor_min, mine_disruptor_max
          FROM edit_templates WHERE name = $2
          ON CONFLICT (universe_id) DO NOTHING`,
         [universeId, templateName],

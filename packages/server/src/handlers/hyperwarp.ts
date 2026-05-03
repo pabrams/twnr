@@ -14,6 +14,7 @@ import {
     getDeployedDronesByOwnerBySector,
 } from '../db/queries/drones.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
+import { resolveMinesOnEntry } from '../services/mine-encounter.js';
 
 export async function handleListDeployedDrones(playerId: number): Promise<void> {
     const player = players[playerId];
@@ -140,4 +141,6 @@ export async function handleHyperspaceJump(playerId: number, targetSector: numbe
         fuelUsed: fuelCost,
         turnsUsed: turnResult.turnsUsed,
     });
+
+    await resolveMinesOnEntry(playerId);
 }

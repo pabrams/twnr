@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Pool } from 'pg';
+import { databaseName } from '../dist/db/pool.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const dropSQL = readFileSync(join(__dirname, 'drop-all-tables.sql'), 'utf8');
@@ -9,13 +10,13 @@ const dropSQL = readFileSync(join(__dirname, 'drop-all-tables.sql'), 'utf8');
 async function deleteDatabase() {
   const pool = new Pool({
     host: process.env.PGHOST || 'localhost',
-    database: process.env.PGDATABASE || 'twnr',
+    database: databaseName,
     user: process.env.PGUSER,
     password: process.env.PGPASSWORD,
   });
 
   try {
-    console.log("Connecting to database...");
+    console.log(`Connecting to database: ${databaseName}`);
     const client = await pool.connect();
     console.log("connected");
 

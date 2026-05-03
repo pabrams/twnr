@@ -20,6 +20,7 @@ import {
     insertSectorDrones,
     deleteSectorDrones,
 } from '../db/queries/drones.js';
+import { resolveMinesOnEntry } from '../services/mine-encounter.js';
 
 export async function handleDeployDronesInfo(playerId: number): Promise<void> {
     const player = players[playerId];
@@ -311,6 +312,9 @@ export async function handleRetreatFromDrones(playerId: number): Promise<void> {
     );
 
     player.pendingEncounter = undefined;
+
+    const mineOutcome = await resolveMinesOnEntry(playerId);
+    if (mineOutcome.destroyed) return;
 
     await sendEnvelope(
         playerId,

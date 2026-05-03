@@ -61,6 +61,18 @@ registerMenu(Menu.Sector, {
                 echoCommand(ctx, 'listDeployedDrones');
                 ctx.io.sendMsg({ type: ClientMsgType.ListDeployedDrones });
                 break;
+            case 'n':
+                ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.DeployMines });
+                break;
+            case 'e':
+                ctx.io.sendMsg({ type: ClientMsgType.ListDeployedMines });
+                break;
+            case 'r':
+                ctx.io.sendMsg({
+                    type: ClientMsgType.ChangeMenu,
+                    menu: Menu.MineDisruptorTarget,
+                });
+                break;
             case 'l':
                 echoCommand(ctx, 'land');
                 ctx.io.sendMsg({ type: ClientMsgType.Land });

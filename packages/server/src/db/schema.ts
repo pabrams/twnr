@@ -1,4 +1,4 @@
-import { pool } from './pool.js';
+import { pool, ensureDatabase, databaseName } from './pool.js';
 import { shipConfigs } from '../ship-config.js';
 import { planetConfigs } from '../planet-config.js';
 import { universeConfig } from '../universe-config.js';
@@ -8,6 +8,9 @@ let isConnected = false;
 
 export const connectDB = async (): Promise<void> => {
     if (isConnected) return;
+
+    await ensureDatabase();
+    console.log(`Using database: ${databaseName}`);
 
     try {
         const client = await pool.connect();
@@ -69,7 +72,13 @@ export const connectDB = async (): Promise<void> => {
         truce_time_hours SMALLINT NOT NULL DEFAULT 0,
         is_automation_enabled BOOLEAN NOT NULL DEFAULT TRUE,
         starting_shields INTEGER NOT NULL DEFAULT ${universeConfig.startingShields},
-        starting_earth_colonists INTEGER NOT NULL DEFAULT 1000000
+        starting_earth_colonists INTEGER NOT NULL DEFAULT 1000000,
+        proximity_mine_damage INTEGER NOT NULL DEFAULT ${universeConfig.proximityMineDamage},
+        proximity_detonation_pct SMALLINT NOT NULL DEFAULT ${universeConfig.proximityDetonationPct},
+        seeker_attach_pct SMALLINT NOT NULL DEFAULT ${universeConfig.seekerAttachPct},
+        seeker_pickup_detect_pct SMALLINT NOT NULL DEFAULT ${universeConfig.seekerPickupDetectPct},
+        mine_disruptor_min SMALLINT NOT NULL DEFAULT ${universeConfig.mineDisruptorMin},
+        mine_disruptor_max SMALLINT NOT NULL DEFAULT ${universeConfig.mineDisruptorMax}
       );
 
       CREATE TABLE IF NOT EXISTS universes (
@@ -114,7 +123,13 @@ export const connectDB = async (): Promise<void> => {
         truce_time_hours SMALLINT NOT NULL,
         is_automation_enabled BOOLEAN NOT NULL,
         starting_shields INTEGER NOT NULL,
-        starting_earth_colonists INTEGER NOT NULL
+        starting_earth_colonists INTEGER NOT NULL,
+        proximity_mine_damage INTEGER NOT NULL DEFAULT ${universeConfig.proximityMineDamage},
+        proximity_detonation_pct SMALLINT NOT NULL DEFAULT ${universeConfig.proximityDetonationPct},
+        seeker_attach_pct SMALLINT NOT NULL DEFAULT ${universeConfig.seekerAttachPct},
+        seeker_pickup_detect_pct SMALLINT NOT NULL DEFAULT ${universeConfig.seekerPickupDetectPct},
+        mine_disruptor_min SMALLINT NOT NULL DEFAULT ${universeConfig.mineDisruptorMin},
+        mine_disruptor_max SMALLINT NOT NULL DEFAULT ${universeConfig.mineDisruptorMax}
       );
 
       CREATE TABLE IF NOT EXISTS sectors (
@@ -451,13 +466,25 @@ export const connectDB = async (): Promise<void> => {
 
       CREATE TABLE IF NOT EXISTS sector_mines (
         sector_id INTEGER NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
-        mine_type VARCHAR(20) NOT NULL CHECK (mine_type IN ('proximity', 'orbital', 'seeker')),
+        mine_type VARCHAR(20) NOT NULL CHECK (mine_type IN ('proximity', 'seeker')),
         quantity INTEGER NOT NULL DEFAULT 0,
         owner_player_id INTEGER REFERENCES players(id) ON DELETE SET NULL,
         owner_corp_id INTEGER REFERENCES corporations(id) ON DELETE SET NULL,
         PRIMARY KEY (sector_id, mine_type),
         CHECK (NOT (owner_player_id IS NOT NULL AND owner_corp_id IS NOT NULL))
       );
+
+      -- One row per ship that currently has a seeker mine attached. The
+      -- owner_player_id is the player who deployed the mine (so they can
+      -- track where their attached mines are). At most one attachment per
+      -- ship; new attachments dislodge the previous mine entirely.
+      CREATE TABLE IF NOT EXISTS seeker_attachments (
+        ship_id INTEGER PRIMARY KEY REFERENCES ships(id) ON DELETE CASCADE,
+        owner_player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+        attached_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_seeker_attachments_owner
+        ON seeker_attachments (owner_player_id);
 
       CREATE TABLE IF NOT EXISTS sector_beacons (
         sector_id INTEGER PRIMARY KEY REFERENCES sectors(id) ON DELETE CASCADE,
@@ -561,7 +588,10 @@ export const connectDB = async (): Promise<void> => {
         ('shipyardsClass0Qty', 'Equipment Quantity'),
         ('move', 'Move to adjacent sector'),
         ('quitConfirm', 'Confirm quit'),
-        ('terraformConfirm', 'Confirm terraform')
+        ('terraformConfirm', 'Confirm terraform'),
+        ('deployMines', 'Deploy Mines'),
+        ('deployMinesQty', 'Deploy Mines Quantity'),
+        ('mineDisruptorTarget', 'Mine Disruptor Target')
       ON CONFLICT (name) DO NOTHING;
 
       -- Set parent menu relationships
@@ -605,6 +635,10 @@ export const connectDB = async (): Promise<void> => {
         WHERE name = 'planetSelect';
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'computer')
         WHERE name = 'hyperspaceJumpTarget';
+      UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'sector')
+        WHERE name IN ('deployMines', 'mineDisruptorTarget');
+      UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'deployMines')
+        WHERE name = 'deployMinesQty';
 
       -- Seed commands (abstract identities, reusable across menus)
       INSERT INTO command (name, label) VALUES
@@ -667,7 +701,6 @@ export const connectDB = async (): Promise<void> => {
         ('buy_mines', 'Buy Mines'),
         ('buy_proximity_mines', 'Proximity Mines'),
         ('buy_seeker_mines', 'Seeker Mines'),
-        ('buy_orbital_mines', 'Orbital Mines'),
         ('buy_mine_disruptors', 'Buy Mine Disruptors'),
         ('buy_scanners_visual', 'Buy Visual Scanner'),
         ('buy_scanners_planet', 'Buy Planet Scanner'),
@@ -703,7 +736,13 @@ export const connectDB = async (): Promise<void> => {
         ('select_warp_3', 'Select warp 3'),
         ('select_warp_4', 'Select warp 4'),
         ('select_warp_5', 'Select warp 5'),
-        ('select_warp_6', 'Select warp 6')
+        ('select_warp_6', 'Select warp 6'),
+        ('deploy_mines_menu', 'Deploy Mines'),
+        ('deploy_proximity_mines', 'Proximity Mines'),
+        ('deploy_seeker_mines', 'Seeker Mines'),
+        ('list_deployed_mines', 'List Deployed Mines'),
+        ('track_seeker_mines', 'Track Seeker Mines'),
+        ('mine_disruptor_menu', 'Mine Disruptor')
       ON CONFLICT (name) DO NOTHING;
 
       -- Seed menu_command join rows
@@ -879,10 +918,15 @@ export const connectDB = async (): Promise<void> => {
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === Starbase Hardware ===
+      -- BANDAID: 'p' (proximity) and 's' (seeker) live here directly to match
+      -- the client's flat hardware menu. Keep the starbaseMines submenu rows
+      -- below for now; they are unreferenced by the client. Refactor away
+      -- when the menu registry becomes the single source of dispatch.
       INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
         ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_terraform_devices'), 't', 'Terraform Devices', NULL, (SELECT id FROM menu WHERE name='starbaseBuyQty'), 10),
         ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_planet_busters'), 'b', 'Planet Busters', NULL, (SELECT id FROM menu WHERE name='starbaseBuyQty'), 20),
         ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_buoys'), 'u', 'Space Buoys', NULL, (SELECT id FROM menu WHERE name='starbaseBuyQty'), 30),
+        ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_seeker_mines'), 's', 'Seeker Mines', NULL, (SELECT id FROM menu WHERE name='starbaseBuyQty'), 35),
         ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_mines'), 'm', 'Mines', NULL, (SELECT id FROM menu WHERE name='starbaseMines'), 40),
         ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_mine_disruptors'), 'd', 'Mine Disruptors', NULL, (SELECT id FROM menu WHERE name='starbaseBuyQty'), 50),
         ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_hyperspace_drive'), 'h', 'Hyperspace Drive', 'buyHyperspaceDrive', NULL, 60),
@@ -900,9 +944,15 @@ export const connectDB = async (): Promise<void> => {
       INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
         ((SELECT id FROM menu WHERE name='starbaseMines'), (SELECT id FROM command WHERE name='buy_proximity_mines'), 'p', 'Proximity Mines', NULL, (SELECT id FROM menu WHERE name='starbaseBuyQty'), 10),
         ((SELECT id FROM menu WHERE name='starbaseMines'), (SELECT id FROM command WHERE name='buy_seeker_mines'), 's', 'Seeker Mines', NULL, (SELECT id FROM menu WHERE name='starbaseBuyQty'), 20),
-        ((SELECT id FROM menu WHERE name='starbaseMines'), (SELECT id FROM command WHERE name='buy_orbital_mines'), 'o', 'Orbital Mines', NULL, (SELECT id FROM menu WHERE name='starbaseBuyQty'), 30),
         ((SELECT id FROM menu WHERE name='starbaseMines'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', NULL, (SELECT id FROM menu WHERE name='starbaseHardware'), 40)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
+
+      -- Cleanup: remove orbital mine rows from existing test DBs that were
+      -- seeded before the mine system was reduced to two types. Both the
+      -- hardware_item row and the menu binding referencing it.
+      DELETE FROM menu_command WHERE command_id = (SELECT id FROM command WHERE name='buy_orbital_mines');
+      DELETE FROM command WHERE name = 'buy_orbital_mines';
+      DELETE FROM hardware_item WHERE name = 'orbital_mine';
 
       -- === Starbase Buy Qty ===
       INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
@@ -1021,11 +1071,44 @@ export const connectDB = async (): Promise<void> => {
         ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='list_deployed_drones'), 'g', 'Deployed Drones', 'listDeployedDrones', NULL, 85)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
+      -- === Sector: mine deployment / listing / disruptor ===
+      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
+        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='deploy_mines_menu'), 'n', 'Deploy mines', NULL, (SELECT id FROM menu WHERE name='deployMines'), 86),
+        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='list_deployed_mines'), 'e', 'Deployed Mines', 'listDeployedMines', NULL, 87),
+        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='mine_disruptor_menu'), 'r', 'Mine Disruptor', NULL, (SELECT id FROM menu WHERE name='mineDisruptorTarget'), 88)
+      ON CONFLICT (menu_id, command_id) DO NOTHING;
+
+      -- === Deploy Mines (type picker) ===
+      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
+        ((SELECT id FROM menu WHERE name='deployMines'), (SELECT id FROM command WHERE name='deploy_proximity_mines'), 'p', 'Proximity Mines', NULL, (SELECT id FROM menu WHERE name='deployMinesQty'), 10),
+        ((SELECT id FROM menu WHERE name='deployMines'), (SELECT id FROM command WHERE name='deploy_seeker_mines'), 's', 'Seeker Mines', NULL, (SELECT id FROM menu WHERE name='deployMinesQty'), 20),
+        ((SELECT id FROM menu WHERE name='deployMines'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', NULL, (SELECT id FROM menu WHERE name='sector'), 30)
+      ON CONFLICT (menu_id, command_id) DO NOTHING;
+
+      -- === Deploy Mines Qty ===
+      -- BANDAID: Q cancels all the way back to sector to match the client.
+      -- Deploy success also routes to sector, so deployMines is unreachable
+      -- from here in either branch. Refactor along with the wider menu cleanup.
+      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
+        ((SELECT id FROM menu WHERE name='deployMinesQty'), (SELECT id FROM command WHERE name='enter_quantity'), '<number>', 'Mines to deploy', 'deployMine', NULL, 10),
+        ((SELECT id FROM menu WHERE name='deployMinesQty'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', NULL, (SELECT id FROM menu WHERE name='sector'), 20)
+      ON CONFLICT (menu_id, command_id) DO NOTHING;
+      UPDATE menu_command SET target_menu_id = (SELECT id FROM menu WHERE name='sector')
+       WHERE menu_id = (SELECT id FROM menu WHERE name='deployMinesQty')
+         AND command_id = (SELECT id FROM command WHERE name='back');
+
+      -- === Mine Disruptor Target ===
+      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
+        ((SELECT id FROM menu WHERE name='mineDisruptorTarget'), (SELECT id FROM command WHERE name='enter_quantity'), '<number>', 'Adjacent target sector', 'mineDisruptor', NULL, 10),
+        ((SELECT id FROM menu WHERE name='mineDisruptorTarget'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', NULL, (SELECT id FROM menu WHERE name='sector'), 20)
+      ON CONFLICT (menu_id, command_id) DO NOTHING;
+
       -- === Computer: add hyperspace jump, deployed drones, list planets ===
       INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
         ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='list_deployed_drones'), 'd', 'Deployed Drones', 'listDeployedDrones', NULL, 55),
         ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='hyperspace_jump'), 'h', 'Hyperspace Jump', NULL, (SELECT id FROM menu WHERE name='hyperspaceJumpTarget'), 56),
-        ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='list_planets'), 'y', 'Your Planets', 'listPlanets', NULL, 57)
+        ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='list_planets'), 'y', 'Your Planets', 'listPlanets', NULL, 57),
+        ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='track_seeker_mines'), 'm', 'Track Seeker Mines', 'trackSeekerMines', NULL, 58)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === Hyperspace Jump Target ===
@@ -1054,7 +1137,6 @@ export const connectDB = async (): Promise<void> => {
         ('buoy',             'Space Buoys',             'stackable', 100,    'buyHardwareResult', NULL),
         ('proximity_mine',   'Proximity Mines',         'stackable', 500,    'buyHardwareResult', '{"mineType": "proximity"}'),
         ('seeker_mine',      'Seeker Mines',            'stackable', 9500,   'buyHardwareResult', '{"mineType": "seeker"}'),
-        ('orbital_mine',     'Orbital Mines',           'stackable', 2000,   'buyHardwareResult', '{"mineType": "orbital"}'),
         ('mine_disruptor',   'Mine Disruptors',         'stackable', 5000,   'buyHardwareResult', NULL),
         ('cloaking_device',  'Cloaking Devices',        'stackable', 25000,  'buyHardwareResult', NULL),
         ('corbomite',        'Corbomite',               'stackable', 500,    'buyHardwareResult', NULL),
@@ -1268,7 +1350,6 @@ export const connectDB = async (): Promise<void> => {
             buoy: { configKey: 'maxBuoy' },
             proximity_mine: { configKey: 'maxProximity' },
             seeker_mine: { configKey: 'maxSeeker' },
-            orbital_mine: { configKey: 'maxOrbital' },
             mine_disruptor: { configKey: 'maxDisruptors' },
             cloaking_device: { configKey: 'maxCloaking' },
             corbomite: { configKey: 'maxCorbomite' },

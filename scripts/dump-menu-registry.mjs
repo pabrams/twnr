@@ -5,18 +5,39 @@
  * Falls back gracefully if DB is unavailable.
  */
 import { execSync } from 'child_process';
+import { createHash } from 'crypto';
 import { writeFileSync } from 'fs';
-import { join, dirname } from 'path';
+import { basename, join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const outPath = join(__dirname, '..', 'docs', 'menu-registry.json');
 const sqlPath = join(__dirname, 'menu-registry.sql');
 
+function deriveDatabaseName() {
+    if (process.env.PGDATABASE) return process.env.PGDATABASE;
+    let root;
+    try {
+        root = execSync('git rev-parse --show-toplevel', {
+            encoding: 'utf8',
+            stdio: ['ignore', 'pipe', 'ignore'],
+        }).trim();
+    } catch {
+        root = process.cwd();
+    }
+    const sanitized =
+        basename(root)
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '_')
+            .replace(/^_+|_+$/g, '') || 'twnr';
+    const hash = createHash('sha256').update(root).digest('hex').slice(0, 8);
+    return `${sanitized}_${hash}`;
+}
+
 try {
     const env = {
         ...process.env,
-        PGDATABASE: process.env.PGDATABASE || 'twnr',
+        PGDATABASE: deriveDatabaseName(),
         PGUSER: process.env.PGUSER || 'twnr_user',
         PGPASSWORD: process.env.PGPASSWORD || 'twnr_pass',
     };

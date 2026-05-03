@@ -16,6 +16,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
+import { deriveTestDbName } from './test-db-name.mjs';
 
 const { Pool } = pg;
 
@@ -24,7 +25,7 @@ const PROJECT_ROOT = join(dirname(__filename), '..');
 
 export const JWT_SECRET = 'test-jwt-secret';
 export const ADMIN_API_KEY = 'test-admin-key';
-export const TEST_DB = process.env.PGDATABASE || 'twnr_test';
+export const TEST_DB = deriveTestDbName();
 export const TEST_PORT = process.env.PORT || '3000';
 export const BASE = `http://localhost:${TEST_PORT}`;
 export const WS_BASE = `ws://localhost:${TEST_PORT}`;

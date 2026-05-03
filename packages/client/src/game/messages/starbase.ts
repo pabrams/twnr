@@ -33,11 +33,11 @@ export const STARBASE = makeDomain('STARBASE', {
     shipyardsExamineHeader: '[bc]=== Shipyards - {label} ===[/bc]',
     shipyardsExamineRow: '  [by]{letter}[/by]  [w]{name}[/w]',
 
-    loadingShipCatalog: '\r\n[w]Loading ship catalog...[/w]',
+    loadingShipCatalog: '\r\n[c]Loading ship catalog...[/c]',
     shipCatalogFailed: '[br]Failed to load ship catalog.[/br]',
 
-    tradeinHeader: '[bc]{ship}[/bc] — [by]Price[/by]: [w]{price}[/w] cr',
-    tradeinCredit: '[by]Trade-in credit[/by]: [w]{credit}[/w] cr',
+    tradeinHeader: '{ship} [g]:[/g] [by]{price}[/by] cr',
+    tradeinCredit: '[mg]Trade-in credit[/mg]: [by]{credit}[/by] cr',
     tradeinNet: '[by]Net cost with trade-in[/by]: [w]{net}[/w] cr',
     tradeinConfirm:
         '\r\n[c]Trade in your current ship?[/c] [mg]([/mg][by]Y[/by]/[by]N[/by]/[by]Q[/by]uit[mg])[/mg] ',

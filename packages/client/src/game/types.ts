@@ -168,6 +168,10 @@ export type MenuArgs =
     | {
           menu: typeof Menu.DeployDronesQty;
           minInSector: number;
+      }
+    | {
+          menu: typeof Menu.DeployMinesQty;
+          mineType: 'proximity' | 'seeker';
       };
 
 export interface GameContext {

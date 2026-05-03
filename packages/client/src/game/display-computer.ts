@@ -124,7 +124,6 @@ const HW_DISPLAY: { name: string; label: string; isToggle?: boolean }[] = [
     { name: 'buoy', label: 'Max Buoys' },
     { name: 'proximity_mine', label: 'Max Prox Mines' },
     { name: 'seeker_mine', label: 'Max Seeker Mines' },
-    { name: 'orbital_mine', label: 'Max Orbital Mines' },
     { name: 'cloaking_device', label: 'Max Cloaking' },
     { name: 'corbomite', label: 'Max Corbomite' },
     { name: 'photon_torpedo', label: 'Max Photon Torps' },

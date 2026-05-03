@@ -48,6 +48,12 @@ import {
 import { handleListDeployedDrones, handleHyperspaceJump } from './hyperwarp.js';
 import { handleBuyHardware, handleHardwareStoreInfo } from './hardware-store.js';
 import { handleGetNeighborhood } from './neighborhood.js';
+import {
+    handleDeployMine,
+    handleListDeployedMines,
+    handleTrackSeekerMines,
+    handleMineDisruptor,
+} from './mines.js';
 
 export async function handleMessage(playerId: number, data: ClientCommand): Promise<void> {
     switch (data.type) {
@@ -139,6 +145,30 @@ export async function handleMessage(playerId: number, data: ClientCommand): Prom
             return handleChangeMenu(playerId, data.menu);
         case ClientMsgType.VisitedSectors:
             return handleVisitedSectors(playerId);
+        case ClientMsgType.DeployMine: {
+            const raw = data as { mineType?: unknown; quantity?: unknown };
+            if (raw.mineType !== 'proximity' && raw.mineType !== 'seeker') {
+                sendError(playerId, 'Invalid mine type');
+                return;
+            }
+            if (typeof raw.quantity !== 'number') {
+                sendError(playerId, 'Invalid quantity');
+                return;
+            }
+            return handleDeployMine(playerId, raw.mineType, raw.quantity);
+        }
+        case ClientMsgType.ListDeployedMines:
+            return handleListDeployedMines(playerId);
+        case ClientMsgType.TrackSeekerMines:
+            return handleTrackSeekerMines(playerId);
+        case ClientMsgType.MineDisruptor: {
+            const raw = data as { targetSector?: unknown };
+            if (typeof raw.targetSector !== 'number') {
+                sendError(playerId, 'Invalid target sector');
+                return;
+            }
+            return handleMineDisruptor(playerId, raw.targetSector);
+        }
         case ClientMsgType.GetNeighborhood: {
             // Wire-level validation: both half-extents must be numbers.
             // Optional centerX/Y, when present, must also be numbers; absent

@@ -18,6 +18,7 @@ import {
     findVisitedSectorsInSet,
 } from '../db/queries/sector.js';
 import { deductTurns, fetchMoveTurnContext } from '../turn-logic.js';
+import { resolveMinesOnEntry } from '../services/mine-encounter.js';
 
 export async function handleMove(playerId: number, targetSector: number): Promise<void> {
     if (!Number.isInteger(targetSector) || targetSector <= 0) {
@@ -117,6 +118,15 @@ export async function handleMove(playerId: number, targetSector: number): Promis
         },
         newSectorClients,
     );
+
+    // Resolve any enemy mines in the destination sector. Proximity mines may
+    // damage or destroy the ship before the player can do anything; seeker
+    // mines may attach silently. Run before drone-encounter check so a kill
+    // shortcuts further work.
+    const mineOutcome = await resolveMinesOnEntry(playerId);
+    if (mineOutcome.destroyed) {
+        return;
+    }
 
     const sectorData = await buildSectorDisplayData(playerId, targetSector);
     if (!sectorData) return;

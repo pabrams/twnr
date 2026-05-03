@@ -14,13 +14,22 @@ sudo -u postgres initdb -D /var/lib/postgres/data
 sudo systemctl enable --now postgresql
 ```
 
-### 2. Create databases and user
+### 2. Create the user
 
 ```bash
-sudo -u postgres psql -c "CREATE USER twnr_user WITH PASSWORD 'twnr_pass';"
-sudo -u postgres psql -c "CREATE DATABASE twnr OWNER twnr_user;"
-sudo -u postgres psql -c "CREATE DATABASE twnr_test OWNER twnr_user;"
+sudo -u postgres psql -c "CREATE USER twnr_user WITH CREATEDB PASSWORD 'twnr_pass';"
 ```
+
+The server auto-creates a per-worktree database on first boot
+(`<leaf>_<8-char-hash>`, e.g. `twnr_fc44cb23`), so the user needs `CREATEDB`.
+If you already created `twnr_user` without it:
+
+```bash
+sudo -u postgres psql -c "ALTER USER twnr_user CREATEDB;"
+```
+
+To pin a specific database name instead, set `PGDATABASE=<name>` in
+`packages/server/.env` and pre-create it manually.
 
 ### 3. Install, generate env, and build
 
