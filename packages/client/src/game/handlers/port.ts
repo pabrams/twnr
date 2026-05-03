@@ -1,15 +1,16 @@
-import { PORT_CLASS_ACTIONS, Menu, type PortClassActions } from '@twnr/shared';
+import { ClientMsgType, PORT_CLASS_ACTIONS, type PortClassActions } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { NOTIFY, TRANSACTION, PORT } from '../messages/index.js';
 import { showCommerceReport, showSectorDisplay, type DisplayCtx } from '../display.js';
 import { type DisplayPortCtx } from '../display-port.js';
 import { type DisplayStarbaseCtx } from '../display-starbase.js';
-import { setMenuArgs, type MenuArgsSlot } from '../menus/types.js';
+import { type MenuArgsSlot } from '../menus/types.js';
+import { askNumber, askConfirm } from '../menus/prompts.js';
 import type { Handler } from './index.js';
 import { fmt, refreshMinimap, type RefreshMinimapDeps } from './utils.js';
 
-type PortDeps = Pick<GameContext, 'catalogs' | 'io' | 'starbase' | 'world'> &
+type PortDeps = Pick<GameContext, 'catalogs' | 'input' | 'io' | 'starbase' | 'world'> &
     DisplayCtx &
     DisplayPortCtx &
     DisplayStarbaseCtx &
@@ -87,45 +88,64 @@ export const dock: Handler<'dockResult', PortDeps> = (ctx, msg) => {
 };
 
 export const tradePrompt: Handler<'tradePrompt', PortDeps> = (ctx, msg) => {
-    setMenuArgs(ctx, {
-        menu: Menu.TradeQty,
-        commodity: msg.commodityLabel,
-        action: msg.action,
-        portTrading: msg.portTrading,
-        onBoard: msg.onBoard,
-        maxQty: msg.maxQty,
-    });
+    // Inline askNumber — tradeQty menu is gone. Server stays at 'port'
+    // throughout the trade flow; this handler owns the qty prompt and
+    // sends TradeResponse, after which the server emits the next
+    // tradePrompt / tradeConfirmPrompt / tradeComplete envelope.
+    void tradePromptAsk(ctx, msg);
 };
 
+async function tradePromptAsk(
+    ctx: PortDeps,
+    msg: {
+        commodityLabel: string;
+        action: 'buy' | 'sell';
+        portTrading: number;
+        onBoard: number;
+        maxQty: number;
+    },
+): Promise<void> {
+    const { term } = ctx.io;
+    const infoTpl = msg.action === 'buy' ? PORT.tradeQtyInfoBuy : PORT.tradeQtyInfoSell;
+    const promptTpl = msg.action === 'buy' ? PORT.tradeQtyPromptBuy : PORT.tradeQtyPromptSell;
+    term.writeln('');
+    term.writeln(render(infoTpl, { portTrading: msg.portTrading, onBoard: msg.onBoard }));
+    const promptText = render(promptTpl, { commodity: msg.commodityLabel, maxQty: msg.maxQty });
+    // Server contract: -1 means "default" (accept maxQty). Empty Enter
+    // returns -1 here too; explicit 0 returns null (cancel) from
+    // askNumber via the min: 1 guard, which we map to -1 cancel below.
+    const qty = await askNumber(ctx, promptText, { defaultValue: -1, min: 0 });
+    if (qty === null) {
+        ctx.io.sendMsg({ type: ClientMsgType.TradeResponse, quantity: -1 });
+        return;
+    }
+    ctx.io.sendMsg({ type: ClientMsgType.TradeResponse, quantity: qty });
+}
+
 export const tradeConfirmPrompt: Handler<'tradeConfirmPrompt', PortDeps> = (ctx, msg) => {
-    setMenuArgs(ctx, {
-        menu: Menu.TradeConfirm,
-        action: msg.action,
-        totalPrice: msg.totalPrice,
-    });
+    void tradeConfirmAsk(ctx, msg);
 };
+
+async function tradeConfirmAsk(
+    ctx: PortDeps,
+    msg: { action: 'buy' | 'sell'; totalPrice: number },
+): Promise<void> {
+    const { term } = ctx.io;
+    const tpl = msg.action === 'buy' ? TRANSACTION.tradeConfirmSell : TRANSACTION.tradeConfirmBuy;
+    term.writeln(render(tpl, { total: fmt(msg.totalPrice) }));
+    const ok = await askConfirm(ctx, render(TRANSACTION.tradeConfirmAccept), {
+        defaultValue: true,
+    });
+    ctx.io.sendMsg({ type: ClientMsgType.TradeConfirmResponse, confirmed: ok === true });
+}
 
 export const tradeComplete: Handler<'tradeComplete', PortDeps> = (ctx, msg) => {
     ctx.io.term.writeln(render(TRANSACTION.tradeComplete, { credits: fmt(msg.credits) }));
 };
 
 export const tradeSkipped: Handler<'tradeSkipped', PortDeps> = (ctx, msg) => {
-    const tpl =
-        msg.reason === 'noTrade'
-            ? PORT.noTrade
-            : msg.reason === 'insufficientTurns'
-              ? PORT.skipInsufficientTurns
-              : msg.reason === 'insufficientCredits'
-                ? PORT.skipInsufficientCredits
-                : msg.reason === 'insufficientPortInventory'
-                  ? PORT.skipInsufficientPortInventory
-                  : msg.reason === 'insufficientCargoHolds'
-                    ? PORT.skipInsufficientCargoHolds
-                    : msg.reason === 'insufficientCargo'
-                      ? PORT.skipInsufficientCargo
-                      : PORT.skipPortCannotBuy;
     ctx.io.term.writeln('');
-    ctx.io.term.writeln(render(tpl));
+    ctx.io.term.writeln(render(skipReasonTpl(msg.reason)));
 };
 
 export const undock: Handler<'undockResult', PortDeps> = (ctx, msg) => {
@@ -133,11 +153,31 @@ export const undock: Handler<'undockResult', PortDeps> = (ctx, msg) => {
         ctx.world.dockedPortInfo = null;
         ctx.starbase.class0ShipState = null;
         ctx.world.sectorPlayers = msg.players;
+        if (msg.tradeSkipReason) {
+            ctx.io.term.writeln('');
+            ctx.io.term.writeln(render(skipReasonTpl(msg.tradeSkipReason)));
+        }
         refreshMinimap(ctx);
     } else {
         ctx.io.term.writeln(render(NOTIFY.error, { message: msg.message }));
     }
 };
+
+function skipReasonTpl(reason: import('@twnr/shared').TradeSkipReason): string {
+    return reason === 'noTrade'
+        ? PORT.noTrade
+        : reason === 'insufficientTurns'
+          ? PORT.skipInsufficientTurns
+          : reason === 'insufficientCredits'
+            ? PORT.skipInsufficientCredits
+            : reason === 'insufficientPortInventory'
+              ? PORT.skipInsufficientPortInventory
+              : reason === 'insufficientCargoHolds'
+                ? PORT.skipInsufficientCargoHolds
+                : reason === 'insufficientCargo'
+                  ? PORT.skipInsufficientCargo
+                  : PORT.skipPortCannotBuy;
+}
 
 export const jettison: Handler<'jettisonResult', PortDeps> = (ctx, msg) => {
     if (msg.outcome === 'success') {

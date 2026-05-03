@@ -29,7 +29,6 @@ function showPlanetPrompt(ctx: DisplayPlanetCtx) {
     ctx.io.term.write(render(PLANET.prompt));
 }
 
-
 export function showEarthMenu(ctx: DisplayPlanetCtx, colonistsFuel: number) {
     ctx.io.term.writeln('');
     ctx.io.term.writeln(render(PLANET.earthHeader, { count: colonistsFuel.toLocaleString() }));

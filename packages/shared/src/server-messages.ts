@@ -395,7 +395,14 @@ export type JettisonResultObject =
     | { type: typeof ServerMsgType.JettisonResult; outcome: 'error'; message: string };
 
 export type UndockResultObject =
-    | ({ type: typeof ServerMsgType.UndockResult; outcome: 'success' } & SectorDisplayData)
+    | ({
+          type: typeof ServerMsgType.UndockResult;
+          outcome: 'success';
+          /** When the dock immediately bounced (e.g. nothing to trade), the
+           * noTrade-style message rides along on the same envelope so the
+           * client doesn't render an intermediate Port prompt. */
+          tradeSkipReason?: TradeSkipReason;
+      } & SectorDisplayData)
     | { type: typeof ServerMsgType.UndockResult; outcome: 'error'; message: string };
 
 export type LeavePlanetResultObject = {
@@ -731,8 +738,19 @@ export type MenuTransitionResult = {
 type WithMenu<T> = T extends unknown ? T & { menu: MenuName } : never;
 
 /**
+ * Wire-format envelope additions that aren't part of any ServerResult
+ * variant. `suppressPrompt: true` tells the client framework "more
+ * messages are coming on this same player action" — skip the auto
+ * renderPrompt so the menu prompt doesn't paint between transient
+ * envelopes (e.g. DockResult → TradePrompt, TradeComplete → next
+ * TradePrompt or UndockResult). The terminal envelope in the chain
+ * omits the flag and triggers the prompt as usual.
+ */
+type EnvelopeFlags = { suppressPrompt?: boolean };
+
+/**
  * Wire-format type the client receives. Every server message has both a
  * `type` discriminator and a `menu` field. `MenuTransitionResult` covers
  * pure menu changes that carry no other data.
  */
-export type ServerMessage = WithMenu<ServerResult> | MenuTransitionResult;
+export type ServerMessage = (WithMenu<ServerResult> | MenuTransitionResult) & EnvelopeFlags;

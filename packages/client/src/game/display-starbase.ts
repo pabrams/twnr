@@ -2,7 +2,7 @@ import type { ShipCatalogEntry } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { render } from './renderer.js';
 import { STARBASE, COMMON } from './messages/index.js';
-import { showClass0Menu, showClass0QtyPrompt, type DisplayPortCtx } from './display-port.js';
+import { showClass0Menu, type DisplayPortCtx } from './display-port.js';
 import { showShipInterestPrompt, type DisplayComputerCtx } from './display-computer.js';
 import { padEndVisible } from './display-utils.js';
 
@@ -69,9 +69,6 @@ const HW_KEY_MAP: Record<string, string> = {
 
 const MINE_NAMES = new Set(['proximity_mine', 'seeker_mine']);
 
-/** Full menu listing (item rows + Q row). Does NOT include credits or
- * the prompt — those live in `showHardwarePrompt` so the prompt always
- * shows credits even when the listing isn't being re-rendered. */
 export function showHardwareMenu(ctx: DisplayStarbaseCtx) {
     const items = ctx.catalogs.hardwarePrices;
     ctx.io.term.writeln('');
@@ -104,19 +101,11 @@ export function showHardwareMenu(ctx: DisplayStarbaseCtx) {
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
 }
 
-/** Credits line + the actual input prompt. This is the menu's renderPrompt:
- * it fires on entry (after the catalog list is shown) and after every
- * client-side action (so the user sees the latest credits without the
- * full menu re-rendering on top of the action's result). */
 export function showHardwarePrompt(ctx: DisplayStarbaseCtx) {
     ctx.io.term.writeln(
         render(STARBASE.hardwareCredits, { credits: fmt(ctx.starbase.hardwareStoreCredits) }),
     );
     ctx.io.term.write(render(STARBASE.hardwarePrompt));
-}
-
-export function showBuyQtyPrompt(ctx: DisplayStarbaseCtx, item: string, canBuy: number) {
-    ctx.io.term.write(render(STARBASE.buyQtyPrompt, { item, canBuy }));
 }
 
 export function showPlanetSelectMenu(
@@ -246,11 +235,4 @@ export function showTradeinPrompt(
 
 export function showShipyardsClass0Menu(ctx: DisplayStarbaseCtx) {
     showClass0Menu(ctx);
-}
-
-export function showShipyardsClass0QtyPrompt(
-    ctx: DisplayStarbaseCtx,
-    item: 'drones' | 'shields' | 'holds',
-) {
-    showClass0QtyPrompt(ctx, item);
 }

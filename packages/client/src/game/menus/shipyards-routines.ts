@@ -1,6 +1,8 @@
 import { ClientMsgType, Menu } from '@twnr/shared';
 import { echoCommand } from '../display.js';
-import { registerRoutine, setMenuArgs } from './types.js';
+import { class0QtyPreamble } from '../display-port.js';
+import { registerRoutine } from './types.js';
+import { askNumber } from './prompts.js';
 
 /**
  * Routines for the shipyards menu and its class-0 buy submenu (which is
@@ -30,18 +32,23 @@ registerRoutine('shipyards_equipment', (ctx) => {
 });
 
 // Shared by both the shipyards class-0 (build new ship) menu and the
-// in-port class-0 trade menu. The downstream qty menu disambiguates via
-// the menu it's presented in.
-function chooseClass0(
+// in-port class-0 trade menu. Inline preamble + askNumber → Buy* — no
+// downstream qty menu (class0Qty / shipyardsClass0Qty are gone).
+async function chooseClass0(
     ctx: import('../types.js').GameContext,
     kind: 'drones' | 'shields' | 'holds',
     echoKey: 'buyDrones' | 'buyShields' | 'buyHolds',
-) {
+): Promise<void> {
     echoCommand(ctx, echoKey);
-    const target =
-        ctx.world.mode === Menu.ShipyardsClass0 ? Menu.ShipyardsClass0Qty : Menu.Class0Qty;
-    setMenuArgs(ctx, { menu: target, kind });
-    ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: target });
+    const { promptText, max } = class0QtyPreamble(ctx, kind);
+    if (max <= 0) return;
+    // Empty Enter accepts max; cap upper bound so server doesn't bounce
+    // an over-buy. min: 1 → 0 returns null (cancel).
+    const qty = await askNumber(ctx, promptText, { defaultValue: max, min: 1, max });
+    if (qty === null) return;
+    if (kind === 'drones') ctx.io.sendMsg({ type: ClientMsgType.BuyDrones, quantity: qty });
+    else if (kind === 'shields') ctx.io.sendMsg({ type: ClientMsgType.BuyShields, quantity: qty });
+    else ctx.io.sendMsg({ type: ClientMsgType.BuyHolds, quantity: qty });
 }
 
 registerRoutine('choose_holds', (ctx) => chooseClass0(ctx, 'holds', 'buyHolds'));

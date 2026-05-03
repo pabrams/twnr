@@ -1,4 +1,4 @@
-import { ClientMsgType, Menu } from '@twnr/shared';
+import { ClientMsgType } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { NOTIFY, PANEL } from '../messages/index.js';
@@ -158,17 +158,7 @@ export const starbaseInfo: Handler<'starbaseInfoResult', LifecycleDeps> = (ctx, 
 
 export const error: Handler<'error', LifecycleDeps> = (ctx, msg) => {
     ctx.io.term.writeln(render(NOTIFY.error, { message: msg.message }));
-    // For these qty-style menus the in-place error needs to bounce the user
-    // back to the parent menu where they can re-select. The framework will
-    // render that menu's prompt after this handler returns (since the
-    // ChangeMenu sendMsg sets inFlight, the prompt is deferred to the
-    // server's reply to the ChangeMenu).
-    if (ctx.world.mode === Menu.TradeQty || ctx.world.mode === Menu.TradeConfirm) {
-        ctx.io.sendMsg({ type: ClientMsgType.Undock });
-    } else if (ctx.world.mode === Menu.ShipyardsClass0Qty) {
-        ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsClass0 });
-    } else if (ctx.world.mode === Menu.Class0Qty) {
-        ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Class0 });
-    }
-    // Other modes: framework re-renders the active menu's prompt.
+    // The framework re-renders the active menu's prompt after this handler.
+    // Qty/confirm sub-menus are gone; the inline askNumber/askConfirm flows
+    // already leave the player at the parent menu by the time an error lands.
 };
