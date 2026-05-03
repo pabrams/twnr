@@ -33,6 +33,30 @@ export function getMenuHandler(name: MenuName): MenuHandler | undefined {
     return menuHandlers.get(name);
 }
 
+/**
+ * A client routine is the local behavior triggered when a menu_command's
+ * key is pressed. Receives the GameContext plus the raw input line (so
+ * `<number>`/`<letter>` routines can parse it). Routines are async to
+ * support multi-step prompts via input helpers (added when the first
+ * qty-style menu is migrated).
+ *
+ * Routines are keyed by `command.name` from the menu_command table —
+ * one routine per command name, regardless of which menus offer it. The
+ * generic dispatcher in input.ts looks up `(currentMenu, key) →
+ * command.name` from the cached registry and invokes the routine.
+ */
+export type ClientRoutine = (ctx: GameContext, line: string) => void | Promise<void>;
+
+const routines = new Map<string, ClientRoutine>();
+
+export function registerRoutine(commandName: string, routine: ClientRoutine): void {
+    routines.set(commandName, routine);
+}
+
+export function getRoutine(commandName: string): ClientRoutine | undefined {
+    return routines.get(commandName);
+}
+
 export type MenuArgsSlot = Pick<GameContext, 'pendingMenuArgs'>;
 
 /**

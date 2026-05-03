@@ -20,11 +20,18 @@ export function formatDuration(totalSeconds: number): string {
 export function refreshMinimap(ctx: RefreshMinimapDeps): void {
     if (!ctx.minimap.handle) return;
     const vp = ctx.minimap.handle.getViewport();
-    ctx.io.sendMsg({
-        type: ClientMsgType.GetNeighborhood,
-        halfWidthWorld: vp.halfWidthWorld,
-        halfHeightWorld: vp.halfHeightWorld,
-        centerXWorld: vp.centerXWorld,
-        centerYWorld: vp.centerYWorld,
-    });
+    // Silent: doesn't toggle `inFlight`, so any handler that called
+    // refreshMinimap can still complete its tick with a normal prompt
+    // re-render (the panel update arrives later and is suppressed via
+    // PROMPT_SUPPRESSING in connection.ts).
+    ctx.io.sendMsg(
+        {
+            type: ClientMsgType.GetNeighborhood,
+            halfWidthWorld: vp.halfWidthWorld,
+            halfHeightWorld: vp.halfHeightWorld,
+            centerXWorld: vp.centerXWorld,
+            centerYWorld: vp.centerYWorld,
+        },
+        { silent: true },
+    );
 }

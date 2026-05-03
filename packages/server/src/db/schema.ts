@@ -909,12 +909,28 @@ export const connectDB = async (): Promise<void> => {
       -- Autopilot has no commands (input ignored during autopilot)
 
       -- === Starbase ===
+      -- Migrated to the routine-registry pattern: q uses the generic
+      -- "back" command; the server handleBack reads parent_menu_id and
+      -- runs the per-menu cleanup hook (handleLeaveStarbase) keyed off
+      -- player.currentMenu='starbase'.
       INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
         ((SELECT id FROM menu WHERE name='starbase'), (SELECT id FROM command WHERE name='shipyards_menu'), 's', 'Shipyards', NULL, (SELECT id FROM menu WHERE name='shipyards'), 10),
         ((SELECT id FROM menu WHERE name='starbase'), (SELECT id FROM command WHERE name='hardware_store'), 'h', 'Hardware Store', NULL, (SELECT id FROM menu WHERE name='starbaseHardware'), 20),
         ((SELECT id FROM menu WHERE name='starbase'), (SELECT id FROM command WHERE name='list_deployed_drones'), 'd', 'Deployed Drones', 'listDeployedDrones', NULL, 30),
         ((SELECT id FROM menu WHERE name='starbase'), (SELECT id FROM command WHERE name='help_menu'), '?', 'Help', NULL, NULL, 35),
-        ((SELECT id FROM menu WHERE name='starbase'), (SELECT id FROM command WHERE name='leave_starbase'), 'q', 'Leave Starbase', 'leaveStarbase', NULL, 40)
+        ((SELECT id FROM menu WHERE name='starbase'), (SELECT id FROM command WHERE name='back'), 'q', 'Leave Starbase', NULL, NULL, 40)
+      ON CONFLICT (menu_id, command_id) DO NOTHING;
+      -- Switch the existing starbase q row over to the "back" command on
+      -- DBs that were seeded before this migration. The INSERT above is a
+      -- no-op there (the menu,command pair would conflict with the old
+      -- leave_starbase row); this DELETE+INSERT ensures the row is correct.
+      DELETE FROM menu_command
+       WHERE menu_id = (SELECT id FROM menu WHERE name='starbase')
+         AND command_id = (SELECT id FROM command WHERE name='leave_starbase');
+      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order)
+      SELECT (SELECT id FROM menu WHERE name='starbase'),
+             (SELECT id FROM command WHERE name='back'),
+             'q', 'Leave Starbase', NULL, NULL, 40
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === Starbase Hardware ===

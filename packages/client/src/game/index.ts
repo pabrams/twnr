@@ -42,7 +42,7 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
     const wsProtocol = location.protocol === 'https:' ? 'wss' : 'ws';
     const ws = new WebSocket(`${wsProtocol}://${location.host}/ws?universe=${universeId}`);
 
-    function sendMsg(msg: ClientCommand) {
+    function sendMsg(msg: ClientCommand, opts?: { silent?: boolean }) {
         if (ws.readyState !== WebSocket.OPEN) return;
         if (ctx.io.debug) {
             const lines = JSON.stringify(msg, null, 2).split('\n');
@@ -51,7 +51,7 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
                 term.writeln(`\x1b[38;5;243m  ${lines[i]}\x1b[0m`);
             }
         }
-        ctx.input.inFlight = true;
+        if (!opts?.silent) ctx.input.inFlight = true;
         ws.send(JSON.stringify(msg));
     }
 
@@ -157,13 +157,16 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
         ctx.minimap.handle = minimap;
         minimap.onRequestRefresh(() => {
             const vp = minimap.getViewport();
-            ctx.io.sendMsg({
-                type: ClientMsgType.GetNeighborhood,
-                halfWidthWorld: vp.halfWidthWorld,
-                halfHeightWorld: vp.halfHeightWorld,
-                centerXWorld: vp.centerXWorld,
-                centerYWorld: vp.centerYWorld,
-            });
+            ctx.io.sendMsg(
+                {
+                    type: ClientMsgType.GetNeighborhood,
+                    halfWidthWorld: vp.halfWidthWorld,
+                    halfHeightWorld: vp.halfHeightWorld,
+                    centerXWorld: vp.centerXWorld,
+                    centerYWorld: vp.centerYWorld,
+                },
+                { silent: true },
+            );
         });
         // The minimap has no inputs that need keyboard focus, so push focus
         // back to the terminal after any click inside the panel.
