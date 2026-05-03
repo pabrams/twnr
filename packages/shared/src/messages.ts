@@ -16,7 +16,6 @@ export const Menu = {
     PlanetSpecs: 'planetSpecs',
     AutopilotPrompt: 'autopilotPrompt',
     Autopilot: 'autopilot',
-    JettisonConfirm: 'jettisonConfirm',
     Planet: 'planet',
     PlanetTakeQty: 'planetTakeQty',
     PlanetLeaveQty: 'planetLeaveQty',
@@ -27,8 +26,6 @@ export const Menu = {
     StarbaseHardware: 'starbaseHardware',
     StarbaseBuyQty: 'starbaseBuyQty',
     PlanetSelect: 'planetSelect',
-    HyperspaceJumpTarget: 'hyperspaceJumpTarget',
-    StarbaseMines: 'starbaseMines',
     PlanetEarth: 'planetEarth',
     PlanetTakeCommodity: 'planetTakeCommodity',
     PlanetLeaveCommodity: 'planetLeaveCommodity',
@@ -41,11 +38,6 @@ export const Menu = {
     ShipyardsClass0: 'shipyardsClass0',
     ShipyardsClass0Qty: 'shipyardsClass0Qty',
     Move: 'move',
-    QuitConfirm: 'quitConfirm',
-    TerraformConfirm: 'terraformConfirm',
-    DeployMines: 'deployMines',
-    DeployMinesQty: 'deployMinesQty',
-    MineDisruptorTarget: 'mineDisruptorTarget',
 } as const;
 export type MenuName = (typeof Menu)[keyof typeof Menu];
 

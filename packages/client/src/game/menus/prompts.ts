@@ -1,6 +1,13 @@
 import type { GameContext } from '../types.js';
 
 /**
+ * Prompts only need the io (terminal) and input (pendingResolver) slots.
+ * Narrowing lets handler-side code that holds a Pick<GameContext, ...>
+ * pass it in directly without widening to GameContext.
+ */
+export type PromptCtx = Pick<GameContext, 'io' | 'input'>;
+
+/**
  * Sub-prompt helpers for client routines that need to gather more input
  * before sending a message. Routines `await` these to suspend until the
  * user types something. Each helper sets `ctx.input.pendingResolver` so
@@ -18,21 +25,21 @@ import type { GameContext } from '../types.js';
  */
 
 /** Park, line-mode: resolves with the next submitted line on Enter. */
-function parkLine(ctx: GameContext): Promise<string | null> {
+function parkLine(ctx: PromptCtx): Promise<string | null> {
     return new Promise((resolve) => {
         ctx.input.pendingResolver = { mode: 'line', resolve };
     });
 }
 
 /** Park, char-mode: resolves with the next keystroke (no Enter required). */
-function parkChar(ctx: GameContext): Promise<string | null> {
+function parkChar(ctx: PromptCtx): Promise<string | null> {
     return new Promise((resolve) => {
         ctx.input.pendingResolver = { mode: 'char', resolve };
     });
 }
 
 /** Free-form line. `q` and empty Enter both cancel. */
-export async function askLine(ctx: GameContext, prompt: string): Promise<string | null> {
+export async function askLine(ctx: PromptCtx, prompt: string): Promise<string | null> {
     ctx.io.term.write(prompt);
     const line = await parkLine(ctx);
     if (line === null) return null;
@@ -45,7 +52,7 @@ export async function askLine(ctx: GameContext, prompt: string): Promise<string 
  * (no Enter needed). `q` cancels even if not in `allowed`. Repeats the
  * prompt on invalid input. */
 export async function askChar(
-    ctx: GameContext,
+    ctx: PromptCtx,
     prompt: string,
     allowed: string[],
 ): Promise<string | null> {
@@ -68,7 +75,7 @@ export async function askChar(
 /** Non-negative integer. `q` or empty cancels (or returns `defaultValue`
  * if specified). Re-prompts on invalid input or out-of-range. */
 export async function askNumber(
-    ctx: GameContext,
+    ctx: PromptCtx,
     prompt: string,
     opts?: { min?: number; max?: number; defaultValue?: number },
 ): Promise<number | null> {
@@ -102,7 +109,7 @@ export async function askNumber(
 /** Y/N confirmation. Single-keystroke. `q` cancels (returns `null`).
  * If `defaultValue` is set, Enter on its own returns that value. */
 export async function askConfirm(
-    ctx: GameContext,
+    ctx: PromptCtx,
     prompt: string,
     opts?: { defaultValue?: boolean },
 ): Promise<boolean | null> {

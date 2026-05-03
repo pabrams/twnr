@@ -210,9 +210,10 @@ export async function handleDestroyPlanet(playerId: number): Promise<void> {
 }
 
 /**
- * Pre-check for the 'U' command from the sector menu. Returns the device count
- * and whether the player can terraform here. If they can, transitions menu
- * server-side to terraformConfirm so the client can show a Y/N prompt.
+ * Pre-check for the 'U' command from the sector menu. Returns the device
+ * count and whether the player can terraform here; the client renders the
+ * Y/N prompt inline (askConfirm). The player stays on the sector menu
+ * the whole time — no terraformConfirm menu involved.
  */
 export async function handleTerraformInfo(playerId: number): Promise<void> {
     const player = players[playerId];
@@ -249,11 +250,11 @@ export async function handleTerraformInfo(playerId: number): Promise<void> {
         return;
     }
 
-    await sendEnvelope(
-        playerId,
-        { type: ServerMsgType.TerraformInfoResult, canTerraform: true, devices },
-        'terraformConfirm',
-    );
+    sendEnvelope(playerId, {
+        type: ServerMsgType.TerraformInfoResult,
+        canTerraform: true,
+        devices,
+    });
 }
 
 export async function handleUseTerraformDevice(playerId: number): Promise<void> {

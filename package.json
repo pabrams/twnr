@@ -13,6 +13,7 @@
     "test": "pnpm lint && pnpm format:check && pnpm -r --no-bail run test",
     "start": "pnpm --filter @twnr/server start",
     "db:seed": "pnpm --filter @twnr/server db:seed",
+    "db:reseed": "pnpm --filter @twnr/server db:reseed",
     "db:import": "pnpm --filter @twnr/server db:import",
     "db:drop": "pnpm --filter @twnr/server dropDatabase",
     "bigbang": "pnpm --filter @twnr/server bigbang",

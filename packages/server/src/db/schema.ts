@@ -25,13 +25,6 @@ export const connectDB = async (): Promise<void> => {
         is_guest BOOLEAN NOT NULL DEFAULT FALSE
       );
 
-      -- Tracks which one-shot data migrations have been applied so we can
-      -- skip them on subsequent boots (instead of re-running them every time).
-      CREATE TABLE IF NOT EXISTS _schema_version (
-        version INTEGER PRIMARY KEY,
-        applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
-
       -- Editable settings templates. Each row is a named, reusable preset
       -- whose values are interpolated from universeConfig on every boot
       -- (so editing the TS file + restarting propagates to NEW universes
@@ -562,7 +555,6 @@ export const connectDB = async (): Promise<void> => {
         ('planetSpecs', 'Planet Specs'),
         ('autopilotPrompt', 'Autopilot Prompt'),
         ('autopilot', 'Autopilot'),
-        ('jettisonConfirm', 'Jettison Confirm'),
         ('planet', 'Planet'),
         ('planetTakeQty', 'Take Colonists'),
         ('planetLeaveQty', 'Leave Colonists'),
@@ -573,7 +565,6 @@ export const connectDB = async (): Promise<void> => {
         ('starbaseHardware', 'Hardware Store'),
         ('starbaseBuyQty', 'Buy Quantity'),
         ('planetSelect', 'Select Planet'),
-        ('hyperspaceJumpTarget', 'Hyperspace Jump'),
         ('starbaseMines', 'Mine Type'),
         ('planetEarth', 'Earth'),
         ('planetTakeCommodity', 'Take Commodity'),
@@ -586,17 +577,12 @@ export const connectDB = async (): Promise<void> => {
         ('shipyardsExamine', 'Examine Ships'),
         ('shipyardsClass0', 'Shipyards Equipment'),
         ('shipyardsClass0Qty', 'Equipment Quantity'),
-        ('move', 'Move to adjacent sector'),
-        ('quitConfirm', 'Confirm quit'),
-        ('terraformConfirm', 'Confirm terraform'),
-        ('deployMines', 'Deploy Mines'),
-        ('deployMinesQty', 'Deploy Mines Quantity'),
-        ('mineDisruptorTarget', 'Mine Disruptor Target')
+        ('move', 'Move to adjacent sector')
       ON CONFLICT (name) DO NOTHING;
 
       -- Set parent menu relationships
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'sector')
-        WHERE name IN ('port', 'help', 'shipInfo', 'playerInfo', 'attack', 'computer', 'jettisonConfirm', 'planet', 'deployDronesQty');
+        WHERE name IN ('port', 'help', 'shipInfo', 'playerInfo', 'attack', 'computer', 'planet', 'deployDronesQty', 'move');
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'port')
         WHERE name IN ('tradeQty', 'tradeConfirm');
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'port')
@@ -633,12 +619,6 @@ export const connectDB = async (): Promise<void> => {
         WHERE name = 'starbaseBuyQty';
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'sector')
         WHERE name = 'planetSelect';
-      UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'computer')
-        WHERE name = 'hyperspaceJumpTarget';
-      UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'sector')
-        WHERE name IN ('deployMines', 'mineDisruptorTarget');
-      UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'deployMines')
-        WHERE name = 'deployMinesQty';
 
       -- Seed commands (abstract identities, reusable across menus)
       INSERT INTO command (name, label) VALUES
@@ -751,20 +731,25 @@ export const connectDB = async (): Promise<void> => {
       -- === Sector ===
       INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
         ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='display_sector'), '<enter>', 'Re-display sector', NULL, NULL, 5),
-        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='move'), '<number>', 'Move to sector','move', NULL, 10),
+        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='move'), '<number>', 'Move to sector', 'move', NULL, 10),
         ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='move_previous'), '<', 'Previous sector', NULL, NULL, 15),
         ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='move_menu'), 'm', 'Move to adjacent sector', NULL, (SELECT id FROM menu WHERE name='move'), 25),
-        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='port_menu'), 'p', 'Port',NULL, (SELECT id FROM menu WHERE name='port'), 30),
-        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='player_info'), 'i', 'Player info',NULL, (SELECT id FROM menu WHERE name='playerInfo'), 40),
-        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='help_menu'), '?', 'Help',NULL, (SELECT id FROM menu WHERE name='help'), 50),
-        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='attack_menu'), 'a', 'Attack',NULL, (SELECT id FROM menu WHERE name='attack'), 60),
-        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='computer_menu'), 'c', 'Computer',NULL, (SELECT id FROM menu WHERE name='computer'), 70),
-        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='deploy_drones_info'), 'd', 'Deploy drones','deployDronesInfo', NULL, 80),
-        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='jettison_menu'), 'j', 'Jettison cargo',NULL, (SELECT id FROM menu WHERE name='jettisonConfirm'), 90),
-        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='land'), 'l', 'Land','land', NULL, 100),
-        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='starbase_info'), 'v', 'Starbase info',NULL, NULL, 105),
-        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='quit_game'), 'q', 'Quit',NULL, NULL, 110),
-        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='players_online'), '#', 'Players online','playersOnline', NULL, 120)
+        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='port_menu'), 'p', 'Port', NULL, (SELECT id FROM menu WHERE name='port'), 30),
+        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='player_info'), 'i', 'Player info', NULL, (SELECT id FROM menu WHERE name='playerInfo'), 40),
+        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='help_menu'), '?', 'Help', NULL, (SELECT id FROM menu WHERE name='help'), 50),
+        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='attack_menu'), 'a', 'Attack', NULL, (SELECT id FROM menu WHERE name='attack'), 60),
+        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='computer_menu'), 'c', 'Computer', NULL, (SELECT id FROM menu WHERE name='computer'), 70),
+        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='deploy_drones_info'), 'd', 'Deploy drones', 'deployDronesInfo', NULL, 80),
+        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='list_deployed_drones'), 'g', 'Deployed Drones', 'listDeployedDrones', NULL, 85),
+        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='deploy_mines_menu'), 'n', 'Deploy mines', NULL, NULL, 86),
+        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='list_deployed_mines'), 'e', 'Deployed Mines', 'listDeployedMines', NULL, 87),
+        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='mine_disruptor_menu'), 'r', 'Mine Disruptor', NULL, NULL, 88),
+        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='jettison_menu'), 'j', 'Jettison cargo', NULL, NULL, 90),
+        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='use_terraform_device'), 'u', 'Terraform', 'terraformInfo', NULL, 95),
+        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='land'), 'l', 'Land', 'land', NULL, 100),
+        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='starbase_info'), 'v', 'Starbase info', NULL, NULL, 105),
+        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='quit_game'), 'q', 'Quit', NULL, NULL, 110),
+        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='players_online'), '#', 'Players online', 'playersOnline', NULL, 120)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === Port ===
@@ -857,18 +842,14 @@ export const connectDB = async (): Promise<void> => {
         ((SELECT id FROM menu WHERE name='planetSpecs'), (SELECT id FROM command WHERE name='back'), 'q', 'Back',NULL, (SELECT id FROM menu WHERE name='computer'), 20)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
-      -- === JettisonConfirm ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='jettisonConfirm'), (SELECT id FROM command WHERE name='confirm_yes'), 'y', 'Yes, jettison','jettison', (SELECT id FROM menu WHERE name='sector'), 10),
-        ((SELECT id FROM menu WHERE name='jettisonConfirm'), (SELECT id FROM command WHERE name='confirm_no'), 'n', 'Cancel',NULL, (SELECT id FROM menu WHERE name='sector'), 20)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
-
       -- === Planet ===
       INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='planet'), (SELECT id FROM command WHERE name='take_colonists'), 't', 'Take colonists',NULL, (SELECT id FROM menu WHERE name='planetTakeQty'), 10),
-        ((SELECT id FROM menu WHERE name='planet'), (SELECT id FROM command WHERE name='leave_colonists'), 'l', 'Leave colonists',NULL, (SELECT id FROM menu WHERE name='planetLeaveCommodity'), 20),
-        ((SELECT id FROM menu WHERE name='planet'), (SELECT id FROM command WHERE name='back'), 'q', 'Leave planet',NULL, (SELECT id FROM menu WHERE name='sector'), 30),
-        ((SELECT id FROM menu WHERE name='planet'), (SELECT id FROM command WHERE name='help_menu'), '?', 'Help',NULL, NULL, 40)
+        ((SELECT id FROM menu WHERE name='planet'), (SELECT id FROM command WHERE name='take_colonists'), 't', 'Take colonists', NULL, (SELECT id FROM menu WHERE name='planetTakeQty'), 10),
+        ((SELECT id FROM menu WHERE name='planet'), (SELECT id FROM command WHERE name='leave_colonists'), 'l', 'Leave colonists', NULL, (SELECT id FROM menu WHERE name='planetLeaveCommodity'), 20),
+        ((SELECT id FROM menu WHERE name='planet'), (SELECT id FROM command WHERE name='planet_display'), 'd', 'Planet Info', 'planetDisplay', NULL, 25),
+        ((SELECT id FROM menu WHERE name='planet'), (SELECT id FROM command WHERE name='destroy_planet'), 'z', 'Destroy Planet', 'destroyPlanet', NULL, 35),
+        ((SELECT id FROM menu WHERE name='planet'), (SELECT id FROM command WHERE name='help_menu'), '?', 'Help', NULL, NULL, 40),
+        ((SELECT id FROM menu WHERE name='planet'), (SELECT id FROM command WHERE name='leave_planet'), 'q', 'Leave Planet', 'leavePlanet', NULL, 50)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === PlanetTakeQty ===
@@ -910,10 +891,9 @@ export const connectDB = async (): Promise<void> => {
       -- Autopilot has no commands (input ignored during autopilot)
 
       -- === Starbase ===
-      -- Migrated to the routine-registry pattern: q uses the generic
-      -- "back" command; the server handleBack reads parent_menu_id and
-      -- runs the per-menu cleanup hook (handleLeaveStarbase) keyed off
-      -- player.currentMenu='starbase'.
+      -- Q uses the generic "back" command; the server handleBack reads
+      -- parent_menu_id and runs the per-menu cleanup hook
+      -- (handleLeaveStarbase) keyed off player.currentMenu='starbase'.
       INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
         ((SELECT id FROM menu WHERE name='starbase'), (SELECT id FROM command WHERE name='shipyards_menu'), 's', 'Shipyards', NULL, (SELECT id FROM menu WHERE name='shipyards'), 10),
         ((SELECT id FROM menu WHERE name='starbase'), (SELECT id FROM command WHERE name='hardware_store'), 'h', 'Hardware Store', NULL, (SELECT id FROM menu WHERE name='starbaseHardware'), 20),
@@ -921,24 +901,14 @@ export const connectDB = async (): Promise<void> => {
         ((SELECT id FROM menu WHERE name='starbase'), (SELECT id FROM command WHERE name='help_menu'), '?', 'Help', NULL, NULL, 35),
         ((SELECT id FROM menu WHERE name='starbase'), (SELECT id FROM command WHERE name='back'), 'q', 'Leave Starbase', NULL, NULL, 40)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
-      -- Switch the existing starbase q row over to the "back" command on
-      -- DBs that were seeded before this migration. The INSERT above is a
-      -- no-op there (the menu,command pair would conflict with the old
-      -- leave_starbase row); this DELETE+INSERT ensures the row is correct.
-      DELETE FROM menu_command
-       WHERE menu_id = (SELECT id FROM menu WHERE name='starbase')
-         AND command_id = (SELECT id FROM command WHERE name='leave_starbase');
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order)
-      SELECT (SELECT id FROM menu WHERE name='starbase'),
-             (SELECT id FROM command WHERE name='back'),
-             'q', 'Leave Starbase', NULL, NULL, 40
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === Starbase Hardware ===
-      -- BANDAID: 'p' (proximity) and 's' (seeker) live here directly to match
-      -- the client's flat hardware menu. Keep the starbaseMines submenu rows
-      -- below for now; they are unreferenced by the client. Refactor away
-      -- when the menu registry becomes the single source of dispatch.
+      -- TODO: 's' (Seeker Mines) lives here directly while 'm' still
+      -- enters the legacy starbaseMines submenu (Proximity / Seeker). The
+      -- submenu's reachable from m but unreferenced by the flat client
+      -- menu. Either kill the submenu and move proximity to a free key
+      -- here, or kill 's' here and rely on m → submenu. Pick one and the
+      -- starbaseMines menu can disappear.
       INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
         ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_terraform_devices'), 't', 'Terraform Devices', NULL, (SELECT id FROM menu WHERE name='starbaseBuyQty'), 10),
         ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_planet_busters'), 'b', 'Planet Busters', NULL, (SELECT id FROM menu WHERE name='starbaseBuyQty'), 20),
@@ -963,13 +933,6 @@ export const connectDB = async (): Promise<void> => {
         ((SELECT id FROM menu WHERE name='starbaseMines'), (SELECT id FROM command WHERE name='buy_seeker_mines'), 's', 'Seeker Mines', NULL, (SELECT id FROM menu WHERE name='starbaseBuyQty'), 20),
         ((SELECT id FROM menu WHERE name='starbaseMines'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', NULL, (SELECT id FROM menu WHERE name='starbaseHardware'), 40)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
-
-      -- Cleanup: remove orbital mine rows from existing test DBs that were
-      -- seeded before the mine system was reduced to two types. Both the
-      -- hardware_item row and the menu binding referencing it.
-      DELETE FROM menu_command WHERE command_id = (SELECT id FROM command WHERE name='buy_orbital_mines');
-      DELETE FROM command WHERE name = 'buy_orbital_mines';
-      DELETE FROM hardware_item WHERE name = 'orbital_mine';
 
       -- === Starbase Buy Qty ===
       INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
@@ -1026,16 +989,6 @@ export const connectDB = async (): Promise<void> => {
         ((SELECT id FROM menu WHERE name='planetSelect'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', NULL, (SELECT id FROM menu WHERE name='sector'), 20)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
-      -- === Planet (expand with new actions) ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='planet'), (SELECT id FROM command WHERE name='planet_display'), 'd', 'Planet Info', 'planetDisplay', NULL, 25),
-        ((SELECT id FROM menu WHERE name='planet'), (SELECT id FROM command WHERE name='destroy_planet'), 'z', 'Destroy Planet', 'destroyPlanet', NULL, 35),
-        ((SELECT id FROM menu WHERE name='planet'), (SELECT id FROM command WHERE name='leave_planet'), 'q', 'Leave Planet', 'leavePlanet', NULL, 40)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
-
-      -- Update destroy key from 'x' to 'z' (for existing DBs)
-      UPDATE menu_command SET key_pattern = 'z' WHERE menu_id = (SELECT id FROM menu WHERE name='planet') AND command_id = (SELECT id FROM command WHERE name='destroy_planet');
-
       -- === Planet Earth (special sector 1 planet) ===
       INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
         ((SELECT id FROM menu WHERE name='planetEarth'), (SELECT id FROM command WHERE name='take_colonists'), 't', 'Take colonists', NULL, (SELECT id FROM menu WHERE name='planetTakeQty'), 10),
@@ -1059,79 +1012,14 @@ export const connectDB = async (): Promise<void> => {
         ((SELECT id FROM menu WHERE name='planetLeaveCommodity'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', NULL, (SELECT id FROM menu WHERE name='planet'), 40)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
-      -- Update planet 'back' to be 'leave_planet' instead (remove old back, add leave_planet as q)
-      DELETE FROM menu_command WHERE menu_id = (SELECT id FROM menu WHERE name='planet') AND command_id = (SELECT id FROM command WHERE name='back');
-
-      -- Sector 'd' is now Deploy drones (was 'f'); Display sector is Enter-only (not in registry)
-      DELETE FROM menu_command WHERE menu_id = (SELECT id FROM menu WHERE name='sector') AND command_id = (SELECT id FROM command WHERE name='display_sector');
-      UPDATE menu_command SET key_pattern = 'd', sort_order = 80 WHERE menu_id = (SELECT id FROM menu WHERE name='sector') AND command_id = (SELECT id FROM command WHERE name='deploy_drones_info');
-
-      -- Sector 'q' now opens the quit confirm menu instead of closing immediately
-      UPDATE menu_command SET client_msg_type = NULL, target_menu_id = (SELECT id FROM menu WHERE name='quitConfirm')
-        WHERE menu_id = (SELECT id FROM menu WHERE name='sector') AND command_id = (SELECT id FROM command WHERE name='quit_game');
-
-      -- Sector 'u' now sends a TerraformInfo lookup; server transitions to terraformConfirm
-      UPDATE menu_command SET client_msg_type = 'terraformInfo', target_menu_id = NULL
-        WHERE menu_id = (SELECT id FROM menu WHERE name='sector') AND command_id = (SELECT id FROM command WHERE name='use_terraform_device');
-
-      -- Confirm-menu key bindings (y/n)
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='quitConfirm'),      (SELECT id FROM command WHERE name='confirm_yes'), 'y', 'Yes', NULL, NULL, 10),
-        ((SELECT id FROM menu WHERE name='quitConfirm'),      (SELECT id FROM command WHERE name='confirm_no'),  'n', 'No',  NULL, (SELECT id FROM menu WHERE name='sector'), 20),
-        ((SELECT id FROM menu WHERE name='terraformConfirm'), (SELECT id FROM command WHERE name='confirm_yes'), 'y', 'Yes', 'useTerraformDevice', NULL, 10),
-        ((SELECT id FROM menu WHERE name='terraformConfirm'), (SELECT id FROM command WHERE name='confirm_no'),  'n', 'No',  NULL, (SELECT id FROM menu WHERE name='sector'), 20)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
-
-      -- === Sector: add terraform and list deployed drones ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='use_terraform_device'), 'u', 'Terraform', 'useTerraformDevice', NULL, 95),
-        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='list_deployed_drones'), 'g', 'Deployed Drones', 'listDeployedDrones', NULL, 85)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
-
-      -- === Sector: mine deployment / listing / disruptor ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='deploy_mines_menu'), 'n', 'Deploy mines', NULL, (SELECT id FROM menu WHERE name='deployMines'), 86),
-        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='list_deployed_mines'), 'e', 'Deployed Mines', 'listDeployedMines', NULL, 87),
-        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='mine_disruptor_menu'), 'r', 'Mine Disruptor', NULL, (SELECT id FROM menu WHERE name='mineDisruptorTarget'), 88)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
-
-      -- === Deploy Mines (type picker) ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='deployMines'), (SELECT id FROM command WHERE name='deploy_proximity_mines'), 'p', 'Proximity Mines', NULL, (SELECT id FROM menu WHERE name='deployMinesQty'), 10),
-        ((SELECT id FROM menu WHERE name='deployMines'), (SELECT id FROM command WHERE name='deploy_seeker_mines'), 's', 'Seeker Mines', NULL, (SELECT id FROM menu WHERE name='deployMinesQty'), 20),
-        ((SELECT id FROM menu WHERE name='deployMines'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', NULL, (SELECT id FROM menu WHERE name='sector'), 30)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
-
-      -- === Deploy Mines Qty ===
-      -- BANDAID: Q cancels all the way back to sector to match the client.
-      -- Deploy success also routes to sector, so deployMines is unreachable
-      -- from here in either branch. Refactor along with the wider menu cleanup.
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='deployMinesQty'), (SELECT id FROM command WHERE name='enter_quantity'), '<number>', 'Mines to deploy', 'deployMine', NULL, 10),
-        ((SELECT id FROM menu WHERE name='deployMinesQty'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', NULL, (SELECT id FROM menu WHERE name='sector'), 20)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
-      UPDATE menu_command SET target_menu_id = (SELECT id FROM menu WHERE name='sector')
-       WHERE menu_id = (SELECT id FROM menu WHERE name='deployMinesQty')
-         AND command_id = (SELECT id FROM command WHERE name='back');
-
-      -- === Mine Disruptor Target ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='mineDisruptorTarget'), (SELECT id FROM command WHERE name='enter_quantity'), '<number>', 'Adjacent target sector', 'mineDisruptor', NULL, 10),
-        ((SELECT id FROM menu WHERE name='mineDisruptorTarget'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', NULL, (SELECT id FROM menu WHERE name='sector'), 20)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
-
-      -- === Computer: add hyperspace jump, deployed drones, list planets ===
+      -- === Computer: hyperspace jump, deployed drones, list planets ===
+      -- Hyperspace jump (h) is a fully client-side askNumber routine
+      -- (no hyperspaceJumpTarget menu).
       INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
         ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='list_deployed_drones'), 'd', 'Deployed Drones', 'listDeployedDrones', NULL, 55),
-        ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='hyperspace_jump'), 'h', 'Hyperspace Jump', NULL, (SELECT id FROM menu WHERE name='hyperspaceJumpTarget'), 56),
+        ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='hyperspace_jump'), 'h', 'Hyperspace Jump', NULL, NULL, 56),
         ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='list_planets'), 'y', 'Your Planets', 'listPlanets', NULL, 57),
         ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='track_seeker_mines'), 'm', 'Track Seeker Mines', 'trackSeekerMines', NULL, 58)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
-
-      -- === Hyperspace Jump Target ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='hyperspaceJumpTarget'), (SELECT id FROM command WHERE name='enter_quantity'), '<number>', 'Target sector', 'hyperspaceJump', NULL, 10),
-        ((SELECT id FROM menu WHERE name='hyperspaceJumpTarget'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', NULL, (SELECT id FROM menu WHERE name='computer'), 20)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === Move (adjacent-sector picker) ===
@@ -1144,8 +1032,6 @@ export const connectDB = async (): Promise<void> => {
         ((SELECT id FROM menu WHERE name='move'), (SELECT id FROM command WHERE name='select_warp_6'), '6', 'Warp 6', NULL, NULL, 60),
         ((SELECT id FROM menu WHERE name='move'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', NULL, (SELECT id FROM menu WHERE name='sector'), 70)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
-
-      UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name='sector') WHERE name = 'move';
 
       -- === Seed hardware items ===
       INSERT INTO hardware_item (name, label, kind, default_price, result_msg_type, result_extra) VALUES
@@ -1209,155 +1095,6 @@ export const connectDB = async (): Promise<void> => {
                 universeConfig.planetCollisionMaxHours,
             ],
         );
-
-        // One-time migration v1: split the legacy `edits` table into
-        // edit_templates + universe_settings, then drop the old table and
-        // its FK column on universes.
-        const v1 = await client.query<{ count: number }>(
-            `SELECT COUNT(*)::int AS count FROM _schema_version WHERE version = 1`,
-        );
-        const oldEditsExists = await client.query<{ exists: boolean }>(
-            `SELECT EXISTS (
-                SELECT FROM information_schema.tables WHERE table_name = 'edits'
-             ) AS exists`,
-        );
-        if (v1.rows[0].count === 0 && oldEditsExists.rows[0].exists) {
-            // 1. Move named templates from edits → edit_templates.
-            await client.query(`
-                INSERT INTO edit_templates (
-                    id, name, max_planets_per_sector, planet_collision_likelihood,
-                    planet_collision_min_hours, planet_collision_max_hours,
-                    turns_per_day, starting_turns, max_turns, starting_ship,
-                    starting_drones, starting_credits, starting_port_density,
-                    max_port_density, port_production_rate, port_memory_hours,
-                    max_players, max_age_days, max_planets, turn_delay,
-                    is_speed_warp_delay_on, photons_allowed,
-                    photon_blast_time_seconds, planet_spawn_density,
-                    max_ships_allowed, max_corp_size,
-                    max_ships_in_protected_space, truce_time_hours,
-                    is_automation_enabled, starting_shields,
-                    starting_earth_colonists
-                )
-                SELECT id, name, max_planets_per_sector, planet_collision_likelihood,
-                       planet_collision_min_hours, planet_collision_max_hours,
-                       turns_per_day, starting_turns, max_turns, starting_ship,
-                       starting_drones, starting_credits, starting_port_density,
-                       max_port_density, port_production_rate, port_memory_hours,
-                       max_players, max_age_days, max_planets, turn_delay,
-                       is_speed_warp_delay_on, photons_allowed,
-                       photon_blast_time_seconds, planet_spawn_density,
-                       max_ships_allowed, max_corp_size,
-                       max_ships_in_protected_space, truce_time_hours,
-                       is_automation_enabled,
-                       COALESCE(starting_shields, 0),
-                       COALESCE(starting_earth_colonists, 1000000)
-                FROM edits
-                WHERE name IS NOT NULL
-                ON CONFLICT (id) DO NOTHING;
-
-                -- Sync the SERIAL counter so future inserts don't collide.
-                SELECT setval(pg_get_serial_sequence('edit_templates', 'id'),
-                              COALESCE((SELECT MAX(id) FROM edit_templates), 1));
-            `);
-            // 2. For each universe, copy column values from its old edits
-            //    row into universe_settings. Works whether the old row was
-            //    a named template or a NULL-named snapshot — either way we
-            //    capture the values that universe was actually using.
-            await client.query(`
-                INSERT INTO universe_settings (
-                    universe_id, max_planets_per_sector, planet_collision_likelihood,
-                    planet_collision_min_hours, planet_collision_max_hours,
-                    turns_per_day, starting_turns, max_turns, starting_ship,
-                    starting_drones, starting_credits, starting_port_density,
-                    max_port_density, port_production_rate, port_memory_hours,
-                    max_players, max_age_days, max_planets, turn_delay,
-                    is_speed_warp_delay_on, photons_allowed,
-                    photon_blast_time_seconds, planet_spawn_density,
-                    max_ships_allowed, max_corp_size,
-                    max_ships_in_protected_space, truce_time_hours,
-                    is_automation_enabled, starting_shields,
-                    starting_earth_colonists
-                )
-                SELECT u.id, e.max_planets_per_sector, e.planet_collision_likelihood,
-                       e.planet_collision_min_hours, e.planet_collision_max_hours,
-                       e.turns_per_day, e.starting_turns, e.max_turns, e.starting_ship,
-                       e.starting_drones, e.starting_credits, e.starting_port_density,
-                       e.max_port_density, e.port_production_rate, e.port_memory_hours,
-                       e.max_players, e.max_age_days, e.max_planets, e.turn_delay,
-                       e.is_speed_warp_delay_on, e.photons_allowed,
-                       e.photon_blast_time_seconds, e.planet_spawn_density,
-                       e.max_ships_allowed, e.max_corp_size,
-                       e.max_ships_in_protected_space, e.truce_time_hours,
-                       e.is_automation_enabled,
-                       COALESCE(e.starting_shields, 0),
-                       COALESCE(e.starting_earth_colonists, 1000000)
-                FROM universes u
-                JOIN edits e ON u.edit_id = e.id
-                ON CONFLICT (universe_id) DO NOTHING;
-            `);
-            // 3. Add universes.template_id and populate it. NULL-named
-            //    snapshots came from 'stock' (only template that ever
-            //    existed); named rows map to their own edit_templates entry.
-            await client.query(`
-                ALTER TABLE universes ADD COLUMN IF NOT EXISTS template_id
-                    INTEGER REFERENCES edit_templates(id) ON DELETE SET NULL;
-
-                UPDATE universes u
-                SET template_id = COALESCE(
-                    (SELECT et.id FROM edits e
-                     JOIN edit_templates et ON et.name = e.name
-                     WHERE e.id = u.edit_id),
-                    (SELECT id FROM edit_templates WHERE name = 'stock')
-                )
-                WHERE u.template_id IS NULL AND u.edit_id IS NOT NULL;
-            `);
-            // 4. Migrate junction tables (hardware_price, ship_types_edits,
-            //    planet_types_edits) from edit_id → template_id. They only
-            //    ever pointed at named templates so the mapping is direct.
-            await client.query(`
-                ALTER TABLE hardware_price ADD COLUMN IF NOT EXISTS template_id
-                    INTEGER REFERENCES edit_templates(id) ON DELETE CASCADE;
-                UPDATE hardware_price hp
-                SET template_id = (SELECT et.id FROM edits e
-                                   JOIN edit_templates et ON et.name = e.name
-                                   WHERE e.id = hp.edit_id)
-                WHERE hp.template_id IS NULL;
-                ALTER TABLE hardware_price DROP CONSTRAINT IF EXISTS hardware_price_pkey;
-                ALTER TABLE hardware_price DROP COLUMN IF EXISTS edit_id;
-                ALTER TABLE hardware_price ADD PRIMARY KEY (template_id, hardware_item_id);
-
-                ALTER TABLE ship_types_edits ADD COLUMN IF NOT EXISTS template_id
-                    INTEGER REFERENCES edit_templates(id) ON DELETE CASCADE;
-                UPDATE ship_types_edits ste
-                SET template_id = (SELECT et.id FROM edits e
-                                   JOIN edit_templates et ON et.name = e.name
-                                   WHERE e.id = ste.edit_id)
-                WHERE ste.template_id IS NULL;
-                ALTER TABLE ship_types_edits DROP CONSTRAINT IF EXISTS ship_types_edits_pkey;
-                ALTER TABLE ship_types_edits DROP COLUMN IF EXISTS edit_id;
-                ALTER TABLE ship_types_edits ADD PRIMARY KEY (ship_type_id, template_id);
-
-                ALTER TABLE planet_types_edits ADD COLUMN IF NOT EXISTS template_id
-                    INTEGER REFERENCES edit_templates(id) ON DELETE CASCADE;
-                UPDATE planet_types_edits pte
-                SET template_id = (SELECT et.id FROM edits e
-                                   JOIN edit_templates et ON et.name = e.name
-                                   WHERE e.id = pte.edit_id)
-                WHERE pte.template_id IS NULL;
-                ALTER TABLE planet_types_edits DROP CONSTRAINT IF EXISTS planet_types_edits_pkey;
-                ALTER TABLE planet_types_edits DROP COLUMN IF EXISTS edit_id;
-                ALTER TABLE planet_types_edits ADD PRIMARY KEY (planet_type, template_id);
-            `);
-            // 5. Drop the legacy table and the universes.edit_id column.
-            await client.query(`
-                ALTER TABLE universes DROP COLUMN IF EXISTS edit_id;
-                DROP TABLE IF EXISTS edits CASCADE;
-            `);
-            await client.query(`INSERT INTO _schema_version (version) VALUES (1)`);
-        } else if (v1.rows[0].count === 0) {
-            // Fresh install: no legacy table, just record the version.
-            await client.query(`INSERT INTO _schema_version (version) VALUES (1)`);
-        }
 
         // Seed ship_types from config files (idempotent)
         // Hardware config field -> hardware_item name mapping
@@ -1542,12 +1279,6 @@ export const connectDB = async (): Promise<void> => {
                 ('Toxic', (SELECT id FROM edit_templates WHERE name = 'stock')),
                 ('Volcanic', (SELECT id FROM edit_templates WHERE name = 'stock'))
             ON CONFLICT DO NOTHING
-        `);
-
-        // Clean up orphaned rows before adding FK constraints
-        await client.query(`
-            DELETE FROM planet_types_edits WHERE planet_type NOT IN (SELECT name FROM planet_types);
-            UPDATE planets SET type = 'Terran' WHERE type NOT IN (SELECT name FROM planet_types);
         `);
 
         // Add FK constraints that depend on seeded data

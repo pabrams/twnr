@@ -1,9 +1,9 @@
 import { ClientMsgType, Menu } from '@twnr/shared';
 import { render } from '../renderer.js';
-import { NOTIFY } from '../messages/index.js';
+import { NOTIFY, SECTOR } from '../messages/index.js';
 import { echoCommand, showPortMenu, showPlayerInfo, showPrompt } from '../display.js';
 import { registerRoutine } from './types.js';
-import { askConfirm } from './prompts.js';
+import { askChar, askConfirm, askNumber } from './prompts.js';
 
 /**
  * Sector menu routines. The sector menu file (`menus/sector.ts`) no longer
@@ -71,21 +71,55 @@ registerRoutine('deploy_drones_info', (ctx) => {
     ctx.io.sendMsg({ type: ClientMsgType.DeployDronesInfo });
 });
 
-registerRoutine('jettison_menu', (ctx) => {
+// Jettison: client-side confirm via askConfirm. The jettisonConfirm menu
+// existed only to hold this Y/N — collapsed inline. Server's
+// JettisonResult sets the menu back to sector, so no client transition.
+registerRoutine('jettison_menu', async (ctx) => {
     echoCommand(ctx, 'jettison');
-    ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.JettisonConfirm });
+    const ok = await askConfirm(ctx, render(SECTOR.jettisonConfirm), { defaultValue: false });
+    if (ok) {
+        ctx.io.sendMsg({ type: ClientMsgType.Jettison });
+        return;
+    }
+    showPrompt(ctx);
 });
 
-registerRoutine('deploy_mines_menu', (ctx) => {
-    ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.DeployMines });
+// Deploy mines: askChar (proximity / seeker) then askNumber (qty),
+// then send DeployMine. The deployMines and deployMinesQty menus that
+// used to hold these prompts are deleted.
+registerRoutine('deploy_mines_menu', async (ctx) => {
+    const typeChar = await askChar(ctx, 'Deploy (P)roximity or (S)eeker mines? ', ['p', 's']);
+    if (typeChar === null) {
+        showPrompt(ctx);
+        return;
+    }
+    const mineType = typeChar === 'p' ? 'proximity' : 'seeker';
+    const label = mineType === 'seeker' ? 'Seeker' : 'Proximity';
+    const qty = await askNumber(ctx, `How many ${label} mines to deploy? (Q to cancel) `, {
+        min: 1,
+    });
+    if (qty === null) {
+        showPrompt(ctx);
+        return;
+    }
+    ctx.io.sendMsg({ type: ClientMsgType.DeployMine, mineType, quantity: qty });
 });
 
 registerRoutine('list_deployed_mines', (ctx) => {
     ctx.io.sendMsg({ type: ClientMsgType.ListDeployedMines });
 });
 
-registerRoutine('mine_disruptor_menu', (ctx) => {
-    ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.MineDisruptorTarget });
+// Mine disruptor: askNumber for adjacent target sector inline. The
+// mineDisruptorTarget menu was a single-prompt menu; collapsed.
+registerRoutine('mine_disruptor_menu', async (ctx) => {
+    const target = await askNumber(ctx, 'Mine disruptor — adjacent target sector? (Q to cancel) ', {
+        min: 1,
+    });
+    if (target === null) {
+        showPrompt(ctx);
+        return;
+    }
+    ctx.io.sendMsg({ type: ClientMsgType.MineDisruptor, targetSector: target });
 });
 
 registerRoutine('land', (ctx) => {

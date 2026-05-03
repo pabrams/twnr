@@ -31,10 +31,12 @@
     "dev": "node --env-file=.env --watch ./dist/server.js",
     "start": "node --env-file=.env ./dist/server.js",
     "kill:dev": "fuser -k ${PORT:-3000}/tcp >/dev/null 2>&1; true",
+    "clean:universe": "rm -rf data/universe",
     "dropDatabase": "pnpm run kill:dev && node --env-file=.env ./scripts/deleteDatabase.js",
     "bigbang": "node ./scripts/twnr-bigbang.js data/universe/",
     "db:import": "pnpm run kill:dev && node --env-file=.env ./scripts/importUniverse.js",
     "db:seed": "pnpm run kill:dev && node ./scripts/twnr-bigbang.js ./data/universe/ --sectors 2000 --seed 42 && node --env-file=.env ./scripts/importUniverse.js ./data/universe --force",
+    "db:reseed": "pnpm run dropDatabase && pnpm run clean:universe && pnpm run db:seed",
     "test": "bash test/run-tests.sh"
   }
 }
