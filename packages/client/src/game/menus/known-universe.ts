@@ -1,26 +1,10 @@
-import { ClientMsgType, Menu } from '@twnr/shared';
-import { echoCommand } from '../display.js';
-import {
-    showKnownUniverseMenu,
-    showExploredSectors,
-    showUnexploredSectors,
-} from '../display-computer.js';
+import { Menu } from '@twnr/shared';
+import { showKnownUniverseMenu } from '../display-computer.js';
 import { registerMenu } from './types.js';
 
+// Known Universe menu — fully migrated. The explored_sectors and
+// unexplored_sectors routines (in computer-routines.ts) render locally
+// from cached state. Back is in common-routines.ts.
 registerMenu(Menu.KnownUniverse, {
     renderPrompt: showKnownUniverseMenu,
-    input(ctx, line) {
-        switch (line.toLowerCase()) {
-            case 'e':
-                showExploredSectors(ctx);
-                break;
-            case 'u':
-                showUnexploredSectors(ctx);
-                break;
-            case 'q':
-                echoCommand(ctx, 'knownUniverseBack');
-                ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Computer });
-                break;
-        }
-    },
 });

@@ -56,6 +56,25 @@ export interface InputLayer {
     inFlight: boolean;
     /** Layer 1 digit-assembly buffer, shared between direct keystrokes and queue drain. */
     inputAssembly: string;
+    /**
+     * Set by `askLine` / `askChar` / `askNumber` / `askConfirm` while a
+     * client routine is awaiting user input mid-flow. When set, the input
+     * pipeline routes the next input to `resolve` instead of dispatching
+     * it to the menu's command registry. Two modes:
+     *
+     *   - `mode: 'line'`  — assemble characters until Enter, then resolve
+     *     with the trimmed line (used by askLine/askNumber).
+     *   - `mode: 'char'`  — resolve on the next keystroke without waiting
+     *     for Enter (used by askChar/askConfirm for y/n style prompts).
+     *
+     * Cleared on resolve, on cancel, and on server-driven menu changes
+     * (so a routine cannot leak past a menu transition). Single-slot —
+     * routines must `await` each prompt sequentially.
+     */
+    pendingResolver: {
+        mode: 'line' | 'char';
+        resolve: (input: string | null) => void;
+    } | null;
 }
 
 export interface PlayerState {

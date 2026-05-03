@@ -1,31 +1,9 @@
-import { ClientMsgType, Menu } from '@twnr/shared';
-import { echoCommand } from '../display.js';
-import { showShipyardsMenu, showShipyardsHelp } from '../display-starbase.js';
+import { Menu } from '@twnr/shared';
+import { showShipyardsMenu } from '../display-starbase.js';
 import { registerMenu } from './types.js';
 
+// Shipyards menu — fully migrated. Routines in shipyards-routines.ts;
+// back / help_menu in common-routines.ts.
 registerMenu(Menu.Shipyards, {
     renderPrompt: showShipyardsMenu,
-    input(ctx, line) {
-        switch (line.toLowerCase()) {
-            case 'b':
-                echoCommand(ctx, 'shipyardsBuy');
-                ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsBuy });
-                break;
-            case 'e':
-                echoCommand(ctx, 'shipyardsExamine');
-                ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsExamine });
-                break;
-            case 'p':
-                echoCommand(ctx, 'shipyardsEquipment');
-                ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsClass0 });
-                break;
-            case '?':
-                showShipyardsHelp(ctx);
-                break;
-            case 'q':
-                echoCommand(ctx, 'starbase');
-                ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Starbase });
-                break;
-        }
-    },
 });

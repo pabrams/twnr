@@ -37,24 +37,37 @@ export function getMenuHandler(name: MenuName): MenuHandler | undefined {
  * A client routine is the local behavior triggered when a menu_command's
  * key is pressed. Receives the GameContext plus the raw input line (so
  * `<number>`/`<letter>` routines can parse it). Routines are async to
- * support multi-step prompts via input helpers (added when the first
- * qty-style menu is migrated).
+ * support multi-step prompts via input helpers in `prompts.ts`.
  *
- * Routines are keyed by `command.name` from the menu_command table —
- * one routine per command name, regardless of which menus offer it. The
- * generic dispatcher in input.ts looks up `(currentMenu, key) →
- * command.name` from the cached registry and invokes the routine.
+ * Routines are looked up by `command.name` (from the menu_command table).
+ * Most commands are unique site-wide (e.g. `back`, `quit_game`,
+ * `shipyards_menu`) and a single routine fires regardless of which menu
+ * triggered them. A few command names are reused across menus with
+ * different semantics — most commonly `enter_quantity`. For those,
+ * register a menu-scoped routine via `registerMenuRoutine(menu, command,
+ * fn)`; the dispatcher prefers menu-scoped routines over global ones.
  */
 export type ClientRoutine = (ctx: GameContext, line: string) => void | Promise<void>;
 
 const routines = new Map<string, ClientRoutine>();
+const menuRoutines = new Map<string, ClientRoutine>();
+
+const menuKey = (menu: string, command: string) => `${menu}::${command}`;
 
 export function registerRoutine(commandName: string, routine: ClientRoutine): void {
     routines.set(commandName, routine);
 }
 
-export function getRoutine(commandName: string): ClientRoutine | undefined {
-    return routines.get(commandName);
+export function registerMenuRoutine(
+    menu: MenuName,
+    commandName: string,
+    routine: ClientRoutine,
+): void {
+    menuRoutines.set(menuKey(menu, commandName), routine);
+}
+
+export function getRoutine(menu: MenuName, commandName: string): ClientRoutine | undefined {
+    return menuRoutines.get(menuKey(menu, commandName)) ?? routines.get(commandName);
 }
 
 export type MenuArgsSlot = Pick<GameContext, 'pendingMenuArgs'>;

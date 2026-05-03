@@ -74,6 +74,7 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
             inputQueue: [],
             inFlight: false,
             inputAssembly: '',
+            pendingResolver: null,
         },
         player: {
             universeId,

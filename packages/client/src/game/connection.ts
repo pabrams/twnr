@@ -31,6 +31,17 @@ export function setupConnection(ws: WebSocket, ctx: GameContext, onDisconnect: (
                 ctx.io.term.writeln(`\x1b[38;5;243m  ${lines[i]}\x1b[0m`);
             }
         }
+        // If a routine was awaiting a sub-prompt and the server is moving
+        // us to a different menu (interruption: we got attacked, autopilot
+        // hop, etc.), cancel the pending input so the routine resolves
+        // with null and unwinds cleanly. Don't cancel when the menu is
+        // unchanged — pure panel updates and same-menu envelopes shouldn't
+        // disturb an in-progress prompt.
+        if (ctx.input.pendingResolver && msg.menu !== ctx.world.mode) {
+            const r = ctx.input.pendingResolver;
+            ctx.input.pendingResolver = null;
+            r.resolve(null);
+        }
         ctx.world.mode = msg.menu;
         // Clear inFlight before dispatch so handlers can re-set it (via sendMsg)
         // when they chain a follow-up roundtrip. After dispatch, renderPrompt

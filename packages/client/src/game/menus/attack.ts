@@ -1,30 +1,10 @@
-import { ClientMsgType, Menu } from '@twnr/shared';
-import { render } from '../renderer.js';
-import { NOTIFY } from '../messages/index.js';
-import { echoCommand } from '../display.js';
-import { showAttackMenu, showAttackPrompt } from '../display-combat.js';
+import { Menu } from '@twnr/shared';
+import { showAttackPrompt } from '../display-combat.js';
 import { registerMenu } from './types.js';
 
+// Attack menu — fully migrated. Routines in combat-routines.ts; back in
+// common-routines.ts. Number keys are dispatched via the `<number>`
+// pattern to the `select_target` routine.
 registerMenu(Menu.Attack, {
     renderPrompt: showAttackPrompt,
-    input(ctx, line) {
-        const cmd = line.toLowerCase();
-        if (cmd === 'q') {
-            echoCommand(ctx, 'attackBack');
-            ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Sector });
-            return;
-        }
-        if (cmd === '?') {
-            showAttackMenu(ctx);
-            return;
-        }
-        const idx = parseInt(line, 10) - 1;
-        if (idx >= 0 && idx < ctx.world.sectorPlayers.length) {
-            ctx.encounter.attackTarget = ctx.world.sectorPlayers[idx].id;
-            ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.AttackDrones });
-        } else {
-            ctx.io.term.writeln(render(NOTIFY.invalidSelection));
-            showAttackPrompt(ctx);
-        }
-    },
 });

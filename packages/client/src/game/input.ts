@@ -34,6 +34,21 @@ function isValidKeyForMenu(ctx: GameContext, key: string): 'single' | 'buffered'
  * single-char dispatch behave identically regardless of source.
  */
 function processKeystroke(ctx: GameContext, ev: KeystrokeEvent) {
+    // Char-mode sub-prompt (askChar/askConfirm): resolve on the next
+    // keystroke without waiting for Enter or doing menu validation.
+    if (ctx.input.pendingResolver?.mode === 'char') {
+        if (ev.isEnter) {
+            const r = ctx.input.pendingResolver;
+            ctx.input.pendingResolver = null;
+            r.resolve('\r');
+            return;
+        }
+        if (ev.isBackspace) return;
+        const r = ctx.input.pendingResolver;
+        ctx.input.pendingResolver = null;
+        r.resolve(ev.key);
+        return;
+    }
     if (ev.isEnter) {
         ctx.io.term.writeln('');
         handleInput(ctx, ctx.input.inputAssembly.trim());
@@ -45,6 +60,13 @@ function processKeystroke(ctx: GameContext, ev: KeystrokeEvent) {
             ctx.input.inputAssembly = ctx.input.inputAssembly.slice(0, -1);
             ctx.io.term.write('\b \b');
         }
+        return;
+    }
+    // Line-mode sub-prompt (askLine/askNumber): assemble characters
+    // until Enter; menu-key validation does not apply.
+    if (ctx.input.pendingResolver?.mode === 'line') {
+        ctx.input.inputAssembly += ev.key;
+        ctx.io.term.write(ev.key);
         return;
     }
     const validity = isValidKeyForMenu(ctx, ev.key);
@@ -119,6 +141,15 @@ export function setupInput(term: Terminal, ctx: GameContext) {
 function handleInput(ctx: GameContext, line: string) {
     // Ignore input during autopilot (but allow when paused for encounters).
     if (ctx.autopilot.path.length > 0 && ctx.autopilot.step > 0 && !ctx.autopilot.paused) return;
+    // Line-mode sub-prompts (askLine/askNumber) resolve here on Enter.
+    // Char-mode prompts resolve in processKeystroke and never reach this
+    // point.
+    if (ctx.input.pendingResolver?.mode === 'line') {
+        const r = ctx.input.pendingResolver;
+        ctx.input.pendingResolver = null;
+        r.resolve(line);
+        return;
+    }
     // Legacy per-file `input` handler runs first if registered. Menus that
     // have migrated to the routine registry omit `input` and fall through
     // to dispatchByRegistry below.
@@ -142,6 +173,18 @@ function dispatchByRegistry(ctx: GameContext, line: string) {
     if (!menu) return;
     const lower = line.toLowerCase();
     let cmd = menu.commands.find((c) => c.keyPattern === lower);
+    if (!cmd && line === '') {
+        cmd = menu.commands.find((c) => c.keyPattern === '<enter>');
+        // Default Enter behavior: re-render the current menu's prompt. A
+        // menu can opt out of this by adding an explicit `<enter>` row
+        // (e.g. sector / planet, where Enter triggers a server roundtrip
+        // for fresh data). With no row and no override, plain Enter just
+        // repaints the prompt.
+        if (!cmd) {
+            getMenuHandler(ctx.world.mode)?.renderPrompt?.(ctx);
+            return;
+        }
+    }
     if (!cmd && /^\d+$/.test(line)) {
         cmd = menu.commands.find((c) => c.keyPattern === '<number>');
     }
@@ -149,7 +192,7 @@ function dispatchByRegistry(ctx: GameContext, line: string) {
         cmd = menu.commands.find((c) => c.keyPattern === '<letter>');
     }
     if (!cmd) return;
-    const routine = getRoutine(cmd.command);
+    const routine = getRoutine(ctx.world.mode, cmd.command);
     if (!routine) {
         console.warn(
             `No client routine registered for command "${cmd.command}" (menu "${ctx.world.mode}", key "${line}")`,
