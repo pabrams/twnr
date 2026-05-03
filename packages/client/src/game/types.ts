@@ -21,7 +21,14 @@ export type KeystrokeEvent = {
 export interface IO {
     term: Terminal;
     ws: WebSocket;
-    sendMsg: (msg: ClientCommand) => void;
+    /**
+     * Send a client message. The optional `silent: true` form is for
+     * fire-and-forget panel data refreshes (e.g. minimap GetNeighborhood)
+     * that don't represent a state-changing user action — those don't toggle
+     * `inFlight` (so keystrokes aren't buffered) and the response should
+     * also skip the framework's prompt re-render via PROMPT_SUPPRESSING.
+     */
+    sendMsg: (msg: ClientCommand, opts?: { silent?: boolean }) => void;
     setDebug: (on: boolean) => void;
     debug: boolean;
     /** Submit a text line as if the user had typed it into the xterm (used by the mini-map). */

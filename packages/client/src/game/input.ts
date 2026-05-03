@@ -1,6 +1,6 @@
 import type { Terminal } from '@xterm/xterm';
 import type { GameContext, KeystrokeEvent } from './types.js';
-import { getMenuHandler } from './menus/index.js';
+import { getMenuHandler, getRoutine } from './menus/index.js';
 
 /**
  * Returns 'single' for immediate single-char commands, 'buffered' for keys
@@ -119,7 +119,42 @@ export function setupInput(term: Terminal, ctx: GameContext) {
 function handleInput(ctx: GameContext, line: string) {
     // Ignore input during autopilot (but allow when paused for encounters).
     if (ctx.autopilot.path.length > 0 && ctx.autopilot.step > 0 && !ctx.autopilot.paused) return;
-    // All menus (including Sector) live in menus/<name>.ts. The dispatcher
-    // is now a single registry lookup.
-    getMenuHandler(ctx.world.mode)?.input?.(ctx, line);
+    // Legacy per-file `input` handler runs first if registered. Menus that
+    // have migrated to the routine registry omit `input` and fall through
+    // to dispatchByRegistry below.
+    const handler = getMenuHandler(ctx.world.mode);
+    if (handler?.input) {
+        handler.input(ctx, line);
+        return;
+    }
+    dispatchByRegistry(ctx, line);
+}
+
+/**
+ * Generic menu dispatcher driven by the cached menu registry. Looks up the
+ * (currentMenu, line) pair in `ctx.catalogs.menus`, finds the command name,
+ * and invokes the registered routine. Used by menus that have migrated off
+ * the per-file `input` switch. Unknown keys are dropped silently — same
+ * behavior as the old per-file switches' missing `default` cases.
+ */
+function dispatchByRegistry(ctx: GameContext, line: string) {
+    const menu = ctx.catalogs.menus.get(ctx.world.mode);
+    if (!menu) return;
+    const lower = line.toLowerCase();
+    let cmd = menu.commands.find((c) => c.keyPattern === lower);
+    if (!cmd && /^\d+$/.test(line)) {
+        cmd = menu.commands.find((c) => c.keyPattern === '<number>');
+    }
+    if (!cmd && /^[a-zA-Z]$/.test(line)) {
+        cmd = menu.commands.find((c) => c.keyPattern === '<letter>');
+    }
+    if (!cmd) return;
+    const routine = getRoutine(cmd.command);
+    if (!routine) {
+        console.warn(
+            `No client routine registered for command "${cmd.command}" (menu "${ctx.world.mode}", key "${line}")`,
+        );
+        return;
+    }
+    void routine(ctx, line);
 }

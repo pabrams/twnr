@@ -8,6 +8,11 @@ import { getMenuHandler } from './menus/index.js';
 import { dispatch } from './handlers/index.js';
 import { drainInputQueue } from './input.js';
 
+/** Server messages whose handler updates a side panel only (no terminal
+ * output). These should NOT trigger a menu prompt re-render — otherwise
+ * the prompt duplicates on every panel refresh (e.g. minimap zoom/pan). */
+const PROMPT_SUPPRESSING = new Set<string>([ServerMsgType.NeighborhoodResult]);
+
 export function setupConnection(ws: WebSocket, ctx: GameContext, onDisconnect: () => void) {
     ws.addEventListener('open', () => {
         ctx.io.term.writeln(render(NOTIFY.connected));
@@ -35,7 +40,10 @@ export function setupConnection(ws: WebSocket, ctx: GameContext, onDisconnect: (
         if (msg.type !== ServerMsgType.MenuTransition) {
             dispatch(ctx, msg);
         }
-        if (!ctx.input.inFlight) {
+        // Some envelopes are pure side-panel updates (mini-map data refresh
+        // on zoom/pan) that don't write to the terminal. Re-rendering the
+        // sector prompt after each one duplicates the prompt on every zoom.
+        if (!ctx.input.inFlight && !PROMPT_SUPPRESSING.has(msg.type)) {
             getMenuHandler(ctx.world.mode)?.renderPrompt?.(ctx);
         }
         drainInputQueue(ctx);

@@ -16,3 +16,17 @@ export async function canTransitionToMenu(
     );
     return res.rows.length > 0;
 }
+
+/** Resolve a menu name to its parent menu name, or null at the root. */
+export async function getParentMenuName(
+    menuName: string,
+    db: Queryable = pool,
+): Promise<string | null> {
+    const res = await db.query<{ parent: string | null }>(
+        `SELECT p.name AS parent
+         FROM menu m LEFT JOIN menu p ON p.id = m.parent_menu_id
+         WHERE m.name = $1`,
+        [menuName],
+    );
+    return res.rows[0]?.parent ?? null;
+}

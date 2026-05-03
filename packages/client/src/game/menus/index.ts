@@ -6,9 +6,10 @@
  * Add new menus by creating a file in this directory and importing it here.
  */
 
-export { registerMenu, getMenuHandler } from './types.js';
-export type { MenuHandler } from './types.js';
+export { registerMenu, getMenuHandler, registerRoutine, getRoutine } from './types.js';
+export type { MenuHandler, ClientRoutine } from './types.js';
 
+import './common-routines.js';
 import './attack.js';
 import './attack-drones.js';
 import './autopilot-prompt.js';

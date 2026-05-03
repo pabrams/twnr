@@ -1,27 +1,27 @@
 import { ClientMsgType, Menu } from '@twnr/shared';
 import { echoCommand } from '../display.js';
-import { showStarbaseMenu, showStarbaseHelp } from '../display-starbase.js';
-import { registerMenu } from './types.js';
+import { showStarbaseMenu } from '../display-starbase.js';
+import { registerMenu, registerRoutine } from './types.js';
 
+/**
+ * Pilot menu for the routine-registry pattern. No `input` switch: keystroke
+ * dispatch goes through input.ts's `dispatchByRegistry`, which looks up the
+ * pressed key in the cached menu registry and runs the routine below whose
+ * key matches the `command.name`.
+ *
+ * `back`, `help_menu`, and `list_deployed_drones` are registered in
+ * menus/common-routines.ts since they are reused across menus.
+ */
 registerMenu(Menu.Starbase, {
     renderPrompt: showStarbaseMenu,
-    input(ctx, line) {
-        switch (line.toLowerCase()) {
-            case 's':
-                echoCommand(ctx, 'shipyards');
-                ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Shipyards });
-                break;
-            case 'h':
-                echoCommand(ctx, 'hardwareStoreInfo');
-                ctx.io.sendMsg({ type: ClientMsgType.HardwareStoreInfo });
-                break;
-            case '?':
-                showStarbaseHelp(ctx);
-                break;
-            case 'q':
-                echoCommand(ctx, 'leaveStarbase');
-                ctx.io.sendMsg({ type: ClientMsgType.LeaveStarbase });
-                break;
-        }
-    },
+});
+
+registerRoutine('shipyards_menu', (ctx) => {
+    echoCommand(ctx, 'shipyards');
+    ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Shipyards });
+});
+
+registerRoutine('hardware_store', (ctx) => {
+    echoCommand(ctx, 'hardwareStoreInfo');
+    ctx.io.sendMsg({ type: ClientMsgType.HardwareStoreInfo });
 });
