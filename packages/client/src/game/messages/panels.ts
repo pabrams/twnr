@@ -36,8 +36,8 @@ export const PANEL = makeDomain('PANEL', {
 
     takeColonistsHeader: '[bg]You took [bc]{qty}[/bc] colonists.[/bg]',
     leaveColonistsHeader: '[bg]You left [bc]{qty}[/bc] colonists.[/bg]',
-    planetColonistsLine: '  [g]There are [/g]: [by]{count}[/by] colonists remaining on the planet.',
-    shipColonistsLine: '  [by]Ship colonists[/by]: [w]{count}[/w]',
+    planetColonistsLine: '  [g]There are [by]{count}[/by] colonists remaining on the planet.[/g]',
+    shipColonistsLine: '  [g]Your holds  [by]{count}[/by] holds occupied by camping colonists.[/g]: ',
 
     landedHeader: '[bg]Landed on[/bg] [bc]{name}[/bc]',
     landedType: '  [by]Type[/by]: {type}',
