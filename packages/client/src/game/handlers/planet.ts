@@ -1,7 +1,9 @@
-import { Menu } from '@twnr/shared';
+import { ClientMsgType, Menu } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { NOTIFY, EVENT, PANEL } from '../messages/index.js';
+import { askConfirm } from '../menus/prompts.js';
+import { echoCommand } from '../display.js';
 import { showSectorDisplay, type DisplayCtx } from '../display.js';
 import {
     showPlanetMenu,
@@ -15,7 +17,7 @@ import { setMenuArgs, type MenuArgsSlot } from '../menus/types.js';
 import type { Handler } from './index.js';
 import { fmt, refreshMinimap, type RefreshMinimapDeps } from './utils.js';
 
-type PlanetDeps = Pick<GameContext, 'io' | 'ship' | 'world'> &
+type PlanetDeps = Pick<GameContext, 'io' | 'input' | 'ship' | 'world'> &
     DisplayCtx &
     DisplayPlanetCtx &
     DisplayStarbaseCtx &
@@ -190,9 +192,20 @@ export const listPlanets: Handler<'listPlanetsResult', PlanetDeps> = (ctx, msg) 
 export const terraformInfo: Handler<'terraformInfoResult', PlanetDeps> = (ctx, msg) => {
     if (msg.canTerraform) {
         ctx.io.term.writeln(render(NOTIFY.terraformDevicesAvailable, { count: msg.devices }));
+        // The terraformConfirm menu was collapsed: ask Y/N inline and fire
+        // UseTerraformDevice on yes. Player stays on sector throughout.
+        void terraformAskAndFire(ctx);
     } else if (msg.reason === 'no_devices') {
         ctx.io.term.writeln(render(NOTIFY.terraformNoDevices));
     } else {
         ctx.io.term.writeln(render(NOTIFY.error, { message: 'Cannot terraform here.' }));
     }
 };
+
+async function terraformAskAndFire(ctx: PlanetDeps): Promise<void> {
+    const ok = await askConfirm(ctx, render(NOTIFY.terraformConfirm), { defaultValue: false });
+    if (ok) {
+        echoCommand(ctx, 'useTerraformDevice');
+        ctx.io.sendMsg({ type: ClientMsgType.UseTerraformDevice });
+    }
+}

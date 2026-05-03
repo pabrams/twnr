@@ -2,11 +2,13 @@ import { ClientMsgType, Menu } from '@twnr/shared';
 import { echoCommand } from '../display.js';
 import {
     showCurrentShipSpecs,
+    showComputerPrompt,
     showTraderList,
     showExploredSectors,
     showUnexploredSectors,
 } from '../display-computer.js';
 import { registerRoutine } from './types.js';
+import { askNumber } from './prompts.js';
 
 /**
  * Routines for the computer menu and its known-universe submenu. Most
@@ -36,8 +38,18 @@ registerRoutine('current_ship_specs', (ctx) => {
     showCurrentShipSpecs(ctx);
 });
 
-registerRoutine('hyperspace_jump', (ctx) => {
-    ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.HyperspaceJumpTarget });
+// Hyperspace jump: askNumber for target sector inline. The
+// hyperspaceJumpTarget single-prompt menu was collapsed.
+registerRoutine('hyperspace_jump', async (ctx) => {
+    const sector = await askNumber(ctx, 'Hyperspace jump target sector? (Q to cancel) ', {
+        min: 1,
+    });
+    if (sector === null) {
+        showComputerPrompt(ctx);
+        return;
+    }
+    echoCommand(ctx, 'hyperspaceJump');
+    ctx.io.sendMsg({ type: ClientMsgType.HyperspaceJump, targetSector: sector });
 });
 
 registerRoutine('list_planets', (ctx) => {
