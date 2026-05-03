@@ -556,8 +556,6 @@ export const connectDB = async (): Promise<void> => {
         ('autopilotPrompt', 'Autopilot Prompt'),
         ('autopilot', 'Autopilot'),
         ('planet', 'Planet'),
-        ('planetTakeQty', 'Take Colonists'),
-        ('planetLeaveQty', 'Leave Colonists'),
         ('deployDronesQty', 'Deploy Drones'),
         ('droneEncounter', 'Drone Encounter'),
         ('droneAttackQty', 'Drone Attack'),
@@ -565,8 +563,6 @@ export const connectDB = async (): Promise<void> => {
         ('starbaseHardware', 'Hardware Store'),
         ('planetSelect', 'Select Planet'),
         ('planetEarth', 'Earth'),
-        ('planetTakeCommodity', 'Take Commodity'),
-        ('planetLeaveCommodity', 'Leave Commodity'),
         ('tradeQty', 'Trade Quantity'),
         ('tradeConfirm', 'Trade Confirm'),
         ('shipyards', 'Shipyards'),
@@ -593,12 +589,8 @@ export const connectDB = async (): Promise<void> => {
         WHERE name IN ('knownUniverse', 'shipCatalog', 'planetSpecs', 'autopilotPrompt');
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'autopilotPrompt')
         WHERE name = 'autopilot';
-      UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'planet')
-        WHERE name IN ('planetTakeQty', 'planetLeaveQty', 'planetTakeCommodity', 'planetLeaveCommodity');
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'sector')
         WHERE name = 'planetEarth';
-      UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'planetEarth')
-        WHERE name IN ('planetTakeQty', 'planetLeaveQty');
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'droneEncounter')
         WHERE name = 'droneAttackQty';
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'sector')
@@ -837,25 +829,18 @@ export const connectDB = async (): Promise<void> => {
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === Planet ===
+      -- Planet's T and L route to fully client-side routines that ask
+      -- for commodity (askChar) then quantity (askNumber) inline before
+      -- sending Take/LeaveColonists. No menu transitions needed; the
+      -- planetTakeCommodity, planetLeaveCommodity, planetTakeQty, and
+      -- planetLeaveQty menus are gone.
       INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='planet'), (SELECT id FROM command WHERE name='take_colonists'), 't', 'Take colonists', NULL, (SELECT id FROM menu WHERE name='planetTakeQty'), 10),
-        ((SELECT id FROM menu WHERE name='planet'), (SELECT id FROM command WHERE name='leave_colonists'), 'l', 'Leave colonists', NULL, (SELECT id FROM menu WHERE name='planetLeaveCommodity'), 20),
+        ((SELECT id FROM menu WHERE name='planet'), (SELECT id FROM command WHERE name='take_colonists'), 't', 'Take colonists', NULL, NULL, 10),
+        ((SELECT id FROM menu WHERE name='planet'), (SELECT id FROM command WHERE name='leave_colonists'), 'l', 'Leave colonists', NULL, NULL, 20),
         ((SELECT id FROM menu WHERE name='planet'), (SELECT id FROM command WHERE name='planet_display'), 'd', 'Planet Info', 'planetDisplay', NULL, 25),
         ((SELECT id FROM menu WHERE name='planet'), (SELECT id FROM command WHERE name='destroy_planet'), 'z', 'Destroy Planet', 'destroyPlanet', NULL, 35),
         ((SELECT id FROM menu WHERE name='planet'), (SELECT id FROM command WHERE name='help_menu'), '?', 'Help', NULL, NULL, 40),
         ((SELECT id FROM menu WHERE name='planet'), (SELECT id FROM command WHERE name='leave_planet'), 'q', 'Leave Planet', 'leavePlanet', NULL, 50)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
-
-      -- === PlanetTakeQty ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='planetTakeQty'), (SELECT id FROM command WHERE name='enter_quantity'), '<number>', 'Quantity to take','takeColonists', NULL, 10),
-        ((SELECT id FROM menu WHERE name='planetTakeQty'), (SELECT id FROM command WHERE name='back'), 'q', 'Back',NULL, (SELECT id FROM menu WHERE name='sector'), 20)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
-
-      -- === PlanetLeaveQty ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='planetLeaveQty'), (SELECT id FROM command WHERE name='enter_quantity'), '<number>', 'Quantity to leave','leaveColonists', NULL, 10),
-        ((SELECT id FROM menu WHERE name='planetLeaveQty'), (SELECT id FROM command WHERE name='back'), 'q', 'Back',NULL, (SELECT id FROM menu WHERE name='sector'), 20)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === DeployDronesQty ===
@@ -951,29 +936,6 @@ export const connectDB = async (): Promise<void> => {
       INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
         ((SELECT id FROM menu WHERE name='planetSelect'), (SELECT id FROM command WHERE name='select_planet'), '<number>', 'Select planet', 'landOnPlanet', NULL, 10),
         ((SELECT id FROM menu WHERE name='planetSelect'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', NULL, (SELECT id FROM menu WHERE name='sector'), 20)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
-
-      -- === Planet Earth (special sector 1 planet) ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='planetEarth'), (SELECT id FROM command WHERE name='take_colonists'), 't', 'Take colonists', NULL, (SELECT id FROM menu WHERE name='planetTakeQty'), 10),
-        ((SELECT id FROM menu WHERE name='planetEarth'), (SELECT id FROM command WHERE name='leave_colonists'), 'l', 'Leave colonists', NULL, (SELECT id FROM menu WHERE name='planetLeaveQty'), 20),
-        ((SELECT id FROM menu WHERE name='planetEarth'), (SELECT id FROM command WHERE name='leave_planet'), 'q', 'Leave Earth', 'leavePlanet', NULL, 30)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
-
-      -- === Planet Take Commodity ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='planetTakeCommodity'), (SELECT id FROM command WHERE name='choose_fuel'), 'f', 'Fuel', NULL, (SELECT id FROM menu WHERE name='planetTakeQty'), 10),
-        ((SELECT id FROM menu WHERE name='planetTakeCommodity'), (SELECT id FROM command WHERE name='choose_organics'), 'o', 'Organics', NULL, (SELECT id FROM menu WHERE name='planetTakeQty'), 20),
-        ((SELECT id FROM menu WHERE name='planetTakeCommodity'), (SELECT id FROM command WHERE name='choose_equipment'), 'e', 'Equipment', NULL, (SELECT id FROM menu WHERE name='planetTakeQty'), 30),
-        ((SELECT id FROM menu WHERE name='planetTakeCommodity'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', NULL, (SELECT id FROM menu WHERE name='planet'), 40)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
-
-      -- === Planet Leave Commodity ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='planetLeaveCommodity'), (SELECT id FROM command WHERE name='choose_fuel'), 'f', 'Fuel', NULL, (SELECT id FROM menu WHERE name='planetLeaveQty'), 10),
-        ((SELECT id FROM menu WHERE name='planetLeaveCommodity'), (SELECT id FROM command WHERE name='choose_organics'), 'o', 'Organics', NULL, (SELECT id FROM menu WHERE name='planetLeaveQty'), 20),
-        ((SELECT id FROM menu WHERE name='planetLeaveCommodity'), (SELECT id FROM command WHERE name='choose_equipment'), 'e', 'Equipment', NULL, (SELECT id FROM menu WHERE name='planetLeaveQty'), 30),
-        ((SELECT id FROM menu WHERE name='planetLeaveCommodity'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', NULL, (SELECT id FROM menu WHERE name='planet'), 40)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === Computer: hyperspace jump, deployed drones, list planets ===

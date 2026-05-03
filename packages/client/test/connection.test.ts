@@ -117,6 +117,7 @@ function createMockCtx(overrides: { autopilot?: Partial<GameContext['autopilot']
             sectorPlayers: [],
             currentWarps: [],
             starbaseSector: null,
+            earthColonists: 0,
         },
         ship: {
             currentShipName: 'Vulpeculan Cruiser',

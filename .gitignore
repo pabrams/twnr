@@ -8,3 +8,4 @@ server.log
 *.preview.ansi
 docs
 /.claude/worktrees/
+FOLLOWUPS.md

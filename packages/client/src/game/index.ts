@@ -92,6 +92,7 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
             sectorPlayers: [],
             currentWarps: [],
             starbaseSector: null,
+            earthColonists: 0,
         },
         ship: {
             currentShipName: '',

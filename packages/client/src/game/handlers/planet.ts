@@ -32,6 +32,7 @@ export const planetInfo: Handler<'planetInfoResult', PlanetDeps> = (ctx, msg) =>
 
 export const takeColonists: Handler<'takeColonistsResult', PlanetDeps> = (ctx, msg) => {
     ctx.ship.shipColonists = msg.shipColonists;
+    if (msg.commodity === 'fuel') ctx.world.earthColonists = msg.planetColonists;
     ctx.io.term.writeln('');
     ctx.io.term.writeln(
         render(PANEL.takeColonistsHeader, {
@@ -41,10 +42,19 @@ export const takeColonists: Handler<'takeColonistsResult', PlanetDeps> = (ctx, m
     );
     ctx.io.term.writeln(render(PANEL.planetColonistsLine, { count: fmt(msg.planetColonists) }));
     ctx.io.term.writeln(render(PANEL.shipColonistsLine, { count: msg.shipColonists }));
+    // Earth case: server auto-lifted and bundled sector data into this
+    // envelope. No repaint needed (same sector / port / warps); only
+    // refresh sectorPlayers in case others arrived. Framework auto-
+    // renders the sector prompt. Real-planet case: sector fields absent;
+    // player stays on-planet, framework auto-renders the planet prompt.
+    if (msg.players !== undefined) {
+        ctx.world.sectorPlayers = msg.players;
+    }
 };
 
 export const leaveColonists: Handler<'leaveColonistsResult', PlanetDeps> = (ctx, msg) => {
     ctx.ship.shipColonists = msg.shipColonists;
+    if (msg.commodity === 'fuel') ctx.world.earthColonists = msg.planetColonists;
     ctx.io.term.writeln('');
     ctx.io.term.writeln(
         render(PANEL.leaveColonistsHeader, {
@@ -54,8 +64,12 @@ export const leaveColonists: Handler<'leaveColonistsResult', PlanetDeps> = (ctx,
     );
     ctx.io.term.writeln(render(PANEL.planetColonistsLine, { count: fmt(msg.planetColonists) }));
     ctx.io.term.writeln(render(PANEL.shipColonistsLine, { count: msg.shipColonists }));
-    if (ctx.world.mode === Menu.PlanetEarth) {
-        showEarthMenu(ctx, msg.planetColonists);
+    // Earth case: server auto-lifted and bundled sector data into this
+    // envelope. No repaint needed (same sector / port / warps); only
+    // refresh sectorPlayers in case others arrived. Framework auto-
+    // renders the sector prompt.
+    if (msg.players !== undefined) {
+        ctx.world.sectorPlayers = msg.players;
     }
 };
 
@@ -71,7 +85,8 @@ export const landOnPlanet: Handler<'landOnPlanetResult', PlanetDeps> = (ctx, msg
     ctx.ship.planetEmptyHolds = msg.empty_holds;
     ctx.ship.shipColonists = msg.ship_colonists;
     if (ctx.world.mode === Menu.PlanetEarth) {
-        showEarthMenu(ctx, msg.colonists_fuel ?? 0);
+        ctx.world.earthColonists = msg.colonists_fuel ?? 0;
+        showEarthMenu(ctx, ctx.world.earthColonists);
     } else {
         ctx.io.term.writeln('');
         ctx.io.term.writeln(render(PANEL.landedHeader, { name: msg.name }));

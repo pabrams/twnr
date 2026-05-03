@@ -1,36 +1,63 @@
-import { ClientMsgType, Menu } from '@twnr/shared';
+import { ClientMsgType } from '@twnr/shared';
+import type { GameContext } from '../types.js';
+import { render } from '../renderer.js';
+import { PLANET } from '../messages/index.js';
 import { echoCommand } from '../display.js';
-import { registerRoutine, setMenuArgs } from './types.js';
+import { showPlanetTakeCommodityMenu, showPlanetLeaveCommodityMenu } from '../display-planet.js';
+import { registerRoutine } from './types.js';
+import { askChar, askNumber } from './prompts.js';
 
 /**
- * Planet menu routines. The same `take_colonists` and `leave_colonists`
- * commands appear on both the regular planet menu and the Earth menu;
- * the routine reads `ctx.world.mode` to decide whether to ask for the
- * commodity (regular planets) or default to fuel (Earth-only). When the
- * commodity-pick + qty-prompt collapse lands, both branches will use
- * askChar/askNumber inside this routine and the four planetTakeQty,
- * planetLeaveQty, planetTakeCommodity, planetLeaveCommodity menus can be
- * deleted. back and help_menu come from common-routines.ts.
+ * Planet menu routines (regular planets, not Earth — Earth has its own
+ * client-driven menu in planet-earth.ts and bypasses these). Both
+ * take_colonists and leave_colonists are now fully inline:
+ * commodity-pick (askChar) → quantity (askNumber) → send. The legacy
+ * planetTakeCommodity / planetTakeQty / planetLeaveCommodity /
+ * planetLeaveQty menus are gone.
+ *
+ * `back` and `help_menu` come from common-routines.ts.
  */
 
-registerRoutine('take_colonists', (ctx) => {
+const COMMODITY_MAP: Record<string, 'fuel' | 'organics' | 'equipment'> = {
+    f: 'fuel',
+    o: 'organics',
+    e: 'equipment',
+};
+
+async function pickCommodity(ctx: GameContext): Promise<'fuel' | 'organics' | 'equipment' | null> {
+    const ch = await askChar(ctx, render(PLANET.commodityPrompt), ['f', 'o', 'e']);
+    return ch ? (COMMODITY_MAP[ch] ?? null) : null;
+}
+
+registerRoutine('take_colonists', async (ctx) => {
     echoCommand(ctx, 'takeColonists');
-    if (ctx.world.mode === Menu.PlanetEarth) {
-        setMenuArgs(ctx, { menu: Menu.PlanetTakeQty, commodity: 'fuel' });
-        ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.PlanetTakeQty });
-    } else {
-        ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.PlanetTakeCommodity });
-    }
+    showPlanetTakeCommodityMenu(ctx);
+    const commodity = await pickCommodity(ctx);
+    if (!commodity) return;
+    const qty = await askNumber(
+        ctx,
+        render(PLANET.takePrompt, { emptyHolds: ctx.ship.planetEmptyHolds }),
+        // -1 = "default" (server takes max available, clamped by holds).
+        // Pressing Enter sends -1.
+        { defaultValue: -1 },
+    );
+    if (qty === null) return;
+    ctx.io.sendMsg({ type: ClientMsgType.TakeColonists, quantity: qty, commodity });
 });
 
-registerRoutine('leave_colonists', (ctx) => {
+registerRoutine('leave_colonists', async (ctx) => {
     echoCommand(ctx, 'leaveColonists');
-    if (ctx.world.mode === Menu.PlanetEarth) {
-        setMenuArgs(ctx, { menu: Menu.PlanetLeaveQty, commodity: 'fuel' });
-        ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.PlanetLeaveQty });
-    } else {
-        ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.PlanetLeaveCommodity });
-    }
+    showPlanetLeaveCommodityMenu(ctx);
+    const commodity = await pickCommodity(ctx);
+    if (!commodity) return;
+    const qty = await askNumber(
+        ctx,
+        render(PLANET.leavePrompt, { shipColonists: ctx.ship.shipColonists }),
+        // -1 = "default" (server leaves all). Enter sends -1.
+        { defaultValue: -1 },
+    );
+    if (qty === null) return;
+    ctx.io.sendMsg({ type: ClientMsgType.LeaveColonists, quantity: qty, commodity });
 });
 
 registerRoutine('planet_display', (ctx) => {

@@ -95,6 +95,7 @@ export interface WorldState {
     sectorPlayers: { id: number; name: string }[];
     currentWarps: { sector: number; visited: boolean }[];
     starbaseSector: number | null;
+    earthColonists: number;
 }
 
 export interface ShipState {
@@ -160,8 +161,6 @@ export type MenuArgs =
           price: number;
           tradein: number;
       }
-    | { menu: typeof Menu.PlanetTakeQty; commodity: 'fuel' | 'organics' | 'equipment' }
-    | { menu: typeof Menu.PlanetLeaveQty; commodity: 'fuel' | 'organics' | 'equipment' }
     | {
           menu: typeof Menu.PlanetSelect;
           planets: { id: number; name: string; type: string }[];

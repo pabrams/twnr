@@ -29,6 +29,9 @@ function showPlanetPrompt(ctx: DisplayPlanetCtx) {
     ctx.io.term.write(render(PLANET.prompt));
 }
 
+/** Earth catalog listing — header + colonist count + T/L/Q rows. Shown on
+ * entry (landOnPlanet handler) and on '?'. The prompt itself lives in
+ * `showEarthPrompt`. */
 export function showEarthMenu(ctx: DisplayPlanetCtx, colonistsFuel: number) {
     ctx.io.term.writeln('');
     ctx.io.term.writeln(render(PLANET.earthHeader, { count: colonistsFuel.toLocaleString() }));
@@ -36,6 +39,16 @@ export function showEarthMenu(ctx: DisplayPlanetCtx, colonistsFuel: number) {
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'T', text: 'Take colonists aboard' }));
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'L', text: 'Leave colonists on planet' }));
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Leave Earth' }));
+}
+
+/** Earth menu's renderPrompt — just the input prompt line. The catalog
+ * listing isn't repeated after every action; '?' or re-entry prints it
+ * via showEarthMenu. */
+export function showEarthPrompt(ctx: DisplayPlanetCtx) {
+    void ctx;
+    // PLANET.prompt is currently shared with the regular planet menu.
+    // When Earth diverges further (e.g. its own header colors) split it out.
+    ctx.io.term.write(render(PLANET.prompt));
 }
 
 export function showPlanetTakePrompt(ctx: DisplayPlanetCtx) {
@@ -53,9 +66,10 @@ export function showPlanetTakeCommodityMenu(ctx: DisplayPlanetCtx) {
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'O', text: 'Organics colonists' }));
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'E', text: 'Equipment colonists' }));
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
-    ctx.io.term.write(render(PLANET.commodityPrompt));
 }
 
+/** Catalog listing for the leave-colonists commodity pick. Prompt is
+ * rendered by the askChar helper, not here. */
 export function showPlanetLeaveCommodityMenu(ctx: DisplayPlanetCtx) {
     ctx.io.term.writeln('');
     ctx.io.term.writeln(render(PLANET.leaveCommodityHeader));
@@ -63,7 +77,6 @@ export function showPlanetLeaveCommodityMenu(ctx: DisplayPlanetCtx) {
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'O', text: 'Organics' }));
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'E', text: 'Equipment' }));
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
-    ctx.io.term.write(render(PLANET.commodityPrompt));
 }
 
 export function showNoPlanet(ctx: DisplayPlanetCtx) {
