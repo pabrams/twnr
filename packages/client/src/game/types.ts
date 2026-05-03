@@ -152,8 +152,6 @@ export interface MinimapView {
  * destination menu so each side's typing stays honest.
  */
 export type MenuArgs =
-    | { menu: typeof Menu.Class0Qty; kind: 'drones' | 'shields' | 'holds' }
-    | { menu: typeof Menu.ShipyardsClass0Qty; kind: 'drones' | 'shields' | 'holds' }
     | {
           menu: typeof Menu.ShipyardsTradein;
           target: string;
@@ -170,19 +168,6 @@ export type MenuArgs =
           path: { sector: number; visited: boolean }[];
           hops: number;
           turns: number;
-      }
-    | {
-          menu: typeof Menu.TradeQty;
-          commodity: string;
-          action: 'buy' | 'sell';
-          portTrading: number;
-          onBoard: number;
-          maxQty: number;
-      }
-    | {
-          menu: typeof Menu.TradeConfirm;
-          action: 'buy' | 'sell';
-          totalPrice: number;
       }
     | {
           menu: typeof Menu.DeployDronesQty;

@@ -72,7 +72,15 @@ export async function showClass0Menu(ctx: DisplayPortCtx) {
     term.write(render(PORT.class0BuyPrompt));
 }
 
-export function showClass0QtyPrompt(ctx: DisplayPortCtx, buyType: 'drones' | 'shields' | 'holds') {
+/** Print the "you have N <thing>" preamble line for a class-0 buy and
+ * return the corresponding prompt-text string + the max the player can
+ * buy. The routine then passes the text to askNumber. (Old version
+ * wrote the prompt itself; with askNumber owning the prompt write, we
+ * split.) */
+export function class0QtyPreamble(
+    ctx: DisplayPortCtx,
+    buyType: 'drones' | 'shields' | 'holds',
+): { promptText: string; max: number } {
     const s = ctx.starbase.class0ShipState;
     const max = class0MaxBuy(buyType, ctx);
     const shipName =
@@ -81,14 +89,14 @@ export function showClass0QtyPrompt(ctx: DisplayPortCtx, buyType: 'drones' | 'sh
     const { term } = ctx.io;
     if (buyType === 'drones') {
         term.writeln(render(PORT.class0QtyYouHaveFighters, { qty: s?.drones ?? 0 }));
-        term.write(render(PORT.class0QtyPromptFighters, { shipName, max }));
-    } else if (buyType === 'shields') {
-        term.writeln(render(PORT.class0QtyYouHaveShields, { qty: s?.shields ?? 0 }));
-        term.write(render(PORT.class0QtyPromptShields, { max }));
-    } else {
-        term.writeln(render(PORT.class0QtyYouHaveHolds, { qty: s?.holds ?? 0 }));
-        term.write(render(PORT.class0QtyPromptHolds, { max }));
+        return { promptText: render(PORT.class0QtyPromptFighters, { shipName, max }), max };
     }
+    if (buyType === 'shields') {
+        term.writeln(render(PORT.class0QtyYouHaveShields, { qty: s?.shields ?? 0 }));
+        return { promptText: render(PORT.class0QtyPromptShields, { max }), max };
+    }
+    term.writeln(render(PORT.class0QtyYouHaveHolds, { qty: s?.holds ?? 0 }));
+    return { promptText: render(PORT.class0QtyPromptHolds, { max }), max };
 }
 
 export function showTradeQtyPrompt(

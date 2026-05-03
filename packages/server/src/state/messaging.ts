@@ -9,11 +9,12 @@ import { players, setPlayerMenu } from './players.js';
  * Handlers build `ServerResult` (no menu); this layer stamps `menu` on
  * before sending.
  */
-function frame(menu: MenuName, body?: ServerResult): string {
+function frame(menu: MenuName, body?: ServerResult, suppressPrompt?: boolean): string {
+    const flag = suppressPrompt ? { suppressPrompt: true } : {};
     if (body) {
-        return JSON.stringify({ ...body, menu });
+        return JSON.stringify({ ...body, ...flag, menu });
     }
-    return JSON.stringify({ type: ServerMsgType.MenuTransition, menu });
+    return JSON.stringify({ type: ServerMsgType.MenuTransition, ...flag, menu });
 }
 
 /**
@@ -25,11 +26,19 @@ function frame(menu: MenuName, body?: ServerResult): string {
  * Handlers should pass `menu` whenever the result represents a menu
  * change — collapses the previous `setPlayerMenu` + `sendEnvelope` pair
  * into one call and keeps the two side-effects atomic.
+ *
+ * Pass `opts.suppressPrompt: true` when the envelope is a transient
+ * step in a multi-message server-driven flow (e.g. DockResult that will
+ * be followed by TradePrompt or UndockResult). The client framework
+ * then skips its auto renderPrompt, so the menu prompt doesn't paint
+ * between the transient and the message that actually owns the next
+ * user-facing prompt.
  */
 export async function sendEnvelope(
     playerId: number,
     body: ServerResult,
     menu?: MenuName,
+    opts?: { suppressPrompt?: boolean },
 ): Promise<void> {
     const player = players[playerId];
     if (!player || player.ws.readyState !== 1) return;
@@ -37,7 +46,7 @@ export async function sendEnvelope(
         await setPlayerMenu(playerId, menu);
     }
     const menuToStamp = (menu ?? player.currentMenu) as MenuName;
-    player.ws.send(frame(menuToStamp, body));
+    player.ws.send(frame(menuToStamp, body, opts?.suppressPrompt));
 }
 
 /**

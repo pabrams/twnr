@@ -51,10 +51,21 @@ export function setupConnection(ws: WebSocket, ctx: GameContext, onDisconnect: (
         if (msg.type !== ServerMsgType.MenuTransition) {
             dispatch(ctx, msg);
         }
-        // Some envelopes are pure side-panel updates (mini-map data refresh
-        // on zoom/pan) that don't write to the terminal. Re-rendering the
-        // sector prompt after each one duplicates the prompt on every zoom.
-        if (!ctx.input.inFlight && !PROMPT_SUPPRESSING.has(msg.type)) {
+        // Skip the auto-render when:
+        //  - the handler chained another roundtrip (`inFlight`)
+        //  - the handler opened a sub-prompt (`pendingResolver`) — e.g.
+        //    tradePromptAsk's askNumber. Without this, the menu prompt
+        //    paints over the askNumber prompt.
+        //  - the envelope is a pure side-panel update (mini-map zoom/pan).
+        //  - the server marked the envelope as a transient step in a
+        //    multi-message flow (`suppressPrompt`) — e.g. DockResult
+        //    that will be followed by TradePrompt or UndockResult.
+        if (
+            !ctx.input.inFlight &&
+            !ctx.input.pendingResolver &&
+            !msg.suppressPrompt &&
+            !PROMPT_SUPPRESSING.has(msg.type)
+        ) {
             getMenuHandler(ctx.world.mode)?.renderPrompt?.(ctx);
         }
         drainInputQueue(ctx);

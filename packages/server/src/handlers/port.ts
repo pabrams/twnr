@@ -1,4 +1,4 @@
-import { ServerMsgType, PORT_CLASS_ACTIONS } from '@twnr/shared';
+import { ServerMsgType, PORT_CLASS_ACTIONS, type TradeSkipReason } from '@twnr/shared';
 import { players, getPlayerUniverseId } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { portName } from '../domain/port-classes.js';
@@ -135,14 +135,23 @@ export async function handleDock(playerId: number): Promise<void> {
         return;
     }
 
-    sendEnvelope(playerId, {
-        type: ServerMsgType.DockResult,
-        docked: true,
-        port: portInfoPayload,
-        credits,
-        cargo: cargoOut,
-        emptyHolds,
-    });
+    // Class 1-8 dock: this DockResult is transient — the trade flow
+    // (TradePrompt) or the noTrade undock will follow on the same
+    // action. Suppress the auto-prompt so the Port menu doesn't paint
+    // between the commerce report and the next message.
+    sendEnvelope(
+        playerId,
+        {
+            type: ServerMsgType.DockResult,
+            docked: true,
+            port: portInfoPayload,
+            credits,
+            cargo: cargoOut,
+            emptyHolds,
+        },
+        undefined,
+        { suppressPrompt: true },
+    );
 
     // Build trade steps from port class actions
     const actions = PORT_CLASS_ACTIONS[p.class];
@@ -173,7 +182,7 @@ export async function handleDock(playerId: number): Promise<void> {
     await advanceTradeFlow(playerId);
 }
 
-async function undockPlayer(playerId: number): Promise<void> {
+async function undockPlayer(playerId: number, tradeSkipReason?: TradeSkipReason): Promise<void> {
     const player = players[playerId];
     if (!player) return;
     player.docked = false;
@@ -183,7 +192,12 @@ async function undockPlayer(playerId: number): Promise<void> {
     if (!sectorData) return;
     await sendEnvelope(
         playerId,
-        { type: ServerMsgType.UndockResult, outcome: 'success', ...sectorData },
+        {
+            type: ServerMsgType.UndockResult,
+            outcome: 'success',
+            ...sectorData,
+            ...(tradeSkipReason ? { tradeSkipReason } : {}),
+        },
         'sector',
     );
 }
@@ -237,19 +251,19 @@ async function advanceTradeFlow(playerId: number): Promise<void> {
                 credits: cargo.credits,
                 emptyHolds,
             },
-            'tradeQty',
+            // Player's tracked menu stays at 'port' — the qty prompt is
+            // a fully client-side askNumber inside the tradePrompt
+            // handler. No tradeQty menu.
+            'port',
         );
         return;
     }
 
-    // Nothing to prompt. If we never prompted anything, show the "nothing to trade" message.
-    if (prompted.size === 0) {
-        sendEnvelope(playerId, {
-            type: ServerMsgType.TradeSkipped,
-            reason: 'noTrade',
-        });
-    }
-    await undockPlayer(playerId);
+    // Nothing to prompt. When we never prompted anything, fold the
+    // "nothing to trade" message into the UndockResult envelope so the
+    // client doesn't render an intermediate Port prompt between
+    // TradeSkipped and UndockResult.
+    await undockPlayer(playerId, prompted.size === 0 ? 'noTrade' : undefined);
 }
 
 export async function handleTradeResponse(playerId: number, quantity: number): Promise<void> {
@@ -308,7 +322,9 @@ export async function handleTradeResponse(playerId: number, quantity: number): P
             quantity: clampedQty,
             totalPrice,
         },
-        'tradeConfirm',
+        // Confirm is handled by the tradeConfirmPrompt client handler
+        // via askConfirm inline. No tradeConfirm menu.
+        'port',
     );
 }
 
@@ -461,22 +477,32 @@ export async function handleTradeConfirmResponse(
             await undockPlayer(playerId);
             return;
         case 'skip':
-            sendEnvelope(playerId, {
-                type: ServerMsgType.TradeSkipped,
-                reason: outcome.reason,
-            });
+            // Transient: advanceTradeFlow follows with TradePrompt or
+            // UndockResult-with-noTrade; either owns the next prompt.
+            sendEnvelope(
+                playerId,
+                { type: ServerMsgType.TradeSkipped, reason: outcome.reason },
+                undefined,
+                { suppressPrompt: true },
+            );
             player.tradeState.pendingQty = undefined;
             player.tradeState.stepIndex++;
             await advanceTradeFlow(playerId);
             return;
         case 'complete':
-            sendEnvelope(playerId, {
-                type: ServerMsgType.TradeComplete,
-                credits: outcome.credits,
-                cargo: outcome.cargo,
-                emptyHolds: outcome.emptyHolds,
-                ...(outcome.turnsUsed !== undefined ? { turnsUsed: outcome.turnsUsed } : {}),
-            });
+            // Same as skip — the next message in the chain owns the prompt.
+            sendEnvelope(
+                playerId,
+                {
+                    type: ServerMsgType.TradeComplete,
+                    credits: outcome.credits,
+                    cargo: outcome.cargo,
+                    emptyHolds: outcome.emptyHolds,
+                    ...(outcome.turnsUsed !== undefined ? { turnsUsed: outcome.turnsUsed } : {}),
+                },
+                undefined,
+                { suppressPrompt: true },
+            );
             player.tradeState.pendingQty = undefined;
             player.tradeState.stepIndex++;
             await advanceTradeFlow(playerId);

@@ -543,7 +543,6 @@ export const connectDB = async (): Promise<void> => {
         ('sector', 'Sector'),
         ('port', 'Port'),
         ('class0', 'Class 0 Port'),
-        ('class0Qty', 'Class 0 Quantity'),
         ('help', 'Help'),
         ('shipInfo', 'Ship Info'),
         ('playerInfo', 'Player Info'),
@@ -558,19 +557,15 @@ export const connectDB = async (): Promise<void> => {
         ('planet', 'Planet'),
         ('deployDronesQty', 'Deploy Drones'),
         ('droneEncounter', 'Drone Encounter'),
-        ('droneAttackQty', 'Drone Attack'),
         ('starbase', 'Starbase'),
         ('starbaseHardware', 'Hardware Store'),
         ('planetSelect', 'Select Planet'),
         ('planetEarth', 'Earth'),
-        ('tradeQty', 'Trade Quantity'),
-        ('tradeConfirm', 'Trade Confirm'),
         ('shipyards', 'Shipyards'),
         ('shipyardsBuy', 'Buy Ship'),
         ('shipyardsTradein', 'Trade-in'),
         ('shipyardsExamine', 'Examine Ships'),
         ('shipyardsClass0', 'Shipyards Equipment'),
-        ('shipyardsClass0Qty', 'Equipment Quantity'),
         ('move', 'Move to adjacent sector')
       ON CONFLICT (name) DO NOTHING;
 
@@ -578,11 +573,7 @@ export const connectDB = async (): Promise<void> => {
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'sector')
         WHERE name IN ('port', 'help', 'shipInfo', 'playerInfo', 'attack', 'computer', 'planet', 'deployDronesQty', 'move');
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'port')
-        WHERE name IN ('tradeQty', 'tradeConfirm');
-      UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'port')
         WHERE name = 'class0';
-      UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'class0')
-        WHERE name = 'class0Qty';
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'attack')
         WHERE name = 'attackDrones';
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'computer')
@@ -591,8 +582,6 @@ export const connectDB = async (): Promise<void> => {
         WHERE name = 'autopilot';
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'sector')
         WHERE name = 'planetEarth';
-      UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'droneEncounter')
-        WHERE name = 'droneAttackQty';
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'sector')
         WHERE name = 'starbase';
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'starbase')
@@ -601,8 +590,6 @@ export const connectDB = async (): Promise<void> => {
         WHERE name IN ('shipyardsBuy', 'shipyardsExamine', 'shipyardsClass0');
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'shipyardsBuy')
         WHERE name = 'shipyardsTradein';
-      UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'shipyardsClass0')
-        WHERE name = 'shipyardsClass0Qty';
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'sector')
         WHERE name = 'planetSelect';
 
@@ -746,29 +733,15 @@ export const connectDB = async (): Promise<void> => {
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === Class0 ===
+      -- a/b/c are owned by client routines (chooseClass0 in
+      -- shipyards-routines.ts) which run askNumber inline before
+      -- sending Buy{Holds,Drones,Shields}; no menu transition.
       INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='class0'), (SELECT id FROM command WHERE name='choose_holds'), 'a', 'Cargo holds',NULL, (SELECT id FROM menu WHERE name='class0Qty'), 10),
-        ((SELECT id FROM menu WHERE name='class0'), (SELECT id FROM command WHERE name='choose_drones'), 'b', 'Drones',NULL, (SELECT id FROM menu WHERE name='class0Qty'), 20),
-        ((SELECT id FROM menu WHERE name='class0'), (SELECT id FROM command WHERE name='choose_shields'), 'c', 'Shield Points',NULL, (SELECT id FROM menu WHERE name='class0Qty'), 30),
+        ((SELECT id FROM menu WHERE name='class0'), (SELECT id FROM command WHERE name='choose_holds'), 'a', 'Cargo holds',NULL, NULL, 10),
+        ((SELECT id FROM menu WHERE name='class0'), (SELECT id FROM command WHERE name='choose_drones'), 'b', 'Drones',NULL, NULL, 20),
+        ((SELECT id FROM menu WHERE name='class0'), (SELECT id FROM command WHERE name='choose_shields'), 'c', 'Shield Points',NULL, NULL, 30),
         ((SELECT id FROM menu WHERE name='class0'), (SELECT id FROM command WHERE name='leave_port'), 'q', 'Quit, nevermind','undock', NULL, 40),
         ((SELECT id FROM menu WHERE name='class0'), (SELECT id FROM command WHERE name='help_menu'), '?', 'Help',NULL, NULL, 50)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
-
-      -- === Class0Qty ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='class0Qty'), (SELECT id FROM command WHERE name='enter_quantity'), '<number>', 'Enter quantity',NULL, NULL, 10),
-        ((SELECT id FROM menu WHERE name='class0Qty'), (SELECT id FROM command WHERE name='back'), 'q', 'Back',NULL, (SELECT id FROM menu WHERE name='class0'), 20)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
-
-      -- === TradeQty ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='tradeQty'), (SELECT id FROM command WHERE name='enter_quantity'), '<number>', 'Quantity to trade', NULL, NULL, 10)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
-
-      -- === TradeConfirm ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='tradeConfirm'), (SELECT id FROM command WHERE name='confirm_yes'), 'y', 'Yes', NULL, NULL, 10),
-        ((SELECT id FROM menu WHERE name='tradeConfirm'), (SELECT id FROM command WHERE name='confirm_no'), 'n', 'No', NULL, NULL, 20)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === Help ===
@@ -850,15 +823,11 @@ export const connectDB = async (): Promise<void> => {
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === DroneEncounter ===
+      -- 'a' is owned by the client routine in menus/drone-encounter.ts
+      -- (askNumber inline before AttackSectorDrones); no transition.
       INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='droneEncounter'), (SELECT id FROM command WHERE name='attack_encounter'), 'a', 'Attack',NULL, (SELECT id FROM menu WHERE name='droneAttackQty'), 10),
+        ((SELECT id FROM menu WHERE name='droneEncounter'), (SELECT id FROM command WHERE name='attack_encounter'), 'a', 'Attack',NULL, NULL, 10),
         ((SELECT id FROM menu WHERE name='droneEncounter'), (SELECT id FROM command WHERE name='retreat'), 'r', 'Retreat','retreatFromDrones', NULL, 20)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
-
-      -- === DroneAttackQty ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='droneAttackQty'), (SELECT id FROM command WHERE name='enter_quantity'), '<number>', 'Drones to send','attackSectorDrones', NULL, 10),
-        ((SELECT id FROM menu WHERE name='droneAttackQty'), (SELECT id FROM command WHERE name='back'), 'q', 'Back',NULL, (SELECT id FROM menu WHERE name='droneEncounter'), 20)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === AutopilotPrompt ===
@@ -918,18 +887,14 @@ export const connectDB = async (): Promise<void> => {
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === Shipyards Class 0 ===
+      -- a/b/c share the same chooseClass0 client routine as in-port
+      -- class0; askNumber inline, no transition.
       INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='shipyardsClass0'), (SELECT id FROM command WHERE name='choose_holds'), 'a', 'Cargo holds', NULL, (SELECT id FROM menu WHERE name='shipyardsClass0Qty'), 10),
-        ((SELECT id FROM menu WHERE name='shipyardsClass0'), (SELECT id FROM command WHERE name='choose_drones'), 'b', 'Drones', NULL, (SELECT id FROM menu WHERE name='shipyardsClass0Qty'), 20),
-        ((SELECT id FROM menu WHERE name='shipyardsClass0'), (SELECT id FROM command WHERE name='choose_shields'), 'c', 'Shield Points', NULL, (SELECT id FROM menu WHERE name='shipyardsClass0Qty'), 30),
+        ((SELECT id FROM menu WHERE name='shipyardsClass0'), (SELECT id FROM command WHERE name='choose_holds'), 'a', 'Cargo holds', NULL, NULL, 10),
+        ((SELECT id FROM menu WHERE name='shipyardsClass0'), (SELECT id FROM command WHERE name='choose_drones'), 'b', 'Drones', NULL, NULL, 20),
+        ((SELECT id FROM menu WHERE name='shipyardsClass0'), (SELECT id FROM command WHERE name='choose_shields'), 'c', 'Shield Points', NULL, NULL, 30),
         ((SELECT id FROM menu WHERE name='shipyardsClass0'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', NULL, (SELECT id FROM menu WHERE name='shipyards'), 40),
         ((SELECT id FROM menu WHERE name='shipyardsClass0'), (SELECT id FROM command WHERE name='help_menu'), '?', 'Help', NULL, NULL, 50)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
-
-      -- === Shipyards Class 0 Qty ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='shipyardsClass0Qty'), (SELECT id FROM command WHERE name='enter_quantity'), '<number>', 'Enter quantity', NULL, NULL, 10),
-        ((SELECT id FROM menu WHERE name='shipyardsClass0Qty'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', NULL, (SELECT id FROM menu WHERE name='shipyardsClass0'), 20)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === Planet Select (after Land command) ===
