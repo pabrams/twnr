@@ -24,7 +24,6 @@ export const Menu = {
     DroneAttackQty: 'droneAttackQty',
     Starbase: 'starbase',
     StarbaseHardware: 'starbaseHardware',
-    StarbaseBuyQty: 'starbaseBuyQty',
     PlanetSelect: 'planetSelect',
     PlanetEarth: 'planetEarth',
     PlanetTakeCommodity: 'planetTakeCommodity',

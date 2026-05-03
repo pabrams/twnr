@@ -3,6 +3,7 @@ import type { SectorRef } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { render } from './renderer.js';
 import { COMMAND, SECTOR, HELP, HELP_LINES, PORT, COMMON } from './messages/index.js';
+import { showPrompt } from './menus/types.js';
 
 export type DisplayCtx = Pick<GameContext, 'catalogs' | 'io' | 'minimap' | 'player' | 'world'>;
 
@@ -109,7 +110,9 @@ export function showSectorDisplay(
     }
 }
 
-export function showPrompt(ctx: DisplayCtx) {
+/** Sector menu's specific prompt. The generic "render whatever prompt
+ * the current menu wants" lives in menus/index.ts as `showPrompt`. */
+export function showSectorPrompt(ctx: DisplayCtx) {
     ctx.io.term.write(render(SECTOR.prompt, { sector: ctx.world.currentSector }));
 }
 
@@ -142,13 +145,13 @@ export function showHelp(ctx: DisplayCtx) {
         ctx.io.term.writeln(render(tpl, line));
     }
     ctx.io.term.writeln(render(HELP.footer));
-    showPrompt(ctx);
+    showPrompt(ctx as GameContext);
 }
 
 export function showPortMenu(ctx: DisplayCtx) {
     if (!ctx.world.currentPort) {
         ctx.io.term.writeln(render(PORT.menuNoPort));
-        showPrompt(ctx);
+        showPrompt(ctx as GameContext);
         return;
     }
     ctx.io.term.writeln('');

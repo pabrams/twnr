@@ -49,12 +49,13 @@ export function showHardwareItemDetail(ctx: DisplayStarbaseCtx, itemName: string
     return canBuy;
 }
 
+// Display key for each hardware item. Mines (proximity/seeker) live behind
+// the M sub-prompt, so they don't appear here individually. Must match the
+// STACKABLE/TOGGLE maps in menus/starbase-hardware.ts.
 const HW_KEY_MAP: Record<string, string> = {
     terraform_device: 'T',
     planet_buster: 'B',
     buoy: 'U',
-    proximity_mine: 'P',
-    seeker_mine: 'S',
     mine_disruptor: 'D',
     hyperspace_1: '1',
     hyperspace_2: '2',
@@ -66,11 +67,30 @@ const HW_KEY_MAP: Record<string, string> = {
     recon_drone: 'R',
 };
 
+const MINE_NAMES = new Set(['proximity_mine', 'seeker_mine']);
+
+/** Full menu listing (item rows + Q row). Does NOT include credits or
+ * the prompt — those live in `showHardwarePrompt` so the prompt always
+ * shows credits even when the listing isn't being re-rendered. */
 export function showHardwareMenu(ctx: DisplayStarbaseCtx) {
     const items = ctx.catalogs.hardwarePrices;
     ctx.io.term.writeln('');
+    let minesShown = false;
     if (items) {
         for (const item of items) {
+            if (MINE_NAMES.has(item.name)) {
+                if (!minesShown) {
+                    ctx.io.term.writeln(
+                        render(STARBASE.hardwareItemRow, {
+                            key: 'M',
+                            label: 'Mines'.padEnd(19),
+                            price: '—',
+                        }),
+                    );
+                    minesShown = true;
+                }
+                continue;
+            }
             const key = HW_KEY_MAP[item.name] ?? '?';
             ctx.io.term.writeln(
                 render(STARBASE.hardwareItemRow, {
@@ -82,6 +102,13 @@ export function showHardwareMenu(ctx: DisplayStarbaseCtx) {
         }
     }
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
+}
+
+/** Credits line + the actual input prompt. This is the menu's renderPrompt:
+ * it fires on entry (after the catalog list is shown) and after every
+ * client-side action (so the user sees the latest credits without the
+ * full menu re-rendering on top of the action's result). */
+export function showHardwarePrompt(ctx: DisplayStarbaseCtx) {
     ctx.io.term.writeln(
         render(STARBASE.hardwareCredits, { credits: fmt(ctx.starbase.hardwareStoreCredits) }),
     );

@@ -2,7 +2,7 @@ import { ClientMsgType } from '@twnr/shared';
 import { echoCommand } from '../display.js';
 import { render } from '../renderer.js';
 import { HELP } from '../messages/index.js';
-import { registerRoutine, getMenuHandler } from './types.js';
+import { registerRoutine } from './types.js';
 
 /** Render the per-menu Back echo from the menu_command label, e.g. the
  * starbase row's "Leave Starbase" → "<Leave Starbase>". Falls back to
@@ -44,8 +44,7 @@ registerRoutine('help_menu', (ctx) => {
         const display = k.startsWith('<') ? k : k.toUpperCase();
         term.writeln(render(HELP.lineKey, { key: display, text: cmd.label }));
     }
-    // Re-render the menu prompt so the user knows we're still in this menu.
-    getMenuHandler(ctx.world.mode)?.renderPrompt?.(ctx);
+    // Framework auto-renders the menu's prompt after this handler returns.
 });
 
 registerRoutine('list_deployed_drones', (ctx) => {

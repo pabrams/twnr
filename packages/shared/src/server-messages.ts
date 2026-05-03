@@ -288,7 +288,10 @@ export type BuyHardwareResultObject = {
     kind: 'stackable' | 'toggle';
     quantity?: number;
     totalOnShip?: number;
+    /** Credits remaining after the purchase. */
     credits: number;
+    /** Credits spent on this purchase (qty * unitPrice for stackable, unitPrice for toggle). */
+    cost: number;
 };
 
 export type HardwarePriceItem = {

@@ -1,15 +1,34 @@
 import { ClientMsgType, Menu } from '@twnr/shared';
+import type { GameContext } from '../types.js';
 import { echoCommand } from '../display.js';
-import { showHardwareMenu, showHardwareItemDetail } from '../display-starbase.js';
-import { registerMenu, setMenuArgs } from './types.js';
+import {
+    showHardwareMenu,
+    showHardwarePrompt,
+    showHardwareItemDetail,
+} from '../display-starbase.js';
+import { registerMenu } from './types.js';
+import { askChar, askNumber } from './prompts.js';
 
-// Map hardware menu keys to item names and labels for quantity-based purchases.
-const STACKABLE_HARDWARE: Record<string, { itemName: string; label: string }> = {
+/**
+ * Hardware Store — client-driven menu. The server sends the catalog
+ * (hardwarePrices, current credits, ship's per-item state) when the
+ * player enters via Starbase H, then doesn't dictate any keys. The
+ * client picks the layout, key bindings, and any sub-prompts (mines
+ * type → quantity) entirely from cached data.
+ *
+ * No `menu_command` rows for `starbaseHardware` in the DB. The dispatcher's
+ * permissive fallback (input.ts:isValidKeyForMenu — empty commands → accept
+ * any key) lets us own all dispatch here. Send a `BuyHardware{itemName,
+ * quantity?}` per purchase; the server validates and returns updated state
+ * via `HardwareStoreInfoResult`.
+ */
+
+// Stackable items the player buys some N of. T=Terraform Devices, etc.
+// Mines (proximity, seeker) are NOT here — they sit behind the M sub-prompt.
+const STACKABLE: Record<string, { itemName: string; label: string }> = {
     t: { itemName: 'terraform_device', label: 'Terraform Devices' },
     b: { itemName: 'planet_buster', label: 'Planet Busters' },
     u: { itemName: 'buoy', label: 'Space Buoys' },
-    p: { itemName: 'proximity_mine', label: 'Proximity Mines' },
-    s: { itemName: 'seeker_mine', label: 'Seeker Mines' },
     d: { itemName: 'mine_disruptor', label: 'Mine Disruptors' },
     k: { itemName: 'cloaking_device', label: 'Cloaking Devices' },
     c: { itemName: 'corbomite', label: 'Corbomite' },
@@ -17,57 +36,94 @@ const STACKABLE_HARDWARE: Record<string, { itemName: string; label: string }> = 
     r: { itemName: 'recon_drone', label: 'Recon Drones' },
 };
 
-const TOGGLE_HARDWARE: Record<string, string> = {
+// Toggle items: install one, no quantity. 1/2 = hyperspace tiers, V/N = scanners.
+const TOGGLE: Record<string, string> = {
     '1': 'hyperspace_1',
     '2': 'hyperspace_2',
     v: 'visual_scanner',
     n: 'planet_scanner',
 };
 
+async function buyStackable(ctx: GameContext, itemName: string, label: string): Promise<void> {
+    echoCommand(ctx, 'buyHardware');
+    const canBuy = showHardwareItemDetail(ctx, itemName);
+    if (canBuy <= 0) return; // capacity / credits already reported by detail
+    const qty = await askNumber(ctx, `How many ${label}? [${canBuy}] `, {
+        min: 1,
+        max: canBuy,
+        defaultValue: canBuy,
+    });
+    if (qty === null) return;
+    ctx.io.sendMsg({ type: ClientMsgType.BuyHardware, itemName, quantity: qty });
+}
+
+// Set of keys this menu actually does something with. Drives both the
+// permissive-key filter (acceptsKey, so unknown keys don't produce a
+// stranded linefeed) and serves as the source of truth for what we
+// dispatch in `input` below. Recomputed if STACKABLE/TOGGLE change.
+const HW_VALID_KEYS = new Set<string>([
+    ...Object.keys(STACKABLE),
+    ...Object.keys(TOGGLE),
+    'm',
+    '?',
+    'q',
+]);
+
 registerMenu(Menu.StarbaseHardware, {
-    renderPrompt: showHardwareMenu,
+    // Prompt-only re-render after every action. The full catalog listing
+    // is shown on entry (by handlers/hardware-store.hardwareStoreInfo)
+    // and on '?' (here). Keeps post-purchase output visible.
+    renderPrompt: showHardwarePrompt,
+    acceptsKey: (key) => HW_VALID_KEYS.has(key.toLowerCase()),
     input(ctx, line) {
+        // Empty Enter is a no-op for hardware (no default to accept);
+        // the framework's auto-render after this handler returns will
+        // repaint the prompt.
+        if (line === '') return;
         const key = line.toLowerCase();
 
-        // Toggle hardware (no quantity step): show detail, then fire buy.
-        const toggleItem = TOGGLE_HARDWARE[key];
-        if (toggleItem) {
+        const toggle = TOGGLE[key];
+        if (toggle) {
             echoCommand(ctx, 'buyHardware');
-            showHardwareItemDetail(ctx, toggleItem);
-            ctx.io.sendMsg({ type: ClientMsgType.BuyHardware, itemName: toggleItem });
+            showHardwareItemDetail(ctx, toggle);
+            ctx.io.sendMsg({ type: ClientMsgType.BuyHardware, itemName: toggle });
             return;
         }
 
-        // Stackable hardware: show detail, then transition to qty prompt with
-        // default max. Echo at the keystroke (multi-step flow continues with
-        // a qty prompt; the BuyHardware sendMsg later doesn't echo again).
-        const hw = STACKABLE_HARDWARE[key];
+        const hw = STACKABLE[key];
         if (hw) {
-            echoCommand(ctx, 'buyHardware');
-            const canBuy = showHardwareItemDetail(ctx, hw.itemName);
-            if (canBuy <= 0) {
-                // Nothing to buy (no capacity or no credits) — stay in the menu.
-                showHardwareMenu(ctx);
-                return;
-            }
-            setMenuArgs(ctx, {
-                menu: Menu.StarbaseBuyQty,
-                itemName: hw.itemName,
-                defaultQty: canBuy,
-                label: hw.label,
-            });
-            ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.StarbaseBuyQty });
+            void buyStackable(ctx, hw.itemName, hw.label);
             return;
         }
+
+        // Mines submenu — askChar then askNumber inline. No starbaseMines menu.
+        if (key === 'm') {
+            void buyMines(ctx);
+            return;
+        }
+
         if (key === '?') {
+            // Re-show the full catalog listing. Framework's
+            // post-handler auto-render adds the prompt afterwards.
             showHardwareMenu(ctx);
             return;
         }
         if (key === 'q') {
+            // Client-driven menu has no menu_command rows, so ChangeMenu
+            // would fail validation. Use Back: server reads currentMenu's
+            // parent (starbase) and transitions.
             echoCommand(ctx, 'starbase');
-            ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Starbase });
+            ctx.io.sendMsg({ type: ClientMsgType.Back });
             return;
         }
-        showHardwareMenu(ctx);
+        // Unknown key — just re-render the prompt (auto-render handles it).
     },
 });
+
+async function buyMines(ctx: GameContext): Promise<void> {
+    const choice = await askChar(ctx, 'Mines: (P)roximity or (S)eeker? ', ['p', 's']);
+    if (choice === null) return;
+    const itemName = choice === 'p' ? 'proximity_mine' : 'seeker_mine';
+    const label = choice === 'p' ? 'Proximity Mines' : 'Seeker Mines';
+    await buyStackable(ctx, itemName, label);
+}

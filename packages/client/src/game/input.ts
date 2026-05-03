@@ -1,6 +1,6 @@
 import type { Terminal } from '@xterm/xterm';
 import type { GameContext, KeystrokeEvent } from './types.js';
-import { getMenuHandler, getRoutine } from './menus/index.js';
+import { getMenuHandler, getRoutine, showPrompt } from './menus/index.js';
 
 /**
  * Returns 'single' for immediate single-char commands, 'buffered' for keys
@@ -9,6 +9,15 @@ import { getMenuHandler, getRoutine } from './menus/index.js';
 function isValidKeyForMenu(ctx: GameContext, key: string): 'single' | 'buffered' | false {
     const menu = ctx.catalogs.menus.get(ctx.world.mode);
     if (!menu) return 'single'; // Registry not loaded yet — permissive fallback
+    // Client-driven menu: no menu_command rows means the keys are picked
+    // by the client itself (hardware store, ship picker, etc.). If the
+    // menu's handler declares `acceptsKey`, use it to filter; otherwise
+    // fall back to fully permissive.
+    if (menu.commands.length === 0) {
+        const handler = getMenuHandler(ctx.world.mode);
+        if (handler?.acceptsKey) return handler.acceptsKey(key) ? 'single' : false;
+        return 'single';
+    }
 
     const lower = key.toLowerCase();
     const hasNumberCmd = menu.commands.some((c) => c.keyPattern === '<number>');
@@ -150,15 +159,31 @@ function handleInput(ctx: GameContext, line: string) {
         r.resolve(line);
         return;
     }
-    // Legacy per-file `input` handler runs first if registered. Menus that
-    // have migrated to the routine registry omit `input` and fall through
-    // to dispatchByRegistry below.
+    // Per-file `input` handler runs first if registered — including for
+    // empty Enter, since some menus (qty prompts) interpret empty as
+    // "accept default" rather than "re-render". Menus that have migrated
+    // to the routine registry omit `input` entirely and fall through to
+    // dispatchByRegistry, whose empty-Enter path picks up the `<enter>`
+    // row if one exists.
     const handler = getMenuHandler(ctx.world.mode);
-    if (handler?.input) {
-        handler.input(ctx, line);
-        return;
+    const result = handler?.input ? handler.input(ctx, line) : dispatchByRegistry(ctx, line);
+
+    // Auto re-render the prompt after every fully client-side action. If
+    // the handler/routine triggered a server roundtrip (`inFlight`) or
+    // opened a sub-prompt (`pendingResolver`), skip — the framework's
+    // post-envelope auto-render or the sub-prompt itself will paint next.
+    // Async routines are awaited so the check runs after they actually
+    // complete (incl. after their final ask* resolves).
+    const finishUp = () => {
+        if (!ctx.input.inFlight && !ctx.input.pendingResolver) {
+            showPrompt(ctx);
+        }
+    };
+    if (result && typeof (result as Promise<unknown>).then === 'function') {
+        void (result as Promise<unknown>).then(finishUp);
+    } else {
+        finishUp();
     }
-    dispatchByRegistry(ctx, line);
 }
 
 /**
@@ -168,22 +193,18 @@ function handleInput(ctx: GameContext, line: string) {
  * the per-file `input` switch. Unknown keys are dropped silently — same
  * behavior as the old per-file switches' missing `default` cases.
  */
-function dispatchByRegistry(ctx: GameContext, line: string) {
+function dispatchByRegistry(ctx: GameContext, line: string): void | Promise<void> {
     const menu = ctx.catalogs.menus.get(ctx.world.mode);
     if (!menu) return;
     const lower = line.toLowerCase();
     let cmd = menu.commands.find((c) => c.keyPattern === lower);
     if (!cmd && line === '') {
+        // Empty Enter: pick up the menu's `<enter>` row if it has one
+        // (e.g. sector → display_sector triggers a server roundtrip for
+        // fresh data). With no row, the framework's auto-prompt-render
+        // (in handleInput) repaints the prompt — so just fall through.
         cmd = menu.commands.find((c) => c.keyPattern === '<enter>');
-        // Default Enter behavior: re-render the current menu's prompt. A
-        // menu can opt out of this by adding an explicit `<enter>` row
-        // (e.g. sector / planet, where Enter triggers a server roundtrip
-        // for fresh data). With no row and no override, plain Enter just
-        // repaints the prompt.
-        if (!cmd) {
-            getMenuHandler(ctx.world.mode)?.renderPrompt?.(ctx);
-            return;
-        }
+        if (!cmd) return;
     }
     if (!cmd && /^\d+$/.test(line)) {
         cmd = menu.commands.find((c) => c.keyPattern === '<number>');
@@ -199,5 +220,5 @@ function dispatchByRegistry(ctx: GameContext, line: string) {
         );
         return;
     }
-    void routine(ctx, line);
+    return routine(ctx, line) as void | Promise<void>;
 }

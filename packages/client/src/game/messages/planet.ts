@@ -10,8 +10,9 @@ export const PLANET = makeDomain('PLANET', {
 
     prompt: '\r\n[mg]Planet command[/mg] [mg]([/mg][by]?[/by]=[by]Help[/by][mg])[/mg] [by]:[/by] ',
 
-    earthHeader: '[mg]There are [/bg] [by]{count}[/by] colonists waiting on earth to colonize distant planets.\r\n' +
-                 'You can repurpose your ship\'s storage to house 1 colonist per cargo hold.',
+    earthHeader:
+        '[mg]There are [/bg] [by]{count}[/by] colonists waiting on earth to colonize distant planets.\r\n' +
+        "You can repurpose your ship's storage to house 1 colonist per cargo hold.",
 
     takePrompt:
         '\r\n[mg]How many colonists to take?[/mg] ([/mg][bc]{emptyHolds}[/bc] [g]free holds[/g][mg]) [[/mg][by]{emptyHolds}[/by][mg]][/mg] [by]:[/by] ',

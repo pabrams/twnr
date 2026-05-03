@@ -2,7 +2,6 @@ import { ClientMsgType, Menu } from '@twnr/shared';
 import { echoCommand } from '../display.js';
 import {
     showCurrentShipSpecs,
-    showComputerPrompt,
     showTraderList,
     showExploredSectors,
     showUnexploredSectors,
@@ -44,10 +43,7 @@ registerRoutine('hyperspace_jump', async (ctx) => {
     const sector = await askNumber(ctx, 'Hyperspace jump target sector? (Q to cancel) ', {
         min: 1,
     });
-    if (sector === null) {
-        showComputerPrompt(ctx);
-        return;
-    }
+    if (sector === null) return;
     echoCommand(ctx, 'hyperspaceJump');
     ctx.io.sendMsg({ type: ClientMsgType.HyperspaceJump, targetSector: sector });
 });

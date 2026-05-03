@@ -563,9 +563,7 @@ export const connectDB = async (): Promise<void> => {
         ('droneAttackQty', 'Drone Attack'),
         ('starbase', 'Starbase'),
         ('starbaseHardware', 'Hardware Store'),
-        ('starbaseBuyQty', 'Buy Quantity'),
         ('planetSelect', 'Select Planet'),
-        ('starbaseMines', 'Mine Type'),
         ('planetEarth', 'Earth'),
         ('planetTakeCommodity', 'Take Commodity'),
         ('planetLeaveCommodity', 'Leave Commodity'),
@@ -613,10 +611,6 @@ export const connectDB = async (): Promise<void> => {
         WHERE name = 'shipyardsTradein';
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'shipyardsClass0')
         WHERE name = 'shipyardsClass0Qty';
-      UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'starbaseHardware')
-        WHERE name IN ('starbaseBuyQty', 'starbaseMines');
-      UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'starbaseMines')
-        WHERE name = 'starbaseBuyQty';
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'sector')
         WHERE name = 'planetSelect';
 
@@ -903,42 +897,12 @@ export const connectDB = async (): Promise<void> => {
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === Starbase Hardware ===
-      -- TODO: 's' (Seeker Mines) lives here directly while 'm' still
-      -- enters the legacy starbaseMines submenu (Proximity / Seeker). The
-      -- submenu's reachable from m but unreferenced by the flat client
-      -- menu. Either kill the submenu and move proximity to a free key
-      -- here, or kill 's' here and rely on m → submenu. Pick one and the
-      -- starbaseMines menu can disappear.
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_terraform_devices'), 't', 'Terraform Devices', NULL, (SELECT id FROM menu WHERE name='starbaseBuyQty'), 10),
-        ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_planet_busters'), 'b', 'Planet Busters', NULL, (SELECT id FROM menu WHERE name='starbaseBuyQty'), 20),
-        ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_buoys'), 'u', 'Space Buoys', NULL, (SELECT id FROM menu WHERE name='starbaseBuyQty'), 30),
-        ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_seeker_mines'), 's', 'Seeker Mines', NULL, (SELECT id FROM menu WHERE name='starbaseBuyQty'), 35),
-        ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_mines'), 'm', 'Mines', NULL, (SELECT id FROM menu WHERE name='starbaseMines'), 40),
-        ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_mine_disruptors'), 'd', 'Mine Disruptors', NULL, (SELECT id FROM menu WHERE name='starbaseBuyQty'), 50),
-        ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_hyperspace_drive'), 'h', 'Hyperspace Drive', 'buyHyperspaceDrive', NULL, 60),
-        ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_scanners_visual'), 'v', 'Visual Scanner', 'buyVisualScanner', NULL, 70),
-        ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_scanners_planet'), 'p', 'Planet Scanner', 'buyPlanetScanner', NULL, 80),
-        ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_cloaking_device'), 'k', 'Cloaking Device', NULL, (SELECT id FROM menu WHERE name='starbaseBuyQty'), 90),
-        ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_corbomite'), 'c', 'Corbomite', NULL, (SELECT id FROM menu WHERE name='starbaseBuyQty'), 100),
-        ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_photon_torpedoes'), 'o', 'Photon Torpedoes', NULL, (SELECT id FROM menu WHERE name='starbaseBuyQty'), 110),
-        ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='buy_recon_drones'), 'r', 'Recon Drones', NULL, (SELECT id FROM menu WHERE name='starbaseBuyQty'), 120),
-        ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='help_menu'), '?', 'Help', NULL, NULL, 125),
-        ((SELECT id FROM menu WHERE name='starbaseHardware'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', NULL, (SELECT id FROM menu WHERE name='starbase'), 130)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
-
-      -- === Starbase Mines submenu ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='starbaseMines'), (SELECT id FROM command WHERE name='buy_proximity_mines'), 'p', 'Proximity Mines', NULL, (SELECT id FROM menu WHERE name='starbaseBuyQty'), 10),
-        ((SELECT id FROM menu WHERE name='starbaseMines'), (SELECT id FROM command WHERE name='buy_seeker_mines'), 's', 'Seeker Mines', NULL, (SELECT id FROM menu WHERE name='starbaseBuyQty'), 20),
-        ((SELECT id FROM menu WHERE name='starbaseMines'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', NULL, (SELECT id FROM menu WHERE name='starbaseHardware'), 40)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
-
-      -- === Starbase Buy Qty ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='starbaseBuyQty'), (SELECT id FROM command WHERE name='enter_quantity'), '<number>', 'Enter quantity', NULL, NULL, 10),
-        ((SELECT id FROM menu WHERE name='starbaseBuyQty'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', NULL, (SELECT id FROM menu WHERE name='starbaseHardware'), 20)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
+      -- Client-driven menu: no menu_command rows. The client picks keys
+      -- and layout from the cached hardware catalog (menus/starbase-hardware.ts);
+      -- input.ts:isValidKeyForMenu's empty-commands fallback accepts
+      -- whatever keys the client decides to honor. Mines and qty live
+      -- behind client-side askChar/askNumber sub-prompts — no
+      -- starbaseMines or starbaseBuyQty menus.
 
       -- === Shipyards ===
       INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES

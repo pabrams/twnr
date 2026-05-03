@@ -12,8 +12,12 @@ import type { GameContext, MenuArgs } from '../types.js';
  * display-only menu only renders).
  */
 export interface MenuHandler {
-    /** Process a submitted input line for this menu. */
-    input?: (ctx: GameContext, line: string) => void;
+    /** Process a submitted input line for this menu. May be async (e.g.
+     * a handler that uses askChar/askNumber). The framework awaits the
+     * returned promise before deciding whether to auto-render the
+     * prompt — so a routine that ends with no roundtrip and no
+     * sub-prompt gets the prompt re-rendered for free. */
+    input?: (ctx: GameContext, line: string) => void | Promise<void>;
     /**
      * Paint the menu's prompt/screen when the server replies with a pure
      * menu-transition envelope (no payload). Not called when a content
@@ -21,6 +25,15 @@ export interface MenuHandler {
      * full screen including the prompt.
      */
     renderPrompt?: (ctx: GameContext) => void;
+    /**
+     * Client-driven menus (no `menu_command` rows) opt into key filtering
+     * by declaring this. `isValidKeyForMenu` calls it before accepting
+     * the keystroke; if it returns false the key is silently dropped
+     * (no stranded linefeed). Without it, every key is accepted (the
+     * permissive fallback) — fine for "WIP catch all input" style
+     * menus, bad for production UX.
+     */
+    acceptsKey?: (key: string) => boolean;
 }
 
 const menuHandlers = new Map<MenuName, MenuHandler>();
@@ -31,6 +44,17 @@ export function registerMenu(name: MenuName, handler: MenuHandler): void {
 
 export function getMenuHandler(name: MenuName): MenuHandler | undefined {
     return menuHandlers.get(name);
+}
+
+/**
+ * Render the current menu's prompt. One indirection — every caller that
+ * wants to "show the prompt for wherever the user is now" goes through
+ * here. The framework auto-fires it after server envelopes; routines /
+ * handlers that finish a fully client-side action (no server roundtrip)
+ * call it explicitly so the prompt reappears before the next keystroke.
+ */
+export function showPrompt(ctx: GameContext): void {
+    menuHandlers.get(ctx.world.mode)?.renderPrompt?.(ctx);
 }
 
 /**
