@@ -57,10 +57,6 @@ async function buyStackable(ctx: GameContext, itemName: string, label: string): 
     ctx.io.sendMsg({ type: ClientMsgType.BuyHardware, itemName, quantity: qty });
 }
 
-// Set of keys this menu actually does something with. Drives both the
-// permissive-key filter (acceptsKey, so unknown keys don't produce a
-// stranded linefeed) and serves as the source of truth for what we
-// dispatch in `input` below. Recomputed if STACKABLE/TOGGLE change.
 const HW_VALID_KEYS = new Set<string>([
     ...Object.keys(STACKABLE),
     ...Object.keys(TOGGLE),
@@ -70,15 +66,9 @@ const HW_VALID_KEYS = new Set<string>([
 ]);
 
 registerMenu(Menu.StarbaseHardware, {
-    // Prompt-only re-render after every action. The full catalog listing
-    // is shown on entry (by handlers/hardware-store.hardwareStoreInfo)
-    // and on '?' (here). Keeps post-purchase output visible.
     renderPrompt: showHardwarePrompt,
     acceptsKey: (key) => HW_VALID_KEYS.has(key.toLowerCase()),
     input(ctx, line) {
-        // Empty Enter is a no-op for hardware (no default to accept);
-        // the framework's auto-render after this handler returns will
-        // repaint the prompt.
         if (line === '') return;
         const key = line.toLowerCase();
 
@@ -103,20 +93,14 @@ registerMenu(Menu.StarbaseHardware, {
         }
 
         if (key === '?') {
-            // Re-show the full catalog listing. Framework's
-            // post-handler auto-render adds the prompt afterwards.
             showHardwareMenu(ctx);
             return;
         }
         if (key === 'q') {
-            // Client-driven menu has no menu_command rows, so ChangeMenu
-            // would fail validation. Use Back: server reads currentMenu's
-            // parent (starbase) and transitions.
             echoCommand(ctx, 'starbase');
             ctx.io.sendMsg({ type: ClientMsgType.Back });
             return;
         }
-        // Unknown key — just re-render the prompt (auto-render handles it).
     },
 });
 
