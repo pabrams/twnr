@@ -315,13 +315,19 @@ export type DockStarbaseResultObject = {
     };
 };
 
+/**
+ * Take colonists. On Earth this auto-lifts (one-shot interaction) and
+ * the result envelope includes the sector display data inline. On real
+ * planets the player stays on-planet; the sector fields are absent.
+ * Symmetric with LeaveColonistsResultObject.
+ */
 export type TakeColonistsResultObject = {
     type: typeof ServerMsgType.TakeColonistsResult;
     quantity: number;
     commodity: 'fuel' | 'organics' | 'equipment';
     planetColonists: number;
     shipColonists: number;
-};
+} & Partial<SectorDisplayData>;
 
 export type LeaveColonistsResultObject = {
     type: typeof ServerMsgType.LeaveColonistsResult;
@@ -329,7 +335,7 @@ export type LeaveColonistsResultObject = {
     commodity: 'fuel' | 'organics' | 'equipment';
     planetColonists: number;
     shipColonists: number;
-};
+} & Partial<SectorDisplayData>;
 
 // DroneEncounter embeds full sector display data (Oak's design) to avoid message ordering issues
 export type DroneEncounterResultObject = {

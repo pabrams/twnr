@@ -364,6 +364,37 @@ export async function handleUseTerraformDevice(playerId: number): Promise<void> 
     }
 }
 
+/** Validate a colonist commodity argument. Sends an error envelope and
+ * returns null on bad input; returns the typed value on success. */
+function parseColonistCommodity(playerId: number, commodity: string): ColonistCommodity | null {
+    if (commodity !== 'fuel' && commodity !== 'organics' && commodity !== 'equipment') {
+        sendError(playerId, 'Invalid commodity');
+        return null;
+    }
+    return commodity as ColonistCommodity;
+}
+
+/** Lift the player off the planet and deliver the result + sector display
+ * in one envelope. `result` carries the message-specific fields (quantity,
+ * commodity, totals); the sector data is merged in. Use whenever a planet
+ * action ends with the player back in the sector. */
+async function liftoffWithResult<
+    T extends { type: (typeof ServerMsgType)[keyof typeof ServerMsgType] },
+>(playerId: number, result: T): Promise<void> {
+    await setOnPlanet(playerId, null);
+    const sectorData = await buildSectorDisplayData(playerId);
+    if (!sectorData) return;
+    // The two callers (TakeColonistsResult, LeaveColonistsResult) declare
+    // their wire types as `... & SectorDisplayData`, so this merge is
+    // sound. TypeScript can't see that through the generic; cast at the
+    // sendEnvelope boundary rather than threading the type through.
+    await sendEnvelope(
+        playerId,
+        { ...result, ...sectorData } as Parameters<typeof sendEnvelope>[1],
+        'sector',
+    );
+}
+
 export async function handleTakeColonists(
     playerId: number,
     quantity: number,
@@ -372,11 +403,8 @@ export async function handleTakeColonists(
     const player = players[playerId];
     if (!player) return;
 
-    if (commodity !== 'fuel' && commodity !== 'organics' && commodity !== 'equipment') {
-        sendError(playerId, 'Invalid commodity');
-        return;
-    }
-    const col = commodity as ColonistCommodity;
+    const col = parseColonistCommodity(playerId, commodity);
+    if (!col) return;
 
     const onPlanetId = await getOnPlanetId(playerId);
     if (!onPlanetId) {
@@ -384,8 +412,11 @@ export async function handleTakeColonists(
         return;
     }
 
+    const onEarth = player.sector === 1;
+
+    let toTake: number | undefined;
     try {
-        const toTake = await withTransaction(async (client) => {
+        toTake = await withTransaction(async (client) => {
             const available = await getPlanetColonistsForUpdate(onPlanetId, col, client);
             if (available === undefined) {
                 sendError(playerId, 'Planet not found');
@@ -417,34 +448,31 @@ export async function handleTakeColonists(
             await incrementShipColonists(playerId, take, client);
             return take;
         });
-
-        if (toTake !== undefined) {
-            const planetRemaining = await getPlanetColonistsRemaining(onPlanetId, col);
-            const shipColonists = await getShipColonists(playerId);
-
-            sendEnvelope(playerId, {
-                type: ServerMsgType.TakeColonistsResult,
-                quantity: toTake,
-                commodity: col,
-                planetColonists: planetRemaining ?? 0,
-                shipColonists: shipColonists ?? 0,
-            });
-        }
     } catch (err) {
         console.error('Take colonists error', err);
         sendError(playerId, 'Failed to take colonists');
     }
 
-    // Auto-leave planet after taking colonists (success or no-holds)
-    await setOnPlanet(playerId, null);
-    const sectorData = await buildSectorDisplayData(playerId);
-    if (sectorData) {
-        await sendEnvelope(
-            playerId,
-            { type: ServerMsgType.LeavePlanetResult, ...sectorData },
-            'sector',
-        );
+    if (toTake === undefined) return;
+
+    const planetRemaining = await getPlanetColonistsRemaining(onPlanetId, col);
+    const shipColonists = await getShipColonists(playerId);
+    const result = {
+        type: ServerMsgType.TakeColonistsResult,
+        quantity: toTake,
+        commodity: col,
+        planetColonists: planetRemaining ?? 0,
+        shipColonists: shipColonists ?? 0,
+    };
+
+    // Earth: one-shot interaction — auto-lift and bundle sector data.
+    // Real planets: stay on-planet so the player can do other things.
+    // (Same shape as handleLeaveColonists.)
+    if (onEarth) {
+        await liftoffWithResult(playerId, result);
+        return;
     }
+    sendEnvelope(playerId, result);
 }
 
 export async function handleLeaveColonists(
@@ -455,11 +483,8 @@ export async function handleLeaveColonists(
     const player = players[playerId];
     if (!player) return;
 
-    if (commodity !== 'fuel' && commodity !== 'organics' && commodity !== 'equipment') {
-        sendError(playerId, 'Invalid commodity');
-        return;
-    }
-    const col = commodity as ColonistCommodity;
+    const col = parseColonistCommodity(playerId, commodity);
+    if (!col) return;
 
     const onPlanetId = await getOnPlanetId(playerId);
     if (!onPlanetId) {
@@ -469,10 +494,12 @@ export async function handleLeaveColonists(
 
     // Return to the planet command menu (Earth menu if on Earth, else regular planet)
     // BEFORE doing the work — any sendError below will then carry the updated menu.
-    await setPlayerMenu(playerId, player.sector === 1 ? 'planetEarth' : 'planet');
+    const onEarth = player.sector === 1;
+    await setPlayerMenu(playerId, onEarth ? 'planetEarth' : 'planet');
 
+    let actual: number | undefined;
     try {
-        const actual = await withTransaction(async (client) => {
+        actual = await withTransaction(async (client) => {
             const shipColonists = await getShipColonistsForUpdate(playerId, client);
             if (shipColonists === undefined || shipColonists <= 0) {
                 sendError(playerId, 'No colonists on ship');
@@ -487,23 +514,30 @@ export async function handleLeaveColonists(
             await updatePlanetColonists(onPlanetId, col, leave, client);
             return leave;
         });
-
-        if (actual === undefined) return;
-
-        const planetRemaining = await getPlanetColonistsRemaining(onPlanetId, col);
-        const shipColonistsNow = await getShipColonists(playerId);
-
-        sendEnvelope(playerId, {
-            type: ServerMsgType.LeaveColonistsResult,
-            quantity: actual,
-            commodity: col,
-            planetColonists: planetRemaining ?? 0,
-            shipColonists: shipColonistsNow ?? 0,
-        });
     } catch (err) {
         console.error('Leave colonists error', err);
         sendError(playerId, 'Failed to leave colonists');
     }
+
+    if (actual === undefined) return;
+
+    const planetRemaining = await getPlanetColonistsRemaining(onPlanetId, col);
+    const shipColonistsNow = await getShipColonists(playerId);
+    const result = {
+        type: ServerMsgType.LeaveColonistsResult,
+        quantity: actual,
+        commodity: col,
+        planetColonists: planetRemaining ?? 0,
+        shipColonists: shipColonistsNow ?? 0,
+    };
+
+    // Earth: one-shot interaction — auto-lift and bundle sector data.
+    // Real planets: stay on-planet so the player can do other things.
+    if (onEarth) {
+        await liftoffWithResult(playerId, result);
+        return;
+    }
+    sendEnvelope(playerId, result);
 }
 
 export async function handleListPlanets(playerId: number): Promise<void> {
