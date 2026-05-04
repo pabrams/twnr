@@ -229,6 +229,7 @@ export const leaveStarbase: Handler<'leaveStarbaseResult', PortDeps> = (ctx, msg
         msg.planets,
         msg.ships,
         msg.collisions,
+        msg.sectorMines,
     );
     refreshMinimap(ctx);
 };

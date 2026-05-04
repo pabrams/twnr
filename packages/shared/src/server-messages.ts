@@ -44,6 +44,18 @@ export type CollisionInfo = {
     collisionAt: string;
 };
 
+/**
+ * One entry per (mineType, perspective) the viewing player can see in the
+ * sector. Proximity mines are visible to anyone in the sector; seeker mines
+ * are filtered server-side to only the viewing player's own. `own` is true
+ * when the entry's owner is the viewing player.
+ */
+export type SectorMineEntry = {
+    mineType: 'proximity' | 'seeker';
+    quantity: number;
+    own: boolean;
+};
+
 export type SectorDisplayData = {
     sector: number;
     players: { id: number; name: string }[];
@@ -53,6 +65,7 @@ export type SectorDisplayData = {
     planets: { id: number; name: string; type: string }[];
     ships?: { id: number; name: string; typeName: string; ownerName: string }[];
     collisions?: CollisionInfo[];
+    sectorMines?: SectorMineEntry[];
 };
 
 export type SectorDisplayResultObject = {
@@ -65,20 +78,15 @@ export type MoveResultObject =
           outcome: 'success';
           turnsUsed?: number;
       } & SectorDisplayData)
-    | {
+    | ({
           type: typeof ServerMsgType.MoveResult;
           outcome: 'encounter';
-          sector: number;
-          warps: SectorRef[];
-          players: { id: number; name: string }[];
-          port?: { class: number; name: string } | null;
-          sectorDrones: number;
           ownerId: number | null;
           ownerName: string;
           shipDrones: number;
           retreatSector: number;
           turnsUsed?: number;
-      }
+      } & SectorDisplayData)
     | { type: typeof ServerMsgType.MoveResult; outcome: 'nonAdjacent'; sector: number }
     | { type: typeof ServerMsgType.MoveResult; outcome: 'noShip' }
     | { type: typeof ServerMsgType.MoveResult; outcome: 'destroyed'; reason: string }
@@ -337,20 +345,6 @@ export type LeaveColonistsResultObject = {
     planetColonists: number;
     shipColonists: number;
 } & Partial<SectorDisplayData>;
-
-// DroneEncounter embeds full sector display data (Oak's design) to avoid message ordering issues
-export type DroneEncounterResultObject = {
-    type: typeof ServerMsgType.DroneEncounter;
-    sector: number;
-    warps: SectorRef[];
-    players: { id: number; name: string }[];
-    port?: { class: number; name: string } | null;
-    sectorDrones: number;
-    ownerId: number | null;
-    ownerName: string;
-    shipDrones: number;
-    retreatSector: number;
-};
 
 export type DeployDronesInfoResultObject = {
     type: typeof ServerMsgType.DeployDronesInfoResult;
@@ -684,7 +678,6 @@ export type ServerResult =
     | PlanetInfoResultObject
     | TakeColonistsResultObject
     | LeaveColonistsResultObject
-    | DroneEncounterResultObject
     | DeployDronesInfoResultObject
     | DeployDronesResultObject
     | AttackSectorDronesResultObject

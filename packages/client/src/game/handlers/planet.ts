@@ -175,6 +175,7 @@ export const leavePlanet: Handler<'leavePlanetResult', PlanetDeps> = (ctx, msg) 
         msg.planets,
         msg.ships,
         msg.collisions,
+        msg.sectorMines,
     );
     refreshMinimap(ctx);
 };

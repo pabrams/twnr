@@ -66,7 +66,6 @@ const handlers: HandlerMap = {
 
     [ServerMsgType.AttackShipResult]: combat.attackShip,
     [ServerMsgType.AttackMenuResult]: combat.attackMenu,
-    [ServerMsgType.DroneEncounter]: combat.droneEncounter,
     [ServerMsgType.DeployDronesInfoResult]: combat.deployDronesInfo,
     [ServerMsgType.DeployDronesResult]: combat.deployDrones,
     [ServerMsgType.AttackSectorDronesResult]: combat.attackSectorDrones,
