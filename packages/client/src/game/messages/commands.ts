@@ -9,7 +9,6 @@ import { makeDomain } from './_domain.js';
 export const COMMAND = makeDomain('COMMAND', {
     move: '[bg:b]<Move>[/bg:b] [g]Warping to sector[/g] [bc]{sector}[/bc]',
     moveMenu: '[bg:b]<Move>[/bg:b]',
-    moveMenuBack: '[bg:b]<Back>[/bg:b]',
     moveToPrevious: '[bw:b]<Move to Previous>[/bw:b]',
     sectorDisplay: '[bg:b]<Re-Display>[/bg:b]',
     playersOnline: '[bg:b]<Players Online>[/bg:b]',

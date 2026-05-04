@@ -1,7 +1,13 @@
 import { ClientMsgType, Menu } from '@twnr/shared';
 import { render } from '../renderer.js';
 import { NOTIFY, SECTOR } from '../messages/index.js';
-import { echoCommand, showPortMenu, showPlayerInfo } from '../display.js';
+import {
+    echoCommand,
+    hideMoveMenuOverlay,
+    showMoveMenu,
+    showPortMenu,
+    showPlayerInfo,
+} from '../display.js';
 import { registerRoutine } from './types.js';
 import { askChar, askConfirm, askNumber } from './prompts.js';
 
@@ -34,9 +40,29 @@ registerRoutine('move_previous', (ctx) => {
     ctx.io.sendMsg({ type: ClientMsgType.MoveToPrevious });
 });
 
-registerRoutine('move_menu', (ctx) => {
+// 'M' from sector: pick an adjacent sector from the cached warp list
+// (ctx.world.currentWarps). The minimap overlay shows the 1..N badges; the
+// askChar sub-prompt waits for the keystroke and sends one Move with the
+// chosen destination. The dedicated `move` server menu was retired — this
+// is purely client-side until the destination is known.
+registerRoutine('move_menu', async (ctx) => {
+    const warps = ctx.world.currentWarps.slice(0, 6);
+    if (warps.length === 0) return;
     echoCommand(ctx, 'moveMenu');
-    ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Move });
+    showMoveMenu(ctx);
+    const allowed = warps.map((_, i) => String(i + 1));
+    const ch = await askChar(
+        ctx,
+        render(SECTOR.moveMenuPrompt, { max: warps.length }),
+        allowed,
+    );
+    hideMoveMenuOverlay(ctx);
+    if (ch === null) return;
+    const idx = parseInt(ch, 10) - 1;
+    const target = warps[idx];
+    if (!target) return;
+    echoCommand(ctx, 'move', { sector: target.sector });
+    ctx.io.sendMsg({ type: ClientMsgType.Move, sector: target.sector });
 });
 
 // 'P' from sector: enter port menu, but only if there's a port here. Otherwise
