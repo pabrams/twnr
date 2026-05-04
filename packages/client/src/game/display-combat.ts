@@ -22,10 +22,6 @@ export function showAttackPrompt(ctx: DisplayCombatCtx) {
     ctx.io.term.write(render(COMBAT.attackPrompt));
 }
 
-export function showAttackDronesPrompt(ctx: DisplayCombatCtx) {
-    ctx.io.term.write(render(COMBAT.attackQtyPrompt));
-}
-
 export function showDroneEncounter(
     ctx: DisplayCombatCtx,
     sectorDrones: number,

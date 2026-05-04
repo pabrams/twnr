@@ -25,7 +25,6 @@ import './computer-routines.js';
 import './planet-routines.js';
 import './move-routines.js';
 import './attack.js';
-import './attack-drones.js';
 import './autopilot-prompt.js';
 import './class0.js';
 import './computer.js';
