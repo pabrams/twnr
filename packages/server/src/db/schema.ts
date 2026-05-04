@@ -554,7 +554,6 @@ export const connectDB = async (): Promise<void> => {
         ('autopilotPrompt', 'Autopilot Prompt'),
         ('autopilot', 'Autopilot'),
         ('planet', 'Planet'),
-        ('deployDronesQty', 'Deploy Drones'),
         ('droneEncounter', 'Drone Encounter'),
         ('starbase', 'Starbase'),
         ('starbaseHardware', 'Hardware Store'),
@@ -569,7 +568,7 @@ export const connectDB = async (): Promise<void> => {
 
       -- Set parent menu relationships
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'sector')
-        WHERE name IN ('port', 'help', 'shipInfo', 'playerInfo', 'attack', 'computer', 'planet', 'deployDronesQty', 'move');
+        WHERE name IN ('port', 'help', 'shipInfo', 'playerInfo', 'attack', 'computer', 'planet', 'move');
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'port')
         WHERE name = 'class0';
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'computer')
@@ -592,7 +591,6 @@ export const connectDB = async (): Promise<void> => {
         -- Shared commands (used in multiple menus)
         ('back', 'Back'),
         ('players_online', 'Players online'),
-        ('enter_quantity', 'Enter quantity'),
         ('confirm_yes', 'Yes'),
         ('confirm_no', 'No'),
         ('view_detail', 'View detail'),
@@ -803,12 +801,6 @@ export const connectDB = async (): Promise<void> => {
         ((SELECT id FROM menu WHERE name='planet'), (SELECT id FROM command WHERE name='destroy_planet'), 'z', 'Destroy Planet', 'destroyPlanet', NULL, 35),
         ((SELECT id FROM menu WHERE name='planet'), (SELECT id FROM command WHERE name='help_menu'), '?', 'Help', NULL, NULL, 40),
         ((SELECT id FROM menu WHERE name='planet'), (SELECT id FROM command WHERE name='leave_planet'), 'q', 'Leave Planet', 'leavePlanet', NULL, 50)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
-
-      -- === DeployDronesQty ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='deployDronesQty'), (SELECT id FROM command WHERE name='enter_quantity'), '<number>', 'Drones to deploy','deployDrones', NULL, 10),
-        ((SELECT id FROM menu WHERE name='deployDronesQty'), (SELECT id FROM command WHERE name='back'), 'q', 'Back',NULL, (SELECT id FROM menu WHERE name='sector'), 20)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === DroneEncounter ===

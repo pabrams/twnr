@@ -161,10 +161,6 @@ export type MenuArgs =
           path: { sector: number; visited: boolean }[];
           hops: number;
           turns: number;
-      }
-    | {
-          menu: typeof Menu.DeployDronesQty;
-          minInSector: number;
       };
 
 export interface GameContext {
