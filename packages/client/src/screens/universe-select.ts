@@ -16,8 +16,13 @@ export function setupUniverseScreen(opts: {
     };
     showScreen: (screen: 'auth' | 'universes' | 'playerName' | 'game' | 'admin') => void;
     onStart: (universeId: number) => void;
+    /** Invoked when /api/universes rejects auth (401/403): the JWT cookie is
+     * stale (expired, revoked, or pointing at a deleted guest). The handler
+     * is expected to clear server-side session state and route the user to
+     * the auth screen. */
+    onUnauthorized: () => void;
 }) {
-    const { elements, showScreen, onStart } = opts;
+    const { elements, showScreen, onStart, onUnauthorized } = opts;
     let selectedUniverse: UniverseInfo | null = null;
 
     async function showUniverseSelect() {
@@ -26,6 +31,10 @@ export function setupUniverseScreen(opts: {
 
         try {
             const res = await fetch('/api/universes');
+            if (res.status === 401 || res.status === 403) {
+                onUnauthorized();
+                return;
+            }
             if (!res.ok) {
                 elements.universeError.textContent = 'Failed to load universes.';
                 showScreen('universes');

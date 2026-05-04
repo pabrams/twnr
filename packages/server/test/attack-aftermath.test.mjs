@@ -1,8 +1,39 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createTestUser, createTestPlayer, connectWS, closeWS, wsRequest } from './helpers.mjs';
-import { ensureServer, createPool, BASE } from './global-setup.mjs';
+import { ensureServer, createPool, BASE, WS_BASE } from './global-setup.mjs';
 import { ClientMsgType, ServerMsgType } from '@twnr/shared';
+
+async function wsConnectExpectClose(token, universeId, timeoutMs = 3000) {
+  const { default: WebSocket } = await import('ws');
+  return new Promise((resolve, reject) => {
+    const ws = new WebSocket(`${WS_BASE}/ws?universe=${universeId}`, {
+      headers: { Cookie: `twnr_auth=${token}` },
+    });
+    const timer = setTimeout(() => {
+      ws.terminate();
+      reject(new Error('ws close timeout'));
+    }, timeoutMs);
+    let settled = false;
+    ws.on('close', (code, reasonBuf) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve({ code, reason: reasonBuf.toString() });
+    });
+    ws.on('message', (data) => {
+      const msg = JSON.parse(data.toString());
+      if (msg.type === 'welcome') {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        ws.close();
+        resolve({ welcomed: true });
+      }
+    });
+    ws.on('error', () => { /* close fires after */ });
+  });
+}
 
 const UNIVERSE_ID = 1;
 let pool;
@@ -26,94 +57,83 @@ after(async () => {
   if (pool) await pool.end();
 });
 
-// ─── Login restriction for destroyed players ────────────────────────────────
+// ─── WS reconnect after ship destruction ────────────────────────────────────
+//
+// Site auth (HTTP /api/auth/login) is universe-agnostic: it always succeeds
+// for valid credentials regardless of destroyed state. The destroyed-cooldown
+// is enforced at WebSocket connect time for the specific universe, and the
+// respawn (new ship + sector 1 + credits) happens inline as part of that
+// connect when the cooldown has elapsed.
 
-describe('Login restriction after ship destruction', () => {
-  it('allows login and gives new ship when delay has passed', async () => {
+describe('WS reconnect after ship destruction', () => {
+  async function setupDestroyedPlayer(emailPrefix) {
     const ts = Date.now() + Math.random();
-    const email = `destroyed_${ts}@test.com`;
+    const email = `${emailPrefix}_${ts}@test.com`;
     const password = 'testpass123';
-
     const regRes = await fetch(`${BASE}/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'DestroyedPlayer', email, password }),
+      body: JSON.stringify({ name: `${emailPrefix}_${ts}`, email, password }),
     });
     assert.equal(regRes.status, 201);
-
-    // Join universe to create a player
     const regCookies = regRes.headers.getSetCookie?.() || [];
     let regToken = null;
     for (const c of regCookies) {
       const match = c.match(/twnr_auth=([^;]+)/);
       if (match) regToken = match[1];
     }
-
     const joinRes = await fetch(`${BASE}/api/universes/${UNIVERSE_ID}/join`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Cookie: `twnr_auth=${regToken}` },
-      body: JSON.stringify({ name: 'DestroyedPlayer' }),
+      body: JSON.stringify({ name: `${emailPrefix}P_${ts}` }),
     });
     assert.equal(joinRes.status, 201);
     const { playerId } = await joinRes.json();
+    return { token: regToken, playerId, email, password };
+  }
 
-    // Set ship_destroyed_date to 30 days ago so any reasonable cooldown
-    // (universeConfig.respawnDelaySeconds defaults to 24h) has passed.
+  it('reconnect respawns and grants a fresh Vulpeculan Cruiser when cooldown has passed', async () => {
+    const { token, playerId } = await setupDestroyedPlayer('destroyed');
+    await pool.query('UPDATE players SET ship_id = NULL WHERE id = $1', [playerId]);
+    await pool.query('DELETE FROM ships WHERE owner_id = $1', [playerId]);
     await pool.query(
       "UPDATE players SET ship_destroyed_date = NOW() - INTERVAL '30 days' WHERE id = $1",
       [playerId],
     );
 
-    const loginRes = await fetch(`${BASE}/api/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
+    const result = await wsConnectExpectClose(token, UNIVERSE_ID);
+    assert.equal(result.welcomed, true, 'WS connect should succeed after respawn');
 
-    assert.equal(loginRes.status, 200);
+    const playerRow = await pool.query('SELECT ship_destroyed_date FROM players WHERE id = $1', [playerId]);
+    assert.equal(playerRow.rows[0].ship_destroyed_date, null, 'ship_destroyed_date should be cleared');
 
-    const playerRes = await pool.query('SELECT ship_destroyed_date FROM players WHERE id = $1', [playerId]);
-    assert.equal(playerRes.rows[0].ship_destroyed_date, null, 'ship_destroyed_date should be cleared');
+    const ship = await pool.query(
+      'SELECT s.drones, s.shields, s.holds, st.name as ship_name FROM ships s JOIN ship_types st ON s.ship_type_id = st.id WHERE s.id = (SELECT ship_id FROM players WHERE id = $1)',
+      [playerId],
+    );
+    assert.equal(ship.rows.length, 1, 'Should have a new ship');
+    assert.equal(ship.rows[0].ship_name, 'Vulpeculan Cruiser');
+    assert.equal(ship.rows[0].drones, 100);
+    assert.equal(ship.rows[0].shields, 0);
 
-    const shipRes = await pool.query('SELECT s.drones, s.shields, s.holds, st.name as ship_name FROM ships s JOIN ship_types st ON s.ship_type_id = st.id WHERE s.id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
-    assert.equal(shipRes.rows.length, 1, 'Should have a new ship');
-    assert.equal(shipRes.rows[0].ship_name, 'Vulpeculan Cruiser');
-    // Defaults come from universeConfig (startingDrones=100, startingShields=0).
-    assert.equal(shipRes.rows[0].drones, 100);
-    assert.equal(shipRes.rows[0].shields, 0);
-
-    const creditsRes = await pool.query('SELECT credits FROM players WHERE id = $1', [playerId]);
-    assert.equal(creditsRes.rows[0].credits, 10000);
+    const credits = await pool.query('SELECT credits FROM players WHERE id = $1', [playerId]);
+    assert.equal(credits.rows[0].credits, 10000);
   });
 
-  it('refuses login with 403 when delay has not passed', async () => {
-    const ts = Date.now() + Math.random();
-    const email = `refused_${ts}@test.com`;
-    const password = 'testpass456';
+  it('rejects WS connect with 1008 + reason when cooldown has not passed', async () => {
+    const { token, playerId } = await setupDestroyedPlayer('refused');
+    await pool.query(
+      `UPDATE players SET ship_destroyed_date = NOW() + INTERVAL '1 hour' WHERE id = $1`,
+      [playerId],
+    );
 
-    const regRes = await fetch(`${BASE}/api/auth/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'RefusedPlayer', email, password }),
-    });
-    assert.equal(regRes.status, 201);
+    const result = await wsConnectExpectClose(token, UNIVERSE_ID);
+    assert.equal(result.code, 1008);
+    assert.match(result.reason, /destroyed/i);
+  });
 
-    const regCookies = regRes.headers.getSetCookie?.() || [];
-    let regToken = null;
-    for (const c of regCookies) {
-      const match = c.match(/twnr_auth=([^;]+)/);
-      if (match) regToken = match[1];
-    }
-
-    const joinRes = await fetch(`${BASE}/api/universes/${UNIVERSE_ID}/join`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Cookie: `twnr_auth=${regToken}` },
-      body: JSON.stringify({ name: 'RefusedPlayer' }),
-    });
-    assert.equal(joinRes.status, 201);
-    const { playerId } = await joinRes.json();
-
-    // Set destroyed date 1 hour in the future → elapsed will be negative → always less than delay
+  it('site login still succeeds while a player is in destroyed-cooldown', async () => {
+    const { email, password, playerId } = await setupDestroyedPlayer('siteok');
     await pool.query(
       `UPDATE players SET ship_destroyed_date = NOW() + INTERVAL '1 hour' WHERE id = $1`,
       [playerId],
@@ -124,72 +144,7 @@ describe('Login restriction after ship destruction', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     });
-
-    assert.equal(loginRes.status, 403, 'Should refuse login with 403');
-    const body = await loginRes.json();
-    assert.ok(
-      body.error && body.error.toLowerCase().includes('destroyed'),
-      `Error message should mention "destroyed", got: ${body.error}`,
-    );
-  });
-
-  it('gives new Vulpeculan Cruiser with correct stats on re-login after destruction', async () => {
-    const ts = Date.now() + Math.random();
-    const email = `newship_${ts}@test.com`;
-    const password = 'testpass789';
-
-    const regRes = await fetch(`${BASE}/api/auth/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'NewShipPlayer', email, password }),
-    });
-    assert.equal(regRes.status, 201);
-
-    const regCookies = regRes.headers.getSetCookie?.() || [];
-    let regToken = null;
-    for (const c of regCookies) {
-      const match = c.match(/twnr_auth=([^;]+)/);
-      if (match) regToken = match[1];
-    }
-
-    const joinRes = await fetch(`${BASE}/api/universes/${UNIVERSE_ID}/join`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Cookie: `twnr_auth=${regToken}` },
-      body: JSON.stringify({ name: 'NewShipPlayer' }),
-    });
-    assert.equal(joinRes.status, 201);
-    const { playerId } = await joinRes.json();
-
-    await pool.query('UPDATE players SET ship_id = NULL WHERE id = $1', [playerId]);
-    await pool.query('DELETE FROM ships WHERE owner_id = $1', [playerId]);
-    // 30 days back so any reasonable cooldown (default 24h) has elapsed.
-    await pool.query(
-      `UPDATE players SET ship_destroyed_date = NOW() - INTERVAL '30 days' WHERE id = $1`,
-      [playerId],
-    );
-
-    const loginRes = await fetch(`${BASE}/api/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
-    assert.equal(loginRes.status, 200);
-
-    const ship = await pool.query(
-      'SELECT s.drones, s.shields, s.holds, st.name as ship_name FROM ships s JOIN ship_types st ON s.ship_type_id = st.id WHERE s.id = (SELECT ship_id FROM players WHERE id = $1)',
-      [playerId],
-    );
-    assert.equal(ship.rows.length, 1);
-    assert.equal(ship.rows[0].ship_name, 'Vulpeculan Cruiser');
-    // Defaults come from universeConfig.
-    assert.equal(ship.rows[0].drones, 100);
-    assert.equal(ship.rows[0].shields, 0);
-
-    const credits = await pool.query('SELECT credits FROM players WHERE id = $1', [playerId]);
-    assert.equal(credits.rows[0].credits, 10000);
-
-    const player = await pool.query('SELECT ship_destroyed_date FROM players WHERE id = $1', [playerId]);
-    assert.equal(player.rows[0].ship_destroyed_date, null);
+    assert.equal(loginRes.status, 200, 'site login is independent of per-universe state');
   });
 });
 

@@ -11,20 +11,12 @@ import {
     getUserByEmail,
 } from '../db/queries/user.js';
 import {
-    listPlayersForUser,
     insertPlayer,
     setPlayerShipId,
     markSectorVisited,
-    clearPlayerShip,
-    respawnPlayerWithShip,
-    respawnPlayerNoShip,
 } from '../db/queries/player.js';
 import { getSectorDbId } from '../db/queries/sector.js';
-import {
-    deleteShipByOwner,
-    getStartingShipTypeByName,
-    insertStartingShip,
-} from '../db/queries/ship.js';
+import { getStartingShipTypeByName, insertStartingShip } from '../db/queries/ship.js';
 import { getFirstUniverseId, getUniverseEditDefaults } from '../db/queries/universe.js';
 import { bootstrapUniverse } from '../services/universe-bootstrap.js';
 
@@ -200,60 +192,10 @@ export function createAuthRoutes(router: Router, deps: RouteDeps, middleware: Mi
                 throw new HttpError(401, 'Invalid credentials');
             }
 
-            // Check ship_destroyed_date for any player of this user
-            const userPlayers = await listPlayersForUser(user.id);
-            for (const player of userPlayers) {
-                if (player.ship_destroyed_date) {
-                    const delaySecs = parseInt(
-                        process.env.SHIP_DESTROYED_LOGIN_DELAY_SECONDS ||
-                            String(universeConfig.respawnDelaySeconds),
-                        10,
-                    );
-                    const elapsedSecs =
-                        (Date.now() - new Date(player.ship_destroyed_date).getTime()) / 1000;
-
-                    if (elapsedSecs < delaySecs) {
-                        const remaining = Math.ceil(delaySecs - elapsedSecs);
-                        throw new HttpError(
-                            403,
-                            `Your ship was destroyed. You can login in ${remaining} seconds.`,
-                        );
-                    }
-
-                    // Delay passed — clear destroyed date and give new ship
-                    const startSectorId = await getSectorDbId(
-                        universeConfig.startingSector,
-                        player.universe_id,
-                    );
-                    if (startSectorId === undefined) continue;
-
-                    await clearPlayerShip(player.id);
-                    await deleteShipByOwner(player.id);
-
-                    const startShipType = await getStartingShipTypeByName(
-                        universeConfig.startingShip,
-                    );
-                    if (startShipType) {
-                        const newShipId = await insertStartingShip(
-                            player.id,
-                            startShipType.id,
-                            startSectorId,
-                            universeConfig.startingDrones,
-                            universeConfig.startingShields,
-                            startShipType.starting_holds,
-                            startShipType.turns_per_warp,
-                        );
-                        await respawnPlayerWithShip(
-                            player.id,
-                            startSectorId,
-                            newShipId,
-                            universeConfig.startingCredits,
-                        );
-                    } else {
-                        await respawnPlayerNoShip(player.id, startSectorId);
-                    }
-                }
-            }
+            // Site auth is independent of per-universe online state.
+            // Destroyed-ship cooldown is enforced at WebSocket connect time
+            // for the specific universe the user tries to enter — see
+            // `tryRespawnPlayer` in services/respawn.ts.
 
             const token = signPlayerToken({
                 userId: user.id,

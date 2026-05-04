@@ -257,23 +257,6 @@ export async function deletePlayerById(playerId: number, db: Queryable = pool): 
     await db.query('DELETE FROM players WHERE id = $1', [playerId]);
 }
 
-/** Players belonging to a user — used during login to check ship_destroyed_date. */
-export type UserPlayerRow = {
-    id: number;
-    ship_destroyed_date: Date | null;
-    universe_id: number;
-};
-export async function listPlayersForUser(
-    userId: number,
-    db: Queryable = pool,
-): Promise<UserPlayerRow[]> {
-    const res = await db.query<UserPlayerRow>(
-        'SELECT id, ship_destroyed_date, universe_id FROM players WHERE user_id = $1',
-        [userId],
-    );
-    return res.rows;
-}
-
 /** Clear a player's ship_id so they can be re-assigned a new ship. */
 export async function clearPlayerShip(playerId: number, db: Queryable = pool): Promise<void> {
     await db.query('UPDATE players SET ship_id = NULL WHERE id = $1', [playerId]);

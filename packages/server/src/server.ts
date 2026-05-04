@@ -33,6 +33,7 @@ import {
     deletePlayerById,
 } from './db/queries/player.js';
 import { countSectorsInUniverse, getStarbaseSectorNumber } from './db/queries/sector.js';
+import { tryRespawnPlayer } from './services/respawn.js';
 
 const app: ReturnType<typeof express> = express();
 app.set('trust proxy', 1);
@@ -139,11 +140,32 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             return;
         }
 
-        const playerRow = await getPlayerConnectInfo(userId, universeId);
+        let playerRow = await getPlayerConnectInfo(userId, universeId);
         if (!playerRow) {
             ws.close(1008, 'No player in this universe');
             return;
         }
+
+        // Per-universe destruction-cooldown gate. Site auth is independent
+        // of online status — a destroyed player can stay logged in (and
+        // online in other universes), but reconnecting to *this* universe
+        // either has to wait out the respawn delay or, if the delay has
+        // elapsed, gets a fresh starting ship + sector + credits inline
+        // and proceeds with the connect.
+        const respawn = await tryRespawnPlayer(playerRow.id);
+        if (respawn.kind === 'wait') {
+            ws.close(1008, `Ship destroyed; respawn in ${respawn.remainingSeconds}s`);
+            return;
+        }
+        if (respawn.kind === 'respawned') {
+            // Reload the row — ship_id/current_sector_id/credits all changed.
+            playerRow = await getPlayerConnectInfo(userId, universeId);
+            if (!playerRow) {
+                ws.close(1008, 'No player in this universe');
+                return;
+            }
+        }
+
         const playerId = playerRow.id;
         const sectorId: number = playerRow.current_sector_id;
         const sector: number = playerRow.sector_number;

@@ -1,6 +1,6 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { ensureServer, createPool as _gsCreatePool, createTestUserWithToken, BASE } from './global-setup.mjs';
+import { ensureServer, createPool as _gsCreatePool, createTestUserWithToken, BASE, WS_BASE } from './global-setup.mjs';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -85,10 +85,66 @@ after(async () => {
   if (pool) await pool.end();
 });
 
-// ─── Login after ship destruction ───────────────────────────────────────────
+// ─── Site login is independent of per-universe destruction state ────────────
+//
+// Site auth (HTTP /api/auth/login) does NOT consult ship_destroyed_date —
+// the user can still log in and browse universes. The destroyed-cooldown
+// is enforced at WebSocket connect time for the specific universe being
+// entered (see src/services/respawn.ts).
 
-describe('Login after ship destruction', () => {
-  it('allows login when ship_destroyed_date is set and delay has passed', async () => {
+function wsConnectExpectClose(token, universeId, timeoutMs = 3000) {
+  return new Promise((resolve, reject) => {
+    import('ws').then(({ default: WebSocket }) => {
+      const ws = new WebSocket(`${WS_BASE}/ws?universe=${universeId}`, {
+        headers: { Cookie: `twnr_auth=${token}` },
+      });
+      const timer = setTimeout(() => {
+        ws.terminate();
+        reject(new Error('ws close timeout'));
+      }, timeoutMs);
+      let closed = false;
+      ws.on('close', (code, reasonBuf) => {
+        if (closed) return;
+        closed = true;
+        clearTimeout(timer);
+        resolve({ code, reason: reasonBuf.toString() });
+      });
+      ws.on('message', (data) => {
+        const msg = JSON.parse(data.toString());
+        if (msg.type === 'welcome') {
+          if (closed) return;
+          closed = true;
+          clearTimeout(timer);
+          ws.close();
+          resolve({ code: null, reason: null, welcomed: true });
+        }
+      });
+      ws.on('error', () => { /* close fires after */ });
+    }).catch(reject);
+  });
+}
+
+describe('Site login is independent of destruction state', () => {
+  it('allows site login even when a player is in destroyed-cooldown', async () => {
+    const ts = Date.now();
+    const email = `sitelogin_${ts}@test.com`;
+    const reg = await createTestUser(`sitelogin_${ts}`, email, 'pass123');
+    const univ = await createUniverse(reg.token, `SiteLogin ${ts}`);
+    await seedUniverseSectors(pool, univ.body.universeId);
+    const join = await joinUniverse(reg.token, univ.body.universeId, 'Site');
+
+    await pool.query(
+      `UPDATE players SET ship_destroyed_date = NOW() + INTERVAL '1 hour' WHERE id = $1`,
+      [join.body.playerId],
+    );
+
+    const login = await loginUser(email, 'pass123');
+    assert.equal(login.status, 200, 'site login should not be blocked by destroyed cooldown');
+  });
+});
+
+describe('WebSocket connect enforces destruction cooldown', () => {
+  it('respawns when ship_destroyed_date is set and delay has passed', async () => {
     const ts = Date.now();
     const email = `dest_${ts}@test.com`;
     const reg = await createTestUser(`dest_${ts}`, email, 'pass123');
@@ -104,8 +160,8 @@ describe('Login after ship destruction', () => {
     );
     await pool.query('DELETE FROM ships WHERE owner_id = $1', [join.body.playerId]);
 
-    const login = await loginUser(email, 'pass123');
-    assert.equal(login.status, 200);
+    const result = await wsConnectExpectClose(reg.token, univ.body.universeId);
+    assert.equal(result.welcomed, true, 'WS should accept connection after respawn');
 
     const playerRes = await pool.query('SELECT ship_destroyed_date FROM players WHERE id = $1', [join.body.playerId]);
     assert.equal(playerRes.rows[0].ship_destroyed_date, null, 'ship_destroyed_date should be cleared');
@@ -118,7 +174,7 @@ describe('Login after ship destruction', () => {
     assert.equal(creditsRes.rows[0].credits, 10000);
   });
 
-  it('returns 403 when delay has not passed', async () => {
+  it('rejects WS connect with 1008 + reason when delay has not passed', async () => {
     const ts = Date.now();
     const email = `nodelay_${ts}@test.com`;
     const reg = await createTestUser(`nodelay_${ts}`, email, 'pass123');
@@ -131,11 +187,9 @@ describe('Login after ship destruction', () => {
       [join.body.playerId],
     );
 
-    const login = await loginUser(email, 'pass123');
-    assert.equal(login.status, 403);
-    assert.ok(
-      login.body.error && login.body.error.toLowerCase().includes('destroyed'),
-      `Error should mention "destroyed", got: ${login.body.error}`,
-    );
+    const result = await wsConnectExpectClose(reg.token, univ.body.universeId);
+    assert.equal(result.code, 1008);
+    assert.match(result.reason, /destroyed/i);
+    assert.match(result.reason, /respawn/i);
   });
 });

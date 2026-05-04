@@ -12,6 +12,7 @@ export const EVENT = makeDomain('EVENT', {
     autopilotArrived: '\r\n[bc]Arriving at sector [by]{sector}[/by]. Autopilot disengaging.[/bc]',
     noPathFound: '\r\n[br]No path found to that sector.[/br]',
     noShip: '\r\n[br]You do not have a ship.[/br]',
+    shipDestroyed: '\r\n[br]*** Your ship was destroyed: {reason} ***[/br]',
 
     attackDestroyed: '[br]{message}[/br]',
     attackCompleted: '[by]{message}[/by]',

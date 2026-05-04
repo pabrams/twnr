@@ -80,6 +80,19 @@ export function sendError(playerId: number, message: string, menu?: MenuName): v
 }
 
 /**
+ * Close the WebSocket of a destroyed player with a 1008 policy-violation
+ * frame carrying the reason text. All destruction sites (combat, mines,
+ * future planet-collisions, etc.) call this after their reason-specific
+ * payload (AttackShipResult, MoveResult-destroyed, ProximityMineHit, ...)
+ * has been sent, so the client always sees the same terminal step.
+ */
+export function closeDestroyedSession(playerId: number, reason: string): void {
+    const player = players[playerId];
+    if (!player || player.ws.readyState !== 1) return;
+    player.ws.close(1008, reason);
+}
+
+/**
  * Broadcast a result to multiple WebSocket clients. The `menu` stamped on
  * each frame is the recipient's current menu — broadcasts don't transition
  * anyone (they're notifications, e.g. "another player joined this sector").

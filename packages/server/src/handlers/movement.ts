@@ -1,7 +1,7 @@
 import { WebSocket } from 'ws';
 import { ServerMsgType } from '@twnr/shared';
 import { players, getPlayerUniverseId } from '../state/players.js';
-import { sendEnvelope, sendError, broadcastTo } from '../state/messaging.js';
+import { sendEnvelope, sendError, broadcastTo, closeDestroyedSession } from '../state/messaging.js';
 import { getGraph } from '../state/graph-cache.js';
 import { getWarpRefs, resolveSectorId } from '../services/sector-lookup.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
@@ -125,6 +125,12 @@ export async function handleMove(playerId: number, targetSector: number): Promis
     // shortcuts further work.
     const mineOutcome = await resolveMinesOnEntry(playerId);
     if (mineOutcome.destroyed) {
+        await sendEnvelope(playerId, {
+            type: ServerMsgType.MoveResult,
+            outcome: 'destroyed',
+            reason: 'Destroyed by proximity mine',
+        });
+        closeDestroyedSession(playerId, 'Ship destroyed');
         return;
     }
 

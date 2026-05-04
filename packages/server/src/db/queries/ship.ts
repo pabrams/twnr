@@ -103,6 +103,20 @@ export async function markPlayerShipDestroyed(
     ]);
 }
 
+/**
+ * Single DB-side path for ship destruction: removes the ship row and stamps
+ * the player as destroyed. All destruction sites (combat, mines, future
+ * planet-collisions, etc.) should call this rather than the two helpers
+ * separately so the destruction transition stays in one place.
+ */
+export async function destroyShipRecord(
+    playerId: number,
+    db: Queryable = pool,
+): Promise<void> {
+    await deleteShipByOwner(playerId, db);
+    await markPlayerShipDestroyed(playerId, db);
+}
+
 /** Cargo: fetch the four cargo-commodity quantities on a player's ship. */
 export async function getShipCargo(
     playerId: number,
