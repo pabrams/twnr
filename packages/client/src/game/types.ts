@@ -153,13 +153,6 @@ export interface MinimapView {
  */
 export type MenuArgs =
     | {
-          menu: typeof Menu.ShipyardsTradein;
-          target: string;
-          displayName: string;
-          price: number;
-          tradein: number;
-      }
-    | {
           menu: typeof Menu.PlanetSelect;
           planets: { id: number; name: string; type: string }[];
       }

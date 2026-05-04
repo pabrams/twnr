@@ -24,7 +24,6 @@ export const Menu = {
     PlanetEarth: 'planetEarth',
     Shipyards: 'shipyards',
     ShipyardsBuy: 'shipyardsBuy',
-    ShipyardsTradein: 'shipyardsTradein',
     ShipyardsExamine: 'shipyardsExamine',
     ShipyardsClass0: 'shipyardsClass0',
     Move: 'move',

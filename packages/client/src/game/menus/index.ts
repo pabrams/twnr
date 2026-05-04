@@ -44,6 +44,5 @@ import './shipyards.js';
 import './shipyards-buy.js';
 import './shipyards-class0.js';
 import './shipyards-examine.js';
-import './shipyards-tradein.js';
 import './starbase.js';
 import './starbase-hardware.js';

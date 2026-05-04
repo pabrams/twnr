@@ -1,9 +1,15 @@
 import { ClientMsgType, Menu, type ShipCatalogEntry } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
-import { showShipBuyList, showShipyardsBuyPrompt, letterToIndex } from '../display-starbase.js';
-import { NOTIFY, COMMON } from '../messages/index.js';
-import { registerMenu, registerMenuRoutine, setMenuArgs } from './types.js';
+import {
+    showShipBuyList,
+    showShipyardsBuyPrompt,
+    showTradeinInfo,
+    letterToIndex,
+} from '../display-starbase.js';
+import { NOTIFY, COMMON, STARBASE } from '../messages/index.js';
+import { registerMenu, registerMenuRoutine } from './types.js';
+import { askConfirm } from './prompts.js';
 
 function calculateShipPrice(ship: ShipCatalogEntry): number {
     return (
@@ -27,7 +33,10 @@ registerMenu(Menu.ShipyardsBuy, {
     },
 });
 
-registerMenuRoutine(Menu.ShipyardsBuy, 'view_detail', (ctx, line) => {
+// Picks a ship by letter, displays the tradein info, then asks Y/N/Q
+// inline. The shipyardsTradein menu is gone — the confirm is a
+// sub-prompt of this routine, not a separate menu.
+registerMenuRoutine(Menu.ShipyardsBuy, 'view_detail', async (ctx, line) => {
     const idx = letterToIndex(line);
     if (!ctx.catalogs.ships || idx < 0 || idx >= ctx.catalogs.ships.length) {
         ctx.io.term.writeln(render(NOTIFY.invalidSelection));
@@ -40,12 +49,14 @@ registerMenuRoutine(Menu.ShipyardsBuy, 'view_detail', (ctx, line) => {
         showShipyardsBuyPrompt(ctx);
         return;
     }
-    setMenuArgs(ctx, {
-        menu: Menu.ShipyardsTradein,
-        target: ship.name,
-        displayName: ship.display_name ?? ship.name,
-        price: calculateShipPrice(ship),
-        tradein: getCurrentShipPrice(ctx),
-    });
-    ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsTradein });
+    const price = calculateShipPrice(ship);
+    const tradein = getCurrentShipPrice(ctx);
+    showTradeinInfo(ctx, ship.display_name ?? ship.name, price, tradein);
+    const yes = await askConfirm(ctx, render(STARBASE.tradeinConfirm));
+    if (yes === null) return;
+    if (yes) {
+        ctx.io.sendMsg({ type: ClientMsgType.BuyShipTradein, targetShipName: ship.name });
+    } else {
+        ctx.io.sendMsg({ type: ClientMsgType.BuyShipNew, targetShipName: ship.name });
+    }
 });
