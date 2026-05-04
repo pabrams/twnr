@@ -15,7 +15,6 @@ export const Menu = {
     AutopilotPrompt: 'autopilotPrompt',
     Autopilot: 'autopilot',
     Planet: 'planet',
-    DeployDronesQty: 'deployDronesQty',
     DroneEncounter: 'droneEncounter',
     Starbase: 'starbase',
     StarbaseHardware: 'starbaseHardware',

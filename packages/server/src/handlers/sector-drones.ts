@@ -48,16 +48,15 @@ export async function handleDeployDronesInfo(playerId: number): Promise<void> {
         return;
     }
 
-    await sendEnvelope(
-        playerId,
-        {
-            type: ServerMsgType.DeployDronesInfoResult,
-            sectorDrones: sectorDrones?.quantity ?? 0,
-            shipDrones: shipInfo.drones,
-            shipMaxDrones: shipInfo.max_drones ?? 0,
-        },
-        'deployDronesQty',
-    );
+    // No menu transition — the deployDronesQty menu is gone. The client's
+    // deployDronesInfo handler displays the info and asks for qty inline
+    // via askNumber, then sends DeployDrones. Player stays on sector.
+    await sendEnvelope(playerId, {
+        type: ServerMsgType.DeployDronesInfoResult,
+        sectorDrones: sectorDrones?.quantity ?? 0,
+        shipDrones: shipInfo.drones,
+        shipMaxDrones: shipInfo.max_drones ?? 0,
+    });
 }
 
 export async function handleDeployDrones(playerId: number, target: number): Promise<void> {

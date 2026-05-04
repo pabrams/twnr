@@ -28,7 +28,6 @@ import './attack.js';
 import './autopilot-prompt.js';
 import './class0.js';
 import './computer.js';
-import './deploy-drones-qty.js';
 import './drone-encounter.js';
 import './known-universe.js';
 import './move.js';

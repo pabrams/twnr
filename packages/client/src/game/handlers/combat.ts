@@ -1,18 +1,18 @@
-import { ClientMsgType, Menu } from '@twnr/shared';
+import { ClientMsgType } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { EVENT } from '../messages/index.js';
 import { showSectorDisplay, type DisplayCtx } from '../display.js';
 import { showDroneEncounter, showAttackMenu, type DisplayCombatCtx } from '../display-combat.js';
-import { setMenuArgs, type MenuArgsSlot } from '../menus/types.js';
+import { showPrompt } from '../menus/types.js';
+import { askNumber } from '../menus/prompts.js';
 import type { Handler } from './index.js';
 import { refreshMinimap, type RefreshMinimapDeps } from './utils.js';
 
-type CombatDeps = Pick<GameContext, 'autopilot' | 'encounter' | 'io' | 'world'> &
+type CombatDeps = Pick<GameContext, 'autopilot' | 'encounter' | 'input' | 'io' | 'world'> &
     DisplayCtx &
     DisplayCombatCtx &
-    RefreshMinimapDeps &
-    MenuArgsSlot;
+    RefreshMinimapDeps;
 
 export const attackShip: Handler<'attackShipResult', CombatDeps> = (ctx, msg) => {
     ctx.io.term.writeln('');
@@ -58,7 +58,12 @@ export const droneEncounter: Handler<'droneEncounter', CombatDeps> = (ctx, msg) 
     showDroneEncounter(ctx, msg.sectorDrones, msg.ownerName, msg.shipDrones);
 };
 
-export const deployDronesInfo: Handler<'deployDronesInfoResult', CombatDeps> = (ctx, msg) => {
+// Display the deploy-info preamble then askNumber for qty inline. The
+// deployDronesQty menu is gone — the user stays on the sector menu and
+// the qty is a sub-prompt of this handler. -1 is the "accept default"
+// value (server clamps to minInSector). Uses the default `GameContext`
+// Deps because showPrompt's callback signature needs the full ctx.
+export const deployDronesInfo: Handler<'deployDronesInfoResult'> = async (ctx, msg) => {
     const total = msg.shipDrones + msg.sectorDrones;
     const minInSector = Math.max(0, total - msg.shipMaxDrones);
     ctx.io.term.writeln('');
@@ -69,7 +74,19 @@ export const deployDronesInfo: Handler<'deployDronesInfoResult', CombatDeps> = (
             minInSector,
         }),
     );
-    setMenuArgs(ctx, { menu: Menu.DeployDronesQty, minInSector });
+    const qty = await askNumber(ctx, render(EVENT.deployDronesPrompt, { minInSector }), {
+        min: 0,
+        defaultValue: -1,
+    });
+    if (qty === null) {
+        // User cancelled with Q. No server roundtrip will follow, so
+        // re-render the sector prompt manually — the framework's
+        // post-envelope auto-render already fired (and was suppressed
+        // by pendingResolver).
+        showPrompt(ctx);
+        return;
+    }
+    ctx.io.sendMsg({ type: ClientMsgType.DeployDrones, quantity: qty });
 };
 
 export const deployDrones: Handler<'deployDronesResult', CombatDeps> = (ctx, msg) => {
