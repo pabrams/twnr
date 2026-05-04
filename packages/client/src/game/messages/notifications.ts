@@ -8,6 +8,14 @@ import { makeDomain } from './_domain.js';
 export const NOTIFY = makeDomain('NOTIFY', {
     connected: '[g]Connected to TWNR.[/g]',
     connectionError: '\r\n[br]Connection error.[/br]',
+    connectionDropped: '\r\n[br]*** Connection dropped: {reason} ***[/br]',
+    connectionDroppedNoReason: '\r\n[br]*** Connection dropped ***[/br]',
+    reconnectPrompt:
+        '\r\n[y]Press [by]<Enter>[/by] to re-enter the universe, or [by]<Esc>[/by] to leave.[/y]',
+    leavePrompt: '\r\n[y]Press [by]<Esc>[/by] to leave.[/y]',
+    reconnecting: '\r\n[bc]Reconnecting...[/bc]',
+    deletingGuest:
+        '\r\n[by]*** Deleting guest user [bm]{name}[/bm] — your progress will not be saved ***[/by]',
 
     welcome: '\r\n[bg]Welcome, {name}.[/bg]',
     welcomeGuest:

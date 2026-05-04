@@ -32,11 +32,8 @@ export async function handleStarbaseInfo(playerId: number): Promise<void> {
     const createdAt = stats?.created_at ?? new Date(0);
     const daysElapsed = Math.floor((Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
 
-    const respawnDelaySeconds = parseInt(
-        process.env.SHIP_DESTROYED_LOGIN_DELAY_SECONDS ||
-            String(universeConfig.respawnDelaySeconds),
-        10,
-    );
+    const respawnDelaySeconds =
+        stats?.respawn_delay_seconds ?? universeConfig.respawnDelaySeconds;
 
     sendEnvelope(playerId, {
         type: ServerMsgType.StarbaseInfoResult,

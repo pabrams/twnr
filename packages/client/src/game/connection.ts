@@ -13,13 +13,17 @@ import { drainInputQueue } from './input.js';
  * the prompt duplicates on every panel refresh (e.g. minimap zoom/pan). */
 const PROMPT_SUPPRESSING = new Set<string>([ServerMsgType.NeighborhoodResult]);
 
-export function setupConnection(ws: WebSocket, ctx: GameContext, onDisconnect: () => void) {
+export function setupConnection(
+    ws: WebSocket,
+    ctx: GameContext,
+    onClose: (info: { code: number; reason: string }) => void,
+) {
     ws.addEventListener('open', () => {
         ctx.io.term.writeln(render(NOTIFY.connected));
     });
 
-    ws.addEventListener('close', () => {
-        onDisconnect();
+    ws.addEventListener('close', (event) => {
+        onClose({ code: event.code, reason: event.reason });
     });
 
     ws.addEventListener('message', (event) => {

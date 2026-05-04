@@ -102,7 +102,34 @@ before(async () => {
 });
 
 after(async () => {
-  if (pool) await pool.end();
+  if (!pool) return;
+  // Restore universe-mine settings to defaults so later test files (which
+  // share this universe) don't see e.g. proximity_detonation_pct=100.
+  // Values mirror universeConfig in src/universe-config.ts.
+  await pool.query(
+    `UPDATE universe_settings
+     SET proximity_mine_damage = 100,
+         proximity_detonation_pct = 50,
+         seeker_attach_pct = 25,
+         seeker_pickup_detect_pct = 80,
+         mine_disruptor_min = 3,
+         mine_disruptor_max = 5
+     WHERE universe_id = $1`,
+    [UNIVERSE_ID],
+  );
+  // Clear any leftover deployed mines / attachments in this universe.
+  await pool.query(
+    `DELETE FROM sector_mines WHERE sector_id IN (SELECT id FROM sectors WHERE universe_id = $1)`,
+    [UNIVERSE_ID],
+  );
+  await pool.query(
+    `DELETE FROM seeker_attachments WHERE ship_id IN (
+       SELECT s.id FROM ships s
+       JOIN players p ON p.ship_id = s.id
+       WHERE p.universe_id = $1)`,
+    [UNIVERSE_ID],
+  );
+  await pool.end();
 });
 
 describe('Mine schema', () => {

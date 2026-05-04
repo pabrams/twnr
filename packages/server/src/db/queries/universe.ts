@@ -148,7 +148,8 @@ export async function snapshotTemplateForUniverse(
             starting_shields, starting_earth_colonists,
             proximity_mine_damage, proximity_detonation_pct,
             seeker_attach_pct, seeker_pickup_detect_pct,
-            mine_disruptor_min, mine_disruptor_max
+            mine_disruptor_min, mine_disruptor_max,
+            respawn_delay_seconds
          )
          SELECT $1, max_planets_per_sector, planet_collision_likelihood,
                 planet_collision_min_hours, planet_collision_max_hours,
@@ -162,7 +163,8 @@ export async function snapshotTemplateForUniverse(
                 starting_shields, starting_earth_colonists,
                 proximity_mine_damage, proximity_detonation_pct,
                 seeker_attach_pct, seeker_pickup_detect_pct,
-                mine_disruptor_min, mine_disruptor_max
+                mine_disruptor_min, mine_disruptor_max,
+                respawn_delay_seconds
          FROM edit_templates WHERE name = $2
          ON CONFLICT (universe_id) DO NOTHING`,
         [universeId, templateName],
@@ -193,6 +195,7 @@ export type UniverseStatsRow = {
     starting_credits: number | null;
     starting_drones: number | null;
     starting_ship: string | null;
+    respawn_delay_seconds: number | null;
 };
 export async function getUniverseStats(
     universeId: number,
@@ -205,7 +208,8 @@ export async function getUniverseStats(
                    JOIN sectors s ON p.sector_id = s.id
                    WHERE s.universe_id = u.id) AS port_count,
                 us.max_planets_per_sector,
-                us.starting_turns, us.starting_credits, us.starting_drones, us.starting_ship
+                us.starting_turns, us.starting_credits, us.starting_drones, us.starting_ship,
+                us.respawn_delay_seconds
          FROM universes u
          LEFT JOIN universe_settings us ON us.universe_id = u.id
          WHERE u.id = $1`,

@@ -97,6 +97,14 @@ export const move: Handler<'moveResult', MovementDeps> = (ctx, msg) => {
             }
             ctx.io.term.writeln(render(EVENT.noShip));
             break;
+        case 'destroyed':
+            if (ctx.autopilot.path.length > 0) {
+                ctx.autopilot.path = [];
+                ctx.autopilot.step = 0;
+                ctx.autopilot.paused = false;
+            }
+            ctx.io.term.writeln(render(EVENT.shipDestroyed, { reason: msg.reason }));
+            break;
         case 'error':
             if (ctx.autopilot.path.length > 0) {
                 ctx.autopilot.path = [];

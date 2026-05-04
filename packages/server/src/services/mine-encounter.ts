@@ -15,9 +15,7 @@ import {
 import {
     getShipDronesAndShieldsForUpdate,
     setShipDronesAndShields,
-    deleteShipByOwner,
-    markPlayerShipDestroyed,
-    zeroShipCargo,
+    destroyShipRecord,
 } from '../db/queries/ship.js';
 
 /** RNG-of-record. Tests can monkey-patch Math.random to make outcomes deterministic. */
@@ -90,10 +88,7 @@ export async function resolveProximityMines(playerId: number): Promise<Proximity
         const destroyed = remainingDamage > 0;
 
         if (destroyed) {
-            // Hard kill: zero cargo, remove the ship row, mark player destroyed.
-            await zeroShipCargo(playerId, client);
-            await deleteShipByOwner(playerId, client);
-            await markPlayerShipDestroyed(playerId, client);
+            await destroyShipRecord(playerId, client);
         } else {
             await setShipDronesAndShields(playerId, newDrones, newShields, client);
         }

@@ -71,7 +71,8 @@ export const connectDB = async (): Promise<void> => {
         seeker_attach_pct SMALLINT NOT NULL DEFAULT ${universeConfig.seekerAttachPct},
         seeker_pickup_detect_pct SMALLINT NOT NULL DEFAULT ${universeConfig.seekerPickupDetectPct},
         mine_disruptor_min SMALLINT NOT NULL DEFAULT ${universeConfig.mineDisruptorMin},
-        mine_disruptor_max SMALLINT NOT NULL DEFAULT ${universeConfig.mineDisruptorMax}
+        mine_disruptor_max SMALLINT NOT NULL DEFAULT ${universeConfig.mineDisruptorMax},
+        respawn_delay_seconds INTEGER NOT NULL DEFAULT ${universeConfig.respawnDelaySeconds}
       );
 
       CREATE TABLE IF NOT EXISTS universes (
@@ -122,7 +123,8 @@ export const connectDB = async (): Promise<void> => {
         seeker_attach_pct SMALLINT NOT NULL DEFAULT ${universeConfig.seekerAttachPct},
         seeker_pickup_detect_pct SMALLINT NOT NULL DEFAULT ${universeConfig.seekerPickupDetectPct},
         mine_disruptor_min SMALLINT NOT NULL DEFAULT ${universeConfig.mineDisruptorMin},
-        mine_disruptor_max SMALLINT NOT NULL DEFAULT ${universeConfig.mineDisruptorMax}
+        mine_disruptor_max SMALLINT NOT NULL DEFAULT ${universeConfig.mineDisruptorMax},
+        respawn_delay_seconds INTEGER NOT NULL DEFAULT ${universeConfig.respawnDelaySeconds}
       );
 
       CREATE TABLE IF NOT EXISTS sectors (
@@ -948,7 +950,8 @@ export const connectDB = async (): Promise<void> => {
                  max_planets_per_sector = $8,
                  planet_collision_likelihood = $9,
                  planet_collision_min_hours = $10,
-                 planet_collision_max_hours = $11
+                 planet_collision_max_hours = $11,
+                 respawn_delay_seconds = $12
              WHERE name = 'stock'`,
             [
                 universeConfig.startingCredits,
@@ -962,6 +965,7 @@ export const connectDB = async (): Promise<void> => {
                 universeConfig.planetCollisionLikelihood,
                 universeConfig.planetCollisionMinHours,
                 universeConfig.planetCollisionMaxHours,
+                universeConfig.respawnDelaySeconds,
             ],
         );
 

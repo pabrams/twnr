@@ -27,6 +27,7 @@ export const welcome: Handler<'welcome', LifecycleDeps> = (ctx, msg) => {
     ctx.ship.currentColoredShipName = msg.coloredShipName;
     ctx.world.starbaseSector = msg.starbaseSector;
     ctx.player.isAdmin = msg.isAdmin;
+    ctx.player.isGuest = !!msg.isGuest;
     if (msg.isAdmin) ctx.minimap.handle?.setAdminMode(true);
     ctx.io.term.writeln(render(NOTIFY.welcome, { name: msg.name }));
     if (msg.isGuest) {

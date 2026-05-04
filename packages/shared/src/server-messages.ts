@@ -81,6 +81,7 @@ export type MoveResultObject =
       }
     | { type: typeof ServerMsgType.MoveResult; outcome: 'nonAdjacent'; sector: number }
     | { type: typeof ServerMsgType.MoveResult; outcome: 'noShip' }
+    | { type: typeof ServerMsgType.MoveResult; outcome: 'destroyed'; reason: string }
     | { type: typeof ServerMsgType.MoveResult; outcome: 'error'; message: string };
 
 export type PlayerLeftEvent = {

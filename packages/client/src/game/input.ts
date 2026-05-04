@@ -122,6 +122,18 @@ export function setupInput(term: Terminal, ctx: GameContext) {
             ctx.io.setDebug(!ctx.io.debug);
             return;
         }
+        // While the WS is closed: Enter reconnects, Esc returns to universe
+        // select. All other keys are ignored so stale input doesn't queue up.
+        // Guest accounts are deleted server-side on WS close, so reconnect is
+        // suppressed — Esc is the only way out.
+        if (ctx.connection.disconnected) {
+            if (domEvent.key === 'Enter' && !ctx.player.isGuest) {
+                ctx.connection.reconnect();
+            } else if (domEvent.key === 'Escape') {
+                ctx.connection.leave();
+            }
+            return;
+        }
         const ev: KeystrokeEvent = {
             key,
             isEnter: domEvent.key === 'Enter',

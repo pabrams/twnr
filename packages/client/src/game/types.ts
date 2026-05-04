@@ -18,6 +18,16 @@ export type KeystrokeEvent = {
     isBackspace: boolean;
 };
 
+export interface ConnectionState {
+    /** True between WS close and successful reconnect. The input pipeline
+     * intercepts Enter (reconnect) / Esc (leave universe) while this is set. */
+    disconnected: boolean;
+    /** Open a fresh WS to the same universe and rebind it onto this ctx. */
+    reconnect: () => void;
+    /** Dispose terminal and exit back to the universe-select screen. */
+    leave: () => void;
+}
+
 export interface IO {
     term: Terminal;
     ws: WebSocket;
@@ -83,6 +93,9 @@ export interface PlayerState {
     id: number;
     /** Set by Welcome — admins get full-vision minimap with deeper depth options. */
     isAdmin: boolean;
+    /** Set by Welcome — guest accounts get deleted on WS close, so the
+     * disconnect prompt skips the reconnect option. */
+    isGuest: boolean;
 }
 
 export interface WorldState {
@@ -175,4 +188,5 @@ export interface GameContext {
     starbase: StarbaseSession;
     minimap: MinimapView;
     pendingMenuArgs: MenuArgs | null;
+    connection: ConnectionState;
 }

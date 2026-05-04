@@ -2,15 +2,14 @@ import { ServerMsgType } from '@twnr/shared';
 import type { ServerResult } from '@twnr/shared';
 
 import { players } from '../state/players.js';
-import { sendEnvelope, sendError } from '../state/messaging.js';
+import { sendEnvelope, sendError, closeDestroyedSession } from '../state/messaging.js';
 import { withTransaction, AbortTransaction } from '../db/index.js';
 import {
     getShipDronesForUpdate,
     getShipDronesAndShieldsForUpdate,
     setShipDrones,
     setShipDronesAndShields,
-    deleteShipByOwner,
-    markPlayerShipDestroyed,
+    destroyShipRecord,
 } from '../db/queries/ship.js';
 
 /**
@@ -108,8 +107,7 @@ export async function handleAttackShip(
             await setShipDrones(attackerId, attackerDrones - attackerDronesLost, client);
 
             if (destroyed) {
-                await deleteShipByOwner(targetPlayerId, client);
-                await markPlayerShipDestroyed(targetPlayerId, client);
+                await destroyShipRecord(targetPlayerId, client);
             } else {
                 await setShipDronesAndShields(targetPlayerId, targetDrones, targetShields, client);
             }
@@ -141,7 +139,7 @@ export async function handleAttackShip(
                 message: destroyed ? 'Your ship was destroyed!' : 'You were attacked!',
             });
             if (destroyed) {
-                target.ws.close(1008, 'Ship destroyed');
+                closeDestroyedSession(targetPlayerId, 'Ship destroyed');
             }
         }
     } catch (e) {

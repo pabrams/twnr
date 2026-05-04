@@ -6,6 +6,8 @@ import type { GameContext } from './types.js';
 import { setupConnection } from './connection.js';
 import { setupInput } from './input.js';
 import { createMinimap, flashTerminalBorder } from './minimap.js';
+import { render } from './renderer.js';
+import { NOTIFY } from './messages/index.js';
 
 export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect: () => void) {
     const term = new Terminal({
@@ -40,10 +42,13 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
     );
 
     const wsProtocol = location.protocol === 'https:' ? 'wss' : 'ws';
-    const ws = new WebSocket(`${wsProtocol}://${location.host}/ws?universe=${universeId}`);
+    const wsUrl = `${wsProtocol}://${location.host}/ws?universe=${universeId}`;
 
+    // ctx.io.ws is mutated by reconnect(); sendMsg always reads the current
+    // socket so messages route to the live connection.
     function sendMsg(msg: ClientCommand, opts?: { silent?: boolean }) {
-        if (ws.readyState !== WebSocket.OPEN) return;
+        const sock = ctx.io.ws;
+        if (sock.readyState !== WebSocket.OPEN) return;
         if (ctx.io.debug) {
             const lines = JSON.stringify(msg, null, 2).split('\n');
             term.writeln(`\r\n\x1b[38;5;243m→ ${lines[0]}\x1b[0m`);
@@ -52,13 +57,14 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
             }
         }
         if (!opts?.silent) ctx.input.inFlight = true;
-        ws.send(JSON.stringify(msg));
+        sock.send(JSON.stringify(msg));
     }
 
     const ctx: GameContext = {
         io: {
             term,
-            ws,
+            // Placeholder — replaced by openSocket() before any handler runs.
+            ws: null as unknown as WebSocket,
             sendMsg,
             setDebug: (on) => {
                 ctx.io.debug = on;
@@ -81,6 +87,7 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
             name: '',
             id: 0,
             isAdmin: false,
+            isGuest: false,
         },
         world: {
             mode: Menu.Sector,
@@ -126,6 +133,59 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
             knownUniverseMode: 'explored',
         },
         pendingMenuArgs: null,
+        connection: {
+            disconnected: false,
+            reconnect: () => {
+                /* populated below */
+            },
+            leave: () => {
+                /* populated below */
+            },
+        },
+    };
+
+    function handleClose(info: { code: number; reason: string }): void {
+        ctx.connection.disconnected = true;
+        // Cancel any in-flight prompt or buffered input so the next reconnect
+        // starts from a clean slate.
+        if (ctx.input.pendingResolver) {
+            const r = ctx.input.pendingResolver;
+            ctx.input.pendingResolver = null;
+            r.resolve(null);
+        }
+        ctx.input.userInputBuffer = [];
+        ctx.input.inputQueue = [];
+        ctx.input.inputAssembly = '';
+        ctx.input.inFlight = false;
+        // Guest accounts are server-side deleted on WS close, so reconnecting
+        // would just hit a "User not found" close. Surface that and skip the
+        // reconnect option for guests.
+        if (ctx.player.isGuest) {
+            term.writeln(render(NOTIFY.deletingGuest, { name: ctx.player.name }));
+        }
+        if (info.reason) {
+            term.writeln(render(NOTIFY.connectionDropped, { reason: info.reason }));
+        } else {
+            term.writeln(render(NOTIFY.connectionDroppedNoReason));
+        }
+        term.writeln(render(ctx.player.isGuest ? NOTIFY.leavePrompt : NOTIFY.reconnectPrompt));
+    }
+
+    function openSocket(): void {
+        ctx.connection.disconnected = false;
+        const ws = new WebSocket(wsUrl);
+        ctx.io.ws = ws;
+        setupConnection(ws, ctx, handleClose);
+    }
+
+    ctx.connection.reconnect = () => {
+        term.writeln(render(NOTIFY.reconnecting));
+        openSocket();
+    };
+    ctx.connection.leave = () => {
+        term.dispose();
+        termDiv.innerHTML = '';
+        onDisconnect();
     };
 
     fetch('/api/menu-registry')
@@ -177,10 +237,6 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
         });
     }
 
-    setupConnection(ws, ctx, () => {
-        term.dispose();
-        termDiv.innerHTML = '';
-        onDisconnect();
-    });
     setupInput(term, ctx);
+    openSocket();
 }
