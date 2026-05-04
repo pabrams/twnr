@@ -563,7 +563,6 @@ export const connectDB = async (): Promise<void> => {
         ('planetEarth', 'Earth'),
         ('shipyards', 'Shipyards'),
         ('shipyardsBuy', 'Buy Ship'),
-        ('shipyardsTradein', 'Trade-in'),
         ('shipyardsExamine', 'Examine Ships'),
         ('shipyardsClass0', 'Shipyards Equipment'),
         ('move', 'Move to adjacent sector')
@@ -588,8 +587,6 @@ export const connectDB = async (): Promise<void> => {
         WHERE name IN ('starbaseHardware', 'shipyards');
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'shipyards')
         WHERE name IN ('shipyardsBuy', 'shipyardsExamine', 'shipyardsClass0');
-      UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'shipyardsBuy')
-        WHERE name = 'shipyardsTradein';
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'sector')
         WHERE name = 'planetSelect';
 
@@ -680,8 +677,6 @@ export const connectDB = async (): Promise<void> => {
         ('buy_ship', 'Buy a new ship'),
         ('examine_ships', 'Examine ship specs'),
         ('shipyards_equipment', 'Purchase equipment'),
-        ('tradein_yes', 'Trade in'),
-        ('tradein_no', 'Keep old ship'),
         ('move_previous', 'Move to previous sector'),
         ('move_menu', 'Move to adjacent sector'),
         ('select_warp_1', 'Select warp 1'),
@@ -868,16 +863,13 @@ export const connectDB = async (): Promise<void> => {
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === Shipyards Buy ===
+      -- '<letter>' picks a ship; the view_detail routine asks Y/N inline
+      -- (askConfirm) before sending Buy{ShipTradein,ShipNew}. The
+      -- shipyardsTradein menu is gone — confirm is a sub-prompt of the
+      -- routine, not a separate menu.
       INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='shipyardsBuy'), (SELECT id FROM command WHERE name='view_detail'), '<letter>', 'Select ship', NULL, (SELECT id FROM menu WHERE name='shipyardsTradein'), 10),
+        ((SELECT id FROM menu WHERE name='shipyardsBuy'), (SELECT id FROM command WHERE name='view_detail'), '<letter>', 'Select ship', NULL, NULL, 10),
         ((SELECT id FROM menu WHERE name='shipyardsBuy'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', NULL, (SELECT id FROM menu WHERE name='shipyards'), 20)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
-
-      -- === Shipyards Tradein ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='shipyardsTradein'), (SELECT id FROM command WHERE name='tradein_yes'), 'y', 'Trade in', 'shipExchangeTradein', NULL, 10),
-        ((SELECT id FROM menu WHERE name='shipyardsTradein'), (SELECT id FROM command WHERE name='tradein_no'), 'n', 'Keep old ship', 'buyShipNew', NULL, 20),
-        ((SELECT id FROM menu WHERE name='shipyardsTradein'), (SELECT id FROM command WHERE name='back'), 'q', 'Cancel', NULL, (SELECT id FROM menu WHERE name='shipyardsBuy'), 30)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === Shipyards Examine ===

@@ -218,7 +218,10 @@ async function showShipListInternal(ctx: DisplayStarbaseCtx, label: string) {
     showShipInterestPrompt(ctx);
 }
 
-export function showTradeinPrompt(
+/** Tradein info block (header + optional credit/net lines). The Y/N/Q
+ * prompt is rendered separately by askConfirm in the buy routine, so
+ * it doesn't get re-painted on invalid keystrokes. */
+export function showTradeinInfo(
     ctx: DisplayStarbaseCtx,
     shipName: string,
     price: number,
@@ -230,7 +233,6 @@ export function showTradeinPrompt(
         ctx.io.term.writeln(render(STARBASE.tradeinCredit, { credit: fmt(tradeinCredit) }));
         ctx.io.term.writeln(render(STARBASE.tradeinNet, { net: fmt(price - tradeinCredit) }));
     }
-    ctx.io.term.write(render(STARBASE.tradeinConfirm));
 }
 
 export function showShipyardsClass0Menu(ctx: DisplayStarbaseCtx) {
