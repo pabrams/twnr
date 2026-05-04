@@ -1,10 +1,9 @@
 import { ClientMsgType, Menu, type ShipCatalogEntry } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
-import { echoCommand } from '../display.js';
 import { showShipBuyList, showShipyardsBuyPrompt, letterToIndex } from '../display-starbase.js';
 import { NOTIFY, COMMON } from '../messages/index.js';
-import { registerMenu, setMenuArgs } from './types.js';
+import { registerMenu, registerMenuRoutine, setMenuArgs } from './types.js';
 
 function calculateShipPrice(ship: ShipCatalogEntry): number {
     return (
@@ -26,38 +25,27 @@ registerMenu(Menu.ShipyardsBuy, {
         void showShipBuyList(ctx);
         showShipyardsBuyPrompt(ctx);
     },
-    input(ctx, line) {
-        const cmd = line.toLowerCase();
-        if (cmd === 'q') {
-            echoCommand(ctx, 'shipyards');
-            ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Shipyards });
-            return;
-        }
-        if (cmd === '?') {
-            void showShipBuyList(ctx);
-            return;
-        }
-        const idx = letterToIndex(line);
-        if (ctx.catalogs.ships && idx >= 0 && idx < ctx.catalogs.ships.length) {
-            const ship = ctx.catalogs.ships[idx];
-            if (ship.name === ctx.ship.currentShipName) {
-                ctx.io.term.writeln(
-                    render(COMMON.errorLine, { text: 'Already flying that ship.' }),
-                );
-                showShipyardsBuyPrompt(ctx);
-                return;
-            }
-            setMenuArgs(ctx, {
-                menu: Menu.ShipyardsTradein,
-                target: ship.name,
-                displayName: ship.display_name ?? ship.name,
-                price: calculateShipPrice(ship),
-                tradein: getCurrentShipPrice(ctx),
-            });
-            ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsTradein });
-        } else {
-            ctx.io.term.writeln(render(NOTIFY.invalidSelection));
-            showShipyardsBuyPrompt(ctx);
-        }
-    },
+});
+
+registerMenuRoutine(Menu.ShipyardsBuy, 'view_detail', (ctx, line) => {
+    const idx = letterToIndex(line);
+    if (!ctx.catalogs.ships || idx < 0 || idx >= ctx.catalogs.ships.length) {
+        ctx.io.term.writeln(render(NOTIFY.invalidSelection));
+        showShipyardsBuyPrompt(ctx);
+        return;
+    }
+    const ship = ctx.catalogs.ships[idx];
+    if (ship.name === ctx.ship.currentShipName) {
+        ctx.io.term.writeln(render(COMMON.errorLine, { text: 'Already flying that ship.' }));
+        showShipyardsBuyPrompt(ctx);
+        return;
+    }
+    setMenuArgs(ctx, {
+        menu: Menu.ShipyardsTradein,
+        target: ship.name,
+        displayName: ship.display_name ?? ship.name,
+        price: calculateShipPrice(ship),
+        tradein: getCurrentShipPrice(ctx),
+    });
+    ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsTradein });
 });
