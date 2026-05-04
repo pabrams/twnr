@@ -141,7 +141,6 @@ export function showMoveMenu(ctx: DisplayCtx) {
         term.writeln(render(SECTOR.moveMenuRow, { n: i + 1, sector }));
     });
     term.writeln(render(SECTOR.moveMenuQuit));
-    term.write(render(SECTOR.moveMenuPrompt, { max: warps.length }));
     // Light up the minimap with 1..N badges for each adjacent sector.
     ctx.minimap.handle?.setQuickMove(warps.map((w) => w.sector));
 }

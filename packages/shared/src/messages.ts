@@ -24,7 +24,6 @@ export const Menu = {
     ShipyardsBuy: 'shipyardsBuy',
     ShipyardsExamine: 'shipyardsExamine',
     ShipyardsClass0: 'shipyardsClass0',
-    Move: 'move',
 } as const;
 export type MenuName = (typeof Menu)[keyof typeof Menu];
 

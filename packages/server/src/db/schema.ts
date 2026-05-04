@@ -564,13 +564,12 @@ export const connectDB = async (): Promise<void> => {
         ('shipyards', 'Shipyards'),
         ('shipyardsBuy', 'Buy Ship'),
         ('shipyardsExamine', 'Examine Ships'),
-        ('shipyardsClass0', 'Shipyards Equipment'),
-        ('move', 'Move to adjacent sector')
+        ('shipyardsClass0', 'Shipyards Equipment')
       ON CONFLICT (name) DO NOTHING;
 
       -- Set parent menu relationships
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'sector')
-        WHERE name IN ('port', 'help', 'shipInfo', 'playerInfo', 'attack', 'computer', 'planet', 'move');
+        WHERE name IN ('port', 'help', 'shipInfo', 'playerInfo', 'attack', 'computer', 'planet');
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'port')
         WHERE name = 'class0';
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'computer')
@@ -676,12 +675,6 @@ export const connectDB = async (): Promise<void> => {
         ('shipyards_equipment', 'Purchase equipment'),
         ('move_previous', 'Move to previous sector'),
         ('move_menu', 'Move to adjacent sector'),
-        ('select_warp_1', 'Select warp 1'),
-        ('select_warp_2', 'Select warp 2'),
-        ('select_warp_3', 'Select warp 3'),
-        ('select_warp_4', 'Select warp 4'),
-        ('select_warp_5', 'Select warp 5'),
-        ('select_warp_6', 'Select warp 6'),
         ('deploy_mines_menu', 'Deploy Mines'),
         ('deploy_proximity_mines', 'Proximity Mines'),
         ('deploy_seeker_mines', 'Seeker Mines'),
@@ -698,7 +691,7 @@ export const connectDB = async (): Promise<void> => {
         ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='display_sector'), '<enter>', 'Re-display sector', NULL, NULL, 5),
         ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='move'), '<number>', 'Move to sector', 'move', NULL, 10),
         ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='move_previous'), '<', 'Previous sector', NULL, NULL, 15),
-        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='move_menu'), 'm', 'Move to adjacent sector', NULL, (SELECT id FROM menu WHERE name='move'), 25),
+        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='move_menu'), 'm', 'Move to adjacent sector', NULL, NULL, 25),
         ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='port_menu'), 'p', 'Port', NULL, (SELECT id FROM menu WHERE name='port'), 30),
         ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='player_info'), 'i', 'Player info', NULL, (SELECT id FROM menu WHERE name='playerInfo'), 40),
         ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='help_menu'), '?', 'Help', NULL, (SELECT id FROM menu WHERE name='help'), 50),
@@ -891,17 +884,6 @@ export const connectDB = async (): Promise<void> => {
         ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='hyperspace_jump'), 'h', 'Hyperspace Jump', NULL, NULL, 56),
         ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='list_planets'), 'y', 'Your Planets', 'listPlanets', NULL, 57),
         ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='track_seeker_mines'), 'm', 'Track Seeker Mines', 'trackSeekerMines', NULL, 58)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
-
-      -- === Move (adjacent-sector picker) ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='move'), (SELECT id FROM command WHERE name='select_warp_1'), '1', 'Warp 1', NULL, NULL, 10),
-        ((SELECT id FROM menu WHERE name='move'), (SELECT id FROM command WHERE name='select_warp_2'), '2', 'Warp 2', NULL, NULL, 20),
-        ((SELECT id FROM menu WHERE name='move'), (SELECT id FROM command WHERE name='select_warp_3'), '3', 'Warp 3', NULL, NULL, 30),
-        ((SELECT id FROM menu WHERE name='move'), (SELECT id FROM command WHERE name='select_warp_4'), '4', 'Warp 4', NULL, NULL, 40),
-        ((SELECT id FROM menu WHERE name='move'), (SELECT id FROM command WHERE name='select_warp_5'), '5', 'Warp 5', NULL, NULL, 50),
-        ((SELECT id FROM menu WHERE name='move'), (SELECT id FROM command WHERE name='select_warp_6'), '6', 'Warp 6', NULL, NULL, 60),
-        ((SELECT id FROM menu WHERE name='move'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', NULL, (SELECT id FROM menu WHERE name='sector'), 70)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === Seed hardware items ===
