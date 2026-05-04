@@ -28,6 +28,7 @@ export const sectorDisplay: Handler<'sectorDisplayResult', MovementDeps> = (ctx,
         msg.planets,
         msg.ships,
         msg.collisions,
+        msg.sectorMines,
     );
     refreshMinimap(ctx);
     if (ctx.autopilot.path.length > 0 && ctx.autopilot.step < ctx.autopilot.path.length) {
@@ -56,6 +57,7 @@ export const move: Handler<'moveResult', MovementDeps> = (ctx, msg) => {
                 msg.planets,
                 msg.ships,
                 msg.collisions,
+                msg.sectorMines,
             );
             refreshMinimap(ctx);
             if (moreHops) {
@@ -73,12 +75,25 @@ export const move: Handler<'moveResult', MovementDeps> = (ctx, msg) => {
         case 'encounter': {
             ctx.world.sectorPlayers = msg.players;
             ctx.encounter.ownerName = msg.ownerName;
-            showSectorDisplay(ctx, msg.sector, msg.warps, msg.players, msg.port);
+            showSectorDisplay(
+                ctx,
+                msg.sector,
+                msg.warps,
+                msg.players,
+                msg.port,
+                msg.sectorDrones,
+                msg.planets,
+                msg.ships,
+                msg.collisions,
+                msg.sectorMines,
+            );
+            refreshMinimap(ctx);
             if (ctx.autopilot.path.length > 0) {
                 ctx.autopilot.paused = true;
                 ctx.io.term.writeln(render(EVENT.autopilotDisengaged));
             }
-            showDroneEncounter(ctx, msg.sectorDrones, msg.ownerName, msg.shipDrones);
+            const droneQty = msg.sectorDrones?.quantity ?? 0;
+            showDroneEncounter(ctx, droneQty, msg.ownerName, msg.shipDrones);
             break;
         }
         case 'nonAdjacent':

@@ -137,7 +137,6 @@ export async function handleMove(playerId: number, targetSector: number): Promis
     const sectorData = await buildSectorDisplayData(playerId, targetSector);
     if (!sectorData) return;
 
-    // Hostile drone encounter — send DroneEncounter with embedded sector data
     if (sectorData.sectorDrones && sectorData.sectorDrones.ownerId !== playerId) {
         player.pendingEncounter = { retreatSector: currentSector };
 
@@ -148,11 +147,7 @@ export async function handleMove(playerId: number, targetSector: number): Promis
             {
                 type: ServerMsgType.MoveResult,
                 outcome: 'encounter',
-                sector: targetSector,
-                warps: sectorData.warps,
-                players: sectorData.players,
-                port: sectorData.port,
-                sectorDrones: sectorData.sectorDrones.quantity,
+                ...sectorData,
                 ownerId: sectorData.sectorDrones.ownerId,
                 ownerName: sectorData.sectorDrones.ownerName,
                 shipDrones,

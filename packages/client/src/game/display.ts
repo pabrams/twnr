@@ -45,6 +45,7 @@ export function showSectorDisplay(
     planets?: { id: number; name: string; type: string }[],
     ships?: { id: number; name: string; typeName: string; ownerName: string }[],
     collisions?: { planetName: string; collidingWithName: string; collisionAt: string }[],
+    sectorMines?: { mineType: 'proximity' | 'seeker'; quantity: number; own: boolean }[],
 ) {
     ctx.world.visitedSet.add(sector);
     ctx.world.currentSector = sector;
@@ -102,6 +103,19 @@ export function showSectorDisplay(
             .map((s) => render(SECTOR.shipItem, { type: s.typeName, owner: s.ownerName }))
             .join(comma);
         term.writeln(render(SECTOR.shipsLine, { list }));
+    }
+
+    if (sectorMines && sectorMines.length > 0) {
+        const list = sectorMines
+            .map((m) => {
+                const label = render(
+                    m.mineType === 'seeker' ? SECTOR.mineLabelSeeker : SECTOR.mineLabelProximity,
+                );
+                const tpl = m.own ? SECTOR.mineItemOwn : SECTOR.mineItemEnemy;
+                return render(tpl, { qty: m.quantity, label });
+            })
+            .join(comma);
+        term.writeln(render(SECTOR.minesLine, { list }));
     }
 
     if (warps.length > 0) {

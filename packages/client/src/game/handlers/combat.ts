@@ -2,17 +2,15 @@ import { ClientMsgType } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { EVENT } from '../messages/index.js';
-import { showSectorDisplay, type DisplayCtx } from '../display.js';
+import { type DisplayCtx } from '../display.js';
 import { showDroneEncounter, showAttackMenu, type DisplayCombatCtx } from '../display-combat.js';
 import { showPrompt } from '../menus/types.js';
 import { askNumber } from '../menus/prompts.js';
 import type { Handler } from './index.js';
-import { refreshMinimap, type RefreshMinimapDeps } from './utils.js';
 
 type CombatDeps = Pick<GameContext, 'autopilot' | 'encounter' | 'input' | 'io' | 'world'> &
     DisplayCtx &
-    DisplayCombatCtx &
-    RefreshMinimapDeps;
+    DisplayCombatCtx;
 
 export const attackShip: Handler<'attackShipResult', CombatDeps> = (ctx, msg) => {
     ctx.io.term.writeln('');
@@ -44,18 +42,6 @@ export const attackShip: Handler<'attackShipResult', CombatDeps> = (ctx, msg) =>
 export const attackMenu: Handler<'attackMenuResult', CombatDeps> = (ctx, msg) => {
     ctx.world.sectorPlayers = msg.players;
     showAttackMenu(ctx);
-};
-
-export const droneEncounter: Handler<'droneEncounter', CombatDeps> = (ctx, msg) => {
-    ctx.world.sectorPlayers = msg.players;
-    ctx.encounter.ownerName = msg.ownerName;
-    showSectorDisplay(ctx, msg.sector, msg.warps, msg.players, msg.port);
-    refreshMinimap(ctx);
-    if (ctx.autopilot.path.length > 0) {
-        ctx.autopilot.paused = true;
-        ctx.io.term.writeln(render(EVENT.autopilotDisengaged));
-    }
-    showDroneEncounter(ctx, msg.sectorDrones, msg.ownerName, msg.shipDrones);
 };
 
 // Display the deploy-info preamble then askNumber for qty inline. The

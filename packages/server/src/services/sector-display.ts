@@ -1,4 +1,5 @@
 import { getPlanetsInSector, getCollisionsInSector, getSectorDbId } from '../db/queries/sector.js';
+import { getSectorMines } from '../db/queries/mines.js';
 import { recordSectorObservation } from '../db/queries/observations.js';
 import { players } from '../state/players.js';
 import {
@@ -34,6 +35,17 @@ export async function buildSectorDisplayData(playerId: number, sectorNumber?: nu
             getSectorDbId(sector, universeId),
         ]);
 
+    const sectorMines = sectorDbId !== undefined
+        ? (await getSectorMines(sectorDbId))
+              .filter((m) => m.quantity > 0)
+              .filter((m) => m.mine_type !== 'seeker' || m.owner_player_id === playerId)
+              .map((m) => ({
+                  mineType: m.mine_type,
+                  quantity: m.quantity,
+                  own: m.owner_player_id === playerId,
+              }))
+        : [];
+
     const playersInSector = Object.entries(players)
         .filter(
             ([id, p]) =>
@@ -44,7 +56,6 @@ export async function buildSectorDisplayData(playerId: number, sectorNumber?: nu
         )
         .map(([id, p]) => ({ id: Number(id), name: p.name }));
 
-    // Fog-of-war: record the player's observation of this sector's contents.
     if (sectorDbId !== undefined) {
         await recordSectorObservation(
             playerId,
@@ -63,5 +74,6 @@ export async function buildSectorDisplayData(playerId: number, sectorNumber?: nu
         planets,
         ships: emptyShips.length > 0 ? emptyShips : undefined,
         collisions,
+        sectorMines: sectorMines.length > 0 ? sectorMines : undefined,
     };
 }

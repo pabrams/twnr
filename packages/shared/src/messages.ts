@@ -53,7 +53,6 @@ export const ServerMsgType = {
     PlanetInfoResult: 'planetInfoResult',
     TakeColonistsResult: 'takeColonistsResult',
     LeaveColonistsResult: 'leaveColonistsResult',
-    DroneEncounter: 'droneEncounter',
     DeployDronesInfoResult: 'deployDronesInfoResult',
     DeployDronesResult: 'deployDronesResult',
     AttackSectorDronesResult: 'attackSectorDronesResult',
