@@ -8,7 +8,6 @@ export const Menu = {
     ShipInfo: 'shipInfo',
     PlayerInfo: 'playerInfo',
     Attack: 'attack',
-    AttackDrones: 'attackDrones',
     Computer: 'computer',
     KnownUniverse: 'knownUniverse',
     ShipCatalog: 'shipCatalog',

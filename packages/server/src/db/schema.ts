@@ -547,7 +547,6 @@ export const connectDB = async (): Promise<void> => {
         ('shipInfo', 'Ship Info'),
         ('playerInfo', 'Player Info'),
         ('attack', 'Attack'),
-        ('attackDrones', 'Attack Drones'),
         ('computer', 'Computer'),
         ('knownUniverse', 'Known Universe'),
         ('shipCatalog', 'Ship Catalog'),
@@ -573,8 +572,6 @@ export const connectDB = async (): Promise<void> => {
         WHERE name IN ('port', 'help', 'shipInfo', 'playerInfo', 'attack', 'computer', 'planet', 'deployDronesQty', 'move');
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'port')
         WHERE name = 'class0';
-      UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'attack')
-        WHERE name = 'attackDrones';
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'computer')
         WHERE name IN ('knownUniverse', 'shipCatalog', 'planetSpecs', 'autopilotPrompt');
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'autopilotPrompt')
@@ -755,15 +752,12 @@ export const connectDB = async (): Promise<void> => {
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === Attack ===
+      -- '<number>' picks a target; the select_target routine asks for the
+      -- drone count inline (askNumber) before sending AttackShip. The
+      -- attackDrones menu is gone — qty is a sub-prompt of the routine.
       INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='attack'), (SELECT id FROM command WHERE name='select_target'), '<number>', 'Select target',NULL, (SELECT id FROM menu WHERE name='attackDrones'), 10),
+        ((SELECT id FROM menu WHERE name='attack'), (SELECT id FROM command WHERE name='select_target'), '<number>', 'Select target',NULL, NULL, 10),
         ((SELECT id FROM menu WHERE name='attack'), (SELECT id FROM command WHERE name='back'), 'q', 'Back',NULL, (SELECT id FROM menu WHERE name='sector'), 20)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
-
-      -- === AttackDrones ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='attackDrones'), (SELECT id FROM command WHERE name='enter_quantity'), '<number>', 'Drones to send','attackShip', NULL, 10),
-        ((SELECT id FROM menu WHERE name='attackDrones'), (SELECT id FROM command WHERE name='back'), 'q', 'Back',NULL, (SELECT id FROM menu WHERE name='sector'), 20)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === Computer ===
