@@ -3,7 +3,7 @@ import type { GameContext } from './types.js';
 import { render } from './renderer.js';
 import { STARBASE, COMMON } from './messages/index.js';
 import { showClass0Menu, type DisplayPortCtx } from './display-port.js';
-import { showShipInterestPrompt, type DisplayComputerCtx } from './display-computer.js';
+import { type DisplayComputerCtx } from './display-computer.js';
 import { padEndVisible } from './display-utils.js';
 
 export type DisplayStarbaseCtx = Pick<GameContext, 'catalogs' | 'io' | 'ship' | 'starbase'> &
@@ -199,7 +199,7 @@ export function showShipyardsBuyPrompt(ctx: DisplayStarbaseCtx) {
 }
 
 export function showShipExamineList(ctx: DisplayStarbaseCtx) {
-    showShipListInternal(ctx, 'Examine');
+    return showShipListInternal(ctx, 'Examine');
 }
 
 async function showShipListInternal(ctx: DisplayStarbaseCtx, label: string) {
@@ -215,7 +215,6 @@ async function showShipListInternal(ctx: DisplayStarbaseCtx, label: string) {
         );
     });
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
-    showShipInterestPrompt(ctx);
 }
 
 /** Tradein info block (header + optional credit/net lines). The Y/N/Q

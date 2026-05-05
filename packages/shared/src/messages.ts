@@ -10,8 +10,6 @@ export const Menu = {
     Attack: 'attack',
     Computer: 'computer',
     KnownUniverse: 'knownUniverse',
-    ShipCatalog: 'shipCatalog',
-    PlanetSpecs: 'planetSpecs',
     AutopilotPrompt: 'autopilotPrompt',
     Autopilot: 'autopilot',
     Planet: 'planet',
@@ -21,8 +19,6 @@ export const Menu = {
     PlanetSelect: 'planetSelect',
     PlanetEarth: 'planetEarth',
     Shipyards: 'shipyards',
-    ShipyardsBuy: 'shipyardsBuy',
-    ShipyardsExamine: 'shipyardsExamine',
     ShipyardsClass0: 'shipyardsClass0',
 } as const;
 export type MenuName = (typeof Menu)[keyof typeof Menu];

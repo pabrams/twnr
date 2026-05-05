@@ -551,8 +551,6 @@ export const connectDB = async (): Promise<void> => {
         ('attack', 'Attack'),
         ('computer', 'Computer'),
         ('knownUniverse', 'Known Universe'),
-        ('shipCatalog', 'Ship Catalog'),
-        ('planetSpecs', 'Planet Specs'),
         ('autopilotPrompt', 'Autopilot Prompt'),
         ('autopilot', 'Autopilot'),
         ('planet', 'Planet'),
@@ -562,8 +560,6 @@ export const connectDB = async (): Promise<void> => {
         ('planetSelect', 'Select Planet'),
         ('planetEarth', 'Earth'),
         ('shipyards', 'Shipyards'),
-        ('shipyardsBuy', 'Buy Ship'),
-        ('shipyardsExamine', 'Examine Ships'),
         ('shipyardsClass0', 'Shipyards Equipment')
       ON CONFLICT (name) DO NOTHING;
 
@@ -573,7 +569,7 @@ export const connectDB = async (): Promise<void> => {
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'port')
         WHERE name = 'class0';
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'computer')
-        WHERE name IN ('knownUniverse', 'shipCatalog', 'planetSpecs', 'autopilotPrompt');
+        WHERE name IN ('knownUniverse', 'autopilotPrompt');
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'autopilotPrompt')
         WHERE name = 'autopilot';
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'sector')
@@ -583,7 +579,7 @@ export const connectDB = async (): Promise<void> => {
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'starbase')
         WHERE name IN ('starbaseHardware', 'shipyards');
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'shipyards')
-        WHERE name IN ('shipyardsBuy', 'shipyardsExamine', 'shipyardsClass0');
+        WHERE name = 'shipyardsClass0';
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'sector')
         WHERE name = 'planetSelect';
 
@@ -594,7 +590,6 @@ export const connectDB = async (): Promise<void> => {
         ('players_online', 'Players online'),
         ('confirm_yes', 'Yes'),
         ('confirm_no', 'No'),
-        ('view_detail', 'View detail'),
         -- Sector commands
         ('move', 'Move to sector'),
         ('display_sector', 'Display sector'),
@@ -757,8 +752,8 @@ export const connectDB = async (): Promise<void> => {
       INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
         ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='known_universe'), 'k', 'Known Universe',NULL, (SELECT id FROM menu WHERE name='knownUniverse'), 10),
         ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='trader_list'), 'l', 'List Traders',NULL, NULL, 20),
-        ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='ship_catalog'), 'c', 'Ship Catalog',NULL, (SELECT id FROM menu WHERE name='shipCatalog'), 30),
-        ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='planet_specs'), 'j', 'Planetary Specs',NULL, (SELECT id FROM menu WHERE name='planetSpecs'), 40),
+        ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='ship_catalog'), 'c', 'Ship Catalog',NULL, NULL, 30),
+        ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='planet_specs'), 'j', 'Planetary Specs',NULL, NULL, 40),
         ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='current_ship_specs'), ';', 'Current Ship',NULL, NULL, 50),
         ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='help_menu'), '?', 'Help',NULL, NULL, 55),
         ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='back'), 'q', 'Exit Computer',NULL, (SELECT id FROM menu WHERE name='sector'), 60)
@@ -771,17 +766,11 @@ export const connectDB = async (): Promise<void> => {
         ((SELECT id FROM menu WHERE name='knownUniverse'), (SELECT id FROM command WHERE name='back'), 'q', 'Back',NULL, (SELECT id FROM menu WHERE name='computer'), 30)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
-      -- === ShipCatalog ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='shipCatalog'), (SELECT id FROM command WHERE name='view_detail'), '<letter>', 'View ship detail',NULL, NULL, 10),
-        ((SELECT id FROM menu WHERE name='shipCatalog'), (SELECT id FROM command WHERE name='back'), 'q', 'Back',NULL, (SELECT id FROM menu WHERE name='computer'), 20)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
-
-      -- === PlanetSpecs ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='planetSpecs'), (SELECT id FROM command WHERE name='view_detail'), '<letter>', 'View planet detail',NULL, NULL, 10),
-        ((SELECT id FROM menu WHERE name='planetSpecs'), (SELECT id FROM command WHERE name='back'), 'q', 'Back',NULL, (SELECT id FROM menu WHERE name='computer'), 20)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
+      -- ShipCatalog and PlanetSpecs are fully client-driven viewers — no
+      -- server menu state. The 'c' / 'j' computer commands run inline
+      -- routines (computer-routines.ts:ship_catalog/planet_specs) that
+      -- render the cached catalog list, askChar for a letter, and render
+      -- the detail locally. No envelopes, no menu_command rows.
 
       -- === Planet ===
       -- Planet's T and L route to fully client-side routines that ask
@@ -836,28 +825,20 @@ export const connectDB = async (): Promise<void> => {
 
       -- === Shipyards ===
       INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='shipyards'), (SELECT id FROM command WHERE name='buy_ship'), 'b', 'Buy a new ship', NULL, (SELECT id FROM menu WHERE name='shipyardsBuy'), 10),
-        ((SELECT id FROM menu WHERE name='shipyards'), (SELECT id FROM command WHERE name='examine_ships'), 'e', 'Examine ship specs', NULL, (SELECT id FROM menu WHERE name='shipyardsExamine'), 20),
+        ((SELECT id FROM menu WHERE name='shipyards'), (SELECT id FROM command WHERE name='buy_ship'), 'b', 'Buy a new ship', NULL, NULL, 10),
+        ((SELECT id FROM menu WHERE name='shipyards'), (SELECT id FROM command WHERE name='examine_ships'), 'e', 'Examine ship specs', NULL, NULL, 20),
         ((SELECT id FROM menu WHERE name='shipyards'), (SELECT id FROM command WHERE name='shipyards_equipment'), 'p', 'Purchase equipment', NULL, (SELECT id FROM menu WHERE name='shipyardsClass0'), 30),
         ((SELECT id FROM menu WHERE name='shipyards'), (SELECT id FROM command WHERE name='help_menu'), '?', 'Help', NULL, NULL, 35),
         ((SELECT id FROM menu WHERE name='shipyards'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', NULL, (SELECT id FROM menu WHERE name='starbase'), 40)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
-      -- === Shipyards Buy ===
-      -- '<letter>' picks a ship; the view_detail routine asks Y/N inline
-      -- (askConfirm) before sending Buy{ShipTradein,ShipNew}. The
-      -- shipyardsTradein menu is gone — confirm is a sub-prompt of the
-      -- routine, not a separate menu.
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='shipyardsBuy'), (SELECT id FROM command WHERE name='view_detail'), '<letter>', 'Select ship', NULL, NULL, 10),
-        ((SELECT id FROM menu WHERE name='shipyardsBuy'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', NULL, (SELECT id FROM menu WHERE name='shipyards'), 20)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
-
-      -- === Shipyards Examine ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, client_msg_type, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='shipyardsExamine'), (SELECT id FROM command WHERE name='view_detail'), '<letter>', 'View ship detail', NULL, NULL, 10),
-        ((SELECT id FROM menu WHERE name='shipyardsExamine'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', NULL, (SELECT id FROM menu WHERE name='shipyards'), 20)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
+      -- ShipyardsBuy and ShipyardsExamine are fully client-driven viewers —
+      -- no server menu state. The 'b' / 'e' shipyards commands run inline
+      -- routines (shipyards-routines.ts:buy_ship/examine_ships) that render
+      -- the cached ship list, askChar for a letter, and either show the
+      -- detail (examine) or askConfirm tradein and send the one Buy*
+      -- envelope (buy). The shipyardsTradein menu is gone too — confirm is
+      -- a sub-prompt of the routine, not a separate menu.
 
       -- === Shipyards Class 0 ===
       -- a/b/c share the same chooseClass0 client routine as in-port
