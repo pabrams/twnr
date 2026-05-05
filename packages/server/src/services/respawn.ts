@@ -46,8 +46,7 @@ export async function tryRespawnPlayer(playerId: number): Promise<RespawnOutcome
     if (!row || !row.ship_destroyed_date) return { kind: 'no-respawn' };
 
     const delaySecs = row.respawn_delay_seconds ?? universeConfig.respawnDelaySeconds;
-    const elapsedSecs =
-        (Date.now() - new Date(row.ship_destroyed_date).getTime()) / 1000;
+    const elapsedSecs = (Date.now() - new Date(row.ship_destroyed_date).getTime()) / 1000;
     if (elapsedSecs < delaySecs) {
         return { kind: 'wait', remainingSeconds: Math.ceil(delaySecs - elapsedSecs) };
     }

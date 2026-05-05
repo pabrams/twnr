@@ -109,10 +109,7 @@ export async function markPlayerShipDestroyed(
  * planet-collisions, etc.) should call this rather than the two helpers
  * separately so the destruction transition stays in one place.
  */
-export async function destroyShipRecord(
-    playerId: number,
-    db: Queryable = pool,
-): Promise<void> {
+export async function destroyShipRecord(playerId: number, db: Queryable = pool): Promise<void> {
     await deleteShipByOwner(playerId, db);
     await markPlayerShipDestroyed(playerId, db);
 }
