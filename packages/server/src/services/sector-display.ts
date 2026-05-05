@@ -35,16 +35,17 @@ export async function buildSectorDisplayData(playerId: number, sectorNumber?: nu
             getSectorDbId(sector, universeId),
         ]);
 
-    const sectorMines = sectorDbId !== undefined
-        ? (await getSectorMines(sectorDbId))
-              .filter((m) => m.quantity > 0)
-              .filter((m) => m.mine_type !== 'seeker' || m.owner_player_id === playerId)
-              .map((m) => ({
-                  mineType: m.mine_type,
-                  quantity: m.quantity,
-                  own: m.owner_player_id === playerId,
-              }))
-        : [];
+    const sectorMines =
+        sectorDbId !== undefined
+            ? (await getSectorMines(sectorDbId))
+                  .filter((m) => m.quantity > 0)
+                  .filter((m) => m.mine_type !== 'seeker' || m.owner_player_id === playerId)
+                  .map((m) => ({
+                      mineType: m.mine_type,
+                      quantity: m.quantity,
+                      own: m.owner_player_id === playerId,
+                  }))
+            : [];
 
     const playersInSector = Object.entries(players)
         .filter(

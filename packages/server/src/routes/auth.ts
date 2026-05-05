@@ -10,11 +10,7 @@ import {
     createUser,
     getUserByEmail,
 } from '../db/queries/user.js';
-import {
-    insertPlayer,
-    setPlayerShipId,
-    markSectorVisited,
-} from '../db/queries/player.js';
+import { insertPlayer, setPlayerShipId, markSectorVisited } from '../db/queries/player.js';
 import { getSectorDbId } from '../db/queries/sector.js';
 import { getStartingShipTypeByName, insertStartingShip } from '../db/queries/ship.js';
 import { getFirstUniverseId, getUniverseEditDefaults } from '../db/queries/universe.js';

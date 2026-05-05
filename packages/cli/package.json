@@ -1,0 +1,23 @@
+{
+    "name": "@twnr/cli",
+    "version": "0.0.1",
+    "type": "module",
+    "main": "./dist/index.js",
+    "bin": {
+        "twnr": "./dist/index.js"
+    },
+    "dependencies": {
+        "@twnr/shared": "workspace:*",
+        "ws": "^8.18.1"
+    },
+    "devDependencies": {
+        "@types/node": "^22.0.0",
+        "@types/ws": "^8.18.0",
+        "typescript": "^5.0.0"
+    },
+    "scripts": {
+        "build": "tsc",
+        "start": "node ./dist/index.js",
+        "dev": "tsx watch src/index.ts"
+    }
+}
