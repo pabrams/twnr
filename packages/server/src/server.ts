@@ -14,12 +14,7 @@ import { shipConfigs } from './ship-config.js';
 import { players } from './state/players.js';
 import { sendEnvelope, sendError, broadcastTo } from './state/messaging.js';
 import { handleMessage } from './handlers/message-router.js';
-import {
-    getUserTokenVersion,
-    markUserConnected,
-    isGuestUser,
-    deleteUserById,
-} from './db/queries/user.js';
+import { getUserTokenVersion, markUserConnected, isGuestUser } from './db/queries/user.js';
 import {
     getPlayerConnectInfo,
     markPlayerLoggedIn,
@@ -27,10 +22,6 @@ import {
     markSectorVisited,
     setPlayerCurrentMenu,
     logPlayerCommand,
-    deleteVisitedSectorsForPlayers,
-    clearShipIdsForPlayers,
-    deleteShipsByOwners,
-    deletePlayerById,
 } from './db/queries/player.js';
 import { countSectorsInUniverse, getStarbaseSectorNumber } from './db/queries/sector.js';
 import { tryRespawnPlayer } from './services/respawn.js';
@@ -252,19 +243,13 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             delete players[playerId];
 
             (async () => {
-                // Guest accounts are ephemeral: delete the player row, the
-                // ship, visited-sector history, and finally the user. For
-                // non-guest users we just stamp the disconnect timestamp.
+                // Guest accounts persist past WS close so a recruiter who
+                // refreshes the demo page lands back on the same character
+                // (the JWT cookie has a 7-day TTL — see auth/cookies.ts).
+                // Long-abandoned guests are reaped by `cleanupExpiredGuests`
+                // when the cron infrastructure lands.
                 try {
-                    if (await isGuestUser(userId)) {
-                        await deleteVisitedSectorsForPlayers([playerId]);
-                        await clearShipIdsForPlayers([playerId]);
-                        await deleteShipsByOwners([playerId]);
-                        await deletePlayerById(playerId);
-                        await deleteUserById(userId);
-                    } else {
-                        await markPlayerLoggedOut(playerId);
-                    }
+                    await markPlayerLoggedOut(playerId);
                 } catch (err) {
                     console.error('Disconnect cleanup error:', err);
                 }
