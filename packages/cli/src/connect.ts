@@ -15,6 +15,7 @@ function toWsUrl(host: string, universeId: number): string {
 export type ConnectOpts = {
     drainMs?: number;
     debug?: boolean;
+    pretty?: boolean;
 };
 
 /**
@@ -69,7 +70,16 @@ export async function connect(
         };
 
         ws.on('message', (data) => {
-            process.stdout.write(data.toString() + '\n');
+            const raw = data.toString();
+            if (opts.pretty) {
+                try {
+                    process.stdout.write(JSON.stringify(JSON.parse(raw), null, 2) + '\n');
+                } catch {
+                    process.stdout.write(raw + '\n');
+                }
+            } else {
+                process.stdout.write(raw + '\n');
+            }
             if (!serverReady) {
                 serverReady = true;
                 flushPending();

@@ -11,7 +11,7 @@ const USAGE = `twnr — minimal CLI client for the twnr server
 usage:
   twnr guest [--host URL]
   twnr login --email E --password P [--host URL]
-  twnr connect [--universe N] [--drain-ms N] [--debug]
+  twnr connect [--universe N] [--drain-ms N] [--debug] [--pretty]
   twnr whoami
   twnr logout
 
@@ -66,6 +66,7 @@ async function main(): Promise<void> {
                 universe: { type: 'string' },
                 'drain-ms': { type: 'string' },
                 debug: { type: 'boolean' },
+                pretty: { type: 'boolean' },
             },
         });
         const session = loadSession();
@@ -80,6 +81,7 @@ async function main(): Promise<void> {
         const exitCode = await connect(session, universeId, {
             drainMs,
             debug: values.debug,
+            pretty: values.pretty,
         });
         process.exit(exitCode);
     }
