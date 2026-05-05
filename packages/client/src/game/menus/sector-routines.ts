@@ -51,11 +51,7 @@ registerRoutine('move_menu', async (ctx) => {
     echoCommand(ctx, 'moveMenu');
     showMoveMenu(ctx);
     const allowed = warps.map((_, i) => String(i + 1));
-    const ch = await askChar(
-        ctx,
-        render(SECTOR.moveMenuPrompt, { max: warps.length }),
-        allowed,
-    );
+    const ch = await askChar(ctx, render(SECTOR.moveMenuPrompt, { max: warps.length }), allowed);
     hideMoveMenuOverlay(ctx);
     if (ch === null) return;
     const idx = parseInt(ch, 10) - 1;

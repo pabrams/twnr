@@ -99,7 +99,6 @@ export async function showShipCatalog(ctx: DisplayComputerCtx) {
         );
     });
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
-    showShipInterestPrompt(ctx);
 }
 
 /**
@@ -213,14 +212,6 @@ export function showShipDetail(ctx: DisplayComputerCtx, ship: ShipCatalogEntry) 
     }
 }
 
-/**
- * Repeat prompt shown after a ship's stats. Both the Computer ship-catalog
- * flow and the Shipyards examine flow reuse it so behavior stays consistent.
- */
-export function showShipInterestPrompt(ctx: DisplayComputerCtx) {
-    ctx.io.term.write(render(COMPUTER.shipInterestPrompt));
-}
-
 export async function showPlanetSpecs(ctx: DisplayComputerCtx) {
     if (!ctx.catalogs.planets) {
         ctx.io.term.writeln(render(COMPUTER.planetSpecsLoading));
@@ -244,11 +235,6 @@ export async function showPlanetSpecs(ctx: DisplayComputerCtx) {
         );
     });
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
-    showPlanetSpecsPrompt(ctx);
-}
-
-export function showPlanetSpecsPrompt(ctx: DisplayComputerCtx) {
-    ctx.io.term.write(render(COMPUTER.planetSpecsPrompt));
 }
 
 export function showPlanetDetail(ctx: DisplayComputerCtx, planet: PlanetConfig) {
@@ -287,7 +273,6 @@ export function showPlanetDetail(ctx: DisplayComputerCtx, planet: PlanetConfig) 
             value: planet.equipmentProduction,
         }),
     );
-    showPlanetSpecsPrompt(ctx);
 }
 
 export async function showCurrentShipSpecs(ctx: DisplayComputerCtx) {
