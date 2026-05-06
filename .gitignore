@@ -9,3 +9,4 @@ server.log
 docs
 /.claude/worktrees/
 FOLLOWUPS.md
+/terminal-bench/
