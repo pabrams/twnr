@@ -98,23 +98,3 @@ export function class0QtyPreamble(
     term.writeln(render(PORT.class0QtyYouHaveHolds, { qty: s?.holds ?? 0 }));
     return { promptText: render(PORT.class0QtyPromptHolds, { max }), max };
 }
-
-export function showTradeQtyPrompt(
-    ctx: DisplayPortCtx,
-    commodity: string,
-    action: 'buy' | 'sell',
-    portTrading: number,
-    onBoard: number,
-    maxQty: number,
-) {
-    const infoTpl = action === 'buy' ? PORT.tradeQtyInfoBuy : PORT.tradeQtyInfoSell;
-    const promptTpl = action === 'buy' ? PORT.tradeQtyPromptBuy : PORT.tradeQtyPromptSell;
-    ctx.io.term.writeln('');
-    ctx.io.term.writeln(render(infoTpl, { portTrading, onBoard }));
-    ctx.io.term.write(render(promptTpl, { commodity, maxQty }));
-}
-
-export function showNoTradeMessage(ctx: DisplayPortCtx) {
-    ctx.io.term.writeln('');
-    ctx.io.term.writeln(render(PORT.noTrade));
-}

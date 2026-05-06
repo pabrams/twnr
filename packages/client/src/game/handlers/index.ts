@@ -47,13 +47,8 @@ const handlers: HandlerMap = {
     [ServerMsgType.PreviousSectorResult]: movement.previousSector,
 
     [ServerMsgType.DockResult]: port.dock,
-    [ServerMsgType.TradePrompt]: port.tradePrompt,
-    [ServerMsgType.TradeConfirmPrompt]: port.tradeConfirmPrompt,
-    [ServerMsgType.TradeComplete]: port.tradeComplete,
-    [ServerMsgType.TradeSkipped]: port.tradeSkipped,
     [ServerMsgType.UndockResult]: port.undock,
     [ServerMsgType.JettisonResult]: port.jettison,
-    [ServerMsgType.PortTransactionResult]: port.portTransaction,
     [ServerMsgType.DockStarbaseResult]: port.dockStarbase,
     [ServerMsgType.LeaveStarbaseResult]: port.leaveStarbase,
 

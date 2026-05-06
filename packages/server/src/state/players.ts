@@ -1,20 +1,6 @@
 import { WebSocket } from 'ws';
 import { setPlayerCurrentMenu } from '../db/queries/player.js';
 
-export interface TradeStep {
-    commodity: 'fuel' | 'organics' | 'equipment';
-    commodityLabel: string;
-    action: 'buy' | 'sell';
-    price: number;
-}
-
-export interface TradeState {
-    steps: TradeStep[];
-    stepIndex: number;
-    prompted: Set<'fuel' | 'organics' | 'equipment'>;
-    pendingQty?: number;
-}
-
 export interface Player {
     ws: WebSocket;
     sector: number;
@@ -27,7 +13,6 @@ export interface Player {
     at_starbase?: boolean;
     pendingEncounter?: { retreatSector: number };
     currentMenu: string;
-    tradeState?: TradeState;
 }
 
 /** Online-player registry. Populated on WebSocket connect, deleted on close. */

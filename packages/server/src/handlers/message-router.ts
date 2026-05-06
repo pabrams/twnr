@@ -16,8 +16,6 @@ import {
     handleDock,
     handleUndock,
     handlePortTransaction,
-    handleTradeResponse,
-    handleTradeConfirmResponse,
     handleDockStarbase,
     handleLeaveStarbase,
 } from './port.js';
@@ -97,10 +95,6 @@ export async function handleMessage(playerId: number, data: ClientCommand): Prom
             return handleDock(playerId);
         case ClientMsgType.Undock:
             return handleUndock(playerId);
-        case ClientMsgType.TradeResponse:
-            return handleTradeResponse(playerId, data.quantity);
-        case ClientMsgType.TradeConfirmResponse:
-            return handleTradeConfirmResponse(playerId, data.confirmed);
         case ClientMsgType.Jettison:
             return handleJettison(playerId);
         case ClientMsgType.Land:
