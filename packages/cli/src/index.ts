@@ -3,6 +3,7 @@ import { parseArgs } from 'node:util';
 import { loginGuest, login } from './auth.js';
 import { connect } from './connect.js';
 import { loadSession, clearSession } from './session.js';
+import { listCommands, showCommand } from './meta.js';
 
 const DEFAULT_HOST = process.env.TWNR_HOST || 'http://localhost:3000';
 
@@ -12,6 +13,7 @@ usage:
   twnr guest [--host URL]
   twnr login --email E --password P [--host URL]
   twnr connect [--universe N] [--drain-ms N] [--debug] [--pretty]
+  twnr commands [<name>]
   twnr whoami
   twnr logout
 
@@ -25,6 +27,11 @@ function die(msg: string, code = 1): never {
 }
 
 async function main(): Promise<void> {
+    process.stdout.on('error', (err: NodeJS.ErrnoException) => {
+        if (err.code === 'EPIPE') process.exit(0);
+        throw err;
+    });
+
     const [, , cmd, ...rest] = process.argv;
     if (!cmd || cmd === '-h' || cmd === '--help') {
         process.stdout.write(USAGE);
@@ -84,6 +91,22 @@ async function main(): Promise<void> {
             pretty: values.pretty,
         });
         process.exit(exitCode);
+    }
+
+    if (cmd === 'commands') {
+        const types = listCommands();
+        const target = rest[0];
+        if (!target) {
+            for (const t of types) process.stdout.write(t + '\n');
+            return;
+        }
+        if (!types.includes(target)) {
+            die(`unknown command: ${target}\n(run \`twnr commands\` to see all)`);
+        }
+        const def = showCommand(target);
+        if (!def) die(`No schema entry found for "${target}".`);
+        process.stdout.write(JSON.stringify(def, null, 2) + '\n');
+        return;
     }
 
     if (cmd === 'whoami') {
