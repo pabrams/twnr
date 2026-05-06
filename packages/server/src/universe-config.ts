@@ -19,7 +19,7 @@ export const universeConfig = {
 
     turnDelay: 10,
     turnsPerDay: 500,
-    startingTurns: 500,
+    startingTurns: 1500,
     planetCollisionLikelihood: 50,
     planetCollisionMinHours: 24,
     planetCollisionMaxHours: 24,
