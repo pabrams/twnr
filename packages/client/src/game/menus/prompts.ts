@@ -1,3 +1,4 @@
+import type { ServerMessage } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 
 /**
@@ -104,6 +105,18 @@ export async function askNumber(
         }
         return n;
     }
+}
+
+/**
+ * Wait for a server response of one of the given types after a roundtrip.
+ * Resolves with the server message when it arrives, or `null` if a
+ * server-driven menu change cancelled the wait. Routines should always
+ * check for `null` and bail.
+ */
+export function awaitResponse(ctx: PromptCtx, types: string[]): Promise<ServerMessage | null> {
+    return new Promise((resolve) => {
+        ctx.input.pendingResponse = { types: new Set(types), resolve };
+    });
 }
 
 /** Y/N confirmation. Single-keystroke. `q` cancels (returns `null`).

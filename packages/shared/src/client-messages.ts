@@ -206,16 +206,6 @@ export type VisitedSectorsCommand = {
     type: typeof ClientMsgType.VisitedSectors;
 };
 
-export type TradeResponseCommand = {
-    type: typeof ClientMsgType.TradeResponse;
-    quantity: number;
-};
-
-export type TradeConfirmResponseCommand = {
-    type: typeof ClientMsgType.TradeConfirmResponse;
-    confirmed: boolean;
-};
-
 export type DeployMineCommand = {
     type: typeof ClientMsgType.DeployMine;
     mineType: 'proximity' | 'seeker';
@@ -297,8 +287,6 @@ export type ClientCommand =
     | HyperspaceJumpCommand
     | ChangeMenuCommand
     | VisitedSectorsCommand
-    | TradeResponseCommand
-    | TradeConfirmResponseCommand
     | GetNeighborhoodCommand
     | DeployMineCommand
     | ListDeployedMinesCommand

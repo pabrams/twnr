@@ -1,4 +1,4 @@
-import { ServerMsgType, PORT_CLASS_ACTIONS, type TradeSkipReason } from '@twnr/shared';
+import { ServerMsgType, PORT_CLASS_ACTIONS } from '@twnr/shared';
 import { players, getPlayerUniverseId } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { portName } from '../domain/port-classes.js';
@@ -8,7 +8,6 @@ import { setDocked, getCurrentSector, deductCredits, addCredits } from '../db/qu
 import {
     getPortAtSector,
     getPortClassAtSector,
-    getPortInventoryAtSector,
     getPortTradeInfoForUpdate,
     decrementPortCommodity,
     getHardwarePricesForUniverse,
@@ -135,11 +134,12 @@ export async function handleDock(playerId: number): Promise<void> {
         return;
     }
 
-    // Class 1-8 dock: this DockResult is transient — the trade flow
-    // (TradePrompt) or the noTrade undock will follow on the same
-    // action. Suppress the auto-prompt so the Port menu doesn't paint
-    // between the commerce report and the next message.
-    sendEnvelope(
+    // Class 1-8 dock: client trade routine drives the per-commodity loop
+    // via askNumber/askConfirm and one PortTransaction per accepted
+    // commodity, then sends Undock. The DockResult carries the port
+    // class + prices + cargo + credits + empty holds — everything the
+    // client needs to compute steps locally.
+    await sendEnvelope(
         playerId,
         {
             type: ServerMsgType.DockResult,
@@ -149,44 +149,14 @@ export async function handleDock(playerId: number): Promise<void> {
             cargo: cargoOut,
             emptyHolds,
         },
-        undefined,
-        { suppressPrompt: true },
+        'port',
     );
-
-    // Build trade steps from port class actions
-    const actions = PORT_CLASS_ACTIONS[p.class];
-    if (!actions) {
-        await undockPlayer(playerId);
-        return;
-    }
-
-    const COMMODITIES: { key: Commodity; label: string; price: number }[] = [
-        { key: 'fuel', label: 'Fuel', price: p.fuel_price },
-        { key: 'organics', label: 'Organics', price: p.org_price },
-        { key: 'equipment', label: 'Equipment', price: p.equ_price },
-    ];
-
-    const steps: import('../state/players.js').TradeStep[] = [];
-    for (const c of COMMODITIES) {
-        const dir = actions[c.key];
-        if (!dir) continue;
-        steps.push({
-            commodity: c.key,
-            commodityLabel: c.label,
-            action: dir === 'S' ? 'buy' : 'sell',
-            price: c.price,
-        });
-    }
-
-    player.tradeState = { steps, stepIndex: 0, prompted: new Set() };
-    await advanceTradeFlow(playerId);
 }
 
-async function undockPlayer(playerId: number, tradeSkipReason?: TradeSkipReason): Promise<void> {
+async function undockPlayer(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
     player.docked = false;
-    player.tradeState = undefined;
     await setDocked(playerId, false);
     const sectorData = await buildSectorDisplayData(playerId);
     if (!sectorData) return;
@@ -196,318 +166,9 @@ async function undockPlayer(playerId: number, tradeSkipReason?: TradeSkipReason)
             type: ServerMsgType.UndockResult,
             outcome: 'success',
             ...sectorData,
-            ...(tradeSkipReason ? { tradeSkipReason } : {}),
         },
         'sector',
     );
-}
-
-async function advanceTradeFlow(playerId: number): Promise<void> {
-    const player = players[playerId];
-    if (!player?.tradeState) {
-        await undockPlayer(playerId);
-        return;
-    }
-
-    const { steps, prompted } = player.tradeState;
-
-    for (let i = 0; i < steps.length; i++) {
-        const step = steps[i];
-        if (prompted.has(step.commodity)) continue;
-
-        const [port, cargo] = await Promise.all([
-            getPortInventoryAtSector(player.sector, player.universeId),
-            getShipCargoWithCredits(playerId),
-        ]);
-        if (!port || !cargo) {
-            await undockPlayer(playerId);
-            return;
-        }
-
-        const used = cargoUsed(cargo);
-        const emptyHolds = Math.max(0, cargo.cargo_limit - used);
-        const portTrading = port[step.commodity];
-        const onBoard = cargo[step.commodity];
-        const maxQty =
-            step.action === 'buy'
-                ? Math.min(emptyHolds, portTrading)
-                : Math.min(onBoard, portTrading);
-
-        if (maxQty <= 0) continue;
-
-        player.tradeState.stepIndex = i;
-        prompted.add(step.commodity);
-        await sendEnvelope(
-            playerId,
-            {
-                type: ServerMsgType.TradePrompt,
-                commodity: step.commodity,
-                commodityLabel: step.commodityLabel,
-                action: step.action,
-                portTrading,
-                onBoard,
-                maxQty,
-                price: step.price,
-                credits: cargo.credits,
-                emptyHolds,
-            },
-            // Player's tracked menu stays at 'port' — the qty prompt is
-            // a fully client-side askNumber inside the tradePrompt
-            // handler. No tradeQty menu.
-            'port',
-        );
-        return;
-    }
-
-    // Nothing to prompt. When we never prompted anything, fold the
-    // "nothing to trade" message into the UndockResult envelope so the
-    // client doesn't render an intermediate Port prompt between
-    // TradeSkipped and UndockResult.
-    await undockPlayer(playerId, prompted.size === 0 ? 'noTrade' : undefined);
-}
-
-export async function handleTradeResponse(playerId: number, quantity: number): Promise<void> {
-    const player = players[playerId];
-    if (!player?.tradeState) {
-        sendError(playerId, 'Not in a trade flow');
-        return;
-    }
-
-    const step = player.tradeState.steps[player.tradeState.stepIndex];
-    if (!step) {
-        await advanceTradeFlow(playerId);
-        return;
-    }
-
-    if (quantity === 0) {
-        player.tradeState.stepIndex++;
-        await advanceTradeFlow(playerId);
-        return;
-    }
-
-    const [port, cargo] = await Promise.all([
-        getPortInventoryAtSector(player.sector, player.universeId),
-        getShipCargoWithCredits(playerId),
-    ]);
-    if (!port || !cargo) {
-        await undockPlayer(playerId);
-        return;
-    }
-
-    const used = cargoUsed(cargo);
-    const emptyHolds = Math.max(0, cargo.cargo_limit - used);
-    const portTrading = port[step.commodity];
-    const onBoard = cargo[step.commodity];
-    const maxQty =
-        step.action === 'buy' ? Math.min(emptyHolds, portTrading) : Math.min(onBoard, portTrading);
-
-    // -1 = accept default (maxQty)
-    const clampedQty = quantity < 0 ? maxQty : Math.min(quantity, maxQty);
-    if (clampedQty <= 0) {
-        player.tradeState.stepIndex++;
-        await advanceTradeFlow(playerId);
-        return;
-    }
-
-    const totalPrice = clampedQty * step.price;
-    player.tradeState.pendingQty = clampedQty;
-
-    await sendEnvelope(
-        playerId,
-        {
-            type: ServerMsgType.TradeConfirmPrompt,
-            commodity: step.commodity,
-            commodityLabel: step.commodityLabel,
-            action: step.action,
-            quantity: clampedQty,
-            totalPrice,
-        },
-        // Confirm is handled by the tradeConfirmPrompt client handler
-        // via askConfirm inline. No tradeConfirm menu.
-        'port',
-    );
-}
-
-export async function handleTradeConfirmResponse(
-    playerId: number,
-    confirmed: boolean,
-): Promise<void> {
-    const player = players[playerId];
-    if (!player?.tradeState) {
-        sendError(playerId, 'Not in a trade flow');
-        return;
-    }
-
-    const step = player.tradeState.steps[player.tradeState.stepIndex];
-    const qty = player.tradeState.pendingQty ?? 0;
-
-    if (!confirmed || !step || qty <= 0) {
-        player.tradeState.pendingQty = undefined;
-        player.tradeState.stepIndex++;
-        await advanceTradeFlow(playerId);
-        return;
-    }
-
-    type TradeOutcome =
-        | { kind: 'advance' }
-        | { kind: 'undock' }
-        | {
-              kind: 'skip';
-              reason:
-                  | 'insufficientTurns'
-                  | 'insufficientCredits'
-                  | 'insufficientPortInventory'
-                  | 'insufficientCargoHolds'
-                  | 'insufficientCargo'
-                  | 'portCannotBuy';
-          }
-        | {
-              kind: 'complete';
-              credits: number;
-              cargo: { fuel: number; organics: number; equipment: number; colonists: number };
-              emptyHolds: number;
-              turnsUsed?: number;
-          };
-
-    let outcome: TradeOutcome = { kind: 'advance' } as TradeOutcome;
-
-    try {
-        await withTransaction(async (client) => {
-            const currentSector = await getCurrentSector(playerId, client);
-            if (currentSector === undefined) {
-                outcome = { kind: 'advance' };
-                return;
-            }
-
-            const port = await getPortTradeInfoForUpdate(currentSector, player.universeId, client);
-            if (!port) {
-                outcome = { kind: 'undock' };
-                return;
-            }
-
-            const cargo = await getShipCargoWithCreditsForUpdate(playerId, client);
-            if (!cargo) {
-                outcome = { kind: 'undock' };
-                return;
-            }
-
-            const col = step.commodity;
-            const price = step.price;
-
-            if (step.action === 'buy') {
-                const turnResult = await checkAndDeductTurns(
-                    playerId,
-                    player.universeId,
-                    1,
-                    client,
-                );
-                if (!turnResult.allowed) {
-                    outcome = { kind: 'skip', reason: 'insufficientTurns' };
-                    return;
-                }
-
-                const cost = qty * price;
-                if (cargo.credits < cost) {
-                    outcome = { kind: 'skip', reason: 'insufficientCredits' };
-                    throw new AbortTransaction();
-                }
-                if (port[col] < qty) {
-                    outcome = { kind: 'skip', reason: 'insufficientPortInventory' };
-                    throw new AbortTransaction();
-                }
-                const used = cargoUsed(cargo);
-                if (used + qty > cargo.cargo_limit) {
-                    outcome = { kind: 'skip', reason: 'insufficientCargoHolds' };
-                    throw new AbortTransaction();
-                }
-
-                await decrementPortCommodity(port.port_id, col, qty, client);
-                await incrementShipCommodity(playerId, col, qty, client);
-                await deductCredits(playerId, cost, client);
-
-                cargo[col] += qty;
-                cargo.credits -= cost;
-                const usedAfter = cargoUsed(cargo);
-                outcome = {
-                    kind: 'complete',
-                    credits: cargo.credits,
-                    cargo: formatCargo(cargo),
-                    emptyHolds: Math.max(0, cargo.cargo_limit - usedAfter),
-                    turnsUsed: turnResult.turnsUsed,
-                };
-            } else {
-                if (cargo[col] < qty) {
-                    outcome = { kind: 'skip', reason: 'insufficientCargo' };
-                    return;
-                }
-                if (port[col] < qty) {
-                    outcome = { kind: 'skip', reason: 'portCannotBuy' };
-                    return;
-                }
-
-                const revenue = qty * price;
-                await decrementPortCommodity(port.port_id, col, qty, client);
-                await incrementShipCommodity(playerId, col, -qty, client);
-                await addCredits(playerId, revenue, client);
-
-                cargo[col] -= qty;
-                cargo.credits += revenue;
-                const usedAfter = cargoUsed(cargo);
-                outcome = {
-                    kind: 'complete',
-                    credits: cargo.credits,
-                    cargo: formatCargo(cargo),
-                    emptyHolds: Math.max(0, cargo.cargo_limit - usedAfter),
-                };
-            }
-        });
-    } catch (err) {
-        console.error('Trade error', err);
-        sendError(playerId, 'Internal server error');
-        await undockPlayer(playerId);
-        return;
-    }
-
-    switch (outcome.kind) {
-        case 'advance':
-            player.tradeState.stepIndex++;
-            await advanceTradeFlow(playerId);
-            return;
-        case 'undock':
-            await undockPlayer(playerId);
-            return;
-        case 'skip':
-            // Transient: advanceTradeFlow follows with TradePrompt or
-            // UndockResult-with-noTrade; either owns the next prompt.
-            sendEnvelope(
-                playerId,
-                { type: ServerMsgType.TradeSkipped, reason: outcome.reason },
-                undefined,
-                { suppressPrompt: true },
-            );
-            player.tradeState.pendingQty = undefined;
-            player.tradeState.stepIndex++;
-            await advanceTradeFlow(playerId);
-            return;
-        case 'complete':
-            // Same as skip — the next message in the chain owns the prompt.
-            sendEnvelope(
-                playerId,
-                {
-                    type: ServerMsgType.TradeComplete,
-                    credits: outcome.credits,
-                    cargo: outcome.cargo,
-                    emptyHolds: outcome.emptyHolds,
-                    ...(outcome.turnsUsed !== undefined ? { turnsUsed: outcome.turnsUsed } : {}),
-                },
-                undefined,
-                { suppressPrompt: true },
-            );
-            player.tradeState.pendingQty = undefined;
-            player.tradeState.stepIndex++;
-            await advanceTradeFlow(playerId);
-            return;
-    }
 }
 
 export async function handleUndock(playerId: number): Promise<void> {

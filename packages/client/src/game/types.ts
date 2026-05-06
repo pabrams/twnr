@@ -6,6 +6,7 @@ import type {
     MenuEntry,
     HardwarePriceItem,
     HardwareStoreItem,
+    ServerMessage,
     ShipCatalogEntry,
     PlanetConfig,
 } from '@twnr/shared';
@@ -84,6 +85,18 @@ export interface InputLayer {
     pendingResolver: {
         mode: 'line' | 'char';
         resolve: (input: string | null) => void;
+    } | null;
+    /**
+     * Set by `awaitResponse` while a client routine is awaiting a specific
+     * server response after a roundtrip. Connection.ts resolves this when
+     * a matching message arrives (and suppresses the auto renderPrompt for
+     * that envelope so the routine owns the next prompt). Cleared on
+     * resolve, on cancel, and on server-driven menu changes — routines
+     * should always check for `null` after the await.
+     */
+    pendingResponse: {
+        types: Set<string>;
+        resolve: (msg: ServerMessage | null) => void;
     } | null;
 }
 

@@ -32,12 +32,6 @@ export const PORT = makeDomain('PORT', {
         '[mg]You have[/mg] [by]{credits}[/by] [mg]credits and[/mg] [by]{holds}[/by] [mg]empty cargo holds.[/mg]',
 
     noTrade: "[bc]You don't have anything they want, and they don't have anything you need.[/bc]",
-    skipInsufficientTurns: '[br]Insufficient turns.[/br]',
-    skipInsufficientCredits: '[br]Insufficient credits.[/br]',
-    skipInsufficientPortInventory: '[br]Insufficient port inventory.[/br]',
-    skipInsufficientCargoHolds: '[br]Insufficient cargo holds.[/br]',
-    skipInsufficientCargo: '[br]Insufficient cargo.[/br]',
-    skipPortCannotBuy: '[br]Port cannot buy that many.[/br]',
 
     tradeQtyInfoBuy:
         '[mg]We are[/mg] [bc]selling[/bc] [mg]up to[/mg] [by]{portTrading}[/by][mg].[/mg] [mg]You have[/mg] [by]{onBoard}[/by] [mg]in your holds.[/mg]',

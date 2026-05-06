@@ -28,8 +28,7 @@ function frame(menu: MenuName, body?: ServerResult, suppressPrompt?: boolean): s
  * into one call and keeps the two side-effects atomic.
  *
  * Pass `opts.suppressPrompt: true` when the envelope is a transient
- * step in a multi-message server-driven flow (e.g. DockResult that will
- * be followed by TradePrompt or UndockResult). The client framework
+ * step in a multi-message server-driven flow. The client framework
  * then skips its auto renderPrompt, so the menu prompt doesn't paint
  * between the transient and the message that actually owns the next
  * user-facing prompt.

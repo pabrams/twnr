@@ -81,6 +81,7 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
             inFlight: false,
             inputAssembly: '',
             pendingResolver: null,
+            pendingResponse: null,
         },
         player: {
             universeId,
@@ -151,6 +152,11 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
         if (ctx.input.pendingResolver) {
             const r = ctx.input.pendingResolver;
             ctx.input.pendingResolver = null;
+            r.resolve(null);
+        }
+        if (ctx.input.pendingResponse) {
+            const r = ctx.input.pendingResponse;
+            ctx.input.pendingResponse = null;
             r.resolve(null);
         }
         ctx.input.userInputBuffer = [];

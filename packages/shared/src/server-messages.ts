@@ -393,10 +393,6 @@ export type UndockResultObject =
     | ({
           type: typeof ServerMsgType.UndockResult;
           outcome: 'success';
-          /** When the dock immediately bounced (e.g. nothing to trade), the
-           * noTrade-style message rides along on the same envelope so the
-           * client doesn't render an intermediate Port prompt. */
-          tradeSkipReason?: TradeSkipReason;
       } & SectorDisplayData)
     | { type: typeof ServerMsgType.UndockResult; outcome: 'error'; message: string };
 
@@ -456,51 +452,6 @@ export type ListPlanetsResultObject = {
         colonists_organics: number;
         colonists_equipment: number;
     }[];
-};
-
-// Server-driven trade flow
-export type TradePromptObject = {
-    type: typeof ServerMsgType.TradePrompt;
-    commodity: string;
-    commodityLabel: string;
-    action: 'buy' | 'sell';
-    portTrading: number;
-    onBoard: number;
-    maxQty: number;
-    price: number;
-    credits: number;
-    emptyHolds: number;
-};
-
-export type TradeConfirmPromptObject = {
-    type: typeof ServerMsgType.TradeConfirmPrompt;
-    commodity: string;
-    commodityLabel: string;
-    action: 'buy' | 'sell';
-    quantity: number;
-    totalPrice: number;
-};
-
-export type TradeCompleteObject = {
-    type: typeof ServerMsgType.TradeComplete;
-    credits: number;
-    cargo: { fuel: number; organics: number; equipment: number; colonists: number };
-    emptyHolds: number;
-    turnsUsed?: number;
-};
-
-export type TradeSkipReason =
-    | 'noTrade'
-    | 'insufficientTurns'
-    | 'insufficientCredits'
-    | 'insufficientPortInventory'
-    | 'insufficientCargoHolds'
-    | 'insufficientCargo'
-    | 'portCannotBuy';
-
-export type TradeSkippedObject = {
-    type: typeof ServerMsgType.TradeSkipped;
-    reason: TradeSkipReason;
 };
 
 export type PreviousSectorResultObject = {
@@ -695,10 +646,6 @@ export type ServerResult =
     | ListPlanetsResultObject
     | HyperspaceJumpResultObject
     | VisitedSectorsResultObject
-    | TradePromptObject
-    | TradeConfirmPromptObject
-    | TradeCompleteObject
-    | TradeSkippedObject
     | PreviousSectorResultObject
     | AttackMenuResultObject
     | StarbaseInfoResultObject
@@ -736,9 +683,8 @@ type WithMenu<T> = T extends unknown ? T & { menu: MenuName } : never;
  * variant. `suppressPrompt: true` tells the client framework "more
  * messages are coming on this same player action" — skip the auto
  * renderPrompt so the menu prompt doesn't paint between transient
- * envelopes (e.g. DockResult → TradePrompt, TradeComplete → next
- * TradePrompt or UndockResult). The terminal envelope in the chain
- * omits the flag and triggers the prompt as usual.
+ * envelopes. The terminal envelope in the chain omits the flag and
+ * triggers the prompt as usual.
  */
 type EnvelopeFlags = { suppressPrompt?: boolean };
 
