@@ -11,6 +11,7 @@ import {
     deleteShipById,
     type ShipTypeRow,
 } from '../db/queries/ship.js';
+import { recordCreditChange } from '../services/audit.js';
 
 function calculateShipPrice(shipType: {
     cost_drive: number;
@@ -91,6 +92,20 @@ export async function handleBuyShipTradein(
             );
             await setPlayerShipAndDeductCredits(playerId, newShipId, cost, client);
             await deleteShipById(data.ship_id, client);
+            await recordCreditChange(client, {
+                playerId,
+                actionType: 'ship_exchange',
+                delta: -cost,
+                prevCredits: data.credits,
+                newCredits: data.credits - cost,
+                context: {
+                    mode: 'tradein',
+                    fromShip: data.ship_name,
+                    toShip: targetShipName,
+                    targetPrice,
+                    currentPrice,
+                },
+            });
 
             return {
                 credits: data.credits - cost,
@@ -166,6 +181,18 @@ export async function handleBuyShipNew(playerId: number, targetShipName: string)
                 client,
             );
             await setPlayerShipAndDeductCredits(playerId, newShipId, price, client);
+            await recordCreditChange(client, {
+                playerId,
+                actionType: 'ship_exchange',
+                delta: -price,
+                prevCredits: data.credits,
+                newCredits: data.credits - price,
+                context: {
+                    mode: 'new',
+                    toShip: targetShipName,
+                    price,
+                },
+            });
 
             return {
                 credits: data.credits - price,

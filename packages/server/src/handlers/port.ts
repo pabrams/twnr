@@ -21,6 +21,7 @@ import {
 } from '../db/queries/ship.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 import { cargoUsed, formatCargo } from './cargo-utils.js';
+import { recordCreditChange } from '../services/audit.js';
 
 const EMPTY_CARGO = { fuel: 0, organics: 0, equipment: 0, colonists: 0 };
 
@@ -276,6 +277,20 @@ export async function handlePortTransaction(
                 await decrementPortCommodity(port.port_id, col, qty, client);
                 await incrementShipCommodity(playerId, col, qty, client);
                 await deductCredits(playerId, cost, client);
+                await recordCreditChange(client, {
+                    playerId,
+                    actionType: 'port_buy',
+                    delta: -cost,
+                    prevCredits: cargo.credits,
+                    newCredits: cargo.credits - cost,
+                    context: {
+                        sector: currentSector,
+                        commodity: col,
+                        qty,
+                        unitPrice: price,
+                        portClass: port.class,
+                    },
+                });
 
                 cargo[col] += qty;
                 cargo.credits -= cost;
@@ -302,6 +317,20 @@ export async function handlePortTransaction(
             await decrementPortCommodity(port.port_id, col, qty, client);
             await incrementShipCommodity(playerId, col, -qty, client);
             await addCredits(playerId, revenue, client);
+            await recordCreditChange(client, {
+                playerId,
+                actionType: 'port_sell',
+                delta: revenue,
+                prevCredits: cargo.credits,
+                newCredits: cargo.credits + revenue,
+                context: {
+                    sector: currentSector,
+                    commodity: col,
+                    qty,
+                    unitPrice: price,
+                    portClass: port.class,
+                },
+            });
 
             cargo[col] -= qty;
             cargo.credits += revenue;

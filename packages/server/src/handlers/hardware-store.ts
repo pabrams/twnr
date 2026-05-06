@@ -12,6 +12,7 @@ import {
     getHardwareStoreRows,
     type HardwareItemRow,
 } from '../db/queries/hardware.js';
+import { recordCreditChange } from '../services/audit.js';
 
 /**
  * Pre-fetch for the hardware store UI: current credits and every hardware item
@@ -116,6 +117,19 @@ async function buyStackable(
 
             await deductCredits(playerId, cost, client);
             await upsertShipHardwareQuantity(ship_id, hw.id, qty, client);
+            await recordCreditChange(client, {
+                playerId,
+                actionType: 'buy_hardware',
+                delta: -cost,
+                prevCredits: credits,
+                newCredits: credits - cost,
+                context: {
+                    item: hw.name,
+                    kind: 'stackable',
+                    qty,
+                    unitPrice,
+                },
+            });
             return { credits, current_qty };
         });
 
@@ -169,6 +183,18 @@ async function buyToggle(playerId: number, hw: HardwareItemRow, unitPrice: numbe
 
             await setShipHardwareInstalled(capacity.ship_id, hw.id, client);
             await deductCredits(playerId, unitPrice, client);
+            await recordCreditChange(client, {
+                playerId,
+                actionType: 'buy_hardware',
+                delta: -unitPrice,
+                prevCredits: credits,
+                newCredits: credits - unitPrice,
+                context: {
+                    item: hw.name,
+                    kind: 'toggle',
+                    unitPrice,
+                },
+            });
             return { credits };
         });
 

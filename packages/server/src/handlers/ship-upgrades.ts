@@ -12,6 +12,7 @@ import {
 import { getPortClassAtSector } from '../db/queries/port.js';
 import { class0Prices } from '../game-config.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
+import { recordCreditChange } from '../services/audit.js';
 
 /**
  * After a Class-0 purchase, return the player to the menu they came from:
@@ -72,6 +73,14 @@ export async function handleBuyDrones(playerId: number, quantity: number): Promi
 
             await incrementShipDrones(playerId, qty, client);
             await deductCredits(playerId, cost, client);
+            await recordCreditChange(client, {
+                playerId,
+                actionType: 'buy_drones',
+                delta: -cost,
+                prevCredits: data.credits,
+                newCredits: data.credits - cost,
+                context: { qty, unitPrice: class0Prices.dronePrice },
+            });
             return { credits: data.credits - cost, drones: data.drones + qty };
         });
 
@@ -127,6 +136,14 @@ export async function handleBuyShields(playerId: number, quantity: number): Prom
 
             await incrementShipShields(playerId, qty, client);
             await deductCredits(playerId, cost, client);
+            await recordCreditChange(client, {
+                playerId,
+                actionType: 'buy_shields',
+                delta: -cost,
+                prevCredits: data.credits,
+                newCredits: data.credits - cost,
+                context: { qty, unitPrice: class0Prices.shieldPrice },
+            });
             return { credits: data.credits - cost, shields: data.shields + qty };
         });
 
@@ -188,6 +205,14 @@ export async function handleBuyHolds(playerId: number, quantity: number): Promis
 
             await incrementShipHolds(playerId, qty, client);
             await deductCredits(playerId, cost, client);
+            await recordCreditChange(client, {
+                playerId,
+                actionType: 'buy_holds',
+                delta: -cost,
+                prevCredits: data.credits,
+                newCredits: data.credits - cost,
+                context: { qty, unitPrice: class0Prices.holdPrice },
+            });
             return {
                 credits: data.credits - cost,
                 cargoLimit: data.holds + qty,
