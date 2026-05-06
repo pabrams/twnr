@@ -339,6 +339,21 @@ export const connectDB = async (): Promise<void> => {
       CREATE INDEX IF NOT EXISTS idx_command_log_player_created
         ON command_log (player_id, created_at);
 
+      CREATE TABLE IF NOT EXISTS audit_log (
+        id           SERIAL PRIMARY KEY,
+        player_id    INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+        action_type  TEXT NOT NULL,
+        delta        INTEGER NOT NULL,
+        prev_credits INTEGER NOT NULL,
+        new_credits  INTEGER NOT NULL,
+        context      JSONB,
+        created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        hmac         TEXT NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_audit_log_player
+        ON audit_log (player_id, id);
+
       CREATE TABLE IF NOT EXISTS menu (
         id SERIAL PRIMARY KEY,
         name VARCHAR(50) UNIQUE NOT NULL,
@@ -1143,6 +1158,11 @@ export const connectDB = async (): Promise<void> => {
               END IF;
             END $$;
         `);
+
+        // Audit log is per-session: previous-session entries were signed
+        // with a key that no longer exists, so they can never verify.
+        // Drop them at boot so the verifier sees a clean slate.
+        await client.query('TRUNCATE TABLE audit_log RESTART IDENTITY');
 
         client.release();
         isConnected = true;
