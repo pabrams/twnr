@@ -1,8 +1,47 @@
 import { WebSocket } from 'ws';
-import { createInterface } from 'node:readline';
+import { createInterface, type Interface as ReadlineInterface } from 'node:readline';
 import type { Session } from './session.js';
+import { listCommands, showCommand } from './meta.js';
+
+const META_LIST = [
+    ':?               list REPL meta-commands (this list)',
+    ':help            list every server command',
+    ':help <name>     JSON schema for one server command',
+    ':quit            close the connection and exit',
+].join('\n');
+
+function handleMeta(line: string, ws: WebSocket, write: (s: string) => void): void {
+    const [verb, ...args] = line.slice(1).trim().split(/\s+/);
+    switch (verb) {
+        case '?':
+            write(META_LIST + '\n');
+            return;
+        case 'help':
+        case 'h':
+            if (!args[0]) {
+                for (const t of listCommands()) write(t + '\n');
+                return;
+            }
+            {
+                const def = showCommand(args[0]);
+                if (!def) {
+                    write(`unknown command: ${args[0]} (try :help)\n`);
+                    return;
+                }
+                write(JSON.stringify(def, null, 2) + '\n');
+            }
+            return;
+        case 'quit':
+        case 'q':
+            if (ws.readyState === WebSocket.OPEN) ws.close(1000);
+            return;
+        default:
+            write(`unknown meta: :${verb} (try :?)\n`);
+    }
+}
 
 const AUTH_COOKIE_NAME = 'twnr_auth';
+const PROMPT = 'twnr> ';
 
 function toWsUrl(host: string, universeId: number): string {
     const u = new URL(host);
@@ -20,7 +59,8 @@ export type ConnectOpts = {
 
 /**
  * Open a WS, pipe stdin → server and server → stdout (one JSON frame per line
- * each direction).
+ * each direction). When stdin is a TTY, runs in REPL mode with a prompt and
+ * a clear-line dance so async server frames don't garble the user's input.
  *
  * Two protocol-level workarounds for server lifecycle quirks:
  *
@@ -47,6 +87,22 @@ export async function connect(
         headers: { Cookie: `${AUTH_COOKIE_NAME}=${session.token}` },
     });
 
+    const isTTY = !!process.stdin.isTTY;
+    let rl: ReadlineInterface | null = null;
+
+    /** Write text that the user should see, taking care to clear the
+     * current prompt line first (TTY) and re-render the prompt + cursor
+     * after, so async frames don't garble in-progress input. */
+    const writeOut = (text: string): void => {
+        if (isTTY && rl) {
+            process.stdout.write('\r\x1b[K');
+            process.stdout.write(text);
+            rl.prompt(true);
+        } else {
+            process.stdout.write(text);
+        }
+    };
+
     return new Promise((resolve) => {
         let stdinClosed = false;
         let serverReady = false;
@@ -71,15 +127,17 @@ export async function connect(
 
         ws.on('message', (data) => {
             const raw = data.toString();
+            let formatted: string;
             if (opts.pretty) {
                 try {
-                    process.stdout.write(JSON.stringify(JSON.parse(raw), null, 2) + '\n');
+                    formatted = JSON.stringify(JSON.parse(raw), null, 2);
                 } catch {
-                    process.stdout.write(raw + '\n');
+                    formatted = raw;
                 }
             } else {
-                process.stdout.write(raw + '\n');
+                formatted = raw;
             }
+            writeOut(formatted + '\n');
             if (!serverReady) {
                 serverReady = true;
                 flushPending();
@@ -89,9 +147,10 @@ export async function connect(
 
         ws.on('close', (code, reason) => {
             if (drainTimer) clearTimeout(drainTimer);
+            if (rl) rl.close();
             const reasonStr = reason.toString();
             process.stderr.write(
-                `[ws closed] code=${code}${reasonStr ? ` reason=${reasonStr}` : ''}\n`,
+                `\n[ws closed] code=${code}${reasonStr ? ` reason=${reasonStr}` : ''}\n`,
             );
             resolve(code === 1000 ? 0 : 1);
         });
@@ -102,18 +161,37 @@ export async function connect(
 
         ws.on('open', () => {
             if (opts.debug) process.stderr.write(`[ws open]\n`);
-            const rl = createInterface({ input: process.stdin });
+            rl = createInterface({
+                input: process.stdin,
+                output: isTTY ? process.stdout : undefined,
+                prompt: isTTY ? PROMPT : '',
+                terminal: isTTY,
+            });
+            if (isTTY) rl.prompt();
+
             rl.on('line', (line) => {
                 const trimmed = line.trim();
-                if (!trimmed) return;
+                if (!trimmed) {
+                    if (isTTY && rl) rl.prompt();
+                    return;
+                }
+                if (trimmed.startsWith(':')) {
+                    handleMeta(trimmed, ws, writeOut);
+                    if (isTTY && rl) rl.prompt();
+                    return;
+                }
                 if (!serverReady) {
                     if (opts.debug) process.stderr.write(`[queue] ${trimmed}\n`);
                     pendingSends.push(trimmed);
+                    if (isTTY && rl) rl.prompt();
                     return;
                 }
                 if (ws.readyState !== WebSocket.OPEN) return;
                 if (opts.debug) process.stderr.write(`[send] ${trimmed}\n`);
                 ws.send(trimmed);
+                // No prompt here: the server's response will fire writeOut
+                // which redraws the prompt. Showing it now would just paint
+                // it twice with the response landing in between.
             });
             rl.on('close', () => {
                 if (opts.debug) process.stderr.write(`[stdin EOF; draining ${drainMs}ms]\n`);
