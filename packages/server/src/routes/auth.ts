@@ -27,6 +27,7 @@ export function createAuthRoutes(router: Router, deps: RouteDeps, middleware: Mi
         ADMIN_API_KEY,
     } = deps;
     const { authenticateToken, loginLimiter, registerLimiter } = middleware;
+    const signupDisabled = process.env.DISABLE_SIGNUP === '1';
 
     router.post(
         '/api/auth/logout',
@@ -44,6 +45,7 @@ export function createAuthRoutes(router: Router, deps: RouteDeps, middleware: Mi
         '/api/auth/register',
         registerLimiter,
         asyncHandler(async (req, res) => {
+            if (signupDisabled) throw new HttpError(403, 'Signup is disabled');
             const { name, email, password } = req.body;
             if (!name || !email || !password) {
                 throw new HttpError(400, 'name, email and password are required');
@@ -93,6 +95,7 @@ export function createAuthRoutes(router: Router, deps: RouteDeps, middleware: Mi
         '/api/auth/guest',
         registerLimiter,
         asyncHandler(async (_req, res) => {
+            if (signupDisabled) throw new HttpError(403, 'Signup is disabled');
             const suffix = randomBytes(4).toString('hex');
             const guestName = `Guest_${suffix}`;
             const guestEmail = `guest-${suffix}@guest.local`;
