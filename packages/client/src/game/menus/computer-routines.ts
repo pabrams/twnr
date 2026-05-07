@@ -1,4 +1,4 @@
-import { ClientMsgType, Menu } from '@twnr/shared';
+import { ClientMsgType, ServerMsgType } from '@twnr/shared';
 import { render } from '../renderer.js';
 import { COMPUTER, NOTIFY } from '../messages/index.js';
 import { echoCommand } from '../display.js';
@@ -9,23 +9,37 @@ import {
     showPlanetSpecs,
     showPlanetDetail,
     showTraderList,
-    showExploredSectors,
-    showUnexploredSectors,
+    renderVisitedSectorsResult,
 } from '../display-computer.js';
 import { indexToLetter, letterToIndex } from '../display-starbase.js';
 import { registerRoutine } from './types.js';
-import { askChar, askNumber } from './prompts.js';
+import { askChar, askNumber, awaitResponse } from './prompts.js';
 
 /**
- * Routines for the computer menu and its known-universe submenu. Most
- * commands are pure transitions or fire-and-forget messages; a couple
- * are local renderers (trader list, current-ship specs, explored /
- * unexplored sector listings) that run entirely client-side from
- * cached state. `back` and `help_menu` come from common-routines.ts.
+ * Routines for the computer menu. Most commands are pure transitions or
+ * fire-and-forget messages; a couple are local renderers (trader list,
+ * current-ship specs, known-universe sector listings) that run entirely
+ * client-side from cached state. `back` and `help_menu` come from
+ * common-routines.ts.
  */
 
-registerRoutine('known_universe', (ctx) => {
-    ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.KnownUniverse });
+// Known Universe: askChar between explored/unexplored, send VisitedSectors
+// per pick, render the response inline. Server has no menu state for this —
+// the player remains in the computer menu the whole time.
+registerRoutine('known_universe', async (ctx) => {
+    while (true) {
+        const ch = await askChar(ctx, render(COMPUTER.knownUniversePrompt), ['e', 'u']);
+        if (ch === null) return;
+        const mode = ch === 'e' ? 'explored' : 'unexplored';
+        ctx.io.sendMsg({ type: ClientMsgType.VisitedSectors });
+        const response = await awaitResponse(ctx, [
+            ServerMsgType.VisitedSectorsResult,
+            ServerMsgType.Error,
+        ]);
+        if (response === null) return;
+        if (response.type !== ServerMsgType.VisitedSectorsResult) return;
+        renderVisitedSectorsResult(ctx, response, mode);
+    }
 });
 
 registerRoutine('trader_list', (ctx) => {
@@ -102,12 +116,4 @@ registerRoutine('list_planets', (ctx) => {
 
 registerRoutine('track_seeker_mines', (ctx) => {
     ctx.io.sendMsg({ type: ClientMsgType.TrackSeekerMines });
-});
-
-registerRoutine('explored_sectors', (ctx) => {
-    showExploredSectors(ctx);
-});
-
-registerRoutine('unexplored_sectors', (ctx) => {
-    showUnexploredSectors(ctx);
 });

@@ -1,6 +1,6 @@
-import { ClientMsgType, Menu } from '@twnr/shared';
+import { ClientMsgType, Menu, ServerMsgType } from '@twnr/shared';
 import { render } from '../renderer.js';
-import { NOTIFY, SECTOR } from '../messages/index.js';
+import { EVENT, NOTIFY, SECTOR, STARBASE } from '../messages/index.js';
 import {
     echoCommand,
     hideMoveMenuOverlay,
@@ -8,8 +8,9 @@ import {
     showPortMenu,
     showPlayerInfo,
 } from '../display.js';
+import { showPlanetSelectMenu } from '../display-starbase.js';
 import { registerRoutine } from './types.js';
-import { askChar, askConfirm, askNumber } from './prompts.js';
+import { askChar, askConfirm, askNumber, awaitResponse } from './prompts.js';
 
 /**
  * Sector menu routines. The sector menu file (`menus/sector.ts`) no longer
@@ -133,9 +134,35 @@ registerRoutine('mine_disruptor_menu', async (ctx) => {
     ctx.io.sendMsg({ type: ClientMsgType.MineDisruptor, targetSector: target });
 });
 
-registerRoutine('land', (ctx) => {
+// Land: ask the server for the sector's planet list, then handle the
+// selection inline. The server treats the player as still in 'sector' for
+// the whole flow — there is no planetSelect menu. If the sector has exactly
+// one planet (Earth in sector 1), the server skips LandResult and replies
+// with LandOnPlanetResult directly; awaitResponse sees the menu change to
+// planet/planetEarth and resolves null, letting the global handler render.
+registerRoutine('land', async (ctx) => {
     echoCommand(ctx, 'land');
     ctx.io.sendMsg({ type: ClientMsgType.Land });
+    const response = await awaitResponse(ctx, [
+        ServerMsgType.LandResult,
+        ServerMsgType.LandOnPlanetResult,
+        ServerMsgType.Error,
+    ]);
+    if (response === null) return;
+    if (response.type !== ServerMsgType.LandResult) return;
+    const planets = response.planets;
+    if (planets.length === 0) {
+        ctx.io.term.writeln(render(EVENT.noPlanetsToLand));
+        return;
+    }
+    showPlanetSelectMenu(ctx, planets);
+    const idx = await askNumber(ctx, render(STARBASE.planetSelectPrompt), {
+        min: 1,
+        max: planets.length,
+    });
+    if (idx === null) return;
+    echoCommand(ctx, 'landOnPlanet');
+    ctx.io.sendMsg({ type: ClientMsgType.LandOnPlanet, planetId: planets[idx - 1].id });
 });
 
 registerRoutine('use_terraform_device', (ctx) => {

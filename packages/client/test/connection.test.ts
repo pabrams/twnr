@@ -51,7 +51,6 @@ vi.mock('../src/game/display-starbase.js', () => ({
 vi.mock('../src/game/display-computer.js', () => ({
     renderVisitedSectorsResult: vi.fn(),
     showComputerPrompt: vi.fn(),
-    showKnownUniverseMenu: vi.fn(),
     showShipCatalog: vi.fn(),
     showPlanetSpecs: vi.fn(),
     showPlanetSpecsPrompt: vi.fn(),
@@ -148,9 +147,7 @@ function createMockCtx(overrides: { autopilot?: Partial<GameContext['autopilot']
             hardwareStoreCredits: 0,
             hardwareStoreItems: [],
         },
-        minimap: {
-            knownUniverseMode: 'explored',
-        },
+        minimap: {},
         pendingMenuArgs: null,
     };
 }

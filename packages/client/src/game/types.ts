@@ -168,7 +168,6 @@ export interface StarbaseSession {
 
 export interface MinimapView {
     handle?: Minimap;
-    knownUniverseMode: 'explored' | 'unexplored';
 }
 
 /**
@@ -177,17 +176,12 @@ export interface MinimapView {
  * `renderPrompt`/`input` reads via `consumeMenuArgs`. Discriminated by
  * destination menu so each side's typing stays honest.
  */
-export type MenuArgs =
-    | {
-          menu: typeof Menu.PlanetSelect;
-          planets: { id: number; name: string; type: string }[];
-      }
-    | {
-          menu: typeof Menu.AutopilotPrompt;
-          path: { sector: number; visited: boolean }[];
-          hops: number;
-          turns: number;
-      };
+export type MenuArgs = {
+    menu: typeof Menu.AutopilotPrompt;
+    path: { sector: number; visited: boolean }[];
+    hops: number;
+    turns: number;
+};
 
 export interface GameContext {
     io: IO;
