@@ -559,9 +559,6 @@ export const connectDB = async (): Promise<void> => {
         ('sector', 'Sector'),
         ('port', 'Port'),
         ('class0', 'Class 0 Port'),
-        ('help', 'Help'),
-        ('shipInfo', 'Ship Info'),
-        ('playerInfo', 'Player Info'),
         ('attack', 'Attack'),
         ('computer', 'Computer'),
         ('knownUniverse', 'Known Universe'),
@@ -579,7 +576,7 @@ export const connectDB = async (): Promise<void> => {
 
       -- Set parent menu relationships
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'sector')
-        WHERE name IN ('port', 'help', 'shipInfo', 'playerInfo', 'attack', 'computer', 'planet');
+        WHERE name IN ('port', 'attack', 'computer', 'planet');
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'port')
         WHERE name = 'class0';
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'computer')
@@ -702,8 +699,8 @@ export const connectDB = async (): Promise<void> => {
         ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='move_previous'), '<', 'Previous sector', NULL, 15),
         ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='move_menu'), 'm', 'Move to adjacent sector', NULL, 25),
         ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='port_menu'), 'p', 'Port', (SELECT id FROM menu WHERE name='port'), 30),
-        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='player_info'), 'i', 'Player info', (SELECT id FROM menu WHERE name='playerInfo'), 40),
-        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='help_menu'), '?', 'Help', (SELECT id FROM menu WHERE name='help'), 50),
+        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='player_info'), 'i', 'Player info', NULL, 40),
+        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='help_menu'), '?', 'Help', NULL, 50),
         ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='attack_menu'), 'a', 'Attack', (SELECT id FROM menu WHERE name='attack'), 60),
         ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='computer_menu'), 'c', 'Computer', (SELECT id FROM menu WHERE name='computer'), 70),
         ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='deploy_drones_info'), 'd', 'Deploy drones', NULL, 80),
@@ -736,21 +733,6 @@ export const connectDB = async (): Promise<void> => {
         ((SELECT id FROM menu WHERE name='class0'), (SELECT id FROM command WHERE name='choose_shields'), 'c', 'Shield Points', NULL, 30),
         ((SELECT id FROM menu WHERE name='class0'), (SELECT id FROM command WHERE name='leave_port'), 'q', 'Quit, nevermind', NULL, 40),
         ((SELECT id FROM menu WHERE name='class0'), (SELECT id FROM command WHERE name='help_menu'), '?', 'Help', NULL, 50)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
-
-      -- === Help ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='help'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', (SELECT id FROM menu WHERE name='sector'), 10)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
-
-      -- === ShipInfo ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='shipInfo'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', (SELECT id FROM menu WHERE name='sector'), 10)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
-
-      -- === PlayerInfo ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='playerInfo'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', (SELECT id FROM menu WHERE name='sector'), 10)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === Attack ===
