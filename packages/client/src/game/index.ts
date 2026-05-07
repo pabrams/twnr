@@ -130,9 +130,7 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
             hardwareStoreCredits: 0,
             hardwareStoreItems: [],
         },
-        minimap: {
-            knownUniverseMode: 'explored',
-        },
+        minimap: {},
         pendingMenuArgs: null,
         connection: {
             disconnected: false,

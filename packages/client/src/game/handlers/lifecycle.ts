@@ -5,7 +5,7 @@ import { NOTIFY, PANEL } from '../messages/index.js';
 import { type DisplayCtx } from '../display.js';
 import { type DisplayPortCtx } from '../display-port.js';
 import { type DisplayStarbaseCtx } from '../display-starbase.js';
-import { renderVisitedSectorsResult, type DisplayComputerCtx } from '../display-computer.js';
+import { type DisplayComputerCtx } from '../display-computer.js';
 import type { Handler } from './index.js';
 import { fmt, formatDuration, refreshMinimap, type RefreshMinimapDeps } from './utils.js';
 
@@ -63,10 +63,6 @@ export const playersOnline: Handler<'playersOnlineResult', LifecycleDeps> = (ctx
         const suffix = p.id === ctx.player.id ? render(PANEL.playersOnlineYouTag) : '';
         ctx.io.term.writeln(render(PANEL.playersOnlineRow, { name: p.name, suffix }));
     }
-};
-
-export const visitedSectors: Handler<'visitedSectorsResult', LifecycleDeps> = (ctx, msg) => {
-    renderVisitedSectorsResult(ctx, msg);
 };
 
 export const neighborhood: Handler<'neighborhoodResult', LifecycleDeps> = (ctx, msg) => {

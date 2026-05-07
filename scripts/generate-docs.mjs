@@ -123,7 +123,7 @@ const clientInputMap = {
     AttackSectorDrones:  [{ mode: 'droneAttackQty', key: Q }],
     RetreatFromDrones:   [{ mode: 'droneEncounter', key: 'r' }],
     UseTerraformDevice:  [{ mode: 'sector', key: 'u' }],
-    LandOnPlanet:        [{ mode: 'planetSelect', key: N }],
+    LandOnPlanet:        [{ mode: 'sector', key: N }],
     PlanetDisplay:       [{ mode: 'planet', key: 'd' }],
     DestroyPlanet:       [{ mode: 'planet', key: 'z' }],
     LeavePlanet:         [{ mode: 'planet', key: 'q' }, { mode: 'planetEarth', key: 'q' }],
@@ -148,7 +148,7 @@ const clientInputMap = {
     ListPlanets:         [{ mode: 'computer', key: 'y' }],
     HyperspaceJump:      [{ mode: 'hyperspaceJumpTarget', key: N }],
     ChangeMenu:          [],  // internal message, no direct UI
-    VisitedSectors:      [{ mode: 'knownUniverse', key: 'e' }, { mode: 'knownUniverse', key: 'u' }],
+    VisitedSectors:      [{ mode: 'computer', key: 'k' }],
 };
 
 // --- 4. Build the mapping table rows ---

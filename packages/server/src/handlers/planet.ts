@@ -56,11 +56,9 @@ export async function handleLand(playerId: number): Promise<void> {
 
     const planets = await getPlanetsInSector(player.sector, player.universeId);
 
-    await sendEnvelope(
-        playerId,
-        { type: ServerMsgType.LandResult, planets },
-        planets.length > 0 ? 'planetSelect' : undefined,
-    );
+    // No menu transition: the client routine handles selection inline within
+    // the sector menu. Server treats the player as still in 'sector'.
+    await sendEnvelope(playerId, { type: ServerMsgType.LandResult, planets });
 }
 
 export async function handleLandOnPlanet(playerId: number, planetId: number): Promise<void> {

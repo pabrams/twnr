@@ -561,14 +561,12 @@ export const connectDB = async (): Promise<void> => {
         ('class0', 'Class 0 Port'),
         ('attack', 'Attack'),
         ('computer', 'Computer'),
-        ('knownUniverse', 'Known Universe'),
         ('autopilotPrompt', 'Autopilot Prompt'),
         ('autopilot', 'Autopilot'),
         ('planet', 'Planet'),
         ('droneEncounter', 'Drone Encounter'),
         ('starbase', 'Starbase'),
         ('starbaseHardware', 'Hardware Store'),
-        ('planetSelect', 'Select Planet'),
         ('planetEarth', 'Earth'),
         ('shipyards', 'Shipyards'),
         ('shipyardsClass0', 'Shipyards Equipment')
@@ -580,7 +578,7 @@ export const connectDB = async (): Promise<void> => {
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'port')
         WHERE name = 'class0';
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'computer')
-        WHERE name IN ('knownUniverse', 'autopilotPrompt');
+        WHERE name = 'autopilotPrompt';
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'autopilotPrompt')
         WHERE name = 'autopilot';
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'sector')
@@ -591,8 +589,6 @@ export const connectDB = async (): Promise<void> => {
         WHERE name IN ('starbaseHardware', 'shipyards');
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'shipyards')
         WHERE name = 'shipyardsClass0';
-      UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'sector')
-        WHERE name = 'planetSelect';
 
       -- Seed commands (abstract identities, reusable across menus)
       INSERT INTO command (name, label) VALUES
@@ -633,9 +629,6 @@ export const connectDB = async (): Promise<void> => {
         ('ship_catalog', 'Ship Catalog'),
         ('planet_specs', 'Planetary Specs'),
         ('current_ship_specs', 'Current Ship'),
-        -- KnownUniverse commands
-        ('explored_sectors', 'Explored sectors'),
-        ('unexplored_sectors', 'Unexplored sectors'),
         -- Planet commands
         ('take_colonists', 'Take colonists'),
         ('leave_colonists', 'Leave colonists'),
@@ -662,7 +655,6 @@ export const connectDB = async (): Promise<void> => {
         ('buy_recon_drones', 'Buy Recon Drones'),
         ('list_deployed_drones', 'List Deployed Drones'),
         -- Planet commands
-        ('select_planet', 'Select planet'),
         ('destroy_planet', 'Destroy Planet'),
         ('use_terraform_device', 'Terraform'),
         ('planet_display', 'Planet Info'),
@@ -746,20 +738,13 @@ export const connectDB = async (): Promise<void> => {
 
       -- === Computer ===
       INSERT INTO menu_command (menu_id, command_id, key_pattern, label, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='known_universe'), 'k', 'Known Universe', (SELECT id FROM menu WHERE name='knownUniverse'), 10),
+        ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='known_universe'), 'k', 'Known Universe', NULL, 10),
         ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='trader_list'), 'l', 'List Traders', NULL, 20),
         ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='ship_catalog'), 'c', 'Ship Catalog', NULL, 30),
         ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='planet_specs'), 'j', 'Planetary Specs', NULL, 40),
         ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='current_ship_specs'), ';', 'Current Ship', NULL, 50),
         ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='help_menu'), '?', 'Help', NULL, 55),
         ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='back'), 'q', 'Exit Computer', (SELECT id FROM menu WHERE name='sector'), 60)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
-
-      -- === KnownUniverse ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='knownUniverse'), (SELECT id FROM command WHERE name='explored_sectors'), 'e', 'Explored sectors', NULL, 10),
-        ((SELECT id FROM menu WHERE name='knownUniverse'), (SELECT id FROM command WHERE name='unexplored_sectors'), 'u', 'Unexplored sectors', NULL, 20),
-        ((SELECT id FROM menu WHERE name='knownUniverse'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', (SELECT id FROM menu WHERE name='computer'), 30)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- ShipCatalog and PlanetSpecs are fully client-driven viewers — no
@@ -845,12 +830,6 @@ export const connectDB = async (): Promise<void> => {
         ((SELECT id FROM menu WHERE name='shipyardsClass0'), (SELECT id FROM command WHERE name='choose_shields'), 'c', 'Shield Points', NULL, 30),
         ((SELECT id FROM menu WHERE name='shipyardsClass0'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', (SELECT id FROM menu WHERE name='shipyards'), 40),
         ((SELECT id FROM menu WHERE name='shipyardsClass0'), (SELECT id FROM command WHERE name='help_menu'), '?', 'Help', NULL, 50)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
-
-      -- === Planet Select (after Land command) ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='planetSelect'), (SELECT id FROM command WHERE name='select_planet'), '<number>', 'Select planet', NULL, 10),
-        ((SELECT id FROM menu WHERE name='planetSelect'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', (SELECT id FROM menu WHERE name='sector'), 20)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === Computer: hyperspace jump, deployed drones, list planets ===

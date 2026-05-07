@@ -1,4 +1,4 @@
-import { ClientMsgType, Menu } from '@twnr/shared';
+import { ClientMsgType } from '@twnr/shared';
 import type { ShipCatalogEntry, PlanetConfig } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { render } from './renderer.js';
@@ -31,25 +31,11 @@ export function showComputerHelp(ctx: DisplayComputerCtx) {
     showComputerPrompt(ctx);
 }
 
-export function showKnownUniverseMenu(ctx: DisplayComputerCtx) {
-    ctx.io.term.write(render(COMPUTER.knownUniversePrompt));
-}
-
-export function showExploredSectors(ctx: DisplayComputerCtx) {
-    ctx.minimap.knownUniverseMode = 'explored';
-    ctx.io.sendMsg({ type: ClientMsgType.VisitedSectors });
-}
-
-export function showUnexploredSectors(ctx: DisplayComputerCtx) {
-    ctx.minimap.knownUniverseMode = 'unexplored';
-    ctx.io.sendMsg({ type: ClientMsgType.VisitedSectors });
-}
-
 export function renderVisitedSectorsResult(
     ctx: DisplayComputerCtx,
     msg: { sectors: number[]; totalSectors: number },
+    mode: 'explored' | 'unexplored',
 ) {
-    const mode = ctx.minimap.knownUniverseMode;
     const visited = new Set(msg.sectors);
     ctx.io.term.writeln('');
     if (mode === 'explored') {
@@ -68,8 +54,6 @@ export function renderVisitedSectorsResult(
             unexplored.map((s) => render(COMPUTER.unexploredSector, { n: s })).join(' '),
         );
     }
-    ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Computer });
-    showComputerPrompt(ctx);
 }
 
 async function loadShipConfigs(ctx: DisplayComputerCtx): Promise<boolean> {

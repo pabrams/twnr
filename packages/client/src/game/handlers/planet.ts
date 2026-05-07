@@ -13,7 +13,6 @@ import {
 } from '../display-planet.js';
 import { type DisplayStarbaseCtx } from '../display-starbase.js';
 import { type DisplayComputerCtx } from '../display-computer.js';
-import { setMenuArgs, type MenuArgsSlot } from '../menus/types.js';
 import type { Handler } from './index.js';
 import { fmt, refreshMinimap, type RefreshMinimapDeps } from './utils.js';
 
@@ -22,8 +21,7 @@ type PlanetDeps = Pick<GameContext, 'io' | 'input' | 'ship' | 'world'> &
     DisplayPlanetCtx &
     DisplayStarbaseCtx &
     DisplayComputerCtx &
-    RefreshMinimapDeps &
-    MenuArgsSlot;
+    RefreshMinimapDeps;
 
 export const planetInfo: Handler<'planetInfoResult', PlanetDeps> = (ctx, msg) => {
     if (msg.hasPlanet) showPlanetMenu(ctx, msg.name, msg.colonists);
@@ -70,14 +68,6 @@ export const leaveColonists: Handler<'leaveColonistsResult', PlanetDeps> = (ctx,
     // renders the sector prompt.
     if (msg.players !== undefined) {
         ctx.world.sectorPlayers = msg.players;
-    }
-};
-
-export const land: Handler<'landResult', PlanetDeps> = (ctx, msg) => {
-    if (msg.planets.length > 0) {
-        setMenuArgs(ctx, { menu: Menu.PlanetSelect, planets: msg.planets });
-    } else {
-        ctx.io.term.writeln(render(EVENT.noPlanetsToLand));
     }
 };
 
