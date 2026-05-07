@@ -76,7 +76,6 @@ export function createCatalogRoutes(router: Router, middleware: Middleware): voi
                         command: c.command_name,
                         keyPattern: c.key_pattern,
                         label: c.mc_label || c.command_label,
-                        clientMsgType: c.client_msg_type || null,
                         targetMenu: c.target_menu_id
                             ? (menuMap.get(c.target_menu_id)?.name ?? null)
                             : null,
