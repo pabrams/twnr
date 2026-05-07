@@ -130,7 +130,6 @@ export interface MenuCommandRow {
     key_pattern: string;
     label: string | null;
     mc_label: string | null;
-    client_msg_type: string | null;
     target_menu_id: number | null;
     sort_order: number;
     command_name: string;

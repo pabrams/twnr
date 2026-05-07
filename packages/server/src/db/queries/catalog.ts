@@ -37,7 +37,7 @@ export async function listMenus(db: Queryable = pool): Promise<MenuRow[]> {
 export async function listMenuCommands(db: Queryable = pool): Promise<MenuCommandRow[]> {
     const res = await db.query<MenuCommandRow>(
         `SELECT mc.menu_id, mc.command_id, mc.key_pattern, mc.label as mc_label,
-                mc.client_msg_type, mc.target_menu_id, mc.sort_order,
+                mc.target_menu_id, mc.sort_order,
                 c.name as command_name, c.label as command_label
          FROM menu_command mc
          JOIN command c ON mc.command_id = c.id

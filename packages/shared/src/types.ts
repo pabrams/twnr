@@ -142,7 +142,6 @@ export type MenuCommandEntry = {
     command: string;
     keyPattern: string;
     label: string;
-    clientMsgType: string | null;
     targetMenu: string | null;
     sortOrder: number;
 };
