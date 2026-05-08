@@ -15,12 +15,12 @@ export const NOTIFY = makeDomain('NOTIFY', {
     leavePrompt: '\r\n[y]Press [by]<Esc>[/by] to leave.[/y]',
     reconnecting: '\r\n[bc]Reconnecting...[/bc]',
     deletingGuest:
-        '\r\n[by]*** Deleting guest user [bm]{name}[/bm] — your progress will not be saved ***[/by]',
+        '\r\n[by]*** Your guest account ([bm]{name}[/bm]) may be deleted at any time ***[/by]',
 
     welcome: '\r\n[bg]Welcome, {name}.[/bg]',
     welcomeGuest:
         '\r\n[by]*** Guest demo account ***[/by]' +
-        '\r\n[y]This account and its progress will be deleted when you log out or disconnect.[/y]' +
+        '\r\n[y]This account and its progress may be deleted at any time after you log out or disconnect.[/y]' +
         '\r\n[y]Register an email account to keep your progress.[/y]',
     goodbye: '\r\n[w]Disconnecting...[/w]',
 
