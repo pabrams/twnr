@@ -168,17 +168,6 @@ export type LeaveStarbaseCommand = {
     type: typeof ClientMsgType.LeaveStarbase;
 };
 
-/**
- * Generic "go back to parent menu" command. Server reads the player's current
- * menu, looks up its parent in `menu.parent_menu_id`, runs any per-menu
- * cleanup hook (lift off planet, leave starbase, etc.), and responds with the
- * envelope for the parent menu. The wire is uniform; per-menu behavior lives
- * server-side, keyed by the menu the player is leaving.
- */
-export type BackCommand = {
-    type: typeof ClientMsgType.Back;
-};
-
 export type BuyShipNewCommand = {
     type: typeof ClientMsgType.BuyShipNew;
     targetShipName: string;
@@ -291,5 +280,4 @@ export type ClientCommand =
     | DeployMineCommand
     | ListDeployedMinesCommand
     | TrackSeekerMinesCommand
-    | MineDisruptorCommand
-    | BackCommand;
+    | MineDisruptorCommand;

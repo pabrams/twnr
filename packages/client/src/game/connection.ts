@@ -23,6 +23,9 @@ const SUB_MODE_PARENT: Record<string, string> = {
     computer: 'sector',
     attack: 'sector',
     droneEncounter: 'sector',
+    shipyards: 'starbase',
+    shipyardsClass0: 'starbase',
+    starbaseHardware: 'starbase',
 };
 
 function resolveMode(currentMode: MenuName, incomingLocation: MenuName): MenuName {

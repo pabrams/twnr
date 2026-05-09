@@ -132,6 +132,5 @@ export const ClientMsgType = {
     ListDeployedMines: 'listDeployedMines',
     TrackSeekerMines: 'trackSeekerMines',
     MineDisruptor: 'mineDisruptor',
-    Back: 'back',
 } as const;
 type ClientMsgType = typeof ClientMsgType;

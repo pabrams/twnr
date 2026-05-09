@@ -85,8 +85,6 @@ registerMenu(Menu.StarbaseHardware, {
             void buyStackable(ctx, hw.itemName, hw.label);
             return;
         }
-
-        // Mines submenu — askChar then askNumber inline. No starbaseMines menu.
         if (key === 'm') {
             void buyMines(ctx);
             return;
@@ -98,7 +96,7 @@ registerMenu(Menu.StarbaseHardware, {
         }
         if (key === 'q') {
             echoCommand(ctx, 'starbase');
-            ctx.io.sendMsg({ type: ClientMsgType.Back });
+            ctx.world.mode = Menu.Starbase;
             return;
         }
     },
