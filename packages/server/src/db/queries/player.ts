@@ -23,6 +23,53 @@ export async function getCurrentSector(
     return res.rows[0]?.sector_number;
 }
 
+export type SectorPlayerRow = {
+    id: number;
+    name: string;
+    docked: boolean;
+    on_planet_id: number | null;
+};
+
+/** Every player whose current sector matches, regardless of online status.
+ *  Caller applies the visibility predicate (planet/cloak/online-and-docked). */
+export async function listPlayersInSector(
+    sectorNumber: number,
+    universeId: number,
+    excludePlayerId: number,
+    db: Queryable = pool,
+): Promise<SectorPlayerRow[]> {
+    const res = await db.query<SectorPlayerRow>(
+        `SELECT p.id, p.name, p.docked, p.on_planet_id
+         FROM players p
+         JOIN sectors s ON p.current_sector_id = s.id
+         WHERE s.sector_number = $1 AND p.universe_id = $2 AND p.id != $3`,
+        [sectorNumber, universeId, excludePlayerId],
+    );
+    return res.rows;
+}
+
+export type AttackTargetRow = {
+    universe_id: number;
+    sector_number: number;
+    docked: boolean;
+    on_planet_id: number | null;
+};
+
+/** Sector + visibility fields for a single player by id, online or not. */
+export async function getAttackTargetInfo(
+    playerId: number,
+    db: Queryable = pool,
+): Promise<AttackTargetRow | undefined> {
+    const res = await db.query<AttackTargetRow>(
+        `SELECT p.universe_id, s.sector_number, p.docked, p.on_planet_id
+         FROM players p
+         JOIN sectors s ON p.current_sector_id = s.id
+         WHERE p.id = $1`,
+        [playerId],
+    );
+    return res.rows[0];
+}
+
 export async function getCreditsForUpdate(
     playerId: number,
     db: Queryable = pool,

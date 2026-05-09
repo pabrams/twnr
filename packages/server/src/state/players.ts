@@ -23,6 +23,21 @@ export function getPlayerUniverseId(playerId: number): number | undefined {
 }
 
 /**
+ * Visible-in-sector predicate. Hidden if on a planet, or online-and-docked.
+ * Disconnected docked players are visible — port shelter applies only while
+ * the player is actually present.
+ */
+export function isVisibleInSector(
+    playerId: number,
+    docked: boolean,
+    onPlanetId: number | null,
+): boolean {
+    if (onPlanetId !== null) return false;
+    const online = players[playerId] !== undefined;
+    return !(online && docked);
+}
+
+/**
  * Update a player's current menu in both the runtime registry and the DB
  * (so the menu survives reconnect). The DB write is awaited so callers
  * don't get stale state if they immediately query right after.

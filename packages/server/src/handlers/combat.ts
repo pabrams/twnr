@@ -1,7 +1,7 @@
 import { ServerMsgType } from '@twnr/shared';
 import type { ServerResult } from '@twnr/shared';
 
-import { players } from '../state/players.js';
+import { players, isVisibleInSector } from '../state/players.js';
 import { sendEnvelope, sendError, closeDestroyedSession } from '../state/messaging.js';
 import { withTransaction, AbortTransaction } from '../db/index.js';
 import {
@@ -11,6 +11,7 @@ import {
     setShipDronesAndShields,
     destroyShipRecord,
 } from '../db/queries/ship.js';
+import { listPlayersInSector, getAttackTargetInfo } from '../db/queries/player.js';
 
 /**
  * Player pressed 'A' in the sector menu. Returns the attack roster for the
@@ -21,15 +22,10 @@ export async function handleAttack(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
-    const roster: { id: number; name: string }[] = [];
-    for (const [idStr, p] of Object.entries(players)) {
-        const pid = Number(idStr);
-        if (pid === playerId) continue;
-        if (p.universeId !== player.universeId) continue;
-        if (p.sector !== player.sector) continue;
-        if (p.docked) continue;
-        roster.push({ id: pid, name: p.name });
-    }
+    const rows = await listPlayersInSector(player.sector, player.universeId, playerId);
+    const roster = rows
+        .filter((row) => isVisibleInSector(row.id, row.docked, row.on_planet_id))
+        .map((row) => ({ id: row.id, name: row.name }));
 
     await sendEnvelope(
         playerId,
@@ -54,22 +50,23 @@ export async function handleAttackShip(
     }
 
     const attacker = players[attackerId];
-    const target = players[targetPlayerId];
+    if (!attacker) {
+        sendError(attackerId, 'Target is not in this sector');
+        return;
+    }
 
+    const targetInfo = await getAttackTargetInfo(targetPlayerId);
     if (
-        !attacker ||
-        !target ||
-        attacker.sector !== target.sector ||
-        attacker.universeId !== target.universeId
+        !targetInfo ||
+        targetInfo.universe_id !== attacker.universeId ||
+        targetInfo.sector_number !== attacker.sector ||
+        !isVisibleInSector(targetPlayerId, targetInfo.docked, targetInfo.on_planet_id)
     ) {
         sendError(attackerId, 'Target is not in this sector');
         return;
     }
 
-    if (target.docked) {
-        sendError(attackerId, 'Target is docked at a port');
-        return;
-    }
+    const onlineTarget = players[targetPlayerId];
 
     try {
         const result = await withTransaction(async (client) => {
@@ -129,7 +126,7 @@ export async function handleAttackShip(
         };
         await sendEnvelope(attackerId, resultMsg, 'sector');
 
-        if (target.ws && target.ws.readyState === 1) {
+        if (onlineTarget?.ws && onlineTarget.ws.readyState === 1) {
             await sendEnvelope(targetPlayerId, {
                 type: ServerMsgType.AttackShipResult,
                 destroyed,
