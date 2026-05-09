@@ -555,16 +555,15 @@ export const connectDB = async (): Promise<void> => {
     `);
 
         await client.query(`
+      -- Real locations + their server-tracked sub-locations only. The
+      -- pure UI sub-modes (computer, attack, autopilotPrompt, autopilot,
+      -- droneEncounter) are managed client-side and never appear in this
+      -- table or in the wire envelope's location field.
       INSERT INTO menu (name, label) VALUES
         ('sector', 'Sector'),
         ('port', 'Port'),
         ('class0', 'Class 0 Port'),
-        ('attack', 'Attack'),
-        ('computer', 'Computer'),
-        ('autopilotPrompt', 'Autopilot Prompt'),
-        ('autopilot', 'Autopilot'),
         ('planet', 'Planet'),
-        ('droneEncounter', 'Drone Encounter'),
         ('starbase', 'Starbase'),
         ('starbaseHardware', 'Hardware Store'),
         ('planetEarth', 'Earth'),
@@ -574,13 +573,9 @@ export const connectDB = async (): Promise<void> => {
 
       -- Set parent menu relationships
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'sector')
-        WHERE name IN ('port', 'attack', 'computer', 'planet');
+        WHERE name IN ('port', 'planet');
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'port')
         WHERE name = 'class0';
-      UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'computer')
-        WHERE name = 'autopilotPrompt';
-      UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'autopilotPrompt')
-        WHERE name = 'autopilot';
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'sector')
         WHERE name = 'planetEarth';
       UPDATE menu SET parent_menu_id = (SELECT id FROM menu WHERE name = 'sector')

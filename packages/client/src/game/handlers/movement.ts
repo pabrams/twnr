@@ -1,4 +1,4 @@
-import { ClientMsgType } from '@twnr/shared';
+import { ClientMsgType, Menu } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { NOTIFY, EVENT, SECTOR } from '../messages/index.js';
@@ -72,6 +72,10 @@ export const move: Handler<'moveResult', MovementDeps> = (ctx, msg) => {
             break;
         }
         case 'encounter': {
+            // Server stays in 'sector' location; we enter the droneEncounter
+            // sub-mode here so the framework's auto-render uses the encounter
+            // MenuHandler's renderPrompt (a/r prompts).
+            ctx.world.mode = Menu.DroneEncounter;
             ctx.world.sectorPlayers = msg.players;
             ctx.encounter.ownerName = msg.ownerName;
             showSectorDisplay(

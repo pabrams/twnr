@@ -97,7 +97,7 @@ registerRoutine('attack_menu', (ctx) => {
 
 registerRoutine('computer_menu', (ctx) => {
     echoCommand(ctx, 'computer');
-    ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Computer });
+    ctx.world.mode = Menu.Computer;
 });
 
 registerRoutine('deploy_drones_info', (ctx) => {
