@@ -27,11 +27,7 @@ export async function handleAttack(playerId: number): Promise<void> {
         .filter((row) => isVisibleInSector(row.id, row.docked, row.on_planet_id))
         .map((row) => ({ id: row.id, name: row.name }));
 
-    await sendEnvelope(
-        playerId,
-        { type: ServerMsgType.AttackMenuResult, players: roster },
-        roster.length > 0 ? 'attack' : 'sector',
-    );
+    await sendEnvelope(playerId, { type: ServerMsgType.AttackMenuResult, players: roster });
 }
 
 export async function handleAttackShip(

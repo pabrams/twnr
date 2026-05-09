@@ -143,20 +143,19 @@ export async function handleMove(playerId: number, targetSector: number): Promis
         // retreatSector below comes from previous_sector_id (set by moveToSector above).
         const shipDrones = (await getShipDrones(playerId)) ?? 0;
 
-        await sendEnvelope(
-            playerId,
-            {
-                type: ServerMsgType.MoveResult,
-                outcome: 'encounter',
-                ...sectorData,
-                ownerId: sectorData.sectorDrones.ownerId,
-                ownerName: sectorData.sectorDrones.ownerName,
-                shipDrones,
-                retreatSector: currentSector,
-                turnsUsed: turnResult.turnsUsed,
-            },
-            'droneEncounter',
-        );
+        // Server stays in sector location; the encounter UI is a client
+        // sub-mode entered by the client's moveResult handler when
+        // outcome === 'encounter'.
+        await sendEnvelope(playerId, {
+            type: ServerMsgType.MoveResult,
+            outcome: 'encounter',
+            ...sectorData,
+            ownerId: sectorData.sectorDrones.ownerId,
+            ownerName: sectorData.sectorDrones.ownerName,
+            shipDrones,
+            retreatSector: currentSector,
+            turnsUsed: turnResult.turnsUsed,
+        });
 
         // Alert the owner about the intrusion (skip for rogue drones)
         const ownerId = sectorData.sectorDrones.ownerId;

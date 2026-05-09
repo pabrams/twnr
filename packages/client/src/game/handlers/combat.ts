@@ -1,4 +1,4 @@
-import { ClientMsgType } from '@twnr/shared';
+import { ClientMsgType, Menu } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { EVENT } from '../messages/index.js';
@@ -13,6 +13,8 @@ type CombatDeps = Pick<GameContext, 'autopilot' | 'encounter' | 'input' | 'io' |
     DisplayCombatCtx;
 
 export const attackShip: Handler<'attackShipResult', CombatDeps> = (ctx, msg) => {
+    // The attack target-select sub-mode is over once the shot is fired.
+    if (ctx.world.mode === Menu.Attack) ctx.world.mode = Menu.Sector;
     ctx.io.term.writeln('');
     ctx.io.term.writeln(
         render(msg.destroyed ? EVENT.attackDestroyed : EVENT.attackCompleted, {
@@ -41,6 +43,9 @@ export const attackShip: Handler<'attackShipResult', CombatDeps> = (ctx, msg) =>
 
 export const attackMenu: Handler<'attackMenuResult', CombatDeps> = (ctx, msg) => {
     ctx.world.sectorPlayers = msg.players;
+    // Server stays in 'sector' location; the attack-target-select sub-mode
+    // is entered here when the roster has visible targets.
+    if (msg.players.length > 0) ctx.world.mode = Menu.Attack;
     showAttackMenu(ctx);
 };
 
@@ -94,6 +99,8 @@ export const attackSectorDrones: Handler<'attackSectorDronesResult', CombatDeps>
         }),
     );
     if (msg.victory) {
+        // Drones cleared — exit the droneEncounter sub-mode.
+        ctx.world.mode = Menu.Sector;
         ctx.io.term.writeln(render(EVENT.sectorCleared));
         if (ctx.autopilot.paused) {
             ctx.io.term.writeln(render(EVENT.autopilotResuming));
@@ -106,6 +113,8 @@ export const attackSectorDrones: Handler<'attackSectorDronesResult', CombatDeps>
 };
 
 export const retreatFromDrones: Handler<'retreatFromDronesResult', CombatDeps> = (ctx, msg) => {
+    // Retreat exits the droneEncounter sub-mode (we moved back to a safe sector).
+    ctx.world.mode = Menu.Sector;
     ctx.io.term.writeln(render(EVENT.retreated, { sector: msg.sector }));
     if (ctx.autopilot.paused) {
         ctx.autopilot.path = [];
