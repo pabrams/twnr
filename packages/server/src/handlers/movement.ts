@@ -262,16 +262,12 @@ export async function handleShortestPath(
                 const finalPath = [...path, neighbor];
                 const visitedSet = await findVisitedSectorsInSet(playerId, universeId, finalPath);
                 const hops = finalPath.length - 1;
-                await sendEnvelope(
-                    playerId,
-                    {
-                        type: ServerMsgType.ShortestPathResult,
-                        path: finalPath.map((s) => ({ sector: s, visited: visitedSet.has(s) })),
-                        hops,
-                        turns: hops * turnsPerWarp,
-                    },
-                    'autopilotPrompt',
-                );
+                await sendEnvelope(playerId, {
+                    type: ServerMsgType.ShortestPathResult,
+                    path: finalPath.map((s) => ({ sector: s, visited: visitedSet.has(s) })),
+                    hops,
+                    turns: hops * turnsPerWarp,
+                });
                 return;
             }
             if (!visited.has(neighbor)) {

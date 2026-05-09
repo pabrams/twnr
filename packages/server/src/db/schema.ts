@@ -753,11 +753,6 @@ export const connectDB = async (): Promise<void> => {
         ((SELECT id FROM menu WHERE name='droneEncounter'), (SELECT id FROM command WHERE name='retreat'), 'r', 'Retreat', NULL, 20)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
-      -- === AutopilotPrompt ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='autopilotPrompt'), (SELECT id FROM command WHERE name='confirm_yes'), 'y', 'Engage autopilot', (SELECT id FROM menu WHERE name='autopilot'), 10),
-        ((SELECT id FROM menu WHERE name='autopilotPrompt'), (SELECT id FROM command WHERE name='confirm_no'), 'n', 'Cancel', (SELECT id FROM menu WHERE name='sector'), 20)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- Autopilot has no commands (input ignored during autopilot)
 
