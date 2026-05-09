@@ -20,7 +20,6 @@ import {
     markPlayerLoggedIn,
     markPlayerLoggedOut,
     markSectorVisited,
-    setPlayerCurrentMenu,
     logPlayerCommand,
 } from './db/queries/player.js';
 import { countSectorsInUniverse, getStarbaseSectorNumber } from './db/queries/sector.js';
@@ -186,7 +185,6 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
         await markPlayerLoggedIn(playerId);
         await markUserConnected(userId);
         await markSectorVisited(playerId, sectorId);
-        await setPlayerCurrentMenu(playerId, 'sector');
 
         const isAdmin = authPayload.role === 'admin';
         players[playerId] = {

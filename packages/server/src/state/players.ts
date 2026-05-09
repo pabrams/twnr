@@ -1,5 +1,4 @@
 import { WebSocket } from 'ws';
-import { setPlayerCurrentMenu } from '../db/queries/player.js';
 
 export interface Player {
     ws: WebSocket;
@@ -37,12 +36,12 @@ export function isVisibleInSector(
 }
 
 /**
- * Update a player's current menu in both the runtime registry and the DB
- * (so the menu survives reconnect). The DB write is awaited so callers
- * don't get stale state if they immediately query right after.
+ * Update a player's current menu in the runtime registry. No longer
+ * persisted — current menu doesn't survive reconnect (markPlayerLoggedIn
+ * always resets to 'sector'). Async signature retained so callers can
+ * keep `await setPlayerMenu(...)` without churn.
  */
 export async function setPlayerMenu(playerId: number, menuName: string): Promise<void> {
     const player = players[playerId];
     if (player) player.currentMenu = menuName;
-    await setPlayerCurrentMenu(playerId, menuName);
 }
