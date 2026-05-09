@@ -62,16 +62,27 @@ registerRoutine('move_menu', async (ctx) => {
     ctx.io.sendMsg({ type: ClientMsgType.Move, sector: target.sector });
 });
 
-// 'P' from sector: enter port menu, but only if there's a port here. Otherwise
-// render a local "no port" message and stay put. The guard reads
-// ctx.world.currentPort which is updated on every sector display.
-registerRoutine('port_menu', (ctx) => {
-    if (!ctx.world.currentPort) {
-        showPortMenu(ctx);
+// 'P' from sector: dock-confirm UI inline. Renders the port info + T/S/Q
+// options and awaits a single keystroke. T docks (class 1-8) or is silently
+// dropped at starbase; S enters starbase or is silently dropped at trade
+// ports; Q cancels. Pre-dock used to be a server-tracked `port` menu
+// transition — collapsed into this routine. The `port` menu name now means
+// only "actively trading at a class 1-8 port".
+registerRoutine('port_menu', async (ctx) => {
+    showPortMenu(ctx);
+    if (!ctx.world.currentPort) return;
+    echoCommand(ctx, 'portInfo');
+    const ch = await askChar(ctx, '', ['t', 's', 'q']);
+    if (ch === null || ch === 'q') return;
+    if (ch === 't') {
+        if (ctx.world.currentPort.class === 9) return;
+        ctx.io.sendMsg({ type: ClientMsgType.Dock });
         return;
     }
-    echoCommand(ctx, 'portInfo');
-    ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.Port });
+    if (ch === 's') {
+        if (ctx.world.currentPort.class !== 9) return;
+        ctx.io.sendMsg({ type: ClientMsgType.DockStarbase });
+    }
 });
 
 registerRoutine('player_info', (ctx) => {

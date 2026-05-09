@@ -18,7 +18,6 @@ export type { MenuHandler, ClientRoutine } from './types.js';
 
 import './common-routines.js';
 import './sector-routines.js';
-import './port-routines.js';
 import './shipyards-routines.js';
 import './combat-routines.js';
 import './computer-routines.js';

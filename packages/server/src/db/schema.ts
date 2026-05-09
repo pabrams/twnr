@@ -690,7 +690,7 @@ export const connectDB = async (): Promise<void> => {
         ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='move'), '<number>', 'Move to sector', NULL, 10),
         ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='move_previous'), '<', 'Previous sector', NULL, 15),
         ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='move_menu'), 'm', 'Move to adjacent sector', NULL, 25),
-        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='port_menu'), 'p', 'Port', (SELECT id FROM menu WHERE name='port'), 30),
+        ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='port_menu'), 'p', 'Port', NULL, 30),
         ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='player_info'), 'i', 'Player info', NULL, 40),
         ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='help_menu'), '?', 'Help', NULL, 50),
         ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='attack_menu'), 'a', 'Attack', (SELECT id FROM menu WHERE name='attack'), 60),
@@ -708,12 +708,6 @@ export const connectDB = async (): Promise<void> => {
         ((SELECT id FROM menu WHERE name='sector'), (SELECT id FROM command WHERE name='players_online'), '#', 'Players online', NULL, 120)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
-      -- === Port ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='port'), (SELECT id FROM command WHERE name='trade_at_port'), 't', 'Trade at port', NULL, 10),
-        ((SELECT id FROM menu WHERE name='port'), (SELECT id FROM command WHERE name='dock_starbase'), 's', 'Enter Starbase', NULL, 15),
-        ((SELECT id FROM menu WHERE name='port'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', (SELECT id FROM menu WHERE name='sector'), 20)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === Class0 ===
       -- a/b/c are owned by client routines (chooseClass0 in
