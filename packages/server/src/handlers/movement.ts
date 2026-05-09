@@ -5,6 +5,7 @@ import { sendEnvelope, sendError, broadcastTo, closeDestroyedSession } from '../
 import { getGraph } from '../state/graph-cache.js';
 import { getWarpRefs, resolveSectorId } from '../services/sector-lookup.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
+import { isInEncounter } from '../services/encounter.js';
 import {
     setDocked,
     moveToSector,
@@ -33,8 +34,8 @@ export async function handleMove(playerId: number, targetSector: number): Promis
     const player = players[playerId];
     if (!player) return;
 
-    // Block movement during pending drone encounter
-    if (player.pendingEncounter) {
+    // Block movement during pending drone encounter (derived: enemy drones in current sector)
+    if (await isInEncounter(playerId)) {
         sendEnvelope(playerId, {
             type: ServerMsgType.MoveResult,
             outcome: 'error',
@@ -138,8 +139,8 @@ export async function handleMove(playerId: number, targetSector: number): Promis
     if (!sectorData) return;
 
     if (sectorData.sectorDrones && sectorData.sectorDrones.ownerId !== playerId) {
-        player.pendingEncounter = { retreatSector: currentSector };
-
+        // Encounter is derived from sector state — no in-memory flag.
+        // retreatSector below comes from previous_sector_id (set by moveToSector above).
         const shipDrones = (await getShipDrones(playerId)) ?? 0;
 
         await sendEnvelope(

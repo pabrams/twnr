@@ -3,6 +3,7 @@ import { players, getPlayerUniverseId } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { portName } from '../domain/port-classes.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
+import { isInEncounter } from '../services/encounter.js';
 import { withTransaction, AbortTransaction } from '../db/index.js';
 import { setDocked, getCurrentSector, deductCredits, addCredits } from '../db/queries/player.js';
 import {
@@ -84,7 +85,7 @@ export async function handleDock(playerId: number): Promise<void> {
         return;
     }
 
-    if (player.pendingEncounter) {
+    if (await isInEncounter(playerId)) {
         sendError(playerId, 'Resolve drone encounter first');
         return;
     }
@@ -361,7 +362,7 @@ export async function handleDockStarbase(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
-    if (player.pendingEncounter) {
+    if (await isInEncounter(playerId)) {
         sendError(playerId, 'Resolve drone encounter first');
         return;
     }
