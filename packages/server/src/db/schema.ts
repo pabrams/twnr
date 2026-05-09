@@ -745,14 +745,6 @@ export const connectDB = async (): Promise<void> => {
         ((SELECT id FROM menu WHERE name='planet'), (SELECT id FROM command WHERE name='leave_planet'), 'q', 'Leave Planet', NULL, 50)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
-      -- === DroneEncounter ===
-      -- 'a' is owned by the client routine in menus/drone-encounter.ts
-      -- (askNumber inline before AttackSectorDrones); no transition.
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='droneEncounter'), (SELECT id FROM command WHERE name='attack_encounter'), 'a', 'Attack', NULL, 10),
-        ((SELECT id FROM menu WHERE name='droneEncounter'), (SELECT id FROM command WHERE name='retreat'), 'r', 'Retreat', NULL, 20)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
-
 
       -- Autopilot has no commands (input ignored during autopilot)
 

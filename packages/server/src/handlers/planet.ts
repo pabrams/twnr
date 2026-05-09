@@ -2,6 +2,7 @@ import { ServerMsgType } from '@twnr/shared';
 import { players, setPlayerMenu } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
+import { isInEncounter } from '../services/encounter.js';
 import { withTransaction, AbortTransaction } from '../db/index.js';
 import {
     getEarthId,
@@ -41,7 +42,7 @@ export async function handleLand(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
-    if (player.pendingEncounter) {
+    if (await isInEncounter(playerId)) {
         sendError(playerId, 'Resolve drone encounter first');
         return;
     }
@@ -65,7 +66,7 @@ export async function handleLandOnPlanet(playerId: number, planetId: number): Pr
     const player = players[playerId];
     if (!player) return;
 
-    if (player.pendingEncounter) {
+    if (await isInEncounter(playerId)) {
         sendError(playerId, 'Resolve drone encounter first');
         return;
     }
@@ -217,7 +218,7 @@ export async function handleTerraformInfo(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
-    if (player.pendingEncounter) {
+    if (await isInEncounter(playerId)) {
         sendError(playerId, 'Resolve drone encounter first');
         return;
     }
@@ -262,7 +263,7 @@ export async function handleUseTerraformDevice(playerId: number): Promise<void> 
     const sectorId = player.sector;
     const universeId = player.universeId;
 
-    if (player.pendingEncounter) {
+    if (await isInEncounter(playerId)) {
         sendError(playerId, 'Resolve drone encounter first');
         return;
     }

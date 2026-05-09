@@ -77,6 +77,26 @@ export async function deleteSectorDrones(
     ]);
 }
 
+/** True iff the sector contains drones owned by anyone other than the
+ *  given player (including rogue drones, which have owner_id NULL). */
+export async function hasEnemyDronesInSector(
+    sectorNumber: number,
+    universeId: number,
+    selfPlayerId: number,
+    db: Queryable = pool,
+): Promise<boolean> {
+    const res = await db.query(
+        `SELECT 1 FROM sector_drones sf
+         JOIN sectors s ON sf.sector_id = s.id
+         WHERE s.sector_number = $1 AND s.universe_id = $2
+           AND (sf.owner_id IS NULL OR sf.owner_id != $3)
+           AND sf.quantity > 0
+         LIMIT 1`,
+        [sectorNumber, universeId, selfPlayerId],
+    );
+    return res.rows.length > 0;
+}
+
 /** Sector-drones display info: quantity + owner info (or 'Rogue' if unowned). */
 export async function getSectorDroneDisplayInfo(
     sectorNumber: number,

@@ -1,6 +1,7 @@
 import { ServerMsgType } from '@twnr/shared';
 import { players } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
+import { isInEncounter } from '../services/encounter.js';
 import { withTransaction, AbortTransaction } from '../db/index.js';
 import { getGraph } from '../state/graph-cache.js';
 import { getSectorDbId } from '../db/queries/sector.js';
@@ -51,7 +52,7 @@ export async function handleDeployMine(
         sendError(playerId, 'Cannot deploy mines while docked');
         return;
     }
-    if (player.pendingEncounter) {
+    if (await isInEncounter(playerId)) {
         sendError(playerId, 'Resolve drone encounter first');
         return;
     }
@@ -169,7 +170,7 @@ export async function handleMineDisruptor(playerId: number, targetSector: number
         sendError(playerId, 'Cannot fire disruptor while docked');
         return;
     }
-    if (player.pendingEncounter) {
+    if (await isInEncounter(playerId)) {
         sendError(playerId, 'Resolve drone encounter first');
         return;
     }

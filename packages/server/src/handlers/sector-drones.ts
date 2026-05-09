@@ -4,8 +4,9 @@ import { players } from '../state/players.js';
 import { sendEnvelope, sendError, broadcastTo } from '../state/messaging.js';
 import { getSectorDrones, resolveSectorId } from '../services/sector-lookup.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
+import { isInEncounter } from '../services/encounter.js';
 import { withTransaction, AbortTransaction } from '../db/index.js';
-import { moveToSector } from '../db/queries/player.js';
+import { moveToSector, getPreviousSectorNumber } from '../db/queries/player.js';
 import {
     moveShipToSector,
     setShipDrones,
@@ -31,7 +32,7 @@ export async function handleDeployDronesInfo(playerId: number): Promise<void> {
         return;
     }
 
-    if (player.pendingEncounter) {
+    if (await isInEncounter(playerId)) {
         sendError(playerId, 'Resolve drone encounter first');
         return;
     }
@@ -73,7 +74,7 @@ export async function handleDeployDrones(playerId: number, target: number): Prom
         return;
     }
 
-    if (player.pendingEncounter) {
+    if (await isInEncounter(playerId)) {
         sendError(playerId, 'Resolve drone encounter first');
         return;
     }
@@ -169,7 +170,7 @@ export async function handleAttackSectorDrones(
     const player = players[playerId];
     if (!player) return;
 
-    if (!player.pendingEncounter) {
+    if (!(await isInEncounter(playerId))) {
         sendError(playerId, 'No drone encounter pending');
         return;
     }
@@ -198,7 +199,6 @@ export async function handleAttackSectorDrones(
             }
             const existing = await getSectorDronesRowForUpdate(sectorDbId, client);
             if (!existing || existing.quantity <= 0) {
-                player.pendingEncounter = undefined;
                 sendError(playerId, 'No hostile drones in sector');
                 throw new AbortTransaction();
             }
@@ -225,10 +225,6 @@ export async function handleAttackSectorDrones(
         if (!result) return;
 
         const { ownerId, k, newShipDrones, newSectorDrones, victory } = result;
-
-        if (victory) {
-            player.pendingEncounter = undefined;
-        }
 
         await sendEnvelope(
             playerId,
@@ -263,12 +259,16 @@ export async function handleRetreatFromDrones(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
-    if (!player.pendingEncounter) {
+    if (!(await isInEncounter(playerId))) {
         sendError(playerId, 'No drone encounter pending');
         return;
     }
 
-    const retreatSector = player.pendingEncounter.retreatSector;
+    const retreatSector = await getPreviousSectorNumber(playerId);
+    if (retreatSector === null) {
+        sendError(playerId, 'No previous sector to retreat to');
+        return;
+    }
     const universeId = player.universeId;
     const currentSector = player.sector;
 
@@ -309,8 +309,6 @@ export async function handleRetreatFromDrones(playerId: number): Promise<void> {
         },
         newSectorClients,
     );
-
-    player.pendingEncounter = undefined;
 
     const mineOutcome = await resolveMinesOnEntry(playerId);
     if (mineOutcome.destroyed) return;

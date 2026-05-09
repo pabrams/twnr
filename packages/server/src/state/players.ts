@@ -11,7 +11,6 @@ export interface Player {
     docked: boolean;
     isAdmin: boolean;
     at_starbase?: boolean;
-    pendingEncounter?: { retreatSector: number };
     currentMenu: string;
 }
 
