@@ -41,7 +41,7 @@ export function setupConnection(
         // with null and unwinds cleanly. Don't cancel when the menu is
         // unchanged — pure panel updates and same-menu envelopes shouldn't
         // disturb an in-progress prompt.
-        if (msg.menu !== ctx.world.mode) {
+        if (msg.location !== ctx.world.mode) {
             if (ctx.input.pendingResolver) {
                 const r = ctx.input.pendingResolver;
                 ctx.input.pendingResolver = null;
@@ -53,7 +53,7 @@ export function setupConnection(
                 r.resolve(null);
             }
         }
-        ctx.world.mode = msg.menu;
+        ctx.world.mode = msg.location;
         // Clear inFlight before dispatch so handlers can re-set it (via sendMsg)
         // when they chain a follow-up roundtrip. After dispatch, renderPrompt
         // only fires if the handler did NOT chain — otherwise we'd flash a

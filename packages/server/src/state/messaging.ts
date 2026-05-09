@@ -5,16 +5,18 @@ import { players, setPlayerMenu } from './players.js';
 
 /**
  * Wire format: every server-to-client message is a flat object with `type`
- * and `menu` fields plus whatever payload data the result type carries.
- * Handlers build `ServerResult` (no menu); this layer stamps `menu` on
- * before sending.
+ * and `location` fields plus whatever payload data the result type carries.
+ * Handlers build `ServerResult` (no location); this layer stamps it on
+ * before sending. The value space is still the full MenuName enum
+ * (sector, port, computer, attack, …) until the location-only migration
+ * lands; for now `location` just renames the wire field.
  */
 function frame(menu: MenuName, body?: ServerResult, suppressPrompt?: boolean): string {
     const flag = suppressPrompt ? { suppressPrompt: true } : {};
     if (body) {
-        return JSON.stringify({ ...body, ...flag, menu });
+        return JSON.stringify({ ...body, ...flag, location: menu });
     }
-    return JSON.stringify({ type: ServerMsgType.MenuTransition, ...flag, menu });
+    return JSON.stringify({ type: ServerMsgType.MenuTransition, ...flag, location: menu });
 }
 
 /**
