@@ -378,7 +378,6 @@ export const connectDB = async (): Promise<void> => {
         UNIQUE (menu_id, command_id)
       );
 
-      ALTER TABLE players ADD COLUMN IF NOT EXISTS current_menu_id INTEGER REFERENCES menu(id) ON DELETE SET NULL;
     `);
 
         await client.query(`

@@ -144,17 +144,6 @@ export async function markSectorVisited(
     );
 }
 
-export async function setPlayerCurrentMenu(
-    playerId: number,
-    menuName: string,
-    db: Queryable = pool,
-): Promise<void> {
-    await db.query(
-        `UPDATE players SET current_menu_id = (SELECT id FROM menu WHERE name = $1) WHERE id = $2`,
-        [menuName, playerId],
-    );
-}
-
 /** Player record for WebSocket connect: includes joined sector + ship info. */
 export type PlayerConnectRow = {
     id: number;
