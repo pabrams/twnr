@@ -1,20 +1,19 @@
-import { ClientMsgType, Menu } from '@twnr/shared';
+import { ClientMsgType } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
-import { NOTIFY, EVENT } from '../messages/index.js';
+import { NOTIFY, EVENT, SECTOR } from '../messages/index.js';
 import { showSectorDisplay, type DisplayCtx } from '../display.js';
 import { type DisplayPortCtx } from '../display-port.js';
 import { showDroneEncounter, type DisplayCombatCtx } from '../display-combat.js';
-import { setMenuArgs, type MenuArgsSlot } from '../menus/types.js';
+import { askConfirm } from '../menus/prompts.js';
 import type { Handler } from './index.js';
 import { refreshMinimap, type RefreshMinimapDeps } from './utils.js';
 
-type MovementDeps = Pick<GameContext, 'autopilot' | 'encounter' | 'io' | 'world'> &
+type MovementDeps = Pick<GameContext, 'autopilot' | 'encounter' | 'input' | 'io' | 'world'> &
     DisplayCtx &
     DisplayPortCtx &
     DisplayCombatCtx &
-    RefreshMinimapDeps &
-    MenuArgsSlot;
+    RefreshMinimapDeps;
 
 export const sectorDisplay: Handler<'sectorDisplayResult', MovementDeps> = (ctx, msg) => {
     ctx.world.sectorPlayers = msg.players;
@@ -141,17 +140,40 @@ export const nonAdjacent: Handler<'nonAdjacentMoveRequested', MovementDeps> = (c
 };
 
 export const shortestPath: Handler<'shortestPathResult', MovementDeps> = (ctx, msg) => {
-    if (msg.path.length > 1) {
-        setMenuArgs(ctx, {
-            menu: Menu.AutopilotPrompt,
-            path: msg.path,
-            hops: msg.hops,
-            turns: msg.turns,
-        });
-    } else {
+    if (msg.path.length <= 1) {
         ctx.io.term.writeln(render(EVENT.noPathFound));
+        return;
     }
+    void promptAutopilot(ctx, msg);
 };
+
+async function promptAutopilot(
+    ctx: MovementDeps,
+    msg: { path: { sector: number; visited: boolean }[]; hops: number; turns: number },
+): Promise<void> {
+    const { term } = ctx.io;
+    const from = msg.path[0]?.sector ?? 0;
+    const to = msg.path[msg.path.length - 1]?.sector ?? 0;
+    term.writeln('');
+    term.writeln(
+        render(SECTOR.autopilotNotAdjacent, { hops: msg.hops, turns: msg.turns, from, to }),
+    );
+    const sep = render(SECTOR.autopilotPathSeparator);
+    const list = msg.path
+        .map((p) => render(p.visited ? SECTOR.warpVisited : SECTOR.warpUnvisited, { sector: p.sector }))
+        .join(sep);
+    term.writeln(`  ${list}`);
+
+    const ok = await askConfirm(ctx, render(SECTOR.autopilotConfirm), { defaultValue: false });
+    if (!ok) return;
+
+    ctx.autopilot.path = msg.path.map((p) => p.sector);
+    ctx.autopilot.step = 2;
+    const nextSector = ctx.autopilot.path[1];
+    term.writeln(render(NOTIFY.autopilotEngaged));
+    term.writeln(render(EVENT.autopilotWarping, { sector: nextSector }));
+    ctx.io.sendMsg({ type: ClientMsgType.Move, sector: nextSector });
+}
 
 export const hyperspaceJump: Handler<'hyperspaceJumpResult', MovementDeps> = (ctx, msg) => {
     ctx.io.term.writeln(
