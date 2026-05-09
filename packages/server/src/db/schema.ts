@@ -727,14 +727,6 @@ export const connectDB = async (): Promise<void> => {
         ((SELECT id FROM menu WHERE name='class0'), (SELECT id FROM command WHERE name='help_menu'), '?', 'Help', NULL, 50)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
-      -- === Attack ===
-      -- '<number>' picks a target; the select_target routine asks for the
-      -- drone count inline (askNumber) before sending AttackShip. The
-      -- attackDrones menu is gone — qty is a sub-prompt of the routine.
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='attack'), (SELECT id FROM command WHERE name='select_target'), '<number>', 'Select target', NULL, 10),
-        ((SELECT id FROM menu WHERE name='attack'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', (SELECT id FROM menu WHERE name='sector'), 20)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
 
 
 
