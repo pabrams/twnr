@@ -736,22 +736,7 @@ export const connectDB = async (): Promise<void> => {
         ((SELECT id FROM menu WHERE name='attack'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', (SELECT id FROM menu WHERE name='sector'), 20)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
-      -- === Computer ===
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='known_universe'), 'k', 'Known Universe', NULL, 10),
-        ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='trader_list'), 'l', 'List Traders', NULL, 20),
-        ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='ship_catalog'), 'c', 'Ship Catalog', NULL, 30),
-        ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='planet_specs'), 'j', 'Planetary Specs', NULL, 40),
-        ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='current_ship_specs'), ';', 'Current Ship', NULL, 50),
-        ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='help_menu'), '?', 'Help', NULL, 55),
-        ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='back'), 'q', 'Exit Computer', (SELECT id FROM menu WHERE name='sector'), 60)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
 
-      -- ShipCatalog and PlanetSpecs are fully client-driven viewers — no
-      -- server menu state. The 'c' / 'j' computer commands run inline
-      -- routines (computer-routines.ts:ship_catalog/planet_specs) that
-      -- render the cached catalog list, askChar for a letter, and render
-      -- the detail locally. No envelopes, no menu_command rows.
 
       -- === Planet ===
       -- Planet's T and L route to fully client-side routines that ask
@@ -830,16 +815,6 @@ export const connectDB = async (): Promise<void> => {
         ((SELECT id FROM menu WHERE name='shipyardsClass0'), (SELECT id FROM command WHERE name='choose_shields'), 'c', 'Shield Points', NULL, 30),
         ((SELECT id FROM menu WHERE name='shipyardsClass0'), (SELECT id FROM command WHERE name='back'), 'q', 'Back', (SELECT id FROM menu WHERE name='shipyards'), 40),
         ((SELECT id FROM menu WHERE name='shipyardsClass0'), (SELECT id FROM command WHERE name='help_menu'), '?', 'Help', NULL, 50)
-      ON CONFLICT (menu_id, command_id) DO NOTHING;
-
-      -- === Computer: hyperspace jump, deployed drones, list planets ===
-      -- Hyperspace jump (h) is a fully client-side askNumber routine
-      -- (no hyperspaceJumpTarget menu).
-      INSERT INTO menu_command (menu_id, command_id, key_pattern, label, target_menu_id, sort_order) VALUES
-        ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='list_deployed_drones'), 'd', 'Deployed Drones', NULL, 55),
-        ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='hyperspace_jump'), 'h', 'Hyperspace Jump', NULL, 56),
-        ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='list_planets'), 'y', 'Your Planets', NULL, 57),
-        ((SELECT id FROM menu WHERE name='computer'), (SELECT id FROM command WHERE name='track_seeker_mines'), 'm', 'Track Seeker Mines', NULL, 58)
       ON CONFLICT (menu_id, command_id) DO NOTHING;
 
       -- === Seed hardware items ===
