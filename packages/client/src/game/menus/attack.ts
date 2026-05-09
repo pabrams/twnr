@@ -1,10 +1,13 @@
 import { Menu } from '@twnr/shared';
 import { showAttackPrompt } from '../display-combat.js';
-import { registerMenu } from './types.js';
+import { registerMenu, getRoutine } from './types.js';
 
-// Attack menu — fully migrated. Routines in combat-routines.ts; back in
-// common-routines.ts. Number keys are dispatched via the `<number>`
-// pattern to the `select_target` routine.
 registerMenu(Menu.Attack, {
     renderPrompt: showAttackPrompt,
+    acceptsKey: (key) => key === 'q' || /^\d$/.test(key),
+    input(ctx, line) {
+        if (line === '') return;
+        if (line === 'q') return getRoutine(ctx.world.mode, 'back')?.(ctx, line);
+        if (/^\d+$/.test(line)) return getRoutine(ctx.world.mode, 'select_target')?.(ctx, line);
+    },
 });
