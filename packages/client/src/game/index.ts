@@ -8,6 +8,7 @@ import { setupInput } from './input.js';
 import { createMinimap, flashTerminalBorder } from './minimap.js';
 import { render } from './renderer.js';
 import { NOTIFY } from './messages/index.js';
+import { MENU_REGISTRY } from './menu-registry.js';
 
 export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect: () => void) {
     const term = new Terminal({
@@ -192,14 +193,14 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
         onDisconnect();
     };
 
-    fetch('/api/menu-registry')
-        .then((res) => res.json())
-        .then((entries: MenuEntry[]) => {
-            const map = new Map<string, MenuEntry>();
-            for (const entry of entries) map.set(entry.name, entry);
-            ctx.catalogs.menus = map;
-        })
-        .catch((err) => console.error('Failed to fetch menu registry:', err));
+    // Hardcoded menu registry — same shape as the dropped /api/menu-registry
+    // endpoint so dispatchByRegistry, common-routines back/help_menu, and
+    // anything else that reads `ctx.catalogs.menus` works unchanged.
+    {
+        const map = new Map<string, MenuEntry>();
+        for (const entry of MENU_REGISTRY) map.set(entry.name, entry);
+        ctx.catalogs.menus = map;
+    }
 
     // Mini-map setup. The mini-map lives in the adjacent #minimap panel and
     // uses the same xterm input pipeline for click-injection.

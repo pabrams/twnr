@@ -5,14 +5,8 @@ import { shipConfigs, SHIPS_DIR, reloadShipConfigs } from '../ship-config.js';
 import { planetConfigs, PLANETS_DIR, reloadPlanetConfigs } from '../planet-config.js';
 import { class0Prices } from '../game-config.js';
 import type { Middleware } from './middleware.js';
-import type { MenuRow } from '../db/types.js';
 import { asyncHandler } from './async-handler.js';
-import {
-    listShipTypes,
-    listShipTypeHardware,
-    listMenus,
-    listMenuCommands,
-} from '../db/queries/catalog.js';
+import { listShipTypes, listShipTypeHardware } from '../db/queries/catalog.js';
 import { listHardwareCatalog } from '../db/queries/hardware.js';
 
 function slugify(name: string): string {
@@ -59,33 +53,8 @@ export function createCatalogRoutes(router: Router, middleware: Middleware): voi
         }),
     );
 
-    // Menu registry: menus + commands, cached by client for the session
-    router.get(
-        '/api/menu-registry',
-        asyncHandler(async (_req, res) => {
-            const [menus, commands] = await Promise.all([listMenus(), listMenuCommands()]);
-
-            const menuMap = new Map<number, MenuRow>(menus.map((m) => [m.id, m]));
-            const registry = menus.map((m) => ({
-                name: m.name,
-                label: m.label,
-                parentMenu: m.parent_menu_id ? (menuMap.get(m.parent_menu_id)?.name ?? null) : null,
-                commands: commands
-                    .filter((c) => c.menu_id === m.id)
-                    .map((c) => ({
-                        command: c.command_name,
-                        keyPattern: c.key_pattern,
-                        label: c.mc_label || c.command_label,
-                        targetMenu: c.target_menu_id
-                            ? (menuMap.get(c.target_menu_id)?.name ?? null)
-                            : null,
-                        sortOrder: c.sort_order,
-                    })),
-            }));
-
-            res.json(registry);
-        }),
-    );
+    // (Menu registry endpoint removed in step 8D — client now uses a
+    // hardcoded MENU_REGISTRY constant in client/src/game/menu-registry.ts.)
 
     router.get('/api/admin/ships/:name', authenticateAdmin, (req, res) => {
         const ship = shipConfigs[req.params.name as string];
