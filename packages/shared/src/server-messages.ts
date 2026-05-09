@@ -663,20 +663,24 @@ export type ServerResult =
 
 /**
  * Pure menu transition — server tells the client "you're now in this menu"
- * with no accompanying data payload. The client mirrors the `menu` field
- * into `ctx.world.mode` and the framework re-renders the menu's prompt.
+ * with no accompanying data payload. The client mirrors the `location`
+ * field into `ctx.world.mode` and the framework re-renders the menu's
+ * prompt. (Field is named `location` because the long-term plan is for
+ * the server to track only locations — sector/port/planet/starbase/dead —
+ * with everything else owned by the client. The current value space is
+ * still the full MenuName enum until that migration completes.)
  */
 export type MenuTransitionResult = {
     type: typeof ServerMsgType.MenuTransition;
-    menu: MenuName;
+    location: MenuName;
 };
 
 /**
- * Distributive intersection: adds `menu: MenuName` to every variant of T.
+ * Distributive intersection: adds `location: MenuName` to every variant of T.
  * Required because `Omit<A | B, K>` does NOT distribute by default; this
  * conditional-type form does.
  */
-type WithMenu<T> = T extends unknown ? T & { menu: MenuName } : never;
+type WithMenu<T> = T extends unknown ? T & { location: MenuName } : never;
 
 /**
  * Wire-format envelope additions that aren't part of any ServerResult

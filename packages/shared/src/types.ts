@@ -134,7 +134,7 @@ export type ServerStatsResponse = {
 };
 
 export type ServerEnvelope<T = import('./server-messages.js').ServerResult> = {
-    menu: string;
+    location: string;
     payload?: T;
 };
 
