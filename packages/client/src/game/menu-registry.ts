@@ -1,0 +1,121 @@
+import type { MenuEntry } from '@twnr/shared';
+
+/**
+ * Hardcoded menu registry. Replaces the previous /api/menu-registry fetch
+ * that read from the menu/menu_command/command DB tables (dropped in step
+ * 8D). The shape is identical so dispatchByRegistry, common-routines'
+ * back/help_menu, and any other consumers keep working without changes.
+ *
+ * If you add a new key binding for a server-driven menu, add it here.
+ * Client-only sub-modes (computer, attack, droneEncounter, port pre-dock,
+ * starbaseHardware) live in their per-menu files and are not represented
+ * here.
+ */
+export const MENU_REGISTRY: MenuEntry[] = [
+    {
+        name: 'sector',
+        label: 'Sector',
+        parentMenu: null,
+        commands: [
+            { command: 'display_sector', keyPattern: '<enter>', label: 'Re-display sector', targetMenu: null, sortOrder: 5 },
+            { command: 'move', keyPattern: '<number>', label: 'Move to sector', targetMenu: null, sortOrder: 10 },
+            { command: 'move_previous', keyPattern: '<', label: 'Previous sector', targetMenu: null, sortOrder: 15 },
+            { command: 'move_menu', keyPattern: 'm', label: 'Move to adjacent sector', targetMenu: null, sortOrder: 25 },
+            { command: 'port_menu', keyPattern: 'p', label: 'Port', targetMenu: null, sortOrder: 30 },
+            { command: 'player_info', keyPattern: 'i', label: 'Player info', targetMenu: null, sortOrder: 40 },
+            { command: 'help_menu', keyPattern: '?', label: 'Help', targetMenu: null, sortOrder: 50 },
+            { command: 'attack_menu', keyPattern: 'a', label: 'Attack', targetMenu: null, sortOrder: 60 },
+            { command: 'computer_menu', keyPattern: 'c', label: 'Computer', targetMenu: null, sortOrder: 70 },
+            { command: 'deploy_drones_info', keyPattern: 'd', label: 'Deploy drones', targetMenu: null, sortOrder: 80 },
+            { command: 'list_deployed_drones', keyPattern: 'g', label: 'Deployed Drones', targetMenu: null, sortOrder: 85 },
+            { command: 'deploy_mines_menu', keyPattern: 'n', label: 'Deploy mines', targetMenu: null, sortOrder: 86 },
+            { command: 'list_deployed_mines', keyPattern: 'e', label: 'Deployed Mines', targetMenu: null, sortOrder: 87 },
+            { command: 'mine_disruptor_menu', keyPattern: 'r', label: 'Mine Disruptor', targetMenu: null, sortOrder: 88 },
+            { command: 'jettison_menu', keyPattern: 'j', label: 'Jettison cargo', targetMenu: null, sortOrder: 90 },
+            { command: 'use_terraform_device', keyPattern: 'u', label: 'Terraform', targetMenu: null, sortOrder: 95 },
+            { command: 'land', keyPattern: 'l', label: 'Land', targetMenu: null, sortOrder: 100 },
+            { command: 'starbase_info', keyPattern: 'v', label: 'Starbase info', targetMenu: null, sortOrder: 105 },
+            { command: 'quit_game', keyPattern: 'q', label: 'Quit', targetMenu: null, sortOrder: 110 },
+            { command: 'players_online', keyPattern: '#', label: 'Players online', targetMenu: null, sortOrder: 120 },
+        ],
+    },
+    {
+        name: 'port',
+        label: 'Port',
+        parentMenu: 'sector',
+        commands: [],
+    },
+    {
+        name: 'class0',
+        label: 'Class 0 Port',
+        parentMenu: 'port',
+        commands: [
+            { command: 'choose_holds', keyPattern: 'a', label: 'Cargo holds', targetMenu: null, sortOrder: 10 },
+            { command: 'choose_drones', keyPattern: 'b', label: 'Drones', targetMenu: null, sortOrder: 20 },
+            { command: 'choose_shields', keyPattern: 'c', label: 'Shield Points', targetMenu: null, sortOrder: 30 },
+            { command: 'leave_port', keyPattern: 'q', label: 'Quit, nevermind', targetMenu: null, sortOrder: 40 },
+            { command: 'help_menu', keyPattern: '?', label: 'Help', targetMenu: null, sortOrder: 50 },
+        ],
+    },
+    {
+        name: 'planet',
+        label: 'Planet',
+        parentMenu: 'sector',
+        commands: [
+            { command: 'take_colonists', keyPattern: 't', label: 'Take colonists', targetMenu: null, sortOrder: 10 },
+            { command: 'leave_colonists', keyPattern: 'l', label: 'Leave colonists', targetMenu: null, sortOrder: 20 },
+            { command: 'planet_display', keyPattern: 'd', label: 'Planet Info', targetMenu: null, sortOrder: 25 },
+            { command: 'destroy_planet', keyPattern: 'z', label: 'Destroy Planet', targetMenu: null, sortOrder: 35 },
+            { command: 'help_menu', keyPattern: '?', label: 'Help', targetMenu: null, sortOrder: 40 },
+            { command: 'leave_planet', keyPattern: 'q', label: 'Leave Planet', targetMenu: null, sortOrder: 50 },
+        ],
+    },
+    {
+        name: 'planetEarth',
+        label: 'Earth',
+        parentMenu: 'sector',
+        commands: [],
+    },
+    {
+        name: 'starbase',
+        label: 'Starbase',
+        parentMenu: 'sector',
+        commands: [
+            { command: 'shipyards_menu', keyPattern: 's', label: 'Shipyards', targetMenu: 'shipyards', sortOrder: 10 },
+            { command: 'hardware_store', keyPattern: 'h', label: 'Hardware Store', targetMenu: 'starbaseHardware', sortOrder: 20 },
+            { command: 'list_deployed_drones', keyPattern: 'd', label: 'Deployed Drones', targetMenu: null, sortOrder: 30 },
+            { command: 'help_menu', keyPattern: '?', label: 'Help', targetMenu: null, sortOrder: 35 },
+            { command: 'back', keyPattern: 'q', label: 'Leave Starbase', targetMenu: null, sortOrder: 40 },
+        ],
+    },
+    {
+        name: 'starbaseHardware',
+        label: 'Hardware Store',
+        parentMenu: 'starbase',
+        commands: [],
+    },
+    {
+        name: 'shipyards',
+        label: 'Shipyards',
+        parentMenu: 'starbase',
+        commands: [
+            { command: 'buy_ship', keyPattern: 'b', label: 'Buy a new ship', targetMenu: null, sortOrder: 10 },
+            { command: 'examine_ships', keyPattern: 'e', label: 'Examine ship specs', targetMenu: null, sortOrder: 20 },
+            { command: 'shipyards_equipment', keyPattern: 'p', label: 'Purchase equipment', targetMenu: 'shipyardsClass0', sortOrder: 30 },
+            { command: 'help_menu', keyPattern: '?', label: 'Help', targetMenu: null, sortOrder: 35 },
+            { command: 'back', keyPattern: 'q', label: 'Back', targetMenu: 'starbase', sortOrder: 40 },
+        ],
+    },
+    {
+        name: 'shipyardsClass0',
+        label: 'Shipyards Equipment',
+        parentMenu: 'shipyards',
+        commands: [
+            { command: 'choose_holds', keyPattern: 'a', label: 'Cargo holds', targetMenu: null, sortOrder: 10 },
+            { command: 'choose_drones', keyPattern: 'b', label: 'Drones', targetMenu: null, sortOrder: 20 },
+            { command: 'choose_shields', keyPattern: 'c', label: 'Shield Points', targetMenu: null, sortOrder: 30 },
+            { command: 'back', keyPattern: 'q', label: 'Back', targetMenu: 'shipyards', sortOrder: 40 },
+            { command: 'help_menu', keyPattern: '?', label: 'Help', targetMenu: null, sortOrder: 50 },
+        ],
+    },
+];

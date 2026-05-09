@@ -1,31 +1,43 @@
 import type { MenuName } from '@twnr/shared';
 import { players } from '../state/players.js';
 import { sendTransition, sendError } from '../state/messaging.js';
-import { canTransitionToMenu, getParentMenuName } from '../db/queries/menu.js';
 import { handleLeaveStarbase } from './port.js';
 
+/** Static parent map — replaces the dropped menu.parent_menu_id column.
+ *  Only the server-tracked menus have entries; client-only sub-modes
+ *  (computer, attack, droneEncounter, port pre-dock) handle their own
+ *  back navigation locally and never reach handleBack. */
+const MENU_PARENTS: Record<string, MenuName> = {
+    port: 'sector',
+    class0: 'port',
+    planet: 'sector',
+    planetEarth: 'sector',
+    starbase: 'sector',
+    starbaseHardware: 'starbase',
+    shipyards: 'starbase',
+    shipyardsClass0: 'shipyards',
+};
+
+const VALID_MENUS = new Set<string>([
+    'sector',
+    ...Object.keys(MENU_PARENTS),
+]);
+
 /**
- * Handle a client request to change menu. Validates that the target menu
- * is reachable from the player's current menu via menu_command.target_menu_id.
+ * Handle a client request to change menu. Validates the target is a
+ * known menu name; trusts the client's choice of source/destination.
+ * (Previously validated against menu_command.target_menu_id rows; that
+ * table is gone.)
  */
 export async function handleChangeMenu(playerId: number, targetMenu: string): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
-    if (!targetMenu || typeof targetMenu !== 'string') {
+    if (!targetMenu || typeof targetMenu !== 'string' || !VALID_MENUS.has(targetMenu)) {
         sendError(playerId, 'Invalid menu');
         return;
     }
 
-    const allowed = await canTransitionToMenu(player.currentMenu, targetMenu);
-    if (!allowed) {
-        sendError(playerId, `Cannot navigate to ${targetMenu} from ${player.currentMenu}`);
-        return;
-    }
-
-    // Pure menu transition — no payload. The client mirrors the `menu`
-    // field into ctx.world.mode and the framework renders the new menu's
-    // prompt. `sendTransition` updates server state too.
     await sendTransition(playerId, targetMenu as MenuName);
 }
 
@@ -44,16 +56,16 @@ const BACK_HOOKS: Record<string, (playerId: number) => Promise<void>> = {
 
 /**
  * Handle a generic Back ({type:'back'}) request. The client never says where
- * to go; the server reads the player's current menu, resolves its parent via
- * `menu.parent_menu_id`, and either runs a per-menu cleanup hook or just
- * transitions to the parent.
+ * to go; the server reads the player's current menu, resolves its parent
+ * via the static MENU_PARENTS map, and either runs a per-menu cleanup hook
+ * or just transitions to the parent.
  */
 export async function handleBack(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
     const current = player.currentMenu;
-    const parent = await getParentMenuName(current);
+    const parent = MENU_PARENTS[current];
     if (!parent) {
         sendError(playerId, `No parent menu for ${current}`);
         return;
@@ -64,5 +76,5 @@ export async function handleBack(playerId: number): Promise<void> {
         await hook(playerId);
         return;
     }
-    await sendTransition(playerId, parent as MenuName);
+    await sendTransition(playerId, parent);
 }

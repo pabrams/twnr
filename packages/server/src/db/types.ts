@@ -117,21 +117,3 @@ export interface ShipTypeHardwareJoinRow {
     max_quantity: number;
 }
 
-export interface MenuRow {
-    id: number;
-    name: string;
-    label: string;
-    parent_menu_id: number | null;
-}
-
-export interface MenuCommandRow {
-    menu_id: number;
-    command_id: number;
-    key_pattern: string;
-    label: string | null;
-    mc_label: string | null;
-    target_menu_id: number | null;
-    sort_order: number;
-    command_name: string;
-    command_label: string;
-}
