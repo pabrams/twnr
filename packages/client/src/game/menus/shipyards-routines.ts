@@ -110,7 +110,7 @@ registerRoutine('examine_ships', async (ctx) => {
 
 registerRoutine('shipyards_equipment', (ctx) => {
     echoCommand(ctx, 'shipyardsEquipment');
-    ctx.io.sendMsg({ type: ClientMsgType.ChangeMenu, menu: Menu.ShipyardsClass0 });
+    ctx.world.mode = Menu.ShipyardsClass0;
 });
 
 // Shared by both the shipyards class-0 (build new ship) menu and the
@@ -137,7 +137,6 @@ registerRoutine('choose_holds', (ctx) => chooseClass0(ctx, 'holds', 'buyHolds'))
 registerRoutine('choose_drones', (ctx) => chooseClass0(ctx, 'drones', 'buyDrones'));
 registerRoutine('choose_shields', (ctx) => chooseClass0(ctx, 'shields', 'buyShields'));
 
-// Port class-0 menu's Q sends Undock (different from the generic back).
 registerRoutine('leave_port', (ctx) => {
     echoCommand(ctx, 'undock');
     ctx.io.sendMsg({ type: ClientMsgType.Undock });

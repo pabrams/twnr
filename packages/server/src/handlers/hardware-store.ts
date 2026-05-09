@@ -17,7 +17,6 @@ import { recordCreditChange } from '../services/audit.js';
 /**
  * Pre-fetch for the hardware store UI: current credits and every hardware item
  * with per-universe price, ship's current quantity, and ship-type maximum.
- * Also transitions the player into the starbaseHardware menu.
  */
 export async function handleHardwareStoreInfo(playerId: number): Promise<void> {
     const player = players[playerId];
@@ -37,11 +36,11 @@ export async function handleHardwareStoreInfo(playerId: number): Promise<void> {
         maxQty: r.max_qty,
     }));
 
-    await sendEnvelope(
-        playerId,
-        { type: ServerMsgType.HardwareStoreInfoResult, credits, items },
-        'starbaseHardware',
-    );
+    await sendEnvelope(playerId, {
+        type: ServerMsgType.HardwareStoreInfoResult,
+        credits,
+        items,
+    });
 }
 
 /** Unified handler for buying any hardware item. */

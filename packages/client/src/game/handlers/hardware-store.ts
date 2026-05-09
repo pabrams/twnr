@@ -1,3 +1,4 @@
+import { Menu } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { TRANSACTION, PANEL } from '../messages/index.js';
@@ -68,11 +69,7 @@ export const buyHardware: Handler<'buyHardwareResult', HardwareStoreDeps> = (ctx
             }),
         );
     }
-    // Update local state from the purchase result so we don't need a
-    // HardwareStoreInfo roundtrip (which would re-render the full menu
-    // and drown the action's output). The framework's auto-render fires
-    // showHardwarePrompt right after this handler, showing the new
-    // credits inline with the prompt.
+
     ctx.starbase.hardwareStoreCredits = msg.credits;
     const item = ctx.starbase.hardwareStoreItems.find((i) => i.name === msg.itemName);
     if (item) {
@@ -81,14 +78,13 @@ export const buyHardware: Handler<'buyHardwareResult', HardwareStoreDeps> = (ctx
     }
 };
 
-/** First entry to the hardware store. Renders the full catalog listing
- * once; the prompt+credits is added by the menu's `renderPrompt` (which
- * the framework calls right after this handler). Subsequent purchases
- * skip the catalog re-render. */
+
 export const hardwareStoreInfo: Handler<'hardwareStoreInfoResult', HardwareStoreDeps> = (
     ctx,
     msg,
 ) => {
+
+    ctx.world.mode = Menu.StarbaseHardware;
     ctx.starbase.hardwareStoreCredits = msg.credits;
     ctx.starbase.hardwareStoreItems = msg.items;
     showHardwareMenu(ctx);

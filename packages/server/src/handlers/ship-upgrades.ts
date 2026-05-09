@@ -14,14 +14,8 @@ import { class0Prices } from '../game-config.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 import { recordCreditChange } from '../services/audit.js';
 
-/**
- * After a Class-0 purchase, return the player to the menu they came from:
- * shipyardsClass0 (inside starbase shipyards) or plain class0 (regular port).
- * The qty submenu is gone; the client owns the askNumber inline so the
- * player's currentMenu is already the parent.
- */
-function class0ReturnMenu(playerId: number): 'shipyardsClass0' | 'class0' {
-    return players[playerId]?.currentMenu === 'shipyardsClass0' ? 'shipyardsClass0' : 'class0';
+function class0ReturnMenu(playerId: number): 'starbase' | 'class0' {
+    return players[playerId]?.at_starbase ? 'starbase' : 'class0';
 }
 
 /** Returns true iff player is at a place where they can buy Class-0 upgrades. */
