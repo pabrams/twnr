@@ -1,7 +1,8 @@
 import { getPlanetsInSector, getCollisionsInSector, getSectorDbId } from '../db/queries/sector.js';
 import { getSectorMines } from '../db/queries/mines.js';
 import { recordSectorObservation } from '../db/queries/observations.js';
-import { players } from '../state/players.js';
+import { listPlayersInSector } from '../db/queries/player.js';
+import { players, isVisibleInSector } from '../state/players.js';
 import {
     getPortForSector,
     getWarpRefs,
@@ -47,15 +48,10 @@ export async function buildSectorDisplayData(playerId: number, sectorNumber?: nu
                   }))
             : [];
 
-    const playersInSector = Object.entries(players)
-        .filter(
-            ([id, p]) =>
-                p.sector === sector &&
-                p.universeId === universeId &&
-                !p.docked &&
-                Number(id) !== playerId,
-        )
-        .map(([id, p]) => ({ id: Number(id), name: p.name }));
+    const sectorPlayerRows = await listPlayersInSector(sector, universeId, playerId);
+    const playersInSector = sectorPlayerRows
+        .filter((row) => isVisibleInSector(row.id, row.docked, row.on_planet_id))
+        .map((row) => ({ id: row.id, name: row.name }));
 
     if (sectorDbId !== undefined) {
         await recordSectorObservation(

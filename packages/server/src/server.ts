@@ -43,6 +43,25 @@ app.use(express.json());
 const server: Server = createServer(app);
 const wss = new WebSocketServer({ server });
 
+// Heartbeat: ping every 30s; sockets that don't pong by the next tick get
+// terminated, which fires the close handler. Without this, hard disconnects
+// (yanked ethernet, killed wifi) wouldn't surface until TCP keepalive kicks
+// in (~2 hours on Linux defaults), during which the docked-while-online
+// visibility predicate would keep them hidden in their sector.
+const aliveSockets = new WeakSet<WebSocket>();
+const HEARTBEAT_INTERVAL_MS = 30_000;
+const heartbeatInterval = setInterval(() => {
+    for (const ws of wss.clients) {
+        if (!aliveSockets.has(ws)) {
+            ws.terminate();
+            continue;
+        }
+        aliveSockets.delete(ws);
+        ws.ping();
+    }
+}, HEARTBEAT_INTERVAL_MS);
+wss.on('close', () => clearInterval(heartbeatInterval));
+
 server.prependListener('upgrade', (req: IncomingMessage, socket: Socket) => {
     const url = new URL(req.url || '', `http://${req.headers.host}`);
     if (url.pathname !== '/ws') {
@@ -97,6 +116,9 @@ app.get(/.*/, (req, res, next) => {
 });
 
 wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
+    aliveSockets.add(ws);
+    ws.on('pong', () => aliveSockets.add(ws));
+
     const cookies = auth.parseCookies(req.headers.cookie);
     let authPayload: AuthTokenPayload;
     try {
