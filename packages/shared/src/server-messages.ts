@@ -459,8 +459,8 @@ export type PreviousSectorResultObject = {
     sector: number | null;
 };
 
-export type AttackMenuResultObject = {
-    type: typeof ServerMsgType.AttackMenuResult;
+export type GetAttackTargetsResultObject = {
+    type: typeof ServerMsgType.GetAttackTargetsResult;
     players: { id: number; name: string }[];
 };
 
@@ -647,7 +647,7 @@ export type ServerResult =
     | HyperspaceJumpResultObject
     | VisitedSectorsResultObject
     | PreviousSectorResultObject
-    | AttackMenuResultObject
+    | GetAttackTargetsResultObject
     | StarbaseInfoResultObject
     | TerraformInfoResultObject
     | HardwareStoreInfoResultObject

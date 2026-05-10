@@ -24,7 +24,7 @@ import { handleStarbaseInfo } from './starbase-info.js';
 import { handleBuyDrones, handleBuyShields, handleBuyHolds } from './ship-upgrades.js';
 import { handleBuyShipTradein, handleBuyShipNew } from './ship-exchange.js';
 import { handleJettison } from './ship-cargo.js';
-import { handleAttack, handleAttackShip } from './combat.js';
+import { handleGetAttackTargets, handleAttackShip } from './combat.js';
 import {
     handleLand,
     handleLandOnPlanet,
@@ -81,8 +81,8 @@ export async function handleMessage(playerId: number, data: ClientCommand): Prom
             return handleBuyHolds(playerId, data.quantity);
         case ClientMsgType.BuyShipTradein:
             return handleBuyShipTradein(playerId, data.targetShipName);
-        case ClientMsgType.Attack:
-            return handleAttack(playerId);
+        case ClientMsgType.GetAttackTargets:
+            return handleGetAttackTargets(playerId);
         case ClientMsgType.StarbaseInfo:
             return handleStarbaseInfo(playerId);
         case ClientMsgType.TerraformInfo:

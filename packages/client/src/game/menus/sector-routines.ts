@@ -92,7 +92,7 @@ registerRoutine('player_info', (ctx) => {
 
 registerRoutine('attack_menu', (ctx) => {
     echoCommand(ctx, 'attack');
-    ctx.io.sendMsg({ type: ClientMsgType.Attack });
+    ctx.io.sendMsg({ type: ClientMsgType.GetAttackTargets });
 });
 
 registerRoutine('computer_menu', (ctx) => {

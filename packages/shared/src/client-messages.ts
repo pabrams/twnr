@@ -11,8 +11,8 @@ export type MoveToPreviousCommand = {
     type: typeof ClientMsgType.MoveToPrevious;
 };
 
-export type AttackCommand = {
-    type: typeof ClientMsgType.Attack;
+export type GetAttackTargetsCommand = {
+    type: typeof ClientMsgType.GetAttackTargets;
 };
 
 export type StarbaseInfoCommand = {
@@ -236,7 +236,7 @@ export type GetNeighborhoodCommand = {
 export type ClientCommand =
     | MoveCommand
     | MoveToPreviousCommand
-    | AttackCommand
+    | GetAttackTargetsCommand
     | StarbaseInfoCommand
     | TerraformInfoCommand
     | HardwareStoreInfoCommand

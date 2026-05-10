@@ -13,12 +13,7 @@ import {
 } from '../db/queries/ship.js';
 import { listPlayersInSector, getAttackTargetInfo } from '../db/queries/player.js';
 
-/**
- * Player pressed 'A' in the sector menu. Returns the attack roster for the
- * current sector; transitions to the Attack menu if there are targets,
- * otherwise leaves the player at the Sector menu.
- */
-export async function handleAttack(playerId: number): Promise<void> {
+export async function handleGetAttackTargets(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
@@ -27,7 +22,7 @@ export async function handleAttack(playerId: number): Promise<void> {
         .filter((row) => isVisibleInSector(row.id, row.docked, row.on_planet_id))
         .map((row) => ({ id: row.id, name: row.name }));
 
-    await sendEnvelope(playerId, { type: ServerMsgType.AttackMenuResult, players: roster });
+    await sendEnvelope(playerId, { type: ServerMsgType.GetAttackTargetsResult, players: roster });
 }
 
 export async function handleAttackShip(
