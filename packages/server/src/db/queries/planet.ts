@@ -332,3 +332,93 @@ export async function getPlanetName(planetId: number): Promise<string | null> {
     const res = await pool.query('SELECT name FROM planets WHERE id = $1', [planetId]);
     return res.rows[0]?.name ?? null;
 }
+
+/** Settle accrued production on a single planet. Reads the planet's current
+ *  state (colos, stockpiles, last_production_at) plus the joined planet_type
+ *  and universe_setting rows, then applies
+ *  `floor(colos * production_rate * elapsed_hours / colos_per_unit)` per
+ *  commodity (clamped to the type's max stockpile) and stamps
+ *  last_production_at = NOW().
+ *
+ *  Always stamps, so callers that are about to mutate colos (take/leave
+ *  colonists) should call this first — the segment up to "now" is credited
+ *  against the *old* colos count, and the next segment starts fresh against
+ *  the new count. Sub-unit fractional accrual at segment boundaries is
+ *  rounded down (intentional trade-off for not carrying fractional state).
+ *            
+ *  Locks the planet row FOR UPDATE; safe to call from a transaction that
+ *  later re-locks the same row. */
+const ONE_HOUR_MS = 60 * 60 * 1000;
+export async function settlePlanetProduction(
+    planetId: number,
+    db: Queryable = pool,
+): Promise<{ produced: boolean }> {
+    const res = await db.query<{
+        fuel: number;
+        organics: number;
+        equipment: number;
+        colonists_fuel: number;
+        colonists_organics: number;
+        colonists_equipment: number;
+        fuel_production: number;
+        organics_production: number;
+        equipment_production: number;
+        max_fuel: number;
+        max_org: number;
+        max_equ: number;
+        last_production_at: Date;
+        colos_per_unit: number;
+    }>(
+        `SELECT p.fuel, p.organics, p.equipment,
+                p.colonists_fuel, p.colonists_organics, p.colonists_equipment,
+                pt.fuel_production, pt.organics_production, pt.equipment_production,
+                pt.max_fuel, pt.max_org, pt.max_equ,
+                p.last_production_at,
+                COALESCE(us.colos_to_produce_one_unit_per_hour, ${universeConfig.colosToProduceOneUnitPerHour}) AS colos_per_unit
+         FROM planets p
+         JOIN sectors s ON p.sector_id = s.id
+         JOIN planet_types pt ON pt.name = p.type
+         LEFT JOIN universe_settings us ON us.universe_id = s.universe_id
+         WHERE p.id = $1
+         FOR UPDATE OF p`,
+        [planetId],
+    );
+    const row = res.rows[0];
+    if (!row) return { produced: false };
+
+    const cpu = row.colos_per_unit;
+    if (cpu <= 0) return { produced: false };
+
+    const elapsedMs = Date.now() - new Date(row.last_production_at).getTime();
+    if (elapsedMs <= 0) return { produced: false };
+    const elapsedHours = elapsedMs / ONE_HOUR_MS;
+
+    const dFuel = Math.floor((row.colonists_fuel * row.fuel_production * elapsedHours) / cpu);
+    const dOrg = Math.floor((row.colonists_organics * row.organics_production * elapsedHours) / cpu);
+    const dEqu = Math.floor((row.colonists_equipment * row.equipment_production * elapsedHours) / cpu);
+
+    const newFuel = Math.min(row.max_fuel, row.fuel + dFuel);
+    const newOrg = Math.min(row.max_org, row.organics + dOrg);
+    const newEqu = Math.min(row.max_equ, row.equipment + dEqu);
+
+    await db.query(
+        `UPDATE planets
+         SET fuel = $2, organics = $3, equipment = $4, last_production_at = NOW()
+         WHERE id = $1`,
+        [planetId, newFuel, newOrg, newEqu],
+    );
+    const produced = newFuel !== row.fuel || newOrg !== row.organics || newEqu !== row.equipment;
+    return { produced };
+}
+
+/** IDs of every planet that currently has any colonists assigned to a
+ *  commodity. The hourly job iterates these and calls settle per-planet —
+ *  planets with all-zero colos can't produce anything so they're skipped
+ *  at the list level instead of being locked for nothing. */
+export async function listPlanetIdsWithColonists(db: Queryable = pool): Promise<number[]> {
+    const res = await db.query<{ id: number }>(
+        `SELECT id FROM planets
+         WHERE colonists_fuel > 0 OR colonists_organics > 0 OR colonists_equipment > 0`,
+    );
+    return res.rows.map((r) => r.id);
+}

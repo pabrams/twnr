@@ -72,7 +72,8 @@ export const connectDB = async (): Promise<void> => {
         seeker_pickup_detect_pct SMALLINT NOT NULL DEFAULT ${universeConfig.seekerPickupDetectPct},
         mine_disruptor_min SMALLINT NOT NULL DEFAULT ${universeConfig.mineDisruptorMin},
         mine_disruptor_max SMALLINT NOT NULL DEFAULT ${universeConfig.mineDisruptorMax},
-        respawn_delay_seconds INTEGER NOT NULL DEFAULT ${universeConfig.respawnDelaySeconds}
+        respawn_delay_seconds INTEGER NOT NULL DEFAULT ${universeConfig.respawnDelaySeconds},
+        colos_to_produce_one_unit_per_hour INTEGER NOT NULL DEFAULT ${universeConfig.colosToProduceOneUnitPerHour}
       );
 
       CREATE TABLE IF NOT EXISTS universes (
@@ -125,7 +126,8 @@ export const connectDB = async (): Promise<void> => {
         seeker_pickup_detect_pct SMALLINT NOT NULL DEFAULT ${universeConfig.seekerPickupDetectPct},
         mine_disruptor_min SMALLINT NOT NULL DEFAULT ${universeConfig.mineDisruptorMin},
         mine_disruptor_max SMALLINT NOT NULL DEFAULT ${universeConfig.mineDisruptorMax},
-        respawn_delay_seconds INTEGER NOT NULL DEFAULT ${universeConfig.respawnDelaySeconds}
+        respawn_delay_seconds INTEGER NOT NULL DEFAULT ${universeConfig.respawnDelaySeconds},
+        colos_to_produce_one_unit_per_hour INTEGER NOT NULL DEFAULT ${universeConfig.colosToProduceOneUnitPerHour}
       );
 
       CREATE TABLE IF NOT EXISTS sectors (
@@ -348,6 +350,7 @@ export const connectDB = async (): Promise<void> => {
         colonists_equipment INTEGER NOT NULL DEFAULT 0,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ,
+        last_production_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         CONSTRAINT planets_single_owner_type
           CHECK (NOT (owner_player_id IS NOT NULL AND owner_corp_id IS NOT NULL))
       );
@@ -538,7 +541,8 @@ export const connectDB = async (): Promise<void> => {
                  planet_collision_likelihood = $9,
                  planet_collision_min_hours = $10,
                  planet_collision_max_hours = $11,
-                 respawn_delay_seconds = $12
+                 respawn_delay_seconds = $12,
+                 colos_to_produce_one_unit_per_hour = $13
              WHERE name = 'stock'`,
             [
                 universeConfig.startingCredits,
@@ -553,6 +557,7 @@ export const connectDB = async (): Promise<void> => {
                 universeConfig.planetCollisionMinHours,
                 universeConfig.planetCollisionMaxHours,
                 universeConfig.respawnDelaySeconds,
+                universeConfig.colosToProduceOneUnitPerHour,
             ],
         );
 
