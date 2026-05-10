@@ -60,7 +60,7 @@ async function main() {
         await client.query('BEGIN');
 
         // ── 1. universe "test" with 1000 sectors ────────────────────────
-        const result = generateUniverse({ sectors: 1000 });
+        const result = generateUniverse({ sectors: 1000, seed: 42 });
         const templateId = await getTemplateIdByName('stock', client);
         universeId = await insertUniverseFull(
             'test',
@@ -127,7 +127,13 @@ async function main() {
         );
         const hwLoadout = hwLoadoutRes.rows;
 
-        // ── 3. Per-player: user, player, ship, home loadout, adj drones ─
+        // ── 3. Per-player setup (user, player, ship, mines, planet, home
+        //       drones). Adjacent-sector drones run in a separate pass at
+        //       the end so they can't race a *future* player's home-sector
+        //       insert (sector_drones is keyed on sector_id — one owner
+        //       per sector). Home sectors 11/22/33 are distinct, so all
+        //       three home-drone inserts in this loop are safe. ─────────
+        const playerHomes = [];
         for (const def of PLAYERS) {
             const homeSectorDbId = sectorIdMap.get(def.homeSector);
             if (homeSectorDbId === undefined) {
@@ -139,6 +145,16 @@ async function main() {
                 hashPassword(def.password),
                 'player',
                 client,
+            );
+            // Bump token_version to something the previous run's cookies
+            // can't possibly hold. `createUser` defaults to 1, so without
+            // this an old browser cookie of (user_id=1, tokenVersion=1)
+            // would validate against the freshly recreated user 1. The
+            // middleware now clears stale cookies on tokenVersion mismatch,
+            // so this guarantees a clean handoff back to the login screen.
+            await client.query(
+                `UPDATE users SET token_version = $1 WHERE id = $2`,
+                [Math.floor(Date.now() / 1000), user.id],
             );
 
             const playerId = await insertPlayer(
@@ -212,18 +228,38 @@ async function main() {
                 [homeSectorDbId, def.name, playerId, COLOS_PER_BUCKET],
             );
 
-            // Adjacent sectors: 10 sector drones each. Two-way warps are
-            // common but not universal; iterate every outgoing edge.
+            playerHomes.push({ def, playerId, userId: user.id, homeSectorDbId });
+            console.log(
+                `  player "${def.name}" (user ${user.id}, player ${playerId}) seeded at sector ${def.homeSector}`,
+            );
+        }
+
+        // ── 4. Adjacent-sector drones (pass 2). All home sectors are now
+        //       claimed; any adjacent insert that collides with another
+        //       player's home (or another player's earlier adjacent) is
+        //       skipped. First claim wins. ──────────────────────────────
+        for (const { def, playerId, homeSectorDbId } of playerHomes) {
             const adjRes = await client.query(
                 `SELECT DISTINCT to_sector_id FROM warps WHERE from_sector_id = $1`,
                 [homeSectorDbId],
             );
+            let placed = 0;
+            const skipped = [];
             for (const row of adjRes.rows) {
-                await insertSectorDrones(row.to_sector_id, playerId, ADJACENT_DRONES, client);
+                const ins = await client.query(
+                    `INSERT INTO sector_drones (sector_id, owner_id, quantity)
+                     VALUES ($1, $2, $3)
+                     ON CONFLICT (sector_id) DO NOTHING
+                     RETURNING sector_id`,
+                    [row.to_sector_id, playerId, ADJACENT_DRONES],
+                );
+                if (ins.rowCount > 0) placed++;
+                else skipped.push(row.to_sector_id);
             }
-
+            const skipMsg =
+                skipped.length > 0 ? ` (${skipped.length} adjacent sector(s) already owned)` : '';
             console.log(
-                `  player "${def.name}" (user ${user.id}, player ${playerId}) seeded at sector ${def.homeSector}`,
+                `  player "${def.name}" — ${placed} adjacent drone deployment(s)${skipMsg}`,
             );
         }
 
