@@ -18,11 +18,6 @@ export const STARBASE = makeDomain('STARBASE', {
 
     buyQtyPrompt: '\r\n[c]How many {item}?[/c] [mg][[/mg][bc]{canBuy}[/bc][mg]][/mg] ',
 
-    planetSelectHeader: '[bc]=== Select a Planet ===[/bc]',
-    planetSelectRow: '  [by]{n}[/by]  [w]{name}[/w] ({type})',
-    planetSelectPrompt:
-        '\r\n[mg]Pick planet[/mg] [mg]([/mg][by]#[/by][mg],[/mg][by]Q[/by][mg])[/mg] [by]?[/by] ',
-
     shipyardsPrompt:
         '\r\n[mg]<[/mg][bc]Shipyards[/bc][mg]>[/mg] [mg]What do you need[/mg] [mg]([/mg][by]?[/by][mg])[/mg][mg]?[/mg] ',
     shipyardsBuyHeader: '[bc]=== Shipyards - Buy ===[/bc]',

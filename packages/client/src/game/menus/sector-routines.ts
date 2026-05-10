@@ -1,6 +1,6 @@
 import { ClientMsgType, Menu, ServerMsgType } from '@twnr/shared';
 import { render } from '../renderer.js';
-import { EVENT, NOTIFY, SECTOR, STARBASE } from '../messages/index.js';
+import { EVENT, NOTIFY, PLANET, SECTOR } from '../messages/index.js';
 import {
     echoCommand,
     hideMoveMenuOverlay,
@@ -8,7 +8,7 @@ import {
     showPortMenu,
     showPlayerInfo,
 } from '../display.js';
-import { showPlanetSelectMenu } from '../display-starbase.js';
+import { showPlanetSelectMenu } from '../display-planet.js';
 import { registerRoutine } from './types.js';
 import { askChar, askConfirm, askNumber, awaitResponse } from './prompts.js';
 
@@ -130,7 +130,7 @@ registerRoutine('land', async (ctx) => {
         return;
     }
     showPlanetSelectMenu(ctx, planets);
-    const idx = await askNumber(ctx, render(STARBASE.planetSelectPrompt), {
+    const idx = await askNumber(ctx, render(PLANET.planetSelectPrompt), {
         min: 1,
         max: planets.length,
     });

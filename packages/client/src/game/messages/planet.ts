@@ -23,4 +23,9 @@ export const PLANET = makeDomain('PLANET', {
     leaveCommodityHeader: '[bc]Assign colonists to which commodity?[/bc]',
     commodityPrompt:
         '\r\n[mg]Choose[/mg] [mg]([/mg][by]F[/by]/[by]O[/by]/[by]E[/by]/[by]Q[/by][mg])[/mg] [by]?[/by] ',
+
+    planetSelectHeader: '[bc]=== Select a Planet ===[/bc]',
+    planetSelectRow: '  [by]{n}[/by]  [w]{name}[/w] ({type})',
+    planetSelectPrompt:
+        '\r\n[mg]Pick planet[/mg] [mg]([/mg][by]#[/by][mg],[/mg][by]Q[/by][mg])[/mg] [by]?[/by] ',
 });
