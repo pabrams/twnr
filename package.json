@@ -37,7 +37,7 @@
     "preview:transaction:watch": "tsx watch scripts/preview-messages.ts TRANSACTION",
     "preview:event:watch": "tsx watch scripts/preview-messages.ts EVENT",
     "preview:panel:watch": "tsx watch scripts/preview-messages.ts PANEL",
-    "docs": "ts-json-schema-generator --path packages/shared/src/client-messages.ts --type ClientCommand -o docs/client-messages.schema.json && ts-json-schema-generator --path packages/shared/src/server-messages.ts --type ServerMessage -o docs/server-messages.schema.json && node scripts/generate-docs.mjs"
+    "docs": "ts-json-schema-generator --path packages/shared/src/client-messages.ts --type ClientCommand -o docs/client-messages.schema.json && ts-json-schema-generator --path packages/shared/src/server-messages.ts --type ServerResult -o docs/server-messages.schema.json && node scripts/generate-docs.mjs"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.57.2",
