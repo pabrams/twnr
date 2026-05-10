@@ -308,6 +308,19 @@ export async function getPlanetDisplayData(playerId: number): Promise<{
     colonists_organics: number;
     colonists_equipment: number;
     colonists_drones: number;
+    fuel_production: number;
+    organics_production: number;
+    equipment_production: number;
+    drone_production: number;
+    max_fuel: number;
+    max_org: number;
+    max_equ: number;
+    max_drones: number;
+    max_fuel_colos: number;
+    max_org_colos: number;
+    max_equ_colos: number;
+    max_drone_colos: number;
+    colos_per_unit_per_hour: number;
     created_at: Date;
     updated_at: Date | null;
 } | null> {
@@ -321,9 +334,15 @@ export async function getPlanetDisplayData(playerId: number): Promise<{
         `SELECT pl.id, pl.sector_id, pl.name, pl.type, pt.display_name AS display_type,
                 pl.drones, pl.fuel, pl.organics, pl.equipment,
                 pl.colonists_fuel, pl.colonists_organics, pl.colonists_equipment, pl.colonists_drones,
+                pt.fuel_production, pt.organics_production, pt.equipment_production, pt.drone_production,
+                pt.max_fuel, pt.max_org, pt.max_equ, pt.max_drones,
+                pt.max_fuel_colos, pt.max_org_colos, pt.max_equ_colos, pt.max_drone_colos,
+                COALESCE(us.colos_to_produce_one_unit_per_hour, ${universeConfig.colosToProduceOneUnitPerHour}) AS colos_per_unit_per_hour,
                 pl.created_at, pl.updated_at
          FROM planets pl
+         JOIN sectors s ON s.id = pl.sector_id
          LEFT JOIN planet_types pt ON pt.name = pl.type
+         LEFT JOIN universe_settings us ON us.universe_id = s.universe_id
          WHERE pl.id = $1`,
         [onPlanetId],
     );

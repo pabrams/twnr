@@ -104,12 +104,21 @@ export async function handleLandOnPlanet(playerId: number, planetId: number): Pr
         ship_colonists: ctx.shipColonists,
         ship_drones: ctx.shipDrones,
         ship_max_drones: ctx.shipMaxDrones,
+        ship_fuel: ctx.shipFuel,
+        ship_organics: ctx.shipOrganics,
+        ship_equipment: ctx.shipEquipment,
     });
 }
 
-async function getShipPlanetContext(
-    playerId: number,
-): Promise<{ emptyHolds: number; shipColonists: number; shipDrones: number; shipMaxDrones: number }> {
+async function getShipPlanetContext(playerId: number): Promise<{
+    emptyHolds: number;
+    shipColonists: number;
+    shipDrones: number;
+    shipMaxDrones: number;
+    shipFuel: number;
+    shipOrganics: number;
+    shipEquipment: number;
+}> {
     const [ship, shipColonists, drones] = await Promise.all([
         getShipCargoWithCredits(playerId),
         getShipColonists(playerId),
@@ -121,6 +130,9 @@ async function getShipPlanetContext(
         shipColonists: shipColonists ?? 0,
         shipDrones: drones?.drones ?? 0,
         shipMaxDrones: drones?.max_drones ?? 0,
+        shipFuel: ship?.fuel ?? 0,
+        shipOrganics: ship?.organics ?? 0,
+        shipEquipment: ship?.equipment ?? 0,
     };
 }
 
@@ -147,6 +159,9 @@ export async function handlePlanetDisplay(playerId: number): Promise<void> {
         ship_colonists: ctx.shipColonists,
         ship_drones: ctx.shipDrones,
         ship_max_drones: ctx.shipMaxDrones,
+        ship_fuel: ctx.shipFuel,
+        ship_organics: ctx.shipOrganics,
+        ship_equipment: ctx.shipEquipment,
     });
 }
 
