@@ -15,6 +15,13 @@ type LoginResponse = {
     token: string;
 };
 
+type RegisterResponse = {
+    userId: number;
+    name: string;
+    role: string;
+    token: string;
+};
+
 async function postJson<T>(url: string, body: unknown): Promise<T> {
     const res = await fetch(url, {
         method: 'POST',
@@ -48,6 +55,28 @@ export async function login(host: string, email: string, password: string): Prom
         host,
         token: data.token,
         userId: data.userId,
+        isGuest: false,
+    };
+    saveSession(session);
+    return session;
+}
+
+export async function register(
+    host: string,
+    name: string,
+    email: string,
+    password: string,
+): Promise<Session> {
+    const data = await postJson<RegisterResponse>(`${host}/api/auth/register`, {
+        name,
+        email,
+        password,
+    });
+    const session: Session = {
+        host,
+        token: data.token,
+        userId: data.userId,
+        name: data.name,
         isGuest: false,
     };
     saveSession(session);
