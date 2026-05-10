@@ -15,6 +15,115 @@ import { type DisplayStarbaseCtx } from '../display-starbase.js';
 import { type DisplayComputerCtx } from '../display-computer.js';
 import type { Handler } from './index.js';
 import { fmt, refreshMinimap, type RefreshMinimapDeps } from './utils.js';
+import { padStartVisible } from '../display-utils.js';
+
+type PlanetDisplayMsg = {
+    id: number;
+    name: string;
+    planetType: string;
+    displayType: string | null;
+    fuel: number;
+    organics: number;
+    equipment: number;
+    drones: number;
+    colonists_fuel: number;
+    colonists_organics: number;
+    colonists_equipment: number;
+    colonists_drones: number;
+    fuel_production: number;
+    organics_production: number;
+    equipment_production: number;
+    drone_production: number;
+    max_fuel: number;
+    max_org: number;
+    max_equ: number;
+    max_drones: number;
+    colos_per_unit_per_hour: number;
+    ship_fuel: number;
+    ship_organics: number;
+    ship_equipment: number;
+    ship_drones: number;
+    empty_holds: number;
+};
+
+function colsToBuildOnePerHour(prodRate: number, cpu: number): string {
+    if (prodRate <= 0 || cpu <= 0) return 'N/A';
+    return fmt(Math.ceil(cpu / prodRate));
+}
+
+function hourlyOutput(colos: number, prodRate: number, cpu: number): string {
+    if (prodRate <= 0 || cpu <= 0) return '0';
+    return fmt(Math.floor((colos * prodRate) / cpu));
+}
+
+function renderPlanetTable(ctx: { io: { term: { writeln: (s: string) => void } }; world: { currentSector: number } }, msg: PlanetDisplayMsg): void {
+    const sector = ctx.world.currentSector;
+    const cpu = msg.colos_per_unit_per_hour;
+    ctx.io.term.writeln('');
+    ctx.io.term.writeln(
+        render(PANEL.planetDisplayTitle, { id: msg.id, sector, name: msg.name }),
+    );
+    ctx.io.term.writeln(
+        render(PANEL.planetDisplayClass, {
+            class: msg.planetType,
+            type: msg.displayType ?? msg.planetType,
+        }),
+    );
+    ctx.io.term.writeln('');
+    ctx.io.term.writeln(render(PANEL.planetDisplayTableHead1));
+    ctx.io.term.writeln(render(PANEL.planetDisplayTableHead2));
+    ctx.io.term.writeln(render(PANEL.planetDisplayTableSep));
+
+    const rows = [
+        {
+            item: 'Fuel Ore',
+            colos: msg.colonists_fuel,
+            prod: msg.fuel_production,
+            planet: msg.fuel,
+            ship: msg.ship_fuel,
+            max: msg.max_fuel,
+        },
+        {
+            item: 'Organics',
+            colos: msg.colonists_organics,
+            prod: msg.organics_production,
+            planet: msg.organics,
+            ship: msg.ship_organics,
+            max: msg.max_org,
+        },
+        {
+            item: 'Equipment',
+            colos: msg.colonists_equipment,
+            prod: msg.equipment_production,
+            planet: msg.equipment,
+            ship: msg.ship_equipment,
+            max: msg.max_equ,
+        },
+        {
+            item: 'Drones',
+            colos: msg.colonists_drones,
+            prod: msg.drone_production,
+            planet: msg.drones,
+            ship: msg.ship_drones,
+            max: msg.max_drones,
+        },
+    ];
+    for (const r of rows) {
+        ctx.io.term.writeln(
+            render(PANEL.planetDisplayTableRow, {
+                item: padStartVisible(r.item, 9),
+                colos: padStartVisible(fmt(Math.floor(r.colos / 1000)), 9),
+                c2b1: padStartVisible(colsToBuildOnePerHour(r.prod, cpu), 9),
+                hourly: padStartVisible(hourlyOutput(r.colos, r.prod, cpu), 9),
+                planet: padStartVisible(fmt(r.planet), 9),
+                ship: padStartVisible(fmt(r.ship), 9),
+                max: padStartVisible(fmt(r.max), 9),
+            }),
+        );
+    }
+
+    ctx.io.term.writeln(render(PANEL.planetDisplayHolds, { holds: fmt(msg.empty_holds) }));
+}
 
 type PlanetDeps = Pick<GameContext, 'io' | 'input' | 'ship' | 'world'> &
     DisplayCtx &
@@ -102,23 +211,7 @@ export const landOnPlanet: Handler<'landOnPlanetResult', PlanetDeps> = (ctx, msg
     } else {
         ctx.io.term.writeln('');
         ctx.io.term.writeln(render(PANEL.landedHeader, { name: msg.name }));
-        ctx.io.term.writeln(render(PANEL.landedType, { type: msg.displayType ?? msg.planetType }));
-        ctx.io.term.writeln(
-            render(PANEL.landedStats, {
-                drones: msg.drones,
-                fuel: msg.fuel,
-                organics: msg.organics,
-                equipment: msg.equipment,
-            }),
-        );
-        ctx.io.term.writeln(
-            render(PANEL.landedColonists, {
-                fuel: msg.colonists_fuel ?? 0,
-                organics: msg.colonists_organics ?? 0,
-                equipment: msg.colonists_equipment ?? 0,
-                drones: msg.colonists_drones ?? 0,
-            }),
-        );
+        renderPlanetTable(ctx, msg);
     }
 };
 
@@ -127,29 +220,7 @@ export const planetDisplay: Handler<'planetDisplayResult', PlanetDeps> = (ctx, m
     ctx.ship.shipColonists = msg.ship_colonists;
     ctx.ship.shipDrones = msg.ship_drones;
     ctx.ship.shipMaxDrones = msg.ship_max_drones;
-    ctx.io.term.writeln('');
-    ctx.io.term.writeln(
-        render(PANEL.planetDisplayHeader, {
-            name: msg.name,
-            type: msg.displayType ?? msg.planetType,
-        }),
-    );
-    ctx.io.term.writeln(
-        render(PANEL.landedStats, {
-            drones: msg.drones,
-            fuel: msg.fuel,
-            organics: msg.organics,
-            equipment: msg.equipment,
-        }),
-    );
-    ctx.io.term.writeln(
-        render(PANEL.landedColonists, {
-            fuel: msg.colonists_fuel,
-            organics: msg.colonists_organics,
-            equipment: msg.colonists_equipment,
-            drones: msg.colonists_drones,
-        }),
-    );
+    renderPlanetTable(ctx, msg);
 };
 
 export const destroyPlanet: Handler<'destroyPlanetResult', PlanetDeps> = (ctx, msg) => {

@@ -16,14 +16,32 @@ export function showPlanetMenuOptions(ctx: DisplayPlanetCtx) {
 }
 
 export function showPlanetHelp(ctx: DisplayPlanetCtx) {
+    const lines = [
+        ['T', 'Take colonists aboard'],
+        ['L', 'Leave colonists on planet'],
+        ['G', 'Get commodity from planet'],
+        ['P', 'Put commodity on planet'],
+        ['D', 'Display Planet'],
+        ['Z', 'Try to Destroy Planet'],
+        ['', ''],
+        ['Q', 'Leave this Planet'],
+    ];
+    const inner = 30;
+    const top = '╔' + '═'.repeat(inner + 2) + '╗';
+    const bot = '╚' + '═'.repeat(inner + 2) + '╝';
     ctx.io.term.writeln('');
-    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'T', text: 'Take colonists aboard' }));
-    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'L', text: 'Leave colonists on planet' }));
-    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'G', text: 'Get commodity from planet' }));
-    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'P', text: 'Put commodity on planet' }));
-    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'D', text: 'Planet Info' }));
-    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Z', text: 'Destroy Planet' }));
-    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Leave Planet' }));
+    ctx.io.term.writeln(top);
+    for (const [key, text] of lines) {
+        let body: string;
+        if (!key && !text) {
+            body = ' '.repeat(inner);
+        } else {
+            const left = `<${key}> ${text}`;
+            body = left.padEnd(inner, ' ');
+        }
+        ctx.io.term.writeln(`║ ${body} ║`);
+    }
+    ctx.io.term.writeln(bot);
     showPlanetPrompt(ctx);
 }
 
@@ -108,14 +126,13 @@ export function showPlanetSelectMenu(
 ) {
     ctx.io.term.writeln('');
     ctx.io.term.writeln(render(PLANET.planetSelectHeader));
+    ctx.io.term.writeln(render(PLANET.planetSelectSep));
     planets.forEach((p, i) => {
         ctx.io.term.writeln(
             render(PLANET.planetSelectRow, {
-                n: i + 1,
+                n: String(i + 1).padStart(4, ' '),
                 name: p.name,
-                type: p.displayType ?? p.type,
             }),
         );
     });
-    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
 }

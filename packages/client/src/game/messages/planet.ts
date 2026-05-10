@@ -34,8 +34,9 @@ export const PLANET = makeDomain('PLANET', {
     leaveStockpileResult:
         '[bg]Left [bc]{qty}[/bc] {commodity}.[/bg]  [g]Planet[/g]: [by]{planet}[/by]  [g]Ship[/g]: [by]{ship}[/by]',
 
-    planetSelectHeader: '[bc]=== Select a Planet ===[/bc]',
-    planetSelectRow: '  [by]{n}[/by]  [w]{name}[/w] ({type})',
+    planetSelectHeader: '[by]Registry# and Planet Name[/by]',
+    planetSelectSep: '[g]-----------------------------------------------[/g]',
+    planetSelectRow: '   [mg]<[/mg][by]{n}[/by][mg]>[/mg]  [bc]{name}[/bc]',
     planetSelectPrompt:
-        '\r\n[mg]Pick planet[/mg] [mg]([/mg][by]#[/by][mg],[/mg][by]Q[/by][mg])[/mg] [by]?[/by] ',
+        '\r\n[mg]Land on which planet[/mg] [mg]<[/mg][by]Q[/by] [mg]to abort> ?[/mg] ',
 });
