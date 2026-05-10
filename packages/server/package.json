@@ -37,6 +37,7 @@
     "db:import": "pnpm run kill:dev && node --env-file=.env ./scripts/importUniverse.js",
     "db:seed": "pnpm run kill:dev && node ./scripts/twnr-bigbang.js ./data/universe/ --sectors 2000 --seed 42 && node --env-file=.env ./scripts/importUniverse.js ./data/universe --force",
     "db:reseed": "pnpm run dropDatabase && pnpm run clean:universe && pnpm run db:seed",
+    "db:addTestData1": "node --env-file=.env ./scripts/addTestData1.js",
     "test": "bash test/run-tests.sh"
   }
 }
