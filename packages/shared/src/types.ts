@@ -67,6 +67,10 @@ export type PlanetConfig = {
     type: string;
     displayName?: string;
     description: string;
+    /** Deaths per 1000 colos per day from environmental hazard. Combined
+     *  with the universe-level dailyReproductionPer1000Colos to compute
+     *  the planet's net colonist trajectory. */
+    danger: number;
     maxFuelColos: number;
     maxOrgColos: number;
     maxEquColos: number;

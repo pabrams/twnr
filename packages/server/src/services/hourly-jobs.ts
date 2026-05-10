@@ -7,6 +7,7 @@ import {
 import {
     listPlanetIdsWithColonists,
     settlePlanetProduction,
+    settlePlanetColonistGrowth,
 } from '../db/queries/planet.js';
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
@@ -63,6 +64,28 @@ export async function runProduceCommodities(): Promise<number> {
 }
 
 /**
+ * Daily colonist growth: settles births (universe rate) and deaths
+ * (planet-type `danger`) on every planet that has colonists assigned.
+ * The scheduler fires every hour, but settle only stamps when at least
+ * one whole birth or death accrued — so a planet ticks naturally on its
+ * own daily cadence regardless of how often this runs. Take/leave-
+ * colonists handlers call the same helper with `force=true` to close
+ * the current segment before mutating colos.
+ */
+export async function runColonistGrowth(): Promise<number> {
+    const result = await withTransaction(async (client) => {
+        const ids = await listPlanetIdsWithColonists(client);
+        let updated = 0;
+        for (const id of ids) {
+            const { changed } = await settlePlanetColonistGrowth(id, client);
+            if (changed) updated++;
+        }
+        return updated;
+    });
+    return result ?? 0;
+}
+
+/**
  * Single iteration of the hourly job loop. Add new tasks here as they
  * land. Errors from any one task are logged but don't crash the
  * scheduler.
@@ -79,6 +102,12 @@ export async function runHourlyJobs(): Promise<void> {
         if (produced > 0) console.log(`[hourly] produced commodities on ${produced} planets`);
     } catch (err) {
         console.error('[hourly] produce-commodities failed:', err);
+    }
+    try {
+        const grown = await runColonistGrowth();
+        if (grown > 0) console.log(`[hourly] colonist growth applied on ${grown} planets`);
+    } catch (err) {
+        console.error('[hourly] colonist-growth failed:', err);
     }
 }
 

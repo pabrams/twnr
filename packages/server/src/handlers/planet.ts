@@ -25,6 +25,7 @@ import {
     getPlanetCommodityCapacity,
     listPlayerPlanets,
     settlePlanetProduction,
+    settlePlanetColonistGrowth,
     type ColonistCommodity,
     type PlanetCommodity,
 } from '../db/queries/planet.js';
@@ -417,6 +418,7 @@ export async function handleTakeColonists(
     try {
         toTake = await withTransaction(async (client) => {
             await settlePlanetProduction(onPlanetId, client);
+            await settlePlanetColonistGrowth(onPlanetId, client);
 
             const available = await getPlanetColonistsForUpdate(onPlanetId, col, client);
             if (available === undefined) {
@@ -494,6 +496,7 @@ export async function handleLeaveColonists(
     try {
         actual = await withTransaction(async (client) => {
             await settlePlanetProduction(onPlanetId, client);
+            await settlePlanetColonistGrowth(onPlanetId, client);
 
             const shipColonists = await getShipColonistsForUpdate(playerId, client);
             if (shipColonists === undefined || shipColonists <= 0) {
