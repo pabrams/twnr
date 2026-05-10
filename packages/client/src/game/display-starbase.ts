@@ -108,24 +108,6 @@ export function showHardwarePrompt(ctx: DisplayStarbaseCtx) {
     ctx.io.term.write(render(STARBASE.hardwarePrompt));
 }
 
-export function showPlanetSelectMenu(
-    ctx: DisplayStarbaseCtx,
-    planets: { id: number; name: string; type: string; displayType: string | null }[],
-) {
-    ctx.io.term.writeln('');
-    ctx.io.term.writeln(render(STARBASE.planetSelectHeader));
-    planets.forEach((p, i) => {
-        ctx.io.term.writeln(
-            render(STARBASE.planetSelectRow, {
-                n: i + 1,
-                name: p.name,
-                type: p.displayType ?? p.type,
-            }),
-        );
-    });
-    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
-}
-
 export function showShipyardsPrompt(ctx: DisplayStarbaseCtx) {
     ctx.io.term.write(render(STARBASE.shipyardsPrompt));
 }

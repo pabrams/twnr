@@ -26,6 +26,7 @@ vi.mock('../src/game/display-planet.js', () => ({
     showPlanetLeavePrompt: vi.fn(),
     showPlanetTakeCommodityMenu: vi.fn(),
     showPlanetLeaveCommodityMenu: vi.fn(),
+    showPlanetSelectMenu: vi.fn(),
 }));
 vi.mock('../src/game/display-combat.js', () => ({
     showDroneEncounter: vi.fn(),
@@ -38,7 +39,6 @@ vi.mock('../src/game/display-combat.js', () => ({
 vi.mock('../src/game/display-starbase.js', () => ({
     showStarbaseMenu: vi.fn(),
     showHardwareMenu: vi.fn(),
-    showPlanetSelectMenu: vi.fn(),
     showShipyardsMenu: vi.fn(),
     showShipyardsClass0Menu: vi.fn(),
     showShipyardsClass0QtyPrompt: vi.fn(),
