@@ -8,5 +8,8 @@
     "organicsProduction": 25,
     "equipmentProduction": 5,
     "droneProduction": 5,
-    "danger": 20
+    "danger": 20,
+    "maxFuel": 100000,
+    "maxOrg": 100000,
+    "maxEqu": 100000
 }
