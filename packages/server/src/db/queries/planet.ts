@@ -411,6 +411,137 @@ export async function settlePlanetProduction(
     return { produced };
 }
 
+/** Settle births/deaths on a single planet's colonist buckets using a
+ *  fractional-accumulator pattern. Per commodity (fuel/org/equ) we keep
+ *  two `DOUBLE PRECISION` columns — one each for births and deaths — that
+ *  hold the un-applied fractional units. Each call:
+ *    1. adds `colos * rate    * elapsed_days / 1000` to the birth accrual
+ *    2. adds `colos * danger  * elapsed_days / 1000` to the death accrual
+ *    3. peels off `floor(birth_accrual)` whole births and the same for deaths
+ *    4. applies the net change to colos (clamped to [0, max])
+ *    5. subtracts the peeled integers from the accrual columns (the
+ *       fractional remainder rolls forward to the next settle)
+ *
+ *  No `force` flag is needed — every settle persists the updated
+ *  accruals and stamps `last_colonist_event_at = NOW()`, so take/leave-
+ *  colonists handlers and the hourly job can both call this without
+ *  worrying about losing sub-unit fractions at segment boundaries.
+ *
+ *  Birth/death are tracked separately so a high-rate, high-danger planet
+ *  doesn't lose accuracy from internal cancellation in a single net
+ *  accumulator. Whatever clamps off at the [0, max] cap is discarded
+ *  (the accrual stays drained, so a planet pinned at max doesn't bank
+ *  unbounded "shadow births" that would flood in if colos later drop). */
+export async function settlePlanetColonistGrowth(
+    planetId: number,
+    db: Queryable = pool,
+): Promise<{ changed: boolean }> {
+    const res = await db.query<{
+        colonists_fuel: number;
+        colonists_organics: number;
+        colonists_equipment: number;
+        max_fuel_colos: number;
+        max_org_colos: number;
+        max_equ_colos: number;
+        danger: number;
+        last_colonist_event_at: Date;
+        rate_per_1000: number;
+        fuel_birth_accrual: number;
+        org_birth_accrual: number;
+        equ_birth_accrual: number;
+        fuel_death_accrual: number;
+        org_death_accrual: number;
+        equ_death_accrual: number;
+    }>(
+        `SELECT p.colonists_fuel, p.colonists_organics, p.colonists_equipment,
+                pt.max_fuel_colos, pt.max_org_colos, pt.max_equ_colos,
+                pt.danger,
+                p.last_colonist_event_at,
+                p.fuel_birth_accrual, p.org_birth_accrual, p.equ_birth_accrual,
+                p.fuel_death_accrual, p.org_death_accrual, p.equ_death_accrual,
+                COALESCE(us.daily_reproduction_per_1000_colos, ${universeConfig.dailyReproductionPer1000Colos}) AS rate_per_1000
+         FROM planets p
+         JOIN sectors s ON p.sector_id = s.id
+         JOIN planet_types pt ON pt.name = p.type
+         LEFT JOIN universe_settings us ON us.universe_id = s.universe_id
+         WHERE p.id = $1
+         FOR UPDATE OF p`,
+        [planetId],
+    );
+    const row = res.rows[0];
+    if (!row) return { changed: false };
+
+    const elapsedMs = Date.now() - new Date(row.last_colonist_event_at).getTime();
+    if (elapsedMs <= 0) return { changed: false };
+    const elapsedDays = elapsedMs / (24 * 60 * 60 * 1000);
+    const rate = row.rate_per_1000;
+    const danger = row.danger;
+
+    const settle = (
+        colos: number,
+        max: number,
+        birthAccrual: number,
+        deathAccrual: number,
+    ): { colos: number; birthAccrual: number; deathAccrual: number } => {
+        const newBirth = birthAccrual + (colos * rate * elapsedDays) / 1000;
+        const newDeath = deathAccrual + (colos * danger * elapsedDays) / 1000;
+        const wholeBirths = Math.floor(newBirth);
+        const wholeDeaths = Math.floor(newDeath);
+        const newColos = Math.max(0, Math.min(max, colos + wholeBirths - wholeDeaths));
+        return {
+            colos: newColos,
+            birthAccrual: newBirth - wholeBirths,
+            deathAccrual: newDeath - wholeDeaths,
+        };
+    };
+
+    const fuel = settle(
+        row.colonists_fuel,
+        row.max_fuel_colos,
+        row.fuel_birth_accrual,
+        row.fuel_death_accrual,
+    );
+    const org = settle(
+        row.colonists_organics,
+        row.max_org_colos,
+        row.org_birth_accrual,
+        row.org_death_accrual,
+    );
+    const equ = settle(
+        row.colonists_equipment,
+        row.max_equ_colos,
+        row.equ_birth_accrual,
+        row.equ_death_accrual,
+    );
+
+    const changed =
+        fuel.colos !== row.colonists_fuel ||
+        org.colos !== row.colonists_organics ||
+        equ.colos !== row.colonists_equipment;
+
+    await db.query(
+        `UPDATE planets SET
+            colonists_fuel = $2, colonists_organics = $3, colonists_equipment = $4,
+            fuel_birth_accrual = $5, org_birth_accrual = $6, equ_birth_accrual = $7,
+            fuel_death_accrual = $8, org_death_accrual = $9, equ_death_accrual = $10,
+            last_colonist_event_at = NOW()
+         WHERE id = $1`,
+        [
+            planetId,
+            fuel.colos,
+            org.colos,
+            equ.colos,
+            fuel.birthAccrual,
+            org.birthAccrual,
+            equ.birthAccrual,
+            fuel.deathAccrual,
+            org.deathAccrual,
+            equ.deathAccrual,
+        ],
+    );
+    return { changed };
+}
+
 /** IDs of every planet that currently has any colonists assigned to a
  *  commodity. The hourly job iterates these and calls settle per-planet —
  *  planets with all-zero colos can't produce anything so they're skipped

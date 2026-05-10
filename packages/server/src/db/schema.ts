@@ -73,7 +73,8 @@ export const connectDB = async (): Promise<void> => {
         mine_disruptor_min SMALLINT NOT NULL DEFAULT ${universeConfig.mineDisruptorMin},
         mine_disruptor_max SMALLINT NOT NULL DEFAULT ${universeConfig.mineDisruptorMax},
         respawn_delay_seconds INTEGER NOT NULL DEFAULT ${universeConfig.respawnDelaySeconds},
-        colos_to_produce_one_unit_per_hour INTEGER NOT NULL DEFAULT ${universeConfig.colosToProduceOneUnitPerHour}
+        colos_to_produce_one_unit_per_hour INTEGER NOT NULL DEFAULT ${universeConfig.colosToProduceOneUnitPerHour},
+        daily_reproduction_per_1000_colos INTEGER NOT NULL DEFAULT ${universeConfig.dailyReproductionPer1000Colos}
       );
 
       CREATE TABLE IF NOT EXISTS universes (
@@ -127,7 +128,8 @@ export const connectDB = async (): Promise<void> => {
         mine_disruptor_min SMALLINT NOT NULL DEFAULT ${universeConfig.mineDisruptorMin},
         mine_disruptor_max SMALLINT NOT NULL DEFAULT ${universeConfig.mineDisruptorMax},
         respawn_delay_seconds INTEGER NOT NULL DEFAULT ${universeConfig.respawnDelaySeconds},
-        colos_to_produce_one_unit_per_hour INTEGER NOT NULL DEFAULT ${universeConfig.colosToProduceOneUnitPerHour}
+        colos_to_produce_one_unit_per_hour INTEGER NOT NULL DEFAULT ${universeConfig.colosToProduceOneUnitPerHour},
+        daily_reproduction_per_1000_colos INTEGER NOT NULL DEFAULT ${universeConfig.dailyReproductionPer1000Colos}
       );
 
       CREATE TABLE IF NOT EXISTS sectors (
@@ -223,7 +225,8 @@ export const connectDB = async (): Promise<void> => {
         max_citadel SMALLINT NOT NULL DEFAULT 0,
         fuel_production SMALLINT NOT NULL DEFAULT 0,
         organics_production SMALLINT NOT NULL DEFAULT 0,
-        equipment_production SMALLINT NOT NULL DEFAULT 0
+        equipment_production SMALLINT NOT NULL DEFAULT 0,
+        danger SMALLINT NOT NULL DEFAULT 0
       );
 
       CREATE TABLE IF NOT EXISTS planet_types_edits (
@@ -351,6 +354,13 @@ export const connectDB = async (): Promise<void> => {
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ,
         last_production_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        last_colonist_event_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        fuel_birth_accrual DOUBLE PRECISION NOT NULL DEFAULT 0,
+        org_birth_accrual DOUBLE PRECISION NOT NULL DEFAULT 0,
+        equ_birth_accrual DOUBLE PRECISION NOT NULL DEFAULT 0,
+        fuel_death_accrual DOUBLE PRECISION NOT NULL DEFAULT 0,
+        org_death_accrual DOUBLE PRECISION NOT NULL DEFAULT 0,
+        equ_death_accrual DOUBLE PRECISION NOT NULL DEFAULT 0,
         CONSTRAINT planets_single_owner_type
           CHECK (NOT (owner_player_id IS NOT NULL AND owner_corp_id IS NOT NULL))
       );
@@ -542,7 +552,8 @@ export const connectDB = async (): Promise<void> => {
                  planet_collision_min_hours = $10,
                  planet_collision_max_hours = $11,
                  respawn_delay_seconds = $12,
-                 colos_to_produce_one_unit_per_hour = $13
+                 colos_to_produce_one_unit_per_hour = $13,
+                 daily_reproduction_per_1000_colos = $14
              WHERE name = 'stock'`,
             [
                 universeConfig.startingCredits,
@@ -558,6 +569,7 @@ export const connectDB = async (): Promise<void> => {
                 universeConfig.planetCollisionMaxHours,
                 universeConfig.respawnDelaySeconds,
                 universeConfig.colosToProduceOneUnitPerHour,
+                universeConfig.dailyReproductionPer1000Colos,
             ],
         );
 
@@ -692,8 +704,8 @@ export const connectDB = async (): Promise<void> => {
         // Seed planet_types from config files (idempotent)
         for (const planet of Object.values(planetConfigs)) {
             await client.query(
-                `INSERT INTO planet_types (name, display_name, description, max_fuel_colos, max_org_colos, max_equ_colos, max_fuel, max_org, max_equ, max_citadel, fuel_production, organics_production, equipment_production)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                `INSERT INTO planet_types (name, display_name, description, max_fuel_colos, max_org_colos, max_equ_colos, max_fuel, max_org, max_equ, max_citadel, fuel_production, organics_production, equipment_production, danger)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
                  ON CONFLICT (name) DO UPDATE SET
                     display_name = EXCLUDED.display_name,
                     description = EXCLUDED.description,
@@ -706,7 +718,8 @@ export const connectDB = async (): Promise<void> => {
                     max_citadel = EXCLUDED.max_citadel,
                     fuel_production = EXCLUDED.fuel_production,
                     organics_production = EXCLUDED.organics_production,
-                    equipment_production = EXCLUDED.equipment_production`,
+                    equipment_production = EXCLUDED.equipment_production,
+                    danger = EXCLUDED.danger`,
                 [
                     planet.type,
                     planet.displayName ?? null,
@@ -721,6 +734,7 @@ export const connectDB = async (): Promise<void> => {
                     planet.fuelProduction ?? 0,
                     planet.organicsProduction ?? 0,
                     planet.equipmentProduction ?? 0,
+                    planet.danger ?? 0,
                 ],
             );
         }

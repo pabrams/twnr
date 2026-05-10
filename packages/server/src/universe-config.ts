@@ -32,4 +32,5 @@ export const universeConfig = {
     mineDisruptorMin: 3,
     mineDisruptorMax: 5,
     colosToProduceOneUnitPerHour: 1000,
+    dailyReproductionPer1000Colos: 20,
 } as const;
