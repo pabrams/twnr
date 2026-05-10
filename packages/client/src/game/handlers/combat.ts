@@ -41,7 +41,7 @@ export const attackShip: Handler<'attackShipResult', CombatDeps> = (ctx, msg) =>
     );
 };
 
-export const attackMenu: Handler<'attackMenuResult', CombatDeps> = (ctx, msg) => {
+export const getAttackTargets: Handler<'getAttackTargetsResult', CombatDeps> = (ctx, msg) => {
     ctx.world.sectorPlayers = msg.players;
     // Server stays in 'sector' location; the attack-target-select sub-mode
     // is entered here when the roster has visible targets.

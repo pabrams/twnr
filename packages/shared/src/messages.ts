@@ -67,7 +67,7 @@ export const ServerMsgType = {
     HyperspaceJumpResult: 'hyperspaceJumpResult',
     VisitedSectorsResult: 'visitedSectorsResult',
     PreviousSectorResult: 'previousSectorResult',
-    AttackMenuResult: 'attackMenuResult',
+    GetAttackTargetsResult: 'getAttackTargetsResult',
     StarbaseInfoResult: 'starbaseInfoResult',
     TerraformInfoResult: 'terraformInfoResult',
     HardwareStoreInfoResult: 'hardwareStoreInfoResult',
@@ -87,7 +87,7 @@ type ServerMsgType = typeof ServerMsgType;
 export const ClientMsgType = {
     Move: 'move',
     MoveToPrevious: 'moveToPrevious',
-    Attack: 'attack',
+    GetAttackTargets: 'getAttackTargets',
     StarbaseInfo: 'starbaseInfo',
     TerraformInfo: 'terraformInfo',
     HardwareStoreInfo: 'hardwareStoreInfo',
