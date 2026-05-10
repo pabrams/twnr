@@ -159,18 +159,24 @@ async function main() {
     const { rows: portRows } = readCSV(join(universeDir, 'ports.csv'));
     for (const row of portRows) {
       const sectorDbId = sectorIdMap.get(parseInt(row[0], 10));
+      const fuelQty = parseInt(row[2], 10);
+      const orgQty = parseInt(row[4], 10);
+      const equQty = parseInt(row[6], 10);
       await client.query(
         `INSERT INTO ports
-           (sector_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+           (sector_id, class, fuel, fuel_max, fuel_price, organics, org_max, org_price, equipment, equ_max, equ_price)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
         [
           sectorDbId,
           parseInt(row[1], 10), // class
-          parseInt(row[2], 10), // fuel_qty
+          fuelQty,
+          fuelQty,              // fuel_max
           parseInt(row[3], 10), // fuel_price
-          parseInt(row[4], 10), // org_qty
+          orgQty,
+          orgQty,               // org_max
           parseInt(row[5], 10), // org_price
-          parseInt(row[6], 10), // equ_qty
+          equQty,
+          equQty,               // equ_max
           parseInt(row[7], 10), // equ_price
         ],
       );
