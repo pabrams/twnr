@@ -19,8 +19,13 @@ import {
     updatePlanetColonists,
     getPlanetColonistsRemaining,
     getPlanetColonistsCapacity,
+    getPlanetCommodityForUpdate,
+    updatePlanetCommodity,
+    getPlanetCommodityRemaining,
+    getPlanetCommodityCapacity,
     listPlayerPlanets,
     type ColonistCommodity,
+    type PlanetCommodity,
 } from '../db/queries/planet.js';
 import { getPlanetsInSector } from '../db/queries/sector.js';
 import { getOnPlanetId, setDocked, setOnPlanet } from '../db/queries/player.js';
@@ -33,6 +38,7 @@ import {
     getShipColonistsForUpdate,
     getShipColonists,
     incrementShipColonists,
+    incrementShipCommodity,
     getShipCargoWithCredits,
 } from '../db/queries/ship.js';
 import { planetConfigs } from '../planet-config.js';
@@ -357,6 +363,17 @@ function parseColonistCommodity(playerId: number, commodity: string): ColonistCo
     return commodity as ColonistCommodity;
 }
 
+/** Validate a planet-commodity argument (fuel/organics/equipment). Same
+ *  shape as parseColonistCommodity; the typed alias keeps the planet
+ *  stockpile flow distinct from the colonist flow. */
+function parsePlanetCommodity(playerId: number, commodity: string): PlanetCommodity | null {
+    if (commodity !== 'fuel' && commodity !== 'organics' && commodity !== 'equipment') {
+        sendError(playerId, 'Invalid commodity');
+        return null;
+    }
+    return commodity as PlanetCommodity;
+}
+
 /** Lift the player off the planet and deliver the result + sector display
  * in one envelope. `result` carries the message-specific fields (quantity,
  * commodity, totals); the sector data is merged in. Use whenever a planet
@@ -518,6 +535,150 @@ export async function handleLeaveColonists(
         return;
     }
     sendEnvelope(playerId, result);
+}
+
+export async function handleTakeCommodity(
+    playerId: number,
+    quantity: number,
+    commodity: string,
+): Promise<void> {
+    const player = players[playerId];
+    if (!player) return;
+
+    const col = parsePlanetCommodity(playerId, commodity);
+    if (!col) return;
+
+    const onPlanetId = await getOnPlanetId(playerId);
+    if (!onPlanetId) {
+        sendError(playerId, 'Not on a planet');
+        return;
+    }
+
+    let toTake: number | undefined;
+    try {
+        toTake = await withTransaction(async (client) => {
+            const available = await getPlanetCommodityForUpdate(onPlanetId, col, client);
+            if (available === undefined) {
+                sendError(playerId, 'Planet not found');
+                throw new AbortTransaction();
+            }
+
+            // -1 = take as much as the planet has (clamped by free holds below).
+            const requested = quantity === -1 ? available : quantity;
+            const actual = Math.min(requested, available);
+            if (actual <= 0) {
+                sendError(playerId, `No ${col} available to take`);
+                throw new AbortTransaction();
+            }
+
+            const ship = await getShipHoldsAndCargoForUpdate(playerId, client);
+            if (!ship) {
+                sendError(playerId, 'No ship');
+                throw new AbortTransaction();
+            }
+            const used = cargoUsed(ship);
+            const free = ship.holds - used;
+            const take = Math.min(actual, free);
+            if (take <= 0) {
+                sendError(playerId, 'No free holds');
+                throw new AbortTransaction();
+            }
+
+            await updatePlanetCommodity(onPlanetId, col, -take, client);
+            await incrementShipCommodity(playerId, col, take, client);
+            return take;
+        });
+    } catch (err) {
+        console.error('Take commodity error', err);
+        sendError(playerId, 'Failed to take commodity');
+    }
+
+    if (toTake === undefined) return;
+
+    const planetRemaining = await getPlanetCommodityRemaining(onPlanetId, col);
+    const ship = await getShipCargoWithCredits(playerId);
+    const shipCommodity =
+        col === 'fuel' ? (ship?.fuel ?? 0) : col === 'organics' ? (ship?.organics ?? 0) : (ship?.equipment ?? 0);
+
+    sendEnvelope(playerId, {
+        type: ServerMsgType.TakeCommodityResult,
+        quantity: toTake,
+        commodity: col,
+        planetCommodity: planetRemaining ?? 0,
+        shipCommodity,
+    });
+}
+
+export async function handleLeaveCommodity(
+    playerId: number,
+    quantity: number,
+    commodity: string,
+): Promise<void> {
+    const player = players[playerId];
+    if (!player) return;
+
+    const col = parsePlanetCommodity(playerId, commodity);
+    if (!col) return;
+
+    const onPlanetId = await getOnPlanetId(playerId);
+    if (!onPlanetId) {
+        sendError(playerId, 'Not on a planet');
+        return;
+    }
+
+    let actual: number | undefined;
+    try {
+        actual = await withTransaction(async (client) => {
+            const ship = await getShipHoldsAndCargoForUpdate(playerId, client);
+            if (!ship) {
+                sendError(playerId, 'No ship');
+                throw new AbortTransaction();
+            }
+            const onShip =
+                col === 'fuel' ? ship.fuel : col === 'organics' ? ship.organics : ship.equipment;
+            if (onShip <= 0) {
+                sendError(playerId, `No ${col} on ship`);
+                throw new AbortTransaction();
+            }
+
+            const capacity = await getPlanetCommodityCapacity(onPlanetId, col, client);
+            if (!capacity) {
+                sendError(playerId, 'Planet not found');
+                throw new AbortTransaction();
+            }
+            const room = Math.max(0, capacity.max - capacity.current);
+            if (room <= 0) {
+                sendError(playerId, `Planet is at max ${col}`);
+                throw new AbortTransaction();
+            }
+
+            // -1 = leave everything the ship has (clamped by planet's room).
+            const requested = quantity === -1 ? onShip : quantity;
+            const leave = Math.min(requested, onShip, room);
+
+            await incrementShipCommodity(playerId, col, -leave, client);
+            await updatePlanetCommodity(onPlanetId, col, leave, client);
+            return leave;
+        });
+    } catch (err) {
+        console.error('Leave commodity error', err);
+        sendError(playerId, 'Failed to leave commodity');
+    }
+
+    if (actual === undefined) return;
+
+    const planetRemaining = await getPlanetCommodityRemaining(onPlanetId, col);
+    const ship = await getShipCargoWithCredits(playerId);
+    const shipCommodity =
+        col === 'fuel' ? (ship?.fuel ?? 0) : col === 'organics' ? (ship?.organics ?? 0) : (ship?.equipment ?? 0);
+
+    sendEnvelope(playerId, {
+        type: ServerMsgType.LeaveCommodityResult,
+        quantity: actual,
+        commodity: col,
+        planetCommodity: planetRemaining ?? 0,
+        shipCommodity,
+    });
 }
 
 export async function handleListPlanets(playerId: number): Promise<void> {

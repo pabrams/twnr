@@ -178,6 +178,74 @@ export async function getPlanetColonistsCapacity(
     return res.rows[0];
 }
 
+const COMMODITY_COLUMN: Record<'fuel' | 'organics' | 'equipment', string> = {
+    fuel: 'fuel',
+    organics: 'organics',
+    equipment: 'equipment',
+};
+export type PlanetCommodity = keyof typeof COMMODITY_COLUMN;
+
+const COMMODITY_MAX_COLUMN: Record<PlanetCommodity, string> = {
+    fuel: 'max_fuel',
+    organics: 'max_org',
+    equipment: 'max_equ',
+};
+
+export async function getPlanetCommodityForUpdate(
+    planetId: number,
+    commodity: PlanetCommodity,
+    db: Queryable = pool,
+): Promise<number | undefined> {
+    const col = COMMODITY_COLUMN[commodity];
+    const res = await db.query<{ available: number }>(
+        `SELECT ${col} as available FROM planets WHERE id = $1 FOR UPDATE`,
+        [planetId],
+    );
+    return res.rows[0]?.available;
+}
+
+export async function updatePlanetCommodity(
+    planetId: number,
+    commodity: PlanetCommodity,
+    delta: number,
+    db: Queryable = pool,
+): Promise<void> {
+    const col = COMMODITY_COLUMN[commodity];
+    await db.query(`UPDATE planets SET ${col} = ${col} + $1 WHERE id = $2`, [delta, planetId]);
+}
+
+export async function getPlanetCommodityRemaining(
+    planetId: number,
+    commodity: PlanetCommodity,
+    db: Queryable = pool,
+): Promise<number | undefined> {
+    const col = COMMODITY_COLUMN[commodity];
+    const res = await db.query<{ remaining: number }>(
+        `SELECT ${col} as remaining FROM planets WHERE id = $1`,
+        [planetId],
+    );
+    return res.rows[0]?.remaining;
+}
+
+/** Per-commodity quantity cap from planet_types, plus the planet's current
+ *  stockpile. Used to clamp leave_commodity to the room remaining. */
+export async function getPlanetCommodityCapacity(
+    planetId: number,
+    commodity: PlanetCommodity,
+    db: Queryable = pool,
+): Promise<{ current: number; max: number } | undefined> {
+    const col = COMMODITY_COLUMN[commodity];
+    const maxCol = COMMODITY_MAX_COLUMN[commodity];
+    const res = await db.query<{ current: number; max: number }>(
+        `SELECT p.${col} as current, pt.${maxCol} as max
+         FROM planets p
+         JOIN planet_types pt ON pt.name = p.type
+         WHERE p.id = $1`,
+        [planetId],
+    );
+    return res.rows[0];
+}
+
 export async function listPlayerPlanets(
     playerId: number,
     universeId: number,

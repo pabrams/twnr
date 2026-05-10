@@ -385,6 +385,9 @@ export const connectDB = async (): Promise<void> => {
         max_fuel_colos INTEGER NOT NULL DEFAULT 0,
         max_org_colos INTEGER NOT NULL DEFAULT 0,
         max_equ_colos INTEGER NOT NULL DEFAULT 0,
+        max_fuel INTEGER NOT NULL DEFAULT 0,
+        max_org INTEGER NOT NULL DEFAULT 0,
+        max_equ INTEGER NOT NULL DEFAULT 0,
         max_citadel SMALLINT NOT NULL DEFAULT 0,
         fuel_production SMALLINT NOT NULL DEFAULT 0,
         organics_production SMALLINT NOT NULL DEFAULT 0,
@@ -425,6 +428,9 @@ export const connectDB = async (): Promise<void> => {
       ALTER TABLE planets ALTER COLUMN colonists_fuel TYPE INTEGER;
       ALTER TABLE planets ALTER COLUMN colonists_organics TYPE INTEGER;
       ALTER TABLE planets ALTER COLUMN colonists_equipment TYPE INTEGER;
+      ALTER TABLE planets ALTER COLUMN fuel TYPE INTEGER;
+      ALTER TABLE planets ALTER COLUMN organics TYPE INTEGER;
+      ALTER TABLE planets ALTER COLUMN equipment TYPE INTEGER;
 
       ALTER TABLE planets ADD COLUMN IF NOT EXISTS shields INTEGER NOT NULL DEFAULT 0;
       ALTER TABLE planets ADD COLUMN IF NOT EXISTS has_base BOOLEAN NOT NULL DEFAULT FALSE;
@@ -732,13 +738,16 @@ export const connectDB = async (): Promise<void> => {
         // Seed planet_types from config files (idempotent)
         for (const planet of Object.values(planetConfigs)) {
             await client.query(
-                `INSERT INTO planet_types (name, description, max_fuel_colos, max_org_colos, max_equ_colos, max_citadel, fuel_production, organics_production, equipment_production)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                `INSERT INTO planet_types (name, description, max_fuel_colos, max_org_colos, max_equ_colos, max_fuel, max_org, max_equ, max_citadel, fuel_production, organics_production, equipment_production)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
                  ON CONFLICT (name) DO UPDATE SET
                     description = EXCLUDED.description,
                     max_fuel_colos = EXCLUDED.max_fuel_colos,
                     max_org_colos = EXCLUDED.max_org_colos,
                     max_equ_colos = EXCLUDED.max_equ_colos,
+                    max_fuel = EXCLUDED.max_fuel,
+                    max_org = EXCLUDED.max_org,
+                    max_equ = EXCLUDED.max_equ,
                     max_citadel = EXCLUDED.max_citadel,
                     fuel_production = EXCLUDED.fuel_production,
                     organics_production = EXCLUDED.organics_production,
@@ -749,6 +758,9 @@ export const connectDB = async (): Promise<void> => {
                     planet.maxFuelColos ?? 0,
                     planet.maxOrgColos ?? 0,
                     planet.maxEquColos ?? 0,
+                    planet.maxFuel ?? 0,
+                    planet.maxOrg ?? 0,
+                    planet.maxEqu ?? 0,
                     planet.maxCitadel ?? 0,
                     planet.fuelProduction ?? 0,
                     planet.organicsProduction ?? 0,

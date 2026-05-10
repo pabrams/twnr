@@ -66,9 +66,16 @@ export type ShipConfig = {
 export type PlanetConfig = {
     type: string;
     description: string;
+    /** Per-commodity colonist caps. Each colonist column on the planet is
+     *  bounded independently (replaces the old single `maxColonists`). */
     maxFuelColos: number;
     maxOrgColos: number;
     maxEquColos: number;
+    /** Per-commodity quantity caps. Bound how much fuel/organics/equipment
+     *  the planet can hold; used by `take`/`leave` commodity actions. */
+    maxFuel: number;
+    maxOrg: number;
+    maxEqu: number;
     maxCitadel: number;
     fuelProduction: number;
     organicsProduction: number;

@@ -348,6 +348,27 @@ export type LeaveColonistsResultObject = {
     shipColonists: number;
 } & Partial<SectorDisplayData>;
 
+/**
+ * Take a commodity from the planet's stockpile into the ship's cargo.
+ * `planetCommodity` is the planet's remaining stockpile of that commodity
+ * after the move; `shipCommodity` is the ship's cargo total for the same.
+ */
+export type TakeCommodityResultObject = {
+    type: typeof ServerMsgType.TakeCommodityResult;
+    quantity: number;
+    commodity: 'fuel' | 'organics' | 'equipment';
+    planetCommodity: number;
+    shipCommodity: number;
+};
+
+export type LeaveCommodityResultObject = {
+    type: typeof ServerMsgType.LeaveCommodityResult;
+    quantity: number;
+    commodity: 'fuel' | 'organics' | 'equipment';
+    planetCommodity: number;
+    shipCommodity: number;
+};
+
 export type DeployDronesInfoResultObject = {
     type: typeof ServerMsgType.DeployDronesInfoResult;
     sectorDrones: number;
@@ -625,6 +646,8 @@ export type ServerResult =
     | PlanetInfoResultObject
     | TakeColonistsResultObject
     | LeaveColonistsResultObject
+    | TakeCommodityResultObject
+    | LeaveCommodityResultObject
     | DeployDronesInfoResultObject
     | DeployDronesResultObject
     | AttackSectorDronesResultObject

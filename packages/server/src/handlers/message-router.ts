@@ -34,6 +34,8 @@ import {
     handleTerraformInfo,
     handleTakeColonists,
     handleLeaveColonists,
+    handleTakeCommodity,
+    handleLeaveCommodity,
     handleListPlanets,
 } from './planet.js';
 import {
@@ -118,6 +120,10 @@ export async function handleMessage(playerId: number, data: ClientCommand): Prom
             return handleTakeColonists(playerId, data.quantity, data.commodity ?? 'fuel');
         case ClientMsgType.LeaveColonists:
             return handleLeaveColonists(playerId, data.quantity, data.commodity ?? 'fuel');
+        case ClientMsgType.TakeCommodity:
+            return handleTakeCommodity(playerId, data.quantity, data.commodity ?? 'fuel');
+        case ClientMsgType.LeaveCommodity:
+            return handleLeaveCommodity(playerId, data.quantity, data.commodity ?? 'fuel');
         case ClientMsgType.ListPlanets:
             return handleListPlanets(playerId);
         case ClientMsgType.DeployDronesInfo:
