@@ -40,11 +40,6 @@ export const takeColonists: Handler<'takeColonistsResult', PlanetDeps> = (ctx, m
     );
     ctx.io.term.writeln(render(PANEL.planetColonistsLine, { count: fmt(msg.planetColonists) }));
     ctx.io.term.writeln(render(PANEL.shipColonistsLine, { count: msg.shipColonists }));
-    // Earth case: server auto-lifted and bundled sector data into this
-    // envelope. No repaint needed (same sector / port / warps); only
-    // refresh sectorPlayers in case others arrived. Framework auto-
-    // renders the sector prompt. Real-planet case: sector fields absent;
-    // player stays on-planet, framework auto-renders the planet prompt.
     if (msg.players !== undefined) {
         ctx.world.sectorPlayers = msg.players;
     }
@@ -62,10 +57,7 @@ export const leaveColonists: Handler<'leaveColonistsResult', PlanetDeps> = (ctx,
     );
     ctx.io.term.writeln(render(PANEL.planetColonistsLine, { count: fmt(msg.planetColonists) }));
     ctx.io.term.writeln(render(PANEL.shipColonistsLine, { count: msg.shipColonists }));
-    // Earth case: server auto-lifted and bundled sector data into this
-    // envelope. No repaint needed (same sector / port / warps); only
-    // refresh sectorPlayers in case others arrived. Framework auto-
-    // renders the sector prompt.
+
     if (msg.players !== undefined) {
         ctx.world.sectorPlayers = msg.players;
     }
@@ -74,7 +66,9 @@ export const leaveColonists: Handler<'leaveColonistsResult', PlanetDeps> = (ctx,
 export const landOnPlanet: Handler<'landOnPlanetResult', PlanetDeps> = (ctx, msg) => {
     ctx.ship.planetEmptyHolds = msg.empty_holds;
     ctx.ship.shipColonists = msg.ship_colonists;
-    if (ctx.world.mode === Menu.PlanetEarth) {
+    const isEarth = msg.name === 'Earth';
+    ctx.world.mode = isEarth ? Menu.PlanetEarth : Menu.Planet;
+    if (isEarth) {
         ctx.world.earthColonists = msg.colonists_fuel ?? 0;
         showEarthMenu(ctx, ctx.world.earthColonists);
     } else {
@@ -125,6 +119,7 @@ export const planetDisplay: Handler<'planetDisplayResult', PlanetDeps> = (ctx, m
 
 export const destroyPlanet: Handler<'destroyPlanetResult', PlanetDeps> = (ctx, msg) => {
     if (msg.destroyed) {
+        ctx.world.mode = Menu.Sector;
         ctx.io.term.writeln(render(EVENT.planetDestroyed, { name: msg.planetName }));
     }
 };
@@ -153,6 +148,7 @@ export const useTerraformDevice: Handler<'useTerraformDeviceResult', PlanetDeps>
 };
 
 export const leavePlanet: Handler<'leavePlanetResult', PlanetDeps> = (ctx, msg) => {
+    ctx.world.mode = Menu.Sector;
     ctx.io.term.writeln(render(EVENT.leftPlanet));
     ctx.world.sectorPlayers = msg.players;
     showSectorDisplay(
@@ -198,8 +194,7 @@ export const listPlanets: Handler<'listPlanetsResult', PlanetDeps> = (ctx, msg) 
 export const terraformInfo: Handler<'terraformInfoResult', PlanetDeps> = (ctx, msg) => {
     if (msg.canTerraform) {
         ctx.io.term.writeln(render(NOTIFY.terraformDevicesAvailable, { count: msg.devices }));
-        // The terraformConfirm menu was collapsed: ask Y/N inline and fire
-        // UseTerraformDevice on yes. Player stays on sector throughout.
+
         void terraformAskAndFire(ctx);
     } else if (msg.reason === 'no_devices') {
         ctx.io.term.writeln(render(NOTIFY.terraformNoDevices));

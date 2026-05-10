@@ -139,13 +139,9 @@ export async function handleMove(playerId: number, targetSector: number): Promis
     if (!sectorData) return;
 
     if (sectorData.sectorDrones && sectorData.sectorDrones.ownerId !== playerId) {
-        // Encounter is derived from sector state — no in-memory flag.
-        // retreatSector below comes from previous_sector_id (set by moveToSector above).
+
         const shipDrones = (await getShipDrones(playerId)) ?? 0;
 
-        // Server stays in sector location; the encounter UI is a client
-        // sub-mode entered by the client's moveResult handler when
-        // outcome === 'encounter'.
         await sendEnvelope(playerId, {
             type: ServerMsgType.MoveResult,
             outcome: 'encounter',
@@ -180,8 +176,7 @@ export async function handleMove(playerId: number, targetSector: number): Promis
             outcome: 'success',
             ...sectorData,
             turnsUsed: turnResult.turnsUsed,
-        },
-        'sector',
+        }
     );
 }
 

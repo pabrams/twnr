@@ -7,8 +7,7 @@ export async function handleJettison(playerId: number): Promise<void> {
     if (!cargo) {
         await sendEnvelope(
             playerId,
-            { type: ServerMsgType.JettisonResult, outcome: 'error', message: 'Player not found' },
-            'sector',
+            { type: ServerMsgType.JettisonResult, outcome: 'error', message: 'Player not found' }
         );
         return;
     }
@@ -17,7 +16,6 @@ export async function handleJettison(playerId: number): Promise<void> {
 
     await sendEnvelope(
         playerId,
-        { type: ServerMsgType.JettisonResult, outcome: 'success', jettisoned: cargo },
-        'sector',
+        { type: ServerMsgType.JettisonResult, outcome: 'success', jettisoned: cargo }
     );
 }

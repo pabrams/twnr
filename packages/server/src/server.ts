@@ -20,6 +20,7 @@ import {
     markPlayerLoggedIn,
     markPlayerLoggedOut,
     markSectorVisited,
+    getOnPlanetId,
     logPlayerCommand,
 } from './db/queries/player.js';
 import { countSectorsInUniverse, getStarbaseSectorNumber } from './db/queries/sector.js';
@@ -196,13 +197,15 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             universeId,
             docked: false,
             isAdmin,
-            currentMenu: 'sector',
         };
-        const [totalSectors, starbaseSector, guestFlag] = await Promise.all([
+        const [totalSectors, starbaseSector, guestFlag, onPlanetId] = await Promise.all([
             countSectorsInUniverse(universeId),
             getStarbaseSectorNumber(universeId),
             isGuestUser(userId),
+            getOnPlanetId(playerId),
         ]);
+
+        const welcomeLocation = onPlanetId !== null ? 'planet' : 'sector';
         const welcomeMsg: ServerResult = {
             type: ServerMsgType.Welcome,
             playerId,
@@ -212,6 +215,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             shipName: playerRow.ship_name ?? '',
             coloredShipName: playerRow.ship_display_name ?? null,
             starbaseSector,
+            location: welcomeLocation,
             isGuest: guestFlag,
             isAdmin,
             token: auth.signPlayerToken({
@@ -221,7 +225,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
                 tokenVersion,
             }),
         };
-        await sendEnvelope(playerId, welcomeMsg, 'sector');
+        await sendEnvelope(playerId, welcomeMsg);
 
         let tokens = 50;
         const refillInterval = setInterval(() => {
@@ -250,7 +254,6 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
                 sendError(playerId, 'Internal server error');
             }
 
-            // Log command (fire-and-forget)
             logPlayerCommand(playerId, universeId, data.type, data).catch((err) =>
                 console.error('Command log error:', err),
             );
@@ -263,11 +266,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             delete players[playerId];
 
             (async () => {
-                // Guest accounts persist past WS close so a recruiter who
-                // refreshes the demo page lands back on the same character
-                // (the JWT cookie has a 7-day TTL — see auth/cookies.ts).
-                // Long-abandoned guests are reaped by `cleanupExpiredGuests`
-                // when the cron infrastructure lands.
+
                 try {
                     await markPlayerLoggedOut(playerId);
                 } catch (err) {
@@ -305,10 +304,7 @@ export async function startServer() {
     }
 }
 
-// Only start the server if this file is run directly. Unhandled rejections
-// from `startServer` propagate to Node's default handler, which terminates
-// the process with a non-zero exit code — same outcome as the previous
-// `process.exit(1)` but lint-clean.
+// Only start the server if this file is run directly.
 if (process.argv[1] && process.argv[1].endsWith('server.js')) {
     startServer();
 }

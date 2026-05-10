@@ -18,9 +18,11 @@ export type WelcomeEvent = {
     shipName: string;
     coloredShipName: string | null;
     starbaseSector: number | null;
-    /** Guest/demo account — UI shows a warning that the account is ephemeral. */
+    /** Initial UI mode for the client. Server-determined based on persistent
+     *  state (on-planet survives reconnect; everything else lands at sector). */
+    location: MenuName;
     isGuest: boolean;
-    /** Admin account — client unlocks admin-mode minimap (full vision, deeper depths). */
+
     isAdmin: boolean;
 };
 
@@ -594,13 +596,7 @@ export type NeighborhoodResultObject = {
     warps: NeighborhoodWarp[];
 };
 
-/**
- * Discriminated union of server-built result payloads — the type a handler
- * returns. Has no `menu` field; the messaging layer adds `menu` at send
- * time. The wire type — what the client receives — is `ServerMessage`,
- * which extends every variant with `menu` and adds a `MenuTransition`
- * variant for pure transitions that carry no other data.
- */
+
 export type ServerResult =
     | WelcomeEvent
     | PlayerMovedEvent
@@ -660,41 +656,3 @@ export type ServerResult =
     | SeekerMineAttachedEvent
     | SeekerMinePickupAlertEvent
     | ErrorResultObject;
-
-/**
- * Pure menu transition — server tells the client "you're now in this menu"
- * with no accompanying data payload. The client mirrors the `location`
- * field into `ctx.world.mode` and the framework re-renders the menu's
- * prompt. (Field is named `location` because the long-term plan is for
- * the server to track only locations — sector/port/planet/starbase/dead —
- * with everything else owned by the client. The current value space is
- * still the full MenuName enum until that migration completes.)
- */
-export type MenuTransitionResult = {
-    type: typeof ServerMsgType.MenuTransition;
-    location: MenuName;
-};
-
-/**
- * Distributive intersection: adds `location: MenuName` to every variant of T.
- * Required because `Omit<A | B, K>` does NOT distribute by default; this
- * conditional-type form does.
- */
-type WithMenu<T> = T extends unknown ? T & { location: MenuName } : never;
-
-/**
- * Wire-format envelope additions that aren't part of any ServerResult
- * variant. `suppressPrompt: true` tells the client framework "more
- * messages are coming on this same player action" — skip the auto
- * renderPrompt so the menu prompt doesn't paint between transient
- * envelopes. The terminal envelope in the chain omits the flag and
- * triggers the prompt as usual.
- */
-type EnvelopeFlags = { suppressPrompt?: boolean };
-
-/**
- * Wire-format type the client receives. Every server message has both a
- * `type` discriminator and a `menu` field. `MenuTransitionResult` covers
- * pure menu changes that carry no other data.
- */
-export type ServerMessage = (WithMenu<ServerResult> | MenuTransitionResult) & EnvelopeFlags;

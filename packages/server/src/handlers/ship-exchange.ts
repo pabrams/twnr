@@ -1,5 +1,5 @@
 import { ServerMsgType } from '@twnr/shared';
-import { players, getPlayerUniverseId, setPlayerMenu } from '../state/players.js';
+import { players, getPlayerUniverseId } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { withTransaction, AbortTransaction } from '../db/index.js';
 import {
@@ -40,9 +40,6 @@ export async function handleBuyShipTradein(
         sendError(playerId, 'Not at Starbase');
         return;
     }
-
-    // Always return to shipyards menu regardless of outcome
-    await setPlayerMenu(playerId, 'shipyards');
 
     try {
         const result = await withTransaction(async (client) => {
@@ -142,8 +139,6 @@ export async function handleBuyShipNew(playerId: number, targetShipName: string)
         sendError(playerId, 'Not at Starbase');
         return;
     }
-
-    await setPlayerMenu(playerId, 'shipyards');
 
     try {
         const result = await withTransaction(async (client) => {

@@ -115,7 +115,7 @@ export async function handleAttackShip(
             defenderShieldsLost: shieldsLost,
             message: destroyed ? 'Target destroyed!' : 'Attack completed.',
         };
-        await sendEnvelope(attackerId, resultMsg, 'sector');
+        await sendEnvelope(attackerId, resultMsg);
 
         if (onlineTarget?.ws && onlineTarget.ws.readyState === 1) {
             await sendEnvelope(targetPlayerId, {

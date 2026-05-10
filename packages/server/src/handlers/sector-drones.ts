@@ -149,8 +149,7 @@ export async function handleDeployDrones(playerId: number, target: number): Prom
                 type: ServerMsgType.DeployDronesResult,
                 sectorDrones: target,
                 shipDrones: newShipDrones,
-            },
-            'sector',
+            }
         );
     } catch (err) {
         console.error('Deploy drones error', err);
@@ -234,8 +233,7 @@ export async function handleAttackSectorDrones(
                 dronesLost: k,
                 sectorDronesRemaining: newSectorDrones,
                 shipDrones: newShipDrones,
-            },
-            victory ? 'sector' : undefined,
+            }
         );
 
         const owner = players[ownerId];
@@ -315,8 +313,7 @@ export async function handleRetreatFromDrones(playerId: number): Promise<void> {
 
     await sendEnvelope(
         playerId,
-        { type: ServerMsgType.RetreatFromDronesResult, sector: retreatSector },
-        'sector',
+        { type: ServerMsgType.RetreatFromDronesResult, sector: retreatSector }
     );
 
     const sectorData = await buildSectorDisplayData(playerId, retreatSector);

@@ -6,7 +6,7 @@ import type {
     MenuEntry,
     HardwarePriceItem,
     HardwareStoreItem,
-    ServerMessage,
+    ServerResult,
     ShipCatalogEntry,
     PlanetConfig,
 } from '@twnr/shared';
@@ -96,7 +96,7 @@ export interface InputLayer {
      */
     pendingResponse: {
         types: Set<string>;
-        resolve: (msg: ServerMessage | null) => void;
+        resolve: (msg: ServerResult | null) => void;
     } | null;
 }
 

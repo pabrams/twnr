@@ -30,6 +30,7 @@ export const dock: Handler<'dockResult', PortDeps> = (ctx, msg) => {
     if (!msg.docked || !msg.port) return;
     ctx.world.dockedPortInfo = msg.port;
     if (msg.port.class === 0) {
+        ctx.world.mode = Menu.Class0;
         if (msg.shipInfo) {
             ctx.starbase.class0ShipState = {
                 shipName: msg.shipInfo.shipName,
@@ -45,6 +46,7 @@ export const dock: Handler<'dockResult', PortDeps> = (ctx, msg) => {
         ctx.io.term.writeln(render(PORT.class0Docking));
         return;
     }
+    ctx.world.mode = Menu.Port;
     const actions = PORT_CLASS_ACTIONS[msg.port.class];
     if (!actions) return;
     const cargo: Cargo = msg.cargo ?? { fuel: 0, organics: 0, equipment: 0, colonists: 0 };
@@ -155,8 +157,7 @@ async function runTradeRoutine(
 
         const raw = await askNumber(ctx, promptText, { defaultValue: -1, min: 0 });
         if (ctx.world.mode !== Menu.Port) return;
-        // null (q) and -1 (empty Enter) both mean "accept default = maxQty";
-        // 0 means skip; otherwise clamp to maxQty.
+
         const qty = raw === null || raw < 0 ? maxQty : Math.min(raw, maxQty);
         if (qty <= 0) continue;
 
@@ -182,12 +183,9 @@ async function runTradeRoutine(
         ]);
         if (response === null) return;
         if (response.type !== ServerMsgType.PortTransactionResult) {
-            // Error envelope: lifecycle.error already printed it; stop the flow.
             return;
         }
 
-        // Successful trade: sync local state from the server's authoritative
-        // payload and decrement local port inventory.
         cargo = response.cargo;
         credits = response.credits;
         emptyHolds = response.emptyHolds;
@@ -203,6 +201,7 @@ async function runTradeRoutine(
 }
 
 export const undock: Handler<'undockResult', PortDeps> = (ctx, msg) => {
+    if (msg.outcome === 'success') ctx.world.mode = Menu.Sector;
     if (msg.outcome === 'success') {
         ctx.world.dockedPortInfo = null;
         ctx.starbase.class0ShipState = null;
@@ -231,6 +230,7 @@ export const jettison: Handler<'jettisonResult', PortDeps> = (ctx, msg) => {
 };
 
 export const dockStarbase: Handler<'dockStarbaseResult', PortDeps> = (ctx, msg) => {
+    ctx.world.mode = Menu.Starbase;
     ctx.catalogs.hardwarePrices = msg.prices;
     if (msg.shipInfo) {
         ctx.starbase.class0ShipState = {
@@ -247,6 +247,7 @@ export const dockStarbase: Handler<'dockStarbaseResult', PortDeps> = (ctx, msg) 
 };
 
 export const leaveStarbase: Handler<'leaveStarbaseResult', PortDeps> = (ctx, msg) => {
+    ctx.world.mode = Menu.Sector;
     ctx.starbase.class0ShipState = null;
     ctx.world.sectorPlayers = msg.players;
     showSectorDisplay(

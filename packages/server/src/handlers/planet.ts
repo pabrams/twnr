@@ -1,5 +1,5 @@
 import { ServerMsgType } from '@twnr/shared';
-import { players, setPlayerMenu } from '../state/players.js';
+import { players } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
 import { isInEncounter } from '../services/encounter.js';
@@ -47,7 +47,7 @@ export async function handleLand(playerId: number): Promise<void> {
         return;
     }
 
-    // Special behavior for sector 1: auto-land on Earth
+    // auto-land on Earth - no planet selection in sector 1
     if (player.sector === 1) {
         const earthId = await getEarthId(player.universeId);
         if (earthId) {
@@ -56,9 +56,6 @@ export async function handleLand(playerId: number): Promise<void> {
     }
 
     const planets = await getPlanetsInSector(player.sector, player.universeId);
-
-    // No menu transition: the client routine handles selection inline within
-    // the sector menu. Server treats the player as still in 'sector'.
     await sendEnvelope(playerId, { type: ServerMsgType.LandResult, planets });
 }
 
@@ -84,25 +81,18 @@ export async function handleLandOnPlanet(playerId: number, planetId: number): Pr
 
     await setOnPlanet(playerId, planetId);
 
-    const isEarth = player.sector === 1 && planet.name === 'Earth';
-    const planetMenu = isEarth ? 'planetEarth' : 'planet';
-
     const data = await getPlanetDisplayData(playerId);
     if (!data) {
-        sendError(playerId, 'Planet no longer exists', planetMenu);
+        sendError(playerId, 'Planet no longer exists');
         return;
     }
     const [empty_holds, ship_colonists] = await getShipPlanetContext(playerId);
-    await sendEnvelope(
-        playerId,
-        {
-            type: ServerMsgType.LandOnPlanetResult,
-            ...data,
-            empty_holds,
-            ship_colonists,
-        },
-        planetMenu,
-    );
+    await sendEnvelope(playerId, {
+        type: ServerMsgType.LandOnPlanetResult,
+        ...data,
+        empty_holds,
+        ship_colonists,
+    });
 }
 
 async function getShipPlanetContext(playerId: number): Promise<[number, number]> {
@@ -154,8 +144,7 @@ export async function handleLeavePlanet(playerId: number): Promise<void> {
     if (!data) return;
     await sendEnvelope(
         playerId,
-        { type: ServerMsgType.LeavePlanetResult, ...data, turnsUsed: turnResult.turnsUsed },
-        'sector',
+        { type: ServerMsgType.LeavePlanetResult, ...data, turnsUsed: turnResult.turnsUsed }
     );
 }
 
@@ -200,8 +189,7 @@ export async function handleDestroyPlanet(playerId: number): Promise<void> {
             destroyed: true,
             planetId: onPlanetId,
             planetName,
-        },
-        'sector',
+        }
     );
 
     const data = await buildSectorDisplayData(playerId);
@@ -210,9 +198,7 @@ export async function handleDestroyPlanet(playerId: number): Promise<void> {
 
 /**
  * Pre-check for the 'U' command from the sector menu. Returns the device
- * count and whether the player can terraform here; the client renders the
- * Y/N prompt inline (askConfirm). The player stays on the sector menu
- * the whole time — no terraformConfirm menu involved.
+ * count and whether the player can terraform here
  */
 export async function handleTerraformInfo(playerId: number): Promise<void> {
     const player = players[playerId];
@@ -267,9 +253,6 @@ export async function handleUseTerraformDevice(playerId: number): Promise<void> 
         sendError(playerId, 'Resolve drone encounter first');
         return;
     }
-
-    // We were in terraformConfirm; whatever happens, drop back to the sector menu.
-    await setPlayerMenu(playerId, 'sector');
 
     const sector = await getSectorByNumber(sectorId, universeId);
     const sectorName = sector?.name;
@@ -383,14 +366,10 @@ async function liftoffWithResult<
     await setOnPlanet(playerId, null);
     const sectorData = await buildSectorDisplayData(playerId);
     if (!sectorData) return;
-    // The two callers (TakeColonistsResult, LeaveColonistsResult) declare
-    // their wire types as `... & SectorDisplayData`, so this merge is
-    // sound. TypeScript can't see that through the generic; cast at the
-    // sendEnvelope boundary rather than threading the type through.
+
     await sendEnvelope(
         playerId,
         { ...result, ...sectorData } as Parameters<typeof sendEnvelope>[1],
-        'sector',
     );
 }
 
@@ -464,9 +443,6 @@ export async function handleTakeColonists(
         shipColonists: shipColonists ?? 0,
     };
 
-    // Earth: one-shot interaction — auto-lift and bundle sector data.
-    // Real planets: stay on-planet so the player can do other things.
-    // (Same shape as handleLeaveColonists.)
     if (onEarth) {
         await liftoffWithResult(playerId, result);
         return;
@@ -490,11 +466,7 @@ export async function handleLeaveColonists(
         sendError(playerId, 'Not on a planet');
         return;
     }
-
-    // Return to the planet command menu (Earth menu if on Earth, else regular planet)
-    // BEFORE doing the work — any sendError below will then carry the updated menu.
     const onEarth = player.sector === 1;
-    await setPlayerMenu(playerId, onEarth ? 'planetEarth' : 'planet');
 
     let actual: number | undefined;
     try {
@@ -505,7 +477,6 @@ export async function handleLeaveColonists(
                 throw new AbortTransaction();
             }
 
-            // -1 = accept default (leave all ship colonists)
             const requested = quantity === -1 ? shipColonists : quantity;
             const leave = Math.min(requested, shipColonists);
 
@@ -530,8 +501,6 @@ export async function handleLeaveColonists(
         shipColonists: shipColonistsNow ?? 0,
     };
 
-    // Earth: one-shot interaction — auto-lift and bundle sector data.
-    // Real planets: stay on-planet so the player can do other things.
     if (onEarth) {
         await liftoffWithResult(playerId, result);
         return;

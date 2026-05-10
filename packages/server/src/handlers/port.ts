@@ -130,17 +130,11 @@ export async function handleDock(playerId: number): Promise<void> {
                           maxHolds: ship.max_holds,
                       }
                     : undefined,
-            },
-            'class0',
+            }
         );
         return;
     }
 
-    // Class 1-8 dock: client trade routine drives the per-commodity loop
-    // via askNumber/askConfirm and one PortTransaction per accepted
-    // commodity, then sends Undock. The DockResult carries the port
-    // class + prices + cargo + credits + empty holds — everything the
-    // client needs to compute steps locally.
     await sendEnvelope(
         playerId,
         {
@@ -150,8 +144,7 @@ export async function handleDock(playerId: number): Promise<void> {
             credits,
             cargo: cargoOut,
             emptyHolds,
-        },
-        'port',
+        }
     );
 }
 
@@ -168,8 +161,7 @@ async function undockPlayer(playerId: number): Promise<void> {
             type: ServerMsgType.UndockResult,
             outcome: 'success',
             ...sectorData,
-        },
-        'sector',
+        }
     );
 }
 
@@ -396,8 +388,7 @@ export async function handleDockStarbase(playerId: number): Promise<void> {
                       maxHolds: ship.max_holds,
                   }
                 : undefined,
-        },
-        'starbase',
+        }
     );
 }
 
@@ -416,7 +407,6 @@ export async function handleLeaveStarbase(playerId: number): Promise<void> {
     if (!sectorData) return;
     await sendEnvelope(
         playerId,
-        { type: ServerMsgType.LeaveStarbaseResult, ...sectorData },
-        'sector',
+        { type: ServerMsgType.LeaveStarbaseResult, ...sectorData }
     );
 }

@@ -28,6 +28,7 @@ export const welcome: Handler<'welcome', LifecycleDeps> = (ctx, msg) => {
     ctx.world.starbaseSector = msg.starbaseSector;
     ctx.player.isAdmin = msg.isAdmin;
     ctx.player.isGuest = !!msg.isGuest;
+    ctx.world.mode = msg.location;
     if (msg.isAdmin) ctx.minimap.handle?.setAdminMode(true);
     ctx.io.term.writeln(render(NOTIFY.welcome, { name: msg.name }));
     if (msg.isGuest) {
@@ -155,7 +156,4 @@ export const starbaseInfo: Handler<'starbaseInfoResult', LifecycleDeps> = (ctx, 
 
 export const error: Handler<'error', LifecycleDeps> = (ctx, msg) => {
     ctx.io.term.writeln(render(NOTIFY.error, { message: msg.message }));
-    // The framework re-renders the active menu's prompt after this handler.
-    // Qty/confirm sub-menus are gone; the inline askNumber/askConfirm flows
-    // already leave the player at the parent menu by the time an error lands.
 };
