@@ -25,7 +25,7 @@ import { handleBuyShipTradein, handleBuyShipNew } from './ship-exchange.js';
 import { handleJettison } from './ship-cargo.js';
 import { handleGetAttackTargets, handleAttackShip } from './combat.js';
 import {
-    handleLand,
+    handleGetSectorPlanets,
     handleLandOnPlanet,
     handlePlanetDisplay,
     handleLeavePlanet,
@@ -96,8 +96,8 @@ export async function handleMessage(playerId: number, data: ClientCommand): Prom
             return handleUndock(playerId);
         case ClientMsgType.Jettison:
             return handleJettison(playerId);
-        case ClientMsgType.Land:
-            return handleLand(playerId);
+        case ClientMsgType.GetSectorPlanets:
+            return handleGetSectorPlanets(playerId);
         case ClientMsgType.LandOnPlanet:
             return handleLandOnPlanet(playerId, data.planetId);
         case ClientMsgType.PlanetDisplay:

@@ -254,8 +254,8 @@ export type UseTerraformDeviceResultObject = {
     terraformDevices?: number;
 };
 
-export type LandResultObject = {
-    type: typeof ServerMsgType.LandResult;
+export type GetSectorPlanetsResultObject = {
+    type: typeof ServerMsgType.GetSectorPlanetsResult;
     planets: { id: number; name: string; type: string }[];
 };
 
@@ -631,7 +631,7 @@ export type ServerResult =
     | RetreatFromDronesResultObject
     | SectorDronesAlertEvent
     | UseTerraformDeviceResultObject
-    | LandResultObject
+    | GetSectorPlanetsResultObject
     | LandOnPlanetResultObject
     | PlanetDisplayResultObject
     | DestroyPlanetResultObject

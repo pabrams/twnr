@@ -116,14 +116,14 @@ registerRoutine('mine_disruptor_menu', async (ctx) => {
 
 registerRoutine('land', async (ctx) => {
     echoCommand(ctx, 'land');
-    ctx.io.sendMsg({ type: ClientMsgType.Land });
+    ctx.io.sendMsg({ type: ClientMsgType.GetSectorPlanets });
     const response = await awaitResponse(ctx, [
-        ServerMsgType.LandResult,
+        ServerMsgType.GetSectorPlanetsResult,
         ServerMsgType.LandOnPlanetResult,
         ServerMsgType.Error,
     ]);
     if (response === null) return;
-    if (response.type !== ServerMsgType.LandResult) return;
+    if (response.type !== ServerMsgType.GetSectorPlanetsResult) return;
     const planets = response.planets;
     if (planets.length === 0) {
         ctx.io.term.writeln(render(EVENT.noPlanetsToLand));
