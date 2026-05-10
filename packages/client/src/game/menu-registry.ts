@@ -160,6 +160,95 @@ export const MENU_REGISTRY: MenuEntry[] = [
         commands: [],
     },
     {
+        // Computer screen — keys come from the hardcoded KEY_TO_COMMAND map
+        // in menus/computer.ts. The duplication here exists so the shared
+        // help_menu routine (common-routines.ts) can enumerate the
+        // available commands when the user hits `?`. Keep both lists in
+        // sync when adding/removing computer commands.
+        name: 'computer',
+        label: 'Computer',
+        parentMenu: 'sector',
+        commands: [
+            {
+                command: 'known_universe',
+                keyPattern: 'k',
+                label: 'Known universe map',
+                targetMenu: null,
+                sortOrder: 10,
+            },
+            {
+                command: 'trader_list',
+                keyPattern: 'l',
+                label: 'Trader list',
+                targetMenu: null,
+                sortOrder: 20,
+            },
+            {
+                command: 'ship_catalog',
+                keyPattern: 'c',
+                label: 'Ship catalog',
+                targetMenu: null,
+                sortOrder: 30,
+            },
+            {
+                command: 'planet_specs',
+                keyPattern: 'j',
+                label: 'Planet specs',
+                targetMenu: null,
+                sortOrder: 40,
+            },
+            {
+                command: 'current_ship_specs',
+                keyPattern: ';',
+                label: 'Current ship specs',
+                targetMenu: null,
+                sortOrder: 50,
+            },
+            {
+                command: 'list_deployed_drones',
+                keyPattern: 'd',
+                label: 'List deployed drones',
+                targetMenu: null,
+                sortOrder: 60,
+            },
+            {
+                command: 'hyperspace_jump',
+                keyPattern: 'h',
+                label: 'Hyperspace jump',
+                targetMenu: null,
+                sortOrder: 70,
+            },
+            {
+                command: 'list_planets',
+                keyPattern: 'y',
+                label: 'List planets',
+                targetMenu: null,
+                sortOrder: 80,
+            },
+            {
+                command: 'track_seeker_mines',
+                keyPattern: 'm',
+                label: 'Track seeker mines',
+                targetMenu: null,
+                sortOrder: 90,
+            },
+            {
+                command: 'help_menu',
+                keyPattern: '?',
+                label: 'Help',
+                targetMenu: null,
+                sortOrder: 95,
+            },
+            {
+                command: 'back',
+                keyPattern: 'q',
+                label: 'Back to sector',
+                targetMenu: null,
+                sortOrder: 100,
+            },
+        ],
+    },
+    {
         name: 'class0',
         label: 'Class 0 Port',
         parentMenu: 'port',
