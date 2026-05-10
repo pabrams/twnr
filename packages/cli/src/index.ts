@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
-import { loginGuest, login } from './auth.js';
+import { loginGuest, login, register } from './auth.js';
 import { connect } from './connect.js';
 import { loadSession, clearSession } from './session.js';
 import { listCommands, showCommand } from './meta.js';
@@ -11,6 +11,7 @@ const USAGE = `twnr — minimal CLI client for the twnr server
 
 usage:
   twnr guest [--host URL]
+  twnr register --name N --email E --password P [--host URL]
   twnr login --email E --password P [--host URL]
   twnr connect [--universe N] [--drain-ms N] [--debug] [--pretty]
   twnr commands [<name>]
@@ -18,7 +19,7 @@ usage:
   twnr logout
 
 stdin/stdout for 'connect': one ClientCommand JSON per line in,
-one ServerMessage JSON per line out. Diagnostics on stderr.
+one ServerResult JSON per line out. Diagnostics on stderr.
 `;
 
 function die(msg: string, code = 1): never {
@@ -63,6 +64,31 @@ async function main(): Promise<void> {
         if (!values.email || !values.password) die('--email and --password are required');
         const s = await login(values.host ?? DEFAULT_HOST, values.email, values.password);
         process.stdout.write(JSON.stringify({ userId: s.userId }, null, 2) + '\n');
+        return;
+    }
+
+    if (cmd === 'register') {
+        const { values } = parseArgs({
+            args: rest,
+            options: {
+                host: { type: 'string' },
+                name: { type: 'string' },
+                email: { type: 'string' },
+                password: { type: 'string' },
+            },
+        });
+        if (!values.name || !values.email || !values.password) {
+            die('--name, --email, and --password are required');
+        }
+        const s = await register(
+            values.host ?? DEFAULT_HOST,
+            values.name,
+            values.email,
+            values.password,
+        );
+        process.stdout.write(
+            JSON.stringify({ userId: s.userId, name: s.name }, null, 2) + '\n',
+        );
         return;
     }
 
