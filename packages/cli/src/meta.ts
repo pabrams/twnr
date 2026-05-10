@@ -18,6 +18,19 @@ function loadSchema(): SchemaFile {
     return cached;
 }
 
+/** Strip schema boilerplate that's identical across every wire message:
+ *  the outer `type: "object"` and `additionalProperties: false`. They're
+ *  meaningful but never vary; hiding them lets the REPL show only the
+ *  per-message bits (properties + required). */
+function stripBoilerplate(def: unknown): unknown {
+    if (!def || typeof def !== 'object') return def;
+    const obj = def as Record<string, unknown>;
+    const { additionalProperties: _ap, type: _t, ...rest } = obj;
+    void _ap;
+    void _t;
+    return rest;
+}
+
 export function showCommand(target: string): unknown | null {
     const schema = loadSchema();
     const match = Object.entries(schema.definitions).find(
@@ -25,5 +38,5 @@ export function showCommand(target: string): unknown | null {
             (def as { properties?: { type?: { const?: string } } }).properties?.type?.const ===
             target,
     );
-    return match ? match[1] : null;
+    return match ? stripBoilerplate(match[1]) : null;
 }
