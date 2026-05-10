@@ -533,12 +533,20 @@ export async function getShipCargoWithCreditsForUpdate(
     return res.rows[0];
 }
 
-/** Whitelist of ship cargo columns — blocks SQL injection via dynamic column. */
-const SHIP_COMMODITY_COLUMN: Record<'fuel' | 'organics' | 'equipment' | 'colonists', string> = {
+/** Whitelist of ship cargo columns — blocks SQL injection via dynamic column.
+ *  `drones` is included here so the same increment helper works for
+ *  planet ↔ ship drone trade, even though drones live outside cargo
+ *  holds (handlers must clamp by ship_type.max_drones, not by free
+ *  holds). */
+const SHIP_COMMODITY_COLUMN: Record<
+    'fuel' | 'organics' | 'equipment' | 'colonists' | 'drones',
+    string
+> = {
     fuel: 'fuel',
     organics: 'organics',
     equipment: 'equipment',
     colonists: 'colonists',
+    drones: 'drones',
 };
 export type ShipCommodity = keyof typeof SHIP_COMMODITY_COLUMN;
 

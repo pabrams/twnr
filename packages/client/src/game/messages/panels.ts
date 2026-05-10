@@ -44,7 +44,7 @@ export const PANEL = makeDomain('PANEL', {
     landedType: '  [by]Type[/by]: {type}',
     landedStats: '  [by]Drones[/by]: {drones}  ',
     landedColonists:
-        '  [by]Colonists[/by]: {{MSG.fuelQuantity}}, {{MSG.orgQuantity}}, {{MSG.equQuantity}}',
+        '  [by]Colonists[/by]: {{MSG.fuelQuantity}}, {{MSG.orgQuantity}}, {{MSG.equQuantity}}, {{MSG.drnQuantity}}',
 
     planetDisplayHeader: '[bc]{name}[/bc] ({type})',
 
@@ -56,5 +56,5 @@ export const PANEL = makeDomain('PANEL', {
     listPlanetsHeader: '[bc]=== Your Planets ===[/bc]',
     listPlanetsRow: '  [by]Sector {sector}[/by] — [bc]{name}[/bc] ([w]{type}[/w])',
     listPlanetsColonists:
-        '  Colonists: {{MSG.fuelQuantity}}, {{MSG.orgQuantity}}, {{MSG.equQuantity}}',
+        '  Colonists: {{MSG.fuelQuantity}}, {{MSG.orgQuantity}}, {{MSG.equQuantity}}, {{MSG.drnQuantity}}',
 });

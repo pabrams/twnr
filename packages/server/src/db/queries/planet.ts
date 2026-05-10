@@ -2,10 +2,11 @@ import { pool } from '../index.js';
 import type { Queryable, PlayerPlanetRow } from '../types.js';
 import { universeConfig } from '../../universe-config.js';
 
-const COLONIST_COLUMN: Record<'fuel' | 'organics' | 'equipment', string> = {
+const COLONIST_COLUMN: Record<'fuel' | 'organics' | 'equipment' | 'drones', string> = {
     fuel: 'colonists_fuel',
     organics: 'colonists_organics',
     equipment: 'colonists_equipment',
+    drones: 'colonists_drones',
 };
 export type ColonistCommodity = keyof typeof COLONIST_COLUMN;
 
@@ -156,6 +157,7 @@ const COLONIST_MAX_COLUMN: Record<ColonistCommodity, string> = {
     fuel: 'max_fuel_colos',
     organics: 'max_org_colos',
     equipment: 'max_equ_colos',
+    drones: 'max_drone_colos',
 };
 
 /** Per-commodity colonist cap from planet_types, plus the planet's current
@@ -178,10 +180,11 @@ export async function getPlanetColonistsCapacity(
     return res.rows[0];
 }
 
-const COMMODITY_COLUMN: Record<'fuel' | 'organics' | 'equipment', string> = {
+const COMMODITY_COLUMN: Record<'fuel' | 'organics' | 'equipment' | 'drones', string> = {
     fuel: 'fuel',
     organics: 'organics',
     equipment: 'equipment',
+    drones: 'drones',
 };
 export type PlanetCommodity = keyof typeof COMMODITY_COLUMN;
 
@@ -189,6 +192,7 @@ const COMMODITY_MAX_COLUMN: Record<PlanetCommodity, string> = {
     fuel: 'max_fuel',
     organics: 'max_org',
     equipment: 'max_equ',
+    drones: 'max_drones',
 };
 
 export async function getPlanetCommodityForUpdate(
@@ -253,8 +257,8 @@ export async function listPlayerPlanets(
 ): Promise<PlayerPlanetRow[]> {
     const res = await db.query<PlayerPlanetRow>(
         `SELECT p.id, s.sector_number, p.name, p.type, pt.display_name AS display_type,
-                p.fuel, p.organics, p.equipment,
-                p.colonists_fuel, p.colonists_organics, p.colonists_equipment
+                p.drones, p.fuel, p.organics, p.equipment,
+                p.colonists_fuel, p.colonists_organics, p.colonists_equipment, p.colonists_drones
          FROM planets p
          JOIN sectors s ON p.sector_id = s.id
          LEFT JOIN planet_types pt ON pt.name = p.type
@@ -303,6 +307,7 @@ export async function getPlanetDisplayData(playerId: number): Promise<{
     colonists_fuel: number;
     colonists_organics: number;
     colonists_equipment: number;
+    colonists_drones: number;
     created_at: Date;
     updated_at: Date | null;
 } | null> {
@@ -315,7 +320,7 @@ export async function getPlanetDisplayData(playerId: number): Promise<{
     const planetRes = await pool.query(
         `SELECT pl.id, pl.sector_id, pl.name, pl.type, pt.display_name AS display_type,
                 pl.drones, pl.fuel, pl.organics, pl.equipment,
-                pl.colonists_fuel, pl.colonists_organics, pl.colonists_equipment,
+                pl.colonists_fuel, pl.colonists_organics, pl.colonists_equipment, pl.colonists_drones,
                 pl.created_at, pl.updated_at
          FROM planets pl
          LEFT JOIN planet_types pt ON pt.name = pl.type
@@ -360,27 +365,33 @@ export async function settlePlanetProduction(
         fuel: number;
         organics: number;
         equipment: number;
+        drones: number;
         colonists_fuel: number;
         colonists_organics: number;
         colonists_equipment: number;
+        colonists_drones: number;
         fuel_production: number;
         organics_production: number;
         equipment_production: number;
+        drone_production: number;
         max_fuel: number;
         max_org: number;
         max_equ: number;
+        max_drones: number;
         last_production_at: Date;
         colos_per_unit: number;
         fuel_production_accrual: number;
         org_production_accrual: number;
         equ_production_accrual: number;
+        drn_production_accrual: number;
     }>(
-        `SELECT p.fuel, p.organics, p.equipment,
-                p.colonists_fuel, p.colonists_organics, p.colonists_equipment,
-                pt.fuel_production, pt.organics_production, pt.equipment_production,
-                pt.max_fuel, pt.max_org, pt.max_equ,
+        `SELECT p.fuel, p.organics, p.equipment, p.drones,
+                p.colonists_fuel, p.colonists_organics, p.colonists_equipment, p.colonists_drones,
+                pt.fuel_production, pt.organics_production, pt.equipment_production, pt.drone_production,
+                pt.max_fuel, pt.max_org, pt.max_equ, pt.max_drones,
                 p.last_production_at,
                 p.fuel_production_accrual, p.org_production_accrual, p.equ_production_accrual,
+                p.drn_production_accrual,
                 COALESCE(us.colos_to_produce_one_unit_per_hour, ${universeConfig.colosToProduceOneUnitPerHour}) AS colos_per_unit
          FROM planets p
          JOIN sectors s ON p.sector_id = s.id
@@ -434,19 +445,40 @@ export async function settlePlanetProduction(
         row.equipment_production,
         row.equ_production_accrual,
     );
+    const drn = settle(
+        row.drones,
+        row.max_drones,
+        row.colonists_drones,
+        row.drone_production,
+        row.drn_production_accrual,
+    );
 
     const produced =
-        fuel.stock !== row.fuel || org.stock !== row.organics || equ.stock !== row.equipment;
+        fuel.stock !== row.fuel ||
+        org.stock !== row.organics ||
+        equ.stock !== row.equipment ||
+        drn.stock !== row.drones;
 
     await db.query(
         `UPDATE planets SET
-            fuel = $2, organics = $3, equipment = $4,
-            fuel_production_accrual = $5,
-            org_production_accrual = $6,
-            equ_production_accrual = $7,
+            fuel = $2, organics = $3, equipment = $4, drones = $5,
+            fuel_production_accrual = $6,
+            org_production_accrual = $7,
+            equ_production_accrual = $8,
+            drn_production_accrual = $9,
             last_production_at = NOW()
          WHERE id = $1`,
-        [planetId, fuel.stock, org.stock, equ.stock, fuel.accrual, org.accrual, equ.accrual],
+        [
+            planetId,
+            fuel.stock,
+            org.stock,
+            equ.stock,
+            drn.stock,
+            fuel.accrual,
+            org.accrual,
+            equ.accrual,
+            drn.accrual,
+        ],
     );
     return { produced };
 }
@@ -480,25 +512,29 @@ export async function settlePlanetColonistGrowth(
         colonists_fuel: number;
         colonists_organics: number;
         colonists_equipment: number;
+        colonists_drones: number;
         max_fuel_colos: number;
         max_org_colos: number;
         max_equ_colos: number;
+        max_drone_colos: number;
         danger: number;
         last_colonist_event_at: Date;
         rate_per_1000: number;
         fuel_birth_accrual: number;
         org_birth_accrual: number;
         equ_birth_accrual: number;
+        drn_birth_accrual: number;
         fuel_death_accrual: number;
         org_death_accrual: number;
         equ_death_accrual: number;
+        drn_death_accrual: number;
     }>(
-        `SELECT p.colonists_fuel, p.colonists_organics, p.colonists_equipment,
-                pt.max_fuel_colos, pt.max_org_colos, pt.max_equ_colos,
+        `SELECT p.colonists_fuel, p.colonists_organics, p.colonists_equipment, p.colonists_drones,
+                pt.max_fuel_colos, pt.max_org_colos, pt.max_equ_colos, pt.max_drone_colos,
                 pt.danger,
                 p.last_colonist_event_at,
-                p.fuel_birth_accrual, p.org_birth_accrual, p.equ_birth_accrual,
-                p.fuel_death_accrual, p.org_death_accrual, p.equ_death_accrual,
+                p.fuel_birth_accrual, p.org_birth_accrual, p.equ_birth_accrual, p.drn_birth_accrual,
+                p.fuel_death_accrual, p.org_death_accrual, p.equ_death_accrual, p.drn_death_accrual,
                 COALESCE(us.daily_reproduction_per_1000_colos, ${universeConfig.dailyReproductionPer1000Colos}) AS rate_per_1000
          FROM planets p
          JOIN sectors s ON p.sector_id = s.id
@@ -553,17 +589,24 @@ export async function settlePlanetColonistGrowth(
         row.equ_birth_accrual,
         row.equ_death_accrual,
     );
+    const drn = settle(
+        row.colonists_drones,
+        row.max_drone_colos,
+        row.drn_birth_accrual,
+        row.drn_death_accrual,
+    );
 
     const changed =
         fuel.colos !== row.colonists_fuel ||
         org.colos !== row.colonists_organics ||
-        equ.colos !== row.colonists_equipment;
+        equ.colos !== row.colonists_equipment ||
+        drn.colos !== row.colonists_drones;
 
     await db.query(
         `UPDATE planets SET
-            colonists_fuel = $2, colonists_organics = $3, colonists_equipment = $4,
-            fuel_birth_accrual = $5, org_birth_accrual = $6, equ_birth_accrual = $7,
-            fuel_death_accrual = $8, org_death_accrual = $9, equ_death_accrual = $10,
+            colonists_fuel = $2, colonists_organics = $3, colonists_equipment = $4, colonists_drones = $5,
+            fuel_birth_accrual = $6, org_birth_accrual = $7, equ_birth_accrual = $8, drn_birth_accrual = $9,
+            fuel_death_accrual = $10, org_death_accrual = $11, equ_death_accrual = $12, drn_death_accrual = $13,
             last_colonist_event_at = NOW()
          WHERE id = $1`,
         [
@@ -571,12 +614,15 @@ export async function settlePlanetColonistGrowth(
             fuel.colos,
             org.colos,
             equ.colos,
+            drn.colos,
             fuel.birthAccrual,
             org.birthAccrual,
             equ.birthAccrual,
+            drn.birthAccrual,
             fuel.deathAccrual,
             org.deathAccrual,
             equ.deathAccrual,
+            drn.deathAccrual,
         ],
     );
     return { changed };
@@ -589,7 +635,10 @@ export async function settlePlanetColonistGrowth(
 export async function listPlanetIdsWithColonists(db: Queryable = pool): Promise<number[]> {
     const res = await db.query<{ id: number }>(
         `SELECT id FROM planets
-         WHERE colonists_fuel > 0 OR colonists_organics > 0 OR colonists_equipment > 0`,
+         WHERE colonists_fuel > 0
+            OR colonists_organics > 0
+            OR colonists_equipment > 0
+            OR colonists_drones > 0`,
     );
     return res.rows.map((r) => r.id);
 }

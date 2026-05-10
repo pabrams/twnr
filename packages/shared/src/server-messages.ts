@@ -279,8 +279,11 @@ export type PlanetDisplayData = {
     colonists_fuel: number;
     colonists_organics: number;
     colonists_equipment: number;
+    colonists_drones: number;
     empty_holds: number;
     ship_colonists: number;
+    ship_drones: number;
+    ship_max_drones: number;
     created_at: Date | string;
     updated_at?: Date | string | null;
 };
@@ -343,7 +346,7 @@ export type DockStarbaseResultObject = {
 export type TakeColonistsResultObject = {
     type: typeof ServerMsgType.TakeColonistsResult;
     quantity: number;
-    commodity: 'fuel' | 'organics' | 'equipment';
+    commodity: 'fuel' | 'organics' | 'equipment' | 'drones';
     planetColonists: number;
     shipColonists: number;
 } & Partial<SectorDisplayData>;
@@ -351,7 +354,7 @@ export type TakeColonistsResultObject = {
 export type LeaveColonistsResultObject = {
     type: typeof ServerMsgType.LeaveColonistsResult;
     quantity: number;
-    commodity: 'fuel' | 'organics' | 'equipment';
+    commodity: 'fuel' | 'organics' | 'equipment' | 'drones';
     planetColonists: number;
     shipColonists: number;
 } & Partial<SectorDisplayData>;
@@ -364,7 +367,7 @@ export type LeaveColonistsResultObject = {
 export type TakeCommodityResultObject = {
     type: typeof ServerMsgType.TakeCommodityResult;
     quantity: number;
-    commodity: 'fuel' | 'organics' | 'equipment';
+    commodity: 'fuel' | 'organics' | 'equipment' | 'drones';
     planetCommodity: number;
     shipCommodity: number;
 };
@@ -372,7 +375,7 @@ export type TakeCommodityResultObject = {
 export type LeaveCommodityResultObject = {
     type: typeof ServerMsgType.LeaveCommodityResult;
     quantity: number;
-    commodity: 'fuel' | 'organics' | 'equipment';
+    commodity: 'fuel' | 'organics' | 'equipment' | 'drones';
     planetCommodity: number;
     shipCommodity: number;
 };
@@ -477,12 +480,14 @@ export type ListPlanetsResultObject = {
         name: string;
         type: string;
         displayType: string | null;
+        drones: number;
         fuel: number;
         organics: number;
         equipment: number;
         colonists_fuel: number;
         colonists_organics: number;
         colonists_equipment: number;
+        colonists_drones: number;
     }[];
 };
 
