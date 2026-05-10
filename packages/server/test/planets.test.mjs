@@ -1,6 +1,6 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import WebSocket from 'ws';
@@ -12,9 +12,6 @@ const __filename = fileURLToPath(import.meta.url);
 const PROJECT_ROOT = join(dirname(__filename), '..');
 
 const CONFIG_SHIPS_DIR = join(PROJECT_ROOT, 'config', 'ships');
-const SERVER_MESSAGES_TS = join(PROJECT_ROOT, '..', 'shared', 'src', 'server-messages.ts');
-const MESSAGES_TS = join(PROJECT_ROOT, '..', 'shared', 'src', 'messages.ts');
-const CLIENT_MESSAGES_TS = join(PROJECT_ROOT, '..', 'shared', 'src', 'client-messages.ts');
 
 async function adminKeyPost(path, body) {
   const res = await fetch(`${BASE}${path}`, {
@@ -26,24 +23,13 @@ async function adminKeyPost(path, body) {
   return { status: res.status, body: json };
 }
 
-async function adminKeyGet(path) {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { 'X-Admin-Key': ADMIN_API_KEY },
-  });
-  const json = await res.json().catch(() => null);
-  return { status: res.status, body: json };
-}
 
 // Create a test user in DB, create a player, and connect via WebSocket.
 // Returns { ws, playerId, token, close() }.
-let testUserCounter = 0;
 async function createTestPlayer(universeId) {
-  const suffix = Date.now() + '_' + (++testUserCounter);
-  const name = `TestPlayer_${suffix}`;
 
   // Create user and player directly in DB (bypasses rate limiting)
-  const { userId, token } = await createTestUser(pool);
-  const playerId = await createTestPlayerDB(pool, userId, universeId, name);
+  const { token } = await createTestUser(pool);
 
   // Connect WebSocket
   const ws = new WebSocket(`${WS_BASE}/ws?universe=${universeId}`, {
@@ -186,21 +172,7 @@ async function getPKColumns(table) {
   return new Set(res.rows.map(r => r.attname));
 }
 
-async function hasUniqueConstraint(table, colSet) {
-  const res = await pool.query(
-    `SELECT array_agg(a.attname ORDER BY a.attnum) as cols
-     FROM pg_constraint c
-     JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = ANY(c.conkey)
-     WHERE c.conrelid = $1::regclass AND c.contype = 'u'
-     GROUP BY c.oid`,
-    [table],
-  );
-  for (const row of res.rows) {
-    const s = new Set(row.cols);
-    if (s.size === colSet.size && [...colSet].every(c => s.has(c))) return true;
-  }
-  return false;
-}
+
 
 // ==================== planets table schema ====================
 
@@ -808,9 +780,9 @@ describe('WS: land on planet, display, leave', () => {
     assert.equal(msg.name, 'Earth');
   });
 
-
-
   it('on_planet_id is cleared after leaving planet', async () => {
+    player.sendMsg({ type: ClientMsgType.LeavePlanet });
+    await player.waitForMessage(ServerMsgType.LeavePlanetResult);
     const res = await pool.query('SELECT on_planet_id FROM players WHERE id = $1', [player.playerId]);
     assert.equal(res.rows[0].on_planet_id, null, 'on_planet_id should be null after leaving');
   });
