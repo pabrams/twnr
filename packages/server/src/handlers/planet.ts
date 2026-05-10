@@ -39,6 +39,7 @@ import {
     getShipHoldsAndCargoForUpdate,
     getShipColonistsForUpdate,
     getShipColonists,
+    getShipDronesAndMaxForUpdate,
     incrementShipColonists,
     incrementShipCommodity,
     getShipCargoWithCredits,
@@ -95,22 +96,32 @@ export async function handleLandOnPlanet(playerId: number, planetId: number): Pr
         sendError(playerId, 'Planet no longer exists');
         return;
     }
-    const [empty_holds, ship_colonists] = await getShipPlanetContext(playerId);
+    const ctx = await getShipPlanetContext(playerId);
     await sendEnvelope(playerId, {
         type: ServerMsgType.LandOnPlanetResult,
         ...data,
-        empty_holds,
-        ship_colonists,
+        empty_holds: ctx.emptyHolds,
+        ship_colonists: ctx.shipColonists,
+        ship_drones: ctx.shipDrones,
+        ship_max_drones: ctx.shipMaxDrones,
     });
 }
 
-async function getShipPlanetContext(playerId: number): Promise<[number, number]> {
-    const [ship, shipColonists] = await Promise.all([
+async function getShipPlanetContext(
+    playerId: number,
+): Promise<{ emptyHolds: number; shipColonists: number; shipDrones: number; shipMaxDrones: number }> {
+    const [ship, shipColonists, drones] = await Promise.all([
         getShipCargoWithCredits(playerId),
         getShipColonists(playerId),
+        getShipDronesAndMaxForUpdate(playerId),
     ]);
     const emptyHolds = ship ? Math.max(0, ship.cargo_limit - cargoUsed(ship)) : 0;
-    return [emptyHolds, shipColonists ?? 0];
+    return {
+        emptyHolds,
+        shipColonists: shipColonists ?? 0,
+        shipDrones: drones?.drones ?? 0,
+        shipMaxDrones: drones?.max_drones ?? 0,
+    };
 }
 
 export async function handlePlanetDisplay(playerId: number): Promise<void> {
@@ -128,12 +139,14 @@ export async function handlePlanetDisplay(playerId: number): Promise<void> {
         sendError(playerId, 'Planet no longer exists');
         return;
     }
-    const [empty_holds, ship_colonists] = await getShipPlanetContext(playerId);
+    const ctx = await getShipPlanetContext(playerId);
     sendEnvelope(playerId, {
         type: ServerMsgType.PlanetDisplayResult,
         ...data,
-        empty_holds,
-        ship_colonists,
+        empty_holds: ctx.emptyHolds,
+        ship_colonists: ctx.shipColonists,
+        ship_drones: ctx.shipDrones,
+        ship_max_drones: ctx.shipMaxDrones,
     });
 }
 
@@ -360,18 +373,28 @@ export async function handleUseTerraformDevice(playerId: number): Promise<void> 
 /** Validate a colonist commodity argument. Sends an error envelope and
  * returns null on bad input; returns the typed value on success. */
 function parseColonistCommodity(playerId: number, commodity: string): ColonistCommodity | null {
-    if (commodity !== 'fuel' && commodity !== 'organics' && commodity !== 'equipment') {
+    if (
+        commodity !== 'fuel' &&
+        commodity !== 'organics' &&
+        commodity !== 'equipment' &&
+        commodity !== 'drones'
+    ) {
         sendError(playerId, 'Invalid commodity');
         return null;
     }
     return commodity as ColonistCommodity;
 }
 
-/** Validate a planet-commodity argument (fuel/organics/equipment). Same
- *  shape as parseColonistCommodity; the typed alias keeps the planet
+/** Validate a planet-commodity argument (fuel/organics/equipment/drones).
+ *  Same shape as parseColonistCommodity; the typed alias keeps the planet
  *  stockpile flow distinct from the colonist flow. */
 function parsePlanetCommodity(playerId: number, commodity: string): PlanetCommodity | null {
-    if (commodity !== 'fuel' && commodity !== 'organics' && commodity !== 'equipment') {
+    if (
+        commodity !== 'fuel' &&
+        commodity !== 'organics' &&
+        commodity !== 'equipment' &&
+        commodity !== 'drones'
+    ) {
         sendError(playerId, 'Invalid commodity');
         return null;
     }
@@ -571,8 +594,6 @@ export async function handleTakeCommodity(
                 sendError(playerId, 'Planet not found');
                 throw new AbortTransaction();
             }
-
-            // -1 = take as much as the planet has (clamped by free holds below).
             const requested = quantity === -1 ? available : quantity;
             const actual = Math.min(requested, available);
             if (actual <= 0) {
@@ -580,17 +601,32 @@ export async function handleTakeCommodity(
                 throw new AbortTransaction();
             }
 
-            const ship = await getShipHoldsAndCargoForUpdate(playerId, client);
-            if (!ship) {
-                sendError(playerId, 'No ship');
-                throw new AbortTransaction();
-            }
-            const used = cargoUsed(ship);
-            const free = ship.holds - used;
-            const take = Math.min(actual, free);
-            if (take <= 0) {
-                sendError(playerId, 'No free holds');
-                throw new AbortTransaction();
+            let take: number;
+            if (col === 'drones') {
+                const droneState = await getShipDronesAndMaxForUpdate(playerId, client);
+                if (!droneState) {
+                    sendError(playerId, 'No ship');
+                    throw new AbortTransaction();
+                }
+                const room = Math.max(0, droneState.max_drones - droneState.drones);
+                take = Math.min(actual, room);
+                if (take <= 0) {
+                    sendError(playerId, 'Ship drones at max capacity');
+                    throw new AbortTransaction();
+                }
+            } else {
+                const ship = await getShipHoldsAndCargoForUpdate(playerId, client);
+                if (!ship) {
+                    sendError(playerId, 'No ship');
+                    throw new AbortTransaction();
+                }
+                const used = cargoUsed(ship);
+                const free = ship.holds - used;
+                take = Math.min(actual, free);
+                if (take <= 0) {
+                    sendError(playerId, 'No free holds');
+                    throw new AbortTransaction();
+                }
             }
 
             await updatePlanetCommodity(onPlanetId, col, -take, client);
@@ -605,9 +641,7 @@ export async function handleTakeCommodity(
     if (toTake === undefined) return;
 
     const planetRemaining = await getPlanetCommodityRemaining(onPlanetId, col);
-    const ship = await getShipCargoWithCredits(playerId);
-    const shipCommodity =
-        col === 'fuel' ? (ship?.fuel ?? 0) : col === 'organics' ? (ship?.organics ?? 0) : (ship?.equipment ?? 0);
+    const shipCommodity = await readShipCommodity(playerId, col);
 
     sendEnvelope(playerId, {
         type: ServerMsgType.TakeCommodityResult,
@@ -638,13 +672,27 @@ export async function handleLeaveCommodity(
     let actual: number | undefined;
     try {
         actual = await withTransaction(async (client) => {
-            const ship = await getShipHoldsAndCargoForUpdate(playerId, client);
-            if (!ship) {
-                sendError(playerId, 'No ship');
-                throw new AbortTransaction();
+            let onShip: number;
+            if (col === 'drones') {
+                const droneState = await getShipDronesAndMaxForUpdate(playerId, client);
+                if (!droneState) {
+                    sendError(playerId, 'No ship');
+                    throw new AbortTransaction();
+                }
+                onShip = droneState.drones;
+            } else {
+                const ship = await getShipHoldsAndCargoForUpdate(playerId, client);
+                if (!ship) {
+                    sendError(playerId, 'No ship');
+                    throw new AbortTransaction();
+                }
+                onShip =
+                    col === 'fuel'
+                        ? ship.fuel
+                        : col === 'organics'
+                          ? ship.organics
+                          : ship.equipment;
             }
-            const onShip =
-                col === 'fuel' ? ship.fuel : col === 'organics' ? ship.organics : ship.equipment;
             if (onShip <= 0) {
                 sendError(playerId, `No ${col} on ship`);
                 throw new AbortTransaction();
@@ -660,8 +708,6 @@ export async function handleLeaveCommodity(
                 sendError(playerId, `Planet is at max ${col}`);
                 throw new AbortTransaction();
             }
-
-            // -1 = leave everything the ship has (clamped by planet's room).
             const requested = quantity === -1 ? onShip : quantity;
             const leave = Math.min(requested, onShip, room);
 
@@ -677,9 +723,7 @@ export async function handleLeaveCommodity(
     if (actual === undefined) return;
 
     const planetRemaining = await getPlanetCommodityRemaining(onPlanetId, col);
-    const ship = await getShipCargoWithCredits(playerId);
-    const shipCommodity =
-        col === 'fuel' ? (ship?.fuel ?? 0) : col === 'organics' ? (ship?.organics ?? 0) : (ship?.equipment ?? 0);
+    const shipCommodity = await readShipCommodity(playerId, col);
 
     sendEnvelope(playerId, {
         type: ServerMsgType.LeaveCommodityResult,
@@ -688,6 +732,19 @@ export async function handleLeaveCommodity(
         planetCommodity: planetRemaining ?? 0,
         shipCommodity,
     });
+}
+
+/** Read the current ship-side count for a take/leave-commodity response.
+ *  `drones` reads from ship.drones (not cargo holds), so it needs a
+ *  separate query path than the cargo-bucket commodities. */
+async function readShipCommodity(playerId: number, col: PlanetCommodity): Promise<number> {
+    if (col === 'drones') {
+        const droneState = await getShipDronesAndMaxForUpdate(playerId);
+        return droneState?.drones ?? 0;
+    }
+    const ship = await getShipCargoWithCredits(playerId);
+    if (!ship) return 0;
+    return col === 'fuel' ? ship.fuel : col === 'organics' ? ship.organics : ship.equipment;
 }
 
 export async function handleListPlanets(playerId: number): Promise<void> {
@@ -704,12 +761,14 @@ export async function handleListPlanets(playerId: number): Promise<void> {
             name: r.name,
             type: r.type,
             displayType: r.display_type,
+            drones: r.drones,
             fuel: r.fuel,
             organics: r.organics,
             equipment: r.equipment,
             colonists_fuel: r.colonists_fuel,
             colonists_organics: r.colonists_organics,
             colonists_equipment: r.colonists_equipment,
+            colonists_drones: r.colonists_drones,
         })),
     });
 }

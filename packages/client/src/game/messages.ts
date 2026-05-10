@@ -53,5 +53,6 @@ export const MSG = makeDomain('MSG', {
     fuelQuantity: '[g]Fuel[/g][by]=[/by][bc]{fuel}[/bc]',
     orgQuantity: '[g]Org[/g][by]=[/by][bc]{organics}[/bc]',
     equQuantity: '[g]Equ[/g][by]=[/by][bc]{equipment}[/bc]',
+    drnQuantity: '[g]Drn[/g][by]=[/by][bc]{drones}[/bc]',
     colosQuantity: '[g]Colos[/g][by]=[/by][bc]{colonists}[/bc]',
 });

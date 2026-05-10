@@ -77,10 +77,13 @@ export type PlanetConfig = {
     maxFuel: number;
     maxOrg: number;
     maxEqu: number;
+    maxDrones: number;
+    maxDroneColos: number;
     maxCitadel: number;
     fuelProduction: number;
     organicsProduction: number;
     equipmentProduction: number;
+    droneProduction: number;
 };
 
 export type ShipCatalogEntry = {

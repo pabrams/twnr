@@ -72,12 +72,14 @@ export interface PlayerPlanetRow {
     name: string;
     type: string;
     display_type: string | null;
+    drones: number;
     fuel: number;
     organics: number;
     equipment: number;
     colonists_fuel: number;
     colonists_organics: number;
     colonists_equipment: number;
+    colonists_drones: number;
 }
 
 export interface ShipTypeRow {

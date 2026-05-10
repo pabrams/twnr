@@ -88,6 +88,7 @@ export const landOnPlanet: Handler<'landOnPlanetResult', PlanetDeps> = (ctx, msg
                 fuel: msg.colonists_fuel ?? 0,
                 organics: msg.colonists_organics ?? 0,
                 equipment: msg.colonists_equipment ?? 0,
+                drones: msg.colonists_drones ?? 0,
             }),
         );
     }
@@ -116,6 +117,7 @@ export const planetDisplay: Handler<'planetDisplayResult', PlanetDeps> = (ctx, m
             fuel: msg.colonists_fuel,
             organics: msg.colonists_organics,
             equipment: msg.colonists_equipment,
+            drones: msg.colonists_drones,
         }),
     );
 };
@@ -188,6 +190,7 @@ export const listPlanets: Handler<'listPlanetsResult', PlanetDeps> = (ctx, msg) 
                     fuel: p.colonists_fuel,
                     organics: p.colonists_organics,
                     equipment: p.colonists_equipment,
+                    drones: p.colonists_drones,
                 }),
             );
         }

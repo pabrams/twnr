@@ -106,13 +106,13 @@ export type GetSectorPlanetsCommand = {
 export type TakeColonistsCommand = {
     type: typeof ClientMsgType.TakeColonists;
     quantity: number;
-    commodity: 'fuel' | 'organics' | 'equipment';
+    commodity: 'fuel' | 'organics' | 'equipment' | 'drones';
 };
 
 export type LeaveColonistsCommand = {
     type: typeof ClientMsgType.LeaveColonists;
     quantity: number;
-    commodity: 'fuel' | 'organics' | 'equipment';
+    commodity: 'fuel' | 'organics' | 'equipment' | 'drones';
 };
 
 /** Take fuel/organics/equipment from the planet you're on. -1 quantity =
@@ -120,7 +120,7 @@ export type LeaveColonistsCommand = {
 export type TakeCommodityCommand = {
     type: typeof ClientMsgType.TakeCommodity;
     quantity: number;
-    commodity: 'fuel' | 'organics' | 'equipment';
+    commodity: 'fuel' | 'organics' | 'equipment' | 'drones';
 };
 
 /** Leave fuel/organics/equipment on the planet you're on. -1 quantity =
@@ -129,7 +129,7 @@ export type TakeCommodityCommand = {
 export type LeaveCommodityCommand = {
     type: typeof ClientMsgType.LeaveCommodity;
     quantity: number;
-    commodity: 'fuel' | 'organics' | 'equipment';
+    commodity: 'fuel' | 'organics' | 'equipment' | 'drones';
 };
 
 export type DeployDronesInfoCommand = {
