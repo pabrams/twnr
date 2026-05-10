@@ -70,7 +70,9 @@ export function renderPlanetList(container: HTMLElement): void {
             const headers = [
                 'Type',
                 'Description',
-                'Colonists',
+                'Fuel Colos',
+                'Org Colos',
+                'Equ Colos',
                 'Citadel',
                 'Fuel',
                 'Org',
@@ -104,7 +106,9 @@ export function renderPlanetList(container: HTMLElement): void {
                 const cells = [
                     String(planet.type),
                     desc,
-                    String(planet.maxColonists),
+                    String(planet.maxFuelColos),
+                    String(planet.maxOrgColos),
+                    String(planet.maxEquColos),
                     String(planet.maxCitadel),
                     String(planet.fuelProduction),
                     String(planet.organicsProduction),

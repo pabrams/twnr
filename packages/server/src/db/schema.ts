@@ -382,7 +382,9 @@ export const connectDB = async (): Promise<void> => {
       CREATE TABLE IF NOT EXISTS planet_types (
         name VARCHAR(255) PRIMARY KEY,
         description TEXT,
-        max_colonists INTEGER NOT NULL DEFAULT 0,
+        max_fuel_colos INTEGER NOT NULL DEFAULT 0,
+        max_org_colos INTEGER NOT NULL DEFAULT 0,
+        max_equ_colos INTEGER NOT NULL DEFAULT 0,
         max_citadel SMALLINT NOT NULL DEFAULT 0,
         fuel_production SMALLINT NOT NULL DEFAULT 0,
         organics_production SMALLINT NOT NULL DEFAULT 0,
@@ -730,11 +732,13 @@ export const connectDB = async (): Promise<void> => {
         // Seed planet_types from config files (idempotent)
         for (const planet of Object.values(planetConfigs)) {
             await client.query(
-                `INSERT INTO planet_types (name, description, max_colonists, max_citadel, fuel_production, organics_production, equipment_production)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7)
+                `INSERT INTO planet_types (name, description, max_fuel_colos, max_org_colos, max_equ_colos, max_citadel, fuel_production, organics_production, equipment_production)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                  ON CONFLICT (name) DO UPDATE SET
                     description = EXCLUDED.description,
-                    max_colonists = EXCLUDED.max_colonists,
+                    max_fuel_colos = EXCLUDED.max_fuel_colos,
+                    max_org_colos = EXCLUDED.max_org_colos,
+                    max_equ_colos = EXCLUDED.max_equ_colos,
                     max_citadel = EXCLUDED.max_citadel,
                     fuel_production = EXCLUDED.fuel_production,
                     organics_production = EXCLUDED.organics_production,
@@ -742,7 +746,9 @@ export const connectDB = async (): Promise<void> => {
                 [
                     planet.type,
                     planet.description ?? null,
-                    planet.maxColonists ?? 0,
+                    planet.maxFuelColos ?? 0,
+                    planet.maxOrgColos ?? 0,
+                    planet.maxEquColos ?? 0,
                     planet.maxCitadel ?? 0,
                     planet.fuelProduction ?? 0,
                     planet.organicsProduction ?? 0,
@@ -774,7 +780,6 @@ export const connectDB = async (): Promise<void> => {
                 ('Barren', (SELECT id FROM edit_templates WHERE name = 'stock')),
                 ('Crystalline', (SELECT id FROM edit_templates WHERE name = 'stock')),
                 ('Desert', (SELECT id FROM edit_templates WHERE name = 'stock')),
-                ('Gas Giant', (SELECT id FROM edit_templates WHERE name = 'stock')),
                 ('Glacial', (SELECT id FROM edit_templates WHERE name = 'stock')),
                 ('Jungle', (SELECT id FROM edit_templates WHERE name = 'stock')),
                 ('Mountainous', (SELECT id FROM edit_templates WHERE name = 'stock')),
