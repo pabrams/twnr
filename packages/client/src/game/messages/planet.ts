@@ -22,7 +22,17 @@ export const PLANET = makeDomain('PLANET', {
     takeCommodityHeader: '[bc]Which colonists to take?[/bc]',
     leaveCommodityHeader: '[bc]Assign colonists to which commodity?[/bc]',
     commodityPrompt:
-        '\r\n[mg]Choose[/mg] [mg]([/mg][by]F[/by]/[by]O[/by]/[by]E[/by]/[by]Q[/by][mg])[/mg] [by]?[/by] ',
+        '\r\n[mg]Choose[/mg] [mg]([/mg][by]F[/by]/[by]O[/by]/[by]E[/by]/[by]D[/by]/[by]Q[/by][mg])[/mg] [by]?[/by] ',
+    takeStockpileHeader: '[bc]Which commodity to take from the planet?[/bc]',
+    leaveStockpileHeader: '[bc]Which commodity to leave on the planet?[/bc]',
+    takeStockpileQtyPrompt:
+        '\r\n[mg]How many[/mg] [bc]{commodity}[/bc] [mg]to take?[/mg] [mg][[/mg][by]-1[/by]=[g]max[/g][mg]][/mg] [by]:[/by] ',
+    leaveStockpileQtyPrompt:
+        '\r\n[mg]How many[/mg] [bc]{commodity}[/bc] [mg]to leave?[/mg] [mg][[/mg][by]-1[/by]=[g]all[/g][mg]][/mg] [by]:[/by] ',
+    takeStockpileResult:
+        '[bg]Took [bc]{qty}[/bc] {commodity}.[/bg]  [g]Planet[/g]: [by]{planet}[/by]  [g]Ship[/g]: [by]{ship}[/by]',
+    leaveStockpileResult:
+        '[bg]Left [bc]{qty}[/bc] {commodity}.[/bg]  [g]Planet[/g]: [by]{planet}[/by]  [g]Ship[/g]: [by]{ship}[/by]',
 
     planetSelectHeader: '[bc]=== Select a Planet ===[/bc]',
     planetSelectRow: '  [by]{n}[/by]  [w]{name}[/w] ({type})',

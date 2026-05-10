@@ -24,6 +24,8 @@ export const COMMAND = makeDomain('COMMAND', {
     leavePlanet: '[bg:b]<Leave Planet>[/bg:b]',
     takeColonists: '[bg:b]<Take Colonists>[/bg:b]',
     leaveColonists: '[bg:b]<Leave Colonists>[/bg:b]',
+    takeCommodity: '[bg:b]<Take Commodity>[/bg:b]',
+    leaveCommodity: '[bg:b]<Leave Commodity>[/bg:b]',
     deployDronesInfo: '[bg:b]<Deploy Drones>[/bg:b]',
     deployDrones: '[bg:b]<Deploy Drones>[/bg:b]',
     attack: '[bg:b]<Attack>[/bg:b]',

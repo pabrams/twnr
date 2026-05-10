@@ -1,7 +1,7 @@
 import { ClientMsgType, Menu } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
-import { NOTIFY, EVENT, PANEL } from '../messages/index.js';
+import { NOTIFY, EVENT, PANEL, PLANET } from '../messages/index.js';
 import { askConfirm } from '../menus/prompts.js';
 import { echoCommand } from '../display.js';
 import { showSectorDisplay, type DisplayCtx } from '../display.js';
@@ -45,6 +45,32 @@ export const takeColonists: Handler<'takeColonistsResult', PlanetDeps> = (ctx, m
     }
 };
 
+export const takeCommodity: Handler<'takeCommodityResult', PlanetDeps> = (ctx, msg) => {
+    if (msg.commodity === 'drones') ctx.ship.shipDrones = msg.shipCommodity;
+    ctx.io.term.writeln('');
+    ctx.io.term.writeln(
+        render(PLANET.takeStockpileResult, {
+            qty: fmt(msg.quantity),
+            commodity: msg.commodity,
+            planet: fmt(msg.planetCommodity),
+            ship: fmt(msg.shipCommodity),
+        }),
+    );
+};
+
+export const leaveCommodity: Handler<'leaveCommodityResult', PlanetDeps> = (ctx, msg) => {
+    if (msg.commodity === 'drones') ctx.ship.shipDrones = msg.shipCommodity;
+    ctx.io.term.writeln('');
+    ctx.io.term.writeln(
+        render(PLANET.leaveStockpileResult, {
+            qty: fmt(msg.quantity),
+            commodity: msg.commodity,
+            planet: fmt(msg.planetCommodity),
+            ship: fmt(msg.shipCommodity),
+        }),
+    );
+};
+
 export const leaveColonists: Handler<'leaveColonistsResult', PlanetDeps> = (ctx, msg) => {
     ctx.ship.shipColonists = msg.shipColonists;
     if (msg.commodity === 'fuel') ctx.world.earthColonists = msg.planetColonists;
@@ -66,6 +92,8 @@ export const leaveColonists: Handler<'leaveColonistsResult', PlanetDeps> = (ctx,
 export const landOnPlanet: Handler<'landOnPlanetResult', PlanetDeps> = (ctx, msg) => {
     ctx.ship.planetEmptyHolds = msg.empty_holds;
     ctx.ship.shipColonists = msg.ship_colonists;
+    ctx.ship.shipDrones = msg.ship_drones;
+    ctx.ship.shipMaxDrones = msg.ship_max_drones;
     const isEarth = msg.name === 'Earth';
     ctx.world.mode = isEarth ? Menu.PlanetEarth : Menu.Planet;
     if (isEarth) {
@@ -97,6 +125,8 @@ export const landOnPlanet: Handler<'landOnPlanetResult', PlanetDeps> = (ctx, msg
 export const planetDisplay: Handler<'planetDisplayResult', PlanetDeps> = (ctx, msg) => {
     ctx.ship.planetEmptyHolds = msg.empty_holds;
     ctx.ship.shipColonists = msg.ship_colonists;
+    ctx.ship.shipDrones = msg.ship_drones;
+    ctx.ship.shipMaxDrones = msg.ship_max_drones;
     ctx.io.term.writeln('');
     ctx.io.term.writeln(
         render(PANEL.planetDisplayHeader, {
