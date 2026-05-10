@@ -1,1 +1,12 @@
-{ "type": "Toxic", "description": "Corrosive atmosphere world with rare chemical compounds", "maxColonists": 5000, "maxCitadel": 1, "fuelProduction": 20, "organicsProduction": 3, "equipmentProduction": 6 }
+{
+    "type": "Toxic",
+    "displayName": "[bm:b]Toxic[/bm:b]",
+    "description": "Corrosive atmosphere world with rare chemical compounds",
+    "maxColonists": 15000,
+    "maxCitadel": 1,
+    "fuelProduction": 20,
+    "organicsProduction": 0,
+    "equipmentProduction": 25,
+    "droneProduction": 25,
+    "danger": 70
+}

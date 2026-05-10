@@ -1,1 +1,12 @@
-{ "type": "Mountainous", "description": "Rocky highland world with deep cavern networks", "maxColonists": 18000, "maxCitadel": 3, "fuelProduction": 6, "organicsProduction": 4, "equipmentProduction": 16 }
+{
+    "type": "Mountainous",
+    "displayName": "[y]Mountainous[/y]",
+    "description": "Rocky highland world with deep cavern networks",
+    "maxColonists": 18000,
+    "maxCitadel": 4,
+    "fuelProduction": 20,
+    "organicsProduction": 2,
+    "equipmentProduction": 10,
+    "droneProduction": 2,
+    "danger": 5
+}

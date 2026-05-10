@@ -1,1 +1,12 @@
-{ "type": "Oceanic", "description": "Water world with scattered island chains", "maxColonists": 30000, "maxCitadel": 2, "fuelProduction": 2, "organicsProduction": 20, "equipmentProduction": 3 }
+{
+    "type": "Oceanic",
+    "displayName": "[bb]Oceanic[/bb]",
+    "description": "Water world with scattered island chains",
+    "maxColonists": 20000,
+    "maxCitadel": 4,
+    "fuelProduction": 10,
+    "organicsProduction": 20,
+    "equipmentProduction": 1,
+    "droneProduction": 5,
+    "danger": 2
+}

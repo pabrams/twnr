@@ -1,1 +1,12 @@
-{ "type": "Desert", "description": "Arid world with vast mineral deposits", "maxColonists": 25000, "maxCitadel": 3, "fuelProduction": 14, "organicsProduction": 2, "equipmentProduction": 10 }
+{
+    "type": "Desert",
+    "displayName": "[by]Desert[/by]",
+    "description": "Arid world with vast fuel deposits",
+    "maxColonists": 25000,
+    "maxCitadel": 4,
+    "fuelProduction": 50,
+    "organicsProduction": 2,
+    "equipmentProduction": 5,
+    "droneProduction": 5,
+    "danger": 10
+}

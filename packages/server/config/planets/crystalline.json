@@ -1,1 +1,12 @@
-{ "type": "Crystalline", "description": "Silicate world with vast crystal formations prized for electronics", "maxColonists": 12000, "maxCitadel": 2, "fuelProduction": 1, "organicsProduction": 0, "equipmentProduction": 24 }
+{
+    "type": "Crystalline",
+    "displayName": "[bw:b]Crystalline[/bw:b]",
+    "description": "Silicate world with vast crystal formations prized for electronics",
+    "maxColonists": 15000,
+    "maxCitadel": 2,
+    "fuelProduction": 5,
+    "organicsProduction": 0,
+    "equipmentProduction": 25,
+    "droneProduction": 25,
+    "danger": 2
+}
