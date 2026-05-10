@@ -4,6 +4,10 @@ import {
     lockPlayersForTurnGrant,
     setPlayerTurnsAndStamp,
 } from '../db/queries/turn.js';
+import {
+    listPlanetIdsWithColonists,
+    settlePlanetProduction,
+} from '../db/queries/planet.js';
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
 
@@ -40,9 +44,28 @@ export async function runGrantTurns(): Promise<number> {
 }
 
 /**
+ * Hourly planet production: settles every planet that has any colonists
+ * assigned. The same per-planet `settlePlanetProduction` helper is invoked
+ * by take/leave-colonists handlers so a colos change inside the hour
+ * doesn't get billed against the wrong segment.
+ */
+export async function runProduceCommodities(): Promise<number> {
+    const result = await withTransaction(async (client) => {
+        const ids = await listPlanetIdsWithColonists(client);
+        let updated = 0;
+        for (const id of ids) {
+            const { produced } = await settlePlanetProduction(id, client);
+            if (produced) updated++;
+        }
+        return updated;
+    });
+    return result ?? 0;
+}
+
+/**
  * Single iteration of the hourly job loop. Add new tasks here as they
  * land. Errors from any one task are logged but don't crash the
- * scheduler — the next tick still fires.
+ * scheduler.
  */
 export async function runHourlyJobs(): Promise<void> {
     try {
@@ -50,6 +73,12 @@ export async function runHourlyJobs(): Promise<void> {
         if (granted > 0) console.log(`[hourly] granted turns to ${granted} players`);
     } catch (err) {
         console.error('[hourly] grant-turns failed:', err);
+    }
+    try {
+        const produced = await runProduceCommodities();
+        if (produced > 0) console.log(`[hourly] produced commodities on ${produced} planets`);
+    } catch (err) {
+        console.error('[hourly] produce-commodities failed:', err);
     }
 }
 

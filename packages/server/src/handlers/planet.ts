@@ -24,6 +24,7 @@ import {
     getPlanetCommodityRemaining,
     getPlanetCommodityCapacity,
     listPlayerPlanets,
+    settlePlanetProduction,
     type ColonistCommodity,
     type PlanetCommodity,
 } from '../db/queries/planet.js';
@@ -415,13 +416,14 @@ export async function handleTakeColonists(
     let toTake: number | undefined;
     try {
         toTake = await withTransaction(async (client) => {
+            await settlePlanetProduction(onPlanetId, client);
+
             const available = await getPlanetColonistsForUpdate(onPlanetId, col, client);
             if (available === undefined) {
                 sendError(playerId, 'Planet not found');
                 throw new AbortTransaction();
             }
 
-            // -1 = accept default (take as many as available; clamped by holds below)
             const requested = quantity === -1 ? available : quantity;
             const actual = Math.min(requested, available);
             if (actual <= 0) {
@@ -491,6 +493,8 @@ export async function handleLeaveColonists(
     let actual: number | undefined;
     try {
         actual = await withTransaction(async (client) => {
+            await settlePlanetProduction(onPlanetId, client);
+
             const shipColonists = await getShipColonistsForUpdate(playerId, client);
             if (shipColonists === undefined || shipColonists <= 0) {
                 sendError(playerId, 'No colonists on ship');

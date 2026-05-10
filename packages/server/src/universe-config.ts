@@ -25,15 +25,11 @@ export const universeConfig = {
     planetCollisionMaxHours: 24,
     maxPlanetsPerSector: 2,
     respawnDelaySeconds: 86400,
-
-    // Mine mechanics. Probabilities are ints in [0,100] (per-mine percent
-    // chance). Damage is hit points subtracted from shields-then-drones on
-    // detonation. Disruptor min/max are inclusive bounds for the uniform
-    // discrete random count of proximity mines a single disruptor removes.
     proximityMineDamage: 100,
     proximityDetonationPct: 50,
     seekerAttachPct: 25,
     seekerPickupDetectPct: 80,
     mineDisruptorMin: 3,
     mineDisruptorMax: 5,
+    colosToProduceOneUnitPerHour: 1000,
 } as const;
