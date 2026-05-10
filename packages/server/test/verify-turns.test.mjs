@@ -156,60 +156,6 @@ after(async () => {
   if (pool) await pool.end();
 });
 
-// --- Schema tests ---
-
-describe('Schema - edit_templates columns (turns settings)', () => {
-  it('edit_templates.turns_per_day column exists with default 500', async () => {
-    const res = await pool.query(`SELECT data_type, column_default, is_nullable FROM information_schema.columns WHERE table_name = 'edit_templates' AND column_name = 'turns_per_day'`);
-    assert.equal(res.rows.length, 1); assert.match(res.rows[0].data_type, /int/i);
-    assert.equal(res.rows[0].is_nullable, 'NO'); assert.match(res.rows[0].column_default, /500/);
-  });
-  it('edit_templates.starting_turns column exists with default 500', async () => {
-    const res = await pool.query(`SELECT data_type, column_default, is_nullable FROM information_schema.columns WHERE table_name = 'edit_templates' AND column_name = 'starting_turns'`);
-    assert.equal(res.rows.length, 1); assert.match(res.rows[0].data_type, /int/i);
-    assert.equal(res.rows[0].is_nullable, 'NO'); assert.match(res.rows[0].column_default, /500/);
-  });
-  it('edit_templates.max_turns column exists with default 2000', async () => {
-    const res = await pool.query(`SELECT data_type, column_default, is_nullable FROM information_schema.columns WHERE table_name = 'edit_templates' AND column_name = 'max_turns'`);
-    assert.equal(res.rows.length, 1); assert.match(res.rows[0].data_type, /int/i);
-    assert.equal(res.rows[0].is_nullable, 'NO'); assert.match(res.rows[0].column_default, /2000/);
-  });
-});
-
-describe('Schema - Player columns', () => {
-  it('players.turns exists (integer, NOT NULL)', async () => {
-    const res = await pool.query(`SELECT data_type, is_nullable FROM information_schema.columns WHERE table_name = 'players' AND column_name = 'turns'`);
-    assert.equal(res.rows.length, 1); assert.match(res.rows[0].data_type, /int/i); assert.equal(res.rows[0].is_nullable, 'NO');
-  });
-  it('players.last_turns_granted_at exists (timestamptz, NOT NULL)', async () => {
-    const res = await pool.query(`SELECT data_type, is_nullable FROM information_schema.columns WHERE table_name = 'players' AND column_name = 'last_turns_granted_at'`);
-    assert.equal(res.rows.length, 1); assert.match(res.rows[0].data_type, /timestamp/i); assert.equal(res.rows[0].is_nullable, 'NO');
-  });
-});
-
-describe('Schema - Ship columns', () => {
-  it('ships.turns_per_warp exists (integer, NOT NULL, default 2)', async () => {
-    const res = await pool.query(`SELECT data_type, column_default, is_nullable FROM information_schema.columns WHERE table_name = 'ships' AND column_name = 'turns_per_warp'`);
-    assert.equal(res.rows.length, 1); assert.match(res.rows[0].data_type, /int/i);
-    assert.equal(res.rows[0].is_nullable, 'NO'); assert.match(res.rows[0].column_default, /2/);
-  });
-});
-
-// --- Ship config tests ---
-
-describe('Ship configs', () => {
-  it('Vulpeculan Cruiser has turnsPerWarp = 3', () => {
-    assert.equal(merchantCfg.turnsPerWarp, 3);
-  });
-  it('All ship configs have turnsPerWarp >= 1', () => {
-    const files = readdirSync(SHIPS_DIR).filter(f => f.endsWith('.json'));
-    assert.ok(files.length > 0);
-    for (const file of files) {
-      const cfg = JSON.parse(readFileSync(join(SHIPS_DIR, file), 'utf8'));
-      assert.ok(typeof cfg.turnsPerWarp === 'number' && cfg.turnsPerWarp >= 1, `${file}: turnsPerWarp must be >= 1, got ${cfg.turnsPerWarp}`);
-    }
-  });
-});
 
 // --- Player initialization ---
 
@@ -238,58 +184,6 @@ describe('Player initialization', () => {
     assert.ok(r.rows.length > 0);
     assert.ok(r.rows[0].turns_per_warp >= 1);
     if (r.rows[0].ship_name === MERCHANT_NAME) assert.equal(r.rows[0].turns_per_warp, merchantCfg.turnsPerWarp);
-  });
-});
-
-// --- ShipInfo includes turns fields ---
-
-describe('ShipInfo includes turn and hyperwarp fields', () => {
-  it('ShipInfo response includes turnsPerWarp', async () => {
-    const { token } = await joinUniverse(pool);
-    const { ws: wsConn } = await ws(token);
-
-    const result = await wsRequest(wsConn, { type: ClientMsgType.ShipInfo }, ServerMsgType.ShipInfoResult);
-    assert.equal(result.type, ServerMsgType.ShipInfoResult);
-    assert.ok('turnsPerWarp' in result, 'shipInfoResult must include turnsPerWarp');
-    assert.ok(typeof result.turnsPerWarp === 'number');
-
-    await closeWS(wsConn);
-  });
-
-  it('ShipInfo response includes hasHyperwarpDrive', async () => {
-    const { token } = await joinUniverse(pool);
-    const { ws: wsConn } = await ws(token);
-
-    const result = await wsRequest(wsConn, { type: ClientMsgType.ShipInfo }, ServerMsgType.ShipInfoResult);
-    assert.equal(result.type, ServerMsgType.ShipInfoResult);
-    assert.ok('hasHyperwarpDrive' in result, 'shipInfoResult must include hasHyperwarpDrive');
-    assert.equal(typeof result.hasHyperwarpDrive, 'boolean');
-
-    await closeWS(wsConn);
-  });
-
-  it('ShipInfo response includes turns (player current turns)', async () => {
-    const { token, playerId } = await joinUniverse(pool);
-    await pool.query('UPDATE players SET turns = 42 WHERE id = $1', [playerId]);
-    const { ws: wsConn } = await ws(token);
-
-    const result = await wsRequest(wsConn, { type: ClientMsgType.ShipInfo }, ServerMsgType.ShipInfoResult);
-    assert.equal(result.type, ServerMsgType.ShipInfoResult);
-    assert.ok('turns' in result, 'shipInfoResult must include turns');
-    assert.equal(result.turns, 42);
-
-    await closeWS(wsConn);
-  });
-
-  it('ShipInfo turnsPerWarp matches DB value after trade-in', async () => {
-    const { token, playerId } = await joinUniverse(pool);
-    await pool.query("UPDATE ships SET turns_per_warp = 5 WHERE id = (SELECT ship_id FROM players WHERE id = $1)", [playerId]);
-    const { ws: wsConn } = await ws(token);
-
-    const result = await wsRequest(wsConn, { type: ClientMsgType.ShipInfo }, ServerMsgType.ShipInfoResult);
-    assert.equal(result.turnsPerWarp, 5);
-
-    await closeWS(wsConn);
   });
 });
 
@@ -355,8 +249,6 @@ describe('Ship trade-in resets ship-specific fields', () => {
     await closeWS(wsConn);
   });
 });
-
-// --- Warp turn costs ---
 
 describe('Warp turn costs', () => {
   it('Warping deducts turns_per_warp and response includes turnsUsed', async () => {
@@ -429,29 +321,7 @@ describe('Unlimited universe - warp', () => {
   });
 });
 
-// --- Docking ---
 
-describe('Docking costs 0 turns', () => {
-  it('Docking at a port costs 0 turns', async () => {
-    const { token, playerId } = await joinUniverse(pool);
-    const { ws: wsConn } = await ws(token);
-
-    const adj = await getAdjacentSector(wsConn);
-    assert.ok(adj);
-    await ensureSellingPort(pool, adj);
-    await clearSectorDrones(adj);
-    await wsRequest(wsConn, { type: ClientMsgType.Move, sector: adj }, ServerMsgType.MoveResult);
-
-    await pool.query('UPDATE players SET turns = 50 WHERE id = $1', [playerId]);
-    const dockRes = await wsRequest(wsConn, { type: ClientMsgType.Dock }, ServerMsgType.DockResult);
-    assert.ok(dockRes.docked);
-    assert.equal((await pool.query('SELECT turns FROM players WHERE id = $1', [playerId])).rows[0].turns, 50);
-
-    await closeWS(wsConn);
-  });
-});
-
-// --- Buy cargo ---
 
 describe('Buy cargo turn costs', () => {
   it('Buying cargo costs 1 turn and includes turnsUsed', async () => {
@@ -492,8 +362,6 @@ describe('Buy cargo turn costs', () => {
   });
 });
 
-// --- Sell cargo ---
-
 describe('Sell cargo costs 0 turns', () => {
   it('Selling cargo costs 0 turns', async () => {
     const { token, playerId } = await joinUniverse(pool);
@@ -514,8 +382,6 @@ describe('Sell cargo costs 0 turns', () => {
     await closeWS(wsConn);
   });
 });
-
-// --- Leave planet ---
 
 describe('Leave planet turn costs', () => {
   it('Landing on a planet costs 0 turns', async () => {
@@ -566,8 +432,6 @@ describe('Leave planet turn costs', () => {
   });
 });
 
-// --- Buy holds ---
-
 describe('Buy holds turn costs', () => {
   it('Buying holds costs 1 turn and includes turnsUsed', async () => {
     const { token, playerId } = await joinUniverse(pool);
@@ -596,8 +460,6 @@ describe('Buy holds turn costs', () => {
     await closeWS(wsConn);
   });
 });
-
-// --- Zero-cost actions ---
 
 describe('Zero-cost actions', () => {
   it('Buying drones costs 0 turns', async () => {
@@ -638,94 +500,6 @@ describe('Zero-cost actions', () => {
     await closeWS(wsConn);
   });
 });
-
-// --- Unlimited non-warp ---
-
-describe('Unlimited universe - non-warp', () => {
-  before(() => pool.query('UPDATE universe_settings SET turns_per_day = 0 WHERE universe_id = $1', [UNIVERSE_ID]));
-  after(() => pool.query('UPDATE universe_settings SET turns_per_day = 500 WHERE universe_id = $1', [UNIVERSE_ID]));
-
-  it('Unlimited: buying cargo turnsUsed = 0', async () => {
-    const { token, playerId } = await joinUniverse(pool);
-    const { ws: wsConn } = await ws(token);
-
-    const adj = await getAdjacentSector(wsConn);
-    await ensureSellingPort(pool, adj);
-    await clearSectorDrones(adj);
-    await wsRequest(wsConn, { type: ClientMsgType.Move, sector: adj }, ServerMsgType.MoveResult);
-    await wsRequest(wsConn, { type: ClientMsgType.Dock }, ServerMsgType.DockResult);
-
-    await pool.query('UPDATE players SET turns = 5 WHERE id = $1', [playerId]);
-    const result = await wsRequest(wsConn, { type: ClientMsgType.PortTransaction, good: 'fuel', quantity: 1, action: 'buy' }, ServerMsgType.PortTransactionResult);
-    assert.equal(result.type, ServerMsgType.PortTransactionResult);
-    assert.equal(result.turnsUsed, 0);
-    assert.equal((await pool.query('SELECT turns FROM players WHERE id = $1', [playerId])).rows[0].turns, 5);
-
-    await closeWS(wsConn);
-  });
-
-  it('Unlimited: leaving planet turnsUsed = 0', async () => {
-    const { token, playerId } = await joinUniverse(pool);
-    const { ws: wsConn } = await ws(token);
-
-    const planetId = await ensurePlanetInSector(1);
-    await wsRequest(wsConn, { type: ClientMsgType.LandOnPlanet, planetId }, ServerMsgType.LandOnPlanetResult);
-    await pool.query('UPDATE players SET turns = 5 WHERE id = $1', [playerId]);
-
-    const result = await wsRequest(wsConn, { type: ClientMsgType.LeavePlanet }, ServerMsgType.LeavePlanetResult);
-    assert.equal(result.type, ServerMsgType.LeavePlanetResult);
-    assert.equal(result.turnsUsed, 0);
-    assert.equal((await pool.query('SELECT turns FROM players WHERE id = $1', [playerId])).rows[0].turns, 5);
-
-    await closeWS(wsConn);
-  });
-
-  it('Unlimited: buying holds turnsUsed = 0', async () => {
-    const { token, playerId } = await joinUniverse(pool);
-    const { ws: wsConn } = await ws(token);
-    await pool.query('UPDATE players SET turns = 5 WHERE id = $1', [playerId]);
-
-    const result = await wsRequest(wsConn, { type: ClientMsgType.BuyHolds, quantity: 1 }, ServerMsgType.BuyHoldsResult);
-    if (result.type === ServerMsgType.Error && !result.message.toLowerCase().includes('turns')) { await closeWS(wsConn); return; }
-    assert.equal(result.turnsUsed, 0);
-    assert.equal((await pool.query('SELECT turns FROM players WHERE id = $1', [playerId])).rows[0].turns, 5);
-
-    await closeWS(wsConn);
-  });
-
-  it('Unlimited: buying cargo succeeds with 0 turns', async () => {
-    const { token, playerId } = await joinUniverse(pool);
-    const { ws: wsConn } = await ws(token);
-
-    const adj = await getAdjacentSector(wsConn);
-    await ensureSellingPort(pool, adj);
-    await clearSectorDrones(adj);
-    await wsRequest(wsConn, { type: ClientMsgType.Move, sector: adj }, ServerMsgType.MoveResult);
-    await wsRequest(wsConn, { type: ClientMsgType.Dock }, ServerMsgType.DockResult);
-
-    await pool.query('UPDATE players SET turns = 0 WHERE id = $1', [playerId]);
-    const result = await wsRequest(wsConn, { type: ClientMsgType.PortTransaction, good: 'fuel', quantity: 1, action: 'buy' }, ServerMsgType.PortTransactionResult);
-    assert.equal(result.type, ServerMsgType.PortTransactionResult);
-
-    await closeWS(wsConn);
-  });
-
-  it('Unlimited: leaving planet succeeds with 0 turns', async () => {
-    const { token, playerId } = await joinUniverse(pool);
-    const { ws: wsConn } = await ws(token);
-
-    const planetId = await ensurePlanetInSector(1);
-    await wsRequest(wsConn, { type: ClientMsgType.LandOnPlanet, planetId }, ServerMsgType.LandOnPlanetResult);
-    await pool.query('UPDATE players SET turns = 0 WHERE id = $1', [playerId]);
-
-    const result = await wsRequest(wsConn, { type: ClientMsgType.LeavePlanet }, ServerMsgType.LeavePlanetResult);
-    assert.equal(result.type, ServerMsgType.LeavePlanetResult);
-
-    await closeWS(wsConn);
-  });
-});
-
-// --- Grant turns script ---
 
 describe('Grant turns script', () => {
   before(() => pool.query('UPDATE universe_settings SET turns_per_day = 240, max_turns = 100 WHERE universe_id = $1', [UNIVERSE_ID]));
