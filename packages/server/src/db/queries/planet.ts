@@ -333,19 +333,22 @@ export async function getPlanetName(planetId: number): Promise<string | null> {
     return res.rows[0]?.name ?? null;
 }
 
-/** Settle accrued production on a single planet. Reads the planet's current
- *  state (colos, stockpiles, last_production_at) plus the joined planet_type
- *  and universe_setting rows, then applies
- *  `floor(colos * production_rate * elapsed_hours / colos_per_unit)` per
- *  commodity (clamped to the type's max stockpile) and stamps
- *  last_production_at = NOW().
+/** Settle accrued production on a single planet using the same fractional-
+ *  accumulator pattern as `settlePlanetColonistGrowth`. Per commodity
+ *  (fuel/org/equ):
+ *    1. add `colos * production_rate * elapsed_hours / colos_per_unit` to
+ *       the production accrual
+ *    2. peel off `floor(accrual)` whole units
+ *    3. add to the planet's stockpile (clamped to the type's max)
+ *    4. subtract the peeled integer from the accrual — fractional
+ *       remainder rolls forward to the next settle
  *
- *  Always stamps, so callers that are about to mutate colos (take/leave
- *  colonists) should call this first — the segment up to "now" is credited
- *  against the *old* colos count, and the next segment starts fresh against
- *  the new count. Sub-unit fractional accrual at segment boundaries is
- *  rounded down (intentional trade-off for not carrying fractional state).
- *            
+ *  Always writes (the accruals always change when elapsed > 0) and
+ *  stamps `last_production_at = NOW()`, so take/leave-colonists handlers
+ *  can call this freely without losing sub-unit fractions at segment
+ *  boundaries. Whatever clamps off at the max stockpile is discarded
+ *  (no shadow units bank up while the stockpile is full).
+ *
  *  Locks the planet row FOR UPDATE; safe to call from a transaction that
  *  later re-locks the same row. */
 const ONE_HOUR_MS = 60 * 60 * 1000;
@@ -368,12 +371,16 @@ export async function settlePlanetProduction(
         max_equ: number;
         last_production_at: Date;
         colos_per_unit: number;
+        fuel_production_accrual: number;
+        org_production_accrual: number;
+        equ_production_accrual: number;
     }>(
         `SELECT p.fuel, p.organics, p.equipment,
                 p.colonists_fuel, p.colonists_organics, p.colonists_equipment,
                 pt.fuel_production, pt.organics_production, pt.equipment_production,
                 pt.max_fuel, pt.max_org, pt.max_equ,
                 p.last_production_at,
+                p.fuel_production_accrual, p.org_production_accrual, p.equ_production_accrual,
                 COALESCE(us.colos_to_produce_one_unit_per_hour, ${universeConfig.colosToProduceOneUnitPerHour}) AS colos_per_unit
          FROM planets p
          JOIN sectors s ON p.sector_id = s.id
@@ -393,21 +400,54 @@ export async function settlePlanetProduction(
     if (elapsedMs <= 0) return { produced: false };
     const elapsedHours = elapsedMs / ONE_HOUR_MS;
 
-    const dFuel = Math.floor((row.colonists_fuel * row.fuel_production * elapsedHours) / cpu);
-    const dOrg = Math.floor((row.colonists_organics * row.organics_production * elapsedHours) / cpu);
-    const dEqu = Math.floor((row.colonists_equipment * row.equipment_production * elapsedHours) / cpu);
+    const settle = (
+        stock: number,
+        max: number,
+        colos: number,
+        prodRate: number,
+        accrual: number,
+    ): { stock: number; accrual: number } => {
+        const newAccrual = accrual + (colos * prodRate * elapsedHours) / cpu;
+        const whole = Math.floor(newAccrual);
+        const newStock = Math.min(max, stock + whole);
+        return { stock: newStock, accrual: newAccrual - whole };
+    };
 
-    const newFuel = Math.min(row.max_fuel, row.fuel + dFuel);
-    const newOrg = Math.min(row.max_org, row.organics + dOrg);
-    const newEqu = Math.min(row.max_equ, row.equipment + dEqu);
+    const fuel = settle(
+        row.fuel,
+        row.max_fuel,
+        row.colonists_fuel,
+        row.fuel_production,
+        row.fuel_production_accrual,
+    );
+    const org = settle(
+        row.organics,
+        row.max_org,
+        row.colonists_organics,
+        row.organics_production,
+        row.org_production_accrual,
+    );
+    const equ = settle(
+        row.equipment,
+        row.max_equ,
+        row.colonists_equipment,
+        row.equipment_production,
+        row.equ_production_accrual,
+    );
+
+    const produced =
+        fuel.stock !== row.fuel || org.stock !== row.organics || equ.stock !== row.equipment;
 
     await db.query(
-        `UPDATE planets
-         SET fuel = $2, organics = $3, equipment = $4, last_production_at = NOW()
+        `UPDATE planets SET
+            fuel = $2, organics = $3, equipment = $4,
+            fuel_production_accrual = $5,
+            org_production_accrual = $6,
+            equ_production_accrual = $7,
+            last_production_at = NOW()
          WHERE id = $1`,
-        [planetId, newFuel, newOrg, newEqu],
+        [planetId, fuel.stock, org.stock, equ.stock, fuel.accrual, org.accrual, equ.accrual],
     );
-    const produced = newFuel !== row.fuel || newOrg !== row.organics || newEqu !== row.equipment;
     return { produced };
 }
 
