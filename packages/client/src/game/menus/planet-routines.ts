@@ -7,17 +7,6 @@ import { showPlanetTakeCommodityMenu, showPlanetLeaveCommodityMenu } from '../di
 import { registerRoutine } from './types.js';
 import { askChar, askNumber } from './prompts.js';
 
-/**
- * Planet menu routines (regular planets, not Earth — Earth has its own
- * client-driven menu in planet-earth.ts and bypasses these). Both
- * take_colonists and leave_colonists are now fully inline:
- * commodity-pick (askChar) → quantity (askNumber) → send. The legacy
- * planetTakeCommodity / planetTakeQty / planetLeaveCommodity /
- * planetLeaveQty menus are gone.
- *
- * `back` and `help_menu` come from common-routines.ts.
- */
-
 const COMMODITY_MAP: Record<string, 'fuel' | 'organics' | 'equipment'> = {
     f: 'fuel',
     o: 'organics',
@@ -37,8 +26,6 @@ registerRoutine('take_colonists', async (ctx) => {
     const qty = await askNumber(
         ctx,
         render(PLANET.takePrompt, { emptyHolds: ctx.ship.planetEmptyHolds }),
-        // -1 = "default" (server takes max available, clamped by holds).
-        // Pressing Enter sends -1.
         { defaultValue: -1 },
     );
     if (qty === null) return;
@@ -53,7 +40,6 @@ registerRoutine('leave_colonists', async (ctx) => {
     const qty = await askNumber(
         ctx,
         render(PLANET.leavePrompt, { shipColonists: ctx.ship.shipColonists }),
-        // -1 = "default" (server leaves all). Enter sends -1.
         { defaultValue: -1 },
     );
     if (qty === null) return;

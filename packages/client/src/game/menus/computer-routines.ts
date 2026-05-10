@@ -15,17 +15,6 @@ import { indexToLetter, letterToIndex } from '../display-starbase.js';
 import { registerRoutine } from './types.js';
 import { askChar, askNumber, awaitResponse } from './prompts.js';
 
-/**
- * Routines for the computer menu. Most commands are pure transitions or
- * fire-and-forget messages; a couple are local renderers (trader list,
- * current-ship specs, known-universe sector listings) that run entirely
- * client-side from cached state. `back` and `help_menu` come from
- * common-routines.ts.
- */
-
-// Known Universe: askChar between explored/unexplored, send VisitedSectors
-// per pick, render the response inline. Server has no menu state for this —
-// the player remains in the computer menu the whole time.
 registerRoutine('known_universe', async (ctx) => {
     while (true) {
         const ch = await askChar(ctx, render(COMPUTER.knownUniversePrompt), ['e', 'u']);
@@ -46,10 +35,6 @@ registerRoutine('trader_list', (ctx) => {
     showTraderList(ctx);
 });
 
-// Ship catalog & planet specs: pure client-side info viewers backed by the
-// cached catalog data. Render the list once, then loop on letter / `?` /
-// Q until the user exits. The dedicated server-side menus (Menu.ShipCatalog,
-// Menu.PlanetSpecs) were retired — there's no server state for these views.
 registerRoutine('ship_catalog', async (ctx) => {
     await showShipCatalog(ctx);
     const ships = ctx.catalogs.ships;
@@ -98,8 +83,6 @@ registerRoutine('current_ship_specs', (ctx) => {
     showCurrentShipSpecs(ctx);
 });
 
-// Hyperspace jump: askNumber for target sector inline. The
-// hyperspaceJumpTarget single-prompt menu was collapsed.
 registerRoutine('hyperspace_jump', async (ctx) => {
     const sector = await askNumber(ctx, 'Hyperspace jump target sector? (Q to cancel) ', {
         min: 1,

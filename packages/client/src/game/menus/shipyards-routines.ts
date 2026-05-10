@@ -15,23 +15,6 @@ import { COMMON, COMPUTER, NOTIFY, STARBASE } from '../messages/index.js';
 import { registerRoutine } from './types.js';
 import { askChar, askConfirm, askNumber } from './prompts.js';
 
-/**
- * Routines for the shipyards menu and its class-0 buy submenu (which is
- * also reused as the in-port class-0 trade menu). Pure router behavior:
- * each key transitions to a child menu or sends a parameterless message.
- * `back` and `help_menu` come from common-routines.ts.
- *
- * The class0/shipyardsClass0 a/b/c routines stash a `kind` arg so the
- * downstream qty menu knows which commodity the user is buying. When the
- * qty-prompt collapse lands, those will move into a single askNumber
- * call inside this routine.
- */
-
-// Buy / examine: pure client-side viewers backed by the cached ship catalog.
-// The dedicated server-side menus (Menu.ShipyardsBuy, Menu.ShipyardsExamine)
-// were retired — we stay in Menu.Shipyards while looping locally. The buy
-// flow's only server roundtrip is the final BuyShip{Tradein,New}; the server
-// stamps menu='shipyards' on the result so the auto-render repaints us.
 function calculateShipPrice(ship: ShipCatalogEntry): number {
     return (
         (ship.cost_drive ?? 0) +
@@ -113,9 +96,6 @@ registerRoutine('shipyards_equipment', (ctx) => {
     ctx.world.mode = Menu.ShipyardsClass0;
 });
 
-// Shared by both the shipyards class-0 (build new ship) menu and the
-// in-port class-0 trade menu. Inline preamble + askNumber → Buy* — no
-// downstream qty menu (class0Qty / shipyardsClass0Qty are gone).
 async function chooseClass0(
     ctx: import('../types.js').GameContext,
     kind: 'drones' | 'shields' | 'holds',
@@ -124,8 +104,6 @@ async function chooseClass0(
     echoCommand(ctx, echoKey);
     const { promptText, max } = class0QtyPreamble(ctx, kind);
     if (max <= 0) return;
-    // Empty Enter accepts max; cap upper bound so server doesn't bounce
-    // an over-buy. min: 1 → 0 returns null (cancel).
     const qty = await askNumber(ctx, promptText, { defaultValue: max, min: 1, max });
     if (qty === null) return;
     if (kind === 'drones') ctx.io.sendMsg({ type: ClientMsgType.BuyDrones, quantity: qty });
