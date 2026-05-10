@@ -2,14 +2,16 @@
     "type": "Barren",
     "displayName": "[w]Barren[/w]",
     "description": "Lifeless rock useful for mining operations",
-    "maxColonists": 20000,
     "maxCitadel": 5,
     "fuelProduction": 10,
     "organicsProduction": 0,
     "equipmentProduction": 20,
     "droneProduction": 10,
     "danger": 2,
-    "maxFuel": 100000,
-    "maxOrg": 100000,
-    "maxEqu": 100000
+    "maxFuel": 1000000,
+    "maxOrg": 1000000,
+    "maxEqu": 1000000,
+    "maxFuelColos": 100000,
+    "maxOrgColos": 100000,
+    "maxEquColos": 100000
 }
