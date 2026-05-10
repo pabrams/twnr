@@ -38,6 +38,27 @@ function isValidKeyForMenu(ctx: GameContext, key: string): 'single' | 'buffered'
 }
 
 /**
+ * Whenever the client is about to wait for user input again — after a
+ * sub-prompt resolves, after a handler completes, after a server envelope
+ * — re-render the current menu's prompt unless the routine kicked off
+ * another roundtrip or sub-prompt. Scheduled as a microtask so the
+ * routine's continuation (resumed by the resolved promise) runs first
+ * and can set inFlight / pendingResolver / pendingResponse before this
+ * check runs.
+ */
+function scheduleAutoRender(ctx: GameContext) {
+    queueMicrotask(() => {
+        if (
+            !ctx.input.inFlight &&
+            !ctx.input.pendingResolver &&
+            !ctx.input.pendingResponse
+        ) {
+            showPrompt(ctx);
+        }
+    });
+}
+
+/**
  * Layer 1 — process one keystroke. Direct xterm keys go straight through this;
  * the burst/script queue drains via the same path so digit assembly and
  * single-char dispatch behave identically regardless of source.
@@ -50,12 +71,14 @@ function processKeystroke(ctx: GameContext, ev: KeystrokeEvent) {
             const r = ctx.input.pendingResolver;
             ctx.input.pendingResolver = null;
             r.resolve('\r');
+            scheduleAutoRender(ctx);
             return;
         }
         if (ev.isBackspace) return;
         const r = ctx.input.pendingResolver;
         ctx.input.pendingResolver = null;
         r.resolve(ev.key);
+        scheduleAutoRender(ctx);
         return;
     }
     if (ev.isEnter) {
@@ -169,6 +192,7 @@ function handleInput(ctx: GameContext, line: string) {
         const r = ctx.input.pendingResolver;
         ctx.input.pendingResolver = null;
         r.resolve(line);
+        scheduleAutoRender(ctx);
         return;
     }
     // Per-file `input` handler runs first if registered — including for
