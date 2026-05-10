@@ -48,11 +48,7 @@ function isValidKeyForMenu(ctx: GameContext, key: string): 'single' | 'buffered'
  */
 function scheduleAutoRender(ctx: GameContext) {
     queueMicrotask(() => {
-        if (
-            !ctx.input.inFlight &&
-            !ctx.input.pendingResolver &&
-            !ctx.input.pendingResponse
-        ) {
+        if (!ctx.input.inFlight && !ctx.input.pendingResolver && !ctx.input.pendingResponse) {
             showPrompt(ctx);
         }
     });

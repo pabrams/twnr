@@ -11,7 +11,6 @@ function backEcho(label: string | undefined): string {
     return `[bg:b]<${label ?? 'Back'}>[/bg:b]`;
 }
 
-
 registerRoutine('back', (ctx) => {
     const menu = ctx.catalogs.menus.get(ctx.world.mode);
     const backRow = menu?.commands.find((c) => c.command === 'back');

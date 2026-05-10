@@ -78,12 +78,10 @@ export const buyHardware: Handler<'buyHardwareResult', HardwareStoreDeps> = (ctx
     }
 };
 
-
 export const hardwareStoreInfo: Handler<'hardwareStoreInfoResult', HardwareStoreDeps> = (
     ctx,
     msg,
 ) => {
-
     ctx.world.mode = Menu.StarbaseHardware;
     ctx.starbase.hardwareStoreCredits = msg.credits;
     ctx.starbase.hardwareStoreItems = msg.items;

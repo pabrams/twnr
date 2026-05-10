@@ -164,7 +164,9 @@ async function promptAutopilot(
     );
     const sep = render(SECTOR.autopilotPathSeparator);
     const list = msg.path
-        .map((p) => render(p.visited ? SECTOR.warpVisited : SECTOR.warpUnvisited, { sector: p.sector }))
+        .map((p) =>
+            render(p.visited ? SECTOR.warpVisited : SECTOR.warpUnvisited, { sector: p.sector }),
+        )
         .join(sep);
     term.writeln(`  ${list}`);
 
