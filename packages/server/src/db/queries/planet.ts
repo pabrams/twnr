@@ -252,11 +252,12 @@ export async function listPlayerPlanets(
     db: Queryable = pool,
 ): Promise<PlayerPlanetRow[]> {
     const res = await db.query<PlayerPlanetRow>(
-        `SELECT p.id, s.sector_number, p.name, p.type,
+        `SELECT p.id, s.sector_number, p.name, p.type, pt.display_name AS display_type,
                 p.fuel, p.organics, p.equipment,
                 p.colonists_fuel, p.colonists_organics, p.colonists_equipment
          FROM planets p
          JOIN sectors s ON p.sector_id = s.id
+         LEFT JOIN planet_types pt ON pt.name = p.type
          WHERE p.owner_player_id = $1 AND s.universe_id = $2
          ORDER BY s.sector_number, p.id`,
         [playerId, universeId],
@@ -294,6 +295,7 @@ export async function getPlanetDisplayData(playerId: number): Promise<{
     sector_id: number;
     name: string;
     planetType: string;
+    displayType: string | null;
     drones: number;
     fuel: number;
     organics: number;
@@ -311,13 +313,19 @@ export async function getPlanetDisplayData(playerId: number): Promise<{
     if (!onPlanetId) return null;
 
     const planetRes = await pool.query(
-        'SELECT id, sector_id, name, type, drones, fuel, organics, equipment, colonists_fuel, colonists_organics, colonists_equipment, created_at, updated_at FROM planets WHERE id = $1',
+        `SELECT pl.id, pl.sector_id, pl.name, pl.type, pt.display_name AS display_type,
+                pl.drones, pl.fuel, pl.organics, pl.equipment,
+                pl.colonists_fuel, pl.colonists_organics, pl.colonists_equipment,
+                pl.created_at, pl.updated_at
+         FROM planets pl
+         LEFT JOIN planet_types pt ON pt.name = pl.type
+         WHERE pl.id = $1`,
         [onPlanetId],
     );
     if (planetRes.rows.length === 0) return null;
 
-    const { type: planetType, ...rest } = planetRes.rows[0];
-    return { planetType, ...rest };
+    const { type: planetType, display_type: displayType, ...rest } = planetRes.rows[0];
+    return { planetType, displayType, ...rest };
 }
 
 export async function getPlanetName(planetId: number): Promise<string | null> {

@@ -74,7 +74,7 @@ export const landOnPlanet: Handler<'landOnPlanetResult', PlanetDeps> = (ctx, msg
     } else {
         ctx.io.term.writeln('');
         ctx.io.term.writeln(render(PANEL.landedHeader, { name: msg.name }));
-        ctx.io.term.writeln(render(PANEL.landedType, { type: msg.planetType }));
+        ctx.io.term.writeln(render(PANEL.landedType, { type: msg.displayType ?? msg.planetType }));
         ctx.io.term.writeln(
             render(PANEL.landedStats, {
                 drones: msg.drones,
@@ -98,7 +98,10 @@ export const planetDisplay: Handler<'planetDisplayResult', PlanetDeps> = (ctx, m
     ctx.ship.shipColonists = msg.ship_colonists;
     ctx.io.term.writeln('');
     ctx.io.term.writeln(
-        render(PANEL.planetDisplayHeader, { name: msg.name, type: msg.planetType }),
+        render(PANEL.planetDisplayHeader, {
+            name: msg.name,
+            type: msg.displayType ?? msg.planetType,
+        }),
     );
     ctx.io.term.writeln(
         render(PANEL.landedStats, {
@@ -129,7 +132,7 @@ export const useTerraformDevice: Handler<'useTerraformDeviceResult', PlanetDeps>
         ctx.io.term.writeln(
             render(EVENT.terraformSuccess, {
                 name: msg.planet.name,
-                type: msg.planet.type,
+                type: msg.planet.displayType ?? msg.planet.type,
             }),
         );
         if (msg.collision) ctx.io.term.writeln(render(EVENT.terraformCollision));
@@ -177,7 +180,7 @@ export const listPlanets: Handler<'listPlanetsResult', PlanetDeps> = (ctx, msg) 
                 render(PANEL.listPlanetsRow, {
                     sector: p.sectorNumber,
                     name: p.name,
-                    type: p.type,
+                    type: p.displayType ?? p.type,
                 }),
             );
             ctx.io.term.writeln(

@@ -47,14 +47,26 @@ export async function findVisitedSectorsInSet(
 export async function getPlanetsInSector(
     sectorNumber: number,
     universeId: number,
-): Promise<{ id: number; name: string; type: string }[]> {
-    const res = await pool.query(
-        `SELECT pl.id, pl.name, pl.type FROM planets pl
+): Promise<{ id: number; name: string; type: string; displayType: string | null }[]> {
+    const res = await pool.query<{
+        id: number;
+        name: string;
+        type: string;
+        display_type: string | null;
+    }>(
+        `SELECT pl.id, pl.name, pl.type, pt.display_name AS display_type
+         FROM planets pl
          JOIN sectors s ON pl.sector_id = s.id
+         LEFT JOIN planet_types pt ON pt.name = pl.type
          WHERE s.sector_number = $1 AND s.universe_id = $2 ORDER BY pl.id`,
         [sectorNumber, universeId],
     );
-    return res.rows;
+    return res.rows.map((r) => ({
+        id: r.id,
+        name: r.name,
+        type: r.type,
+        displayType: r.display_type,
+    }));
 }
 
 export async function getCollisionsInSector(
