@@ -15,6 +15,7 @@
     "start": "pnpm --filter @twnr/server start",
     "db:seed": "pnpm --filter @twnr/server db:seed",
     "db:reseed": "pnpm --filter @twnr/server db:reseed",
+    "db:addTestData1": "pnpm --filter @twnr/server db:addTestData1",
     "db:import": "pnpm --filter @twnr/server db:import",
     "db:drop": "pnpm --filter @twnr/server dropDatabase",
     "bigbang": "pnpm --filter @twnr/server bigbang",
