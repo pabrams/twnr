@@ -80,7 +80,8 @@ export const connectDB = async (): Promise<void> => {
         name VARCHAR(255) NOT NULL,
         seed INTEGER,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        template_id INTEGER REFERENCES edit_templates(id) ON DELETE SET NULL
+        template_id INTEGER REFERENCES edit_templates(id) ON DELETE SET NULL,
+        topology VARCHAR(16) NOT NULL DEFAULT 'random'
       );
 
       -- Frozen per-universe settings. Populated exactly once at universe
@@ -132,13 +133,17 @@ export const connectDB = async (): Promise<void> => {
         universe_id INTEGER NOT NULL REFERENCES universes(id) ON DELETE CASCADE,
         sector_number INTEGER NOT NULL,
         name VARCHAR(255),
+        is_protected BOOLEAN NOT NULL DEFAULT FALSE,
+        x DOUBLE PRECISION,
+        y DOUBLE PRECISION,
         UNIQUE (universe_id, sector_number)
       );
 
       CREATE TABLE IF NOT EXISTS warps (
         from_sector_id INTEGER NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
         to_sector_id INTEGER NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
-        PRIMARY KEY (from_sector_id, to_sector_id)
+        PRIMARY KEY (from_sector_id, to_sector_id),
+        CONSTRAINT warps_no_self_loop CHECK (from_sector_id <> to_sector_id)
       );
 
       CREATE TABLE IF NOT EXISTS ship_types (
@@ -168,7 +173,9 @@ export const connectDB = async (): Promise<void> => {
         transporter_range SMALLINT NOT NULL DEFAULT 0,
         has_tractor BOOLEAN NOT NULL DEFAULT FALSE,
         piloting_restriction VARCHAR(100),
-        notes TEXT
+        notes TEXT,
+        basic_hold_cost INTEGER GENERATED ALWAYS AS (starting_holds * hold_cost) STORED,
+        base_cost INTEGER GENERATED ALWAYS AS (cost_drive + cost_computer + cost_hull + starting_holds * hold_cost) STORED
       );
 
       CREATE TABLE IF NOT EXISTS hardware_item (
@@ -201,8 +208,23 @@ export const connectDB = async (): Promise<void> => {
         PRIMARY KEY (ship_type_id, template_id)
       );
 
+      CREATE TABLE IF NOT EXISTS planet_types (
+        name VARCHAR(255) PRIMARY KEY,
+        description TEXT,
+        max_fuel_colos INTEGER NOT NULL DEFAULT 0,
+        max_org_colos INTEGER NOT NULL DEFAULT 0,
+        max_equ_colos INTEGER NOT NULL DEFAULT 0,
+        max_fuel INTEGER NOT NULL DEFAULT 0,
+        max_org INTEGER NOT NULL DEFAULT 0,
+        max_equ INTEGER NOT NULL DEFAULT 0,
+        max_citadel SMALLINT NOT NULL DEFAULT 0,
+        fuel_production SMALLINT NOT NULL DEFAULT 0,
+        organics_production SMALLINT NOT NULL DEFAULT 0,
+        equipment_production SMALLINT NOT NULL DEFAULT 0
+      );
+
       CREATE TABLE IF NOT EXISTS planet_types_edits (
-        planet_type VARCHAR(255) NOT NULL,
+        planet_type VARCHAR(255) NOT NULL REFERENCES planet_types(name) ON DELETE CASCADE,
         template_id INTEGER NOT NULL REFERENCES edit_templates(id) ON DELETE CASCADE,
         PRIMARY KEY (planet_type, template_id)
       );
@@ -215,6 +237,7 @@ export const connectDB = async (): Promise<void> => {
         current_sector_id INTEGER REFERENCES sectors(id),
         previous_sector_id INTEGER REFERENCES sectors(id),
         ship_id INTEGER,
+        corporation_id INTEGER,
         credits INTEGER NOT NULL DEFAULT 10000,
         reputation INTEGER NOT NULL DEFAULT 0,
         experience INTEGER NOT NULL DEFAULT 0,
@@ -225,12 +248,23 @@ export const connectDB = async (): Promise<void> => {
         on_planet_id INTEGER DEFAULT NULL,
         turns INTEGER NOT NULL DEFAULT 0,
         last_turns_granted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        is_knighted BOOLEAN NOT NULL DEFAULT FALSE,
         UNIQUE (user_id, universe_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS corporations (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        ceo_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+        universe_id INTEGER NOT NULL REFERENCES universes(id) ON DELETE CASCADE,
+        UNIQUE (name, universe_id)
       );
 
       CREATE TABLE IF NOT EXISTS ships (
         id SERIAL PRIMARY KEY,
         owner_id INTEGER REFERENCES players(id) ON DELETE SET NULL,
+        corp_owner_id INTEGER REFERENCES corporations(id) ON DELETE SET NULL,
         ship_type_id INTEGER NOT NULL REFERENCES ship_types(id),
         sector_id INTEGER REFERENCES sectors(id),
         drones INTEGER NOT NULL DEFAULT 0,
@@ -241,7 +275,9 @@ export const connectDB = async (): Promise<void> => {
         fuel INTEGER NOT NULL DEFAULT 0,
         organics INTEGER NOT NULL DEFAULT 0,
         equipment INTEGER NOT NULL DEFAULT 0,
-        colonists INTEGER NOT NULL DEFAULT 0
+        colonists INTEGER NOT NULL DEFAULT 0,
+        CONSTRAINT ships_single_owner_type
+          CHECK (NOT (owner_id IS NOT NULL AND corp_owner_id IS NOT NULL))
       );
 
       CREATE TABLE IF NOT EXISTS ship_hardware (
@@ -251,7 +287,10 @@ export const connectDB = async (): Promise<void> => {
         PRIMARY KEY (ship_id, hardware_item_id)
       );
 
-      -- FK from players.ship_id to ships.id (deferred to avoid circular dependency)
+      -- Circular FKs from players that can't be inlined: players.ship_id
+      -- depends on ships (which already references players.id via owner_id),
+      -- and players.corporation_id depends on corporations (which references
+      -- players.id via ceo_id).
       DO $$ BEGIN
         IF NOT EXISTS (
           SELECT 1 FROM information_schema.table_constraints
@@ -261,36 +300,55 @@ export const connectDB = async (): Promise<void> => {
             FOREIGN KEY (ship_id) REFERENCES ships(id) ON DELETE SET NULL;
         END IF;
       END $$;
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.table_constraints
+          WHERE constraint_name = 'players_corporation_id_fkey' AND table_name = 'players'
+        ) THEN
+          ALTER TABLE players ADD CONSTRAINT players_corporation_id_fkey
+            FOREIGN KEY (corporation_id) REFERENCES corporations(id) ON DELETE SET NULL;
+        END IF;
+      END $$;
 
       CREATE TABLE IF NOT EXISTS ports (
         id SERIAL PRIMARY KEY,
         sector_id INTEGER NOT NULL UNIQUE REFERENCES sectors(id) ON DELETE CASCADE,
         class INTEGER NOT NULL,
+        name VARCHAR(255),
         fuel INTEGER NOT NULL DEFAULT 1000,
         fuel_max INTEGER NOT NULL DEFAULT 1000,
         fuel_price INTEGER NOT NULL,
+        fuel_buys BOOLEAN NOT NULL DEFAULT TRUE,
         organics INTEGER NOT NULL DEFAULT 1000,
         org_max INTEGER NOT NULL DEFAULT 1000,
         org_price INTEGER NOT NULL,
+        org_buys BOOLEAN NOT NULL DEFAULT TRUE,
         equipment INTEGER NOT NULL DEFAULT 1000,
         equ_max INTEGER NOT NULL DEFAULT 1000,
-        equ_price INTEGER NOT NULL
+        equ_price INTEGER NOT NULL,
+        equ_buys BOOLEAN NOT NULL DEFAULT TRUE
       );
 
       CREATE TABLE IF NOT EXISTS planets (
         id SERIAL PRIMARY KEY,
         sector_id INTEGER NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
         name VARCHAR(255) NOT NULL,
-        type VARCHAR(255) NOT NULL DEFAULT 'Terran',
+        type VARCHAR(255) NOT NULL DEFAULT 'Terran' REFERENCES planet_types(name),
         drones SMALLINT NOT NULL DEFAULT 0,
-        fuel SMALLINT NOT NULL DEFAULT 0,
-        organics SMALLINT NOT NULL DEFAULT 0,
-        equipment SMALLINT NOT NULL DEFAULT 0,
-        colonists_fuel SMALLINT NOT NULL DEFAULT 0,
-        colonists_organics SMALLINT NOT NULL DEFAULT 0,
-        colonists_equipment SMALLINT NOT NULL DEFAULT 0,
+        shields INTEGER NOT NULL DEFAULT 0,
+        has_base BOOLEAN NOT NULL DEFAULT FALSE,
+        owner_player_id INTEGER REFERENCES players(id) ON DELETE SET NULL,
+        owner_corp_id INTEGER REFERENCES corporations(id) ON DELETE SET NULL,
+        fuel INTEGER NOT NULL DEFAULT 0,
+        organics INTEGER NOT NULL DEFAULT 0,
+        equipment INTEGER NOT NULL DEFAULT 0,
+        colonists_fuel INTEGER NOT NULL DEFAULT 0,
+        colonists_organics INTEGER NOT NULL DEFAULT 0,
+        colonists_equipment INTEGER NOT NULL DEFAULT 0,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMPTZ
+        updated_at TIMESTAMPTZ,
+        CONSTRAINT planets_single_owner_type
+          CHECK (NOT (owner_player_id IS NOT NULL AND owner_corp_id IS NOT NULL))
       );
 
       CREATE OR REPLACE FUNCTION trigger_set_timestamp()
@@ -317,14 +375,19 @@ export const connectDB = async (): Promise<void> => {
       CREATE TABLE IF NOT EXISTS visited_sectors (
         player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
         sector_id INTEGER NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
+        visited_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        snapshot JSONB,
         PRIMARY KEY (player_id, sector_id)
       );
 
       CREATE TABLE IF NOT EXISTS sector_drones (
         sector_id INTEGER NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
         owner_id INTEGER REFERENCES players(id) ON DELETE SET NULL,
+        corp_owner_id INTEGER REFERENCES corporations(id) ON DELETE SET NULL,
         quantity INTEGER NOT NULL,
-        PRIMARY KEY (sector_id)
+        PRIMARY KEY (sector_id),
+        CONSTRAINT sector_drones_single_owner_type
+          CHECK (NOT (owner_id IS NOT NULL AND corp_owner_id IS NOT NULL))
       );
 
       CREATE TABLE IF NOT EXISTS command_log (
@@ -353,109 +416,6 @@ export const connectDB = async (): Promise<void> => {
 
       CREATE INDEX IF NOT EXISTS idx_audit_log_player
         ON audit_log (player_id, id);
-
-      -- (menu / command / menu_command tables removed in step 8D — the
-      -- menu registry is now hardcoded on the client and the back parent
-      -- map is hardcoded on the server in handlers/menu.ts.)
-    `);
-
-        await client.query(`
-      -- Sectors: protected space
-      ALTER TABLE sectors ADD COLUMN IF NOT EXISTS is_protected BOOLEAN NOT NULL DEFAULT FALSE;
-
-      -- Warps: prevent self-loops
-      DO $$ BEGIN
-        IF NOT EXISTS (
-          SELECT 1 FROM information_schema.table_constraints
-          WHERE constraint_name = 'warps_no_self_loop' AND table_name = 'warps'
-        ) THEN
-          ALTER TABLE warps ADD CONSTRAINT warps_no_self_loop
-            CHECK (from_sector_id <> to_sector_id);
-        END IF;
-      END $$;
-
-      ALTER TABLE players ADD COLUMN IF NOT EXISTS previous_sector_id INTEGER REFERENCES sectors(id);
-
-      ALTER TABLE ship_types ADD COLUMN IF NOT EXISTS basic_hold_cost INTEGER GENERATED ALWAYS AS (starting_holds * hold_cost) STORED;
-      ALTER TABLE ship_types ADD COLUMN IF NOT EXISTS base_cost INTEGER GENERATED ALWAYS AS (cost_drive + cost_computer + cost_hull + starting_holds * hold_cost) STORED;
-
-      CREATE TABLE IF NOT EXISTS planet_types (
-        name VARCHAR(255) PRIMARY KEY,
-        description TEXT,
-        max_fuel_colos INTEGER NOT NULL DEFAULT 0,
-        max_org_colos INTEGER NOT NULL DEFAULT 0,
-        max_equ_colos INTEGER NOT NULL DEFAULT 0,
-        max_fuel INTEGER NOT NULL DEFAULT 0,
-        max_org INTEGER NOT NULL DEFAULT 0,
-        max_equ INTEGER NOT NULL DEFAULT 0,
-        max_citadel SMALLINT NOT NULL DEFAULT 0,
-        fuel_production SMALLINT NOT NULL DEFAULT 0,
-        organics_production SMALLINT NOT NULL DEFAULT 0,
-        equipment_production SMALLINT NOT NULL DEFAULT 0
-      );
-
-      CREATE TABLE IF NOT EXISTS corporations (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        password_hash VARCHAR(255) NOT NULL,
-        ceo_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
-        universe_id INTEGER NOT NULL REFERENCES universes(id) ON DELETE CASCADE,
-        UNIQUE (name, universe_id)
-      );
-
-      ALTER TABLE players ADD COLUMN IF NOT EXISTS is_knighted BOOLEAN NOT NULL DEFAULT FALSE;
-      ALTER TABLE players ADD COLUMN IF NOT EXISTS corporation_id INTEGER REFERENCES corporations(id) ON DELETE SET NULL;
-
-      ALTER TABLE ships ADD COLUMN IF NOT EXISTS corp_owner_id INTEGER REFERENCES corporations(id) ON DELETE SET NULL;
-      DO $$ BEGIN
-        IF NOT EXISTS (
-          SELECT 1 FROM information_schema.table_constraints
-          WHERE constraint_name = 'ships_single_owner_type' AND table_name = 'ships'
-        ) THEN
-          ALTER TABLE ships ADD CONSTRAINT ships_single_owner_type
-            CHECK (NOT (owner_id IS NOT NULL AND corp_owner_id IS NOT NULL));
-        END IF;
-      END $$;
-
-      ALTER TABLE ports ADD COLUMN IF NOT EXISTS fuel_max INTEGER NOT NULL DEFAULT 1000;
-      ALTER TABLE ports ADD COLUMN IF NOT EXISTS org_max INTEGER NOT NULL DEFAULT 1000;
-      ALTER TABLE ports ADD COLUMN IF NOT EXISTS equ_max INTEGER NOT NULL DEFAULT 1000;
-      ALTER TABLE ports ADD COLUMN IF NOT EXISTS name VARCHAR(255);
-      ALTER TABLE ports ADD COLUMN IF NOT EXISTS fuel_buys BOOLEAN NOT NULL DEFAULT TRUE;
-      ALTER TABLE ports ADD COLUMN IF NOT EXISTS org_buys BOOLEAN NOT NULL DEFAULT TRUE;
-      ALTER TABLE ports ADD COLUMN IF NOT EXISTS equ_buys BOOLEAN NOT NULL DEFAULT TRUE;
-
-      ALTER TABLE planets ALTER COLUMN colonists_fuel TYPE INTEGER;
-      ALTER TABLE planets ALTER COLUMN colonists_organics TYPE INTEGER;
-      ALTER TABLE planets ALTER COLUMN colonists_equipment TYPE INTEGER;
-      ALTER TABLE planets ALTER COLUMN fuel TYPE INTEGER;
-      ALTER TABLE planets ALTER COLUMN organics TYPE INTEGER;
-      ALTER TABLE planets ALTER COLUMN equipment TYPE INTEGER;
-
-      ALTER TABLE planets ADD COLUMN IF NOT EXISTS shields INTEGER NOT NULL DEFAULT 0;
-      ALTER TABLE planets ADD COLUMN IF NOT EXISTS has_base BOOLEAN NOT NULL DEFAULT FALSE;
-      ALTER TABLE planets ADD COLUMN IF NOT EXISTS owner_player_id INTEGER REFERENCES players(id) ON DELETE SET NULL;
-      ALTER TABLE planets ADD COLUMN IF NOT EXISTS owner_corp_id INTEGER REFERENCES corporations(id) ON DELETE SET NULL;
-      DO $$ BEGIN
-        IF NOT EXISTS (
-          SELECT 1 FROM information_schema.table_constraints
-          WHERE constraint_name = 'planets_single_owner_type' AND table_name = 'planets'
-        ) THEN
-          ALTER TABLE planets ADD CONSTRAINT planets_single_owner_type
-            CHECK (NOT (owner_player_id IS NOT NULL AND owner_corp_id IS NOT NULL));
-        END IF;
-      END $$;
-
-      ALTER TABLE sector_drones ADD COLUMN IF NOT EXISTS corp_owner_id INTEGER REFERENCES corporations(id) ON DELETE SET NULL;
-      DO $$ BEGIN
-        IF NOT EXISTS (
-          SELECT 1 FROM information_schema.table_constraints
-          WHERE constraint_name = 'sector_drones_single_owner_type' AND table_name = 'sector_drones'
-        ) THEN
-          ALTER TABLE sector_drones ADD CONSTRAINT sector_drones_single_owner_type
-            CHECK (NOT (owner_id IS NOT NULL AND corp_owner_id IS NOT NULL));
-        END IF;
-      END $$;
 
       CREATE TABLE IF NOT EXISTS sector_mines (
         sector_id INTEGER NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
@@ -487,9 +447,6 @@ export const connectDB = async (): Promise<void> => {
         CHECK (NOT (owner_player_id IS NOT NULL AND owner_corp_id IS NOT NULL))
       );
 
-      ALTER TABLE visited_sectors ADD COLUMN IF NOT EXISTS visited_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
-      ALTER TABLE visited_sectors ADD COLUMN IF NOT EXISTS snapshot JSONB;
-
       CREATE TABLE IF NOT EXISTS visited_ports (
         player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
         port_id INTEGER NOT NULL REFERENCES ports(id) ON DELETE CASCADE,
@@ -505,12 +462,6 @@ export const connectDB = async (): Promise<void> => {
         text TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_news_universe ON news (universe_id, created_at);
-
-      ALTER TABLE sectors ADD COLUMN IF NOT EXISTS x DOUBLE PRECISION;
-      ALTER TABLE sectors ADD COLUMN IF NOT EXISTS y DOUBLE PRECISION;
-
-      ALTER TABLE universes
-        ADD COLUMN IF NOT EXISTS topology VARCHAR(16) NOT NULL DEFAULT 'random';
 
       CREATE TABLE IF NOT EXISTS player_visited_sectors (
         player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
@@ -539,9 +490,6 @@ export const connectDB = async (): Promise<void> => {
     `);
 
         await client.query(`
-      -- (menu / command / menu_command seeds removed in step 8D — tables
-      -- dropped; the menu registry is hardcoded on the client.)
-
       -- === Seed hardware items ===
       INSERT INTO hardware_item (name, label, kind, default_price, result_msg_type, result_extra) VALUES
         ('planet_buster',    'Planet Busters',          'stackable', 40000,  'buyHardwareResult', NULL),
@@ -799,33 +747,6 @@ export const connectDB = async (): Promise<void> => {
                 ('Toxic', (SELECT id FROM edit_templates WHERE name = 'stock')),
                 ('Volcanic', (SELECT id FROM edit_templates WHERE name = 'stock'))
             ON CONFLICT DO NOTHING
-        `);
-
-        // Add FK constraints that depend on seeded data
-        await client.query(`
-            -- FK from planet_types_edits.planet_type to planet_types.name
-            DO $$ BEGIN
-              IF NOT EXISTS (
-                SELECT 1 FROM information_schema.table_constraints
-                WHERE constraint_name = 'planet_types_edits_planet_type_fkey'
-                  AND table_name = 'planet_types_edits'
-              ) THEN
-                ALTER TABLE planet_types_edits ADD CONSTRAINT planet_types_edits_planet_type_fkey
-                  FOREIGN KEY (planet_type) REFERENCES planet_types(name) ON DELETE CASCADE;
-              END IF;
-            END $$;
-
-            -- FK from planets.type to planet_types.name
-            DO $$ BEGIN
-              IF NOT EXISTS (
-                SELECT 1 FROM information_schema.table_constraints
-                WHERE constraint_name = 'planets_type_fkey'
-                  AND table_name = 'planets'
-              ) THEN
-                ALTER TABLE planets ADD CONSTRAINT planets_type_fkey
-                  FOREIGN KEY (type) REFERENCES planet_types(name);
-              END IF;
-            END $$;
         `);
 
         // Audit log is per-session: previous-session entries were signed
