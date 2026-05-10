@@ -1,6 +1,10 @@
-import { pool } from './db/index.js';
 import type { Queryable } from './db/types.js';
-import { universeConfig } from './universe-config.js';
+import {
+    getUniverseTurnSettings,
+    getPlayerTurns,
+    decrementPlayerTurns,
+    getMoveTurnContext,
+} from './db/queries/turn.js';
 
 export interface TurnResult {
     allowed: boolean;
@@ -18,32 +22,13 @@ export interface MoveTurnContext {
 /**
  * One-shot fetch of everything the move handler needs to decide whether a warp
  * is allowed: ship existence, current turns, per-warp cost, and the universe's
- * turn-economy config. Single query joining players, ships, universes, edits.
+ * turn-economy config.
  */
 export async function fetchMoveTurnContext(
     playerId: number,
     universeId: number,
 ): Promise<MoveTurnContext | null> {
-    const res = await pool.query<{
-        ship_id: number | null;
-        turns: number;
-        turns_per_warp: number | null;
-        turns_per_day: number;
-        turn_delay: number;
-    }>(
-        `SELECT p.ship_id,
-                p.turns,
-                s.turns_per_warp,
-                COALESCE(us.turns_per_day, ${universeConfig.turnsPerDay}) AS turns_per_day,
-                COALESCE(us.turn_delay, ${universeConfig.turnDelay}) AS turn_delay
-         FROM players p
-         LEFT JOIN ships s ON p.ship_id = s.id
-         JOIN universes u ON u.id = $2
-         LEFT JOIN universe_settings us ON us.universe_id = u.id
-         WHERE p.id = $1`,
-        [playerId, universeId],
-    );
-    const row = res.rows[0];
+    const row = await getMoveTurnContext(playerId, universeId);
     if (!row) return null;
     return {
         shipId: row.ship_id,
@@ -72,7 +57,7 @@ export async function deductTurns(
     }
 
     if (ctx.turns < cost) return { allowed: false, turnsUsed: 0 };
-    await pool.query('UPDATE players SET turns = turns - $1 WHERE id = $2', [cost, playerId]);
+    await decrementPlayerTurns(playerId, cost);
     if (delayMs > 0) await sleep(delayMs);
     return { allowed: true, turnsUsed: cost };
 }
@@ -85,29 +70,20 @@ export async function checkAndDeductTurns(
     playerId: number,
     universeId: number,
     cost: number,
-    queryFn?: Queryable,
+    db?: Queryable,
 ): Promise<TurnResult> {
-    const db = queryFn ?? pool;
-    const univRes = await db.query<{ turns_per_day: number; turn_delay: number }>(
-        `SELECT COALESCE(us.turns_per_day, ${universeConfig.turnsPerDay}) as turns_per_day,
-                COALESCE(us.turn_delay, ${universeConfig.turnDelay}) as turn_delay
-         FROM universes u LEFT JOIN universe_settings us ON us.universe_id = u.id WHERE u.id = $1`,
-        [universeId],
-    );
-    const { turns_per_day, turn_delay } = univRes.rows[0];
-    const delayMs = cost * turn_delay;
+    const settings = await getUniverseTurnSettings(universeId, db);
+    if (!settings) return { allowed: false, turnsUsed: 0 };
+    const delayMs = cost * settings.turn_delay;
 
-    if (turns_per_day === 0) {
-        // Unlimited turns — still enforce delay
+    if (settings.turns_per_day === 0) {
         if (delayMs > 0) await sleep(delayMs);
         return { allowed: true, turnsUsed: 0 };
     }
 
-    const playerRes = await db.query<{ turns: number }>('SELECT turns FROM players WHERE id = $1', [
-        playerId,
-    ]);
-    if (playerRes.rows[0].turns < cost) return { allowed: false, turnsUsed: 0 };
-    await db.query('UPDATE players SET turns = turns - $1 WHERE id = $2', [cost, playerId]);
+    const turns = await getPlayerTurns(playerId, db);
+    if (turns === undefined || turns < cost) return { allowed: false, turnsUsed: 0 };
+    await decrementPlayerTurns(playerId, cost, db);
     if (delayMs > 0) await sleep(delayMs);
     return { allowed: true, turnsUsed: cost };
 }
