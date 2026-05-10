@@ -65,12 +65,26 @@ export function renderPlanetEditor(opts: {
     descField.input.style.width = '240px';
     form.appendChild(descField.row);
 
-    const colonistsField = makeField(
-        'Max Colonists',
+    const fuelColosField = makeField(
+        'Max Fuel Colos',
         { type: 'number', min: '0' },
-        String(existing?.maxColonists ?? 0),
+        String(existing?.maxFuelColos ?? 0),
     );
-    form.appendChild(colonistsField.row);
+    form.appendChild(fuelColosField.row);
+
+    const orgColosField = makeField(
+        'Max Org Colos',
+        { type: 'number', min: '0' },
+        String(existing?.maxOrgColos ?? 0),
+    );
+    form.appendChild(orgColosField.row);
+
+    const equColosField = makeField(
+        'Max Equ Colos',
+        { type: 'number', min: '0' },
+        String(existing?.maxEquColos ?? 0),
+    );
+    form.appendChild(equColosField.row);
 
     const citadelField = makeField(
         'Max Citadel',
@@ -165,7 +179,9 @@ export function renderPlanetEditor(opts: {
         const planet: PlanetConfig = {
             type,
             description: descField.input.value,
-            maxColonists: parseInt(colonistsField.input.value, 10),
+            maxFuelColos: parseInt(fuelColosField.input.value, 10),
+            maxOrgColos: parseInt(orgColosField.input.value, 10),
+            maxEquColos: parseInt(equColosField.input.value, 10),
             maxCitadel: parseInt(citadelField.input.value, 10),
             fuelProduction: parseInt(fuelField.input.value, 10),
             organicsProduction: parseInt(orgField.input.value, 10),

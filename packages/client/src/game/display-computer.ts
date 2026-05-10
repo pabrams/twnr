@@ -229,8 +229,20 @@ export function showPlanetDetail(ctx: DisplayComputerCtx, planet: PlanetConfig) 
     const pad = (s: string) => s.padEnd(20);
     term.writeln(
         render(COMPUTER.planetDetailLine, {
-            label: pad('Max Colonists'),
-            value: planet.maxColonists,
+            label: pad('Max Fuel Colos'),
+            value: planet.maxFuelColos,
+        }),
+    );
+    term.writeln(
+        render(COMPUTER.planetDetailLine, {
+            label: pad('Max Org Colos'),
+            value: planet.maxOrgColos,
+        }),
+    );
+    term.writeln(
+        render(COMPUTER.planetDetailLine, {
+            label: pad('Max Equ Colos'),
+            value: planet.maxEquColos,
         }),
     );
     term.writeln(

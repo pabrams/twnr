@@ -152,6 +152,32 @@ export async function getPlanetColonistsRemaining(
     return res.rows[0]?.remaining;
 }
 
+const COLONIST_MAX_COLUMN: Record<ColonistCommodity, string> = {
+    fuel: 'max_fuel_colos',
+    organics: 'max_org_colos',
+    equipment: 'max_equ_colos',
+};
+
+/** Per-commodity colonist cap from planet_types, plus the planet's current
+ *  count for that commodity. Used to clamp leave_colonists requests to
+ *  what the planet can still hold. */
+export async function getPlanetColonistsCapacity(
+    planetId: number,
+    commodity: ColonistCommodity,
+    db: Queryable = pool,
+): Promise<{ current: number; max: number } | undefined> {
+    const col = COLONIST_COLUMN[commodity];
+    const maxCol = COLONIST_MAX_COLUMN[commodity];
+    const res = await db.query<{ current: number; max: number }>(
+        `SELECT p.${col} as current, pt.${maxCol} as max
+         FROM planets p
+         JOIN planet_types pt ON pt.name = p.type
+         WHERE p.id = $1`,
+        [planetId],
+    );
+    return res.rows[0];
+}
+
 export async function listPlayerPlanets(
     playerId: number,
     universeId: number,

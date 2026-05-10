@@ -18,6 +18,7 @@ import {
     getPlanetColonistsForUpdate,
     updatePlanetColonists,
     getPlanetColonistsRemaining,
+    getPlanetColonistsCapacity,
     listPlayerPlanets,
     type ColonistCommodity,
 } from '../db/queries/planet.js';
@@ -477,8 +478,19 @@ export async function handleLeaveColonists(
                 throw new AbortTransaction();
             }
 
+            const capacity = await getPlanetColonistsCapacity(onPlanetId, col, client);
+            if (!capacity) {
+                sendError(playerId, 'Planet not found');
+                throw new AbortTransaction();
+            }
+            const room = Math.max(0, capacity.max - capacity.current);
+            if (room <= 0) {
+                sendError(playerId, `Planet is at max ${col} colonists`);
+                throw new AbortTransaction();
+            }
+
             const requested = quantity === -1 ? shipColonists : quantity;
-            const leave = Math.min(requested, shipColonists);
+            const leave = Math.min(requested, shipColonists, room);
 
             await incrementShipColonists(playerId, -leave, client);
             await updatePlanetColonists(onPlanetId, col, leave, client);

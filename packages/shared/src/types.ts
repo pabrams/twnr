@@ -66,7 +66,9 @@ export type ShipConfig = {
 export type PlanetConfig = {
     type: string;
     description: string;
-    maxColonists: number;
+    maxFuelColos: number;
+    maxOrgColos: number;
+    maxEquColos: number;
     maxCitadel: number;
     fuelProduction: number;
     organicsProduction: number;
