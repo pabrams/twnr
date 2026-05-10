@@ -115,6 +115,23 @@ export type LeaveColonistsCommand = {
     commodity: 'fuel' | 'organics' | 'equipment';
 };
 
+/** Take fuel/organics/equipment from the planet you're on. -1 quantity =
+ *  take as many as the planet has (clamped by free ship holds). */
+export type TakeCommodityCommand = {
+    type: typeof ClientMsgType.TakeCommodity;
+    quantity: number;
+    commodity: 'fuel' | 'organics' | 'equipment';
+};
+
+/** Leave fuel/organics/equipment on the planet you're on. -1 quantity =
+ *  leave everything the ship is carrying of that commodity (clamped by
+ *  the planet's per-commodity cap). */
+export type LeaveCommodityCommand = {
+    type: typeof ClientMsgType.LeaveCommodity;
+    quantity: number;
+    commodity: 'fuel' | 'organics' | 'equipment';
+};
+
 export type DeployDronesInfoCommand = {
     type: typeof ClientMsgType.DeployDronesInfo;
 };
@@ -253,6 +270,8 @@ export type ClientCommand =
     | GetSectorPlanetsCommand
     | TakeColonistsCommand
     | LeaveColonistsCommand
+    | TakeCommodityCommand
+    | LeaveCommodityCommand
     | DeployDronesInfoCommand
     | DeployDronesCommand
     | AttackSectorDronesCommand
