@@ -25,6 +25,7 @@ import {
 } from './db/queries/player.js';
 import { countSectorsInUniverse, getStarbaseSectorNumber } from './db/queries/sector.js';
 import { tryRespawnPlayer } from './services/respawn.js';
+import { startHourlyScheduler } from './services/hourly-jobs.js';
 
 const app: ReturnType<typeof express> = express();
 app.set('trust proxy', 1);
@@ -293,6 +294,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
 export async function startServer() {
     try {
         await connectDB();
+        startHourlyScheduler();
 
         const port = parseInt(process.env.PORT || '3000', 10);
         server.listen(port, () => {

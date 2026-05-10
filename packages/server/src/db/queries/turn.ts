@@ -49,6 +49,60 @@ export type MoveTurnContextRow = {
     turn_delay: number;
 };
 
+/** Universes that have turn accounting enabled (turns_per_day > 0). */
+export type TurnEnabledUniverseRow = {
+    id: number;
+    turns_per_day: number;
+    max_turns: number;
+};
+
+export async function listTurnEnabledUniverses(
+    db: Queryable = pool,
+): Promise<TurnEnabledUniverseRow[]> {
+    const res = await db.query<TurnEnabledUniverseRow>(
+        `SELECT u.id,
+                COALESCE(us.turns_per_day, ${universeConfig.turnsPerDay}) AS turns_per_day,
+                COALESCE(us.max_turns, 2000) AS max_turns
+         FROM universes u
+         LEFT JOIN universe_settings us ON us.universe_id = u.id
+         WHERE COALESCE(us.turns_per_day, ${universeConfig.turnsPerDay}) > 0`,
+    );
+    return res.rows;
+}
+
+/** Player rows for the turn-grant pass — locks each row FOR UPDATE so the
+ *  hourly grant doesn't race a player's in-flight turn deduction. */
+export type TurnGrantPlayerRow = {
+    id: number;
+    turns: number;
+    last_turns_granted_at: Date;
+};
+
+export async function lockPlayersForTurnGrant(
+    universeId: number,
+    db: Queryable = pool,
+): Promise<TurnGrantPlayerRow[]> {
+    const res = await db.query<TurnGrantPlayerRow>(
+        `SELECT id, turns, last_turns_granted_at
+         FROM players
+         WHERE universe_id = $1
+         FOR UPDATE`,
+        [universeId],
+    );
+    return res.rows;
+}
+
+export async function setPlayerTurnsAndStamp(
+    playerId: number,
+    turns: number,
+    db: Queryable = pool,
+): Promise<void> {
+    await db.query(
+        'UPDATE players SET turns = $1, last_turns_granted_at = NOW() WHERE id = $2',
+        [turns, playerId],
+    );
+}
+
 export async function getMoveTurnContext(
     playerId: number,
     universeId: number,
