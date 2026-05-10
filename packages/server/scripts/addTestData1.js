@@ -163,7 +163,7 @@ async function main() {
                 universeId,
                 homeSectorDbId,
                 CREDITS,
-                0, // starting turns — script doesn't need to seed turns; grant-job will
+                5000,
                 client,
             );
 
