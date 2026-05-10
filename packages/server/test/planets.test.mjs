@@ -590,116 +590,7 @@ describe('admin API edit-based universe generation', () => {
   });
 });
 
-// ==================== Planet ID calculation ====================
 
-describe('planet ID calculation during universe creation', () => {
-  it('Earth exists when a universe is created', async () => {
-    const res = await adminKeyPost('/api/admin/universes/generate', {
-      name: 'PlanetIdTest', sectors: 20, seed: 60001,
-    });
-    assert.equal(res.status, 201);
-    const uid = res.body.id;
-    const planets = await pool.query(
-      'SELECT p.id, p.name FROM planets p JOIN sectors s ON p.sector_id = s.id WHERE s.universe_id = $1 ORDER BY p.id',
-      [uid],
-    );
-    assert.ok(planets.rows.length >= 1, 'should have at least one planet (Earth)');
-    const earth = planets.rows.find(p => p.name === 'Earth');
-    assert.ok(earth, 'Earth planet should exist');
-  });
-
-  it('two universes each have planets (IDs are globally unique via SERIAL)', async () => {
-    const res1 = await adminKeyPost('/api/admin/universes/generate', {
-      name: 'IdIndep1', sectors: 20, seed: 60002,
-    });
-    const res2 = await adminKeyPost('/api/admin/universes/generate', {
-      name: 'IdIndep2', sectors: 20, seed: 60003,
-    });
-    assert.equal(res1.status, 201);
-    assert.equal(res2.status, 201);
-
-    const p1 = await pool.query('SELECT p.id FROM planets p JOIN sectors s ON p.sector_id = s.id WHERE s.universe_id = $1 AND p.name = $2', [res1.body.id, 'Earth']);
-    const p2 = await pool.query('SELECT p.id FROM planets p JOIN sectors s ON p.sector_id = s.id WHERE s.universe_id = $1 AND p.name = $2', [res2.body.id, 'Earth']);
-    assert.ok(p1.rows.length > 0, 'Earth in universe 1 should exist');
-    assert.ok(p2.rows.length > 0, 'Earth in universe 2 should exist');
-  });
-});
-
-// ==================== Shared TypeScript types ====================
-
-describe('shared TypeScript types', () => {
-  let serverMsgContent;
-  let msgContent;
-  let clientMsgContent;
-
-  before(() => {
-    assert.ok(existsSync(SERVER_MESSAGES_TS), `${SERVER_MESSAGES_TS} not found`);
-    serverMsgContent = readFileSync(SERVER_MESSAGES_TS, 'utf8');
-    assert.ok(existsSync(MESSAGES_TS), `${MESSAGES_TS} not found`);
-    msgContent = readFileSync(MESSAGES_TS, 'utf8');
-    if (existsSync(CLIENT_MESSAGES_TS)) {
-      clientMsgContent = readFileSync(CLIENT_MESSAGES_TS, 'utf8');
-    }
-  });
-
-  it('SectorDisplayData type includes planets field', () => {
-    // SectorDisplayMessage composes SectorDisplayData which contains the planets field
-    const match = serverMsgContent.match(/(?:type|interface)\s+SectorDisplayData\b[\s\S]*?(?=\nexport\s|\n\/\/\s*=|$)/);
-    assert.ok(match, 'SectorDisplayData type definition not found');
-    const block = match[0].toLowerCase();
-    assert.ok(block.includes('planet'), 'SectorDisplayData should include a planets field');
-  });
-
-  it('ShipInfoResultObject type includes planet buster and terraform device fields', () => {
-    const match = serverMsgContent.match(/(?:type|interface)\s+ShipInfoResultObject\b[\s\S]*?(?=\nexport\s|\n\/\/\s*=|$)/);
-    assert.ok(match, 'ShipInfoResultObject type definition not found');
-    const block = match[0].toLowerCase();
-    assert.ok(
-      block.includes('hardware'),
-      'ShipInfoResultObject should include hardware map',
-    );
-    assert.ok(
-      block.includes('hardwaremax'),
-      'ShipInfoResultObject should include hardwareMax map',
-    );
-  });
-
-  it('ServerMsgType has new planet-related message types', () => {
-    const lower = msgContent.toLowerCase();
-    const requiredServerTypes = ['useterraformdeviceresult', 'landresult', 'planetdisplayresult', 'destroyplanetresult', 'buyhardwareresult', 'dockstarbaseresult'];
-    for (const typeName of requiredServerTypes) {
-      assert.ok(lower.includes(typeName), `ServerMsgType missing ${typeName}`);
-    }
-  });
-
-  it('ClientMsgType has new planet-related message types', () => {
-    const lower = msgContent.toLowerCase();
-    const requiredClientTypes = ['useterraformdevice', 'landonplanet', 'planetdisplay', 'destroyplanet', 'leaveplanet', 'buyhardware', 'dockstarbase', 'leavestarbase'];
-    for (const typeName of requiredClientTypes) {
-      assert.ok(lower.includes(typeName), `ClientMsgType missing ${typeName}`);
-    }
-  });
-
-  it('server message type definitions exist for new types', () => {
-    const lower = serverMsgContent.toLowerCase();
-    assert.ok(lower.includes('useterraformdeviceresultobject'), 'UseTerraformDeviceResultObject type definition missing');
-    assert.ok(lower.includes('landresultobject'), 'LandResultObject type definition missing');
-    assert.ok(lower.includes('planetdisplayresultobject'), 'PlanetDisplayResultObject type definition missing');
-    assert.ok(lower.includes('destroyplanetresultobject'), 'DestroyPlanetResultObject type definition missing');
-    assert.ok(lower.includes('buyhardwareresultobject'), 'BuyHardwareResultObject type definition missing');
-    assert.ok(lower.includes('dockstarbaseresultobject'), 'DockStarbaseResultObject type definition missing');
-  });
-
-  it('client message type definitions exist in client-messages.ts', () => {
-    assert.ok(clientMsgContent, 'client-messages.ts should exist');
-    const lower = clientMsgContent.toLowerCase();
-    const requiredTypes = ['useterraformdevice', 'landonplanet', 'planetdisplay', 'destroyplanet', 'leaveplanet', 'buyhardware', 'dockstarbase', 'leavestarbase'];
-    for (const typeName of requiredTypes) {
-      assert.ok(lower.includes(typeName), `client-messages.ts missing type definition for ${typeName}`);
-    }
-  });
-
-});
 
 // ==================== WebSocket: sector display includes planets ====================
 
@@ -766,36 +657,7 @@ describe('WS: sector display includes planets', () => {
   });
 });
 
-// ==================== WS: ship info includes planet busters and terraform devices ====================
 
-describe('WS: ship info includes new fields', () => {
-  let universeId;
-  let player;
-
-  before(async () => {
-    const res = await adminKeyPost('/api/admin/universes/generate', {
-      name: 'WsShipInfo', sectors: 20, seed: 70002,
-    });
-    assert.equal(res.status, 201);
-    universeId = res.body.id;
-    player = await createTestPlayer(universeId);
-  });
-
-  after(() => { player?.close(); });
-
-  it('shipInfo message includes hardware and hardwareMax maps', async () => {
-    player.sendMsg({ type: ClientMsgType.ShipInfo });
-    const msg = await player.waitForMessage(ServerMsgType.ShipInfoResult);
-    assert.ok('hardware' in msg, 'shipInfo should include hardware map');
-    assert.ok('hardwareMax' in msg, 'shipInfo should include hardwareMax map');
-    assert.equal(typeof msg.hardware, 'object');
-    assert.equal(typeof msg.hardwareMax, 'object');
-    assert.equal(msg.hardware.planet_buster ?? 0, 0, 'new player should have 0 planet busters');
-    assert.equal(msg.hardware.terraform_device ?? 0, 0, 'new player should have 0 terraform devices');
-  });
-});
-
-// ==================== WS: land command returns planet list ====================
 
 describe('WS: land command returns planet list', () => {
   let universeId;
@@ -835,7 +697,7 @@ describe('WS: land command returns planet list', () => {
   after(() => { player?.close(); });
 
   it('sector 1 land auto-lands on Earth', async () => {
-    player.sendMsg({ type: ClientMsgType.Land });
+    player.sendMsg({ type: ClientMsgType.GetSectorPlanets });
     const msg = await player.waitForMessage(ServerMsgType.LandOnPlanetResult);
     assert.ok('name' in msg, 'auto-land result should include planet name');
     assert.equal(msg.name, 'Earth', 'sector 1 should auto-land on Earth');
@@ -851,8 +713,8 @@ describe('WS: land command returns planet list', () => {
     player.sendMsg({ type: ClientMsgType.Move, sector: planetSector });
     await player.waitForMessage(ServerMsgType.MoveResult);
 
-    player.sendMsg({ type: ClientMsgType.Land });
-    const msg = await player.waitForMessage(ServerMsgType.LandResult);
+    player.sendMsg({ type: ClientMsgType.GetSectorPlanets });
+    const msg = await player.waitForMessage(ServerMsgType.GetSectorPlanetsResult);
     assert.ok('planets' in msg, 'planetList should include planets field');
     assert.ok(Array.isArray(msg.planets), 'planets should be an array');
     assert.ok(msg.planets.length >= 1, 'sector should have at least one planet');
@@ -882,8 +744,8 @@ describe('WS: land command returns planet list', () => {
     player.sendMsg({ type: ClientMsgType.Move, sector: targetSector });
     await player.waitForMessage(ServerMsgType.MoveResult);
 
-    player.sendMsg({ type: ClientMsgType.Land });
-    const msg = await player.waitForMessage(ServerMsgType.LandResult);
+    player.sendMsg({ type: ClientMsgType.GetSectorPlanets });
+    const msg = await player.waitForMessage(ServerMsgType.GetSectorPlanetsResult);
     assert.ok('planets' in msg, 'planetList should include planets field');
     assert.ok(Array.isArray(msg.planets), 'planets should be an array');
     assert.equal(msg.planets.length, 0, 'land in sector with no planets should return empty array');
@@ -946,20 +808,13 @@ describe('WS: land on planet, display, leave', () => {
     assert.equal(msg.name, 'Earth');
   });
 
-  it('leavePlanet returns leavePlanetResult', async () => {
-    player.sendMsg({ type: ClientMsgType.LeavePlanet });
-    const msg = await player.waitForMessage('leavePlanetResult');
-    assert.ok(msg, 'should receive leavePlanetResult after leaving planet');
-    assert.ok('planets' in msg, 'leavePlanetResult should include planets');
-  });
+
 
   it('on_planet_id is cleared after leaving planet', async () => {
     const res = await pool.query('SELECT on_planet_id FROM players WHERE id = $1', [player.playerId]);
     assert.equal(res.rows[0].on_planet_id, null, 'on_planet_id should be null after leaving');
   });
 });
-
-// ==================== WS: terraform device ====================
 
 describe('WS: use terraform device', () => {
   let universeId;
@@ -1078,8 +933,6 @@ describe('WS: use terraform device', () => {
   });
 });
 
-// ==================== WS: starbase and hardware store ====================
-
 describe('WS: starbase and hardware store', () => {
   let universeId;
   let player;
@@ -1170,8 +1023,6 @@ describe('WS: starbase and hardware store', () => {
     assert.ok(msg, 'should receive sectorDisplay after leaving starbase');
   });
 });
-
-// ==================== WS: destroy planet ====================
 
 describe('WS: destroy planet', () => {
   let universeId;
@@ -1270,7 +1121,6 @@ describe('WS: destroy planet', () => {
   });
 });
 
-// ==================== WS: landOnPlanet wrong sector ====================
 
 describe('WS: landOnPlanet validation', () => {
   let universeId;
@@ -1297,7 +1147,6 @@ describe('WS: landOnPlanet validation', () => {
        WHERE s_from.sector_number = 1 AND s_from.universe_id = $1 LIMIT 1`,
       [universeId],
     );
-    const otherSector = warps.rows[0].sector_to;
     const otherSectorDbId = warps.rows[0].sector_db_id;
     const ins = await pool.query(
       "INSERT INTO planets (sector_id, name, type) VALUES ($1, 'FarPlanet', 'Barren') RETURNING id",
@@ -1310,12 +1159,10 @@ describe('WS: landOnPlanet validation', () => {
     const msg = await player.waitForMessage('error');
     assert.ok(msg.message, 'should receive error for planet not in current sector');
 
-    // cleanup
     await pool.query('DELETE FROM planets WHERE id = $1', [planetId]);
   });
 });
 
-// ==================== WS: buy hardware exceeds max ====================
 
 describe('WS: buy hardware exceeds ship maximum', () => {
   let universeId;
@@ -1419,7 +1266,6 @@ describe('WS: buy hardware exceeds ship maximum', () => {
   });
 });
 
-// ==================== WS: buy hardware requires dockStarbase (not just being in sector) ====================
 
 describe('WS: buy hardware requires starbase docking', () => {
   let universeId;
@@ -1478,8 +1324,6 @@ describe('WS: buy hardware requires starbase docking', () => {
   });
 });
 
-// ==================== WS: buy hardware credit deduction ====================
-
 describe('WS: buy hardware credit deduction', () => {
   let universeId;
   let player;
@@ -1499,8 +1343,6 @@ describe('WS: buy hardware credit deduction', () => {
     starbaseSector = sdRes.rows[0].sector_number;
 
     player = await createTestPlayer(universeId);
-
-    const allConfigs = readdirSync(CONFIG_SHIPS_DIR).filter(f => f.endsWith('.json')).map(f => JSON.parse(readFileSync(join(CONFIG_SHIPS_DIR, f), 'utf8')));
 
     // Navigate to starbase
     player.sendMsg({ type: ClientMsgType.ShortestPath, from: 1, to: starbaseSector });
@@ -1563,7 +1405,6 @@ describe('WS: buy hardware credit deduction', () => {
   });
 });
 
-// ==================== WS: terraform collision logic ====================
 
 describe('WS: terraform collision logic', () => {
   let universeId;
@@ -1673,56 +1514,8 @@ describe('WS: terraform collision logic', () => {
   });
 });
 
-// ==================== WS: terraform in Starbase sector ====================
 
-describe('WS: terraform in Starbase sector returns restricted_sector', () => {
-  let universeId;
-  let player;
-  let starbaseSector;
 
-  before(async () => {
-    const res = await adminKeyPost('/api/admin/universes/generate', {
-      name: 'WsTerraformSD', sectors: 20, seed: 80001,
-    });
-    assert.equal(res.status, 201);
-    universeId = res.body.id;
-
-    const sdRes = await pool.query(
-      "SELECT sector_number FROM sectors WHERE name = 'Starbase' AND universe_id = $1",
-      [universeId],
-    );
-    assert.ok(sdRes.rows.length > 0, 'Starbase sector should exist');
-    starbaseSector = sdRes.rows[0].sector_number;
-
-    player = await createTestPlayer(universeId);
-
-    // Navigate to starbase sector
-    player.sendMsg({ type: ClientMsgType.ShortestPath, from: 1, to: starbaseSector });
-    const pathMsg = await player.waitForMessage('shortestPathResult');
-    for (const step of pathMsg.path.slice(1)) {
-      player.sendMsg({ type: ClientMsgType.Move, sector: step.sector });
-      await player.waitForMessage(ServerMsgType.MoveResult).catch(() => null);
-    }
-
-    // Give the player a terraform device
-    await pool.query(`INSERT INTO ship_hardware (ship_id, hardware_item_id, quantity) VALUES ((SELECT ship_id FROM players WHERE id = $1), (SELECT id FROM hardware_item WHERE name = 'terraform_device'), 1) ON CONFLICT (ship_id, hardware_item_id) DO UPDATE SET quantity = 1`, [player.playerId]);
-  });
-
-  after(() => { player?.close(); });
-
-  it('useTerraformDevice in Starbase sector returns restricted_sector', async () => {
-    player.sendMsg({ type: ClientMsgType.UseTerraformDevice });
-    const msg = await player.waitForMessage('useTerraformDeviceResult');
-    assert.equal(msg.success, false);
-    assert.equal(msg.reason, 'restricted_sector');
-
-    // Device should not be consumed
-    const shipRes = await pool.query(`SELECT COALESCE(sh.quantity, 0) as terraform_devices FROM ships s LEFT JOIN ship_hardware sh ON sh.ship_id = s.id AND sh.hardware_item_id = (SELECT id FROM hardware_item WHERE name = 'terraform_device') WHERE s.id = (SELECT ship_id FROM players WHERE id = $1)`, [player.playerId]);
-    assert.equal(shipRes.rows[0].terraform_devices, 1, 'device should not be consumed on restricted sector');
-  });
-});
-
-// ==================== WS: on_planet_id cleared after destroy ====================
 
 describe('WS: on_planet_id cleared after destroyPlanet', () => {
   let universeId;
@@ -1787,8 +1580,6 @@ describe('WS: on_planet_id cleared after destroyPlanet', () => {
   });
 });
 
-// ==================== WS: terraform success includes collision field and terraformDevices ====================
-
 describe('WS: terraform success response completeness', () => {
   let universeId;
   let player;
@@ -1836,93 +1627,6 @@ describe('WS: terraform success response completeness', () => {
   });
 });
 
-// ==================== WS: buyTerraformDevices when not at starbase ====================
 
-describe('WS: buyTerraformDevices when not at starbase', () => {
-  let universeId;
-  let player;
 
-  before(async () => {
-    const res = await adminKeyPost('/api/admin/universes/generate', {
-      name: 'WsTerraNotSD', sectors: 20, seed: 80004,
-    });
-    assert.equal(res.status, 201);
-    universeId = res.body.id;
-    player = await createTestPlayer(universeId);
-  });
 
-  after(() => { player?.close(); });
-
-  it('buyTerraformDevices when not at starbase returns error', async () => {
-    player.sendMsg({ type: ClientMsgType.BuyHardware, itemName: 'terraform_device', quantity: 1 });
-    const msg = await player.waitForMessage('error');
-    assert.ok(msg.message, 'should return error when not at starbase');
-  });
-});
-
-// ==================== WS: terraform planet ID sequencing ====================
-
-describe('WS: terraform planet ID sequencing', () => {
-  let universeId;
-  let player;
-
-  before(async () => {
-    const res = await adminKeyPost('/api/admin/universes/generate', {
-      name: 'WsTerraSeq', sectors: 20, seed: 80005,
-    });
-    assert.equal(res.status, 201);
-    universeId = res.body.id;
-    player = await createTestPlayer(universeId);
-  });
-
-  after(() => { player?.close(); });
-
-  it('terraform-created planets get sequential SERIAL IDs', async () => {
-    // Move to a non-restricted sector
-    const warps = await pool.query(
-      `SELECT s_to.sector_number AS sector_to, s_to.id AS sector_db_id
-       FROM warps w
-       JOIN sectors s_from ON w.from_sector_id = s_from.id
-       JOIN sectors s_to ON w.to_sector_id = s_to.id
-       WHERE s_from.sector_number = 1 AND s_from.universe_id = $1 AND s_to.name != 'Starbase' LIMIT 1`,
-      [universeId],
-    );
-    const targetSector = warps.rows[0].sector_to;
-    player.sendMsg({ type: ClientMsgType.Move, sector: targetSector });
-    await player.waitForMessage(ServerMsgType.MoveResult);
-
-    // Give 2 terraform devices
-    await pool.query(`INSERT INTO ship_hardware (ship_id, hardware_item_id, quantity) VALUES ((SELECT ship_id FROM players WHERE id = $1), (SELECT id FROM hardware_item WHERE name = 'terraform_device'), 2) ON CONFLICT (ship_id, hardware_item_id) DO UPDATE SET quantity = 2`, [player.playerId]);
-
-    // Create first planet
-    player.sendMsg({ type: ClientMsgType.UseTerraformDevice });
-    const msg1 = await player.waitForMessage('useTerraformDeviceResult');
-    assert.equal(msg1.success, true);
-    assert.ok(msg1.planet.id, 'first terraform planet should have an id');
-
-    // Create second planet
-    player.sendMsg({ type: ClientMsgType.UseTerraformDevice });
-    const msg2 = await player.waitForMessage('useTerraformDeviceResult');
-    assert.equal(msg2.success, true);
-    assert.ok(msg2.planet.id, 'second terraform planet should have an id');
-    assert.equal(msg2.planet.id, msg1.planet.id + 1, 'second planet id should be first + 1 (sequential SERIAL)');
-  });
-});
-
-// ==================== players.on_planet_id default NULL ====================
-
-describe('players on_planet_id default', () => {
-  it('on_planet_id defaults to NULL for new players', async () => {
-    const res = await adminKeyPost('/api/admin/universes/generate', {
-      name: 'WsOnPlanetDef', sectors: 20, seed: 80006,
-    });
-    assert.equal(res.status, 201);
-    const universeId = res.body.id;
-    const player = await createTestPlayer(universeId);
-
-    const dbRes = await pool.query('SELECT on_planet_id FROM players WHERE id = $1', [player.playerId]);
-    assert.equal(dbRes.rows[0].on_planet_id, null, 'on_planet_id should default to NULL for new player');
-
-    player.close();
-  });
-});

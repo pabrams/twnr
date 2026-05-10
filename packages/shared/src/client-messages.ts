@@ -99,8 +99,8 @@ export type JettisonCommand = {
     type: typeof ClientMsgType.Jettison;
 };
 
-export type LandCommand = {
-    type: typeof ClientMsgType.Land;
+export type GetSectorPlanetsCommand = {
+    type: typeof ClientMsgType.GetSectorPlanets;
 };
 
 export type TakeColonistsCommand = {
@@ -250,7 +250,7 @@ export type ClientCommand =
     | DockCommand
     | UndockCommand
     | JettisonCommand
-    | LandCommand
+    | GetSectorPlanetsCommand
     | TakeColonistsCommand
     | LeaveColonistsCommand
     | DeployDronesInfoCommand

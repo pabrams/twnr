@@ -38,7 +38,7 @@ import { planetConfigs } from '../planet-config.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 import { cargoUsed } from './cargo-utils.js';
 
-export async function handleLand(playerId: number): Promise<void> {
+export async function handleGetSectorPlanets(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
@@ -56,7 +56,7 @@ export async function handleLand(playerId: number): Promise<void> {
     }
 
     const planets = await getPlanetsInSector(player.sector, player.universeId);
-    await sendEnvelope(playerId, { type: ServerMsgType.LandResult, planets });
+    await sendEnvelope(playerId, { type: ServerMsgType.GetSectorPlanetsResult, planets });
 }
 
 export async function handleLandOnPlanet(playerId: number, planetId: number): Promise<void> {
