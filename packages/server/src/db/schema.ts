@@ -210,6 +210,7 @@ export const connectDB = async (): Promise<void> => {
 
       CREATE TABLE IF NOT EXISTS planet_types (
         name VARCHAR(255) PRIMARY KEY,
+        display_name VARCHAR(512),
         description TEXT,
         max_fuel_colos INTEGER NOT NULL DEFAULT 0,
         max_org_colos INTEGER NOT NULL DEFAULT 0,
@@ -686,9 +687,10 @@ export const connectDB = async (): Promise<void> => {
         // Seed planet_types from config files (idempotent)
         for (const planet of Object.values(planetConfigs)) {
             await client.query(
-                `INSERT INTO planet_types (name, description, max_fuel_colos, max_org_colos, max_equ_colos, max_fuel, max_org, max_equ, max_citadel, fuel_production, organics_production, equipment_production)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                `INSERT INTO planet_types (name, display_name, description, max_fuel_colos, max_org_colos, max_equ_colos, max_fuel, max_org, max_equ, max_citadel, fuel_production, organics_production, equipment_production)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
                  ON CONFLICT (name) DO UPDATE SET
+                    display_name = EXCLUDED.display_name,
                     description = EXCLUDED.description,
                     max_fuel_colos = EXCLUDED.max_fuel_colos,
                     max_org_colos = EXCLUDED.max_org_colos,
@@ -702,6 +704,7 @@ export const connectDB = async (): Promise<void> => {
                     equipment_production = EXCLUDED.equipment_production`,
                 [
                     planet.type,
+                    planet.displayName ?? null,
                     planet.description ?? null,
                     planet.maxFuelColos ?? 0,
                     planet.maxOrgColos ?? 0,

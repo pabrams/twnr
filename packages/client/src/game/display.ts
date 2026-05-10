@@ -42,7 +42,7 @@ export function showSectorDisplay(
     players: { id: number; name: string }[],
     port?: { class: number; name: string } | null,
     sectorDrones?: { quantity: number; ownerId: number | null; ownerName: string } | null,
-    planets?: { id: number; name: string; type: string }[],
+    planets?: { id: number; name: string; type: string; displayType: string | null }[],
     ships?: { id: number; name: string; typeName: string; ownerName: string }[],
     collisions?: { planetName: string; collidingWithName: string; collisionAt: string }[],
     sectorMines?: { mineType: 'proximity' | 'seeker'; quantity: number; own: boolean }[],
@@ -74,7 +74,9 @@ export function showSectorDisplay(
 
     if (planets && planets.length > 0) {
         const list = planets
-            .map((p) => render(SECTOR.planetItem, { name: p.name, type: p.type }))
+            .map((p) =>
+                render(SECTOR.planetItem, { name: p.name, type: p.displayType ?? p.type }),
+            )
             .join(comma);
         term.writeln(render(SECTOR.planetsLine, { list }));
     }

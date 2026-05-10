@@ -313,6 +313,7 @@ export async function handleUseTerraformDevice(playerId: number): Promise<void> 
                 playerId,
                 client,
             );
+            const randomDisplayType = planetConfigs[randomType]?.displayName ?? null;
 
             let collision = false;
             if (existingPlanetIds.length >= universeInfo.max_planets_per_sector) {
@@ -330,7 +331,7 @@ export async function handleUseTerraformDevice(playerId: number): Promise<void> 
                 }
             }
 
-            return { newPlanetId, randomName, randomType, collision };
+            return { newPlanetId, randomName, randomType, randomDisplayType, collision };
         });
 
         if (!result) return;
@@ -342,6 +343,7 @@ export async function handleUseTerraformDevice(playerId: number): Promise<void> 
                 id: result.newPlanetId,
                 name: result.randomName,
                 type: result.randomType,
+                displayType: result.randomDisplayType,
                 sectorId,
             },
             collision: result.collision,
@@ -694,6 +696,7 @@ export async function handleListPlanets(playerId: number): Promise<void> {
             sectorNumber: r.sector_number,
             name: r.name,
             type: r.type,
+            displayType: r.display_type,
             fuel: r.fuel,
             organics: r.organics,
             equipment: r.equipment,

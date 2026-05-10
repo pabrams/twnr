@@ -64,7 +64,7 @@ export type SectorDisplayData = {
     warps: SectorRef[];
     port?: { class: number; name: string } | null;
     sectorDrones?: SectorDroneInfo | null;
-    planets: { id: number; name: string; type: string }[];
+    planets: { id: number; name: string; type: string; displayType: string | null }[];
     ships?: { id: number; name: string; typeName: string; ownerName: string }[];
     collisions?: CollisionInfo[];
     sectorMines?: SectorMineEntry[];
@@ -241,6 +241,7 @@ export type PlanetInfoResultObject = {
     sectorId: number;
     name: string;
     planetType: string;
+    displayType: string | null;
     colonists: number;
     hasPlanet: boolean;
 };
@@ -249,14 +250,20 @@ export type UseTerraformDeviceResultObject = {
     type: typeof ServerMsgType.UseTerraformDeviceResult;
     success: boolean;
     reason?: string;
-    planet?: { id: number; name: string; type: string; sectorId: number };
+    planet?: {
+        id: number;
+        name: string;
+        type: string;
+        displayType: string | null;
+        sectorId: number;
+    };
     collision?: boolean;
     terraformDevices?: number;
 };
 
 export type GetSectorPlanetsResultObject = {
     type: typeof ServerMsgType.GetSectorPlanetsResult;
-    planets: { id: number; name: string; type: string }[];
+    planets: { id: number; name: string; type: string; displayType: string | null }[];
 };
 
 export type PlanetDisplayData = {
@@ -264,6 +271,7 @@ export type PlanetDisplayData = {
     sector_id: number;
     name: string;
     planetType: string;
+    displayType: string | null;
     drones: number;
     fuel: number;
     organics: number;
@@ -468,6 +476,7 @@ export type ListPlanetsResultObject = {
         sectorNumber: number;
         name: string;
         type: string;
+        displayType: string | null;
         fuel: number;
         organics: number;
         equipment: number;

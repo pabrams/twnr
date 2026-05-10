@@ -71,6 +71,7 @@ export interface PlayerPlanetRow {
     sector_number: number;
     name: string;
     type: string;
+    display_type: string | null;
     fuel: number;
     organics: number;
     equipment: number;
