@@ -8,23 +8,6 @@ import type { GameContext } from '../types.js';
  */
 export type PromptCtx = Pick<GameContext, 'io' | 'input'>;
 
-/**
- * Sub-prompt helpers for client routines that need to gather more input
- * before sending a message. Routines `await` these to suspend until the
- * user types something. Each helper sets `ctx.input.pendingResolver` so
- * the input pipeline routes the next input to the routine instead of
- * dispatching it through the menu registry.
- *
- * Cancellation semantics:
- *   - `q` cancels every prompt. Empty Enter cancels line-mode prompts
- *     (askLine, askNumber) unless a `defaultValue` is provided.
- *   - A server-driven menu change clears any pending resolver (see
- *     connection.ts) and the awaiting routine sees `null`. Routines
- *     should always check for `null` and return early.
- *   - Only one prompt can be active at a time. Routines must await each
- *     prompt sequentially.
- */
-
 /** Park, line-mode: resolves with the next submitted line on Enter. */
 function parkLine(ctx: PromptCtx): Promise<string | null> {
     return new Promise((resolve) => {

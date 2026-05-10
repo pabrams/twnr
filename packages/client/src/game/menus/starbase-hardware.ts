@@ -9,22 +9,6 @@ import {
 import { registerMenu } from './types.js';
 import { askChar, askNumber } from './prompts.js';
 
-/**
- * Hardware Store — client-driven menu. The server sends the catalog
- * (hardwarePrices, current credits, ship's per-item state) when the
- * player enters via Starbase H, then doesn't dictate any keys. The
- * client picks the layout, key bindings, and any sub-prompts (mines
- * type → quantity) entirely from cached data.
- *
- * No `menu_command` rows for `starbaseHardware` in the DB. The dispatcher's
- * permissive fallback (input.ts:isValidKeyForMenu — empty commands → accept
- * any key) lets us own all dispatch here. Send a `BuyHardware{itemName,
- * quantity?}` per purchase; the server validates and returns updated state
- * via `HardwareStoreInfoResult`.
- */
-
-// Stackable items the player buys some N of. T=Terraform Devices, etc.
-// Mines (proximity, seeker) are NOT here — they sit behind the M sub-prompt.
 const STACKABLE: Record<string, { itemName: string; label: string }> = {
     t: { itemName: 'terraform_device', label: 'Terraform Devices' },
     b: { itemName: 'planet_buster', label: 'Planet Busters' },
@@ -36,7 +20,6 @@ const STACKABLE: Record<string, { itemName: string; label: string }> = {
     r: { itemName: 'recon_drone', label: 'Recon Drones' },
 };
 
-// Toggle items: install one, no quantity. 1/2 = hyperspace tiers, V/N = scanners.
 const TOGGLE: Record<string, string> = {
     '1': 'hyperspace_1',
     '2': 'hyperspace_2',
@@ -47,7 +30,7 @@ const TOGGLE: Record<string, string> = {
 async function buyStackable(ctx: GameContext, itemName: string, label: string): Promise<void> {
     echoCommand(ctx, 'buyHardware');
     const canBuy = showHardwareItemDetail(ctx, itemName);
-    if (canBuy <= 0) return; // capacity / credits already reported by detail
+    if (canBuy <= 0) return;
     const qty = await askNumber(ctx, `How many ${label}? [${canBuy}] `, {
         min: 1,
         max: canBuy,

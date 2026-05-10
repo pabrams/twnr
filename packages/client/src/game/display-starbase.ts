@@ -217,9 +217,6 @@ async function showShipListInternal(ctx: DisplayStarbaseCtx, label: string) {
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
 }
 
-/** Tradein info block (header + optional credit/net lines). The Y/N/Q
- * prompt is rendered separately by askConfirm in the buy routine, so
- * it doesn't get re-painted on invalid keystrokes. */
 export function showTradeinInfo(
     ctx: DisplayStarbaseCtx,
     shipName: string,

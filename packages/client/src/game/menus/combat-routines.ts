@@ -4,12 +4,6 @@ import { COMBAT, NOTIFY } from '../messages/index.js';
 import { registerRoutine } from './types.js';
 import { askNumber } from './prompts.js';
 
-/**
- * Attack-flow routine: pick a target from the sector's player list, then
- * ask for a drone count inline. The attackDrones menu is gone — qty is
- * a sub-prompt of select_target now. `back` is in common-routines.ts.
- */
-
 registerRoutine('select_target', async (ctx, line) => {
     const idx = parseInt(line, 10) - 1;
     if (idx < 0 || idx >= ctx.world.sectorPlayers.length) {
