@@ -323,63 +323,9 @@ ${rows}
 </section>`;
 }
 
-// --- 5. Menu registry ---
-
-let menuRegistry = [];
-try {
-    menuRegistry = JSON.parse(readFileSync('docs/menu-registry.json', 'utf8'));
-} catch {
-    console.warn('No docs/menu-registry.json found — skipping menu registry section');
-}
-
-function renderMenuRegistry() {
-    if (menuRegistry.length === 0) return '';
-
-    let totalCmds = 0;
-    const rows = [];
-    for (const menu of menuRegistry) {
-        const cmds = menu.commands || [];
-        if (cmds.length === 0) {
-            // Menu with no commands (e.g. autopilot)
-            rows.push(`        <tr><td rowspan="1"><a href="#menu-${menu.name}" id="menu-${menu.name}"><code class="mode">${menu.name}</code></a></td><td colspan="4" class="dim">no commands (input ignored)</td></tr>`);
-            continue;
-        }
-        totalCmds += cmds.length;
-        cmds.forEach((cmd, i) => {
-            const menuCell = i === 0
-                ? `<td rowspan="${cmds.length}"><a href="#menu-${menu.name}" id="menu-${menu.name}"><code class="mode">${menu.name}</code></a>${menu.parent_menu ? `<br><span class="dim">&larr; ${menu.parent_menu}</span>` : ''}</td>`
-                : '';
-            const keyHtml = `<kbd>${cmd.key_pattern}</kbd>`;
-            const msgHtml = cmd.client_msg_type
-                ? `<code class="wire">${cmd.client_msg_type}</code>`
-                : '<span class="dim">&mdash;</span>';
-            const targetHtml = cmd.target_menu
-                ? `<a href="#menu-${cmd.target_menu}"><code class="mode">${cmd.target_menu}</code></a>`
-                : '<span class="dim">&mdash;</span>';
-            rows.push(`        <tr>${menuCell}<td>${keyHtml}</td><td>${cmd.label}</td><td>${msgHtml}</td><td>${targetHtml}</td></tr>`);
-        });
-    }
-
-    return `<section class="group" id="menus-section">
-  <h2>Menu Registry</h2>
-  <p class="table-subtitle">${menuRegistry.length} menus, ${totalCmds} commands &mdash; server-authoritative, fetched by client at connect time</p>
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th>Menu</th><th>Key</th><th>Label</th><th>Message</th><th>Target Menu</th></tr></thead>
-      <tbody>
-${rows.join('\n')}
-      </tbody>
-    </table>
-  </div>
-</section>`;
-}
-
-function renderMenuSidebar() {
-    if (menuRegistry.length === 0) return '';
-    return `      <li class="tree-branch">
-        <a href="#menus-section" class="nav-link" style="padding-left:1rem; font-weight:600; color:var(--fg);">Menu Registry <span class="tree-count">${menuRegistry.length}</span></a>
-      </li>`;
-}
+// (Menu registry section removed — the menu/menu_command tables were
+// dropped and key bindings now live in client TypeScript files. The
+// protocol-reference docs no longer attempt to render them.)
 
 const clientMessages = getMessages(clientSchema);
 const serverMessages = getMessages(serverSchema);
@@ -477,7 +423,6 @@ const html = `<!DOCTYPE html>
     <li class="tree-branch">
       <a href="#mapping-section" class="nav-link" style="padding-left:1rem; font-weight:600; color:var(--fg);">Message Flow</a>
     </li>
-${renderMenuSidebar()}
 ${renderSidebarTree('Client &rarr; Server', 'nav-client', clientMessages)}
 ${renderSidebarTree('Server &rarr; Client', 'nav-server', serverMessages)}
   </ul>
@@ -486,7 +431,6 @@ ${renderSidebarTree('Server &rarr; Client', 'nav-server', serverMessages)}
 <main class="main">
   <h1>Protocol Reference</h1>
   <p class="subtitle">WebSocket message types &mdash; generated from TypeScript source</p>
-  ${renderMenuRegistry()}
   ${renderMappingTable()}
   ${renderMainSection('Client &rarr; Server', 'client', clientMessages, true)}
   ${renderMainSection('Server &rarr; Client', 'server', serverMessages, false)}
