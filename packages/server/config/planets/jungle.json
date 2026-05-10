@@ -2,14 +2,16 @@
     "type": "Jungle",
     "displayName": "[bg:b]Jungle[/bg:b]",
     "description": "Dense tropical world teeming with alien flora",
-    "maxColonists": 25000,
     "maxCitadel": 5,
     "fuelProduction": 5,
     "organicsProduction": 25,
     "equipmentProduction": 5,
     "droneProduction": 5,
     "danger": 20,
-    "maxFuel": 100000,
-    "maxOrg": 100000,
-    "maxEqu": 100000
+    "maxFuel": 1000000,
+    "maxOrg": 1000000,
+    "maxEqu": 1000000,
+    "maxFuelColos": 100000,
+    "maxOrgColos": 100000,
+    "maxEquColos": 100000
 }
