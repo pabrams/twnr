@@ -186,11 +186,6 @@ export type HyperspaceJumpCommand = {
     targetSector: number;
 };
 
-export type ChangeMenuCommand = {
-    type: typeof ClientMsgType.ChangeMenu;
-    menu: string;
-};
-
 export type VisitedSectorsCommand = {
     type: typeof ClientMsgType.VisitedSectors;
 };
@@ -274,7 +269,6 @@ export type ClientCommand =
     | ListDeployedDronesCommand
     | ListPlanetsCommand
     | HyperspaceJumpCommand
-    | ChangeMenuCommand
     | VisitedSectorsCommand
     | GetNeighborhoodCommand
     | DeployMineCommand

@@ -3,7 +3,6 @@ import { players } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { getVisitedSectors } from '../services/sector-lookup.js';
 import { countSectorsInUniverse } from '../db/queries/sector.js';
-import { handleChangeMenu } from './menu.js';
 import {
     handleMove,
     handleMoveToPrevious,
@@ -135,8 +134,6 @@ export async function handleMessage(playerId: number, data: ClientCommand): Prom
             return handleListDeployedDrones(playerId);
         case ClientMsgType.HyperspaceJump:
             return handleHyperspaceJump(playerId, data.targetSector);
-        case ClientMsgType.ChangeMenu:
-            return handleChangeMenu(playerId, data.menu);
         case ClientMsgType.VisitedSectors:
             return handleVisitedSectors(playerId);
         case ClientMsgType.DeployMine: {
@@ -164,9 +161,7 @@ export async function handleMessage(playerId: number, data: ClientCommand): Prom
             return handleMineDisruptor(playerId, raw.targetSector);
         }
         case ClientMsgType.GetNeighborhood: {
-            // Wire-level validation: both half-extents must be numbers.
-            // Optional centerX/Y, when present, must also be numbers; absent
-            // falls back to the current sector position inside the handler.
+
             const raw = data as {
                 halfWidthWorld?: unknown;
                 halfHeightWorld?: unknown;

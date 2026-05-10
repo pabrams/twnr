@@ -121,8 +121,7 @@ export async function handleDeployMine(
                 deployed: quantity,
                 sectorTotal: result.sectorTotal,
                 shipRemaining: result.shipRemaining,
-            },
-            'sector',
+            }
         );
     } catch (err) {
         console.error('Deploy mine error', err);
@@ -231,8 +230,7 @@ export async function handleMineDisruptor(playerId: number, targetSector: number
                 targetSector,
                 minesDisrupted: result.removed,
                 proximityMinesRemaining: result.remaining,
-            },
-            'sector',
+            }
         );
     } catch (err) {
         console.error('Mine disruptor error', err);

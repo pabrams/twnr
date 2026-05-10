@@ -14,11 +14,7 @@ import { class0Prices } from '../game-config.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 import { recordCreditChange } from '../services/audit.js';
 
-function class0ReturnMenu(playerId: number): 'starbase' | 'class0' {
-    return players[playerId]?.at_starbase ? 'starbase' : 'class0';
-}
 
-/** Returns true iff player is at a place where they can buy Class-0 upgrades. */
 async function isAtClass0OrStarbase(
     playerId: number,
     universeId: number,
@@ -86,8 +82,7 @@ export async function handleBuyDrones(playerId: number, quantity: number): Promi
                 type: ServerMsgType.BuyDronesResult,
                 credits: result.credits,
                 drones: result.drones,
-            },
-            class0ReturnMenu(playerId),
+            }
         );
     } catch {
         sendError(playerId, 'Internal server error');
@@ -149,8 +144,7 @@ export async function handleBuyShields(playerId: number, quantity: number): Prom
                 type: ServerMsgType.BuyShieldsResult,
                 credits: result.credits,
                 shields: result.shields,
-            },
-            class0ReturnMenu(playerId),
+            }
         );
     } catch {
         sendError(playerId, 'Internal server error');
@@ -223,8 +217,7 @@ export async function handleBuyHolds(playerId: number, quantity: number): Promis
                 credits: result.credits,
                 cargoLimit: result.cargoLimit,
                 turnsUsed: result.turnsUsed,
-            },
-            class0ReturnMenu(playerId),
+            }
         );
     } catch {
         sendError(playerId, 'Internal server error');

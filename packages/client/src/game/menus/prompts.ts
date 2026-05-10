@@ -1,4 +1,4 @@
-import type { ServerMessage } from '@twnr/shared';
+import type { ServerResult } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 
 /**
@@ -113,7 +113,7 @@ export async function askNumber(
  * server-driven menu change cancelled the wait. Routines should always
  * check for `null` and bail.
  */
-export function awaitResponse(ctx: PromptCtx, types: string[]): Promise<ServerMessage | null> {
+export function awaitResponse(ctx: PromptCtx, types: string[]): Promise<ServerResult | null> {
     return new Promise((resolve) => {
         ctx.input.pendingResponse = { types: new Set(types), resolve };
     });

@@ -1,5 +1,5 @@
 import { ServerMsgType, type BuyHardwareResultObject } from '@twnr/shared';
-import { players, setPlayerMenu } from '../state/players.js';
+import { players } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { withTransaction, AbortTransaction } from '../db/index.js';
 import { getCreditsForUpdate, deductCredits } from '../db/queries/player.js';
@@ -54,10 +54,6 @@ export async function handleBuyHardware(
         sendError(playerId, 'Not at Starbase');
         return;
     }
-
-    // Return the player to the hardware store menu BEFORE doing the work, so any
-    // sendError below carries the corrected menu in its envelope.
-    await setPlayerMenu(playerId, 'starbaseHardware');
 
     const hw = await getHardwareItemByName(itemName);
     if (!hw) {
@@ -134,21 +130,17 @@ async function buyStackable(
 
         if (!result) return;
 
-        await sendEnvelope(
-            playerId,
-            {
-                type: ServerMsgType.BuyHardwareResult,
-                itemName: hw.name,
-                label: hw.label,
-                kind: 'stackable',
-                quantity: qty,
-                totalOnShip: result.current_qty + qty,
-                credits: result.credits - cost,
-                cost,
-                ...(hw.result_extra ?? {}),
-            } as BuyHardwareResultObject,
-            'starbaseHardware',
-        );
+        await sendEnvelope(playerId, {
+            type: ServerMsgType.BuyHardwareResult,
+            itemName: hw.name,
+            label: hw.label,
+            kind: 'stackable',
+            quantity: qty,
+            totalOnShip: result.current_qty + qty,
+            credits: result.credits - cost,
+            cost,
+            ...(hw.result_extra ?? {}),
+        } as BuyHardwareResultObject);
     } catch (err) {
         console.error('Buy hardware error', err);
         sendError(playerId, 'Internal server error');
@@ -199,19 +191,15 @@ async function buyToggle(playerId: number, hw: HardwareItemRow, unitPrice: numbe
 
         if (!result) return;
 
-        await sendEnvelope(
-            playerId,
-            {
-                type: ServerMsgType.BuyHardwareResult,
-                itemName: hw.name,
-                label: hw.label,
-                kind: 'toggle',
-                credits: result.credits - unitPrice,
-                cost: unitPrice,
-                ...(hw.result_extra ?? {}),
-            } as BuyHardwareResultObject,
-            'starbaseHardware',
-        );
+        await sendEnvelope(playerId, {
+            type: ServerMsgType.BuyHardwareResult,
+            itemName: hw.name,
+            label: hw.label,
+            kind: 'toggle',
+            credits: result.credits - unitPrice,
+            cost: unitPrice,
+            ...(hw.result_extra ?? {}),
+        } as BuyHardwareResultObject);
     } catch (err) {
         console.error('Buy hardware error', err);
         sendError(playerId, 'Internal server error');

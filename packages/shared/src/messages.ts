@@ -18,7 +18,6 @@ export const Menu = {
 } as const;
 export type MenuName = (typeof Menu)[keyof typeof Menu];
 
-// Message type constants
 
 export const ServerMsgType = {
     Welcome: 'welcome',
@@ -79,8 +78,6 @@ export const ServerMsgType = {
     ProximityMineHit: 'proximityMineHit',
     SeekerMineAttached: 'seekerMineAttached',
     SeekerMinePickupAlert: 'seekerMinePickupAlert',
-    /** Pure menu transition with no data payload. */
-    MenuTransition: 'menuTransition',
 } as const;
 type ServerMsgType = typeof ServerMsgType;
 
@@ -125,7 +122,6 @@ export const ClientMsgType = {
     ListDeployedDrones: 'listDeployedDrones',
     ListPlanets: 'listPlanets',
     HyperspaceJump: 'hyperspaceJump',
-    ChangeMenu: 'changeMenu',
     VisitedSectors: 'visitedSectors',
     GetNeighborhood: 'getNeighborhood',
     DeployMine: 'deployMine',
