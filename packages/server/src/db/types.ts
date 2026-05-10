@@ -116,4 +116,3 @@ export interface ShipTypeHardwareJoinRow {
     name: string;
     max_quantity: number;
 }
-

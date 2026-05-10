@@ -3,7 +3,6 @@ import { echoCommand } from '../display.js';
 import { showStarbaseMenu } from '../display-starbase.js';
 import { registerMenu, registerRoutine } from './types.js';
 
-
 registerMenu(Menu.Starbase, {
     renderPrompt: showStarbaseMenu,
 });
