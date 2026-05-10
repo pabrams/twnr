@@ -32,7 +32,11 @@ export interface Middleware {
 }
 
 export function createMiddleware(deps: RouteDeps): Middleware {
-    const { verifyToken, getJwtToken, ADMIN_API_KEY } = deps;
+    const { verifyToken, getJwtToken, ADMIN_API_KEY, AUTH_COOKIE_NAME } = deps;
+
+    function clearStaleAuthCookie(res: Response): void {
+        res.clearCookie(AUTH_COOKIE_NAME, { path: '/' });
+    }
 
     async function authenticateToken(
         req: Request,
@@ -49,6 +53,7 @@ export function createMiddleware(deps: RouteDeps): Middleware {
         try {
             payload = verifyToken(jwtToken);
         } catch {
+            clearStaleAuthCookie(res);
             res.status(403).json({ error: 'Invalid token' });
             return;
         }
@@ -56,6 +61,7 @@ export function createMiddleware(deps: RouteDeps): Middleware {
         try {
             const tokenVersion = await getUserTokenVersion(payload.userId);
             if (tokenVersion === undefined || tokenVersion !== payload.tokenVersion) {
+                clearStaleAuthCookie(res);
                 res.status(401).json({ error: 'Token has been revoked' });
                 return;
             }
