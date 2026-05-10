@@ -11,7 +11,7 @@
     "dev": "pnpm --parallel --filter @twnr/server --filter @twnr/client run dev",
     "build": "pnpm -r run build && pnpm run docs",
     "test": "pnpm lint && pnpm format:check && pnpm run docs && pnpm -r --no-bail run test",
-    "cli": "pnpm --filter @twnr/cli start",
+    "cli": "node packages/cli/dist/index.js",
     "start": "pnpm --filter @twnr/server start",
     "db:seed": "pnpm --filter @twnr/server db:seed",
     "db:reseed": "pnpm --filter @twnr/server db:reseed",
