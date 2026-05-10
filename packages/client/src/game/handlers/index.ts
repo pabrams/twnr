@@ -69,6 +69,8 @@ const handlers: HandlerMap = {
     [ServerMsgType.PlanetInfoResult]: planet.planetInfo,
     [ServerMsgType.TakeColonistsResult]: planet.takeColonists,
     [ServerMsgType.LeaveColonistsResult]: planet.leaveColonists,
+    [ServerMsgType.TakeCommodityResult]: planet.takeCommodity,
+    [ServerMsgType.LeaveCommodityResult]: planet.leaveCommodity,
     [ServerMsgType.LandOnPlanetResult]: planet.landOnPlanet,
     [ServerMsgType.PlanetDisplayResult]: planet.planetDisplay,
     [ServerMsgType.DestroyPlanetResult]: planet.destroyPlanet,

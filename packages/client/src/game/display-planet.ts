@@ -19,6 +19,8 @@ export function showPlanetHelp(ctx: DisplayPlanetCtx) {
     ctx.io.term.writeln('');
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'T', text: 'Take colonists aboard' }));
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'L', text: 'Leave colonists on planet' }));
+    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'G', text: 'Get commodity from planet' }));
+    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'P', text: 'Put commodity on planet' }));
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'D', text: 'Planet Info' }));
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Z', text: 'Destroy Planet' }));
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Leave Planet' }));
@@ -59,6 +61,7 @@ export function showPlanetTakeCommodityMenu(ctx: DisplayPlanetCtx) {
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'F', text: 'Fuel colonists' }));
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'O', text: 'Organics colonists' }));
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'E', text: 'Equipment colonists' }));
+    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'D', text: 'Drone colonists' }));
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
 }
 
@@ -68,6 +71,29 @@ export function showPlanetLeaveCommodityMenu(ctx: DisplayPlanetCtx) {
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'F', text: 'Fuel' }));
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'O', text: 'Organics' }));
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'E', text: 'Equipment' }));
+    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'D', text: 'Drones' }));
+    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
+}
+
+/** Picker for the planet stockpile take/leave (the actual commodity, not
+ *  colos assignments). Different header from the colos picker. */
+export function showPlanetTakeStockpileMenu(ctx: DisplayPlanetCtx) {
+    ctx.io.term.writeln('');
+    ctx.io.term.writeln(render(PLANET.takeStockpileHeader));
+    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'F', text: 'Fuel' }));
+    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'O', text: 'Organics' }));
+    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'E', text: 'Equipment' }));
+    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'D', text: 'Drones' }));
+    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
+}
+
+export function showPlanetLeaveStockpileMenu(ctx: DisplayPlanetCtx) {
+    ctx.io.term.writeln('');
+    ctx.io.term.writeln(render(PLANET.leaveStockpileHeader));
+    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'F', text: 'Fuel' }));
+    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'O', text: 'Organics' }));
+    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'E', text: 'Equipment' }));
+    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'D', text: 'Drones' }));
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
 }
 

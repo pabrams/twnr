@@ -221,6 +221,20 @@ export const MENU_REGISTRY: MenuEntry[] = [
                 sortOrder: 20,
             },
             {
+                command: 'take_commodity',
+                keyPattern: 'g',
+                label: 'Get commodity',
+                targetMenu: null,
+                sortOrder: 22,
+            },
+            {
+                command: 'leave_commodity',
+                keyPattern: 'p',
+                label: 'Put commodity',
+                targetMenu: null,
+                sortOrder: 24,
+            },
+            {
                 command: 'planet_display',
                 keyPattern: 'd',
                 label: 'Planet Info',

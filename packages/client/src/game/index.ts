@@ -108,6 +108,8 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
             currentColoredShipName: null,
             shipColonists: 0,
             planetEmptyHolds: 0,
+            shipDrones: 0,
+            shipMaxDrones: 0,
         },
         autopilot: {
             path: [],

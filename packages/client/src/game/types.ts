@@ -129,6 +129,12 @@ export interface ShipState {
     currentColoredShipName: string | null;
     shipColonists: number;
     planetEmptyHolds: number;
+    /** Mirror of the server's ship.drones / ship_type.max_drones for the
+     *  current ship. Updated whenever the server sends planet display
+     *  data; used by the take-commodity prompt to hint the headroom for
+     *  drone trades (drones don't use cargo holds). */
+    shipDrones: number;
+    shipMaxDrones: number;
 }
 
 export interface AutopilotState {
