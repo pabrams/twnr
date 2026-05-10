@@ -127,7 +127,12 @@ async function runTradeRoutine(
 
     let prompted = false;
 
-    for (const c of commodities) {
+    const ordered = [
+        ...commodities.filter((c) => actions[c.key] === 'B'), // player sells
+        ...commodities.filter((c) => actions[c.key] === 'S'), // player buys
+    ];
+
+    for (const c of ordered) {
         const action: 'buy' | 'sell' = actions[c.key] === 'S' ? 'buy' : 'sell';
         const price =
             c.key === 'fuel'
