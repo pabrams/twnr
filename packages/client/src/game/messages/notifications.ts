@@ -45,12 +45,7 @@ export const NOTIFY = makeDomain('NOTIFY', {
 
     unknownCommand: 'Unknown command: {cmd}',
 
-    autopilotEngaged: '\r\n[bg:b]<Autopilot engaging>[/bg:b]',
     noPreviousSector: '\r\n[w]No previous sector to return to.[/w]',
     quitConfirm:
         '\r\n[by]Are you sure you want to quit?[/by] [mg]([/mg][by]Y[/by]/[by]N[/by][mg])[/mg] [mg][[/mg][by]N[/by][mg]][/mg] ',
-    terraformDevicesAvailable: '\r\n[g]You have[/g] [bc]{count}[/bc] [g]Terraform Devices.[/g]',
-    terraformConfirm:
-        '[by]Terraform a planet in this sector?[/by] [mg]([/mg][by]Y[/by]/[by]N[/by][mg])[/mg] [mg][[/mg][by]N[/by][mg]][/mg] ',
-    terraformNoDevices: '\r\n[bg]You have no Terraform Devices.[/bg]',
 });

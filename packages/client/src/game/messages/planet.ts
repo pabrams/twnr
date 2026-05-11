@@ -1,5 +1,6 @@
 /**
- * Planet menus: landing, Earth, take/leave colonists, commodity selection.
+ * Planet domain: landing, Earth, take/leave colonists, commodity selection,
+ * planet-detail display, owned-planet list.
  */
 
 import { makeDomain } from './_domain.js';
@@ -39,4 +40,32 @@ export const PLANET = makeDomain('PLANET', {
     planetSelectRow: '   [mg]<[/mg][by]{n}[/by][mg]>[/mg]  [bc]{name}[/bc]',
     planetSelectPrompt:
         '\r\n[mg]Land on which planet[/mg] [mg]<[/mg][by]Q[/by] [mg]to abort> ?[/mg] ',
+
+    takeColonistsHeader: '[bg]You took [bc]{qty}[/bc] colonists.[/bg]',
+    leaveColonistsHeader: '[bg]You left [bc]{qty}[/bc] colonists.[/bg]',
+    planetColonistsLine: '  [g]There are [by]{count}[/by] colonists remaining on the planet.[/g]',
+    shipColonistsLine:
+        '  [g]Your holds  [by]{count}[/by] holds occupied by camping colonists.[/g]: ',
+
+    landedHeader: '[bg]Landed on[/bg] [bc]{name}[/bc]',
+
+    displayTitle:
+        '[bc]Planet #{id}[/bc] in sector [by]{sector}[/by]:  [bg]{name}[/bg]',
+    displayClass: '[mg]Class[/mg]: [w]{type}[/w]',
+    displayOwner: '[mg]Owner[/mg]: [w]{owner}[/w]',
+    displayTableHead1:
+        '  [by]Item[/by]    [by]Colonists[/by]   [by]Colos to[/by]   [by]Hourly[/by]     [by]Planet[/by]     [by]Ship[/by]       [by]Planet[/by]',
+    displayTableHead2:
+        '                      [by]Build 1/h[/by]  [by]Product[/by]    [by]Amount[/by]     [by]Amount[/by]     [by]Maximum[/by]',
+    displayTableSep:
+        ' [g]-------- ----------  ---------  ---------  ---------  --------- ---------[/g]',
+    displayTableRow:
+        '[w]{item}[/w]  [bc]{colos}[/bc]  [c]{c2b1}[/c]  [bc]{hourly}[/bc]  [bc]{planet}[/bc]  [bc]{ship}[/bc]  [c]{max}[/c]',
+    displayHolds: '\r\n[g]You have[/g] [bc]{holds}[/bc] [g]free cargo holds.[/g]',
+
+    listEmpty: '[br]You own no planets.[/br]',
+    listHeader: '[bc]=== Your Planets ===[/bc]',
+    listRow: '  [by]Sector {sector}[/by] — [bc]{name}[/bc] ([w]{type}[/w])',
+    listColonists:
+        '  Colonists: {{MSG.fuelQuantity}}, {{MSG.orgQuantity}}, {{MSG.equQuantity}}, {{MSG.drnQuantity}}',
 });
