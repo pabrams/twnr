@@ -296,6 +296,13 @@ export const MENU_REGISTRY: MenuEntry[] = [
         parentMenu: 'sector',
         commands: [
             {
+                command: 'planet_display',
+                keyPattern: '<enter>',
+                label: 'Re-display planet',
+                targetMenu: null,
+                sortOrder: 5,
+            },
+            {
                 command: 'take_colonists',
                 keyPattern: 't',
                 label: 'Take colonists',

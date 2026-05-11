@@ -1,4 +1,3 @@
-import { ClientMsgType } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { NOTIFY, PANEL } from '../messages/index.js';
@@ -7,6 +6,7 @@ import { type DisplayPortCtx } from '../display-port.js';
 import { type DisplayStarbaseCtx } from '../display-starbase.js';
 import { type DisplayComputerCtx } from '../display-computer.js';
 import type { Handler } from './index.js';
+import { ClientMsgType } from '@twnr/shared';
 import { fmt, formatDuration, refreshMinimap, type RefreshMinimapDeps } from './utils.js';
 
 type LifecycleDeps = Pick<
@@ -34,7 +34,7 @@ export const welcome: Handler<'welcome', LifecycleDeps> = (ctx, msg) => {
     if (msg.isGuest) {
         ctx.io.term.writeln(render(NOTIFY.welcomeGuest));
     }
-    ctx.io.sendMsg({ type: ClientMsgType.SectorDisplay });
+    ctx.io.submitLineFromMap('');
     refreshMinimap(ctx);
 };
 
