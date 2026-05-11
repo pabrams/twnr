@@ -1,7 +1,7 @@
 import { ClientMsgType, Menu } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
-import { NOTIFY, EVENT, PANEL, PLANET } from '../messages/index.js';
+import { NOTIFY, EVENT, PLANET } from '../messages/index.js';
 import { askConfirm } from '../menus/prompts.js';
 import { echoCommand } from '../display.js';
 import { showSectorDisplay, type DisplayCtx } from '../display.js';
@@ -64,21 +64,21 @@ function renderPlanetTable(ctx: { io: { term: { writeln: (s: string) => void } }
     const cpu = msg.colos_per_unit_per_hour;
     ctx.io.term.writeln('');
     ctx.io.term.writeln(
-        render(PANEL.planetDisplayTitle, { id: msg.id, sector, name: msg.name }),
+        render(PLANET.displayTitle, { id: msg.id, sector, name: msg.name }),
     );
     ctx.io.term.writeln(
-        render(PANEL.planetDisplayClass, {
+        render(PLANET.displayClass, {
             class: msg.planetType,
             type: msg.displayType ?? msg.planetType,
         }),
     );
     ctx.io.term.writeln(
-        render(PANEL.planetDisplayOwner, { owner: msg.owner_name ?? 'unclaimed' }),
+        render(PLANET.displayOwner, { owner: msg.owner_name ?? 'unclaimed' }),
     );
     ctx.io.term.writeln('');
-    ctx.io.term.writeln(render(PANEL.planetDisplayTableHead1));
-    ctx.io.term.writeln(render(PANEL.planetDisplayTableHead2));
-    ctx.io.term.writeln(render(PANEL.planetDisplayTableSep));
+    ctx.io.term.writeln(render(PLANET.displayTableHead1));
+    ctx.io.term.writeln(render(PLANET.displayTableHead2));
+    ctx.io.term.writeln(render(PLANET.displayTableSep));
 
     const rows = [
         {
@@ -116,7 +116,7 @@ function renderPlanetTable(ctx: { io: { term: { writeln: (s: string) => void } }
     ];
     for (const r of rows) {
         ctx.io.term.writeln(
-            render(PANEL.planetDisplayTableRow, {
+            render(PLANET.displayTableRow, {
                 item: padStartVisible(r.item, 9),
                 colos: padStartVisible(fmtCompact(r.colos), 9),
                 c2b1: padStartVisible(colsToBuildOnePerHour(r.prod, cpu), 9),
@@ -128,7 +128,7 @@ function renderPlanetTable(ctx: { io: { term: { writeln: (s: string) => void } }
         );
     }
 
-    ctx.io.term.writeln(render(PANEL.planetDisplayHolds, { holds: fmt(msg.empty_holds) }));
+    ctx.io.term.writeln(render(PLANET.displayHolds, { holds: fmt(msg.empty_holds) }));
 }
 
 type PlanetContext = Pick<GameContext, 'io' | 'input' | 'ship' | 'planet' | 'world'> &
@@ -148,13 +148,13 @@ export const takeColonists: Handler<'takeColonistsResult', PlanetContext> = (ctx
     if (msg.commodity === 'fuel') ctx.world.earthColonists = msg.planetColonists;
     ctx.io.term.writeln('');
     ctx.io.term.writeln(
-        render(PANEL.takeColonistsHeader, {
+        render(PLANET.takeColonistsHeader, {
             qty: fmt(msg.quantity),
             commodity: msg.commodity,
         }),
     );
-    ctx.io.term.writeln(render(PANEL.planetColonistsLine, { count: fmt(msg.planetColonists) }));
-    ctx.io.term.writeln(render(PANEL.shipColonistsLine, { count: msg.shipColonists }));
+    ctx.io.term.writeln(render(PLANET.planetColonistsLine, { count: fmt(msg.planetColonists) }));
+    ctx.io.term.writeln(render(PLANET.shipColonistsLine, { count: msg.shipColonists }));
     if (msg.players !== undefined) {
         ctx.world.sectorPlayers = msg.players;
     }
@@ -212,13 +212,13 @@ export const leaveColonists: Handler<'leaveColonistsResult', PlanetContext> = (c
     if (msg.commodity === 'fuel') ctx.world.earthColonists = msg.planetColonists;
     ctx.io.term.writeln('');
     ctx.io.term.writeln(
-        render(PANEL.leaveColonistsHeader, {
+        render(PLANET.leaveColonistsHeader, {
             qty: fmt(msg.quantity),
             commodity: msg.commodity,
         }),
     );
-    ctx.io.term.writeln(render(PANEL.planetColonistsLine, { count: fmt(msg.planetColonists) }));
-    ctx.io.term.writeln(render(PANEL.shipColonistsLine, { count: msg.shipColonists }));
+    ctx.io.term.writeln(render(PLANET.planetColonistsLine, { count: fmt(msg.planetColonists) }));
+    ctx.io.term.writeln(render(PLANET.shipColonistsLine, { count: msg.shipColonists }));
 
     if (msg.players !== undefined) {
         ctx.world.sectorPlayers = msg.players;
@@ -252,7 +252,7 @@ export const landOnPlanet: Handler<'landOnPlanetResult', PlanetContext> = (ctx, 
         showEarthMenu(ctx, ctx.world.earthColonists);
     } else {
         ctx.io.term.writeln('');
-        ctx.io.term.writeln(render(PANEL.landedHeader, { name: msg.name }));
+        ctx.io.term.writeln(render(PLANET.landedHeader, { name: msg.name }));
         renderPlanetTable(ctx, msg);
     }
 };
@@ -314,19 +314,19 @@ export const leavePlanet: Handler<'leavePlanetResult', PlanetContext> = (ctx, ms
 export const listPlanets: Handler<'listPlanetsResult', PlanetContext> = (ctx, msg) => {
     ctx.io.term.writeln('');
     if (msg.planets.length === 0) {
-        ctx.io.term.writeln(render(PANEL.listPlanetsEmpty));
+        ctx.io.term.writeln(render(PLANET.listEmpty));
     } else {
-        ctx.io.term.writeln(render(PANEL.listPlanetsHeader));
+        ctx.io.term.writeln(render(PLANET.listHeader));
         for (const p of msg.planets) {
             ctx.io.term.writeln(
-                render(PANEL.listPlanetsRow, {
+                render(PLANET.listRow, {
                     sector: p.sectorNumber,
                     name: p.name,
                     type: p.displayType ?? p.type,
                 }),
             );
             ctx.io.term.writeln(
-                render(PANEL.listPlanetsColonists, {
+                render(PLANET.listColonists, {
                     fuel: p.colonists_fuel,
                     organics: p.colonists_organics,
                     equipment: p.colonists_equipment,
@@ -339,18 +339,18 @@ export const listPlanets: Handler<'listPlanetsResult', PlanetContext> = (ctx, ms
 
 export const terraformInfo: Handler<'terraformInfoResult', PlanetContext> = (ctx, msg) => {
     if (msg.canTerraform) {
-        ctx.io.term.writeln(render(NOTIFY.terraformDevicesAvailable, { count: msg.devices }));
+        ctx.io.term.writeln(render(EVENT.terraformDevicesAvailable, { count: msg.devices }));
 
         void terraformAskAndFire(ctx);
     } else if (msg.reason === 'no_devices') {
-        ctx.io.term.writeln(render(NOTIFY.terraformNoDevices));
+        ctx.io.term.writeln(render(EVENT.terraformNoDevices));
     } else {
         ctx.io.term.writeln(render(NOTIFY.error, { message: 'Cannot terraform here.' }));
     }
 };
 
 async function terraformAskAndFire(ctx: PlanetContext): Promise<void> {
-    const ok = await askConfirm(ctx, render(NOTIFY.terraformConfirm), { defaultValue: false });
+    const ok = await askConfirm(ctx, render(EVENT.terraformConfirm), { defaultValue: false });
     if (ok) {
         echoCommand(ctx, 'useTerraformDevice');
         ctx.io.sendMsg({ type: ClientMsgType.UseTerraformDevice });

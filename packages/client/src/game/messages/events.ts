@@ -5,6 +5,7 @@
 import { makeDomain } from './_domain.js';
 
 export const EVENT = makeDomain('EVENT', {
+    autopilotEngaged: '\r\n[bg:b]<Autopilot engaging>[/bg:b]',
     autopilotDisengaged: '\r\n[br]Autopilot disengaged — hostile drones![/br]',
     autopilotCancelled: '\r\n[br]Autopilot cancelled.[/br]',
     autopilotResuming: '[bc]Autopilot resuming...[/bc]',
@@ -41,6 +42,10 @@ export const EVENT = makeDomain('EVENT', {
 
     planetDestroyed: '\r\n[br]Planet {name} destroyed![/br]',
 
+    terraformDevicesAvailable: '\r\n[g]You have[/g] [bc]{count}[/bc] [g]Terraform Devices.[/g]',
+    terraformNoDevices: '\r\n[bg]You have no Terraform Devices.[/bg]',
+    terraformConfirm:
+        '[by]Terraform a planet in this sector?[/by] [mg]([/mg][by]Y[/by]/[by]N[/by][mg])[/mg] [mg][[/mg][by]N[/by][mg]][/mg] ',
     terraformSuccess: '\r\n[bg]Terraform successful![/bg] Created [bc]{name}[/bc] ({type})',
     terraformCollision: '[by:r]*** Warning ***: intersecting orbits detected![/by:r]',
     terraformDevicesRemaining: '  [by]Terraform devices remaining[/by]: [bc]{count}[/bc]',

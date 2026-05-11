@@ -176,7 +176,7 @@ async function promptAutopilot(
     ctx.autopilot.path = msg.path.map((p) => p.sector);
     ctx.autopilot.step = 2;
     const nextSector = ctx.autopilot.path[1];
-    term.writeln(render(NOTIFY.autopilotEngaged));
+    term.writeln(render(EVENT.autopilotEngaged));
     term.writeln(render(EVENT.autopilotWarping, { sector: nextSector }));
     ctx.io.sendMsg({ type: ClientMsgType.Move, sector: nextSector });
 }
