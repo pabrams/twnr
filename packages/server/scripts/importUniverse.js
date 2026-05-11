@@ -164,8 +164,9 @@ async function main() {
       const equQty = parseInt(row[6], 10);
       await client.query(
         `INSERT INTO ports
-           (sector_id, class, fuel, fuel_max, fuel_price, organics, org_max, org_price, equipment, equ_max, equ_price)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+           (sector_id, name, class, fuel, fuel_max, fuel_price, organics, org_max, org_price, equipment, equ_max, equ_price)
+         VALUES ($1, (SELECT 'Port ' || sector_number FROM sectors WHERE id = $1),
+                 $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
         [
           sectorDbId,
           parseInt(row[1], 10), // class
@@ -203,8 +204,9 @@ async function main() {
     // Seed Class 0 port in Sector 1
     const sector1Id = sectorIdMap.get(1);
     await client.query(`
-      INSERT INTO ports (sector_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
-      VALUES ($1, 0, 0, 0, 0, 0, 0, 0)
+      INSERT INTO ports (sector_id, name, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
+      VALUES ($1, (SELECT 'Port ' || sector_number FROM sectors WHERE id = $1),
+              0, 0, 0, 0, 0, 0, 0)
       ON CONFLICT (sector_id) DO UPDATE
       SET class = 0, fuel = 0, fuel_price = 0, organics = 0, org_price = 0, equipment = 0, equ_price = 0
     `, [sector1Id]);
@@ -228,8 +230,9 @@ async function main() {
     );
     if (starbaseRes.rows.length > 0) {
       await client.query(`
-        INSERT INTO ports (sector_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
-        VALUES ($1, 9, 0, 0, 0, 0, 0, 0)
+        INSERT INTO ports (sector_id, name, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
+        VALUES ($1, (SELECT 'Port ' || sector_number FROM sectors WHERE id = $1),
+                9, 0, 0, 0, 0, 0, 0)
         ON CONFLICT (sector_id) DO UPDATE
         SET class = 9, fuel = 0, fuel_price = 0, organics = 0, org_price = 0, equipment = 0, equ_price = 0
       `, [starbaseRes.rows[0].id]);
