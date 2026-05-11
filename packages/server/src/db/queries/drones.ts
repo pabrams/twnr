@@ -9,7 +9,7 @@ export async function getDeployedDronesByOwner(
         `SELECT s.sector_number as sector_id, sf.quantity
          FROM sector_drones sf
          JOIN sectors s ON sf.sector_id = s.id
-         WHERE sf.owner_id = $1 AND sf.quantity > 0`,
+         WHERE sf.owner_player_id = $1 AND sf.quantity > 0`,
         [playerId],
     );
     return res.rows;
@@ -24,7 +24,7 @@ export async function getDeployedDronesByOwnerBySector(
     const res = await db.query<{ quantity: number }>(
         `SELECT sf.quantity FROM sector_drones sf
          JOIN sectors s ON sf.sector_id = s.id
-         WHERE s.sector_number = $1 AND sf.owner_id = $2 AND sf.quantity > 0`,
+         WHERE s.sector_number = $1 AND sf.owner_player_id = $2 AND sf.quantity > 0`,
         [sectorNumber, playerId],
     );
     return res.rows[0]?.quantity ?? 0;
@@ -33,9 +33,9 @@ export async function getDeployedDronesByOwnerBySector(
 export async function getSectorDronesRowForUpdate(
     sectorDbId: number,
     db: Queryable = pool,
-): Promise<{ quantity: number; owner_id: number } | undefined> {
-    const res = await db.query<{ quantity: number; owner_id: number }>(
-        'SELECT quantity, owner_id FROM sector_drones WHERE sector_id = $1 FOR UPDATE',
+): Promise<{ quantity: number; owner_player_id: number } | undefined> {
+    const res = await db.query<{ quantity: number; owner_player_id: number }>(
+        'SELECT quantity, owner_player_id FROM sector_drones WHERE sector_id = $1 FOR UPDATE',
         [sectorDbId],
     );
     return res.rows[0];
@@ -48,7 +48,7 @@ export async function updateSectorDroneQuantity(
     db: Queryable = pool,
 ): Promise<void> {
     await db.query(
-        'UPDATE sector_drones SET quantity = $1 WHERE sector_id = $2 AND owner_id = $3',
+        'UPDATE sector_drones SET quantity = $1 WHERE sector_id = $2 AND owner_player_id = $3',
         [quantity, sectorDbId, ownerId],
     );
 }
@@ -61,7 +61,7 @@ export async function insertSectorDrones(
     db: Queryable = pool,
 ): Promise<void> {
     await db.query(
-        'INSERT INTO sector_drones (sector_id, owner_id, quantity) VALUES ($1, $2, $3)',
+        'INSERT INTO sector_drones (sector_id, owner_player_id, quantity) VALUES ($1, $2, $3)',
         [sectorDbId, ownerId, quantity],
     );
 }
@@ -71,14 +71,14 @@ export async function deleteSectorDrones(
     ownerId: number,
     db: Queryable = pool,
 ): Promise<void> {
-    await db.query('DELETE FROM sector_drones WHERE sector_id = $1 AND owner_id = $2', [
+    await db.query('DELETE FROM sector_drones WHERE sector_id = $1 AND owner_player_id = $2', [
         sectorDbId,
         ownerId,
     ]);
 }
 
 /** True iff the sector contains drones owned by anyone other than the
- *  given player (including rogue drones, which have owner_id NULL). */
+ *  given player (including rogue drones, which have owner_player_id NULL). */
 export async function hasEnemyDronesInSector(
     sectorNumber: number,
     universeId: number,
@@ -89,7 +89,7 @@ export async function hasEnemyDronesInSector(
         `SELECT 1 FROM sector_drones sf
          JOIN sectors s ON sf.sector_id = s.id
          WHERE s.sector_number = $1 AND s.universe_id = $2
-           AND (sf.owner_id IS NULL OR sf.owner_id != $3)
+           AND (sf.owner_player_id IS NULL OR sf.owner_player_id != $3)
            AND sf.quantity > 0
          LIMIT 1`,
         [sectorNumber, universeId, selfPlayerId],
@@ -105,17 +105,17 @@ export async function getSectorDroneDisplayInfo(
 ): Promise<{ quantity: number; ownerId: number | null; ownerName: string } | null> {
     const res = await db.query<{
         quantity: number;
-        owner_id: number | null;
+        owner_player_id: number | null;
         owner_name: string;
     }>(
-        `SELECT sf.quantity, sf.owner_id, COALESCE(p.name, 'Rogue') as owner_name
+        `SELECT sf.quantity, sf.owner_player_id, COALESCE(p.name, 'Rogue') as owner_name
          FROM sector_drones sf
          JOIN sectors s ON sf.sector_id = s.id
-         LEFT JOIN players p ON sf.owner_id = p.id
+         LEFT JOIN players p ON sf.owner_player_id = p.id
          WHERE s.sector_number = $1 AND s.universe_id = $2 AND sf.quantity > 0`,
         [sectorNumber, universeId],
     );
     const row = res.rows[0];
     if (!row) return null;
-    return { quantity: row.quantity, ownerId: row.owner_id, ownerName: row.owner_name };
+    return { quantity: row.quantity, ownerId: row.owner_player_id, ownerName: row.owner_name };
 }

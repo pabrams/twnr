@@ -103,7 +103,7 @@ export async function handleDeployDrones(playerId: number, target: number): Prom
 
             let currentInSector = 0;
             if (existing) {
-                if (existing.owner_id !== playerId) {
+                if (existing.owner_player_id !== playerId) {
                     sendError(playerId, 'Sector contains hostile drones');
                     throw new AbortTransaction();
                 }
@@ -203,7 +203,7 @@ export async function handleAttackSectorDrones(
             }
 
             const sectorDroneQty = existing.quantity;
-            const ownerId = existing.owner_id;
+            const ownerId = existing.owner_player_id;
 
             const k = Math.min(dronesToAttack, sectorDroneQty);
             const newShipDrones = shipDrones - k;
