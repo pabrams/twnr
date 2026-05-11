@@ -5,8 +5,12 @@ import type { MenuEntry } from '@twnr/shared';
  *
  * If you add a new key binding for a server-driven menu, add it here.
  * Client-only sub-modes (computer, attack, droneEncounter, port pre-dock,
- * starbaseHardware) live in their per-menu files and are not represented
- * here.
+ * starbaseHardware) live in their per-menu files.
+ * 
+ * The duplication here exists so the shared
+    help_menu routine (common-routines.ts) can enumerate the
+    available commands when the user hits `?`. Keep both lists in
+    sync when adding/removing computer commands.
  */
 export const MENU_REGISTRY: MenuEntry[] = [
     {
@@ -157,11 +161,7 @@ export const MENU_REGISTRY: MenuEntry[] = [
         commands: [],
     },
     {
-        // Computer screen — keys come from the hardcoded KEY_TO_COMMAND map
-        // in menus/computer.ts. The duplication here exists so the shared
-        // help_menu routine (common-routines.ts) can enumerate the
-        // available commands when the user hits `?`. Keep both lists in
-        // sync when adding/removing computer commands.
+
         name: 'computer',
         label: 'Computer',
         parentMenu: 'sector',
