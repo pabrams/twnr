@@ -8,11 +8,11 @@ import { showPrompt } from '../menus/types.js';
 import { askNumber } from '../menus/prompts.js';
 import type { Handler } from './index.js';
 
-type CombatDeps = Pick<GameContext, 'autopilot' | 'encounter' | 'input' | 'io' | 'world'> &
+type CombatContext = Pick<GameContext, 'autopilot' | 'encounter' | 'input' | 'io' | 'world'> &
     DisplayCtx &
     DisplayCombatCtx;
 
-export const attackShip: Handler<'attackShipResult', CombatDeps> = (ctx, msg) => {
+export const attackShip: Handler<'attackShipResult', CombatContext> = (ctx, msg) => {
     // The attack target-select sub-mode is over once the shot is fired.
     if (ctx.world.mode === Menu.Attack) ctx.world.mode = Menu.Sector;
     ctx.io.term.writeln('');
@@ -41,7 +41,7 @@ export const attackShip: Handler<'attackShipResult', CombatDeps> = (ctx, msg) =>
     );
 };
 
-export const getAttackTargets: Handler<'getAttackTargetsResult', CombatDeps> = (ctx, msg) => {
+export const getAttackTargets: Handler<'getAttackTargetsResult', CombatContext> = (ctx, msg) => {
     ctx.world.sectorPlayers = msg.players;
     // Server stays in 'sector' location; the attack-target-select sub-mode
     // is entered here when the roster has visible targets.
@@ -80,7 +80,7 @@ export const deployDronesInfo: Handler<'deployDronesInfoResult'> = async (ctx, m
     ctx.io.sendMsg({ type: ClientMsgType.DeployDrones, quantity: qty });
 };
 
-export const deployDrones: Handler<'deployDronesResult', CombatDeps> = (ctx, msg) => {
+export const deployDrones: Handler<'deployDronesResult', CombatContext> = (ctx, msg) => {
     ctx.io.term.writeln(
         render(EVENT.deployDronesResult, {
             sector: msg.sectorDrones,
@@ -89,7 +89,7 @@ export const deployDrones: Handler<'deployDronesResult', CombatDeps> = (ctx, msg
     );
 };
 
-export const attackSectorDrones: Handler<'attackSectorDronesResult', CombatDeps> = (ctx, msg) => {
+export const attackSectorDrones: Handler<'attackSectorDronesResult', CombatContext> = (ctx, msg) => {
     ctx.io.term.writeln('');
     ctx.io.term.writeln(
         render(EVENT.combatLost, {
@@ -112,7 +112,7 @@ export const attackSectorDrones: Handler<'attackSectorDronesResult', CombatDeps>
     }
 };
 
-export const retreatFromDrones: Handler<'retreatFromDronesResult', CombatDeps> = (ctx, msg) => {
+export const retreatFromDrones: Handler<'retreatFromDronesResult', CombatContext> = (ctx, msg) => {
     // Retreat exits the droneEncounter sub-mode (we moved back to a safe sector).
     ctx.world.mode = Menu.Sector;
     ctx.io.term.writeln(render(EVENT.retreated, { sector: msg.sector }));
@@ -124,7 +124,7 @@ export const retreatFromDrones: Handler<'retreatFromDronesResult', CombatDeps> =
     }
 };
 
-export const sectorDronesAlert: Handler<'sectorDronesAlert', CombatDeps> = (ctx, msg) => {
+export const sectorDronesAlert: Handler<'sectorDronesAlert', CombatContext> = (ctx, msg) => {
     ctx.io.term.writeln('');
     const tpl =
         msg.event === 'intrusion'

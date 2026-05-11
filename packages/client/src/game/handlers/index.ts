@@ -11,18 +11,16 @@ import * as planet from './planet.js';
 import * as shipExchange from './ship-exchange.js';
 import * as mines from './mines.js';
 
+type ServerResultByType = {
+    [R in ServerResult as R['type']]: R;
+};
+
 /**
- * `Deps` is the slice of `GameContext` the handler actually touches.
- * Defaults to the full `GameContext` for ergonomics, but each concrete
- * handler narrows it via `Pick` so signatures advertise their dependencies
- * (Interface Segregation). Function-parameter contravariance lets a handler
- * with narrower deps slot into the registry's broader `Handler<K>` type:
- * the registry passes a full `GameContext`, which structurally satisfies
- * any `Pick` of itself.
+ * `Context` is the slice of `GameContext` the handler actually touches.
  */
-export type Handler<K extends ServerResult['type'], Deps = GameContext> = (
-    ctx: Deps,
-    msg: Extract<ServerResult, { type: K }>,
+export type Handler<K extends ServerResult['type'], Context = GameContext> = (
+    ctx: Context,
+    msg: ServerResultByType[K],
 ) => void;
 
 type HandlerMap = {

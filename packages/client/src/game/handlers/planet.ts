@@ -14,7 +14,7 @@ import {
 import { type DisplayStarbaseCtx } from '../display-starbase.js';
 import { type DisplayComputerCtx } from '../display-computer.js';
 import type { Handler } from './index.js';
-import { fmt, fmtCompact, refreshMinimap, type RefreshMinimapDeps } from './utils.js';
+import { fmt, fmtCompact, refreshMinimap, type RefreshMinimapCtx } from './utils.js';
 import { padStartVisible } from '../display-utils.js';
 
 type PlanetDisplayMsg = {
@@ -131,19 +131,19 @@ function renderPlanetTable(ctx: { io: { term: { writeln: (s: string) => void } }
     ctx.io.term.writeln(render(PANEL.planetDisplayHolds, { holds: fmt(msg.empty_holds) }));
 }
 
-type PlanetDeps = Pick<GameContext, 'io' | 'input' | 'ship' | 'planet' | 'world'> &
+type PlanetContext = Pick<GameContext, 'io' | 'input' | 'ship' | 'planet' | 'world'> &
     DisplayCtx &
     DisplayPlanetCtx &
     DisplayStarbaseCtx &
     DisplayComputerCtx &
-    RefreshMinimapDeps;
+    RefreshMinimapCtx;
 
-export const planetInfo: Handler<'planetInfoResult', PlanetDeps> = (ctx, msg) => {
+export const planetInfo: Handler<'planetInfoResult', PlanetContext> = (ctx, msg) => {
     if (msg.hasPlanet) showPlanetMenu(ctx, msg.name, msg.colonists);
     else showNoPlanet(ctx);
 };
 
-export const takeColonists: Handler<'takeColonistsResult', PlanetDeps> = (ctx, msg) => {
+export const takeColonists: Handler<'takeColonistsResult', PlanetContext> = (ctx, msg) => {
     ctx.ship.shipColonists = msg.shipColonists;
     if (msg.commodity === 'fuel') ctx.world.earthColonists = msg.planetColonists;
     ctx.io.term.writeln('');
@@ -161,7 +161,7 @@ export const takeColonists: Handler<'takeColonistsResult', PlanetDeps> = (ctx, m
 };
 
 function applyCommodityResult(
-    ctx: PlanetDeps,
+    ctx: PlanetContext,
     commodity: 'fuel' | 'organics' | 'equipment' | 'drones',
     planetAmount: number,
     shipAmount: number,
@@ -181,7 +181,7 @@ function applyCommodityResult(
     }
 }
 
-export const takeCommodity: Handler<'takeCommodityResult', PlanetDeps> = (ctx, msg) => {
+export const takeCommodity: Handler<'takeCommodityResult', PlanetContext> = (ctx, msg) => {
     applyCommodityResult(ctx, msg.commodity, msg.planetCommodity, msg.shipCommodity);
     ctx.io.term.writeln('');
     ctx.io.term.writeln(
@@ -194,7 +194,7 @@ export const takeCommodity: Handler<'takeCommodityResult', PlanetDeps> = (ctx, m
     );
 };
 
-export const leaveCommodity: Handler<'leaveCommodityResult', PlanetDeps> = (ctx, msg) => {
+export const leaveCommodity: Handler<'leaveCommodityResult', PlanetContext> = (ctx, msg) => {
     applyCommodityResult(ctx, msg.commodity, msg.planetCommodity, msg.shipCommodity);
     ctx.io.term.writeln('');
     ctx.io.term.writeln(
@@ -207,7 +207,7 @@ export const leaveCommodity: Handler<'leaveCommodityResult', PlanetDeps> = (ctx,
     );
 };
 
-export const leaveColonists: Handler<'leaveColonistsResult', PlanetDeps> = (ctx, msg) => {
+export const leaveColonists: Handler<'leaveColonistsResult', PlanetContext> = (ctx, msg) => {
     ctx.ship.shipColonists = msg.shipColonists;
     if (msg.commodity === 'fuel') ctx.world.earthColonists = msg.planetColonists;
     ctx.io.term.writeln('');
@@ -225,7 +225,7 @@ export const leaveColonists: Handler<'leaveColonistsResult', PlanetDeps> = (ctx,
     }
 };
 
-function cachePlanetInteractionState(ctx: PlanetDeps, msg: PlanetDisplayMsg): void {
+function cachePlanetInteractionState(ctx: PlanetContext, msg: PlanetDisplayMsg): void {
     ctx.ship.planetEmptyHolds = msg.empty_holds;
     ctx.ship.shipColonists = msg.ship_colonists;
     ctx.ship.shipDrones = msg.ship_drones;
@@ -243,7 +243,7 @@ function cachePlanetInteractionState(ctx: PlanetDeps, msg: PlanetDisplayMsg): vo
     ctx.planet.maxDrones = msg.max_drones;
 }
 
-export const landOnPlanet: Handler<'landOnPlanetResult', PlanetDeps> = (ctx, msg) => {
+export const landOnPlanet: Handler<'landOnPlanetResult', PlanetContext> = (ctx, msg) => {
     cachePlanetInteractionState(ctx, msg);
     const isEarth = msg.name === 'Earth';
     ctx.world.mode = isEarth ? Menu.PlanetEarth : Menu.Planet;
@@ -257,19 +257,19 @@ export const landOnPlanet: Handler<'landOnPlanetResult', PlanetDeps> = (ctx, msg
     }
 };
 
-export const planetDisplay: Handler<'planetDisplayResult', PlanetDeps> = (ctx, msg) => {
+export const planetDisplay: Handler<'planetDisplayResult', PlanetContext> = (ctx, msg) => {
     cachePlanetInteractionState(ctx, msg);
     renderPlanetTable(ctx, msg);
 };
 
-export const destroyPlanet: Handler<'destroyPlanetResult', PlanetDeps> = (ctx, msg) => {
+export const destroyPlanet: Handler<'destroyPlanetResult', PlanetContext> = (ctx, msg) => {
     if (msg.destroyed) {
         ctx.world.mode = Menu.Sector;
         ctx.io.term.writeln(render(EVENT.planetDestroyed, { name: msg.planetName }));
     }
 };
 
-export const useTerraformDevice: Handler<'useTerraformDeviceResult', PlanetDeps> = (ctx, msg) => {
+export const useTerraformDevice: Handler<'useTerraformDeviceResult', PlanetContext> = (ctx, msg) => {
     if (msg.success && msg.planet) {
         ctx.io.term.writeln(
             render(EVENT.terraformSuccess, {
@@ -292,7 +292,7 @@ export const useTerraformDevice: Handler<'useTerraformDeviceResult', PlanetDeps>
     }
 };
 
-export const leavePlanet: Handler<'leavePlanetResult', PlanetDeps> = (ctx, msg) => {
+export const leavePlanet: Handler<'leavePlanetResult', PlanetContext> = (ctx, msg) => {
     ctx.world.mode = Menu.Sector;
     ctx.io.term.writeln(render(EVENT.leftPlanet));
     ctx.world.sectorPlayers = msg.players;
@@ -311,7 +311,7 @@ export const leavePlanet: Handler<'leavePlanetResult', PlanetDeps> = (ctx, msg) 
     refreshMinimap(ctx);
 };
 
-export const listPlanets: Handler<'listPlanetsResult', PlanetDeps> = (ctx, msg) => {
+export const listPlanets: Handler<'listPlanetsResult', PlanetContext> = (ctx, msg) => {
     ctx.io.term.writeln('');
     if (msg.planets.length === 0) {
         ctx.io.term.writeln(render(PANEL.listPlanetsEmpty));
@@ -337,7 +337,7 @@ export const listPlanets: Handler<'listPlanetsResult', PlanetDeps> = (ctx, msg) 
     }
 };
 
-export const terraformInfo: Handler<'terraformInfoResult', PlanetDeps> = (ctx, msg) => {
+export const terraformInfo: Handler<'terraformInfoResult', PlanetContext> = (ctx, msg) => {
     if (msg.canTerraform) {
         ctx.io.term.writeln(render(NOTIFY.terraformDevicesAvailable, { count: msg.devices }));
 
@@ -349,7 +349,7 @@ export const terraformInfo: Handler<'terraformInfoResult', PlanetDeps> = (ctx, m
     }
 };
 
-async function terraformAskAndFire(ctx: PlanetDeps): Promise<void> {
+async function terraformAskAndFire(ctx: PlanetContext): Promise<void> {
     const ok = await askConfirm(ctx, render(NOTIFY.terraformConfirm), { defaultValue: false });
     if (ok) {
         echoCommand(ctx, 'useTerraformDevice');
