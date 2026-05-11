@@ -22,6 +22,7 @@ type PlanetDisplayMsg = {
     name: string;
     planetType: string;
     displayType: string | null;
+    owner_name: string | null;
     fuel: number;
     organics: number;
     equipment: number;
@@ -70,6 +71,9 @@ function renderPlanetTable(ctx: { io: { term: { writeln: (s: string) => void } }
             class: msg.planetType,
             type: msg.displayType ?? msg.planetType,
         }),
+    );
+    ctx.io.term.writeln(
+        render(PANEL.planetDisplayOwner, { owner: msg.owner_name ?? 'unclaimed' }),
     );
     ctx.io.term.writeln('');
     ctx.io.term.writeln(render(PANEL.planetDisplayTableHead1));
