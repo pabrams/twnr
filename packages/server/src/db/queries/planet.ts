@@ -300,6 +300,7 @@ export async function getPlanetDisplayData(playerId: number): Promise<{
     name: string;
     planetType: string;
     displayType: string | null;
+    owner_name: string | null;
     drones: number;
     fuel: number;
     organics: number;
@@ -332,6 +333,7 @@ export async function getPlanetDisplayData(playerId: number): Promise<{
 
     const planetRes = await pool.query(
         `SELECT pl.id, pl.sector_id, pl.name, pl.type, pt.display_name AS display_type,
+                owner.name AS owner_name,
                 pl.drones, pl.fuel, pl.organics, pl.equipment,
                 pl.colonists_fuel, pl.colonists_organics, pl.colonists_equipment, pl.colonists_drones,
                 pt.fuel_production, pt.organics_production, pt.equipment_production, pt.drone_production,
@@ -343,6 +345,7 @@ export async function getPlanetDisplayData(playerId: number): Promise<{
          JOIN sectors s ON s.id = pl.sector_id
          LEFT JOIN planet_types pt ON pt.name = pl.type
          LEFT JOIN universe_settings us ON us.universe_id = s.universe_id
+         LEFT JOIN players owner ON owner.id = pl.owner_player_id
          WHERE pl.id = $1`,
         [onPlanetId],
     );

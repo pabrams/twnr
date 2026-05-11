@@ -272,6 +272,7 @@ export type PlanetDisplayData = {
     name: string;
     planetType: string;
     displayType: string | null;
+    owner_name: string | null;
     drones: number;
     fuel: number;
     organics: number;
