@@ -85,13 +85,7 @@ export async function showShipCatalog(ctx: DisplayComputerCtx) {
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
 }
 
-/**
- * Return the raw tag-markup form so the outer `render()` on the whole row
- * processes it. If we pre-rendered here, the string would already contain
- * ANSI escapes, and padding helpers (which strip `[tag]` markup, not ANSI)
- * would miscount its visible length and misalign the column.
- */
-function boolStr(val: boolean): string {
+function boolToYesNoString(val: boolean): string {
     return val ? COMPUTER.shipDetailBoolYes : COMPUTER.shipDetailBoolNo;
 }
 
@@ -149,12 +143,12 @@ export function showShipDetail(ctx: DisplayComputerCtx, ship: ShipCatalogEntry) 
         { label: 'Speed', value: fmtNum(ship.speed) },
         { label: 'Offensive Odds', value: String(ship.odds_offensive) },
         { label: 'Defensive Odds', value: String(ship.odds_defensive) },
-        { label: 'Escape Pod', value: boolStr(ship.has_pod) },
-        { label: 'Can Land', value: boolStr(ship.can_land) },
-        { label: 'Tractor Beam', value: boolStr(ship.has_tractor) },
-        { label: 'Interdictor', value: boolStr(ship.has_interdictor) },
-        { label: 'Visual Scanner', value: boolStr((hw.visual_scanner ?? 0) > 0) },
-        { label: 'Planet Scanner', value: boolStr((hw.planet_scanner ?? 0) > 0) },
+        { label: 'Escape Pod', value: boolToYesNoString(ship.has_pod) },
+        { label: 'Can Land', value: boolToYesNoString(ship.can_land) },
+        { label: 'Tractor Beam', value: boolToYesNoString(ship.has_tractor) },
+        { label: 'Interdictor', value: boolToYesNoString(ship.has_interdictor) },
+        { label: 'Visual Scanner', value: boolToYesNoString((hw.visual_scanner ?? 0) > 0) },
+        { label: 'Planet Scanner', value: boolToYesNoString((hw.planet_scanner ?? 0) > 0) },
     ];
     for (const row of threeColRows(specs, {
         labelWidth: SHIP_DETAIL_LABEL_WIDTH,
@@ -174,7 +168,7 @@ export function showShipDetail(ctx: DisplayComputerCtx, ship: ShipCatalogEntry) 
         const val = hw[h.name] ?? 0;
         hwItems.push({
             label: h.label,
-            value: h.isToggle ? boolStr(val > 0) : fmtNum(val),
+            value: h.isToggle ? boolToYesNoString(val > 0) : fmtNum(val),
         });
     }
     if (hwItems.length > 0) {
