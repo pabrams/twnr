@@ -1,10 +1,7 @@
 import type { MenuEntry } from '@twnr/shared';
 
 /**
- * Hardcoded menu registry. Replaces the previous /api/menu-registry fetch
- * that read from the menu/menu_command/command DB tables (dropped in step
- * 8D). The shape is identical so dispatchByRegistry, common-routines'
- * back/help_menu, and any other consumers keep working without changes.
+ * Hardcoded menu registry. 
  *
  * If you add a new key binding for a server-driven menu, add it here.
  * Client-only sub-modes (computer, attack, droneEncounter, port pre-dock,
