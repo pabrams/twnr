@@ -641,25 +641,18 @@ export type OwnedShipRow = {
     holds: number;
     type_name: string;
     type_display_name: string | null;
+    transporter_range: number;
 };
 export async function getPlayerOwnedShips(
     playerId: number,
     db: Queryable = pool,
 ): Promise<OwnedShipRow[]> {
-    const res = await db.query<{
-        id: number;
-        universe_ship_number: number;
-        sector_number: number | null;
-        drones: number;
-        shields: number;
-        holds: number;
-        type_name: string;
-        type_display_name: string | null;
-    }>(
+    const res = await db.query<OwnedShipRow>(
         `SELECT sh.id, sh.universe_ship_number,
                 sec.sector_number AS sector_number,
                 sh.drones, sh.shields, sh.holds,
-                st.name AS type_name, st.display_name AS type_display_name
+                st.name AS type_name, st.display_name AS type_display_name,
+                st.transporter_range
          FROM ships sh
          JOIN ship_types st ON sh.ship_type_id = st.id
          LEFT JOIN sectors sec ON sh.sector_id = sec.id

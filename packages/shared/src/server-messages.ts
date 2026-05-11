@@ -513,10 +513,21 @@ export type PreviousSectorResultObject = {
     sector: number | null;
 };
 
+export type TransportToShipResultObject = {
+    type: typeof ServerMsgType.TransportToShipResult;
+    targetShipId: number;
+    targetSector: number;
+    turnsUsed: number;
+    turnsRemaining: number;
+};
+
 export type ListOwnedShipsResultObject = {
     type: typeof ServerMsgType.ListOwnedShipsResult;
     currentSector: number;
     currentShipId: number | null;
+    currentShipTypeName: string | null;
+    currentShipTypeDisplayName: string | null;
+    currentShipTransporterRange: number | null;
     ships: {
         id: number;
         shipNumber: number;
@@ -527,6 +538,7 @@ export type ListOwnedShipsResultObject = {
         hops: number | null;
         typeName: string;
         typeDisplayName: string | null;
+        transporterRange: number;
     }[];
 };
 
@@ -727,4 +739,5 @@ export type ServerResult =
     | SeekerMineAttachedEvent
     | SeekerMinePickupAlertEvent
     | ListOwnedShipsResultObject
+    | TransportToShipResultObject
     | ErrorResultObject;

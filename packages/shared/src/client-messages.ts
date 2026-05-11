@@ -202,6 +202,11 @@ export type ListOwnedShipsCommand = {
     type: typeof ClientMsgType.ListOwnedShips;
 };
 
+export type TransportToShipCommand = {
+    type: typeof ClientMsgType.TransportToShip;
+    shipId: number;
+};
+
 export type HyperspaceJumpCommand = {
     type: typeof ClientMsgType.HyperspaceJump;
     targetSector: number;
@@ -298,4 +303,5 @@ export type ClientCommand =
     | ListDeployedMinesCommand
     | TrackSeekerMinesCommand
     | MineDisruptorCommand
-    | ListOwnedShipsCommand;
+    | ListOwnedShipsCommand
+    | TransportToShipCommand;

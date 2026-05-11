@@ -1,6 +1,6 @@
 import { ClientMsgType, Menu, ServerMsgType } from '@twnr/shared';
 import { render } from '../renderer.js';
-import { EVENT, NOTIFY, PLANET, SECTOR } from '../messages/index.js';
+import { COMPUTER, EVENT, NOTIFY, PLANET, SECTOR } from '../messages/index.js';
 import {
     echoCommand,
     hideMoveMenuOverlay,
@@ -9,8 +9,14 @@ import {
     showPlayerInfo,
 } from '../display.js';
 import { showPlanetSelectMenu } from '../display-planet.js';
+import {
+    renderActiveShipScan,
+    renderTransporterPrelude,
+    renderTransporterOptions,
+    renderShipDetail,
+} from '../display-computer.js';
 import { registerRoutine } from './types.js';
-import { askChar, askConfirm, askNumber, awaitResponse } from './prompts.js';
+import { askChar, askConfirm, askLine, askNumber, awaitResponse } from './prompts.js';
 
 registerRoutine('display_sector', (ctx) => {
     echoCommand(ctx, 'sectorDisplay');
@@ -161,4 +167,71 @@ registerRoutine('quit_game', async (ctx) => {
 registerRoutine('players_online', (ctx) => {
     echoCommand(ctx, 'playersOnline');
     ctx.io.sendMsg({ type: ClientMsgType.PlayersOnline });
+});
+
+registerRoutine('transporter_pad', async (ctx) => {
+    echoCommand(ctx, 'transporterPad');
+
+    while (true) {
+        ctx.io.sendMsg({ type: ClientMsgType.ListOwnedShips });
+        const scan = await awaitResponse(ctx, [
+            ServerMsgType.ListOwnedShipsResult,
+            ServerMsgType.Error,
+        ]);
+        if (scan === null) return;
+        if (scan.type !== ServerMsgType.ListOwnedShipsResult) return;
+
+        renderTransporterPrelude(ctx, scan);
+        renderActiveShipScan(ctx, scan, {
+            sortByHops: true,
+            rangeFromCurrentShip: scan.currentShipTransporterRange,
+        });
+        renderTransporterOptions(ctx);
+
+        const choice = await askLine(ctx, render(COMPUTER.transporterPrompt));
+        if (choice === null) return;
+
+        if (choice.toLowerCase() === 'i') {
+            const which = await askNumber(ctx, render(COMPUTER.transporterDetailsPrompt), {
+                min: 1,
+            });
+            if (which === null) continue;
+            const target = scan.ships.find((s) => s.shipNumber === which);
+            if (!target) {
+                ctx.io.term.writeln(render(COMPUTER.transporterUnknownShip));
+                continue;
+            }
+            renderShipDetail(ctx, target);
+            continue;
+        }
+
+        const shipNum = parseInt(choice, 10);
+        if (!Number.isFinite(shipNum)) continue;
+
+        const target = scan.ships.find((s) => s.shipNumber === shipNum);
+        if (!target) {
+            ctx.io.term.writeln(render(COMPUTER.transporterUnknownShip));
+            continue;
+        }
+        if (target.id === scan.currentShipId) {
+            ctx.io.term.writeln(render(COMPUTER.transporterCannotSelf));
+            continue;
+        }
+
+        ctx.io.sendMsg({ type: ClientMsgType.TransportToShip, shipId: target.id });
+        const result = await awaitResponse(ctx, [
+            ServerMsgType.TransportToShipResult,
+            ServerMsgType.Error,
+        ]);
+        if (result === null) return;
+        if (result.type !== ServerMsgType.TransportToShipResult) continue;
+
+        ctx.world.currentSector = result.targetSector;
+        ctx.io.term.writeln('');
+        ctx.io.term.writeln(render(COMPUTER.transporterSuccess));
+        ctx.io.term.writeln('');
+        ctx.io.term.writeln(
+            render(COMPUTER.transporterTurnsLeft, { turns: result.turnsRemaining }),
+        );
+    }
 });
