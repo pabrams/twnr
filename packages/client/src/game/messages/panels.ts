@@ -45,14 +45,14 @@ export const PANEL = makeDomain('PANEL', {
 
     planetDisplayTitle:
         '[bc]Planet #{id}[/bc] in sector [by]{sector}[/by]:  [bg]{name}[/bg]',
-    planetDisplayClass: '[mg]Class[/mg] [w]{class}[/w], {type}',
+    planetDisplayClass: '[mg]Class[/mg]: [w]{type}[/w]',
     planetDisplayOwner: '[mg]Owner[/mg]: [w]{owner}[/w]',
     planetDisplayTableHead1:
-        '  [by]Item[/by]    [by]Colonists[/by]  [by]Colos to[/by]   [by]Hourly[/by]    [by]Planet[/by]      [by]Ship[/by]      [by]Planet[/by]',
+        '  [by]Item[/by]    [by]Colonists[/by]   [by]Colos to[/by]   [by]Hourly[/by]     [by]Planet[/by]     [by]Ship[/by]       [by]Planet[/by]',
     planetDisplayTableHead2:
         '                      [by]Build 1/h[/by]  [by]Product[/by]    [by]Amount[/by]     [by]Amount[/by]     [by]Maximum[/by]',
     planetDisplayTableSep:
-        ' [g]-------  ---------  ---------  ---------  ---------  ---------  ---------[/g]',
+        ' [g]-------- ----------  ---------  ---------  ---------  --------- ---------[/g]',
     planetDisplayTableRow:
         '[w]{item}[/w]  [bc]{colos}[/bc]  [c]{c2b1}[/c]  [bc]{hourly}[/bc]  [bc]{planet}[/bc]  [bc]{ship}[/bc]  [c]{max}[/c]',
     planetDisplayHolds: '\r\n[g]You have[/g] [bc]{holds}[/bc] [g]free cargo holds.[/g]',
