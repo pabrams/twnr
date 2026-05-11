@@ -123,7 +123,7 @@ export async function getSeekerAttachmentsByOwner(
          FROM seeker_attachments sa
          JOIN ships sh ON sh.id = sa.ship_id
          JOIN ship_types st ON st.id = sh.ship_type_id
-         LEFT JOIN players p ON p.id = sh.owner_id
+         LEFT JOIN players p ON p.id = sh.owner_player_id
          LEFT JOIN sectors s ON s.id = sh.sector_id
          WHERE sa.owner_player_id = $1
          ORDER BY s.sector_number`,

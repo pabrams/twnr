@@ -60,7 +60,7 @@ export const connectDB = async (): Promise<void> => {
         photon_blast_time_seconds INTEGER NOT NULL DEFAULT 5,
         planet_spawn_density SMALLINT NOT NULL DEFAULT 10,
         max_ships_allowed INTEGER NOT NULL DEFAULT 500,
-        max_corp_size SMALLINT NOT NULL DEFAULT 10,
+        max_clan_size SMALLINT NOT NULL DEFAULT 4,
         max_ships_in_protected_space SMALLINT NOT NULL DEFAULT 1,
         truce_time_hours SMALLINT NOT NULL DEFAULT 0,
         is_automation_enabled BOOLEAN NOT NULL DEFAULT TRUE,
@@ -115,7 +115,7 @@ export const connectDB = async (): Promise<void> => {
         photon_blast_time_seconds INTEGER NOT NULL,
         planet_spawn_density SMALLINT NOT NULL,
         max_ships_allowed INTEGER NOT NULL,
-        max_corp_size SMALLINT NOT NULL,
+        max_clan_size SMALLINT NOT NULL,
         max_ships_in_protected_space SMALLINT NOT NULL,
         truce_time_hours SMALLINT NOT NULL,
         is_automation_enabled BOOLEAN NOT NULL,
@@ -246,7 +246,7 @@ export const connectDB = async (): Promise<void> => {
         current_sector_id INTEGER REFERENCES sectors(id),
         previous_sector_id INTEGER REFERENCES sectors(id),
         ship_id INTEGER,
-        corporation_id INTEGER,
+        clan_id INTEGER,
         credits INTEGER NOT NULL DEFAULT 10000,
         reputation INTEGER NOT NULL DEFAULT 0,
         experience INTEGER NOT NULL DEFAULT 0,
@@ -261,21 +261,23 @@ export const connectDB = async (): Promise<void> => {
         UNIQUE (user_id, universe_id)
       );
 
-      CREATE TABLE IF NOT EXISTS corporations (
+      CREATE TABLE IF NOT EXISTS clans (
         id SERIAL PRIMARY KEY,
+        universe_clan_number INTEGER NOT NULL,
         name VARCHAR(255) NOT NULL,
         password_hash VARCHAR(255) NOT NULL,
-        ceo_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+        leader_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
         universe_id INTEGER NOT NULL REFERENCES universes(id) ON DELETE CASCADE,
-        UNIQUE (name, universe_id)
+        UNIQUE (name, universe_id),
+        UNIQUE (universe_id, universe_clan_number)
       );
 
       CREATE TABLE IF NOT EXISTS ships (
         id SERIAL PRIMARY KEY,
         universe_id INTEGER NOT NULL REFERENCES universes(id) ON DELETE CASCADE,
         universe_ship_number INTEGER NOT NULL,
-        owner_id INTEGER REFERENCES players(id) ON DELETE SET NULL,
-        corp_owner_id INTEGER REFERENCES corporations(id) ON DELETE SET NULL,
+        owner_player_id INTEGER REFERENCES players(id) ON DELETE SET NULL,
+        owner_clan_id INTEGER REFERENCES clans(id) ON DELETE SET NULL,
         ship_type_id INTEGER NOT NULL REFERENCES ship_types(id),
         sector_id INTEGER REFERENCES sectors(id),
         drones INTEGER NOT NULL DEFAULT 0,
@@ -289,7 +291,7 @@ export const connectDB = async (): Promise<void> => {
         colonists INTEGER NOT NULL DEFAULT 0,
         UNIQUE (universe_id, universe_ship_number),
         CONSTRAINT ships_single_owner_type
-          CHECK (NOT (owner_id IS NOT NULL AND corp_owner_id IS NOT NULL))
+          CHECK (NOT (owner_player_id IS NOT NULL AND owner_clan_id IS NOT NULL))
       );
 
       CREATE TABLE IF NOT EXISTS ship_hardware (
@@ -300,9 +302,9 @@ export const connectDB = async (): Promise<void> => {
       );
 
       -- Circular FKs from players that can't be inlined: players.ship_id
-      -- depends on ships (which already references players.id via owner_id),
-      -- and players.corporation_id depends on corporations (which references
-      -- players.id via ceo_id).
+      -- depends on ships (which already references players.id via
+      -- owner_player_id), and players.clan_id depends on clans (which
+      -- references players.id via leader_id).
       DO $$ BEGIN
         IF NOT EXISTS (
           SELECT 1 FROM information_schema.table_constraints
@@ -315,10 +317,10 @@ export const connectDB = async (): Promise<void> => {
       DO $$ BEGIN
         IF NOT EXISTS (
           SELECT 1 FROM information_schema.table_constraints
-          WHERE constraint_name = 'players_corporation_id_fkey' AND table_name = 'players'
+          WHERE constraint_name = 'players_clan_id_fkey' AND table_name = 'players'
         ) THEN
-          ALTER TABLE players ADD CONSTRAINT players_corporation_id_fkey
-            FOREIGN KEY (corporation_id) REFERENCES corporations(id) ON DELETE SET NULL;
+          ALTER TABLE players ADD CONSTRAINT players_clan_id_fkey
+            FOREIGN KEY (clan_id) REFERENCES clans(id) ON DELETE SET NULL;
         END IF;
       END $$;
 
@@ -350,7 +352,7 @@ export const connectDB = async (): Promise<void> => {
         shields INTEGER NOT NULL DEFAULT 0,
         has_base BOOLEAN NOT NULL DEFAULT FALSE,
         owner_player_id INTEGER REFERENCES players(id) ON DELETE SET NULL,
-        owner_corp_id INTEGER REFERENCES corporations(id) ON DELETE SET NULL,
+        owner_clan_id INTEGER REFERENCES clans(id) ON DELETE SET NULL,
         fuel INTEGER NOT NULL DEFAULT 0,
         organics INTEGER NOT NULL DEFAULT 0,
         equipment INTEGER NOT NULL DEFAULT 0,
@@ -375,7 +377,7 @@ export const connectDB = async (): Promise<void> => {
         equ_death_accrual DOUBLE PRECISION NOT NULL DEFAULT 0,
         drn_death_accrual DOUBLE PRECISION NOT NULL DEFAULT 0,
         CONSTRAINT planets_single_owner_type
-          CHECK (NOT (owner_player_id IS NOT NULL AND owner_corp_id IS NOT NULL))
+          CHECK (NOT (owner_player_id IS NOT NULL AND owner_clan_id IS NOT NULL))
       );
 
       CREATE OR REPLACE FUNCTION trigger_set_timestamp()
@@ -409,12 +411,12 @@ export const connectDB = async (): Promise<void> => {
 
       CREATE TABLE IF NOT EXISTS sector_drones (
         sector_id INTEGER NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
-        owner_id INTEGER REFERENCES players(id) ON DELETE SET NULL,
-        corp_owner_id INTEGER REFERENCES corporations(id) ON DELETE SET NULL,
+        owner_player_id INTEGER REFERENCES players(id) ON DELETE SET NULL,
+        owner_clan_id INTEGER REFERENCES clans(id) ON DELETE SET NULL,
         quantity INTEGER NOT NULL,
         PRIMARY KEY (sector_id),
         CONSTRAINT sector_drones_single_owner_type
-          CHECK (NOT (owner_id IS NOT NULL AND corp_owner_id IS NOT NULL))
+          CHECK (NOT (owner_player_id IS NOT NULL AND owner_clan_id IS NOT NULL))
       );
 
       CREATE TABLE IF NOT EXISTS command_log (
@@ -449,9 +451,9 @@ export const connectDB = async (): Promise<void> => {
         mine_type VARCHAR(20) NOT NULL CHECK (mine_type IN ('proximity', 'seeker')),
         quantity INTEGER NOT NULL DEFAULT 0,
         owner_player_id INTEGER REFERENCES players(id) ON DELETE SET NULL,
-        owner_corp_id INTEGER REFERENCES corporations(id) ON DELETE SET NULL,
+        owner_clan_id INTEGER REFERENCES clans(id) ON DELETE SET NULL,
         PRIMARY KEY (sector_id, mine_type),
-        CHECK (NOT (owner_player_id IS NOT NULL AND owner_corp_id IS NOT NULL))
+        CHECK (NOT (owner_player_id IS NOT NULL AND owner_clan_id IS NOT NULL))
       );
 
       -- One row per ship that currently has a seeker mine attached. The
@@ -469,9 +471,9 @@ export const connectDB = async (): Promise<void> => {
       CREATE TABLE IF NOT EXISTS sector_beacons (
         sector_id INTEGER PRIMARY KEY REFERENCES sectors(id) ON DELETE CASCADE,
         owner_player_id INTEGER REFERENCES players(id) ON DELETE SET NULL,
-        owner_corp_id INTEGER REFERENCES corporations(id) ON DELETE SET NULL,
+        owner_clan_id INTEGER REFERENCES clans(id) ON DELETE SET NULL,
         message TEXT,
-        CHECK (NOT (owner_player_id IS NOT NULL AND owner_corp_id IS NOT NULL))
+        CHECK (NOT (owner_player_id IS NOT NULL AND owner_clan_id IS NOT NULL))
       );
 
       CREATE TABLE IF NOT EXISTS visited_ports (

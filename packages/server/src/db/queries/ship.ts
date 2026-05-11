@@ -90,7 +90,7 @@ export async function setShipDronesAndShields(
 
 /** Combat: remove a ship record when its owner's ship is destroyed. */
 export async function deleteShipByOwner(ownerId: number, db: Queryable = pool): Promise<void> {
-    await db.query('DELETE FROM ships WHERE owner_id = $1', [ownerId]);
+    await db.query('DELETE FROM ships WHERE owner_player_id = $1', [ownerId]);
 }
 
 /** Combat: mark a player as ship-less and stamp destruction time. */
@@ -414,7 +414,7 @@ export async function insertEmptyShip(
     db: Queryable = pool,
 ): Promise<number> {
     const res = await db.query<{ id: number }>(
-        `INSERT INTO ships (universe_id, universe_ship_number, owner_id, ship_type_id, sector_id, drones, shields, holds, turns_per_warp, fuel, organics, equipment, colonists)
+        `INSERT INTO ships (universe_id, universe_ship_number, owner_player_id, ship_type_id, sector_id, drones, shields, holds, turns_per_warp, fuel, organics, equipment, colonists)
          SELECT $1,
                 COALESCE((SELECT MAX(universe_ship_number) FROM ships WHERE universe_id = $1), 0) + 1,
                 $2, $3, $4, 0, 0, $5, $6, 0, 0, 0, 0
@@ -622,7 +622,7 @@ export async function insertStartingShip(
     db: Queryable = pool,
 ): Promise<number> {
     const res = await db.query<{ id: number }>(
-        `INSERT INTO ships (universe_id, universe_ship_number, owner_id, ship_type_id, sector_id, drones, shields, holds, turns_per_warp)
+        `INSERT INTO ships (universe_id, universe_ship_number, owner_player_id, ship_type_id, sector_id, drones, shields, holds, turns_per_warp)
          SELECT $1,
                 COALESCE((SELECT MAX(universe_ship_number) FROM ships WHERE universe_id = $1), 0) + 1,
                 $2, $3, $4, $5, $6, $7, $8
@@ -656,7 +656,7 @@ export async function getPlayerOwnedShips(
          FROM ships sh
          JOIN ship_types st ON sh.ship_type_id = st.id
          LEFT JOIN sectors sec ON sh.sector_id = sec.id
-         WHERE sh.owner_id = $1
+         WHERE sh.owner_player_id = $1
          ORDER BY sh.universe_ship_number`,
         [playerId],
     );
@@ -674,7 +674,7 @@ export async function getAbandonedShipsInSector(
          FROM ships sh
          JOIN ship_types st ON sh.ship_type_id = st.id
          JOIN sectors s ON sh.sector_id = s.id
-         LEFT JOIN players p ON sh.owner_id = p.id
+         LEFT JOIN players p ON sh.owner_player_id = p.id
          WHERE s.sector_number = $1 AND s.universe_id = $2
            AND NOT EXISTS (SELECT 1 FROM players p2 WHERE p2.ship_id = sh.id)`,
         [sectorNumber, universeId],

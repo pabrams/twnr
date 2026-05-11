@@ -277,7 +277,7 @@ export async function deleteShipsByOwners(
     db: Queryable = pool,
 ): Promise<void> {
     if (playerIds.length === 0) return;
-    await db.query('DELETE FROM ships WHERE owner_id = ANY($1::int[])', [playerIds]);
+    await db.query('DELETE FROM ships WHERE owner_player_id = ANY($1::int[])', [playerIds]);
 }
 
 /** Delete all players in a universe (used by universe-delete). */

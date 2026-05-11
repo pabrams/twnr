@@ -128,7 +128,7 @@ export async function handleTransportToShip(playerId: number, shipId: number): P
          LEFT JOIN players p ON p.id = $1
          LEFT JOIN ships cur ON cur.id = p.ship_id
          LEFT JOIN ship_types cur_st ON cur_st.id = cur.ship_type_id
-         WHERE tgt.id = $2 AND tgt.owner_id = $1`,
+         WHERE tgt.id = $2 AND tgt.owner_player_id = $1`,
         [playerId, shipId],
     );
     const row = lookup.rows[0];
