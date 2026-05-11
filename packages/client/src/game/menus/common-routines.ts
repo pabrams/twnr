@@ -33,7 +33,14 @@ registerRoutine('help_menu', (ctx) => {
     for (const cmd of menu.commands) {
         const k = cmd.keyPattern;
         if (k === '?') continue;
-        const display = k.startsWith('<') ? k : k.toUpperCase();
+        const display =
+            k === '<enter>'
+                ? '↵'
+                : k === '<number>'
+                  ? '\u{29E3}'
+                  : k.startsWith('<')
+                    ? k
+                    : k.toUpperCase();
         term.writeln(render(HELP.lineKey, { key: display, text: cmd.label }));
     }
 });

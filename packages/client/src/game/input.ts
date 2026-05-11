@@ -21,7 +21,6 @@ function isValidKeyForMenu(ctx: GameContext, key: string): 'single' | 'buffered'
 
     const lower = key.toLowerCase();
     const hasNumberCmd = menu.commands.some((c) => c.keyPattern === '<number>');
-    const hasLetterCmd = menu.commands.some((c) => c.keyPattern === '<letter>');
 
     for (const cmd of menu.commands) {
         const kp = cmd.keyPattern;
@@ -31,8 +30,6 @@ function isValidKeyForMenu(ctx: GameContext, key: string): 'single' | 'buffered'
 
     // Number input — digits start/continue buffer
     if (hasNumberCmd && /\d/.test(key)) return 'buffered';
-    // Letter selection (ship catalog, planet specs)
-    if (hasLetterCmd && /[a-zA-Z]/.test(key)) return 'single';
 
     return false;
 }
@@ -240,9 +237,6 @@ function dispatchByRegistry(ctx: GameContext, line: string): void | Promise<void
     }
     if (!cmd && /^\d+$/.test(line)) {
         cmd = menu.commands.find((c) => c.keyPattern === '<number>');
-    }
-    if (!cmd && /^[a-zA-Z]$/.test(line)) {
-        cmd = menu.commands.find((c) => c.keyPattern === '<letter>');
     }
     if (!cmd) return;
     const routine = getRoutine(ctx.world.mode, cmd.command);
