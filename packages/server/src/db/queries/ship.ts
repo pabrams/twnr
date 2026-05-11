@@ -406,6 +406,7 @@ export async function getPlayerShipBuyInfoForUpdate(
 /** Insert a new empty ship; returns its id. */
 export async function insertEmptyShip(
     ownerId: number,
+    universeId: number,
     shipTypeId: number,
     sectorId: number,
     holds: number,
@@ -413,10 +414,12 @@ export async function insertEmptyShip(
     db: Queryable = pool,
 ): Promise<number> {
     const res = await db.query<{ id: number }>(
-        `INSERT INTO ships (owner_id, ship_type_id, sector_id, drones, shields, holds, turns_per_warp, fuel, organics, equipment, colonists)
-         VALUES ($1, $2, $3, 0, 0, $4, $5, 0, 0, 0, 0)
+        `INSERT INTO ships (universe_id, universe_ship_number, owner_id, ship_type_id, sector_id, drones, shields, holds, turns_per_warp, fuel, organics, equipment, colonists)
+         SELECT $1,
+                COALESCE((SELECT MAX(universe_ship_number) FROM ships WHERE universe_id = $1), 0) + 1,
+                $2, $3, $4, 0, 0, $5, $6, 0, 0, 0, 0
          RETURNING id`,
-        [ownerId, shipTypeId, sectorId, holds, turnsPerWarp],
+        [universeId, ownerId, shipTypeId, sectorId, holds, turnsPerWarp],
     );
     return res.rows[0].id;
 }
@@ -609,6 +612,7 @@ export async function getStartingShipTypeByName(
 /** Create a starting ship for a respawning player; returns its id. */
 export async function insertStartingShip(
     ownerId: number,
+    universeId: number,
     shipTypeId: number,
     sectorId: number,
     drones: number,
@@ -618,14 +622,55 @@ export async function insertStartingShip(
     db: Queryable = pool,
 ): Promise<number> {
     const res = await db.query<{ id: number }>(
-        `INSERT INTO ships (owner_id, ship_type_id, sector_id, drones, shields, holds, turns_per_warp)
-         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-        [ownerId, shipTypeId, sectorId, drones, shields, holds, turnsPerWarp],
+        `INSERT INTO ships (universe_id, universe_ship_number, owner_id, ship_type_id, sector_id, drones, shields, holds, turns_per_warp)
+         SELECT $1,
+                COALESCE((SELECT MAX(universe_ship_number) FROM ships WHERE universe_id = $1), 0) + 1,
+                $2, $3, $4, $5, $6, $7, $8
+         RETURNING id`,
+        [universeId, ownerId, shipTypeId, sectorId, drones, shields, holds, turnsPerWarp],
     );
     return res.rows[0].id;
 }
 
-/** Abandoned (owner-less) ships present in a sector — for sector display. */
+export type OwnedShipRow = {
+    id: number;
+    universe_ship_number: number;
+    sector_number: number | null;
+    drones: number;
+    shields: number;
+    holds: number;
+    type_name: string;
+    type_display_name: string | null;
+};
+export async function getPlayerOwnedShips(
+    playerId: number,
+    db: Queryable = pool,
+): Promise<OwnedShipRow[]> {
+    const res = await db.query<{
+        id: number;
+        universe_ship_number: number;
+        sector_number: number | null;
+        drones: number;
+        shields: number;
+        holds: number;
+        type_name: string;
+        type_display_name: string | null;
+    }>(
+        `SELECT sh.id, sh.universe_ship_number,
+                sec.sector_number AS sector_number,
+                sh.drones, sh.shields, sh.holds,
+                st.name AS type_name, st.display_name AS type_display_name
+         FROM ships sh
+         JOIN ship_types st ON sh.ship_type_id = st.id
+         LEFT JOIN sectors sec ON sh.sector_id = sec.id
+         WHERE sh.owner_id = $1
+         ORDER BY sh.universe_ship_number`,
+        [playerId],
+    );
+    return res.rows;
+}
+
+/** Abandoned (owner-less) ships present in a sector. */
 export async function getAbandonedShipsInSector(
     sectorNumber: number,
     universeId: number,

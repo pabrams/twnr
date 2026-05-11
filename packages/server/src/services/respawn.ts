@@ -61,6 +61,7 @@ export async function tryRespawnPlayer(playerId: number): Promise<RespawnOutcome
     if (startShipType) {
         const newShipId = await insertStartingShip(
             playerId,
+            row.universe_id,
             startShipType.id,
             startSectorId,
             universeConfig.startingDrones,

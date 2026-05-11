@@ -104,6 +104,7 @@ export function createUniverseRoutes(
             if (startShipType) {
                 const newShipId = await insertStartingShip(
                     playerId,
+                    universeId,
                     startShipType.id,
                     startSectorId,
                     startingDrones,

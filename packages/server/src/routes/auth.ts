@@ -145,6 +145,7 @@ export function createAuthRoutes(router: Router, deps: RouteDeps, middleware: Mi
             if (startShipType) {
                 const newShipId = await insertStartingShip(
                     playerId,
+                    universeId,
                     startShipType.id,
                     startSectorId,
                     startingDrones,

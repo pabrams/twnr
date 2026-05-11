@@ -27,6 +27,7 @@ export function showComputerHelp(ctx: DisplayComputerCtx) {
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'J', text: '[bc]Planetary Specs[/bc]' }));
     ctx.io.term.writeln(render(COMMON.menuRow, { key: ';', text: '[bc]Current Ship Specs[/bc]' }));
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Y', text: '[bc]Your Planets[/bc]' }));
+    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Z', text: '[bc]Active Ship Scan[/bc]' }));
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: '[bc]Exit Computer[/bc]' }));
     showComputerPrompt(ctx);
 }
@@ -283,6 +284,50 @@ export async function showCurrentShipSpecs(ctx: DisplayComputerCtx) {
     }
     showShipDetail(ctx, ship);
     showComputerPrompt(ctx);
+}
+
+type OwnedShipRowDisplay = {
+    id: number;
+    shipNumber: number;
+    sector: number | null;
+    drones: number;
+    shields: number;
+    holds: number;
+    hops: number | null;
+    typeName: string;
+    typeDisplayName: string | null;
+};
+
+export function renderActiveShipScan(
+    ctx: DisplayComputerCtx,
+    msg: { currentShipId: number | null; ships: OwnedShipRowDisplay[] },
+) {
+    const { term } = ctx.io;
+    term.writeln('');
+    term.writeln(render(COMPUTER.activeShipScanHeader));
+    term.writeln(render(COMPUTER.activeShipScanColumns));
+    term.writeln(render(COMPUTER.activeShipScanRule));
+    if (msg.ships.length === 0) {
+        term.writeln(render(COMPUTER.activeShipScanEmpty));
+        return;
+    }
+    for (const s of msg.ships) {
+        const isCurrent = s.id === msg.currentShipId;
+        const sectStr = s.sector === null ? '----' : String(s.sector);
+        term.writeln(
+            render(COMPUTER.activeShipScanRow, {
+                shipNum: String(s.shipNumber).padStart(4),
+                sect: sectStr.padStart(4),
+                marker: isCurrent ? '+' : ' ',
+                name: '.'.padEnd(22),
+                fighters: String(s.drones).padStart(8),
+                shields: String(s.shields).padStart(7),
+                holds: String(s.holds).padStart(5),
+                hops: s.hops === null ? '   -' : String(s.hops).padStart(4),
+                type: s.typeDisplayName ?? s.typeName,
+            }),
+        );
+    }
 }
 
 export async function showTraderList(ctx: DisplayComputerCtx) {

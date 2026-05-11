@@ -54,4 +54,12 @@ export const COMPUTER = makeDomain('COMPUTER', {
 
     shipDataRequesting: '[w]Requesting ship data...[/w]',
     shipConfigNotFound: '[br]Ship config not found for: {name}[/br]',
+
+    activeShipScanHeader: '                        [bc]--<  Available Ship Scan  >--[/bc]',
+    activeShipScanColumns:
+        '[bw]Ship  Sect Name                  Fighters Shields Holds Hops Type[/bw]',
+    activeShipScanRule: '[g]-----------------------------------------------------------------------------[/g]',
+    activeShipScanRow:
+        '[by]{shipNum}[/by]  [bc]{sect}[/bc][bg]{marker}[/bg][w]{name}[/w] [bc]{fighters}[/bc] [bc]{shields}[/bc] [bc]{holds}[/bc] [bc]{hops}[/bc]  [g]{type}[/g]',
+    activeShipScanEmpty: '[w]You own no ships.[/w]',
 });

@@ -13,6 +13,7 @@ const KEY_TO_COMMAND: Record<string, string> = {
     h: 'hyperspace_jump',
     y: 'list_planets',
     m: 'track_seeker_mines',
+    z: 'active_ship_scan',
 };
 
 const VALID_KEYS = new Set([...Object.keys(KEY_TO_COMMAND), 'q']);
