@@ -81,6 +81,7 @@ export async function handleBuyShipTradein(
 
             const newShipId = await insertEmptyShip(
                 playerId,
+                universeId,
                 targetType.id,
                 data.current_sector_id,
                 newCargoLimit,
@@ -169,6 +170,7 @@ export async function handleBuyShipNew(playerId: number, targetShipName: string)
 
             const newShipId = await insertEmptyShip(
                 playerId,
+                universeId,
                 targetType.id,
                 data.current_sector_id,
                 newCargoLimit,

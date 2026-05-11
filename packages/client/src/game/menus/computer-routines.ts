@@ -10,6 +10,7 @@ import {
     showPlanetDetail,
     showTraderList,
     renderVisitedSectorsResult,
+    renderActiveShipScan,
 } from '../display-computer.js';
 import { indexToLetter, letterToIndex } from '../display-starbase.js';
 import { registerRoutine } from './types.js';
@@ -99,4 +100,16 @@ registerRoutine('list_planets', (ctx) => {
 
 registerRoutine('track_seeker_mines', (ctx) => {
     ctx.io.sendMsg({ type: ClientMsgType.TrackSeekerMines });
+});
+
+registerRoutine('active_ship_scan', async (ctx) => {
+    echoCommand(ctx, 'activeShipScan');
+    ctx.io.sendMsg({ type: ClientMsgType.ListOwnedShips });
+    const response = await awaitResponse(ctx, [
+        ServerMsgType.ListOwnedShipsResult,
+        ServerMsgType.Error,
+    ]);
+    if (response === null) return;
+    if (response.type !== ServerMsgType.ListOwnedShipsResult) return;
+    renderActiveShipScan(ctx, response);
 });

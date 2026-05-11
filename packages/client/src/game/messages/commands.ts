@@ -55,6 +55,7 @@ export const COMMAND = makeDomain('COMMAND', {
     hyperspaceJump: '[bg:b]<Hyperspace Jump>[/bg:b]',
     listDeployedDrones: '[bg:b]<List Deployed Drones>[/bg:b]',
     listPlanets: '[bg:b]<List Planets>[/bg:b]',
+    activeShipScan: '\r\n[bc]<Active Ship Scan>[/bc]',
     visitedSectors: '[bg:b]<Visited Sectors>[/bg:b]',
     planetDisplay: '[bg:b]<Planet Info>[/bg:b]',
     warpsOut: '[bg:b]<Warps Out>[/bg:b]',

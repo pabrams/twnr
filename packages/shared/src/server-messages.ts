@@ -513,6 +513,23 @@ export type PreviousSectorResultObject = {
     sector: number | null;
 };
 
+export type ListOwnedShipsResultObject = {
+    type: typeof ServerMsgType.ListOwnedShipsResult;
+    currentSector: number;
+    currentShipId: number | null;
+    ships: {
+        id: number;
+        shipNumber: number;
+        sector: number | null;
+        drones: number;
+        shields: number;
+        holds: number;
+        hops: number | null;
+        typeName: string;
+        typeDisplayName: string | null;
+    }[];
+};
+
 export type GetAttackTargetsResultObject = {
     type: typeof ServerMsgType.GetAttackTargetsResult;
     players: { id: number; name: string }[];
@@ -709,4 +726,5 @@ export type ServerResult =
     | ProximityMineHitEvent
     | SeekerMineAttachedEvent
     | SeekerMinePickupAlertEvent
+    | ListOwnedShipsResultObject
     | ErrorResultObject;

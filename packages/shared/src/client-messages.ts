@@ -198,6 +198,10 @@ export type ListPlanetsCommand = {
     type: typeof ClientMsgType.ListPlanets;
 };
 
+export type ListOwnedShipsCommand = {
+    type: typeof ClientMsgType.ListOwnedShips;
+};
+
 export type HyperspaceJumpCommand = {
     type: typeof ClientMsgType.HyperspaceJump;
     targetSector: number;
@@ -293,4 +297,5 @@ export type ClientCommand =
     | DeployMineCommand
     | ListDeployedMinesCommand
     | TrackSeekerMinesCommand
-    | MineDisruptorCommand;
+    | MineDisruptorCommand
+    | ListOwnedShipsCommand;

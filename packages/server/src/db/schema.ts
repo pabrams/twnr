@@ -272,6 +272,8 @@ export const connectDB = async (): Promise<void> => {
 
       CREATE TABLE IF NOT EXISTS ships (
         id SERIAL PRIMARY KEY,
+        universe_id INTEGER NOT NULL REFERENCES universes(id) ON DELETE CASCADE,
+        universe_ship_number INTEGER NOT NULL,
         owner_id INTEGER REFERENCES players(id) ON DELETE SET NULL,
         corp_owner_id INTEGER REFERENCES corporations(id) ON DELETE SET NULL,
         ship_type_id INTEGER NOT NULL REFERENCES ship_types(id),
@@ -285,6 +287,7 @@ export const connectDB = async (): Promise<void> => {
         organics INTEGER NOT NULL DEFAULT 0,
         equipment INTEGER NOT NULL DEFAULT 0,
         colonists INTEGER NOT NULL DEFAULT 0,
+        UNIQUE (universe_id, universe_ship_number),
         CONSTRAINT ships_single_owner_type
           CHECK (NOT (owner_id IS NOT NULL AND corp_owner_id IS NOT NULL))
       );
