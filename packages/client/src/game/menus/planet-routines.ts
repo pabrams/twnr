@@ -53,14 +53,53 @@ registerRoutine('leave_colonists', async (ctx) => {
     ctx.io.sendMsg({ type: ClientMsgType.LeaveColonists, quantity: qty, commodity });
 });
 
+function takeDefault(ctx: GameContext, commodity: Commodity4): number {
+    const planet =
+        commodity === 'fuel'
+            ? ctx.planet.fuel
+            : commodity === 'organics'
+              ? ctx.planet.organics
+              : commodity === 'equipment'
+                ? ctx.planet.equipment
+                : ctx.planet.drones;
+    const shipRoom =
+        commodity === 'drones'
+            ? Math.max(0, ctx.ship.shipMaxDrones - ctx.ship.shipDrones)
+            : ctx.ship.planetEmptyHolds;
+    return Math.max(0, Math.min(planet, shipRoom));
+}
+
+function leaveDefault(ctx: GameContext, commodity: Commodity4): number {
+    const onShip =
+        commodity === 'fuel'
+            ? ctx.ship.shipFuel
+            : commodity === 'organics'
+              ? ctx.ship.shipOrganics
+              : commodity === 'equipment'
+                ? ctx.ship.shipEquipment
+                : ctx.ship.shipDrones;
+    const planetRoom =
+        commodity === 'fuel'
+            ? Math.max(0, ctx.planet.maxFuel - ctx.planet.fuel)
+            : commodity === 'organics'
+              ? Math.max(0, ctx.planet.maxOrg - ctx.planet.organics)
+              : commodity === 'equipment'
+                ? Math.max(0, ctx.planet.maxEqu - ctx.planet.equipment)
+                : Math.max(0, ctx.planet.maxDrones - ctx.planet.drones);
+    return Math.max(0, Math.min(onShip, planetRoom));
+}
+
 registerRoutine('take_commodity', async (ctx) => {
     echoCommand(ctx, 'takeCommodity');
     showPlanetTakeStockpileMenu(ctx);
     const commodity = await pickCommodity(ctx);
     if (!commodity) return;
-    const qty = await askNumber(ctx, render(PLANET.takeStockpileQtyPrompt, { commodity }), {
-        defaultValue: -1,
-    });
+    const def = takeDefault(ctx, commodity);
+    const qty = await askNumber(
+        ctx,
+        render(PLANET.takeStockpileQtyPrompt, { commodity, default: def }),
+        { defaultValue: def },
+    );
     if (qty === null) return;
     ctx.io.sendMsg({ type: ClientMsgType.TakeCommodity, quantity: qty, commodity });
 });
@@ -70,9 +109,12 @@ registerRoutine('leave_commodity', async (ctx) => {
     showPlanetLeaveStockpileMenu(ctx);
     const commodity = await pickCommodity(ctx);
     if (!commodity) return;
-    const qty = await askNumber(ctx, render(PLANET.leaveStockpileQtyPrompt, { commodity }), {
-        defaultValue: -1,
-    });
+    const def = leaveDefault(ctx, commodity);
+    const qty = await askNumber(
+        ctx,
+        render(PLANET.leaveStockpileQtyPrompt, { commodity, default: def }),
+        { defaultValue: def },
+    );
     if (qty === null) return;
     ctx.io.sendMsg({ type: ClientMsgType.LeaveCommodity, quantity: qty, commodity });
 });
