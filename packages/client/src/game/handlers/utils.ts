@@ -1,7 +1,7 @@
 import { ClientMsgType } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 
-export type RefreshMinimapDeps = Pick<GameContext, 'io' | 'minimap'>;
+export type RefreshMinimapCtx = Pick<GameContext, 'io' | 'minimap'>;
 
 export function fmt(n: number): string {
     return n.toLocaleString();
@@ -25,7 +25,7 @@ export function formatDuration(totalSeconds: number): string {
     return `${days} day${days === 1 ? '' : 's'}`;
 }
 
-export function refreshMinimap(ctx: RefreshMinimapDeps): void {
+export function refreshMinimap(ctx: RefreshMinimapCtx): void {
     if (!ctx.minimap.handle) return;
     const vp = ctx.minimap.handle.getViewport();
     // Silent: doesn't toggle `inFlight`, so any handler that called

@@ -8,12 +8,12 @@ import { showHardwareMenu, type DisplayStarbaseCtx } from '../display-starbase.j
 import { fmt } from './utils.js';
 import type { Handler } from './index.js';
 
-type HardwareStoreDeps = Pick<GameContext, 'io' | 'starbase' | 'world'> &
+type HardwareStoreContext = Pick<GameContext, 'io' | 'starbase' | 'world'> &
     DisplayCtx &
     DisplayPortCtx &
     DisplayStarbaseCtx;
 
-export const buyDrones: Handler<'buyDronesResult', HardwareStoreDeps> = (ctx, msg) => {
+export const buyDrones: Handler<'buyDronesResult', HardwareStoreContext> = (ctx, msg) => {
     ctx.io.term.writeln(render(TRANSACTION.purchaseComplete));
     ctx.io.term.writeln(
         render(TRANSACTION.purchaseStatsDrones, {
@@ -27,7 +27,7 @@ export const buyDrones: Handler<'buyDronesResult', HardwareStoreDeps> = (ctx, ms
     }
 };
 
-export const buyShields: Handler<'buyShieldsResult', HardwareStoreDeps> = (ctx, msg) => {
+export const buyShields: Handler<'buyShieldsResult', HardwareStoreContext> = (ctx, msg) => {
     ctx.io.term.writeln(render(TRANSACTION.purchaseComplete));
     ctx.io.term.writeln(
         render(TRANSACTION.purchaseStatsShields, {
@@ -41,7 +41,7 @@ export const buyShields: Handler<'buyShieldsResult', HardwareStoreDeps> = (ctx, 
     }
 };
 
-export const buyHolds: Handler<'buyHoldsResult', HardwareStoreDeps> = (ctx, msg) => {
+export const buyHolds: Handler<'buyHoldsResult', HardwareStoreContext> = (ctx, msg) => {
     ctx.io.term.writeln(render(TRANSACTION.purchaseComplete));
     ctx.io.term.writeln(
         render(TRANSACTION.purchaseStatsHolds, {
@@ -55,7 +55,7 @@ export const buyHolds: Handler<'buyHoldsResult', HardwareStoreDeps> = (ctx, msg)
     }
 };
 
-export const buyHardware: Handler<'buyHardwareResult', HardwareStoreDeps> = (ctx, msg) => {
+export const buyHardware: Handler<'buyHardwareResult', HardwareStoreContext> = (ctx, msg) => {
     if (msg.kind === 'toggle') {
         ctx.io.term.writeln(
             render(TRANSACTION.hardwareInstalled, { label: msg.label, cost: fmt(msg.cost) }),
@@ -78,7 +78,7 @@ export const buyHardware: Handler<'buyHardwareResult', HardwareStoreDeps> = (ctx
     }
 };
 
-export const hardwareStoreInfo: Handler<'hardwareStoreInfoResult', HardwareStoreDeps> = (
+export const hardwareStoreInfo: Handler<'hardwareStoreInfoResult', HardwareStoreContext> = (
     ctx,
     msg,
 ) => {
@@ -88,7 +88,7 @@ export const hardwareStoreInfo: Handler<'hardwareStoreInfoResult', HardwareStore
     showHardwareMenu(ctx);
 };
 
-export const listDeployedDrones: Handler<'listDeployedDronesResult', HardwareStoreDeps> = (
+export const listDeployedDrones: Handler<'listDeployedDronesResult', HardwareStoreContext> = (
     ctx,
     msg,
 ) => {

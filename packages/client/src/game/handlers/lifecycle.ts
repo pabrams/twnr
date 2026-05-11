@@ -7,9 +7,9 @@ import { type DisplayStarbaseCtx } from '../display-starbase.js';
 import { type DisplayComputerCtx } from '../display-computer.js';
 import type { Handler } from './index.js';
 import { ClientMsgType } from '@twnr/shared';
-import { fmt, formatDuration, refreshMinimap, type RefreshMinimapDeps } from './utils.js';
+import { fmt, formatDuration, refreshMinimap, type RefreshMinimapCtx } from './utils.js';
 
-type LifecycleDeps = Pick<
+type LifecycleContext = Pick<
     GameContext,
     'autopilot' | 'io' | 'minimap' | 'player' | 'ship' | 'world'
 > &
@@ -17,9 +17,9 @@ type LifecycleDeps = Pick<
     DisplayPortCtx &
     DisplayStarbaseCtx &
     DisplayComputerCtx &
-    RefreshMinimapDeps;
+    RefreshMinimapCtx;
 
-export const welcome: Handler<'welcome', LifecycleDeps> = (ctx, msg) => {
+export const welcome: Handler<'welcome', LifecycleContext> = (ctx, msg) => {
     ctx.player.name = msg.name;
     ctx.player.id = msg.playerId;
     ctx.world.totalSectors = msg.totalSectors;
@@ -38,7 +38,7 @@ export const welcome: Handler<'welcome', LifecycleDeps> = (ctx, msg) => {
     refreshMinimap(ctx);
 };
 
-export const playerMoved: Handler<'playerMoved', LifecycleDeps> = (ctx, msg) => {
+export const playerMoved: Handler<'playerMoved', LifecycleContext> = (ctx, msg) => {
     ctx.io.term.writeln(
         render(msg.direction === 'in' ? NOTIFY.playerIn : NOTIFY.playerOut, {
             name: msg.playerName,
@@ -46,7 +46,7 @@ export const playerMoved: Handler<'playerMoved', LifecycleDeps> = (ctx, msg) => 
     );
 };
 
-export const rateLimited: Handler<'rateLimited', LifecycleDeps> = (ctx) => {
+export const rateLimited: Handler<'rateLimited', LifecycleContext> = (ctx) => {
     if (ctx.autopilot.path.length > 0) {
         const retrySector = ctx.autopilot.path[ctx.autopilot.step - 1];
         if (retrySector !== undefined) {
@@ -57,7 +57,7 @@ export const rateLimited: Handler<'rateLimited', LifecycleDeps> = (ctx) => {
     }
 };
 
-export const playersOnline: Handler<'playersOnlineResult', LifecycleDeps> = (ctx, msg) => {
+export const playersOnline: Handler<'playersOnlineResult', LifecycleContext> = (ctx, msg) => {
     ctx.io.term.writeln('');
     ctx.io.term.writeln(render(PANEL.playersOnlineHeader, { count: msg.players.length }));
     for (const p of msg.players) {
@@ -66,11 +66,11 @@ export const playersOnline: Handler<'playersOnlineResult', LifecycleDeps> = (ctx
     }
 };
 
-export const neighborhood: Handler<'neighborhoodResult', LifecycleDeps> = (ctx, msg) => {
+export const neighborhood: Handler<'neighborhoodResult', LifecycleContext> = (ctx, msg) => {
     ctx.minimap.handle?.update(msg, ctx.world.currentSector);
 };
 
-export const starbaseInfo: Handler<'starbaseInfoResult', LifecycleDeps> = (ctx, msg) => {
+export const starbaseInfo: Handler<'starbaseInfoResult', LifecycleContext> = (ctx, msg) => {
     ctx.world.starbaseSector = msg.sector;
     if (msg.sector != null) {
         ctx.io.term.writeln(render(NOTIFY.starbaseLocation, { sector: msg.sector }));
@@ -154,6 +154,6 @@ export const starbaseInfo: Handler<'starbaseInfoResult', LifecycleDeps> = (ctx, 
     }
 };
 
-export const error: Handler<'error', LifecycleDeps> = (ctx, msg) => {
+export const error: Handler<'error', LifecycleContext> = (ctx, msg) => {
     ctx.io.term.writeln(render(NOTIFY.error, { message: msg.message }));
 };

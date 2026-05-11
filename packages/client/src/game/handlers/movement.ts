@@ -7,15 +7,15 @@ import { type DisplayPortCtx } from '../display-port.js';
 import { showDroneEncounter, type DisplayCombatCtx } from '../display-combat.js';
 import { askConfirm } from '../menus/prompts.js';
 import type { Handler } from './index.js';
-import { refreshMinimap, type RefreshMinimapDeps } from './utils.js';
+import { refreshMinimap, type RefreshMinimapCtx } from './utils.js';
 
-type MovementDeps = Pick<GameContext, 'autopilot' | 'encounter' | 'input' | 'io' | 'world'> &
+type MovementContext = Pick<GameContext, 'autopilot' | 'encounter' | 'input' | 'io' | 'world'> &
     DisplayCtx &
     DisplayPortCtx &
     DisplayCombatCtx &
-    RefreshMinimapDeps;
+    RefreshMinimapCtx;
 
-export const sectorDisplay: Handler<'sectorDisplayResult', MovementDeps> = (ctx, msg) => {
+export const sectorDisplay: Handler<'sectorDisplayResult', MovementContext> = (ctx, msg) => {
     ctx.world.sectorPlayers = msg.players;
     showSectorDisplay(
         ctx,
@@ -40,7 +40,7 @@ export const sectorDisplay: Handler<'sectorDisplayResult', MovementDeps> = (ctx,
     }
 };
 
-export const move: Handler<'moveResult', MovementDeps> = (ctx, msg) => {
+export const move: Handler<'moveResult', MovementContext> = (ctx, msg) => {
     switch (msg.outcome) {
         case 'success': {
             ctx.world.sectorPlayers = msg.players;
@@ -135,7 +135,7 @@ export const move: Handler<'moveResult', MovementDeps> = (ctx, msg) => {
     }
 };
 
-export const nonAdjacent: Handler<'nonAdjacentMoveRequested', MovementDeps> = (ctx, msg) => {
+export const nonAdjacent: Handler<'nonAdjacentMoveRequested', MovementContext> = (ctx, msg) => {
     ctx.io.sendMsg({
         type: ClientMsgType.ShortestPath,
         from: ctx.world.currentSector,
@@ -143,7 +143,7 @@ export const nonAdjacent: Handler<'nonAdjacentMoveRequested', MovementDeps> = (c
     });
 };
 
-export const shortestPath: Handler<'shortestPathResult', MovementDeps> = (ctx, msg) => {
+export const shortestPath: Handler<'shortestPathResult', MovementContext> = (ctx, msg) => {
     if (msg.path.length <= 1) {
         ctx.io.term.writeln(render(EVENT.noPathFound));
         return;
@@ -152,7 +152,7 @@ export const shortestPath: Handler<'shortestPathResult', MovementDeps> = (ctx, m
 };
 
 async function promptAutopilot(
-    ctx: MovementDeps,
+    ctx: MovementContext,
     msg: { path: { sector: number; visited: boolean }[]; hops: number; turns: number },
 ): Promise<void> {
     const { term } = ctx.io;
@@ -181,7 +181,7 @@ async function promptAutopilot(
     ctx.io.sendMsg({ type: ClientMsgType.Move, sector: nextSector });
 }
 
-export const hyperspaceJump: Handler<'hyperspaceJumpResult', MovementDeps> = (ctx, msg) => {
+export const hyperspaceJump: Handler<'hyperspaceJumpResult', MovementContext> = (ctx, msg) => {
     ctx.io.term.writeln(
         render(EVENT.hyperspaceJump, {
             sector: msg.targetSector,
@@ -192,7 +192,7 @@ export const hyperspaceJump: Handler<'hyperspaceJumpResult', MovementDeps> = (ct
     ctx.io.sendMsg({ type: ClientMsgType.SectorDisplay });
 };
 
-export const previousSector: Handler<'previousSectorResult', MovementDeps> = (ctx, msg) => {
+export const previousSector: Handler<'previousSectorResult', MovementContext> = (ctx, msg) => {
     if (msg.sector === null) {
         ctx.io.term.writeln(render(NOTIFY.noPreviousSector));
     } else {

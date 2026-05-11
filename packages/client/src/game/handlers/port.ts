@@ -14,19 +14,19 @@ import { type DisplayStarbaseCtx } from '../display-starbase.js';
 import { type MenuArgsSlot } from '../menus/types.js';
 import { askNumber, askConfirm, awaitResponse } from '../menus/prompts.js';
 import type { Handler } from './index.js';
-import { fmt, refreshMinimap, type RefreshMinimapDeps } from './utils.js';
+import { fmt, refreshMinimap, type RefreshMinimapCtx } from './utils.js';
 
-type PortDeps = Pick<GameContext, 'catalogs' | 'input' | 'io' | 'starbase' | 'world'> &
+type PortContext = Pick<GameContext, 'catalogs' | 'input' | 'io' | 'starbase' | 'world'> &
     DisplayCtx &
     DisplayPortCtx &
     DisplayStarbaseCtx &
-    RefreshMinimapDeps &
+    RefreshMinimapCtx &
     MenuArgsSlot;
 
 type Cargo = { fuel: number; organics: number; equipment: number; colonists: number };
 type CommodityKey = keyof PortClassActions;
 
-export const dock: Handler<'dockResult', PortDeps> = (ctx, msg) => {
+export const dock: Handler<'dockResult', PortContext> = (ctx, msg) => {
     if (!msg.docked || !msg.port) return;
     ctx.world.dockedPortInfo = msg.port;
     if (msg.port.class === 0) {
@@ -100,7 +100,7 @@ export const dock: Handler<'dockResult', PortDeps> = (ctx, msg) => {
 };
 
 async function runTradeRoutine(
-    ctx: PortDeps,
+    ctx: PortContext,
     actions: PortClassActions,
     commodities: Array<{
         key: CommodityKey;
@@ -200,7 +200,7 @@ async function runTradeRoutine(
     ctx.io.sendMsg({ type: ClientMsgType.Undock });
 }
 
-export const undock: Handler<'undockResult', PortDeps> = (ctx, msg) => {
+export const undock: Handler<'undockResult', PortContext> = (ctx, msg) => {
     if (msg.outcome === 'success') ctx.world.mode = Menu.Sector;
     if (msg.outcome === 'success') {
         ctx.world.dockedPortInfo = null;
@@ -212,7 +212,7 @@ export const undock: Handler<'undockResult', PortDeps> = (ctx, msg) => {
     }
 };
 
-export const jettison: Handler<'jettisonResult', PortDeps> = (ctx, msg) => {
+export const jettison: Handler<'jettisonResult', PortContext> = (ctx, msg) => {
     if (msg.outcome === 'success') {
         const j = msg.jettisoned;
         const items = [
@@ -229,7 +229,7 @@ export const jettison: Handler<'jettisonResult', PortDeps> = (ctx, msg) => {
     }
 };
 
-export const dockStarbase: Handler<'dockStarbaseResult', PortDeps> = (ctx, msg) => {
+export const dockStarbase: Handler<'dockStarbaseResult', PortContext> = (ctx, msg) => {
     ctx.world.mode = Menu.Starbase;
     ctx.catalogs.hardwarePrices = msg.prices;
     if (msg.shipInfo) {
@@ -246,7 +246,7 @@ export const dockStarbase: Handler<'dockStarbaseResult', PortDeps> = (ctx, msg) 
     }
 };
 
-export const leaveStarbase: Handler<'leaveStarbaseResult', PortDeps> = (ctx, msg) => {
+export const leaveStarbase: Handler<'leaveStarbaseResult', PortContext> = (ctx, msg) => {
     ctx.world.mode = Menu.Sector;
     ctx.starbase.class0ShipState = null;
     ctx.world.sectorPlayers = msg.players;

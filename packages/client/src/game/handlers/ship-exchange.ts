@@ -7,14 +7,14 @@ import { type DisplayStarbaseCtx } from '../display-starbase.js';
 import type { Handler } from './index.js';
 import { fmt } from './utils.js';
 
-type ShipExchangeDeps = Pick<
+type ShipExchangeContext = Pick<
     GameContext,
     'catalogs' | 'io' | 'player' | 'ship' | 'starbase' | 'world'
 > &
     DisplayCtx &
     DisplayStarbaseCtx;
 
-export const shipInfo: Handler<'shipInfoResult', ShipExchangeDeps> = (ctx, msg) => {
+export const shipInfo: Handler<'shipInfoResult', ShipExchangeContext> = (ctx, msg) => {
     ctx.ship.currentShipName = msg.shipName;
     ctx.ship.currentColoredShipName = msg.coloredShipName;
     ctx.io.term.writeln('');
@@ -75,7 +75,7 @@ export const shipInfo: Handler<'shipInfoResult', ShipExchangeDeps> = (ctx, msg) 
 };
 
 function applyBuyShipResult(
-    ctx: ShipExchangeDeps,
+    ctx: ShipExchangeContext,
     msg:
         | Parameters<Handler<'buyShipTradeinResult'>>[1]
         | Parameters<Handler<'buyShipNewResult'>>[1],
@@ -107,5 +107,5 @@ function applyBuyShipResult(
     }
 }
 
-export const buyShipTradein: Handler<'buyShipTradeinResult', ShipExchangeDeps> = applyBuyShipResult;
-export const buyShipNew: Handler<'buyShipNewResult', ShipExchangeDeps> = applyBuyShipResult;
+export const buyShipTradein: Handler<'buyShipTradeinResult', ShipExchangeContext> = applyBuyShipResult;
+export const buyShipNew: Handler<'buyShipNewResult', ShipExchangeContext> = applyBuyShipResult;

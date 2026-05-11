@@ -1,9 +1,9 @@
 import type { GameContext } from '../types.js';
 import type { Handler } from './index.js';
 
-type MinesDeps = Pick<GameContext, 'io' | 'world'>;
+type MinesContext = Pick<GameContext, 'io' | 'world'>;
 
-export const deployMine: Handler<'deployMineResult', MinesDeps> = (ctx, msg) => {
+export const deployMine: Handler<'deployMineResult', MinesContext> = (ctx, msg) => {
     const label = msg.mineType === 'seeker' ? 'Seeker' : 'Proximity';
     ctx.io.term.writeln('');
     ctx.io.term.writeln(
@@ -12,7 +12,7 @@ export const deployMine: Handler<'deployMineResult', MinesDeps> = (ctx, msg) => 
     );
 };
 
-export const listDeployedMines: Handler<'listDeployedMinesResult', MinesDeps> = (ctx, msg) => {
+export const listDeployedMines: Handler<'listDeployedMinesResult', MinesContext> = (ctx, msg) => {
     ctx.io.term.writeln('');
     if (msg.mines.length === 0) {
         ctx.io.term.writeln('No mines deployed.');
@@ -25,7 +25,7 @@ export const listDeployedMines: Handler<'listDeployedMinesResult', MinesDeps> = 
     }
 };
 
-export const trackSeekerMines: Handler<'trackSeekerMinesResult', MinesDeps> = (ctx, msg) => {
+export const trackSeekerMines: Handler<'trackSeekerMinesResult', MinesContext> = (ctx, msg) => {
     ctx.io.term.writeln('');
     if (msg.targets.length === 0) {
         ctx.io.term.writeln('No seeker mines currently attached.');
@@ -39,7 +39,7 @@ export const trackSeekerMines: Handler<'trackSeekerMinesResult', MinesDeps> = (c
     }
 };
 
-export const mineDisruptor: Handler<'mineDisruptorResult', MinesDeps> = (ctx, msg) => {
+export const mineDisruptor: Handler<'mineDisruptorResult', MinesContext> = (ctx, msg) => {
     ctx.io.term.writeln('');
     ctx.io.term.writeln(
         `Disruptor pulse to sector ${msg.targetSector}: ` +
@@ -48,7 +48,7 @@ export const mineDisruptor: Handler<'mineDisruptorResult', MinesDeps> = (ctx, ms
     );
 };
 
-export const proximityMineHit: Handler<'proximityMineHit', MinesDeps> = (ctx, msg) => {
+export const proximityMineHit: Handler<'proximityMineHit', MinesContext> = (ctx, msg) => {
     ctx.io.term.writeln('');
     if (msg.destroyed) {
         ctx.io.term.writeln(
@@ -62,7 +62,7 @@ export const proximityMineHit: Handler<'proximityMineHit', MinesDeps> = (ctx, ms
     }
 };
 
-export const seekerMineAttached: Handler<'seekerMineAttached', MinesDeps> = (ctx, msg) => {
+export const seekerMineAttached: Handler<'seekerMineAttached', MinesContext> = (ctx, msg) => {
     ctx.io.term.writeln('');
     if (msg.droppedPrevious) {
         ctx.io.term.writeln(`A seeker mine has attached to your ship — the previous one fell off.`);
@@ -71,7 +71,7 @@ export const seekerMineAttached: Handler<'seekerMineAttached', MinesDeps> = (ctx
     }
 };
 
-export const seekerMinePickupAlert: Handler<'seekerMinePickupAlert', MinesDeps> = (ctx, msg) => {
+export const seekerMinePickupAlert: Handler<'seekerMinePickupAlert', MinesContext> = (ctx, msg) => {
     ctx.io.term.writeln('');
     ctx.io.term.writeln(
         `[ALERT] One of your seeker mines latched onto ${msg.targetOwnerName} in sector ${msg.sector}.`,
