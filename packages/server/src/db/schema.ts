@@ -323,7 +323,7 @@ export const connectDB = async (): Promise<void> => {
         id SERIAL PRIMARY KEY,
         sector_id INTEGER NOT NULL UNIQUE REFERENCES sectors(id) ON DELETE CASCADE,
         class INTEGER NOT NULL,
-        name VARCHAR(255),
+        name VARCHAR(255) NOT NULL,
         fuel INTEGER NOT NULL DEFAULT 1000,
         fuel_max INTEGER NOT NULL DEFAULT 1000,
         fuel_price INTEGER NOT NULL,

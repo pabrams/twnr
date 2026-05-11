@@ -3,7 +3,6 @@ import { getAbandonedShipsInSector } from '../db/queries/ship.js';
 import { getSectorDroneDisplayInfo } from '../db/queries/drones.js';
 import { getPortForSectorDisplay } from '../db/queries/port.js';
 import { getVisitedSectorNumbers } from '../db/queries/player.js';
-import { portName } from '../domain/port-classes.js';
 
 /** Sector numbers the player has marked visited, in ascending order. */
 export async function getVisitedSectors(playerId: number): Promise<number[]> {
@@ -19,17 +18,14 @@ export async function getWarpRefs(
     return getWarpRefsForPlayer(playerId, sectorNumber, universeId);
 }
 
-/**
- * Port summary for display. Returns null if no port exists in that sector.
- * The display name is synthesised from the sector number rather than stored.
- */
+/** Port summary for display. Returns null if no port exists in that sector. */
 export async function getPortForSector(
     sectorNumber: number,
     universeId: number,
 ): Promise<{ class: number; name: string } | null> {
     const row = await getPortForSectorDisplay(sectorNumber, universeId);
     if (!row) return null;
-    return { class: row.class, name: portName(sectorNumber) };
+    return { class: row.class, name: row.name };
 }
 
 export async function getSectorDrones(

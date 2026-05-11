@@ -1,7 +1,6 @@
 import { ServerMsgType, PORT_CLASS_ACTIONS } from '@twnr/shared';
 import { players, getPlayerUniverseId } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
-import { portName } from '../domain/port-classes.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
 import { isInEncounter } from '../services/encounter.js';
 import { withTransaction, AbortTransaction } from '../db/index.js';
@@ -28,6 +27,7 @@ const EMPTY_CARGO = { fuel: 0, organics: 0, equipment: 0, colonists: 0 };
 
 function buildPortInfoPayload(
     p: {
+        name: string;
         class: number;
         fuel: number;
         fuel_max: number;
@@ -44,7 +44,7 @@ function buildPortInfoPayload(
     return {
         type: ServerMsgType.PortInfoResult,
         sectorId,
-        portName: portName(sectorId),
+        portName: p.name,
         class: p.class,
         fuel: p.fuel,
         fuelMax: p.fuel_max,
