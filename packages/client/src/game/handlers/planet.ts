@@ -14,7 +14,7 @@ import {
 import { type DisplayStarbaseCtx } from '../display-starbase.js';
 import { type DisplayComputerCtx } from '../display-computer.js';
 import type { Handler } from './index.js';
-import { fmt, refreshMinimap, type RefreshMinimapDeps } from './utils.js';
+import { fmt, fmtCompact, refreshMinimap, type RefreshMinimapDeps } from './utils.js';
 import { padStartVisible } from '../display-utils.js';
 
 type PlanetDisplayMsg = {
@@ -43,17 +43,19 @@ type PlanetDisplayMsg = {
     ship_organics: number;
     ship_equipment: number;
     ship_drones: number;
+    ship_max_drones: number;
+    ship_colonists: number;
     empty_holds: number;
 };
 
 function colsToBuildOnePerHour(prodRate: number, cpu: number): string {
     if (prodRate <= 0 || cpu <= 0) return 'N/A';
-    return fmt(Math.ceil(cpu / prodRate));
+    return fmtCompact(Math.ceil(cpu / prodRate));
 }
 
 function hourlyOutput(colos: number, prodRate: number, cpu: number): string {
     if (prodRate <= 0 || cpu <= 0) return '0';
-    return fmt(Math.floor((colos * prodRate) / cpu));
+    return fmtCompact(Math.floor((colos * prodRate) / cpu));
 }
 
 function renderPlanetTable(ctx: { io: { term: { writeln: (s: string) => void } }; world: { currentSector: number } }, msg: PlanetDisplayMsg): void {
@@ -112,12 +114,12 @@ function renderPlanetTable(ctx: { io: { term: { writeln: (s: string) => void } }
         ctx.io.term.writeln(
             render(PANEL.planetDisplayTableRow, {
                 item: padStartVisible(r.item, 9),
-                colos: padStartVisible(fmt(Math.floor(r.colos / 1000)), 9),
+                colos: padStartVisible(fmtCompact(r.colos), 9),
                 c2b1: padStartVisible(colsToBuildOnePerHour(r.prod, cpu), 9),
                 hourly: padStartVisible(hourlyOutput(r.colos, r.prod, cpu), 9),
-                planet: padStartVisible(fmt(r.planet), 9),
-                ship: padStartVisible(fmt(r.ship), 9),
-                max: padStartVisible(fmt(r.max), 9),
+                planet: padStartVisible(fmtCompact(r.planet), 9),
+                ship: padStartVisible(fmtCompact(r.ship), 9),
+                max: padStartVisible(fmtCompact(r.max), 9),
             }),
         );
     }
@@ -125,7 +127,7 @@ function renderPlanetTable(ctx: { io: { term: { writeln: (s: string) => void } }
     ctx.io.term.writeln(render(PANEL.planetDisplayHolds, { holds: fmt(msg.empty_holds) }));
 }
 
-type PlanetDeps = Pick<GameContext, 'io' | 'input' | 'ship' | 'world'> &
+type PlanetDeps = Pick<GameContext, 'io' | 'input' | 'ship' | 'planet' | 'world'> &
     DisplayCtx &
     DisplayPlanetCtx &
     DisplayStarbaseCtx &
@@ -154,8 +156,29 @@ export const takeColonists: Handler<'takeColonistsResult', PlanetDeps> = (ctx, m
     }
 };
 
+function applyCommodityResult(
+    ctx: PlanetDeps,
+    commodity: 'fuel' | 'organics' | 'equipment' | 'drones',
+    planetAmount: number,
+    shipAmount: number,
+): void {
+    if (commodity === 'fuel') {
+        ctx.planet.fuel = planetAmount;
+        ctx.ship.shipFuel = shipAmount;
+    } else if (commodity === 'organics') {
+        ctx.planet.organics = planetAmount;
+        ctx.ship.shipOrganics = shipAmount;
+    } else if (commodity === 'equipment') {
+        ctx.planet.equipment = planetAmount;
+        ctx.ship.shipEquipment = shipAmount;
+    } else {
+        ctx.planet.drones = planetAmount;
+        ctx.ship.shipDrones = shipAmount;
+    }
+}
+
 export const takeCommodity: Handler<'takeCommodityResult', PlanetDeps> = (ctx, msg) => {
-    if (msg.commodity === 'drones') ctx.ship.shipDrones = msg.shipCommodity;
+    applyCommodityResult(ctx, msg.commodity, msg.planetCommodity, msg.shipCommodity);
     ctx.io.term.writeln('');
     ctx.io.term.writeln(
         render(PLANET.takeStockpileResult, {
@@ -168,7 +191,7 @@ export const takeCommodity: Handler<'takeCommodityResult', PlanetDeps> = (ctx, m
 };
 
 export const leaveCommodity: Handler<'leaveCommodityResult', PlanetDeps> = (ctx, msg) => {
-    if (msg.commodity === 'drones') ctx.ship.shipDrones = msg.shipCommodity;
+    applyCommodityResult(ctx, msg.commodity, msg.planetCommodity, msg.shipCommodity);
     ctx.io.term.writeln('');
     ctx.io.term.writeln(
         render(PLANET.leaveStockpileResult, {
@@ -198,11 +221,26 @@ export const leaveColonists: Handler<'leaveColonistsResult', PlanetDeps> = (ctx,
     }
 };
 
-export const landOnPlanet: Handler<'landOnPlanetResult', PlanetDeps> = (ctx, msg) => {
+function cachePlanetInteractionState(ctx: PlanetDeps, msg: PlanetDisplayMsg): void {
     ctx.ship.planetEmptyHolds = msg.empty_holds;
     ctx.ship.shipColonists = msg.ship_colonists;
     ctx.ship.shipDrones = msg.ship_drones;
     ctx.ship.shipMaxDrones = msg.ship_max_drones;
+    ctx.ship.shipFuel = msg.ship_fuel;
+    ctx.ship.shipOrganics = msg.ship_organics;
+    ctx.ship.shipEquipment = msg.ship_equipment;
+    ctx.planet.fuel = msg.fuel;
+    ctx.planet.organics = msg.organics;
+    ctx.planet.equipment = msg.equipment;
+    ctx.planet.drones = msg.drones;
+    ctx.planet.maxFuel = msg.max_fuel;
+    ctx.planet.maxOrg = msg.max_org;
+    ctx.planet.maxEqu = msg.max_equ;
+    ctx.planet.maxDrones = msg.max_drones;
+}
+
+export const landOnPlanet: Handler<'landOnPlanetResult', PlanetDeps> = (ctx, msg) => {
+    cachePlanetInteractionState(ctx, msg);
     const isEarth = msg.name === 'Earth';
     ctx.world.mode = isEarth ? Menu.PlanetEarth : Menu.Planet;
     if (isEarth) {
@@ -216,10 +254,7 @@ export const landOnPlanet: Handler<'landOnPlanetResult', PlanetDeps> = (ctx, msg
 };
 
 export const planetDisplay: Handler<'planetDisplayResult', PlanetDeps> = (ctx, msg) => {
-    ctx.ship.planetEmptyHolds = msg.empty_holds;
-    ctx.ship.shipColonists = msg.ship_colonists;
-    ctx.ship.shipDrones = msg.ship_drones;
-    ctx.ship.shipMaxDrones = msg.ship_max_drones;
+    cachePlanetInteractionState(ctx, msg);
     renderPlanetTable(ctx, msg);
 };
 

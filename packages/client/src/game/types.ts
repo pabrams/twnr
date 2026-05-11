@@ -129,12 +129,22 @@ export interface ShipState {
     currentColoredShipName: string | null;
     shipColonists: number;
     planetEmptyHolds: number;
-    /** Mirror of the server's ship.drones / ship_type.max_drones for the
-     *  current ship. Updated whenever the server sends planet display
-     *  data; used by the take-commodity prompt to hint the headroom for
-     *  drone trades (drones don't use cargo holds). */
     shipDrones: number;
     shipMaxDrones: number;
+    shipFuel: number;
+    shipOrganics: number;
+    shipEquipment: number;
+}
+
+export interface PlanetState {
+    fuel: number;
+    organics: number;
+    equipment: number;
+    drones: number;
+    maxFuel: number;
+    maxOrg: number;
+    maxEqu: number;
+    maxDrones: number;
 }
 
 export interface AutopilotState {
@@ -195,6 +205,7 @@ export interface GameContext {
     player: PlayerState;
     world: WorldState;
     ship: ShipState;
+    planet: PlanetState;
     autopilot: AutopilotState;
     encounter: EncounterState;
     catalogs: Catalogs;

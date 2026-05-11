@@ -26,9 +26,9 @@ export const PLANET = makeDomain('PLANET', {
     takeStockpileHeader: '[bc]Which commodity to take from the planet?[/bc]',
     leaveStockpileHeader: '[bc]Which commodity to leave on the planet?[/bc]',
     takeStockpileQtyPrompt:
-        '\r\n[mg]How many[/mg] [bc]{commodity}[/bc] [mg]to take?[/mg] [mg][[/mg][by]-1[/by]=[g]max[/g][mg]][/mg] [by]:[/by] ',
+        '\r\n[mg]How many[/mg] [bc]{commodity}[/bc] [mg]to take?[/mg] [mg][[/mg][by]{default}[/by][mg]][/mg] [by]:[/by] ',
     leaveStockpileQtyPrompt:
-        '\r\n[mg]How many[/mg] [bc]{commodity}[/bc] [mg]to leave?[/mg] [mg][[/mg][by]-1[/by]=[g]all[/g][mg]][/mg] [by]:[/by] ',
+        '\r\n[mg]How many[/mg] [bc]{commodity}[/bc] [mg]to leave?[/mg] [mg][[/mg][by]{default}[/by][mg]][/mg] [by]:[/by] ',
     takeStockpileResult:
         '[bg]Took [bc]{qty}[/bc] {commodity}.[/bg]  [g]Planet[/g]: [by]{planet}[/by]  [g]Ship[/g]: [by]{ship}[/by]',
     leaveStockpileResult:

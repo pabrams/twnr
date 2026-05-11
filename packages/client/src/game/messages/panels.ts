@@ -50,7 +50,7 @@ export const PANEL = makeDomain('PANEL', {
     planetDisplayTableHead1:
         '  [by]Item[/by]    [by]Colonists[/by]  [by]Colos to[/by]   [by]Hourly[/by]    [by]Planet[/by]      [by]Ship[/by]      [by]Planet[/by]',
     planetDisplayTableHead2:
-        '           [by](1000s)[/by]   [by]Build 1/h[/by]  [by]Product[/by]    [by]Amount[/by]     [by]Amount[/by]     [by]Maximum[/by]',
+        '                      [by]Build 1/h[/by]  [by]Product[/by]    [by]Amount[/by]     [by]Amount[/by]     [by]Maximum[/by]',
     planetDisplayTableSep:
         ' [g]-------  ---------  ---------  ---------  ---------  ---------  ---------[/g]',
     planetDisplayTableRow:
