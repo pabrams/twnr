@@ -27,7 +27,7 @@ export const MENU_REGISTRY: MenuEntry[] = [
             {
                 command: 'move',
                 keyPattern: '<number>',
-                label: 'Move to sector',
+                label: 'Move to sector #',
                 targetMenu: null,
                 sortOrder: 10,
             },
