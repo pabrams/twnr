@@ -1,6 +1,6 @@
 import { ClientMsgType, Menu, ServerMsgType } from '@twnr/shared';
 import { render } from '../renderer.js';
-import { COMPUTER, EVENT, NOTIFY, PLANET, SECTOR } from '../messages/index.js';
+import { CLAN, COMPUTER, EVENT, NOTIFY, PLANET, SECTOR } from '../messages/index.js';
 import {
     echoCommand,
     hideMoveMenuOverlay,
@@ -167,6 +167,11 @@ registerRoutine('quit_game', async (ctx) => {
 registerRoutine('players_online', (ctx) => {
     echoCommand(ctx, 'playersOnline');
     ctx.io.sendMsg({ type: ClientMsgType.PlayersOnline });
+});
+
+registerRoutine('clan_menu', (ctx) => {
+    ctx.io.term.writeln(render(CLAN.activated));
+    ctx.world.mode = Menu.Clan;
 });
 
 registerRoutine('transporter_pad', async (ctx) => {

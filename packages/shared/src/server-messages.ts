@@ -521,6 +521,63 @@ export type TransportToShipResultObject = {
     turnsRemaining: number;
 };
 
+export type ClanCreateResultObject = {
+    type: typeof ServerMsgType.ClanCreateResult;
+    clanId: number;
+    clanNumber: number;
+    name: string;
+};
+
+export type ClanJoinResultObject = {
+    type: typeof ServerMsgType.ClanJoinResult;
+    clanId: number;
+    clanNumber: number;
+    name: string;
+};
+
+export type ClanLeaveResultObject = {
+    type: typeof ServerMsgType.ClanLeaveResult;
+    outcome: 'left' | 'dissolved';
+    /** When outcome=dissolved, count of clan assets that became personal (in current sector). */
+    convertedToPersonal: number;
+    /** When outcome=dissolved, count of clan assets that became rogue (other sectors). */
+    convertedToRogue: number;
+};
+
+export type ClanListEntry = {
+    clanId: number;
+    clanNumber: number;
+    name: string;
+    memberCount: number;
+    leaderName: string;
+};
+
+export type ClanListResultObject = {
+    type: typeof ServerMsgType.ClanListResult;
+    clans: ClanListEntry[];
+};
+
+export type ClanMemberEntry = {
+    playerId: number;
+    name: string;
+    isLeader: boolean;
+};
+
+export type ClanInfoResultObject = {
+    type: typeof ServerMsgType.ClanInfoResult;
+    /** Null if player is not in a clan. */
+    clan:
+        | {
+              clanId: number;
+              clanNumber: number;
+              name: string;
+              leaderPlayerId: number;
+              members: ClanMemberEntry[];
+              maxSize: number;
+          }
+        | null;
+};
+
 export type ListOwnedShipsResultObject = {
     type: typeof ServerMsgType.ListOwnedShipsResult;
     currentSector: number;
@@ -740,4 +797,9 @@ export type ServerResult =
     | SeekerMinePickupAlertEvent
     | ListOwnedShipsResultObject
     | TransportToShipResultObject
+    | ClanCreateResultObject
+    | ClanJoinResultObject
+    | ClanLeaveResultObject
+    | ClanListResultObject
+    | ClanInfoResultObject
     | ErrorResultObject;

@@ -34,3 +34,5 @@ import './shipyards.js';
 import './shipyards-class0.js';
 import './starbase.js';
 import './starbase-hardware.js';
+import './clan.js';
+import './clan-routines.js';

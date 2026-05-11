@@ -53,6 +53,13 @@ import {
     handleTrackSeekerMines,
     handleMineDisruptor,
 } from './mines.js';
+import {
+    handleClanCreate,
+    handleClanJoin,
+    handleClanLeave,
+    handleClanList,
+    handleClanInfo,
+} from './clan.js';
 
 export async function handleMessage(playerId: number, data: ClientCommand): Promise<void> {
     switch (data.type) {
@@ -136,6 +143,33 @@ export async function handleMessage(playerId: number, data: ClientCommand): Prom
             }
             return handleTransportToShip(playerId, raw.shipId);
         }
+        case ClientMsgType.ClanCreate: {
+            const raw = data as { name?: unknown; password?: unknown };
+            if (typeof raw.name !== 'string' || typeof raw.password !== 'string') {
+                sendError(playerId, 'Invalid clan create payload');
+                return;
+            }
+            return handleClanCreate(playerId, raw.name, raw.password);
+        }
+        case ClientMsgType.ClanJoin: {
+            const raw = data as { name?: unknown; password?: unknown };
+            if (typeof raw.name !== 'string' || typeof raw.password !== 'string') {
+                sendError(playerId, 'Invalid clan join payload');
+                return;
+            }
+            return handleClanJoin(playerId, raw.name, raw.password);
+        }
+        case ClientMsgType.ClanLeave: {
+            const raw = data as { successorPlayerId?: unknown; confirmDissolve?: unknown };
+            const successor =
+                typeof raw.successorPlayerId === 'number' ? raw.successorPlayerId : undefined;
+            const confirm = raw.confirmDissolve === true;
+            return handleClanLeave(playerId, successor, confirm);
+        }
+        case ClientMsgType.ClanList:
+            return handleClanList(playerId);
+        case ClientMsgType.ClanInfo:
+            return handleClanInfo(playerId);
         case ClientMsgType.DeployDronesInfo:
             return handleDeployDronesInfo(playerId);
         case ClientMsgType.DeployDrones:

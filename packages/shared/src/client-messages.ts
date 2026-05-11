@@ -207,6 +207,34 @@ export type TransportToShipCommand = {
     shipId: number;
 };
 
+export type ClanCreateCommand = {
+    type: typeof ClientMsgType.ClanCreate;
+    name: string;
+    password: string;
+};
+
+export type ClanJoinCommand = {
+    type: typeof ClientMsgType.ClanJoin;
+    name: string;
+    password: string;
+};
+
+export type ClanLeaveCommand = {
+    type: typeof ClientMsgType.ClanLeave;
+    /** Required when leaving as leader with other members remaining. */
+    successorPlayerId?: number;
+    /** Required when leaving as the last member (triggers dissolution). */
+    confirmDissolve?: boolean;
+};
+
+export type ClanListCommand = {
+    type: typeof ClientMsgType.ClanList;
+};
+
+export type ClanInfoCommand = {
+    type: typeof ClientMsgType.ClanInfo;
+};
+
 export type HyperspaceJumpCommand = {
     type: typeof ClientMsgType.HyperspaceJump;
     targetSector: number;
@@ -304,4 +332,9 @@ export type ClientCommand =
     | TrackSeekerMinesCommand
     | MineDisruptorCommand
     | ListOwnedShipsCommand
-    | TransportToShipCommand;
+    | TransportToShipCommand
+    | ClanCreateCommand
+    | ClanJoinCommand
+    | ClanLeaveCommand
+    | ClanListCommand
+    | ClanInfoCommand;
