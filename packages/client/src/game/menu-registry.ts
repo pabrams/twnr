@@ -139,6 +139,13 @@ export const MENU_REGISTRY: MenuEntry[] = [
                 sortOrder: 105,
             },
             {
+                command: 'transporter_pad',
+                keyPattern: 'x',
+                label: 'Transporter Pad',
+                targetMenu: null,
+                sortOrder: 108,
+            },
+            {
                 command: 'quit_game',
                 keyPattern: 'q',
                 label: 'Quit',

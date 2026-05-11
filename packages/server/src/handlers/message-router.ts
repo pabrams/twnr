@@ -18,7 +18,7 @@ import {
     handleDockStarbase,
     handleLeaveStarbase,
 } from './port.js';
-import { handleShipInfo, handleListOwnedShips } from './ship-info.js';
+import { handleShipInfo, handleListOwnedShips, handleTransportToShip } from './ship-info.js';
 import { handleStarbaseInfo } from './starbase-info.js';
 import { handleBuyDrones, handleBuyShields, handleBuyHolds } from './ship-upgrades.js';
 import { handleBuyShipTradein, handleBuyShipNew } from './ship-exchange.js';
@@ -128,6 +128,14 @@ export async function handleMessage(playerId: number, data: ClientCommand): Prom
             return handleListPlanets(playerId);
         case ClientMsgType.ListOwnedShips:
             return handleListOwnedShips(playerId);
+        case ClientMsgType.TransportToShip: {
+            const raw = data as { shipId?: unknown };
+            if (typeof raw.shipId !== 'number') {
+                sendError(playerId, 'Invalid ship id');
+                return;
+            }
+            return handleTransportToShip(playerId, raw.shipId);
+        }
         case ClientMsgType.DeployDronesInfo:
             return handleDeployDronesInfo(playerId);
         case ClientMsgType.DeployDrones:

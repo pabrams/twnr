@@ -78,6 +78,7 @@ export const ServerMsgType = {
     TrackSeekerMinesResult: 'trackSeekerMinesResult',
     MineDisruptorResult: 'mineDisruptorResult',
     ListOwnedShipsResult: 'listOwnedShipsResult',
+    TransportToShipResult: 'transportToShipResult',
     ProximityMineHit: 'proximityMineHit',
     SeekerMineAttached: 'seekerMineAttached',
     SeekerMinePickupAlert: 'seekerMinePickupAlert',
@@ -134,5 +135,6 @@ export const ClientMsgType = {
     TrackSeekerMines: 'trackSeekerMines',
     MineDisruptor: 'mineDisruptor',
     ListOwnedShips: 'listOwnedShips',
+    TransportToShip: 'transportToShip',
 } as const;
 type ClientMsgType = typeof ClientMsgType;

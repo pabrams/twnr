@@ -60,6 +60,29 @@ export const COMPUTER = makeDomain('COMPUTER', {
         '[bw]Ship  Sect Name                  Fighters Shields Holds Hops Type[/bw]',
     activeShipScanRule: '[g]-----------------------------------------------------------------------------[/g]',
     activeShipScanRow:
-        '[by]{shipNum}[/by]  [bc]{sect}[/bc][bg]{marker}[/bg][w]{name}[/w] [bc]{fighters}[/bc] [bc]{shields}[/bc] [bc]{holds}[/bc] [bc]{hops}[/bc]  [g]{type}[/g]',
+        '[by]{shipNum}[/by]  [bc]{sect}[/bc][bg]{marker}[/bg][w]{name}[/w] [bc]{fighters}[/bc] [bc]{shields}[/bc] [bc]{holds}[/bc] {hops}  [g]{type}[/g]',
+    activeShipScanHopsInRange: '[bg]{hops}[/bg]',
+    activeShipScanHopsOutOfRange: '[br]{hops}[/br]',
+    activeShipScanHopsNeutral: '[bc]{hops}[/bc]',
     activeShipScanEmpty: '[w]You own no ships.[/w]',
+
+    transporterIntrasectorOnly:
+        '[w]Your [/w][bc]{ship}[/bc] [w]can only beam intrasector.[/w]',
+    transporterRangeStatement:
+        '[w]Your [/w][bc]{ship}[/bc] [w]has a transport range of [/w][bc]{range}[/bc] [w]hops.[/w]',
+    transporterNoCurrentShip: '[br]You have no ship.[/br]',
+    transporterOptionsBlank: '',
+    transporterOptionDetails: '[mg]<[/mg][by]I[/by][mg]>[/mg] [bc]Ship details[/bc]',
+    transporterOptionExit: '[mg]<[/mg][by]Q[/by][mg]>[/mg] [bc]Exit Transporter[/bc]',
+    transporterPrompt:
+        '\r\n[mg]Choose which ship to beam to ([/mg][by]Q[/by][mg]=Quit) [/mg][by]?[/by] ',
+    transporterDetailsPrompt:
+        '\r\n[mg]Show details for which ship? ([/mg][by]Q[/by][mg]=Quit) [/mg][by]?[/by] ',
+    transporterSuccess: '[bg]Security code accepted, engaging transporter control.[/bg]',
+    transporterTurnsLeft:
+        '[w]One turn deducted, [/w][bc]{turns}[/bc] [w]turns left.[/w]',
+    transporterUnknownShip: '[br]No ship with that number.[/br]',
+    transporterCannotSelf: '[br]Already on that ship.[/br]',
+    transporterDetailHeader: '[bc]Ship #{shipNum}[/bc]',
+    transporterDetailLine: '  [g]{label}[/g] [by]:[/by] [bc]{value}[/bc]',
 });

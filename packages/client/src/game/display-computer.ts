@@ -286,7 +286,7 @@ export async function showCurrentShipSpecs(ctx: DisplayComputerCtx) {
     showComputerPrompt(ctx);
 }
 
-type OwnedShipRowDisplay = {
+export type OwnedShipRowDisplay = {
     id: number;
     shipNumber: number;
     sector: number | null;
@@ -296,11 +296,19 @@ type OwnedShipRowDisplay = {
     hops: number | null;
     typeName: string;
     typeDisplayName: string | null;
+    transporterRange: number;
+};
+
+type RenderActiveShipScanOpts = {
+    sortByHops?: boolean;
+    /** When set, color hops green if `hops <= rangeFromCurrentShip`, red otherwise. */
+    rangeFromCurrentShip?: number | null;
 };
 
 export function renderActiveShipScan(
     ctx: DisplayComputerCtx,
     msg: { currentShipId: number | null; ships: OwnedShipRowDisplay[] },
+    opts: RenderActiveShipScanOpts = {},
 ) {
     const { term } = ctx.io;
     term.writeln('');
@@ -311,9 +319,20 @@ export function renderActiveShipScan(
         term.writeln(render(COMPUTER.activeShipScanEmpty));
         return;
     }
-    for (const s of msg.ships) {
+    const ships = opts.sortByHops
+        ? [...msg.ships].sort((a, b) => hopsKey(a.hops) - hopsKey(b.hops))
+        : msg.ships;
+    const range = opts.rangeFromCurrentShip ?? null;
+    for (const s of ships) {
         const isCurrent = s.id === msg.currentShipId;
         const sectStr = s.sector === null ? '----' : String(s.sector);
+        const hopsStr = s.hops === null ? '   -' : String(s.hops).padStart(4);
+        const hopsTemplate =
+            range === null
+                ? COMPUTER.activeShipScanHopsNeutral
+                : s.hops !== null && s.hops <= range
+                  ? COMPUTER.activeShipScanHopsInRange
+                  : COMPUTER.activeShipScanHopsOutOfRange;
         term.writeln(
             render(COMPUTER.activeShipScanRow, {
                 shipNum: String(s.shipNumber).padStart(4),
@@ -323,8 +342,74 @@ export function renderActiveShipScan(
                 fighters: String(s.drones).padStart(8),
                 shields: String(s.shields).padStart(7),
                 holds: String(s.holds).padStart(5),
-                hops: s.hops === null ? '   -' : String(s.hops).padStart(4),
+                hops: render(hopsTemplate, { hops: hopsStr }),
                 type: s.typeDisplayName ?? s.typeName,
+            }),
+        );
+    }
+}
+
+function hopsKey(hops: number | null): number {
+    return hops === null ? Number.MAX_SAFE_INTEGER : hops;
+}
+
+export function renderTransporterPrelude(
+    ctx: DisplayComputerCtx,
+    msg: {
+        currentShipTypeName: string | null;
+        currentShipTypeDisplayName: string | null;
+        currentShipTransporterRange: number | null;
+    },
+) {
+    const { term } = ctx.io;
+    const shipName = msg.currentShipTypeDisplayName ?? msg.currentShipTypeName;
+    if (!shipName || msg.currentShipTransporterRange === null) {
+        term.writeln(render(COMPUTER.transporterNoCurrentShip));
+        return;
+    }
+    if (msg.currentShipTransporterRange === 0) {
+        term.writeln(
+            render(COMPUTER.transporterIntrasectorOnly, { ship: shipName }),
+        );
+    } else {
+        term.writeln(
+            render(COMPUTER.transporterRangeStatement, {
+                ship: shipName,
+                range: msg.currentShipTransporterRange,
+            }),
+        );
+    }
+}
+
+export function renderTransporterOptions(ctx: DisplayComputerCtx) {
+    const { term } = ctx.io;
+    term.writeln('');
+    term.writeln(render(COMPUTER.transporterOptionDetails));
+    term.writeln(render(COMPUTER.transporterOptionExit));
+}
+
+export function renderShipDetail(
+    ctx: DisplayComputerCtx,
+    s: OwnedShipRowDisplay,
+) {
+    const { term } = ctx.io;
+    term.writeln('');
+    term.writeln(render(COMPUTER.transporterDetailHeader, { shipNum: s.shipNumber }));
+    const pad = (label: string) => label.padEnd(16);
+    const lines: { label: string; value: string | number }[] = [
+        { label: 'Type', value: s.typeDisplayName ?? s.typeName },
+        { label: 'Sector', value: s.sector ?? '—' },
+        { label: 'Fighters', value: s.drones },
+        { label: 'Shields', value: s.shields },
+        { label: 'Holds', value: s.holds },
+        { label: 'Hops', value: s.hops ?? '—' },
+        { label: 'Transport Range', value: s.transporterRange },
+    ];
+    for (const l of lines) {
+        term.writeln(
+            render(COMPUTER.transporterDetailLine, {
+                label: pad(l.label),
+                value: l.value,
             }),
         );
     }
