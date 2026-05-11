@@ -15,6 +15,7 @@ export const Menu = {
     PlanetEarth: 'planetEarth',
     Shipyards: 'shipyards',
     ShipyardsClass0: 'shipyardsClass0',
+    Clan: 'clan',
 } as const;
 export type MenuName = (typeof Menu)[keyof typeof Menu];
 
@@ -79,6 +80,11 @@ export const ServerMsgType = {
     MineDisruptorResult: 'mineDisruptorResult',
     ListOwnedShipsResult: 'listOwnedShipsResult',
     TransportToShipResult: 'transportToShipResult',
+    ClanCreateResult: 'clanCreateResult',
+    ClanJoinResult: 'clanJoinResult',
+    ClanLeaveResult: 'clanLeaveResult',
+    ClanListResult: 'clanListResult',
+    ClanInfoResult: 'clanInfoResult',
     ProximityMineHit: 'proximityMineHit',
     SeekerMineAttached: 'seekerMineAttached',
     SeekerMinePickupAlert: 'seekerMinePickupAlert',
@@ -136,5 +142,10 @@ export const ClientMsgType = {
     MineDisruptor: 'mineDisruptor',
     ListOwnedShips: 'listOwnedShips',
     TransportToShip: 'transportToShip',
+    ClanCreate: 'clanCreate',
+    ClanJoin: 'clanJoin',
+    ClanLeave: 'clanLeave',
+    ClanList: 'clanList',
+    ClanInfo: 'clanInfo',
 } as const;
 type ClientMsgType = typeof ClientMsgType;
