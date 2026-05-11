@@ -26,6 +26,7 @@ export async function getPortClassAtSector(
 /** Full port row keyed by sector number (returns undefined if no port). */
 export type PortFullRow = {
     sector_id: number;
+    name: string;
     class: number;
     fuel: number;
     fuel_max: number;
@@ -43,7 +44,7 @@ export async function getPortAtSector(
     db: Queryable = pool,
 ): Promise<PortFullRow | undefined> {
     const res = await db.query<PortFullRow>(
-        `SELECT s.sector_number as sector_id, p.class, p.fuel, p.fuel_max, p.fuel_price,
+        `SELECT s.sector_number as sector_id, p.name, p.class, p.fuel, p.fuel_max, p.fuel_price,
                 p.organics, p.org_max, p.org_price, p.equipment, p.equ_max, p.equ_price
          FROM ports p JOIN sectors s ON p.sector_id = s.id
          WHERE s.sector_number = $1 AND s.universe_id = $2`,
@@ -222,10 +223,11 @@ export async function insertPort(
     db: Queryable = pool,
 ): Promise<void> {
     await db.query(
-        `INSERT INTO ports (sector_id, class, fuel, fuel_max, fuel_price,
+        `INSERT INTO ports (sector_id, name, class, fuel, fuel_max, fuel_price,
                             organics, org_max, org_price,
                             equipment, equ_max, equ_price)
-         VALUES ($1, $2, $3, $3, $4, $5, $5, $6, $7, $7, $8)`,
+         VALUES ($1, (SELECT 'Port ' || sector_number FROM sectors WHERE id = $1),
+                 $2, $3, $3, $4, $5, $5, $6, $7, $7, $8)`,
         [
             sectorDbId,
             data.class,
@@ -259,8 +261,9 @@ export async function insertGeneratedPort(
     db: Queryable = pool,
 ): Promise<void> {
     await db.query(
-        `INSERT INTO ports (sector_id, class, fuel, fuel_max, fuel_price, organics, org_max, org_price, equipment, equ_max, equ_price)
-         VALUES ($1, $2, $3, $3, $4, $5, $5, $6, $7, $7, $8)`,
+        `INSERT INTO ports (sector_id, name, class, fuel, fuel_max, fuel_price, organics, org_max, org_price, equipment, equ_max, equ_price)
+         VALUES ($1, (SELECT 'Port ' || sector_number FROM sectors WHERE id = $1),
+                 $2, $3, $3, $4, $5, $5, $6, $7, $7, $8)`,
         [
             sectorId,
             portClass,
@@ -281,8 +284,9 @@ export async function upsertSpecialPort(
     db: Queryable = pool,
 ): Promise<void> {
     await db.query(
-        `INSERT INTO ports (sector_id, class, fuel, fuel_max, fuel_price, organics, org_max, org_price, equipment, equ_max, equ_price)
-         VALUES ($1, $2, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        `INSERT INTO ports (sector_id, name, class, fuel, fuel_max, fuel_price, organics, org_max, org_price, equipment, equ_max, equ_price)
+         VALUES ($1, (SELECT 'Port ' || sector_number FROM sectors WHERE id = $1),
+                 $2, 0, 0, 0, 0, 0, 0, 0, 0, 0)
          ON CONFLICT (sector_id) DO UPDATE
          SET class = $2, fuel = 0, fuel_max = 0, fuel_price = 0,
              organics = 0, org_max = 0, org_price = 0,
@@ -310,9 +314,9 @@ export async function getPortForSectorDisplay(
     sectorNumber: number,
     universeId: number,
     db: Queryable = pool,
-): Promise<{ class: number } | null> {
-    const res = await db.query<{ class: number }>(
-        `SELECT p.class FROM ports p
+): Promise<{ class: number; name: string } | null> {
+    const res = await db.query<{ class: number; name: string }>(
+        `SELECT p.class, p.name FROM ports p
          JOIN sectors s ON p.sector_id = s.id
          WHERE s.sector_number = $1 AND s.universe_id = $2`,
         [sectorNumber, universeId],
