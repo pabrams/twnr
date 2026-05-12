@@ -1,5 +1,6 @@
 import { WebSocket } from 'ws';
 import { ServerMsgType } from '@twnr/shared';
+import type { MoveCommand, WarpsOutCommand, ShortestPathCommand } from '@twnr/shared';
 import { players, getPlayerUniverseId } from '../state/players.js';
 import { sendEnvelope, sendError, broadcastTo, closeDestroyedSession } from '../state/messaging.js';
 import { getGraph } from '../state/graph-cache.js';
@@ -21,7 +22,8 @@ import {
 import { deductTurns, fetchMoveTurnContext } from '../turn-logic.js';
 import { resolveMinesOnEntry } from '../services/mine-encounter.js';
 
-export async function handleMove(playerId: number, targetSector: number): Promise<void> {
+export async function handleMove(playerId: number, data: MoveCommand): Promise<void> {
+    const targetSector = data.sector;
     if (!Number.isInteger(targetSector) || targetSector <= 0) {
         sendEnvelope(playerId, {
             type: ServerMsgType.MoveResult,
@@ -190,7 +192,8 @@ export async function handleSectorDisplay(playerId: number): Promise<void> {
     sendEnvelope(playerId, { type: ServerMsgType.SectorDisplayResult, ...data });
 }
 
-export async function handleWarpsOut(playerId: number, id: number): Promise<void> {
+export async function handleWarpsOut(playerId: number, data: WarpsOutCommand): Promise<void> {
+    const { id } = data;
     if (!Number.isInteger(id) || id <= 0) {
         sendError(playerId, 'Invalid sector ID');
         return;
@@ -211,9 +214,9 @@ export async function handleWarpsOut(playerId: number, id: number): Promise<void
 
 export async function handleShortestPath(
     playerId: number,
-    from: number,
-    to: number,
+    data: ShortestPathCommand,
 ): Promise<void> {
+    const { from, to } = data;
     if (!Number.isInteger(from) || from <= 0 || !Number.isInteger(to) || to <= 0) {
         sendError(playerId, 'Invalid sector ID');
         return;

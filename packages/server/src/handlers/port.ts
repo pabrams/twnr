@@ -1,4 +1,5 @@
 import { ServerMsgType, PORT_CLASS_ACTIONS } from '@twnr/shared';
+import type { PortInfoCommand, PortTransactionCommand } from '@twnr/shared';
 import { players, getPlayerUniverseId } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
@@ -58,7 +59,8 @@ function buildPortInfoPayload(
     };
 }
 
-export async function handlePortInfo(playerId: number, sectorId: number): Promise<void> {
+export async function handlePortInfo(playerId: number, data: PortInfoCommand): Promise<void> {
+    const { sectorId } = data;
     if (!Number.isInteger(sectorId) || sectorId <= 0) {
         sendError(playerId, 'Invalid sector ID');
         return;
@@ -174,10 +176,9 @@ export async function handleUndock(playerId: number): Promise<void> {
 
 export async function handlePortTransaction(
     playerId: number,
-    good: string,
-    quantity: number,
-    action: string,
+    data: PortTransactionCommand,
 ): Promise<void> {
+    const { good, quantity, action } = data;
     if (good !== 'fuel' && good !== 'organics' && good !== 'equipment') {
         sendError(playerId, 'Invalid good');
         return;

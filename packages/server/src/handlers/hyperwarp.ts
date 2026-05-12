@@ -1,4 +1,5 @@
 import { ServerMsgType } from '@twnr/shared';
+import type { HyperspaceJumpCommand } from '@twnr/shared';
 import { players } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { getGraph } from '../state/graph-cache.js';
@@ -13,7 +14,11 @@ import { getDeployedDronesByOwnerBySector } from '../db/queries/drones.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 import { resolveMinesOnEntry } from '../services/mine-encounter.js';
 
-export async function handleHyperspaceJump(playerId: number, targetSector: number): Promise<void> {
+export async function handleHyperspaceJump(
+    playerId: number,
+    data: HyperspaceJumpCommand,
+): Promise<void> {
+    const { targetSector } = data;
     const player = players[playerId];
     if (!player) return;
 
