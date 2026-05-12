@@ -24,6 +24,10 @@ export type WelcomeEvent = {
     isGuest: boolean;
 
     isAdmin: boolean;
+    /** The player's clan id, if any. Cached client-side so menus that gate
+     *  on clan membership (deploy ownership prompt, transfer commands) don't
+     *  need a server roundtrip on every use. */
+    clanId: number | null;
 };
 
 export type PlayerMovedEvent = {
@@ -468,7 +472,11 @@ export type BuyShipNewResultObject = {
 
 export type ListDeployedDronesResultObject = {
     type: typeof ServerMsgType.ListDeployedDronesResult;
-    drones: { sectorId: number; quantity: number }[];
+    drones: {
+        sectorId: number;
+        quantity: number;
+        ownerLabel: string;
+    }[];
 };
 
 export type HyperspaceJumpResultObject = {
@@ -550,10 +558,14 @@ export type ClanListEntry = {
     name: string;
     memberCount: number;
     leaderName: string;
+    /** True if this row is the viewer's own clan. */
+    isOwn: boolean;
 };
 
 export type ClanListResultObject = {
     type: typeof ServerMsgType.ClanListResult;
+    /** The viewer's own clan id, so the client can mark "your clan" red. */
+    viewerClanId: number | null;
     clans: ClanListEntry[];
 };
 
@@ -563,19 +575,66 @@ export type ClanMemberEntry = {
     isLeader: boolean;
 };
 
+export type ChangeShipOwnershipResultObject = {
+    type: typeof ServerMsgType.ChangeShipOwnershipResult;
+    shipId: number;
+    ownership: 'personal' | 'clan';
+};
+
+export type ClaimPlanetResultObject = {
+    type: typeof ServerMsgType.ClaimPlanetResult;
+    planetId: number;
+    planetName: string;
+    ownership: 'personal' | 'clan';
+};
+
+export type ClanTransferResultObject = {
+    type: typeof ServerMsgType.ClanTransferResult;
+    kind: 'credits' | 'drones' | 'shields' | 'mines';
+    targetPlayerId: number;
+    targetName: string;
+    quantity: number;
+    /** Quantity actually delivered (may be less than requested for clamp). */
+    delivered: number;
+};
+
+export type ClanMemoResultObject = {
+    type: typeof ServerMsgType.ClanMemoResult;
+    recipientCount: number;
+};
+
+export type ClanSetPasswordResultObject = {
+    type: typeof ServerMsgType.ClanSetPasswordResult;
+};
+
+export type ClanDropMemberResultObject = {
+    type: typeof ServerMsgType.ClanDropMemberResult;
+    droppedPlayerId: number;
+    droppedName: string;
+};
+
+export type MemoDeliveryEvent = {
+    type: typeof ServerMsgType.MemoDelivery;
+    memos: {
+        id: number;
+        senderName: string | null;
+        kind: string;
+        body: string;
+        createdAt: string;
+    }[];
+};
+
 export type ClanInfoResultObject = {
     type: typeof ServerMsgType.ClanInfoResult;
     /** Null if player is not in a clan. */
-    clan:
-        | {
-              clanId: number;
-              clanNumber: number;
-              name: string;
-              leaderPlayerId: number;
-              members: ClanMemberEntry[];
-              maxSize: number;
-          }
-        | null;
+    clan: {
+        clanId: number;
+        clanNumber: number;
+        name: string;
+        leaderPlayerId: number;
+        members: ClanMemberEntry[];
+        maxSize: number;
+    } | null;
 };
 
 export type ListOwnedShipsResultObject = {
@@ -585,6 +644,8 @@ export type ListOwnedShipsResultObject = {
     currentShipTypeName: string | null;
     currentShipTypeDisplayName: string | null;
     currentShipTransporterRange: number | null;
+    /** The viewer's clan id (so the client can color/mark clan rows). */
+    viewerClanId: number | null;
     ships: {
         id: number;
         shipNumber: number;
@@ -596,6 +657,9 @@ export type ListOwnedShipsResultObject = {
         typeName: string;
         typeDisplayName: string | null;
         transporterRange: number;
+        ownerPlayerId: number | null;
+        ownerClanId: number | null;
+        ownerLabel: string;
     }[];
 };
 
@@ -677,6 +741,7 @@ export type DeployedMineEntry = {
     sectorNumber: number;
     mineType: 'proximity' | 'seeker';
     quantity: number;
+    ownerLabel: string;
 };
 
 export type ListDeployedMinesResultObject = {
@@ -733,7 +798,6 @@ export type NeighborhoodResultObject = {
     sectors: NeighborhoodSector[];
     warps: NeighborhoodWarp[];
 };
-
 
 export type ServerResult =
     | WelcomeEvent
@@ -802,4 +866,11 @@ export type ServerResult =
     | ClanLeaveResultObject
     | ClanListResultObject
     | ClanInfoResultObject
+    | ChangeShipOwnershipResultObject
+    | ClaimPlanetResultObject
+    | ClanTransferResultObject
+    | ClanMemoResultObject
+    | ClanSetPasswordResultObject
+    | ClanDropMemberResultObject
+    | MemoDeliveryEvent
     | ErrorResultObject;

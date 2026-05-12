@@ -21,7 +21,7 @@ export const listDeployedMines: Handler<'listDeployedMinesResult', MinesContext>
     ctx.io.term.writeln('Your deployed mines:');
     for (const m of msg.mines) {
         const label = m.mineType === 'seeker' ? 'Seeker' : 'Proximity';
-        ctx.io.term.writeln(`  Sector ${m.sectorNumber}: ${m.quantity} ${label}`);
+        ctx.io.term.writeln(`  Sector ${m.sectorNumber}: ${m.quantity} ${label} — ${m.ownerLabel}`);
     }
 };
 

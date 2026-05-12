@@ -88,10 +88,7 @@ function applyBuyShipResult(
             : TRANSACTION.shipPurchased;
     ctx.io.term.writeln(render(tpl, { name: msg.coloredShipName ?? msg.shipName }));
     ctx.io.term.writeln(render(TRANSACTION.shipCreditsLine, { credits: fmt(msg.credits) }));
-    // Refresh class0ShipState so the next commerce report reflects the new
-    // ship's max stats. The new ship starts empty (drones=0, shields=0);
-    // current cargoLimit comes from the result, and maxHolds comes from the
-    // catalog (server doesn't include it).
+    // Refresh class0ShipState
     if (ctx.starbase.class0ShipState) {
         const cfg = ctx.catalogs.ships?.find((s) => s.name === msg.shipName);
         ctx.starbase.class0ShipState = {
@@ -107,5 +104,6 @@ function applyBuyShipResult(
     }
 }
 
-export const buyShipTradein: Handler<'buyShipTradeinResult', ShipExchangeContext> = applyBuyShipResult;
+export const buyShipTradein: Handler<'buyShipTradeinResult', ShipExchangeContext> =
+    applyBuyShipResult;
 export const buyShipNew: Handler<'buyShipNewResult', ShipExchangeContext> = applyBuyShipResult;

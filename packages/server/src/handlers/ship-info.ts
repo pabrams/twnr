@@ -14,6 +14,7 @@ import { getPlayerTurns } from '../db/queries/turn.js';
 import { getGraph } from '../state/graph-cache.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 import { cargoUsed } from './cargo-utils.js';
+import { formatOwner } from '../services/owner-format.js';
 
 export async function handleShipInfo(playerId: number): Promise<void> {
     const row = await getShipInfo(playerId);
@@ -79,6 +80,11 @@ export async function handleListOwnedShips(playerId: number): Promise<void> {
     }
 
     const currentShip = rows.find((r) => r.id === player.shipId) ?? null;
+    const viewerClanRow = await pool.query<{ clan_id: number | null }>(
+        'SELECT clan_id FROM players WHERE id = $1',
+        [playerId],
+    );
+    const viewerClanId = viewerClanRow.rows[0]?.clan_id ?? null;
 
     sendEnvelope(playerId, {
         type: ServerMsgType.ListOwnedShipsResult,
@@ -87,6 +93,7 @@ export async function handleListOwnedShips(playerId: number): Promise<void> {
         currentShipTypeName: currentShip?.type_name ?? null,
         currentShipTypeDisplayName: currentShip?.type_display_name ?? null,
         currentShipTransporterRange: currentShip?.transporter_range ?? null,
+        viewerClanId,
         ships: rows.map((r) => ({
             id: r.id,
             shipNumber: r.universe_ship_number,
@@ -98,6 +105,9 @@ export async function handleListOwnedShips(playerId: number): Promise<void> {
             typeName: r.type_name,
             typeDisplayName: r.type_display_name,
             transporterRange: r.transporter_range,
+            ownerPlayerId: r.owner_player_id,
+            ownerClanId: r.owner_clan_id,
+            ownerLabel: formatOwner(r),
         })),
     });
 }
@@ -128,7 +138,9 @@ export async function handleTransportToShip(playerId: number, shipId: number): P
          LEFT JOIN players p ON p.id = $1
          LEFT JOIN ships cur ON cur.id = p.ship_id
          LEFT JOIN ship_types cur_st ON cur_st.id = cur.ship_type_id
-         WHERE tgt.id = $2 AND tgt.owner_player_id = $1`,
+         WHERE tgt.id = $2
+           AND (tgt.owner_player_id = $1
+                OR tgt.owner_clan_id = (SELECT clan_id FROM players WHERE id = $1))`,
         [playerId, shipId],
     );
     const row = lookup.rows[0];
@@ -178,11 +190,67 @@ export async function handleTransportToShip(playerId: number, shipId: number): P
     });
 }
 
-function bfsHops(
-    warps: Record<number, number[]>,
-    from: number,
-    to: number,
-): number | null {
+/** O (Change Ship Ownership): flip current ship between personal and
+ *  clan-owned. Personal → clan: any clan member can do it for their own
+ *  ship. Clan → personal: only the clan leader can. */
+export async function handleChangeShipOwnership(
+    playerId: number,
+    ownership: 'personal' | 'clan',
+): Promise<void> {
+    const player = players[playerId];
+    if (!player) return;
+    if (player.shipId === null) {
+        sendError(playerId, 'No ship.');
+        return;
+    }
+
+    const row = await pool.query<{ clan_id: number | null; leader_id: number | null }>(
+        `SELECT p.clan_id, c.leader_id
+         FROM players p
+         LEFT JOIN clans c ON c.id = p.clan_id
+         WHERE p.id = $1`,
+        [playerId],
+    );
+    const data = row.rows[0];
+    if (!data) {
+        sendError(playerId, 'Player not found.');
+        return;
+    }
+    const playerClanId = data.clan_id;
+    const playerIsLeader = data.leader_id === playerId;
+
+    if (ownership === 'clan') {
+        if (playerClanId === null) {
+            sendError(playerId, 'You are not in a clan.');
+            return;
+        }
+        await pool.query(
+            'UPDATE ships SET owner_player_id = NULL, owner_clan_id = $1 WHERE id = $2',
+            [playerClanId, player.shipId],
+        );
+    } else {
+        if (playerClanId === null) {
+            sendError(playerId, 'Ship is already personal.');
+            return;
+        }
+        if (!playerIsLeader) {
+            sendError(playerId, 'Only the clan leader can convert a clan ship to personal.');
+            return;
+        }
+        await pool.query(
+            'UPDATE ships SET owner_clan_id = NULL, owner_player_id = $1 WHERE id = $2',
+            [playerId, player.shipId],
+        );
+    }
+
+    sendEnvelope(playerId, {
+        type: ServerMsgType.ChangeShipOwnershipResult,
+        shipId: player.shipId,
+        ownership,
+    });
+}
+
+function bfsHops(warps: Record<number, number[]>, from: number, to: number): number | null {
     if (from === to) return 0;
     const visited = new Set<number>([from]);
     const queue: { s: number; d: number }[] = [{ s: from, d: 0 }];

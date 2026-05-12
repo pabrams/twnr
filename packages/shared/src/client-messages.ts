@@ -139,6 +139,7 @@ export type DeployDronesInfoCommand = {
 export type DeployDronesCommand = {
     type: typeof ClientMsgType.DeployDrones;
     quantity: number;
+    ownership?: 'personal' | 'clan';
 };
 
 export type AttackSectorDronesCommand = {
@@ -235,6 +236,40 @@ export type ClanInfoCommand = {
     type: typeof ClientMsgType.ClanInfo;
 };
 
+export type ChangeShipOwnershipCommand = {
+    type: typeof ClientMsgType.ChangeShipOwnership;
+    ownership: 'personal' | 'clan';
+};
+
+export type ClaimPlanetCommand = {
+    type: typeof ClientMsgType.ClaimPlanet;
+    ownership: 'personal' | 'clan';
+};
+
+export type ClanTransferKind = 'credits' | 'drones' | 'shields' | 'mines';
+export type ClanTransferCommand = {
+    type: typeof ClientMsgType.ClanTransfer;
+    kind: ClanTransferKind;
+    targetPlayerId: number;
+    quantity: number;
+    mineType?: 'proximity' | 'seeker';
+};
+
+export type ClanMemoCommand = {
+    type: typeof ClientMsgType.ClanMemo;
+    body: string;
+};
+
+export type ClanSetPasswordCommand = {
+    type: typeof ClientMsgType.ClanSetPassword;
+    newPassword: string;
+};
+
+export type ClanDropMemberCommand = {
+    type: typeof ClientMsgType.ClanDropMember;
+    targetPlayerId: number;
+};
+
 export type HyperspaceJumpCommand = {
     type: typeof ClientMsgType.HyperspaceJump;
     targetSector: number;
@@ -248,6 +283,7 @@ export type DeployMineCommand = {
     type: typeof ClientMsgType.DeployMine;
     mineType: 'proximity' | 'seeker';
     quantity: number;
+    ownership?: 'personal' | 'clan';
 };
 
 export type ListDeployedMinesCommand = {
@@ -337,4 +373,10 @@ export type ClientCommand =
     | ClanJoinCommand
     | ClanLeaveCommand
     | ClanListCommand
-    | ClanInfoCommand;
+    | ClanInfoCommand
+    | ChangeShipOwnershipCommand
+    | ClaimPlanetCommand
+    | ClanTransferCommand
+    | ClanMemoCommand
+    | ClanSetPasswordCommand
+    | ClanDropMemberCommand;

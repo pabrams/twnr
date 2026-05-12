@@ -102,6 +102,19 @@ export function awaitResponse(ctx: PromptCtx, types: string[]): Promise<ServerRe
     });
 }
 
+/** Personal/clan ownership picker for deploy-style commands. Returns
+ *  'personal' when the player isn't in a clan (no prompt shown). Returns
+ *  null on cancel. */
+export async function askDeployOwnership(
+    ctx: PromptCtx & { player: { clanId: number | null } },
+    promptText: string,
+): Promise<'personal' | 'clan' | null> {
+    if (ctx.player.clanId === null) return 'personal';
+    const ch = await askChar(ctx, promptText, ['p', 'c']);
+    if (ch === null) return null;
+    return ch === 'c' ? 'clan' : 'personal';
+}
+
 /** Y/N confirmation. Single-keystroke. `q` cancels (returns `null`).
  * If `defaultValue` is set, Enter on its own returns that value. */
 export async function askConfirm(

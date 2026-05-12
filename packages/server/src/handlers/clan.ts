@@ -1,5 +1,5 @@
 import { ServerMsgType } from '@twnr/shared';
-import { pool, withTransaction } from '../db/index.js';
+import { pool, withTransaction, AbortTransaction } from '../db/index.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { players } from '../state/players.js';
 import { hashPassword, verifyPassword } from '../auth/password.js';
@@ -13,10 +13,12 @@ import {
     getMaxClanSize,
     setPlayerClanId,
     setClanLeader,
+    setClanPasswordHash,
     deleteClan,
     dissolveClanAssets,
     isPlayerOnClanShip,
 } from '../db/queries/clan.js';
+import { insertMemo } from '../db/queries/message.js';
 
 /** SELECT a player's clan_id (or null). Lightweight ad-hoc query — clan ops
  *  are rare enough that we don't bother caching this in the in-memory player. */
@@ -174,12 +176,7 @@ export async function handleClanLeave(
         }
         try {
             const result = await withTransaction(async (client) => {
-                const stats = await dissolveClanAssets(
-                    clanId,
-                    playerId,
-                    player.sectorId,
-                    client,
-                );
+                const stats = await dissolveClanAssets(clanId, playerId, player.sectorId, client);
                 await setPlayerClanId(playerId, null, client);
                 await deleteClan(clanId, client);
                 return stats;
@@ -219,9 +216,7 @@ export async function handleClanLeave(
             return;
         }
         const members = await getClanMembers(clanId);
-        const successor = members.find(
-            (m) => m.id === successorPlayerId && m.id !== playerId,
-        );
+        const successor = members.find((m) => m.id === successorPlayerId && m.id !== playerId);
         if (!successor) {
             sendError(playerId, 'Successor is not a member of this clan.');
             return;
@@ -260,14 +255,17 @@ export async function handleClanList(playerId: number): Promise<void> {
     if (!player) return;
 
     const rows = await listClansInUniverse(player.universeId);
+    const viewerClanId = await getPlayerClanId(playerId);
     sendEnvelope(playerId, {
         type: ServerMsgType.ClanListResult,
+        viewerClanId,
         clans: rows.map((r) => ({
             clanId: r.id,
             clanNumber: r.universe_clan_number,
             name: r.name,
             memberCount: r.member_count,
             leaderName: r.leader_name ?? '(no leader)',
+            isOwn: r.id === viewerClanId,
         })),
     });
 }
@@ -304,5 +302,420 @@ export async function handleClanInfo(playerId: number): Promise<void> {
             })),
             maxSize,
         },
+    });
+}
+
+/** Helper: confirm sender & target are both in the same clan (and not the
+ *  same player). Returns the clan id on success, sends an error and returns
+ *  null on failure. */
+async function requireSameClan(senderId: number, targetId: number): Promise<number | null> {
+    if (senderId === targetId) {
+        sendError(senderId, 'Cannot transfer to yourself.');
+        return null;
+    }
+    const res = await pool.query<{ s: number | null; t: number | null }>(
+        `SELECT s.clan_id AS s, t.clan_id AS t
+         FROM players s, players t
+         WHERE s.id = $1 AND t.id = $2`,
+        [senderId, targetId],
+    );
+    const row = res.rows[0];
+    if (!row || row.s === null || row.t === null || row.s !== row.t) {
+        sendError(senderId, 'Target is not a member of your clan.');
+        return null;
+    }
+    return row.s;
+}
+
+async function getPlayerName(playerId: number): Promise<string> {
+    const r = await pool.query<{ name: string }>('SELECT name FROM players WHERE id = $1', [
+        playerId,
+    ]);
+    return r.rows[0]?.name ?? 'Player';
+}
+
+async function transferCredits(
+    senderId: number,
+    targetId: number,
+    quantity: number,
+): Promise<{ delivered: number }> {
+    const clanId = await requireSameClan(senderId, targetId);
+    if (clanId === null) return { delivered: 0 };
+    if (!Number.isInteger(quantity) || quantity <= 0) {
+        sendError(senderId, 'Invalid credit quantity.');
+        return { delivered: 0 };
+    }
+
+    const delivered = await withTransaction(async (client) => {
+        const r = await client.query<{ credits: number }>(
+            'SELECT credits FROM players WHERE id = $1 FOR UPDATE',
+            [senderId],
+        );
+        const senderCredits = r.rows[0]?.credits ?? 0;
+        if (senderCredits < quantity) {
+            sendError(senderId, `Insufficient credits (have ${senderCredits}).`);
+            throw new AbortTransaction();
+        }
+        await client.query('UPDATE players SET credits = credits - $1 WHERE id = $2', [
+            quantity,
+            senderId,
+        ]);
+        await client.query('UPDATE players SET credits = credits + $1 WHERE id = $2', [
+            quantity,
+            targetId,
+        ]);
+        return quantity;
+    });
+    return { delivered: delivered ?? 0 };
+}
+
+async function transferDronesOrShields(
+    field: 'drones' | 'shields',
+    senderId: number,
+    targetId: number,
+    quantity: number,
+): Promise<{ delivered: number }> {
+    const clanId = await requireSameClan(senderId, targetId);
+    if (clanId === null) return { delivered: 0 };
+    if (!Number.isInteger(quantity) || quantity <= 0) {
+        sendError(senderId, `Invalid ${field} quantity.`);
+        return { delivered: 0 };
+    }
+
+    const max_col = field === 'drones' ? 'max_drones' : 'max_shields';
+    const delivered = await withTransaction(async (client) => {
+        const sender = await client.query<{ ship_id: number; v: number }>(
+            `SELECT s.id AS ship_id, s.${field} AS v
+             FROM players p JOIN ships s ON p.ship_id = s.id
+             WHERE p.id = $1 FOR UPDATE`,
+            [senderId],
+        );
+        const senderRow = sender.rows[0];
+        if (!senderRow) {
+            sendError(senderId, 'You have no ship.');
+            throw new AbortTransaction();
+        }
+        if (senderRow.v < quantity) {
+            sendError(senderId, `Insufficient ${field} (have ${senderRow.v}).`);
+            throw new AbortTransaction();
+        }
+
+        const target = await client.query<{
+            ship_id: number;
+            v: number;
+            max_v: number;
+        }>(
+            `SELECT s.id AS ship_id, s.${field} AS v, st.${max_col} AS max_v
+             FROM players p JOIN ships s ON p.ship_id = s.id
+             JOIN ship_types st ON s.ship_type_id = st.id
+             WHERE p.id = $1 FOR UPDATE`,
+            [targetId],
+        );
+        const targetRow = target.rows[0];
+        if (!targetRow) {
+            sendError(senderId, 'Target has no ship.');
+            throw new AbortTransaction();
+        }
+        const room = Math.max(0, targetRow.max_v - targetRow.v);
+        const deliveredQty = Math.min(quantity, room);
+
+        await client.query(`UPDATE ships SET ${field} = ${field} - $1 WHERE id = $2`, [
+            quantity,
+            senderRow.ship_id,
+        ]);
+        if (deliveredQty > 0) {
+            await client.query(`UPDATE ships SET ${field} = ${field} + $1 WHERE id = $2`, [
+                deliveredQty,
+                targetRow.ship_id,
+            ]);
+        }
+        return deliveredQty;
+    });
+    return { delivered: delivered ?? 0 };
+}
+
+async function transferMines(
+    senderId: number,
+    targetId: number,
+    quantity: number,
+    mineType: 'proximity' | 'seeker',
+): Promise<{ delivered: number }> {
+    const clanId = await requireSameClan(senderId, targetId);
+    if (clanId === null) return { delivered: 0 };
+    if (!Number.isInteger(quantity) || quantity <= 0) {
+        sendError(senderId, 'Invalid mine quantity.');
+        return { delivered: 0 };
+    }
+    const hwName = mineType === 'proximity' ? 'proximity_mine' : 'seeker_mine';
+
+    const delivered = await withTransaction(async (client) => {
+        const hwRow = await client.query<{ id: number }>(
+            'SELECT id FROM hardware_item WHERE name = $1',
+            [hwName],
+        );
+        const hwId = hwRow.rows[0]?.id;
+        if (!hwId) {
+            sendError(senderId, 'Mine hardware not configured.');
+            throw new AbortTransaction();
+        }
+
+        // Sender ship + current mine count.
+        const sender = await client.query<{ ship_id: number; qty: number }>(
+            `SELECT s.id AS ship_id,
+                    COALESCE((SELECT quantity FROM ship_hardware sh
+                              WHERE sh.ship_id = s.id AND sh.hardware_item_id = $2), 0) AS qty
+             FROM players p JOIN ships s ON p.ship_id = s.id
+             WHERE p.id = $1 FOR UPDATE`,
+            [senderId, hwId],
+        );
+        const senderRow = sender.rows[0];
+        if (!senderRow || senderRow.qty < quantity) {
+            sendError(senderId, `Insufficient ${mineType} mines (have ${senderRow?.qty ?? 0}).`);
+            throw new AbortTransaction();
+        }
+
+        // Target ship + max capacity + current mine count.
+        const target = await client.query<{
+            ship_id: number;
+            ship_type_id: number;
+            max_qty: number;
+            qty: number;
+        }>(
+            `SELECT s.id AS ship_id, s.ship_type_id,
+                    COALESCE(sth.max_quantity, 0) AS max_qty,
+                    COALESCE((SELECT quantity FROM ship_hardware sh
+                              WHERE sh.ship_id = s.id AND sh.hardware_item_id = $2), 0) AS qty
+             FROM players p JOIN ships s ON p.ship_id = s.id
+             LEFT JOIN ship_type_hardware sth
+                ON sth.ship_type_id = s.ship_type_id AND sth.hardware_item_id = $2
+             WHERE p.id = $1 FOR UPDATE`,
+            [targetId, hwId],
+        );
+        const targetRow = target.rows[0];
+        if (!targetRow) {
+            sendError(senderId, 'Target has no ship.');
+            throw new AbortTransaction();
+        }
+        const room = Math.max(0, targetRow.max_qty - targetRow.qty);
+        const deliveredQty = Math.min(quantity, room);
+
+        // Decrement sender (always full quantity).
+        await client.query(
+            `UPDATE ship_hardware SET quantity = quantity - $1
+             WHERE ship_id = $2 AND hardware_item_id = $3`,
+            [quantity, senderRow.ship_id, hwId],
+        );
+        // Increment target (upsert).
+        if (deliveredQty > 0) {
+            await client.query(
+                `INSERT INTO ship_hardware (ship_id, hardware_item_id, quantity)
+                 VALUES ($1, $2, $3)
+                 ON CONFLICT (ship_id, hardware_item_id)
+                 DO UPDATE SET quantity = ship_hardware.quantity + $3`,
+                [targetRow.ship_id, hwId, deliveredQty],
+            );
+        }
+        return deliveredQty;
+    });
+    return { delivered: delivered ?? 0 };
+}
+
+export async function handleClanTransfer(
+    senderId: number,
+    kind: 'credits' | 'drones' | 'shields' | 'mines',
+    targetPlayerId: number,
+    quantity: number,
+    mineType?: 'proximity' | 'seeker',
+): Promise<void> {
+    let result: { delivered: number };
+    if (kind === 'credits') {
+        result = await transferCredits(senderId, targetPlayerId, quantity);
+    } else if (kind === 'drones' || kind === 'shields') {
+        result = await transferDronesOrShields(kind, senderId, targetPlayerId, quantity);
+    } else if (kind === 'mines') {
+        if (mineType !== 'proximity' && mineType !== 'seeker') {
+            sendError(senderId, 'Invalid mine type.');
+            return;
+        }
+        result = await transferMines(senderId, targetPlayerId, quantity, mineType);
+    } else {
+        sendError(senderId, 'Invalid transfer kind.');
+        return;
+    }
+
+    if (result.delivered === 0 && kind !== 'credits') {
+        // Already sent error inside the transfer helper if zero delivered.
+        // (credits has no clamp; zero only happens on error path.)
+        return;
+    }
+
+    const senderName = await getPlayerName(senderId);
+    const targetName = await getPlayerName(targetPlayerId);
+    const kindLabel =
+        kind === 'mines'
+            ? mineType === 'seeker'
+                ? 'Seeker mines'
+                : 'Proximity mines'
+            : kind === 'drones'
+              ? 'drones'
+              : kind === 'shields'
+                ? 'shields'
+                : 'credits';
+    const memoBody =
+        `Received ${result.delivered} ${kindLabel} from ${senderName}.` +
+        (kind !== 'credits' && result.delivered < quantity
+            ? ` (${quantity - result.delivered} discarded — at capacity.)`
+            : '');
+    await insertMemo(targetPlayerId, senderId, null, `transfer_${kind}`, memoBody);
+
+    sendEnvelope(senderId, {
+        type: ServerMsgType.ClanTransferResult,
+        kind,
+        targetPlayerId,
+        targetName,
+        quantity,
+        delivered: result.delivered,
+    });
+
+    // If target is online, push the memo right away.
+    const targetOnline = players[targetPlayerId];
+    if (targetOnline) {
+        sendEnvelope(targetPlayerId, {
+            type: ServerMsgType.MemoDelivery,
+            memos: [
+                {
+                    id: 0,
+                    senderName,
+                    kind: `transfer_${kind}`,
+                    body: memoBody,
+                    createdAt: new Date().toISOString(),
+                },
+            ],
+        });
+    }
+}
+
+export async function handleClanMemo(senderId: number, body: string): Promise<void> {
+    const player = players[senderId];
+    if (!player) return;
+    const clanId = await getPlayerClanId(senderId);
+    if (clanId === null) {
+        sendError(senderId, 'You are not in a clan.');
+        return;
+    }
+    const trimmed = body.trim();
+    if (trimmed.length === 0 || trimmed.length > 500) {
+        sendError(senderId, 'Memo must be 1-500 characters.');
+        return;
+    }
+
+    const members = await getClanMembers(clanId);
+    const recipients = members.filter((m) => m.id !== senderId);
+    for (const m of recipients) {
+        await insertMemo(m.id, senderId, clanId, 'memo', trimmed);
+        const online = players[m.id];
+        if (online) {
+            const senderName = await getPlayerName(senderId);
+            sendEnvelope(m.id, {
+                type: ServerMsgType.MemoDelivery,
+                memos: [
+                    {
+                        id: 0,
+                        senderName,
+                        kind: 'memo',
+                        body: trimmed,
+                        createdAt: new Date().toISOString(),
+                    },
+                ],
+            });
+        }
+    }
+
+    sendEnvelope(senderId, {
+        type: ServerMsgType.ClanMemoResult,
+        recipientCount: recipients.length,
+    });
+}
+
+export async function handleClanSetPassword(playerId: number, newPassword: string): Promise<void> {
+    if (!isValidPassword(newPassword)) {
+        sendError(playerId, 'Password must be 4-64 characters.');
+        return;
+    }
+    const clanId = await getPlayerClanId(playerId);
+    if (clanId === null) {
+        sendError(playerId, 'You are not in a clan.');
+        return;
+    }
+    const clan = await getClanById(clanId);
+    if (!clan) {
+        sendError(playerId, 'Clan not found.');
+        return;
+    }
+    if (clan.leader_id !== playerId) {
+        sendError(playerId, 'Only the clan leader can change the password.');
+        return;
+    }
+    await setClanPasswordHash(clanId, hashPassword(newPassword));
+    sendEnvelope(playerId, { type: ServerMsgType.ClanSetPasswordResult });
+}
+
+export async function handleClanDropMember(
+    leaderPlayerId: number,
+    targetPlayerId: number,
+): Promise<void> {
+    const player = players[leaderPlayerId];
+    if (!player) return;
+    if (leaderPlayerId === targetPlayerId) {
+        sendError(leaderPlayerId, 'Use Leave to remove yourself.');
+        return;
+    }
+    const clanId = await getPlayerClanId(leaderPlayerId);
+    if (clanId === null) {
+        sendError(leaderPlayerId, 'You are not in a clan.');
+        return;
+    }
+    const clan = await getClanById(clanId);
+    if (!clan || clan.leader_id !== leaderPlayerId) {
+        sendError(leaderPlayerId, 'Only the clan leader can drop members.');
+        return;
+    }
+    const targetClanId = await getPlayerClanId(targetPlayerId);
+    if (targetClanId !== clanId) {
+        sendError(leaderPlayerId, 'Target is not a member of your clan.');
+        return;
+    }
+
+    await setPlayerClanId(targetPlayerId, null);
+
+    const leaderName = await getPlayerName(leaderPlayerId);
+    const targetName = await getPlayerName(targetPlayerId);
+    await insertMemo(
+        targetPlayerId,
+        leaderPlayerId,
+        clanId,
+        'dropped',
+        `You have been dropped from ${clan.name} by ${leaderName}.`,
+    );
+    const online = players[targetPlayerId];
+    if (online) {
+        sendEnvelope(targetPlayerId, {
+            type: ServerMsgType.MemoDelivery,
+            memos: [
+                {
+                    id: 0,
+                    senderName: leaderName,
+                    kind: 'dropped',
+                    body: `You have been dropped from ${clan.name} by ${leaderName}.`,
+                    createdAt: new Date().toISOString(),
+                },
+            ],
+        });
+    }
+
+    sendEnvelope(leaderPlayerId, {
+        type: ServerMsgType.ClanDropMemberResult,
+        droppedPlayerId: targetPlayerId,
+        droppedName: targetName,
     });
 }

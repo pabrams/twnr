@@ -49,8 +49,7 @@ export const PLANET = makeDomain('PLANET', {
 
     landedHeader: '[bg]Landed on[/bg] [bc]{name}[/bc]',
 
-    displayTitle:
-        '[bc]Planet #{id}[/bc] in sector [by]{sector}[/by]:  [bg]{name}[/bg]',
+    displayTitle: '[bc]Planet #{id}[/bc] in sector [by]{sector}[/by]:  [bg]{name}[/bg]',
     displayClass: '[mg]Class[/mg]: [w]{type}[/w]',
     displayOwner: '[mg]Owner[/mg]: [w]{owner}[/w]',
     displayTableHead1:
@@ -68,4 +67,9 @@ export const PLANET = makeDomain('PLANET', {
     listRow: '  [by]Sector {sector}[/by] — [bc]{name}[/bc] ([w]{type}[/w])',
     listColonists:
         '  Colonists: {{MSG.fuelQuantity}}, {{MSG.orgQuantity}}, {{MSG.equQuantity}}, {{MSG.drnQuantity}}',
+
+    claimOwnershipPrompt:
+        '\r\n[mg]Claim as ([/mg][by]P[/by][mg]ersonal, [/mg][by]C[/by][mg]lan, [/mg][by]Q[/by][mg]) [/mg][by]?[/by] ',
+    claimSuccessPersonal: '\r\n[bg]Planet [/bg][bc]{name}[/bc] [bg]is now yours.[/bg]',
+    claimSuccessClan: '\r\n[bg]Planet [/bg][bc]{name}[/bc] [bg]is now clan-owned.[/bg]',
 });

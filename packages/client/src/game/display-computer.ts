@@ -28,6 +28,9 @@ export function showComputerHelp(ctx: DisplayComputerCtx) {
     ctx.io.term.writeln(render(COMMON.menuRow, { key: ';', text: '[bc]Current Ship Specs[/bc]' }));
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Y', text: '[bc]Your Planets[/bc]' }));
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Z', text: '[bc]Active Ship Scan[/bc]' }));
+    ctx.io.term.writeln(
+        render(COMMON.menuRow, { key: 'O', text: '[bc]Change Ship Ownership[/bc]' }),
+    );
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: '[bc]Exit Computer[/bc]' }));
     showComputerPrompt(ctx);
 }
@@ -297,6 +300,7 @@ export type OwnedShipRowDisplay = {
     typeName: string;
     typeDisplayName: string | null;
     transporterRange: number;
+    ownerLabel: string;
 };
 
 type RenderActiveShipScanOpts = {
@@ -335,15 +339,18 @@ export function renderActiveShipScan(
                   : COMPUTER.activeShipScanHopsOutOfRange;
         term.writeln(
             render(COMPUTER.activeShipScanRow, {
+                marker: isCurrent
+                    ? render(COMPUTER.activeShipScanCurrentMarker)
+                    : render(COMPUTER.activeShipScanBlankMarker),
                 shipNum: String(s.shipNumber).padStart(4),
                 sect: sectStr.padStart(4),
-                marker: isCurrent ? '+' : ' ',
                 name: '.'.padEnd(22),
                 fighters: String(s.drones).padStart(8),
                 shields: String(s.shields).padStart(7),
                 holds: String(s.holds).padStart(5),
                 hops: render(hopsTemplate, { hops: hopsStr }),
-                type: s.typeDisplayName ?? s.typeName,
+                type: (s.typeDisplayName ?? s.typeName).padEnd(16),
+                owner: s.ownerLabel,
             }),
         );
     }
@@ -368,9 +375,7 @@ export function renderTransporterPrelude(
         return;
     }
     if (msg.currentShipTransporterRange === 0) {
-        term.writeln(
-            render(COMPUTER.transporterIntrasectorOnly, { ship: shipName }),
-        );
+        term.writeln(render(COMPUTER.transporterIntrasectorOnly, { ship: shipName }));
     } else {
         term.writeln(
             render(COMPUTER.transporterRangeStatement, {
@@ -388,10 +393,7 @@ export function renderTransporterOptions(ctx: DisplayComputerCtx) {
     term.writeln(render(COMPUTER.transporterOptionExit));
 }
 
-export function renderShipDetail(
-    ctx: DisplayComputerCtx,
-    s: OwnedShipRowDisplay,
-) {
+export function renderShipDetail(ctx: DisplayComputerCtx, s: OwnedShipRowDisplay) {
     const { term } = ctx.io;
     term.writeln('');
     term.writeln(render(COMPUTER.transporterDetailHeader, { shipNum: s.shipNumber }));
@@ -423,18 +425,33 @@ export async function showTraderList(ctx: DisplayComputerCtx) {
             name: string;
             shipName: string | null;
             coloredShipName: string | null;
+            clanNumber: number | null;
+            clanName: string | null;
         }[] = await res.json();
         ctx.io.term.writeln('');
         ctx.io.term.writeln(render(COMPUTER.traderListHeader));
-        ctx.io.term.writeln(render(COMPUTER.traderListColumns, { name: 'Name'.padEnd(24) }));
+        ctx.io.term.writeln(
+            render(COMPUTER.traderListColumns, {
+                name: 'Name'.padEnd(24),
+                clan: 'Clan'.padEnd(5),
+                ship: 'Ship',
+            }),
+        );
         for (const t of traders) {
             const ship =
                 t.shipName === null
                     ? render(COMPUTER.traderListShipDestroyed)
                     : (t.coloredShipName ?? t.shipName);
+            const clanCell =
+                t.clanNumber === null
+                    ? render(COMPUTER.traderListClanNA, {}) + '   '
+                    : render(COMPUTER.traderListClanValue, {
+                          n: String(t.clanNumber).padEnd(3),
+                      });
             ctx.io.term.writeln(
                 render(COMPUTER.traderListRow, {
                     name: t.name.padEnd(24),
+                    clan: clanCell,
                     ship,
                 }),
             );

@@ -179,10 +179,11 @@ export async function handleLeavePlanet(playerId: number): Promise<void> {
 
     const data = await buildSectorDisplayData(playerId);
     if (!data) return;
-    await sendEnvelope(
-        playerId,
-        { type: ServerMsgType.LeavePlanetResult, ...data, turnsUsed: turnResult.turnsUsed }
-    );
+    await sendEnvelope(playerId, {
+        type: ServerMsgType.LeavePlanetResult,
+        ...data,
+        turnsUsed: turnResult.turnsUsed,
+    });
 }
 
 export async function handleDestroyPlanet(playerId: number): Promise<void> {
@@ -219,15 +220,12 @@ export async function handleDestroyPlanet(playerId: number): Promise<void> {
         return;
     }
 
-    await sendEnvelope(
-        playerId,
-        {
-            type: ServerMsgType.DestroyPlanetResult,
-            destroyed: true,
-            planetId: onPlanetId,
-            planetName,
-        }
-    );
+    await sendEnvelope(playerId, {
+        type: ServerMsgType.DestroyPlanetResult,
+        destroyed: true,
+        planetId: onPlanetId,
+        planetName,
+    });
 
     const data = await buildSectorDisplayData(playerId);
     if (data) sendEnvelope(playerId, { type: ServerMsgType.SectorDisplayResult, ...data });
@@ -427,10 +425,9 @@ async function liftoffWithResult<
     const sectorData = await buildSectorDisplayData(playerId);
     if (!sectorData) return;
 
-    await sendEnvelope(
-        playerId,
-        { ...result, ...sectorData } as Parameters<typeof sendEnvelope>[1],
-    );
+    await sendEnvelope(playerId, { ...result, ...sectorData } as Parameters<
+        typeof sendEnvelope
+    >[1]);
 }
 
 export async function handleTakeColonists(
@@ -760,6 +757,55 @@ async function readShipCommodity(playerId: number, col: PlanetCommodity): Promis
     const ship = await getShipCargoWithCredits(playerId);
     if (!ship) return 0;
     return col === 'fuel' ? ship.fuel : col === 'organics' ? ship.organics : ship.equipment;
+}
+
+/** O (Claim Planet): take ownership of the planet the player is currently
+ *  on (works on enemy planets too). `ownership='clan'` is only valid if
+ *  the player is in a clan. */
+export async function handleClaimPlanet(
+    playerId: number,
+    ownership: 'personal' | 'clan',
+): Promise<void> {
+    const player = players[playerId];
+    if (!player) return;
+
+    const onPlanetId = await getOnPlanetId(playerId);
+    if (!onPlanetId) {
+        sendError(playerId, 'Not on a planet.');
+        return;
+    }
+
+    const { pool } = await import('../db/index.js');
+    const clanRow = await pool.query<{ clan_id: number | null }>(
+        'SELECT clan_id FROM players WHERE id = $1',
+        [playerId],
+    );
+    const playerClanId = clanRow.rows[0]?.clan_id ?? null;
+
+    if (ownership === 'clan' && playerClanId === null) {
+        sendError(playerId, 'You are not in a clan.');
+        return;
+    }
+
+    if (ownership === 'clan') {
+        await pool.query(
+            'UPDATE planets SET owner_player_id = NULL, owner_clan_id = $1 WHERE id = $2',
+            [playerClanId, onPlanetId],
+        );
+    } else {
+        await pool.query(
+            'UPDATE planets SET owner_clan_id = NULL, owner_player_id = $1 WHERE id = $2',
+            [playerId, onPlanetId],
+        );
+    }
+
+    const planetName = (await getPlanetName(onPlanetId)) ?? 'Planet';
+    sendEnvelope(playerId, {
+        type: ServerMsgType.ClaimPlanetResult,
+        planetId: onPlanetId,
+        planetName,
+        ownership,
+    });
 }
 
 export async function handleListPlanets(playerId: number): Promise<void> {

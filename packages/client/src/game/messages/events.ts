@@ -24,6 +24,8 @@ export const EVENT = makeDomain('EVENT', {
         '[g]Your ship can support a maximum of [by]{max}[/by] drones, so you have to leave at least [by]{minInSector}[/by].[/g]',
 
     deployDronesPrompt: '[g]How many drones do you want defending this sector? [{minInSector}][/g]',
+    deployOwnershipPrompt:
+        '\r\n[mg]Deploy as ([/mg][by]P[/by][mg]ersonal, [/mg][by]C[/by][mg]lan, [/mg][by]Q[/by][mg]) [/mg][by]?[/by] ',
 
     deployDronesResult:
         '\r\n[bc]Done. You have [by]{ship}[/by] drones in close support and [by]{sector}[/by] defending the sector.[/bc]',

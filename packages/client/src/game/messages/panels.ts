@@ -35,5 +35,5 @@ export const PANEL = makeDomain('PANEL', {
 
     deployedDronesEmpty: '[g]No drones deployed.[/g]',
     deployedDronesHeader: '[bc]Deployed Drones:[/bc]',
-    deployedDronesRow: '  Sector [by]{sector}[/by]: [bc]{qty}[/bc] drones',
+    deployedDronesRow: '  Sector [by]{sector}[/by]: [bc]{qty}[/bc] drones — [w]{owner}[/w]',
 });

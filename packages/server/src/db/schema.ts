@@ -484,6 +484,23 @@ export const connectDB = async (): Promise<void> => {
         PRIMARY KEY (player_id, port_id)
       );
 
+      -- Clan memos + automatic transfer notifications. recipient_player_id
+      -- always set; sender_player_id null for system-generated memos.
+      -- Unread messages (read_at IS NULL) are delivered to the recipient on
+      -- WS connect and immediately marked read.
+      CREATE TABLE IF NOT EXISTS messages (
+        id BIGSERIAL PRIMARY KEY,
+        recipient_player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+        sender_player_id INTEGER REFERENCES players(id) ON DELETE SET NULL,
+        clan_id INTEGER REFERENCES clans(id) ON DELETE SET NULL,
+        kind VARCHAR(30) NOT NULL,
+        body TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        read_at TIMESTAMPTZ
+      );
+      CREATE INDEX IF NOT EXISTS idx_messages_recipient_unread
+        ON messages (recipient_player_id) WHERE read_at IS NULL;
+
       CREATE TABLE IF NOT EXISTS news (
         id BIGSERIAL PRIMARY KEY,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

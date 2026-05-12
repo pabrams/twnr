@@ -153,6 +153,7 @@ export type PlayerConnectRow = {
     sector_number: number;
     ship_name: string | null;
     ship_display_name: string | null;
+    clan_id: number | null;
 };
 
 /** Look up a user's player record in a specific universe, with joined sector + ship. */
@@ -163,7 +164,8 @@ export async function getPlayerConnectInfo(
 ): Promise<PlayerConnectRow | undefined> {
     const res = await db.query<PlayerConnectRow>(
         `SELECT p.id, p.name, p.current_sector_id, p.ship_id, s.sector_number,
-                st.name AS ship_name, st.display_name AS ship_display_name
+                st.name AS ship_name, st.display_name AS ship_display_name,
+                p.clan_id
          FROM players p
          JOIN sectors s ON p.current_sector_id = s.id
          LEFT JOIN ships sh ON p.ship_id = sh.id
@@ -208,21 +210,27 @@ export async function setPlayerShipId(
     await db.query('UPDATE players SET ship_id = $1 WHERE id = $2', [shipId, playerId]);
 }
 
-/** Roster of players in a universe with their current ship type name. */
+/** Roster of players in a universe with their current ship type name + clan info. */
 export type UniversePlayerRosterRow = {
     name: string;
     ship_name: string | null;
     ship_display_name: string | null;
+    clan_number: number | null;
+    clan_name: string | null;
 };
 export async function listPlayersInUniverse(
     universeId: number,
     db: Queryable = pool,
 ): Promise<UniversePlayerRosterRow[]> {
     const res = await db.query<UniversePlayerRosterRow>(
-        `SELECT p.name, st.name AS ship_name, st.display_name AS ship_display_name
+        `SELECT p.name,
+                st.name AS ship_name, st.display_name AS ship_display_name,
+                c.universe_clan_number AS clan_number,
+                c.name AS clan_name
          FROM players p
          LEFT JOIN ships s ON p.ship_id = s.id
          LEFT JOIN ship_types st ON s.ship_type_id = st.id
+         LEFT JOIN clans c ON c.id = p.clan_id
          WHERE p.universe_id = $1
          ORDER BY p.name`,
         [universeId],

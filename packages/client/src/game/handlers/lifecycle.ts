@@ -28,6 +28,7 @@ export const welcome: Handler<'welcome', LifecycleContext> = (ctx, msg) => {
     ctx.world.starbaseSector = msg.starbaseSector;
     ctx.player.isAdmin = msg.isAdmin;
     ctx.player.isGuest = !!msg.isGuest;
+    ctx.player.clanId = msg.clanId ?? null;
     ctx.world.mode = msg.location;
     if (msg.isAdmin) ctx.minimap.handle?.setAdminMode(true);
     ctx.io.term.writeln(render(NOTIFY.welcome, { name: msg.name }));

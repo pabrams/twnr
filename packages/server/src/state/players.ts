@@ -31,4 +31,3 @@ export function isVisibleInSector(
     const online = players[playerId] !== undefined;
     return !(online && docked);
 }
-

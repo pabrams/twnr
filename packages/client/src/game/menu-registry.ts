@@ -175,7 +175,6 @@ export const MENU_REGISTRY: MenuEntry[] = [
         commands: [],
     },
     {
-
         name: 'computer',
         label: 'Computer',
         parentMenu: 'sector',
@@ -242,6 +241,13 @@ export const MENU_REGISTRY: MenuEntry[] = [
                 label: 'Track seeker mines',
                 targetMenu: null,
                 sortOrder: 90,
+            },
+            {
+                command: 'change_ship_ownership',
+                keyPattern: 'o',
+                label: 'Change ship ownership',
+                targetMenu: null,
+                sortOrder: 92,
             },
             {
                 command: 'help_menu',
@@ -356,6 +362,13 @@ export const MENU_REGISTRY: MenuEntry[] = [
                 sortOrder: 35,
             },
             {
+                command: 'claim_planet',
+                keyPattern: 'o',
+                label: 'Claim Planet',
+                targetMenu: null,
+                sortOrder: 37,
+            },
+            {
                 command: 'help_menu',
                 keyPattern: '?',
                 label: 'Help',
@@ -464,6 +477,55 @@ export const MENU_REGISTRY: MenuEntry[] = [
                 label: 'Leave Your Clan',
                 targetMenu: null,
                 sortOrder: 50,
+            },
+            {
+                command: 'clan_transfer_credits',
+                keyPattern: 'c',
+                label: 'Credit Transfer',
+                targetMenu: null,
+                sortOrder: 60,
+            },
+            {
+                command: 'clan_transfer_drones',
+                keyPattern: 'f',
+                label: 'Drone (Fighter) Transfer',
+                targetMenu: null,
+                sortOrder: 61,
+            },
+            {
+                command: 'clan_transfer_mines',
+                keyPattern: 'h',
+                label: 'Mine Transfer',
+                targetMenu: null,
+                sortOrder: 62,
+            },
+            {
+                command: 'clan_transfer_shields',
+                keyPattern: 's',
+                label: 'Shield Transfer',
+                targetMenu: null,
+                sortOrder: 63,
+            },
+            {
+                command: 'clan_memo',
+                keyPattern: 't',
+                label: 'Send Clan Memo',
+                targetMenu: null,
+                sortOrder: 70,
+            },
+            {
+                command: 'clan_set_password',
+                keyPattern: 'p',
+                label: 'Clan Security (password)',
+                targetMenu: null,
+                sortOrder: 80,
+            },
+            {
+                command: 'clan_drop_member',
+                keyPattern: 'r',
+                label: 'Drop Clan Member',
+                targetMenu: null,
+                sortOrder: 85,
             },
             {
                 command: 'clan_help',

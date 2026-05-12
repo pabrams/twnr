@@ -5,7 +5,7 @@ import { EVENT } from '../messages/index.js';
 import { type DisplayCtx } from '../display.js';
 import { showDroneEncounter, showAttackMenu, type DisplayCombatCtx } from '../display-combat.js';
 import { showPrompt } from '../menus/types.js';
-import { askNumber } from '../menus/prompts.js';
+import { askNumber, askDeployOwnership } from '../menus/prompts.js';
 import type { Handler } from './index.js';
 
 type CombatContext = Pick<GameContext, 'autopilot' | 'encounter' | 'input' | 'io' | 'world'> &
@@ -13,7 +13,6 @@ type CombatContext = Pick<GameContext, 'autopilot' | 'encounter' | 'input' | 'io
     DisplayCombatCtx;
 
 export const attackShip: Handler<'attackShipResult', CombatContext> = (ctx, msg) => {
-    // The attack target-select sub-mode is over once the shot is fired.
     if (ctx.world.mode === Menu.Attack) ctx.world.mode = Menu.Sector;
     ctx.io.term.writeln('');
     ctx.io.term.writeln(
@@ -77,7 +76,12 @@ export const deployDronesInfo: Handler<'deployDronesInfoResult'> = async (ctx, m
         showPrompt(ctx);
         return;
     }
-    ctx.io.sendMsg({ type: ClientMsgType.DeployDrones, quantity: qty });
+    const ownership = await askDeployOwnership(ctx, render(EVENT.deployOwnershipPrompt));
+    if (ownership === null) {
+        showPrompt(ctx);
+        return;
+    }
+    ctx.io.sendMsg({ type: ClientMsgType.DeployDrones, quantity: qty, ownership });
 };
 
 export const deployDrones: Handler<'deployDronesResult', CombatContext> = (ctx, msg) => {
@@ -89,7 +93,10 @@ export const deployDrones: Handler<'deployDronesResult', CombatContext> = (ctx, 
     );
 };
 
-export const attackSectorDrones: Handler<'attackSectorDronesResult', CombatContext> = (ctx, msg) => {
+export const attackSectorDrones: Handler<'attackSectorDronesResult', CombatContext> = (
+    ctx,
+    msg,
+) => {
     ctx.io.term.writeln('');
     ctx.io.term.writeln(
         render(EVENT.combatLost, {

@@ -14,7 +14,6 @@ import { class0Prices } from '../game-config.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 import { recordCreditChange } from '../services/audit.js';
 
-
 async function isAtClass0OrStarbase(
     playerId: number,
     universeId: number,
@@ -76,14 +75,11 @@ export async function handleBuyDrones(playerId: number, quantity: number): Promi
 
         if (!result) return;
 
-        await sendEnvelope(
-            playerId,
-            {
-                type: ServerMsgType.BuyDronesResult,
-                credits: result.credits,
-                drones: result.drones,
-            }
-        );
+        await sendEnvelope(playerId, {
+            type: ServerMsgType.BuyDronesResult,
+            credits: result.credits,
+            drones: result.drones,
+        });
     } catch {
         sendError(playerId, 'Internal server error');
     }
@@ -138,14 +134,11 @@ export async function handleBuyShields(playerId: number, quantity: number): Prom
 
         if (!result) return;
 
-        await sendEnvelope(
-            playerId,
-            {
-                type: ServerMsgType.BuyShieldsResult,
-                credits: result.credits,
-                shields: result.shields,
-            }
-        );
+        await sendEnvelope(playerId, {
+            type: ServerMsgType.BuyShieldsResult,
+            credits: result.credits,
+            shields: result.shields,
+        });
     } catch {
         sendError(playerId, 'Internal server error');
     }
@@ -210,15 +203,12 @@ export async function handleBuyHolds(playerId: number, quantity: number): Promis
 
         if (!result) return;
 
-        await sendEnvelope(
-            playerId,
-            {
-                type: ServerMsgType.BuyHoldsResult,
-                credits: result.credits,
-                cargoLimit: result.cargoLimit,
-                turnsUsed: result.turnsUsed,
-            }
-        );
+        await sendEnvelope(playerId, {
+            type: ServerMsgType.BuyHoldsResult,
+            credits: result.credits,
+            cargoLimit: result.cargoLimit,
+            turnsUsed: result.turnsUsed,
+        });
     } catch {
         sendError(playerId, 'Internal server error');
     }

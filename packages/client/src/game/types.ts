@@ -104,11 +104,9 @@ export interface PlayerState {
     universeId: number;
     name: string;
     id: number;
-    /** Set by Welcome — admins get full-vision minimap with deeper depth options. */
     isAdmin: boolean;
-    /** Set by Welcome — guest accounts get deleted on WS close, so the
-     * disconnect prompt skips the reconnect option. */
     isGuest: boolean;
+    clanId: number | null;
 }
 
 export interface WorldState {

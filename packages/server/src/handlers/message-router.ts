@@ -18,7 +18,12 @@ import {
     handleDockStarbase,
     handleLeaveStarbase,
 } from './port.js';
-import { handleShipInfo, handleListOwnedShips, handleTransportToShip } from './ship-info.js';
+import {
+    handleShipInfo,
+    handleListOwnedShips,
+    handleTransportToShip,
+    handleChangeShipOwnership,
+} from './ship-info.js';
 import { handleStarbaseInfo } from './starbase-info.js';
 import { handleBuyDrones, handleBuyShields, handleBuyHolds } from './ship-upgrades.js';
 import { handleBuyShipTradein, handleBuyShipNew } from './ship-exchange.js';
@@ -37,6 +42,7 @@ import {
     handleTakeCommodity,
     handleLeaveCommodity,
     handleListPlanets,
+    handleClaimPlanet,
 } from './planet.js';
 import {
     handleDeployDronesInfo,
@@ -59,6 +65,10 @@ import {
     handleClanLeave,
     handleClanList,
     handleClanInfo,
+    handleClanTransfer,
+    handleClanMemo,
+    handleClanSetPassword,
+    handleClanDropMember,
 } from './clan.js';
 
 export async function handleMessage(playerId: number, data: ClientCommand): Promise<void> {
@@ -170,10 +180,82 @@ export async function handleMessage(playerId: number, data: ClientCommand): Prom
             return handleClanList(playerId);
         case ClientMsgType.ClanInfo:
             return handleClanInfo(playerId);
+        case ClientMsgType.ChangeShipOwnership: {
+            const raw = data as { ownership?: unknown };
+            if (raw.ownership !== 'personal' && raw.ownership !== 'clan') {
+                sendError(playerId, 'Invalid ownership value');
+                return;
+            }
+            return handleChangeShipOwnership(playerId, raw.ownership);
+        }
+        case ClientMsgType.ClaimPlanet: {
+            const raw = data as { ownership?: unknown };
+            if (raw.ownership !== 'personal' && raw.ownership !== 'clan') {
+                sendError(playerId, 'Invalid ownership value');
+                return;
+            }
+            return handleClaimPlanet(playerId, raw.ownership);
+        }
+        case ClientMsgType.ClanTransfer: {
+            const raw = data as {
+                kind?: unknown;
+                targetPlayerId?: unknown;
+                quantity?: unknown;
+                mineType?: unknown;
+            };
+            if (
+                raw.kind !== 'credits' &&
+                raw.kind !== 'drones' &&
+                raw.kind !== 'shields' &&
+                raw.kind !== 'mines'
+            ) {
+                sendError(playerId, 'Invalid transfer kind');
+                return;
+            }
+            if (typeof raw.targetPlayerId !== 'number' || typeof raw.quantity !== 'number') {
+                sendError(playerId, 'Invalid transfer payload');
+                return;
+            }
+            const mineType =
+                raw.mineType === 'proximity' || raw.mineType === 'seeker'
+                    ? raw.mineType
+                    : undefined;
+            return handleClanTransfer(
+                playerId,
+                raw.kind,
+                raw.targetPlayerId,
+                raw.quantity,
+                mineType,
+            );
+        }
+        case ClientMsgType.ClanMemo: {
+            const raw = data as { body?: unknown };
+            if (typeof raw.body !== 'string') {
+                sendError(playerId, 'Invalid memo body');
+                return;
+            }
+            return handleClanMemo(playerId, raw.body);
+        }
+        case ClientMsgType.ClanSetPassword: {
+            const raw = data as { newPassword?: unknown };
+            if (typeof raw.newPassword !== 'string') {
+                sendError(playerId, 'Invalid password');
+                return;
+            }
+            return handleClanSetPassword(playerId, raw.newPassword);
+        }
+        case ClientMsgType.ClanDropMember: {
+            const raw = data as { targetPlayerId?: unknown };
+            if (typeof raw.targetPlayerId !== 'number') {
+                sendError(playerId, 'Invalid target');
+                return;
+            }
+            return handleClanDropMember(playerId, raw.targetPlayerId);
+        }
         case ClientMsgType.DeployDronesInfo:
             return handleDeployDronesInfo(playerId);
         case ClientMsgType.DeployDrones:
-            return handleDeployDrones(playerId, data.quantity);
+            return handleDeployDrones(playerId, data.quantity, data.ownership ?? 'personal');
         case ClientMsgType.AttackSectorDrones:
             return handleAttackSectorDrones(playerId, data.drones);
         case ClientMsgType.RetreatFromDrones:
@@ -187,7 +269,11 @@ export async function handleMessage(playerId: number, data: ClientCommand): Prom
         case ClientMsgType.VisitedSectors:
             return handleVisitedSectors(playerId);
         case ClientMsgType.DeployMine: {
-            const raw = data as { mineType?: unknown; quantity?: unknown };
+            const raw = data as {
+                mineType?: unknown;
+                quantity?: unknown;
+                ownership?: unknown;
+            };
             if (raw.mineType !== 'proximity' && raw.mineType !== 'seeker') {
                 sendError(playerId, 'Invalid mine type');
                 return;
@@ -196,7 +282,11 @@ export async function handleMessage(playerId: number, data: ClientCommand): Prom
                 sendError(playerId, 'Invalid quantity');
                 return;
             }
-            return handleDeployMine(playerId, raw.mineType, raw.quantity);
+            const ownership =
+                raw.ownership === 'clan' || raw.ownership === 'personal'
+                    ? raw.ownership
+                    : 'personal';
+            return handleDeployMine(playerId, raw.mineType, raw.quantity, ownership);
         }
         case ClientMsgType.ListDeployedMines:
             return handleListDeployedMines(playerId);
@@ -211,7 +301,6 @@ export async function handleMessage(playerId: number, data: ClientCommand): Prom
             return handleMineDisruptor(playerId, raw.targetSector);
         }
         case ClientMsgType.GetNeighborhood: {
-
             const raw = data as {
                 halfWidthWorld?: unknown;
                 halfHeightWorld?: unknown;

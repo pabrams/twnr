@@ -99,7 +99,11 @@ export const listDeployedDrones: Handler<'listDeployedDronesResult', HardwareSto
         ctx.io.term.writeln(render(PANEL.deployedDronesHeader));
         for (const d of msg.drones) {
             ctx.io.term.writeln(
-                render(PANEL.deployedDronesRow, { sector: d.sectorId, qty: d.quantity }),
+                render(PANEL.deployedDronesRow, {
+                    sector: d.sectorId,
+                    qty: d.quantity,
+                    owner: d.ownerLabel,
+                }),
             );
         }
     }

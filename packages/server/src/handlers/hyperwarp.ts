@@ -32,9 +32,14 @@ export async function handleListDeployedDrones(playerId: number): Promise<void> 
 
     const rows = await getDeployedDronesByOwner(playerId);
 
+    const { formatOwner } = await import('../services/owner-format.js');
     sendEnvelope(playerId, {
         type: ServerMsgType.ListDeployedDronesResult,
-        drones: rows.map((r) => ({ sectorId: r.sector_id, quantity: r.quantity })),
+        drones: rows.map((r) => ({
+            sectorId: r.sector_id,
+            quantity: r.quantity,
+            ownerLabel: formatOwner(r),
+        })),
     });
 }
 
