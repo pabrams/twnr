@@ -23,16 +23,24 @@ export async function getDeployedDronesByOwner(
     return res.rows;
 }
 
-/** Check whether a player has drones deployed in a specific sector. */
+/** Total drone count in a sector belonging to the player personally OR
+ *  to their clan. Used by the hyperspace-jump homing check, which wants
+ *  to confirm the player has *any* friendly drones in the target sector
+ *  to home in on. */
 export async function getDeployedDronesByOwnerBySector(
     sectorNumber: number,
     playerId: number,
     db: Queryable = pool,
 ): Promise<number> {
     const res = await db.query<{ quantity: number }>(
-        `SELECT sf.quantity FROM sector_drones sf
+        `SELECT COALESCE(SUM(sf.quantity), 0)::int AS quantity FROM sector_drones sf
          JOIN sectors s ON sf.sector_id = s.id
-         WHERE s.sector_number = $1 AND sf.owner_player_id = $2 AND sf.quantity > 0`,
+         WHERE s.sector_number = $1
+           AND sf.quantity > 0
+           AND (
+               sf.owner_player_id = $2
+               OR sf.owner_clan_id = (SELECT clan_id FROM players WHERE id = $2)
+           )`,
         [sectorNumber, playerId],
     );
     return res.rows[0]?.quantity ?? 0;
@@ -85,8 +93,8 @@ export async function deleteSectorDrones(sectorDbId: number, db: Queryable = poo
     await db.query('DELETE FROM sector_drones WHERE sector_id = $1', [sectorDbId]);
 }
 
-/** True iff the sector contains drones owned by anyone other than the
- *  given player (including rogue drones, which have owner_player_id NULL). */
+/** True iff the sector contains drones not owned by the given player or
+ *  their clan. Rogue drones (both owner cols NULL) count as enemy. */
 export async function hasEnemyDronesInSector(
     sectorNumber: number,
     universeId: number,
@@ -97,8 +105,14 @@ export async function hasEnemyDronesInSector(
         `SELECT 1 FROM sector_drones sf
          JOIN sectors s ON sf.sector_id = s.id
          WHERE s.sector_number = $1 AND s.universe_id = $2
-           AND (sf.owner_player_id IS NULL OR sf.owner_player_id != $3)
            AND sf.quantity > 0
+           AND NOT (
+               COALESCE(sf.owner_player_id = $3, FALSE)
+               OR COALESCE(
+                   sf.owner_clan_id = (SELECT clan_id FROM players WHERE id = $3),
+                   FALSE
+               )
+           )
          LIMIT 1`,
         [sectorNumber, universeId, selfPlayerId],
     );

@@ -23,6 +23,19 @@ export type OwnerJoinCols = {
     owner_clan_number?: number | null;
 };
 
+/** True iff the owned row belongs to the given player personally or to
+ *  their clan. Used to gate friendly-vs-enemy checks (mine encounters,
+ *  drone encounters, deploy-onto-friendly, etc.). */
+export function isFriendlyOwner(
+    row: Pick<OwnerJoinCols, 'owner_player_id' | 'owner_clan_id'>,
+    playerId: number,
+    playerClanId: number | null,
+): boolean {
+    if (row.owner_player_id === playerId) return true;
+    if (playerClanId !== null && row.owner_clan_id === playerClanId) return true;
+    return false;
+}
+
 export function resolveOwner(row: OwnerJoinCols): OwnerRef {
     if (row.owner_player_id !== null && row.owner_player_id !== undefined) {
         return {

@@ -8,7 +8,7 @@ export type SectorMineRow = {
     mine_type: MineType;
     quantity: number;
     owner_player_id: number | null;
-    owner_clan_id?: number | null;
+    owner_clan_id: number | null;
 };
 
 /** Fetch the mine row for a sector + type, locked for update (caller in tx). */
@@ -18,7 +18,7 @@ export async function getSectorMineForUpdate(
     db: Queryable = pool,
 ): Promise<SectorMineRow | undefined> {
     const res = await db.query<SectorMineRow>(
-        `SELECT sector_id, mine_type, quantity, owner_player_id
+        `SELECT sector_id, mine_type, quantity, owner_player_id, owner_clan_id
          FROM sector_mines
          WHERE sector_id = $1 AND mine_type = $2
          FOR UPDATE`,
@@ -33,7 +33,7 @@ export async function getSectorMines(
     db: Queryable = pool,
 ): Promise<SectorMineRow[]> {
     const res = await db.query<SectorMineRow>(
-        `SELECT sector_id, mine_type, quantity, owner_player_id
+        `SELECT sector_id, mine_type, quantity, owner_player_id, owner_clan_id
          FROM sector_mines
          WHERE sector_id = $1 AND quantity > 0`,
         [sectorDbId],
@@ -127,7 +127,8 @@ export type SeekerAttachmentTargetRow = {
     sector_number: number;
 };
 
-/** Seeker mines this player has attached to other ships, with current location. */
+/** Seeker mines attached to other ships that belong to the given player
+ *  personally OR to their clan, with current target location. */
 export async function getSeekerAttachmentsByOwner(
     ownerPlayerId: number,
     db: Queryable = pool,
@@ -143,6 +144,7 @@ export async function getSeekerAttachmentsByOwner(
          LEFT JOIN players p ON p.id = sh.owner_player_id
          LEFT JOIN sectors s ON s.id = sh.sector_id
          WHERE sa.owner_player_id = $1
+            OR sa.owner_clan_id = (SELECT clan_id FROM players WHERE id = $1)
          ORDER BY s.sector_number`,
         [ownerPlayerId],
     );
@@ -151,7 +153,8 @@ export async function getSeekerAttachmentsByOwner(
 
 export type SeekerAttachmentRow = {
     ship_id: number;
-    owner_player_id: number;
+    owner_player_id: number | null;
+    owner_clan_id: number | null;
 };
 
 /** Find any existing seeker attachment for a ship (for drop-off logic). */
@@ -160,7 +163,7 @@ export async function getSeekerAttachmentForUpdate(
     db: Queryable = pool,
 ): Promise<SeekerAttachmentRow | undefined> {
     const res = await db.query<SeekerAttachmentRow>(
-        `SELECT ship_id, owner_player_id
+        `SELECT ship_id, owner_player_id, owner_clan_id
          FROM seeker_attachments
          WHERE ship_id = $1
          FOR UPDATE`,
@@ -169,18 +172,23 @@ export async function getSeekerAttachmentForUpdate(
     return res.rows[0];
 }
 
-/** Insert or replace the seeker attachment on a ship. */
+/** Insert or replace the seeker attachment on a ship. Exactly one of
+ *  `ownerPlayerId` / `ownerClanId` must be non-null (XOR enforced by the
+ *  table's check constraint). */
 export async function upsertSeekerAttachment(
     shipId: number,
-    ownerPlayerId: number,
+    ownerPlayerId: number | null,
+    ownerClanId: number | null,
     db: Queryable = pool,
 ): Promise<void> {
     await db.query(
-        `INSERT INTO seeker_attachments (ship_id, owner_player_id, attached_at)
-         VALUES ($1, $2, NOW())
+        `INSERT INTO seeker_attachments (ship_id, owner_player_id, owner_clan_id, attached_at)
+         VALUES ($1, $2, $3, NOW())
          ON CONFLICT (ship_id) DO UPDATE
-         SET owner_player_id = EXCLUDED.owner_player_id, attached_at = NOW()`,
-        [shipId, ownerPlayerId],
+         SET owner_player_id = EXCLUDED.owner_player_id,
+             owner_clan_id = EXCLUDED.owner_clan_id,
+             attached_at = NOW()`,
+        [shipId, ownerPlayerId, ownerClanId],
     );
 }
 

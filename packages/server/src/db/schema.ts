@@ -457,16 +457,23 @@ export const connectDB = async (): Promise<void> => {
       );
 
       -- One row per ship that currently has a seeker mine attached. The
-      -- owner_player_id is the player who deployed the mine (so they can
-      -- track where their attached mines are). At most one attachment per
-      -- ship; new attachments dislodge the previous mine entirely.
+      -- owner columns identify the deployer (personal OR clan, same XOR
+      -- pattern as sector_mines / sector_drones) so the tracker query can
+      -- show clan members the attachments their clan deployed. At most
+      -- one attachment per ship; new attachments dislodge the previous
+      -- mine entirely.
       CREATE TABLE IF NOT EXISTS seeker_attachments (
         ship_id INTEGER PRIMARY KEY REFERENCES ships(id) ON DELETE CASCADE,
-        owner_player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
-        attached_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        owner_player_id INTEGER REFERENCES players(id) ON DELETE CASCADE,
+        owner_clan_id INTEGER REFERENCES clans(id) ON DELETE CASCADE,
+        attached_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        CHECK (NOT (owner_player_id IS NOT NULL AND owner_clan_id IS NOT NULL)),
+        CHECK (owner_player_id IS NOT NULL OR owner_clan_id IS NOT NULL)
       );
-      CREATE INDEX IF NOT EXISTS idx_seeker_attachments_owner
+      CREATE INDEX IF NOT EXISTS idx_seeker_attachments_owner_player
         ON seeker_attachments (owner_player_id);
+      CREATE INDEX IF NOT EXISTS idx_seeker_attachments_owner_clan
+        ON seeker_attachments (owner_clan_id);
 
       CREATE TABLE IF NOT EXISTS sector_beacons (
         sector_id INTEGER PRIMARY KEY REFERENCES sectors(id) ON DELETE CASCADE,
