@@ -1,4 +1,4 @@
-import { ClientMsgType, Menu } from '@twnr/shared';
+import { ClientTag, Menu } from '@twnr/shared';
 import { showAttackPrompt } from '../display-combat.js';
 import { registerMenu, getRoutine } from './types.js';
 
@@ -9,7 +9,7 @@ registerMenu(Menu.Attack, {
         if (line === '') return;
         if (line === 'q') {
             ctx.world.mode = Menu.Sector;
-            ctx.io.sendMsg({ type: ClientMsgType.SectorDisplay });
+            ctx.io.sendMsg({ type: ClientTag.SectorDisplay });
             return;
         }
         if (/^\d+$/.test(line)) return getRoutine(ctx.world.mode, 'select_target')?.(ctx, line);

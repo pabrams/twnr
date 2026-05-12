@@ -1,4 +1,4 @@
-import { ServerMsgType } from '@twnr/shared';
+import { ServerTag } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { TRANSACTION, SECTOR, PANEL } from '../messages/index.js';
@@ -83,7 +83,7 @@ function applyBuyShipResult(
     ctx.ship.currentShipName = msg.shipName;
     ctx.ship.currentColoredShipName = msg.coloredShipName;
     const tpl =
-        msg.type === ServerMsgType.BuyShipTradeinResult
+        msg.type === ServerTag.BuyShipTradeinResult
             ? TRANSACTION.shipExchanged
             : TRANSACTION.shipPurchased;
     ctx.io.term.writeln(render(tpl, { name: msg.coloredShipName ?? msg.shipName }));

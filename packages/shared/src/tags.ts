@@ -19,7 +19,7 @@ export const Menu = {
 } as const;
 export type MenuName = (typeof Menu)[keyof typeof Menu];
 
-export const ServerMsgType = {
+export const ServerTag = {
     Welcome: 'welcome',
     PlayerMoved: 'playerMoved',
     SectorDisplayResult: 'sectorDisplayResult',
@@ -96,9 +96,9 @@ export const ServerMsgType = {
     SeekerMineAttached: 'seekerMineAttached',
     SeekerMinePickupAlert: 'seekerMinePickupAlert',
 } as const;
-type ServerMsgType = typeof ServerMsgType;
+type ServerTag = typeof ServerTag;
 
-export const ClientMsgType = {
+export const ClientTag = {
     Move: 'move',
     MoveToPrevious: 'moveToPrevious',
     GetAttackTargets: 'getAttackTargets',
@@ -162,4 +162,4 @@ export const ClientMsgType = {
     ClanSetPassword: 'clanSetPassword',
     ClanDropMember: 'clanDropMember',
 } as const;
-type ClientMsgType = typeof ClientMsgType;
+type ClientTag = typeof ClientTag;

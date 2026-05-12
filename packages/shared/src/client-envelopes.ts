@@ -1,116 +1,116 @@
 // WebSocket messages (client → server)
 
-import { ClientMsgType } from './messages.js';
+import { ClientTag } from './tags.js';
 
 export type MoveCommand = {
-    type: typeof ClientMsgType.Move;
+    type: typeof ClientTag.Move;
     sector: number;
 };
 
 export type MoveToPreviousCommand = {
-    type: typeof ClientMsgType.MoveToPrevious;
+    type: typeof ClientTag.MoveToPrevious;
 };
 
 export type GetAttackTargetsCommand = {
-    type: typeof ClientMsgType.GetAttackTargets;
+    type: typeof ClientTag.GetAttackTargets;
 };
 
 export type StarbaseInfoCommand = {
-    type: typeof ClientMsgType.StarbaseInfo;
+    type: typeof ClientTag.StarbaseInfo;
 };
 
 export type TerraformInfoCommand = {
-    type: typeof ClientMsgType.TerraformInfo;
+    type: typeof ClientTag.TerraformInfo;
 };
 
 export type HardwareStoreInfoCommand = {
-    type: typeof ClientMsgType.HardwareStoreInfo;
+    type: typeof ClientTag.HardwareStoreInfo;
 };
 
 export type SectorDisplayCommand = {
-    type: typeof ClientMsgType.SectorDisplay;
+    type: typeof ClientTag.SectorDisplay;
 };
 
 export type PlayersOnlineCommand = {
-    type: typeof ClientMsgType.PlayersOnline;
+    type: typeof ClientTag.PlayersOnline;
 };
 
 export type WarpsOutCommand = {
-    type: typeof ClientMsgType.WarpsOut;
+    type: typeof ClientTag.WarpsOut;
     id: number;
 };
 
 export type ShortestPathCommand = {
-    type: typeof ClientMsgType.ShortestPath;
+    type: typeof ClientTag.ShortestPath;
     from: number;
     to: number;
 };
 
 export type PortInfoCommand = {
-    type: typeof ClientMsgType.PortInfo;
+    type: typeof ClientTag.PortInfo;
     sectorId: number;
 };
 
 export type ShipInfoCommand = {
-    type: typeof ClientMsgType.ShipInfo;
+    type: typeof ClientTag.ShipInfo;
 };
 
 export type PortTransactionCommand = {
-    type: typeof ClientMsgType.PortTransaction;
+    type: typeof ClientTag.PortTransaction;
     good: string;
     quantity: number;
     action: 'buy' | 'sell';
 };
 
 export type BuyDronesCommand = {
-    type: typeof ClientMsgType.BuyDrones;
+    type: typeof ClientTag.BuyDrones;
     quantity: number;
 };
 
 export type BuyShieldsCommand = {
-    type: typeof ClientMsgType.BuyShields;
+    type: typeof ClientTag.BuyShields;
     quantity: number;
 };
 
 export type BuyHoldsCommand = {
-    type: typeof ClientMsgType.BuyHolds;
+    type: typeof ClientTag.BuyHolds;
     quantity: number;
 };
 
 export type BuyShipTradeinCommand = {
-    type: typeof ClientMsgType.BuyShipTradein;
+    type: typeof ClientTag.BuyShipTradein;
     targetShipName: string;
 };
 export type AttackShipCommand = {
-    type: typeof ClientMsgType.AttackShip;
+    type: typeof ClientTag.AttackShip;
     targetPlayerId: number;
     drones: number;
 };
 
 export type DockCommand = {
-    type: typeof ClientMsgType.Dock;
+    type: typeof ClientTag.Dock;
 };
 
 export type UndockCommand = {
-    type: typeof ClientMsgType.Undock;
+    type: typeof ClientTag.Undock;
 };
 
 export type JettisonCommand = {
-    type: typeof ClientMsgType.Jettison;
+    type: typeof ClientTag.Jettison;
 };
 
 export type GetSectorPlanetsCommand = {
-    type: typeof ClientMsgType.GetSectorPlanets;
+    type: typeof ClientTag.GetSectorPlanets;
 };
 
 export type TakeColonistsCommand = {
-    type: typeof ClientMsgType.TakeColonists;
+    type: typeof ClientTag.TakeColonists;
     quantity: number;
     commodity: 'fuel' | 'organics' | 'equipment' | 'drones';
 };
 
 export type LeaveColonistsCommand = {
-    type: typeof ClientMsgType.LeaveColonists;
+    type: typeof ClientTag.LeaveColonists;
     quantity: number;
     commodity: 'fuel' | 'organics' | 'equipment' | 'drones';
 };
@@ -118,7 +118,7 @@ export type LeaveColonistsCommand = {
 /** Take fuel/organics/equipment from the planet you're on. -1 quantity =
  *  take as many as the planet has (clamped by free ship holds). */
 export type TakeCommodityCommand = {
-    type: typeof ClientMsgType.TakeCommodity;
+    type: typeof ClientTag.TakeCommodity;
     quantity: number;
     commodity: 'fuel' | 'organics' | 'equipment' | 'drones';
 };
@@ -127,101 +127,101 @@ export type TakeCommodityCommand = {
  *  leave everything the ship is carrying of that commodity (clamped by
  *  the planet's per-commodity cap). */
 export type LeaveCommodityCommand = {
-    type: typeof ClientMsgType.LeaveCommodity;
+    type: typeof ClientTag.LeaveCommodity;
     quantity: number;
     commodity: 'fuel' | 'organics' | 'equipment' | 'drones';
 };
 
 export type DeployDronesInfoCommand = {
-    type: typeof ClientMsgType.DeployDronesInfo;
+    type: typeof ClientTag.DeployDronesInfo;
 };
 
 export type DeployDronesCommand = {
-    type: typeof ClientMsgType.DeployDrones;
+    type: typeof ClientTag.DeployDrones;
     quantity: number;
     ownership?: 'personal' | 'clan';
 };
 
 export type AttackSectorDronesCommand = {
-    type: typeof ClientMsgType.AttackSectorDrones;
+    type: typeof ClientTag.AttackSectorDrones;
     drones: number;
 };
 
 export type RetreatFromDronesCommand = {
-    type: typeof ClientMsgType.RetreatFromDrones;
+    type: typeof ClientTag.RetreatFromDrones;
 };
 
 export type UseTerraformDeviceCommand = {
-    type: typeof ClientMsgType.UseTerraformDevice;
+    type: typeof ClientTag.UseTerraformDevice;
 };
 
 export type LandOnPlanetCommand = {
-    type: typeof ClientMsgType.LandOnPlanet;
+    type: typeof ClientTag.LandOnPlanet;
     planetId: number;
 };
 
 export type PlanetDisplayCommand = {
-    type: typeof ClientMsgType.PlanetDisplay;
+    type: typeof ClientTag.PlanetDisplay;
 };
 
 export type DestroyPlanetCommand = {
-    type: typeof ClientMsgType.DestroyPlanet;
+    type: typeof ClientTag.DestroyPlanet;
 };
 
 export type LeavePlanetCommand = {
-    type: typeof ClientMsgType.LeavePlanet;
+    type: typeof ClientTag.LeavePlanet;
 };
 
 export type BuyHardwareCommand = {
-    type: typeof ClientMsgType.BuyHardware;
+    type: typeof ClientTag.BuyHardware;
     itemName: string;
     quantity?: number;
 };
 
 export type DockStarbaseCommand = {
-    type: typeof ClientMsgType.DockStarbase;
+    type: typeof ClientTag.DockStarbase;
 };
 
 export type LeaveStarbaseCommand = {
-    type: typeof ClientMsgType.LeaveStarbase;
+    type: typeof ClientTag.LeaveStarbase;
 };
 
 export type BuyShipNewCommand = {
-    type: typeof ClientMsgType.BuyShipNew;
+    type: typeof ClientTag.BuyShipNew;
     targetShipName: string;
 };
 
 export type ListDeployedDronesCommand = {
-    type: typeof ClientMsgType.ListDeployedDrones;
+    type: typeof ClientTag.ListDeployedDrones;
 };
 
 export type ListPlanetsCommand = {
-    type: typeof ClientMsgType.ListPlanets;
+    type: typeof ClientTag.ListPlanets;
 };
 
 export type ListOwnedShipsCommand = {
-    type: typeof ClientMsgType.ListOwnedShips;
+    type: typeof ClientTag.ListOwnedShips;
 };
 
 export type TransportToShipCommand = {
-    type: typeof ClientMsgType.TransportToShip;
+    type: typeof ClientTag.TransportToShip;
     shipId: number;
 };
 
 export type ClanCreateCommand = {
-    type: typeof ClientMsgType.ClanCreate;
+    type: typeof ClientTag.ClanCreate;
     name: string;
     password: string;
 };
 
 export type ClanJoinCommand = {
-    type: typeof ClientMsgType.ClanJoin;
+    type: typeof ClientTag.ClanJoin;
     name: string;
     password: string;
 };
 
 export type ClanLeaveCommand = {
-    type: typeof ClientMsgType.ClanLeave;
+    type: typeof ClientTag.ClanLeave;
     /** Required when leaving as leader with other members remaining. */
     successorPlayerId?: number;
     /** Required when leaving as the last member (triggers dissolution). */
@@ -229,26 +229,26 @@ export type ClanLeaveCommand = {
 };
 
 export type ClanListCommand = {
-    type: typeof ClientMsgType.ClanList;
+    type: typeof ClientTag.ClanList;
 };
 
 export type ClanInfoCommand = {
-    type: typeof ClientMsgType.ClanInfo;
+    type: typeof ClientTag.ClanInfo;
 };
 
 export type ChangeShipOwnershipCommand = {
-    type: typeof ClientMsgType.ChangeShipOwnership;
+    type: typeof ClientTag.ChangeShipOwnership;
     ownership: 'personal' | 'clan';
 };
 
 export type ClaimPlanetCommand = {
-    type: typeof ClientMsgType.ClaimPlanet;
+    type: typeof ClientTag.ClaimPlanet;
     ownership: 'personal' | 'clan';
 };
 
 export type ClanTransferKind = 'credits' | 'drones' | 'shields' | 'mines';
 export type ClanTransferCommand = {
-    type: typeof ClientMsgType.ClanTransfer;
+    type: typeof ClientTag.ClanTransfer;
     kind: ClanTransferKind;
     targetPlayerId: number;
     quantity: number;
@@ -256,58 +256,58 @@ export type ClanTransferCommand = {
 };
 
 export type ClanMemoCommand = {
-    type: typeof ClientMsgType.ClanMemo;
+    type: typeof ClientTag.ClanMemo;
     body: string;
 };
 
 export type ClanSetPasswordCommand = {
-    type: typeof ClientMsgType.ClanSetPassword;
+    type: typeof ClientTag.ClanSetPassword;
     newPassword: string;
 };
 
 export type ClanDropMemberCommand = {
-    type: typeof ClientMsgType.ClanDropMember;
+    type: typeof ClientTag.ClanDropMember;
     targetPlayerId: number;
 };
 
 export type HyperspaceJumpCommand = {
-    type: typeof ClientMsgType.HyperspaceJump;
+    type: typeof ClientTag.HyperspaceJump;
     targetSector: number;
 };
 
 export type VisitedSectorsCommand = {
-    type: typeof ClientMsgType.VisitedSectors;
+    type: typeof ClientTag.VisitedSectors;
 };
 
 /** Info request that precedes the actual deploy. */
 export type DeployMineInfoCommand = {
-    type: typeof ClientMsgType.DeployMineInfo;
+    type: typeof ClientTag.DeployMineInfo;
     mineType: 'proximity' | 'seeker';
 };
 
 /** Deploy/pickup mines." */
 export type DeployMineCommand = {
-    type: typeof ClientMsgType.DeployMine;
+    type: typeof ClientTag.DeployMine;
     mineType: 'proximity' | 'seeker';
     quantity: number;
     ownership?: 'personal' | 'clan';
 };
 
 export type ListDeployedMinesCommand = {
-    type: typeof ClientMsgType.ListDeployedMines;
+    type: typeof ClientTag.ListDeployedMines;
 };
 
 export type TrackSeekerMinesCommand = {
-    type: typeof ClientMsgType.TrackSeekerMines;
+    type: typeof ClientTag.TrackSeekerMines;
 };
 
 export type MineDisruptorCommand = {
-    type: typeof ClientMsgType.MineDisruptor;
+    type: typeof ClientTag.MineDisruptor;
     targetSector: number;
 };
 
 export type GetNeighborhoodCommand = {
-    type: typeof ClientMsgType.GetNeighborhood;
+    type: typeof ClientTag.GetNeighborhood;
     /**
      * Half-extent of the visible viewport in world units (axis-aligned bbox).
      * Server returns sectors with |x - cx| ≤ halfWidthWorld and
@@ -325,7 +325,7 @@ export type GetNeighborhoodCommand = {
     centerYWorld?: number;
 };
 
-export type ClientCommand =
+export type ClientEnvelope =
     | MoveCommand
     | MoveToPreviousCommand
     | GetAttackTargetsCommand

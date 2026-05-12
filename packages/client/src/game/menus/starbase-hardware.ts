@@ -1,4 +1,4 @@
-import { ClientMsgType, Menu } from '@twnr/shared';
+import { ClientTag, Menu } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { echoCommand } from '../display.js';
 import {
@@ -37,7 +37,7 @@ async function buyStackable(ctx: GameContext, itemName: string, label: string): 
         defaultValue: canBuy,
     });
     if (qty === null) return;
-    ctx.io.sendMsg({ type: ClientMsgType.BuyHardware, itemName, quantity: qty });
+    ctx.io.sendMsg({ type: ClientTag.BuyHardware, itemName, quantity: qty });
 }
 
 const HW_VALID_KEYS = new Set<string>([
@@ -59,7 +59,7 @@ registerMenu(Menu.StarbaseHardware, {
         if (toggle) {
             echoCommand(ctx, 'buyHardware');
             showHardwareItemDetail(ctx, toggle);
-            ctx.io.sendMsg({ type: ClientMsgType.BuyHardware, itemName: toggle });
+            ctx.io.sendMsg({ type: ClientTag.BuyHardware, itemName: toggle });
             return;
         }
 

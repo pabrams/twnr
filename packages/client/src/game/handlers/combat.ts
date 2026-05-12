@@ -1,4 +1,4 @@
-import { ClientMsgType, Menu } from '@twnr/shared';
+import { ClientTag, Menu } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { EVENT } from '../messages/index.js';
@@ -69,7 +69,7 @@ export const deployDronesInfo: Handler<'deployDronesInfoResult'> = async (ctx, m
     if (qty === null) return;
     const ownership = await askDeployOwnership(ctx, render(EVENT.deployOwnershipPrompt));
     if (ownership === null) return;
-    ctx.io.sendMsg({ type: ClientMsgType.DeployDrones, quantity: qty, ownership });
+    ctx.io.sendMsg({ type: ClientTag.DeployDrones, quantity: qty, ownership });
 };
 
 export const deployDrones: Handler<'deployDronesResult', CombatContext> = (ctx, msg) => {
@@ -100,7 +100,7 @@ export const attackSectorDrones: Handler<'attackSectorDronesResult', CombatConte
         if (ctx.autopilot.paused) {
             ctx.io.term.writeln(render(EVENT.autopilotResuming));
             ctx.autopilot.paused = false;
-            ctx.io.sendMsg({ type: ClientMsgType.SectorDisplay });
+            ctx.io.sendMsg({ type: ClientTag.SectorDisplay });
         }
     } else {
         showDroneEncounter(ctx, msg.sectorDronesRemaining, ctx.encounter.ownerName, msg.shipDrones);

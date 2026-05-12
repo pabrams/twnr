@@ -1,4 +1,4 @@
-import { ClientMsgType, Menu, type ShipCatalogEntry } from '@twnr/shared';
+import { ClientTag, Menu, type ShipCatalogEntry } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { echoCommand } from '../display.js';
@@ -60,9 +60,9 @@ registerRoutine('buy_ship', async (ctx) => {
         const yes = await askConfirm(ctx, render(STARBASE.tradeinConfirm));
         if (yes === null) continue;
         if (yes) {
-            ctx.io.sendMsg({ type: ClientMsgType.BuyShipTradein, targetShipName: ship.name });
+            ctx.io.sendMsg({ type: ClientTag.BuyShipTradein, targetShipName: ship.name });
         } else {
-            ctx.io.sendMsg({ type: ClientMsgType.BuyShipNew, targetShipName: ship.name });
+            ctx.io.sendMsg({ type: ClientTag.BuyShipNew, targetShipName: ship.name });
         }
         return;
     }
@@ -106,9 +106,9 @@ async function chooseClass0(
     if (max <= 0) return;
     const qty = await askNumber(ctx, promptText, { defaultValue: max, min: 1, max });
     if (qty === null) return;
-    if (kind === 'drones') ctx.io.sendMsg({ type: ClientMsgType.BuyDrones, quantity: qty });
-    else if (kind === 'shields') ctx.io.sendMsg({ type: ClientMsgType.BuyShields, quantity: qty });
-    else ctx.io.sendMsg({ type: ClientMsgType.BuyHolds, quantity: qty });
+    if (kind === 'drones') ctx.io.sendMsg({ type: ClientTag.BuyDrones, quantity: qty });
+    else if (kind === 'shields') ctx.io.sendMsg({ type: ClientTag.BuyShields, quantity: qty });
+    else ctx.io.sendMsg({ type: ClientTag.BuyHolds, quantity: qty });
 }
 
 registerRoutine('choose_holds', (ctx) => chooseClass0(ctx, 'holds', 'buyHolds'));
@@ -117,5 +117,5 @@ registerRoutine('choose_shields', (ctx) => chooseClass0(ctx, 'shields', 'buyShie
 
 registerRoutine('leave_port', (ctx) => {
     echoCommand(ctx, 'undock');
-    ctx.io.sendMsg({ type: ClientMsgType.Undock });
+    ctx.io.sendMsg({ type: ClientTag.Undock });
 });

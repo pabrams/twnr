@@ -1,6 +1,6 @@
-import { ServerMsgType } from '@twnr/shared';
+import { ServerTag } from '@twnr/shared';
 import type {
-    NeighborhoodResultObject,
+    NeighborhoodReply,
     NeighborhoodSector,
     NeighborhoodWarp,
     GetNeighborhoodCommand,
@@ -51,8 +51,8 @@ export async function handleGetNeighborhood(
 
     // Random-topology universes: positions are NULL, no map to render.
     if (topology === 'random') {
-        const payload: NeighborhoodResultObject = {
-            type: ServerMsgType.NeighborhoodResult,
+        const payload: NeighborhoodReply = {
+            type: ServerTag.NeighborhoodResult,
             topology: 'random',
             current_sector_id: currentSectorId,
             sectors: [],
@@ -94,8 +94,8 @@ export async function handleGetNeighborhood(
         cx = currentMeta.x;
         cy = currentMeta.y;
     } else {
-        const payload: NeighborhoodResultObject = {
-            type: ServerMsgType.NeighborhoodResult,
+        const payload: NeighborhoodReply = {
+            type: ServerTag.NeighborhoodResult,
             topology: 'proximal',
             current_sector_id: currentSectorId,
             sectors: [],
@@ -254,8 +254,8 @@ export async function handleGetNeighborhood(
         });
     }
 
-    const payload: NeighborhoodResultObject = {
-        type: ServerMsgType.NeighborhoodResult,
+    const payload: NeighborhoodReply = {
+        type: ServerTag.NeighborhoodResult,
         topology: 'proximal',
         current_sector_id: currentSectorId,
         sectors,

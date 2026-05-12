@@ -1,4 +1,4 @@
-import { ClientMsgType, Menu } from '@twnr/shared';
+import { ClientTag, Menu } from '@twnr/shared';
 import { echoCommand } from '../display.js';
 import { render } from '../renderer.js';
 import { HELP } from '../messages/index.js';
@@ -16,7 +16,7 @@ registerRoutine('back', (ctx) => {
     const backRow = menu?.commands.find((c) => c.command === 'back');
     ctx.io.term.writeln(render(backEcho(backRow?.label), {}));
     if (ctx.world.mode === Menu.Starbase) {
-        ctx.io.sendMsg({ type: ClientMsgType.LeaveStarbase });
+        ctx.io.sendMsg({ type: ClientTag.LeaveStarbase });
     } else if (ctx.world.mode === Menu.Shipyards) {
         ctx.world.mode = Menu.Starbase;
     } else if (ctx.world.mode === Menu.ShipyardsClass0) {
@@ -47,5 +47,5 @@ registerRoutine('help_menu', (ctx) => {
 
 registerRoutine('list_deployed_drones', (ctx) => {
     echoCommand(ctx, 'listDeployedDrones');
-    ctx.io.sendMsg({ type: ClientMsgType.ListDeployedDrones });
+    ctx.io.sendMsg({ type: ClientTag.ListDeployedDrones });
 });

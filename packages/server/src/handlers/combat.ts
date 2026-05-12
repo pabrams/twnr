@@ -1,5 +1,5 @@
-import { ServerMsgType } from '@twnr/shared';
-import type { ServerResult, AttackShipCommand } from '@twnr/shared';
+import { ServerTag } from '@twnr/shared';
+import type { ServerEnvelope, AttackShipCommand } from '@twnr/shared';
 
 import { players, isVisibleInSector } from '../state/players.js';
 import { sendEnvelope, sendError, closeDestroyedSession } from '../state/messaging.js';
@@ -22,7 +22,7 @@ export async function handleGetAttackTargets(playerId: number): Promise<void> {
         .filter((row) => isVisibleInSector(row.id, row.docked, row.on_planet_id))
         .map((row) => ({ id: row.id, name: row.name }));
 
-    await sendEnvelope(playerId, { type: ServerMsgType.GetAttackTargetsResult, players: roster });
+    await sendEnvelope(playerId, { type: ServerTag.GetAttackTargetsResult, players: roster });
 }
 
 export async function handleAttackShip(
@@ -107,8 +107,8 @@ export async function handleAttackShip(
 
         const { destroyed, attackerDronesLost, defenderDronesLost, shieldsLost } = result;
 
-        const resultMsg: ServerResult = {
-            type: ServerMsgType.AttackShipResult,
+        const resultMsg: ServerEnvelope = {
+            type: ServerTag.AttackShipResult,
             destroyed,
             attackerDronesLost,
             defenderDronesLost,
@@ -119,7 +119,7 @@ export async function handleAttackShip(
 
         if (onlineTarget?.ws && onlineTarget.ws.readyState === 1) {
             await sendEnvelope(targetPlayerId, {
-                type: ServerMsgType.AttackShipResult,
+                type: ServerTag.AttackShipResult,
                 destroyed,
                 attackerDronesLost,
                 defenderDronesLost,

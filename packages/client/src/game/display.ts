@@ -1,4 +1,4 @@
-import { ClientMsgType } from '@twnr/shared';
+import { ClientTag } from '@twnr/shared';
 import type { SectorRef } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { render } from './renderer.js';
@@ -254,5 +254,5 @@ export async function showPlayerInfo(ctx: DisplayCtx) {
             ctx.catalogs.hardware = [];
         }
     }
-    ctx.io.sendMsg({ type: ClientMsgType.ShipInfo });
+    ctx.io.sendMsg({ type: ClientTag.ShipInfo });
 }

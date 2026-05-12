@@ -1,12 +1,12 @@
 import type { Terminal } from '@xterm/xterm';
 import type {
-    ClientCommand,
+    ClientEnvelope,
     MenuName,
-    PortInfoResultObject,
+    PortInfoReply,
     MenuEntry,
     HardwarePriceItem,
     HardwareStoreItem,
-    ServerResult,
+    ServerEnvelope,
     ShipCatalogEntry,
     PlanetConfig,
 } from '@twnr/shared';
@@ -39,7 +39,7 @@ export interface IO {
      * `inFlight` (so keystrokes aren't buffered) and the response should
      * also skip the framework's prompt re-render via PROMPT_SUPPRESSING.
      */
-    sendMsg: (msg: ClientCommand, opts?: { silent?: boolean }) => void;
+    sendMsg: (msg: ClientEnvelope, opts?: { silent?: boolean }) => void;
     setDebug: (on: boolean) => void;
     debug: boolean;
     /** Submit a text line as if the user had typed it into the xterm (used by the mini-map). */
@@ -96,7 +96,7 @@ export interface InputLayer {
      */
     pendingResponse: {
         types: Set<string>;
-        resolve: (msg: ServerResult | null) => void;
+        resolve: (msg: ServerEnvelope | null) => void;
     } | null;
 }
 
@@ -113,7 +113,7 @@ export interface WorldState {
     mode: MenuName;
     currentSector: number;
     currentPort: { class: number; name: string } | null;
-    dockedPortInfo: PortInfoResultObject | null;
+    dockedPortInfo: PortInfoReply | null;
     visitedSet: Set<number>;
     totalSectors: number;
     sectorPlayers: { id: number; name: string }[];

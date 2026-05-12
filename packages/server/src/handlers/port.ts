@@ -1,4 +1,4 @@
-import { ServerMsgType, PORT_CLASS_ACTIONS } from '@twnr/shared';
+import { ServerTag, PORT_CLASS_ACTIONS } from '@twnr/shared';
 import type { PortInfoCommand, PortTransactionCommand } from '@twnr/shared';
 import { players, getPlayerUniverseId } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
@@ -43,7 +43,7 @@ function buildPortInfoPayload(
     sectorId: number,
 ) {
     return {
-        type: ServerMsgType.PortInfoResult,
+        type: ServerTag.PortInfoResult,
         sectorId,
         portName: p.name,
         class: p.class,
@@ -113,7 +113,7 @@ export async function handleDock(playerId: number): Promise<void> {
     if (p.class === 0) {
         const ship = await getShipInfo(playerId);
         await sendEnvelope(playerId, {
-            type: ServerMsgType.DockResult,
+            type: ServerTag.DockResult,
             docked: true,
             port: portInfoPayload,
             credits,
@@ -135,7 +135,7 @@ export async function handleDock(playerId: number): Promise<void> {
     }
 
     await sendEnvelope(playerId, {
-        type: ServerMsgType.DockResult,
+        type: ServerTag.DockResult,
         docked: true,
         port: portInfoPayload,
         credits,
@@ -152,7 +152,7 @@ async function undockPlayer(playerId: number): Promise<void> {
     const sectorData = await buildSectorDisplayData(playerId);
     if (!sectorData) return;
     await sendEnvelope(playerId, {
-        type: ServerMsgType.UndockResult,
+        type: ServerTag.UndockResult,
         outcome: 'success',
         ...sectorData,
     });
@@ -164,7 +164,7 @@ export async function handleUndock(playerId: number): Promise<void> {
 
     if (!player.docked) {
         sendEnvelope(playerId, {
-            type: ServerMsgType.UndockResult,
+            type: ServerTag.UndockResult,
             outcome: 'error',
             message: 'Not docked',
         });
@@ -330,7 +330,7 @@ export async function handlePortTransaction(
         if (!result) return;
 
         sendEnvelope(playerId, {
-            type: ServerMsgType.PortTransactionResult,
+            type: ServerTag.PortTransactionResult,
             credits: result.credits,
             cargo: result.cargo,
             emptyHolds: result.emptyHolds,
@@ -364,7 +364,7 @@ export async function handleDockStarbase(playerId: number): Promise<void> {
         getShipInfo(playerId),
     ]);
     await sendEnvelope(playerId, {
-        type: ServerMsgType.DockStarbaseResult,
+        type: ServerTag.DockStarbaseResult,
         prices: priceRows.map((r) => ({ name: r.name, label: r.label, price: r.price })),
         credits: ship?.credits,
         shipInfo: ship
@@ -394,5 +394,5 @@ export async function handleLeaveStarbase(playerId: number): Promise<void> {
 
     const sectorData = await buildSectorDisplayData(playerId);
     if (!sectorData) return;
-    await sendEnvelope(playerId, { type: ServerMsgType.LeaveStarbaseResult, ...sectorData });
+    await sendEnvelope(playerId, { type: ServerTag.LeaveStarbaseResult, ...sectorData });
 }

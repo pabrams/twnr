@@ -1,5 +1,5 @@
 import { WebSocket } from 'ws';
-import { ServerMsgType } from '@twnr/shared';
+import { ServerTag } from '@twnr/shared';
 import type { MoveCommand, WarpsOutCommand, ShortestPathCommand } from '@twnr/shared';
 import { players, getPlayerUniverseId } from '../state/players.js';
 import { sendEnvelope, sendError, broadcastTo, closeDestroyedSession } from '../state/messaging.js';
@@ -26,7 +26,7 @@ export async function handleMove(playerId: number, data: MoveCommand): Promise<v
     const targetSector = data.sector;
     if (!Number.isInteger(targetSector) || targetSector <= 0) {
         sendEnvelope(playerId, {
-            type: ServerMsgType.MoveResult,
+            type: ServerTag.MoveResult,
             outcome: 'error',
             message: 'Invalid sector',
         });
@@ -39,7 +39,7 @@ export async function handleMove(playerId: number, data: MoveCommand): Promise<v
     // Block movement during pending drone encounter (derived: enemy drones in current sector)
     if (await isInEncounter(playerId)) {
         sendEnvelope(playerId, {
-            type: ServerMsgType.MoveResult,
+            type: ServerTag.MoveResult,
             outcome: 'error',
             message: 'Resolve drone encounter first',
         });
@@ -53,14 +53,14 @@ export async function handleMove(playerId: number, data: MoveCommand): Promise<v
     ]);
 
     if (!ctx || !ctx.shipId) {
-        sendEnvelope(playerId, { type: ServerMsgType.MoveResult, outcome: 'noShip' });
+        sendEnvelope(playerId, { type: ServerTag.MoveResult, outcome: 'noShip' });
         return;
     }
 
     const currentSector = player.sector;
     if (!warps[currentSector]?.includes(targetSector)) {
         sendEnvelope(playerId, {
-            type: ServerMsgType.MoveResult,
+            type: ServerTag.MoveResult,
             outcome: 'nonAdjacent',
             sector: targetSector,
         });
@@ -70,7 +70,7 @@ export async function handleMove(playerId: number, data: MoveCommand): Promise<v
     const turnResult = await deductTurns(playerId, ctx.turnsPerWarp, ctx);
     if (!turnResult.allowed) {
         sendEnvelope(playerId, {
-            type: ServerMsgType.MoveResult,
+            type: ServerTag.MoveResult,
             outcome: 'error',
             message: 'Insufficient turns',
         });
@@ -103,7 +103,7 @@ export async function handleMove(playerId: number, data: MoveCommand): Promise<v
     }
     broadcastTo(
         {
-            type: ServerMsgType.PlayerMoved,
+            type: ServerTag.PlayerMoved,
             playerId,
             playerName: player.name,
             sector: targetSector,
@@ -113,7 +113,7 @@ export async function handleMove(playerId: number, data: MoveCommand): Promise<v
     );
     broadcastTo(
         {
-            type: ServerMsgType.PlayerMoved,
+            type: ServerTag.PlayerMoved,
             playerId,
             playerName: player.name,
             sector: targetSector,
@@ -129,7 +129,7 @@ export async function handleMove(playerId: number, data: MoveCommand): Promise<v
     const mineOutcome = await resolveMinesOnEntry(playerId);
     if (mineOutcome.destroyed) {
         await sendEnvelope(playerId, {
-            type: ServerMsgType.MoveResult,
+            type: ServerTag.MoveResult,
             outcome: 'destroyed',
             reason: 'Destroyed by proximity mine',
         });
@@ -144,7 +144,7 @@ export async function handleMove(playerId: number, data: MoveCommand): Promise<v
         const shipDrones = (await getShipDrones(playerId)) ?? 0;
 
         await sendEnvelope(playerId, {
-            type: ServerMsgType.MoveResult,
+            type: ServerTag.MoveResult,
             outcome: 'encounter',
             ...sectorData,
             ownerId: sectorData.sectorDrones.ownerId,
@@ -159,7 +159,7 @@ export async function handleMove(playerId: number, data: MoveCommand): Promise<v
         const owner = ownerId != null ? players[ownerId] : undefined;
         if (owner && owner.ws.readyState === 1 && ownerId != null) {
             sendEnvelope(ownerId, {
-                type: ServerMsgType.SectorDronesAlert,
+                type: ServerTag.SectorDronesAlert,
                 event: 'intrusion',
                 sector: targetSector,
                 dronesLost: 0,
@@ -171,7 +171,7 @@ export async function handleMove(playerId: number, data: MoveCommand): Promise<v
     }
 
     await sendEnvelope(playerId, {
-        type: ServerMsgType.MoveResult,
+        type: ServerTag.MoveResult,
         outcome: 'success',
         ...sectorData,
         turnsUsed: turnResult.turnsUsed,
@@ -180,7 +180,7 @@ export async function handleMove(playerId: number, data: MoveCommand): Promise<v
 
 export async function handleMoveToPrevious(playerId: number): Promise<void> {
     const prev = await getPreviousSectorNumber(playerId);
-    sendEnvelope(playerId, { type: ServerMsgType.PreviousSectorResult, sector: prev });
+    sendEnvelope(playerId, { type: ServerTag.PreviousSectorResult, sector: prev });
 }
 
 export async function handleSectorDisplay(playerId: number): Promise<void> {
@@ -189,7 +189,7 @@ export async function handleSectorDisplay(playerId: number): Promise<void> {
 
     const data = await buildSectorDisplayData(playerId);
     if (!data) return;
-    sendEnvelope(playerId, { type: ServerMsgType.SectorDisplayResult, ...data });
+    sendEnvelope(playerId, { type: ServerTag.SectorDisplayResult, ...data });
 }
 
 export async function handleWarpsOut(playerId: number, data: WarpsOutCommand): Promise<void> {
@@ -209,7 +209,7 @@ export async function handleWarpsOut(playerId: number, data: WarpsOutCommand): P
     }
 
     const warpRefs = await getWarpRefs(playerId, id, universeId);
-    sendEnvelope(playerId, { type: ServerMsgType.WarpsOutResult, id, warps: warpRefs });
+    sendEnvelope(playerId, { type: ServerTag.WarpsOutResult, id, warps: warpRefs });
 }
 
 export async function handleShortestPath(
@@ -233,7 +233,7 @@ export async function handleShortestPath(
 
     if (from === to) {
         sendEnvelope(playerId, {
-            type: ServerMsgType.ShortestPathResult,
+            type: ServerTag.ShortestPathResult,
             path: [{ sector: from, visited: true }],
             hops: 0,
             turns: 0,
@@ -257,7 +257,7 @@ export async function handleShortestPath(
                 const visitedSet = await findVisitedSectorsInSet(playerId, universeId, finalPath);
                 const hops = finalPath.length - 1;
                 await sendEnvelope(playerId, {
-                    type: ServerMsgType.ShortestPathResult,
+                    type: ServerTag.ShortestPathResult,
                     path: finalPath.map((s) => ({ sector: s, visited: visitedSet.has(s) })),
                     hops,
                     turns: hops * turnsPerWarp,

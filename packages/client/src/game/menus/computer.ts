@@ -1,4 +1,4 @@
-import { ClientMsgType, Menu } from '@twnr/shared';
+import { ClientTag, Menu } from '@twnr/shared';
 import { showComputerPrompt } from '../display-computer.js';
 import { registerMenu, getRoutine } from './types.js';
 
@@ -27,7 +27,7 @@ registerMenu(Menu.Computer, {
         const key = line.toLowerCase();
         if (key === 'q') {
             ctx.world.mode = Menu.Sector;
-            ctx.io.sendMsg({ type: ClientMsgType.SectorDisplay });
+            ctx.io.sendMsg({ type: ClientTag.SectorDisplay });
             return;
         }
         const cmd = KEY_TO_COMMAND[key];

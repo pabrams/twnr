@@ -1,4 +1,4 @@
-import { ClientMsgType } from '@twnr/shared';
+import { ClientTag } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 
 export type RefreshMinimapCtx = Pick<GameContext, 'io' | 'minimap'>;
@@ -34,7 +34,7 @@ export function refreshMinimap(ctx: RefreshMinimapCtx): void {
     // PROMPT_SUPPRESSING in connection.ts).
     ctx.io.sendMsg(
         {
-            type: ClientMsgType.GetNeighborhood,
+            type: ClientTag.GetNeighborhood,
             halfWidthWorld: vp.halfWidthWorld,
             halfHeightWorld: vp.halfHeightWorld,
             centerXWorld: vp.centerXWorld,

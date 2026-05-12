@@ -1,4 +1,4 @@
-import { ServerMsgType } from '@twnr/shared';
+import { ServerTag } from '@twnr/shared';
 import type { DeployMineInfoCommand, DeployMineCommand, MineDisruptorCommand } from '@twnr/shared';
 import { players } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
@@ -91,7 +91,7 @@ export async function handleDeployMineInfo(
     }
 
     sendEnvelope(playerId, {
-        type: ServerMsgType.DeployMineInfoResult,
+        type: ServerTag.DeployMineInfoResult,
         mineType,
         sectorMines: existing?.quantity ?? 0,
         shipMines: cap.current_qty,
@@ -226,7 +226,7 @@ export async function handleDeployMine(
         if (!result) return;
 
         await sendEnvelope(playerId, {
-            type: ServerMsgType.DeployMineResult,
+            type: ServerTag.DeployMineResult,
             mineType,
             sectorMines: result.sectorMines,
             shipMines: result.shipMines,
@@ -243,7 +243,7 @@ export async function handleListDeployedMines(playerId: number): Promise<void> {
     const rows = await getDeployedMinesByOwner(playerId);
     const { formatOwner } = await import('../services/owner-format.js');
     sendEnvelope(playerId, {
-        type: ServerMsgType.ListDeployedMinesResult,
+        type: ServerTag.ListDeployedMinesResult,
         mines: rows.map((r) => ({
             sectorNumber: r.sector_number,
             mineType: r.mine_type,
@@ -258,7 +258,7 @@ export async function handleTrackSeekerMines(playerId: number): Promise<void> {
     if (!player) return;
     const rows = await getSeekerAttachmentsByOwner(playerId);
     sendEnvelope(playerId, {
-        type: ServerMsgType.TrackSeekerMinesResult,
+        type: ServerTag.TrackSeekerMinesResult,
         targets: rows.map((r) => ({
             targetShipId: r.target_ship_id,
             targetShipName: r.target_ship_type_name,
@@ -338,7 +338,7 @@ export async function handleMineDisruptor(
         if (!result) return;
 
         await sendEnvelope(playerId, {
-            type: ServerMsgType.MineDisruptorResult,
+            type: ServerTag.MineDisruptorResult,
             targetSector,
             minesDisrupted: result.removed,
             proximityMinesRemaining: result.remaining,

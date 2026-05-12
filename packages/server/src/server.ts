@@ -8,8 +8,8 @@ import { WebSocket, WebSocketServer } from 'ws';
 import { connectDB } from './db/index.js';
 import { createRoutes } from './routes/index.js';
 import * as auth from './auth/index.js';
-import { ServerMsgType } from '@twnr/shared';
-import type { AuthTokenPayload, ClientCommand, ServerResult } from '@twnr/shared';
+import { ServerTag } from '@twnr/shared';
+import type { AuthTokenPayload, ClientEnvelope, ServerEnvelope } from '@twnr/shared';
 import { shipConfigs } from './ship-config.js';
 import { players } from './state/players.js';
 import { sendEnvelope, sendError, broadcastTo } from './state/messaging.js';
@@ -207,8 +207,8 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
         ]);
 
         const welcomeLocation = onPlanetId !== null ? 'planet' : 'sector';
-        const welcomeMsg: ServerResult = {
-            type: ServerMsgType.Welcome,
+        const welcomeMsg: ServerEnvelope = {
+            type: ServerTag.Welcome,
             playerId,
             name: playerRow.name,
             sector,
@@ -243,7 +243,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
                 const memos = await fetchAndMarkUnreadMemos(playerId);
                 if (memos.length > 0) {
                     await sendEnvelope(playerId, {
-                        type: ServerMsgType.MemoDelivery,
+                        type: ServerTag.MemoDelivery,
                         memos: memos.map((m) => ({
                             id: m.id,
                             senderName: m.sender_name,
@@ -260,14 +260,14 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
 
         ws.on('message', async (message) => {
             if (tokens <= 0) {
-                sendEnvelope(playerId, { type: ServerMsgType.RateLimited });
+                sendEnvelope(playerId, { type: ServerTag.RateLimited });
                 return;
             }
             tokens--;
 
-            let data: ClientCommand;
+            let data: ClientEnvelope;
             try {
-                data = JSON.parse(message.toString()) as ClientCommand;
+                data = JSON.parse(message.toString()) as ClientEnvelope;
             } catch {
                 sendError(playerId, 'Invalid JSON');
                 return;
@@ -306,7 +306,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
                         clientsToNotify.add(p.ws);
                     }
                 }
-                broadcastTo({ type: ServerMsgType.PlayerLeft, playerId }, clientsToNotify);
+                broadcastTo({ type: ServerTag.PlayerLeft, playerId }, clientsToNotify);
             }
         });
     } catch (error) {

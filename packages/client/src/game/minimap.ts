@@ -1,4 +1,4 @@
-import type { NeighborhoodResultObject, NeighborhoodSector } from '@twnr/shared';
+import type { NeighborhoodReply, NeighborhoodSector } from '@twnr/shared';
 import { HEX_CELL_SIZE, HEX_SPACING_MULTIPLIER, portClassTriplet } from '@twnr/shared';
 import { colorPalette } from '../config/colors.js';
 import './minimap.css';
@@ -34,7 +34,7 @@ function span(text: string, color?: string): HTMLSpanElement {
 
 type MinimapState = {
     zoom: number;
-    data: NeighborhoodResultObject | null;
+    data: NeighborhoodReply | null;
     currentSectorNumber: number;
     currentSectorId: number;
     quickMoveTargets: number[] | null;
@@ -51,7 +51,7 @@ type MinimapState = {
 export type MinimapInjectionHandler = (sectorNumber: number, currentSector: number) => void;
 
 export interface Minimap {
-    update(data: NeighborhoodResultObject, currentSectorNumber: number): void;
+    update(data: NeighborhoodReply, currentSectorNumber: number): void;
     /**
      * Viewport spec for the next neighborhood request. centerXWorld/Y are
      * undefined while the viewport is following the current sector; they
