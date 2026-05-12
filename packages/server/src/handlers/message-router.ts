@@ -1,8 +1,7 @@
-import { ClientMsgType, ServerMsgType, type ClientCommand } from '@twnr/shared';
-import { players } from '../state/players.js';
-import { sendEnvelope, sendError } from '../state/messaging.js';
-import { getVisitedSectors } from '../services/sector-lookup.js';
-import { countSectorsInUniverse } from '../db/queries/sector.js';
+import { ClientMsgType, type ClientCommand } from '@twnr/shared';
+import { sendError } from '../state/messaging.js';
+import { handleVisitedSectors } from './visited.js';
+import { handlePlayersOnline } from './players.js';
 import {
     handleMove,
     handleMoveToPrevious,
@@ -49,8 +48,9 @@ import {
     handleDeployDrones,
     handleAttackSectorDrones,
     handleRetreatFromDrones,
+    handleListDeployedDrones,
 } from './sector-drones.js';
-import { handleListDeployedDrones, handleHyperspaceJump } from './hyperwarp.js';
+import { handleHyperspaceJump } from './hyperwarp.js';
 import { handleBuyHardware, handleHardwareStoreInfo } from './hardware-store.js';
 import { handleGetNeighborhood } from './neighborhood.js';
 import {
@@ -146,113 +146,36 @@ export async function handleMessage(playerId: number, data: ClientCommand): Prom
             return handleListPlanets(playerId);
         case ClientMsgType.ListOwnedShips:
             return handleListOwnedShips(playerId);
-        case ClientMsgType.TransportToShip: {
-            const raw = data as { shipId?: unknown };
-            if (typeof raw.shipId !== 'number') {
-                sendError(playerId, 'Invalid ship id');
-                return;
-            }
-            return handleTransportToShip(playerId, raw.shipId);
-        }
-        case ClientMsgType.ClanCreate: {
-            const raw = data as { name?: unknown; password?: unknown };
-            if (typeof raw.name !== 'string' || typeof raw.password !== 'string') {
-                sendError(playerId, 'Invalid clan create payload');
-                return;
-            }
-            return handleClanCreate(playerId, raw.name, raw.password);
-        }
-        case ClientMsgType.ClanJoin: {
-            const raw = data as { name?: unknown; password?: unknown };
-            if (typeof raw.name !== 'string' || typeof raw.password !== 'string') {
-                sendError(playerId, 'Invalid clan join payload');
-                return;
-            }
-            return handleClanJoin(playerId, raw.name, raw.password);
-        }
-        case ClientMsgType.ClanLeave: {
-            const raw = data as { successorPlayerId?: unknown; confirmDissolve?: unknown };
-            const successor =
-                typeof raw.successorPlayerId === 'number' ? raw.successorPlayerId : undefined;
-            const confirm = raw.confirmDissolve === true;
-            return handleClanLeave(playerId, successor, confirm);
-        }
+        case ClientMsgType.TransportToShip:
+            return handleTransportToShip(playerId, data.shipId);
+        case ClientMsgType.ClanCreate:
+            return handleClanCreate(playerId, data.name, data.password);
+        case ClientMsgType.ClanJoin:
+            return handleClanJoin(playerId, data.name, data.password);
+        case ClientMsgType.ClanLeave:
+            return handleClanLeave(playerId, data.successorPlayerId, data.confirmDissolve === true);
         case ClientMsgType.ClanList:
             return handleClanList(playerId);
         case ClientMsgType.ClanInfo:
             return handleClanInfo(playerId);
-        case ClientMsgType.ChangeShipOwnership: {
-            const raw = data as { ownership?: unknown };
-            if (raw.ownership !== 'personal' && raw.ownership !== 'clan') {
-                sendError(playerId, 'Invalid ownership value');
-                return;
-            }
-            return handleChangeShipOwnership(playerId, raw.ownership);
-        }
-        case ClientMsgType.ClaimPlanet: {
-            const raw = data as { ownership?: unknown };
-            if (raw.ownership !== 'personal' && raw.ownership !== 'clan') {
-                sendError(playerId, 'Invalid ownership value');
-                return;
-            }
-            return handleClaimPlanet(playerId, raw.ownership);
-        }
-        case ClientMsgType.ClanTransfer: {
-            const raw = data as {
-                kind?: unknown;
-                targetPlayerId?: unknown;
-                quantity?: unknown;
-                mineType?: unknown;
-            };
-            if (
-                raw.kind !== 'credits' &&
-                raw.kind !== 'drones' &&
-                raw.kind !== 'shields' &&
-                raw.kind !== 'mines'
-            ) {
-                sendError(playerId, 'Invalid transfer kind');
-                return;
-            }
-            if (typeof raw.targetPlayerId !== 'number' || typeof raw.quantity !== 'number') {
-                sendError(playerId, 'Invalid transfer payload');
-                return;
-            }
-            const mineType =
-                raw.mineType === 'proximity' || raw.mineType === 'seeker'
-                    ? raw.mineType
-                    : undefined;
+        case ClientMsgType.ChangeShipOwnership:
+            return handleChangeShipOwnership(playerId, data.ownership);
+        case ClientMsgType.ClaimPlanet:
+            return handleClaimPlanet(playerId, data.ownership);
+        case ClientMsgType.ClanTransfer:
             return handleClanTransfer(
                 playerId,
-                raw.kind,
-                raw.targetPlayerId,
-                raw.quantity,
-                mineType,
+                data.kind,
+                data.targetPlayerId,
+                data.quantity,
+                data.mineType,
             );
-        }
-        case ClientMsgType.ClanMemo: {
-            const raw = data as { body?: unknown };
-            if (typeof raw.body !== 'string') {
-                sendError(playerId, 'Invalid memo body');
-                return;
-            }
-            return handleClanMemo(playerId, raw.body);
-        }
-        case ClientMsgType.ClanSetPassword: {
-            const raw = data as { newPassword?: unknown };
-            if (typeof raw.newPassword !== 'string') {
-                sendError(playerId, 'Invalid password');
-                return;
-            }
-            return handleClanSetPassword(playerId, raw.newPassword);
-        }
-        case ClientMsgType.ClanDropMember: {
-            const raw = data as { targetPlayerId?: unknown };
-            if (typeof raw.targetPlayerId !== 'number') {
-                sendError(playerId, 'Invalid target');
-                return;
-            }
-            return handleClanDropMember(playerId, raw.targetPlayerId);
-        }
+        case ClientMsgType.ClanMemo:
+            return handleClanMemo(playerId, data.body);
+        case ClientMsgType.ClanSetPassword:
+            return handleClanSetPassword(playerId, data.newPassword);
+        case ClientMsgType.ClanDropMember:
+            return handleClanDropMember(playerId, data.targetPlayerId);
         case ClientMsgType.DeployDronesInfo:
             return handleDeployDronesInfo(playerId);
         case ClientMsgType.DeployDrones:
@@ -282,67 +205,18 @@ export async function handleMessage(playerId: number, data: ClientCommand): Prom
             return handleListDeployedMines(playerId);
         case ClientMsgType.TrackSeekerMines:
             return handleTrackSeekerMines(playerId);
-        case ClientMsgType.MineDisruptor: {
-            const raw = data as { targetSector?: unknown };
-            if (typeof raw.targetSector !== 'number') {
-                sendError(playerId, 'Invalid target sector');
-                return;
-            }
-            return handleMineDisruptor(playerId, raw.targetSector);
-        }
-        case ClientMsgType.GetNeighborhood: {
-            const raw = data as {
-                halfWidthWorld?: unknown;
-                halfHeightWorld?: unknown;
-                centerXWorld?: unknown;
-                centerYWorld?: unknown;
-            };
-            if (typeof raw.halfWidthWorld !== 'number' || typeof raw.halfHeightWorld !== 'number') {
-                sendError(
-                    playerId,
-                    'Invalid GET_NEIGHBORHOOD: halfWidthWorld and halfHeightWorld must be numbers',
-                );
-                return;
-            }
-            const cx = raw.centerXWorld;
-            const cy = raw.centerYWorld;
-            if (cx !== undefined && typeof cx !== 'number') {
-                sendError(playerId, 'Invalid GET_NEIGHBORHOOD: centerXWorld must be a number');
-                return;
-            }
-            if (cy !== undefined && typeof cy !== 'number') {
-                sendError(playerId, 'Invalid GET_NEIGHBORHOOD: centerYWorld must be a number');
-                return;
-            }
+        case ClientMsgType.MineDisruptor:
+            return handleMineDisruptor(playerId, data.targetSector);
+        case ClientMsgType.GetNeighborhood:
             return handleGetNeighborhood(
                 playerId,
-                raw.halfWidthWorld,
-                raw.halfHeightWorld,
-                typeof cx === 'number' ? cx : undefined,
-                typeof cy === 'number' ? cy : undefined,
+                data.halfWidthWorld,
+                data.halfHeightWorld,
+                data.centerXWorld,
+                data.centerYWorld,
             );
-        }
         default:
             sendError(playerId, 'Unknown message type');
     }
 }
 
-async function handleVisitedSectors(playerId: number): Promise<void> {
-    const player = players[playerId];
-    if (!player) return;
-    const sectors = await getVisitedSectors(playerId);
-    const totalSectors = await countSectorsInUniverse(player.universeId);
-    sendEnvelope(playerId, {
-        type: ServerMsgType.VisitedSectorsResult,
-        sectors,
-        totalSectors,
-    });
-}
-
-function handlePlayersOnline(playerId: number): void {
-    const callerUniverse = players[playerId]?.universeId;
-    const online = Object.entries(players)
-        .filter(([, p]) => p.universeId === callerUniverse)
-        .map(([id, p]) => ({ id: Number(id), name: p.name }));
-    sendEnvelope(playerId, { type: ServerMsgType.PlayersOnlineResult, players: online });
-}

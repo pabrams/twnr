@@ -9,39 +9,9 @@ import {
     getShipHyperspaceInfo,
     deductShipFuelAndMoveShip,
 } from '../db/queries/ship.js';
-import {
-    getDeployedDronesByOwner,
-    getDeployedDronesByOwnerBySector,
-} from '../db/queries/drones.js';
+import { getDeployedDronesByOwnerBySector } from '../db/queries/drones.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 import { resolveMinesOnEntry } from '../services/mine-encounter.js';
-
-export async function handleListDeployedDrones(playerId: number): Promise<void> {
-    const player = players[playerId];
-    if (!player) return;
-
-    if (player.docked || player.at_starbase) {
-        sendError(playerId, 'Cannot use this command while docked');
-        return;
-    }
-    const onPlanetId = await getOnPlanetId(playerId);
-    if (onPlanetId) {
-        sendError(playerId, 'Cannot use this command while on a planet');
-        return;
-    }
-
-    const rows = await getDeployedDronesByOwner(playerId);
-
-    const { formatOwner } = await import('../services/owner-format.js');
-    sendEnvelope(playerId, {
-        type: ServerMsgType.ListDeployedDronesResult,
-        drones: rows.map((r) => ({
-            sectorId: r.sector_id,
-            quantity: r.quantity,
-            ownerLabel: formatOwner(r),
-        })),
-    });
-}
 
 export async function handleHyperspaceJump(playerId: number, targetSector: number): Promise<void> {
     const player = players[playerId];
