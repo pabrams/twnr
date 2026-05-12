@@ -6,7 +6,7 @@ import { getSectorDrones, resolveSectorId } from '../services/sector-lookup.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
 import { isInEncounter } from '../services/encounter.js';
 import { withTransaction, AbortTransaction } from '../db/index.js';
-import { moveToSector, getPreviousSectorNumber } from '../db/queries/player.js';
+import { moveToSector, getPreviousSectorNumber, getOnPlanetId } from '../db/queries/player.js';
 import {
     moveShipToSector,
     setShipDrones,
@@ -21,9 +21,36 @@ import {
     updateSectorDroneOwnerAndQuantity,
     insertSectorDrones,
     deleteSectorDrones,
+    getDeployedDronesByOwner,
 } from '../db/queries/drones.js';
 import { resolveMinesOnEntry } from '../services/mine-encounter.js';
 import { getPlayerClanId } from '../db/queries/clan.js';
+import { formatOwner } from '../services/owner-format.js';
+
+export async function handleListDeployedDrones(playerId: number): Promise<void> {
+    const player = players[playerId];
+    if (!player) return;
+
+    if (player.docked || player.at_starbase) {
+        sendError(playerId, 'Cannot use this command while docked');
+        return;
+    }
+    const onPlanetId = await getOnPlanetId(playerId);
+    if (onPlanetId) {
+        sendError(playerId, 'Cannot use this command while on a planet');
+        return;
+    }
+
+    const rows = await getDeployedDronesByOwner(playerId);
+    sendEnvelope(playerId, {
+        type: ServerMsgType.ListDeployedDronesResult,
+        drones: rows.map((r) => ({
+            sectorId: r.sector_id,
+            quantity: r.quantity,
+            ownerLabel: formatOwner(r),
+        })),
+    });
+}
 
 export async function handleDeployDronesInfo(playerId: number): Promise<void> {
     const player = players[playerId];
