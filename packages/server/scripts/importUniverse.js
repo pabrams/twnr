@@ -99,7 +99,7 @@ async function main() {
           max_port_density, port_production_rate, port_memory_hours,
           max_players, max_age_days, max_planets, turn_delay,
           is_speed_warp_delay_on, photons_allowed, photon_blast_time_seconds,
-          planet_spawn_density, max_ships_allowed, max_corp_size,
+          planet_spawn_density, max_ships_allowed, max_clan_size,
           max_ships_in_protected_space, truce_time_hours, is_automation_enabled,
           starting_shields, starting_earth_colonists
        )
@@ -110,7 +110,7 @@ async function main() {
               max_port_density, port_production_rate, port_memory_hours,
               max_players, max_age_days, max_planets, turn_delay,
               is_speed_warp_delay_on, photons_allowed, photon_blast_time_seconds,
-              planet_spawn_density, max_ships_allowed, max_corp_size,
+              planet_spawn_density, max_ships_allowed, max_clan_size,
               max_ships_in_protected_space, truce_time_hours, is_automation_enabled,
               starting_shields, starting_earth_colonists
        FROM edit_templates WHERE name = 'stock'
@@ -126,7 +126,7 @@ async function main() {
 
     // Clear existing data for this universe (CASCADE from sectors handles warps, ports, etc.)
     await client.query('UPDATE players SET ship_id = NULL WHERE universe_id = $1', [universeId]);
-    await client.query('DELETE FROM ships WHERE owner_id IN (SELECT id FROM players WHERE universe_id = $1)', [universeId]);
+    await client.query('DELETE FROM ships WHERE owner_player_id IN (SELECT id FROM players WHERE universe_id = $1)', [universeId]);
     await client.query('DELETE FROM players WHERE universe_id = $1', [universeId]);
     await client.query('DELETE FROM sectors WHERE universe_id = $1', [universeId]);
 

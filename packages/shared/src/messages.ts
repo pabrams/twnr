@@ -19,7 +19,6 @@ export const Menu = {
 } as const;
 export type MenuName = (typeof Menu)[keyof typeof Menu];
 
-
 export const ServerMsgType = {
     Welcome: 'welcome',
     PlayerMoved: 'playerMoved',
@@ -85,6 +84,13 @@ export const ServerMsgType = {
     ClanLeaveResult: 'clanLeaveResult',
     ClanListResult: 'clanListResult',
     ClanInfoResult: 'clanInfoResult',
+    ChangeShipOwnershipResult: 'changeShipOwnershipResult',
+    ClaimPlanetResult: 'claimPlanetResult',
+    ClanTransferResult: 'clanTransferResult',
+    ClanMemoResult: 'clanMemoResult',
+    ClanSetPasswordResult: 'clanSetPasswordResult',
+    ClanDropMemberResult: 'clanDropMemberResult',
+    MemoDelivery: 'memoDelivery',
     ProximityMineHit: 'proximityMineHit',
     SeekerMineAttached: 'seekerMineAttached',
     SeekerMinePickupAlert: 'seekerMinePickupAlert',
@@ -147,5 +153,11 @@ export const ClientMsgType = {
     ClanLeave: 'clanLeave',
     ClanList: 'clanList',
     ClanInfo: 'clanInfo',
+    ChangeShipOwnership: 'changeShipOwnership',
+    ClaimPlanet: 'claimPlanet',
+    ClanTransfer: 'clanTransfer',
+    ClanMemo: 'clanMemo',
+    ClanSetPassword: 'clanSetPassword',
+    ClanDropMember: 'clanDropMember',
 } as const;
 type ClientMsgType = typeof ClientMsgType;

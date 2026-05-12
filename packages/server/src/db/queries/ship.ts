@@ -642,7 +642,15 @@ export type OwnedShipRow = {
     type_name: string;
     type_display_name: string | null;
     transporter_range: number;
+    owner_player_id: number | null;
+    owner_clan_id: number | null;
+    owner_player_name: string | null;
+    owner_clan_name: string | null;
+    owner_clan_number: number | null;
 };
+/** Ships visible to the player: their personal ships, plus all ships
+ *  owned by their clan. Used Active Ship Scan and Transporter
+ *  Pad. */
 export async function getPlayerOwnedShips(
     playerId: number,
     db: Queryable = pool,
@@ -652,11 +660,18 @@ export async function getPlayerOwnedShips(
                 sec.sector_number AS sector_number,
                 sh.drones, sh.shields, sh.holds,
                 st.name AS type_name, st.display_name AS type_display_name,
-                st.transporter_range
+                st.transporter_range,
+                sh.owner_player_id, sh.owner_clan_id,
+                op.name AS owner_player_name,
+                oc.name AS owner_clan_name,
+                oc.universe_clan_number AS owner_clan_number
          FROM ships sh
          JOIN ship_types st ON sh.ship_type_id = st.id
          LEFT JOIN sectors sec ON sh.sector_id = sec.id
+         LEFT JOIN players op ON op.id = sh.owner_player_id
+         LEFT JOIN clans oc ON oc.id = sh.owner_clan_id
          WHERE sh.owner_player_id = $1
+            OR sh.owner_clan_id = (SELECT clan_id FROM players WHERE id = $1)
          ORDER BY sh.universe_ship_number`,
         [playerId],
     );

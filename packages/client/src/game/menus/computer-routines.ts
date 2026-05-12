@@ -113,3 +113,24 @@ registerRoutine('active_ship_scan', async (ctx) => {
     if (response.type !== ServerMsgType.ListOwnedShipsResult) return;
     renderActiveShipScan(ctx, response);
 });
+
+registerRoutine('change_ship_ownership', async (ctx) => {
+    echoCommand(ctx, 'changeShipOwnership');
+    const ch = await askChar(ctx, render(COMPUTER.ownershipPrompt), ['p', 'c']);
+    if (ch === null) return;
+    const ownership = ch === 'p' ? 'personal' : 'clan';
+    ctx.io.sendMsg({ type: ClientMsgType.ChangeShipOwnership, ownership });
+    const result = await awaitResponse(ctx, [
+        ServerMsgType.ChangeShipOwnershipResult,
+        ServerMsgType.Error,
+    ]);
+    if (result === null) return;
+    if (result.type !== ServerMsgType.ChangeShipOwnershipResult) return;
+    ctx.io.term.writeln(
+        render(
+            result.ownership === 'clan'
+                ? COMPUTER.ownershipResultClan
+                : COMPUTER.ownershipResultPersonal,
+        ),
+    );
+});

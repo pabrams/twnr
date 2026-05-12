@@ -139,7 +139,6 @@ export async function handleMove(playerId: number, targetSector: number): Promis
     if (!sectorData) return;
 
     if (sectorData.sectorDrones && sectorData.sectorDrones.ownerId !== playerId) {
-
         const shipDrones = (await getShipDrones(playerId)) ?? 0;
 
         await sendEnvelope(playerId, {
@@ -169,15 +168,12 @@ export async function handleMove(playerId: number, targetSector: number): Promis
         return;
     }
 
-    await sendEnvelope(
-        playerId,
-        {
-            type: ServerMsgType.MoveResult,
-            outcome: 'success',
-            ...sectorData,
-            turnsUsed: turnResult.turnsUsed,
-        }
-    );
+    await sendEnvelope(playerId, {
+        type: ServerMsgType.MoveResult,
+        outcome: 'success',
+        ...sectorData,
+        turnsUsed: turnResult.turnsUsed,
+    });
 }
 
 export async function handleMoveToPrevious(playerId: number): Promise<void> {

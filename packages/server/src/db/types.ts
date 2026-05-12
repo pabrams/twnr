@@ -59,6 +59,11 @@ export interface HardwarePriceRow {
 export interface DeployedDroneRow {
     sector_id: number;
     quantity: number;
+    owner_player_id: number | null;
+    owner_clan_id: number | null;
+    owner_player_name: string | null;
+    owner_clan_name: string | null;
+    owner_clan_number: number | null;
 }
 
 export interface PlayerListRow {

@@ -110,42 +110,36 @@ export async function handleDock(playerId: number): Promise<void> {
 
     if (p.class === 0) {
         const ship = await getShipInfo(playerId);
-        await sendEnvelope(
-            playerId,
-            {
-                type: ServerMsgType.DockResult,
-                docked: true,
-                port: portInfoPayload,
-                credits,
-                cargo: cargoOut,
-                emptyHolds,
-                shipInfo: ship
-                    ? {
-                          shipName: ship.ship_name,
-                          drones: ship.drones,
-                          maxDrones: ship.max_drones,
-                          shields: ship.shields,
-                          maxShields: ship.max_shields,
-                          holds: ship.holds,
-                          maxHolds: ship.max_holds,
-                      }
-                    : undefined,
-            }
-        );
-        return;
-    }
-
-    await sendEnvelope(
-        playerId,
-        {
+        await sendEnvelope(playerId, {
             type: ServerMsgType.DockResult,
             docked: true,
             port: portInfoPayload,
             credits,
             cargo: cargoOut,
             emptyHolds,
-        }
-    );
+            shipInfo: ship
+                ? {
+                      shipName: ship.ship_name,
+                      drones: ship.drones,
+                      maxDrones: ship.max_drones,
+                      shields: ship.shields,
+                      maxShields: ship.max_shields,
+                      holds: ship.holds,
+                      maxHolds: ship.max_holds,
+                  }
+                : undefined,
+        });
+        return;
+    }
+
+    await sendEnvelope(playerId, {
+        type: ServerMsgType.DockResult,
+        docked: true,
+        port: portInfoPayload,
+        credits,
+        cargo: cargoOut,
+        emptyHolds,
+    });
 }
 
 async function undockPlayer(playerId: number): Promise<void> {
@@ -155,14 +149,11 @@ async function undockPlayer(playerId: number): Promise<void> {
     await setDocked(playerId, false);
     const sectorData = await buildSectorDisplayData(playerId);
     if (!sectorData) return;
-    await sendEnvelope(
-        playerId,
-        {
-            type: ServerMsgType.UndockResult,
-            outcome: 'success',
-            ...sectorData,
-        }
-    );
+    await sendEnvelope(playerId, {
+        type: ServerMsgType.UndockResult,
+        outcome: 'success',
+        ...sectorData,
+    });
 }
 
 export async function handleUndock(playerId: number): Promise<void> {
@@ -371,25 +362,22 @@ export async function handleDockStarbase(playerId: number): Promise<void> {
         getHardwarePricesForUniverse(player.universeId),
         getShipInfo(playerId),
     ]);
-    await sendEnvelope(
-        playerId,
-        {
-            type: ServerMsgType.DockStarbaseResult,
-            prices: priceRows.map((r) => ({ name: r.name, label: r.label, price: r.price })),
-            credits: ship?.credits,
-            shipInfo: ship
-                ? {
-                      shipName: ship.ship_name,
-                      drones: ship.drones,
-                      maxDrones: ship.max_drones,
-                      shields: ship.shields,
-                      maxShields: ship.max_shields,
-                      holds: ship.holds,
-                      maxHolds: ship.max_holds,
-                  }
-                : undefined,
-        }
-    );
+    await sendEnvelope(playerId, {
+        type: ServerMsgType.DockStarbaseResult,
+        prices: priceRows.map((r) => ({ name: r.name, label: r.label, price: r.price })),
+        credits: ship?.credits,
+        shipInfo: ship
+            ? {
+                  shipName: ship.ship_name,
+                  drones: ship.drones,
+                  maxDrones: ship.max_drones,
+                  shields: ship.shields,
+                  maxShields: ship.max_shields,
+                  holds: ship.holds,
+                  maxHolds: ship.max_holds,
+              }
+            : undefined,
+    });
 }
 
 export async function handleLeaveStarbase(playerId: number): Promise<void> {
@@ -405,8 +393,5 @@ export async function handleLeaveStarbase(playerId: number): Promise<void> {
 
     const sectorData = await buildSectorDisplayData(playerId);
     if (!sectorData) return;
-    await sendEnvelope(
-        playerId,
-        { type: ServerMsgType.LeaveStarbaseResult, ...sectorData }
-    );
+    await sendEnvelope(playerId, { type: ServerMsgType.LeaveStarbaseResult, ...sectorData });
 }

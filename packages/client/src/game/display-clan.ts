@@ -20,8 +20,14 @@ export function showClanHelp(ctx: DisplayClanCtx) {
     t.writeln(render(COMMON.menuRow, { key: 'M', text: '[bc]Make a New Clan[/bc]' }));
     t.writeln(render(COMMON.menuRow, { key: 'J', text: '[bc]Join a Clan[/bc]' }));
     t.writeln(render(COMMON.menuRow, { key: 'X', text: '[bc]Leave Your Clan[/bc]' }));
+    t.writeln(render(COMMON.menuRow, { key: 'C', text: '[bc]Credit Transfer[/bc]' }));
+    t.writeln(render(COMMON.menuRow, { key: 'F', text: '[bc]Drone (Fighter) Transfer[/bc]' }));
+    t.writeln(render(COMMON.menuRow, { key: 'H', text: '[bc]Mine Transfer[/bc]' }));
+    t.writeln(render(COMMON.menuRow, { key: 'S', text: '[bc]Shield Transfer[/bc]' }));
+    t.writeln(render(COMMON.menuRow, { key: 'T', text: '[bc]Send Clan Memo[/bc]' }));
+    t.writeln(render(COMMON.menuRow, { key: 'P', text: '[bc]Clan Security (leader)[/bc]' }));
+    t.writeln(render(COMMON.menuRow, { key: 'R', text: '[bc]Drop Member (leader)[/bc]' }));
     t.writeln(render(COMMON.menuRow, { key: 'Q', text: '[bc]Exit Clan Menu[/bc]' }));
-    showClanPrompt(ctx);
 }
 
 type ClanListEntry = {
@@ -29,6 +35,7 @@ type ClanListEntry = {
     name: string;
     memberCount: number;
     leaderName: string;
+    isOwn: boolean;
 };
 
 export function renderClanList(ctx: DisplayClanCtx, clans: ClanListEntry[], maxSize: number) {
@@ -50,6 +57,7 @@ export function renderClanList(ctx: DisplayClanCtx, clans: ClanListEntry[], maxS
     for (const c of clans) {
         t.writeln(
             render(CLAN.listRow, {
+                marker: c.isOwn ? render(CLAN.listOwnMarker) : render(CLAN.listBlankMarker),
                 num: String(c.clanNumber).padStart(4),
                 name: c.name.padEnd(20),
                 members: `${c.memberCount}/${maxSize}`.padEnd(10),

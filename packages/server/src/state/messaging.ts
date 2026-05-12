@@ -3,11 +3,9 @@ import type { ServerResult } from '@twnr/shared';
 import { ServerMsgType } from '@twnr/shared';
 import { players } from './players.js';
 
-
 function frame(body: ServerResult): string {
     return JSON.stringify(body);
 }
-
 
 export async function sendEnvelope(playerId: number, body: ServerResult): Promise<void> {
     const player = players[playerId];

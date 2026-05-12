@@ -47,27 +47,36 @@ export const COMPUTER = makeDomain('COMPUTER', {
 
     traderListLoading: '\r\n[w]Loading traders...[/w]',
     traderListHeader: '[bc]=== Traders in Universe ===[/bc]',
-    traderListColumns: '  [bw]{name}[/bw] [bw]Ship[/bw]',
-    traderListRow: '  [by]{name}[/by] [w]{ship}[/w]',
+    traderListColumns: '  [bw]{name} {clan} {ship}[/bw]',
+    traderListRow: '  [by]{name}[/by] [w]{clan}[/w] [w]{ship}[/w]',
     traderListShipDestroyed: '[bb]### [y]SHIP DESTROYED[/y] ###[/bb]',
     traderListFailed: '[br]Failed to load trader list.[/br]',
+    traderListClanNA: '[w]NA[/w]',
+    traderListClanValue: '[bc]#{n}[/bc]',
 
     shipDataRequesting: '[w]Requesting ship data...[/w]',
     shipConfigNotFound: '[br]Ship config not found for: {name}[/br]',
 
-    activeShipScanHeader: '                        [bc]--<  Available Ship Scan  >--[/bc]',
+    ownershipPrompt:
+        '\r\n[mg]Set current ship ownership: ([/mg][by]P[/by][mg]ersonal, [/mg][by]C[/by][mg]lan, [/mg][by]Q[/by][mg]) [/mg][by]?[/by] ',
+    ownershipResultPersonal: '\r\n[bg]Ship is now personally owned.[/bg]',
+    ownershipResultClan: '\r\n[bg]Ship is now clan-owned.[/bg]',
+
+    activeShipScanHeader: '                       [bc]--<  Available Ship Scan  >--[/bc]',
     activeShipScanColumns:
-        '[bw]Ship  Sect Name                  Fighters Shields Holds Hops Type[/bw]',
-    activeShipScanRule: '[g]-----------------------------------------------------------------------------[/g]',
+        '[bw]  Ship Sect Name                  Fighters Shields Holds Hops Type             Owner[/bw]',
+    activeShipScanRule:
+        '[g]-----------------------------------------------------------------------------------[/g]',
     activeShipScanRow:
-        '[by]{shipNum}[/by]  [bc]{sect}[/bc][bg]{marker}[/bg][w]{name}[/w] [bc]{fighters}[/bc] [bc]{shields}[/bc] [bc]{holds}[/bc] {hops}  [g]{type}[/g]',
+        '{marker} [by]{shipNum}[/by] [bc]{sect}[/bc] [w]{name}[/w] [bc]{fighters}[/bc] [bc]{shields}[/bc] [bc]{holds}[/bc] {hops}  [g]{type}[/g] [w]{owner}[/w]',
     activeShipScanHopsInRange: '[bg]{hops}[/bg]',
     activeShipScanHopsOutOfRange: '[br]{hops}[/br]',
     activeShipScanHopsNeutral: '[bc]{hops}[/bc]',
+    activeShipScanCurrentMarker: '[br]*[/br]',
+    activeShipScanBlankMarker: ' ',
     activeShipScanEmpty: '[w]You own no ships.[/w]',
 
-    transporterIntrasectorOnly:
-        '[w]Your [/w][bc]{ship}[/bc] [w]can only beam intrasector.[/w]',
+    transporterIntrasectorOnly: '[w]Your [/w][bc]{ship}[/bc] [w]can only beam intrasector.[/w]',
     transporterRangeStatement:
         '[w]Your [/w][bc]{ship}[/bc] [w]has a transport range of [/w][bc]{range}[/bc] [w]hops.[/w]',
     transporterNoCurrentShip: '[br]You have no ship.[/br]',
@@ -79,8 +88,7 @@ export const COMPUTER = makeDomain('COMPUTER', {
     transporterDetailsPrompt:
         '\r\n[mg]Show details for which ship? ([/mg][by]Q[/by][mg]=Quit) [/mg][by]?[/by] ',
     transporterSuccess: '[bg]Security code accepted, engaging transporter control.[/bg]',
-    transporterTurnsLeft:
-        '[w]One turn deducted, [/w][bc]{turns}[/bc] [w]turns left.[/w]',
+    transporterTurnsLeft: '[w]One turn deducted, [/w][bc]{turns}[/bc] [w]turns left.[/w]',
     transporterUnknownShip: '[br]No ship with that number.[/br]',
     transporterCannotSelf: '[br]Already on that ship.[/br]',
     transporterDetailHeader: '[bc]Ship #{shipNum}[/bc]',

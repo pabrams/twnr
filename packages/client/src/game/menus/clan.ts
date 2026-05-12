@@ -8,6 +8,13 @@ const KEY_TO_COMMAND: Record<string, string> = {
     m: 'clan_make',
     j: 'clan_join',
     x: 'clan_leave',
+    c: 'clan_transfer_credits',
+    f: 'clan_transfer_drones',
+    h: 'clan_transfer_mines',
+    s: 'clan_transfer_shields',
+    t: 'clan_memo',
+    p: 'clan_set_password',
+    r: 'clan_drop_member',
     '?': 'clan_help',
 };
 

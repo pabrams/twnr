@@ -1,4 +1,4 @@
-import { ClientMsgType } from '@twnr/shared';
+import { ClientMsgType, ServerMsgType } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { PLANET } from '../messages/index.js';
@@ -10,7 +10,7 @@ import {
     showPlanetLeaveStockpileMenu,
 } from '../display-planet.js';
 import { registerRoutine } from './types.js';
-import { askChar, askNumber } from './prompts.js';
+import { askChar, askNumber, awaitResponse } from './prompts.js';
 
 type Commodity4 = 'fuel' | 'organics' | 'equipment' | 'drones';
 const COMMODITY_MAP: Record<string, Commodity4> = {
@@ -122,6 +122,23 @@ registerRoutine('leave_commodity', async (ctx) => {
 registerRoutine('planet_display', (ctx) => {
     echoCommand(ctx, 'planetDisplay');
     ctx.io.sendMsg({ type: ClientMsgType.PlanetDisplay });
+});
+
+registerRoutine('claim_planet', async (ctx) => {
+    echoCommand(ctx, 'claimPlanet');
+    const ch = await askChar(ctx, render(PLANET.claimOwnershipPrompt), ['p', 'c']);
+    if (ch === null) return;
+    const ownership = ch === 'p' ? 'personal' : 'clan';
+    ctx.io.sendMsg({ type: ClientMsgType.ClaimPlanet, ownership });
+    const result = await awaitResponse(ctx, [ServerMsgType.ClaimPlanetResult, ServerMsgType.Error]);
+    if (result === null) return;
+    if (result.type !== ServerMsgType.ClaimPlanetResult) return;
+    ctx.io.term.writeln(
+        render(
+            result.ownership === 'clan' ? PLANET.claimSuccessClan : PLANET.claimSuccessPersonal,
+            { name: result.planetName },
+        ),
+    );
 });
 
 registerRoutine('destroy_planet', (ctx) => {

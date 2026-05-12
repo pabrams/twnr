@@ -333,7 +333,10 @@ export async function getPlanetDisplayData(playerId: number): Promise<{
 
     const planetRes = await pool.query(
         `SELECT pl.id, pl.sector_id, pl.name, pl.type, pt.display_name AS display_type,
-                owner.name AS owner_name,
+                pl.owner_player_id, pl.owner_clan_id,
+                owner.name AS owner_player_name,
+                oc.name AS owner_clan_name,
+                oc.universe_clan_number AS owner_clan_number,
                 pl.drones, pl.fuel, pl.organics, pl.equipment,
                 pl.colonists_fuel, pl.colonists_organics, pl.colonists_equipment, pl.colonists_drones,
                 pt.fuel_production, pt.organics_production, pt.equipment_production, pt.drone_production,
@@ -346,12 +349,16 @@ export async function getPlanetDisplayData(playerId: number): Promise<{
          LEFT JOIN planet_types pt ON pt.name = pl.type
          LEFT JOIN universe_settings us ON us.universe_id = s.universe_id
          LEFT JOIN players owner ON owner.id = pl.owner_player_id
+         LEFT JOIN clans oc ON oc.id = pl.owner_clan_id
          WHERE pl.id = $1`,
         [onPlanetId],
     );
     if (planetRes.rows.length === 0) return null;
 
-    const { type: planetType, display_type: displayType, ...rest } = planetRes.rows[0];
+    const row = planetRes.rows[0];
+    const { formatOwner } = await import('../../services/owner-format.js');
+    const owner_name = formatOwner(row);
+    const { type: planetType, display_type: displayType, ...rest } = { ...row, owner_name };
     return { planetType, displayType, ...rest };
 }
 

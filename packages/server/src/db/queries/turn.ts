@@ -97,10 +97,10 @@ export async function setPlayerTurnsAndStamp(
     turns: number,
     db: Queryable = pool,
 ): Promise<void> {
-    await db.query(
-        'UPDATE players SET turns = $1, last_turns_granted_at = NOW() WHERE id = $2',
-        [turns, playerId],
-    );
+    await db.query('UPDATE players SET turns = $1, last_turns_granted_at = NOW() WHERE id = $2', [
+        turns,
+        playerId,
+    ]);
 }
 
 export async function getMoveTurnContext(

@@ -1,6 +1,6 @@
 import { ClientMsgType, Menu, ServerMsgType } from '@twnr/shared';
 import { render } from '../renderer.js';
-import { CLAN, COMPUTER, EVENT, NOTIFY, PLANET, SECTOR } from '../messages/index.js';
+import { COMPUTER, EVENT, NOTIFY, PLANET, SECTOR } from '../messages/index.js';
 import {
     echoCommand,
     hideMoveMenuOverlay,
@@ -16,7 +16,14 @@ import {
     renderShipDetail,
 } from '../display-computer.js';
 import { registerRoutine } from './types.js';
-import { askChar, askConfirm, askLine, askNumber, awaitResponse } from './prompts.js';
+import {
+    askChar,
+    askConfirm,
+    askDeployOwnership,
+    askLine,
+    askNumber,
+    awaitResponse,
+} from './prompts.js';
 
 registerRoutine('display_sector', (ctx) => {
     echoCommand(ctx, 'sectorDisplay');
@@ -105,7 +112,9 @@ registerRoutine('deploy_mines_menu', async (ctx) => {
         min: 1,
     });
     if (qty === null) return;
-    ctx.io.sendMsg({ type: ClientMsgType.DeployMine, mineType, quantity: qty });
+    const ownership = await askDeployOwnership(ctx, '\r\nDeploy as (P)ersonal, (C)lan, (Q)? ');
+    if (ownership === null) return;
+    ctx.io.sendMsg({ type: ClientMsgType.DeployMine, mineType, quantity: qty, ownership });
 });
 
 registerRoutine('list_deployed_mines', (ctx) => {
@@ -170,7 +179,7 @@ registerRoutine('players_online', (ctx) => {
 });
 
 registerRoutine('clan_menu', (ctx) => {
-    ctx.io.term.writeln(render(CLAN.activated));
+    echoCommand(ctx, 'clanMenu');
     ctx.world.mode = Menu.Clan;
 });
 

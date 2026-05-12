@@ -8,6 +8,7 @@ export type SectorMineRow = {
     mine_type: MineType;
     quantity: number;
     owner_player_id: number | null;
+    owner_clan_id?: number | null;
 };
 
 /** Fetch the mine row for a sector + type, locked for update (caller in tx). */
@@ -40,20 +41,23 @@ export async function getSectorMines(
     return res.rows;
 }
 
-/** Insert or add to existing mine count for the same owner + type. */
+/** Insert or add to existing mine count. Exactly one of `ownerPlayerId` /
+ *  `ownerClanId` must be non-null. Caller has already verified that any
+ *  pre-existing row in this (sector, type) belongs to the same owner. */
 export async function upsertSectorMines(
     sectorDbId: number,
     mineType: MineType,
-    ownerPlayerId: number,
+    ownerPlayerId: number | null,
+    ownerClanId: number | null,
     addQty: number,
     db: Queryable = pool,
 ): Promise<void> {
     await db.query(
-        `INSERT INTO sector_mines (sector_id, mine_type, quantity, owner_player_id)
-         VALUES ($1, $2, $3, $4)
+        `INSERT INTO sector_mines (sector_id, mine_type, quantity, owner_player_id, owner_clan_id)
+         VALUES ($1, $2, $3, $4, $5)
          ON CONFLICT (sector_id, mine_type)
          DO UPDATE SET quantity = sector_mines.quantity + $3`,
-        [sectorDbId, mineType, addQty, ownerPlayerId],
+        [sectorDbId, mineType, addQty, ownerPlayerId, ownerClanId],
     );
 }
 
@@ -85,18 +89,31 @@ export type DeployedMineByOwnerRow = {
     sector_number: number;
     mine_type: MineType;
     quantity: number;
+    owner_player_id: number | null;
+    owner_clan_id: number | null;
+    owner_player_name: string | null;
+    owner_clan_name: string | null;
+    owner_clan_number: number | null;
 };
 
-/** All mine deployments owned by a player, joined to sector numbers. */
+/** All mine deployments accessible to the player (their own + their clan's). */
 export async function getDeployedMinesByOwner(
     ownerPlayerId: number,
     db: Queryable = pool,
 ): Promise<DeployedMineByOwnerRow[]> {
     const res = await db.query<DeployedMineByOwnerRow>(
-        `SELECT s.sector_number, sm.mine_type, sm.quantity
+        `SELECT s.sector_number, sm.mine_type, sm.quantity,
+                sm.owner_player_id, sm.owner_clan_id,
+                p.name AS owner_player_name,
+                c.name AS owner_clan_name,
+                c.universe_clan_number AS owner_clan_number
          FROM sector_mines sm
          JOIN sectors s ON sm.sector_id = s.id
-         WHERE sm.owner_player_id = $1 AND sm.quantity > 0
+         LEFT JOIN players p ON p.id = sm.owner_player_id
+         LEFT JOIN clans c ON c.id = sm.owner_clan_id
+         WHERE sm.quantity > 0
+           AND (sm.owner_player_id = $1
+                OR sm.owner_clan_id = (SELECT clan_id FROM players WHERE id = $1))
          ORDER BY s.sector_number, sm.mine_type`,
         [ownerPlayerId],
     );

@@ -172,10 +172,14 @@ async function main() {
             // floor-divides), 0 colonists for now.
             const shipRes = await client.query(
                 `INSERT INTO ships (
-                    owner_id, ship_type_id, sector_id,
+                    owner_player_id, ship_type_id, sector_id,
                     drones, shields, holds, turns_per_warp,
-                    fuel, organics, equipment, colonists
-                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, 0, 0)
+                    fuel, organics, equipment, colonists,
+                    universe_id, universe_ship_number
+                 ) SELECT $1, $2, $3, $4, $5, $6, $7, $8, 0, 0, 0,
+                          p.universe_id,
+                          COALESCE((SELECT MAX(universe_ship_number) FROM ships WHERE universe_id = p.universe_id), 0) + 1
+                    FROM players p WHERE p.id = $1
                  RETURNING id`,
                 [
                     playerId,
@@ -209,7 +213,7 @@ async function main() {
             );
 
             // Home-sector deployment: drones, mines, owned planet.
-            await insertSectorDrones(homeSectorDbId, playerId, HOME_DRONES, client);
+            await insertSectorDrones(homeSectorDbId, playerId, null, HOME_DRONES, client);
             for (const mineType of ['proximity', 'seeker']) {
                 await client.query(
                     `INSERT INTO sector_mines (sector_id, mine_type, quantity, owner_player_id)
@@ -247,7 +251,7 @@ async function main() {
             const skipped = [];
             for (const row of adjRes.rows) {
                 const ins = await client.query(
-                    `INSERT INTO sector_drones (sector_id, owner_id, quantity)
+                    `INSERT INTO sector_drones (sector_id, owner_player_id, quantity)
                      VALUES ($1, $2, $3)
                      ON CONFLICT (sector_id) DO NOTHING
                      RETURNING sector_id`,

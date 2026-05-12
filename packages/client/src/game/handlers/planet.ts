@@ -59,22 +59,21 @@ function hourlyOutput(colos: number, prodRate: number, cpu: number): string {
     return fmtCompact(Math.floor((colos * prodRate) / cpu));
 }
 
-function renderPlanetTable(ctx: { io: { term: { writeln: (s: string) => void } }; world: { currentSector: number } }, msg: PlanetDisplayMsg): void {
+function renderPlanetTable(
+    ctx: { io: { term: { writeln: (s: string) => void } }; world: { currentSector: number } },
+    msg: PlanetDisplayMsg,
+): void {
     const sector = ctx.world.currentSector;
     const cpu = msg.colos_per_unit_per_hour;
     ctx.io.term.writeln('');
-    ctx.io.term.writeln(
-        render(PLANET.displayTitle, { id: msg.id, sector, name: msg.name }),
-    );
+    ctx.io.term.writeln(render(PLANET.displayTitle, { id: msg.id, sector, name: msg.name }));
     ctx.io.term.writeln(
         render(PLANET.displayClass, {
             class: msg.planetType,
             type: msg.displayType ?? msg.planetType,
         }),
     );
-    ctx.io.term.writeln(
-        render(PLANET.displayOwner, { owner: msg.owner_name ?? 'unclaimed' }),
-    );
+    ctx.io.term.writeln(render(PLANET.displayOwner, { owner: msg.owner_name ?? 'unclaimed' }));
     ctx.io.term.writeln('');
     ctx.io.term.writeln(render(PLANET.displayTableHead1));
     ctx.io.term.writeln(render(PLANET.displayTableHead2));
@@ -269,7 +268,10 @@ export const destroyPlanet: Handler<'destroyPlanetResult', PlanetContext> = (ctx
     }
 };
 
-export const useTerraformDevice: Handler<'useTerraformDeviceResult', PlanetContext> = (ctx, msg) => {
+export const useTerraformDevice: Handler<'useTerraformDeviceResult', PlanetContext> = (
+    ctx,
+    msg,
+) => {
     if (msg.success && msg.planet) {
         ctx.io.term.writeln(
             render(EVENT.terraformSuccess, {

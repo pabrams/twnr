@@ -10,6 +10,7 @@ import * as combat from './combat.js';
 import * as planet from './planet.js';
 import * as shipExchange from './ship-exchange.js';
 import * as mines from './mines.js';
+import * as clan from './clan.js';
 
 type ServerResultByType = {
     [R in ServerResult as R['type']]: R;
@@ -88,6 +89,8 @@ const handlers: HandlerMap = {
     [ServerMsgType.ProximityMineHit]: mines.proximityMineHit,
     [ServerMsgType.SeekerMineAttached]: mines.seekerMineAttached,
     [ServerMsgType.SeekerMinePickupAlert]: mines.seekerMinePickupAlert,
+
+    [ServerMsgType.MemoDelivery]: clan.memoDelivery,
 };
 
 export function dispatch(ctx: GameContext, msg: ServerResult): void {

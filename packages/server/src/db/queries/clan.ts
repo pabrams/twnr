@@ -127,10 +127,7 @@ export async function getClanMembers(
     return res.rows;
 }
 
-export async function getClanMemberCount(
-    clanId: number,
-    db: Queryable = pool,
-): Promise<number> {
+export async function getClanMemberCount(clanId: number, db: Queryable = pool): Promise<number> {
     const res = await db.query<{ c: number }>(
         'SELECT COUNT(*)::int AS c FROM players WHERE clan_id = $1',
         [clanId],
@@ -138,10 +135,7 @@ export async function getClanMemberCount(
     return res.rows[0]?.c ?? 0;
 }
 
-export async function getMaxClanSize(
-    universeId: number,
-    db: Queryable = pool,
-): Promise<number> {
+export async function getMaxClanSize(universeId: number, db: Queryable = pool): Promise<number> {
     const res = await db.query<{ max_clan_size: number }>(
         'SELECT max_clan_size FROM universe_settings WHERE universe_id = $1',
         [universeId],
@@ -236,10 +230,7 @@ export async function dissolveClanAssets(
     );
 
     const convertedToPersonal =
-        (r1.rows[0]?.n ?? 0) +
-        (r2.rows[0]?.n ?? 0) +
-        (r3.rows[0]?.n ?? 0) +
-        (r4.rows[0]?.n ?? 0);
+        (r1.rows[0]?.n ?? 0) + (r2.rows[0]?.n ?? 0) + (r3.rows[0]?.n ?? 0) + (r4.rows[0]?.n ?? 0);
     const convertedToRogue = r5.rows[0]?.n ?? 0;
     return { convertedToPersonal, convertedToRogue };
 }

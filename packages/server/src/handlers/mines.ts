@@ -36,6 +36,7 @@ export async function handleDeployMine(
     playerId: number,
     mineType: MineType,
     quantity: number,
+    ownership: 'personal' | 'clan' = 'personal',
 ): Promise<void> {
     if (mineType !== 'proximity' && mineType !== 'seeker') {
         sendError(playerId, 'Invalid mine type');
@@ -70,15 +71,39 @@ export async function handleDeployMine(
         return;
     }
 
+    let playerClanId: number | null = null;
+    if (ownership === 'clan') {
+        const { pool } = await import('../db/index.js');
+        const r = await pool.query<{ clan_id: number | null }>(
+            'SELECT clan_id FROM players WHERE id = $1',
+            [playerId],
+        );
+        playerClanId = r.rows[0]?.clan_id ?? null;
+        if (playerClanId === null) {
+            sendError(playerId, 'You are not in a clan.');
+            return;
+        }
+    }
+
     try {
         const result = await withTransaction(async (client) => {
             const existing = await getSectorMineForUpdate(sectorDbId, mineType, client);
-            if (existing && existing.quantity > 0 && existing.owner_player_id !== playerId) {
-                sendError(
-                    playerId,
-                    `Sector contains hostile ${MINE_TYPE_LABEL[mineType]} mines — clear them first`,
-                );
-                throw new AbortTransaction();
+            if (existing && existing.quantity > 0) {
+                const matches =
+                    (ownership === 'personal' && existing.owner_player_id === playerId) ||
+                    (ownership === 'clan' && existing.owner_clan_id === playerClanId);
+                if (!matches) {
+                    const friendly =
+                        existing.owner_player_id === playerId ||
+                        (playerClanId !== null && existing.owner_clan_id === playerClanId);
+                    sendError(
+                        playerId,
+                        friendly
+                            ? `Sector already has ${MINE_TYPE_LABEL[mineType]} mines with different ownership.`
+                            : `Sector contains hostile ${MINE_TYPE_LABEL[mineType]} mines — clear them first`,
+                    );
+                    throw new AbortTransaction();
+                }
             }
 
             const cap = await getShipHardwareCapacityForUpdate(playerId, hw.id, client);
@@ -102,7 +127,14 @@ export async function handleDeployMine(
             );
 
             // Add to sector mines.
-            await upsertSectorMines(sectorDbId, mineType, playerId, quantity, client);
+            await upsertSectorMines(
+                sectorDbId,
+                mineType,
+                ownership === 'personal' ? playerId : null,
+                ownership === 'clan' ? playerClanId : null,
+                quantity,
+                client,
+            );
 
             const newSectorTotal = (existing?.quantity ?? 0) + quantity;
             return {
@@ -113,16 +145,13 @@ export async function handleDeployMine(
 
         if (!result) return;
 
-        await sendEnvelope(
-            playerId,
-            {
-                type: ServerMsgType.DeployMineResult,
-                mineType,
-                deployed: quantity,
-                sectorTotal: result.sectorTotal,
-                shipRemaining: result.shipRemaining,
-            }
-        );
+        await sendEnvelope(playerId, {
+            type: ServerMsgType.DeployMineResult,
+            mineType,
+            deployed: quantity,
+            sectorTotal: result.sectorTotal,
+            shipRemaining: result.shipRemaining,
+        });
     } catch (err) {
         console.error('Deploy mine error', err);
         sendError(playerId, 'Internal server error');
@@ -133,12 +162,14 @@ export async function handleListDeployedMines(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
     const rows = await getDeployedMinesByOwner(playerId);
+    const { formatOwner } = await import('../services/owner-format.js');
     sendEnvelope(playerId, {
         type: ServerMsgType.ListDeployedMinesResult,
         mines: rows.map((r) => ({
             sectorNumber: r.sector_number,
             mineType: r.mine_type,
             quantity: r.quantity,
+            ownerLabel: formatOwner(r),
         })),
     });
 }
@@ -223,15 +254,12 @@ export async function handleMineDisruptor(playerId: number, targetSector: number
 
         if (!result) return;
 
-        await sendEnvelope(
-            playerId,
-            {
-                type: ServerMsgType.MineDisruptorResult,
-                targetSector,
-                minesDisrupted: result.removed,
-                proximityMinesRemaining: result.remaining,
-            }
-        );
+        await sendEnvelope(playerId, {
+            type: ServerMsgType.MineDisruptorResult,
+            targetSector,
+            minesDisrupted: result.removed,
+            proximityMinesRemaining: result.remaining,
+        });
     } catch (err) {
         console.error('Mine disruptor error', err);
         sendError(playerId, 'Internal server error');

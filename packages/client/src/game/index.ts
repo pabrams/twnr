@@ -90,6 +90,7 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
             id: 0,
             isAdmin: false,
             isGuest: false,
+            clanId: null,
         },
         world: {
             mode: Menu.Sector,
