@@ -1,4 +1,5 @@
 import { ServerMsgType, type BuyHardwareResultObject } from '@twnr/shared';
+import type { BuyHardwareCommand } from '@twnr/shared';
 import { players } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { withTransaction, AbortTransaction } from '../db/index.js';
@@ -46,9 +47,9 @@ export async function handleHardwareStoreInfo(playerId: number): Promise<void> {
 /** Unified handler for buying any hardware item. */
 export async function handleBuyHardware(
     playerId: number,
-    itemName: string,
-    quantity?: number,
+    data: BuyHardwareCommand,
 ): Promise<void> {
+    const { itemName, quantity } = data;
     const player = players[playerId];
     if (!player?.at_starbase) {
         sendError(playerId, 'Not at Starbase');

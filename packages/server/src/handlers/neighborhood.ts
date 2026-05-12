@@ -1,5 +1,10 @@
 import { ServerMsgType } from '@twnr/shared';
-import type { NeighborhoodResultObject, NeighborhoodSector, NeighborhoodWarp } from '@twnr/shared';
+import type {
+    NeighborhoodResultObject,
+    NeighborhoodSector,
+    NeighborhoodWarp,
+    GetNeighborhoodCommand,
+} from '@twnr/shared';
 import { players } from '../state/players.js';
 import { sendEnvelope } from '../state/messaging.js';
 import { getUniverseTopology } from '../db/queries/universe.js';
@@ -31,11 +36,9 @@ function clampHalfExtent(raw: number): number {
  */
 export async function handleGetNeighborhood(
     playerId: number,
-    halfWidthWorld: number,
-    halfHeightWorld: number,
-    centerXWorld?: number,
-    centerYWorld?: number,
+    data: GetNeighborhoodCommand,
 ): Promise<void> {
+    const { halfWidthWorld, halfHeightWorld, centerXWorld, centerYWorld } = data;
     const player = players[playerId];
     if (!player) return;
     const universeId = player.universeId;

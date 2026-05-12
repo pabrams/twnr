@@ -1,4 +1,5 @@
 import { ServerMsgType } from '@twnr/shared';
+import type { TransportToShipCommand, ChangeShipOwnershipCommand } from '@twnr/shared';
 import { pool } from '../db/index.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { players } from '../state/players.js';
@@ -109,7 +110,11 @@ export async function handleListOwnedShips(playerId: number): Promise<void> {
     });
 }
 
-export async function handleTransportToShip(playerId: number, shipId: number): Promise<void> {
+export async function handleTransportToShip(
+    playerId: number,
+    data: TransportToShipCommand,
+): Promise<void> {
+    const { shipId } = data;
     const player = players[playerId];
     if (!player) return;
 
@@ -192,8 +197,9 @@ export async function handleTransportToShip(playerId: number, shipId: number): P
  *  ship. Clan → personal: only the clan leader can. */
 export async function handleChangeShipOwnership(
     playerId: number,
-    ownership: 'personal' | 'clan',
+    data: ChangeShipOwnershipCommand,
 ): Promise<void> {
+    const { ownership } = data;
     const player = players[playerId];
     if (!player) return;
     if (player.shipId === null) {

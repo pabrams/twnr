@@ -1,4 +1,5 @@
 import { ServerMsgType } from '@twnr/shared';
+import type { BuyDronesCommand, BuyShieldsCommand, BuyHoldsCommand } from '@twnr/shared';
 import { players, getPlayerUniverseId } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { withTransaction, AbortTransaction } from '../db/index.js';
@@ -26,8 +27,8 @@ async function isAtClass0OrStarbase(
     return portClass === 0;
 }
 
-export async function handleBuyDrones(playerId: number, quantity: number): Promise<void> {
-    const qty = Number(quantity);
+export async function handleBuyDrones(playerId: number, data: BuyDronesCommand): Promise<void> {
+    const qty = Number(data.quantity);
     if (!Number.isInteger(qty) || qty <= 0) {
         sendError(playerId, 'Invalid quantity');
         return;
@@ -85,7 +86,8 @@ export async function handleBuyDrones(playerId: number, quantity: number): Promi
     }
 }
 
-export async function handleBuyShields(playerId: number, quantity: number): Promise<void> {
+export async function handleBuyShields(playerId: number, data: BuyShieldsCommand): Promise<void> {
+    const { quantity } = data;
     const qty = Number(quantity);
     if (!Number.isInteger(qty) || qty <= 0) {
         sendError(playerId, 'Invalid quantity');
@@ -144,7 +146,8 @@ export async function handleBuyShields(playerId: number, quantity: number): Prom
     }
 }
 
-export async function handleBuyHolds(playerId: number, quantity: number): Promise<void> {
+export async function handleBuyHolds(playerId: number, data: BuyHoldsCommand): Promise<void> {
+    const { quantity } = data;
     const qty = Number(quantity);
     if (!Number.isInteger(qty) || qty <= 0) {
         sendError(playerId, 'Invalid quantity');

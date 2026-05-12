@@ -1,4 +1,12 @@
-import { ServerMsgType } from '@twnr/shared';
+import { ServerMsgType, ClientMsgType } from '@twnr/shared';
+import type {
+    LandOnPlanetCommand,
+    TakeColonistsCommand,
+    LeaveColonistsCommand,
+    TakeCommodityCommand,
+    LeaveCommodityCommand,
+    ClaimPlanetCommand,
+} from '@twnr/shared';
 import { players } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
@@ -63,7 +71,10 @@ export async function handleGetSectorPlanets(playerId: number): Promise<void> {
     if (player.sector === 1) {
         const earthId = await getEarthId(player.universeId);
         if (earthId) {
-            return handleLandOnPlanet(playerId, earthId);
+            return handleLandOnPlanet(playerId, {
+                type: ClientMsgType.LandOnPlanet,
+                planetId: earthId,
+            });
         }
     }
 
@@ -71,7 +82,11 @@ export async function handleGetSectorPlanets(playerId: number): Promise<void> {
     await sendEnvelope(playerId, { type: ServerMsgType.GetSectorPlanetsResult, planets });
 }
 
-export async function handleLandOnPlanet(playerId: number, planetId: number): Promise<void> {
+export async function handleLandOnPlanet(
+    playerId: number,
+    data: LandOnPlanetCommand,
+): Promise<void> {
+    const { planetId } = data;
     const player = players[playerId];
     if (!player) return;
 
@@ -93,15 +108,15 @@ export async function handleLandOnPlanet(playerId: number, planetId: number): Pr
 
     await setOnPlanet(playerId, planetId);
 
-    const data = await getPlanetDisplayData(playerId);
-    if (!data) {
+    const display = await getPlanetDisplayData(playerId);
+    if (!display) {
         sendError(playerId, 'Planet no longer exists');
         return;
     }
     const ctx = await getShipPlanetContext(playerId);
     await sendEnvelope(playerId, {
         type: ServerMsgType.LandOnPlanetResult,
-        ...data,
+        ...display,
         empty_holds: ctx.emptyHolds,
         ship_colonists: ctx.shipColonists,
         ship_drones: ctx.shipDrones,
@@ -434,9 +449,9 @@ async function liftoffWithResult<
 
 export async function handleTakeColonists(
     playerId: number,
-    quantity: number,
-    commodity: string,
+    data: TakeColonistsCommand,
 ): Promise<void> {
+    const { quantity, commodity } = data;
     const player = players[playerId];
     if (!player) return;
 
@@ -513,9 +528,9 @@ export async function handleTakeColonists(
 
 export async function handleLeaveColonists(
     playerId: number,
-    quantity: number,
-    commodity: string,
+    data: LeaveColonistsCommand,
 ): Promise<void> {
+    const { quantity, commodity } = data;
     const player = players[playerId];
     if (!player) return;
 
@@ -585,9 +600,9 @@ export async function handleLeaveColonists(
 
 export async function handleTakeCommodity(
     playerId: number,
-    quantity: number,
-    commodity: string,
+    data: TakeCommodityCommand,
 ): Promise<void> {
+    const { quantity, commodity } = data;
     const player = players[playerId];
     if (!player) return;
 
@@ -668,9 +683,9 @@ export async function handleTakeCommodity(
 
 export async function handleLeaveCommodity(
     playerId: number,
-    quantity: number,
-    commodity: string,
+    data: LeaveCommodityCommand,
 ): Promise<void> {
+    const { quantity, commodity } = data;
     const player = players[playerId];
     if (!player) return;
 
@@ -766,8 +781,9 @@ async function readShipCommodity(playerId: number, col: PlanetCommodity): Promis
  *  the player is in a clan. */
 export async function handleClaimPlanet(
     playerId: number,
-    ownership: 'personal' | 'clan',
+    data: ClaimPlanetCommand,
 ): Promise<void> {
+    const { ownership } = data;
     const player = players[playerId];
     if (!player) return;
 

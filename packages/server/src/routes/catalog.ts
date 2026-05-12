@@ -53,9 +53,6 @@ export function createCatalogRoutes(router: Router, middleware: Middleware): voi
         }),
     );
 
-    // (Menu registry endpoint removed in step 8D — client now uses a
-    // hardcoded MENU_REGISTRY constant in client/src/game/menu-registry.ts.)
-
     router.get('/api/admin/ships/:name', authenticateAdmin, (req, res) => {
         const ship = shipConfigs[req.params.name as string];
         if (!ship) return res.status(404).json({ error: 'Ship not found' });

@@ -1,5 +1,6 @@
 import { WebSocket } from 'ws';
 import { ServerMsgType } from '@twnr/shared';
+import type { DeployDronesCommand, AttackSectorDronesCommand } from '@twnr/shared';
 import { players } from '../state/players.js';
 import { sendEnvelope, sendError, broadcastTo } from '../state/messaging.js';
 import { getSectorDrones, resolveSectorId } from '../services/sector-lookup.js';
@@ -91,9 +92,10 @@ export async function handleDeployDronesInfo(playerId: number): Promise<void> {
 
 export async function handleDeployDrones(
     playerId: number,
-    target: number,
-    ownership: 'personal' | 'clan' = 'personal',
+    data: DeployDronesCommand,
 ): Promise<void> {
+    let target = data.quantity;
+    const ownership: 'personal' | 'clan' = data.ownership ?? 'personal';
     if (!Number.isInteger(target) || target < -1) {
         sendError(playerId, 'Invalid target quantity');
         return;
@@ -217,8 +219,9 @@ export async function handleDeployDrones(
 
 export async function handleAttackSectorDrones(
     playerId: number,
-    dronesToAttack: number,
+    data: AttackSectorDronesCommand,
 ): Promise<void> {
+    const dronesToAttack = data.drones;
     if (!Number.isInteger(dronesToAttack) || dronesToAttack <= 0) {
         sendError(playerId, 'Invalid number of drones');
         return;

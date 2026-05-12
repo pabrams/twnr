@@ -1,4 +1,5 @@
 import { ServerMsgType } from '@twnr/shared';
+import type { BuyShipTradeinCommand, BuyShipNewCommand } from '@twnr/shared';
 import { players, getPlayerUniverseId } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { withTransaction, AbortTransaction } from '../db/index.js';
@@ -30,8 +31,9 @@ function calculateShipPrice(shipType: {
 
 export async function handleBuyShipTradein(
     playerId: number,
-    targetShipName: string,
+    data: BuyShipTradeinCommand,
 ): Promise<void> {
+    const { targetShipName } = data;
     const universeId = getPlayerUniverseId(playerId);
     if (universeId === undefined) return;
 
@@ -131,7 +133,8 @@ export async function handleBuyShipTradein(
     }
 }
 
-export async function handleBuyShipNew(playerId: number, targetShipName: string): Promise<void> {
+export async function handleBuyShipNew(playerId: number, data: BuyShipNewCommand): Promise<void> {
+    const { targetShipName } = data;
     const universeId = getPlayerUniverseId(playerId);
     if (universeId === undefined) return;
 

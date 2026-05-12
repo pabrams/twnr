@@ -1,4 +1,13 @@
 import { ServerMsgType } from '@twnr/shared';
+import type {
+    ClanCreateCommand,
+    ClanJoinCommand,
+    ClanLeaveCommand,
+    ClanTransferCommand,
+    ClanMemoCommand,
+    ClanSetPasswordCommand,
+    ClanDropMemberCommand,
+} from '@twnr/shared';
 import { pool, withTransaction, AbortTransaction } from '../db/index.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { players } from '../state/players.js';
@@ -32,9 +41,9 @@ function isValidPassword(password: string): boolean {
 
 export async function handleClanCreate(
     playerId: number,
-    name: string,
-    password: string,
+    data: ClanCreateCommand,
 ): Promise<void> {
+    const { name, password } = data;
     const player = players[playerId];
     if (!player) return;
 
@@ -92,9 +101,9 @@ export async function handleClanCreate(
 
 export async function handleClanJoin(
     playerId: number,
-    name: string,
-    password: string,
+    data: ClanJoinCommand,
 ): Promise<void> {
+    const { name, password } = data;
     const player = players[playerId];
     if (!player) return;
 
@@ -134,9 +143,10 @@ export async function handleClanJoin(
 
 export async function handleClanLeave(
     playerId: number,
-    successorPlayerId: number | undefined,
-    confirmDissolve: boolean,
+    data: ClanLeaveCommand,
 ): Promise<void> {
+    const successorPlayerId = data.successorPlayerId;
+    const confirmDissolve = data.confirmDissolve === true;
     const player = players[playerId];
     if (!player) return;
 
@@ -513,11 +523,9 @@ async function transferMines(
 
 export async function handleClanTransfer(
     senderId: number,
-    kind: 'credits' | 'drones' | 'shields' | 'mines',
-    targetPlayerId: number,
-    quantity: number,
-    mineType?: 'proximity' | 'seeker',
+    data: ClanTransferCommand,
 ): Promise<void> {
+    const { kind, targetPlayerId, quantity, mineType } = data;
     let result: { delivered: number };
     if (kind === 'credits') {
         result = await transferCredits(senderId, targetPlayerId, quantity);
@@ -586,7 +594,8 @@ export async function handleClanTransfer(
     }
 }
 
-export async function handleClanMemo(senderId: number, body: string): Promise<void> {
+export async function handleClanMemo(senderId: number, data: ClanMemoCommand): Promise<void> {
+    const { body } = data;
     const player = players[senderId];
     if (!player) return;
     const clanId = await getPlayerClanId(senderId);
@@ -628,7 +637,11 @@ export async function handleClanMemo(senderId: number, body: string): Promise<vo
     });
 }
 
-export async function handleClanSetPassword(playerId: number, newPassword: string): Promise<void> {
+export async function handleClanSetPassword(
+    playerId: number,
+    data: ClanSetPasswordCommand,
+): Promise<void> {
+    const { newPassword } = data;
     if (!isValidPassword(newPassword)) {
         sendError(playerId, 'Password must be 4-64 characters.');
         return;
@@ -653,8 +666,9 @@ export async function handleClanSetPassword(playerId: number, newPassword: strin
 
 export async function handleClanDropMember(
     leaderPlayerId: number,
-    targetPlayerId: number,
+    data: ClanDropMemberCommand,
 ): Promise<void> {
+    const { targetPlayerId } = data;
     const player = players[leaderPlayerId];
     if (!player) return;
     if (leaderPlayerId === targetPlayerId) {

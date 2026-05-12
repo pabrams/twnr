@@ -1,4 +1,5 @@
 import { ServerMsgType } from '@twnr/shared';
+import type { DeployMineInfoCommand, DeployMineCommand, MineDisruptorCommand } from '@twnr/shared';
 import { players } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { isInEncounter } from '../services/encounter.js';
@@ -45,8 +46,9 @@ const MINE_TYPE_LABEL: Record<MineType, string> = {
  *  here — before the client asks for quantity or ownership. */
 export async function handleDeployMineInfo(
     playerId: number,
-    mineType: MineType,
+    data: DeployMineInfoCommand,
 ): Promise<void> {
+    const { mineType } = data;
     if (mineType !== 'proximity' && mineType !== 'seeker') {
         sendError(playerId, 'Invalid mine type');
         return;
@@ -104,10 +106,11 @@ export async function handleDeployMineInfo(
  *  positive moves ship→sector, negative picks up sector→ship. */
 export async function handleDeployMine(
     playerId: number,
-    mineType: MineType,
-    target: number,
-    ownership: 'personal' | 'clan' = 'personal',
+    data: DeployMineCommand,
 ): Promise<void> {
+    const { mineType } = data;
+    const target = data.quantity;
+    const ownership: 'personal' | 'clan' = data.ownership ?? 'personal';
     if (mineType !== 'proximity' && mineType !== 'seeker') {
         sendError(playerId, 'Invalid mine type');
         return;
@@ -265,7 +268,11 @@ export async function handleTrackSeekerMines(playerId: number): Promise<void> {
     });
 }
 
-export async function handleMineDisruptor(playerId: number, targetSector: number): Promise<void> {
+export async function handleMineDisruptor(
+    playerId: number,
+    data: MineDisruptorCommand,
+): Promise<void> {
+    const { targetSector } = data;
     if (!Number.isInteger(targetSector) || targetSector <= 0) {
         sendError(playerId, 'Invalid target sector');
         return;
