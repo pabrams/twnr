@@ -9,6 +9,7 @@ import {
     getHardwareItemByName,
     getShipHardwareCapacityForUpdate,
     decrementShipHardwareByName,
+    decrementShipHardwareQuantity,
     getShipHardwareQuantityByName,
     upsertShipHardwareQuantity,
 } from '../db/queries/hardware.js';
@@ -23,7 +24,7 @@ import {
     getMineUniverseSettings,
     type MineType,
 } from '../db/queries/mines.js';
-import { pool } from '../db/index.js';
+import { getPlayerClanId } from '../db/queries/clan.js';
 import { isFriendlyOwner } from '../services/owner.js';
 
 const MINE_TYPE_TO_HARDWARE: Record<MineType, string> = {
@@ -35,14 +36,6 @@ const MINE_TYPE_LABEL: Record<MineType, string> = {
     proximity: 'Proximity',
     seeker: 'Seeker',
 };
-
-async function getPlayerClanId(playerId: number): Promise<number | null> {
-    const r = await pool.query<{ clan_id: number | null }>(
-        'SELECT clan_id FROM players WHERE id = $1',
-        [playerId],
-    );
-    return r.rows[0]?.clan_id ?? null;
-}
 
 /** Info-only roundtrip used by the client's Handle-Mines flow. Reports
  *  the current ship/sector counts and the ship's max capacity for the
@@ -194,11 +187,7 @@ export async function handleDeployMine(
                     );
                     throw new AbortTransaction();
                 }
-                await client.query(
-                    `UPDATE ship_hardware SET quantity = quantity - $1
-                     WHERE ship_id = $2 AND hardware_item_id = $3`,
-                    [delta, cap.ship_id, hw.id],
-                );
+                await decrementShipHardwareQuantity(cap.ship_id, hw.id, delta, client);
             } else if (delta < 0) {
                 const pickup = -delta;
                 if (cap.current_qty + pickup > cap.max_qty) {

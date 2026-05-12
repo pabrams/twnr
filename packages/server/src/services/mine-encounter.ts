@@ -18,16 +18,9 @@ import {
     setShipDronesAndShields,
     destroyShipRecord,
 } from '../db/queries/ship.js';
-import { pool } from '../db/index.js';
+import { getPlayerClanId } from '../db/queries/clan.js';
+import { getPlayerShipId } from '../db/queries/player.js';
 import { isFriendlyOwner } from './owner.js';
-
-async function getPlayerClanId(playerId: number): Promise<number | null> {
-    const r = await pool.query<{ clan_id: number | null }>(
-        'SELECT clan_id FROM players WHERE id = $1',
-        [playerId],
-    );
-    return r.rows[0]?.clan_id ?? null;
-}
 
 /** RNG-of-record. Tests can monkey-patch Math.random to make outcomes deterministic. */
 function rollPercent(pct: number): boolean {
@@ -167,11 +160,7 @@ export async function resolveSeekerMines(playerId: number): Promise<{
         if (attempts === 0) return null;
 
         // Look up the intruder's ship id.
-        const shipRes = await client.query<{ ship_id: number }>(
-            'SELECT ship_id FROM players WHERE id = $1',
-            [playerId],
-        );
-        const shipId = shipRes.rows[0]?.ship_id;
+        const shipId = await getPlayerShipId(playerId, client);
         if (!shipId) return null;
 
         const remaining = mineRow.quantity - attempts;

@@ -1,6 +1,19 @@
 import { pool } from '../index.js';
 import type { Queryable } from '../types.js';
 
+/** Resolve a player's current ship_id. Returns null if the player has
+ *  no ship (destroyed, awaiting a starter, etc.). */
+export async function getPlayerShipId(
+    playerId: number,
+    db: Queryable = pool,
+): Promise<number | null> {
+    const res = await db.query<{ ship_id: number | null }>(
+        'SELECT ship_id FROM players WHERE id = $1',
+        [playerId],
+    );
+    return res.rows[0]?.ship_id ?? null;
+}
+
 export async function getOnPlanetId(
     playerId: number,
     db: Queryable = pool,

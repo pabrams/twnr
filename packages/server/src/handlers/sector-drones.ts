@@ -23,6 +23,7 @@ import {
     deleteSectorDrones,
 } from '../db/queries/drones.js';
 import { resolveMinesOnEntry } from '../services/mine-encounter.js';
+import { getPlayerClanId } from '../db/queries/clan.js';
 
 export async function handleDeployDronesInfo(playerId: number): Promise<void> {
     const player = players[playerId];
@@ -90,12 +91,7 @@ export async function handleDeployDrones(
     // Always resolve clan_id — needed for both clan-ownership deploys AND
     // friendly-existing detection when deploying personal into a sector
     // that already holds the player's clan's drones (so we can convert).
-    const { pool } = await import('../db/index.js');
-    const clanRow = await pool.query<{ clan_id: number | null }>(
-        'SELECT clan_id FROM players WHERE id = $1',
-        [playerId],
-    );
-    const playerClanId = clanRow.rows[0]?.clan_id ?? null;
+    const playerClanId = await getPlayerClanId(playerId);
     if (ownership === 'clan' && playerClanId === null) {
         sendError(playerId, 'You are not in a clan.');
         return;
