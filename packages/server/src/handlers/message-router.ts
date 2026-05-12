@@ -1,4 +1,4 @@
-import { ClientMsgType, type ClientCommand } from '@twnr/shared';
+import { ClientTag, type ClientEnvelope } from '@twnr/shared';
 import { sendError } from '../state/messaging.js';
 import { handleVisitedSectors } from './visited.js';
 import { handlePlayersOnline } from './players.js';
@@ -72,84 +72,84 @@ import {
     handleClanDropMember,
 } from './clan.js';
 
-type ClientCommandByType = { [C in ClientCommand as C['type']]: C };
+type ClientCommandByType = { [C in ClientEnvelope as C['type']]: C };
 
 /** A handler receives the player id and the typed command envelope. */
-export type Handler<K extends ClientCommand['type']> = (
+export type Handler<K extends ClientEnvelope['type']> = (
     playerId: number,
     data: ClientCommandByType[K],
 ) => void | Promise<void>;
 
-type HandlerMap = { [K in ClientCommand['type']]: Handler<K> };
+type HandlerMap = { [K in ClientEnvelope['type']]: Handler<K> };
 
 const handlers: HandlerMap = {
-    [ClientMsgType.Move]: handleMove,
-    [ClientMsgType.MoveToPrevious]: handleMoveToPrevious,
-    [ClientMsgType.SectorDisplay]: handleSectorDisplay,
-    [ClientMsgType.PlayersOnline]: handlePlayersOnline,
-    [ClientMsgType.WarpsOut]: handleWarpsOut,
-    [ClientMsgType.ShortestPath]: handleShortestPath,
-    [ClientMsgType.PortInfo]: handlePortInfo,
-    [ClientMsgType.ShipInfo]: handleShipInfo,
-    [ClientMsgType.PortTransaction]: handlePortTransaction,
-    [ClientMsgType.BuyDrones]: handleBuyDrones,
-    [ClientMsgType.BuyShields]: handleBuyShields,
-    [ClientMsgType.BuyHolds]: handleBuyHolds,
-    [ClientMsgType.BuyShipTradein]: handleBuyShipTradein,
-    [ClientMsgType.GetAttackTargets]: handleGetAttackTargets,
-    [ClientMsgType.StarbaseInfo]: handleStarbaseInfo,
-    [ClientMsgType.TerraformInfo]: handleTerraformInfo,
-    [ClientMsgType.HardwareStoreInfo]: handleHardwareStoreInfo,
-    [ClientMsgType.AttackShip]: handleAttackShip,
-    [ClientMsgType.Dock]: handleDock,
-    [ClientMsgType.Undock]: handleUndock,
-    [ClientMsgType.Jettison]: handleJettison,
-    [ClientMsgType.GetSectorPlanets]: handleGetSectorPlanets,
-    [ClientMsgType.LandOnPlanet]: handleLandOnPlanet,
-    [ClientMsgType.PlanetDisplay]: handlePlanetDisplay,
-    [ClientMsgType.LeavePlanet]: handleLeavePlanet,
-    [ClientMsgType.DestroyPlanet]: handleDestroyPlanet,
-    [ClientMsgType.UseTerraformDevice]: handleUseTerraformDevice,
-    [ClientMsgType.DockStarbase]: handleDockStarbase,
-    [ClientMsgType.LeaveStarbase]: handleLeaveStarbase,
-    [ClientMsgType.BuyHardware]: handleBuyHardware,
-    [ClientMsgType.TakeColonists]: handleTakeColonists,
-    [ClientMsgType.LeaveColonists]: handleLeaveColonists,
-    [ClientMsgType.TakeCommodity]: handleTakeCommodity,
-    [ClientMsgType.LeaveCommodity]: handleLeaveCommodity,
-    [ClientMsgType.ListPlanets]: handleListPlanets,
-    [ClientMsgType.ListOwnedShips]: handleListOwnedShips,
-    [ClientMsgType.TransportToShip]: handleTransportToShip,
-    [ClientMsgType.ClanCreate]: handleClanCreate,
-    [ClientMsgType.ClanJoin]: handleClanJoin,
-    [ClientMsgType.ClanLeave]: handleClanLeave,
-    [ClientMsgType.ClanList]: handleClanList,
-    [ClientMsgType.ClanInfo]: handleClanInfo,
-    [ClientMsgType.ChangeShipOwnership]: handleChangeShipOwnership,
-    [ClientMsgType.ClaimPlanet]: handleClaimPlanet,
-    [ClientMsgType.ClanTransfer]: handleClanTransfer,
-    [ClientMsgType.ClanMemo]: handleClanMemo,
-    [ClientMsgType.ClanSetPassword]: handleClanSetPassword,
-    [ClientMsgType.ClanDropMember]: handleClanDropMember,
-    [ClientMsgType.DeployDronesInfo]: handleDeployDronesInfo,
-    [ClientMsgType.DeployDrones]: handleDeployDrones,
-    [ClientMsgType.AttackSectorDrones]: handleAttackSectorDrones,
-    [ClientMsgType.RetreatFromDrones]: handleRetreatFromDrones,
-    [ClientMsgType.BuyShipNew]: handleBuyShipNew,
-    [ClientMsgType.ListDeployedDrones]: handleListDeployedDrones,
-    [ClientMsgType.HyperspaceJump]: handleHyperspaceJump,
-    [ClientMsgType.VisitedSectors]: handleVisitedSectors,
-    [ClientMsgType.DeployMineInfo]: handleDeployMineInfo,
-    [ClientMsgType.DeployMine]: handleDeployMine,
-    [ClientMsgType.ListDeployedMines]: handleListDeployedMines,
-    [ClientMsgType.TrackSeekerMines]: handleTrackSeekerMines,
-    [ClientMsgType.MineDisruptor]: handleMineDisruptor,
-    [ClientMsgType.GetNeighborhood]: handleGetNeighborhood,
+    [ClientTag.Move]: handleMove,
+    [ClientTag.MoveToPrevious]: handleMoveToPrevious,
+    [ClientTag.SectorDisplay]: handleSectorDisplay,
+    [ClientTag.PlayersOnline]: handlePlayersOnline,
+    [ClientTag.WarpsOut]: handleWarpsOut,
+    [ClientTag.ShortestPath]: handleShortestPath,
+    [ClientTag.PortInfo]: handlePortInfo,
+    [ClientTag.ShipInfo]: handleShipInfo,
+    [ClientTag.PortTransaction]: handlePortTransaction,
+    [ClientTag.BuyDrones]: handleBuyDrones,
+    [ClientTag.BuyShields]: handleBuyShields,
+    [ClientTag.BuyHolds]: handleBuyHolds,
+    [ClientTag.BuyShipTradein]: handleBuyShipTradein,
+    [ClientTag.GetAttackTargets]: handleGetAttackTargets,
+    [ClientTag.StarbaseInfo]: handleStarbaseInfo,
+    [ClientTag.TerraformInfo]: handleTerraformInfo,
+    [ClientTag.HardwareStoreInfo]: handleHardwareStoreInfo,
+    [ClientTag.AttackShip]: handleAttackShip,
+    [ClientTag.Dock]: handleDock,
+    [ClientTag.Undock]: handleUndock,
+    [ClientTag.Jettison]: handleJettison,
+    [ClientTag.GetSectorPlanets]: handleGetSectorPlanets,
+    [ClientTag.LandOnPlanet]: handleLandOnPlanet,
+    [ClientTag.PlanetDisplay]: handlePlanetDisplay,
+    [ClientTag.LeavePlanet]: handleLeavePlanet,
+    [ClientTag.DestroyPlanet]: handleDestroyPlanet,
+    [ClientTag.UseTerraformDevice]: handleUseTerraformDevice,
+    [ClientTag.DockStarbase]: handleDockStarbase,
+    [ClientTag.LeaveStarbase]: handleLeaveStarbase,
+    [ClientTag.BuyHardware]: handleBuyHardware,
+    [ClientTag.TakeColonists]: handleTakeColonists,
+    [ClientTag.LeaveColonists]: handleLeaveColonists,
+    [ClientTag.TakeCommodity]: handleTakeCommodity,
+    [ClientTag.LeaveCommodity]: handleLeaveCommodity,
+    [ClientTag.ListPlanets]: handleListPlanets,
+    [ClientTag.ListOwnedShips]: handleListOwnedShips,
+    [ClientTag.TransportToShip]: handleTransportToShip,
+    [ClientTag.ClanCreate]: handleClanCreate,
+    [ClientTag.ClanJoin]: handleClanJoin,
+    [ClientTag.ClanLeave]: handleClanLeave,
+    [ClientTag.ClanList]: handleClanList,
+    [ClientTag.ClanInfo]: handleClanInfo,
+    [ClientTag.ChangeShipOwnership]: handleChangeShipOwnership,
+    [ClientTag.ClaimPlanet]: handleClaimPlanet,
+    [ClientTag.ClanTransfer]: handleClanTransfer,
+    [ClientTag.ClanMemo]: handleClanMemo,
+    [ClientTag.ClanSetPassword]: handleClanSetPassword,
+    [ClientTag.ClanDropMember]: handleClanDropMember,
+    [ClientTag.DeployDronesInfo]: handleDeployDronesInfo,
+    [ClientTag.DeployDrones]: handleDeployDrones,
+    [ClientTag.AttackSectorDrones]: handleAttackSectorDrones,
+    [ClientTag.RetreatFromDrones]: handleRetreatFromDrones,
+    [ClientTag.BuyShipNew]: handleBuyShipNew,
+    [ClientTag.ListDeployedDrones]: handleListDeployedDrones,
+    [ClientTag.HyperspaceJump]: handleHyperspaceJump,
+    [ClientTag.VisitedSectors]: handleVisitedSectors,
+    [ClientTag.DeployMineInfo]: handleDeployMineInfo,
+    [ClientTag.DeployMine]: handleDeployMine,
+    [ClientTag.ListDeployedMines]: handleListDeployedMines,
+    [ClientTag.TrackSeekerMines]: handleTrackSeekerMines,
+    [ClientTag.MineDisruptor]: handleMineDisruptor,
+    [ClientTag.GetNeighborhood]: handleGetNeighborhood,
 };
 
-export async function handleMessage(playerId: number, data: ClientCommand): Promise<void> {
+export async function handleMessage(playerId: number, data: ClientEnvelope): Promise<void> {
     const handler = handlers[data.type] as
-        | ((pid: number, d: ClientCommand) => void | Promise<void>)
+        | ((pid: number, d: ClientEnvelope) => void | Promise<void>)
         | undefined;
     if (!handler) {
         sendError(playerId, 'Unknown message type');

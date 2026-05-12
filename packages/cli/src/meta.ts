@@ -1,10 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
-import { ClientMsgType } from '@twnr/shared';
+import { ClientTag } from '@twnr/shared';
 
 export function listCommands(): string[] {
-    return Object.values(ClientMsgType).sort();
+    return Object.values(ClientTag).sort();
 }
 
 type SchemaFile = { definitions: Record<string, unknown> };

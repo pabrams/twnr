@@ -1,4 +1,4 @@
-import { ServerMsgType } from '@twnr/shared';
+import { ServerTag } from '@twnr/shared';
 import type { BuyShipTradeinCommand, BuyShipNewCommand } from '@twnr/shared';
 import { players, getPlayerUniverseId } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
@@ -119,7 +119,7 @@ export async function handleBuyShipTradein(
         if (!result) return;
 
         await sendEnvelope(playerId, {
-            type: ServerMsgType.BuyShipTradeinResult,
+            type: ServerTag.BuyShipTradeinResult,
             shipName: targetShipName,
             coloredShipName: result.coloredName,
             credits: result.credits,
@@ -206,7 +206,7 @@ export async function handleBuyShipNew(playerId: number, data: BuyShipNewCommand
         if (!result) return;
 
         await sendEnvelope(playerId, {
-            type: ServerMsgType.BuyShipNewResult,
+            type: ServerTag.BuyShipNewResult,
             shipName: targetShipName,
             coloredShipName: result.coloredName,
             credits: result.credits,

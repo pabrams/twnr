@@ -1,4 +1,4 @@
-import { ClientMsgType, ServerMsgType } from '@twnr/shared';
+import { ClientTag, ServerTag } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { PLANET } from '../messages/index.js';
@@ -36,7 +36,7 @@ registerRoutine('take_colonists', async (ctx) => {
         { defaultValue: -1 },
     );
     if (qty === null) return;
-    ctx.io.sendMsg({ type: ClientMsgType.TakeColonists, quantity: qty, commodity });
+    ctx.io.sendMsg({ type: ClientTag.TakeColonists, quantity: qty, commodity });
 });
 
 registerRoutine('leave_colonists', async (ctx) => {
@@ -50,7 +50,7 @@ registerRoutine('leave_colonists', async (ctx) => {
         { defaultValue: -1 },
     );
     if (qty === null) return;
-    ctx.io.sendMsg({ type: ClientMsgType.LeaveColonists, quantity: qty, commodity });
+    ctx.io.sendMsg({ type: ClientTag.LeaveColonists, quantity: qty, commodity });
 });
 
 function takeDefault(ctx: GameContext, commodity: Commodity4): number {
@@ -101,7 +101,7 @@ registerRoutine('take_commodity', async (ctx) => {
         { defaultValue: def },
     );
     if (qty === null) return;
-    ctx.io.sendMsg({ type: ClientMsgType.TakeCommodity, quantity: qty, commodity });
+    ctx.io.sendMsg({ type: ClientTag.TakeCommodity, quantity: qty, commodity });
 });
 
 registerRoutine('leave_commodity', async (ctx) => {
@@ -116,12 +116,12 @@ registerRoutine('leave_commodity', async (ctx) => {
         { defaultValue: def },
     );
     if (qty === null) return;
-    ctx.io.sendMsg({ type: ClientMsgType.LeaveCommodity, quantity: qty, commodity });
+    ctx.io.sendMsg({ type: ClientTag.LeaveCommodity, quantity: qty, commodity });
 });
 
 registerRoutine('planet_display', (ctx) => {
     echoCommand(ctx, 'planetDisplay');
-    ctx.io.sendMsg({ type: ClientMsgType.PlanetDisplay });
+    ctx.io.sendMsg({ type: ClientTag.PlanetDisplay });
 });
 
 registerRoutine('claim_planet', async (ctx) => {
@@ -129,10 +129,10 @@ registerRoutine('claim_planet', async (ctx) => {
     const ch = await askChar(ctx, render(PLANET.claimOwnershipPrompt), ['p', 'c']);
     if (ch === null) return;
     const ownership = ch === 'p' ? 'personal' : 'clan';
-    ctx.io.sendMsg({ type: ClientMsgType.ClaimPlanet, ownership });
-    const result = await awaitResponse(ctx, [ServerMsgType.ClaimPlanetResult, ServerMsgType.Error]);
+    ctx.io.sendMsg({ type: ClientTag.ClaimPlanet, ownership });
+    const result = await awaitResponse(ctx, [ServerTag.ClaimPlanetResult, ServerTag.Error]);
     if (result === null) return;
-    if (result.type !== ServerMsgType.ClaimPlanetResult) return;
+    if (result.type !== ServerTag.ClaimPlanetResult) return;
     ctx.io.term.writeln(
         render(
             result.ownership === 'clan' ? PLANET.claimSuccessClan : PLANET.claimSuccessPersonal,
@@ -143,10 +143,10 @@ registerRoutine('claim_planet', async (ctx) => {
 
 registerRoutine('destroy_planet', (ctx) => {
     echoCommand(ctx, 'destroyPlanet');
-    ctx.io.sendMsg({ type: ClientMsgType.DestroyPlanet });
+    ctx.io.sendMsg({ type: ClientTag.DestroyPlanet });
 });
 
 registerRoutine('leave_planet', (ctx) => {
     echoCommand(ctx, 'leavePlanet');
-    ctx.io.sendMsg({ type: ClientMsgType.LeavePlanet });
+    ctx.io.sendMsg({ type: ClientTag.LeavePlanet });
 });

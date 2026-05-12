@@ -1,4 +1,4 @@
-import { ServerMsgType } from '@twnr/shared';
+import { ServerTag } from '@twnr/shared';
 import type {
     ClanCreateCommand,
     ClanJoinCommand,
@@ -88,7 +88,7 @@ export async function handleClanCreate(
             return;
         }
         sendEnvelope(playerId, {
-            type: ServerMsgType.ClanCreateResult,
+            type: ServerTag.ClanCreateResult,
             clanId: created.id,
             clanNumber: created.universeClanNumber,
             name: trimmedName,
@@ -134,7 +134,7 @@ export async function handleClanJoin(
 
     await setPlayerClanId(playerId, clan.id);
     sendEnvelope(playerId, {
-        type: ServerMsgType.ClanJoinResult,
+        type: ServerTag.ClanJoinResult,
         clanId: clan.id,
         clanNumber: clan.universe_clan_number,
         name: clan.name,
@@ -187,7 +187,7 @@ export async function handleClanLeave(
                 return;
             }
             sendEnvelope(playerId, {
-                type: ServerMsgType.ClanLeaveResult,
+                type: ServerTag.ClanLeaveResult,
                 outcome: 'dissolved',
                 convertedToPersonal: result.convertedToPersonal,
                 convertedToRogue: result.convertedToRogue,
@@ -233,7 +233,7 @@ export async function handleClanLeave(
             return;
         }
         sendEnvelope(playerId, {
-            type: ServerMsgType.ClanLeaveResult,
+            type: ServerTag.ClanLeaveResult,
             outcome: 'left',
             convertedToPersonal: 0,
             convertedToRogue: 0,
@@ -244,7 +244,7 @@ export async function handleClanLeave(
     // Regular member leave.
     await setPlayerClanId(playerId, null);
     sendEnvelope(playerId, {
-        type: ServerMsgType.ClanLeaveResult,
+        type: ServerTag.ClanLeaveResult,
         outcome: 'left',
         convertedToPersonal: 0,
         convertedToRogue: 0,
@@ -258,7 +258,7 @@ export async function handleClanList(playerId: number): Promise<void> {
     const rows = await listClansInUniverse(player.universeId);
     const viewerClanId = await getPlayerClanId(playerId);
     sendEnvelope(playerId, {
-        type: ServerMsgType.ClanListResult,
+        type: ServerTag.ClanListResult,
         viewerClanId,
         clans: rows.map((r) => ({
             clanId: r.id,
@@ -277,7 +277,7 @@ export async function handleClanInfo(playerId: number): Promise<void> {
 
     const clanId = await getPlayerClanId(playerId);
     if (clanId === null) {
-        sendEnvelope(playerId, { type: ServerMsgType.ClanInfoResult, clan: null });
+        sendEnvelope(playerId, { type: ServerTag.ClanInfoResult, clan: null });
         return;
     }
     const [clan, members, maxSize] = await Promise.all([
@@ -286,11 +286,11 @@ export async function handleClanInfo(playerId: number): Promise<void> {
         getMaxClanSize(player.universeId),
     ]);
     if (!clan) {
-        sendEnvelope(playerId, { type: ServerMsgType.ClanInfoResult, clan: null });
+        sendEnvelope(playerId, { type: ServerTag.ClanInfoResult, clan: null });
         return;
     }
     sendEnvelope(playerId, {
-        type: ServerMsgType.ClanInfoResult,
+        type: ServerTag.ClanInfoResult,
         clan: {
             clanId: clan.id,
             clanNumber: clan.universe_clan_number,
@@ -568,7 +568,7 @@ export async function handleClanTransfer(
     await insertMemo(targetPlayerId, senderId, null, `transfer_${kind}`, memoBody);
 
     sendEnvelope(senderId, {
-        type: ServerMsgType.ClanTransferResult,
+        type: ServerTag.ClanTransferResult,
         kind,
         targetPlayerId,
         targetName,
@@ -580,7 +580,7 @@ export async function handleClanTransfer(
     const targetOnline = players[targetPlayerId];
     if (targetOnline) {
         sendEnvelope(targetPlayerId, {
-            type: ServerMsgType.MemoDelivery,
+            type: ServerTag.MemoDelivery,
             memos: [
                 {
                     id: 0,
@@ -617,7 +617,7 @@ export async function handleClanMemo(senderId: number, data: ClanMemoCommand): P
         if (online) {
             const senderName = await getPlayerName(senderId);
             sendEnvelope(m.id, {
-                type: ServerMsgType.MemoDelivery,
+                type: ServerTag.MemoDelivery,
                 memos: [
                     {
                         id: 0,
@@ -632,7 +632,7 @@ export async function handleClanMemo(senderId: number, data: ClanMemoCommand): P
     }
 
     sendEnvelope(senderId, {
-        type: ServerMsgType.ClanMemoResult,
+        type: ServerTag.ClanMemoResult,
         recipientCount: recipients.length,
     });
 }
@@ -661,7 +661,7 @@ export async function handleClanSetPassword(
         return;
     }
     await setClanPasswordHash(clanId, hashPassword(newPassword));
-    sendEnvelope(playerId, { type: ServerMsgType.ClanSetPasswordResult });
+    sendEnvelope(playerId, { type: ServerTag.ClanSetPasswordResult });
 }
 
 export async function handleClanDropMember(
@@ -705,7 +705,7 @@ export async function handleClanDropMember(
     const online = players[targetPlayerId];
     if (online) {
         sendEnvelope(targetPlayerId, {
-            type: ServerMsgType.MemoDelivery,
+            type: ServerTag.MemoDelivery,
             memos: [
                 {
                     id: 0,
@@ -719,7 +719,7 @@ export async function handleClanDropMember(
     }
 
     sendEnvelope(leaderPlayerId, {
-        type: ServerMsgType.ClanDropMemberResult,
+        type: ServerTag.ClanDropMemberResult,
         droppedPlayerId: targetPlayerId,
         droppedName: targetName,
     });

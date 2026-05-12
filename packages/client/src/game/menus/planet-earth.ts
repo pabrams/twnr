@@ -1,4 +1,4 @@
-import { ClientMsgType, Menu } from '@twnr/shared';
+import { ClientTag, Menu } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { PLANET } from '../messages/index.js';
@@ -17,7 +17,7 @@ async function takeFromEarth(ctx: GameContext): Promise<void> {
         { defaultValue: -1 },
     );
     if (qty === null) return;
-    ctx.io.sendMsg({ type: ClientMsgType.TakeColonists, quantity: qty, commodity: 'fuel' });
+    ctx.io.sendMsg({ type: ClientTag.TakeColonists, quantity: qty, commodity: 'fuel' });
 }
 
 async function leaveOnEarth(ctx: GameContext): Promise<void> {
@@ -28,7 +28,7 @@ async function leaveOnEarth(ctx: GameContext): Promise<void> {
         { defaultValue: -1 },
     );
     if (qty === null) return;
-    ctx.io.sendMsg({ type: ClientMsgType.LeaveColonists, quantity: qty, commodity: 'fuel' });
+    ctx.io.sendMsg({ type: ClientTag.LeaveColonists, quantity: qty, commodity: 'fuel' });
 }
 
 registerMenu(Menu.PlanetEarth, {
@@ -50,7 +50,7 @@ registerMenu(Menu.PlanetEarth, {
         }
         if (k === 'q') {
             echoCommand(ctx, 'leavePlanet');
-            ctx.io.sendMsg({ type: ClientMsgType.LeavePlanet });
+            ctx.io.sendMsg({ type: ClientTag.LeavePlanet });
             return;
         }
     },

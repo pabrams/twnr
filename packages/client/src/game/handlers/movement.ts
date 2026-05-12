@@ -1,4 +1,4 @@
-import { ClientMsgType, Menu } from '@twnr/shared';
+import { ClientTag, Menu } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { NOTIFY, EVENT, SECTOR } from '../messages/index.js';
@@ -33,7 +33,7 @@ export const sectorDisplay: Handler<'sectorDisplayResult', MovementContext> = (c
     if (ctx.autopilot.path.length > 0 && ctx.autopilot.step < ctx.autopilot.path.length) {
         const nextSector = ctx.autopilot.path[ctx.autopilot.step];
         ctx.autopilot.step = ctx.autopilot.step + 1;
-        ctx.io.sendMsg({ type: ClientMsgType.Move, sector: nextSector });
+        ctx.io.sendMsg({ type: ClientTag.Move, sector: nextSector });
     } else if (ctx.autopilot.path.length > 0) {
         ctx.autopilot.path = [];
         ctx.autopilot.step = 0;
@@ -63,7 +63,7 @@ export const move: Handler<'moveResult', MovementContext> = (ctx, msg) => {
                 const nextSector = ctx.autopilot.path[ctx.autopilot.step];
                 ctx.autopilot.step = ctx.autopilot.step + 1;
                 ctx.io.term.writeln(render(EVENT.autopilotWarping, { sector: nextSector }));
-                ctx.io.sendMsg({ type: ClientMsgType.Move, sector: nextSector });
+                ctx.io.sendMsg({ type: ClientTag.Move, sector: nextSector });
             } else if (inAutopilot) {
                 ctx.io.term.writeln(render(EVENT.autopilotArrived, { sector: msg.sector }));
                 ctx.autopilot.path = [];
@@ -101,7 +101,7 @@ export const move: Handler<'moveResult', MovementContext> = (ctx, msg) => {
         }
         case 'nonAdjacent':
             ctx.io.sendMsg({
-                type: ClientMsgType.ShortestPath,
+                type: ClientTag.ShortestPath,
                 from: ctx.world.currentSector,
                 to: msg.sector,
             });
@@ -137,7 +137,7 @@ export const move: Handler<'moveResult', MovementContext> = (ctx, msg) => {
 
 export const nonAdjacent: Handler<'nonAdjacentMoveRequested', MovementContext> = (ctx, msg) => {
     ctx.io.sendMsg({
-        type: ClientMsgType.ShortestPath,
+        type: ClientTag.ShortestPath,
         from: ctx.world.currentSector,
         to: msg.sector,
     });
@@ -178,7 +178,7 @@ async function promptAutopilot(
     const nextSector = ctx.autopilot.path[1];
     term.writeln(render(EVENT.autopilotEngaged));
     term.writeln(render(EVENT.autopilotWarping, { sector: nextSector }));
-    ctx.io.sendMsg({ type: ClientMsgType.Move, sector: nextSector });
+    ctx.io.sendMsg({ type: ClientTag.Move, sector: nextSector });
 }
 
 export const hyperspaceJump: Handler<'hyperspaceJumpResult', MovementContext> = (ctx, msg) => {
@@ -189,13 +189,13 @@ export const hyperspaceJump: Handler<'hyperspaceJumpResult', MovementContext> = 
             turns: msg.turnsUsed,
         }),
     );
-    ctx.io.sendMsg({ type: ClientMsgType.SectorDisplay });
+    ctx.io.sendMsg({ type: ClientTag.SectorDisplay });
 };
 
 export const previousSector: Handler<'previousSectorResult', MovementContext> = (ctx, msg) => {
     if (msg.sector === null) {
         ctx.io.term.writeln(render(NOTIFY.noPreviousSector));
     } else {
-        ctx.io.sendMsg({ type: ClientMsgType.Move, sector: msg.sector });
+        ctx.io.sendMsg({ type: ClientTag.Move, sector: msg.sector });
     }
 };

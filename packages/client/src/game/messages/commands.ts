@@ -1,6 +1,6 @@
 /**
  * Command echoes — rendered by sendMsg before a client→server command goes out.
- * Key is the ClientMsgType string; template vars are the message's own fields.
+ * Key is the ClientTag string; template vars are the message's own fields.
  * No entry = no echo. Edit freely.
  */
 

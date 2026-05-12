@@ -6,7 +6,7 @@ import { type DisplayPortCtx } from '../display-port.js';
 import { type DisplayStarbaseCtx } from '../display-starbase.js';
 import { type DisplayComputerCtx } from '../display-computer.js';
 import type { Handler } from './index.js';
-import { ClientMsgType } from '@twnr/shared';
+import { ClientTag } from '@twnr/shared';
 import { fmt, formatDuration, refreshMinimap, type RefreshMinimapCtx } from './utils.js';
 
 type LifecycleContext = Pick<
@@ -52,7 +52,7 @@ export const rateLimited: Handler<'rateLimited', LifecycleContext> = (ctx) => {
         const retrySector = ctx.autopilot.path[ctx.autopilot.step - 1];
         if (retrySector !== undefined) {
             setTimeout(() => {
-                ctx.io.sendMsg({ type: ClientMsgType.Move, sector: retrySector });
+                ctx.io.sendMsg({ type: ClientTag.Move, sector: retrySector });
             }, 200);
         }
     }

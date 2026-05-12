@@ -1,5 +1,5 @@
 import { WebSocket } from 'ws';
-import { ServerMsgType } from '@twnr/shared';
+import { ServerTag } from '@twnr/shared';
 import type { DeployDronesCommand, AttackSectorDronesCommand } from '@twnr/shared';
 import { players } from '../state/players.js';
 import { sendEnvelope, sendError, broadcastTo } from '../state/messaging.js';
@@ -44,7 +44,7 @@ export async function handleListDeployedDrones(playerId: number): Promise<void> 
 
     const rows = await getDeployedDronesByOwner(playerId);
     sendEnvelope(playerId, {
-        type: ServerMsgType.ListDeployedDronesResult,
+        type: ServerTag.ListDeployedDronesResult,
         drones: rows.map((r) => ({
             sectorId: r.sector_id,
             quantity: r.quantity,
@@ -69,7 +69,7 @@ export async function handleDeployDronesInfo(playerId: number): Promise<void> {
 
     const shipInfo = await getShipDronesAndMaxInfo(playerId);
     if (!shipInfo) {
-        sendEnvelope(playerId, { type: ServerMsgType.NoShip });
+        sendEnvelope(playerId, { type: ServerTag.NoShip });
         return;
     }
     const sectorDrones = await getSectorDrones(player.sector, player.universeId);
@@ -83,7 +83,7 @@ export async function handleDeployDronesInfo(playerId: number): Promise<void> {
     // deployDronesInfo handler displays the info and asks for qty inline
     // via askNumber, then sends DeployDrones. Player stays on sector.
     await sendEnvelope(playerId, {
-        type: ServerMsgType.DeployDronesInfoResult,
+        type: ServerTag.DeployDronesInfoResult,
         sectorDrones: sectorDrones?.quantity ?? 0,
         shipDrones: shipInfo.drones,
         shipMaxDrones: shipInfo.max_drones ?? 0,
@@ -130,7 +130,7 @@ export async function handleDeployDrones(
         const newShipDrones = await withTransaction(async (client) => {
             const shipInfo = await getShipDronesAndMaxForUpdate(playerId, client);
             if (!shipInfo) {
-                sendEnvelope(playerId, { type: ServerMsgType.NoShip });
+                sendEnvelope(playerId, { type: ServerTag.NoShip });
                 throw new AbortTransaction();
             }
 
@@ -207,7 +207,7 @@ export async function handleDeployDrones(
         if (newShipDrones === undefined) return;
 
         await sendEnvelope(playerId, {
-            type: ServerMsgType.DeployDronesResult,
+            type: ServerTag.DeployDronesResult,
             sectorDrones: target,
             shipDrones: newShipDrones,
         });
@@ -244,7 +244,7 @@ export async function handleAttackSectorDrones(
         const result = await withTransaction(async (client) => {
             const shipDrones = await getShipDronesForUpdate(playerId, client);
             if (shipDrones === undefined) {
-                sendEnvelope(playerId, { type: ServerMsgType.NoShip });
+                sendEnvelope(playerId, { type: ServerTag.NoShip });
                 throw new AbortTransaction();
             }
 
@@ -287,7 +287,7 @@ export async function handleAttackSectorDrones(
         const { ownerId, k, newShipDrones, newSectorDrones, victory } = result;
 
         await sendEnvelope(playerId, {
-            type: ServerMsgType.AttackSectorDronesResult,
+            type: ServerTag.AttackSectorDronesResult,
             victory,
             dronesLost: k,
             sectorDronesRemaining: newSectorDrones,
@@ -298,7 +298,7 @@ export async function handleAttackSectorDrones(
             const owner = players[ownerId];
             if (owner && owner.ws.readyState === 1) {
                 sendEnvelope(ownerId, {
-                    type: ServerMsgType.SectorDronesAlert,
+                    type: ServerTag.SectorDronesAlert,
                     event: victory ? 'destroyed' : 'attacked',
                     sector: sectorId,
                     dronesLost: k,
@@ -351,7 +351,7 @@ export async function handleRetreatFromDrones(playerId: number): Promise<void> {
     }
     broadcastTo(
         {
-            type: ServerMsgType.PlayerMoved,
+            type: ServerTag.PlayerMoved,
             playerId,
             playerName: player.name,
             sector: retreatSector,
@@ -361,7 +361,7 @@ export async function handleRetreatFromDrones(playerId: number): Promise<void> {
     );
     broadcastTo(
         {
-            type: ServerMsgType.PlayerMoved,
+            type: ServerTag.PlayerMoved,
             playerId,
             playerName: player.name,
             sector: retreatSector,
@@ -374,12 +374,12 @@ export async function handleRetreatFromDrones(playerId: number): Promise<void> {
     if (mineOutcome.destroyed) return;
 
     await sendEnvelope(playerId, {
-        type: ServerMsgType.RetreatFromDronesResult,
+        type: ServerTag.RetreatFromDronesResult,
         sector: retreatSector,
     });
 
     const sectorData = await buildSectorDisplayData(playerId, retreatSector);
     if (sectorData) {
-        sendEnvelope(playerId, { type: ServerMsgType.SectorDisplayResult, ...sectorData });
+        sendEnvelope(playerId, { type: ServerTag.SectorDisplayResult, ...sectorData });
     }
 }

@@ -1,6 +1,6 @@
 // WebSocket messages (server → client)
 
-import { ServerMsgType, type MenuName } from './messages.js';
+import { ServerTag, type MenuName } from './tags.js';
 
 /** A sector number with player-specific visited flag. */
 export type SectorRef = {
@@ -9,7 +9,7 @@ export type SectorRef = {
 };
 
 export type WelcomeEvent = {
-    type: typeof ServerMsgType.Welcome;
+    type: typeof ServerTag.Welcome;
     playerId: number;
     name: string;
     sector: number;
@@ -31,7 +31,7 @@ export type WelcomeEvent = {
 };
 
 export type PlayerMovedEvent = {
-    type: typeof ServerMsgType.PlayerMoved;
+    type: typeof ServerTag.PlayerMoved;
     playerId: number;
     playerName: string;
     sector: number;
@@ -74,18 +74,18 @@ export type SectorDisplayData = {
     sectorMines?: SectorMineEntry[];
 };
 
-export type SectorDisplayResultObject = {
-    type: typeof ServerMsgType.SectorDisplayResult;
+export type SectorDisplayReply = {
+    type: typeof ServerTag.SectorDisplayResult;
 } & SectorDisplayData;
 
-export type MoveResultObject =
+export type MoveReply =
     | ({
-          type: typeof ServerMsgType.MoveResult;
+          type: typeof ServerTag.MoveResult;
           outcome: 'success';
           turnsUsed?: number;
       } & SectorDisplayData)
     | ({
-          type: typeof ServerMsgType.MoveResult;
+          type: typeof ServerTag.MoveResult;
           outcome: 'encounter';
           ownerId: number | null;
           ownerName: string;
@@ -93,50 +93,50 @@ export type MoveResultObject =
           retreatSector: number;
           turnsUsed?: number;
       } & SectorDisplayData)
-    | { type: typeof ServerMsgType.MoveResult; outcome: 'nonAdjacent'; sector: number }
-    | { type: typeof ServerMsgType.MoveResult; outcome: 'noShip' }
-    | { type: typeof ServerMsgType.MoveResult; outcome: 'destroyed'; reason: string }
-    | { type: typeof ServerMsgType.MoveResult; outcome: 'error'; message: string };
+    | { type: typeof ServerTag.MoveResult; outcome: 'nonAdjacent'; sector: number }
+    | { type: typeof ServerTag.MoveResult; outcome: 'noShip' }
+    | { type: typeof ServerTag.MoveResult; outcome: 'destroyed'; reason: string }
+    | { type: typeof ServerTag.MoveResult; outcome: 'error'; message: string };
 
 export type PlayerLeftEvent = {
-    type: typeof ServerMsgType.PlayerLeft;
+    type: typeof ServerTag.PlayerLeft;
     playerId: number;
 };
 
-export type PlayersOnlineResultObject = {
-    type: typeof ServerMsgType.PlayersOnlineResult;
+export type PlayersOnlineReply = {
+    type: typeof ServerTag.PlayersOnlineResult;
     players: { id: number; name: string }[];
 };
 
-export type NoShipResultObject = {
-    type: typeof ServerMsgType.NoShip;
+export type NoShipReply = {
+    type: typeof ServerTag.NoShip;
 };
 
-export type NonAdjacentMoveResultObject = {
-    type: typeof ServerMsgType.NonAdjacentMoveRequested;
+export type NonAdjacentMoveReply = {
+    type: typeof ServerTag.NonAdjacentMoveRequested;
     playerId: number;
     sector: number;
 };
 
 export type RateLimitedEvent = {
-    type: typeof ServerMsgType.RateLimited;
+    type: typeof ServerTag.RateLimited;
 };
 
-export type WarpsOutResultObject = {
-    type: typeof ServerMsgType.WarpsOutResult;
+export type WarpsOutReply = {
+    type: typeof ServerTag.WarpsOutResult;
     id: number;
     warps: SectorRef[];
 };
 
-export type ShortestPathResultObject = {
-    type: typeof ServerMsgType.ShortestPathResult;
+export type ShortestPathReply = {
+    type: typeof ServerTag.ShortestPathResult;
     path: SectorRef[];
     hops: number;
     turns: number;
 };
 
-export type PortInfoResultObject = {
-    type: typeof ServerMsgType.PortInfoResult;
+export type PortInfoReply = {
+    type: typeof ServerTag.PortInfoResult;
     sectorId: number;
     portName: string;
     class: number;
@@ -151,8 +151,8 @@ export type PortInfoResultObject = {
     equPrice: number;
 };
 
-export type ShipInfoResultObject = {
-    type: typeof ServerMsgType.ShipInfoResult;
+export type ShipInfoReply = {
+    type: typeof ServerTag.ShipInfoResult;
     playerId: number;
     shipName: string;
     coloredShipName: string | null;
@@ -175,35 +175,35 @@ export type ShipInfoResultObject = {
     credits: number;
 };
 
-export type PortTransactionResultObject = {
-    type: typeof ServerMsgType.PortTransactionResult;
+export type PortTransactionReply = {
+    type: typeof ServerTag.PortTransactionResult;
     credits: number;
     cargo: { fuel: number; organics: number; equipment: number; colonists: number };
     emptyHolds: number;
     turnsUsed?: number;
 };
 
-export type BuyDronesResultObject = {
-    type: typeof ServerMsgType.BuyDronesResult;
+export type BuyDronesReply = {
+    type: typeof ServerTag.BuyDronesResult;
     credits: number;
     drones: number;
 };
 
-export type BuyShieldsResultObject = {
-    type: typeof ServerMsgType.BuyShieldsResult;
+export type BuyShieldsReply = {
+    type: typeof ServerTag.BuyShieldsResult;
     credits: number;
     shields: number;
 };
 
-export type BuyHoldsResultObject = {
-    type: typeof ServerMsgType.BuyHoldsResult;
+export type BuyHoldsReply = {
+    type: typeof ServerTag.BuyHoldsResult;
     credits: number;
     cargoLimit: number;
     turnsUsed?: number;
 };
 
-export type BuyShipTradeinResultObject = {
-    type: typeof ServerMsgType.BuyShipTradeinResult;
+export type BuyShipTradeinReply = {
+    type: typeof ServerTag.BuyShipTradeinResult;
     shipName: string;
     coloredShipName: string | null;
     credits: number;
@@ -212,8 +212,8 @@ export type BuyShipTradeinResultObject = {
     cargoLimit: number;
 };
 
-export type AttackShipResultObject = {
-    type: typeof ServerMsgType.AttackShipResult;
+export type AttackShipReply = {
+    type: typeof ServerTag.AttackShipResult;
     destroyed: boolean;
     attackerDronesLost: number;
     defenderShieldsLost: number;
@@ -221,10 +221,10 @@ export type AttackShipResultObject = {
     message?: string;
 };
 
-export type DockResultObject = {
-    type: typeof ServerMsgType.DockResult;
+export type DockReply = {
+    type: typeof ServerTag.DockResult;
     docked: boolean;
-    port?: PortInfoResultObject;
+    port?: PortInfoReply;
     credits?: number;
     cargo?: { fuel: number; organics: number; equipment: number; colonists: number };
     emptyHolds?: number;
@@ -240,8 +240,8 @@ export type DockResultObject = {
     };
 };
 
-export type PlanetInfoResultObject = {
-    type: typeof ServerMsgType.PlanetInfoResult;
+export type PlanetInfoReply = {
+    type: typeof ServerTag.PlanetInfoResult;
     sectorId: number;
     name: string;
     planetType: string;
@@ -250,8 +250,8 @@ export type PlanetInfoResultObject = {
     hasPlanet: boolean;
 };
 
-export type UseTerraformDeviceResultObject = {
-    type: typeof ServerMsgType.UseTerraformDeviceResult;
+export type UseTerraformDeviceReply = {
+    type: typeof ServerTag.UseTerraformDeviceResult;
     success: boolean;
     reason?: string;
     planet?: {
@@ -265,8 +265,8 @@ export type UseTerraformDeviceResultObject = {
     terraformDevices?: number;
 };
 
-export type GetSectorPlanetsResultObject = {
-    type: typeof ServerMsgType.GetSectorPlanetsResult;
+export type GetSectorPlanetsReply = {
+    type: typeof ServerTag.GetSectorPlanetsResult;
     planets: { id: number; name: string; type: string; displayType: string | null }[];
 };
 
@@ -309,23 +309,23 @@ export type PlanetDisplayData = {
     updated_at?: Date | string | null;
 };
 
-export type LandOnPlanetResultObject = {
-    type: typeof ServerMsgType.LandOnPlanetResult;
+export type LandOnPlanetReply = {
+    type: typeof ServerTag.LandOnPlanetResult;
 } & PlanetDisplayData;
 
-export type PlanetDisplayResultObject = {
-    type: typeof ServerMsgType.PlanetDisplayResult;
+export type PlanetDisplayReply = {
+    type: typeof ServerTag.PlanetDisplayResult;
 } & PlanetDisplayData;
 
-export type DestroyPlanetResultObject = {
-    type: typeof ServerMsgType.DestroyPlanetResult;
+export type DestroyPlanetReply = {
+    type: typeof ServerTag.DestroyPlanetResult;
     destroyed: boolean;
     planetId: number;
     planetName: string;
 };
 
-export type BuyHardwareResultObject = {
-    type: typeof ServerMsgType.BuyHardwareResult;
+export type BuyHardwareReply = {
+    type: typeof ServerTag.BuyHardwareResult;
     itemName: string;
     label: string;
     kind: 'stackable' | 'toggle';
@@ -343,8 +343,8 @@ export type HardwarePriceItem = {
     price: number;
 };
 
-export type DockStarbaseResultObject = {
-    type: typeof ServerMsgType.DockStarbaseResult;
+export type DockStarbaseReply = {
+    type: typeof ServerTag.DockStarbaseResult;
     prices: HardwarePriceItem[];
     credits?: number;
     shipInfo?: {
@@ -362,18 +362,18 @@ export type DockStarbaseResultObject = {
  * Take colonists. On Earth this auto-lifts (one-shot interaction) and
  * the result envelope includes the sector display data inline. On real
  * planets the player stays on-planet; the sector fields are absent.
- * Symmetric with LeaveColonistsResultObject.
+ * Symmetric with LeaveColonistsReply.
  */
-export type TakeColonistsResultObject = {
-    type: typeof ServerMsgType.TakeColonistsResult;
+export type TakeColonistsReply = {
+    type: typeof ServerTag.TakeColonistsResult;
     quantity: number;
     commodity: 'fuel' | 'organics' | 'equipment' | 'drones';
     planetColonists: number;
     shipColonists: number;
 } & Partial<SectorDisplayData>;
 
-export type LeaveColonistsResultObject = {
-    type: typeof ServerMsgType.LeaveColonistsResult;
+export type LeaveColonistsReply = {
+    type: typeof ServerTag.LeaveColonistsResult;
     quantity: number;
     commodity: 'fuel' | 'organics' | 'equipment' | 'drones';
     planetColonists: number;
@@ -385,50 +385,50 @@ export type LeaveColonistsResultObject = {
  * `planetCommodity` is the planet's remaining stockpile of that commodity
  * after the move; `shipCommodity` is the ship's cargo total for the same.
  */
-export type TakeCommodityResultObject = {
-    type: typeof ServerMsgType.TakeCommodityResult;
+export type TakeCommodityReply = {
+    type: typeof ServerTag.TakeCommodityResult;
     quantity: number;
     commodity: 'fuel' | 'organics' | 'equipment' | 'drones';
     planetCommodity: number;
     shipCommodity: number;
 };
 
-export type LeaveCommodityResultObject = {
-    type: typeof ServerMsgType.LeaveCommodityResult;
+export type LeaveCommodityReply = {
+    type: typeof ServerTag.LeaveCommodityResult;
     quantity: number;
     commodity: 'fuel' | 'organics' | 'equipment' | 'drones';
     planetCommodity: number;
     shipCommodity: number;
 };
 
-export type DeployDronesInfoResultObject = {
-    type: typeof ServerMsgType.DeployDronesInfoResult;
+export type DeployDronesInfoReply = {
+    type: typeof ServerTag.DeployDronesInfoResult;
     sectorDrones: number;
     shipDrones: number;
     shipMaxDrones: number;
 };
 
-export type DeployDronesResultObject = {
-    type: typeof ServerMsgType.DeployDronesResult;
+export type DeployDronesReply = {
+    type: typeof ServerTag.DeployDronesResult;
     sectorDrones: number;
     shipDrones: number;
 };
 
-export type AttackSectorDronesResultObject = {
-    type: typeof ServerMsgType.AttackSectorDronesResult;
+export type AttackSectorDronesReply = {
+    type: typeof ServerTag.AttackSectorDronesResult;
     victory: boolean;
     dronesLost: number;
     sectorDronesRemaining: number;
     shipDrones: number;
 };
 
-export type RetreatFromDronesResultObject = {
-    type: typeof ServerMsgType.RetreatFromDronesResult;
+export type RetreatFromDronesReply = {
+    type: typeof ServerTag.RetreatFromDronesResult;
     sector: number;
 };
 
 export type SectorDronesAlertEvent = {
-    type: typeof ServerMsgType.SectorDronesAlert;
+    type: typeof ServerTag.SectorDronesAlert;
     event: 'intrusion' | 'attacked' | 'destroyed';
     sector: number;
     dronesLost: number;
@@ -436,32 +436,32 @@ export type SectorDronesAlertEvent = {
     intruderName: string;
 };
 
-export type JettisonResultObject =
+export type JettisonReply =
     | {
-          type: typeof ServerMsgType.JettisonResult;
+          type: typeof ServerTag.JettisonResult;
           outcome: 'success';
           jettisoned: { fuel: number; organics: number; equipment: number; colonists: number };
       }
-    | { type: typeof ServerMsgType.JettisonResult; outcome: 'error'; message: string };
+    | { type: typeof ServerTag.JettisonResult; outcome: 'error'; message: string };
 
-export type UndockResultObject =
+export type UndockReply =
     | ({
-          type: typeof ServerMsgType.UndockResult;
+          type: typeof ServerTag.UndockResult;
           outcome: 'success';
       } & SectorDisplayData)
-    | { type: typeof ServerMsgType.UndockResult; outcome: 'error'; message: string };
+    | { type: typeof ServerTag.UndockResult; outcome: 'error'; message: string };
 
-export type LeavePlanetResultObject = {
-    type: typeof ServerMsgType.LeavePlanetResult;
+export type LeavePlanetReply = {
+    type: typeof ServerTag.LeavePlanetResult;
     turnsUsed?: number;
 } & SectorDisplayData;
 
-export type LeaveStarbaseResultObject = {
-    type: typeof ServerMsgType.LeaveStarbaseResult;
+export type LeaveStarbaseReply = {
+    type: typeof ServerTag.LeaveStarbaseResult;
 } & SectorDisplayData;
 
-export type BuyShipNewResultObject = {
-    type: typeof ServerMsgType.BuyShipNewResult;
+export type BuyShipNewReply = {
+    type: typeof ServerTag.BuyShipNewResult;
     shipName: string;
     coloredShipName: string | null;
     credits: number;
@@ -470,8 +470,8 @@ export type BuyShipNewResultObject = {
     cargoLimit: number;
 };
 
-export type ListDeployedDronesResultObject = {
-    type: typeof ServerMsgType.ListDeployedDronesResult;
+export type ListDeployedDronesReply = {
+    type: typeof ServerTag.ListDeployedDronesResult;
     drones: {
         sectorId: number;
         quantity: number;
@@ -479,26 +479,26 @@ export type ListDeployedDronesResultObject = {
     }[];
 };
 
-export type HyperspaceJumpResultObject = {
-    type: typeof ServerMsgType.HyperspaceJumpResult;
+export type HyperspaceJumpReply = {
+    type: typeof ServerTag.HyperspaceJumpResult;
     targetSector: number;
     fuelUsed: number;
     turnsUsed: number;
 };
 
-export type ErrorResultObject = {
-    type: typeof ServerMsgType.Error;
+export type ErrorReply = {
+    type: typeof ServerTag.Error;
     message: string;
 };
 
-export type VisitedSectorsResultObject = {
-    type: typeof ServerMsgType.VisitedSectorsResult;
+export type VisitedSectorsReply = {
+    type: typeof ServerTag.VisitedSectorsResult;
     sectors: number[];
     totalSectors: number;
 };
 
-export type ListPlanetsResultObject = {
-    type: typeof ServerMsgType.ListPlanetsResult;
+export type ListPlanetsReply = {
+    type: typeof ServerTag.ListPlanetsResult;
     planets: {
         id: number;
         sectorNumber: number;
@@ -516,35 +516,35 @@ export type ListPlanetsResultObject = {
     }[];
 };
 
-export type PreviousSectorResultObject = {
-    type: typeof ServerMsgType.PreviousSectorResult;
+export type PreviousSectorReply = {
+    type: typeof ServerTag.PreviousSectorResult;
     sector: number | null;
 };
 
-export type TransportToShipResultObject = {
-    type: typeof ServerMsgType.TransportToShipResult;
+export type TransportToShipReply = {
+    type: typeof ServerTag.TransportToShipResult;
     targetShipId: number;
     targetSector: number;
     turnsUsed: number;
     turnsRemaining: number;
 };
 
-export type ClanCreateResultObject = {
-    type: typeof ServerMsgType.ClanCreateResult;
+export type ClanCreateReply = {
+    type: typeof ServerTag.ClanCreateResult;
     clanId: number;
     clanNumber: number;
     name: string;
 };
 
-export type ClanJoinResultObject = {
-    type: typeof ServerMsgType.ClanJoinResult;
+export type ClanJoinReply = {
+    type: typeof ServerTag.ClanJoinResult;
     clanId: number;
     clanNumber: number;
     name: string;
 };
 
-export type ClanLeaveResultObject = {
-    type: typeof ServerMsgType.ClanLeaveResult;
+export type ClanLeaveReply = {
+    type: typeof ServerTag.ClanLeaveResult;
     outcome: 'left' | 'dissolved';
     /** When outcome=dissolved, count of clan assets that became personal (in current sector). */
     convertedToPersonal: number;
@@ -562,8 +562,8 @@ export type ClanListEntry = {
     isOwn: boolean;
 };
 
-export type ClanListResultObject = {
-    type: typeof ServerMsgType.ClanListResult;
+export type ClanListReply = {
+    type: typeof ServerTag.ClanListResult;
     /** The viewer's own clan id, so the client can mark "your clan" red. */
     viewerClanId: number | null;
     clans: ClanListEntry[];
@@ -575,21 +575,21 @@ export type ClanMemberEntry = {
     isLeader: boolean;
 };
 
-export type ChangeShipOwnershipResultObject = {
-    type: typeof ServerMsgType.ChangeShipOwnershipResult;
+export type ChangeShipOwnershipReply = {
+    type: typeof ServerTag.ChangeShipOwnershipResult;
     shipId: number;
     ownership: 'personal' | 'clan';
 };
 
-export type ClaimPlanetResultObject = {
-    type: typeof ServerMsgType.ClaimPlanetResult;
+export type ClaimPlanetReply = {
+    type: typeof ServerTag.ClaimPlanetResult;
     planetId: number;
     planetName: string;
     ownership: 'personal' | 'clan';
 };
 
-export type ClanTransferResultObject = {
-    type: typeof ServerMsgType.ClanTransferResult;
+export type ClanTransferReply = {
+    type: typeof ServerTag.ClanTransferResult;
     kind: 'credits' | 'drones' | 'shields' | 'mines';
     targetPlayerId: number;
     targetName: string;
@@ -598,23 +598,23 @@ export type ClanTransferResultObject = {
     delivered: number;
 };
 
-export type ClanMemoResultObject = {
-    type: typeof ServerMsgType.ClanMemoResult;
+export type ClanMemoReply = {
+    type: typeof ServerTag.ClanMemoResult;
     recipientCount: number;
 };
 
-export type ClanSetPasswordResultObject = {
-    type: typeof ServerMsgType.ClanSetPasswordResult;
+export type ClanSetPasswordReply = {
+    type: typeof ServerTag.ClanSetPasswordResult;
 };
 
-export type ClanDropMemberResultObject = {
-    type: typeof ServerMsgType.ClanDropMemberResult;
+export type ClanDropMemberReply = {
+    type: typeof ServerTag.ClanDropMemberResult;
     droppedPlayerId: number;
     droppedName: string;
 };
 
 export type MemoDeliveryEvent = {
-    type: typeof ServerMsgType.MemoDelivery;
+    type: typeof ServerTag.MemoDelivery;
     memos: {
         id: number;
         senderName: string | null;
@@ -624,8 +624,8 @@ export type MemoDeliveryEvent = {
     }[];
 };
 
-export type ClanInfoResultObject = {
-    type: typeof ServerMsgType.ClanInfoResult;
+export type ClanInfoReply = {
+    type: typeof ServerTag.ClanInfoResult;
     /** Null if player is not in a clan. */
     clan: {
         clanId: number;
@@ -637,8 +637,8 @@ export type ClanInfoResultObject = {
     } | null;
 };
 
-export type ListOwnedShipsResultObject = {
-    type: typeof ServerMsgType.ListOwnedShipsResult;
+export type ListOwnedShipsReply = {
+    type: typeof ServerTag.ListOwnedShipsResult;
     currentSector: number;
     currentShipId: number | null;
     currentShipTypeName: string | null;
@@ -663,13 +663,13 @@ export type ListOwnedShipsResultObject = {
     }[];
 };
 
-export type GetAttackTargetsResultObject = {
-    type: typeof ServerMsgType.GetAttackTargetsResult;
+export type GetAttackTargetsReply = {
+    type: typeof ServerTag.GetAttackTargetsResult;
     players: { id: number; name: string }[];
 };
 
-export type StarbaseInfoResultObject = {
-    type: typeof ServerMsgType.StarbaseInfoResult;
+export type StarbaseInfoReply = {
+    type: typeof ServerTag.StarbaseInfoResult;
     sector: number | null;
     universeName: string;
     sectorCount: number;
@@ -687,8 +687,8 @@ export type StarbaseInfoResultObject = {
     respawnDelaySeconds: number;
 };
 
-export type TerraformInfoResultObject = {
-    type: typeof ServerMsgType.TerraformInfoResult;
+export type TerraformInfoReply = {
+    type: typeof ServerTag.TerraformInfoResult;
     canTerraform: boolean;
     devices: number;
     reason?: 'restricted_sector' | 'no_devices';
@@ -703,8 +703,8 @@ export type HardwareStoreItem = {
     maxQty: number;
 };
 
-export type HardwareStoreInfoResultObject = {
-    type: typeof ServerMsgType.HardwareStoreInfoResult;
+export type HardwareStoreInfoReply = {
+    type: typeof ServerTag.HardwareStoreInfoResult;
     credits: number;
     items: HardwareStoreItem[];
 };
@@ -729,16 +729,16 @@ export type NeighborhoodWarp = {
     known_two_way: boolean;
 };
 
-export type DeployMineInfoResultObject = {
-    type: typeof ServerMsgType.DeployMineInfoResult;
+export type DeployMineInfoReply = {
+    type: typeof ServerTag.DeployMineInfoResult;
     mineType: 'proximity' | 'seeker';
     sectorMines: number;
     shipMines: number;
     shipMaxMines: number;
 };
 
-export type DeployMineResultObject = {
-    type: typeof ServerMsgType.DeployMineResult;
+export type DeployMineReply = {
+    type: typeof ServerTag.DeployMineResult;
     mineType: 'proximity' | 'seeker';
     sectorMines: number;
     shipMines: number;
@@ -751,8 +751,8 @@ export type DeployedMineEntry = {
     ownerLabel: string;
 };
 
-export type ListDeployedMinesResultObject = {
-    type: typeof ServerMsgType.ListDeployedMinesResult;
+export type ListDeployedMinesReply = {
+    type: typeof ServerTag.ListDeployedMinesResult;
     mines: DeployedMineEntry[];
 };
 
@@ -763,20 +763,20 @@ export type TrackedSeekerMineEntry = {
     sectorNumber: number;
 };
 
-export type TrackSeekerMinesResultObject = {
-    type: typeof ServerMsgType.TrackSeekerMinesResult;
+export type TrackSeekerMinesReply = {
+    type: typeof ServerTag.TrackSeekerMinesResult;
     targets: TrackedSeekerMineEntry[];
 };
 
-export type MineDisruptorResultObject = {
-    type: typeof ServerMsgType.MineDisruptorResult;
+export type MineDisruptorReply = {
+    type: typeof ServerTag.MineDisruptorResult;
     targetSector: number;
     minesDisrupted: number;
     proximityMinesRemaining: number;
 };
 
 export type ProximityMineHitEvent = {
-    type: typeof ServerMsgType.ProximityMineHit;
+    type: typeof ServerTag.ProximityMineHit;
     sector: number;
     detonations: number;
     damage: number;
@@ -786,99 +786,99 @@ export type ProximityMineHitEvent = {
 };
 
 export type SeekerMineAttachedEvent = {
-    type: typeof ServerMsgType.SeekerMineAttached;
+    type: typeof ServerTag.SeekerMineAttached;
     sector: number;
     droppedPrevious: boolean;
 };
 
 export type SeekerMinePickupAlertEvent = {
-    type: typeof ServerMsgType.SeekerMinePickupAlert;
+    type: typeof ServerTag.SeekerMinePickupAlert;
     sector: number;
     targetShipName: string;
     targetOwnerName: string;
 };
 
-export type NeighborhoodResultObject = {
-    type: typeof ServerMsgType.NeighborhoodResult;
+export type NeighborhoodReply = {
+    type: typeof ServerTag.NeighborhoodResult;
     topology: 'random' | 'proximal';
     current_sector_id: number;
     sectors: NeighborhoodSector[];
     warps: NeighborhoodWarp[];
 };
 
-export type ServerResult =
+export type ServerEnvelope =
     | WelcomeEvent
     | PlayerMovedEvent
-    | SectorDisplayResultObject
-    | MoveResultObject
-    | UndockResultObject
-    | JettisonResultObject
-    | LeavePlanetResultObject
-    | LeaveStarbaseResultObject
+    | SectorDisplayReply
+    | MoveReply
+    | UndockReply
+    | JettisonReply
+    | LeavePlanetReply
+    | LeaveStarbaseReply
     | PlayerLeftEvent
-    | PlayersOnlineResultObject
-    | NoShipResultObject
-    | NonAdjacentMoveResultObject
+    | PlayersOnlineReply
+    | NoShipReply
+    | NonAdjacentMoveReply
     | RateLimitedEvent
-    | WarpsOutResultObject
-    | ShortestPathResultObject
-    | PortInfoResultObject
-    | ShipInfoResultObject
-    | PortTransactionResultObject
-    | BuyDronesResultObject
-    | BuyShieldsResultObject
-    | BuyHoldsResultObject
-    | BuyShipTradeinResultObject
-    | AttackShipResultObject
-    | DockResultObject
-    | PlanetInfoResultObject
-    | TakeColonistsResultObject
-    | LeaveColonistsResultObject
-    | TakeCommodityResultObject
-    | LeaveCommodityResultObject
-    | DeployDronesInfoResultObject
-    | DeployDronesResultObject
-    | AttackSectorDronesResultObject
-    | RetreatFromDronesResultObject
+    | WarpsOutReply
+    | ShortestPathReply
+    | PortInfoReply
+    | ShipInfoReply
+    | PortTransactionReply
+    | BuyDronesReply
+    | BuyShieldsReply
+    | BuyHoldsReply
+    | BuyShipTradeinReply
+    | AttackShipReply
+    | DockReply
+    | PlanetInfoReply
+    | TakeColonistsReply
+    | LeaveColonistsReply
+    | TakeCommodityReply
+    | LeaveCommodityReply
+    | DeployDronesInfoReply
+    | DeployDronesReply
+    | AttackSectorDronesReply
+    | RetreatFromDronesReply
     | SectorDronesAlertEvent
-    | UseTerraformDeviceResultObject
-    | GetSectorPlanetsResultObject
-    | LandOnPlanetResultObject
-    | PlanetDisplayResultObject
-    | DestroyPlanetResultObject
-    | BuyHardwareResultObject
-    | DockStarbaseResultObject
-    | BuyShipNewResultObject
-    | ListDeployedDronesResultObject
-    | ListPlanetsResultObject
-    | HyperspaceJumpResultObject
-    | VisitedSectorsResultObject
-    | PreviousSectorResultObject
-    | GetAttackTargetsResultObject
-    | StarbaseInfoResultObject
-    | TerraformInfoResultObject
-    | HardwareStoreInfoResultObject
-    | NeighborhoodResultObject
-    | DeployMineInfoResultObject
-    | DeployMineResultObject
-    | ListDeployedMinesResultObject
-    | TrackSeekerMinesResultObject
-    | MineDisruptorResultObject
+    | UseTerraformDeviceReply
+    | GetSectorPlanetsReply
+    | LandOnPlanetReply
+    | PlanetDisplayReply
+    | DestroyPlanetReply
+    | BuyHardwareReply
+    | DockStarbaseReply
+    | BuyShipNewReply
+    | ListDeployedDronesReply
+    | ListPlanetsReply
+    | HyperspaceJumpReply
+    | VisitedSectorsReply
+    | PreviousSectorReply
+    | GetAttackTargetsReply
+    | StarbaseInfoReply
+    | TerraformInfoReply
+    | HardwareStoreInfoReply
+    | NeighborhoodReply
+    | DeployMineInfoReply
+    | DeployMineReply
+    | ListDeployedMinesReply
+    | TrackSeekerMinesReply
+    | MineDisruptorReply
     | ProximityMineHitEvent
     | SeekerMineAttachedEvent
     | SeekerMinePickupAlertEvent
-    | ListOwnedShipsResultObject
-    | TransportToShipResultObject
-    | ClanCreateResultObject
-    | ClanJoinResultObject
-    | ClanLeaveResultObject
-    | ClanListResultObject
-    | ClanInfoResultObject
-    | ChangeShipOwnershipResultObject
-    | ClaimPlanetResultObject
-    | ClanTransferResultObject
-    | ClanMemoResultObject
-    | ClanSetPasswordResultObject
-    | ClanDropMemberResultObject
+    | ListOwnedShipsReply
+    | TransportToShipReply
+    | ClanCreateReply
+    | ClanJoinReply
+    | ClanLeaveReply
+    | ClanListReply
+    | ClanInfoReply
+    | ChangeShipOwnershipReply
+    | ClaimPlanetReply
+    | ClanTransferReply
+    | ClanMemoReply
+    | ClanSetPasswordReply
+    | ClanDropMemberReply
     | MemoDeliveryEvent
-    | ErrorResultObject;
+    | ErrorReply;

@@ -1,4 +1,4 @@
-import { ClientMsgType, Menu, ServerMsgType } from '@twnr/shared';
+import { ClientTag, Menu, ServerTag } from '@twnr/shared';
 import { render } from '../renderer.js';
 import { COMPUTER, EVENT, NOTIFY, PLANET, SECTOR } from '../messages/index.js';
 import {
@@ -27,19 +27,19 @@ import {
 
 registerRoutine('display_sector', (ctx) => {
     echoCommand(ctx, 'sectorDisplay');
-    ctx.io.sendMsg({ type: ClientMsgType.SectorDisplay });
+    ctx.io.sendMsg({ type: ClientTag.SectorDisplay });
 });
 
 registerRoutine('move', (ctx, line) => {
     const sector = parseInt(line, 10);
     if (!Number.isFinite(sector)) return;
     echoCommand(ctx, 'move', { sector });
-    ctx.io.sendMsg({ type: ClientMsgType.Move, sector });
+    ctx.io.sendMsg({ type: ClientTag.Move, sector });
 });
 
 registerRoutine('move_previous', (ctx) => {
     echoCommand(ctx, 'moveToPrevious');
-    ctx.io.sendMsg({ type: ClientMsgType.MoveToPrevious });
+    ctx.io.sendMsg({ type: ClientTag.MoveToPrevious });
 });
 
 registerRoutine('move_menu', async (ctx) => {
@@ -55,7 +55,7 @@ registerRoutine('move_menu', async (ctx) => {
     const target = warps[idx];
     if (!target) return;
     echoCommand(ctx, 'move', { sector: target.sector });
-    ctx.io.sendMsg({ type: ClientMsgType.Move, sector: target.sector });
+    ctx.io.sendMsg({ type: ClientTag.Move, sector: target.sector });
 });
 
 registerRoutine('port_menu', async (ctx) => {
@@ -66,12 +66,12 @@ registerRoutine('port_menu', async (ctx) => {
     if (ch === null || ch === 'q') return;
     if (ch === 't') {
         if (ctx.world.currentPort.class === 9) return;
-        ctx.io.sendMsg({ type: ClientMsgType.Dock });
+        ctx.io.sendMsg({ type: ClientTag.Dock });
         return;
     }
     if (ch === 's') {
         if (ctx.world.currentPort.class !== 9) return;
-        ctx.io.sendMsg({ type: ClientMsgType.DockStarbase });
+        ctx.io.sendMsg({ type: ClientTag.DockStarbase });
     }
 });
 
@@ -82,7 +82,7 @@ registerRoutine('player_info', (ctx) => {
 
 registerRoutine('attack_menu', (ctx) => {
     echoCommand(ctx, 'attack');
-    ctx.io.sendMsg({ type: ClientMsgType.GetAttackTargets });
+    ctx.io.sendMsg({ type: ClientTag.GetAttackTargets });
 });
 
 registerRoutine('computer_menu', (ctx) => {
@@ -92,14 +92,14 @@ registerRoutine('computer_menu', (ctx) => {
 
 registerRoutine('deploy_drones_info', (ctx) => {
     echoCommand(ctx, 'deployDronesInfo');
-    ctx.io.sendMsg({ type: ClientMsgType.DeployDronesInfo });
+    ctx.io.sendMsg({ type: ClientTag.DeployDronesInfo });
 });
 
 registerRoutine('jettison_menu', async (ctx) => {
     echoCommand(ctx, 'jettison');
     const ok = await askConfirm(ctx, render(SECTOR.jettisonConfirm), { defaultValue: false });
     if (ok) {
-        ctx.io.sendMsg({ type: ClientMsgType.Jettison });
+        ctx.io.sendMsg({ type: ClientTag.Jettison });
     }
 });
 
@@ -108,10 +108,10 @@ registerRoutine('handle_mines_menu', async (ctx) => {
     if (typeChar === null) return;
     const mineType: 'proximity' | 'seeker' = typeChar === 'p' ? 'proximity' : 'seeker';
 
-    ctx.io.sendMsg({ type: ClientMsgType.DeployMineInfo, mineType });
-    const info = await awaitResponse(ctx, [ServerMsgType.DeployMineInfoResult, ServerMsgType.Error]);
+    ctx.io.sendMsg({ type: ClientTag.DeployMineInfo, mineType });
+    const info = await awaitResponse(ctx, [ServerTag.DeployMineInfoResult, ServerTag.Error]);
     if (info === null) return;
-    if (info.type !== ServerMsgType.DeployMineInfoResult) return;
+    if (info.type !== ServerTag.DeployMineInfoResult) return;
 
     const label = mineType === 'seeker' ? 'Seeker' : 'Proximity';
     const total = info.shipMines + info.sectorMines;
@@ -134,11 +134,11 @@ registerRoutine('handle_mines_menu', async (ctx) => {
     if (qty === null) return;
     const ownership = await askDeployOwnership(ctx, '\r\nOwnership (P)ersonal, (C)lan, (Q)? ');
     if (ownership === null) return;
-    ctx.io.sendMsg({ type: ClientMsgType.DeployMine, mineType, quantity: qty, ownership });
+    ctx.io.sendMsg({ type: ClientTag.DeployMine, mineType, quantity: qty, ownership });
 });
 
 registerRoutine('list_deployed_mines', (ctx) => {
-    ctx.io.sendMsg({ type: ClientMsgType.ListDeployedMines });
+    ctx.io.sendMsg({ type: ClientTag.ListDeployedMines });
 });
 
 registerRoutine('mine_disruptor_menu', async (ctx) => {
@@ -146,19 +146,19 @@ registerRoutine('mine_disruptor_menu', async (ctx) => {
         min: 1,
     });
     if (target === null) return;
-    ctx.io.sendMsg({ type: ClientMsgType.MineDisruptor, targetSector: target });
+    ctx.io.sendMsg({ type: ClientTag.MineDisruptor, targetSector: target });
 });
 
 registerRoutine('land', async (ctx) => {
     echoCommand(ctx, 'land');
-    ctx.io.sendMsg({ type: ClientMsgType.GetSectorPlanets });
+    ctx.io.sendMsg({ type: ClientTag.GetSectorPlanets });
     const response = await awaitResponse(ctx, [
-        ServerMsgType.GetSectorPlanetsResult,
-        ServerMsgType.LandOnPlanetResult,
-        ServerMsgType.Error,
+        ServerTag.GetSectorPlanetsResult,
+        ServerTag.LandOnPlanetResult,
+        ServerTag.Error,
     ]);
     if (response === null) return;
-    if (response.type !== ServerMsgType.GetSectorPlanetsResult) return;
+    if (response.type !== ServerTag.GetSectorPlanetsResult) return;
     const planets = response.planets;
     if (planets.length === 0) {
         ctx.io.term.writeln(render(EVENT.noPlanetsToLand));
@@ -171,17 +171,17 @@ registerRoutine('land', async (ctx) => {
     });
     if (idx === null) return;
     echoCommand(ctx, 'landOnPlanet');
-    ctx.io.sendMsg({ type: ClientMsgType.LandOnPlanet, planetId: planets[idx - 1].id });
+    ctx.io.sendMsg({ type: ClientTag.LandOnPlanet, planetId: planets[idx - 1].id });
 });
 
 registerRoutine('use_terraform_device', (ctx) => {
     echoCommand(ctx, 'terraformInfo');
-    ctx.io.sendMsg({ type: ClientMsgType.TerraformInfo });
+    ctx.io.sendMsg({ type: ClientTag.TerraformInfo });
 });
 
 registerRoutine('starbase_info', (ctx) => {
     echoCommand(ctx, 'starbaseInfo');
-    ctx.io.sendMsg({ type: ClientMsgType.StarbaseInfo });
+    ctx.io.sendMsg({ type: ClientTag.StarbaseInfo });
 });
 
 registerRoutine('quit_game', async (ctx) => {
@@ -195,7 +195,7 @@ registerRoutine('quit_game', async (ctx) => {
 
 registerRoutine('players_online', (ctx) => {
     echoCommand(ctx, 'playersOnline');
-    ctx.io.sendMsg({ type: ClientMsgType.PlayersOnline });
+    ctx.io.sendMsg({ type: ClientTag.PlayersOnline });
 });
 
 registerRoutine('clan_menu', (ctx) => {
@@ -207,13 +207,13 @@ registerRoutine('transporter_pad', async (ctx) => {
     echoCommand(ctx, 'transporterPad');
 
     while (true) {
-        ctx.io.sendMsg({ type: ClientMsgType.ListOwnedShips });
+        ctx.io.sendMsg({ type: ClientTag.ListOwnedShips });
         const scan = await awaitResponse(ctx, [
-            ServerMsgType.ListOwnedShipsResult,
-            ServerMsgType.Error,
+            ServerTag.ListOwnedShipsResult,
+            ServerTag.Error,
         ]);
         if (scan === null) return;
-        if (scan.type !== ServerMsgType.ListOwnedShipsResult) return;
+        if (scan.type !== ServerTag.ListOwnedShipsResult) return;
 
         renderTransporterPrelude(ctx, scan);
         renderActiveShipScan(ctx, scan, {
@@ -252,13 +252,13 @@ registerRoutine('transporter_pad', async (ctx) => {
             continue;
         }
 
-        ctx.io.sendMsg({ type: ClientMsgType.TransportToShip, shipId: target.id });
+        ctx.io.sendMsg({ type: ClientTag.TransportToShip, shipId: target.id });
         const result = await awaitResponse(ctx, [
-            ServerMsgType.TransportToShipResult,
-            ServerMsgType.Error,
+            ServerTag.TransportToShipResult,
+            ServerTag.Error,
         ]);
         if (result === null) return;
-        if (result.type !== ServerMsgType.TransportToShipResult) continue;
+        if (result.type !== ServerTag.TransportToShipResult) continue;
 
         ctx.world.currentSector = result.targetSector;
         ctx.io.term.writeln('');

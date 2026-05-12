@@ -1,13 +1,13 @@
 import type { WebSocket } from 'ws';
-import type { ServerResult } from '@twnr/shared';
-import { ServerMsgType } from '@twnr/shared';
+import type { ServerEnvelope } from '@twnr/shared';
+import { ServerTag } from '@twnr/shared';
 import { players } from './players.js';
 
-function frame(body: ServerResult): string {
+function frame(body: ServerEnvelope): string {
     return JSON.stringify(body);
 }
 
-export async function sendEnvelope(playerId: number, body: ServerResult): Promise<void> {
+export async function sendEnvelope(playerId: number, body: ServerEnvelope): Promise<void> {
     const player = players[playerId];
     if (!player || player.ws.readyState !== 1) return;
     player.ws.send(frame(body));
@@ -17,7 +17,7 @@ export async function sendEnvelope(playerId: number, body: ServerResult): Promis
 export function sendError(playerId: number, message: string): void {
     const player = players[playerId];
     if (!player || player.ws.readyState !== 1) return;
-    player.ws.send(frame({ type: ServerMsgType.Error, message }));
+    player.ws.send(frame({ type: ServerTag.Error, message }));
 }
 
 /**
@@ -33,7 +33,7 @@ export function closeDestroyedSession(playerId: number, reason: string): void {
     player.ws.close(1008, reason);
 }
 
-export function broadcastTo(data: ServerResult, targetClients: Set<WebSocket> | WebSocket[]): void {
+export function broadcastTo(data: ServerEnvelope, targetClients: Set<WebSocket> | WebSocket[]): void {
     for (const client of targetClients) {
         if (client.readyState === 1) {
             client.send(frame(data));
@@ -42,7 +42,7 @@ export function broadcastTo(data: ServerResult, targetClients: Set<WebSocket> | 
 }
 
 /** Broadcast a result by player id. */
-export function broadcastEnvelope(data: ServerResult, targetPlayerIds: number[]): void {
+export function broadcastEnvelope(data: ServerEnvelope, targetPlayerIds: number[]): void {
     for (const pid of targetPlayerIds) {
         const player = players[pid];
         if (player && player.ws.readyState === 1) {

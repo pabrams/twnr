@@ -1,4 +1,4 @@
-import { ClientMsgType, ServerMsgType } from '@twnr/shared';
+import { ClientTag, ServerTag } from '@twnr/shared';
 import { render } from '../renderer.js';
 import { COMPUTER, NOTIFY } from '../messages/index.js';
 import { echoCommand } from '../display.js';
@@ -21,13 +21,13 @@ registerRoutine('known_universe', async (ctx) => {
         const ch = await askChar(ctx, render(COMPUTER.knownUniversePrompt), ['e', 'u']);
         if (ch === null) return;
         const mode = ch === 'e' ? 'explored' : 'unexplored';
-        ctx.io.sendMsg({ type: ClientMsgType.VisitedSectors });
+        ctx.io.sendMsg({ type: ClientTag.VisitedSectors });
         const response = await awaitResponse(ctx, [
-            ServerMsgType.VisitedSectorsResult,
-            ServerMsgType.Error,
+            ServerTag.VisitedSectorsResult,
+            ServerTag.Error,
         ]);
         if (response === null) return;
-        if (response.type !== ServerMsgType.VisitedSectorsResult) return;
+        if (response.type !== ServerTag.VisitedSectorsResult) return;
         renderVisitedSectorsResult(ctx, response, mode);
     }
 });
@@ -90,27 +90,27 @@ registerRoutine('hyperspace_jump', async (ctx) => {
     });
     if (sector === null) return;
     echoCommand(ctx, 'hyperspaceJump');
-    ctx.io.sendMsg({ type: ClientMsgType.HyperspaceJump, targetSector: sector });
+    ctx.io.sendMsg({ type: ClientTag.HyperspaceJump, targetSector: sector });
 });
 
 registerRoutine('list_planets', (ctx) => {
     echoCommand(ctx, 'listPlanets');
-    ctx.io.sendMsg({ type: ClientMsgType.ListPlanets });
+    ctx.io.sendMsg({ type: ClientTag.ListPlanets });
 });
 
 registerRoutine('track_seeker_mines', (ctx) => {
-    ctx.io.sendMsg({ type: ClientMsgType.TrackSeekerMines });
+    ctx.io.sendMsg({ type: ClientTag.TrackSeekerMines });
 });
 
 registerRoutine('active_ship_scan', async (ctx) => {
     echoCommand(ctx, 'activeShipScan');
-    ctx.io.sendMsg({ type: ClientMsgType.ListOwnedShips });
+    ctx.io.sendMsg({ type: ClientTag.ListOwnedShips });
     const response = await awaitResponse(ctx, [
-        ServerMsgType.ListOwnedShipsResult,
-        ServerMsgType.Error,
+        ServerTag.ListOwnedShipsResult,
+        ServerTag.Error,
     ]);
     if (response === null) return;
-    if (response.type !== ServerMsgType.ListOwnedShipsResult) return;
+    if (response.type !== ServerTag.ListOwnedShipsResult) return;
     renderActiveShipScan(ctx, response);
 });
 
@@ -119,13 +119,13 @@ registerRoutine('change_ship_ownership', async (ctx) => {
     const ch = await askChar(ctx, render(COMPUTER.ownershipPrompt), ['p', 'c']);
     if (ch === null) return;
     const ownership = ch === 'p' ? 'personal' : 'clan';
-    ctx.io.sendMsg({ type: ClientMsgType.ChangeShipOwnership, ownership });
+    ctx.io.sendMsg({ type: ClientTag.ChangeShipOwnership, ownership });
     const result = await awaitResponse(ctx, [
-        ServerMsgType.ChangeShipOwnershipResult,
-        ServerMsgType.Error,
+        ServerTag.ChangeShipOwnershipResult,
+        ServerTag.Error,
     ]);
     if (result === null) return;
-    if (result.type !== ServerMsgType.ChangeShipOwnershipResult) return;
+    if (result.type !== ServerTag.ChangeShipOwnershipResult) return;
     ctx.io.term.writeln(
         render(
             result.ownership === 'clan'

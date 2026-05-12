@@ -1,8 +1,8 @@
 import {
-    ClientMsgType,
+    ClientTag,
     Menu,
     PORT_CLASS_ACTIONS,
-    ServerMsgType,
+    ServerTag,
     type PortClassActions,
 } from '@twnr/shared';
 import type { GameContext } from '../types.js';
@@ -172,17 +172,17 @@ async function runTradeRoutine(
         if (ok !== true) continue;
 
         ctx.io.sendMsg({
-            type: ClientMsgType.PortTransaction,
+            type: ClientTag.PortTransaction,
             good: c.key,
             quantity: qty,
             action,
         });
         const response = await awaitResponse(ctx, [
-            ServerMsgType.PortTransactionResult,
-            ServerMsgType.Error,
+            ServerTag.PortTransactionResult,
+            ServerTag.Error,
         ]);
         if (response === null) return;
-        if (response.type !== ServerMsgType.PortTransactionResult) {
+        if (response.type !== ServerTag.PortTransactionResult) {
             return;
         }
 
@@ -197,7 +197,7 @@ async function runTradeRoutine(
         term.writeln('');
         term.writeln(render(PORT.noTrade));
     }
-    ctx.io.sendMsg({ type: ClientMsgType.Undock });
+    ctx.io.sendMsg({ type: ClientTag.Undock });
 }
 
 export const undock: Handler<'undockResult', PortContext> = (ctx, msg) => {

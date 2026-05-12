@@ -1,4 +1,4 @@
-import { ServerMsgType } from '@twnr/shared';
+import { ServerTag } from '@twnr/shared';
 import { players } from '../state/players.js';
 import { sendEnvelope } from '../state/messaging.js';
 import { getStarbaseSectorNumber } from '../db/queries/sector.js';
@@ -35,7 +35,7 @@ export async function handleStarbaseInfo(playerId: number): Promise<void> {
     const respawnDelaySeconds = stats?.respawn_delay_seconds ?? universeConfig.respawnDelaySeconds;
 
     sendEnvelope(playerId, {
-        type: ServerMsgType.StarbaseInfoResult,
+        type: ServerTag.StarbaseInfoResult,
         sector,
         universeName: stats?.name ?? '',
         sectorCount: stats?.sector_count ?? 0,

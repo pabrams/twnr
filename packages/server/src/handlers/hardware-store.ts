@@ -1,4 +1,4 @@
-import { ServerMsgType, type BuyHardwareResultObject } from '@twnr/shared';
+import { ServerTag, type BuyHardwareReply } from '@twnr/shared';
 import type { BuyHardwareCommand } from '@twnr/shared';
 import { players } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
@@ -38,7 +38,7 @@ export async function handleHardwareStoreInfo(playerId: number): Promise<void> {
     }));
 
     await sendEnvelope(playerId, {
-        type: ServerMsgType.HardwareStoreInfoResult,
+        type: ServerTag.HardwareStoreInfoResult,
         credits,
         items,
     });
@@ -132,7 +132,7 @@ async function buyStackable(
         if (!result) return;
 
         await sendEnvelope(playerId, {
-            type: ServerMsgType.BuyHardwareResult,
+            type: ServerTag.BuyHardwareResult,
             itemName: hw.name,
             label: hw.label,
             kind: 'stackable',
@@ -141,7 +141,7 @@ async function buyStackable(
             credits: result.credits - cost,
             cost,
             ...(hw.result_extra ?? {}),
-        } as BuyHardwareResultObject);
+        } as BuyHardwareReply);
     } catch (err) {
         console.error('Buy hardware error', err);
         sendError(playerId, 'Internal server error');
@@ -193,14 +193,14 @@ async function buyToggle(playerId: number, hw: HardwareItemRow, unitPrice: numbe
         if (!result) return;
 
         await sendEnvelope(playerId, {
-            type: ServerMsgType.BuyHardwareResult,
+            type: ServerTag.BuyHardwareResult,
             itemName: hw.name,
             label: hw.label,
             kind: 'toggle',
             credits: result.credits - unitPrice,
             cost: unitPrice,
             ...(hw.result_extra ?? {}),
-        } as BuyHardwareResultObject);
+        } as BuyHardwareReply);
     } catch (err) {
         console.error('Buy hardware error', err);
         sendError(playerId, 'Internal server error');

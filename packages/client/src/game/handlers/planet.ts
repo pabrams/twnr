@@ -1,4 +1,4 @@
-import { ClientMsgType, Menu } from '@twnr/shared';
+import { ClientTag, Menu } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { NOTIFY, EVENT, PLANET } from '../messages/index.js';
@@ -355,6 +355,6 @@ async function terraformAskAndFire(ctx: PlanetContext): Promise<void> {
     const ok = await askConfirm(ctx, render(EVENT.terraformConfirm), { defaultValue: false });
     if (ok) {
         echoCommand(ctx, 'useTerraformDevice');
-        ctx.io.sendMsg({ type: ClientMsgType.UseTerraformDevice });
+        ctx.io.sendMsg({ type: ClientTag.UseTerraformDevice });
     }
 }

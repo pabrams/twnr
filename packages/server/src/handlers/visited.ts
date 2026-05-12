@@ -1,4 +1,4 @@
-import { ServerMsgType } from '@twnr/shared';
+import { ServerTag } from '@twnr/shared';
 import { players } from '../state/players.js';
 import { sendEnvelope } from '../state/messaging.js';
 import { getVisitedSectors } from '../services/sector-lookup.js';
@@ -13,7 +13,7 @@ export async function handleVisitedSectors(playerId: number): Promise<void> {
     const sectors = await getVisitedSectors(playerId);
     const totalSectors = await countSectorsInUniverse(player.universeId);
     sendEnvelope(playerId, {
-        type: ServerMsgType.VisitedSectorsResult,
+        type: ServerTag.VisitedSectorsResult,
         sectors,
         totalSectors,
     });

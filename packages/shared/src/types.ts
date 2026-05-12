@@ -146,11 +146,6 @@ export type ServerStatsResponse = {
     platform: string;
 };
 
-export type ServerEnvelope<T = import('./server-messages.js').ServerResult> = {
-    location: string;
-    payload?: T;
-};
-
 export type MenuCommandEntry = {
     command: string;
     keyPattern: string;

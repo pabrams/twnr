@@ -1,4 +1,4 @@
-import { ClientMsgType } from '@twnr/shared';
+import { ClientTag } from '@twnr/shared';
 import type { ShipCatalogEntry, PlanetConfig } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { render } from './renderer.js';
@@ -270,7 +270,7 @@ export async function showCurrentShipSpecs(ctx: DisplayComputerCtx) {
     if (!(await loadShipConfigs(ctx))) return;
     if (!ctx.ship.currentShipName) {
         ctx.io.term.writeln(render(COMPUTER.shipDataRequesting));
-        ctx.io.sendMsg({ type: ClientMsgType.ShipInfo });
+        ctx.io.sendMsg({ type: ClientTag.ShipInfo });
         return;
     }
     const ship = ctx.catalogs.ships!.find((s) => s.name === ctx.ship.currentShipName);

@@ -2,14 +2,14 @@
 import { readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 
-const clientSchema = JSON.parse(readFileSync('docs/client-messages.schema.json', 'utf8'));
-const serverSchema = JSON.parse(readFileSync('docs/server-messages.schema.json', 'utf8'));
+const clientSchema = JSON.parse(readFileSync('docs/client-envelopes.schema.json', 'utf8'));
+const serverSchema = JSON.parse(readFileSync('docs/server-envelopes.schema.json', 'utf8'));
 
 const HANDLERS_DIR = 'packages/server/src/handlers';
 const routerSrc = readFileSync(join(HANDLERS_DIR, 'message-router.ts'), 'utf8');
-const messagesSrc = readFileSync('packages/shared/src/messages.ts', 'utf8');
-const serverMsgSrc = readFileSync('packages/shared/src/server-messages.ts', 'utf8');
-const clientMsgSrc = readFileSync('packages/shared/src/client-messages.ts', 'utf8');
+const messagesSrc = readFileSync('packages/shared/src/tags.ts', 'utf8');
+const serverMsgSrc = readFileSync('packages/shared/src/server-envelopes.ts', 'utf8');
+const clientMsgSrc = readFileSync('packages/shared/src/client-envelopes.ts', 'utf8');
 
 // --- 1. Parse enum mappings ---
 
@@ -17,17 +17,17 @@ const clientKeyToWire = {};
 const serverKeyToWire = {};
 const serverBlock = messagesSrc.slice(0, messagesSrc.indexOf('} as const;'));
 for (const m of serverBlock.matchAll(/(\w+):\s*'([^']+)'/g)) serverKeyToWire[m[1]] = m[2];
-const clientBlock = messagesSrc.slice(messagesSrc.indexOf('ClientMsgType'));
+const clientBlock = messagesSrc.slice(messagesSrc.indexOf('ClientTag'));
 for (const m of clientBlock.matchAll(/(\w+):\s*'([^']+)'/g)) clientKeyToWire[m[1]] = m[2];
 
 const serverKeyToTypeName = {};
-// Split source into individual type blocks, then find ServerMsgType references within each
+// Split source into individual type blocks, then find ServerTag references within each
 const typeBlocks = serverMsgSrc.split(/(?=export\s+type\s+)/);
 for (const block of typeBlocks) {
     const nameMatch = block.match(/^export\s+type\s+(\w+)/);
     if (!nameMatch) continue;
     const typeName = nameMatch[1];
-    const msgMatch = block.match(/typeof\s+ServerMsgType\.(\w+)/);
+    const msgMatch = block.match(/typeof\s+ServerTag\.(\w+)/);
     if (msgMatch && !serverKeyToTypeName[msgMatch[1]]) {
         serverKeyToTypeName[msgMatch[1]] = typeName;
     }
@@ -55,7 +55,7 @@ for (const file of handlerFiles) {
         const end = i + 1 < fnStarts.length ? fnStarts[i + 1].start : src.length;
         const body = src.slice(start, end);
         const serverKeys = new Set();
-        for (const m of body.matchAll(/ServerMsgType\.(\w+)/g)) serverKeys.add(m[1]);
+        for (const m of body.matchAll(/ServerTag\.(\w+)/g)) serverKeys.add(m[1]);
         const calls = new Set();
         for (const m of body.matchAll(/\b(handle\w+)\s*\(/g)) { if (m[1] !== fnStarts[i].name) calls.add(m[1]); }
         fnInfo[fnStarts[i].name] = { file, serverKeys, calls };
@@ -76,7 +76,7 @@ function resolveServerKeys(fnName, visited = new Set()) {
 const dispatch = {};
 let currentCases = [];
 for (const line of routerSrc.split('\n')) {
-    const caseMatch = line.match(/case\s+ClientMsgType\.(\w+)\s*:/);
+    const caseMatch = line.match(/case\s+ClientTag\.(\w+)\s*:/);
     if (caseMatch) currentCases.push(caseMatch[1]);
     const handlerMatch = line.match(/return\s+(handle\w+)\s*\(/);
     const inlineMatch = line.match(/sendEnvelope\s*\(\s*\w+\s*,\s*\{/);
@@ -92,7 +92,7 @@ for (const line of routerSrc.split('\n')) {
 }
 
 // --- 3. Client input mapping (manually maintained — derived from input.ts, input-combat.ts, input-misc.ts) ---
-// Each entry: ClientMsgType key -> [{ mode, key }]
+// Each entry: ClientTag key -> [{ mode, key }]
 // key uses HTML entities for special chars: ⏎ = &#9166;, <> for placeholders
 const S = '&lt;sector&gt;&#9166;';
 const Q = '&lt;qty&gt;&#9166;';
@@ -174,10 +174,10 @@ for (const typeName of clientMembers) {
         serverKeys = new Set();
         const searchKey = Object.entries(clientKeyToWire).find(([, v]) => v === wire)?.[0];
         if (searchKey) {
-            const inlineBlock = routerSrc.slice(routerSrc.indexOf(`ClientMsgType.${searchKey}`));
+            const inlineBlock = routerSrc.slice(routerSrc.indexOf(`ClientTag.${searchKey}`));
             const blockEnd = inlineBlock.indexOf('return;');
             const block = inlineBlock.slice(0, blockEnd > 0 ? blockEnd : 200);
-            for (const m of block.matchAll(/ServerMsgType\.(\w+)/g)) serverKeys.add(m[1]);
+            for (const m of block.matchAll(/ServerTag\.(\w+)/g)) serverKeys.add(m[1]);
         }
     }
 
@@ -186,7 +186,7 @@ for (const typeName of clientMembers) {
         .map(k => ({ key: k, wire: serverKeyToWire[k], typeName: serverKeyToTypeName[k] }))
         .filter(r => r.typeName);
 
-    // Find ClientMsgType key from wire
+    // Find ClientTag key from wire
     const msgTypeKey = Object.entries(clientKeyToWire).find(([, v]) => v === wire)?.[0];
     const inputEntries = msgTypeKey ? (clientInputMap[msgTypeKey] || []) : [];
 

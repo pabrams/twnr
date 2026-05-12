@@ -1,4 +1,4 @@
-import { ClientMsgType, Menu } from '@twnr/shared';
+import { ClientTag, Menu } from '@twnr/shared';
 import { render } from '../renderer.js';
 import { COMBAT } from '../messages/index.js';
 import { echoCommand } from '../display.js';
@@ -14,12 +14,12 @@ registerMenu(Menu.DroneEncounter, {
             echoCommand(ctx, 'attackSectorDrones');
             const qty = await askNumber(ctx, render(COMBAT.droneAttackQtyPrompt), { min: 1 });
             if (qty === null) return;
-            ctx.io.sendMsg({ type: ClientMsgType.AttackSectorDrones, drones: qty });
+            ctx.io.sendMsg({ type: ClientTag.AttackSectorDrones, drones: qty });
             return;
         }
         if (line === 'r') {
             echoCommand(ctx, 'retreatFromDrones');
-            ctx.io.sendMsg({ type: ClientMsgType.RetreatFromDrones });
+            ctx.io.sendMsg({ type: ClientTag.RetreatFromDrones });
         }
     },
 });

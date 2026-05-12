@@ -18,8 +18,8 @@ usage:
   twnr whoami
   twnr logout
 
-stdin/stdout for 'connect': one ClientCommand JSON per line in,
-one ServerResult JSON per line out. Diagnostics on stderr.
+stdin/stdout for 'connect': one ClientEnvelope JSON per line in,
+one ServerEnvelope JSON per line out. Diagnostics on stderr.
 `;
 
 function die(msg: string, code = 1): never {

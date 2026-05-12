@@ -1,4 +1,4 @@
-import { ServerMsgType } from '@twnr/shared';
+import { ServerTag } from '@twnr/shared';
 import type { BuyDronesCommand, BuyShieldsCommand, BuyHoldsCommand } from '@twnr/shared';
 import { players, getPlayerUniverseId } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
@@ -77,7 +77,7 @@ export async function handleBuyDrones(playerId: number, data: BuyDronesCommand):
         if (!result) return;
 
         await sendEnvelope(playerId, {
-            type: ServerMsgType.BuyDronesResult,
+            type: ServerTag.BuyDronesResult,
             credits: result.credits,
             drones: result.drones,
         });
@@ -137,7 +137,7 @@ export async function handleBuyShields(playerId: number, data: BuyShieldsCommand
         if (!result) return;
 
         await sendEnvelope(playerId, {
-            type: ServerMsgType.BuyShieldsResult,
+            type: ServerTag.BuyShieldsResult,
             credits: result.credits,
             shields: result.shields,
         });
@@ -207,7 +207,7 @@ export async function handleBuyHolds(playerId: number, data: BuyHoldsCommand): P
         if (!result) return;
 
         await sendEnvelope(playerId, {
-            type: ServerMsgType.BuyHoldsResult,
+            type: ServerTag.BuyHoldsResult,
             credits: result.credits,
             cargoLimit: result.cargoLimit,
             turnsUsed: result.turnsUsed,

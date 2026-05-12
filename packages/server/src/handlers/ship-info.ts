@@ -1,4 +1,4 @@
-import { ServerMsgType } from '@twnr/shared';
+import { ServerTag } from '@twnr/shared';
 import type { TransportToShipCommand, ChangeShipOwnershipCommand } from '@twnr/shared';
 import { pool } from '../db/index.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
@@ -37,7 +37,7 @@ export async function handleShipInfo(playerId: number): Promise<void> {
 
     const holdsAvailable = row.holds - cargoUsed(row);
     sendEnvelope(playerId, {
-        type: ServerMsgType.ShipInfoResult,
+        type: ServerTag.ShipInfoResult,
         playerId,
         shipName: row.ship_name,
         coloredShipName: row.ship_display_name,
@@ -85,7 +85,7 @@ export async function handleListOwnedShips(playerId: number): Promise<void> {
     const viewerClanId = await getPlayerClanId(playerId);
 
     sendEnvelope(playerId, {
-        type: ServerMsgType.ListOwnedShipsResult,
+        type: ServerTag.ListOwnedShipsResult,
         currentSector: player.sector,
         currentShipId: player.shipId,
         currentShipTypeName: currentShip?.type_name ?? null,
@@ -184,7 +184,7 @@ export async function handleTransportToShip(
 
     const turnsRemaining = (await getPlayerTurns(playerId)) ?? 0;
     sendEnvelope(playerId, {
-        type: ServerMsgType.TransportToShipResult,
+        type: ServerTag.TransportToShipResult,
         targetShipId: shipId,
         targetSector: row.target_sector_number,
         turnsUsed: turnResult.turnsUsed,
@@ -229,7 +229,7 @@ export async function handleChangeShipOwnership(
     }
 
     sendEnvelope(playerId, {
-        type: ServerMsgType.ChangeShipOwnershipResult,
+        type: ServerTag.ChangeShipOwnershipResult,
         shipId: player.shipId,
         ownership,
     });

@@ -1,4 +1,4 @@
-import { ServerMsgType } from '@twnr/shared';
+import { ServerTag } from '@twnr/shared';
 import { players } from '../state/players.js';
 import { sendEnvelope } from '../state/messaging.js';
 
@@ -9,5 +9,5 @@ export function handlePlayersOnline(playerId: number): void {
     const online = Object.entries(players)
         .filter(([, p]) => p.universeId === callerUniverse)
         .map(([id, p]) => ({ id: Number(id), name: p.name }));
-    sendEnvelope(playerId, { type: ServerMsgType.PlayersOnlineResult, players: online });
+    sendEnvelope(playerId, { type: ServerTag.PlayersOnlineResult, players: online });
 }

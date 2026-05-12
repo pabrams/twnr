@@ -1,7 +1,7 @@
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
-import { ClientMsgType, Menu } from '@twnr/shared';
-import type { ClientCommand, MenuEntry } from '@twnr/shared';
+import { ClientTag, Menu } from '@twnr/shared';
+import type { ClientEnvelope, MenuEntry } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { setupConnection } from './connection.js';
 import { setupInput } from './input.js';
@@ -47,7 +47,7 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
 
     // ctx.io.ws is mutated by reconnect(); sendMsg always reads the current
     // socket so messages route to the live connection.
-    function sendMsg(msg: ClientCommand, opts?: { silent?: boolean }) {
+    function sendMsg(msg: ClientEnvelope, opts?: { silent?: boolean }) {
         const sock = ctx.io.ws;
         if (sock.readyState !== WebSocket.OPEN) return;
         if (ctx.io.debug) {
@@ -242,7 +242,7 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
             const vp = minimap.getViewport();
             ctx.io.sendMsg(
                 {
-                    type: ClientMsgType.GetNeighborhood,
+                    type: ClientTag.GetNeighborhood,
                     halfWidthWorld: vp.halfWidthWorld,
                     halfHeightWorld: vp.halfHeightWorld,
                     centerXWorld: vp.centerXWorld,

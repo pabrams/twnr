@@ -1,4 +1,4 @@
-import { ServerMsgType } from '@twnr/shared';
+import { ServerTag } from '@twnr/shared';
 import type { HyperspaceJumpCommand } from '@twnr/shared';
 import { players } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
@@ -58,7 +58,7 @@ export async function handleHyperspaceJump(
 
     if (currentSector === targetSector) {
         sendEnvelope(playerId, {
-            type: ServerMsgType.HyperspaceJumpResult,
+            type: ServerTag.HyperspaceJumpResult,
             targetSector,
             fuelUsed: 0,
             turnsUsed: 0,
@@ -116,7 +116,7 @@ export async function handleHyperspaceJump(
     ]);
 
     sendEnvelope(playerId, {
-        type: ServerMsgType.HyperspaceJumpResult,
+        type: ServerTag.HyperspaceJumpResult,
         targetSector,
         fuelUsed: fuelCost,
         turnsUsed: turnResult.turnsUsed,

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { ServerMsgType, Menu } from '@twnr/shared';
+import { ServerTag, Menu } from '@twnr/shared';
 import type { MenuName } from '@twnr/shared';
 import type { GameContext } from '../src/game/types.js';
 
@@ -165,7 +165,7 @@ describe('connection message handler', () => {
                 autopilot: { path: [1, 10, 20, 30], step: 3 },
             });
             setupConnection(ws as unknown as WebSocket, ctx, () => {});
-            ws.fire('message', envelope('sector', { type: ServerMsgType.RateLimited }));
+            ws.fire('message', envelope('sector', { type: ServerTag.RateLimited }));
             vi.advanceTimersByTime(500);
             expect(ctx.io.sendMsg).toHaveBeenCalled();
 
@@ -180,13 +180,13 @@ describe('connection message handler', () => {
             });
             setupConnection(ws as unknown as WebSocket, ctx, () => {});
 
-            ws.fire('message', envelope('sector', { type: ServerMsgType.RateLimited }));
+            ws.fire('message', envelope('sector', { type: ServerTag.RateLimited }));
             vi.advanceTimersByTime(500);
 
             ws.fire(
                 'message',
                 envelope('sector', {
-                    type: ServerMsgType.MoveResult,
+                    type: ServerTag.MoveResult,
                     outcome: 'success',
                     sector: 20,
                     warps: [{ sector: 10, visited: true }],

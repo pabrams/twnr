@@ -1,4 +1,4 @@
-import { ServerMsgType, ClientMsgType } from '@twnr/shared';
+import { ServerTag, ClientTag } from '@twnr/shared';
 import type {
     LandOnPlanetCommand,
     TakeColonistsCommand,
@@ -72,14 +72,14 @@ export async function handleGetSectorPlanets(playerId: number): Promise<void> {
         const earthId = await getEarthId(player.universeId);
         if (earthId) {
             return handleLandOnPlanet(playerId, {
-                type: ClientMsgType.LandOnPlanet,
+                type: ClientTag.LandOnPlanet,
                 planetId: earthId,
             });
         }
     }
 
     const planets = await getPlanetsInSector(player.sector, player.universeId);
-    await sendEnvelope(playerId, { type: ServerMsgType.GetSectorPlanetsResult, planets });
+    await sendEnvelope(playerId, { type: ServerTag.GetSectorPlanetsResult, planets });
 }
 
 export async function handleLandOnPlanet(
@@ -115,7 +115,7 @@ export async function handleLandOnPlanet(
     }
     const ctx = await getShipPlanetContext(playerId);
     await sendEnvelope(playerId, {
-        type: ServerMsgType.LandOnPlanetResult,
+        type: ServerTag.LandOnPlanetResult,
         ...display,
         empty_holds: ctx.emptyHolds,
         ship_colonists: ctx.shipColonists,
@@ -170,7 +170,7 @@ export async function handlePlanetDisplay(playerId: number): Promise<void> {
     }
     const ctx = await getShipPlanetContext(playerId);
     sendEnvelope(playerId, {
-        type: ServerMsgType.PlanetDisplayResult,
+        type: ServerTag.PlanetDisplayResult,
         ...data,
         empty_holds: ctx.emptyHolds,
         ship_colonists: ctx.shipColonists,
@@ -197,7 +197,7 @@ export async function handleLeavePlanet(playerId: number): Promise<void> {
     const data = await buildSectorDisplayData(playerId);
     if (!data) return;
     await sendEnvelope(playerId, {
-        type: ServerMsgType.LeavePlanetResult,
+        type: ServerTag.LeavePlanetResult,
         ...data,
         turnsUsed: turnResult.turnsUsed,
     });
@@ -238,14 +238,14 @@ export async function handleDestroyPlanet(playerId: number): Promise<void> {
     }
 
     await sendEnvelope(playerId, {
-        type: ServerMsgType.DestroyPlanetResult,
+        type: ServerTag.DestroyPlanetResult,
         destroyed: true,
         planetId: onPlanetId,
         planetName,
     });
 
     const data = await buildSectorDisplayData(playerId);
-    if (data) sendEnvelope(playerId, { type: ServerMsgType.SectorDisplayResult, ...data });
+    if (data) sendEnvelope(playerId, { type: ServerTag.SectorDisplayResult, ...data });
 }
 
 /**
@@ -268,7 +268,7 @@ export async function handleTerraformInfo(playerId: number): Promise<void> {
 
     if (restricted) {
         sendEnvelope(playerId, {
-            type: ServerMsgType.TerraformInfoResult,
+            type: ServerTag.TerraformInfoResult,
             canTerraform: false,
             devices: 0,
             reason: 'restricted_sector',
@@ -279,7 +279,7 @@ export async function handleTerraformInfo(playerId: number): Promise<void> {
     const devices = await getShipHardwareQuantityByName(playerId, 'terraform_device');
     if (devices < 1) {
         sendEnvelope(playerId, {
-            type: ServerMsgType.TerraformInfoResult,
+            type: ServerTag.TerraformInfoResult,
             canTerraform: false,
             devices: 0,
             reason: 'no_devices',
@@ -288,7 +288,7 @@ export async function handleTerraformInfo(playerId: number): Promise<void> {
     }
 
     sendEnvelope(playerId, {
-        type: ServerMsgType.TerraformInfoResult,
+        type: ServerTag.TerraformInfoResult,
         canTerraform: true,
         devices,
     });
@@ -312,7 +312,7 @@ export async function handleUseTerraformDevice(playerId: number): Promise<void> 
 
     if (sectorId === 1 || sectorName === 'Starbase') {
         sendEnvelope(playerId, {
-            type: ServerMsgType.UseTerraformDeviceResult,
+            type: ServerTag.UseTerraformDeviceResult,
             success: false,
             reason: 'restricted_sector',
         });
@@ -322,7 +322,7 @@ export async function handleUseTerraformDevice(playerId: number): Promise<void> 
     const terraformQty = await getShipHardwareQuantityByName(playerId, 'terraform_device');
     if (terraformQty < 1) {
         sendEnvelope(playerId, {
-            type: ServerMsgType.UseTerraformDeviceResult,
+            type: ServerTag.UseTerraformDeviceResult,
             success: false,
             reason: 'no_devices',
             terraformDevices: 0,
@@ -382,7 +382,7 @@ export async function handleUseTerraformDevice(playerId: number): Promise<void> 
         if (!result) return;
 
         sendEnvelope(playerId, {
-            type: ServerMsgType.UseTerraformDeviceResult,
+            type: ServerTag.UseTerraformDeviceResult,
             success: true,
             planet: {
                 id: result.newPlanetId,
@@ -436,7 +436,7 @@ function parsePlanetCommodity(playerId: number, commodity: string): PlanetCommod
  * commodity, totals); the sector data is merged in. Use whenever a planet
  * action ends with the player back in the sector. */
 async function liftoffWithResult<
-    T extends { type: (typeof ServerMsgType)[keyof typeof ServerMsgType] },
+    T extends { type: (typeof ServerTag)[keyof typeof ServerTag] },
 >(playerId: number, result: T): Promise<void> {
     await setOnPlanet(playerId, null);
     const sectorData = await buildSectorDisplayData(playerId);
@@ -512,7 +512,7 @@ export async function handleTakeColonists(
     const planetRemaining = await getPlanetColonistsRemaining(onPlanetId, col);
     const shipColonists = await getShipColonists(playerId);
     const result = {
-        type: ServerMsgType.TakeColonistsResult,
+        type: ServerTag.TakeColonistsResult,
         quantity: toTake,
         commodity: col,
         planetColonists: planetRemaining ?? 0,
@@ -584,7 +584,7 @@ export async function handleLeaveColonists(
     const planetRemaining = await getPlanetColonistsRemaining(onPlanetId, col);
     const shipColonistsNow = await getShipColonists(playerId);
     const result = {
-        type: ServerMsgType.LeaveColonistsResult,
+        type: ServerTag.LeaveColonistsResult,
         quantity: actual,
         commodity: col,
         planetColonists: planetRemaining ?? 0,
@@ -673,7 +673,7 @@ export async function handleTakeCommodity(
     const shipCommodity = await readShipCommodity(playerId, col);
 
     sendEnvelope(playerId, {
-        type: ServerMsgType.TakeCommodityResult,
+        type: ServerTag.TakeCommodityResult,
         quantity: toTake,
         commodity: col,
         planetCommodity: planetRemaining ?? 0,
@@ -755,7 +755,7 @@ export async function handleLeaveCommodity(
     const shipCommodity = await readShipCommodity(playerId, col);
 
     sendEnvelope(playerId, {
-        type: ServerMsgType.LeaveCommodityResult,
+        type: ServerTag.LeaveCommodityResult,
         quantity: actual,
         commodity: col,
         planetCommodity: planetRemaining ?? 0,
@@ -807,7 +807,7 @@ export async function handleClaimPlanet(
 
     const planetName = (await getPlanetName(onPlanetId)) ?? 'Planet';
     sendEnvelope(playerId, {
-        type: ServerMsgType.ClaimPlanetResult,
+        type: ServerTag.ClaimPlanetResult,
         planetId: onPlanetId,
         planetName,
         ownership,
@@ -821,7 +821,7 @@ export async function handleListPlanets(playerId: number): Promise<void> {
     const rows = await listPlayerPlanets(playerId, player.universeId);
 
     sendEnvelope(playerId, {
-        type: ServerMsgType.ListPlanetsResult,
+        type: ServerTag.ListPlanetsResult,
         planets: rows.map((r) => ({
             id: r.id,
             sectorNumber: r.sector_number,

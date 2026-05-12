@@ -1,4 +1,4 @@
-import { ClientMsgType } from '@twnr/shared';
+import { ClientTag } from '@twnr/shared';
 import { render } from '../renderer.js';
 import { COMBAT, NOTIFY } from '../messages/index.js';
 import { registerRoutine } from './types.js';
@@ -17,5 +17,5 @@ registerRoutine('select_target', async (ctx, line) => {
         ctx.encounter.attackTarget = null;
         return;
     }
-    ctx.io.sendMsg({ type: ClientMsgType.AttackShip, targetPlayerId: targetId, drones });
+    ctx.io.sendMsg({ type: ClientTag.AttackShip, targetPlayerId: targetId, drones });
 });

@@ -1,5 +1,5 @@
-import type { ServerResult } from '@twnr/shared';
-import { ServerMsgType } from '@twnr/shared';
+import type { ServerEnvelope } from '@twnr/shared';
+import { ServerTag } from '@twnr/shared';
 import type { GameContext } from './types.js';
 
 import { render } from './renderer.js';
@@ -11,7 +11,7 @@ import { drainInputQueue } from './input.js';
 /** Server messages whose handler updates a side panel only (no terminal
  * output). These should NOT trigger a menu prompt re-render — otherwise
  * the prompt duplicates on every panel refresh (e.g. minimap zoom/pan). */
-const PROMPT_SUPPRESSING = new Set<string>([ServerMsgType.NeighborhoodResult]);
+const PROMPT_SUPPRESSING = new Set<string>([ServerTag.NeighborhoodResult]);
 
 export function setupConnection(
     ws: WebSocket,
@@ -27,7 +27,7 @@ export function setupConnection(
     });
 
     ws.addEventListener('message', (event) => {
-        const msg: ServerResult = JSON.parse(event.data);
+        const msg: ServerEnvelope = JSON.parse(event.data);
         if (ctx.io.debug) {
             const lines = JSON.stringify(msg, null, 2).split('\n');
             ctx.io.term.writeln(`\r\n\x1b[38;5;243m← ${lines[0]}\x1b[0m`);
