@@ -55,6 +55,7 @@ import { handleBuyHardware, handleHardwareStoreInfo } from './hardware-store.js'
 import { handleGetNeighborhood } from './neighborhood.js';
 import {
     handleDeployMine,
+    handleDeployMineInfo,
     handleListDeployedMines,
     handleTrackSeekerMines,
     handleMineDisruptor,
@@ -268,6 +269,14 @@ export async function handleMessage(playerId: number, data: ClientCommand): Prom
             return handleHyperspaceJump(playerId, data.targetSector);
         case ClientMsgType.VisitedSectors:
             return handleVisitedSectors(playerId);
+        case ClientMsgType.DeployMineInfo: {
+            const raw = data as { mineType?: unknown };
+            if (raw.mineType !== 'proximity' && raw.mineType !== 'seeker') {
+                sendError(playerId, 'Invalid mine type');
+                return;
+            }
+            return handleDeployMineInfo(playerId, raw.mineType);
+        }
         case ClientMsgType.DeployMine: {
             const raw = data as {
                 mineType?: unknown;

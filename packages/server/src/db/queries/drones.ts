@@ -74,6 +74,24 @@ export async function updateSectorDroneQuantity(
     ]);
 }
 
+/** Update both quantity AND owner in one go. Used when a deploy converts
+ *  friendly drones in a sector from personal → clan (or vice versa).
+ *  Exactly one of `ownerPlayerId` / `ownerClanId` must be non-null. */
+export async function updateSectorDroneOwnerAndQuantity(
+    sectorDbId: number,
+    ownerPlayerId: number | null,
+    ownerClanId: number | null,
+    quantity: number,
+    db: Queryable = pool,
+): Promise<void> {
+    await db.query(
+        `UPDATE sector_drones
+         SET owner_player_id = $1, owner_clan_id = $2, quantity = $3
+         WHERE sector_id = $4`,
+        [ownerPlayerId, ownerClanId, quantity, sectorDbId],
+    );
+}
+
 /** Insert a new sector_drones row. Exactly one of `ownerPlayerId` /
  *  `ownerClanId` must be non-null. */
 export async function insertSectorDrones(

@@ -729,12 +729,19 @@ export type NeighborhoodWarp = {
     known_two_way: boolean;
 };
 
+export type DeployMineInfoResultObject = {
+    type: typeof ServerMsgType.DeployMineInfoResult;
+    mineType: 'proximity' | 'seeker';
+    sectorMines: number;
+    shipMines: number;
+    shipMaxMines: number;
+};
+
 export type DeployMineResultObject = {
     type: typeof ServerMsgType.DeployMineResult;
     mineType: 'proximity' | 'seeker';
-    deployed: number;
-    sectorTotal: number;
-    shipRemaining: number;
+    sectorMines: number;
+    shipMines: number;
 };
 
 export type DeployedMineEntry = {
@@ -852,6 +859,7 @@ export type ServerResult =
     | TerraformInfoResultObject
     | HardwareStoreInfoResultObject
     | NeighborhoodResultObject
+    | DeployMineInfoResultObject
     | DeployMineResultObject
     | ListDeployedMinesResultObject
     | TrackSeekerMinesResultObject

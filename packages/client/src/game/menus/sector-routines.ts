@@ -103,16 +103,36 @@ registerRoutine('jettison_menu', async (ctx) => {
     }
 });
 
-registerRoutine('deploy_mines_menu', async (ctx) => {
-    const typeChar = await askChar(ctx, 'Deploy (P)roximity or (S)eeker mines? ', ['p', 's']);
+registerRoutine('handle_mines_menu', async (ctx) => {
+    const typeChar = await askChar(ctx, 'Handle (P)roximity or (S)eeker mines? ', ['p', 's']);
     if (typeChar === null) return;
-    const mineType = typeChar === 'p' ? 'proximity' : 'seeker';
+    const mineType: 'proximity' | 'seeker' = typeChar === 'p' ? 'proximity' : 'seeker';
+
+    ctx.io.sendMsg({ type: ClientMsgType.DeployMineInfo, mineType });
+    const info = await awaitResponse(ctx, [ServerMsgType.DeployMineInfoResult, ServerMsgType.Error]);
+    if (info === null) return;
+    if (info.type !== ServerMsgType.DeployMineInfoResult) return;
+
     const label = mineType === 'seeker' ? 'Seeker' : 'Proximity';
-    const qty = await askNumber(ctx, `How many ${label} mines to deploy? (Q to cancel) `, {
-        min: 1,
-    });
+    const total = info.shipMines + info.sectorMines;
+    ctx.io.term.writeln('');
+    ctx.io.term.writeln(
+        render(EVENT.handleMinesInfo, {
+            label,
+            ship: info.shipMines,
+            sector: info.sectorMines,
+            max: info.shipMaxMines,
+            total,
+        }),
+    );
+
+    const qty = await askNumber(
+        ctx,
+        render(EVENT.handleMinesPrompt, { label }),
+        { min: 0, defaultValue: -1 },
+    );
     if (qty === null) return;
-    const ownership = await askDeployOwnership(ctx, '\r\nDeploy as (P)ersonal, (C)lan, (Q)? ');
+    const ownership = await askDeployOwnership(ctx, '\r\nOwnership (P)ersonal, (C)lan, (Q)? ');
     if (ownership === null) return;
     ctx.io.sendMsg({ type: ClientMsgType.DeployMine, mineType, quantity: qty, ownership });
 });

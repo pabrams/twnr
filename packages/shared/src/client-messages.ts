@@ -279,6 +279,13 @@ export type VisitedSectorsCommand = {
     type: typeof ClientMsgType.VisitedSectors;
 };
 
+/** Info request that precedes the actual deploy. */
+export type DeployMineInfoCommand = {
+    type: typeof ClientMsgType.DeployMineInfo;
+    mineType: 'proximity' | 'seeker';
+};
+
+/** Deploy/pickup mines." */
 export type DeployMineCommand = {
     type: typeof ClientMsgType.DeployMine;
     mineType: 'proximity' | 'seeker';
@@ -363,6 +370,7 @@ export type ClientCommand =
     | HyperspaceJumpCommand
     | VisitedSectorsCommand
     | GetNeighborhoodCommand
+    | DeployMineInfoCommand
     | DeployMineCommand
     | ListDeployedMinesCommand
     | TrackSeekerMinesCommand

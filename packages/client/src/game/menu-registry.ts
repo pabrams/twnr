@@ -96,9 +96,9 @@ export const MENU_REGISTRY: MenuEntry[] = [
                 sortOrder: 85,
             },
             {
-                command: 'deploy_mines_menu',
-                keyPattern: 'n',
-                label: 'Deploy mines',
+                command: 'handle_mines_menu',
+                keyPattern: 'h',
+                label: 'Handle mines',
                 targetMenu: null,
                 sortOrder: 86,
             },
