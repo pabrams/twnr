@@ -115,17 +115,12 @@ export type LeaveColonistsCommand = {
     commodity: 'fuel' | 'organics' | 'equipment' | 'drones';
 };
 
-/** Take fuel/organics/equipment from the planet you're on. -1 quantity =
- *  take as many as the planet has (clamped by free ship holds). */
 export type TakeCommodityCommand = {
     type: typeof ClientTag.TakeCommodity;
     quantity: number;
     commodity: 'fuel' | 'organics' | 'equipment' | 'drones';
 };
 
-/** Leave fuel/organics/equipment on the planet you're on. -1 quantity =
- *  leave everything the ship is carrying of that commodity (clamped by
- *  the planet's per-commodity cap). */
 export type LeaveCommodityCommand = {
     type: typeof ClientTag.LeaveCommodity;
     quantity: number;

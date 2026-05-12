@@ -18,15 +18,9 @@ export type WelcomeEvent = {
     shipName: string;
     coloredShipName: string | null;
     starbaseSector: number | null;
-    /** Initial UI mode for the client. Server-determined based on persistent
-     *  state (on-planet survives reconnect; everything else lands at sector). */
     location: MenuName;
     isGuest: boolean;
-
     isAdmin: boolean;
-    /** The player's clan id, if any. Cached client-side so menus that gate
-     *  on clan membership (deploy ownership prompt, transfer commands) don't
-     *  need a server roundtrip on every use. */
     clanId: number | null;
 };
 
@@ -358,12 +352,6 @@ export type DockStarbaseReply = {
     };
 };
 
-/**
- * Take colonists. On Earth this auto-lifts (one-shot interaction) and
- * the result envelope includes the sector display data inline. On real
- * planets the player stays on-planet; the sector fields are absent.
- * Symmetric with LeaveColonistsReply.
- */
 export type TakeColonistsReply = {
     type: typeof ServerTag.TakeColonistsResult;
     quantity: number;
@@ -380,11 +368,6 @@ export type LeaveColonistsReply = {
     shipColonists: number;
 } & Partial<SectorDisplayData>;
 
-/**
- * Take a commodity from the planet's stockpile into the ship's cargo.
- * `planetCommodity` is the planet's remaining stockpile of that commodity
- * after the move; `shipCommodity` is the ship's cargo total for the same.
- */
 export type TakeCommodityReply = {
     type: typeof ServerTag.TakeCommodityResult;
     quantity: number;
@@ -546,9 +529,7 @@ export type ClanJoinReply = {
 export type ClanLeaveReply = {
     type: typeof ServerTag.ClanLeaveResult;
     outcome: 'left' | 'dissolved';
-    /** When outcome=dissolved, count of clan assets that became personal (in current sector). */
     convertedToPersonal: number;
-    /** When outcome=dissolved, count of clan assets that became rogue (other sectors). */
     convertedToRogue: number;
 };
 
@@ -558,13 +539,11 @@ export type ClanListEntry = {
     name: string;
     memberCount: number;
     leaderName: string;
-    /** True if this row is the viewer's own clan. */
     isOwn: boolean;
 };
 
 export type ClanListReply = {
     type: typeof ServerTag.ClanListResult;
-    /** The viewer's own clan id, so the client can mark "your clan" red. */
     viewerClanId: number | null;
     clans: ClanListEntry[];
 };
@@ -594,7 +573,6 @@ export type ClanTransferReply = {
     targetPlayerId: number;
     targetName: string;
     quantity: number;
-    /** Quantity actually delivered (may be less than requested for clamp). */
     delivered: number;
 };
 
@@ -626,7 +604,6 @@ export type MemoDeliveryEvent = {
 
 export type ClanInfoReply = {
     type: typeof ServerTag.ClanInfoResult;
-    /** Null if player is not in a clan. */
     clan: {
         clanId: number;
         clanNumber: number;
@@ -644,7 +621,6 @@ export type ListOwnedShipsReply = {
     currentShipTypeName: string | null;
     currentShipTypeDisplayName: string | null;
     currentShipTransporterRange: number | null;
-    /** The viewer's clan id (so the client can color/mark clan rows). */
     viewerClanId: number | null;
     ships: {
         id: number;
@@ -674,16 +650,14 @@ export type StarbaseInfoReply = {
     universeName: string;
     sectorCount: number;
     portCount: number;
-    createdAt: string; // ISO8601
+    createdAt: string;
     daysElapsed: number;
-    /** Out-warp degree distribution: index = degree (0..6), value = sector count. */
     outWarpDistribution: number[];
     maxPlanetsPerSector: number;
     startingCredits: number;
     startingTurns: number;
     startingDrones: number;
     startingHolds: number;
-    /** Cool-down between ship destruction and being able to log back in. */
     respawnDelaySeconds: number;
 };
 
