@@ -86,9 +86,7 @@ async function main(): Promise<void> {
             values.email,
             values.password,
         );
-        process.stdout.write(
-            JSON.stringify({ userId: s.userId, name: s.name }, null, 2) + '\n',
-        );
+        process.stdout.write(JSON.stringify({ userId: s.userId, name: s.name }, null, 2) + '\n');
         return;
     }
 
