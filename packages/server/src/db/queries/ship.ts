@@ -4,6 +4,20 @@ import type { Queryable } from '../types.js';
 /** Subselect for the player's ship — used in WHERE clauses. */
 const SHIP_ID_SUBSELECT = '(SELECT ship_id FROM players WHERE id = $1)';
 
+/** Set a ship's owner. Exactly one of `ownerPlayerId` / `ownerClanId`
+ *  must be non-null (XOR enforced by the table's check constraint). */
+export async function setShipOwnership(
+    shipId: number,
+    ownerPlayerId: number | null,
+    ownerClanId: number | null,
+    db: Queryable = pool,
+): Promise<void> {
+    await db.query(
+        'UPDATE ships SET owner_player_id = $1, owner_clan_id = $2 WHERE id = $3',
+        [ownerPlayerId, ownerClanId, shipId],
+    );
+}
+
 export async function getShipTurnsPerWarp(playerId: number, db: Queryable = pool): Promise<number> {
     const res = await db.query<{ turns_per_warp: number }>(
         `SELECT turns_per_warp FROM ships WHERE id = ${SHIP_ID_SUBSELECT}`,

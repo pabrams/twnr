@@ -107,6 +107,20 @@ export async function listClansInUniverse(
     return res.rows;
 }
 
+/** Resolve a player's clan_id (null when not in a clan). Shared by every
+ *  call site that needs to gate on clan membership or check clan-friendly
+ *  ownership of an asset. */
+export async function getPlayerClanId(
+    playerId: number,
+    db: Queryable = pool,
+): Promise<number | null> {
+    const res = await db.query<{ clan_id: number | null }>(
+        'SELECT clan_id FROM players WHERE id = $1',
+        [playerId],
+    );
+    return res.rows[0]?.clan_id ?? null;
+}
+
 export type ClanMemberRow = {
     id: number;
     name: string;

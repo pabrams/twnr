@@ -17,18 +17,9 @@ import {
     deleteClan,
     dissolveClanAssets,
     isPlayerOnClanShip,
+    getPlayerClanId,
 } from '../db/queries/clan.js';
 import { insertMemo } from '../db/queries/message.js';
-
-/** SELECT a player's clan_id (or null). Lightweight ad-hoc query — clan ops
- *  are rare enough that we don't bother caching this in the in-memory player. */
-async function getPlayerClanId(playerId: number): Promise<number | null> {
-    const res = await pool.query<{ clan_id: number | null }>(
-        'SELECT clan_id FROM players WHERE id = $1',
-        [playerId],
-    );
-    return res.rows[0]?.clan_id ?? null;
-}
 
 function isValidClanName(name: string): boolean {
     const trimmed = name.trim();

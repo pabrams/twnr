@@ -32,6 +32,21 @@ export async function deletePlanet(planetId: number, db: Queryable = pool): Prom
     await db.query('DELETE FROM planets WHERE id = $1', [planetId]);
 }
 
+/** Set a planet's owner. Exactly one of `ownerPlayerId` / `ownerClanId`
+ *  must be non-null (XOR enforced by the table's check constraint).
+ *  Both null = rogue/unowned. */
+export async function setPlanetOwnership(
+    planetId: number,
+    ownerPlayerId: number | null,
+    ownerClanId: number | null,
+    db: Queryable = pool,
+): Promise<void> {
+    await db.query(
+        'UPDATE planets SET owner_player_id = $1, owner_clan_id = $2 WHERE id = $3',
+        [ownerPlayerId, ownerClanId, planetId],
+    );
+}
+
 export async function getSectorByNumber(
     sectorNumber: number,
     universeId: number,

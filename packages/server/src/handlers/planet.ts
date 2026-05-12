@@ -26,9 +26,11 @@ import {
     listPlayerPlanets,
     settlePlanetProduction,
     settlePlanetColonistGrowth,
+    setPlanetOwnership,
     type ColonistCommodity,
     type PlanetCommodity,
 } from '../db/queries/planet.js';
+import { getPlayerClanId } from '../db/queries/clan.js';
 import { getPlanetsInSector } from '../db/queries/sector.js';
 import { getOnPlanetId, setDocked, setOnPlanet } from '../db/queries/player.js';
 import {
@@ -775,28 +777,16 @@ export async function handleClaimPlanet(
         return;
     }
 
-    const { pool } = await import('../db/index.js');
-    const clanRow = await pool.query<{ clan_id: number | null }>(
-        'SELECT clan_id FROM players WHERE id = $1',
-        [playerId],
-    );
-    const playerClanId = clanRow.rows[0]?.clan_id ?? null;
-
+    const playerClanId = await getPlayerClanId(playerId);
     if (ownership === 'clan' && playerClanId === null) {
         sendError(playerId, 'You are not in a clan.');
         return;
     }
 
     if (ownership === 'clan') {
-        await pool.query(
-            'UPDATE planets SET owner_player_id = NULL, owner_clan_id = $1 WHERE id = $2',
-            [playerClanId, onPlanetId],
-        );
+        await setPlanetOwnership(onPlanetId, null, playerClanId);
     } else {
-        await pool.query(
-            'UPDATE planets SET owner_clan_id = NULL, owner_player_id = $1 WHERE id = $2',
-            [playerId, onPlanetId],
-        );
+        await setPlanetOwnership(onPlanetId, playerId, null);
     }
 
     const planetName = (await getPlanetName(onPlanetId)) ?? 'Planet';

@@ -2,7 +2,7 @@ import { ServerMsgType } from '@twnr/shared';
 import { pool } from '../db/index.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { players } from '../state/players.js';
-import { getShipInfo, getPlayerOwnedShips } from '../db/queries/ship.js';
+import { getShipInfo, getPlayerOwnedShips, setShipOwnership } from '../db/queries/ship.js';
 import { getShipHardwareQuantities, getShipTypeHardwareMax } from '../db/queries/hardware.js';
 import {
     getOnPlanetId,
@@ -10,6 +10,7 @@ import {
     markSectorVisited,
     setPlayerShipId,
 } from '../db/queries/player.js';
+import { getPlayerClanId, getClanById } from '../db/queries/clan.js';
 import { getPlayerTurns } from '../db/queries/turn.js';
 import { getGraph } from '../state/graph-cache.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
@@ -80,11 +81,7 @@ export async function handleListOwnedShips(playerId: number): Promise<void> {
     }
 
     const currentShip = rows.find((r) => r.id === player.shipId) ?? null;
-    const viewerClanRow = await pool.query<{ clan_id: number | null }>(
-        'SELECT clan_id FROM players WHERE id = $1',
-        [playerId],
-    );
-    const viewerClanId = viewerClanRow.rows[0]?.clan_id ?? null;
+    const viewerClanId = await getPlayerClanId(playerId);
 
     sendEnvelope(playerId, {
         type: ServerMsgType.ListOwnedShipsResult,
@@ -204,43 +201,25 @@ export async function handleChangeShipOwnership(
         return;
     }
 
-    const row = await pool.query<{ clan_id: number | null; leader_id: number | null }>(
-        `SELECT p.clan_id, c.leader_id
-         FROM players p
-         LEFT JOIN clans c ON c.id = p.clan_id
-         WHERE p.id = $1`,
-        [playerId],
-    );
-    const data = row.rows[0];
-    if (!data) {
-        sendError(playerId, 'Player not found.');
-        return;
-    }
-    const playerClanId = data.clan_id;
-    const playerIsLeader = data.leader_id === playerId;
+    const playerClanId = await getPlayerClanId(playerId);
 
     if (ownership === 'clan') {
         if (playerClanId === null) {
             sendError(playerId, 'You are not in a clan.');
             return;
         }
-        await pool.query(
-            'UPDATE ships SET owner_player_id = NULL, owner_clan_id = $1 WHERE id = $2',
-            [playerClanId, player.shipId],
-        );
+        await setShipOwnership(player.shipId, null, playerClanId);
     } else {
         if (playerClanId === null) {
             sendError(playerId, 'Ship is already personal.');
             return;
         }
-        if (!playerIsLeader) {
+        const clan = await getClanById(playerClanId);
+        if (clan?.leader_id !== playerId) {
             sendError(playerId, 'Only the clan leader can convert a clan ship to personal.');
             return;
         }
-        await pool.query(
-            'UPDATE ships SET owner_clan_id = NULL, owner_player_id = $1 WHERE id = $2',
-            [playerId, player.shipId],
-        );
+        await setShipOwnership(player.shipId, playerId, null);
     }
 
     sendEnvelope(playerId, {

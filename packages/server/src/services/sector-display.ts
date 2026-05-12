@@ -2,8 +2,8 @@ import { getPlanetsInSector, getCollisionsInSector, getSectorDbId } from '../db/
 import { getSectorMines } from '../db/queries/mines.js';
 import { recordSectorObservation } from '../db/queries/observations.js';
 import { listPlayersInSector } from '../db/queries/player.js';
+import { getPlayerClanId } from '../db/queries/clan.js';
 import { players, isVisibleInSector } from '../state/players.js';
-import { pool } from '../db/index.js';
 import { isFriendlyOwner } from './owner.js';
 import {
     getPortForSector,
@@ -38,11 +38,7 @@ export async function buildSectorDisplayData(playerId: number, sectorNumber?: nu
             getSectorDbId(sector, universeId),
         ]);
 
-    const clanRow = await pool.query<{ clan_id: number | null }>(
-        'SELECT clan_id FROM players WHERE id = $1',
-        [playerId],
-    );
-    const viewerClanId = clanRow.rows[0]?.clan_id ?? null;
+    const viewerClanId = await getPlayerClanId(playerId);
 
     const sectorMines =
         sectorDbId !== undefined

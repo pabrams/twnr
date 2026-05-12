@@ -157,6 +157,22 @@ export async function getShipHardwareQuantityByName(
     return res.rows[0]?.quantity ?? 0;
 }
 
+/** Decrement a ship's hardware-item count by an explicit quantity.
+ *  Caller is expected to have verified the ship currently holds at least
+ *  this many (no underflow guard here). */
+export async function decrementShipHardwareQuantity(
+    shipId: number,
+    hardwareItemId: number,
+    quantity: number,
+    db: Queryable = pool,
+): Promise<void> {
+    await db.query(
+        `UPDATE ship_hardware SET quantity = quantity - $1
+         WHERE ship_id = $2 AND hardware_item_id = $3`,
+        [quantity, shipId, hardwareItemId],
+    );
+}
+
 /** Decrement a named hardware item's quantity on a player's ship by 1. */
 export async function decrementShipHardwareByName(
     playerId: number,
