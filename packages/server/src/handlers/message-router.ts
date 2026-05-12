@@ -269,34 +269,15 @@ export async function handleMessage(playerId: number, data: ClientCommand): Prom
             return handleHyperspaceJump(playerId, data.targetSector);
         case ClientMsgType.VisitedSectors:
             return handleVisitedSectors(playerId);
-        case ClientMsgType.DeployMineInfo: {
-            const raw = data as { mineType?: unknown };
-            if (raw.mineType !== 'proximity' && raw.mineType !== 'seeker') {
-                sendError(playerId, 'Invalid mine type');
-                return;
-            }
-            return handleDeployMineInfo(playerId, raw.mineType);
-        }
-        case ClientMsgType.DeployMine: {
-            const raw = data as {
-                mineType?: unknown;
-                quantity?: unknown;
-                ownership?: unknown;
-            };
-            if (raw.mineType !== 'proximity' && raw.mineType !== 'seeker') {
-                sendError(playerId, 'Invalid mine type');
-                return;
-            }
-            if (typeof raw.quantity !== 'number') {
-                sendError(playerId, 'Invalid quantity');
-                return;
-            }
-            const ownership =
-                raw.ownership === 'clan' || raw.ownership === 'personal'
-                    ? raw.ownership
-                    : 'personal';
-            return handleDeployMine(playerId, raw.mineType, raw.quantity, ownership);
-        }
+        case ClientMsgType.DeployMineInfo:
+            return handleDeployMineInfo(playerId, data.mineType);
+        case ClientMsgType.DeployMine:
+            return handleDeployMine(
+                playerId,
+                data.mineType,
+                data.quantity,
+                data.ownership ?? 'personal',
+            );
         case ClientMsgType.ListDeployedMines:
             return handleListDeployedMines(playerId);
         case ClientMsgType.TrackSeekerMines:
