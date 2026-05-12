@@ -37,11 +37,11 @@ export function setupConnection(
         }
 
         ctx.input.inFlight = false;
-        dispatch(ctx, msg);
+        const handlerResult = dispatch(ctx, msg);
         // If a routine is awaiting this message via awaitResponse, resolve
         // it after dispatch so the handler runs first (state updates,
-        // notifications). Suppress the auto renderPrompt for this
-        // envelope — the routine owns what comes next.
+        // notifications). The routine then owns the next prompt paint via
+        // its own finishUp.
         let resolvedResponse = false;
         if (ctx.input.pendingResponse?.types.has(msg.type)) {
             const r = ctx.input.pendingResponse;
@@ -49,21 +49,31 @@ export function setupConnection(
             resolvedResponse = true;
             r.resolve(msg);
         }
-        // Skip the auto-render when:
-        //  - the handler chained another roundtrip (`inFlight`)
-        //  - the handler opened a sub-prompt (`pendingResolver`) — e.g.
-        //    askNumber inside a client routine.
-        //  - a routine is awaiting a server response (`pendingResponse`),
-        //    or this very envelope just resolved one (`resolvedResponse`).
-        //  - the envelope is a pure side-panel update (mini-map zoom/pan).
-        if (
-            !ctx.input.inFlight &&
-            !ctx.input.pendingResolver &&
-            !ctx.input.pendingResponse &&
-            !resolvedResponse &&
-            !PROMPT_SUPPRESSING.has(msg.type)
-        ) {
-            getMenuHandler(ctx.world.mode)?.renderPrompt?.(ctx);
+
+        // Single render path: paint exactly once after the dispatched work
+        // is fully settled. For sync handlers / pure renders, that's right
+        // now. For async handlers (e.g. deployDronesInfo asks askNumber +
+        // askDeployOwnership then sendMsg) we attach a finishUp to the
+        // promise so the prompt only paints after the entire chain has resolved.
+        const repaint = () => {
+            if (
+                !ctx.input.inFlight &&
+                !ctx.input.pendingResolver &&
+                !ctx.input.pendingResponse &&
+                !PROMPT_SUPPRESSING.has(msg.type)
+            ) {
+                getMenuHandler(ctx.world.mode)?.renderPrompt?.(ctx);
+            }
+        };
+        if (handlerResult && typeof (handlerResult as Promise<unknown>).then === 'function') {
+            // Async handler — wait for its whole chain to complete before
+            // checking. Suppress the immediate paint.
+            void (handlerResult as Promise<unknown>).then(repaint);
+        } else if (!resolvedResponse) {
+            // Sync handler that didn't resolve an awaited response. Paint
+            // now — when resolvedResponse is true, the awaiting routine's
+            // own finishUp will paint instead.
+            repaint();
         }
         drainInputQueue(ctx);
     });

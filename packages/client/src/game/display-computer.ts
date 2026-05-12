@@ -32,7 +32,6 @@ export function showComputerHelp(ctx: DisplayComputerCtx) {
         render(COMMON.menuRow, { key: 'O', text: '[bc]Change Ship Ownership[/bc]' }),
     );
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: '[bc]Exit Computer[/bc]' }));
-    showComputerPrompt(ctx);
 }
 
 export function renderVisitedSectorsResult(
@@ -69,7 +68,6 @@ async function loadShipConfigs(ctx: DisplayComputerCtx): Promise<boolean> {
         return true;
     } catch {
         ctx.io.term.writeln(render(STARBASE.shipCatalogFailed));
-        showComputerPrompt(ctx);
         return false;
     }
 }
@@ -202,7 +200,6 @@ export async function showPlanetSpecs(ctx: DisplayComputerCtx) {
             ctx.catalogs.planets = await res.json();
         } catch {
             ctx.io.term.writeln(render(COMPUTER.planetSpecsFailed));
-            showComputerPrompt(ctx);
             return;
         }
     }
@@ -274,7 +271,6 @@ export async function showCurrentShipSpecs(ctx: DisplayComputerCtx) {
     if (!ctx.ship.currentShipName) {
         ctx.io.term.writeln(render(COMPUTER.shipDataRequesting));
         ctx.io.sendMsg({ type: ClientMsgType.ShipInfo });
-        showComputerPrompt(ctx);
         return;
     }
     const ship = ctx.catalogs.ships!.find((s) => s.name === ctx.ship.currentShipName);
@@ -282,11 +278,9 @@ export async function showCurrentShipSpecs(ctx: DisplayComputerCtx) {
         ctx.io.term.writeln(
             render(COMPUTER.shipConfigNotFound, { name: ctx.ship.currentShipName }),
         );
-        showComputerPrompt(ctx);
         return;
     }
     showShipDetail(ctx, ship);
-    showComputerPrompt(ctx);
 }
 
 export type OwnedShipRowDisplay = {
@@ -459,5 +453,4 @@ export async function showTraderList(ctx: DisplayComputerCtx) {
     } catch {
         ctx.io.term.writeln(render(COMPUTER.traderListFailed));
     }
-    showComputerPrompt(ctx);
 }

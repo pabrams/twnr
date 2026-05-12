@@ -32,8 +32,8 @@ registerRoutine('known_universe', async (ctx) => {
     }
 });
 
-registerRoutine('trader_list', (ctx) => {
-    showTraderList(ctx);
+registerRoutine('trader_list', async (ctx) => {
+    await showTraderList(ctx);
 });
 
 registerRoutine('ship_catalog', async (ctx) => {
@@ -80,8 +80,8 @@ registerRoutine('planet_specs', async (ctx) => {
     }
 });
 
-registerRoutine('current_ship_specs', (ctx) => {
-    showCurrentShipSpecs(ctx);
+registerRoutine('current_ship_specs', async (ctx) => {
+    await showCurrentShipSpecs(ctx);
 });
 
 registerRoutine('hyperspace_jump', async (ctx) => {

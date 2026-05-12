@@ -4,7 +4,6 @@ import { render } from '../renderer.js';
 import { EVENT } from '../messages/index.js';
 import { type DisplayCtx } from '../display.js';
 import { showDroneEncounter, showAttackMenu, type DisplayCombatCtx } from '../display-combat.js';
-import { showPrompt } from '../menus/types.js';
 import { askNumber, askDeployOwnership } from '../menus/prompts.js';
 import type { Handler } from './index.js';
 
@@ -49,10 +48,9 @@ export const getAttackTargets: Handler<'getAttackTargetsResult', CombatContext> 
 };
 
 // Display the deploy-info preamble then askNumber for qty inline. The
-// deployDronesQty menu is gone — the user stays on the sector menu and
-// the qty is a sub-prompt of this handler. -1 is the "accept default"
-// value (server clamps to minInSector). Uses the default `GameContext`
-// Deps because showPrompt's callback signature needs the full ctx.
+// Sub-prompts: askNumber for qty, askDeployOwnership for P/C/Q. On any
+// cancel we just return — the framework's per-envelope finishUp re-paints
+// the sector prompt after this async handler resolves.
 export const deployDronesInfo: Handler<'deployDronesInfoResult'> = async (ctx, msg) => {
     const total = msg.shipDrones + msg.sectorDrones;
     const minInSector = Math.max(0, total - msg.shipMaxDrones);
@@ -68,19 +66,9 @@ export const deployDronesInfo: Handler<'deployDronesInfoResult'> = async (ctx, m
         min: 0,
         defaultValue: -1,
     });
-    if (qty === null) {
-        // User cancelled with Q. No server roundtrip will follow, so
-        // re-render the sector prompt manually — the framework's
-        // post-envelope auto-render already fired (and was suppressed
-        // by pendingResolver).
-        showPrompt(ctx);
-        return;
-    }
+    if (qty === null) return;
     const ownership = await askDeployOwnership(ctx, render(EVENT.deployOwnershipPrompt));
-    if (ownership === null) {
-        showPrompt(ctx);
-        return;
-    }
+    if (ownership === null) return;
     ctx.io.sendMsg({ type: ClientMsgType.DeployDrones, quantity: qty, ownership });
 };
 
