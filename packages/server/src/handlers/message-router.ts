@@ -72,151 +72,103 @@ import {
     handleClanDropMember,
 } from './clan.js';
 
-export async function handleMessage(playerId: number, data: ClientCommand): Promise<void> {
-    switch (data.type) {
-        case ClientMsgType.Move:
-            return handleMove(playerId, data.sector);
-        case ClientMsgType.MoveToPrevious:
-            return handleMoveToPrevious(playerId);
-        case ClientMsgType.SectorDisplay:
-            return handleSectorDisplay(playerId);
-        case ClientMsgType.PlayersOnline:
-            return handlePlayersOnline(playerId);
-        case ClientMsgType.WarpsOut:
-            return handleWarpsOut(playerId, data.id);
-        case ClientMsgType.ShortestPath:
-            return handleShortestPath(playerId, data.from, data.to);
-        case ClientMsgType.PortInfo:
-            return handlePortInfo(playerId, data.sectorId);
-        case ClientMsgType.ShipInfo:
-            return handleShipInfo(playerId);
-        case ClientMsgType.PortTransaction:
-            return handlePortTransaction(playerId, data.good, data.quantity, data.action);
-        case ClientMsgType.BuyDrones:
-            return handleBuyDrones(playerId, data.quantity);
-        case ClientMsgType.BuyShields:
-            return handleBuyShields(playerId, data.quantity);
-        case ClientMsgType.BuyHolds:
-            return handleBuyHolds(playerId, data.quantity);
-        case ClientMsgType.BuyShipTradein:
-            return handleBuyShipTradein(playerId, data.targetShipName);
-        case ClientMsgType.GetAttackTargets:
-            return handleGetAttackTargets(playerId);
-        case ClientMsgType.StarbaseInfo:
-            return handleStarbaseInfo(playerId);
-        case ClientMsgType.TerraformInfo:
-            return handleTerraformInfo(playerId);
-        case ClientMsgType.HardwareStoreInfo:
-            return handleHardwareStoreInfo(playerId);
-        case ClientMsgType.AttackShip:
-            return handleAttackShip(playerId, data.targetPlayerId, data.drones);
-        case ClientMsgType.Dock:
-            return handleDock(playerId);
-        case ClientMsgType.Undock:
-            return handleUndock(playerId);
-        case ClientMsgType.Jettison:
-            return handleJettison(playerId);
-        case ClientMsgType.GetSectorPlanets:
-            return handleGetSectorPlanets(playerId);
-        case ClientMsgType.LandOnPlanet:
-            return handleLandOnPlanet(playerId, data.planetId);
-        case ClientMsgType.PlanetDisplay:
-            return handlePlanetDisplay(playerId);
-        case ClientMsgType.LeavePlanet:
-            return handleLeavePlanet(playerId);
-        case ClientMsgType.DestroyPlanet:
-            return handleDestroyPlanet(playerId);
-        case ClientMsgType.UseTerraformDevice:
-            return handleUseTerraformDevice(playerId);
-        case ClientMsgType.DockStarbase:
-            return handleDockStarbase(playerId);
-        case ClientMsgType.LeaveStarbase:
-            return handleLeaveStarbase(playerId);
-        case ClientMsgType.BuyHardware:
-            return handleBuyHardware(playerId, data.itemName, data.quantity);
-        case ClientMsgType.TakeColonists:
-            return handleTakeColonists(playerId, data.quantity, data.commodity ?? 'fuel');
-        case ClientMsgType.LeaveColonists:
-            return handleLeaveColonists(playerId, data.quantity, data.commodity ?? 'fuel');
-        case ClientMsgType.TakeCommodity:
-            return handleTakeCommodity(playerId, data.quantity, data.commodity ?? 'fuel');
-        case ClientMsgType.LeaveCommodity:
-            return handleLeaveCommodity(playerId, data.quantity, data.commodity ?? 'fuel');
-        case ClientMsgType.ListPlanets:
-            return handleListPlanets(playerId);
-        case ClientMsgType.ListOwnedShips:
-            return handleListOwnedShips(playerId);
-        case ClientMsgType.TransportToShip:
-            return handleTransportToShip(playerId, data.shipId);
-        case ClientMsgType.ClanCreate:
-            return handleClanCreate(playerId, data.name, data.password);
-        case ClientMsgType.ClanJoin:
-            return handleClanJoin(playerId, data.name, data.password);
-        case ClientMsgType.ClanLeave:
-            return handleClanLeave(playerId, data.successorPlayerId, data.confirmDissolve === true);
-        case ClientMsgType.ClanList:
-            return handleClanList(playerId);
-        case ClientMsgType.ClanInfo:
-            return handleClanInfo(playerId);
-        case ClientMsgType.ChangeShipOwnership:
-            return handleChangeShipOwnership(playerId, data.ownership);
-        case ClientMsgType.ClaimPlanet:
-            return handleClaimPlanet(playerId, data.ownership);
-        case ClientMsgType.ClanTransfer:
-            return handleClanTransfer(
-                playerId,
-                data.kind,
-                data.targetPlayerId,
-                data.quantity,
-                data.mineType,
-            );
-        case ClientMsgType.ClanMemo:
-            return handleClanMemo(playerId, data.body);
-        case ClientMsgType.ClanSetPassword:
-            return handleClanSetPassword(playerId, data.newPassword);
-        case ClientMsgType.ClanDropMember:
-            return handleClanDropMember(playerId, data.targetPlayerId);
-        case ClientMsgType.DeployDronesInfo:
-            return handleDeployDronesInfo(playerId);
-        case ClientMsgType.DeployDrones:
-            return handleDeployDrones(playerId, data.quantity, data.ownership ?? 'personal');
-        case ClientMsgType.AttackSectorDrones:
-            return handleAttackSectorDrones(playerId, data.drones);
-        case ClientMsgType.RetreatFromDrones:
-            return handleRetreatFromDrones(playerId);
-        case ClientMsgType.BuyShipNew:
-            return handleBuyShipNew(playerId, data.targetShipName);
-        case ClientMsgType.ListDeployedDrones:
-            return handleListDeployedDrones(playerId);
-        case ClientMsgType.HyperspaceJump:
-            return handleHyperspaceJump(playerId, data.targetSector);
-        case ClientMsgType.VisitedSectors:
-            return handleVisitedSectors(playerId);
-        case ClientMsgType.DeployMineInfo:
-            return handleDeployMineInfo(playerId, data.mineType);
-        case ClientMsgType.DeployMine:
-            return handleDeployMine(
-                playerId,
-                data.mineType,
-                data.quantity,
-                data.ownership ?? 'personal',
-            );
-        case ClientMsgType.ListDeployedMines:
-            return handleListDeployedMines(playerId);
-        case ClientMsgType.TrackSeekerMines:
-            return handleTrackSeekerMines(playerId);
-        case ClientMsgType.MineDisruptor:
-            return handleMineDisruptor(playerId, data.targetSector);
-        case ClientMsgType.GetNeighborhood:
-            return handleGetNeighborhood(
-                playerId,
-                data.halfWidthWorld,
-                data.halfHeightWorld,
-                data.centerXWorld,
-                data.centerYWorld,
-            );
-        default:
-            sendError(playerId, 'Unknown message type');
-    }
-}
+type ClientCommandByType = { [C in ClientCommand as C['type']]: C };
 
+export type Handler<K extends ClientCommand['type']> = (
+    playerId: number,
+    data: ClientCommandByType[K],
+) => void | Promise<void>;
+
+type HandlerMap = { [K in ClientCommand['type']]: Handler<K> };
+
+const handlers: HandlerMap = {
+    [ClientMsgType.Move]: (pid, d) => handleMove(pid, d.sector),
+    [ClientMsgType.MoveToPrevious]: (pid) => handleMoveToPrevious(pid),
+    [ClientMsgType.SectorDisplay]: (pid) => handleSectorDisplay(pid),
+    [ClientMsgType.PlayersOnline]: (pid) => handlePlayersOnline(pid),
+    [ClientMsgType.WarpsOut]: (pid, d) => handleWarpsOut(pid, d.id),
+    [ClientMsgType.ShortestPath]: (pid, d) => handleShortestPath(pid, d.from, d.to),
+    [ClientMsgType.PortInfo]: (pid, d) => handlePortInfo(pid, d.sectorId),
+    [ClientMsgType.ShipInfo]: (pid) => handleShipInfo(pid),
+    [ClientMsgType.PortTransaction]: (pid, d) =>
+        handlePortTransaction(pid, d.good, d.quantity, d.action),
+    [ClientMsgType.BuyDrones]: (pid, d) => handleBuyDrones(pid, d.quantity),
+    [ClientMsgType.BuyShields]: (pid, d) => handleBuyShields(pid, d.quantity),
+    [ClientMsgType.BuyHolds]: (pid, d) => handleBuyHolds(pid, d.quantity),
+    [ClientMsgType.BuyShipTradein]: (pid, d) => handleBuyShipTradein(pid, d.targetShipName),
+    [ClientMsgType.GetAttackTargets]: (pid) => handleGetAttackTargets(pid),
+    [ClientMsgType.StarbaseInfo]: (pid) => handleStarbaseInfo(pid),
+    [ClientMsgType.TerraformInfo]: (pid) => handleTerraformInfo(pid),
+    [ClientMsgType.HardwareStoreInfo]: (pid) => handleHardwareStoreInfo(pid),
+    [ClientMsgType.AttackShip]: (pid, d) => handleAttackShip(pid, d.targetPlayerId, d.drones),
+    [ClientMsgType.Dock]: (pid) => handleDock(pid),
+    [ClientMsgType.Undock]: (pid) => handleUndock(pid),
+    [ClientMsgType.Jettison]: (pid) => handleJettison(pid),
+    [ClientMsgType.GetSectorPlanets]: (pid) => handleGetSectorPlanets(pid),
+    [ClientMsgType.LandOnPlanet]: (pid, d) => handleLandOnPlanet(pid, d.planetId),
+    [ClientMsgType.PlanetDisplay]: (pid) => handlePlanetDisplay(pid),
+    [ClientMsgType.LeavePlanet]: (pid) => handleLeavePlanet(pid),
+    [ClientMsgType.DestroyPlanet]: (pid) => handleDestroyPlanet(pid),
+    [ClientMsgType.UseTerraformDevice]: (pid) => handleUseTerraformDevice(pid),
+    [ClientMsgType.DockStarbase]: (pid) => handleDockStarbase(pid),
+    [ClientMsgType.LeaveStarbase]: (pid) => handleLeaveStarbase(pid),
+    [ClientMsgType.BuyHardware]: (pid, d) => handleBuyHardware(pid, d.itemName, d.quantity),
+    [ClientMsgType.TakeColonists]: (pid, d) =>
+        handleTakeColonists(pid, d.quantity, d.commodity ?? 'fuel'),
+    [ClientMsgType.LeaveColonists]: (pid, d) =>
+        handleLeaveColonists(pid, d.quantity, d.commodity ?? 'fuel'),
+    [ClientMsgType.TakeCommodity]: (pid, d) =>
+        handleTakeCommodity(pid, d.quantity, d.commodity ?? 'fuel'),
+    [ClientMsgType.LeaveCommodity]: (pid, d) =>
+        handleLeaveCommodity(pid, d.quantity, d.commodity ?? 'fuel'),
+    [ClientMsgType.ListPlanets]: (pid) => handleListPlanets(pid),
+    [ClientMsgType.ListOwnedShips]: (pid) => handleListOwnedShips(pid),
+    [ClientMsgType.TransportToShip]: (pid, d) => handleTransportToShip(pid, d.shipId),
+    [ClientMsgType.ClanCreate]: (pid, d) => handleClanCreate(pid, d.name, d.password),
+    [ClientMsgType.ClanJoin]: (pid, d) => handleClanJoin(pid, d.name, d.password),
+    [ClientMsgType.ClanLeave]: (pid, d) =>
+        handleClanLeave(pid, d.successorPlayerId, d.confirmDissolve === true),
+    [ClientMsgType.ClanList]: (pid) => handleClanList(pid),
+    [ClientMsgType.ClanInfo]: (pid) => handleClanInfo(pid),
+    [ClientMsgType.ChangeShipOwnership]: (pid, d) => handleChangeShipOwnership(pid, d.ownership),
+    [ClientMsgType.ClaimPlanet]: (pid, d) => handleClaimPlanet(pid, d.ownership),
+    [ClientMsgType.ClanTransfer]: (pid, d) =>
+        handleClanTransfer(pid, d.kind, d.targetPlayerId, d.quantity, d.mineType),
+    [ClientMsgType.ClanMemo]: (pid, d) => handleClanMemo(pid, d.body),
+    [ClientMsgType.ClanSetPassword]: (pid, d) => handleClanSetPassword(pid, d.newPassword),
+    [ClientMsgType.ClanDropMember]: (pid, d) => handleClanDropMember(pid, d.targetPlayerId),
+    [ClientMsgType.DeployDronesInfo]: (pid) => handleDeployDronesInfo(pid),
+    [ClientMsgType.DeployDrones]: (pid, d) =>
+        handleDeployDrones(pid, d.quantity, d.ownership ?? 'personal'),
+    [ClientMsgType.AttackSectorDrones]: (pid, d) => handleAttackSectorDrones(pid, d.drones),
+    [ClientMsgType.RetreatFromDrones]: (pid) => handleRetreatFromDrones(pid),
+    [ClientMsgType.BuyShipNew]: (pid, d) => handleBuyShipNew(pid, d.targetShipName),
+    [ClientMsgType.ListDeployedDrones]: (pid) => handleListDeployedDrones(pid),
+    [ClientMsgType.HyperspaceJump]: (pid, d) => handleHyperspaceJump(pid, d.targetSector),
+    [ClientMsgType.VisitedSectors]: (pid) => handleVisitedSectors(pid),
+    [ClientMsgType.DeployMineInfo]: (pid, d) => handleDeployMineInfo(pid, d.mineType),
+    [ClientMsgType.DeployMine]: (pid, d) =>
+        handleDeployMine(pid, d.mineType, d.quantity, d.ownership ?? 'personal'),
+    [ClientMsgType.ListDeployedMines]: (pid) => handleListDeployedMines(pid),
+    [ClientMsgType.TrackSeekerMines]: (pid) => handleTrackSeekerMines(pid),
+    [ClientMsgType.MineDisruptor]: (pid, d) => handleMineDisruptor(pid, d.targetSector),
+    [ClientMsgType.GetNeighborhood]: (pid, d) =>
+        handleGetNeighborhood(
+            pid,
+            d.halfWidthWorld,
+            d.halfHeightWorld,
+            d.centerXWorld,
+            d.centerYWorld,
+        ),
+};
+
+export async function handleMessage(playerId: number, data: ClientCommand): Promise<void> {
+    const handler = handlers[data.type] as
+        | ((pid: number, d: ClientCommand) => void | Promise<void>)
+        | undefined;
+    if (!handler) {
+        sendError(playerId, 'Unknown message type');
+        return;
+    }
+    await handler(playerId, data);
+}
