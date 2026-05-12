@@ -93,9 +93,13 @@ const handlers: HandlerMap = {
     [ServerMsgType.MemoDelivery]: clan.memoDelivery,
 };
 
-export function dispatch(ctx: GameContext, msg: ServerResult): void {
+/** Returns the handler's result — `undefined` for sync handlers, a Promise
+ *  for async ones. Callers (currently connection.ts) use this to attach a
+ *  single "paint the menu prompt when fully done" callback on async chains
+ *  so the prompt doesn't render mid-flow. */
+export function dispatch(ctx: GameContext, msg: ServerResult): void | Promise<void> {
     const handler = handlers[msg.type] as
-        | ((ctx: GameContext, msg: ServerResult) => void)
+        | ((ctx: GameContext, msg: ServerResult) => void | Promise<void>)
         | undefined;
-    handler?.(ctx, msg);
+    return handler?.(ctx, msg);
 }

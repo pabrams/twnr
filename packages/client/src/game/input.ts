@@ -35,26 +35,15 @@ function isValidKeyForMenu(ctx: GameContext, key: string): 'single' | 'buffered'
 }
 
 /**
- * Whenever the client is about to wait for user input again — after a
- * sub-prompt resolves, after a handler completes, after a server envelope
- * — re-render the current menu's prompt unless the routine kicked off
- * another roundtrip or sub-prompt. Scheduled as a microtask so the
- * routine's continuation (resumed by the resolved promise) runs first
- * and can set inFlight / pendingResolver / pendingResponse before this
- * check runs.
- */
-function scheduleAutoRender(ctx: GameContext) {
-    queueMicrotask(() => {
-        if (!ctx.input.inFlight && !ctx.input.pendingResolver && !ctx.input.pendingResponse) {
-            showPrompt(ctx);
-        }
-    });
-}
-
-/**
  * Layer 1 — process one keystroke. Direct xterm keys go straight through this;
  * the burst/script queue drains via the same path so digit assembly and
  * single-char dispatch behave identically regardless of source.
+ *
+ * Sub-prompt resolvers (askChar/askConfirm/askLine/askNumber) resolve the
+ * pending Promise here and stop. They do NOT trigger a prompt re-render —
+ * the routine/handler that initiated the ask owns what comes next, and the
+ * single render at the end of its full async chain (finishUp) paints the
+ * menu prompt after everything's settled.
  */
 function processKeystroke(ctx: GameContext, ev: KeystrokeEvent) {
     // Char-mode sub-prompt (askChar/askConfirm): resolve on the next
@@ -64,14 +53,12 @@ function processKeystroke(ctx: GameContext, ev: KeystrokeEvent) {
             const r = ctx.input.pendingResolver;
             ctx.input.pendingResolver = null;
             r.resolve('\r');
-            scheduleAutoRender(ctx);
             return;
         }
         if (ev.isBackspace) return;
         const r = ctx.input.pendingResolver;
         ctx.input.pendingResolver = null;
         r.resolve(ev.key);
-        scheduleAutoRender(ctx);
         return;
     }
     if (ev.isEnter) {
@@ -180,12 +167,12 @@ function handleInput(ctx: GameContext, line: string) {
     if (ctx.autopilot.path.length > 0 && ctx.autopilot.step > 0 && !ctx.autopilot.paused) return;
     // Line-mode sub-prompts (askLine/askNumber) resolve here on Enter.
     // Char-mode prompts resolve in processKeystroke and never reach this
-    // point.
+    // point. The routine/handler waiting on this ask owns the next paint;
+    // its finishUp re-renders the menu prompt once the full chain settles.
     if (ctx.input.pendingResolver?.mode === 'line') {
         const r = ctx.input.pendingResolver;
         ctx.input.pendingResolver = null;
         r.resolve(line);
-        scheduleAutoRender(ctx);
         return;
     }
     // Per-file `input` handler runs first if registered — including for
