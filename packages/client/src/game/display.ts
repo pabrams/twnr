@@ -74,9 +74,7 @@ export function showSectorDisplay(
 
     if (planets && planets.length > 0) {
         const list = planets
-            .map((p) =>
-                render(SECTOR.planetItem, { name: p.name, type: p.displayType ?? p.type }),
-            )
+            .map((p) => render(SECTOR.planetItem, { name: p.name, type: p.displayType ?? p.type }))
             .join(comma);
         term.writeln(render(SECTOR.planetsLine, { list }));
     }
