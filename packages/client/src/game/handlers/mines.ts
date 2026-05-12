@@ -1,14 +1,18 @@
 import type { GameContext } from '../types.js';
 import type { Handler } from './index.js';
+import { render } from '../renderer.js';
+import { EVENT } from '../messages/index.js';
 
 type MinesContext = Pick<GameContext, 'io' | 'world'>;
 
 export const deployMine: Handler<'deployMineResult', MinesContext> = (ctx, msg) => {
     const label = msg.mineType === 'seeker' ? 'Seeker' : 'Proximity';
-    ctx.io.term.writeln('');
     ctx.io.term.writeln(
-        `Deployed ${msg.deployed} ${label} mine(s). Sector total: ${msg.sectorTotal}. ` +
-            `On ship: ${msg.shipRemaining}.`,
+        render(EVENT.deployMineResult, {
+            label,
+            ship: msg.shipMines,
+            sector: msg.sectorMines,
+        }),
     );
 };
 

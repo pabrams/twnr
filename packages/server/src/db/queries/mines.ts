@@ -27,6 +27,21 @@ export async function getSectorMineForUpdate(
     return res.rows[0];
 }
 
+/** Fetch the mine row for a sector. */
+export async function getSectorMine(
+    sectorDbId: number,
+    mineType: MineType,
+    db: Queryable = pool,
+): Promise<SectorMineRow | undefined> {
+    const res = await db.query<SectorMineRow>(
+        `SELECT sector_id, mine_type, quantity, owner_player_id, owner_clan_id
+         FROM sector_mines
+         WHERE sector_id = $1 AND mine_type = $2`,
+        [sectorDbId, mineType],
+    );
+    return res.rows[0];
+}
+
 /** Fetch every mine row in a sector (both types). Read-only. */
 export async function getSectorMines(
     sectorDbId: number,
@@ -42,8 +57,12 @@ export async function getSectorMines(
 }
 
 /** Insert or add to existing mine count. Exactly one of `ownerPlayerId` /
- *  `ownerClanId` must be non-null. Caller has already verified that any
- *  pre-existing row in this (sector, type) belongs to the same owner. */
+ *  `ownerClanId` must be non-null. On conflict, the deploying player's
+ *  ownership wins — caller is expected to have verified that any
+ *  pre-existing row in this (sector, type) is friendly (personal-mine
+ *  deployer is the owner, or clan-mine deployer's clan is the owner),
+ *  which makes an ownership flip from personal→clan (or vice versa) a
+ *  valid redesignation, not a hostile takeover. */
 export async function upsertSectorMines(
     sectorDbId: number,
     mineType: MineType,
@@ -56,8 +75,39 @@ export async function upsertSectorMines(
         `INSERT INTO sector_mines (sector_id, mine_type, quantity, owner_player_id, owner_clan_id)
          VALUES ($1, $2, $3, $4, $5)
          ON CONFLICT (sector_id, mine_type)
-         DO UPDATE SET quantity = sector_mines.quantity + $3`,
+         DO UPDATE SET
+             quantity = sector_mines.quantity + $3,
+             owner_player_id = EXCLUDED.owner_player_id,
+             owner_clan_id = EXCLUDED.owner_clan_id`,
         [sectorDbId, mineType, addQty, ownerPlayerId, ownerClanId],
+    );
+}
+
+/** Set the mine row to an exact quantity + ownership (insert if absent,
+ *  delete if quantity <= 0). Used by `handleDeployMine` after computing
+ *  the target total. Exactly one of `ownerPlayerId` / `ownerClanId` must
+ *  be non-null when quantity > 0. */
+export async function setSectorMineTo(
+    sectorDbId: number,
+    mineType: MineType,
+    ownerPlayerId: number | null,
+    ownerClanId: number | null,
+    quantity: number,
+    db: Queryable = pool,
+): Promise<void> {
+    if (quantity <= 0) {
+        await deleteSectorMines(sectorDbId, mineType, db);
+        return;
+    }
+    await db.query(
+        `INSERT INTO sector_mines (sector_id, mine_type, quantity, owner_player_id, owner_clan_id)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (sector_id, mine_type)
+         DO UPDATE SET
+             quantity = EXCLUDED.quantity,
+             owner_player_id = EXCLUDED.owner_player_id,
+             owner_clan_id = EXCLUDED.owner_clan_id`,
+        [sectorDbId, mineType, quantity, ownerPlayerId, ownerClanId],
     );
 }
 

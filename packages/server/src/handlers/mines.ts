@@ -10,10 +10,12 @@ import {
     getShipHardwareCapacityForUpdate,
     decrementShipHardwareByName,
     getShipHardwareQuantityByName,
+    upsertShipHardwareQuantity,
 } from '../db/queries/hardware.js';
 import {
+    getSectorMine,
     getSectorMineForUpdate,
-    upsertSectorMines,
+    setSectorMineTo,
     setSectorMineQuantity,
     deleteSectorMines,
     getDeployedMinesByOwner,
@@ -21,6 +23,8 @@ import {
     getMineUniverseSettings,
     type MineType,
 } from '../db/queries/mines.js';
+import { pool } from '../db/index.js';
+import { isFriendlyOwner } from '../services/owner.js';
 
 const MINE_TYPE_TO_HARDWARE: Record<MineType, string> = {
     proximity: 'proximity_mine',
@@ -32,17 +36,90 @@ const MINE_TYPE_LABEL: Record<MineType, string> = {
     seeker: 'Seeker',
 };
 
+async function getPlayerClanId(playerId: number): Promise<number | null> {
+    const r = await pool.query<{ clan_id: number | null }>(
+        'SELECT clan_id FROM players WHERE id = $1',
+        [playerId],
+    );
+    return r.rows[0]?.clan_id ?? null;
+}
+
+/** Info-only roundtrip used by the client's Handle-Mines flow. Reports
+ *  the current ship/sector counts and the ship's max capacity for the
+ *  given mine type, so the client can prompt for a target total. If the
+ *  sector already contains mines of this type that the player can't
+ *  legitimately manipulate (not theirs, not their clan's), we reject
+ *  here — before the client asks for quantity or ownership. */
+export async function handleDeployMineInfo(
+    playerId: number,
+    mineType: MineType,
+): Promise<void> {
+    if (mineType !== 'proximity' && mineType !== 'seeker') {
+        sendError(playerId, 'Invalid mine type');
+        return;
+    }
+    const player = players[playerId];
+    if (!player) return;
+    if (player.docked || player.at_starbase) {
+        sendError(playerId, 'Cannot deploy mines while docked');
+        return;
+    }
+    if (await isInEncounter(playerId)) {
+        sendError(playerId, 'Resolve drone encounter first');
+        return;
+    }
+
+    const sectorDbId = await getSectorDbId(player.sector, player.universeId);
+    if (!sectorDbId) {
+        sendError(playerId, 'Sector not found');
+        return;
+    }
+
+    const itemName = MINE_TYPE_TO_HARDWARE[mineType];
+    const hw = await getHardwareItemByName(itemName);
+    if (!hw) {
+        sendError(playerId, 'Mine hardware not configured');
+        return;
+    }
+
+    const playerClanId = await getPlayerClanId(playerId);
+    const existing = await getSectorMine(sectorDbId, mineType);
+    if (existing && existing.quantity > 0 && !isFriendlyOwner(existing, playerId, playerClanId)) {
+        sendError(playerId, `Those ${MINE_TYPE_LABEL[mineType]} mines aren't yours`);
+        return;
+    }
+
+    const cap = await getShipHardwareCapacityForUpdate(playerId, hw.id);
+    if (!cap) {
+        sendError(playerId, 'Ship not found');
+        return;
+    }
+
+    sendEnvelope(playerId, {
+        type: ServerMsgType.DeployMineInfoResult,
+        mineType,
+        sectorMines: existing?.quantity ?? 0,
+        shipMines: cap.current_qty,
+        shipMaxMines: cap.max_qty,
+    });
+}
+
+/** Deploy/pickup mines. `target` is the desired total in the sector
+ *  after the operation; -1 = "deploy all from ship." The transaction
+ *  re-checks ownership (the friendly-check in `handleDeployMineInfo`
+ *  was earlier and the world may have moved) and computes the delta:
+ *  positive moves ship→sector, negative picks up sector→ship. */
 export async function handleDeployMine(
     playerId: number,
     mineType: MineType,
-    quantity: number,
+    target: number,
     ownership: 'personal' | 'clan' = 'personal',
 ): Promise<void> {
     if (mineType !== 'proximity' && mineType !== 'seeker') {
         sendError(playerId, 'Invalid mine type');
         return;
     }
-    if (!Number.isInteger(quantity) || quantity <= 0) {
+    if (!Number.isInteger(target) || target < -1) {
         sendError(playerId, 'Invalid quantity');
         return;
     }
@@ -71,36 +148,26 @@ export async function handleDeployMine(
         return;
     }
 
-    let playerClanId: number | null = null;
-    if (ownership === 'clan') {
-        const { pool } = await import('../db/index.js');
-        const r = await pool.query<{ clan_id: number | null }>(
-            'SELECT clan_id FROM players WHERE id = $1',
-            [playerId],
-        );
-        playerClanId = r.rows[0]?.clan_id ?? null;
-        if (playerClanId === null) {
-            sendError(playerId, 'You are not in a clan.');
-            return;
-        }
+    const playerClanId = await getPlayerClanId(playerId);
+    if (ownership === 'clan' && playerClanId === null) {
+        sendError(playerId, 'You are not in a clan.');
+        return;
     }
 
     try {
         const result = await withTransaction(async (client) => {
             const existing = await getSectorMineForUpdate(sectorDbId, mineType, client);
+            const currentInSector = existing?.quantity ?? 0;
+
+            // Re-check ownership inside the tx: the info-time friendly
+            // check could be stale (another player may have cleared/
+            // deployed in the meantime).
             if (existing && existing.quantity > 0) {
-                const matches =
-                    (ownership === 'personal' && existing.owner_player_id === playerId) ||
-                    (ownership === 'clan' && existing.owner_clan_id === playerClanId);
-                if (!matches) {
-                    const friendly =
-                        existing.owner_player_id === playerId ||
-                        (playerClanId !== null && existing.owner_clan_id === playerClanId);
+                const friendly = isFriendlyOwner(existing, playerId, playerClanId);
+                if (!friendly) {
                     sendError(
                         playerId,
-                        friendly
-                            ? `Sector already has ${MINE_TYPE_LABEL[mineType]} mines with different ownership.`
-                            : `Sector contains hostile ${MINE_TYPE_LABEL[mineType]} mines — clear them first`,
+                        `Those ${MINE_TYPE_LABEL[mineType]} mines aren't yours`,
                     );
                     throw new AbortTransaction();
                 }
@@ -111,35 +178,56 @@ export async function handleDeployMine(
                 sendError(playerId, 'Ship not found');
                 throw new AbortTransaction();
             }
-            if (cap.current_qty < quantity) {
-                sendError(
-                    playerId,
-                    `Only ${cap.current_qty} ${MINE_TYPE_LABEL[mineType]} mines on ship`,
+
+            // Default (-1): deploy every mine of this type from the ship,
+            // leaving the ship empty of this type.
+            const resolvedTarget =
+                target === -1 ? currentInSector + cap.current_qty : target;
+
+            const delta = resolvedTarget - currentInSector;
+
+            if (delta > 0) {
+                if (cap.current_qty < delta) {
+                    sendError(
+                        playerId,
+                        `Only ${cap.current_qty} ${MINE_TYPE_LABEL[mineType]} mines on ship`,
+                    );
+                    throw new AbortTransaction();
+                }
+                await client.query(
+                    `UPDATE ship_hardware SET quantity = quantity - $1
+                     WHERE ship_id = $2 AND hardware_item_id = $3`,
+                    [delta, cap.ship_id, hw.id],
                 );
-                throw new AbortTransaction();
+            } else if (delta < 0) {
+                const pickup = -delta;
+                if (cap.current_qty + pickup > cap.max_qty) {
+                    sendError(
+                        playerId,
+                        `Ship can hold only ${cap.max_qty - cap.current_qty} more ${MINE_TYPE_LABEL[mineType]} mines`,
+                    );
+                    throw new AbortTransaction();
+                }
+                await upsertShipHardwareQuantity(cap.ship_id, hw.id, pickup, client);
             }
 
-            // Deduct from ship hardware (decrement by quantity).
-            await client.query(
-                `UPDATE ship_hardware SET quantity = quantity - $1
-                 WHERE ship_id = $2 AND hardware_item_id = $3`,
-                [quantity, cap.ship_id, hw.id],
-            );
-
-            // Add to sector mines.
-            await upsertSectorMines(
+            // Write the sector row: explicit target (or delete on 0),
+            // with the chosen ownership applied. When delta === 0 this
+            // still flips owner cols if ownership differs from existing.
+            const ownerPlayerArg = ownership === 'personal' ? playerId : null;
+            const ownerClanArg = ownership === 'clan' ? playerClanId : null;
+            await setSectorMineTo(
                 sectorDbId,
                 mineType,
-                ownership === 'personal' ? playerId : null,
-                ownership === 'clan' ? playerClanId : null,
-                quantity,
+                ownerPlayerArg,
+                ownerClanArg,
+                resolvedTarget,
                 client,
             );
 
-            const newSectorTotal = (existing?.quantity ?? 0) + quantity;
             return {
-                shipRemaining: cap.current_qty - quantity,
-                sectorTotal: newSectorTotal,
+                sectorMines: resolvedTarget,
+                shipMines: cap.current_qty - delta,
             };
         });
 
@@ -148,9 +236,8 @@ export async function handleDeployMine(
         await sendEnvelope(playerId, {
             type: ServerMsgType.DeployMineResult,
             mineType,
-            deployed: quantity,
-            sectorTotal: result.sectorTotal,
-            shipRemaining: result.shipRemaining,
+            sectorMines: result.sectorMines,
+            shipMines: result.shipMines,
         });
     } catch (err) {
         console.error('Deploy mine error', err);

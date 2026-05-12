@@ -30,6 +30,14 @@ export const EVENT = makeDomain('EVENT', {
     deployDronesResult:
         '\r\n[bc]Done. You have [by]{ship}[/by] drones in close support and [by]{sector}[/by] defending the sector.[/bc]',
 
+    handleMinesInfo:
+        '[g]{label} mines — [by]{ship}[/by] on ship, [by]{sector}[/by] in sector ' +
+        '([by]{total}[/by] total available, ship capacity [by]{max}[/by]).[/g]',
+    handleMinesPrompt:
+        '[g]How many {label} mines should be in this sector? (Q to cancel) [/g]',
+    deployMineResult:
+        '\r\n[bc]{label} mines — [by]{ship}[/by] on ship, [by]{sector}[/by] in sector.[/bc]',
+
     combatLost:
         '[by]Combat:[/by] Lost [br]{lost}[/br] drones. Sector drones remaining: [br]{remaining}[/br]. Ship drones: [w]{ship}[/w]',
     sectorCleared: '[bg]Sector cleared![/bg]',
