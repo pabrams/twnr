@@ -1,6 +1,7 @@
 import { ServerMsgType } from '@twnr/shared';
 import { players } from '../state/players.js';
-import { sendEnvelope } from '../state/messaging.js';
+import { sendEnvelope, broadcastEnvelope } from '../state/messaging.js';
+import { getClanMembers } from '../db/queries/clan.js';
 import { withTransaction } from '../db/index.js';
 import { getSectorDbId } from '../db/queries/sector.js';
 import {
@@ -17,6 +18,16 @@ import {
     setShipDronesAndShields,
     destroyShipRecord,
 } from '../db/queries/ship.js';
+import { pool } from '../db/index.js';
+import { isFriendlyOwner } from './owner.js';
+
+async function getPlayerClanId(playerId: number): Promise<number | null> {
+    const r = await pool.query<{ clan_id: number | null }>(
+        'SELECT clan_id FROM players WHERE id = $1',
+        [playerId],
+    );
+    return r.rows[0]?.clan_id ?? null;
+}
 
 /** RNG-of-record. Tests can monkey-patch Math.random to make outcomes deterministic. */
 function rollPercent(pct: number): boolean {
@@ -52,11 +63,13 @@ export async function resolveProximityMines(playerId: number): Promise<Proximity
     const settings = await getMineUniverseSettings(player.universeId);
     if (settings.proximity_detonation_pct <= 0 || settings.proximity_mine_damage <= 0) return null;
 
+    const playerClanId = await getPlayerClanId(playerId);
+
     const result = await withTransaction(async (client) => {
         const mineRow = await getSectorMineForUpdate(sectorDbId, 'proximity', client);
         if (!mineRow || mineRow.quantity <= 0) return null;
-        // Player's own mines never detonate against them.
-        if (mineRow.owner_player_id === playerId) return null;
+        // Player's own (or clan's) mines never detonate against them.
+        if (isFriendlyOwner(mineRow, playerId, playerClanId)) return null;
 
         // Roll each mine independently.
         let detonations = 0;
@@ -124,9 +137,9 @@ export async function resolveProximityMines(playerId: number): Promise<Proximity
  * envelope on success.
  */
 export async function resolveSeekerMines(playerId: number): Promise<{
-    newOwnerId: number;
+    newOwnerPlayerId: number | null;
+    newOwnerClanId: number | null;
     droppedPrevious: boolean;
-    droppedPreviousOwnerId: number | null;
 } | null> {
     const player = players[playerId];
     if (!player) return null;
@@ -137,12 +150,12 @@ export async function resolveSeekerMines(playerId: number): Promise<{
     const settings = await getMineUniverseSettings(player.universeId);
     if (settings.seeker_attach_pct <= 0) return null;
 
+    const playerClanId = await getPlayerClanId(playerId);
+
     const outcome = await withTransaction(async (client) => {
         const mineRow = await getSectorMineForUpdate(sectorDbId, 'seeker', client);
         if (!mineRow || mineRow.quantity <= 0) return null;
-        if (mineRow.owner_player_id === playerId) return null;
-        const ownerId = mineRow.owner_player_id;
-        if (ownerId == null) return null;
+        if (isFriendlyOwner(mineRow, playerId, playerClanId)) return null;
 
         // Each mine rolls independently. Mines that roll "yes" are spent
         // (one of them attaches; the rest are wasted but consumed because
@@ -173,14 +186,22 @@ export async function resolveSeekerMines(playerId: number): Promise<{
         // the deployer's count stays where it was — the mine is "spent").
         const previous = await getSeekerAttachmentForUpdate(shipId, client);
         const droppedPrevious = previous != null;
-        const droppedPreviousOwnerId = previous?.owner_player_id ?? null;
         if (droppedPrevious) {
             await deleteSeekerAttachment(shipId, client);
         }
 
-        await upsertSeekerAttachment(shipId, ownerId, client);
+        await upsertSeekerAttachment(
+            shipId,
+            mineRow.owner_player_id,
+            mineRow.owner_clan_id,
+            client,
+        );
 
-        return { newOwnerId: ownerId, droppedPrevious, droppedPreviousOwnerId };
+        return {
+            newOwnerPlayerId: mineRow.owner_player_id,
+            newOwnerClanId: mineRow.owner_clan_id,
+            droppedPrevious,
+        };
     });
 
     if (!outcome) return null;
@@ -191,15 +212,24 @@ export async function resolveSeekerMines(playerId: number): Promise<{
         droppedPrevious: outcome.droppedPrevious,
     });
 
-    // Notify the new mine's owner with `seeker_pickup_detect_pct` chance.
-    const owner = players[outcome.newOwnerId];
-    if (owner && owner.ws.readyState === 1 && rollPercent(settings.seeker_pickup_detect_pct)) {
-        sendEnvelope(outcome.newOwnerId, {
+    // Pickup-detect notification: roll once, then deliver to the owner
+    // (single player) or to all online clan members (clan-owned).
+    if (rollPercent(settings.seeker_pickup_detect_pct)) {
+        const alert = {
             type: ServerMsgType.SeekerMinePickupAlert,
             sector: player.sector,
             targetShipName: 'unknown',
             targetOwnerName: player.name,
-        });
+        };
+        if (outcome.newOwnerPlayerId !== null) {
+            sendEnvelope(outcome.newOwnerPlayerId, alert);
+        } else if (outcome.newOwnerClanId !== null) {
+            const members = await getClanMembers(outcome.newOwnerClanId);
+            broadcastEnvelope(
+                alert,
+                members.map((m) => m.id),
+            );
+        }
     }
 
     return outcome;

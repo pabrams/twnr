@@ -3,6 +3,8 @@ import { getSectorMines } from '../db/queries/mines.js';
 import { recordSectorObservation } from '../db/queries/observations.js';
 import { listPlayersInSector } from '../db/queries/player.js';
 import { players, isVisibleInSector } from '../state/players.js';
+import { pool } from '../db/index.js';
+import { isFriendlyOwner } from './owner.js';
 import {
     getPortForSector,
     getWarpRefs,
@@ -36,15 +38,24 @@ export async function buildSectorDisplayData(playerId: number, sectorNumber?: nu
             getSectorDbId(sector, universeId),
         ]);
 
+    const clanRow = await pool.query<{ clan_id: number | null }>(
+        'SELECT clan_id FROM players WHERE id = $1',
+        [playerId],
+    );
+    const viewerClanId = clanRow.rows[0]?.clan_id ?? null;
+
     const sectorMines =
         sectorDbId !== undefined
             ? (await getSectorMines(sectorDbId))
                   .filter((m) => m.quantity > 0)
-                  .filter((m) => m.mine_type !== 'seeker' || m.owner_player_id === playerId)
+                  .filter(
+                      (m) =>
+                          m.mine_type !== 'seeker' || isFriendlyOwner(m, playerId, viewerClanId),
+                  )
                   .map((m) => ({
                       mineType: m.mine_type,
                       quantity: m.quantity,
-                      own: m.owner_player_id === playerId,
+                      own: isFriendlyOwner(m, playerId, viewerClanId),
                   }))
             : [];
 
