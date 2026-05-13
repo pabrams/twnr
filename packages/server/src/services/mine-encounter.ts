@@ -218,6 +218,30 @@ export async function resolveSeekerMines(playerId: number): Promise<{
         }
     }
 
+    // Mail the activation to the limpet's owner (or each clan member if
+    // clan-owned). Independent of the pickup-detect roll above — that
+    // governs the live alert, not the persistent record.
+    const { insertSystemMemo } = await import('../db/queries/message.js');
+    const activationBody = `Limpet mine in ${player.sector} activated.`;
+    if (outcome.newOwnerPlayerId !== null) {
+        await insertSystemMemo(
+            outcome.newOwnerPlayerId,
+            'Deployed Drones',
+            'limpet_activated',
+            activationBody,
+        );
+    } else if (outcome.newOwnerClanId !== null) {
+        const members = await getClanMembers(outcome.newOwnerClanId);
+        for (const m of members) {
+            await insertSystemMemo(
+                m.id,
+                'Deployed Drones',
+                'limpet_activated',
+                activationBody,
+            );
+        }
+    }
+
     return outcome;
 }
 

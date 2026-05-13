@@ -18,6 +18,17 @@ export const clanMemoNotification: Handler<'clanMemoNotification', MailContext> 
     ctx.io.term.writeln(render(EVENT.clanMemoNotification, { name: msg.senderName }));
 };
 
+export const notice: Handler<'notice', MailContext> = (ctx, msg) => {
+    if (msg.senderLabel) {
+        ctx.io.term.writeln(render(EVENT.noticeHeader, { name: msg.senderLabel }));
+    } else {
+        ctx.io.term.writeln('');
+    }
+    for (const line of msg.body.split(/\r?\n/)) {
+        ctx.io.term.writeln(render(EVENT.noticeBodyLine, { line }));
+    }
+};
+
 export const hailIncoming: Handler<'hailIncoming', MailContext> = (ctx, msg) => {
     ctx.io.term.writeln(render(EVENT.hailIncomingHeader, { name: msg.senderName }));
     for (const line of msg.body.split(/\r?\n/)) {

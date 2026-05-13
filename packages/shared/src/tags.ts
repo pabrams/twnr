@@ -111,6 +111,7 @@ export const ServerTag = {
     HailSendResult: 'hailSendResult',
     HailIncoming: 'hailIncoming',
     ClanMemoNotification: 'clanMemoNotification',
+    Notice: 'notice',
 } as const;
 type ServerTag = typeof ServerTag;
 

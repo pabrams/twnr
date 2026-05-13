@@ -127,6 +127,8 @@ export const EVENT = makeDomain('EVENT', {
     clanMemoTypeBanner:
         '\r\n[by]Type memo [<ENTER> to send line. Blank line to end transmission][/by]',
     clanMemoLinePrompt: '[by]M:[/by] ',
+    noticeHeader: '\r\n[bc]Notice from[/bc] [by]{name}[/by][bc]:[/bc]',
+    noticeBodyLine: '[by]>[/by] {line}',
     towedAlongManned: ' [bc]{name} enters the sector with you.[/bc]',
     towedAlongUnmanned: ' [bc]The {name} (ship) enters the sector with you.[/bc]',
     playerMovedTowedManned: '[bc] {towedName} (trader in tow) {verb} the sector with {moverName}.[/bc]',

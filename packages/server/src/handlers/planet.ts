@@ -17,6 +17,7 @@ import {
     getPlanetInSector,
     getPlanetDisplayData,
     getPlanetName,
+    getPlanetOwnership,
     deletePlanet,
     getSectorByNumber,
     getTerraformConfigForUniverse,
@@ -216,11 +217,12 @@ export async function serveDestroyPlanet(playerId: number): Promise<void> {
         return;
     }
 
-    const planetName = await getPlanetName(onPlanetId);
-    if (!planetName) {
+    const ownership = await getPlanetOwnership(onPlanetId);
+    if (!ownership) {
         sendError(playerId, 'Planet not found.');
         return;
     }
+    const planetName = ownership.name;
 
     try {
         await withTransaction(async (client) => {
@@ -240,6 +242,30 @@ export async function serveDestroyPlanet(playerId: number): Promise<void> {
         planetId: onPlanetId,
         planetName,
     });
+
+    // Mail+notify any prior owners (other than the destroyer themselves).
+    const { notifyAndMail } = await import('../services/notify.js');
+    const body = `${player.name} destroyed planet ${planetName} in sector ${ownership.sector_number}.`;
+    if (ownership.owner_player_id !== null && ownership.owner_player_id !== playerId) {
+        await notifyAndMail({
+            recipientId: ownership.owner_player_id,
+            sender: { kind: 'player', playerId, displayName: player.name },
+            kind: 'planet_destroyed',
+            body,
+        });
+    } else if (ownership.owner_clan_id !== null) {
+        const { getClanMembers } = await import('../db/queries/clan.js');
+        const members = await getClanMembers(ownership.owner_clan_id);
+        for (const m of members) {
+            if (m.id === playerId) continue;
+            await notifyAndMail({
+                recipientId: m.id,
+                sender: { kind: 'player', playerId, displayName: player.name },
+                kind: 'planet_destroyed',
+                body,
+            });
+        }
+    }
 
     const data = await buildSectorDisplayData(playerId);
     if (data) sendEnvelope(playerId, { type: ServerTag.SectorDisplayResult, ...data });
@@ -796,19 +822,48 @@ export async function serveClaimPlanet(
         return;
     }
 
+    // Capture prior ownership BEFORE updating, so we can notify the displaced
+    // owner that someone else just claimed their planet.
+    const prior = await getPlanetOwnership(onPlanetId);
+
     if (ownership === 'clan') {
         await setPlanetOwnership(onPlanetId, null, playerClanId);
     } else {
         await setPlanetOwnership(onPlanetId, playerId, null);
     }
 
-    const planetName = (await getPlanetName(onPlanetId)) ?? 'Planet';
+    const planetName = prior?.name ?? (await getPlanetName(onPlanetId)) ?? 'Planet';
     sendEnvelope(playerId, {
         type: ServerTag.ClaimPlanetResult,
         planetId: onPlanetId,
         planetName,
         ownership,
     });
+
+    if (prior) {
+        const { notifyAndMail } = await import('../services/notify.js');
+        const body = `${player.name} claimed planet ${planetName} in sector ${prior.sector_number}.`;
+        if (prior.owner_player_id !== null && prior.owner_player_id !== playerId) {
+            await notifyAndMail({
+                recipientId: prior.owner_player_id,
+                sender: { kind: 'player', playerId, displayName: player.name },
+                kind: 'planet_claimed',
+                body,
+            });
+        } else if (prior.owner_clan_id !== null && prior.owner_clan_id !== playerClanId) {
+            const { getClanMembers } = await import('../db/queries/clan.js');
+            const members = await getClanMembers(prior.owner_clan_id);
+            for (const m of members) {
+                if (m.id === playerId) continue;
+                await notifyAndMail({
+                    recipientId: m.id,
+                    sender: { kind: 'player', playerId, displayName: player.name },
+                    kind: 'planet_claimed',
+                    body,
+                });
+            }
+        }
+    }
 }
 
 export async function serveListPlanets(playerId: number): Promise<void> {

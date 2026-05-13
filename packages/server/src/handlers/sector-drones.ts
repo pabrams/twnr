@@ -25,7 +25,7 @@ import {
     getDeployedDronesByOwner,
 } from '../db/queries/drones.js';
 import { resolveMinesOnEntry } from '../services/mine-encounter.js';
-import { getPlayerClanId } from '../db/queries/clan.js';
+import { getPlayerClanId, getClanMembers } from '../db/queries/clan.js';
 import { formatOwner, ownershipFrom } from '../services/owner-format.js';
 
 export async function serveListDeployedDrones(playerId: number): Promise<void> {
@@ -295,6 +295,8 @@ export async function serveAttackSectorDrones(
             shipDrones: newShipDrones,
         });
 
+        const { insertSystemMemo } = await import('../db/queries/message.js');
+        const mailRecipients: number[] = [];
         if (ownerId !== null) {
             const owner = players[ownerId];
             if (owner && owner.ws.readyState === 1) {
@@ -307,26 +309,37 @@ export async function serveAttackSectorDrones(
                     intruderName: player.name,
                 });
             }
+            mailRecipients.push(ownerId);
         } else {
-            // Clan-owned drones: alert every online member of the clan.
+            // Clan-owned drones: alert every member of the clan (online get an
+            // inline alert; everyone in the clan gets a mail entry).
             const existing = await getSectorDronesRowForUpdate(sectorDbId!);
             const ownerClanId = existing?.owner_clan_id ?? null;
             if (ownerClanId !== null) {
-                for (const [idStr, p] of Object.entries(players)) {
-                    const memberId = Number(idStr);
-                    if (memberId === playerId) continue;
-                    if (p.ws.readyState !== 1) continue;
-                    const memberClanId = await getPlayerClanId(memberId);
-                    if (memberClanId !== ownerClanId) continue;
-                    sendEnvelope(memberId, {
-                        type: ServerTag.SectorDronesAlert,
-                        event: victory ? 'destroyed' : 'attacked',
-                        sector: sectorId,
-                        dronesLost: k,
-                        dronesRemaining: newSectorDrones,
-                        intruderName: player.name,
-                    });
+                const clanMembers = await getClanMembers(ownerClanId);
+                for (const m of clanMembers) {
+                    if (m.id === playerId) continue;
+                    mailRecipients.push(m.id);
+                    const p = players[m.id];
+                    if (p && p.ws.readyState === 1) {
+                        sendEnvelope(m.id, {
+                            type: ServerTag.SectorDronesAlert,
+                            event: victory ? 'destroyed' : 'attacked',
+                            sector: sectorId,
+                            dronesLost: k,
+                            dronesRemaining: newSectorDrones,
+                            intruderName: player.name,
+                        });
+                    }
                 }
+            }
+        }
+        const attackBody = `Report Sector ${sectorId}: ${player.name} is attacking!`;
+        const destroyBody = `${player.name} destroyed ${k} of your drones in sector ${sectorId}`;
+        for (const rid of mailRecipients) {
+            await insertSystemMemo(rid, 'Deployed Drones', 'drones_attacked', attackBody);
+            if (k > 0) {
+                await insertSystemMemo(rid, 'Deployed Drones', 'drones_destroyed', destroyBody);
             }
         }
     } catch (err) {

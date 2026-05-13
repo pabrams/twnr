@@ -99,6 +99,7 @@ const handlers: HandlerMap = {
     [ServerTag.MemoDelivery]: mail.memoDelivery,
     [ServerTag.ClanMemoNotification]: mail.clanMemoNotification,
     [ServerTag.HailIncoming]: mail.hailIncoming,
+    [ServerTag.Notice]: mail.notice,
     [ServerTag.ClanMembershipChanged]: clan.clanMembershipChanged,
 
     [ServerTag.DensityScanResult]: longRangeScan.densityScan,

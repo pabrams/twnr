@@ -136,6 +136,16 @@ export async function serveMove(playerId: number, data: MoveCommand): Promise<vo
                   shipTypeDisplayName: towState.towed_ship_type_display_name,
                   shipTypeName: towState.towed_ship_name,
               };
+        // Player-piloted tow target gets a mail+notification of the move.
+        if (towState.towed_owner_player_id !== null) {
+            const { notifyAndMail } = await import('../services/notify.js');
+            await notifyAndMail({
+                recipientId: towState.towed_owner_player_id,
+                sender: { kind: 'player', playerId, displayName: player.name },
+                kind: 'tow',
+                body: `I towed you from sector ${currentSector} to sector ${targetSector}.`,
+            });
+        }
     }
 
     const oldSectorClients = new Set<WebSocket>();
@@ -227,16 +237,25 @@ export async function serveMove(playerId: number, data: MoveCommand): Promise<vo
 
         // Alert the owner about the intrusion (skip for rogue drones)
         const ownerId = sectorData.sectorDrones.ownerId;
-        const owner = ownerId != null ? players[ownerId] : undefined;
-        if (owner && owner.ws.readyState === 1 && ownerId != null) {
-            sendEnvelope(ownerId, {
-                type: ServerTag.SectorDronesAlert,
-                event: 'intrusion',
-                sector: targetSector,
-                dronesLost: 0,
-                dronesRemaining: sectorData.sectorDrones.quantity,
-                intruderName: player.name,
-            });
+        if (ownerId != null) {
+            const owner = players[ownerId];
+            if (owner && owner.ws.readyState === 1) {
+                sendEnvelope(ownerId, {
+                    type: ServerTag.SectorDronesAlert,
+                    event: 'intrusion',
+                    sector: targetSector,
+                    dronesLost: 0,
+                    dronesRemaining: sectorData.sectorDrones.quantity,
+                    intruderName: player.name,
+                });
+            }
+            const { insertSystemMemo } = await import('../db/queries/message.js');
+            await insertSystemMemo(
+                ownerId,
+                'Deployed Drones',
+                'drones_intrusion',
+                `Report Sector ${targetSector}: ${player.name} entered sector.`,
+            );
         }
         return;
     }

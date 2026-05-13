@@ -511,6 +511,7 @@ export const connectDB = async (): Promise<void> => {
         id BIGSERIAL PRIMARY KEY,
         recipient_player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
         sender_player_id INTEGER REFERENCES players(id) ON DELETE SET NULL,
+        sender_label TEXT,
         clan_id INTEGER REFERENCES clans(id) ON DELETE SET NULL,
         kind VARCHAR(30) NOT NULL,
         body TEXT NOT NULL,
