@@ -702,6 +702,34 @@ export type AttackBeaconReply = {
     shipDrones: number;
 };
 
+export type DensityScanEntry = {
+    sector: number;
+    visited: boolean;
+    /** Sum of density scores per the scoring rule. */
+    density: number;
+    warps: number;
+    /** Nav-hazard percentage 0-100. Always 0 for now. */
+    navHaz: number;
+    /** True if any limpet (seeker) mines present. */
+    anom: boolean;
+};
+
+/** Density-scan reply also carries the viewer's visual-scanner status so
+ *  the client can decide whether to offer the follow-up visual scan
+ *  without an extra round-trip. */
+export type DensityScanReply = {
+    type: typeof ServerTag.DensityScanResult;
+    entries: DensityScanEntry[];
+    hasVisualScanner: boolean;
+};
+
+/** Visual scan reply: a full sector display for each out-warp sector,
+ *  rendered back to back by the client. Deducts one turn server-side. */
+export type VisualScanReply = {
+    type: typeof ServerTag.VisualScanResult;
+    sectors: SectorDisplayData[];
+};
+
 export type StarbaseInfoReply = {
     type: typeof ServerTag.StarbaseInfoResult;
     sector: number | null;
@@ -917,5 +945,7 @@ export type ServerEnvelope =
     | ClanMembershipChangedEvent
     | ReleaseBeaconReply
     | AttackBeaconReply
+    | DensityScanReply
+    | VisualScanReply
     | MemoDeliveryEvent
     | ErrorReply;

@@ -73,6 +73,7 @@ import {
     handleClanDropMember,
 } from './clan.js';
 import { handleReleaseBeacon, handleAttackBeacon } from './beacon.js';
+import { handleDensityScan, handleVisualScan } from './long-range-scan.js';
 
 type ClientCommandByType = { [C in ClientEnvelope as C['type']]: C };
 
@@ -150,6 +151,8 @@ const handlers: HandlerMap = {
     [ClientTag.GetNeighborhood]: handleGetNeighborhood,
     [ClientTag.ReleaseBeacon]: handleReleaseBeacon,
     [ClientTag.AttackBeacon]: handleAttackBeacon,
+    [ClientTag.DensityScan]: handleDensityScan,
+    [ClientTag.VisualScan]: handleVisualScan,
 };
 
 export async function handleMessage(playerId: number, data: ClientEnvelope): Promise<void> {

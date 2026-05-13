@@ -1,6 +1,6 @@
 import { ClientTag, Menu, ServerTag } from '@twnr/shared';
 import { render } from '../renderer.js';
-import { COMPUTER, EVENT, NOTIFY, PLANET, SECTOR } from '../messages/index.js';
+import { COMPUTER, EVENT, NOTIFY, PANEL, PLANET, SECTOR } from '../messages/index.js';
 import {
     echoCommand,
     hideMoveMenuOverlay,
@@ -144,6 +144,17 @@ registerRoutine('mine_disruptor_menu', async (ctx) => {
     });
     if (target === null) return;
     ctx.io.sendMsg({ type: ClientTag.MineDisruptor, targetSector: target });
+});
+
+registerRoutine('long_range_scan', async (ctx) => {
+    ctx.io.sendMsg({ type: ClientTag.DensityScan });
+    const reply = await awaitResponse(ctx, [ServerTag.DensityScanResult, ServerTag.Error]);
+    if (reply === null) return;
+    if (reply.type !== ServerTag.DensityScanResult) return;
+    if (!reply.hasVisualScanner) return;
+    const ok = await askConfirm(ctx, render(PANEL.visualScanPrompt), { defaultValue: false });
+    if (!ok) return;
+    ctx.io.sendMsg({ type: ClientTag.VisualScan });
 });
 
 registerRoutine('release_beacon', async (ctx) => {

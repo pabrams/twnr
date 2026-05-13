@@ -1,7 +1,7 @@
 import { Menu } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
-import { TRANSACTION, PANEL } from '../messages/index.js';
+import { TRANSACTION } from '../messages/index.js';
 import { type DisplayCtx } from '../display.js';
 import { type DisplayPortCtx } from '../display-port.js';
 import { showHardwareMenu, type DisplayStarbaseCtx } from '../display-starbase.js';
@@ -88,43 +88,3 @@ export const hardwareStoreInfo: Handler<'hardwareStoreInfoResult', HardwareStore
     showHardwareMenu(ctx);
 };
 
-export const listDeployedDrones: Handler<'listDeployedDronesResult', HardwareStoreContext> = (
-    ctx,
-    msg,
-) => {
-    ctx.io.term.writeln('');
-    if (msg.drones.length === 0) {
-        ctx.io.term.writeln(render(PANEL.deployedDronesEmpty));
-        return;
-    }
-    ctx.io.term.writeln(render(PANEL.deployedDronesTitle));
-    ctx.io.term.writeln('');
-    ctx.io.term.writeln(render(PANEL.deployedDronesColumns));
-    ctx.io.term.writeln(render(PANEL.deployedDronesRule));
-    let totalDrones = 0;
-    let totalTolls = 0;
-    for (const d of msg.drones) {
-        const kind =
-            d.ownership.kind === 'player'
-                ? 'Personal'
-                : d.ownership.kind === 'clan'
-                  ? 'Clan'
-                  : 'Rogue';
-        ctx.io.term.writeln(
-            render(PANEL.deployedDronesRow, {
-                sector: String(d.sectorId).padStart(6),
-                qty: String(d.quantity).padStart(4),
-                kind: kind.padEnd(8),
-                mode: 'Defensive'.padEnd(11),
-                tolls: 'N/A'.padStart(5),
-            }),
-        );
-        totalDrones += d.quantity;
-    }
-    ctx.io.term.writeln(
-        render(PANEL.deployedDronesTotalsRow, {
-            qty: String(totalDrones).padStart(4),
-            tolls: String(totalTolls).padStart(3),
-        }),
-    );
-};

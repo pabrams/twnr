@@ -95,6 +95,8 @@ export const ServerTag = {
     ClanMembershipChanged: 'clanMembershipChanged',
     ReleaseBeaconResult: 'releaseBeaconResult',
     AttackBeaconResult: 'attackBeaconResult',
+    DensityScanResult: 'densityScanResult',
+    VisualScanResult: 'visualScanResult',
     MemoDelivery: 'memoDelivery',
     ProximityMineHit: 'proximityMineHit',
     SeekerMineAttached: 'seekerMineAttached',
@@ -168,5 +170,7 @@ export const ClientTag = {
     ClanDropMember: 'clanDropMember',
     ReleaseBeacon: 'releaseBeacon',
     AttackBeacon: 'attackBeacon',
+    DensityScan: 'densityScan',
+    VisualScan: 'visualScan',
 } as const;
 type ClientTag = typeof ClientTag;

@@ -110,6 +110,13 @@ export const MENU_REGISTRY: MenuEntry[] = [
                 sortOrder: 89,
             },
             {
+                command: 'long_range_scan',
+                keyPattern: 's',
+                label: 'Long Range Scan',
+                targetMenu: null,
+                sortOrder: 91,
+            },
+            {
                 command: 'jettison_menu',
                 keyPattern: 'j',
                 label: 'Jettison cargo',

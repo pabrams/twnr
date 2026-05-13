@@ -61,4 +61,15 @@ export const PANEL = makeDomain('PANEL', {
     limpetScanRule: '[g]========================[/g]',
     limpetScanRow: '  [bc]{sector}[/bc]      [bc]{kind}[/bc]',
     limpetScanTotalsRow: '              [bc]{qty} Total[/bc]',
+
+    densityScanTitle: '                          [bc]Relative Density Scan[/bc]',
+    densityScanRule:
+        '[g]-----------------------------------------------------------------------------[/g]',
+    densityScanRow:
+        '[mg]Sector[/mg]  {sector}  ==>  {density}  [mg]Warps :[/mg] {warps}    ' +
+        '[mg]NavHaz :[/mg] {navHaz}    [mg]Anom :[/mg] {anom}',
+    densityScanSectorVisited: '[bc]{n}[/bc] ',
+    densityScanSectorUnvisited: '[mg]([/mg][br]{n}[/br][mg])[/mg]',
+    visualScanPrompt:
+        '\r\n[mg]Spend a turn for a visual scan?[/mg] [mg]([/mg][by]Y[/by]/[by]N[/by][mg]) [N][/mg] ',
 });
