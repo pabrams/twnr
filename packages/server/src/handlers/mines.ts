@@ -228,7 +228,7 @@ export async function handleListDeployedMines(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
     const rows = await getDeployedMinesByOwner(playerId);
-    const { formatOwner } = await import('../services/owner-format.js');
+    const { formatOwner, ownershipFrom } = await import('../services/owner-format.js');
     sendEnvelope(playerId, {
         type: ServerTag.ListDeployedMinesResult,
         mines: rows.map((r) => ({
@@ -236,6 +236,7 @@ export async function handleListDeployedMines(playerId: number): Promise<void> {
             mineType: r.mine_type,
             quantity: r.quantity,
             ownerLabel: formatOwner(r),
+            ownership: ownershipFrom(r),
         })),
     });
 }

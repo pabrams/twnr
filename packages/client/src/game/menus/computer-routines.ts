@@ -102,6 +102,19 @@ registerRoutine('track_seeker_mines', (ctx) => {
     ctx.io.sendMsg({ type: ClientTag.TrackSeekerMines });
 });
 
+registerRoutine('list_deployed_mines', async (ctx) => {
+    ctx.io.term.writeln('');
+    ctx.io.term.writeln(render(COMPUTER.mineScanBanner));
+    ctx.io.term.writeln('');
+    const ch = await askChar(ctx, render(COMPUTER.mineScanPrompt), ['p', 'l']);
+    if (ch === null) {
+        ctx.world.mineScanFilter = null;
+        return;
+    }
+    ctx.world.mineScanFilter = ch === 'p' ? 'proximity' : 'seeker';
+    ctx.io.sendMsg({ type: ClientTag.ListDeployedMines });
+});
+
 registerRoutine('active_ship_scan', async (ctx) => {
     echoCommand(ctx, 'activeShipScan');
     ctx.io.sendMsg({ type: ClientTag.ListOwnedShips });

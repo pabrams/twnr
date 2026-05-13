@@ -10,9 +10,10 @@ const KEY_TO_COMMAND: Record<string, string> = {
     ';': 'current_ship_specs',
     '?': 'help_menu',
     d: 'list_deployed_drones',
+    m: 'list_deployed_mines',
     h: 'hyperspace_jump',
     y: 'list_planets',
-    m: 'track_seeker_mines',
+    t: 'track_seeker_mines',
     z: 'active_ship_scan',
     o: 'change_ship_ownership',
 };

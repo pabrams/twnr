@@ -103,6 +103,7 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
             currentWarps: [],
             starbaseSector: null,
             earthColonists: 0,
+            mineScanFilter: null,
         },
         ship: {
             currentShipName: '',

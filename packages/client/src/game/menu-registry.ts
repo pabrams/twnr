@@ -89,25 +89,11 @@ export const MENU_REGISTRY: MenuEntry[] = [
                 sortOrder: 80,
             },
             {
-                command: 'list_deployed_drones',
-                keyPattern: 'g',
-                label: 'Deployed Drones',
-                targetMenu: null,
-                sortOrder: 85,
-            },
-            {
                 command: 'handle_mines_menu',
                 keyPattern: 'h',
                 label: 'Handle mines',
                 targetMenu: null,
                 sortOrder: 86,
-            },
-            {
-                command: 'list_deployed_mines',
-                keyPattern: 'e',
-                label: 'Deployed Mines',
-                targetMenu: null,
-                sortOrder: 87,
             },
             {
                 command: 'mine_disruptor_menu',
@@ -217,9 +203,16 @@ export const MENU_REGISTRY: MenuEntry[] = [
             {
                 command: 'list_deployed_drones',
                 keyPattern: 'd',
-                label: 'List deployed drones',
+                label: 'Show deployed drones',
                 targetMenu: null,
                 sortOrder: 60,
+            },
+            {
+                command: 'list_deployed_mines',
+                keyPattern: 'm',
+                label: 'Show deployed mines',
+                targetMenu: null,
+                sortOrder: 65,
             },
             {
                 command: 'hyperspace_jump',
@@ -237,7 +230,7 @@ export const MENU_REGISTRY: MenuEntry[] = [
             },
             {
                 command: 'track_seeker_mines',
-                keyPattern: 'm',
+                keyPattern: 't',
                 label: 'Track limpet mines',
                 targetMenu: null,
                 sortOrder: 90,

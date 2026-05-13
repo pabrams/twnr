@@ -137,10 +137,6 @@ registerRoutine('handle_mines_menu', async (ctx) => {
     ctx.io.sendMsg({ type: ClientTag.DeployMine, mineType, quantity: qty, ownership });
 });
 
-registerRoutine('list_deployed_mines', (ctx) => {
-    ctx.io.sendMsg({ type: ClientTag.ListDeployedMines });
-});
-
 registerRoutine('mine_disruptor_menu', async (ctx) => {
     const target = await askNumber(ctx, 'Mine disruptor — adjacent target sector? (Q to cancel) ', {
         min: 1,
@@ -206,28 +202,47 @@ registerRoutine('clan_menu', (ctx) => {
 registerRoutine('transporter_pad', async (ctx) => {
     echoCommand(ctx, 'transporterPad');
 
-    while (true) {
+    const fetchScan = async () => {
         ctx.io.sendMsg({ type: ClientTag.ListOwnedShips });
-        const scan = await awaitResponse(ctx, [
+        const reply = await awaitResponse(ctx, [
             ServerTag.ListOwnedShipsResult,
             ServerTag.Error,
         ]);
-        if (scan === null) return;
-        if (scan.type !== ServerTag.ListOwnedShipsResult) return;
-
-        renderTransporterPrelude(ctx, scan);
-        renderActiveShipScan(ctx, scan, {
+        if (reply === null) return null;
+        if (reply.type !== ServerTag.ListOwnedShipsResult) return null;
+        return reply;
+    };
+    const paintScan = (s: NonNullable<Awaited<ReturnType<typeof fetchScan>>>) => {
+        renderTransporterPrelude(ctx, s);
+        renderActiveShipScan(ctx, s, {
             sortByHops: true,
-            rangeFromCurrentShip: scan.currentShipTransporterRange,
+            rangeFromCurrentShip: s.currentShipTransporterRange,
         });
         renderTransporterOptions(ctx);
+    };
 
-        const choice = await askLineWithShortcuts(ctx, render(COMPUTER.transporterPrompt), [
-            'i',
-        ]);
+    // Fetch the ship list once, then loop on the prompt. The list is only
+    // re-painted when the user explicitly asks for it via `?`, or after a
+    // successful transport (because the ship's own sector changed). The
+    // `I` (details) path stays on the same prompt afterwards.
+    let scan = await fetchScan();
+    if (!scan) return;
+    paintScan(scan);
+
+    while (true) {
+        const choice = await askLineWithShortcuts(
+            ctx,
+            render(COMPUTER.transporterPrompt),
+            ['i', '?'],
+        );
         if (choice === null) return;
 
-        if (choice.toLowerCase() === 'i') {
+        if (choice === '?') {
+            paintScan(scan);
+            continue;
+        }
+
+        if (choice === 'i') {
             const which = await askNumber(ctx, render(COMPUTER.transporterDetailsPrompt), {
                 min: 1,
             });
@@ -276,5 +291,10 @@ registerRoutine('transporter_pad', async (ctx) => {
         ctx.io.term.writeln(
             render(COMPUTER.transporterTurnsLeft, { turns: result.turnsRemaining }),
         );
+        // Refresh the scan since the player's ship + position changed.
+        const refreshed = await fetchScan();
+        if (!refreshed) return;
+        scan = refreshed;
+        paintScan(scan);
     }
 });

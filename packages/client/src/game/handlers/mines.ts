@@ -1,7 +1,7 @@
 import type { GameContext } from '../types.js';
 import type { Handler } from './index.js';
 import { render } from '../renderer.js';
-import { EVENT } from '../messages/index.js';
+import { EVENT, PANEL } from '../messages/index.js';
 
 type MinesContext = Pick<GameContext, 'io' | 'world'>;
 
@@ -16,31 +16,66 @@ export const deployMine: Handler<'deployMineResult', MinesContext> = (ctx, msg) 
     );
 };
 
+/** Render deployed-mines table, filtered by the type the user picked in
+ *  the show-deployed-mines routine. The mineType filter is stashed on
+ *  `ctx.world.mineScanFilter` by the routine before sending the request,
+ *  so the handler knows which rows to keep. */
 export const listDeployedMines: Handler<'listDeployedMinesResult', MinesContext> = (ctx, msg) => {
     ctx.io.term.writeln('');
-    if (msg.mines.length === 0) {
-        ctx.io.term.writeln('No mines deployed.');
+    const filter = ctx.world.mineScanFilter ?? null;
+    const rows = filter ? msg.mines.filter((m) => m.mineType === filter) : msg.mines;
+    if (rows.length === 0) {
+        ctx.io.term.writeln(render(PANEL.deployedMinesEmpty));
         return;
     }
-    ctx.io.term.writeln('Your deployed mines:');
-    for (const m of msg.mines) {
-        const label = m.mineType === 'seeker' ? 'Limpet' : 'Proximity';
-        ctx.io.term.writeln(`  Sector ${m.sectorNumber}: ${m.quantity} ${label} — ${m.ownerLabel}`);
+    const label = filter === 'seeker' ? 'Limpet' : filter === 'proximity' ? 'Proximity' : 'Mine';
+    ctx.io.term.writeln(render(PANEL.deployedMinesTitle, { label }));
+    ctx.io.term.writeln('');
+    ctx.io.term.writeln(render(PANEL.deployedMinesColumns));
+    ctx.io.term.writeln(render(PANEL.deployedMinesRule));
+    let total = 0;
+    for (const m of rows) {
+        const kind =
+            m.ownership.kind === 'player'
+                ? 'Personal'
+                : m.ownership.kind === 'clan'
+                  ? 'Clan'
+                  : 'Rogue';
+        ctx.io.term.writeln(
+            render(PANEL.deployedMinesRow, {
+                sector: String(m.sectorNumber).padStart(6),
+                qty: String(m.quantity).padStart(4),
+                kind,
+            }),
+        );
+        total += m.quantity;
     }
+    ctx.io.term.writeln(
+        render(PANEL.deployedMinesTotalsRow, { qty: String(total).padStart(4) }),
+    );
 };
 
 export const trackSeekerMines: Handler<'trackSeekerMinesResult', MinesContext> = (ctx, msg) => {
     ctx.io.term.writeln('');
-    if (msg.targets.length === 0) {
-        ctx.io.term.writeln('No limpet mines currently attached.');
-        return;
-    }
-    ctx.io.term.writeln('Limpet mines tracking:');
+    ctx.io.term.writeln(render(PANEL.limpetScanTitle));
+    ctx.io.term.writeln('');
+    ctx.io.term.writeln(render(PANEL.limpetScanColumns));
+    ctx.io.term.writeln(render(PANEL.limpetScanRule));
+    // Each target row has owner info via the existing fields. For now we
+    // render `Personal` for every attached limpet (since track only
+    // surfaces limpets owned by the viewer personally — clan-shared
+    // tracking isn't in the schema yet).
     for (const t of msg.targets) {
         ctx.io.term.writeln(
-            `  Sector ${t.sectorNumber}: ${t.targetOwnerName}'s ${t.targetShipName}`,
+            render(PANEL.limpetScanRow, {
+                sector: String(t.sectorNumber).padStart(6),
+                kind: 'Personal',
+            }),
         );
     }
+    ctx.io.term.writeln(
+        render(PANEL.limpetScanTotalsRow, { qty: String(msg.targets.length).padStart(4) }),
+    );
 };
 
 export const mineDisruptor: Handler<'mineDisruptorResult', MinesContext> = (ctx, msg) => {

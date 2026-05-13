@@ -120,6 +120,10 @@ export interface WorldState {
     currentWarps: { sector: number; visited: boolean }[];
     starbaseSector: number | null;
     earthColonists: number;
+    /** Set by the show-deployed-mines routine before issuing
+     *  ListDeployedMines so the handler knows which type to filter to.
+     *  Null = no scan in progress. */
+    mineScanFilter: 'proximity' | 'seeker' | null;
 }
 
 export interface ShipState {

@@ -26,7 +26,7 @@ import {
 } from '../db/queries/drones.js';
 import { resolveMinesOnEntry } from '../services/mine-encounter.js';
 import { getPlayerClanId } from '../db/queries/clan.js';
-import { formatOwner } from '../services/owner-format.js';
+import { formatOwner, ownershipFrom } from '../services/owner-format.js';
 
 export async function handleListDeployedDrones(playerId: number): Promise<void> {
     const player = players[playerId];
@@ -49,6 +49,7 @@ export async function handleListDeployedDrones(playerId: number): Promise<void> 
             sectorId: r.sector_id,
             quantity: r.quantity,
             ownerLabel: formatOwner(r),
+            ownership: ownershipFrom(r),
         })),
     });
 }

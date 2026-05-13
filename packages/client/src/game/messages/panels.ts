@@ -38,6 +38,27 @@ export const PANEL = makeDomain('PANEL', {
     playersOnlineYouTag: ' [bg](you)[/bg]',
 
     deployedDronesEmpty: '[g]No drones deployed.[/g]',
-    deployedDronesHeader: '[bc]Deployed Drones:[/bc]',
-    deployedDronesRow: '  Sector [by]{sector}[/by]: [bc]{qty}[/bc] drones — [w]{owner}[/w]',
+    deployedDronesTitle: '                 [bc]Deployed  Drone  Scan[/bc]',
+    deployedDronesColumns:
+        ' [bw]Sector      Drones    Personal/Clan    Mode        Tolls[/bw]',
+    deployedDronesRule:
+        '[g]===========================================================[/g]',
+    deployedDronesRow:
+        '  [bc]{sector}[/bc]      [bc]{qty}[/bc]      [bc]{kind}[/bc]   [g]{mode}[/g]   [w]{tolls}[/w]',
+    deployedDronesTotalsRow:
+        '              [bc]{qty} Total[/bc]                          [w]{tolls} Total[/w]',
+
+    deployedMinesEmpty: '[g]No mines deployed.[/g]',
+    deployedMinesTitle: '       [bc]Deployed  {label}  Scan[/bc]',
+    deployedMinesColumns: ' [bw]Sector      Mines     Personal/Clan[/bw]',
+    deployedMinesRule: '[g]====================================[/g]',
+    deployedMinesRow:
+        '  [bc]{sector}[/bc]      [bc]{qty}[/bc]      [bc]{kind}[/bc]',
+    deployedMinesTotalsRow: '              [bc]{qty} Total[/bc]',
+
+    limpetScanTitle: 'Activated  [bc]Limpet  Scan[/bc]',
+    limpetScanColumns: ' [bw]Sector    Personal/Clan[/bw]',
+    limpetScanRule: '[g]========================[/g]',
+    limpetScanRow: '  [bc]{sector}[/bc]      [bc]{kind}[/bc]',
+    limpetScanTotalsRow: '              [bc]{qty} Total[/bc]',
 });
