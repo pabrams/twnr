@@ -1,11 +1,6 @@
 import { ClientTag, Menu } from '@twnr/shared';
 import { echoCommand } from '../display.js';
-import { showStarbaseMenu } from '../display-starbase.js';
-import { registerMenu, registerRoutine } from './types.js';
-
-registerMenu(Menu.Starbase, {
-    renderPrompt: showStarbaseMenu,
-});
+import { registerRoutine } from './types.js';
 
 registerRoutine('shipyards_menu', (ctx) => {
     echoCommand(ctx, 'shipyards');

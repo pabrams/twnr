@@ -4,7 +4,7 @@ import type { GameContext } from './types.js';
 
 import { render } from './renderer.js';
 import { NOTIFY } from './messages/index.js';
-import { getMenuHandler } from './menus/index.js';
+import { getMenuHandler } from './routines/index.js';
 import { dispatch } from './handlers/index.js';
 import { drainInputQueue } from './input.js';
 

@@ -3,7 +3,7 @@ import type { SectorRef, OwnershipInfo, SectorDisplayData } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { render } from './renderer.js';
 import { COMMAND, SECTOR, HELP, HELP_LINES, PORT, COMMON } from './messages/index.js';
-import { showPrompt } from './menus/types.js';
+import { showPrompt } from './routines/types.js';
 
 function renderOwnership(
     ownership: OwnershipInfo,

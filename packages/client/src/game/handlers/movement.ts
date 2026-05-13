@@ -6,7 +6,7 @@ import { NOTIFY, EVENT, SECTOR } from '../messages/index.js';
 import { showSectorDisplay, type DisplayCtx } from '../display.js';
 import { type DisplayPortCtx } from '../display-port.js';
 import { showDroneEncounter, type DisplayCombatCtx } from '../display-combat.js';
-import { askConfirm } from '../menus/prompts.js';
+import { askConfirm } from '../routines/prompts.js';
 import type { Handler } from './index.js';
 import { refreshMinimap, type RefreshMinimapCtx } from './utils.js';
 

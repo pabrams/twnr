@@ -8,7 +8,9 @@ import { setupInput } from './input.js';
 import { createMinimap, flashTerminalBorder } from './minimap.js';
 import { render } from './renderer.js';
 import { NOTIFY } from './messages/index.js';
-import { MENU_REGISTRY } from './menu-registry.js';
+import { MENU_REGISTRY, MENU_PROMPTS } from './menu-registry.js';
+import { registerMenu } from './routines/index.js';
+import type { MenuName } from '@twnr/shared';
 
 export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect: () => void) {
     const term = new Terminal({
@@ -217,6 +219,11 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
         const map = new Map<string, MenuEntry>();
         for (const entry of MENU_REGISTRY) map.set(entry.name, entry);
         ctx.catalogs.menus = map;
+    }
+    // Bind each menu's prompt-renderer. Menus omitted from MENU_PROMPTS
+    // (e.g. `port`) render nothing — their visible UI is server-pushed.
+    for (const [name, renderPrompt] of Object.entries(MENU_PROMPTS)) {
+        registerMenu(name as MenuName, { renderPrompt });
     }
 
     // Mini-map setup. The mini-map lives in the adjacent #minimap panel and

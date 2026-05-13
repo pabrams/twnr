@@ -51,7 +51,8 @@ export function showHardwareItemDetail(ctx: DisplayStarbaseCtx, itemName: string
 
 // Display key for each hardware item. Mines (proximity/seeker) live behind
 // the M sub-prompt, so they don't appear here individually. Must match the
-// STACKABLE/TOGGLE maps in menus/starbase-hardware.ts.
+// STACKABLE/TOGGLE maps in routines/hardware-routines.ts and the
+// starbaseHardware entry in menu-registry.ts.
 const HW_KEY_MAP: Record<string, string> = {
     terraform_device: 'T',
     planet_buster: 'B',

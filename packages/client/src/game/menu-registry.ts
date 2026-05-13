@@ -1,16 +1,24 @@
-import type { MenuEntry } from '@twnr/shared';
+import { Menu, type MenuEntry, type MenuName } from '@twnr/shared';
+import type { GameContext } from './types.js';
+import { showSectorPrompt } from './display.js';
+import { showAttackPrompt, showDroneEncounterPrompt } from './display-combat.js';
+import { showComputerPrompt } from './display-computer.js';
+import { showClanPrompt } from './display-clan.js';
+import { showPlanetMenuOptions, showEarthPrompt } from './display-planet.js';
+import { showClass0Menu } from './display-port.js';
+import {
+    showStarbaseMenu,
+    showHardwarePrompt,
+    showShipyardsMenu,
+    showShipyardsClass0Menu,
+} from './display-starbase.js';
 
 /**
- * Hardcoded menu registry. 
- *
- * If you add a new key binding for a server-driven menu, add it here.
- * Client-only sub-modes (computer, attack, droneEncounter, port pre-dock,
- * starbaseHardware) live in their per-menu files.
- * 
- * The duplication here exists so the shared
-    help_menu routine (common-routines.ts) can enumerate the
-    available commands when the user hits `?`. Keep both lists in
-    sync when adding/removing computer commands.
+ * Single source of truth for both the data side of menus (key bindings,
+ * labels) and the behavior side (prompt renderer). Each menu's commands
+ * dispatch through the routine registry in `routines/`; the registry below
+ * tells the client what keys are valid where and what to render at the
+ * prompt for each menu.
  */
 export const MENU_REGISTRY: MenuEntry[] = [
     {
@@ -278,6 +286,13 @@ export const MENU_REGISTRY: MenuEntry[] = [
                 sortOrder: 92,
             },
             {
+                command: 'active_ship_scan',
+                keyPattern: 'z',
+                label: 'Active ship scan',
+                targetMenu: null,
+                sortOrder: 93,
+            },
+            {
                 command: 'help_menu',
                 keyPattern: '?',
                 label: 'Help',
@@ -416,7 +431,78 @@ export const MENU_REGISTRY: MenuEntry[] = [
         name: 'planetEarth',
         label: 'Earth',
         parentMenu: 'sector',
-        commands: [],
+        commands: [
+            {
+                command: 'take_from_earth',
+                keyPattern: 't',
+                label: 'Take colonists',
+                targetMenu: null,
+                sortOrder: 10,
+            },
+            {
+                command: 'leave_on_earth',
+                keyPattern: 'l',
+                label: 'Leave colonists',
+                targetMenu: null,
+                sortOrder: 20,
+            },
+            {
+                command: 'help_menu',
+                keyPattern: '?',
+                label: 'Help',
+                targetMenu: null,
+                sortOrder: 30,
+            },
+            {
+                command: 'back',
+                keyPattern: 'q',
+                label: 'Leave Planet',
+                targetMenu: null,
+                sortOrder: 40,
+            },
+        ],
+    },
+    {
+        name: 'attack',
+        label: 'Attack',
+        parentMenu: 'sector',
+        commands: [
+            {
+                command: 'select_target',
+                keyPattern: '<number>',
+                label: 'Select target #',
+                targetMenu: null,
+                sortOrder: 10,
+            },
+            {
+                command: 'back',
+                keyPattern: 'q',
+                label: 'Cancel attack',
+                targetMenu: null,
+                sortOrder: 20,
+            },
+        ],
+    },
+    {
+        name: 'droneEncounter',
+        label: 'Drone Encounter',
+        parentMenu: 'sector',
+        commands: [
+            {
+                command: 'attack_sector_drones',
+                keyPattern: 'a',
+                label: 'Attack',
+                targetMenu: null,
+                sortOrder: 10,
+            },
+            {
+                command: 'retreat_from_drones',
+                keyPattern: 'r',
+                label: 'Retreat',
+                targetMenu: null,
+                sortOrder: 20,
+            },
+        ],
     },
     {
         name: 'starbase',
@@ -464,7 +550,23 @@ export const MENU_REGISTRY: MenuEntry[] = [
         name: 'starbaseHardware',
         label: 'Hardware Store',
         parentMenu: 'starbase',
-        commands: [],
+        commands: [
+            { command: 'buy_terraform_device', keyPattern: 't', label: 'Terraform Device', targetMenu: null, sortOrder: 10 },
+            { command: 'buy_planet_buster', keyPattern: 'b', label: 'Planet Buster', targetMenu: null, sortOrder: 20 },
+            { command: 'buy_buoy', keyPattern: 'u', label: 'Marker Beacon', targetMenu: null, sortOrder: 30 },
+            { command: 'buy_mine_disruptor', keyPattern: 'd', label: 'Mine Disruptor', targetMenu: null, sortOrder: 40 },
+            { command: 'buy_cloaking_device', keyPattern: 'k', label: 'Cloaking Device', targetMenu: null, sortOrder: 50 },
+            { command: 'buy_corbomite', keyPattern: 'c', label: 'Corbomite', targetMenu: null, sortOrder: 60 },
+            { command: 'buy_photon_torpedo', keyPattern: 'h', label: 'Photon Torpedo', targetMenu: null, sortOrder: 70 },
+            { command: 'buy_recon_drone', keyPattern: 'r', label: 'Recon Drone', targetMenu: null, sortOrder: 80 },
+            { command: 'buy_mines_menu', keyPattern: 'm', label: 'Mines (proximity/limpet)', targetMenu: null, sortOrder: 90 },
+            { command: 'buy_hyperspace_1', keyPattern: '1', label: 'Hyperspace I', targetMenu: null, sortOrder: 100 },
+            { command: 'buy_hyperspace_2', keyPattern: '2', label: 'Hyperspace II', targetMenu: null, sortOrder: 110 },
+            { command: 'buy_visual_scanner', keyPattern: 'v', label: 'Visual Scanner', targetMenu: null, sortOrder: 120 },
+            { command: 'buy_planet_scanner', keyPattern: 'n', label: 'Planet Scanner', targetMenu: null, sortOrder: 130 },
+            { command: 'help_menu', keyPattern: '?', label: 'Help', targetMenu: null, sortOrder: 140 },
+            { command: 'back', keyPattern: 'q', label: 'Back to Starbase', targetMenu: null, sortOrder: 150 },
+        ],
     },
     {
         name: 'clan',
@@ -656,3 +758,21 @@ export const MENU_REGISTRY: MenuEntry[] = [
         ],
     },
 ];
+
+/** Prompt-renderer bindings for each menu. Menus not listed here (e.g.
+ *  `port`) render nothing by themselves — useful for transitional states
+ *  whose visible UI is driven by server responses. */
+export const MENU_PROMPTS: Partial<Record<MenuName, (ctx: GameContext) => void>> = {
+    [Menu.Sector]: showSectorPrompt,
+    [Menu.Attack]: showAttackPrompt,
+    [Menu.Computer]: showComputerPrompt,
+    [Menu.Clan]: showClanPrompt,
+    [Menu.Planet]: showPlanetMenuOptions,
+    [Menu.PlanetEarth]: showEarthPrompt,
+    [Menu.DroneEncounter]: showDroneEncounterPrompt,
+    [Menu.Class0]: (ctx) => void showClass0Menu(ctx),
+    [Menu.Starbase]: showStarbaseMenu,
+    [Menu.StarbaseHardware]: showHardwarePrompt,
+    [Menu.Shipyards]: showShipyardsMenu,
+    [Menu.ShipyardsClass0]: showShipyardsClass0Menu,
+};

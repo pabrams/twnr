@@ -1,6 +1,6 @@
 import type { Terminal } from '@xterm/xterm';
 import type { GameContext, KeystrokeEvent } from './types.js';
-import { getMenuHandler, getRoutine, showPrompt } from './menus/index.js';
+import { getMenuHandler, getRoutine, showPrompt } from './routines/index.js';
 
 /**
  * Returns 'single' for immediate single-char commands, 'buffered' for keys
@@ -147,11 +147,10 @@ function onInput(ctx: GameContext, line: string) {
         r.resolve(line);
         return;
     }
-    // Per-file `input` handler runs first if registered, including for
-    // empty Enter, since some menus (qty prompts) interpret empty as
-    // "accept default" rather than "re-render".
-    const handler = getMenuHandler(ctx.world.mode);
-    const result = handler?.input ? handler.input(ctx, line) : dispatchByRegistry(ctx, line);
+    // All menus dispatch through the registry → routine registry. Empty
+    // Enter falls through to dispatchByRegistry's `<enter>` keyPattern
+    // lookup (or to a no-op for menus that don't bind it).
+    const result = dispatchByRegistry(ctx, line);
 
     // Auto re-render the prompt after every fully client-side action. If
     // the handler/routine triggered a server roundtrip (`inFlight`) or
