@@ -14,7 +14,7 @@ import { getDeployedDronesByOwnerBySector } from '../db/queries/drones.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 import { resolveMinesOnEntry } from '../services/mine-encounter.js';
 
-export async function handleHyperspaceJump(
+export async function serveHyperspaceJump(
     playerId: number,
     data: HyperspaceJumpCommand,
 ): Promise<void> {

@@ -39,7 +39,7 @@ function isValidPassword(password: string): boolean {
     return password.length >= 4 && password.length <= 64;
 }
 
-export async function handleClanCreate(
+export async function serveClanCreate(
     playerId: number,
     data: ClanCreateCommand,
 ): Promise<void> {
@@ -99,7 +99,7 @@ export async function handleClanCreate(
     }
 }
 
-export async function handleClanJoin(
+export async function serveClanJoin(
     playerId: number,
     data: ClanJoinCommand,
 ): Promise<void> {
@@ -141,7 +141,7 @@ export async function handleClanJoin(
     });
 }
 
-export async function handleClanLeave(
+export async function serveClanLeave(
     playerId: number,
     data: ClanLeaveCommand,
 ): Promise<void> {
@@ -251,7 +251,7 @@ export async function handleClanLeave(
     });
 }
 
-export async function handleClanList(playerId: number): Promise<void> {
+export async function serveClanList(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
@@ -271,7 +271,7 @@ export async function handleClanList(playerId: number): Promise<void> {
     });
 }
 
-export async function handleClanInfo(playerId: number): Promise<void> {
+export async function serveClanInfo(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
@@ -521,7 +521,7 @@ async function transferMines(
     return { delivered: delivered ?? 0 };
 }
 
-export async function handleClanTransfer(
+export async function serveClanTransfer(
     senderId: number,
     data: ClanTransferCommand,
 ): Promise<void> {
@@ -594,7 +594,7 @@ export async function handleClanTransfer(
     }
 }
 
-export async function handleClanMemo(senderId: number, data: ClanMemoCommand): Promise<void> {
+export async function serveClanMemo(senderId: number, data: ClanMemoCommand): Promise<void> {
     const { body } = data;
     const player = players[senderId];
     if (!player) return;
@@ -637,7 +637,7 @@ export async function handleClanMemo(senderId: number, data: ClanMemoCommand): P
     });
 }
 
-export async function handleClanSetPassword(
+export async function serveClanSetPassword(
     playerId: number,
     data: ClanSetPasswordCommand,
 ): Promise<void> {
@@ -664,7 +664,7 @@ export async function handleClanSetPassword(
     sendEnvelope(playerId, { type: ServerTag.ClanSetPasswordResult });
 }
 
-export async function handleClanDropMember(
+export async function serveClanDropMember(
     leaderPlayerId: number,
     data: ClanDropMemberCommand,
 ): Promise<void> {

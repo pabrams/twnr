@@ -59,7 +59,7 @@ function buildPortInfoPayload(
     };
 }
 
-export async function handlePortInfo(playerId: number, data: PortInfoCommand): Promise<void> {
+export async function servePortInfo(playerId: number, data: PortInfoCommand): Promise<void> {
     const { sectorId } = data;
     if (!Number.isInteger(sectorId) || sectorId <= 0) {
         sendError(playerId, 'Invalid sector ID');
@@ -78,7 +78,7 @@ export async function handlePortInfo(playerId: number, data: PortInfoCommand): P
     sendEnvelope(playerId, buildPortInfoPayload(p, p.sector_id));
 }
 
-export async function handleDock(playerId: number): Promise<void> {
+export async function serveDock(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
@@ -158,7 +158,7 @@ async function undockPlayer(playerId: number): Promise<void> {
     });
 }
 
-export async function handleUndock(playerId: number): Promise<void> {
+export async function serveUndock(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
@@ -174,7 +174,7 @@ export async function handleUndock(playerId: number): Promise<void> {
     await undockPlayer(playerId);
 }
 
-export async function handlePortTransaction(
+export async function servePortTransaction(
     playerId: number,
     data: PortTransactionCommand,
 ): Promise<void> {
@@ -342,7 +342,7 @@ export async function handlePortTransaction(
     }
 }
 
-export async function handleDockStarbase(playerId: number): Promise<void> {
+export async function serveDockStarbase(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
@@ -381,7 +381,7 @@ export async function handleDockStarbase(playerId: number): Promise<void> {
     });
 }
 
-export async function handleLeaveStarbase(playerId: number): Promise<void> {
+export async function serveLeaveStarbase(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 

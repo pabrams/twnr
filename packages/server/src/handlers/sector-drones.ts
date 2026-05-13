@@ -28,7 +28,7 @@ import { resolveMinesOnEntry } from '../services/mine-encounter.js';
 import { getPlayerClanId } from '../db/queries/clan.js';
 import { formatOwner, ownershipFrom } from '../services/owner-format.js';
 
-export async function handleListDeployedDrones(playerId: number): Promise<void> {
+export async function serveListDeployedDrones(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
@@ -54,7 +54,7 @@ export async function handleListDeployedDrones(playerId: number): Promise<void> 
     });
 }
 
-export async function handleDeployDronesInfo(playerId: number): Promise<void> {
+export async function serveDeployDronesInfo(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
@@ -91,7 +91,7 @@ export async function handleDeployDronesInfo(playerId: number): Promise<void> {
     });
 }
 
-export async function handleDeployDrones(
+export async function serveDeployDrones(
     playerId: number,
     data: DeployDronesCommand,
 ): Promise<void> {
@@ -218,7 +218,7 @@ export async function handleDeployDrones(
     }
 }
 
-export async function handleAttackSectorDrones(
+export async function serveAttackSectorDrones(
     playerId: number,
     data: AttackSectorDronesCommand,
 ): Promise<void> {
@@ -335,7 +335,7 @@ export async function handleAttackSectorDrones(
     }
 }
 
-export async function handleRetreatFromDrones(playerId: number): Promise<void> {
+export async function serveRetreatFromDrones(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 

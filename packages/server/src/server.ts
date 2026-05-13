@@ -13,7 +13,7 @@ import type { AuthTokenPayload, ClientEnvelope, ServerEnvelope } from '@twnr/sha
 import { shipConfigs } from './ship-config.js';
 import { players } from './state/players.js';
 import { sendEnvelope, sendError, broadcastTo } from './state/messaging.js';
-import { handleMessage } from './handlers/message-router.js';
+import { routeMessage } from './handlers/message-router.js';
 import { getUserTokenVersion, markUserConnected, isGuestUser } from './db/queries/user.js';
 import {
     getPlayerConnectInfo,
@@ -274,7 +274,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             }
 
             try {
-                await handleMessage(playerId, data);
+                await routeMessage(playerId, data);
             } catch (err) {
                 console.error('Message handler error:', err);
                 sendError(playerId, 'Internal server error');

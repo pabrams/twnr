@@ -97,7 +97,7 @@ export async function upsertSectorMines(
 }
 
 /** Set the mine row to an exact quantity + ownership (insert if absent,
- *  delete if quantity <= 0). Used by `handleDeployMine` after computing
+ *  delete if quantity <= 0). Used by `serveDeployMine` after computing
  *  the target total. Exactly one of `ownerPlayerId` / `ownerClanId` must
  *  be non-null when quantity > 0. */
 export async function setSectorMineTo(

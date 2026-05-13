@@ -14,7 +14,7 @@ import {
 import { listPlayersInSector, getAttackTargetInfo } from '../db/queries/player.js';
 import { getSectorBeacon } from '../db/queries/beacons.js';
 
-export async function handleGetAttackTargets(playerId: number): Promise<void> {
+export async function serveGetAttackTargets(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
@@ -32,7 +32,7 @@ export async function handleGetAttackTargets(playerId: number): Promise<void> {
     });
 }
 
-export async function handleAttackShip(
+export async function serveAttackShip(
     attackerId: number,
     data: AttackShipCommand,
 ): Promise<void> {

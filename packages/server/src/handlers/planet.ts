@@ -58,7 +58,7 @@ import { planetConfigs } from '../planet-config.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 import { cargoUsed } from './cargo-utils.js';
 
-export async function handleGetSectorPlanets(playerId: number): Promise<void> {
+export async function serveGetSectorPlanets(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
@@ -71,7 +71,7 @@ export async function handleGetSectorPlanets(playerId: number): Promise<void> {
     if (player.sector === 1) {
         const earthId = await getEarthId(player.universeId);
         if (earthId) {
-            return handleLandOnPlanet(playerId, {
+            return serveLandOnPlanet(playerId, {
                 type: ClientTag.LandOnPlanet,
                 planetId: earthId,
             });
@@ -82,7 +82,7 @@ export async function handleGetSectorPlanets(playerId: number): Promise<void> {
     await sendEnvelope(playerId, { type: ServerTag.GetSectorPlanetsResult, planets });
 }
 
-export async function handleLandOnPlanet(
+export async function serveLandOnPlanet(
     playerId: number,
     data: LandOnPlanetCommand,
 ): Promise<void> {
@@ -153,7 +153,7 @@ async function getShipPlanetContext(playerId: number): Promise<{
     };
 }
 
-export async function handlePlanetDisplay(playerId: number): Promise<void> {
+export async function servePlanetDisplay(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
@@ -182,7 +182,7 @@ export async function handlePlanetDisplay(playerId: number): Promise<void> {
     });
 }
 
-export async function handleLeavePlanet(playerId: number): Promise<void> {
+export async function serveLeavePlanet(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
@@ -200,7 +200,7 @@ export async function handleLeavePlanet(playerId: number): Promise<void> {
     });
 }
 
-export async function handleDestroyPlanet(playerId: number): Promise<void> {
+export async function serveDestroyPlanet(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
@@ -249,7 +249,7 @@ export async function handleDestroyPlanet(playerId: number): Promise<void> {
  * Pre-check for the 'U' command from the sector menu. Returns the device
  * count and whether the player can terraform here
  */
-export async function handleTerraformInfo(playerId: number): Promise<void> {
+export async function serveTerraformInfo(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
@@ -291,7 +291,7 @@ export async function handleTerraformInfo(playerId: number): Promise<void> {
     });
 }
 
-export async function handleUseTerraformDevice(playerId: number): Promise<void> {
+export async function serveUseTerraformDevice(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
@@ -444,7 +444,7 @@ async function liftoffWithResult<
     >[1]);
 }
 
-export async function handleTakeColonists(
+export async function serveTakeColonists(
     playerId: number,
     data: TakeColonistsCommand,
 ): Promise<void> {
@@ -523,7 +523,7 @@ export async function handleTakeColonists(
     sendEnvelope(playerId, result);
 }
 
-export async function handleLeaveColonists(
+export async function serveLeaveColonists(
     playerId: number,
     data: LeaveColonistsCommand,
 ): Promise<void> {
@@ -595,7 +595,7 @@ export async function handleLeaveColonists(
     sendEnvelope(playerId, result);
 }
 
-export async function handleTakeCommodity(
+export async function serveTakeCommodity(
     playerId: number,
     data: TakeCommodityCommand,
 ): Promise<void> {
@@ -678,7 +678,7 @@ export async function handleTakeCommodity(
     });
 }
 
-export async function handleLeaveCommodity(
+export async function serveLeaveCommodity(
     playerId: number,
     data: LeaveCommodityCommand,
 ): Promise<void> {
@@ -776,7 +776,7 @@ async function readShipCommodity(playerId: number, col: PlanetCommodity): Promis
 /** O (Claim Planet): take ownership of the planet the player is currently
  *  on (works on enemy planets too). `ownership='clan'` is only valid if
  *  the player is in a clan. */
-export async function handleClaimPlanet(
+export async function serveClaimPlanet(
     playerId: number,
     data: ClaimPlanetCommand,
 ): Promise<void> {
@@ -811,7 +811,7 @@ export async function handleClaimPlanet(
     });
 }
 
-export async function handleListPlanets(playerId: number): Promise<void> {
+export async function serveListPlanets(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 

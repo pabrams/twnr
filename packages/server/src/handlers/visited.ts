@@ -7,7 +7,7 @@ import { countSectorsInUniverse } from '../db/queries/sector.js';
 /** Computer → Known Universe: return every sector the player has visited,
  *  plus the total sector count of their universe so the client can render
  *  the explored/unexplored toggle. */
-export async function handleVisitedSectors(playerId: number): Promise<void> {
+export async function serveVisitedSectors(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
     const sectors = await getVisitedSectors(playerId);

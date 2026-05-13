@@ -161,7 +161,7 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
         },
     };
 
-    function handleClose(info: { code: number; reason: string }): void {
+    function onClose(info: { code: number; reason: string }): void {
         ctx.connection.disconnected = true;
         // Cancel any in-flight prompt or buffered input so the next reconnect
         // starts from a clean slate.
@@ -197,7 +197,7 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
         ctx.connection.disconnected = false;
         const ws = new WebSocket(wsUrl);
         ctx.io.ws = ws;
-        setupConnection(ws, ctx, handleClose);
+        setupConnection(ws, ctx, onClose);
     }
 
     ctx.connection.reconnect = () => {

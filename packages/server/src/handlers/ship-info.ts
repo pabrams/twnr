@@ -27,7 +27,7 @@ import { checkAndDeductTurns } from '../turn-logic.js';
 import { cargoUsed } from './cargo-utils.js';
 import { formatOwner, ownershipFrom } from '../services/owner-format.js';
 
-export async function handleShipInfo(playerId: number): Promise<void> {
+export async function serveShipInfo(playerId: number): Promise<void> {
     const row = await getShipInfo(playerId);
     if (!row) {
         sendError(playerId, 'Ship not found');
@@ -75,7 +75,7 @@ export async function handleShipInfo(playerId: number): Promise<void> {
     });
 }
 
-export async function handleGetShipDetail(
+export async function serveGetShipDetail(
     playerId: number,
     data: GetShipDetailCommand,
 ): Promise<void> {
@@ -166,7 +166,7 @@ export async function handleGetShipDetail(
     });
 }
 
-export async function handleListOwnedShips(playerId: number): Promise<void> {
+export async function serveListOwnedShips(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
@@ -215,7 +215,7 @@ export async function handleListOwnedShips(playerId: number): Promise<void> {
     });
 }
 
-export async function handleTransportToShip(
+export async function serveTransportToShip(
     playerId: number,
     data: TransportToShipCommand,
 ): Promise<void> {
@@ -299,7 +299,7 @@ export async function handleTransportToShip(
 
 /** O (Change Ship Ownership): flip current ship between personal and
  *  clan-owned. */
-export async function handleChangeShipOwnership(
+export async function serveChangeShipOwnership(
     playerId: number,
     data: ChangeShipOwnershipCommand,
 ): Promise<void> {

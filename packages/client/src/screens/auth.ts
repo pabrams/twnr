@@ -23,7 +23,7 @@ export function setupAuthScreen(opts: {
         elements.errorDiv.textContent = '';
     }
 
-    async function handleAuth() {
+    async function onAuth() {
         elements.errorDiv.textContent = '';
         const email = elements.emailInput.value.trim();
         const password = elements.passwordInput.value;
@@ -54,7 +54,7 @@ export function setupAuthScreen(opts: {
         }
     }
 
-    async function handleGuest() {
+    async function onGuest() {
         elements.errorDiv.textContent = '';
         elements.guestBtn.disabled = true;
         try {
@@ -78,10 +78,10 @@ export function setupAuthScreen(opts: {
         isLogin = !isLogin;
         updateAuthMode();
     });
-    elements.submitBtn.addEventListener('click', handleAuth);
-    elements.guestBtn.addEventListener('click', handleGuest);
+    elements.submitBtn.addEventListener('click', onAuth);
+    elements.guestBtn.addEventListener('click', onGuest);
     elements.passwordInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') handleAuth();
+        if (e.key === 'Enter') onAuth();
     });
 
     updateAuthMode();

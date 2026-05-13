@@ -6,7 +6,7 @@ import { getUniverseStats, getOutWarpDegreeDistribution } from '../db/queries/un
 import { getStartingShipTypeByName } from '../db/queries/ship.js';
 import { universeConfig } from '../universe-config.js';
 
-export async function handleStarbaseInfo(playerId: number): Promise<void> {
+export async function serveStarbaseInfo(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
