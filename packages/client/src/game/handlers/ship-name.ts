@@ -1,23 +1,29 @@
 import { ClientTag, ServerTag } from '@twnr/shared';
+import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { EVENT } from '../messages/index.js';
 import { askLine, awaitResponse } from '../menus/prompts.js';
-import type { Handler } from './index.js';
 
-const MAX_SHIP_NAME_LENGTH = 40;
+type ShipNamePromptCtx = Pick<GameContext, 'io' | 'input'>;
 
-const PROMPT_TEMPLATE_BY_REASON = {
-    initial: EVENT.shipNamePromptInitial,
-    respawn: EVENT.shipNamePromptRespawn,
-    buyNew: EVENT.shipNamePromptBuyNew,
-    tradein: EVENT.shipNamePromptTradein,
-} as const;
+const MAX_SHIP_NAME_LENGTH = 20;
 
-export const shipNameRequired: Handler<'shipNameRequired'> = async (ctx, msg) => {
+/**
+ * Drive the "name your ship" prompt loop and complete the SetShipName /
+ * SetShipNameResult round trip. Re-prompts on invalid input (blank, too
+ * long, server-rejected). Cancellation is intentionally not supported —
+ * the server gates all other commands until naming completes.
+ *
+ * `promptTemplate` is rendered with `{ type: shipTypeDisplayName }`.
+ */
+export async function promptShipName(
+    ctx: ShipNamePromptCtx,
+    promptTemplate: string,
+    shipTypeDisplayName: string,
+): Promise<void> {
     while (true) {
-        const tpl = PROMPT_TEMPLATE_BY_REASON[msg.reason];
-        const raw = await askLine(ctx, render(tpl, { type: msg.shipTypeDisplayName }));
-        if (raw === null) return;
+        const raw = await askLine(ctx, render(promptTemplate, { type: shipTypeDisplayName }));
+        if (raw === null) continue; // no cancel — keep asking
         const name = raw.trim();
         if (name.length === 0) {
             ctx.io.term.writeln(
@@ -37,15 +43,9 @@ export const shipNameRequired: Handler<'shipNameRequired'> = async (ctx, msg) =>
         const reply = await awaitResponse(ctx, [ServerTag.SetShipNameResult, ServerTag.Error]);
         if (reply === null) return;
         if (reply.type !== ServerTag.SetShipNameResult) return;
-        if (reply.outcome === 'ok') {
-            // Mirror the welcome flow: kick off the connect-mail check now
-            // that the player has a ship. memoDelivery (reason='connect')
-            // chains the location-aware re-display when it finishes.
-            ctx.io.sendMsg({ type: ClientTag.CheckMailSinceLastLogout });
-            return;
-        }
+        if (reply.outcome === 'ok') return;
         ctx.io.term.writeln(
             render(EVENT.shipNameInvalid, { message: reply.message ?? 'Invalid ship name.' }),
         );
     }
-};
+}

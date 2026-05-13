@@ -91,9 +91,30 @@ registerRoutine('computer_menu', (ctx) => {
     ctx.world.mode = Menu.Computer;
 });
 
-registerRoutine('deploy_drones_info', (ctx) => {
+registerRoutine('deploy_drones_info', async (ctx) => {
     echoCommand(ctx, 'deployDronesInfo');
     ctx.io.sendMsg({ type: ClientTag.DeployDronesInfo });
+    const reply = await awaitResponse(ctx, [ServerTag.DeployDronesInfoResult, ServerTag.Error]);
+    if (reply === null) return;
+    if (reply.type !== ServerTag.DeployDronesInfoResult) return;
+    const total = reply.shipDrones + reply.sectorDrones;
+    const minInSector = Math.max(0, total - reply.shipMaxDrones);
+    ctx.io.term.writeln('');
+    ctx.io.term.writeln(
+        render(EVENT.deployDronesInfo, {
+            total,
+            max: reply.shipMaxDrones,
+            minInSector,
+        }),
+    );
+    const qty = await askNumber(ctx, render(EVENT.deployDronesPrompt, { minInSector }), {
+        min: 0,
+        defaultValue: -1,
+    });
+    if (qty === null) return;
+    const ownership = await askDeployOwnership(ctx, render(EVENT.deployOwnershipPrompt));
+    if (ownership === null) return;
+    ctx.io.sendMsg({ type: ClientTag.DeployDrones, quantity: qty, ownership });
 });
 
 registerRoutine('jettison_menu', async (ctx) => {

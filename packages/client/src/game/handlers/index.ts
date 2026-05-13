@@ -14,7 +14,6 @@ import * as mines from './mines.js';
 import * as clan from './clan.js';
 import * as drones from './drones.js';
 import * as longRangeScan from './long-range-scan.js';
-import * as shipName from './ship-name.js';
 import * as tow from './tow.js';
 import * as mail from './mail.js';
 
@@ -65,7 +64,6 @@ const handlers: HandlerMap = {
 
     [ServerTag.AttackShipResult]: combat.attackShip,
     [ServerTag.GetAttackTargetsResult]: combat.getAttackTargets,
-    [ServerTag.DeployDronesInfoResult]: combat.deployDronesInfo,
     [ServerTag.DeployDronesResult]: combat.deployDrones,
     [ServerTag.AttackSectorDronesResult]: combat.attackSectorDrones,
     [ServerTag.RetreatFromDronesResult]: combat.retreatFromDrones,
@@ -105,7 +103,6 @@ const handlers: HandlerMap = {
     [ServerTag.DensityScanResult]: longRangeScan.densityScan,
     [ServerTag.VisualScanResult]: longRangeScan.visualScan,
 
-    [ServerTag.ShipNameRequired]: shipName.shipNameRequired,
 
     [ServerTag.TowReleasedAlert]: tow.towReleasedAlert,
     [ServerTag.TowAttachedAlert]: tow.towAttachedAlert,
