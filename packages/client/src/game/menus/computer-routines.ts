@@ -15,7 +15,7 @@ import {
 } from '../display-computer.js';
 import { indexToLetter, letterToIndex } from '../display-starbase.js';
 import { registerRoutine } from './types.js';
-import { askChar, askConfirm, askNumber, awaitResponse } from './prompts.js';
+import { askChar, askConfirm, askLine, askMultiLine, askNumber, awaitResponse } from './prompts.js';
 
 registerRoutine('known_universe', async (ctx) => {
     while (true) {
@@ -162,4 +162,58 @@ registerRoutine('read_mail', async (ctx) => {
     renderMailEntries(ctx, reply.memos);
     const del = await askConfirm(ctx, render(EVENT.mailDeletePrompt), { defaultValue: false });
     if (del) ctx.io.sendMsg({ type: ClientTag.DeleteAllMail });
+});
+
+registerRoutine('hail', async (ctx) => {
+    echoCommand(ctx, 'hail');
+    ctx.io.term.writeln(render(EVENT.hailWhoPrompt));
+    const target = await askLine(ctx, render(EVENT.hailNamePrompt));
+    if (target === null) return;
+    ctx.io.term.writeln(render(EVENT.hailRequesting, { name: target }));
+    ctx.io.sendMsg({ type: ClientTag.HailResolve, name: target });
+    const resolved = await awaitResponse(ctx, [ServerTag.HailResolveResult, ServerTag.Error]);
+    if (resolved === null) return;
+    if (resolved.type !== ServerTag.HailResolveResult) return;
+    if (resolved.outcome === 'notFound') {
+        ctx.io.term.writeln(render(EVENT.hailNotFound));
+        return;
+    }
+    if (resolved.outcome === 'ambiguous') {
+        ctx.io.term.writeln(render(EVENT.hailAmbiguous, { matches: resolved.matches.join(', ') }));
+        return;
+    }
+    if (resolved.outcome === 'self') {
+        ctx.io.term.writeln(render(EVENT.hailSelf));
+        return;
+    }
+    const online = resolved.online;
+    if (online) {
+        ctx.io.term.writeln(render(EVENT.hailEstablished));
+        ctx.io.term.writeln(render(EVENT.hailTypePrivateBanner));
+    } else {
+        ctx.io.term.writeln(render(EVENT.hailNotResponding, { name: resolved.recipientName }));
+        ctx.io.term.writeln(render(EVENT.hailReroutingMail));
+        ctx.io.term.writeln(render(EVENT.hailTypeMailBanner));
+    }
+    const linePrompt = online
+        ? render(EVENT.hailLinePromptOnline)
+        : render(EVENT.hailLinePromptOffline);
+    const body = await askMultiLine(ctx, linePrompt);
+    if (body === null || body.trim() === '') {
+        ctx.io.term.writeln(render(EVENT.hailEmpty));
+        return;
+    }
+    ctx.io.sendMsg({
+        type: ClientTag.HailSend,
+        recipientPlayerId: resolved.recipientPlayerId,
+        body,
+    });
+    const sendResult = await awaitResponse(ctx, [ServerTag.HailSendResult, ServerTag.Error]);
+    if (sendResult === null) return;
+    if (sendResult.type !== ServerTag.HailSendResult) return;
+    if (sendResult.outcome === 'delivered') {
+        ctx.io.term.writeln(render(EVENT.hailTerminated));
+    } else if (sendResult.outcome === 'queued') {
+        ctx.io.term.writeln(render(EVENT.hailQueued));
+    }
 });

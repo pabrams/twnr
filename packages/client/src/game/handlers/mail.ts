@@ -14,6 +14,17 @@ type MailContext = Pick<GameContext, 'io' | 'input'>;
  *   - `incoming`: render entries inline, no delete prompt (used by clan memos in Phase 1).
  *   - `read`: handled by the read_mail routine via awaitResponse, so this never fires.
  */
+export const clanMemoNotification: Handler<'clanMemoNotification', MailContext> = (ctx, msg) => {
+    ctx.io.term.writeln(render(EVENT.clanMemoNotification, { name: msg.senderName }));
+};
+
+export const hailIncoming: Handler<'hailIncoming', MailContext> = (ctx, msg) => {
+    ctx.io.term.writeln(render(EVENT.hailIncomingHeader, { name: msg.senderName }));
+    for (const line of msg.body.split(/\r?\n/)) {
+        ctx.io.term.writeln(render(EVENT.hailIncomingBody, { line }));
+    }
+};
+
 export const memoDelivery: Handler<'memoDelivery', MailContext> = async (ctx, msg) => {
     if (msg.reason === 'connect') {
         ctx.io.term.writeln(render(EVENT.mailConnectHeader));

@@ -246,6 +246,17 @@ export type DeleteAllMailCommand = {
     type: typeof ClientTag.DeleteAllMail;
 };
 
+export type HailResolveCommand = {
+    type: typeof ClientTag.HailResolve;
+    name: string;
+};
+
+export type HailSendCommand = {
+    type: typeof ClientTag.HailSend;
+    recipientPlayerId: number;
+    body: string;
+};
+
 export type TransportToShipCommand = {
     type: typeof ClientTag.TransportToShip;
     shipId: number;
@@ -429,6 +440,8 @@ export type ClientEnvelope =
     | ReadMailCommand
     | CheckMailSinceLastLogoutCommand
     | DeleteAllMailCommand
+    | HailResolveCommand
+    | HailSendCommand
     | ClanCreateCommand
     | ClanJoinCommand
     | ClanLeaveCommand

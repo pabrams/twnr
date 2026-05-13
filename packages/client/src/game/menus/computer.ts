@@ -12,6 +12,7 @@ const KEY_TO_COMMAND: Record<string, string> = {
     d: 'list_deployed_drones',
     n: 'list_deployed_mines',
     m: 'read_mail',
+    '=': 'hail',
     h: 'hyperspace_jump',
     y: 'list_planets',
     t: 'track_seeker_mines',
