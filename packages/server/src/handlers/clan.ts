@@ -581,6 +581,7 @@ export async function serveClanTransfer(
     if (targetOnline) {
         sendEnvelope(targetPlayerId, {
             type: ServerTag.MemoDelivery,
+            reason: 'incoming' as const,
             memos: [
                 {
                     id: 0,
@@ -618,6 +619,7 @@ export async function serveClanMemo(senderId: number, data: ClanMemoCommand): Pr
             const senderName = await getPlayerName(senderId);
             sendEnvelope(m.id, {
                 type: ServerTag.MemoDelivery,
+                reason: 'incoming' as const,
                 memos: [
                     {
                         id: 0,
@@ -713,6 +715,7 @@ export async function serveClanDropMember(
         });
         sendEnvelope(targetPlayerId, {
             type: ServerTag.MemoDelivery,
+            reason: 'incoming' as const,
             memos: [
                 {
                     id: 0,

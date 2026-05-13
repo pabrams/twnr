@@ -660,6 +660,14 @@ export type ClanMembershipChangedEvent = {
 
 export type MemoDeliveryEvent = {
     type: typeof ServerTag.MemoDelivery;
+    /**
+     * `connect`  — pushed at WS-connect time, shows "Searching for messages…" header and the
+     *              "since last logout" filter; client offers delete prompt at end.
+     * `read`     — response to ReadMail (the M command). Client offers delete prompt at end.
+     * `incoming` — single message pushed mid-game (e.g. a clan memo). Client renders inline
+     *              without a delete prompt.
+     */
+    reason: 'connect' | 'read' | 'incoming';
     memos: {
         id: number;
         senderName: string | null;

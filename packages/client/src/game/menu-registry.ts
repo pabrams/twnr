@@ -230,10 +230,17 @@ export const MENU_REGISTRY: MenuEntry[] = [
             },
             {
                 command: 'list_deployed_mines',
-                keyPattern: 'm',
+                keyPattern: 'n',
                 label: 'Show deployed mines',
                 targetMenu: null,
                 sortOrder: 65,
+            },
+            {
+                command: 'read_mail',
+                keyPattern: 'm',
+                label: 'Read your mail',
+                targetMenu: null,
+                sortOrder: 66,
             },
             {
                 command: 'hyperspace_jump',

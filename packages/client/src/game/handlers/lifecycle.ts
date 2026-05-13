@@ -35,8 +35,13 @@ export const welcome: Handler<'welcome', LifecycleContext> = (ctx, msg) => {
     if (msg.isGuest) {
         ctx.io.term.writeln(render(NOTIFY.welcomeGuest));
     }
-    ctx.io.submitLineFromMap('');
     refreshMinimap(ctx);
+    // If the player has a ship, kick off the connect-mail check; its
+    // memoDelivery handler will chain a location-aware re-display when it
+    // finishes. Shipless players follow the same flow via shipNameRequired.
+    if (msg.shipName !== '') {
+        ctx.io.sendMsg({ type: ClientTag.CheckMailSinceLastLogout });
+    }
 };
 
 export const playerMoved: Handler<'playerMoved', LifecycleContext> = (ctx, msg) => {

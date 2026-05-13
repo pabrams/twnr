@@ -37,7 +37,13 @@ export const shipNameRequired: Handler<'shipNameRequired'> = async (ctx, msg) =>
         const reply = await awaitResponse(ctx, [ServerTag.SetShipNameResult, ServerTag.Error]);
         if (reply === null) return;
         if (reply.type !== ServerTag.SetShipNameResult) return;
-        if (reply.outcome === 'ok') return;
+        if (reply.outcome === 'ok') {
+            // Mirror the welcome flow: kick off the connect-mail check now
+            // that the player has a ship. memoDelivery (reason='connect')
+            // chains the location-aware re-display when it finishes.
+            ctx.io.sendMsg({ type: ClientTag.CheckMailSinceLastLogout });
+            return;
+        }
         ctx.io.term.writeln(
             render(EVENT.shipNameInvalid, { message: reply.message ?? 'Invalid ship name.' }),
         );
