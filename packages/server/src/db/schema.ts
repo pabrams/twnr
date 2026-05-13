@@ -251,6 +251,7 @@ export const connectDB = async (): Promise<void> => {
         reputation INTEGER NOT NULL DEFAULT 0,
         experience INTEGER NOT NULL DEFAULT 0,
         ship_destroyed_date TIMESTAMPTZ,
+        towed_ship_id INTEGER,
         last_login_at TIMESTAMPTZ,
         last_logout_at TIMESTAMPTZ,
         docked BOOLEAN NOT NULL DEFAULT FALSE,
@@ -322,6 +323,15 @@ export const connectDB = async (): Promise<void> => {
         ) THEN
           ALTER TABLE players ADD CONSTRAINT players_clan_id_fkey
             FOREIGN KEY (clan_id) REFERENCES clans(id) ON DELETE SET NULL;
+        END IF;
+      END $$;
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.table_constraints
+          WHERE constraint_name = 'players_towed_ship_id_fkey' AND table_name = 'players'
+        ) THEN
+          ALTER TABLE players ADD CONSTRAINT players_towed_ship_id_fkey
+            FOREIGN KEY (towed_ship_id) REFERENCES ships(id) ON DELETE SET NULL;
         END IF;
       END $$;
 

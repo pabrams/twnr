@@ -1,4 +1,5 @@
 import { ClientTag, Menu } from '@twnr/shared';
+import type { TowedAlong } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { NOTIFY, EVENT, SECTOR } from '../messages/index.js';
@@ -15,6 +16,12 @@ type MovementContext = Pick<GameContext, 'autopilot' | 'encounter' | 'input' | '
     DisplayCombatCtx &
     RefreshMinimapCtx;
 
+function renderTowedAlong(ctx: MovementContext, towed: TowedAlong | undefined): void {
+    if (!towed) return;
+    const tpl = towed.kind === 'manned' ? EVENT.towedAlongManned : EVENT.towedAlongUnmanned;
+    ctx.io.term.writeln(render(tpl, { name: towed.name }));
+}
+
 export const move: Handler<'moveResult', MovementContext> = (ctx, msg) => {
     switch (msg.outcome) {
         case 'success': {
@@ -22,6 +29,8 @@ export const move: Handler<'moveResult', MovementContext> = (ctx, msg) => {
             const inAutopilot = ctx.autopilot.path.length > 0;
             const moreHops = inAutopilot && ctx.autopilot.step < ctx.autopilot.path.length;
             showSectorDisplay(ctx, msg);
+            renderTowedAlong(ctx, msg.towedAlong);
+            if (msg.freedFromTow) ctx.io.term.writeln(render(EVENT.towFreedFromTow));
             refreshMinimap(ctx);
             if (moreHops) {
                 const nextSector = ctx.autopilot.path[ctx.autopilot.step];
@@ -40,6 +49,8 @@ export const move: Handler<'moveResult', MovementContext> = (ctx, msg) => {
             ctx.world.sectorPlayers = msg.players;
             ctx.encounter.ownerName = msg.ownerName;
             showSectorDisplay(ctx, msg);
+            renderTowedAlong(ctx, msg.towedAlong);
+            if (msg.freedFromTow) ctx.io.term.writeln(render(EVENT.towFreedFromTow));
             refreshMinimap(ctx);
             if (ctx.autopilot.path.length > 0) {
                 ctx.autopilot.paused = true;

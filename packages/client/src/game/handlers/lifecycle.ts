@@ -1,6 +1,6 @@
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
-import { NOTIFY, PANEL } from '../messages/index.js';
+import { EVENT, NOTIFY, PANEL } from '../messages/index.js';
 import { type DisplayCtx } from '../display.js';
 import { type DisplayPortCtx } from '../display-port.js';
 import { type DisplayStarbaseCtx } from '../display-starbase.js';
@@ -45,6 +45,20 @@ export const playerMoved: Handler<'playerMoved', LifecycleContext> = (ctx, msg) 
             name: msg.playerName,
         }),
     );
+    if (msg.towedAlong) {
+        const tpl =
+            msg.towedAlong.kind === 'manned'
+                ? EVENT.playerMovedTowedManned
+                : EVENT.playerMovedTowedUnmanned;
+        const verb = msg.direction === 'in' ? 'enters' : 'leaves';
+        ctx.io.term.writeln(
+            render(tpl, {
+                towedName: msg.towedAlong.name,
+                verb,
+                moverName: msg.playerName,
+            }),
+        );
+    }
 };
 
 export const rateLimited: Handler<'rateLimited', LifecycleContext> = (ctx) => {

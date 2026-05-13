@@ -103,6 +103,10 @@ export const ServerTag = {
     SeekerMinePickupAlert: 'seekerMinePickupAlert',
     ShipNameRequired: 'shipNameRequired',
     SetShipNameResult: 'setShipNameResult',
+    TowSpacecraftResult: 'towSpacecraftResult',
+    TowAttachResult: 'towAttachResult',
+    TowReleasedAlert: 'towReleasedAlert',
+    TowAttachedAlert: 'towAttachedAlert',
 } as const;
 type ServerTag = typeof ServerTag;
 
@@ -175,5 +179,7 @@ export const ClientTag = {
     DensityScan: 'densityScan',
     VisualScan: 'visualScan',
     SetShipName: 'setShipName',
+    TowSpacecraft: 'towSpacecraft',
+    TowAttach: 'towAttach',
 } as const;
 type ClientTag = typeof ClientTag;
