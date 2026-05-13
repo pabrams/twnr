@@ -95,16 +95,36 @@ export const listDeployedDrones: Handler<'listDeployedDronesResult', HardwareSto
     ctx.io.term.writeln('');
     if (msg.drones.length === 0) {
         ctx.io.term.writeln(render(PANEL.deployedDronesEmpty));
-    } else {
-        ctx.io.term.writeln(render(PANEL.deployedDronesHeader));
-        for (const d of msg.drones) {
-            ctx.io.term.writeln(
-                render(PANEL.deployedDronesRow, {
-                    sector: d.sectorId,
-                    qty: d.quantity,
-                    owner: d.ownerLabel,
-                }),
-            );
-        }
+        return;
     }
+    ctx.io.term.writeln(render(PANEL.deployedDronesTitle));
+    ctx.io.term.writeln('');
+    ctx.io.term.writeln(render(PANEL.deployedDronesColumns));
+    ctx.io.term.writeln(render(PANEL.deployedDronesRule));
+    let totalDrones = 0;
+    let totalTolls = 0;
+    for (const d of msg.drones) {
+        const kind =
+            d.ownership.kind === 'player'
+                ? 'Personal'
+                : d.ownership.kind === 'clan'
+                  ? 'Clan'
+                  : 'Rogue';
+        ctx.io.term.writeln(
+            render(PANEL.deployedDronesRow, {
+                sector: String(d.sectorId).padStart(6),
+                qty: String(d.quantity).padStart(4),
+                kind: kind.padEnd(8),
+                mode: 'Defensive'.padEnd(11),
+                tolls: 'N/A'.padStart(5),
+            }),
+        );
+        totalDrones += d.quantity;
+    }
+    ctx.io.term.writeln(
+        render(PANEL.deployedDronesTotalsRow, {
+            qty: String(totalDrones).padStart(4),
+            tolls: String(totalTolls).padStart(3),
+        }),
+    );
 };

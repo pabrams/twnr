@@ -84,7 +84,7 @@ export const COMPUTER = makeDomain('COMPUTER', {
     transporterOptionDetails: '[mg]<[/mg][by]I[/by][mg]>[/mg] [bc]Ship details[/bc]',
     transporterOptionExit: '[mg]<[/mg][by]Q[/by][mg]>[/mg] [bc]Exit Transporter[/bc]',
     transporterPrompt:
-        '\r\n[mg]Choose which ship to beam to ([/mg][by]Q[/by][mg]=Quit) [/mg][by]?[/by] ',
+        '\r\n[mg]Choose which ship to beam to ([/mg][by]?[/by][mg]=list) [/mg][by]:[/by] ',
     transporterDetailsPrompt:
         '\r\n[mg]Show details for which ship? ([/mg][by]Q[/by][mg]=Quit) [/mg][by]?[/by] ',
     transporterSuccess: '[bg]Security code accepted, engaging transporter control.[/bg]',
@@ -93,4 +93,8 @@ export const COMPUTER = makeDomain('COMPUTER', {
     transporterCannotSelf: '[br]Already on that ship.[/br]',
     transporterDetailHeader: '[bc]Ship #{shipNum}[/bc]',
     transporterDetailLine: '  [g]{label}[/g] [by]:[/by] [bc]{value}[/bc]',
+
+    mineScanBanner: '[bc]<Mine Scanning>[/bc]',
+    mineScanPrompt:
+        ' Scan which mine type, [mg]<[/mg][by]P[/by][mg]>[/mg] Proximity or [mg]<[/mg][by]L[/by][mg]>[/mg] Limpet ? :',
 });

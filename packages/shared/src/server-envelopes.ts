@@ -467,6 +467,7 @@ export type ListDeployedDronesReply = {
         sectorId: number;
         quantity: number;
         ownerLabel: string;
+        ownership: OwnershipInfo;
     }[];
 };
 
@@ -760,6 +761,7 @@ export type DeployedMineEntry = {
     mineType: 'proximity' | 'seeker';
     quantity: number;
     ownerLabel: string;
+    ownership: OwnershipInfo;
 };
 
 export type ListDeployedMinesReply = {
