@@ -172,11 +172,11 @@ async function main() {
             // floor-divides), 0 colonists for now.
             const shipRes = await client.query(
                 `INSERT INTO ships (
-                    owner_player_id, ship_type_id, sector_id,
+                    owner_player_id, ship_type_id, sector_id, name,
                     drones, shields, holds, turns_per_warp,
                     fuel, organics, equipment, colonists,
                     universe_id, universe_ship_number
-                 ) SELECT $1, $2, $3, $4, $5, $6, $7, $8, 0, 0, 0,
+                 ) SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, 0, 0, 0,
                           p.universe_id,
                           COALESCE((SELECT MAX(universe_ship_number) FROM ships WHERE universe_id = p.universe_id), 0) + 1
                     FROM players p WHERE p.id = $1
@@ -185,6 +185,7 @@ async function main() {
                     playerId,
                     shipType.id,
                     homeSectorDbId,
+                    `${def.name}'s Ship`,
                     shipType.max_drones,
                     shipType.max_shields,
                     shipType.max_holds,
