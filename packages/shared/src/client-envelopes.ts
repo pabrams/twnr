@@ -220,6 +220,11 @@ export type VisualScanCommand = {
     type: typeof ClientTag.VisualScan;
 };
 
+export type SetShipNameCommand = {
+    type: typeof ClientTag.SetShipName;
+    name: string;
+};
+
 export type TransportToShipCommand = {
     type: typeof ClientTag.TransportToShip;
     shipId: number;
@@ -397,6 +402,7 @@ export type ClientEnvelope =
     | AttackBeaconCommand
     | DensityScanCommand
     | VisualScanCommand
+    | SetShipNameCommand
     | ClanCreateCommand
     | ClanJoinCommand
     | ClanLeaveCommand

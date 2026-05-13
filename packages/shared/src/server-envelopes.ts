@@ -33,7 +33,7 @@ export type PlayerMovedEvent = {
 };
 
 export type OwnershipInfo =
-    | { kind: 'player'; name: string; playerId: number }
+    | { kind: 'player'; name: string; playerId: number; ownerClanNumber: number | null }
     | { kind: 'clan'; name: string; clanNumber: number; clanId: number }
     | { kind: 'rogue' };
 
@@ -63,7 +63,15 @@ export type SectorBeaconInfo = {
 
 export type SectorDisplayData = {
     sector: number;
-    players: { id: number; name: string }[];
+    players: {
+        id: number;
+        name: string;
+        clanNumber: number | null;
+        shipName: string;
+        shipTypeName: string;
+        shipTypeDisplayName: string | null;
+        drones: number;
+    }[];
     warps: SectorRef[];
     port?: { class: number; name: string } | null;
     sectorDrones?: SectorDroneInfo | null;
@@ -73,6 +81,7 @@ export type SectorDisplayData = {
         name: string;
         typeName: string;
         typeDisplayName: string | null;
+        drones: number;
         ownership: OwnershipInfo;
     }[];
     collisions?: CollisionInfo[];
@@ -867,6 +876,19 @@ export type NeighborhoodReply = {
     warps: NeighborhoodWarp[];
 };
 
+export type ShipNameRequiredEvent = {
+    type: typeof ServerTag.ShipNameRequired;
+    reason: 'initial' | 'respawn' | 'buyNew' | 'tradein';
+    shipTypeDisplayName: string;
+    shipTypeName: string;
+};
+
+export type SetShipNameReply = {
+    type: typeof ServerTag.SetShipNameResult;
+    outcome: 'ok' | 'invalid' | 'error';
+    message?: string;
+};
+
 export type ServerEnvelope =
     | WelcomeEvent
     | PlayerMovedEvent
@@ -948,4 +970,6 @@ export type ServerEnvelope =
     | DensityScanReply
     | VisualScanReply
     | MemoDeliveryEvent
+    | ShipNameRequiredEvent
+    | SetShipNameReply
     | ErrorReply;

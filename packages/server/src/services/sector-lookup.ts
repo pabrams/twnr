@@ -44,17 +44,22 @@ export async function getEmptyShipsInSector(
         name: string;
         typeName: string;
         typeDisplayName: string | null;
+        drones: number;
         ownership: OwnershipInfo;
     }[]
 > {
     const rows = await getAbandonedShipsInSector(sectorNumber, universeId);
-    return rows.map((r) => ({
-        id: r.id,
-        name: r.typeName,
-        typeName: r.typeName,
-        typeDisplayName: r.typeDisplayName,
-        ownership: ownershipFrom(r),
-    }));
+    return rows.map((r) => {
+        const { id, shipName, typeName, typeDisplayName, drones, ...ownerRow } = r;
+        return {
+            id,
+            name: shipName,
+            typeName,
+            typeDisplayName,
+            drones,
+            ownership: ownershipFrom(ownerRow),
+        };
+    });
 }
 
 export async function resolveSectorId(sectorNumber: number, universeId: number): Promise<number> {

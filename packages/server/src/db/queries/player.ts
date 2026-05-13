@@ -41,6 +41,11 @@ export type SectorPlayerRow = {
     name: string;
     docked: boolean;
     on_planet_id: number | null;
+    clan_number: number | null;
+    ship_name: string | null;
+    ship_type_name: string | null;
+    ship_display_name: string | null;
+    ship_drones: number;
 };
 
 /** Every player whose current sector matches, regardless of online status.
@@ -52,9 +57,17 @@ export async function listPlayersInSector(
     db: Queryable = pool,
 ): Promise<SectorPlayerRow[]> {
     const res = await db.query<SectorPlayerRow>(
-        `SELECT p.id, p.name, p.docked, p.on_planet_id
+        `SELECT p.id, p.name, p.docked, p.on_planet_id,
+                c.universe_clan_number AS clan_number,
+                sh.name AS ship_name,
+                st.name AS ship_type_name,
+                st.display_name AS ship_display_name,
+                COALESCE(sh.drones, 0) AS ship_drones
          FROM players p
          JOIN sectors s ON p.current_sector_id = s.id
+         LEFT JOIN clans c ON p.clan_id = c.id
+         LEFT JOIN ships sh ON p.ship_id = sh.id
+         LEFT JOIN ship_types st ON sh.ship_type_id = st.id
          WHERE s.sector_number = $1 AND p.universe_id = $2 AND p.id != $3`,
         [sectorNumber, universeId, excludePlayerId],
     );
@@ -319,31 +332,22 @@ export async function clearPlayerShip(playerId: number, db: Queryable = pool): P
     await db.query('UPDATE players SET ship_id = NULL WHERE id = $1', [playerId]);
 }
 
-/** Respawn a player with a fresh ship + starting credits, clearing destroyed date. */
-export async function respawnPlayerWithShip(
+/**
+ * Finalize a respawn once the destruction cooldown has elapsed:
+ * clear ship_destroyed_date, move the player to the starting sector, and
+ * reset their credits. The new ship row itself is created later when the
+ * player types a name (see serveSetShipName), so ship_id stays NULL here.
+ */
+export async function applyRespawnReset(
     playerId: number,
     startSectorId: number,
-    shipId: number,
     startingCredits: number,
     db: Queryable = pool,
 ): Promise<void> {
     await db.query(
-        `UPDATE players SET ship_destroyed_date = NULL, current_sector_id = $2,
-                            ship_id = $3, credits = $4
+        `UPDATE players SET ship_destroyed_date = NULL, current_sector_id = $2, credits = $3
          WHERE id = $1`,
-        [playerId, startSectorId, shipId, startingCredits],
-    );
-}
-
-/** Respawn a player (no ship available for the starting type): just move + clear destroyed date. */
-export async function respawnPlayerNoShip(
-    playerId: number,
-    startSectorId: number,
-    db: Queryable = pool,
-): Promise<void> {
-    await db.query(
-        `UPDATE players SET ship_destroyed_date = NULL, current_sector_id = $2 WHERE id = $1`,
-        [playerId, startSectorId],
+        [playerId, startSectorId, startingCredits],
     );
 }
 

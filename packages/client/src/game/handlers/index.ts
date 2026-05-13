@@ -14,6 +14,7 @@ import * as mines from './mines.js';
 import * as clan from './clan.js';
 import * as drones from './drones.js';
 import * as longRangeScan from './long-range-scan.js';
+import * as shipName from './ship-name.js';
 
 type ServerResultByType = {
     [R in ServerEnvelope as R['type']]: R;
@@ -98,6 +99,8 @@ const handlers: HandlerMap = {
 
     [ServerTag.DensityScanResult]: longRangeScan.densityScan,
     [ServerTag.VisualScanResult]: longRangeScan.visualScan,
+
+    [ServerTag.ShipNameRequired]: shipName.shipNameRequired,
 };
 
 /** Returns the handler's result — `undefined` for sync handlers, a Promise

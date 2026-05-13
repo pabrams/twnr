@@ -9,12 +9,10 @@ import {
 } from '../db/queries/universe.js';
 import {
     insertPlayer,
-    setPlayerShipId,
     listPlayersInUniverse,
     markSectorVisited,
 } from '../db/queries/player.js';
 import { getSectorDbId } from '../db/queries/sector.js';
-import { getStartingShipTypeByName, insertStartingShip } from '../db/queries/ship.js';
 
 export function createUniverseRoutes(
     router: Router,
@@ -75,8 +73,6 @@ export function createUniverseRoutes(
             const startSector = universeConfig.startingSector;
             const startingTurns = editDefaults.starting_turns ?? universeConfig.startingTurns;
             const startingCredits = editDefaults.starting_credits ?? universeConfig.startingCredits;
-            const startingShip = editDefaults.starting_ship ?? universeConfig.startingShip;
-            const startingDrones = editDefaults.starting_drones ?? universeConfig.startingDrones;
 
             const startSectorId = await getSectorDbId(startSector, universeId);
             if (startSectorId === undefined) {
@@ -98,21 +94,6 @@ export function createUniverseRoutes(
                     throw new HttpError(409, 'Already joined this universe');
                 }
                 throw err;
-            }
-
-            const startShipType = await getStartingShipTypeByName(startingShip);
-            if (startShipType) {
-                const newShipId = await insertStartingShip(
-                    playerId,
-                    universeId,
-                    startShipType.id,
-                    startSectorId,
-                    startingDrones,
-                    universeConfig.startingShields,
-                    startShipType.starting_holds,
-                    startShipType.turns_per_warp,
-                );
-                await setPlayerShipId(playerId, newShipId);
             }
 
             await markSectorVisited(playerId, startSectorId);

@@ -1,15 +1,7 @@
 import { pool } from '../db/index.js';
-import {
-    clearPlayerShip,
-    respawnPlayerNoShip,
-    respawnPlayerWithShip,
-} from '../db/queries/player.js';
+import { clearPlayerShip, applyRespawnReset } from '../db/queries/player.js';
 import { getSectorDbId } from '../db/queries/sector.js';
-import {
-    deleteShipByOwner,
-    getStartingShipTypeByName,
-    insertStartingShip,
-} from '../db/queries/ship.js';
+import { deleteShipByOwner } from '../db/queries/ship.js';
 import { universeConfig } from '../universe-config.js';
 
 export type RespawnOutcome =
@@ -57,26 +49,6 @@ export async function tryRespawnPlayer(playerId: number): Promise<RespawnOutcome
     await clearPlayerShip(playerId);
     await deleteShipByOwner(playerId);
 
-    const startShipType = await getStartingShipTypeByName(universeConfig.startingShip);
-    if (startShipType) {
-        const newShipId = await insertStartingShip(
-            playerId,
-            row.universe_id,
-            startShipType.id,
-            startSectorId,
-            universeConfig.startingDrones,
-            universeConfig.startingShields,
-            startShipType.starting_holds,
-            startShipType.turns_per_warp,
-        );
-        await respawnPlayerWithShip(
-            playerId,
-            startSectorId,
-            newShipId,
-            universeConfig.startingCredits,
-        );
-    } else {
-        await respawnPlayerNoShip(playerId, startSectorId);
-    }
+    await applyRespawnReset(playerId, startSectorId, universeConfig.startingCredits);
     return { kind: 'respawned' };
 }
