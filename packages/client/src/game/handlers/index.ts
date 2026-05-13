@@ -16,6 +16,7 @@ import * as drones from './drones.js';
 import * as longRangeScan from './long-range-scan.js';
 import * as shipName from './ship-name.js';
 import * as tow from './tow.js';
+import * as mail from './mail.js';
 
 type ServerResultByType = {
     [R in ServerEnvelope as R['type']]: R;
@@ -95,7 +96,7 @@ const handlers: HandlerMap = {
     [ServerTag.SeekerMineAttached]: mines.seekerMineAttached,
     [ServerTag.SeekerMinePickupAlert]: mines.seekerMinePickupAlert,
 
-    [ServerTag.MemoDelivery]: clan.memoDelivery,
+    [ServerTag.MemoDelivery]: mail.memoDelivery,
     [ServerTag.ClanMembershipChanged]: clan.clanMembershipChanged,
 
     [ServerTag.DensityScanResult]: longRangeScan.densityScan,

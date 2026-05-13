@@ -26,16 +26,54 @@ export async function insertMemo(
     );
 }
 
-export async function fetchAndMarkUnreadMemos(
+export async function getAllMailForPlayer(
     recipientPlayerId: number,
     db: Queryable = pool,
 ): Promise<MessageRow[]> {
     const res = await db.query<MessageRow>(
-        `UPDATE messages SET read_at = NOW()
-         WHERE recipient_player_id = $1 AND read_at IS NULL
-         RETURNING id, sender_player_id, clan_id, kind, body, created_at,
-                   (SELECT name FROM players WHERE id = messages.sender_player_id) AS sender_name`,
+        `SELECT m.id, m.sender_player_id, m.clan_id, m.kind, m.body, m.created_at,
+                p.name AS sender_name
+         FROM messages m
+         LEFT JOIN players p ON p.id = m.sender_player_id
+         WHERE m.recipient_player_id = $1
+         ORDER BY m.id ASC`,
         [recipientPlayerId],
     );
-    return res.rows.sort((a, b) => a.id - b.id);
+    return res.rows;
+}
+
+export async function getMailSince(
+    recipientPlayerId: number,
+    since: Date | null,
+    db: Queryable = pool,
+): Promise<MessageRow[]> {
+    const res = await db.query<MessageRow>(
+        `SELECT m.id, m.sender_player_id, m.clan_id, m.kind, m.body, m.created_at,
+                p.name AS sender_name
+         FROM messages m
+         LEFT JOIN players p ON p.id = m.sender_player_id
+         WHERE m.recipient_player_id = $1
+           AND ($2::timestamptz IS NULL OR m.created_at > $2)
+         ORDER BY m.id ASC`,
+        [recipientPlayerId, since],
+    );
+    return res.rows;
+}
+
+export async function deleteAllMailForPlayer(
+    recipientPlayerId: number,
+    db: Queryable = pool,
+): Promise<void> {
+    await db.query('DELETE FROM messages WHERE recipient_player_id = $1', [recipientPlayerId]);
+}
+
+export async function getPlayerLastLogoutAt(
+    playerId: number,
+    db: Queryable = pool,
+): Promise<Date | null> {
+    const res = await db.query<{ last_logout_at: Date | null }>(
+        'SELECT last_logout_at FROM players WHERE id = $1',
+        [playerId],
+    );
+    return res.rows[0]?.last_logout_at ?? null;
 }

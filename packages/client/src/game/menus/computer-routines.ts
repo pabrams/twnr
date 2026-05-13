@@ -1,7 +1,8 @@
 import { ClientTag, ServerTag } from '@twnr/shared';
 import { render } from '../renderer.js';
-import { COMPUTER, NOTIFY } from '../messages/index.js';
+import { COMPUTER, EVENT, NOTIFY } from '../messages/index.js';
 import { echoCommand } from '../display.js';
+import { renderMailEntries } from '../display-mail.js';
 import {
     showCurrentShipSpecs,
     showShipCatalog,
@@ -14,7 +15,7 @@ import {
 } from '../display-computer.js';
 import { indexToLetter, letterToIndex } from '../display-starbase.js';
 import { registerRoutine } from './types.js';
-import { askChar, askNumber, awaitResponse } from './prompts.js';
+import { askChar, askConfirm, askNumber, awaitResponse } from './prompts.js';
 
 registerRoutine('known_universe', async (ctx) => {
     while (true) {
@@ -146,4 +147,19 @@ registerRoutine('change_ship_ownership', async (ctx) => {
                 : COMPUTER.ownershipResultPersonal,
         ),
     );
+});
+
+registerRoutine('read_mail', async (ctx) => {
+    echoCommand(ctx, 'readMail');
+    ctx.io.sendMsg({ type: ClientTag.ReadMail });
+    const reply = await awaitResponse(ctx, [ServerTag.MemoDelivery, ServerTag.Error]);
+    if (reply === null) return;
+    if (reply.type !== ServerTag.MemoDelivery) return;
+    if (reply.memos.length === 0) {
+        ctx.io.term.writeln(render(EVENT.mailReadEmpty));
+        return;
+    }
+    renderMailEntries(ctx, reply.memos);
+    const del = await askConfirm(ctx, render(EVENT.mailDeletePrompt), { defaultValue: false });
+    if (del) ctx.io.sendMsg({ type: ClientTag.DeleteAllMail });
 });

@@ -234,6 +234,18 @@ export type TowAttachCommand = {
     shipId: number;
 };
 
+export type ReadMailCommand = {
+    type: typeof ClientTag.ReadMail;
+};
+
+export type CheckMailSinceLastLogoutCommand = {
+    type: typeof ClientTag.CheckMailSinceLastLogout;
+};
+
+export type DeleteAllMailCommand = {
+    type: typeof ClientTag.DeleteAllMail;
+};
+
 export type TransportToShipCommand = {
     type: typeof ClientTag.TransportToShip;
     shipId: number;
@@ -414,6 +426,9 @@ export type ClientEnvelope =
     | SetShipNameCommand
     | TowSpacecraftCommand
     | TowAttachCommand
+    | ReadMailCommand
+    | CheckMailSinceLastLogoutCommand
+    | DeleteAllMailCommand
     | ClanCreateCommand
     | ClanJoinCommand
     | ClanLeaveCommand

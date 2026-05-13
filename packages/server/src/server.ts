@@ -255,29 +255,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             tokens = Math.min(50, tokens + 20);
         }, 1000);
 
-        // Deliver any unread memos after the message listener is wired so
-        // the awaited query can't drop early client messages. Errors are
-        // swallowed — memo delivery isn't critical to connect success.
-        void (async () => {
-            try {
-                const { fetchAndMarkUnreadMemos } = await import('./db/queries/message.js');
-                const memos = await fetchAndMarkUnreadMemos(playerId);
-                if (memos.length > 0) {
-                    await sendEnvelope(playerId, {
-                        type: ServerTag.MemoDelivery,
-                        memos: memos.map((m) => ({
-                            id: m.id,
-                            senderName: m.sender_name,
-                            kind: m.kind,
-                            body: m.body,
-                            createdAt: m.created_at.toISOString(),
-                        })),
-                    });
-                }
-            } catch (err) {
-                console.error('Failed to deliver memos on connect:', err);
-            }
-        })();
+
 
         ws.on('message', async (message) => {
             if (tokens <= 0) {

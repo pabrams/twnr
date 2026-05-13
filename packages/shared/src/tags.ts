@@ -181,5 +181,8 @@ export const ClientTag = {
     SetShipName: 'setShipName',
     TowSpacecraft: 'towSpacecraft',
     TowAttach: 'towAttach',
+    ReadMail: 'readMail',
+    CheckMailSinceLastLogout: 'checkMailSinceLastLogout',
+    DeleteAllMail: 'deleteAllMail',
 } as const;
 type ClientTag = typeof ClientTag;

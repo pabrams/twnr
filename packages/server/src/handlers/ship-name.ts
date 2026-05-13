@@ -9,7 +9,6 @@ import {
 import { setPlayerShipId } from '../db/queries/player.js';
 import { getUniverseEditDefaults } from '../db/queries/universe.js';
 import { universeConfig } from '../universe-config.js';
-import { buildSectorDisplayData } from '../services/sector-display.js';
 import {
     getPendingShipPurchase,
     clearPendingShipPurchase,
@@ -90,8 +89,5 @@ export async function serveSetShipName(
     player.shipId = newShipId;
 
     sendEnvelope(playerId, { type: ServerTag.SetShipNameResult, outcome: 'ok' });
-    const sectorData = await buildSectorDisplayData(playerId);
-    if (sectorData) {
-        sendEnvelope(playerId, { type: ServerTag.SectorDisplayResult, ...sectorData });
-    }
+
 }
