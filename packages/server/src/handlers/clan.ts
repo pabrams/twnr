@@ -565,7 +565,14 @@ export async function serveClanTransfer(
         (kind !== 'credits' && result.delivered < quantity
             ? ` (${quantity - result.delivered} discarded — at capacity.)`
             : '');
-    await insertMemo(targetPlayerId, senderId, null, `transfer_${kind}`, memoBody);
+
+    const { notifyAndMail } = await import('../services/notify.js');
+    await notifyAndMail({
+        recipientId: targetPlayerId,
+        sender: { kind: 'player', playerId: senderId, displayName: senderName },
+        kind: `transfer_${kind}`,
+        body: memoBody,
+    });
 
     sendEnvelope(senderId, {
         type: ServerTag.ClanTransferResult,
@@ -575,24 +582,6 @@ export async function serveClanTransfer(
         quantity,
         delivered: result.delivered,
     });
-
-    // If target is online, push the memo right away.
-    const targetOnline = players[targetPlayerId];
-    if (targetOnline) {
-        sendEnvelope(targetPlayerId, {
-            type: ServerTag.MemoDelivery,
-            reason: 'incoming' as const,
-            memos: [
-                {
-                    id: 0,
-                    senderName,
-                    kind: `transfer_${kind}`,
-                    body: memoBody,
-                    createdAt: new Date().toISOString(),
-                },
-            ],
-        });
-    }
 }
 
 export async function serveClanMemo(senderId: number, data: ClanMemoCommand): Promise<void> {

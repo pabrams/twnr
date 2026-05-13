@@ -988,6 +988,16 @@ export type ClanMemoNotificationEvent = {
     senderName: string;
 };
 
+/** Generic in-game notification: short text alert about an event the player
+ *  needs to know about (corp transfer, tow, planet event, etc.). The same
+ *  body is also persisted to the recipient's inbox via insertMemo /
+ *  insertSystemMemo. */
+export type NoticeEvent = {
+    type: typeof ServerTag.Notice;
+    senderLabel: string | null;
+    body: string;
+};
+
 export type ServerEnvelope =
     | WelcomeEvent
     | PlayerMovedEvent
@@ -1079,4 +1089,5 @@ export type ServerEnvelope =
     | HailSendReply
     | HailIncomingEvent
     | ClanMemoNotificationEvent
+    | NoticeEvent
     | ErrorReply;

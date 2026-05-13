@@ -382,6 +382,27 @@ export async function getPlanetName(planetId: number): Promise<string | null> {
     return res.rows[0]?.name ?? null;
 }
 
+export type PlanetOwnershipRow = {
+    name: string;
+    sector_number: number;
+    owner_player_id: number | null;
+    owner_clan_id: number | null;
+};
+
+/** Owner info + name + sector number, used by destroy/claim event mail. */
+export async function getPlanetOwnership(
+    planetId: number,
+): Promise<PlanetOwnershipRow | null> {
+    const res = await pool.query<PlanetOwnershipRow>(
+        `SELECT pl.name, s.sector_number, pl.owner_player_id, pl.owner_clan_id
+         FROM planets pl
+         JOIN sectors s ON s.id = pl.sector_id
+         WHERE pl.id = $1`,
+        [planetId],
+    );
+    return res.rows[0] ?? null;
+}
+
 /** Settle accrued production on a single planet using the same fractional-
  *  accumulator pattern as `settlePlanetColonistGrowth`. Per commodity
  *  (fuel/org/equ):

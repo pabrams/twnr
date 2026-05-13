@@ -26,13 +26,29 @@ export async function insertMemo(
     );
 }
 
+/** Insert a system-sourced mail row (sender is a label like "Deployed Drones",
+ *  not a player). */
+export async function insertSystemMemo(
+    recipientPlayerId: number,
+    senderLabel: string,
+    kind: string,
+    body: string,
+    db: Queryable = pool,
+): Promise<void> {
+    await db.query(
+        `INSERT INTO messages (recipient_player_id, sender_label, kind, body)
+         VALUES ($1, $2, $3, $4)`,
+        [recipientPlayerId, senderLabel, kind, body],
+    );
+}
+
 export async function getAllMailForPlayer(
     recipientPlayerId: number,
     db: Queryable = pool,
 ): Promise<MessageRow[]> {
     const res = await db.query<MessageRow>(
         `SELECT m.id, m.sender_player_id, m.clan_id, m.kind, m.body, m.created_at,
-                p.name AS sender_name
+                COALESCE(m.sender_label, p.name) AS sender_name
          FROM messages m
          LEFT JOIN players p ON p.id = m.sender_player_id
          WHERE m.recipient_player_id = $1
@@ -49,7 +65,7 @@ export async function getMailSince(
 ): Promise<MessageRow[]> {
     const res = await db.query<MessageRow>(
         `SELECT m.id, m.sender_player_id, m.clan_id, m.kind, m.body, m.created_at,
-                p.name AS sender_name
+                COALESCE(m.sender_label, p.name) AS sender_name
          FROM messages m
          LEFT JOIN players p ON p.id = m.sender_player_id
          WHERE m.recipient_player_id = $1
