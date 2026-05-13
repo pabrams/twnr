@@ -12,6 +12,7 @@ import {
     destroyShipRecord,
 } from '../db/queries/ship.js';
 import { listPlayersInSector, getAttackTargetInfo } from '../db/queries/player.js';
+import { getSectorBeacon } from '../db/queries/beacons.js';
 
 export async function handleGetAttackTargets(playerId: number): Promise<void> {
     const player = players[playerId];
@@ -22,7 +23,13 @@ export async function handleGetAttackTargets(playerId: number): Promise<void> {
         .filter((row) => isVisibleInSector(row.id, row.docked, row.on_planet_id))
         .map((row) => ({ id: row.id, name: row.name }));
 
-    await sendEnvelope(playerId, { type: ServerTag.GetAttackTargetsResult, players: roster });
+    const beacon = await getSectorBeacon(player.sectorId);
+
+    await sendEnvelope(playerId, {
+        type: ServerTag.GetAttackTargetsResult,
+        players: roster,
+        beaconPresent: !!beacon,
+    });
 }
 
 export async function handleAttackShip(

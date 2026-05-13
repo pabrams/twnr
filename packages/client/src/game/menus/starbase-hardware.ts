@@ -12,7 +12,7 @@ import { askChar, askNumber } from './prompts.js';
 const STACKABLE: Record<string, { itemName: string; label: string }> = {
     t: { itemName: 'terraform_device', label: 'Terraform Devices' },
     b: { itemName: 'planet_buster', label: 'Planet Busters' },
-    u: { itemName: 'buoy', label: 'Space Buoys' },
+    u: { itemName: 'buoy', label: 'Marker Beacons' },
     d: { itemName: 'mine_disruptor', label: 'Mine Disruptors' },
     k: { itemName: 'cloaking_device', label: 'Cloaking Devices' },
     c: { itemName: 'corbomite', label: 'Corbomite' },

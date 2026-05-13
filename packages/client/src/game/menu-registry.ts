@@ -97,10 +97,17 @@ export const MENU_REGISTRY: MenuEntry[] = [
             },
             {
                 command: 'mine_disruptor_menu',
-                keyPattern: 'r',
+                keyPattern: 'm',
                 label: 'Mine Disruptor',
                 targetMenu: null,
                 sortOrder: 88,
+            },
+            {
+                command: 'release_beacon',
+                keyPattern: 'r',
+                label: 'Release Beacon',
+                targetMenu: null,
+                sortOrder: 89,
             },
             {
                 command: 'jettison_menu',

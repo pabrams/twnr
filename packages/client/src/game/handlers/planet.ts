@@ -3,8 +3,7 @@ import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { NOTIFY, EVENT, PLANET } from '../messages/index.js';
 import { askConfirm } from '../menus/prompts.js';
-import { echoCommand } from '../display.js';
-import { showSectorDisplay, type DisplayCtx } from '../display.js';
+import { echoCommand, type DisplayCtx } from '../display.js';
 import {
     showPlanetMenu,
     showEarthMenu,
@@ -14,7 +13,7 @@ import {
 import { type DisplayStarbaseCtx } from '../display-starbase.js';
 import { type DisplayComputerCtx } from '../display-computer.js';
 import type { Handler } from './index.js';
-import { fmt, fmtCompact, refreshMinimap, type RefreshMinimapCtx } from './utils.js';
+import { fmt, fmtCompact, type RefreshMinimapCtx } from './utils.js';
 import { padStartVisible } from '../display-utils.js';
 
 type PlanetDisplayMsg = {
@@ -294,23 +293,9 @@ export const useTerraformDevice: Handler<'useTerraformDeviceResult', PlanetConte
     }
 };
 
-export const leavePlanet: Handler<'leavePlanetResult', PlanetContext> = (ctx, msg) => {
+export const leavePlanet: Handler<'leavePlanetResult', PlanetContext> = (ctx) => {
     ctx.world.mode = Menu.Sector;
     ctx.io.term.writeln(render(EVENT.leftPlanet));
-    ctx.world.sectorPlayers = msg.players;
-    showSectorDisplay(
-        ctx,
-        msg.sector,
-        msg.warps,
-        msg.players,
-        msg.port,
-        msg.sectorDrones,
-        msg.planets,
-        msg.ships,
-        msg.collisions,
-        msg.sectorMines,
-    );
-    refreshMinimap(ctx);
 };
 
 export const listPlanets: Handler<'listPlanetsResult', PlanetContext> = (ctx, msg) => {

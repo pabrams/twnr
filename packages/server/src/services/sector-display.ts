@@ -3,6 +3,7 @@ import { getSectorMines } from '../db/queries/mines.js';
 import { recordSectorObservation } from '../db/queries/observations.js';
 import { listPlayersInSector } from '../db/queries/player.js';
 import { getPlayerClanId } from '../db/queries/clan.js';
+import { getSectorBeacon } from '../db/queries/beacons.js';
 import { players, isVisibleInSector } from '../state/players.js';
 import { isFriendlyOwner } from './owner.js';
 import { ownershipFrom } from './owner-format.js';
@@ -13,15 +14,6 @@ import {
     getEmptyShipsInSector,
 } from './sector-lookup.js';
 
-/**
- * Build the full payload describing what a player sees when they look at
- * a sector — port, warps, drones, planets, collisions, abandoned ships,
- * and other players present. Also records the player's observation for
- * fog-of-war so the minimap can later show what they've seen.
- *
- * `sectorNumber` defaults to the player's current sector. Returns null if
- * the player isn't in the registry (offline / disconnected).
- */
 export async function buildSectorDisplayData(playerId: number, sectorNumber?: number) {
     const player = players[playerId];
     if (!player) return null;
@@ -62,6 +54,11 @@ export async function buildSectorDisplayData(playerId: number, sectorNumber?: nu
         .filter((row) => isVisibleInSector(row.id, row.docked, row.on_planet_id))
         .map((row) => ({ id: row.id, name: row.name }));
 
+    const beaconRow = sectorDbId !== undefined ? await getSectorBeacon(sectorDbId) : undefined;
+    const beacon = beaconRow
+        ? { message: beaconRow.message, ownership: ownershipFrom(beaconRow) }
+        : null;
+
     if (sectorDbId !== undefined) {
         await recordSectorObservation(
             playerId,
@@ -81,5 +78,6 @@ export async function buildSectorDisplayData(playerId: number, sectorNumber?: nu
         ships: emptyShips.length > 0 ? emptyShips : undefined,
         collisions,
         sectorMines: sectorMines.length > 0 ? sectorMines : undefined,
+        beacon,
     };
 }

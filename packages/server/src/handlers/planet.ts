@@ -194,11 +194,8 @@ export async function handleLeavePlanet(playerId: number): Promise<void> {
 
     await setOnPlanet(playerId, null);
 
-    const data = await buildSectorDisplayData(playerId);
-    if (!data) return;
     await sendEnvelope(playerId, {
         type: ServerTag.LeavePlanetResult,
-        ...data,
         turnsUsed: turnResult.turnsUsed,
     });
 }

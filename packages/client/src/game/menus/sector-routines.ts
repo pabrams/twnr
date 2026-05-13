@@ -20,6 +20,7 @@ import {
     askChar,
     askConfirm,
     askDeployOwnership,
+    askLine,
     askLineWithShortcuts,
     askNumber,
     awaitResponse,
@@ -143,6 +144,28 @@ registerRoutine('mine_disruptor_menu', async (ctx) => {
     });
     if (target === null) return;
     ctx.io.sendMsg({ type: ClientTag.MineDisruptor, targetSector: target });
+});
+
+registerRoutine('release_beacon', async (ctx) => {
+    ctx.io.term.writeln('');
+    ctx.io.term.writeln(render(SECTOR.beaconBanner));
+    const ok = await askConfirm(ctx, render(SECTOR.beaconLaunchPrompt), { defaultValue: false });
+    if (!ok) return;
+    ctx.io.term.write(render(SECTOR.beaconMessagePrompt));
+    const message = await askLine(ctx, '');
+    if (message === null) return;
+    ctx.io.sendMsg({ type: ClientTag.ReleaseBeacon, message: message.slice(0, 41) });
+    const reply = await awaitResponse(ctx, [ServerTag.ReleaseBeaconResult, ServerTag.Error]);
+    if (reply === null) return;
+    if (reply.type !== ServerTag.ReleaseBeaconResult) return;
+    if (reply.outcome === 'noBeacons') {
+        ctx.io.term.writeln(render(SECTOR.beaconNoBeacons));
+        return;
+    }
+    ctx.io.term.writeln(render(SECTOR.beaconLaunched));
+    if (reply.outcome === 'collision') {
+        ctx.io.term.writeln(render(SECTOR.beaconCollision));
+    }
 });
 
 registerRoutine('land', async (ctx) => {

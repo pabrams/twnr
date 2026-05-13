@@ -1,5 +1,5 @@
 import { ClientTag } from '@twnr/shared';
-import type { SectorRef, OwnershipInfo } from '@twnr/shared';
+import type { SectorRef, OwnershipInfo, SectorDisplayData } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { render } from './renderer.js';
 import { COMMAND, SECTOR, HELP, HELP_LINES, PORT, COMMON } from './messages/index.js';
@@ -59,36 +59,32 @@ function portClassLabel(cls: number): string {
     return render(tpl);
 }
 
-export function showSectorDisplay(
-    ctx: DisplayCtx,
-    sector: number,
-    warps: SectorRef[],
-    players: { id: number; name: string }[],
-    port?: { class: number; name: string } | null,
-    sectorDrones?: { quantity: number; ownerId: number | null; ownership: OwnershipInfo } | null,
-    planets?: { id: number; name: string; type: string; displayType: string | null }[],
-    ships?: {
-        id: number;
-        name: string;
-        typeName: string;
-        typeDisplayName: string | null;
-        ownership: OwnershipInfo;
-    }[],
-    collisions?: { planetName: string; collidingWithName: string; collisionAt: string }[],
-    sectorMines?: {
-        mineType: 'proximity' | 'seeker';
-        quantity: number;
-        own: boolean;
-        ownership: OwnershipInfo;
-    }[],
-) {
+export function showSectorDisplay(ctx: DisplayCtx, data: SectorDisplayData) {
+    const {
+        sector,
+        warps,
+        players,
+        port,
+        sectorDrones,
+        planets,
+        ships,
+        collisions,
+        sectorMines,
+        beacon,
+    } = data;
     ctx.world.visitedSet.add(sector);
     ctx.world.currentSector = sector;
     ctx.world.currentPort = port ?? null;
     ctx.world.currentWarps = warps;
+    const viewerId = ctx.player.id;
+    const viewerClanId = ctx.player.clanId;
     const { term } = ctx.io;
     term.writeln('');
     term.writeln(render(SECTOR.header, { sector }));
+
+    if (beacon) {
+        term.writeln(render(SECTOR.beaconLine, { message: beacon.message }));
+    }
 
     if (port) {
         term.writeln(
@@ -101,8 +97,7 @@ export function showSectorDisplay(
     }
 
     if (sectorDrones && sectorDrones.quantity > 0) {
-        const viewerClanId = ctx.player.clanId;
-        if (sectorDrones.ownerId === ctx.player.id) {
+        if (sectorDrones.ownerId === viewerId) {
             term.writeln(render(SECTOR.dronesYours, { qty: sectorDrones.quantity }));
         } else if (isOwnClan(sectorDrones.ownership, viewerClanId)) {
             term.writeln(render(SECTOR.dronesYourClan, { qty: sectorDrones.quantity }));
@@ -110,11 +105,7 @@ export function showSectorDisplay(
             term.writeln(
                 render(SECTOR.dronesEnemy, {
                     qty: sectorDrones.quantity,
-                    ownership: renderOwnership(
-                        sectorDrones.ownership,
-                        ctx.player.id,
-                        viewerClanId,
-                    ),
+                    ownership: renderOwnership(sectorDrones.ownership, viewerId, viewerClanId),
                 }),
             );
         }
@@ -156,17 +147,16 @@ export function showSectorDisplay(
     }
 
     if (ships && ships.length > 0) {
-        const viewerClanId = ctx.player.clanId;
         ships.forEach((s, i) => {
             // Use the colored display name verbatim when present
             const item = s.typeDisplayName
                 ? render(SECTOR.shipItem, {
                       nameColored: s.typeDisplayName,
-                      ownership: renderOwnership(s.ownership, ctx.player.id, viewerClanId),
+                      ownership: renderOwnership(s.ownership, viewerId, viewerClanId),
                   })
                 : render(SECTOR.shipItemPlain, {
                       type: s.typeName,
-                      ownership: renderOwnership(s.ownership, ctx.player.id, viewerClanId),
+                      ownership: renderOwnership(s.ownership, viewerId, viewerClanId),
                   });
             term.writeln(
                 render(i === 0 ? SECTOR.shipsLine : SECTOR.shipsContinuation, { item }),
@@ -175,9 +165,8 @@ export function showSectorDisplay(
     }
 
     if (sectorMines && sectorMines.length > 0) {
-        const viewerClanId = ctx.player.clanId;
-        const proximity = sectorMines.filter((m) => m.mineType === 'proximity');
-        const limpets = sectorMines.filter((m) => m.mineType === 'seeker');
+        const proximity = sectorMines.find((m) => m.mineType === 'proximity');
+        const limpet = sectorMines.find((m) => m.mineType === 'seeker');
         const renderMineLine = (
             row: { quantity: number; ownership: OwnershipInfo },
             ownTpl: string,
@@ -185,7 +174,7 @@ export function showSectorDisplay(
             enemyTpl: string,
         ) => {
             const isMine =
-                row.ownership.kind === 'player' && row.ownership.playerId === ctx.player.id;
+                row.ownership.kind === 'player' && row.ownership.playerId === viewerId;
             if (isMine) {
                 term.writeln(render(ownTpl, { qty: row.quantity }));
             } else if (isOwnClan(row.ownership, viewerClanId)) {
@@ -194,22 +183,22 @@ export function showSectorDisplay(
                 term.writeln(
                     render(enemyTpl, {
                         qty: row.quantity,
-                        ownership: renderOwnership(row.ownership, ctx.player.id, viewerClanId),
+                        ownership: renderOwnership(row.ownership, viewerId, viewerClanId),
                     }),
                 );
             }
         };
-        if (proximity[0]) {
+        if (proximity) {
             renderMineLine(
-                proximity[0],
+                proximity,
                 SECTOR.minesLine,
                 SECTOR.minesLineYourClan,
                 SECTOR.minesLineEnemy,
             );
         }
-        if (limpets[0]) {
+        if (limpet) {
             renderMineLine(
-                limpets[0],
+                limpet,
                 SECTOR.limpetsLine,
                 SECTOR.limpetsLineYourClan,
                 SECTOR.limpetsLineEnemy,

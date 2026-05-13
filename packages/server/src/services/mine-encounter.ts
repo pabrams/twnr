@@ -3,7 +3,6 @@ import { players } from '../state/players.js';
 import { sendEnvelope, broadcastEnvelope } from '../state/messaging.js';
 import { getClanMembers } from '../db/queries/clan.js';
 import { withTransaction } from '../db/index.js';
-import { getSectorDbId } from '../db/queries/sector.js';
 import {
     getSectorMineForUpdate,
     setSectorMineQuantity,
@@ -50,8 +49,7 @@ export async function resolveProximityMines(playerId: number): Promise<Proximity
     const player = players[playerId];
     if (!player) return null;
 
-    const sectorDbId = await getSectorDbId(player.sector, player.universeId);
-    if (!sectorDbId) return null;
+    const sectorDbId = player.sectorId;
 
     const settings = await getMineUniverseSettings(player.universeId);
     if (settings.proximity_detonation_pct <= 0 || settings.proximity_mine_damage <= 0) return null;
@@ -116,8 +114,8 @@ export async function resolveProximityMines(playerId: number): Promise<Proximity
 }
 
 /**
- * Resolve seeker mine attach attempts when a player enters a sector with
- * enemy seeker mines. Each enemy mine rolls with probability
+ * Resolve limpet (seeker) mine attach attempts when a player enters a sector with
+ * enemy limpet mines. Each enemy mine rolls with probability
  * `seeker_attach_pct`. If at least one succeeds, exactly one mine attaches
  * to the entering ship; any previous attachment drops off (and is lost).
  * The successful mine and any other mines that rolled "yes" are consumed.
@@ -137,8 +135,7 @@ export async function resolveSeekerMines(playerId: number): Promise<{
     const player = players[playerId];
     if (!player) return null;
 
-    const sectorDbId = await getSectorDbId(player.sector, player.universeId);
-    if (!sectorDbId) return null;
+    const sectorDbId = player.sectorId;
 
     const settings = await getMineUniverseSettings(player.universeId);
     if (settings.seeker_attach_pct <= 0) return null;
@@ -224,12 +221,6 @@ export async function resolveSeekerMines(playerId: number): Promise<{
     return outcome;
 }
 
-/**
- * Convenience wrapper: when a player enters a new sector, resolve mines
- * (proximity first — could destroy the ship — then seeker if still alive).
- * Returns true if the entering ship was destroyed by a proximity mine, so
- * the caller can short-circuit further handling.
- */
 export async function resolveMinesOnEntry(playerId: number): Promise<{ destroyed: boolean }> {
     const proxResult = await resolveProximityMines(playerId);
     if (proxResult?.destroyed) return { destroyed: true };
