@@ -212,6 +212,14 @@ export type AttackBeaconCommand = {
     type: typeof ClientTag.AttackBeacon;
 };
 
+export type DensityScanCommand = {
+    type: typeof ClientTag.DensityScan;
+};
+
+export type VisualScanCommand = {
+    type: typeof ClientTag.VisualScan;
+};
+
 export type TransportToShipCommand = {
     type: typeof ClientTag.TransportToShip;
     shipId: number;
@@ -387,6 +395,8 @@ export type ClientEnvelope =
     | TransportToShipCommand
     | ReleaseBeaconCommand
     | AttackBeaconCommand
+    | DensityScanCommand
+    | VisualScanCommand
     | ClanCreateCommand
     | ClanJoinCommand
     | ClanLeaveCommand

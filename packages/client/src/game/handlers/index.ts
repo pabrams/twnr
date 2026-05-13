@@ -12,6 +12,8 @@ import * as planet from './planet.js';
 import * as shipExchange from './ship-exchange.js';
 import * as mines from './mines.js';
 import * as clan from './clan.js';
+import * as drones from './drones.js';
+import * as longRangeScan from './long-range-scan.js';
 
 type ServerResultByType = {
     [R in ServerEnvelope as R['type']]: R;
@@ -56,7 +58,7 @@ const handlers: HandlerMap = {
     [ServerTag.BuyHoldsResult]: hardwareStore.buyHolds,
     [ServerTag.BuyHardwareResult]: hardwareStore.buyHardware,
     [ServerTag.HardwareStoreInfoResult]: hardwareStore.hardwareStoreInfo,
-    [ServerTag.ListDeployedDronesResult]: hardwareStore.listDeployedDrones,
+    [ServerTag.ListDeployedDronesResult]: drones.listDeployedDrones,
 
     [ServerTag.AttackShipResult]: combat.attackShip,
     [ServerTag.GetAttackTargetsResult]: combat.getAttackTargets,
@@ -93,6 +95,9 @@ const handlers: HandlerMap = {
 
     [ServerTag.MemoDelivery]: clan.memoDelivery,
     [ServerTag.ClanMembershipChanged]: clan.clanMembershipChanged,
+
+    [ServerTag.DensityScanResult]: longRangeScan.densityScan,
+    [ServerTag.VisualScanResult]: longRangeScan.visualScan,
 };
 
 /** Returns the handler's result — `undefined` for sync handlers, a Promise
