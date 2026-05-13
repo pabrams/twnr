@@ -11,8 +11,8 @@ import { EVENT, NOTIFY, TRANSACTION, PORT } from '../messages/index.js';
 import { showCommerceReport, showSectorDisplay, type DisplayCtx } from '../display.js';
 import { type DisplayPortCtx } from '../display-port.js';
 import { type DisplayStarbaseCtx } from '../display-starbase.js';
-import { type MenuArgsSlot } from '../menus/types.js';
-import { askNumber, askConfirm, awaitResponse } from '../menus/prompts.js';
+import { type MenuArgsSlot } from '../routines/types.js';
+import { askNumber, askConfirm, awaitResponse } from '../routines/prompts.js';
 import type { Handler } from './index.js';
 import { fmt, refreshMinimap, type RefreshMinimapCtx } from './utils.js';
 

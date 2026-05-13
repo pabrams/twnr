@@ -2,7 +2,6 @@ import type { MenuName } from '@twnr/shared';
 import type { GameContext, MenuArgs } from '../types.js';
 
 export interface MenuHandler {
-    input?: (ctx: GameContext, line: string) => void | Promise<void>;
     renderPrompt?: (ctx: GameContext) => void;
     acceptsKey?: (key: string) => boolean;
 }

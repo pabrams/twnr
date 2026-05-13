@@ -2,7 +2,7 @@ import { ClientTag, Menu } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { NOTIFY, EVENT, PLANET } from '../messages/index.js';
-import { askConfirm } from '../menus/prompts.js';
+import { askConfirm } from '../routines/prompts.js';
 import { echoCommand, type DisplayCtx } from '../display.js';
 import {
     showPlanetMenu,

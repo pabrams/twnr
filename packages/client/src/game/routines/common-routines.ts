@@ -21,6 +21,15 @@ registerRoutine('back', (ctx) => {
         ctx.world.mode = Menu.Starbase;
     } else if (ctx.world.mode === Menu.ShipyardsClass0) {
         ctx.world.mode = Menu.Shipyards;
+    } else if (ctx.world.mode === Menu.StarbaseHardware) {
+        ctx.world.mode = Menu.Starbase;
+    } else if (ctx.world.mode === Menu.Clan) {
+        ctx.world.mode = Menu.Sector;
+    } else if (ctx.world.mode === Menu.Computer || ctx.world.mode === Menu.Attack) {
+        ctx.world.mode = Menu.Sector;
+        ctx.io.sendMsg({ type: ClientTag.SectorDisplay });
+    } else if (ctx.world.mode === Menu.PlanetEarth) {
+        ctx.io.sendMsg({ type: ClientTag.LeavePlanet });
     }
 });
 

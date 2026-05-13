@@ -4,7 +4,7 @@ import { render } from '../renderer.js';
 import { EVENT, SECTOR } from '../messages/index.js';
 import { type DisplayCtx } from '../display.js';
 import { showDroneEncounter, showAttackMenu, type DisplayCombatCtx } from '../display-combat.js';
-import { askConfirm, awaitResponse } from '../menus/prompts.js';
+import { askConfirm, awaitResponse } from '../routines/prompts.js';
 import type { Handler } from './index.js';
 
 type CombatContext = Pick<GameContext, 'autopilot' | 'encounter' | 'input' | 'io' | 'world'> &
