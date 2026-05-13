@@ -107,6 +107,10 @@ export const ServerTag = {
     TowAttachResult: 'towAttachResult',
     TowReleasedAlert: 'towReleasedAlert',
     TowAttachedAlert: 'towAttachedAlert',
+    HailResolveResult: 'hailResolveResult',
+    HailSendResult: 'hailSendResult',
+    HailIncoming: 'hailIncoming',
+    ClanMemoNotification: 'clanMemoNotification',
 } as const;
 type ServerTag = typeof ServerTag;
 
@@ -184,5 +188,7 @@ export const ClientTag = {
     ReadMail: 'readMail',
     CheckMailSinceLastLogout: 'checkMailSinceLastLogout',
     DeleteAllMail: 'deleteAllMail',
+    HailResolve: 'hailResolve',
+    HailSend: 'hailSend',
 } as const;
 type ClientTag = typeof ClientTag;

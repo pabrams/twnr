@@ -5,6 +5,7 @@ import { getPendingShipPurchase } from '../state/pending-ship-purchases.js';
 import { serveSetShipName } from './ship-name.js';
 import { serveTowSpacecraft, serveTowAttach } from './tow.js';
 import { serveReadMail, serveDeleteAllMail, serveCheckMailSinceLastLogout } from './mail.js';
+import { serveHailResolve, serveHailSend } from './hail.js';
 import { serveVisitedSectors } from './visited.js';
 import { servePlayersOnline } from './players.js';
 import {
@@ -164,6 +165,8 @@ const handlers: HandlerMap = {
     [ClientTag.ReadMail]: serveReadMail,
     [ClientTag.CheckMailSinceLastLogout]: serveCheckMailSinceLastLogout,
     [ClientTag.DeleteAllMail]: serveDeleteAllMail,
+    [ClientTag.HailResolve]: serveHailResolve,
+    [ClientTag.HailSend]: serveHailSend,
 };
 
 export async function routeMessage(playerId: number, data: ClientEnvelope): Promise<void> {

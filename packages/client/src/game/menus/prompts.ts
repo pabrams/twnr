@@ -32,6 +32,26 @@ export async function askLine(ctx: PromptCtx, prompt: string): Promise<string | 
     return trimmed;
 }
 
+/**
+ * Collect a multi-line message, one line at a time, with `linePrompt` shown
+ * before each line. Blank line ends the message and returns the joined body
+ * (newline-separated). Returns null if the user cancels by pressing Q on an
+ * otherwise-empty line at the start (no lines collected yet).
+ */
+export async function askMultiLine(
+    ctx: PromptCtx,
+    linePrompt: string,
+): Promise<string | null> {
+    const lines: string[] = [];
+    while (true) {
+        ctx.io.term.write(linePrompt);
+        const raw = await parkLine(ctx);
+        if (raw === null) return lines.length > 0 ? lines.join('\n') : null;
+        if (raw === '') return lines.join('\n');
+        lines.push(raw);
+    }
+}
+
 /** Like askLine, but resolves immediately (no Enter required) when the
  *  first keystroke matches one of `instantChars`. Used by menus where a
  *  number (multi-char) and a single-letter shortcut both make sense — e.g.

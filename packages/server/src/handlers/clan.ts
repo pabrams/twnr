@@ -605,30 +605,22 @@ export async function serveClanMemo(senderId: number, data: ClanMemoCommand): Pr
         return;
     }
     const trimmed = body.trim();
-    if (trimmed.length === 0 || trimmed.length > 500) {
-        sendError(senderId, 'Memo must be 1-500 characters.');
+    if (trimmed.length === 0 || trimmed.length > 2000) {
+        sendError(senderId, 'Memo must be 1-2000 characters.');
         return;
     }
 
     const members = await getClanMembers(clanId);
     const recipients = members.filter((m) => m.id !== senderId);
+    const senderName = recipients.length > 0 ? await getPlayerName(senderId) : '';
     for (const m of recipients) {
         await insertMemo(m.id, senderId, clanId, 'memo', trimmed);
-        const online = players[m.id];
-        if (online) {
-            const senderName = await getPlayerName(senderId);
+        // Online clan members get only a notification — the body lives in
+        // their inbox, surfaced when they next run the M command.
+        if (players[m.id]) {
             sendEnvelope(m.id, {
-                type: ServerTag.MemoDelivery,
-                reason: 'incoming' as const,
-                memos: [
-                    {
-                        id: 0,
-                        senderName,
-                        kind: 'memo',
-                        body: trimmed,
-                        createdAt: new Date().toISOString(),
-                    },
-                ],
+                type: ServerTag.ClanMemoNotification,
+                senderName,
             });
         }
     }

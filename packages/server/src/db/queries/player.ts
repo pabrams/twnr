@@ -351,6 +351,21 @@ export async function applyRespawnReset(
     );
 }
 
+export async function findPlayersByNamePrefix(
+    universeId: number,
+    prefix: string,
+    db: Queryable = pool,
+): Promise<{ id: number; name: string }[]> {
+    const res = await db.query<{ id: number; name: string }>(
+        `SELECT id, name FROM players
+         WHERE universe_id = $1 AND LOWER(name) LIKE LOWER($2) || '%'
+         ORDER BY name ASC
+         LIMIT 10`,
+        [universeId, prefix],
+    );
+    return res.rows;
+}
+
 /** Count total players across all universes (admin stats). */
 export async function countAllPlayers(db: Queryable = pool): Promise<number> {
     const res = await db.query<{ count: number }>('SELECT COUNT(*)::int FROM players');

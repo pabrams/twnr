@@ -243,6 +243,13 @@ export const MENU_REGISTRY: MenuEntry[] = [
                 sortOrder: 66,
             },
             {
+                command: 'hail',
+                keyPattern: '=',
+                label: 'Hailing frequencies',
+                targetMenu: null,
+                sortOrder: 67,
+            },
+            {
                 command: 'hyperspace_jump',
                 keyPattern: 'h',
                 label: 'Hyperspace jump',

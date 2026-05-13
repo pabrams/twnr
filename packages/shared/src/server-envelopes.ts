@@ -961,6 +961,33 @@ export type TowAttachedAlertEvent = {
     towingName: string;
 };
 
+export type HailResolveReply =
+    | {
+          type: typeof ServerTag.HailResolveResult;
+          outcome: 'found';
+          recipientPlayerId: number;
+          recipientName: string;
+          online: boolean;
+      }
+    | { type: typeof ServerTag.HailResolveResult; outcome: 'notFound' }
+    | { type: typeof ServerTag.HailResolveResult; outcome: 'ambiguous'; matches: string[] }
+    | { type: typeof ServerTag.HailResolveResult; outcome: 'self' };
+
+export type HailSendReply =
+    | { type: typeof ServerTag.HailSendResult; outcome: 'delivered' | 'queued' }
+    | { type: typeof ServerTag.HailSendResult; outcome: 'error'; message: string };
+
+export type HailIncomingEvent = {
+    type: typeof ServerTag.HailIncoming;
+    senderName: string;
+    body: string;
+};
+
+export type ClanMemoNotificationEvent = {
+    type: typeof ServerTag.ClanMemoNotification;
+    senderName: string;
+};
+
 export type ServerEnvelope =
     | WelcomeEvent
     | PlayerMovedEvent
@@ -1048,4 +1075,8 @@ export type ServerEnvelope =
     | TowAttachReply
     | TowReleasedAlertEvent
     | TowAttachedAlertEvent
+    | HailResolveReply
+    | HailSendReply
+    | HailIncomingEvent
+    | ClanMemoNotificationEvent
     | ErrorReply;

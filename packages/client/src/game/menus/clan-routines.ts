@@ -1,6 +1,6 @@
 import { ClientTag, ServerTag } from '@twnr/shared';
 import { render } from '../renderer.js';
-import { CLAN } from '../messages/index.js';
+import { CLAN, EVENT } from '../messages/index.js';
 import { echoCommand } from '../display.js';
 import {
     showClanHelp,
@@ -9,7 +9,7 @@ import {
     renderSuccessorChoices,
 } from '../display-clan.js';
 import { registerRoutine } from './types.js';
-import { askChar, askConfirm, askLine, askNumber, awaitResponse } from './prompts.js';
+import { askChar, askConfirm, askLine, askMultiLine, askNumber, awaitResponse } from './prompts.js';
 import type { GameContext } from '../types.js';
 
 async function fetchClanMembers(
@@ -112,8 +112,10 @@ registerRoutine('clan_transfer_mines', (ctx) => doTransfer(ctx, 'mines', 'mines'
 
 registerRoutine('clan_memo', async (ctx) => {
     echoCommand(ctx, 'clanMemo');
-    const body = await askLine(ctx, render(CLAN.memoBodyPrompt));
-    if (body === null) return;
+    ctx.io.term.writeln(render(EVENT.clanMailServerEstablishing));
+    ctx.io.term.writeln(render(EVENT.clanMemoTypeBanner));
+    const body = await askMultiLine(ctx, render(EVENT.clanMemoLinePrompt));
+    if (body === null || body.trim() === '') return;
     ctx.io.sendMsg({ type: ClientTag.ClanMemo, body });
     const result = await awaitResponse(ctx, [ServerTag.ClanMemoResult, ServerTag.Error]);
     if (result === null || result.type !== ServerTag.ClanMemoResult) return;

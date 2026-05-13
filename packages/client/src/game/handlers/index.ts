@@ -97,6 +97,8 @@ const handlers: HandlerMap = {
     [ServerTag.SeekerMinePickupAlert]: mines.seekerMinePickupAlert,
 
     [ServerTag.MemoDelivery]: mail.memoDelivery,
+    [ServerTag.ClanMemoNotification]: mail.clanMemoNotification,
+    [ServerTag.HailIncoming]: mail.hailIncoming,
     [ServerTag.ClanMembershipChanged]: clan.clanMembershipChanged,
 
     [ServerTag.DensityScanResult]: longRangeScan.densityScan,
