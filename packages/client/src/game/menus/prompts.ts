@@ -66,9 +66,6 @@ export async function askLineWithShortcuts(
     return trimmed;
 }
 
-/** Single character from a fixed set. Resolves on the first keystroke
- * (no Enter needed). `q` cancels even if not in `allowed`. Repeats the
- * prompt on invalid input. */
 export async function askChar(
     ctx: PromptCtx,
     prompt: string,
@@ -90,8 +87,6 @@ export async function askChar(
     }
 }
 
-/** Non-negative integer. `q` or empty cancels (or returns `defaultValue`
- * if specified). Re-prompts on invalid input or out-of-range. */
 export async function askNumber(
     ctx: PromptCtx,
     prompt: string,
@@ -140,8 +135,6 @@ export async function askDeployOwnership(
     return ch === 'c' ? 'clan' : 'personal';
 }
 
-/** Y/N confirmation. Single-keystroke. `q` cancels (returns `null`).
- * If `defaultValue` is set, Enter on its own returns that value. */
 export async function askConfirm(
     ctx: PromptCtx,
     prompt: string,

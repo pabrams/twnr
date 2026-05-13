@@ -94,11 +94,6 @@ export async function handleDeployMineInfo(
     });
 }
 
-/** Deploy/pickup mines. `target` is the desired total in the sector
- *  after the operation; -1 = "deploy all from ship." The transaction
- *  re-checks ownership (the friendly-check in `handleDeployMineInfo`
- *  was earlier and the world may have moved) and computes the delta:
- *  positive moves ship→sector, negative picks up sector→ship. */
 export async function handleDeployMine(
     playerId: number,
     data: DeployMineCommand,
@@ -168,10 +163,9 @@ export async function handleDeployMine(
                 throw new AbortTransaction();
             }
 
-            // Default (-1): deploy every mine of this type from the ship,
-            // leaving the ship empty of this type.
-            const resolvedTarget =
-                target === -1 ? currentInSector + cap.current_qty : target;
+            const totalAvailable = currentInSector + cap.current_qty;
+            const minInSector = Math.max(0, totalAvailable - cap.max_qty);
+            const resolvedTarget = target === -1 ? minInSector : target;
 
             const delta = resolvedTarget - currentInSector;
 
