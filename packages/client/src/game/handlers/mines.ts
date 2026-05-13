@@ -6,7 +6,7 @@ import { EVENT } from '../messages/index.js';
 type MinesContext = Pick<GameContext, 'io' | 'world'>;
 
 export const deployMine: Handler<'deployMineResult', MinesContext> = (ctx, msg) => {
-    const label = msg.mineType === 'seeker' ? 'Seeker' : 'Proximity';
+    const label = msg.mineType === 'seeker' ? 'Limpet' : 'Proximity';
     ctx.io.term.writeln(
         render(EVENT.deployMineResult, {
             label,
@@ -24,7 +24,7 @@ export const listDeployedMines: Handler<'listDeployedMinesResult', MinesContext>
     }
     ctx.io.term.writeln('Your deployed mines:');
     for (const m of msg.mines) {
-        const label = m.mineType === 'seeker' ? 'Seeker' : 'Proximity';
+        const label = m.mineType === 'seeker' ? 'Limpet' : 'Proximity';
         ctx.io.term.writeln(`  Sector ${m.sectorNumber}: ${m.quantity} ${label} — ${m.ownerLabel}`);
     }
 };
@@ -32,10 +32,10 @@ export const listDeployedMines: Handler<'listDeployedMinesResult', MinesContext>
 export const trackSeekerMines: Handler<'trackSeekerMinesResult', MinesContext> = (ctx, msg) => {
     ctx.io.term.writeln('');
     if (msg.targets.length === 0) {
-        ctx.io.term.writeln('No seeker mines currently attached.');
+        ctx.io.term.writeln('No limpet mines currently attached.');
         return;
     }
-    ctx.io.term.writeln('Seeker mines tracking:');
+    ctx.io.term.writeln('Limpet mines tracking:');
     for (const t of msg.targets) {
         ctx.io.term.writeln(
             `  Sector ${t.sectorNumber}: ${t.targetOwnerName}'s ${t.targetShipName}`,
@@ -69,15 +69,15 @@ export const proximityMineHit: Handler<'proximityMineHit', MinesContext> = (ctx,
 export const seekerMineAttached: Handler<'seekerMineAttached', MinesContext> = (ctx, msg) => {
     ctx.io.term.writeln('');
     if (msg.droppedPrevious) {
-        ctx.io.term.writeln(`A seeker mine has attached to your ship — the previous one fell off.`);
+        ctx.io.term.writeln(`A limpet mine has attached to your ship — the previous one fell off.`);
     } else {
-        ctx.io.term.writeln(`A seeker mine has attached to your ship in sector ${msg.sector}.`);
+        ctx.io.term.writeln(`A limpet mine has attached to your ship in sector ${msg.sector}.`);
     }
 };
 
 export const seekerMinePickupAlert: Handler<'seekerMinePickupAlert', MinesContext> = (ctx, msg) => {
     ctx.io.term.writeln('');
     ctx.io.term.writeln(
-        `[ALERT] One of your seeker mines latched onto ${msg.targetOwnerName} in sector ${msg.sector}.`,
+        `[ALERT] One of your limpet mines latched onto ${msg.targetOwnerName} in sector ${msg.sector}.`,
     );
 };

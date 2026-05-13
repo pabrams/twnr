@@ -1,9 +1,18 @@
 import { ServerTag } from '@twnr/shared';
-import type { TransportToShipCommand, ChangeShipOwnershipCommand } from '@twnr/shared';
+import type {
+    GetShipDetailCommand,
+    TransportToShipCommand,
+    ChangeShipOwnershipCommand,
+} from '@twnr/shared';
 import { pool } from '../db/index.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { players } from '../state/players.js';
-import { getShipInfo, getPlayerOwnedShips, setShipOwnership } from '../db/queries/ship.js';
+import {
+    getShipInfo,
+    getPlayerOwnedShips,
+    setShipOwnership,
+    getShipOwnership,
+} from '../db/queries/ship.js';
 import { getShipHardwareQuantities, getShipTypeHardwareMax } from '../db/queries/hardware.js';
 import {
     getOnPlanetId,
@@ -16,7 +25,7 @@ import { getPlayerTurns } from '../db/queries/turn.js';
 import { getGraph } from '../state/graph-cache.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 import { cargoUsed } from './cargo-utils.js';
-import { formatOwner } from '../services/owner-format.js';
+import { formatOwner, ownershipFrom } from '../services/owner-format.js';
 
 export async function handleShipInfo(playerId: number): Promise<void> {
     const row = await getShipInfo(playerId);
@@ -34,6 +43,9 @@ export async function handleShipInfo(playerId: number): Promise<void> {
     const hardwareMax: Record<string, number> = Object.fromEntries(
         hwMaxRows.map((r) => [r.name, r.max_quantity]),
     );
+
+    const clanId = await getPlayerClanId(playerId);
+    const clan = clanId !== null ? await getClanById(clanId) : null;
 
     const holdsAvailable = row.holds - cargoUsed(row);
     sendEnvelope(playerId, {
@@ -58,6 +70,99 @@ export async function handleShipInfo(playerId: number): Promise<void> {
         hasHyperwarpDrive: (hardware.hyperspace_1 || 0) > 0 || (hardware.hyperspace_2 || 0) > 0,
         turns: row.turns,
         credits: row.credits,
+        clanNumber: clan?.universe_clan_number ?? null,
+        clanName: clan?.name ?? null,
+    });
+}
+
+export async function handleGetShipDetail(
+    playerId: number,
+    data: GetShipDetailCommand,
+): Promise<void> {
+    const { shipId } = data;
+    const res = await pool.query<{
+        id: number;
+        universe_ship_number: number;
+        type_name: string;
+        type_display_name: string | null;
+        ship_type_id: number;
+        sector_number: number | null;
+        drones: number;
+        max_drones: number;
+        shields: number;
+        max_shields: number;
+        holds: number;
+        max_holds: number;
+        transporter_range: number;
+        fuel: number;
+        organics: number;
+        equipment: number;
+        colonists: number;
+        owner_player_id: number | null;
+        owner_clan_id: number | null;
+        owner_player_name: string | null;
+        owner_clan_name: string | null;
+        owner_clan_number: number | null;
+    }>(
+        `SELECT sh.id, sh.universe_ship_number,
+                st.name AS type_name, st.display_name AS type_display_name,
+                st.id AS ship_type_id,
+                sec.sector_number,
+                sh.drones, st.max_drones,
+                sh.shields, st.max_shields,
+                sh.holds, st.max_holds,
+                st.transporter_range,
+                sh.fuel, sh.organics, sh.equipment, sh.colonists,
+                sh.owner_player_id, sh.owner_clan_id,
+                op.name AS owner_player_name,
+                oc.name AS owner_clan_name,
+                oc.universe_clan_number AS owner_clan_number
+         FROM ships sh
+         JOIN ship_types st ON sh.ship_type_id = st.id
+         LEFT JOIN sectors sec ON sh.sector_id = sec.id
+         LEFT JOIN players op ON op.id = sh.owner_player_id
+         LEFT JOIN clans oc ON oc.id = sh.owner_clan_id
+         WHERE sh.id = $1
+           AND (sh.owner_player_id = $2
+                OR sh.owner_clan_id = (SELECT clan_id FROM players WHERE id = $2))`,
+        [shipId, playerId],
+    );
+    const row = res.rows[0];
+    if (!row) {
+        sendError(playerId, 'Ship not found or not owned by you.');
+        return;
+    }
+
+    const hwRows = await getShipHardwareQuantities(row.id);
+    const hardware: Record<string, number> = Object.fromEntries(
+        hwRows.map((r) => [r.name, r.quantity]),
+    );
+    const hwMaxRows = await getShipTypeHardwareMax(row.ship_type_id);
+    const hardwareMax: Record<string, number> = Object.fromEntries(
+        hwMaxRows.map((r) => [r.name, r.max_quantity]),
+    );
+
+    sendEnvelope(playerId, {
+        type: ServerTag.ShipDetailResult,
+        shipId: row.id,
+        shipNumber: row.universe_ship_number,
+        typeName: row.type_name,
+        typeDisplayName: row.type_display_name,
+        sector: row.sector_number,
+        drones: row.drones,
+        maxDrones: row.max_drones,
+        shields: row.shields,
+        maxShields: row.max_shields,
+        holds: row.holds,
+        maxHolds: row.max_holds,
+        transporterRange: row.transporter_range,
+        cargoFuel: row.fuel,
+        cargoOrganics: row.organics,
+        cargoEquipment: row.equipment,
+        cargoColonists: row.colonists,
+        ownership: ownershipFrom(row),
+        hardware,
+        hardwareMax,
     });
 }
 
@@ -193,8 +298,7 @@ export async function handleTransportToShip(
 }
 
 /** O (Change Ship Ownership): flip current ship between personal and
- *  clan-owned. Personal → clan: any clan member can do it for their own
- *  ship. Clan → personal: only the clan leader can. */
+ *  clan-owned. */
 export async function handleChangeShipOwnership(
     playerId: number,
     data: ChangeShipOwnershipCommand,
@@ -207,6 +311,9 @@ export async function handleChangeShipOwnership(
         return;
     }
 
+    const current = await getShipOwnership(player.shipId);
+    const isPersonal = current?.owner_player_id !== null && current?.owner_player_id !== undefined;
+    const isClanOwned = current?.owner_clan_id !== null && current?.owner_clan_id !== undefined;
     const playerClanId = await getPlayerClanId(playerId);
 
     if (ownership === 'clan') {
@@ -214,10 +321,18 @@ export async function handleChangeShipOwnership(
             sendError(playerId, 'You are not in a clan.');
             return;
         }
+        if (isClanOwned && current?.owner_clan_id === playerClanId) {
+            sendError(playerId, 'Ship is already clan-owned.');
+            return;
+        }
         await setShipOwnership(player.shipId, null, playerClanId);
     } else {
-        if (playerClanId === null) {
+        if (isPersonal) {
             sendError(playerId, 'Ship is already personal.');
+            return;
+        }
+        if (playerClanId === null) {
+            sendError(playerId, 'You are not in a clan; nothing to convert.');
             return;
         }
         const clan = await getClanById(playerClanId);

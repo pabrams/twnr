@@ -22,6 +22,7 @@ import {
     handleListOwnedShips,
     handleTransportToShip,
     handleChangeShipOwnership,
+    handleGetShipDetail,
 } from './ship-info.js';
 import { handleStarbaseInfo } from './starbase-info.js';
 import { handleBuyDrones, handleBuyShields, handleBuyHolds } from './ship-upgrades.js';
@@ -119,6 +120,7 @@ const handlers: HandlerMap = {
     [ClientTag.LeaveCommodity]: handleLeaveCommodity,
     [ClientTag.ListPlanets]: handleListPlanets,
     [ClientTag.ListOwnedShips]: handleListOwnedShips,
+    [ClientTag.GetShipDetail]: handleGetShipDetail,
     [ClientTag.TransportToShip]: handleTransportToShip,
     [ClientTag.ClanCreate]: handleClanCreate,
     [ClientTag.ClanJoin]: handleClanJoin,

@@ -32,10 +32,15 @@ export type PlayerMovedEvent = {
     direction: 'in' | 'out';
 };
 
+export type OwnershipInfo =
+    | { kind: 'player'; name: string; playerId: number }
+    | { kind: 'clan'; name: string; clanNumber: number; clanId: number }
+    | { kind: 'rogue' };
+
 export type SectorDroneInfo = {
     quantity: number;
     ownerId: number | null;
-    ownerName: string;
+    ownership: OwnershipInfo;
 };
 
 export type CollisionInfo = {
@@ -44,16 +49,11 @@ export type CollisionInfo = {
     collisionAt: string;
 };
 
-/**
- * One entry per (mineType, perspective) the viewing player can see in the
- * sector. Proximity mines are visible to anyone in the sector; seeker mines
- * are filtered server-side to only the viewing player's own. `own` is true
- * when the entry's owner is the viewing player.
- */
 export type SectorMineEntry = {
     mineType: 'proximity' | 'seeker';
     quantity: number;
     own: boolean;
+    ownership: OwnershipInfo;
 };
 
 export type SectorDisplayData = {
@@ -63,7 +63,13 @@ export type SectorDisplayData = {
     port?: { class: number; name: string } | null;
     sectorDrones?: SectorDroneInfo | null;
     planets: { id: number; name: string; type: string; displayType: string | null }[];
-    ships?: { id: number; name: string; typeName: string; ownerName: string }[];
+    ships?: {
+        id: number;
+        name: string;
+        typeName: string;
+        typeDisplayName: string | null;
+        ownership: OwnershipInfo;
+    }[];
     collisions?: CollisionInfo[];
     sectorMines?: SectorMineEntry[];
 };
@@ -167,6 +173,8 @@ export type ShipInfoReply = {
     hasHyperwarpDrive: boolean;
     turns: number;
     credits: number;
+    clanNumber: number | null;
+    clanName: string | null;
 };
 
 export type PortTransactionReply = {
@@ -504,6 +512,29 @@ export type PreviousSectorReply = {
     sector: number | null;
 };
 
+export type ShipDetailReply = {
+    type: typeof ServerTag.ShipDetailResult;
+    shipId: number;
+    shipNumber: number;
+    typeName: string;
+    typeDisplayName: string | null;
+    sector: number | null;
+    drones: number;
+    maxDrones: number;
+    shields: number;
+    maxShields: number;
+    holds: number;
+    maxHolds: number;
+    transporterRange: number;
+    cargoFuel: number;
+    cargoOrganics: number;
+    cargoEquipment: number;
+    cargoColonists: number;
+    ownership: OwnershipInfo;
+    hardware: Record<string, number>;
+    hardwareMax: Record<string, number>;
+};
+
 export type TransportToShipReply = {
     type: typeof ServerTag.TransportToShipResult;
     targetShipId: number;
@@ -589,6 +620,12 @@ export type ClanDropMemberReply = {
     type: typeof ServerTag.ClanDropMemberResult;
     droppedPlayerId: number;
     droppedName: string;
+};
+
+export type ClanMembershipChangedEvent = {
+    type: typeof ServerTag.ClanMembershipChanged;
+    clanId: number | null;
+    reason: 'dropped' | 'dissolved' | 'other';
 };
 
 export type MemoDeliveryEvent = {
@@ -842,6 +879,7 @@ export type ServerEnvelope =
     | SeekerMineAttachedEvent
     | SeekerMinePickupAlertEvent
     | ListOwnedShipsReply
+    | ShipDetailReply
     | TransportToShipReply
     | ClanCreateReply
     | ClanJoinReply
@@ -854,5 +892,6 @@ export type ServerEnvelope =
     | ClanMemoReply
     | ClanSetPasswordReply
     | ClanDropMemberReply
+    | ClanMembershipChangedEvent
     | MemoDeliveryEvent
     | ErrorReply;

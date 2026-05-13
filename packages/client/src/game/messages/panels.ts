@@ -8,9 +8,13 @@ export const PANEL = makeDomain('PANEL', {
     playerInfo: '{{MSG.playerInfoName}}',
     playerInfoSector: '{{MSG.playerInfoSector}}',
     shipName: '[mg]Ship Type[/mg]          [by]:[/by] [bc]{name}[/bc]',
+    shipClan: '[mg]Clan[/mg]               [by]:[/by] [bc]#{num}[/bc] [bc]{name}[/bc]',
+    // X / Y values are right-padded into a fixed column so digit-length
+    // variation doesn't desync the layout. `{cur}` and `{max}` arrive
+    // pre-padded by ship-exchange.ts to widths of CUR_W and MAX_W.
     shipDronesShields:
-        '[mg]Drones[/mg]             [by]:[/by] [bc]{drones}[/bc] [g]/[/g] [c]{maxDrones}[/c] \r\n' +
-        '[mg]Shields[/mg]            [by]:[/by] [bc]{shields}[/bc] [g]/[/g] [c]{maxShields}[/c] ',
+        '[mg]Drones[/mg]             [by]:[/by] [bc]{drones}[/bc] [g]/[/g] [c]{maxDrones}[/c]\r\n' +
+        '[mg]Shields[/mg]            [by]:[/by] [bc]{shields}[/bc] [g]/[/g] [c]{maxShields}[/c]',
     shipHolds:
         '[mg]Cargo holds[/mg]        [by]:[/by] [bc]{free}[/bc] [g]free[/g] [g]/[/g] [c]{total}[/c] ' +
         '[g]total[/g] [mg]([/mg][g]max[/g] [c]{max}[/c][mg])[/mg]',

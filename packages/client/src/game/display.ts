@@ -1,20 +1,30 @@
 import { ClientTag } from '@twnr/shared';
-import type { SectorRef } from '@twnr/shared';
+import type { SectorRef, OwnershipInfo } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { render } from './renderer.js';
 import { COMMAND, SECTOR, HELP, HELP_LINES, PORT, COMMON } from './messages/index.js';
 import { showPrompt } from './menus/types.js';
 
+/** Render an OwnershipInfo into the proper template:
+ *  - player: "owned by Bob"
+ *  - clan:   "owned by clan #2: Crimson Tide"
+ *  - rogue:  "Rogue"
+ */
+function renderOwnership(ownership: OwnershipInfo): string {
+    if (ownership.kind === 'player') {
+        return render(SECTOR.ownershipPlayer, { name: ownership.name });
+    }
+    if (ownership.kind === 'clan') {
+        return render(SECTOR.ownershipClan, {
+            num: ownership.clanNumber,
+            name: ownership.name,
+        });
+    }
+    return render(SECTOR.ownershipRogue);
+}
+
 export type DisplayCtx = Pick<GameContext, 'catalogs' | 'io' | 'minimap' | 'player' | 'world'>;
 
-/**
- * Echo a command-name banner (e.g. `<Move>`, `<Take Colonists>`) to the
- * terminal. Called from input handlers when the user keys a command at a
- * menu — *not* from sendMsg. The two are deliberately decoupled because
- * multi-step flows (e.g. Take Colonists → commodity → qty) start with a
- * user keystroke that should echo immediately, but the corresponding
- * ClientMsg isn't sent until the prompts are filled in.
- */
 export function echoCommand(
     ctx: DisplayCtx,
     key: keyof typeof COMMAND,
@@ -41,18 +51,28 @@ export function showSectorDisplay(
     warps: SectorRef[],
     players: { id: number; name: string }[],
     port?: { class: number; name: string } | null,
-    sectorDrones?: { quantity: number; ownerId: number | null; ownerName: string } | null,
+    sectorDrones?: { quantity: number; ownerId: number | null; ownership: OwnershipInfo } | null,
     planets?: { id: number; name: string; type: string; displayType: string | null }[],
-    ships?: { id: number; name: string; typeName: string; ownerName: string }[],
+    ships?: {
+        id: number;
+        name: string;
+        typeName: string;
+        typeDisplayName: string | null;
+        ownership: OwnershipInfo;
+    }[],
     collisions?: { planetName: string; collidingWithName: string; collisionAt: string }[],
-    sectorMines?: { mineType: 'proximity' | 'seeker'; quantity: number; own: boolean }[],
+    sectorMines?: {
+        mineType: 'proximity' | 'seeker';
+        quantity: number;
+        own: boolean;
+        ownership: OwnershipInfo;
+    }[],
 ) {
     ctx.world.visitedSet.add(sector);
     ctx.world.currentSector = sector;
     ctx.world.currentPort = port ?? null;
     ctx.world.currentWarps = warps;
     const { term } = ctx.io;
-    const comma = render(SECTOR.commaJoin);
     term.writeln('');
     term.writeln(render(SECTOR.header, { sector }));
 
@@ -67,16 +87,28 @@ export function showSectorDisplay(
     }
 
     if (sectorDrones && sectorDrones.quantity > 0) {
-        const tpl =
-            sectorDrones.ownerId === ctx.player.id ? SECTOR.dronesYours : SECTOR.dronesEnemy;
-        term.writeln(render(tpl, { qty: sectorDrones.quantity, owner: sectorDrones.ownerName }));
+        if (sectorDrones.ownerId === ctx.player.id) {
+            term.writeln(render(SECTOR.dronesYours, { qty: sectorDrones.quantity }));
+        } else {
+            term.writeln(
+                render(SECTOR.dronesEnemy, {
+                    qty: sectorDrones.quantity,
+                    ownership: renderOwnership(sectorDrones.ownership),
+                }),
+            );
+        }
     }
 
     if (planets && planets.length > 0) {
-        const list = planets
-            .map((p) => render(SECTOR.planetItem, { name: p.name, type: p.displayType ?? p.type }))
-            .join(comma);
-        term.writeln(render(SECTOR.planetsLine, { list }));
+        planets.forEach((p, i) => {
+            const item = render(SECTOR.planetItemPlain, {
+                name: p.name,
+                type: p.displayType ?? p.type,
+            });
+            term.writeln(
+                render(i === 0 ? SECTOR.planetsLine : SECTOR.planetsContinuation, { item }),
+            );
+        });
     }
 
     if (collisions && collisions.length > 0) {
@@ -94,28 +126,47 @@ export function showSectorDisplay(
     }
 
     if (players.length > 0) {
-        const list = players.map((p) => render(SECTOR.playerItem, { name: p.name })).join(comma);
-        term.writeln(render(SECTOR.playersLine, { list }));
+        players.forEach((p, i) => {
+            const item = render(SECTOR.playerItem, { name: p.name });
+            term.writeln(
+                render(i === 0 ? SECTOR.playersLine : SECTOR.playersContinuation, { item }),
+            );
+        });
     }
 
     if (ships && ships.length > 0) {
-        const list = ships
-            .map((s) => render(SECTOR.shipItem, { type: s.typeName, owner: s.ownerName }))
-            .join(comma);
-        term.writeln(render(SECTOR.shipsLine, { list }));
+        ships.forEach((s, i) => {
+            // Use the colored display name verbatim when present
+            const item = s.typeDisplayName
+                ? render(SECTOR.shipItem, {
+                      nameColored: s.typeDisplayName,
+                      ownership: renderOwnership(s.ownership),
+                  })
+                : render(SECTOR.shipItemPlain, {
+                      type: s.typeName,
+                      ownership: renderOwnership(s.ownership),
+                  });
+            term.writeln(
+                render(i === 0 ? SECTOR.shipsLine : SECTOR.shipsContinuation, { item }),
+            );
+        });
     }
 
     if (sectorMines && sectorMines.length > 0) {
-        const list = sectorMines
-            .map((m) => {
-                const label = render(
-                    m.mineType === 'seeker' ? SECTOR.mineLabelSeeker : SECTOR.mineLabelProximity,
-                );
-                const tpl = m.own ? SECTOR.mineItemOwn : SECTOR.mineItemEnemy;
-                return render(tpl, { qty: m.quantity, label });
-            })
-            .join(comma);
-        term.writeln(render(SECTOR.minesLine, { list }));
+        const proximity = sectorMines.filter((m) => m.mineType === 'proximity');
+        const limpets = sectorMines.filter((m) => m.mineType === 'seeker');
+        const proxTotal = proximity.reduce((n, m) => n + m.quantity, 0);
+        const limpetTotal = limpets.reduce((n, m) => n + m.quantity, 0);
+        const proxOwn = proximity.length > 0 && proximity.every((m) => m.own);
+        const limpetOwn = limpets.length > 0 && limpets.every((m) => m.own);
+        if (proxTotal > 0) {
+            const tpl = proxOwn ? SECTOR.minesLine : SECTOR.minesLineEnemy;
+            term.writeln(render(tpl, { qty: proxTotal }));
+        }
+        if (limpetTotal > 0) {
+            const tpl = limpetOwn ? SECTOR.limpetsLine : SECTOR.limpetsLineEnemy;
+            term.writeln(render(tpl, { qty: limpetTotal }));
+        }
     }
 
     if (warps.length > 0) {
@@ -124,8 +175,6 @@ export function showSectorDisplay(
     }
 }
 
-/** Sector menu's specific prompt. The generic "render whatever prompt
- * the current menu wants" lives in menus/index.ts as `showPrompt`. */
 export function showSectorPrompt(ctx: DisplayCtx) {
     ctx.io.term.write(render(SECTOR.prompt, { sector: ctx.world.currentSector }));
 }

@@ -553,7 +553,7 @@ export async function handleClanTransfer(
     const kindLabel =
         kind === 'mines'
             ? mineType === 'seeker'
-                ? 'Seeker mines'
+                ? 'Limpet mines'
                 : 'Proximity mines'
             : kind === 'drones'
               ? 'drones'
@@ -704,6 +704,13 @@ export async function handleClanDropMember(
     );
     const online = players[targetPlayerId];
     if (online) {
+        // Tell the target their clan state changed so the client's cached
+        // `ctx.player.clanId` gets cleared
+        sendEnvelope(targetPlayerId, {
+            type: ServerTag.ClanMembershipChanged,
+            clanId: null,
+            reason: 'dropped',
+        });
         sendEnvelope(targetPlayerId, {
             type: ServerTag.MemoDelivery,
             memos: [

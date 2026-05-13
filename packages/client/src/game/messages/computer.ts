@@ -64,11 +64,11 @@ export const COMPUTER = makeDomain('COMPUTER', {
 
     activeShipScanHeader: '                       [bc]--<  Available Ship Scan  >--[/bc]',
     activeShipScanColumns:
-        '[bw]  Ship Sect Name                  Fighters Shields Holds Hops Type             Owner[/bw]',
+        '[bw]  Ship Sect Name             Owner       Drones Shields Holds Hops Type[/bw]',
     activeShipScanRule:
         '[g]-----------------------------------------------------------------------------------[/g]',
     activeShipScanRow:
-        '{marker} [by]{shipNum}[/by] [bc]{sect}[/bc] [w]{name}[/w] [bc]{fighters}[/bc] [bc]{shields}[/bc] [bc]{holds}[/bc] {hops}  [g]{type}[/g] [w]{owner}[/w]',
+        '{marker} [by]{shipNum}[/by] [bc]{sect}[/bc] [w]{name}[/w] [w]{owner}[/w] [bc]{drones}[/bc] [bc]{shields}[/bc] [bc]{holds}[/bc] {hops}  [g]{type}[/g]',
     activeShipScanHopsInRange: '[bg]{hops}[/bg]',
     activeShipScanHopsOutOfRange: '[br]{hops}[/br]',
     activeShipScanHopsNeutral: '[bc]{hops}[/bc]',

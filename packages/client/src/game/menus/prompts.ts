@@ -32,6 +32,40 @@ export async function askLine(ctx: PromptCtx, prompt: string): Promise<string | 
     return trimmed;
 }
 
+/** Like askLine, but resolves immediately (no Enter required) when the
+ *  first keystroke matches one of `instantChars`. Used by menus where a
+ *  number (multi-char) and a single-letter shortcut both make sense — e.g.
+ *  the transporter "pick a ship #, or I/Q" prompt. */
+export async function askLineWithShortcuts(
+    ctx: PromptCtx,
+    prompt: string,
+    instantChars: string[],
+): Promise<string | null> {
+    const instantLower = new Set(instantChars.map((c) => c.toLowerCase()));
+    ctx.io.term.write(prompt);
+    // First keystroke: char-mode park. If it's one of the shortcuts, return
+    // it immediately. If it's a digit (or any other char), echo it and
+    // switch to line mode to assemble the rest of the number.
+    const first = await parkChar(ctx);
+    if (first === null) return null;
+    const firstLower = first.toLowerCase();
+    if (firstLower === 'q') return null;
+    if (instantLower.has(firstLower)) {
+        ctx.io.term.writeln(first);
+        return firstLower;
+    }
+    // Backspace/Enter on the first keystroke — drop or accept as empty.
+    if (first === '\r' || first === '\n') return null;
+    // Switch to line mode with `first` already in the buffer + echoed.
+    ctx.io.term.write(first);
+    ctx.input.inputAssembly = first;
+    const full = await parkLine(ctx);
+    if (full === null) return null;
+    const trimmed = full.trim();
+    if (trimmed === '' || trimmed.toLowerCase() === 'q') return null;
+    return trimmed;
+}
+
 /** Single character from a fixed set. Resolves on the first keystroke
  * (no Enter needed). `q` cancels even if not in `allowed`. Repeats the
  * prompt on invalid input. */
@@ -90,21 +124,12 @@ export async function askNumber(
     }
 }
 
-/**
- * Wait for a server response of one of the given types after a roundtrip.
- * Resolves with the server message when it arrives, or `null` if a
- * server-driven menu change cancelled the wait. Routines should always
- * check for `null` and bail.
- */
 export function awaitResponse(ctx: PromptCtx, types: string[]): Promise<ServerEnvelope | null> {
     return new Promise((resolve) => {
         ctx.input.pendingResponse = { types: new Set(types), resolve };
     });
 }
 
-/** Personal/clan ownership picker for deploy-style commands. Returns
- *  'personal' when the player isn't in a clan (no prompt shown). Returns
- *  null on cancel. */
 export async function askDeployOwnership(
     ctx: PromptCtx & { player: { clanId: number | null } },
     promptText: string,

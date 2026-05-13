@@ -198,6 +198,11 @@ export type ListOwnedShipsCommand = {
     type: typeof ClientTag.ListOwnedShips;
 };
 
+export type GetShipDetailCommand = {
+    type: typeof ClientTag.GetShipDetail;
+    shipId: number;
+};
+
 export type TransportToShipCommand = {
     type: typeof ClientTag.TransportToShip;
     shipId: number;
@@ -371,6 +376,7 @@ export type ClientEnvelope =
     | TrackSeekerMinesCommand
     | MineDisruptorCommand
     | ListOwnedShipsCommand
+    | GetShipDetailCommand
     | TransportToShipCommand
     | ClanCreateCommand
     | ClanJoinCommand

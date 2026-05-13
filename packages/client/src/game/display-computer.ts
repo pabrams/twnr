@@ -102,7 +102,7 @@ const HW_DISPLAY: { name: string; label: string; isToggle?: boolean }[] = [
     { name: 'planet_scanner', label: 'Planet Scanner', isToggle: true },
     { name: 'buoy', label: 'Max Buoys' },
     { name: 'proximity_mine', label: 'Max Prox Mines' },
-    { name: 'seeker_mine', label: 'Max Seeker Mines' },
+    { name: 'seeker_mine', label: 'Max Limpet Mines' },
     { name: 'cloaking_device', label: 'Max Cloaking' },
     { name: 'corbomite', label: 'Max Corbomite' },
     { name: 'photon_torpedo', label: 'Max Photon Torps' },
@@ -295,6 +295,8 @@ export type OwnedShipRowDisplay = {
     typeDisplayName: string | null;
     transporterRange: number;
     ownerLabel: string;
+    ownerPlayerId: number | null;
+    ownerClanId: number | null;
 };
 
 type RenderActiveShipScanOpts = {
@@ -331,6 +333,12 @@ export function renderActiveShipScan(
                 : s.hops !== null && s.hops <= range
                   ? COMPUTER.activeShipScanHopsInRange
                   : COMPUTER.activeShipScanHopsOutOfRange;
+        const ownerStr =
+            s.ownerClanId !== null
+                ? 'clan'
+                : s.ownerPlayerId !== null
+                  ? s.ownerLabel
+                  : s.ownerLabel;
         term.writeln(
             render(COMPUTER.activeShipScanRow, {
                 marker: isCurrent
@@ -338,13 +346,13 @@ export function renderActiveShipScan(
                     : render(COMPUTER.activeShipScanBlankMarker),
                 shipNum: String(s.shipNumber).padStart(4),
                 sect: sectStr.padStart(4),
-                name: '.'.padEnd(22),
-                fighters: String(s.drones).padStart(8),
+                name: '.'.padEnd(16),
+                owner: ownerStr.padEnd(10),
+                drones: String(s.drones).padStart(6),
                 shields: String(s.shields).padStart(7),
                 holds: String(s.holds).padStart(5),
                 hops: render(hopsTemplate, { hops: hopsStr }),
                 type: (s.typeDisplayName ?? s.typeName).padEnd(16),
-                owner: s.ownerLabel,
             }),
         );
     }
@@ -387,19 +395,43 @@ export function renderTransporterOptions(ctx: DisplayComputerCtx) {
     term.writeln(render(COMPUTER.transporterOptionExit));
 }
 
-export function renderShipDetail(ctx: DisplayComputerCtx, s: OwnedShipRowDisplay) {
+export type ShipDetailDisplay = {
+    shipNumber: number;
+    typeName: string;
+    typeDisplayName: string | null;
+    sector: number | null;
+    drones: number;
+    maxDrones: number;
+    shields: number;
+    maxShields: number;
+    holds: number;
+    maxHolds: number;
+    transporterRange: number;
+    cargoFuel: number;
+    cargoOrganics: number;
+    cargoEquipment: number;
+    cargoColonists: number;
+    hardware: Record<string, number>;
+    hardwareMax: Record<string, number>;
+};
+
+export function renderShipDetail(ctx: DisplayComputerCtx, s: ShipDetailDisplay) {
     const { term } = ctx.io;
     term.writeln('');
     term.writeln(render(COMPUTER.transporterDetailHeader, { shipNum: s.shipNumber }));
     const pad = (label: string) => label.padEnd(16);
+    const xy = (a: number, b: number) => `${a} / ${b}`;
     const lines: { label: string; value: string | number }[] = [
         { label: 'Type', value: s.typeDisplayName ?? s.typeName },
         { label: 'Sector', value: s.sector ?? '—' },
-        { label: 'Fighters', value: s.drones },
-        { label: 'Shields', value: s.shields },
-        { label: 'Holds', value: s.holds },
-        { label: 'Hops', value: s.hops ?? '—' },
+        { label: 'Drones', value: xy(s.drones, s.maxDrones) },
+        { label: 'Shields', value: xy(s.shields, s.maxShields) },
+        { label: 'Holds', value: xy(s.holds, s.maxHolds) },
         { label: 'Transport Range', value: s.transporterRange },
+        { label: 'Fuel', value: s.cargoFuel },
+        { label: 'Organics', value: s.cargoOrganics },
+        { label: 'Equipment', value: s.cargoEquipment },
+        { label: 'Colonists', value: s.cargoColonists },
     ];
     for (const l of lines) {
         term.writeln(
@@ -408,6 +440,24 @@ export function renderShipDetail(ctx: DisplayComputerCtx, s: OwnedShipRowDisplay
                 value: l.value,
             }),
         );
+    }
+    if (ctx.catalogs.hardware && ctx.catalogs.hardware.length > 0) {
+        let any = false;
+        for (const item of ctx.catalogs.hardware) {
+            const max = s.hardwareMax[item.name] ?? 0;
+            if (max === 0) continue;
+            const qty = s.hardware[item.name] ?? 0;
+            if (!any) {
+                term.writeln('');
+                any = true;
+            }
+            term.writeln(
+                render(COMPUTER.transporterDetailLine, {
+                    label: pad(item.label),
+                    value: `${qty} / ${max}`,
+                }),
+            );
+        }
     }
 }
 
@@ -440,7 +490,7 @@ export async function showTraderList(ctx: DisplayComputerCtx) {
                 t.clanNumber === null
                     ? render(COMPUTER.traderListClanNA, {}) + '   '
                     : render(COMPUTER.traderListClanValue, {
-                          n: String(t.clanNumber).padEnd(3),
+                          n: String(t.clanNumber).padEnd(4),
                       });
             ctx.io.term.writeln(
                 render(COMPUTER.traderListRow, {

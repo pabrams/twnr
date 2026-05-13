@@ -549,7 +549,7 @@ export const connectDB = async (): Promise<void> => {
         ('terraform_device', 'Terraform Devices',       'stackable', 25000,  'buyHardwareResult', NULL),
         ('buoy',             'Space Buoys',             'stackable', 100,    'buyHardwareResult', NULL),
         ('proximity_mine',   'Proximity Mines',         'stackable', 500,    'buyHardwareResult', '{"mineType": "proximity"}'),
-        ('seeker_mine',      'Seeker Mines',            'stackable', 9500,   'buyHardwareResult', '{"mineType": "seeker"}'),
+        ('seeker_mine',      'Limpet Mines',            'stackable', 9500,   'buyHardwareResult', '{"mineType": "seeker"}'),
         ('mine_disruptor',   'Mine Disruptors',         'stackable', 5000,   'buyHardwareResult', NULL),
         ('cloaking_device',  'Cloaking Devices',        'stackable', 25000,  'buyHardwareResult', NULL),
         ('corbomite',        'Corbomite',               'stackable', 500,    'buyHardwareResult', NULL),
@@ -573,10 +573,7 @@ export const connectDB = async (): Promise<void> => {
     `);
 
         // Sync 'stock' template fields with universeConfig (single source of
-        // truth for the values that overlap with template columns). Runs
-        // every boot so config changes propagate to NEW universes without
-        // manual SQL — existing universes have their own universe_settings
-        // row and are unaffected.
+        // truth for the values that overlap with template columns).
         await client.query(
             `UPDATE edit_templates
              SET starting_credits = $1,

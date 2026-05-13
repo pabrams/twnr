@@ -70,7 +70,7 @@ async function doTransfer(
     if (!target) return;
     let mineType: 'proximity' | 'seeker' | undefined;
     if (kind === 'mines') {
-        const ch = await askChar(ctx, render(CLAN.transferMineTypePrompt), ['p', 's']);
+        const ch = await askChar(ctx, render(CLAN.transferMineTypePrompt), ['p', 'l']);
         if (ch === null) return;
         mineType = ch === 'p' ? 'proximity' : 'seeker';
     }

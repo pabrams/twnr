@@ -98,9 +98,18 @@ export const attackSectorDrones: Handler<'attackSectorDronesResult', CombatConte
         ctx.world.mode = Menu.Sector;
         ctx.io.term.writeln(render(EVENT.sectorCleared));
         if (ctx.autopilot.paused) {
-            ctx.io.term.writeln(render(EVENT.autopilotResuming));
-            ctx.autopilot.paused = false;
-            ctx.io.sendMsg({ type: ClientTag.SectorDisplay });
+            const atDestination = ctx.autopilot.step >= ctx.autopilot.path.length;
+            if (atDestination) {
+                const dest = ctx.autopilot.path[ctx.autopilot.path.length - 1];
+                ctx.io.term.writeln(render(EVENT.autopilotArrived, { sector: dest }));
+                ctx.autopilot.path = [];
+                ctx.autopilot.step = 0;
+                ctx.autopilot.paused = false;
+            } else {
+                ctx.io.term.writeln(render(EVENT.autopilotResuming));
+                ctx.autopilot.paused = false;
+                ctx.io.sendMsg({ type: ClientTag.SectorDisplay });
+            }
         }
     } else {
         showDroneEncounter(ctx, msg.sectorDronesRemaining, ctx.encounter.ownerName, msg.shipDrones);
@@ -108,7 +117,6 @@ export const attackSectorDrones: Handler<'attackSectorDronesResult', CombatConte
 };
 
 export const retreatFromDrones: Handler<'retreatFromDronesResult', CombatContext> = (ctx, msg) => {
-    // Retreat exits the droneEncounter sub-mode (we moved back to a safe sector).
     ctx.world.mode = Menu.Sector;
     ctx.io.term.writeln(render(EVENT.retreated, { sector: msg.sector }));
     if (ctx.autopilot.paused) {

@@ -18,6 +18,17 @@ export async function setShipOwnership(
     );
 }
 
+export async function getShipOwnership(
+    shipId: number,
+    db: Queryable = pool,
+): Promise<{ owner_player_id: number | null; owner_clan_id: number | null } | undefined> {
+    const res = await db.query<{ owner_player_id: number | null; owner_clan_id: number | null }>(
+        'SELECT owner_player_id, owner_clan_id FROM ships WHERE id = $1',
+        [shipId],
+    );
+    return res.rows[0];
+}
+
 export async function getShipTurnsPerWarp(playerId: number, db: Queryable = pool): Promise<number> {
     const res = await db.query<{ turns_per_warp: number }>(
         `SELECT turns_per_warp FROM ships WHERE id = ${SHIP_ID_SUBSELECT}`,
@@ -692,18 +703,47 @@ export async function getPlayerOwnedShips(
     return res.rows;
 }
 
-/** Abandoned (owner-less) ships present in a sector. */
+/** Abandoned (owner-less) ships present in a sector. Returns owner JOIN
+ *  cols so callers can derive structured ownership info. */
 export async function getAbandonedShipsInSector(
     sectorNumber: number,
     universeId: number,
     db: Queryable = pool,
-): Promise<{ id: number; typeName: string; ownerName: string }[]> {
-    const res = await db.query<{ id: number; type_name: string; owner_name: string }>(
-        `SELECT sh.id, st.name AS type_name, COALESCE(p.name, 'Abandoned') AS owner_name
+): Promise<
+    {
+        id: number;
+        typeName: string;
+        typeDisplayName: string | null;
+        owner_player_id: number | null;
+        owner_clan_id: number | null;
+        owner_player_name: string | null;
+        owner_clan_name: string | null;
+        owner_clan_number: number | null;
+    }[]
+> {
+    const res = await db.query<{
+        id: number;
+        type_name: string;
+        type_display_name: string | null;
+        owner_player_id: number | null;
+        owner_clan_id: number | null;
+        owner_player_name: string | null;
+        owner_clan_name: string | null;
+        owner_clan_number: number | null;
+    }>(
+        `SELECT sh.id,
+                st.name AS type_name,
+                st.display_name AS type_display_name,
+                sh.owner_player_id,
+                sh.owner_clan_id,
+                p.name AS owner_player_name,
+                c.name AS owner_clan_name,
+                c.universe_clan_number AS owner_clan_number
          FROM ships sh
          JOIN ship_types st ON sh.ship_type_id = st.id
          JOIN sectors s ON sh.sector_id = s.id
          LEFT JOIN players p ON sh.owner_player_id = p.id
+         LEFT JOIN clans c ON sh.owner_clan_id = c.id
          WHERE s.sector_number = $1 AND s.universe_id = $2
            AND NOT EXISTS (SELECT 1 FROM players p2 WHERE p2.ship_id = sh.id)`,
         [sectorNumber, universeId],
@@ -711,6 +751,11 @@ export async function getAbandonedShipsInSector(
     return res.rows.map((r) => ({
         id: r.id,
         typeName: r.type_name,
-        ownerName: r.owner_name,
+        typeDisplayName: r.type_display_name,
+        owner_player_id: r.owner_player_id,
+        owner_clan_id: r.owner_clan_id,
+        owner_player_name: r.owner_player_name,
+        owner_clan_name: r.owner_clan_name,
+        owner_clan_number: r.owner_clan_number,
     }));
 }

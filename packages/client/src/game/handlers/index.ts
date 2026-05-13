@@ -91,6 +91,7 @@ const handlers: HandlerMap = {
     [ServerTag.SeekerMinePickupAlert]: mines.seekerMinePickupAlert,
 
     [ServerTag.MemoDelivery]: clan.memoDelivery,
+    [ServerTag.ClanMembershipChanged]: clan.clanMembershipChanged,
 };
 
 /** Returns the handler's result — `undefined` for sync handlers, a Promise

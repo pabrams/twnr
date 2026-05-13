@@ -137,13 +137,16 @@ export async function hasEnemyDronesInSector(
     return res.rows.length > 0;
 }
 
-/** Sector-drones display info: quantity + owner-formatted label
- *  (player name, `(#N ClanName)`, or `(Rogue)`). */
+/** Sector-drones display info: quantity + structured ownership. */
 export async function getSectorDroneDisplayInfo(
     sectorNumber: number,
     universeId: number,
     db: Queryable = pool,
-): Promise<{ quantity: number; ownerId: number | null; ownerName: string } | null> {
+): Promise<{
+    quantity: number;
+    ownerId: number | null;
+    ownership: import('@twnr/shared').OwnershipInfo;
+} | null> {
     const res = await db.query<{
         quantity: number;
         owner_player_id: number | null;
@@ -165,10 +168,10 @@ export async function getSectorDroneDisplayInfo(
     );
     const row = res.rows[0];
     if (!row) return null;
-    const { formatOwner } = await import('../../services/owner-format.js');
+    const { ownershipFrom } = await import('../../services/owner-format.js');
     return {
         quantity: row.quantity,
         ownerId: row.owner_player_id,
-        ownerName: formatOwner(row),
+        ownership: ownershipFrom(row),
     };
 }
