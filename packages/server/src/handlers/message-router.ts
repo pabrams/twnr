@@ -72,6 +72,7 @@ import {
     handleClanSetPassword,
     handleClanDropMember,
 } from './clan.js';
+import { handleReleaseBeacon, handleAttackBeacon } from './beacon.js';
 
 type ClientCommandByType = { [C in ClientEnvelope as C['type']]: C };
 
@@ -147,6 +148,8 @@ const handlers: HandlerMap = {
     [ClientTag.TrackSeekerMines]: handleTrackSeekerMines,
     [ClientTag.MineDisruptor]: handleMineDisruptor,
     [ClientTag.GetNeighborhood]: handleGetNeighborhood,
+    [ClientTag.ReleaseBeacon]: handleReleaseBeacon,
+    [ClientTag.AttackBeacon]: handleAttackBeacon,
 };
 
 export async function handleMessage(playerId: number, data: ClientEnvelope): Promise<void> {

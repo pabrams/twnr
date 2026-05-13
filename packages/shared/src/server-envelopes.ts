@@ -56,6 +56,11 @@ export type SectorMineEntry = {
     ownership: OwnershipInfo;
 };
 
+export type SectorBeaconInfo = {
+    message: string;
+    ownership: OwnershipInfo;
+};
+
 export type SectorDisplayData = {
     sector: number;
     players: { id: number; name: string }[];
@@ -72,6 +77,7 @@ export type SectorDisplayData = {
     }[];
     collisions?: CollisionInfo[];
     sectorMines?: SectorMineEntry[];
+    beacon?: SectorBeaconInfo | null;
 };
 
 export type SectorDisplayReply = {
@@ -445,7 +451,7 @@ export type UndockReply =
 export type LeavePlanetReply = {
     type: typeof ServerTag.LeavePlanetResult;
     turnsUsed?: number;
-} & SectorDisplayData;
+};
 
 export type LeaveStarbaseReply = {
     type: typeof ServerTag.LeaveStarbaseResult;
@@ -680,6 +686,20 @@ export type ListOwnedShipsReply = {
 export type GetAttackTargetsReply = {
     type: typeof ServerTag.GetAttackTargetsResult;
     players: { id: number; name: string }[];
+    beaconPresent: boolean;
+};
+
+export type ReleaseBeaconReply = {
+    type: typeof ServerTag.ReleaseBeaconResult;
+    outcome: 'launched' | 'collision' | 'noBeacons';
+    sector: number;
+    beaconsRemaining: number;
+};
+
+export type AttackBeaconReply = {
+    type: typeof ServerTag.AttackBeaconResult;
+    destroyed: boolean;
+    shipDrones: number;
 };
 
 export type StarbaseInfoReply = {
@@ -895,5 +915,7 @@ export type ServerEnvelope =
     | ClanSetPasswordReply
     | ClanDropMemberReply
     | ClanMembershipChangedEvent
+    | ReleaseBeaconReply
+    | AttackBeaconReply
     | MemoDeliveryEvent
     | ErrorReply;

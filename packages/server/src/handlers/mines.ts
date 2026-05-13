@@ -59,11 +59,7 @@ export async function handleDeployMineInfo(
         return;
     }
 
-    const sectorDbId = await getSectorDbId(player.sector, player.universeId);
-    if (!sectorDbId) {
-        sendError(playerId, 'Sector not found');
-        return;
-    }
+    const sectorDbId = player.sectorId;
 
     const itemName = MINE_TYPE_TO_HARDWARE[mineType];
     const hw = await getHardwareItemByName(itemName);
@@ -121,11 +117,7 @@ export async function handleDeployMine(
         return;
     }
 
-    const sectorDbId = await getSectorDbId(player.sector, player.universeId);
-    if (!sectorDbId) {
-        sendError(playerId, 'Sector not found');
-        return;
-    }
+    const sectorDbId = player.sectorId;
 
     const itemName = MINE_TYPE_TO_HARDWARE[mineType];
     const hw = await getHardwareItemByName(itemName);

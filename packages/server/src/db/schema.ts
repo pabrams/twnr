@@ -479,7 +479,8 @@ export const connectDB = async (): Promise<void> => {
         sector_id INTEGER PRIMARY KEY REFERENCES sectors(id) ON DELETE CASCADE,
         owner_player_id INTEGER REFERENCES players(id) ON DELETE SET NULL,
         owner_clan_id INTEGER REFERENCES clans(id) ON DELETE SET NULL,
-        message TEXT,
+        message VARCHAR(41) NOT NULL,
+        deployed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         CHECK (NOT (owner_player_id IS NOT NULL AND owner_clan_id IS NOT NULL))
       );
 
@@ -547,7 +548,7 @@ export const connectDB = async (): Promise<void> => {
       INSERT INTO hardware_item (name, label, kind, default_price, result_msg_type, result_extra) VALUES
         ('planet_buster',    'Planet Busters',          'stackable', 40000,  'buyHardwareResult', NULL),
         ('terraform_device', 'Terraform Devices',       'stackable', 25000,  'buyHardwareResult', NULL),
-        ('buoy',             'Space Buoys',             'stackable', 100,    'buyHardwareResult', NULL),
+        ('buoy',             'Marker Beacons',          'stackable', 250,    'buyHardwareResult', NULL),
         ('proximity_mine',   'Proximity Mines',         'stackable', 500,    'buyHardwareResult', '{"mineType": "proximity"}'),
         ('seeker_mine',      'Limpet Mines',            'stackable', 9500,   'buyHardwareResult', '{"mineType": "seeker"}'),
         ('mine_disruptor',   'Mine Disruptors',         'stackable', 5000,   'buyHardwareResult', NULL),

@@ -15,49 +15,13 @@ type MovementContext = Pick<GameContext, 'autopilot' | 'encounter' | 'input' | '
     DisplayCombatCtx &
     RefreshMinimapCtx;
 
-export const sectorDisplay: Handler<'sectorDisplayResult', MovementContext> = (ctx, msg) => {
-    ctx.world.sectorPlayers = msg.players;
-    showSectorDisplay(
-        ctx,
-        msg.sector,
-        msg.warps,
-        msg.players,
-        msg.port,
-        msg.sectorDrones,
-        msg.planets,
-        msg.ships,
-        msg.collisions,
-        msg.sectorMines,
-    );
-    refreshMinimap(ctx);
-    if (ctx.autopilot.path.length > 0 && ctx.autopilot.step < ctx.autopilot.path.length) {
-        const nextSector = ctx.autopilot.path[ctx.autopilot.step];
-        ctx.autopilot.step = ctx.autopilot.step + 1;
-        ctx.io.sendMsg({ type: ClientTag.Move, sector: nextSector });
-    } else if (ctx.autopilot.path.length > 0) {
-        ctx.autopilot.path = [];
-        ctx.autopilot.step = 0;
-    }
-};
-
 export const move: Handler<'moveResult', MovementContext> = (ctx, msg) => {
     switch (msg.outcome) {
         case 'success': {
             ctx.world.sectorPlayers = msg.players;
             const inAutopilot = ctx.autopilot.path.length > 0;
             const moreHops = inAutopilot && ctx.autopilot.step < ctx.autopilot.path.length;
-            showSectorDisplay(
-                ctx,
-                msg.sector,
-                msg.warps,
-                msg.players,
-                msg.port,
-                msg.sectorDrones,
-                msg.planets,
-                msg.ships,
-                msg.collisions,
-                msg.sectorMines,
-            );
+            showSectorDisplay(ctx, msg);
             refreshMinimap(ctx);
             if (moreHops) {
                 const nextSector = ctx.autopilot.path[ctx.autopilot.step];
@@ -72,24 +36,10 @@ export const move: Handler<'moveResult', MovementContext> = (ctx, msg) => {
             break;
         }
         case 'encounter': {
-            // Server stays in 'sector' location; we enter the droneEncounter
-            // sub-mode here so the framework's auto-render uses the encounter
-            // MenuHandler's renderPrompt (a/r prompts).
             ctx.world.mode = Menu.DroneEncounter;
             ctx.world.sectorPlayers = msg.players;
             ctx.encounter.ownerName = msg.ownerName;
-            showSectorDisplay(
-                ctx,
-                msg.sector,
-                msg.warps,
-                msg.players,
-                msg.port,
-                msg.sectorDrones,
-                msg.planets,
-                msg.ships,
-                msg.collisions,
-                msg.sectorMines,
-            );
+            showSectorDisplay(ctx, msg);
             refreshMinimap(ctx);
             if (ctx.autopilot.path.length > 0) {
                 ctx.autopilot.paused = true;

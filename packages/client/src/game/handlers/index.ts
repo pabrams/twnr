@@ -4,6 +4,7 @@ import type { GameContext } from '../types.js';
 
 import * as lifecycle from './lifecycle.js';
 import * as movement from './movement.js';
+import * as sector from './sector.js';
 import * as port from './port.js';
 import * as hardwareStore from './hardware-store.js';
 import * as combat from './combat.js';
@@ -37,7 +38,7 @@ const handlers: HandlerMap = {
     [ServerTag.StarbaseInfoResult]: lifecycle.starbaseInfo,
     [ServerTag.Error]: lifecycle.error,
 
-    [ServerTag.SectorDisplayResult]: movement.sectorDisplay,
+    [ServerTag.SectorDisplayResult]: sector.sectorDisplay,
     [ServerTag.MoveResult]: movement.move,
     [ServerTag.NonAdjacentMoveRequested]: movement.nonAdjacent,
     [ServerTag.ShortestPathResult]: movement.shortestPath,

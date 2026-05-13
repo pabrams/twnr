@@ -100,7 +100,7 @@ const HW_DISPLAY: { name: string; label: string; isToggle?: boolean }[] = [
     { name: 'hyperspace_2', label: 'Hyperspace 2', isToggle: true },
     { name: 'visual_scanner', label: 'Visual Scanner', isToggle: true },
     { name: 'planet_scanner', label: 'Planet Scanner', isToggle: true },
-    { name: 'buoy', label: 'Max Buoys' },
+    { name: 'buoy', label: 'Max Beacons' },
     { name: 'proximity_mine', label: 'Max Prox Mines' },
     { name: 'seeker_mine', label: 'Max Limpet Mines' },
     { name: 'cloaking_device', label: 'Max Cloaking' },

@@ -250,17 +250,6 @@ export const leaveStarbase: Handler<'leaveStarbaseResult', PortContext> = (ctx, 
     ctx.world.mode = Menu.Sector;
     ctx.starbase.class0ShipState = null;
     ctx.world.sectorPlayers = msg.players;
-    showSectorDisplay(
-        ctx,
-        msg.sector,
-        msg.warps,
-        msg.players,
-        msg.port,
-        msg.sectorDrones,
-        msg.planets,
-        msg.ships,
-        msg.collisions,
-        msg.sectorMines,
-    );
+    showSectorDisplay(ctx, msg);
     refreshMinimap(ctx);
 };

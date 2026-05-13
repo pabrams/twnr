@@ -65,6 +65,21 @@ export const SECTOR = makeDomain('SECTOR', {
     autopilotConfirm:
         '\r\n[mg]Engage the autopilot?[/mg] [mg]([/mg][by]Y[/by]/[by]N[/by][mg]) [Y][/mg] ',
 
+    beaconBanner: '[bc]<Release Beacon>[/bc]',
+    beaconLaunchPrompt:
+        'Do you wish to launch a Marker Beacon here? [mg]([/mg][by]Y[/by]/[by]N[/by][mg]) [N][/mg] ',
+    beaconMessagePrompt: 'What message should be on this beacon? (41 chars)\r\n',
+    beaconLaunched: '[bg]Beacon Launched![/bg]',
+    beaconCollision:
+        '[br]Your beacon collides with the one that was already here and both detonate![/br]',
+    beaconNoBeacons: '[br]No beacons on board![/br]',
+    beaconLine: '[mg]Beacon[/mg]  [by]:[/by] [br]{message}[/br]',
+
+    attackBeaconPrompt:
+        'Destroy the Marker Beacon here? [mg]([/mg][by]Y[/by]/[by]N[/by][mg]) [N][/mg] ',
+    attackBeaconDestroyed:
+        '[bg]You launch a drone which quickly destroys the Beacon (and itself)[/bg]',
+
     noPlanet:
         '[w]There is no planet in this sector. You could create one with a Terraform Device.[/w]',
 

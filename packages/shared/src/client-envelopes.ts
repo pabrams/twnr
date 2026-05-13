@@ -203,6 +203,15 @@ export type GetShipDetailCommand = {
     shipId: number;
 };
 
+export type ReleaseBeaconCommand = {
+    type: typeof ClientTag.ReleaseBeacon;
+    message: string;
+};
+
+export type AttackBeaconCommand = {
+    type: typeof ClientTag.AttackBeacon;
+};
+
 export type TransportToShipCommand = {
     type: typeof ClientTag.TransportToShip;
     shipId: number;
@@ -279,13 +288,11 @@ export type VisitedSectorsCommand = {
     type: typeof ClientTag.VisitedSectors;
 };
 
-/** Info request that precedes the actual deploy. */
 export type DeployMineInfoCommand = {
     type: typeof ClientTag.DeployMineInfo;
     mineType: 'proximity' | 'seeker';
 };
 
-/** Deploy/pickup mines." */
 export type DeployMineCommand = {
     type: typeof ClientTag.DeployMine;
     mineType: 'proximity' | 'seeker';
@@ -378,6 +385,8 @@ export type ClientEnvelope =
     | ListOwnedShipsCommand
     | GetShipDetailCommand
     | TransportToShipCommand
+    | ReleaseBeaconCommand
+    | AttackBeaconCommand
     | ClanCreateCommand
     | ClanJoinCommand
     | ClanLeaveCommand
