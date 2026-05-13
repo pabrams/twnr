@@ -8,10 +8,24 @@ import { getMenuHandler } from './menus/index.js';
 import { dispatch } from './handlers/index.js';
 import { drainInputQueue } from './input.js';
 
-/** Server messages whose handler updates a side panel only (no terminal
- * output). These should NOT trigger a menu prompt re-render — otherwise
- * the prompt duplicates on every panel refresh (e.g. minimap zoom/pan). */
-const PROMPT_SUPPRESSING = new Set<string>([ServerTag.NeighborhoodResult]);
+/** Server messages whose handler should NOT trigger a menu prompt re-render.
+ *
+ *  Two reasons an envelope belongs here:
+ *
+ *  1. Panel-only updates that have no terminal output (otherwise the prompt
+ *     duplicates on every panel refresh — e.g. minimap zoom/pan).
+ *  2. Interim events arriving mid-flow before the concluding result
+ *     envelope. Mine events fire during a move *before* MoveResult, while
+ *     `ctx.world.currentSector` still points at the previous sector — a
+ *     prompt rendered now would show the wrong sector. The MoveResult that
+ *     follows is the right paint point.
+ */
+const PROMPT_SUPPRESSING = new Set<string>([
+    ServerTag.NeighborhoodResult,
+    ServerTag.ProximityMineHit,
+    ServerTag.SeekerMineAttached,
+    ServerTag.SeekerMinePickupAlert,
+]);
 
 export function setupConnection(
     ws: WebSocket,
