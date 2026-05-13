@@ -52,10 +52,7 @@ export function setupConnection(
 
         ctx.input.inFlight = false;
         const handlerResult = dispatch(ctx, msg);
-        // If a routine is awaiting this message via awaitResponse, resolve
-        // it after dispatch so the handler runs first (state updates,
-        // notifications). The routine then owns the next prompt paint via
-        // its own finishUp.
+
         let resolvedResponse = false;
         if (ctx.input.pendingResponse?.types.has(msg.type)) {
             const r = ctx.input.pendingResponse;
@@ -64,11 +61,6 @@ export function setupConnection(
             r.resolve(msg);
         }
 
-        // Single render path: paint exactly once after the dispatched work
-        // is fully settled. For sync handlers / pure renders, that's right
-        // now. For async handlers (e.g. deployDronesInfo asks askNumber +
-        // askDeployOwnership then sendMsg) we attach a finishUp to the
-        // promise so the prompt only paints after the entire chain has resolved.
         const repaint = () => {
             if (
                 !ctx.input.inFlight &&
@@ -79,14 +71,21 @@ export function setupConnection(
                 getMenuHandler(ctx.world.mode)?.renderPrompt?.(ctx);
             }
         };
-        if (handlerResult && typeof (handlerResult as Promise<unknown>).then === 'function') {
-            // Async handler — wait for its whole chain to complete before
-            // checking. Suppress the immediate paint.
+        // Single paint per incoming envelope. Three cases:
+        //   - A routine consumed the envelope via awaitResponse: that
+        //     routine's own finishUp will paint when it completes; we stay
+        //     out of the way.
+        //   - Handler returned a promise: wait for the whole async chain
+        //     to settle, then paint.
+        //   - Handler was sync: paint now.
+        if (resolvedResponse) {
+            // routine owns the paint
+        } else if (
+            handlerResult &&
+            typeof (handlerResult as Promise<unknown>).then === 'function'
+        ) {
             void (handlerResult as Promise<unknown>).then(repaint);
-        } else if (!resolvedResponse) {
-            // Sync handler that didn't resolve an awaited response. Paint
-            // now — when resolvedResponse is true, the awaiting routine's
-            // own finishUp will paint instead.
+        } else {
             repaint();
         }
         drainInputQueue(ctx);

@@ -8,10 +8,11 @@ import { type DisplayComputerCtx } from '../display-computer.js';
 import type { Handler } from './index.js';
 import { ClientTag } from '@twnr/shared';
 import { fmt, formatDuration, refreshMinimap, type RefreshMinimapCtx } from './utils.js';
+import { runConnectFlow } from './connect-flow.js';
 
 type LifecycleContext = Pick<
     GameContext,
-    'autopilot' | 'io' | 'minimap' | 'player' | 'ship' | 'world'
+    'autopilot' | 'input' | 'io' | 'minimap' | 'player' | 'ship' | 'world'
 > &
     DisplayCtx &
     DisplayPortCtx &
@@ -19,7 +20,7 @@ type LifecycleContext = Pick<
     DisplayComputerCtx &
     RefreshMinimapCtx;
 
-export const welcome: Handler<'welcome', LifecycleContext> = (ctx, msg) => {
+export const welcome: Handler<'welcome', LifecycleContext> = async (ctx, msg) => {
     ctx.player.name = msg.name;
     ctx.player.id = msg.playerId;
     ctx.world.totalSectors = msg.totalSectors;
@@ -36,12 +37,8 @@ export const welcome: Handler<'welcome', LifecycleContext> = (ctx, msg) => {
         ctx.io.term.writeln(render(NOTIFY.welcomeGuest));
     }
     refreshMinimap(ctx);
-    // If the player has a ship, kick off the connect-mail check; its
-    // memoDelivery handler will chain a location-aware re-display when it
-    // finishes. Shipless players follow the same flow via shipNameRequired.
-    if (msg.shipName !== '') {
-        ctx.io.sendMsg({ type: ClientTag.CheckMailSinceLastLogout });
-    }
+    // Single orchestrator: ship-naming (if needed) → mail check → re-display.
+    await runConnectFlow(ctx, msg);
 };
 
 export const playerMoved: Handler<'playerMoved', LifecycleContext> = (ctx, msg) => {
