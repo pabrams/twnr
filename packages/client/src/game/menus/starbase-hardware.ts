@@ -86,9 +86,9 @@ registerMenu(Menu.StarbaseHardware, {
 });
 
 async function buyMines(ctx: GameContext): Promise<void> {
-    const choice = await askChar(ctx, 'Mines: (P)roximity or (S)eeker? ', ['p', 's']);
+    const choice = await askChar(ctx, 'Mines: (P)roximity or (L)impet? ', ['p', 'l']);
     if (choice === null) return;
     const itemName = choice === 'p' ? 'proximity_mine' : 'seeker_mine';
-    const label = choice === 'p' ? 'Proximity Mines' : 'Seeker Mines';
+    const label = choice === 'p' ? 'Proximity Mines' : 'Limpet Mines';
     await buyStackable(ctx, itemName, label);
 }

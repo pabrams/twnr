@@ -9,6 +9,7 @@ import {
     settlePlanetProduction,
     settlePlanetColonistGrowth,
 } from '../db/queries/planet.js';
+import { cleanupExpiredGuests } from './guest-cleanup.js';
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
 
@@ -108,6 +109,12 @@ export async function runHourlyJobs(): Promise<void> {
         if (grown > 0) console.log(`[hourly] colonist growth applied on ${grown} planets`);
     } catch (err) {
         console.error('[hourly] colonist-growth failed:', err);
+    }
+    try {
+        const { deleted } = await cleanupExpiredGuests();
+        if (deleted > 0) console.log(`[hourly] cleaned up ${deleted} expired guest accounts`);
+    } catch (err) {
+        console.error('[hourly] guest-cleanup failed:', err);
     }
 }
 

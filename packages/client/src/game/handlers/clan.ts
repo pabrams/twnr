@@ -17,3 +17,12 @@ export const memoDelivery: Handler<'memoDelivery', ClanContext> = (ctx, msg) => 
         );
     }
 };
+
+type ClanMembershipContext = Pick<GameContext, 'player'>;
+
+export const clanMembershipChanged: Handler<'clanMembershipChanged', ClanMembershipContext> = (
+    ctx,
+    msg,
+) => {
+    ctx.player.clanId = msg.clanId;
+};

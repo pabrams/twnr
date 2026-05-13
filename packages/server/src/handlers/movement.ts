@@ -142,13 +142,20 @@ export async function handleMove(playerId: number, data: MoveCommand): Promise<v
 
     if (sectorData.sectorDrones && sectorData.sectorDrones.ownerId !== playerId) {
         const shipDrones = (await getShipDrones(playerId)) ?? 0;
+        const ownership = sectorData.sectorDrones.ownership;
+        const ownerName =
+            ownership.kind === 'player'
+                ? ownership.name
+                : ownership.kind === 'clan'
+                  ? `#${ownership.clanNumber} ${ownership.name}`
+                  : 'Rogue';
 
         await sendEnvelope(playerId, {
             type: ServerTag.MoveResult,
             outcome: 'encounter',
             ...sectorData,
             ownerId: sectorData.sectorDrones.ownerId,
-            ownerName: sectorData.sectorDrones.ownerName,
+            ownerName,
             shipDrones,
             retreatSector: currentSector,
             turnsUsed: turnResult.turnsUsed,

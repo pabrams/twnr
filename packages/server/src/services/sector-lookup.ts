@@ -1,15 +1,16 @@
+import type { OwnershipInfo } from '@twnr/shared';
 import { getWarpRefsForPlayer, getSectorDbId } from '../db/queries/sector.js';
 import { getAbandonedShipsInSector } from '../db/queries/ship.js';
 import { getSectorDroneDisplayInfo } from '../db/queries/drones.js';
 import { getPortForSectorDisplay } from '../db/queries/port.js';
 import { getVisitedSectorNumbers } from '../db/queries/player.js';
+import { ownershipFrom } from './owner-format.js';
 
-/** Sector numbers the player has marked visited, in ascending order. */
 export async function getVisitedSectors(playerId: number): Promise<number[]> {
     return getVisitedSectorNumbers(playerId);
 }
 
-/** Adjacent sectors of `sectorNumber` from the player's POV (with visited flags). */
+/** Adjacent sectors of `sectorNumber` from the player's POV. */
 export async function getWarpRefs(
     playerId: number,
     sectorNumber: number,
@@ -18,7 +19,6 @@ export async function getWarpRefs(
     return getWarpRefsForPlayer(playerId, sectorNumber, universeId);
 }
 
-/** Port summary for display. Returns null if no port exists in that sector. */
 export async function getPortForSector(
     sectorNumber: number,
     universeId: number,
@@ -31,25 +31,32 @@ export async function getPortForSector(
 export async function getSectorDrones(
     sectorNumber: number,
     universeId: number,
-): Promise<{ quantity: number; ownerId: number | null; ownerName: string } | null> {
+): Promise<{ quantity: number; ownerId: number | null; ownership: OwnershipInfo } | null> {
     return getSectorDroneDisplayInfo(sectorNumber, universeId);
 }
 
-/** Abandoned ships sitting in the sector (typically from destroyed players). */
 export async function getEmptyShipsInSector(
     sectorNumber: number,
     universeId: number,
-): Promise<{ id: number; name: string; typeName: string; ownerName: string }[]> {
+): Promise<
+    {
+        id: number;
+        name: string;
+        typeName: string;
+        typeDisplayName: string | null;
+        ownership: OwnershipInfo;
+    }[]
+> {
     const rows = await getAbandonedShipsInSector(sectorNumber, universeId);
     return rows.map((r) => ({
         id: r.id,
         name: r.typeName,
         typeName: r.typeName,
-        ownerName: r.ownerName,
+        typeDisplayName: r.typeDisplayName,
+        ownership: ownershipFrom(r),
     }));
 }
 
-/** Translate a sector's player-facing number into its DB primary key. */
 export async function resolveSectorId(sectorNumber: number, universeId: number): Promise<number> {
     const id = await getSectorDbId(sectorNumber, universeId);
     return id as number;

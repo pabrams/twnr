@@ -306,9 +306,28 @@ export async function handleAttackSectorDrones(
                     intruderName: player.name,
                 });
             }
+        } else {
+            // Clan-owned drones: alert every online member of the clan.
+            const existing = await getSectorDronesRowForUpdate(sectorDbId!);
+            const ownerClanId = existing?.owner_clan_id ?? null;
+            if (ownerClanId !== null) {
+                for (const [idStr, p] of Object.entries(players)) {
+                    const memberId = Number(idStr);
+                    if (memberId === playerId) continue;
+                    if (p.ws.readyState !== 1) continue;
+                    const memberClanId = await getPlayerClanId(memberId);
+                    if (memberClanId !== ownerClanId) continue;
+                    sendEnvelope(memberId, {
+                        type: ServerTag.SectorDronesAlert,
+                        event: victory ? 'destroyed' : 'attacked',
+                        sector: sectorId,
+                        dronesLost: k,
+                        dronesRemaining: newSectorDrones,
+                        intruderName: player.name,
+                    });
+                }
+            }
         }
-        // TODO: when sector drones are clan-owned, alert all online clan
-        // members instead. Deferred until phase 6 transfer/memo wiring.
     } catch (err) {
         console.error('Attack sector drones error', err);
         sendError(playerId, 'Internal server error');

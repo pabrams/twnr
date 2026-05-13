@@ -22,16 +22,12 @@ async function deleteGuestUserById(userId: number, playerId: number): Promise<vo
 }
 
 /**
- * STUB — wire this up when the hourly/daily cron infrastructure lands.
- *
  * Reaps guest users who haven't been online for `maxIdleDays` (default 7,
  * matching the JWT cookie TTL — past that point the recruiter's browser
  * can't transparently resume them anyway, so the row is dead weight). Skips
  * any guest whose player is currently in the in-memory `players` map, so
  * we never delete someone mid-session.
  *
- * Suggested cadence: daily. Runs are cheap (one indexed query + per-row
- * cascading deletes) so cadence is forgiving.
  */
 export async function cleanupExpiredGuests(maxIdleDays = 7): Promise<{ deleted: number }> {
     const onlinePlayerIds = new Set(Object.keys(players).map(Number));

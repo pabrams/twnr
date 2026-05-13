@@ -5,6 +5,7 @@ import { listPlayersInSector } from '../db/queries/player.js';
 import { getPlayerClanId } from '../db/queries/clan.js';
 import { players, isVisibleInSector } from '../state/players.js';
 import { isFriendlyOwner } from './owner.js';
+import { ownershipFrom } from './owner-format.js';
 import {
     getPortForSector,
     getWarpRefs,
@@ -52,6 +53,7 @@ export async function buildSectorDisplayData(playerId: number, sectorNumber?: nu
                       mineType: m.mine_type,
                       quantity: m.quantity,
                       own: isFriendlyOwner(m, playerId, viewerClanId),
+                      ownership: ownershipFrom(m),
                   }))
             : [];
 

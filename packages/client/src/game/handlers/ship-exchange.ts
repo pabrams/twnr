@@ -21,19 +21,37 @@ export const shipInfo: Handler<'shipInfoResult', ShipExchangeContext> = (ctx, ms
     ctx.io.term.writeln(render(SECTOR.playerInfoName, { name: ctx.player.name }));
     ctx.io.term.writeln(render(SECTOR.playerInfoSector, { sector: ctx.world.currentSector }));
     ctx.io.term.writeln(render(PANEL.shipName, { name: msg.coloredShipName ?? msg.shipName }));
+    if (msg.clanNumber !== null) {
+        ctx.io.term.writeln(
+            render(PANEL.shipClan, { num: msg.clanNumber, name: msg.clanName ?? '' }),
+        );
+    }
+    // Pad the X side and Y side independently so all "X / Y" pairs line
+    // up vertically across rows.
+    const vals = [
+        msg.drones,
+        msg.maxDrones,
+        msg.shields,
+        msg.maxShields,
+        msg.holdsAvailable,
+        msg.cargoLimit,
+        msg.maxHolds,
+    ];
+    const w = Math.max(...vals.map((n) => String(n).length));
+    const padL = (n: number) => String(n).padStart(w);
     ctx.io.term.writeln(
         render(PANEL.shipDronesShields, {
-            drones: msg.drones,
-            maxDrones: msg.maxDrones,
-            shields: msg.shields,
-            maxShields: msg.maxShields,
+            drones: padL(msg.drones),
+            maxDrones: padL(msg.maxDrones),
+            shields: padL(msg.shields),
+            maxShields: padL(msg.maxShields),
         }),
     );
     ctx.io.term.writeln(
         render(PANEL.shipHolds, {
-            free: msg.holdsAvailable,
-            total: msg.cargoLimit,
-            max: msg.maxHolds,
+            free: padL(msg.holdsAvailable),
+            total: padL(msg.cargoLimit),
+            max: padL(msg.maxHolds),
         }),
     );
     ctx.io.term.writeln(
@@ -70,7 +88,12 @@ export const shipInfo: Handler<'shipInfoResult', ShipExchangeContext> = (ctx, ms
             }
         }
     }
-    ctx.io.term.writeln(render(PANEL.shipCreditsTurns, { credits: msg.credits, turns: msg.turns }));
+    ctx.io.term.writeln(
+        render(PANEL.shipCreditsTurns, {
+            credits: fmt(msg.credits),
+            turns: msg.turns,
+        }),
+    );
     ctx.io.term.writeln(render(PANEL.shipTurnsPerWarp, { turns: msg.turnsPerWarp }));
 };
 

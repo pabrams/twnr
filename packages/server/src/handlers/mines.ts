@@ -35,15 +35,10 @@ const MINE_TYPE_TO_HARDWARE: Record<MineType, string> = {
 
 const MINE_TYPE_LABEL: Record<MineType, string> = {
     proximity: 'Proximity',
-    seeker: 'Seeker',
+    seeker: 'Limpet',
 };
 
-/** Info-only roundtrip used by the client's Handle-Mines flow. Reports
- *  the current ship/sector counts and the ship's max capacity for the
- *  given mine type, so the client can prompt for a target total. If the
- *  sector already contains mines of this type that the player can't
- *  legitimately manipulate (not theirs, not their clan's), we reject
- *  here — before the client asks for quantity or ownership. */
+/** Info-only roundtrip used by the client's Handle-Mines flow.  */
 export async function handleDeployMineInfo(
     playerId: number,
     data: DeployMineInfoCommand,
@@ -155,9 +150,7 @@ export async function handleDeployMine(
             const existing = await getSectorMineForUpdate(sectorDbId, mineType, client);
             const currentInSector = existing?.quantity ?? 0;
 
-            // Re-check ownership inside the tx: the info-time friendly
-            // check could be stale (another player may have cleared/
-            // deployed in the meantime).
+            // Re-check ownership
             if (existing && existing.quantity > 0) {
                 const friendly = isFriendlyOwner(existing, playerId, playerClanId);
                 if (!friendly) {

@@ -11,10 +11,15 @@ export const SECTOR = makeDomain('SECTOR', {
     port: '[mg]Port[/mg]    [by]:[/by] [bc]{name}[/bc][by],[/by] [mg]Class[/mg] [bc]{class}[/bc] [mg]([/mg]{label}[mg])[/mg]',
 
     dronesYours: '[mg]Drones[/mg]  [by]:[/by] [bc]{qty}[/bc] [mg](yours)[/mg]',
-    dronesEnemy: '[mg]Drones[/mg]  [by]:[/by] [br]{qty}[/br] [mg]([/mg][by]{owner}[/by][mg])[/mg]',
+    dronesEnemy: '[mg]Drones[/mg]  [by]:[/by] [br]{qty}[/br] [mg]([/mg]{ownership}[mg])[/mg]',
+    ownershipClan: '[w]owned by clan[/w] [bc]#{num}[/bc][by]:[/by] [bc]{name}[/bc]',
+    ownershipPlayer: '[w]owned by[/w] [by]{name}[/by]',
+    ownershipRogue: '[br]Rogue[/br]',
 
-    planetsLine: '[mg]Planets[/mg] [by]:[/by] {list}',
-    planetItem: '[bc]{name}[/bc] [mg]([/mg][w]{type}[/w][mg])[/mg]',
+    planetsLine: '[mg]Planets[/mg] [by]:[/by] {item}',
+    planetsContinuation: '          {item}',
+    planetItem: '{nameColored} [mg]([/mg][w]{type}[/w][mg])[/mg]',
+    planetItemPlain: '[bc]{name}[/bc] [mg]([/mg][w]{type}[/w][mg])[/mg]',
 
     collisionWarning:
         '[br]WARNING[/br]: [by]{planet}[/by] on collision course with [by]{target}[/by]! [mg]([/mg]ETA: [br]{hours}[/br]h[mg])[/mg]',
@@ -24,17 +29,19 @@ export const SECTOR = makeDomain('SECTOR', {
     warpUnvisited: '[mg]([/mg][br]{sector}[/br][mg])[/mg]',
     warpSeparator: ' [g]-[/g] ',
 
-    playersLine: '[mg]Merchants[/mg] [by]:[/by] {list}',
+    playersLine: '[mg]Players[/mg] [by]:[/by] {item}',
+    playersContinuation: '          {item}',
     playerItem: '[by]{name}[/by]',
 
-    shipsLine: '[mg]Ships[/mg]     [by]:[/by] {list}',
-    shipItem: '[bc]{type}[/bc] [mg]([/mg][by]{owner}[/by][mg])[/mg]',
+    shipsLine: '[mg]Ships[/mg]   [by]:[/by] {item}',
+    shipsContinuation: '          {item}',
+    shipItem: '{nameColored} [mg]([/mg]{ownership}[mg])[/mg]',
+    shipItemPlain: '[bc]{type}[/bc] [mg]([/mg]{ownership}[mg])[/mg]',
 
-    minesLine: '[mg]Mines[/mg]   [by]:[/by] {list}',
-    mineItemOwn: '[bc]{qty}[/bc] [mg]{label} (yours)[/mg]',
-    mineItemEnemy: '[br]{qty}[/br] [mg]{label}[/mg]',
-    mineLabelProximity: 'proximity',
-    mineLabelSeeker: 'seeker',
+    minesLine: '[mg]Mines[/mg]   [by]:[/by] [bc]{qty}[/bc] [mg](yours)[/mg]',
+    minesLineEnemy: '[mg]Mines[/mg]   [by]:[/by] [br]{qty}[/br]',
+    limpetsLine: '[mg]Limpets[/mg] [by]:[/by] [bc]{qty}[/bc] [mg](yours)[/mg]',
+    limpetsLineEnemy: '[mg]Limpets[/mg] [by]:[/by] [br]{qty}[/br]',
 
     commaJoin: '[by], [/by]',
 

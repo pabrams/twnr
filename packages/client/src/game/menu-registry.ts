@@ -238,7 +238,7 @@ export const MENU_REGISTRY: MenuEntry[] = [
             {
                 command: 'track_seeker_mines',
                 keyPattern: 'm',
-                label: 'Track seeker mines',
+                label: 'Track limpet mines',
                 targetMenu: null,
                 sortOrder: 90,
             },

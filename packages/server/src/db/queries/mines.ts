@@ -42,15 +42,28 @@ export async function getSectorMine(
     return res.rows[0];
 }
 
-/** Fetch every mine row in a sector (both types). Read-only. */
+export type SectorMineDisplayRow = SectorMineRow & {
+    owner_player_name: string | null;
+    owner_clan_name: string | null;
+    owner_clan_number: number | null;
+};
+
+/** Fetch every mine row in a sector (both types) with owner JOIN cols for
+ *  display. Read-only. */
 export async function getSectorMines(
     sectorDbId: number,
     db: Queryable = pool,
-): Promise<SectorMineRow[]> {
-    const res = await db.query<SectorMineRow>(
-        `SELECT sector_id, mine_type, quantity, owner_player_id, owner_clan_id
-         FROM sector_mines
-         WHERE sector_id = $1 AND quantity > 0`,
+): Promise<SectorMineDisplayRow[]> {
+    const res = await db.query<SectorMineDisplayRow>(
+        `SELECT sm.sector_id, sm.mine_type, sm.quantity,
+                sm.owner_player_id, sm.owner_clan_id,
+                p.name AS owner_player_name,
+                c.name AS owner_clan_name,
+                c.universe_clan_number AS owner_clan_number
+         FROM sector_mines sm
+         LEFT JOIN players p ON p.id = sm.owner_player_id
+         LEFT JOIN clans c ON c.id = sm.owner_clan_id
+         WHERE sm.sector_id = $1 AND sm.quantity > 0`,
         [sectorDbId],
     );
     return res.rows;
@@ -146,9 +159,9 @@ export type DeployedMineByOwnerRow = {
     owner_clan_number: number | null;
 };
 
-/** All mine deployments accessible to the player (their own + their clan's). */
+/** All mine deployments accessible to playerId (player's and clan's). */
 export async function getDeployedMinesByOwner(
-    ownerPlayerId: number,
+    playerId: number,
     db: Queryable = pool,
 ): Promise<DeployedMineByOwnerRow[]> {
     const res = await db.query<DeployedMineByOwnerRow>(
@@ -165,7 +178,7 @@ export async function getDeployedMinesByOwner(
            AND (sm.owner_player_id = $1
                 OR sm.owner_clan_id = (SELECT clan_id FROM players WHERE id = $1))
          ORDER BY s.sector_number, sm.mine_type`,
-        [ownerPlayerId],
+        [playerId],
     );
     return res.rows;
 }

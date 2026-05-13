@@ -20,7 +20,7 @@ import {
     askChar,
     askConfirm,
     askDeployOwnership,
-    askLine,
+    askLineWithShortcuts,
     askNumber,
     awaitResponse,
 } from './prompts.js';
@@ -104,7 +104,7 @@ registerRoutine('jettison_menu', async (ctx) => {
 });
 
 registerRoutine('handle_mines_menu', async (ctx) => {
-    const typeChar = await askChar(ctx, 'Handle (P)roximity or (S)eeker mines? ', ['p', 's']);
+    const typeChar = await askChar(ctx, 'Handle (P)roximity or (L)impet mines? ', ['p', 'l']);
     if (typeChar === null) return;
     const mineType: 'proximity' | 'seeker' = typeChar === 'p' ? 'proximity' : 'seeker';
 
@@ -113,7 +113,7 @@ registerRoutine('handle_mines_menu', async (ctx) => {
     if (info === null) return;
     if (info.type !== ServerTag.DeployMineInfoResult) return;
 
-    const label = mineType === 'seeker' ? 'Seeker' : 'Proximity';
+    const label = mineType === 'seeker' ? 'Limpet' : 'Proximity';
     const total = info.shipMines + info.sectorMines;
     ctx.io.term.writeln('');
     ctx.io.term.writeln(
@@ -222,7 +222,9 @@ registerRoutine('transporter_pad', async (ctx) => {
         });
         renderTransporterOptions(ctx);
 
-        const choice = await askLine(ctx, render(COMPUTER.transporterPrompt));
+        const choice = await askLineWithShortcuts(ctx, render(COMPUTER.transporterPrompt), [
+            'i',
+        ]);
         if (choice === null) return;
 
         if (choice.toLowerCase() === 'i') {
@@ -235,7 +237,14 @@ registerRoutine('transporter_pad', async (ctx) => {
                 ctx.io.term.writeln(render(COMPUTER.transporterUnknownShip));
                 continue;
             }
-            renderShipDetail(ctx, target);
+            ctx.io.sendMsg({ type: ClientTag.GetShipDetail, shipId: target.id });
+            const detail = await awaitResponse(ctx, [
+                ServerTag.ShipDetailResult,
+                ServerTag.Error,
+            ]);
+            if (detail === null) continue;
+            if (detail.type !== ServerTag.ShipDetailResult) continue;
+            renderShipDetail(ctx, detail);
             continue;
         }
 

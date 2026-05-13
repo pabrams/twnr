@@ -59,7 +59,7 @@ export const CLAN = makeDomain('CLAN', {
     transferQtyPrompt:
         '\r\n[mg]Quantity ([/mg][by]#[/by][mg],[/mg][by]Q[/by][mg])[/mg] [by]?[/by] ',
     transferMineTypePrompt:
-        '\r\n[mg]Mine type ([/mg][by]P[/by][mg]roximity,[/mg][by]S[/by][mg]eeker,[/mg][by]Q[/by][mg])[/mg] [by]?[/by] ',
+        '\r\n[mg]Mine type ([/mg][by]P[/by][mg]roximity,[/mg][by]L[/by][mg]impet,[/mg][by]Q[/by][mg])[/mg] [by]?[/by] ',
     transferSuccess:
         '\r\n[bg]Sent [/bg][bc]{delivered}[/bc] [bg]{kind} to [/bg][bc]{target}[/bc][bg].[/bg]',
     transferDiscarded:
