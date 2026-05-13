@@ -17,6 +17,10 @@ export type WelcomeEvent = {
     totalSectors: number;
     shipName: string;
     coloredShipName: string | null;
+    startingShip?: {
+        typeName: string;
+        typeDisplayName: string | null;
+    };
     starbaseSector: number | null;
     location: MenuName;
     isGuest: boolean;
