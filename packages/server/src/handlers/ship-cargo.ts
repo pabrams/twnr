@@ -2,7 +2,7 @@ import { ServerTag } from '@twnr/shared';
 import { sendEnvelope } from '../state/messaging.js';
 import { getShipCargo, zeroShipCargo } from '../db/queries/ship.js';
 
-export async function handleJettison(playerId: number): Promise<void> {
+export async function serveJettison(playerId: number): Promise<void> {
     const cargo = await getShipCargo(playerId);
     if (!cargo) {
         await sendEnvelope(playerId, {

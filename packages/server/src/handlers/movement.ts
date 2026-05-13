@@ -22,7 +22,7 @@ import {
 import { deductTurns, fetchMoveTurnContext } from '../turn-logic.js';
 import { resolveMinesOnEntry } from '../services/mine-encounter.js';
 
-export async function handleMove(playerId: number, data: MoveCommand): Promise<void> {
+export async function serveMove(playerId: number, data: MoveCommand): Promise<void> {
     const targetSector = data.sector;
     if (!Number.isInteger(targetSector) || targetSector <= 0) {
         sendEnvelope(playerId, {
@@ -185,12 +185,12 @@ export async function handleMove(playerId: number, data: MoveCommand): Promise<v
     });
 }
 
-export async function handleMoveToPrevious(playerId: number): Promise<void> {
+export async function serveMoveToPrevious(playerId: number): Promise<void> {
     const prev = await getPreviousSectorNumber(playerId);
     sendEnvelope(playerId, { type: ServerTag.PreviousSectorResult, sector: prev });
 }
 
-export async function handleSectorDisplay(playerId: number): Promise<void> {
+export async function serveSectorDisplay(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 
@@ -199,7 +199,7 @@ export async function handleSectorDisplay(playerId: number): Promise<void> {
     sendEnvelope(playerId, { type: ServerTag.SectorDisplayResult, ...data });
 }
 
-export async function handleWarpsOut(playerId: number, data: WarpsOutCommand): Promise<void> {
+export async function serveWarpsOut(playerId: number, data: WarpsOutCommand): Promise<void> {
     const { id } = data;
     if (!Number.isInteger(id) || id <= 0) {
         sendError(playerId, 'Invalid sector ID');
@@ -219,7 +219,7 @@ export async function handleWarpsOut(playerId: number, data: WarpsOutCommand): P
     sendEnvelope(playerId, { type: ServerTag.WarpsOutResult, id, warps: warpRefs });
 }
 
-export async function handleShortestPath(
+export async function serveShortestPath(
     playerId: number,
     data: ShortestPathCommand,
 ): Promise<void> {

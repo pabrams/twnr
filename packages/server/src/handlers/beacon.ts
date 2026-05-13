@@ -22,7 +22,7 @@ import { isInEncounter } from '../services/encounter.js';
 const BEACON_HW_NAME = 'buoy';
 const BEACON_MSG_MAX = 41;
 
-export async function handleReleaseBeacon(
+export async function serveReleaseBeacon(
     playerId: number,
     data: ReleaseBeaconCommand,
 ): Promise<void> {
@@ -84,7 +84,7 @@ export async function handleReleaseBeacon(
     }
 }
 
-export async function handleAttackBeacon(playerId: number): Promise<void> {
+export async function serveAttackBeacon(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 

@@ -39,7 +39,7 @@ const MINE_TYPE_LABEL: Record<MineType, string> = {
 };
 
 /** Info-only roundtrip used by the client's Handle-Mines flow.  */
-export async function handleDeployMineInfo(
+export async function serveDeployMineInfo(
     playerId: number,
     data: DeployMineInfoCommand,
 ): Promise<void> {
@@ -90,7 +90,7 @@ export async function handleDeployMineInfo(
     });
 }
 
-export async function handleDeployMine(
+export async function serveDeployMine(
     playerId: number,
     data: DeployMineCommand,
 ): Promise<void> {
@@ -216,7 +216,7 @@ export async function handleDeployMine(
     }
 }
 
-export async function handleListDeployedMines(playerId: number): Promise<void> {
+export async function serveListDeployedMines(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
     const rows = await getDeployedMinesByOwner(playerId);
@@ -233,7 +233,7 @@ export async function handleListDeployedMines(playerId: number): Promise<void> {
     });
 }
 
-export async function handleTrackSeekerMines(playerId: number): Promise<void> {
+export async function serveTrackSeekerMines(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
     const rows = await getSeekerAttachmentsByOwner(playerId);
@@ -248,7 +248,7 @@ export async function handleTrackSeekerMines(playerId: number): Promise<void> {
     });
 }
 
-export async function handleMineDisruptor(
+export async function serveMineDisruptor(
     playerId: number,
     data: MineDisruptorCommand,
 ): Promise<void> {

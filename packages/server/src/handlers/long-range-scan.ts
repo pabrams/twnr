@@ -19,7 +19,7 @@ const W_BEACON = 1;
  *  sector with aggregate weighted density, anomaly flag, and the warp
  *  count, plus a flag telling the client whether to offer the visual
  *  follow-up. */
-export async function handleDensityScan(playerId: number): Promise<void> {
+export async function serveDensityScan(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
     if (player.docked || player.at_starbase) {
@@ -58,7 +58,7 @@ export async function handleDensityScan(playerId: number): Promise<void> {
 /** Visual scan — costs one turn, returns a full sector display payload
  *  for each adjacent (out-warp) sector. Server rejects if the player
  *  doesn't actually have a visual scanner. */
-export async function handleVisualScan(playerId: number): Promise<void> {
+export async function serveVisualScan(playerId: number): Promise<void> {
     const player = players[playerId];
     if (!player) return;
     if (player.docked || player.at_starbase) {

@@ -34,7 +34,7 @@ function clampHalfExtent(raw: number): number {
  * glimpsed via an outbound warp from a visited sector); admins see everything
  * within the bbox regardless of fog.
  */
-export async function handleGetNeighborhood(
+export async function serveGetNeighborhood(
     playerId: number,
     data: GetNeighborhoodCommand,
 ): Promise<void> {

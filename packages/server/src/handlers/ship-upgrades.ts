@@ -27,7 +27,7 @@ async function isAtClass0OrStarbase(
     return portClass === 0;
 }
 
-export async function handleBuyDrones(playerId: number, data: BuyDronesCommand): Promise<void> {
+export async function serveBuyDrones(playerId: number, data: BuyDronesCommand): Promise<void> {
     const qty = Number(data.quantity);
     if (!Number.isInteger(qty) || qty <= 0) {
         sendError(playerId, 'Invalid quantity');
@@ -86,7 +86,7 @@ export async function handleBuyDrones(playerId: number, data: BuyDronesCommand):
     }
 }
 
-export async function handleBuyShields(playerId: number, data: BuyShieldsCommand): Promise<void> {
+export async function serveBuyShields(playerId: number, data: BuyShieldsCommand): Promise<void> {
     const { quantity } = data;
     const qty = Number(quantity);
     if (!Number.isInteger(qty) || qty <= 0) {
@@ -146,7 +146,7 @@ export async function handleBuyShields(playerId: number, data: BuyShieldsCommand
     }
 }
 
-export async function handleBuyHolds(playerId: number, data: BuyHoldsCommand): Promise<void> {
+export async function serveBuyHolds(playerId: number, data: BuyHoldsCommand): Promise<void> {
     const { quantity } = data;
     const qty = Number(quantity);
     if (!Number.isInteger(qty) || qty <= 0) {

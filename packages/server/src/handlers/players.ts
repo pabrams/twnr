@@ -4,7 +4,7 @@ import { sendEnvelope } from '../state/messaging.js';
 
 /** Snapshot of the in-memory player registry filtered to the caller's
  *  universe. Used by the Players-Online command. */
-export function handlePlayersOnline(playerId: number): void {
+export function servePlayersOnline(playerId: number): void {
     const callerUniverse = players[playerId]?.universeId;
     const online = Object.entries(players)
         .filter(([, p]) => p.universeId === callerUniverse)

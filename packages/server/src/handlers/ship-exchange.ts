@@ -29,7 +29,7 @@ function calculateShipPrice(shipType: {
     );
 }
 
-export async function handleBuyShipTradein(
+export async function serveBuyShipTradein(
     playerId: number,
     data: BuyShipTradeinCommand,
 ): Promise<void> {
@@ -133,7 +133,7 @@ export async function handleBuyShipTradein(
     }
 }
 
-export async function handleBuyShipNew(playerId: number, data: BuyShipNewCommand): Promise<void> {
+export async function serveBuyShipNew(playerId: number, data: BuyShipNewCommand): Promise<void> {
     const { targetShipName } = data;
     const universeId = getPlayerUniverseId(playerId);
     if (universeId === undefined) return;
