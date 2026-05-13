@@ -38,10 +38,7 @@ export async function askLine(ctx: PromptCtx, prompt: string): Promise<string | 
  * (newline-separated). Returns null if the user cancels by pressing Q on an
  * otherwise-empty line at the start (no lines collected yet).
  */
-export async function askMultiLine(
-    ctx: PromptCtx,
-    linePrompt: string,
-): Promise<string | null> {
+export async function askMultiLine(ctx: PromptCtx, linePrompt: string): Promise<string | null> {
     const lines: string[] = [];
     while (true) {
         ctx.io.term.write(linePrompt);

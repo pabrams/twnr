@@ -39,10 +39,8 @@ export const PANEL = makeDomain('PANEL', {
 
     deployedDronesEmpty: '[g]No drones deployed.[/g]',
     deployedDronesTitle: '                 [bc]Deployed  Drone  Scan[/bc]',
-    deployedDronesColumns:
-        ' [bw]Sector      Drones    Personal/Clan    Mode        Tolls[/bw]',
-    deployedDronesRule:
-        '[g]===========================================================[/g]',
+    deployedDronesColumns: ' [bw]Sector      Drones    Personal/Clan    Mode        Tolls[/bw]',
+    deployedDronesRule: '[g]===========================================================[/g]',
     deployedDronesRow:
         '  [bc]{sector}[/bc]      [bc]{qty}[/bc]      [bc]{kind}[/bc]   [g]{mode}[/g]   [w]{tolls}[/w]',
     deployedDronesTotalsRow:
@@ -52,8 +50,7 @@ export const PANEL = makeDomain('PANEL', {
     deployedMinesTitle: '       [bc]Deployed  {label}  Scan[/bc]',
     deployedMinesColumns: ' [bw]Sector      Mines     Personal/Clan[/bw]',
     deployedMinesRule: '[g]====================================[/g]',
-    deployedMinesRow:
-        '  [bc]{sector}[/bc]      [bc]{qty}[/bc]      [bc]{kind}[/bc]',
+    deployedMinesRow: '  [bc]{sector}[/bc]      [bc]{qty}[/bc]      [bc]{kind}[/bc]',
     deployedMinesTotalsRow: '              [bc]{qty} Total[/bc]',
 
     limpetScanTitle: 'Activated  [bc]Limpet  Scan[/bc]',

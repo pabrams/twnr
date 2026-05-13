@@ -50,9 +50,7 @@ export const listDeployedMines: Handler<'listDeployedMinesResult', MinesContext>
         );
         total += m.quantity;
     }
-    ctx.io.term.writeln(
-        render(PANEL.deployedMinesTotalsRow, { qty: String(total).padStart(4) }),
-    );
+    ctx.io.term.writeln(render(PANEL.deployedMinesTotalsRow, { qty: String(total).padStart(4) }));
 };
 
 export const trackSeekerMines: Handler<'trackSeekerMinesResult', MinesContext> = (ctx, msg) => {

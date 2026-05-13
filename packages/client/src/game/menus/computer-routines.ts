@@ -119,10 +119,7 @@ registerRoutine('list_deployed_mines', async (ctx) => {
 registerRoutine('active_ship_scan', async (ctx) => {
     echoCommand(ctx, 'activeShipScan');
     ctx.io.sendMsg({ type: ClientTag.ListOwnedShips });
-    const response = await awaitResponse(ctx, [
-        ServerTag.ListOwnedShipsResult,
-        ServerTag.Error,
-    ]);
+    const response = await awaitResponse(ctx, [ServerTag.ListOwnedShipsResult, ServerTag.Error]);
     if (response === null) return;
     if (response.type !== ServerTag.ListOwnedShipsResult) return;
     renderActiveShipScan(ctx, response);
@@ -134,10 +131,7 @@ registerRoutine('change_ship_ownership', async (ctx) => {
     if (ch === null) return;
     const ownership = ch === 'p' ? 'personal' : 'clan';
     ctx.io.sendMsg({ type: ClientTag.ChangeShipOwnership, ownership });
-    const result = await awaitResponse(ctx, [
-        ServerTag.ChangeShipOwnershipResult,
-        ServerTag.Error,
-    ]);
+    const result = await awaitResponse(ctx, [ServerTag.ChangeShipOwnershipResult, ServerTag.Error]);
     if (result === null) return;
     if (result.type !== ServerTag.ChangeShipOwnershipResult) return;
     ctx.io.term.writeln(

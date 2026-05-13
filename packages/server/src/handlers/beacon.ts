@@ -13,10 +13,7 @@ import {
     insertSectorBeacon,
     deleteSectorBeacon,
 } from '../db/queries/beacons.js';
-import {
-    getShipDronesForUpdate,
-    setShipDrones,
-} from '../db/queries/ship.js';
+import { getShipDronesForUpdate, setShipDrones } from '../db/queries/ship.js';
 import { isInEncounter } from '../services/encounter.js';
 
 const BEACON_HW_NAME = 'buoy';

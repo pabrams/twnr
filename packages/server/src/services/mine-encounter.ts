@@ -233,12 +233,7 @@ export async function resolveSeekerMines(playerId: number): Promise<{
     } else if (outcome.newOwnerClanId !== null) {
         const members = await getClanMembers(outcome.newOwnerClanId);
         for (const m of members) {
-            await insertSystemMemo(
-                m.id,
-                'Deployed Drones',
-                'limpet_activated',
-                activationBody,
-            );
+            await insertSystemMemo(m.id, 'Deployed Drones', 'limpet_activated', activationBody);
         }
     }
 

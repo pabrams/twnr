@@ -32,10 +32,7 @@ export async function serveGetAttackTargets(playerId: number): Promise<void> {
     });
 }
 
-export async function serveAttackShip(
-    attackerId: number,
-    data: AttackShipCommand,
-): Promise<void> {
+export async function serveAttackShip(attackerId: number, data: AttackShipCommand): Promise<void> {
     const { targetPlayerId, drones } = data;
     if (!Number.isInteger(drones) || drones <= 0) {
         sendError(attackerId, 'Invalid number of drones');

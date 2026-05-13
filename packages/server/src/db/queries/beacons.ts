@@ -54,9 +54,6 @@ export async function insertSectorBeacon(
     );
 }
 
-export async function deleteSectorBeacon(
-    sectorDbId: number,
-    db: Queryable = pool,
-): Promise<void> {
+export async function deleteSectorBeacon(sectorDbId: number, db: Queryable = pool): Promise<void> {
     await db.query('DELETE FROM sector_beacons WHERE sector_id = $1', [sectorDbId]);
 }

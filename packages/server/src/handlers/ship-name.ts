@@ -2,10 +2,7 @@ import { ServerTag } from '@twnr/shared';
 import type { SetShipNameCommand } from '@twnr/shared';
 import { players, getPlayerUniverseId } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
-import {
-    getStartingShipTypeByName,
-    insertStartingShip,
-} from '../db/queries/ship.js';
+import { getStartingShipTypeByName, insertStartingShip } from '../db/queries/ship.js';
 import { setPlayerShipId } from '../db/queries/player.js';
 import { getUniverseEditDefaults } from '../db/queries/universe.js';
 import { universeConfig } from '../universe-config.js';
@@ -26,10 +23,7 @@ function validateName(raw: string): { ok: true; name: string } | { ok: false; me
     return { ok: true, name };
 }
 
-export async function serveSetShipName(
-    playerId: number,
-    data: SetShipNameCommand,
-): Promise<void> {
+export async function serveSetShipName(playerId: number, data: SetShipNameCommand): Promise<void> {
     const v = validateName(data.name);
     if (!v.ok) {
         sendEnvelope(playerId, {
@@ -89,5 +83,4 @@ export async function serveSetShipName(
     player.shipId = newShipId;
 
     sendEnvelope(playerId, { type: ServerTag.SetShipNameResult, outcome: 'ok' });
-
 }

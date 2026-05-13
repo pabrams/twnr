@@ -149,7 +149,7 @@ function onInput(ctx: GameContext, line: string) {
     }
     // Per-file `input` handler runs first if registered, including for
     // empty Enter, since some menus (qty prompts) interpret empty as
-    // "accept default" rather than "re-render". 
+    // "accept default" rather than "re-render".
     const handler = getMenuHandler(ctx.world.mode);
     const result = handler?.input ? handler.input(ctx, line) : dispatchByRegistry(ctx, line);
 

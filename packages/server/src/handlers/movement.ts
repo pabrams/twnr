@@ -123,19 +123,20 @@ export async function serveMove(playerId: number, data: MoveCommand): Promise<vo
                 owner.sectorId = targetSectorId;
             }
         }
-        towedAlong = towState.towed_owner_player_id !== null
-            ? {
-                  kind: 'manned',
-                  name: towState.towed_owner_player_name ?? '',
-                  shipTypeDisplayName: towState.towed_ship_type_display_name,
-                  shipTypeName: towState.towed_ship_name,
-              }
-            : {
-                  kind: 'unmanned',
-                  name: towState.towed_ship_name,
-                  shipTypeDisplayName: towState.towed_ship_type_display_name,
-                  shipTypeName: towState.towed_ship_name,
-              };
+        towedAlong =
+            towState.towed_owner_player_id !== null
+                ? {
+                      kind: 'manned',
+                      name: towState.towed_owner_player_name ?? '',
+                      shipTypeDisplayName: towState.towed_ship_type_display_name,
+                      shipTypeName: towState.towed_ship_name,
+                  }
+                : {
+                      kind: 'unmanned',
+                      name: towState.towed_ship_name,
+                      shipTypeDisplayName: towState.towed_ship_type_display_name,
+                      shipTypeName: towState.towed_ship_name,
+                  };
         // Player-piloted tow target gets a mail+notification of the move.
         if (towState.towed_owner_player_id !== null) {
             const { notifyAndMail } = await import('../services/notify.js');

@@ -83,10 +83,7 @@ async function doTransfer(
         quantity: qty,
         mineType,
     });
-    const result = await awaitResponse(ctx, [
-        ServerTag.ClanTransferResult,
-        ServerTag.Error,
-    ]);
+    const result = await awaitResponse(ctx, [ServerTag.ClanTransferResult, ServerTag.Error]);
     if (result === null || result.type !== ServerTag.ClanTransferResult) return;
     ctx.io.term.writeln(
         render(CLAN.transferSuccess, {
@@ -133,10 +130,7 @@ registerRoutine('clan_set_password', async (ctx) => {
         return;
     }
     ctx.io.sendMsg({ type: ClientTag.ClanSetPassword, newPassword: pw1 });
-    const result = await awaitResponse(ctx, [
-        ServerTag.ClanSetPasswordResult,
-        ServerTag.Error,
-    ]);
+    const result = await awaitResponse(ctx, [ServerTag.ClanSetPasswordResult, ServerTag.Error]);
     if (result === null || result.type !== ServerTag.ClanSetPasswordResult) return;
     ctx.io.term.writeln(render(CLAN.setPasswordSuccess));
 });
@@ -152,10 +146,7 @@ registerRoutine('clan_drop_member', async (ctx) => {
     });
     if (!ok) return;
     ctx.io.sendMsg({ type: ClientTag.ClanDropMember, targetPlayerId: target.playerId });
-    const result = await awaitResponse(ctx, [
-        ServerTag.ClanDropMemberResult,
-        ServerTag.Error,
-    ]);
+    const result = await awaitResponse(ctx, [ServerTag.ClanDropMemberResult, ServerTag.Error]);
     if (result === null || result.type !== ServerTag.ClanDropMemberResult) return;
     ctx.io.term.writeln(render(CLAN.dropSuccess, { name: result.droppedName }));
 });
@@ -245,10 +236,7 @@ registerRoutine('clan_leave', async (ctx) => {
         const ok = await askConfirm(ctx, render(CLAN.dissolveConfirm), { defaultValue: false });
         if (!ok) return;
         ctx.io.sendMsg({ type: ClientTag.ClanLeave, confirmDissolve: true });
-        const result = await awaitResponse(ctx, [
-            ServerTag.ClanLeaveResult,
-            ServerTag.Error,
-        ]);
+        const result = await awaitResponse(ctx, [ServerTag.ClanLeaveResult, ServerTag.Error]);
         if (result === null) return;
         if (result.type !== ServerTag.ClanLeaveResult) return;
         ctx.player.clanId = null;

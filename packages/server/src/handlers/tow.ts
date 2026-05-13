@@ -1,9 +1,5 @@
 import { ServerTag } from '@twnr/shared';
-import type {
-    TowAttachCommand,
-    TowableMannedEntry,
-    TowableUnmannedEntry,
-} from '@twnr/shared';
+import type { TowAttachCommand, TowableMannedEntry, TowableUnmannedEntry } from '@twnr/shared';
 import { players } from '../state/players.js';
 import { sendEnvelope } from '../state/messaging.js';
 import { withTransaction, AbortTransaction } from '../db/index.js';
@@ -99,10 +95,7 @@ export async function serveTowSpacecraft(playerId: number): Promise<void> {
     });
 }
 
-export async function serveTowAttach(
-    playerId: number,
-    data: TowAttachCommand,
-): Promise<void> {
+export async function serveTowAttach(playerId: number, data: TowAttachCommand): Promise<void> {
     const player = players[playerId];
     if (!player) return;
 

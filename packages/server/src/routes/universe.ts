@@ -7,11 +7,7 @@ import {
     listUniversesForUser,
     getUniverseEditDefaults,
 } from '../db/queries/universe.js';
-import {
-    insertPlayer,
-    listPlayersInUniverse,
-    markSectorVisited,
-} from '../db/queries/player.js';
+import { insertPlayer, listPlayersInUniverse, markSectorVisited } from '../db/queries/player.js';
 import { getSectorDbId } from '../db/queries/sector.js';
 
 export function createUniverseRoutes(

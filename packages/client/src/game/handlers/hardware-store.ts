@@ -87,4 +87,3 @@ export const hardwareStoreInfo: Handler<'hardwareStoreInfoResult', HardwareStore
     ctx.starbase.hardwareStoreItems = msg.items;
     showHardwareMenu(ctx);
 };
-

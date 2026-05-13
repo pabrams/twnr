@@ -29,8 +29,7 @@ export const densityScan: Handler<'densityScanResult', DensityCtx> = (ctx, msg) 
     }
 };
 
-type VisualCtx = Pick<GameContext, 'catalogs' | 'io' | 'minimap' | 'player' | 'world'> &
-    DisplayCtx;
+type VisualCtx = Pick<GameContext, 'catalogs' | 'io' | 'minimap' | 'player' | 'world'> & DisplayCtx;
 
 /** Paint each adjacent sector as a full sector display, one after the
  *  other. We don't update `world.currentSector` etc. — the player is

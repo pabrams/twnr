@@ -174,10 +174,9 @@ export async function getTowingPlayerForShip(
     shipId: number,
     db: Queryable = pool,
 ): Promise<number | null> {
-    const res = await db.query<{ id: number }>(
-        'SELECT id FROM players WHERE towed_ship_id = $1',
-        [shipId],
-    );
+    const res = await db.query<{ id: number }>('SELECT id FROM players WHERE towed_ship_id = $1', [
+        shipId,
+    ]);
     return res.rows[0]?.id ?? null;
 }
 
@@ -189,8 +188,8 @@ export async function moveTowedShip(
     db: Queryable = pool,
 ): Promise<void> {
     await db.query('UPDATE ships SET sector_id = $1 WHERE id = $2', [destSectorDbId, towedShipId]);
-    await db.query(
-        'UPDATE players SET current_sector_id = $1 WHERE ship_id = $2',
-        [destSectorDbId, towedShipId],
-    );
+    await db.query('UPDATE players SET current_sector_id = $1 WHERE ship_id = $2', [
+        destSectorDbId,
+        towedShipId,
+    ]);
 }
