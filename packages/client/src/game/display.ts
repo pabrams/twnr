@@ -5,22 +5,36 @@ import { render } from './renderer.js';
 import { COMMAND, SECTOR, HELP, HELP_LINES, PORT, COMMON } from './messages/index.js';
 import { showPrompt } from './menus/types.js';
 
-/** Render an OwnershipInfo into the proper template:
- *  - player: "owned by Bob"
- *  - clan:   "owned by clan #2: Crimson Tide"
- *  - rogue:  "Rogue"
- */
-function renderOwnership(ownership: OwnershipInfo): string {
+function renderOwnership(
+    ownership: OwnershipInfo,
+    viewerPlayerId: number,
+    viewerClanId: number | null,
+): string {
     if (ownership.kind === 'player') {
+        if (ownership.playerId === viewerPlayerId) {
+            return render(SECTOR.ownershipYours);
+        }
         return render(SECTOR.ownershipPlayer, { name: ownership.name });
     }
     if (ownership.kind === 'clan') {
+        if (viewerClanId !== null && ownership.clanId === viewerClanId) {
+            return render(SECTOR.ownershipYourClan);
+        }
         return render(SECTOR.ownershipClan, {
             num: ownership.clanNumber,
             name: ownership.name,
         });
     }
     return render(SECTOR.ownershipRogue);
+}
+
+/** True iff this row's ownership belongs to the viewer's clan (not them personally). */
+function isOwnClan(ownership: OwnershipInfo, viewerClanId: number | null): boolean {
+    return (
+        ownership.kind === 'clan' &&
+        viewerClanId !== null &&
+        ownership.clanId === viewerClanId
+    );
 }
 
 export type DisplayCtx = Pick<GameContext, 'catalogs' | 'io' | 'minimap' | 'player' | 'world'>;
@@ -87,13 +101,20 @@ export function showSectorDisplay(
     }
 
     if (sectorDrones && sectorDrones.quantity > 0) {
+        const viewerClanId = ctx.player.clanId;
         if (sectorDrones.ownerId === ctx.player.id) {
             term.writeln(render(SECTOR.dronesYours, { qty: sectorDrones.quantity }));
+        } else if (isOwnClan(sectorDrones.ownership, viewerClanId)) {
+            term.writeln(render(SECTOR.dronesYourClan, { qty: sectorDrones.quantity }));
         } else {
             term.writeln(
                 render(SECTOR.dronesEnemy, {
                     qty: sectorDrones.quantity,
-                    ownership: renderOwnership(sectorDrones.ownership),
+                    ownership: renderOwnership(
+                        sectorDrones.ownership,
+                        ctx.player.id,
+                        viewerClanId,
+                    ),
                 }),
             );
         }
@@ -135,16 +156,17 @@ export function showSectorDisplay(
     }
 
     if (ships && ships.length > 0) {
+        const viewerClanId = ctx.player.clanId;
         ships.forEach((s, i) => {
             // Use the colored display name verbatim when present
             const item = s.typeDisplayName
                 ? render(SECTOR.shipItem, {
                       nameColored: s.typeDisplayName,
-                      ownership: renderOwnership(s.ownership),
+                      ownership: renderOwnership(s.ownership, ctx.player.id, viewerClanId),
                   })
                 : render(SECTOR.shipItemPlain, {
                       type: s.typeName,
-                      ownership: renderOwnership(s.ownership),
+                      ownership: renderOwnership(s.ownership, ctx.player.id, viewerClanId),
                   });
             term.writeln(
                 render(i === 0 ? SECTOR.shipsLine : SECTOR.shipsContinuation, { item }),
@@ -153,19 +175,45 @@ export function showSectorDisplay(
     }
 
     if (sectorMines && sectorMines.length > 0) {
+        const viewerClanId = ctx.player.clanId;
         const proximity = sectorMines.filter((m) => m.mineType === 'proximity');
         const limpets = sectorMines.filter((m) => m.mineType === 'seeker');
-        const proxTotal = proximity.reduce((n, m) => n + m.quantity, 0);
-        const limpetTotal = limpets.reduce((n, m) => n + m.quantity, 0);
-        const proxOwn = proximity.length > 0 && proximity.every((m) => m.own);
-        const limpetOwn = limpets.length > 0 && limpets.every((m) => m.own);
-        if (proxTotal > 0) {
-            const tpl = proxOwn ? SECTOR.minesLine : SECTOR.minesLineEnemy;
-            term.writeln(render(tpl, { qty: proxTotal }));
+        const renderMineLine = (
+            row: { quantity: number; ownership: OwnershipInfo },
+            ownTpl: string,
+            yourClanTpl: string,
+            enemyTpl: string,
+        ) => {
+            const isMine =
+                row.ownership.kind === 'player' && row.ownership.playerId === ctx.player.id;
+            if (isMine) {
+                term.writeln(render(ownTpl, { qty: row.quantity }));
+            } else if (isOwnClan(row.ownership, viewerClanId)) {
+                term.writeln(render(yourClanTpl, { qty: row.quantity }));
+            } else {
+                term.writeln(
+                    render(enemyTpl, {
+                        qty: row.quantity,
+                        ownership: renderOwnership(row.ownership, ctx.player.id, viewerClanId),
+                    }),
+                );
+            }
+        };
+        if (proximity[0]) {
+            renderMineLine(
+                proximity[0],
+                SECTOR.minesLine,
+                SECTOR.minesLineYourClan,
+                SECTOR.minesLineEnemy,
+            );
         }
-        if (limpetTotal > 0) {
-            const tpl = limpetOwn ? SECTOR.limpetsLine : SECTOR.limpetsLineEnemy;
-            term.writeln(render(tpl, { qty: limpetTotal }));
+        if (limpets[0]) {
+            renderMineLine(
+                limpets[0],
+                SECTOR.limpetsLine,
+                SECTOR.limpetsLineYourClan,
+                SECTOR.limpetsLineEnemy,
+            );
         }
     }
 
