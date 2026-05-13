@@ -10,9 +10,8 @@ import {
     createUser,
     getUserByEmail,
 } from '../db/queries/user.js';
-import { insertPlayer, setPlayerShipId, markSectorVisited } from '../db/queries/player.js';
+import { insertPlayer, markSectorVisited } from '../db/queries/player.js';
 import { getSectorDbId } from '../db/queries/sector.js';
-import { getStartingShipTypeByName, insertStartingShip } from '../db/queries/ship.js';
 import { getFirstUniverseId, getUniverseEditDefaults } from '../db/queries/universe.js';
 import { bootstrapUniverse } from '../services/universe-bootstrap.js';
 
@@ -124,9 +123,6 @@ export function createAuthRoutes(router: Router, deps: RouteDeps, middleware: Mi
             const startingTurns = editDefaults?.starting_turns ?? universeConfig.startingTurns;
             const startingCredits =
                 editDefaults?.starting_credits ?? universeConfig.startingCredits;
-            const startingShip = editDefaults?.starting_ship ?? universeConfig.startingShip;
-            const startingDrones = editDefaults?.starting_drones ?? universeConfig.startingDrones;
-
             const startSectorId = await getSectorDbId(startSector, universeId);
             if (startSectorId === undefined) {
                 throw new HttpError(500, 'Starting sector not found');
@@ -141,20 +137,6 @@ export function createAuthRoutes(router: Router, deps: RouteDeps, middleware: Mi
                 startingTurns,
             );
 
-            const startShipType = await getStartingShipTypeByName(startingShip);
-            if (startShipType) {
-                const newShipId = await insertStartingShip(
-                    playerId,
-                    universeId,
-                    startShipType.id,
-                    startSectorId,
-                    startingDrones,
-                    universeConfig.startingShields,
-                    startShipType.starting_holds,
-                    startShipType.turns_per_warp,
-                );
-                await setPlayerShipId(playerId, newShipId);
-            }
 
             await markSectorVisited(playerId, startSectorId);
 
@@ -191,11 +173,6 @@ export function createAuthRoutes(router: Router, deps: RouteDeps, middleware: Mi
             if (!user || !verifyPassword(password, user.password_hash)) {
                 throw new HttpError(401, 'Invalid credentials');
             }
-
-            // Site auth is independent of per-universe online state.
-            // Destroyed-ship cooldown is enforced at WebSocket connect time
-            // for the specific universe the user tries to enter — see
-            // `tryRespawnPlayer` in services/respawn.ts.
 
             const token = signPlayerToken({
                 userId: user.id,

@@ -1,5 +1,8 @@
 import { ClientTag, type ClientEnvelope } from '@twnr/shared';
 import { sendError } from '../state/messaging.js';
+import { players } from '../state/players.js';
+import { getPendingShipPurchase } from '../state/pending-ship-purchases.js';
+import { serveSetShipName } from './ship-name.js';
 import { serveVisitedSectors } from './visited.js';
 import { servePlayersOnline } from './players.js';
 import {
@@ -153,9 +156,22 @@ const handlers: HandlerMap = {
     [ClientTag.AttackBeacon]: serveAttackBeacon,
     [ClientTag.DensityScan]: serveDensityScan,
     [ClientTag.VisualScan]: serveVisualScan,
+    [ClientTag.SetShipName]: serveSetShipName,
 };
 
 export async function routeMessage(playerId: number, data: ClientEnvelope): Promise<void> {
+    // Naming gate: while the player has no ship (initial / post-respawn) or a
+    // pending ship purchase, the only command we accept is SetShipName.
+    if (data.type !== ClientTag.SetShipName) {
+        const player = players[playerId];
+        const needsName =
+            player !== undefined &&
+            (player.shipId === null || getPendingShipPurchase(playerId) !== undefined);
+        if (needsName) {
+            sendError(playerId, 'Name your ship first.');
+            return;
+        }
+    }
     const handler = handlers[data.type] as
         | ((pid: number, d: ClientEnvelope) => void | Promise<void>)
         | undefined;

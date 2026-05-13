@@ -68,4 +68,11 @@ export const EVENT = makeDomain('EVENT', {
     noPlanetsToLand:
         "\r\n[g]There's no planet in this sector.[/g]" +
         '\r\n[g]You can create one with a terraform device.[/g]',
+
+    shipNamePromptInitial: '\r\n[bc]You have been issued a {type}.[/bc]\r\n[by]Name your ship: [/by]',
+    shipNamePromptRespawn:
+        '\r\n[bc]You have been issued a fresh {type}.[/bc]\r\n[by]Name your ship: [/by]',
+    shipNamePromptBuyNew: '\r\n[by]Name your new {type}: [/by]',
+    shipNamePromptTradein: '\r\n[by]Name your new {type}: [/by]',
+    shipNameInvalid: '[br]{message}[/br]',
 });

@@ -101,6 +101,8 @@ export const ServerTag = {
     ProximityMineHit: 'proximityMineHit',
     SeekerMineAttached: 'seekerMineAttached',
     SeekerMinePickupAlert: 'seekerMinePickupAlert',
+    ShipNameRequired: 'shipNameRequired',
+    SetShipNameResult: 'setShipNameResult',
 } as const;
 type ServerTag = typeof ServerTag;
 
@@ -172,5 +174,6 @@ export const ClientTag = {
     AttackBeacon: 'attackBeacon',
     DensityScan: 'densityScan',
     VisualScan: 'visualScan',
+    SetShipName: 'setShipName',
 } as const;
 type ClientTag = typeof ClientTag;

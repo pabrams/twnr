@@ -276,6 +276,7 @@ export const connectDB = async (): Promise<void> => {
         id SERIAL PRIMARY KEY,
         universe_id INTEGER NOT NULL REFERENCES universes(id) ON DELETE CASCADE,
         universe_ship_number INTEGER NOT NULL,
+        name TEXT NOT NULL,
         owner_player_id INTEGER REFERENCES players(id) ON DELETE SET NULL,
         owner_clan_id INTEGER REFERENCES clans(id) ON DELETE SET NULL,
         ship_type_id INTEGER NOT NULL REFERENCES ship_types(id),

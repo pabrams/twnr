@@ -28,6 +28,21 @@ function renderOwnership(
     return render(SECTOR.ownershipRogue);
 }
 
+function renderShipOwnership(
+    ownership: OwnershipInfo,
+    viewerPlayerId: number,
+    viewerClanId: number | null,
+): string {
+    if (ownership.kind === 'player' && ownership.playerId !== viewerPlayerId) {
+        const clanSuffix =
+            ownership.ownerClanNumber !== null
+                ? render(SECTOR.traderClanSuffix, { num: ownership.ownerClanNumber })
+                : '';
+        return render(SECTOR.ownershipPlayerOwnedBy, { name: ownership.name, clanSuffix });
+    }
+    return renderOwnership(ownership, viewerPlayerId, viewerClanId);
+}
+
 /** True iff this row's ownership belongs to the viewer's clan (not them personally). */
 function isOwnClan(ownership: OwnershipInfo, viewerClanId: number | null): boolean {
     return (
@@ -139,24 +154,44 @@ export function showSectorDisplay(ctx: DisplayCtx, data: SectorDisplayData) {
 
     if (players.length > 0) {
         players.forEach((p, i) => {
-            const item = render(SECTOR.playerItem, { name: p.name });
+            const clanSuffix =
+                p.clanNumber !== null ? render(SECTOR.traderClanSuffix, { num: p.clanNumber }) : '';
+            const item = p.shipTypeDisplayName
+                ? render(SECTOR.traderItemColored, {
+                      name: p.name,
+                      clanSuffix,
+                      drones: p.drones,
+                      shipName: p.shipName,
+                      shipTypeColored: p.shipTypeDisplayName,
+                  })
+                : render(SECTOR.traderItemPlain, {
+                      name: p.name,
+                      clanSuffix,
+                      drones: p.drones,
+                      shipName: p.shipName,
+                      shipType: p.shipTypeName,
+                  });
             term.writeln(
-                render(i === 0 ? SECTOR.playersLine : SECTOR.playersContinuation, { item }),
+                render(i === 0 ? SECTOR.tradersLine : SECTOR.tradersContinuation, { item }),
             );
         });
     }
 
     if (ships && ships.length > 0) {
         ships.forEach((s, i) => {
-            // Use the colored display name verbatim when present
+            const ownership = renderShipOwnership(s.ownership, viewerId, viewerClanId);
             const item = s.typeDisplayName
-                ? render(SECTOR.shipItem, {
-                      nameColored: s.typeDisplayName,
-                      ownership: renderOwnership(s.ownership, viewerId, viewerClanId),
+                ? render(SECTOR.shipItemColored, {
+                      shipName: s.name,
+                      shipTypeColored: s.typeDisplayName,
+                      ownership,
+                      drones: s.drones,
                   })
                 : render(SECTOR.shipItemPlain, {
-                      type: s.typeName,
-                      ownership: renderOwnership(s.ownership, viewerId, viewerClanId),
+                      shipName: s.name,
+                      shipType: s.typeName,
+                      ownership,
+                      drones: s.drones,
                   });
             term.writeln(
                 render(i === 0 ? SECTOR.shipsLine : SECTOR.shipsContinuation, { item }),

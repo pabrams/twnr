@@ -436,15 +436,16 @@ export async function insertEmptyShip(
     sectorId: number,
     holds: number,
     turnsPerWarp: number,
+    name: string,
     db: Queryable = pool,
 ): Promise<number> {
     const res = await db.query<{ id: number }>(
-        `INSERT INTO ships (universe_id, universe_ship_number, owner_player_id, ship_type_id, sector_id, drones, shields, holds, turns_per_warp, fuel, organics, equipment, colonists)
+        `INSERT INTO ships (universe_id, universe_ship_number, name, owner_player_id, ship_type_id, sector_id, drones, shields, holds, turns_per_warp, fuel, organics, equipment, colonists)
          SELECT $1,
                 COALESCE((SELECT MAX(universe_ship_number) FROM ships WHERE universe_id = $1), 0) + 1,
-                $2, $3, $4, 0, 0, $5, $6, 0, 0, 0, 0
+                $2, $3, $4, $5, 0, 0, $6, $7, 0, 0, 0, 0
          RETURNING id`,
-        [universeId, ownerId, shipTypeId, sectorId, holds, turnsPerWarp],
+        [universeId, name, ownerId, shipTypeId, sectorId, holds, turnsPerWarp],
     );
     return res.rows[0].id;
 }
@@ -620,6 +621,8 @@ export async function getPlayerShipFull(
 /** Partial ship_types info needed for respawning a player on a starting ship. */
 export type StartingShipTypeRow = {
     id: number;
+    name: string;
+    display_name: string;
     starting_holds: number;
     turns_per_warp: number;
 };
@@ -628,13 +631,13 @@ export async function getStartingShipTypeByName(
     db: Queryable = pool,
 ): Promise<StartingShipTypeRow | undefined> {
     const res = await db.query<StartingShipTypeRow>(
-        'SELECT id, starting_holds, turns_per_warp FROM ship_types WHERE name = $1',
+        'SELECT id, name, display_name, starting_holds, turns_per_warp FROM ship_types WHERE name = $1',
         [name],
     );
     return res.rows[0];
 }
 
-/** Create a starting ship for a respawning player; returns its id. */
+/** Create a starting ship for a respawning or just-registered player; returns its id. */
 export async function insertStartingShip(
     ownerId: number,
     universeId: number,
@@ -644,15 +647,16 @@ export async function insertStartingShip(
     shields: number,
     holds: number,
     turnsPerWarp: number,
+    name: string,
     db: Queryable = pool,
 ): Promise<number> {
     const res = await db.query<{ id: number }>(
-        `INSERT INTO ships (universe_id, universe_ship_number, owner_player_id, ship_type_id, sector_id, drones, shields, holds, turns_per_warp)
+        `INSERT INTO ships (universe_id, universe_ship_number, name, owner_player_id, ship_type_id, sector_id, drones, shields, holds, turns_per_warp)
          SELECT $1,
                 COALESCE((SELECT MAX(universe_ship_number) FROM ships WHERE universe_id = $1), 0) + 1,
-                $2, $3, $4, $5, $6, $7, $8
+                $2, $3, $4, $5, $6, $7, $8, $9
          RETURNING id`,
-        [universeId, ownerId, shipTypeId, sectorId, drones, shields, holds, turnsPerWarp],
+        [universeId, name, ownerId, shipTypeId, sectorId, drones, shields, holds, turnsPerWarp],
     );
     return res.rows[0].id;
 }
@@ -712,8 +716,10 @@ export async function getAbandonedShipsInSector(
 ): Promise<
     {
         id: number;
+        shipName: string;
         typeName: string;
         typeDisplayName: string | null;
+        drones: number;
         owner_player_id: number | null;
         owner_clan_id: number | null;
         owner_player_name: string | null;
@@ -723,26 +729,33 @@ export async function getAbandonedShipsInSector(
 > {
     const res = await db.query<{
         id: number;
+        ship_name: string;
         type_name: string;
         type_display_name: string | null;
+        drones: number;
         owner_player_id: number | null;
         owner_clan_id: number | null;
         owner_player_name: string | null;
+        owner_player_clan_number: number | null;
         owner_clan_name: string | null;
         owner_clan_number: number | null;
     }>(
         `SELECT sh.id,
+                sh.name AS ship_name,
                 st.name AS type_name,
                 st.display_name AS type_display_name,
+                sh.drones,
                 sh.owner_player_id,
                 sh.owner_clan_id,
                 p.name AS owner_player_name,
+                pc.universe_clan_number AS owner_player_clan_number,
                 c.name AS owner_clan_name,
                 c.universe_clan_number AS owner_clan_number
          FROM ships sh
          JOIN ship_types st ON sh.ship_type_id = st.id
          JOIN sectors s ON sh.sector_id = s.id
          LEFT JOIN players p ON sh.owner_player_id = p.id
+         LEFT JOIN clans pc ON p.clan_id = pc.id
          LEFT JOIN clans c ON sh.owner_clan_id = c.id
          WHERE s.sector_number = $1 AND s.universe_id = $2
            AND NOT EXISTS (SELECT 1 FROM players p2 WHERE p2.ship_id = sh.id)`,
@@ -750,11 +763,14 @@ export async function getAbandonedShipsInSector(
     );
     return res.rows.map((r) => ({
         id: r.id,
+        shipName: r.ship_name,
         typeName: r.type_name,
         typeDisplayName: r.type_display_name,
+        drones: r.drones,
         owner_player_id: r.owner_player_id,
         owner_clan_id: r.owner_clan_id,
         owner_player_name: r.owner_player_name,
+        owner_player_clan_number: r.owner_player_clan_number,
         owner_clan_name: r.owner_clan_name,
         owner_clan_number: r.owner_clan_number,
     }));

@@ -32,14 +32,21 @@ export const SECTOR = makeDomain('SECTOR', {
     warpUnvisited: '[mg]([/mg][br]{sector}[/br][mg])[/mg]',
     warpSeparator: ' [g]-[/g] ',
 
-    playersLine: '[mg]Players[/mg] [by]:[/by] {item}',
-    playersContinuation: '          {item}',
-    playerItem: '[by]{name}[/by]',
+    tradersLine: '[mg]Traders[/mg] [by]:[/by] {item}',
+    tradersContinuation: '          {item}',
+    traderItemColored:
+        '[by]{name}[/by]{clanSuffix}[by],[/by] w/ [bc]{drones}[/bc] ftrs, in [by]{shipName}[/by] [mg]([/mg]{shipTypeColored}[mg])[/mg]',
+    traderItemPlain:
+        '[by]{name}[/by]{clanSuffix}[by],[/by] w/ [bc]{drones}[/bc] ftrs, in [by]{shipName}[/by] [mg]([/mg][bc]{shipType}[/bc][mg])[/mg]',
+    traderClanSuffix: ' [mg][[/mg][bc]{num}[/bc][mg]][/mg]',
 
     shipsLine: '[mg]Ships[/mg]   [by]:[/by] {item}',
     shipsContinuation: '          {item}',
-    shipItem: '{nameColored} [mg]([/mg]{ownership}[mg])[/mg]',
-    shipItemPlain: '[bc]{type}[/bc] [mg]([/mg]{ownership}[mg])[/mg]',
+    shipItemColored:
+        '[by]{shipName}[/by] [mg]([/mg]{shipTypeColored}[mg], [/mg]{ownership}[mg])[/mg] w/ [bc]{drones}[/bc] ftrs',
+    shipItemPlain:
+        '[by]{shipName}[/by] [mg]([/mg][bc]{shipType}[/bc][mg], [/mg]{ownership}[mg])[/mg] w/ [bc]{drones}[/bc] ftrs',
+    ownershipPlayerOwnedBy: '[w]Owned by[/w] [by]{name}[/by]{clanSuffix}',
 
     minesLine: '[mg]Mines[/mg]   [by]:[/by] [bc]{qty}[/bc] [mg](yours)[/mg]',
     minesLineYourClan: '[mg]Mines[/mg]   [by]:[/by] [bc]{qty}[/bc] [mg](belong to your clan)[/mg]',

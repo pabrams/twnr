@@ -14,6 +14,10 @@ import { shipConfigs } from './ship-config.js';
 import { players } from './state/players.js';
 import { sendEnvelope, sendError, broadcastTo } from './state/messaging.js';
 import { routeMessage } from './handlers/message-router.js';
+import { clearPendingShipPurchase } from './state/pending-ship-purchases.js';
+import { getStartingShipTypeByName } from './db/queries/ship.js';
+import { getUniverseEditDefaults } from './db/queries/universe.js';
+import { universeConfig } from './universe-config.js';
 import { getUserTokenVersion, markUserConnected, isGuestUser } from './db/queries/user.js';
 import {
     getPlayerConnectInfo,
@@ -229,6 +233,23 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
         };
         await sendEnvelope(playerId, welcomeMsg);
 
+        // If the player has no ship (initial register or post-respawn), prompt
+        // for a ship name. The naming gate in routeMessage blocks all other
+        // commands until SetShipName arrives.
+        if (playerRow.ship_id === null) {
+            const editDefaults = await getUniverseEditDefaults(universeId);
+            const startShipName = editDefaults?.starting_ship ?? universeConfig.startingShip;
+            const startShipType = await getStartingShipTypeByName(startShipName);
+            if (startShipType) {
+                await sendEnvelope(playerId, {
+                    type: ServerTag.ShipNameRequired,
+                    reason: respawn.kind === 'respawned' ? 'respawn' : 'initial',
+                    shipTypeName: startShipType.name,
+                    shipTypeDisplayName: startShipType.display_name,
+                });
+            }
+        }
+
         let tokens = 50;
         const refillInterval = setInterval(() => {
             tokens = Math.min(50, tokens + 20);
@@ -287,6 +308,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
 
         ws.on('close', () => {
             clearInterval(refillInterval);
+            clearPendingShipPurchase(playerId);
             const lastSector = players[playerId]?.sector;
             const lastUniverse = players[playerId]?.universeId;
             delete players[playerId];

@@ -52,7 +52,15 @@ export async function buildSectorDisplayData(playerId: number, sectorNumber?: nu
     const sectorPlayerRows = await listPlayersInSector(sector, universeId, playerId);
     const playersInSector = sectorPlayerRows
         .filter((row) => isVisibleInSector(row.id, row.docked, row.on_planet_id))
-        .map((row) => ({ id: row.id, name: row.name }));
+        .map((row) => ({
+            id: row.id,
+            name: row.name,
+            clanNumber: row.clan_number,
+            shipName: row.ship_name ?? '',
+            shipTypeName: row.ship_type_name ?? '',
+            shipTypeDisplayName: row.ship_display_name,
+            drones: row.ship_drones,
+        }));
 
     const beaconRow = sectorDbId !== undefined ? await getSectorBeacon(sectorDbId) : undefined;
     const beacon = beaconRow

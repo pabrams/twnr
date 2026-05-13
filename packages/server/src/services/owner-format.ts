@@ -15,6 +15,7 @@ export type OwnerJoinCols = {
     owner_player_id: number | null;
     owner_clan_id: number | null;
     owner_player_name?: string | null;
+    owner_player_clan_number?: number | null;
     owner_clan_name?: string | null;
     owner_clan_number?: number | null;
 };
@@ -35,6 +36,7 @@ export function ownershipFrom(row: OwnerJoinCols): OwnershipInfo {
             kind: 'player',
             name: row.owner_player_name ?? '',
             playerId: row.owner_player_id,
+            ownerClanNumber: row.owner_player_clan_number ?? null,
         };
     }
     if (row.owner_clan_id !== null && row.owner_clan_id !== undefined) {
