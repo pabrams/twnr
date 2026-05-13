@@ -336,8 +336,8 @@ export function renderActiveShipScan(
         const ownerStr =
             s.ownerClanId !== null
                 ? 'clan'
-                : s.ownerPlayerId !== null
-                  ? s.ownerLabel
+                : s.ownerPlayerId === ctx.player.id
+                  ? 'you'
                   : s.ownerLabel;
         term.writeln(
             render(COMPUTER.activeShipScanRow, {
