@@ -4,7 +4,7 @@ import { render } from '../renderer.js';
 import { EVENT, SECTOR } from '../messages/index.js';
 import { type DisplayCtx } from '../display.js';
 import { showDroneEncounter, showAttackMenu, type DisplayCombatCtx } from '../display-combat.js';
-import { askConfirm, askNumber, askDeployOwnership, awaitResponse } from '../menus/prompts.js';
+import { askConfirm, awaitResponse } from '../menus/prompts.js';
 import type { Handler } from './index.js';
 
 type CombatContext = Pick<GameContext, 'autopilot' | 'encounter' | 'input' | 'io' | 'world'> &
@@ -58,27 +58,6 @@ export const getAttackTargets: Handler<'getAttackTargetsResult', CombatContext> 
     }
     if (msg.players.length > 0) ctx.world.mode = Menu.Attack;
     showAttackMenu(ctx);
-};
-
-export const deployDronesInfo: Handler<'deployDronesInfoResult'> = async (ctx, msg) => {
-    const total = msg.shipDrones + msg.sectorDrones;
-    const minInSector = Math.max(0, total - msg.shipMaxDrones);
-    ctx.io.term.writeln('');
-    ctx.io.term.writeln(
-        render(EVENT.deployDronesInfo, {
-            total,
-            max: msg.shipMaxDrones,
-            minInSector,
-        }),
-    );
-    const qty = await askNumber(ctx, render(EVENT.deployDronesPrompt, { minInSector }), {
-        min: 0,
-        defaultValue: -1,
-    });
-    if (qty === null) return;
-    const ownership = await askDeployOwnership(ctx, render(EVENT.deployOwnershipPrompt));
-    if (ownership === null) return;
-    ctx.io.sendMsg({ type: ClientTag.DeployDrones, quantity: qty, ownership });
 };
 
 export const deployDrones: Handler<'deployDronesResult', CombatContext> = (ctx, msg) => {

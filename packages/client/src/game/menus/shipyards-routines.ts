@@ -1,4 +1,4 @@
-import { ClientTag, Menu, type ShipCatalogEntry } from '@twnr/shared';
+import { ClientTag, Menu, ServerTag, type ShipCatalogEntry } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { echoCommand } from '../display.js';
@@ -11,9 +11,10 @@ import {
 } from '../display-starbase.js';
 import { showShipDetail } from '../display-computer.js';
 import { class0QtyPreamble } from '../display-port.js';
-import { COMMON, COMPUTER, NOTIFY, STARBASE } from '../messages/index.js';
+import { COMMON, COMPUTER, EVENT, NOTIFY, STARBASE } from '../messages/index.js';
 import { registerRoutine } from './types.js';
-import { askChar, askConfirm, askNumber } from './prompts.js';
+import { askChar, askConfirm, askNumber, awaitResponse } from './prompts.js';
+import { promptShipName } from '../handlers/ship-name.js';
 
 function calculateShipPrice(ship: ShipCatalogEntry): number {
     return (
@@ -59,11 +60,30 @@ registerRoutine('buy_ship', async (ctx) => {
         showTradeinInfo(ctx, ship.display_name ?? ship.name, price, tradein);
         const yes = await askConfirm(ctx, render(STARBASE.tradeinConfirm));
         if (yes === null) continue;
-        if (yes) {
-            ctx.io.sendMsg({ type: ClientTag.BuyShipTradein, targetShipName: ship.name });
-        } else {
-            ctx.io.sendMsg({ type: ClientTag.BuyShipNew, targetShipName: ship.name });
-        }
+        const isTradein = yes;
+        ctx.io.sendMsg(
+            isTradein
+                ? { type: ClientTag.BuyShipTradein, targetShipName: ship.name }
+                : { type: ClientTag.BuyShipNew, targetShipName: ship.name },
+        );
+        // Server validates the buy, then pushes ShipNameRequired so we can
+        // ask the player to name the new ship. Once SetShipName completes,
+        // the server commits the purchase and sends BuyShipNew/TradeinResult.
+        const nameReq = await awaitResponse(ctx, [ServerTag.ShipNameRequired, ServerTag.Error]);
+        if (nameReq === null) return;
+        if (nameReq.type !== ServerTag.ShipNameRequired) return;
+        const typeLabel = nameReq.shipTypeDisplayName ?? nameReq.shipTypeName;
+        const promptTpl = isTradein
+            ? EVENT.shipNamePromptTradein
+            : EVENT.shipNamePromptBuyNew;
+        await promptShipName(ctx, promptTpl, typeLabel);
+        // The buy-result handler (handlers/ship-exchange.ts) renders the
+        // "ship purchased / traded" message + updates ctx.ship state when
+        // the response arrives; we just wait so the routine owns the paint.
+        await awaitResponse(ctx, [
+            isTradein ? ServerTag.BuyShipTradeinResult : ServerTag.BuyShipNewResult,
+            ServerTag.Error,
+        ]);
         return;
     }
 });
