@@ -23,6 +23,8 @@ import {
 import { checkAndDeductTurns } from '../turn-logic.js';
 import { cargoUsed, formatCargo } from './cargo-utils.js';
 import { recordCreditChange } from '../services/audit.js';
+import { getTowingPlayerForShip, clearTowedShip } from '../db/queries/tow.js';
+import { getPlayerShipId } from '../db/queries/player.js';
 
 const EMPTY_CARGO = { fuel: 0, organics: 0, equipment: 0, colonists: 0 };
 
@@ -104,6 +106,25 @@ export async function serveDock(playerId: number): Promise<void> {
     player.docked = true;
     await setDocked(playerId, true);
 
+    // Docking breaks any tow this player is currently a target of. The
+    // towing player keeps their tow when *they* dock — that's symmetric with
+    // moves, where only the towed player's action breaks the beam.
+    let freedFromTow = false;
+    const shipId = await getPlayerShipId(playerId);
+    if (shipId !== null) {
+        const towerId = await getTowingPlayerForShip(shipId);
+        if (towerId !== null && towerId !== playerId) {
+            await clearTowedShip(towerId);
+            freedFromTow = true;
+            if (players[towerId]) {
+                sendEnvelope(towerId, {
+                    type: ServerTag.TowReleasedAlert,
+                    towedName: player.name,
+                });
+            }
+        }
+    }
+
     const cargoOut = cargo ? formatCargo(cargo) : EMPTY_CARGO;
     const emptyHolds = Math.max(0, (cargo?.cargo_limit ?? 0) - cargoUsed(cargoOut));
     const credits = cargo?.credits ?? 0;
@@ -119,6 +140,7 @@ export async function serveDock(playerId: number): Promise<void> {
             credits,
             cargo: cargoOut,
             emptyHolds,
+            ...(freedFromTow ? ({ freedFromTow: true } as const) : {}),
             shipInfo: ship
                 ? {
                       shipName: ship.ship_name,
@@ -141,6 +163,7 @@ export async function serveDock(playerId: number): Promise<void> {
         credits,
         cargo: cargoOut,
         emptyHolds,
+        ...(freedFromTow ? ({ freedFromTow: true } as const) : {}),
     });
 }
 

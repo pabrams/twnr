@@ -332,3 +332,127 @@ registerRoutine('transporter_pad', async (ctx) => {
         paintScan(scan);
     }
 });
+
+registerRoutine('tow_spacecraft', async (ctx) => {
+    echoCommand(ctx, 'towSpacecraft');
+    ctx.io.sendMsg({ type: ClientTag.TowSpacecraft });
+    const reply = await awaitResponse(ctx, [ServerTag.TowSpacecraftResult, ServerTag.Error]);
+    if (reply === null) return;
+    if (reply.type !== ServerTag.TowSpacecraftResult) return;
+
+    if (reply.outcome === 'disengaged') {
+        ctx.io.term.writeln(render(EVENT.towDisengaged));
+        return;
+    }
+    if (reply.outcome === 'none') {
+        ctx.io.term.writeln(render(EVENT.towNoShips));
+        return;
+    }
+
+    const { manned, unmanned, sector } = reply;
+    const viewerId = ctx.player.id;
+    const viewerClanId = ctx.player.clanId;
+
+    const renderClanSuffix = (n: number | null) =>
+        n !== null ? render(EVENT.towClanSuffix, { num: n }) : '';
+
+    const renderUnmannedOwnership = (o: typeof unmanned[number]['ownership']): string => {
+        if (o.kind === 'player') {
+            const clanSuffix = renderClanSuffix(o.ownerClanNumber);
+            return render(SECTOR.ownershipPlayerOwnedBy, { name: o.name, clanSuffix });
+        }
+        if (o.kind === 'clan') {
+            if (viewerClanId !== null && o.clanId === viewerClanId) {
+                return render(SECTOR.ownershipYourClan);
+            }
+            return render(SECTOR.ownershipClan, { num: o.clanNumber, name: o.name });
+        }
+        return render(SECTOR.ownershipRogue);
+    };
+
+    const finalizeAttach = async (shipId: number) => {
+        ctx.io.sendMsg({ type: ClientTag.TowAttach, shipId });
+        const attach = await awaitResponse(ctx, [ServerTag.TowAttachResult, ServerTag.Error]);
+        if (attach === null) return;
+        if (attach.type !== ServerTag.TowAttachResult) return;
+        if (attach.outcome === 'ok') {
+            ctx.io.term.writeln(
+                render(EVENT.towEngaged, { message: attach.message, tpw: attach.turnsPerWarp }),
+            );
+        } else {
+            ctx.io.term.writeln(render(EVENT.towAttachError, { message: attach.message }));
+        }
+    };
+
+    if (manned.length > 0) {
+        const wantManned = await askConfirm(ctx, render(EVENT.towMannedConfirm), {
+            defaultValue: false,
+        });
+        if (wantManned === null) return;
+        if (wantManned) {
+            ctx.io.term.writeln(render(EVENT.towMannedHeading));
+            manned.forEach((p, i) => {
+                const clanSuffix = renderClanSuffix(p.clanNumber);
+                const tpl = p.shipTypeDisplayName
+                    ? EVENT.towMannedItemColored
+                    : EVENT.towMannedItemPlain;
+                ctx.io.term.writeln(
+                    render(tpl, {
+                        index: i + 1,
+                        name: p.playerName,
+                        clanSuffix,
+                        drones: p.drones,
+                        shipName: p.shipName,
+                        shipTypeColored: p.shipTypeDisplayName ?? '',
+                        shipType: p.shipTypeName,
+                    }),
+                );
+            });
+            if (manned.every((p) => p.drones > 0)) {
+                ctx.io.term.writeln(render(EVENT.towCannotMannedWithDrones));
+                return;
+            }
+            const idx = await askNumber(ctx, render(EVENT.towSelectPrompt), {
+                min: 1,
+                max: manned.length,
+            });
+            if (idx === null) return;
+            const picked = manned[idx - 1];
+            if (picked.drones > 0) {
+                ctx.io.term.writeln(render(EVENT.towCannotMannedWithDrones));
+                return;
+            }
+            await finalizeAttach(picked.shipId);
+            return;
+        }
+    }
+
+    if (unmanned.length > 0) {
+        ctx.io.term.writeln(render(EVENT.towUnmannedHeading, { sector }));
+        unmanned.forEach((s, i) => {
+            const tpl = s.shipTypeDisplayName
+                ? EVENT.towUnmannedItemColored
+                : EVENT.towUnmannedItemPlain;
+            ctx.io.term.writeln(
+                render(tpl, {
+                    index: i + 1,
+                    shipName: s.shipName,
+                    shipTypeColored: s.shipTypeDisplayName ?? '',
+                    shipType: s.shipTypeName,
+                    ownership: renderUnmannedOwnership(s.ownership),
+                    drones: s.drones,
+                }),
+            );
+        });
+        const idx = await askNumber(ctx, render(EVENT.towSelectPrompt), {
+            min: 1,
+            max: unmanned.length,
+        });
+        if (idx === null) return;
+        await finalizeAttach(unmanned[idx - 1].shipId);
+        return;
+    }
+
+    // Manned existed but answered No, and no unmanned available: silent end.
+    void viewerId;
+});

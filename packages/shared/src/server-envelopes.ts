@@ -24,12 +24,20 @@ export type WelcomeEvent = {
     clanId: number | null;
 };
 
+export type TowedAlong = {
+    kind: 'manned' | 'unmanned';
+    name: string;
+    shipTypeDisplayName: string | null;
+    shipTypeName: string;
+};
+
 export type PlayerMovedEvent = {
     type: typeof ServerTag.PlayerMoved;
     playerId: number;
     playerName: string;
     sector: number;
     direction: 'in' | 'out';
+    towedAlong?: TowedAlong;
 };
 
 export type OwnershipInfo =
@@ -98,6 +106,8 @@ export type MoveReply =
           type: typeof ServerTag.MoveResult;
           outcome: 'success';
           turnsUsed?: number;
+          towedAlong?: TowedAlong;
+          freedFromTow?: true;
       } & SectorDisplayData)
     | ({
           type: typeof ServerTag.MoveResult;
@@ -107,6 +117,8 @@ export type MoveReply =
           shipDrones: number;
           retreatSector: number;
           turnsUsed?: number;
+          towedAlong?: TowedAlong;
+          freedFromTow?: true;
       } & SectorDisplayData)
     | { type: typeof ServerTag.MoveResult; outcome: 'nonAdjacent'; sector: number }
     | { type: typeof ServerTag.MoveResult; outcome: 'noShip' }
@@ -245,6 +257,8 @@ export type DockReply = {
     credits?: number;
     cargo?: { fuel: number; organics: number; equipment: number; colonists: number };
     emptyHolds?: number;
+    /** Set when docking broke the player out of an active tow. */
+    freedFromTow?: true;
     /** Included when docking at a Class-0 port — drives the Commerce report UI. */
     shipInfo?: {
         shipName: string;
@@ -889,6 +903,56 @@ export type SetShipNameReply = {
     message?: string;
 };
 
+export type TowableMannedEntry = {
+    playerId: number;
+    playerName: string;
+    clanNumber: number | null;
+    shipId: number;
+    shipName: string;
+    shipTypeName: string;
+    shipTypeDisplayName: string | null;
+    drones: number;
+};
+
+export type TowableUnmannedEntry = {
+    shipId: number;
+    shipName: string;
+    shipTypeName: string;
+    shipTypeDisplayName: string | null;
+    drones: number;
+    ownership: OwnershipInfo;
+};
+
+export type TowSpacecraftReply =
+    | { type: typeof ServerTag.TowSpacecraftResult; outcome: 'disengaged'; message: string }
+    | { type: typeof ServerTag.TowSpacecraftResult; outcome: 'none' }
+    | {
+          type: typeof ServerTag.TowSpacecraftResult;
+          outcome: 'options';
+          sector: number;
+          manned: TowableMannedEntry[];
+          unmanned: TowableUnmannedEntry[];
+      };
+
+export type TowAttachReply =
+    | {
+          type: typeof ServerTag.TowAttachResult;
+          outcome: 'ok';
+          message: string;
+          turnsPerWarp: number;
+      }
+    | { type: typeof ServerTag.TowAttachResult; outcome: 'error'; message: string };
+
+export type TowReleasedAlertEvent = {
+    type: typeof ServerTag.TowReleasedAlert;
+    towedName: string;
+};
+
+export type TowAttachedAlertEvent = {
+    type: typeof ServerTag.TowAttachedAlert;
+    towingName: string;
+};
+
 export type ServerEnvelope =
     | WelcomeEvent
     | PlayerMovedEvent
@@ -972,4 +1036,8 @@ export type ServerEnvelope =
     | MemoDeliveryEvent
     | ShipNameRequiredEvent
     | SetShipNameReply
+    | TowSpacecraftReply
+    | TowAttachReply
+    | TowReleasedAlertEvent
+    | TowAttachedAlertEvent
     | ErrorReply;

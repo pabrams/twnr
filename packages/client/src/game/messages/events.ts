@@ -69,6 +69,37 @@ export const EVENT = makeDomain('EVENT', {
         "\r\n[g]There's no planet in this sector.[/g]" +
         '\r\n[g]You can create one with a terraform device.[/g]',
 
+    towNoShips: '\r\n[bg]There are no ships in this sector to tow.[/bg]',
+    towDisengaged: '\r\n[bc]You shut off your Tractor Beam.[/bc]',
+    towMannedConfirm:
+        '\r\n[by]Do you want to tow a manned ship?[/by] [mg]([/mg][by]Y[/by]/[by]N[/by][mg]) [N][/mg] ',
+    towMannedHeading: '\r\n                 [mg]--<[/mg]  [by]Manned Ships in Sector[/by] [mg]>--[/mg]',
+    towUnmannedHeading:
+        '\r\n                       [mg]--<[/mg] [by]Available ships in Sector ({sector})[/by] [mg]>--[/mg]',
+    towMannedItemColored:
+        '[bc]{index}-[/bc] [by]{name}[/by]{clanSuffix}[by],[/by] w/ [bc]{drones}[/bc] drones, in [by]{shipName}[/by] [mg]([/mg]{shipTypeColored}[mg])[/mg]',
+    towMannedItemPlain:
+        '[bc]{index}-[/bc] [by]{name}[/by]{clanSuffix}[by],[/by] w/ [bc]{drones}[/bc] drones, in [by]{shipName}[/by] [mg]([/mg][bc]{shipType}[/bc][mg])[/mg]',
+    towUnmannedItemColored:
+        '[bc]{index}-[/bc] [by]{shipName}[/by] [mg]([/mg]{shipTypeColored}[mg], [/mg]{ownership}[mg])[/mg] w/ [bc]{drones}[/bc] drones',
+    towUnmannedItemPlain:
+        '[bc]{index}-[/bc] [by]{shipName}[/by] [mg]([/mg][bc]{shipType}[/bc][mg], [/mg]{ownership}[mg])[/mg] w/ [bc]{drones}[/bc] drones',
+    towClanSuffix: ' [mg][[/mg][bc]{num}[/bc][mg]][/mg]',
+    towCannotMannedWithDrones: '\r\n[br]You cannot tow a manned ship that has fighters on it.[/br]',
+    towSelectPrompt:
+        '\r\n[by]Which ship do you want to tow?[/by] [mg]([/mg]1/.../[by]Q[/by][mg]) [Q][/mg] ',
+    towEngaged: '\r\n[bc]{message}[/bc]\r\n [g]It will now cost you[/g] [by]{tpw}[/by] [g]turns for every sector you move.[/g]',
+    towAttachError: '\r\n[br]{message}[/br]',
+    towFreedFromTow: '[bc]You are released from the tractor beam as you leave the sector.[/bc]',
+    towFreedByDock: '[bc]You are released from the tractor beam as you dock.[/bc]',
+    towReleasedAlert: '\r\n[bc]{name} is no longer locked in tow.[/bc]',
+    towAttachedAlert: '\r\n[bc]{name} locks a tractor beam on your ship.[/bc]',
+    towedAlongManned: ' [bc]{name} enters the sector with you.[/bc]',
+    towedAlongUnmanned: ' [bc]The {name} (ship) enters the sector with you.[/bc]',
+    playerMovedTowedManned: '[bc] {towedName} (trader in tow) {verb} the sector with {moverName}.[/bc]',
+    playerMovedTowedUnmanned:
+        '[bc] The {towedName} (ship in tow) {verb} the sector with {moverName}.[/bc]',
+
     shipNamePromptInitial: '\r\n[bc]You have been issued a {type}.[/bc]\r\n[by]Name your ship: [/by]',
     shipNamePromptRespawn:
         '\r\n[bc]You have been issued a fresh {type}.[/bc]\r\n[by]Name your ship: [/by]',

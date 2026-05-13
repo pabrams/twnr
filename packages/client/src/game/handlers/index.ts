@@ -15,6 +15,7 @@ import * as clan from './clan.js';
 import * as drones from './drones.js';
 import * as longRangeScan from './long-range-scan.js';
 import * as shipName from './ship-name.js';
+import * as tow from './tow.js';
 
 type ServerResultByType = {
     [R in ServerEnvelope as R['type']]: R;
@@ -101,6 +102,9 @@ const handlers: HandlerMap = {
     [ServerTag.VisualScanResult]: longRangeScan.visualScan,
 
     [ServerTag.ShipNameRequired]: shipName.shipNameRequired,
+
+    [ServerTag.TowReleasedAlert]: tow.towReleasedAlert,
+    [ServerTag.TowAttachedAlert]: tow.towAttachedAlert,
 };
 
 /** Returns the handler's result — `undefined` for sync handlers, a Promise

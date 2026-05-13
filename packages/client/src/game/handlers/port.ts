@@ -7,7 +7,7 @@ import {
 } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
-import { NOTIFY, TRANSACTION, PORT } from '../messages/index.js';
+import { EVENT, NOTIFY, TRANSACTION, PORT } from '../messages/index.js';
 import { showCommerceReport, showSectorDisplay, type DisplayCtx } from '../display.js';
 import { type DisplayPortCtx } from '../display-port.js';
 import { type DisplayStarbaseCtx } from '../display-starbase.js';
@@ -29,6 +29,7 @@ type CommodityKey = keyof PortClassActions;
 export const dock: Handler<'dockResult', PortContext> = (ctx, msg) => {
     if (!msg.docked || !msg.port) return;
     ctx.world.dockedPortInfo = msg.port;
+    if (msg.freedFromTow) ctx.io.term.writeln(render(EVENT.towFreedByDock));
     if (msg.port.class === 0) {
         ctx.world.mode = Menu.Class0;
         if (msg.shipInfo) {

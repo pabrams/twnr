@@ -3,6 +3,7 @@ import { sendError } from '../state/messaging.js';
 import { players } from '../state/players.js';
 import { getPendingShipPurchase } from '../state/pending-ship-purchases.js';
 import { serveSetShipName } from './ship-name.js';
+import { serveTowSpacecraft, serveTowAttach } from './tow.js';
 import { serveVisitedSectors } from './visited.js';
 import { servePlayersOnline } from './players.js';
 import {
@@ -157,6 +158,8 @@ const handlers: HandlerMap = {
     [ClientTag.DensityScan]: serveDensityScan,
     [ClientTag.VisualScan]: serveVisualScan,
     [ClientTag.SetShipName]: serveSetShipName,
+    [ClientTag.TowSpacecraft]: serveTowSpacecraft,
+    [ClientTag.TowAttach]: serveTowAttach,
 };
 
 export async function routeMessage(playerId: number, data: ClientEnvelope): Promise<void> {

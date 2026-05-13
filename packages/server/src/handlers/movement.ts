@@ -21,6 +21,14 @@ import {
 } from '../db/queries/sector.js';
 import { deductTurns, fetchMoveTurnContext } from '../turn-logic.js';
 import { resolveMinesOnEntry } from '../services/mine-encounter.js';
+import {
+    getTowState,
+    moveTowedShip,
+    getTowingPlayerForShip,
+    clearTowedShip,
+} from '../db/queries/tow.js';
+import { combinedTurnsPerWarp } from './tow.js';
+import type { TowedAlong } from '@twnr/shared';
 
 export async function serveMove(playerId: number, data: MoveCommand): Promise<void> {
     const targetSector = data.sector;
@@ -57,6 +65,12 @@ export async function serveMove(playerId: number, data: MoveCommand): Promise<vo
         return;
     }
 
+    // If this player's ship is currently being towed by another player,
+    // their move breaks them free of the tractor beam. Resolve who owns
+    // the beam so we can notify them after the move completes.
+    const towerId = await getTowingPlayerForShip(ctx.shipId);
+    const freedFromTow = towerId !== null && towerId !== playerId;
+
     const currentSector = player.sector;
     if (!warps[currentSector]?.includes(targetSector)) {
         sendEnvelope(playerId, {
@@ -67,7 +81,11 @@ export async function serveMove(playerId: number, data: MoveCommand): Promise<vo
         return;
     }
 
-    const turnResult = await deductTurns(playerId, ctx.turnsPerWarp, ctx);
+    const towState = await getTowState(playerId);
+    const effectiveTpw = towState
+        ? combinedTurnsPerWarp(ctx.turnsPerWarp, towState.towed_ship_turns_per_warp)
+        : ctx.turnsPerWarp;
+    const turnResult = await deductTurns(playerId, effectiveTpw, ctx);
     if (!turnResult.allowed) {
         sendEnvelope(playerId, {
             type: ServerTag.MoveResult,
@@ -92,6 +110,34 @@ export async function serveMove(playerId: number, data: MoveCommand): Promise<vo
         markSectorVisited(playerId, targetSectorId),
     ]);
 
+    let towedAlong: TowedAlong | undefined;
+    if (towState) {
+        await moveTowedShip(towState.towed_ship_id, targetSectorId);
+        // Mirror sector in the in-memory player record if the towed ship has
+        // an online owner. They get a passive sector update; their next
+        // re-display will reflect it.
+        if (towState.towed_owner_player_id !== null) {
+            const owner = players[towState.towed_owner_player_id];
+            if (owner) {
+                owner.sector = targetSector;
+                owner.sectorId = targetSectorId;
+            }
+        }
+        towedAlong = towState.towed_owner_player_id !== null
+            ? {
+                  kind: 'manned',
+                  name: towState.towed_owner_player_name ?? '',
+                  shipTypeDisplayName: towState.towed_ship_type_display_name,
+                  shipTypeName: towState.towed_ship_name,
+              }
+            : {
+                  kind: 'unmanned',
+                  name: towState.towed_ship_name,
+                  shipTypeDisplayName: towState.towed_ship_type_display_name,
+                  shipTypeName: towState.towed_ship_name,
+              };
+    }
+
     const oldSectorClients = new Set<WebSocket>();
     const newSectorClients = new Set<WebSocket>();
     for (const [idStr, p] of Object.entries(players)) {
@@ -108,6 +154,7 @@ export async function serveMove(playerId: number, data: MoveCommand): Promise<vo
             playerName: player.name,
             sector: targetSector,
             direction: 'out',
+            towedAlong,
         },
         oldSectorClients,
     );
@@ -118,9 +165,24 @@ export async function serveMove(playerId: number, data: MoveCommand): Promise<vo
             playerName: player.name,
             sector: targetSector,
             direction: 'in',
+            towedAlong,
         },
         newSectorClients,
     );
+
+    // The towed player broke free by moving on their own — clear the tower's
+    // pointer and alert them. Towed player itself gets `freedFromTow: true`
+    // on their MoveResult below.
+    if (freedFromTow && towerId !== null) {
+        await clearTowedShip(towerId);
+        const towerOnline = players[towerId];
+        if (towerOnline) {
+            sendEnvelope(towerId, {
+                type: ServerTag.TowReleasedAlert,
+                towedName: player.name,
+            });
+        }
+    }
 
     // Resolve any enemy mines in the destination sector. Proximity mines may
     // damage or destroy the ship before the player can do anything; seeker
@@ -159,6 +221,8 @@ export async function serveMove(playerId: number, data: MoveCommand): Promise<vo
             shipDrones,
             retreatSector: currentSector,
             turnsUsed: turnResult.turnsUsed,
+            towedAlong,
+            ...(freedFromTow ? ({ freedFromTow: true } as const) : {}),
         });
 
         // Alert the owner about the intrusion (skip for rogue drones)
@@ -182,6 +246,8 @@ export async function serveMove(playerId: number, data: MoveCommand): Promise<vo
         outcome: 'success',
         ...sectorData,
         turnsUsed: turnResult.turnsUsed,
+        towedAlong,
+        ...(freedFromTow ? ({ freedFromTow: true } as const) : {}),
     });
 }
 

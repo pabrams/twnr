@@ -117,6 +117,13 @@ export const MENU_REGISTRY: MenuEntry[] = [
                 sortOrder: 91,
             },
             {
+                command: 'tow_spacecraft',
+                keyPattern: 'w',
+                label: 'Tow Spacecraft',
+                targetMenu: null,
+                sortOrder: 92,
+            },
+            {
                 command: 'jettison_menu',
                 keyPattern: 'j',
                 label: 'Jettison cargo',

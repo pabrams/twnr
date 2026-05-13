@@ -225,6 +225,15 @@ export type SetShipNameCommand = {
     name: string;
 };
 
+export type TowSpacecraftCommand = {
+    type: typeof ClientTag.TowSpacecraft;
+};
+
+export type TowAttachCommand = {
+    type: typeof ClientTag.TowAttach;
+    shipId: number;
+};
+
 export type TransportToShipCommand = {
     type: typeof ClientTag.TransportToShip;
     shipId: number;
@@ -403,6 +412,8 @@ export type ClientEnvelope =
     | DensityScanCommand
     | VisualScanCommand
     | SetShipNameCommand
+    | TowSpacecraftCommand
+    | TowAttachCommand
     | ClanCreateCommand
     | ClanJoinCommand
     | ClanLeaveCommand
