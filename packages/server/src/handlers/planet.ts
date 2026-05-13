@@ -458,9 +458,10 @@ function parsePlanetCommodity(playerId: number, commodity: string): PlanetCommod
  * in one envelope. `result` carries the message-specific fields (quantity,
  * commodity, totals); the sector data is merged in. Use whenever a planet
  * action ends with the player back in the sector. */
-async function liftoffWithResult<
-    T extends { type: (typeof ServerTag)[keyof typeof ServerTag] },
->(playerId: number, result: T): Promise<void> {
+async function liftoffWithResult<T extends { type: (typeof ServerTag)[keyof typeof ServerTag] }>(
+    playerId: number,
+    result: T,
+): Promise<void> {
     await setOnPlanet(playerId, null);
     const sectorData = await buildSectorDisplayData(playerId);
     if (!sectorData) return;
@@ -802,10 +803,7 @@ async function readShipCommodity(playerId: number, col: PlanetCommodity): Promis
 /** O (Claim Planet): take ownership of the planet the player is currently
  *  on (works on enemy planets too). `ownership='clan'` is only valid if
  *  the player is in a clan. */
-export async function serveClaimPlanet(
-    playerId: number,
-    data: ClaimPlanetCommand,
-): Promise<void> {
+export async function serveClaimPlanet(playerId: number, data: ClaimPlanetCommand): Promise<void> {
     const { ownership } = data;
     const player = players[playerId];
     if (!player) return;

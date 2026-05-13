@@ -127,11 +127,10 @@ registerRoutine('handle_mines_menu', async (ctx) => {
         }),
     );
 
-    const qty = await askNumber(
-        ctx,
-        render(EVENT.handleMinesPrompt, { label }),
-        { min: 0, defaultValue: -1 },
-    );
+    const qty = await askNumber(ctx, render(EVENT.handleMinesPrompt, { label }), {
+        min: 0,
+        defaultValue: -1,
+    });
     if (qty === null) return;
     const ownership = await askDeployOwnership(ctx, '\r\nOwnership (P)ersonal, (C)lan, (Q)? ');
     if (ownership === null) return;
@@ -238,10 +237,7 @@ registerRoutine('transporter_pad', async (ctx) => {
 
     const fetchScan = async () => {
         ctx.io.sendMsg({ type: ClientTag.ListOwnedShips });
-        const reply = await awaitResponse(ctx, [
-            ServerTag.ListOwnedShipsResult,
-            ServerTag.Error,
-        ]);
+        const reply = await awaitResponse(ctx, [ServerTag.ListOwnedShipsResult, ServerTag.Error]);
         if (reply === null) return null;
         if (reply.type !== ServerTag.ListOwnedShipsResult) return null;
         return reply;
@@ -264,11 +260,10 @@ registerRoutine('transporter_pad', async (ctx) => {
     paintScan(scan);
 
     while (true) {
-        const choice = await askLineWithShortcuts(
-            ctx,
-            render(COMPUTER.transporterPrompt),
-            ['i', '?'],
-        );
+        const choice = await askLineWithShortcuts(ctx, render(COMPUTER.transporterPrompt), [
+            'i',
+            '?',
+        ]);
         if (choice === null) return;
 
         if (choice === '?') {
@@ -287,10 +282,7 @@ registerRoutine('transporter_pad', async (ctx) => {
                 continue;
             }
             ctx.io.sendMsg({ type: ClientTag.GetShipDetail, shipId: target.id });
-            const detail = await awaitResponse(ctx, [
-                ServerTag.ShipDetailResult,
-                ServerTag.Error,
-            ]);
+            const detail = await awaitResponse(ctx, [ServerTag.ShipDetailResult, ServerTag.Error]);
             if (detail === null) continue;
             if (detail.type !== ServerTag.ShipDetailResult) continue;
             renderShipDetail(ctx, detail);
@@ -311,10 +303,7 @@ registerRoutine('transporter_pad', async (ctx) => {
         }
 
         ctx.io.sendMsg({ type: ClientTag.TransportToShip, shipId: target.id });
-        const result = await awaitResponse(ctx, [
-            ServerTag.TransportToShipResult,
-            ServerTag.Error,
-        ]);
+        const result = await awaitResponse(ctx, [ServerTag.TransportToShipResult, ServerTag.Error]);
         if (result === null) return;
         if (result.type !== ServerTag.TransportToShipResult) continue;
 
@@ -356,7 +345,7 @@ registerRoutine('tow_spacecraft', async (ctx) => {
     const renderClanSuffix = (n: number | null) =>
         n !== null ? render(EVENT.towClanSuffix, { num: n }) : '';
 
-    const renderUnmannedOwnership = (o: typeof unmanned[number]['ownership']): string => {
+    const renderUnmannedOwnership = (o: (typeof unmanned)[number]['ownership']): string => {
         if (o.kind === 'player') {
             const clanSuffix = renderClanSuffix(o.ownerClanNumber);
             return render(SECTOR.ownershipPlayerOwnedBy, { name: o.name, clanSuffix });

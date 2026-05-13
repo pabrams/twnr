@@ -33,7 +33,10 @@ export function closeDestroyedSession(playerId: number, reason: string): void {
     player.ws.close(1008, reason);
 }
 
-export function broadcastTo(data: ServerEnvelope, targetClients: Set<WebSocket> | WebSocket[]): void {
+export function broadcastTo(
+    data: ServerEnvelope,
+    targetClients: Set<WebSocket> | WebSocket[],
+): void {
     for (const client of targetClients) {
         if (client.readyState === 1) {
             client.send(frame(data));

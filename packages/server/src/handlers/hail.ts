@@ -7,10 +7,7 @@ import { insertMemo } from '../db/queries/message.js';
 
 const MAX_HAIL_BODY = 2000;
 
-export async function serveHailResolve(
-    playerId: number,
-    data: HailResolveCommand,
-): Promise<void> {
+export async function serveHailResolve(playerId: number, data: HailResolveCommand): Promise<void> {
     const universeId = getPlayerUniverseId(playerId);
     if (universeId === undefined) return;
     const prefix = data.name.trim();
@@ -45,10 +42,7 @@ export async function serveHailResolve(
     });
 }
 
-export async function serveHailSend(
-    playerId: number,
-    data: HailSendCommand,
-): Promise<void> {
+export async function serveHailSend(playerId: number, data: HailSendCommand): Promise<void> {
     const body = data.body;
     if (typeof body !== 'string' || body.trim().length === 0) {
         sendError(playerId, 'Empty message.');

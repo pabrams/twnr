@@ -38,8 +38,7 @@ export async function buildSectorDisplayData(playerId: number, sectorNumber?: nu
             ? (await getSectorMines(sectorDbId))
                   .filter((m) => m.quantity > 0)
                   .filter(
-                      (m) =>
-                          m.mine_type !== 'seeker' || isFriendlyOwner(m, playerId, viewerClanId),
+                      (m) => m.mine_type !== 'seeker' || isFriendlyOwner(m, playerId, viewerClanId),
                   )
                   .map((m) => ({
                       mineType: m.mine_type,

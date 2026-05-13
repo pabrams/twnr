@@ -41,10 +41,11 @@ export async function setPlanetOwnership(
     ownerClanId: number | null,
     db: Queryable = pool,
 ): Promise<void> {
-    await db.query(
-        'UPDATE planets SET owner_player_id = $1, owner_clan_id = $2 WHERE id = $3',
-        [ownerPlayerId, ownerClanId, planetId],
-    );
+    await db.query('UPDATE planets SET owner_player_id = $1, owner_clan_id = $2 WHERE id = $3', [
+        ownerPlayerId,
+        ownerClanId,
+        planetId,
+    ]);
 }
 
 export async function getSectorByNumber(
@@ -390,9 +391,7 @@ export type PlanetOwnershipRow = {
 };
 
 /** Owner info + name + sector number, used by destroy/claim event mail. */
-export async function getPlanetOwnership(
-    planetId: number,
-): Promise<PlanetOwnershipRow | null> {
+export async function getPlanetOwnership(planetId: number): Promise<PlanetOwnershipRow | null> {
     const res = await pool.query<PlanetOwnershipRow>(
         `SELECT pl.name, s.sector_number, pl.owner_player_id, pl.owner_clan_id
          FROM planets pl

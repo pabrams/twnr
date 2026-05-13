@@ -210,6 +210,25 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             getOnPlanetId(playerId),
         ]);
 
+        // If the player is shipless, fold the starting-ship type info into
+        // the Welcome envelope so the client's connect flow can drive the
+        // "name your new ship" prompt directly — no separate ShipNameRequired
+        // round trip on connect.
+        let startingShipForWelcome:
+            | { typeName: string; typeDisplayName: string | null }
+            | undefined;
+        if (playerRow.ship_id === null) {
+            const editDefaults = await getUniverseEditDefaults(universeId);
+            const startShipName = editDefaults?.starting_ship ?? universeConfig.startingShip;
+            const startShipType = await getStartingShipTypeByName(startShipName);
+            if (startShipType) {
+                startingShipForWelcome = {
+                    typeName: startShipType.name,
+                    typeDisplayName: startShipType.display_name,
+                };
+            }
+        }
+
         const welcomeLocation = onPlanetId !== null ? 'planet' : 'sector';
         const welcomeMsg: ServerEnvelope = {
             type: ServerTag.Welcome,
@@ -219,6 +238,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             totalSectors,
             shipName: playerRow.ship_name ?? '',
             coloredShipName: playerRow.ship_display_name ?? null,
+            ...(startingShipForWelcome ? { startingShip: startingShipForWelcome } : {}),
             starbaseSector,
             location: welcomeLocation,
             isGuest: guestFlag,
@@ -233,29 +253,10 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
         };
         await sendEnvelope(playerId, welcomeMsg);
 
-        // If the player has no ship (initial register or post-respawn), prompt
-        // for a ship name. The naming gate in routeMessage blocks all other
-        // commands until SetShipName arrives.
-        if (playerRow.ship_id === null) {
-            const editDefaults = await getUniverseEditDefaults(universeId);
-            const startShipName = editDefaults?.starting_ship ?? universeConfig.startingShip;
-            const startShipType = await getStartingShipTypeByName(startShipName);
-            if (startShipType) {
-                await sendEnvelope(playerId, {
-                    type: ServerTag.ShipNameRequired,
-                    reason: respawn.kind === 'respawned' ? 'respawn' : 'initial',
-                    shipTypeName: startShipType.name,
-                    shipTypeDisplayName: startShipType.display_name,
-                });
-            }
-        }
-
         let tokens = 50;
         const refillInterval = setInterval(() => {
             tokens = Math.min(50, tokens + 20);
         }, 1000);
-
-
 
         ws.on('message', async (message) => {
             if (tokens <= 0) {

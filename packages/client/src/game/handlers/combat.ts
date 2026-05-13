@@ -50,10 +50,7 @@ export const getAttackTargets: Handler<'getAttackTargetsResult', CombatContext> 
         });
         if (ok) {
             ctx.io.sendMsg({ type: ClientTag.AttackBeacon });
-            const reply = await awaitResponse(ctx, [
-                ServerTag.AttackBeaconResult,
-                ServerTag.Error,
-            ]);
+            const reply = await awaitResponse(ctx, [ServerTag.AttackBeaconResult, ServerTag.Error]);
             if (reply && reply.type === ServerTag.AttackBeaconResult && reply.destroyed) {
                 ctx.io.term.writeln(render(SECTOR.attackBeaconDestroyed));
             }

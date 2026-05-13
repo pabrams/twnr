@@ -12,10 +12,11 @@ export async function setShipOwnership(
     ownerClanId: number | null,
     db: Queryable = pool,
 ): Promise<void> {
-    await db.query(
-        'UPDATE ships SET owner_player_id = $1, owner_clan_id = $2 WHERE id = $3',
-        [ownerPlayerId, ownerClanId, shipId],
-    );
+    await db.query('UPDATE ships SET owner_player_id = $1, owner_clan_id = $2 WHERE id = $3', [
+        ownerPlayerId,
+        ownerClanId,
+        shipId,
+    ]);
 }
 
 export async function getShipOwnership(

@@ -39,10 +39,7 @@ function isValidPassword(password: string): boolean {
     return password.length >= 4 && password.length <= 64;
 }
 
-export async function serveClanCreate(
-    playerId: number,
-    data: ClanCreateCommand,
-): Promise<void> {
+export async function serveClanCreate(playerId: number, data: ClanCreateCommand): Promise<void> {
     const { name, password } = data;
     const player = players[playerId];
     if (!player) return;
@@ -99,10 +96,7 @@ export async function serveClanCreate(
     }
 }
 
-export async function serveClanJoin(
-    playerId: number,
-    data: ClanJoinCommand,
-): Promise<void> {
+export async function serveClanJoin(playerId: number, data: ClanJoinCommand): Promise<void> {
     const { name, password } = data;
     const player = players[playerId];
     if (!player) return;
@@ -141,10 +135,7 @@ export async function serveClanJoin(
     });
 }
 
-export async function serveClanLeave(
-    playerId: number,
-    data: ClanLeaveCommand,
-): Promise<void> {
+export async function serveClanLeave(playerId: number, data: ClanLeaveCommand): Promise<void> {
     const successorPlayerId = data.successorPlayerId;
     const confirmDissolve = data.confirmDissolve === true;
     const player = players[playerId];

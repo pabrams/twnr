@@ -90,10 +90,7 @@ export async function serveDeployMineInfo(
     });
 }
 
-export async function serveDeployMine(
-    playerId: number,
-    data: DeployMineCommand,
-): Promise<void> {
+export async function serveDeployMine(playerId: number, data: DeployMineCommand): Promise<void> {
     const { mineType } = data;
     const target = data.quantity;
     const ownership: 'personal' | 'clan' = data.ownership ?? 'personal';
@@ -141,10 +138,7 @@ export async function serveDeployMine(
             if (existing && existing.quantity > 0) {
                 const friendly = isFriendlyOwner(existing, playerId, playerClanId);
                 if (!friendly) {
-                    sendError(
-                        playerId,
-                        `Those ${MINE_TYPE_LABEL[mineType]} mines aren't yours`,
-                    );
+                    sendError(playerId, `Those ${MINE_TYPE_LABEL[mineType]} mines aren't yours`);
                     throw new AbortTransaction();
                 }
             }

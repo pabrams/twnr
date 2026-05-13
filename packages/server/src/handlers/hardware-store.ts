@@ -45,10 +45,7 @@ export async function serveHardwareStoreInfo(playerId: number): Promise<void> {
 }
 
 /** Unified handler for buying any hardware item. */
-export async function serveBuyHardware(
-    playerId: number,
-    data: BuyHardwareCommand,
-): Promise<void> {
+export async function serveBuyHardware(playerId: number, data: BuyHardwareCommand): Promise<void> {
     const { itemName, quantity } = data;
     const player = players[playerId];
     if (!player?.at_starbase) {

@@ -45,11 +45,7 @@ function renderShipOwnership(
 
 /** True iff this row's ownership belongs to the viewer's clan (not them personally). */
 function isOwnClan(ownership: OwnershipInfo, viewerClanId: number | null): boolean {
-    return (
-        ownership.kind === 'clan' &&
-        viewerClanId !== null &&
-        ownership.clanId === viewerClanId
-    );
+    return ownership.kind === 'clan' && viewerClanId !== null && ownership.clanId === viewerClanId;
 }
 
 export type DisplayCtx = Pick<GameContext, 'catalogs' | 'io' | 'minimap' | 'player' | 'world'>;
@@ -193,9 +189,7 @@ export function showSectorDisplay(ctx: DisplayCtx, data: SectorDisplayData) {
                       ownership,
                       drones: s.drones,
                   });
-            term.writeln(
-                render(i === 0 ? SECTOR.shipsLine : SECTOR.shipsContinuation, { item }),
-            );
+            term.writeln(render(i === 0 ? SECTOR.shipsLine : SECTOR.shipsContinuation, { item }));
         });
     }
 
@@ -208,8 +202,7 @@ export function showSectorDisplay(ctx: DisplayCtx, data: SectorDisplayData) {
             yourClanTpl: string,
             enemyTpl: string,
         ) => {
-            const isMine =
-                row.ownership.kind === 'player' && row.ownership.playerId === viewerId;
+            const isMine = row.ownership.kind === 'player' && row.ownership.playerId === viewerId;
             if (isMine) {
                 term.writeln(render(ownTpl, { qty: row.quantity }));
             } else if (isOwnClan(row.ownership, viewerClanId)) {

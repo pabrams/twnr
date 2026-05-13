@@ -137,7 +137,6 @@ export function createAuthRoutes(router: Router, deps: RouteDeps, middleware: Mi
                 startingTurns,
             );
 
-
             await markSectorVisited(playerId, startSectorId);
 
             const token = signPlayerToken({

@@ -52,7 +52,8 @@ export const SECTOR = makeDomain('SECTOR', {
     minesLineYourClan: '[mg]Mines[/mg]   [by]:[/by] [bc]{qty}[/bc] [mg](belong to your clan)[/mg]',
     minesLineEnemy: '[mg]Mines[/mg]   [by]:[/by] [br]{qty}[/br] [mg]([/mg]{ownership}[mg])[/mg]',
     limpetsLine: '[mg]Limpets[/mg] [by]:[/by] [bc]{qty}[/bc] [mg](yours)[/mg]',
-    limpetsLineYourClan: '[mg]Limpets[/mg] [by]:[/by] [bc]{qty}[/bc] [mg](belong to your clan)[/mg]',
+    limpetsLineYourClan:
+        '[mg]Limpets[/mg] [by]:[/by] [bc]{qty}[/bc] [mg](belong to your clan)[/mg]',
     limpetsLineEnemy: '[mg]Limpets[/mg] [by]:[/by] [br]{qty}[/br] [mg]([/mg]{ownership}[mg])[/mg]',
 
     commaJoin: '[by], [/by]',
