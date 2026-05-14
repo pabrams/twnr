@@ -328,7 +328,7 @@ export const terraformInfo: Handler<'terraformInfoResult', PlanetContext> = (ctx
     if (msg.canTerraform) {
         ctx.io.term.writeln(render(EVENT.terraformDevicesAvailable, { count: msg.devices }));
 
-        void terraformAskAndFire(ctx);
+        return terraformAskAndFire(ctx);
     } else if (msg.reason === 'no_devices') {
         ctx.io.term.writeln(render(EVENT.terraformNoDevices));
     } else {
