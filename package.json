@@ -1,6 +1,7 @@
 {
   "private": true,
   "type": "module",
+  "license": "AGPL-3.0-or-later",
   "scripts": {
     "delete:buildinfo": "find . -name '*.tsbuildinfo' -delete",
     "delete:dist": "find . -name 'dist' -type d -exec rm -rf {} +",
