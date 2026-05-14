@@ -97,7 +97,7 @@ export const dock: Handler<'dockResult', PortContext> = (ctx, msg) => {
         credits,
         emptyHolds,
     );
-    void runTradeRoutine(ctx, actions, commodities, cargo, credits, emptyHolds);
+    return runTradeRoutine(ctx, actions, commodities, cargo, credits, emptyHolds);
 };
 
 async function runTradeRoutine(

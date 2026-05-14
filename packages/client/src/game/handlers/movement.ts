@@ -109,7 +109,7 @@ export const shortestPath: Handler<'shortestPathResult', MovementContext> = (ctx
         ctx.io.term.writeln(render(EVENT.noPathFound));
         return;
     }
-    void promptAutopilot(ctx, msg);
+    return promptAutopilot(ctx, msg);
 };
 
 async function promptAutopilot(
