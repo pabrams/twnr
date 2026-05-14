@@ -165,7 +165,7 @@ export async function markSectorVisited(
     db: Queryable = pool,
 ): Promise<void> {
     await db.query(
-        'INSERT INTO visited_sectors (player_id, sector_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+        'INSERT INTO player_visited_sectors (player_id, sector_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
         [playerId, sectorId],
     );
 }
@@ -287,13 +287,13 @@ export async function listPlayerIdsInUniverse(
     return res.rows.map((r) => r.id);
 }
 
-/** Delete all `visited_sectors` rows for the given player ids. */
+/** Delete all `player_visited_sectors` rows for the given player ids. */
 export async function deleteVisitedSectorsForPlayers(
     playerIds: number[],
     db: Queryable = pool,
 ): Promise<void> {
     if (playerIds.length === 0) return;
-    await db.query('DELETE FROM visited_sectors WHERE player_id = ANY($1::int[])', [playerIds]);
+    await db.query('DELETE FROM player_visited_sectors WHERE player_id = ANY($1::int[])', [playerIds]);
 }
 
 /** Null out `ship_id` for many players at once (pre-delete step). */
@@ -397,7 +397,7 @@ export async function getVisitedSectorNumbers(
     db: Queryable = pool,
 ): Promise<number[]> {
     const res = await db.query<{ sector_number: number }>(
-        `SELECT s.sector_number FROM visited_sectors vs
+        `SELECT s.sector_number FROM player_visited_sectors vs
          JOIN sectors s ON vs.sector_id = s.id
          WHERE vs.player_id = $1`,
         [playerId],

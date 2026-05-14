@@ -35,7 +35,7 @@ export async function findVisitedSectorsInSet(
 ): Promise<Set<number>> {
     if (sectorNumbers.length === 0) return new Set();
     const res = await db.query<SectorNumberRow>(
-        `SELECT s.sector_number FROM visited_sectors vs
+        `SELECT s.sector_number FROM player_visited_sectors vs
          JOIN sectors s ON vs.sector_id = s.id
          WHERE vs.player_id = $1 AND s.universe_id = $2
            AND s.sector_number = ANY($3::int[])`,
@@ -202,7 +202,7 @@ export async function getWarpRefsForPlayer(
          FROM warps w
          JOIN sectors s_from ON w.from_sector_id = s_from.id
          JOIN sectors s_to   ON w.to_sector_id   = s_to.id
-         LEFT JOIN visited_sectors vs ON vs.sector_id = s_to.id AND vs.player_id = $1
+         LEFT JOIN player_visited_sectors vs ON vs.sector_id = s_to.id AND vs.player_id = $1
          WHERE s_from.sector_number = $2 AND s_from.universe_id = $3
          ORDER BY s_to.sector_number`,
         [playerId, sectorNumber, universeId],

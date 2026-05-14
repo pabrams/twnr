@@ -36,7 +36,7 @@ export async function getDensityScanRows(
                 (SELECT COUNT(*)::int FROM warps WHERE from_sector_id = s.id) AS warp_count
          FROM warps w
          JOIN sectors s ON s.id = w.to_sector_id
-         LEFT JOIN visited_sectors vs ON vs.sector_id = s.id AND vs.player_id = $2
+         LEFT JOIN player_visited_sectors vs ON vs.sector_id = s.id AND vs.player_id = $2
          WHERE w.from_sector_id = $1
          ORDER BY s.sector_number`,
         [fromSectorDbId, playerId],
