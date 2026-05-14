@@ -412,14 +412,6 @@ export const connectDB = async (): Promise<void> => {
         PRIMARY KEY (collision_planet, colliding_with)
       );
 
-      CREATE TABLE IF NOT EXISTS visited_sectors (
-        player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
-        sector_id INTEGER NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
-        visited_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        snapshot JSONB,
-        PRIMARY KEY (player_id, sector_id)
-      );
-
       CREATE TABLE IF NOT EXISTS sector_drones (
         sector_id INTEGER NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
         owner_player_id INTEGER REFERENCES players(id) ON DELETE SET NULL,

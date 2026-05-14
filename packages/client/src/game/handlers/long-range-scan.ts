@@ -3,6 +3,7 @@ import { render } from '../renderer.js';
 import { PANEL } from '../messages/index.js';
 import { showSectorDisplay, type DisplayCtx } from '../display.js';
 import type { Handler } from './index.js';
+import { refreshMinimap, type RefreshMinimapCtx } from './utils.js';
 
 type DensityCtx = Pick<GameContext, 'io'>;
 
@@ -29,7 +30,9 @@ export const densityScan: Handler<'densityScanResult', DensityCtx> = (ctx, msg) 
     }
 };
 
-type VisualCtx = Pick<GameContext, 'catalogs' | 'io' | 'minimap' | 'player' | 'world'> & DisplayCtx;
+type VisualCtx = Pick<GameContext, 'catalogs' | 'io' | 'minimap' | 'player' | 'world'> &
+    DisplayCtx &
+    RefreshMinimapCtx;
 
 /** Paint each adjacent sector as a full sector display, one after the
  *  other. We don't update `world.currentSector` etc. — the player is
@@ -46,4 +49,8 @@ export const visualScan: Handler<'visualScanResult', VisualCtx> = (ctx, msg) => 
     ctx.world.currentSector = savedSector;
     ctx.world.currentPort = savedPort;
     ctx.world.currentWarps = savedWarps;
+    // Newly-scanned sectors are now in the player's visited set; refresh
+    // the minimap so they appear immediately (plus their outwarps as
+    // glimpsed) without waiting for the next sector re-display.
+    refreshMinimap(ctx);
 };
