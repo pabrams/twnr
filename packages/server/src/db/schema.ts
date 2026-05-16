@@ -231,12 +231,6 @@ export const connectDB = async (): Promise<void> => {
         PRIMARY KEY (ship_type_id, hardware_item_id)
       );
 
-      CREATE TABLE IF NOT EXISTS ship_types_template (
-        ship_type_id INTEGER NOT NULL REFERENCES ship_types(id) ON DELETE CASCADE,
-        template_id INTEGER NOT NULL REFERENCES universe_template(id) ON DELETE CASCADE,
-        PRIMARY KEY (ship_type_id, template_id)
-      );
-
       CREATE TABLE IF NOT EXISTS planet_types (
         slug VARCHAR(255) PRIMARY KEY,
         display_name VARCHAR(512),
@@ -255,12 +249,6 @@ export const connectDB = async (): Promise<void> => {
         equipment_production SMALLINT NOT NULL DEFAULT 0,
         drone_production SMALLINT NOT NULL DEFAULT 0,
         danger SMALLINT NOT NULL DEFAULT 0
-      );
-
-      CREATE TABLE IF NOT EXISTS planet_types_template (
-        planet_type VARCHAR(255) NOT NULL REFERENCES planet_types(slug) ON DELETE CASCADE,
-        template_id INTEGER NOT NULL REFERENCES universe_template(id) ON DELETE CASCADE,
-        PRIMARY KEY (planet_type, template_id)
       );
 
       CREATE TABLE IF NOT EXISTS players (
@@ -815,35 +803,6 @@ export const connectDB = async (): Promise<void> => {
                 ],
             );
         }
-
-        await client.query(`
-            INSERT INTO ship_types_template (ship_type_id, template_id)
-            SELECT st.id, ut.id FROM ship_types st, universe_template ut WHERE ut.name = 'stock'
-            ON CONFLICT DO NOTHING
-        `);
-
-        await client.query(`
-            INSERT INTO planet_types_template (planet_type, template_id)
-            SELECT DISTINCT p.type, ut.id FROM planets p, universe_template ut WHERE ut.name = 'stock'
-            ON CONFLICT DO NOTHING
-        `);
-
-        await client.query(`
-            INSERT INTO planet_types_template (planet_type, template_id)
-            VALUES
-                ('Terran', (SELECT id FROM universe_template WHERE name = 'stock')),
-                ('Agricultural', (SELECT id FROM universe_template WHERE name = 'stock')),
-                ('Barren', (SELECT id FROM universe_template WHERE name = 'stock')),
-                ('Crystalline', (SELECT id FROM universe_template WHERE name = 'stock')),
-                ('Desert', (SELECT id FROM universe_template WHERE name = 'stock')),
-                ('Glacial', (SELECT id FROM universe_template WHERE name = 'stock')),
-                ('Jungle', (SELECT id FROM universe_template WHERE name = 'stock')),
-                ('Mountainous', (SELECT id FROM universe_template WHERE name = 'stock')),
-                ('Oceanic', (SELECT id FROM universe_template WHERE name = 'stock')),
-                ('Toxic', (SELECT id FROM universe_template WHERE name = 'stock')),
-                ('Volcanic', (SELECT id FROM universe_template WHERE name = 'stock'))
-            ON CONFLICT DO NOTHING
-        `);
 
         // FK: each template's starter_ship_slug must reference a real ship.
         // Added here (not at CREATE TABLE) because universe_template is
