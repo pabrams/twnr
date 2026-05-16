@@ -63,8 +63,10 @@ export async function getHardwareStoreRows(
            AND uhp.universe_id = $2
          LEFT JOIN ship_hardware sh
            ON sh.ship_id = s.id AND sh.hardware_item_id = hi.id
-         LEFT JOIN ship_type_hardware sth
-           ON sth.ship_type_id = s.ship_type_id AND sth.hardware_item_id = hi.id
+         LEFT JOIN universe_ship_type_hardware sth
+           ON sth.universe_id = s.universe_id
+           AND sth.ship_type_slug = s.ship_type_slug
+           AND sth.hardware_item_id = hi.id
          WHERE p.id = $1
          ORDER BY hi.id`,
         [playerId, universeId],
@@ -103,7 +105,7 @@ export async function getShipHardwareCapacityForUpdate(
                 COALESCE(sth.max_quantity, 0) as max_qty
          FROM ships s
          LEFT JOIN ship_hardware sh ON sh.ship_id = s.id AND sh.hardware_item_id = $2
-         LEFT JOIN ship_type_hardware sth ON sth.ship_type_id = s.ship_type_id AND sth.hardware_item_id = $2
+         LEFT JOIN universe_ship_type_hardware sth ON sth.universe_id = s.universe_id AND sth.ship_type_slug = s.ship_type_slug AND sth.hardware_item_id = $2
          WHERE s.id = (SELECT ship_id FROM players WHERE id = $1)
          FOR UPDATE OF s`,
         [playerId, hardwareItemId],
@@ -200,14 +202,18 @@ export async function getShipHardwareQuantities(
 }
 
 export async function getShipTypeHardwareMax(
-    shipTypeId: number,
+    universeId: number,
+    shipTypeSlug: string,
     db: Queryable = pool,
 ): Promise<HardwareMaxRow[]> {
     const res = await db.query<HardwareMaxRow>(
         `SELECT hi.name, COALESCE(sth.max_quantity, 0) as max_quantity
          FROM hardware_item hi
-         LEFT JOIN ship_type_hardware sth ON sth.hardware_item_id = hi.id AND sth.ship_type_id = $1`,
-        [shipTypeId],
+         LEFT JOIN universe_ship_type_hardware sth
+           ON sth.hardware_item_id = hi.id
+           AND sth.universe_id = $1
+           AND sth.ship_type_slug = $2`,
+        [universeId, shipTypeSlug],
     );
     return res.rows;
 }

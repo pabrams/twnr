@@ -219,7 +219,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
         if (playerRow.ship_id === null) {
             const templateDefaults = await getUniverseTemplateDefaults(universeId);
             const startShipType = templateDefaults?.starter_ship_slug
-                ? await getStartingShipTypeBySlug(templateDefaults.starter_ship_slug)
+                ? await getStartingShipTypeBySlug(universeId, templateDefaults.starter_ship_slug)
                 : undefined;
             if (startShipType) {
                 startingShipForWelcome = {

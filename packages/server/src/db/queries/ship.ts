@@ -169,7 +169,7 @@ export type ShipInfoRow = {
     ship_name: string;
     ship_display_name: string | null;
     ship_id: number;
-    ship_type_id: number;
+    ship_type_slug: string;
     drones: number;
     shields: number;
     holds: number;
@@ -193,7 +193,7 @@ export async function getShipInfo(
 ): Promise<ShipInfoRow | undefined> {
     const res = await db.query<ShipInfoRow>(
         `SELECT st.slug AS ship_name, st.display_name AS ship_display_name,
-                s.id AS ship_id, s.ship_type_id,
+                s.id AS ship_id, s.ship_type_slug,
                 s.drones, s.shields, s.holds,
                 s.turns_per_warp, s.has_density_scanner,
                 s.fuel, s.organics, s.equipment, s.colonists,
@@ -201,7 +201,7 @@ export async function getShipInfo(
                 st.max_drones, st.max_shields, st.max_holds
          FROM players p
          JOIN ships s ON p.ship_id = s.id
-         JOIN ship_types st ON s.ship_type_id = st.id
+         JOIN universe_ship_types st ON st.universe_id = s.universe_id AND st.slug = s.ship_type_slug
          WHERE p.id = $1`,
         [playerId],
     );
@@ -268,7 +268,7 @@ export async function getShipUpgradeInfoForUpdate(
                 st.max_drones, st.max_shields, st.max_holds
          FROM players p
          JOIN ships s ON p.ship_id = s.id
-         JOIN ship_types st ON s.ship_type_id = st.id
+         JOIN universe_ship_types st ON st.universe_id = s.universe_id AND st.slug = s.ship_type_slug
          WHERE p.id = $1 FOR UPDATE`,
         [playerId],
     );
@@ -323,7 +323,7 @@ export async function getShipDronesAndMaxInfo(
 ): Promise<ShipDronesInfoRow | undefined> {
     const res = await db.query<ShipDronesInfoRow>(
         `SELECT s.drones, st.slug as ship_name, st.max_drones
-         FROM ships s JOIN ship_types st ON s.ship_type_id = st.id
+         FROM ships s JOIN universe_ship_types st ON st.universe_id = s.universe_id AND st.slug = s.ship_type_slug
          WHERE s.id = ${SHIP_ID_SUBSELECT}`,
         [playerId],
     );
@@ -337,16 +337,15 @@ export async function getShipDronesAndMaxForUpdate(
 ): Promise<{ drones: number; max_drones: number } | undefined> {
     const res = await db.query<{ drones: number; max_drones: number }>(
         `SELECT s.drones, st.max_drones
-         FROM ships s JOIN ship_types st ON s.ship_type_id = st.id
+         FROM ships s JOIN universe_ship_types st ON st.universe_id = s.universe_id AND st.slug = s.ship_type_slug
          WHERE s.id = ${SHIP_ID_SUBSELECT} FOR UPDATE`,
         [playerId],
     );
     return res.rows[0];
 }
 
-/** Full ship_types row with pricing — for shipyards / trade-in logic. */
+/** Universe-scoped ship type with pricing — for shipyards / trade-in logic. */
 export type ShipTypeRow = {
-    id: number;
     slug: string;
     display_name: string | null;
     starting_holds: number;
@@ -360,16 +359,17 @@ export type ShipTypeRow = {
     turns_per_warp: number;
 };
 
-/** Look up a ship_types row by slug. */
+/** Look up a ship type by (universe_id, slug). */
 export async function getShipTypeBySlug(
+    universeId: number,
     slug: string,
     db: Queryable = pool,
 ): Promise<ShipTypeRow | undefined> {
     const res = await db.query<ShipTypeRow>(
-        `SELECT id, slug, display_name, starting_holds, max_holds, max_drones, max_shields,
+        `SELECT slug, display_name, starting_holds, max_holds, max_drones, max_shields,
                 cost_drive, cost_computer, cost_hull, hold_cost, turns_per_warp
-         FROM ship_types WHERE slug = $1`,
-        [slug],
+         FROM universe_ship_types WHERE universe_id = $1 AND slug = $2`,
+        [universeId, slug],
     );
     return res.rows[0];
 }
@@ -399,7 +399,7 @@ export async function getPlayerShipTradeInfoForUpdate(
                 s.id AS ship_id
          FROM players p
          JOIN ships s ON p.ship_id = s.id
-         JOIN ship_types st ON s.ship_type_id = st.id
+         JOIN universe_ship_types st ON st.universe_id = s.universe_id AND st.slug = s.ship_type_slug
          WHERE p.id = $1 FOR UPDATE`,
         [playerId],
     );
@@ -422,7 +422,7 @@ export async function getPlayerShipBuyInfoForUpdate(
                 st.slug AS ship_name
          FROM players p
          JOIN ships sh ON p.ship_id = sh.id
-         JOIN ship_types st ON sh.ship_type_id = st.id
+         JOIN universe_ship_types st ON st.universe_id = sh.universe_id AND st.slug = sh.ship_type_slug
          WHERE p.id = $1 FOR UPDATE`,
         [playerId],
     );
@@ -433,7 +433,7 @@ export async function getPlayerShipBuyInfoForUpdate(
 export async function insertEmptyShip(
     ownerId: number,
     universeId: number,
-    shipTypeId: number,
+    shipTypeSlug: string,
     sectorId: number,
     holds: number,
     turnsPerWarp: number,
@@ -441,12 +441,12 @@ export async function insertEmptyShip(
     db: Queryable = pool,
 ): Promise<number> {
     const res = await db.query<{ id: number }>(
-        `INSERT INTO ships (universe_id, universe_ship_number, name, owner_player_id, ship_type_id, sector_id, drones, shields, holds, turns_per_warp, fuel, organics, equipment, colonists)
+        `INSERT INTO ships (universe_id, universe_ship_number, name, owner_player_id, ship_type_slug, sector_id, drones, shields, holds, turns_per_warp, fuel, organics, equipment, colonists)
          SELECT $1,
                 COALESCE((SELECT MAX(universe_ship_number) FROM ships WHERE universe_id = $1), 0) + 1,
                 $2, $3, $4, $5, 0, 0, $6, $7, 0, 0, 0, 0
          RETURNING id`,
-        [universeId, name, ownerId, shipTypeId, sectorId, holds, turnsPerWarp],
+        [universeId, name, ownerId, shipTypeSlug, sectorId, holds, turnsPerWarp],
     );
     return res.rows[0].id;
 }
@@ -600,10 +600,10 @@ export async function getPlayerShipFull(
     db: Queryable = pool,
 ): Promise<Record<string, unknown> | null> {
     const res = await db.query<Record<string, unknown>>(
-        `SELECT s.id, s.drones, s.shields, s.holds,
+        `SELECT s.id, s.universe_id, s.drones, s.shields, s.holds,
                 s.turns_per_warp, s.has_density_scanner,
                 s.fuel, s.organics, s.equipment, s.colonists,
-                s.sector_id, s.ship_type_id,
+                s.sector_id, s.ship_type_slug,
                 st.slug as ship_name, st.max_drones, st.max_shields, st.max_holds,
                 st.starting_holds, st.turns_per_warp as type_turns_per_warp,
                 st.cost_drive, st.cost_computer, st.cost_hull, st.hold_cost,
@@ -612,28 +612,28 @@ export async function getPlayerShipFull(
                 st.has_tractor, st.has_pod, st.can_land, st.has_interdictor,
                 st.sort_order
          FROM ships s
-         JOIN ship_types st ON s.ship_type_id = st.id
+         JOIN universe_ship_types st ON st.universe_id = s.universe_id AND st.slug = s.ship_type_slug
          WHERE s.id = ${SHIP_ID_SUBSELECT}`,
         [playerId],
     );
     return res.rows[0] ?? null;
 }
 
-/** Partial ship_types info needed for respawning a player on a starting ship. */
+/** Partial ship type info needed for respawning a player on a starting ship. */
 export type StartingShipTypeRow = {
-    id: number;
     slug: string;
     display_name: string;
     starting_holds: number;
     turns_per_warp: number;
 };
 export async function getStartingShipTypeBySlug(
+    universeId: number,
     slug: string,
     db: Queryable = pool,
 ): Promise<StartingShipTypeRow | undefined> {
     const res = await db.query<StartingShipTypeRow>(
-        'SELECT id, slug, display_name, starting_holds, turns_per_warp FROM ship_types WHERE slug = $1',
-        [slug],
+        'SELECT slug, display_name, starting_holds, turns_per_warp FROM universe_ship_types WHERE universe_id = $1 AND slug = $2',
+        [universeId, slug],
     );
     return res.rows[0];
 }
@@ -642,7 +642,7 @@ export async function getStartingShipTypeBySlug(
 export async function insertStartingShip(
     ownerId: number,
     universeId: number,
-    shipTypeId: number,
+    shipTypeSlug: string,
     sectorId: number,
     drones: number,
     shields: number,
@@ -652,12 +652,12 @@ export async function insertStartingShip(
     db: Queryable = pool,
 ): Promise<number> {
     const res = await db.query<{ id: number }>(
-        `INSERT INTO ships (universe_id, universe_ship_number, name, owner_player_id, ship_type_id, sector_id, drones, shields, holds, turns_per_warp)
+        `INSERT INTO ships (universe_id, universe_ship_number, name, owner_player_id, ship_type_slug, sector_id, drones, shields, holds, turns_per_warp)
          SELECT $1,
                 COALESCE((SELECT MAX(universe_ship_number) FROM ships WHERE universe_id = $1), 0) + 1,
                 $2, $3, $4, $5, $6, $7, $8, $9
          RETURNING id`,
-        [universeId, name, ownerId, shipTypeId, sectorId, drones, shields, holds, turnsPerWarp],
+        [universeId, name, ownerId, shipTypeSlug, sectorId, drones, shields, holds, turnsPerWarp],
     );
     return res.rows[0].id;
 }
@@ -696,7 +696,7 @@ export async function getPlayerOwnedShips(
                 oc.name AS owner_clan_name,
                 oc.universe_clan_number AS owner_clan_number
          FROM ships sh
-         JOIN ship_types st ON sh.ship_type_id = st.id
+         JOIN universe_ship_types st ON st.universe_id = sh.universe_id AND st.slug = sh.ship_type_slug
          LEFT JOIN sectors sec ON sh.sector_id = sec.id
          LEFT JOIN players op ON op.id = sh.owner_player_id
          LEFT JOIN clans oc ON oc.id = sh.owner_clan_id
@@ -753,7 +753,7 @@ export async function getAbandonedShipsInSector(
                 c.name AS owner_clan_name,
                 c.universe_clan_number AS owner_clan_number
          FROM ships sh
-         JOIN ship_types st ON sh.ship_type_id = st.id
+         JOIN universe_ship_types st ON st.universe_id = sh.universe_id AND st.slug = sh.ship_type_slug
          JOIN sectors s ON sh.sector_id = s.id
          LEFT JOIN players p ON sh.owner_player_id = p.id
          LEFT JOIN clans pc ON p.clan_id = pc.id

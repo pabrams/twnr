@@ -176,7 +176,7 @@ export async function snapshotTemplateForUniverse(
         [universeId, templateName],
     );
 
-    // Freeze hardware prices for this universe by cloning the template's rows.
+    // Freeze hardware prices.
     await db.query(
         `INSERT INTO universe_hardware_price (universe_id, hardware_item_id, price)
          SELECT $1, hp.hardware_item_id, hp.price
@@ -184,6 +184,67 @@ export async function snapshotTemplateForUniverse(
          JOIN universe_template ut ON ut.id = hp.template_id
          WHERE ut.name = $2
          ON CONFLICT (universe_id, hardware_item_id) DO NOTHING`,
+        [universeId, templateName],
+    );
+
+    // Freeze ship types.
+    await db.query(
+        `INSERT INTO universe_ship_types (
+            universe_id, slug, display_name, make, sort_order,
+            max_drones, max_shields, starting_holds, max_holds,
+            odds_offensive, odds_defensive,
+            has_pod, can_land, has_interdictor,
+            has_planetary_defense_bonus, planetary_defense_odds,
+            speed, turns_per_warp,
+            cost_drive, cost_computer, cost_hull, hold_cost,
+            max_drone_attack, transporter_range,
+            has_tractor, piloting_restriction, notes
+         )
+         SELECT $1, tst.slug, tst.display_name, tst.make, tst.sort_order,
+                tst.max_drones, tst.max_shields, tst.starting_holds, tst.max_holds,
+                tst.odds_offensive, tst.odds_defensive,
+                tst.has_pod, tst.can_land, tst.has_interdictor,
+                tst.has_planetary_defense_bonus, tst.planetary_defense_odds,
+                tst.speed, tst.turns_per_warp,
+                tst.cost_drive, tst.cost_computer, tst.cost_hull, tst.hold_cost,
+                tst.max_drone_attack, tst.transporter_range,
+                tst.has_tractor, tst.piloting_restriction, tst.notes
+         FROM template_ship_types tst
+         JOIN universe_template ut ON ut.id = tst.template_id
+         WHERE ut.name = $2
+         ON CONFLICT (universe_id, slug) DO NOTHING`,
+        [universeId, templateName],
+    );
+
+    // Freeze per-ship hardware caps.
+    await db.query(
+        `INSERT INTO universe_ship_type_hardware (universe_id, ship_type_slug, hardware_item_id, max_quantity)
+         SELECT $1, tsh.ship_type_slug, tsh.hardware_item_id, tsh.max_quantity
+         FROM template_ship_type_hardware tsh
+         JOIN universe_template ut ON ut.id = tsh.template_id
+         WHERE ut.name = $2
+         ON CONFLICT (universe_id, ship_type_slug, hardware_item_id) DO NOTHING`,
+        [universeId, templateName],
+    );
+
+    // Freeze planet types.
+    await db.query(
+        `INSERT INTO universe_planet_types (
+            universe_id, slug, display_name, description,
+            max_fuel_colos, max_org_colos, max_equ_colos, max_drone_colos,
+            max_fuel, max_org, max_equ, max_drones,
+            max_citadel, fuel_production, organics_production, equipment_production,
+            drone_production, danger
+         )
+         SELECT $1, tpt.slug, tpt.display_name, tpt.description,
+                tpt.max_fuel_colos, tpt.max_org_colos, tpt.max_equ_colos, tpt.max_drone_colos,
+                tpt.max_fuel, tpt.max_org, tpt.max_equ, tpt.max_drones,
+                tpt.max_citadel, tpt.fuel_production, tpt.organics_production, tpt.equipment_production,
+                tpt.drone_production, tpt.danger
+         FROM template_planet_types tpt
+         JOIN universe_template ut ON ut.id = tpt.template_id
+         WHERE ut.name = $2
+         ON CONFLICT (universe_id, slug) DO NOTHING`,
         [universeId, templateName],
     );
 }

@@ -163,7 +163,8 @@ async function main() {
         const sectorDbId = sectorIdMap.get(sectorNumber);
         if (sectorDbId === undefined) continue;
         await client.query(
-          `INSERT INTO planets (sector_id, name, type) VALUES ($1, $2, $3)
+          `INSERT INTO planets (sector_id, universe_id, name, type)
+           SELECT s.id, s.universe_id, $2, $3 FROM sectors s WHERE s.id = $1
            ON CONFLICT DO NOTHING`,
           [sectorDbId, row[1], row[2]],
         );

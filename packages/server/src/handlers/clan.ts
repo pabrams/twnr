@@ -399,7 +399,7 @@ async function transferDronesOrShields(
         }>(
             `SELECT s.id AS ship_id, s.${field} AS v, st.${max_col} AS max_v
              FROM players p JOIN ships s ON p.ship_id = s.id
-             JOIN ship_types st ON s.ship_type_id = st.id
+             JOIN universe_ship_types st ON st.universe_id = s.universe_id AND st.slug = s.ship_type_slug
              WHERE p.id = $1 FOR UPDATE`,
             [targetId],
         );
@@ -469,17 +469,19 @@ async function transferMines(
         // Target ship + max capacity + current mine count.
         const target = await client.query<{
             ship_id: number;
-            ship_type_id: number;
+            ship_type_slug: string;
             max_qty: number;
             qty: number;
         }>(
-            `SELECT s.id AS ship_id, s.ship_type_id,
+            `SELECT s.id AS ship_id, s.ship_type_slug,
                     COALESCE(sth.max_quantity, 0) AS max_qty,
                     COALESCE((SELECT quantity FROM ship_hardware sh
                               WHERE sh.ship_id = s.id AND sh.hardware_item_id = $2), 0) AS qty
              FROM players p JOIN ships s ON p.ship_id = s.id
-             LEFT JOIN ship_type_hardware sth
-                ON sth.ship_type_id = s.ship_type_id AND sth.hardware_item_id = $2
+             LEFT JOIN universe_ship_type_hardware sth
+                ON sth.universe_id = s.universe_id
+                AND sth.ship_type_slug = s.ship_type_slug
+                AND sth.hardware_item_id = $2
              WHERE p.id = $1 FOR UPDATE`,
             [targetId, hwId],
         );

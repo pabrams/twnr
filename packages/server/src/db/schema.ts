@@ -175,9 +175,11 @@ export const connectDB = async (): Promise<void> => {
         CONSTRAINT warps_no_self_loop CHECK (from_sector_id <> to_sector_id)
       );
 
-      CREATE TABLE IF NOT EXISTS ship_types (
-        id SERIAL PRIMARY KEY,
-        slug VARCHAR(255) UNIQUE NOT NULL,
+      -- Template tier: editable per-template ship catalog. Stock seeded
+      -- from config/templates/stock/ships/*.json at boot.
+      CREATE TABLE IF NOT EXISTS template_ship_types (
+        template_id INTEGER NOT NULL REFERENCES universe_template(id) ON DELETE CASCADE,
+        slug VARCHAR(255) NOT NULL,
         display_name VARCHAR(512),
         make VARCHAR(255),
         sort_order SMALLINT NOT NULL DEFAULT 0,
@@ -204,7 +206,43 @@ export const connectDB = async (): Promise<void> => {
         piloting_restriction VARCHAR(100),
         notes TEXT,
         basic_hold_cost INTEGER GENERATED ALWAYS AS (starting_holds * hold_cost) STORED,
-        base_cost INTEGER GENERATED ALWAYS AS (cost_drive + cost_computer + cost_hull + starting_holds * hold_cost) STORED
+        base_cost INTEGER GENERATED ALWAYS AS (cost_drive + cost_computer + cost_hull + starting_holds * hold_cost) STORED,
+        PRIMARY KEY (template_id, slug)
+      );
+
+      -- Universe tier: frozen per-universe ship catalog. Cloned from
+      -- template_ship_types at universe creation; never updated thereafter.
+      CREATE TABLE IF NOT EXISTS universe_ship_types (
+        universe_id INTEGER NOT NULL REFERENCES universes(id) ON DELETE CASCADE,
+        slug VARCHAR(255) NOT NULL,
+        display_name VARCHAR(512),
+        make VARCHAR(255),
+        sort_order SMALLINT NOT NULL DEFAULT 0,
+        max_drones INTEGER NOT NULL DEFAULT 0,
+        max_shields INTEGER NOT NULL DEFAULT 0,
+        starting_holds INTEGER NOT NULL DEFAULT 5,
+        max_holds INTEGER NOT NULL DEFAULT 20,
+        odds_offensive REAL NOT NULL DEFAULT 1.0,
+        odds_defensive REAL NOT NULL DEFAULT 1.0,
+        has_pod BOOLEAN NOT NULL DEFAULT TRUE,
+        can_land BOOLEAN NOT NULL DEFAULT TRUE,
+        has_interdictor BOOLEAN NOT NULL DEFAULT FALSE,
+        has_planetary_defense_bonus BOOLEAN NOT NULL DEFAULT FALSE,
+        planetary_defense_odds REAL,
+        speed SMALLINT NOT NULL DEFAULT 10,
+        turns_per_warp INTEGER NOT NULL DEFAULT 2,
+        cost_drive INTEGER NOT NULL DEFAULT 0,
+        cost_computer INTEGER NOT NULL DEFAULT 0,
+        cost_hull INTEGER NOT NULL DEFAULT 0,
+        hold_cost INTEGER NOT NULL DEFAULT 0,
+        max_drone_attack INTEGER NOT NULL DEFAULT 0,
+        transporter_range SMALLINT NOT NULL DEFAULT 0,
+        has_tractor BOOLEAN NOT NULL DEFAULT FALSE,
+        piloting_restriction VARCHAR(100),
+        notes TEXT,
+        basic_hold_cost INTEGER GENERATED ALWAYS AS (starting_holds * hold_cost) STORED,
+        base_cost INTEGER GENERATED ALWAYS AS (cost_drive + cost_computer + cost_hull + starting_holds * hold_cost) STORED,
+        PRIMARY KEY (universe_id, slug)
       );
 
       CREATE TABLE IF NOT EXISTS hardware_item (
@@ -233,15 +271,29 @@ export const connectDB = async (): Promise<void> => {
         PRIMARY KEY (universe_id, hardware_item_id)
       );
 
-      CREATE TABLE IF NOT EXISTS ship_type_hardware (
-        ship_type_id INTEGER NOT NULL REFERENCES ship_types(id) ON DELETE CASCADE,
+      CREATE TABLE IF NOT EXISTS template_ship_type_hardware (
+        template_id INTEGER NOT NULL REFERENCES universe_template(id) ON DELETE CASCADE,
+        ship_type_slug VARCHAR(255) NOT NULL,
         hardware_item_id INTEGER NOT NULL REFERENCES hardware_item(id) ON DELETE CASCADE,
         max_quantity INTEGER NOT NULL DEFAULT 0,
-        PRIMARY KEY (ship_type_id, hardware_item_id)
+        PRIMARY KEY (template_id, ship_type_slug, hardware_item_id),
+        FOREIGN KEY (template_id, ship_type_slug)
+          REFERENCES template_ship_types (template_id, slug) ON DELETE CASCADE
       );
 
-      CREATE TABLE IF NOT EXISTS planet_types (
-        slug VARCHAR(255) PRIMARY KEY,
+      CREATE TABLE IF NOT EXISTS universe_ship_type_hardware (
+        universe_id INTEGER NOT NULL REFERENCES universes(id) ON DELETE CASCADE,
+        ship_type_slug VARCHAR(255) NOT NULL,
+        hardware_item_id INTEGER NOT NULL REFERENCES hardware_item(id) ON DELETE CASCADE,
+        max_quantity INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (universe_id, ship_type_slug, hardware_item_id),
+        FOREIGN KEY (universe_id, ship_type_slug)
+          REFERENCES universe_ship_types (universe_id, slug) ON DELETE CASCADE
+      );
+
+      CREATE TABLE IF NOT EXISTS template_planet_types (
+        template_id INTEGER NOT NULL REFERENCES universe_template(id) ON DELETE CASCADE,
+        slug VARCHAR(255) NOT NULL,
         display_name VARCHAR(512),
         description TEXT,
         max_fuel_colos INTEGER NOT NULL DEFAULT 0,
@@ -257,7 +309,30 @@ export const connectDB = async (): Promise<void> => {
         organics_production SMALLINT NOT NULL DEFAULT 0,
         equipment_production SMALLINT NOT NULL DEFAULT 0,
         drone_production SMALLINT NOT NULL DEFAULT 0,
-        danger SMALLINT NOT NULL DEFAULT 0
+        danger SMALLINT NOT NULL DEFAULT 0,
+        PRIMARY KEY (template_id, slug)
+      );
+
+      CREATE TABLE IF NOT EXISTS universe_planet_types (
+        universe_id INTEGER NOT NULL REFERENCES universes(id) ON DELETE CASCADE,
+        slug VARCHAR(255) NOT NULL,
+        display_name VARCHAR(512),
+        description TEXT,
+        max_fuel_colos INTEGER NOT NULL DEFAULT 0,
+        max_org_colos INTEGER NOT NULL DEFAULT 0,
+        max_equ_colos INTEGER NOT NULL DEFAULT 0,
+        max_drone_colos INTEGER NOT NULL DEFAULT 0,
+        max_fuel INTEGER NOT NULL DEFAULT 0,
+        max_org INTEGER NOT NULL DEFAULT 0,
+        max_equ INTEGER NOT NULL DEFAULT 0,
+        max_drones INTEGER NOT NULL DEFAULT 0,
+        max_citadel SMALLINT NOT NULL DEFAULT 0,
+        fuel_production SMALLINT NOT NULL DEFAULT 0,
+        organics_production SMALLINT NOT NULL DEFAULT 0,
+        equipment_production SMALLINT NOT NULL DEFAULT 0,
+        drone_production SMALLINT NOT NULL DEFAULT 0,
+        danger SMALLINT NOT NULL DEFAULT 0,
+        PRIMARY KEY (universe_id, slug)
       );
 
       CREATE TABLE IF NOT EXISTS players (
@@ -302,7 +377,7 @@ export const connectDB = async (): Promise<void> => {
         name TEXT NOT NULL,
         owner_player_id INTEGER REFERENCES players(id) ON DELETE SET NULL,
         owner_clan_id INTEGER REFERENCES clans(id) ON DELETE SET NULL,
-        ship_type_id INTEGER NOT NULL REFERENCES ship_types(id),
+        ship_type_slug VARCHAR(255) NOT NULL,
         sector_id INTEGER REFERENCES sectors(id),
         drones INTEGER NOT NULL DEFAULT 0,
         shields INTEGER NOT NULL DEFAULT 0,
@@ -315,7 +390,9 @@ export const connectDB = async (): Promise<void> => {
         colonists INTEGER NOT NULL DEFAULT 0,
         UNIQUE (universe_id, universe_ship_number),
         CONSTRAINT ships_single_owner_type
-          CHECK (NOT (owner_player_id IS NOT NULL AND owner_clan_id IS NOT NULL))
+          CHECK (NOT (owner_player_id IS NOT NULL AND owner_clan_id IS NOT NULL)),
+        FOREIGN KEY (universe_id, ship_type_slug)
+          REFERENCES universe_ship_types(universe_id, slug)
       );
 
       CREATE TABLE IF NOT EXISTS ship_hardware (
@@ -379,8 +456,10 @@ export const connectDB = async (): Promise<void> => {
       CREATE TABLE IF NOT EXISTS planets (
         id SERIAL PRIMARY KEY,
         sector_id INTEGER NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
+        universe_id INTEGER NOT NULL REFERENCES universes(id) ON DELETE CASCADE,
         name VARCHAR(255) NOT NULL,
-        type VARCHAR(255) NOT NULL DEFAULT 'Terran' REFERENCES planet_types(slug),
+        type VARCHAR(255) NOT NULL DEFAULT 'Terran',
+        FOREIGN KEY (universe_id, type) REFERENCES universe_planet_types(universe_id, slug),
         drones INTEGER NOT NULL DEFAULT 0,
         shields INTEGER NOT NULL DEFAULT 0,
         has_base BOOLEAN NOT NULL DEFAULT FALSE,
@@ -661,10 +740,16 @@ export const connectDB = async (): Promise<void> => {
             hyperspace_2: { configKey: 'canHaveHyperspace2', isToggle: true },
         };
 
+        // Resolve stock template_id once for the seed loop below.
+        const stockTemplateIdRes = await client.query<{ id: number }>(
+            `SELECT id FROM universe_template WHERE name = 'stock'`,
+        );
+        const stockTemplateId = stockTemplateIdRes.rows[0].id;
+
         for (const ship of Object.values(shipConfigs)) {
-            const stRes = await client.query(
-                `INSERT INTO ship_types (
-                    slug, display_name, make, sort_order,
+            await client.query(
+                `INSERT INTO template_ship_types (
+                    template_id, slug, display_name, make, sort_order,
                     max_drones, max_shields, starting_holds, max_holds,
                     odds_offensive, odds_defensive,
                     has_pod, can_land, has_interdictor,
@@ -675,17 +760,17 @@ export const connectDB = async (): Promise<void> => {
                     has_tractor,
                     piloting_restriction, notes
                  ) VALUES (
-                    $1, $2, $3, $4,
-                    $5, $6, $7, $8,
-                    $9, $10,
-                    $11, $12, $13,
-                    $14, $15,
-                    $16, $17,
-                    $18, $19, $20, $21,
-                    $22, $23,
-                    $24,
-                    $25, $26
-                 ) ON CONFLICT (slug) DO UPDATE SET
+                    $1, $2, $3, $4, $5,
+                    $6, $7, $8, $9,
+                    $10, $11,
+                    $12, $13, $14,
+                    $15, $16,
+                    $17, $18,
+                    $19, $20, $21, $22,
+                    $23, $24,
+                    $25,
+                    $26, $27
+                 ) ON CONFLICT (template_id, slug) DO UPDATE SET
                     display_name = EXCLUDED.display_name,
                     make = EXCLUDED.make,
                     sort_order = EXCLUDED.sort_order,
@@ -710,9 +795,9 @@ export const connectDB = async (): Promise<void> => {
                     transporter_range = EXCLUDED.transporter_range,
                     has_tractor = EXCLUDED.has_tractor,
                     piloting_restriction = EXCLUDED.piloting_restriction,
-                    notes = EXCLUDED.notes
-                 RETURNING id`,
+                    notes = EXCLUDED.notes`,
                 [
+                    stockTemplateId,
                     ship.slug,
                     ship.displayName ?? null,
                     ship.make || null,
@@ -741,9 +826,8 @@ export const connectDB = async (): Promise<void> => {
                     ship.notes ?? null,
                 ],
             );
-            const shipTypeId = stRes.rows[0].id;
 
-            // Seed ship_type_hardware from config
+            // Seed template_ship_type_hardware from ship config
             for (const [hwName, mapping] of Object.entries(HW_CONFIG_MAP)) {
                 const val = ship[mapping.configKey as keyof ShipConfig] as
                     | number
@@ -752,10 +836,10 @@ export const connectDB = async (): Promise<void> => {
                 const maxQty = mapping.isToggle ? (val ? 1 : 0) : ((val as number) ?? 0);
                 if (maxQty > 0) {
                     await client.query(
-                        `INSERT INTO ship_type_hardware (ship_type_id, hardware_item_id, max_quantity)
-                         VALUES ($1, (SELECT id FROM hardware_item WHERE name = $2), $3)
-                         ON CONFLICT (ship_type_id, hardware_item_id) DO UPDATE SET max_quantity = EXCLUDED.max_quantity`,
-                        [shipTypeId, hwName, maxQty],
+                        `INSERT INTO template_ship_type_hardware (template_id, ship_type_slug, hardware_item_id, max_quantity)
+                         VALUES ($1, $2, (SELECT id FROM hardware_item WHERE name = $3), $4)
+                         ON CONFLICT (template_id, ship_type_slug, hardware_item_id) DO UPDATE SET max_quantity = EXCLUDED.max_quantity`,
+                        [stockTemplateId, ship.slug, hwName, maxQty],
                     );
                 }
             }
@@ -769,12 +853,11 @@ export const connectDB = async (): Promise<void> => {
             ON CONFLICT (template_id, hardware_item_id) DO UPDATE SET price = EXCLUDED.price
         `);
 
-        // Seed planet_types from config files (idempotent)
         for (const planet of Object.values(planetConfigs)) {
             await client.query(
-                `INSERT INTO planet_types (slug, display_name, description, max_fuel_colos, max_org_colos, max_equ_colos, max_drone_colos, max_fuel, max_org, max_equ, max_drones, max_citadel, fuel_production, organics_production, equipment_production, drone_production, danger)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
-                 ON CONFLICT (slug) DO UPDATE SET
+                `INSERT INTO template_planet_types (template_id, slug, display_name, description, max_fuel_colos, max_org_colos, max_equ_colos, max_drone_colos, max_fuel, max_org, max_equ, max_drones, max_citadel, fuel_production, organics_production, equipment_production, drone_production, danger)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+                 ON CONFLICT (template_id, slug) DO UPDATE SET
                     display_name = EXCLUDED.display_name,
                     description = EXCLUDED.description,
                     max_fuel_colos = EXCLUDED.max_fuel_colos,
@@ -792,6 +875,7 @@ export const connectDB = async (): Promise<void> => {
                     drone_production = EXCLUDED.drone_production,
                     danger = EXCLUDED.danger`,
                 [
+                    stockTemplateId,
                     planet.slug,
                     planet.displayName ?? null,
                     planet.description ?? null,
@@ -823,7 +907,8 @@ export const connectDB = async (): Promise<void> => {
                 ) THEN
                     ALTER TABLE universe_template
                         ADD CONSTRAINT universe_template_starter_ship_fk
-                        FOREIGN KEY (starter_ship_slug) REFERENCES ship_types(slug);
+                        FOREIGN KEY (id, starter_ship_slug)
+                        REFERENCES template_ship_types(template_id, slug);
                 END IF;
             END $$;
         `);
