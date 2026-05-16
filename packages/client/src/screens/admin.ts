@@ -2,10 +2,8 @@ import { renderServerStats } from '../admin/server-stats.js';
 import { renderUniverseList } from '../admin/universe-list.js';
 import { renderUniverseGenerator } from '../admin/universe-generate.js';
 import { renderUniverseDetail } from '../admin/universe-detail.js';
-import { renderShipList } from '../admin/ship-list.js';
-import { renderPlanetList } from '../admin/planet-list.js';
 
-type Tab = 'dashboard' | 'universes' | 'generate' | 'ships' | 'planets';
+type Tab = 'dashboard' | 'universes' | 'generate';
 
 export function setupAdminScreen(container: HTMLElement, onBack: () => void): void {
     container.innerHTML = '';
@@ -23,8 +21,6 @@ export function setupAdminScreen(container: HTMLElement, onBack: () => void): vo
         { id: 'dashboard', label: 'Dashboard' },
         { id: 'universes', label: 'Universes' },
         { id: 'generate', label: 'Generate' },
-        { id: 'ships', label: 'Ships' },
-        { id: 'planets', label: 'Planets' },
     ];
 
     const tabButtons: Map<Tab, HTMLButtonElement> = new Map();
@@ -63,12 +59,6 @@ export function setupAdminScreen(container: HTMLElement, onBack: () => void): vo
                 renderUniverseGenerator(content, () => {
                     // After generating, switch to universes tab
                 });
-                break;
-            case 'ships':
-                renderShipList(content);
-                break;
-            case 'planets':
-                renderPlanetList(content);
                 break;
         }
     }

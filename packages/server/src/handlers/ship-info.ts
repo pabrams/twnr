@@ -6,7 +6,7 @@ import type {
 } from '@twnr/shared';
 import { pool } from '../db/index.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
-import { players } from '../state/players.js';
+import { players, getPlayerUniverseId } from '../state/players.js';
 import {
     getShipInfo,
     getPlayerOwnedShips,
@@ -34,12 +34,18 @@ export async function serveShipInfo(playerId: number): Promise<void> {
         return;
     }
 
+    const universeId = getPlayerUniverseId(playerId);
+    if (universeId === undefined) {
+        sendError(playerId, 'Player not in a universe.');
+        return;
+    }
+
     const hwRows = await getShipHardwareQuantities(row.ship_id);
     const hardware: Record<string, number> = Object.fromEntries(
         hwRows.map((r) => [r.name, r.quantity]),
     );
 
-    const hwMaxRows = await getShipTypeHardwareMax(row.ship_type_id);
+    const hwMaxRows = await getShipTypeHardwareMax(universeId, row.ship_type_slug);
     const hardwareMax: Record<string, number> = Object.fromEntries(
         hwMaxRows.map((r) => [r.name, r.max_quantity]),
     );
@@ -85,7 +91,7 @@ export async function serveGetShipDetail(
         universe_ship_number: number;
         type_name: string;
         type_display_name: string | null;
-        ship_type_id: number;
+        ship_type_slug: string;
         sector_number: number | null;
         drones: number;
         max_drones: number;
@@ -106,7 +112,7 @@ export async function serveGetShipDetail(
     }>(
         `SELECT sh.id, sh.universe_ship_number,
                 st.slug AS type_name, st.display_name AS type_display_name,
-                st.id AS ship_type_id,
+                st.slug AS ship_type_slug,
                 sec.sector_number,
                 sh.drones, st.max_drones,
                 sh.shields, st.max_shields,
@@ -118,7 +124,7 @@ export async function serveGetShipDetail(
                 oc.name AS owner_clan_name,
                 oc.universe_clan_number AS owner_clan_number
          FROM ships sh
-         JOIN ship_types st ON sh.ship_type_id = st.id
+         JOIN universe_ship_types st ON st.universe_id = sh.universe_id AND st.slug = sh.ship_type_slug
          LEFT JOIN sectors sec ON sh.sector_id = sec.id
          LEFT JOIN players op ON op.id = sh.owner_player_id
          LEFT JOIN clans oc ON oc.id = sh.owner_clan_id
@@ -137,7 +143,12 @@ export async function serveGetShipDetail(
     const hardware: Record<string, number> = Object.fromEntries(
         hwRows.map((r) => [r.name, r.quantity]),
     );
-    const hwMaxRows = await getShipTypeHardwareMax(row.ship_type_id);
+    const universeId = getPlayerUniverseId(playerId);
+    if (universeId === undefined) {
+        sendError(playerId, 'Player not in a universe.');
+        return;
+    }
+    const hwMaxRows = await getShipTypeHardwareMax(universeId, row.ship_type_slug);
     const hardwareMax: Record<string, number> = Object.fromEntries(
         hwMaxRows.map((r) => [r.name, r.max_quantity]),
     );
@@ -244,7 +255,7 @@ export async function serveTransportToShip(
          LEFT JOIN sectors tgt_sec ON tgt.sector_id = tgt_sec.id
          LEFT JOIN players p ON p.id = $1
          LEFT JOIN ships cur ON cur.id = p.ship_id
-         LEFT JOIN ship_types cur_st ON cur_st.id = cur.ship_type_id
+         LEFT JOIN universe_ship_types cur_st ON cur_st.universe_id = cur.universe_id AND cur_st.slug = cur.ship_type_slug
          WHERE tgt.id = $2
            AND (tgt.owner_player_id = $1
                 OR tgt.owner_clan_id = (SELECT clan_id FROM players WHERE id = $1))`,

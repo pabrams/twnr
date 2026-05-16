@@ -24,7 +24,7 @@ export async function serveStarbaseInfo(playerId: number): Promise<void> {
     let startingHolds = 0;
     const startingShipName = stats?.starter_ship_slug;
     if (startingShipName) {
-        const shipType = await getStartingShipTypeBySlug(startingShipName);
+        const shipType = await getStartingShipTypeBySlug(universeId, startingShipName);
         startingHolds = shipType?.starting_holds ?? 0;
     }
 

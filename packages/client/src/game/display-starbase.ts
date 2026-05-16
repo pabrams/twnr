@@ -152,7 +152,7 @@ async function loadShipConfigs(ctx: DisplayStarbaseCtx): Promise<boolean> {
     if (ctx.catalogs.ships) return true;
     ctx.io.term.writeln(render(STARBASE.loadingShipCatalog));
     try {
-        const res = await fetch('/api/ships');
+        const res = await fetch(`/api/ships?universe_id=${ctx.player.universeId}`);
         ctx.catalogs.ships = await res.json();
         return true;
     } catch {

@@ -66,7 +66,7 @@ export async function serveSetShipName(playerId: number, data: SetShipNameComman
     const startShipName = templateDefaults.starter_ship_slug;
     const startingDrones = templateDefaults.starting_drones ?? universeConfig.startingDrones;
 
-    const startShipType = await getStartingShipTypeBySlug(startShipName);
+    const startShipType = await getStartingShipTypeBySlug(universeId, startShipName);
     if (!startShipType) {
         sendError(playerId, 'Starting ship type not configured.');
         return;
@@ -75,7 +75,7 @@ export async function serveSetShipName(playerId: number, data: SetShipNameComman
     const newShipId = await insertStartingShip(
         playerId,
         universeId,
-        startShipType.id,
+        startShipType.slug,
         player.sectorId,
         startingDrones,
         universeConfig.startingShields,

@@ -108,11 +108,11 @@ async function main() {
         const earthCol = await getEarthStartingColonistsForUniverse(universeId, client);
         await setEarthColonists(sector1Id, earthCol, client);
 
-        // ── 2. Look up Corporate FlagShip + its max hardware loadout ────
+        // ── 2. Look up Corporate FlagShip + its max hardware loadout (per-universe) ────
         const shipTypeRes = await client.query(
-            `SELECT id, max_drones, max_shields, max_holds, turns_per_warp
-             FROM ship_types WHERE slug = $1`,
-            [SHIP_TYPE_SLUG],
+            `SELECT slug, max_drones, max_shields, max_holds, turns_per_warp
+             FROM universe_ship_types WHERE universe_id = $1 AND slug = $2`,
+            [universeId, SHIP_TYPE_SLUG],
         );
         if (shipTypeRes.rows.length === 0) {
             throw new Error(`ship_type ${SHIP_TYPE_SLUG} not found — was the DB seeded?`);
@@ -121,9 +121,9 @@ async function main() {
 
         const hwLoadoutRes = await client.query(
             `SELECT sth.hardware_item_id, sth.max_quantity
-             FROM ship_type_hardware sth
-             WHERE sth.ship_type_id = $1 AND sth.max_quantity > 0`,
-            [shipType.id],
+             FROM universe_ship_type_hardware sth
+             WHERE sth.universe_id = $1 AND sth.ship_type_slug = $2 AND sth.max_quantity > 0`,
+            [universeId, SHIP_TYPE_SLUG],
         );
         const hwLoadout = hwLoadoutRes.rows;
 
@@ -172,7 +172,7 @@ async function main() {
             // floor-divides), 0 colonists for now.
             const shipRes = await client.query(
                 `INSERT INTO ships (
-                    owner_player_id, ship_type_id, sector_id, name,
+                    owner_player_id, ship_type_slug, sector_id, name,
                     drones, shields, holds, turns_per_warp,
                     fuel, organics, equipment, colonists,
                     universe_id, universe_ship_number
@@ -183,7 +183,7 @@ async function main() {
                  RETURNING id`,
                 [
                     playerId,
-                    shipType.id,
+                    shipType.slug,
                     homeSectorDbId,
                     `${def.name}'s Ship`,
                     shipType.max_drones,
@@ -227,9 +227,10 @@ async function main() {
             }
             await client.query(
                 `INSERT INTO planets (
-                    sector_id, name, type, owner_player_id,
+                    sector_id, universe_id, name, type, owner_player_id,
                     colonists_fuel, colonists_organics, colonists_equipment, colonists_drones
-                 ) VALUES ($1, $2, 'Terran', $3, $4, $4, $4, $4)`,
+                 ) SELECT s.id, s.universe_id, $2, 'Terran', $3, $4, $4, $4, $4
+                   FROM sectors s WHERE s.id = $1`,
                 [homeSectorDbId, def.name, playerId, COLOS_PER_BUCKET],
             );
 

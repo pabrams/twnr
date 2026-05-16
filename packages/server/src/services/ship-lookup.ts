@@ -19,7 +19,10 @@ export async function getPlayerShip(playerId: number) {
         hwRows.map((r) => [r.name, r.quantity]),
     );
 
-    const hwMaxRows = await getShipTypeHardwareMax(ship.ship_type_id as number);
+    const hwMaxRows = await getShipTypeHardwareMax(
+        ship.universe_id as number,
+        ship.ship_type_slug as string,
+    );
     (ship as Record<string, unknown>).hardware_max = Object.fromEntries(
         hwMaxRows.map((r) => [r.name, r.max_quantity]),
     );

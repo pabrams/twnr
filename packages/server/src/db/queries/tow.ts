@@ -44,7 +44,7 @@ export async function getMannedTowables(
                 sh.drones AS ship_drones, sh.turns_per_warp AS ship_turns_per_warp
          FROM players p
          JOIN ships sh ON p.ship_id = sh.id
-         JOIN ship_types st ON sh.ship_type_id = st.id
+         JOIN universe_ship_types st ON st.universe_id = sh.universe_id AND st.slug = sh.ship_type_slug
          LEFT JOIN clans c ON p.clan_id = c.id
          WHERE p.current_sector_id = $2
            AND p.id != $1
@@ -74,7 +74,7 @@ export async function getUnmannedTowables(
                 oc.name AS owner_clan_name,
                 oc.universe_clan_number AS owner_clan_number
          FROM ships sh
-         JOIN ship_types st ON sh.ship_type_id = st.id
+         JOIN universe_ship_types st ON st.universe_id = sh.universe_id AND st.slug = sh.ship_type_slug
          LEFT JOIN players op ON sh.owner_player_id = op.id
          LEFT JOIN clans opc ON op.clan_id = opc.id
          LEFT JOIN clans oc ON sh.owner_clan_id = oc.id
@@ -127,7 +127,7 @@ export async function lockTowTarget(
                 sh.owner_player_id, sh.owner_clan_id,
                 pp.id AS pilot_player_id, pp.name AS pilot_player_name
          FROM ships sh
-         JOIN ship_types st ON sh.ship_type_id = st.id
+         JOIN universe_ship_types st ON st.universe_id = sh.universe_id AND st.slug = sh.ship_type_slug
          LEFT JOIN players pp ON pp.ship_id = sh.id
          WHERE sh.id = $1
          FOR UPDATE OF sh`,
@@ -161,7 +161,7 @@ export async function getTowState(
                 op.id AS towed_owner_player_id, op.name AS towed_owner_player_name
          FROM players p
          JOIN ships sh ON p.towed_ship_id = sh.id
-         JOIN ship_types st ON sh.ship_type_id = st.id
+         JOIN universe_ship_types st ON st.universe_id = sh.universe_id AND st.slug = sh.ship_type_slug
          LEFT JOIN players op ON op.ship_id = sh.id
          WHERE p.id = $1`,
         [playerId],

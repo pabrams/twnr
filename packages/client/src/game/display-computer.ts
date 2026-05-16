@@ -63,7 +63,7 @@ async function loadShipConfigs(ctx: DisplayComputerCtx): Promise<boolean> {
     if (ctx.catalogs.ships) return true;
     ctx.io.term.writeln(render(STARBASE.loadingShipCatalog));
     try {
-        const res = await fetch('/api/ships');
+        const res = await fetch(`/api/ships?universe_id=${ctx.player.universeId}`);
         ctx.catalogs.ships = await res.json();
         return true;
     } catch {
@@ -196,7 +196,7 @@ export async function showPlanetSpecs(ctx: DisplayComputerCtx) {
     if (!ctx.catalogs.planets) {
         ctx.io.term.writeln(render(COMPUTER.planetSpecsLoading));
         try {
-            const res = await fetch('/api/planets');
+            const res = await fetch(`/api/planets?universe_id=${ctx.player.universeId}`);
             ctx.catalogs.planets = await res.json();
         } catch {
             ctx.io.term.writeln(render(COMPUTER.planetSpecsFailed));

@@ -36,7 +36,9 @@ export async function serveBuyShipNew(playerId: number, data: BuyShipNewCommand)
         sendError(playerId, 'Not at Starbase');
         return;
     }
-    const targetType = await getShipTypeBySlug(data.targetShipName);
+    const universeId = getPlayerUniverseId(playerId);
+    if (universeId === undefined) return;
+    const targetType = await getShipTypeBySlug(universeId, data.targetShipName);
     if (!targetType) {
         sendError(playerId, 'Unknown ship');
         return;
@@ -59,7 +61,9 @@ export async function serveBuyShipTradein(
         sendError(playerId, 'Not at Starbase');
         return;
     }
-    const targetType = await getShipTypeBySlug(data.targetShipName);
+    const universeId = getPlayerUniverseId(playerId);
+    if (universeId === undefined) return;
+    const targetType = await getShipTypeBySlug(universeId, data.targetShipName);
     if (!targetType) {
         sendError(playerId, 'Unknown ship');
         return;
@@ -84,7 +88,7 @@ export async function executeBuyShipNew(
 
     try {
         const result = await withTransaction(async (client) => {
-            const targetType = await getShipTypeBySlug(targetShipName, client);
+            const targetType = await getShipTypeBySlug(universeId, targetShipName, client);
             if (!targetType) {
                 sendError(playerId, 'Unknown ship');
                 throw new AbortTransaction();
@@ -111,7 +115,7 @@ export async function executeBuyShipNew(
             const newShipId = await insertEmptyShip(
                 playerId,
                 universeId,
-                targetType.id,
+                targetType.slug,
                 data.current_sector_id,
                 newCargoLimit,
                 targetType.turns_per_warp,
@@ -170,6 +174,7 @@ export async function executeBuyShipTradein(
     try {
         const result = await withTransaction(async (client) => {
             const targetType: ShipTypeRow | undefined = await getShipTypeBySlug(
+                universeId,
                 targetShipName,
                 client,
             );
@@ -207,7 +212,7 @@ export async function executeBuyShipTradein(
             const newShipId = await insertEmptyShip(
                 playerId,
                 universeId,
-                targetType.id,
+                targetType.slug,
                 data.current_sector_id,
                 newCargoLimit,
                 targetType.turns_per_warp,

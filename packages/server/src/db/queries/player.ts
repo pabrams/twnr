@@ -67,7 +67,7 @@ export async function listPlayersInSector(
          JOIN sectors s ON p.current_sector_id = s.id
          LEFT JOIN clans c ON p.clan_id = c.id
          LEFT JOIN ships sh ON p.ship_id = sh.id
-         LEFT JOIN ship_types st ON sh.ship_type_id = st.id
+         LEFT JOIN universe_ship_types st ON st.universe_id = sh.universe_id AND st.slug = sh.ship_type_slug
          WHERE s.sector_number = $1 AND p.universe_id = $2 AND p.id != $3`,
         [sectorNumber, universeId, excludePlayerId],
     );
@@ -195,7 +195,7 @@ export async function getPlayerConnectInfo(
          FROM players p
          JOIN sectors s ON p.current_sector_id = s.id
          LEFT JOIN ships sh ON p.ship_id = sh.id
-         LEFT JOIN ship_types st ON sh.ship_type_id = st.id
+         LEFT JOIN universe_ship_types st ON st.universe_id = sh.universe_id AND st.slug = sh.ship_type_slug
          WHERE p.user_id = $1 AND p.universe_id = $2`,
         [userId, universeId],
     );
@@ -255,7 +255,7 @@ export async function listPlayersInUniverse(
                 c.name AS clan_name
          FROM players p
          LEFT JOIN ships s ON p.ship_id = s.id
-         LEFT JOIN ship_types st ON s.ship_type_id = st.id
+         LEFT JOIN universe_ship_types st ON st.universe_id = s.universe_id AND st.slug = s.ship_type_slug
          LEFT JOIN clans c ON c.id = p.clan_id
          WHERE p.universe_id = $1
          ORDER BY p.name`,
