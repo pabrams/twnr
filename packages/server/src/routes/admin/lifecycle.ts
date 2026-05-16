@@ -57,8 +57,6 @@ export function createAdminLifecycleRoutes(
                 twoWayPct,
                 warpDist,
                 topology,
-                fillDensity,
-                maxPathLength,
                 template_name = 'stock',
             } = req.body;
 
@@ -97,27 +95,6 @@ export function createAdminLifecycleRoutes(
                 parsedTopology = topology;
             }
 
-            let parsedFillDensity: number | undefined;
-            if (fillDensity != null) {
-                const fd = Number(fillDensity);
-                if (!Number.isFinite(fd) || fd < 0.1 || fd > 1.0) {
-                    throw new HttpError(400, 'fillDensity must be a number between 0.1 and 1.0');
-                }
-                parsedFillDensity = fd;
-            }
-
-            let parsedMaxPathLength: number | undefined;
-            if (maxPathLength != null) {
-                const mp = Math.floor(Number(maxPathLength));
-                if (!Number.isFinite(mp) || mp < 5 || mp > 10000) {
-                    throw new HttpError(
-                        400,
-                        'maxPathLength must be an integer between 5 and 10000',
-                    );
-                }
-                parsedMaxPathLength = mp;
-            }
-
             const options = defaultBigBangOptions({
                 sectors: sectorCount,
                 ...(seed != null && { seed: Math.floor(Number(seed)) }),
@@ -125,8 +102,6 @@ export function createAdminLifecycleRoutes(
                 ...(twoWayPct != null && { twoWayPct: Number(twoWayPct) }),
                 ...(parsedWarpDist != null && { warpDist: parsedWarpDist }),
                 ...(parsedTopology != null && { topology: parsedTopology }),
-                ...(parsedFillDensity != null && { fillDensity: parsedFillDensity }),
-                ...(parsedMaxPathLength != null && { maxPathLength: parsedMaxPathLength }),
             });
             const result = generateUniverse(options);
 
@@ -150,9 +125,7 @@ export function createAdminLifecycleRoutes(
                      SET sector_count = $2,
                          warp_dist = $3::jsonb,
                          two_way_pct = $4,
-                         port_spawn_density = $5,
-                         fill_density = $6,
-                         max_path_length = $7
+                         port_spawn_density = $5
                      WHERE universe_id = $1`,
                     [
                         newUniverseId,
@@ -160,8 +133,6 @@ export function createAdminLifecycleRoutes(
                         JSON.stringify(options.warpDist.slice(1)),
                         options.twoWayPct,
                         options.portDensity,
-                        options.fillDensity,
-                        options.maxPathLength,
                     ],
                 );
 
