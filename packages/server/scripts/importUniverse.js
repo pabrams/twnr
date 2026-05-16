@@ -73,11 +73,6 @@ async function main() {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-
-    // Ensure universe row exists, linked to the stock template. Sets topology
-    // from the bigbang manifest on insert; preserves it on conflict unless
-    // still default. Settings are snapshotted into universe_settings just
-    // below so the universe gets its own frozen copy.
     await client.query(
       `INSERT INTO universes (id, name, template_id, topology)
        VALUES ($1, $2, (SELECT id FROM universe_template WHERE name = 'stock'), $3)
@@ -90,7 +85,7 @@ async function main() {
     await snapshotTemplateForUniverse(universeId, 'stock', client);
 
     // Bump the SERIAL sequence past any explicitly-inserted id so subsequent
-    // auto-id inserts (e.g. admin API generate) don't collide.
+    // auto-id inserts don't collide.
     await client.query(
       `SELECT setval('universes_id_seq', GREATEST((SELECT COALESCE(MAX(id), 0) FROM universes), 1))`,
     );
