@@ -44,6 +44,90 @@ export const HEX_NEIGHBOR_DIRS: ReadonlyArray<HexCell> = [
     { q: 0, r: +1 },
 ];
 
+/** Axial hex distance: `(|Δq| + |Δq+Δr| + |Δr|) / 2`. */
+export function hexDistance(a: HexCell, b: HexCell): number {
+    const dq = a.q - b.q;
+    const dr = a.r - b.r;
+    return (Math.abs(dq) + Math.abs(dq + dr) + Math.abs(dr)) / 2;
+}
+
+/**
+ * Remap a hex layout so the given anchor sector IDs land on well-separated
+ * cells. The first anchor goes to the most-central cell (closest to the
+ * centroid); subsequent anchors are chosen by farthest-first traversal —
+ * each one maximises the minimum hex distance to already-chosen anchors.
+ *
+ * The cells/positions arrays are reindexed so `cells[i-1]` is the cell for
+ * sector `i`, with anchor IDs displaced into their chosen cells and the
+ * sectors they displaced filling the vacancies.
+ */
+export function arrangeAnchors(
+    layout: HexLayout,
+    anchorSectorIds: readonly number[],
+): HexLayout {
+    const N = layout.cells.length;
+    if (N === 0 || anchorSectorIds.length === 0) return layout;
+
+    // Pick anchor cell indices: centroid-closest, then farthest-first.
+    const centroidQ = layout.cells.reduce((s, c) => s + c.q, 0) / N;
+    const centroidR = layout.cells.reduce((s, c) => s + c.r, 0) / N;
+    const centroidCell: HexCell = { q: centroidQ, r: centroidR };
+    let centralIdx = 0;
+    let bestCentralDist = Infinity;
+    for (let i = 0; i < N; i++) {
+        const d = hexDistance(layout.cells[i], centroidCell);
+        if (d < bestCentralDist) {
+            bestCentralDist = d;
+            centralIdx = i;
+        }
+    }
+    const anchorCellIndices: number[] = [centralIdx];
+    const chosen = new Uint8Array(N);
+    chosen[centralIdx] = 1;
+    while (anchorCellIndices.length < anchorSectorIds.length && anchorCellIndices.length < N) {
+        let bestIdx = -1;
+        let bestMinDist = -1;
+        for (let i = 0; i < N; i++) {
+            if (chosen[i]) continue;
+            let minD = Infinity;
+            for (const aIdx of anchorCellIndices) {
+                const d = hexDistance(layout.cells[i], layout.cells[aIdx]);
+                if (d < minD) minD = d;
+            }
+            if (minD > bestMinDist) {
+                bestMinDist = minD;
+                bestIdx = i;
+            }
+        }
+        if (bestIdx < 0) break;
+        anchorCellIndices.push(bestIdx);
+        chosen[bestIdx] = 1;
+    }
+
+    // Build new cell ordering: sector ID `s` reads from cellIdxForSector[s].
+    const cellIdxForSector = new Int32Array(N + 1).fill(-1);
+    for (let i = 0; i < anchorCellIndices.length; i++) {
+        cellIdxForSector[anchorSectorIds[i]] = anchorCellIndices[i];
+    }
+    const usedCellIndices = new Set(anchorCellIndices);
+    let nextFree = 0;
+    for (let s = 1; s <= N; s++) {
+        if (cellIdxForSector[s] !== -1) continue;
+        while (usedCellIndices.has(nextFree)) nextFree++;
+        cellIdxForSector[s] = nextFree;
+        nextFree++;
+    }
+
+    const newCells: HexCell[] = new Array(N);
+    const newPositions: Position[] = new Array(N);
+    for (let s = 1; s <= N; s++) {
+        const src = cellIdxForSector[s];
+        newCells[s - 1] = layout.cells[src];
+        newPositions[s - 1] = layout.positions[src];
+    }
+    return { cells: newCells, positions: newPositions };
+}
+
 /**
  * Sample N occupied hex cells from a square-ish bounded region whose total
  * cell count is approximately N / fillDensity. Returns both the cartesian

@@ -8,7 +8,7 @@ import type {
 import { mulberry32 } from './prng.js';
 import { generateGraph } from './graph.js';
 import { generateProximalGraph } from './graph-proximal.js';
-import { scatterPositions } from './positions.js';
+import { scatterPositions, arrangeAnchors } from './positions.js';
 
 const portClasses: Record<number, string[]> = {
     1: ['B', 'B', 'S'],
@@ -32,6 +32,7 @@ export function generateUniverse(options: BigBangOptions): BigBangResult {
         topology,
         fillDensity,
         maxPathLength,
+        additionalClassZeroPorts,
     } = options;
 
     const rng = mulberry32(seed);
@@ -45,11 +46,35 @@ export function generateUniverse(options: BigBangOptions): BigBangResult {
     const starbaseId = randomInt(2, N);
     sectorNames[starbaseId] = 'Starbase';
 
+    // Pick additional class-0 sector IDs (random, distinct from sector 1 and
+    // starbase). Capped at N-2 so we never run out of distinct IDs on small
+    // universes; the requested count is honoured up to that ceiling.
+    const extraClassZeroSectorIds: number[] = [];
+    const desiredExtras = Math.max(0, Math.min(additionalClassZeroPorts, N - 2));
+    const usedIds = new Set<number>([1, starbaseId]);
+    while (extraClassZeroSectorIds.length < desiredExtras) {
+        const candidate = randomInt(2, N);
+        if (usedIds.has(candidate)) continue;
+        usedIds.add(candidate);
+        extraClassZeroSectorIds.push(candidate);
+        sectorNames[candidate] = 'Federation Outpost';
+    }
+
+    // Anchor list: sector 1 first (so it lands on the centroid-closest cell —
+    // Federation Space is "the heart"), then starbase, then extras. Order
+    // matters because arrangeAnchors does farthest-first traversal after the
+    // central pick, and graph-proximal honours the same order for its
+    // guaranteed/target hub fixup.
+    const anchorSectorIds: number[] = [1, starbaseId, ...extraClassZeroSectorIds];
+
     // Hex layout (proximal only) must happen before graph generation so the
     // RNG stream is seed-determined across topology modes.
-    const layout = topology === 'proximal' ? scatterPositions(N, rng, fillDensity) : null;
+    const rawLayout = topology === 'proximal' ? scatterPositions(N, rng, fillDensity) : null;
+    const layout =
+        rawLayout && topology === 'proximal' ? arrangeAnchors(rawLayout, anchorSectorIds) : rawLayout;
 
-    const forcedHubSectors: number[] = [1, starbaseId];
+    const guaranteedHubSectors: number[] = [1, starbaseId];
+    const forcedHubSectors: number[] = anchorSectorIds;
     const warps =
         topology === 'proximal' && layout
             ? generateProximalGraph(
@@ -60,6 +85,7 @@ export function generateUniverse(options: BigBangOptions): BigBangResult {
                   maxPathLength,
                   forcedHubSectors,
                   warpDist,
+                  guaranteedHubSectors,
               )
             : generateGraph(N, twoWayPct, rng, warpDist, forcedHubSectors);
 
@@ -106,16 +132,19 @@ export function generateUniverse(options: BigBangOptions): BigBangResult {
     // Starbase always gets a port (class 8 in generation, will be overridden to 9 later)
     ports.push(generatePort(starbaseId, 8));
 
-    let numOtherPorts = totalPortsTarget - 1;
-    if (numOtherPorts > N - 2) {
-        numOtherPorts = N - 2;
-    }
+    // totalPortsTarget covers all ports (incl. starbase + class-0 hubs).
+    // Subtract the specials so the "other" pool fills the rest.
+    let numOtherPorts = totalPortsTarget - 1 - extraClassZeroSectorIds.length;
+    const maxOtherPorts = N - 2 - extraClassZeroSectorIds.length;
+    if (numOtherPorts > maxOtherPorts) numOtherPorts = maxOtherPorts;
+    if (numOtherPorts < 0) numOtherPorts = 0;
 
+    const extraClassZeroSet = new Set<number>(extraClassZeroSectorIds);
     const availableSectorsForPorts: number[] = [];
     for (let i = 2; i <= N; i++) {
-        if (i !== starbaseId) {
-            availableSectorsForPorts.push(i);
-        }
+        if (i === starbaseId) continue;
+        if (extraClassZeroSet.has(i)) continue;
+        availableSectorsForPorts.push(i);
     }
     // Shuffle
     for (let i = availableSectorsForPorts.length - 1; i > 0; i--) {
@@ -192,5 +221,5 @@ export function generateUniverse(options: BigBangOptions): BigBangResult {
         );
     }
 
-    return { seed, topology, sectors, warps, ports, planets };
+    return { seed, topology, sectors, warps, ports, planets, extraClassZeroSectorIds };
 }
