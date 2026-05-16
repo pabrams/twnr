@@ -1,6 +1,18 @@
 import { pool } from '../index.js';
 import type { Queryable } from '../types.js';
 
+export async function adjustReputationAndExperience(
+    playerId: number,
+    reputationDelta: number,
+    experienceDelta: number,
+    db: Queryable = pool,
+): Promise<void> {
+    await db.query(
+        'UPDATE players SET reputation = reputation + $2, experience = experience + $3 WHERE id = $1',
+        [playerId, reputationDelta, experienceDelta],
+    );
+}
+
 /** Resolve a player's current ship_id. Returns null if the player has
  *  no ship (destroyed, awaiting a starter, etc.). */
 export async function getPlayerShipId(
