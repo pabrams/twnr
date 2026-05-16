@@ -44,6 +44,7 @@ import { getPlanetsInSector } from '../db/queries/sector.js';
 import {
     adjustReputationAndExperience,
     getOnPlanetId,
+    getPlayerReputationForUpdate,
     setDocked,
     setOnPlanet,
 } from '../db/queries/player.js';
@@ -410,6 +411,20 @@ export async function serveUseTerraformDevice(playerId: number): Promise<void> {
                     await insertPlanetCollision(newPlanetId, collidingWithId, hours, client);
                 }
             }
+
+            const currentRep = await getPlayerReputationForUpdate(playerId, client);
+            const bucket =
+                currentRep > 0
+                    ? 'blueCreatesPlanet'
+                    : currentRep < 0
+                      ? 'redCreatesPlanet'
+                      : 'neutralCreatesPlanet';
+            await adjustReputationAndExperience(
+                playerId,
+                reputationDeltas.amountChangeFor[bucket] ?? 0,
+                experienceDeltas.amountChangeFor[bucket] ?? 0,
+                client,
+            );
 
             return { newPlanetId, randomName, randomType, randomDisplayType, collision };
         });
