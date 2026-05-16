@@ -13,6 +13,17 @@ export async function adjustReputationAndExperience(
     );
 }
 
+export async function getPlayerReputationForUpdate(
+    playerId: number,
+    db: Queryable = pool,
+): Promise<number> {
+    const res = await db.query<{ reputation: number }>(
+        'SELECT reputation FROM players WHERE id = $1 FOR UPDATE',
+        [playerId],
+    );
+    return res.rows[0]?.reputation ?? 0;
+}
+
 /** Resolve a player's current ship_id. Returns null if the player has
  *  no ship (destroyed, awaiting a starter, etc.). */
 export async function getPlayerShipId(
