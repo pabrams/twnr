@@ -175,6 +175,17 @@ export async function snapshotTemplateForUniverse(
          ON CONFLICT (universe_id) DO NOTHING`,
         [universeId, templateName],
     );
+
+    // Freeze hardware prices for this universe by cloning the template's rows.
+    await db.query(
+        `INSERT INTO universe_hardware_price (universe_id, hardware_item_id, price)
+         SELECT $1, hp.hardware_item_id, hp.price
+         FROM hardware_price hp
+         JOIN universe_template ut ON ut.id = hp.template_id
+         WHERE ut.name = $2
+         ON CONFLICT (universe_id, hardware_item_id) DO NOTHING`,
+        [universeId, templateName],
+    );
 }
 
 /** Earth starting colonists for a universe (falls back to 1,000,000 if no row). */

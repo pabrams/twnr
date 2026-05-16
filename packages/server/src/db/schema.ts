@@ -224,6 +224,15 @@ export const connectDB = async (): Promise<void> => {
         PRIMARY KEY (template_id, hardware_item_id)
       );
 
+      -- Per-universe frozen clone of hardware_price. Populated at universe
+      -- creation from the chosen template's rows; never updated thereafter.
+      CREATE TABLE IF NOT EXISTS universe_hardware_price (
+        universe_id INTEGER NOT NULL REFERENCES universes(id) ON DELETE CASCADE,
+        hardware_item_id INTEGER NOT NULL REFERENCES hardware_item(id) ON DELETE CASCADE,
+        price INTEGER NOT NULL,
+        PRIMARY KEY (universe_id, hardware_item_id)
+      );
+
       CREATE TABLE IF NOT EXISTS ship_type_hardware (
         ship_type_id INTEGER NOT NULL REFERENCES ship_types(id) ON DELETE CASCADE,
         hardware_item_id INTEGER NOT NULL REFERENCES hardware_item(id) ON DELETE CASCADE,

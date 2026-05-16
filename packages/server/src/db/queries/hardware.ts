@@ -52,15 +52,15 @@ export async function getHardwareStoreRows(
                 hi.name,
                 hi.label,
                 hi.kind,
-                COALESCE(hp.price, hi.default_price) AS price,
+                COALESCE(uhp.price, hi.default_price) AS price,
                 COALESCE(sh.quantity, 0) AS current_qty,
                 COALESCE(sth.max_quantity, 0) AS max_qty
          FROM players p
          JOIN ships s ON s.id = p.ship_id
          CROSS JOIN hardware_item hi
-         LEFT JOIN hardware_price hp
-           ON hp.hardware_item_id = hi.id
-           AND hp.template_id = (SELECT template_id FROM universes WHERE id = $2)
+         LEFT JOIN universe_hardware_price uhp
+           ON uhp.hardware_item_id = hi.id
+           AND uhp.universe_id = $2
          LEFT JOIN ship_hardware sh
            ON sh.ship_id = s.id AND sh.hardware_item_id = hi.id
          LEFT JOIN ship_type_hardware sth
@@ -79,9 +79,8 @@ export async function getHardwarePriceForUniverse(
     db: Queryable = pool,
 ): Promise<number | undefined> {
     const res = await db.query<{ price: number }>(
-        `SELECT hp.price FROM hardware_price hp
-         JOIN universes u ON u.template_id = hp.template_id
-         WHERE u.id = $1 AND hp.hardware_item_id = $2`,
+        `SELECT price FROM universe_hardware_price
+         WHERE universe_id = $1 AND hardware_item_id = $2`,
         [universeId, hardwareItemId],
     );
     return res.rows[0]?.price;
