@@ -471,6 +471,8 @@ export async function showTraderList(ctx: DisplayComputerCtx) {
             coloredShipName: string | null;
             clanNumber: number | null;
             clanName: string | null;
+            reputation: number;
+            experience: number;
         }[] = await res.json();
         ctx.io.term.writeln('');
         ctx.io.term.writeln(render(COMPUTER.traderListHeader));
@@ -478,6 +480,8 @@ export async function showTraderList(ctx: DisplayComputerCtx) {
             render(COMPUTER.traderListColumns, {
                 name: 'Name'.padEnd(24),
                 clan: 'Clan'.padEnd(5),
+                rep: 'Rep'.padStart(6),
+                exp: 'Exp'.padStart(6),
                 ship: 'Ship',
             }),
         );
@@ -496,6 +500,8 @@ export async function showTraderList(ctx: DisplayComputerCtx) {
                 render(COMPUTER.traderListRow, {
                     name: t.name.padEnd(24),
                     clan: clanCell,
+                    rep: String(t.reputation).padStart(6),
+                    exp: String(t.experience).padStart(6),
                     ship,
                 }),
             );
