@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
-const CONFIG_DIR = path.join(process.cwd(), 'config');
+const CONFIG_DIR = path.join(process.cwd(), 'config', 'templates', 'stock');
 
 /**
  * Load a JSON file from `config/`. Throws if the file is missing or malformed

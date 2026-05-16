@@ -1,0 +1,16 @@
+[
+  { "name": "planet_buster",    "label": "Planet Busters",    "kind": "stackable", "default_price":  40000, "result_msg_type": "buyHardwareResult", "result_extra": null },
+  { "name": "terraform_device", "label": "Terraform Devices", "kind": "stackable", "default_price":  25000, "result_msg_type": "buyHardwareResult", "result_extra": null },
+  { "name": "buoy",             "label": "Marker Beacons",    "kind": "stackable", "default_price":    250, "result_msg_type": "buyHardwareResult", "result_extra": null },
+  { "name": "proximity_mine",   "label": "Proximity Mines",   "kind": "stackable", "default_price":    500, "result_msg_type": "buyHardwareResult", "result_extra": { "mineType": "proximity" } },
+  { "name": "seeker_mine",      "label": "Limpet Mines",      "kind": "stackable", "default_price":   9500, "result_msg_type": "buyHardwareResult", "result_extra": { "mineType": "seeker" } },
+  { "name": "mine_disruptor",   "label": "Mine Disruptors",   "kind": "stackable", "default_price":   5000, "result_msg_type": "buyHardwareResult", "result_extra": null },
+  { "name": "cloaking_device",  "label": "Cloaking Devices",  "kind": "stackable", "default_price":  25000, "result_msg_type": "buyHardwareResult", "result_extra": null },
+  { "name": "corbomite",        "label": "Corbomite",         "kind": "stackable", "default_price":    500, "result_msg_type": "buyHardwareResult", "result_extra": null },
+  { "name": "photon_torpedo",   "label": "Photon Torpedoes",  "kind": "stackable", "default_price":  60000, "result_msg_type": "buyHardwareResult", "result_extra": null },
+  { "name": "recon_drone",      "label": "Recon Drones",      "kind": "stackable", "default_price":   1500, "result_msg_type": "buyHardwareResult", "result_extra": null },
+  { "name": "visual_scanner",   "label": "Visual Scanner",    "kind": "toggle",    "default_price":  50000, "result_msg_type": "buyHardwareResult", "result_extra": null },
+  { "name": "planet_scanner",   "label": "Planet Scanner",    "kind": "toggle",    "default_price":  20000, "result_msg_type": "buyHardwareResult", "result_extra": null },
+  { "name": "hyperspace_1",     "label": "Hyperspace Type 1", "kind": "toggle",    "default_price": 100000, "result_msg_type": "buyHardwareResult", "result_extra": { "driveType": 1 } },
+  { "name": "hyperspace_2",     "label": "Hyperspace Type 2", "kind": "toggle",    "default_price": 150000, "result_msg_type": "buyHardwareResult", "result_extra": { "driveType": 2 } }
+]
