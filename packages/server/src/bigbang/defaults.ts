@@ -17,6 +17,7 @@ export function defaultBigBangOptions(
         warpDist: [0, ...universeConfig.warpDist],
         topology: universeConfig.topology,
         additionalClassZeroPorts: 2,
+        maxShortestPath: universeConfig.maxShortestPath,
         ...overrides,
     };
 }

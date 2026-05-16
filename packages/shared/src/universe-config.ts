@@ -29,4 +29,5 @@ export const universeConfig = {
     twoWayPct: 95,
     portSpawnDensity: 80,
     topology: 'proximal' as 'random' | 'proximal',
+    maxShortestPath: 'medium' as 'packed' | 'narrow' | 'medium' | 'wide' | 'vast',
 } as const;
