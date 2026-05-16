@@ -4,10 +4,7 @@
  * Imports a twnr-bigbang output directory into the server's PostgreSQL database.
  *
  * Usage: node scripts/importUniverse.js <bigbang-output-dir> [--force] [--universe-id <id>]
- *
- * The server schema is created if it doesn't already exist. Existing universe
- * data for the target universe_id (sectors, warps, ports) is wiped before import.
- * Run this while the server is not running to avoid state conflicts.
+
  */
 
 import { existsSync, readFileSync } from 'node:fs';
@@ -15,6 +12,7 @@ import { join } from 'node:path';
 import { pool } from '../dist/db/pool.js';
 import { DEFAULT_TOPOLOGY } from '../dist/bigbang/types.js';
 import { connectDB } from '../dist/db/schema.js';
+import { snapshotTemplateForUniverse } from '../dist/db/queries/universe.js';
 
 const args = process.argv.slice(2);
 const universeDir = args.find(a => !a.startsWith('--'));
@@ -82,41 +80,14 @@ async function main() {
     // below so the universe gets its own frozen copy.
     await client.query(
       `INSERT INTO universes (id, name, template_id, topology)
-       VALUES ($1, $2, (SELECT id FROM edit_templates WHERE name = 'stock'), $3)
+       VALUES ($1, $2, (SELECT id FROM universe_template WHERE name = 'stock'), $3)
        ON CONFLICT (id) DO UPDATE SET
-         template_id = COALESCE(universes.template_id, (SELECT id FROM edit_templates WHERE name = 'stock')),
+         template_id = COALESCE(universes.template_id, (SELECT id FROM universe_template WHERE name = 'stock')),
          topology = EXCLUDED.topology`,
       [universeId, `Universe ${universeId}`, topology],
     );
 
-    // Snapshot the stock template into universe_settings (no-op on re-run).
-    await client.query(
-      `INSERT INTO universe_settings (
-          universe_id, max_planets_per_sector, planet_collision_likelihood,
-          planet_collision_min_hours, planet_collision_max_hours,
-          turns_per_day, starting_turns, max_turns, starting_ship,
-          starting_drones, starting_credits, starting_port_density,
-          max_port_density, port_production_rate, port_memory_hours,
-          max_players, max_age_days, max_planets, turn_delay,
-          is_speed_warp_delay_on, photons_allowed, photon_blast_time_seconds,
-          planet_spawn_density, max_ships_allowed, max_clan_size,
-          max_ships_in_protected_space, truce_time_hours, is_automation_enabled,
-          starting_shields, starting_earth_colonists
-       )
-       SELECT $1, max_planets_per_sector, planet_collision_likelihood,
-              planet_collision_min_hours, planet_collision_max_hours,
-              turns_per_day, starting_turns, max_turns, starting_ship,
-              starting_drones, starting_credits, starting_port_density,
-              max_port_density, port_production_rate, port_memory_hours,
-              max_players, max_age_days, max_planets, turn_delay,
-              is_speed_warp_delay_on, photons_allowed, photon_blast_time_seconds,
-              planet_spawn_density, max_ships_allowed, max_clan_size,
-              max_ships_in_protected_space, truce_time_hours, is_automation_enabled,
-              starting_shields, starting_earth_colonists
-       FROM edit_templates WHERE name = 'stock'
-       ON CONFLICT (universe_id) DO NOTHING`,
-      [universeId],
-    );
+    await snapshotTemplateForUniverse(universeId, 'stock', client);
 
     // Bump the SERIAL sequence past any explicitly-inserted id so subsequent
     // auto-id inserts (e.g. admin API generate) don't collide.

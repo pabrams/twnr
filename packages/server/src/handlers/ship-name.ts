@@ -4,8 +4,8 @@ import { players, getPlayerUniverseId } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { getStartingShipTypeByName, insertStartingShip } from '../db/queries/ship.js';
 import { setPlayerShipId } from '../db/queries/player.js';
-import { getUniverseEditDefaults } from '../db/queries/universe.js';
-import { universeConfig } from '../universe-config.js';
+import { getUniverseTemplateDefaults } from '../db/queries/universe.js';
+import { universeConfig } from '@twnr/shared';
 import {
     getPendingShipPurchase,
     clearPendingShipPurchase,
@@ -58,9 +58,9 @@ export async function serveSetShipName(playerId: number, data: SetShipNameComman
         return;
     }
 
-    const editDefaults = await getUniverseEditDefaults(universeId);
-    const startShipName = editDefaults?.starting_ship ?? universeConfig.startingShip;
-    const startingDrones = editDefaults?.starting_drones ?? universeConfig.startingDrones;
+    const templateDefaults = await getUniverseTemplateDefaults(universeId);
+    const startShipName = templateDefaults?.starting_ship ?? universeConfig.startingShip;
+    const startingDrones = templateDefaults?.starting_drones ?? universeConfig.startingDrones;
 
     const startShipType = await getStartingShipTypeByName(startShipName);
     if (!startShipType) {

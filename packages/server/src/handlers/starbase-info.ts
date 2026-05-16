@@ -1,10 +1,9 @@
-import { ServerTag } from '@twnr/shared';
+import { ServerTag, universeConfig } from '@twnr/shared';
 import { players } from '../state/players.js';
 import { sendEnvelope } from '../state/messaging.js';
 import { getStarbaseSectorNumber } from '../db/queries/sector.js';
 import { getUniverseStats, getOutWarpDegreeDistribution } from '../db/queries/universe.js';
 import { getStartingShipTypeByName } from '../db/queries/ship.js';
-import { universeConfig } from '../universe-config.js';
 
 export async function serveStarbaseInfo(playerId: number): Promise<void> {
     const player = players[playerId];

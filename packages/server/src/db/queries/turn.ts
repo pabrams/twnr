@@ -1,6 +1,6 @@
 import { pool } from '../index.js';
 import type { Queryable } from '../types.js';
-import { universeConfig } from '../../universe-config.js';
+import { universeConfig } from '@twnr/shared';
 
 /** Per-universe turn-economy config (with template fallbacks). */
 export type UniverseTurnSettings = {

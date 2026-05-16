@@ -1,25 +1,15 @@
-import {
-    DEFAULT_WARP_DIST_1_6,
-    DEFAULT_TWO_WAY_PCT,
-    DEFAULT_PORT_DENSITY,
-    DEFAULT_TOPOLOGY,
-    DEFAULT_FILL_DENSITY,
-    DEFAULT_MAX_PATH_LENGTH,
-    HEX_CELL_SIZE,
-    HEX_SPACING_MULTIPLIER,
-} from '@twnr/shared';
+import { universeConfig, HEX_CELL_SIZE, HEX_SPACING_MULTIPLIER } from '@twnr/shared';
 
-export const DEFAULT_WARP_DIST: number[] = [0, ...DEFAULT_WARP_DIST_1_6];
+// degree-0 prepended so DEFAULT_WARP_DIST[degree] indexes by degree directly
+export const DEFAULT_WARP_DIST: number[] = [0, ...universeConfig.warpDist];
 
-export {
-    DEFAULT_TWO_WAY_PCT,
-    DEFAULT_PORT_DENSITY,
-    DEFAULT_TOPOLOGY,
-    DEFAULT_FILL_DENSITY,
-    DEFAULT_MAX_PATH_LENGTH,
-    HEX_CELL_SIZE,
-    HEX_SPACING_MULTIPLIER,
-};
+export const DEFAULT_TWO_WAY_PCT = universeConfig.twoWayPct;
+export const DEFAULT_PORT_DENSITY = universeConfig.portSpawnDensity;
+export const DEFAULT_TOPOLOGY = universeConfig.topology;
+export const DEFAULT_FILL_DENSITY = universeConfig.fillDensity;
+export const DEFAULT_MAX_PATH_LENGTH = universeConfig.maxPathLength;
+
+export { HEX_CELL_SIZE, HEX_SPACING_MULTIPLIER };
 
 export type Topology = 'random' | 'proximal';
 

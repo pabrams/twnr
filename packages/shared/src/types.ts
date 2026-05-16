@@ -1,23 +1,6 @@
-export const DEFAULT_WARP_DIST_1_6: readonly number[] = [25, 25, 25, 15, 8, 2];
-export const DEFAULT_TWO_WAY_PCT = 98;
-export const DEFAULT_PORT_DENSITY = 80;
-export const DEFAULT_TOPOLOGY: 'random' | 'proximal' = 'proximal';
-/** Default number of sectors when generating a universe (admin form + guest
- *  auto-bootstrap both pull from this). */
-export const DEFAULT_SECTOR_COUNT = 500;
-/** Fraction of hex grid cells that hold a sector (0–1). Lower = more empty space. */
-export const DEFAULT_FILL_DENSITY = 0.8;
-/** Diameter target for wormhole sprinkling: BFS eccentricity ≤ this. */
-export const DEFAULT_MAX_PATH_LENGTH = 25;
-/** Hex "size" parameter in world units — used as the unit for label/pill sizing
- *  on the client. Adjacent center-to-center distance is √3 × HEX_CELL_SIZE ×
- *  HEX_SPACING_MULTIPLIER. */
+// hex-grid spatial constants: server bakes them into sector coords at
+// generation, client uses them to interpret those coords when rendering
 export const HEX_CELL_SIZE = 100;
-/** Multiplier on the bigbang-time hex layout coordinates to give adjacent
- *  pills more breathing room without growing the pills themselves. Tuned so
- *  multi-digit sector numbers leave clear visible warp segments between
- *  adjacent pills. Affects new universes only — existing rows in the DB
- *  keep whatever spacing they were generated with. */
 export const HEX_SPACING_MULTIPLIER = 1.4;
 
 export type ShipConfig = {

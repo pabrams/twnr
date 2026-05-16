@@ -1,7 +1,7 @@
 import { pool, ensureDatabase, databaseName } from './pool.js';
 import { shipConfigs } from '../ship-config.js';
 import { planetConfigs } from '../planet-config.js';
-import { universeConfig } from '../universe-config.js';
+import { universeConfig } from '@twnr/shared';
 import type { ShipConfig } from '@twnr/shared';
 
 let isConnected = false;
@@ -25,16 +25,11 @@ export const connectDB = async (): Promise<void> => {
         is_guest BOOLEAN NOT NULL DEFAULT FALSE
       );
 
-      -- Editable settings templates. Each row is a named, reusable preset
-      -- whose values are interpolated from universeConfig on every boot
-      -- (so editing the TS file + restarting propagates to NEW universes
-      -- only). Existing universes never read from this table for settings;
-      -- they have their own frozen row in universe_settings.
-      --
-      -- Junction tables (hardware_price, ship_types_edits, planet_types_edits)
-      -- still reference templates for content-availability lookups; settings
-      -- are split off into universe_settings so they can be frozen.
-      CREATE TABLE IF NOT EXISTS edit_templates (
+      -- Named presets used to create a new universe. Column DEFAULTs
+      -- interpolate from universeConfig on boot; the 'stock' row is re-synced
+      -- from universeConfig on every boot. Once a universe is created, its
+      -- frozen universe_settings row never reads from this table again.
+      CREATE TABLE IF NOT EXISTS universe_template (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) UNIQUE NOT NULL,
         max_planets_per_sector SMALLINT NOT NULL DEFAULT ${universeConfig.maxPlanetsPerSector},
@@ -74,7 +69,13 @@ export const connectDB = async (): Promise<void> => {
         mine_disruptor_max SMALLINT NOT NULL DEFAULT ${universeConfig.mineDisruptorMax},
         respawn_delay_seconds INTEGER NOT NULL DEFAULT ${universeConfig.respawnDelaySeconds},
         colos_to_produce_one_unit_per_hour INTEGER NOT NULL DEFAULT ${universeConfig.colosToProduceOneUnitPerHour},
-        daily_reproduction_per_1000_colos INTEGER NOT NULL DEFAULT ${universeConfig.dailyReproductionPer1000Colos}
+        daily_reproduction_per_1000_colos INTEGER NOT NULL DEFAULT ${universeConfig.dailyReproductionPer1000Colos},
+        sector_count INTEGER NOT NULL DEFAULT ${universeConfig.sectorCount},
+        warp_dist JSONB NOT NULL DEFAULT '${JSON.stringify(universeConfig.warpDist)}'::jsonb,
+        two_way_pct SMALLINT NOT NULL DEFAULT ${universeConfig.twoWayPct},
+        port_spawn_density SMALLINT NOT NULL DEFAULT ${universeConfig.portSpawnDensity},
+        fill_density REAL NOT NULL DEFAULT ${universeConfig.fillDensity},
+        max_path_length INTEGER NOT NULL DEFAULT ${universeConfig.maxPathLength}
       );
 
       CREATE TABLE IF NOT EXISTS universes (
@@ -82,7 +83,7 @@ export const connectDB = async (): Promise<void> => {
         name VARCHAR(255) NOT NULL,
         seed INTEGER,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        template_id INTEGER REFERENCES edit_templates(id) ON DELETE SET NULL,
+        template_id INTEGER REFERENCES universe_template(id) ON DELETE SET NULL,
         topology VARCHAR(16) NOT NULL DEFAULT 'random'
       );
 
@@ -129,7 +130,13 @@ export const connectDB = async (): Promise<void> => {
         mine_disruptor_max SMALLINT NOT NULL DEFAULT ${universeConfig.mineDisruptorMax},
         respawn_delay_seconds INTEGER NOT NULL DEFAULT ${universeConfig.respawnDelaySeconds},
         colos_to_produce_one_unit_per_hour INTEGER NOT NULL DEFAULT ${universeConfig.colosToProduceOneUnitPerHour},
-        daily_reproduction_per_1000_colos INTEGER NOT NULL DEFAULT ${universeConfig.dailyReproductionPer1000Colos}
+        daily_reproduction_per_1000_colos INTEGER NOT NULL DEFAULT ${universeConfig.dailyReproductionPer1000Colos},
+        sector_count INTEGER NOT NULL DEFAULT ${universeConfig.sectorCount},
+        warp_dist JSONB NOT NULL DEFAULT '${JSON.stringify(universeConfig.warpDist)}'::jsonb,
+        two_way_pct SMALLINT NOT NULL DEFAULT ${universeConfig.twoWayPct},
+        port_spawn_density SMALLINT NOT NULL DEFAULT ${universeConfig.portSpawnDensity},
+        fill_density REAL NOT NULL DEFAULT ${universeConfig.fillDensity},
+        max_path_length INTEGER NOT NULL DEFAULT ${universeConfig.maxPathLength}
       );
 
       CREATE TABLE IF NOT EXISTS sectors (
@@ -193,7 +200,7 @@ export const connectDB = async (): Promise<void> => {
       );
 
       CREATE TABLE IF NOT EXISTS hardware_price (
-        template_id INTEGER NOT NULL REFERENCES edit_templates(id) ON DELETE CASCADE,
+        template_id INTEGER NOT NULL REFERENCES universe_template(id) ON DELETE CASCADE,
         hardware_item_id INTEGER NOT NULL REFERENCES hardware_item(id) ON DELETE CASCADE,
         price INTEGER NOT NULL,
         PRIMARY KEY (template_id, hardware_item_id)
@@ -206,9 +213,9 @@ export const connectDB = async (): Promise<void> => {
         PRIMARY KEY (ship_type_id, hardware_item_id)
       );
 
-      CREATE TABLE IF NOT EXISTS ship_types_edits (
+      CREATE TABLE IF NOT EXISTS ship_types_template (
         ship_type_id INTEGER NOT NULL REFERENCES ship_types(id) ON DELETE CASCADE,
-        template_id INTEGER NOT NULL REFERENCES edit_templates(id) ON DELETE CASCADE,
+        template_id INTEGER NOT NULL REFERENCES universe_template(id) ON DELETE CASCADE,
         PRIMARY KEY (ship_type_id, template_id)
       );
 
@@ -232,9 +239,9 @@ export const connectDB = async (): Promise<void> => {
         danger SMALLINT NOT NULL DEFAULT 0
       );
 
-      CREATE TABLE IF NOT EXISTS planet_types_edits (
+      CREATE TABLE IF NOT EXISTS planet_types_template (
         planet_type VARCHAR(255) NOT NULL REFERENCES planet_types(name) ON DELETE CASCADE,
-        template_id INTEGER NOT NULL REFERENCES edit_templates(id) ON DELETE CASCADE,
+        template_id INTEGER NOT NULL REFERENCES universe_template(id) ON DELETE CASCADE,
         PRIMARY KEY (planet_type, template_id)
       );
 
@@ -571,16 +578,12 @@ export const connectDB = async (): Promise<void> => {
         result_msg_type = EXCLUDED.result_msg_type,
         result_extra = EXCLUDED.result_extra;
 
-      -- Seed the 'stock' template. Values that overlap with universeConfig
-      -- are pushed via a parameterised UPDATE just below — universeConfig is
-      -- the single source of truth for those defaults.
-      INSERT INTO edit_templates (name) VALUES ('stock') ON CONFLICT (name) DO NOTHING;
+      INSERT INTO universe_template (name) VALUES ('stock') ON CONFLICT (name) DO NOTHING;
     `);
 
-        // Sync 'stock' template fields with universeConfig (single source of
-        // truth for the values that overlap with template columns).
+        // sync 'stock' fields from universeConfig
         await client.query(
-            `UPDATE edit_templates
+            `UPDATE universe_template
              SET starting_credits = $1,
                  starting_drones = $2,
                  starting_shields = $3,
@@ -594,7 +597,13 @@ export const connectDB = async (): Promise<void> => {
                  planet_collision_max_hours = $11,
                  respawn_delay_seconds = $12,
                  colos_to_produce_one_unit_per_hour = $13,
-                 daily_reproduction_per_1000_colos = $14
+                 daily_reproduction_per_1000_colos = $14,
+                 sector_count = $15,
+                 warp_dist = $16::jsonb,
+                 two_way_pct = $17,
+                 port_spawn_density = $18,
+                 fill_density = $19,
+                 max_path_length = $20
              WHERE name = 'stock'`,
             [
                 universeConfig.startingCredits,
@@ -611,6 +620,12 @@ export const connectDB = async (): Promise<void> => {
                 universeConfig.respawnDelaySeconds,
                 universeConfig.colosToProduceOneUnitPerHour,
                 universeConfig.dailyReproductionPer1000Colos,
+                universeConfig.sectorCount,
+                JSON.stringify(universeConfig.warpDist),
+                universeConfig.twoWayPct,
+                universeConfig.portSpawnDensity,
+                universeConfig.fillDensity,
+                universeConfig.maxPathLength,
             ],
         );
 
@@ -733,12 +748,11 @@ export const connectDB = async (): Promise<void> => {
             }
         }
 
-        // Seed hardware_price: default prices for the 'stock' template.
         await client.query(`
             INSERT INTO hardware_price (template_id, hardware_item_id, price)
-            SELECT et.id, hi.id, hi.default_price
-            FROM edit_templates et, hardware_item hi
-            WHERE et.name = 'stock'
+            SELECT ut.id, hi.id, hi.default_price
+            FROM universe_template ut, hardware_item hi
+            WHERE ut.name = 'stock'
             ON CONFLICT (template_id, hardware_item_id) DO UPDATE SET price = EXCLUDED.price
         `);
 
@@ -786,35 +800,32 @@ export const connectDB = async (): Promise<void> => {
             );
         }
 
-        // Seed ship_types_edits: link all ship types to the 'stock' template.
         await client.query(`
-            INSERT INTO ship_types_edits (ship_type_id, template_id)
-            SELECT st.id, et.id FROM ship_types st, edit_templates et WHERE et.name = 'stock'
+            INSERT INTO ship_types_template (ship_type_id, template_id)
+            SELECT st.id, ut.id FROM ship_types st, universe_template ut WHERE ut.name = 'stock'
             ON CONFLICT DO NOTHING
         `);
 
-        // Seed planet_types_edits: link all planet types to the 'stock' template.
         await client.query(`
-            INSERT INTO planet_types_edits (planet_type, template_id)
-            SELECT DISTINCT p.type, et.id FROM planets p, edit_templates et WHERE et.name = 'stock'
+            INSERT INTO planet_types_template (planet_type, template_id)
+            SELECT DISTINCT p.type, ut.id FROM planets p, universe_template ut WHERE ut.name = 'stock'
             ON CONFLICT DO NOTHING
         `);
 
-        // Also seed default planet types even if no planets exist yet.
         await client.query(`
-            INSERT INTO planet_types_edits (planet_type, template_id)
+            INSERT INTO planet_types_template (planet_type, template_id)
             VALUES
-                ('Terran', (SELECT id FROM edit_templates WHERE name = 'stock')),
-                ('Agricultural', (SELECT id FROM edit_templates WHERE name = 'stock')),
-                ('Barren', (SELECT id FROM edit_templates WHERE name = 'stock')),
-                ('Crystalline', (SELECT id FROM edit_templates WHERE name = 'stock')),
-                ('Desert', (SELECT id FROM edit_templates WHERE name = 'stock')),
-                ('Glacial', (SELECT id FROM edit_templates WHERE name = 'stock')),
-                ('Jungle', (SELECT id FROM edit_templates WHERE name = 'stock')),
-                ('Mountainous', (SELECT id FROM edit_templates WHERE name = 'stock')),
-                ('Oceanic', (SELECT id FROM edit_templates WHERE name = 'stock')),
-                ('Toxic', (SELECT id FROM edit_templates WHERE name = 'stock')),
-                ('Volcanic', (SELECT id FROM edit_templates WHERE name = 'stock'))
+                ('Terran', (SELECT id FROM universe_template WHERE name = 'stock')),
+                ('Agricultural', (SELECT id FROM universe_template WHERE name = 'stock')),
+                ('Barren', (SELECT id FROM universe_template WHERE name = 'stock')),
+                ('Crystalline', (SELECT id FROM universe_template WHERE name = 'stock')),
+                ('Desert', (SELECT id FROM universe_template WHERE name = 'stock')),
+                ('Glacial', (SELECT id FROM universe_template WHERE name = 'stock')),
+                ('Jungle', (SELECT id FROM universe_template WHERE name = 'stock')),
+                ('Mountainous', (SELECT id FROM universe_template WHERE name = 'stock')),
+                ('Oceanic', (SELECT id FROM universe_template WHERE name = 'stock')),
+                ('Toxic', (SELECT id FROM universe_template WHERE name = 'stock')),
+                ('Volcanic', (SELECT id FROM universe_template WHERE name = 'stock'))
             ON CONFLICT DO NOTHING
         `);
 

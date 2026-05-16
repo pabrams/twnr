@@ -1,4 +1,4 @@
-import { DEFAULT_TOPOLOGY } from '@twnr/shared';
+import { universeConfig } from '@twnr/shared';
 import { pool } from '../index.js';
 import type { Queryable } from '../types.js';
 
@@ -72,7 +72,7 @@ export async function insertUniverseFull(
     seed: number,
     templateId: number | null,
     db: Queryable = pool,
-    topology: 'random' | 'proximal' = DEFAULT_TOPOLOGY,
+    topology: 'random' | 'proximal' = universeConfig.topology,
 ): Promise<number> {
     const res = await db.query<{ id: number }>(
         'INSERT INTO universes (name, seed, template_id, topology) VALUES ($1, $2, $3, $4) RETURNING id',
@@ -112,12 +112,12 @@ export async function deleteUniverse(universeId: number, db: Queryable = pool): 
     await db.query('DELETE FROM universes WHERE id = $1', [universeId]);
 }
 
-/** Look up a settings template by name; returns id (or null if not found). */
+/** Look up a universe template by name; returns id (or null if not found). */
 export async function getTemplateIdByName(
     name: string,
     db: Queryable = pool,
 ): Promise<number | null> {
-    const res = await db.query<{ id: number }>('SELECT id FROM edit_templates WHERE name = $1', [
+    const res = await db.query<{ id: number }>('SELECT id FROM universe_template WHERE name = $1', [
         name,
     ]);
     return res.rows[0]?.id ?? null;
@@ -150,7 +150,9 @@ export async function snapshotTemplateForUniverse(
             seeker_attach_pct, seeker_pickup_detect_pct,
             mine_disruptor_min, mine_disruptor_max,
             respawn_delay_seconds, colos_to_produce_one_unit_per_hour,
-            daily_reproduction_per_1000_colos
+            daily_reproduction_per_1000_colos,
+            sector_count, warp_dist, two_way_pct, port_spawn_density,
+            fill_density, max_path_length
          )
          SELECT $1, max_planets_per_sector, planet_collision_likelihood,
                 planet_collision_min_hours, planet_collision_max_hours,
@@ -166,8 +168,10 @@ export async function snapshotTemplateForUniverse(
                 seeker_attach_pct, seeker_pickup_detect_pct,
                 mine_disruptor_min, mine_disruptor_max,
                 respawn_delay_seconds, colos_to_produce_one_unit_per_hour,
-                daily_reproduction_per_1000_colos
-         FROM edit_templates WHERE name = $2
+                daily_reproduction_per_1000_colos,
+                sector_count, warp_dist, two_way_pct, port_spawn_density,
+                fill_density, max_path_length
+         FROM universe_template WHERE name = $2
          ON CONFLICT (universe_id) DO NOTHING`,
         [universeId, templateName],
     );
@@ -244,18 +248,18 @@ export async function getOutWarpDegreeDistribution(
 }
 
 /** New-player defaults for a universe (falls back to NULL if no settings row). */
-export type UniverseEditDefaults = {
+export type UniverseTemplateDefaults = {
     id: number;
     starting_turns: number | null;
     starting_credits: number | null;
     starting_ship: string | null;
     starting_drones: number | null;
 };
-export async function getUniverseEditDefaults(
+export async function getUniverseTemplateDefaults(
     universeId: number,
     db: Queryable = pool,
-): Promise<UniverseEditDefaults | undefined> {
-    const res = await db.query<UniverseEditDefaults>(
+): Promise<UniverseTemplateDefaults | undefined> {
+    const res = await db.query<UniverseTemplateDefaults>(
         `SELECT u.id, us.starting_turns, us.starting_credits, us.starting_ship, us.starting_drones
          FROM universes u
          LEFT JOIN universe_settings us ON us.universe_id = u.id

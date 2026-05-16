@@ -2,7 +2,7 @@ import { pool } from '../db/index.js';
 import { clearPlayerShip, applyRespawnReset } from '../db/queries/player.js';
 import { getSectorDbId } from '../db/queries/sector.js';
 import { deleteShipByOwner } from '../db/queries/ship.js';
-import { universeConfig } from '../universe-config.js';
+import { universeConfig } from '@twnr/shared';
 
 export type RespawnOutcome =
     | { kind: 'no-respawn' }

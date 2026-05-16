@@ -1,40 +1,11 @@
--- Drop all application tables in dependency order.
+-- Drop every table in the public schema.
 -- Used by deleteDatabase.js, run-tests.sh, and global-setup.mjs.
-DROP TABLE IF EXISTS news CASCADE;
-DROP TABLE IF EXISTS visited_ports CASCADE;
-DROP TABLE IF EXISTS sector_beacons CASCADE;
-DROP TABLE IF EXISTS sector_mines CASCADE;
-DROP TABLE IF EXISTS command_log CASCADE;
-DROP TABLE IF EXISTS menu_command CASCADE;
-DROP TABLE IF EXISTS command CASCADE;
-DROP TABLE IF EXISTS sector_drones CASCADE;
-DROP TABLE IF EXISTS planet_collisions CASCADE;
-DROP TABLE IF EXISTS planets CASCADE;
-DROP TABLE IF EXISTS planet_types CASCADE;
-DROP TABLE IF EXISTS player_planet_observations CASCADE;
-DROP TABLE IF EXISTS player_port_observations CASCADE;
-DROP TABLE IF EXISTS player_visited_sectors CASCADE;
-DROP TABLE IF EXISTS visited_sectors CASCADE;
-DROP TABLE IF EXISTS messages CASCADE;
-DROP TABLE IF EXISTS ship_hardware CASCADE;
-DROP TABLE IF EXISTS seeker_attachments CASCADE;
-DROP TABLE IF EXISTS ships CASCADE;
-DROP TABLE IF EXISTS clans CASCADE;
-DROP TABLE IF EXISTS corporations CASCADE;
-DROP TABLE IF EXISTS ship_type_hardware CASCADE;
-DROP TABLE IF EXISTS ship_types_edits CASCADE;
-DROP TABLE IF EXISTS planet_types_edits CASCADE;
-DROP TABLE IF EXISTS ship_types CASCADE;
-DROP TABLE IF EXISTS hardware_price CASCADE;
-DROP TABLE IF EXISTS hardware_item CASCADE;
-DROP TABLE IF EXISTS ports CASCADE;
-DROP TABLE IF EXISTS warps CASCADE;
-DROP TABLE IF EXISTS players CASCADE;
-DROP TABLE IF EXISTS sectors CASCADE;
-DROP TABLE IF EXISTS universe_settings CASCADE;
-DROP TABLE IF EXISTS universes CASCADE;
-DROP TABLE IF EXISTS edit_templates CASCADE;
-DROP TABLE IF EXISTS edits CASCADE;
-DROP TABLE IF EXISTS _schema_version CASCADE;
-DROP TABLE IF EXISTS users CASCADE;
-DROP TABLE IF EXISTS menu CASCADE;
+DO $$
+DECLARE
+    r RECORD;
+BEGIN
+    FOR r IN SELECT tablename FROM pg_tables WHERE schemaname = 'public'
+    LOOP
+        EXECUTE 'DROP TABLE IF EXISTS public.' || quote_ident(r.tablename) || ' CASCADE';
+    END LOOP;
+END $$;

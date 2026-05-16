@@ -299,11 +299,11 @@ describe('multiple planets per sector', () => {
   });
 });
 
-// ==================== edit_templates table (planet settings) ====================
+// ==================== universe_template table (planet settings) ====================
 
-describe('edit_templates table (planet settings)', () => {
+describe('universe_template table (planet settings)', () => {
   let cols;
-  before(async () => { cols = await getColumns('edit_templates'); });
+  before(async () => { cols = await getColumns('universe_template'); });
 
   it('has max_planets_per_sector (SMALLINT NOT NULL)', () => {
     assert.ok(cols.max_planets_per_sector, 'max_planets_per_sector missing');
@@ -329,7 +329,7 @@ describe('edit_templates table (planet settings)', () => {
     const row = await pool.query(
       `SELECT max_planets_per_sector, planet_collision_likelihood,
               planet_collision_min_hours, planet_collision_max_hours
-       FROM edit_templates WHERE name = 'stock'`,
+       FROM universe_template WHERE name = 'stock'`,
     );
     assert.equal(row.rows.length, 1, 'stock template must exist');
     const r = row.rows[0];
@@ -522,7 +522,7 @@ describe('admin API edit-based universe generation', () => {
     const row = await pool.query(
       `SELECT et.name, us.max_planets_per_sector
        FROM universes u
-       JOIN edit_templates et ON u.template_id = et.id
+       JOIN universe_template et ON u.template_id = et.id
        JOIN universe_settings us ON us.universe_id = u.id
        WHERE u.id = $1`, [uid],
     );
@@ -533,7 +533,7 @@ describe('admin API edit-based universe generation', () => {
   it('generated universe with custom edit inherits its max_planets_per_sector', async () => {
     // Create a custom template with max_planets_per_sector=5.
     await pool.query(
-      "INSERT INTO edit_templates (name, max_planets_per_sector) VALUES ('custom_mpps', 5) " +
+      "INSERT INTO universe_template (name, max_planets_per_sector) VALUES ('custom_mpps', 5) " +
       "ON CONFLICT (name) DO UPDATE SET max_planets_per_sector = 5",
     );
     try {
@@ -548,7 +548,7 @@ describe('admin API edit-based universe generation', () => {
       );
       assert.equal(row.rows[0].max_planets_per_sector, 5);
     } finally {
-      await pool.query("DELETE FROM edit_templates WHERE name = 'custom_mpps'");
+      await pool.query("DELETE FROM universe_template WHERE name = 'custom_mpps'");
     }
   });
 
@@ -1392,7 +1392,7 @@ describe('WS: terraform collision logic', () => {
   before(async () => {
     // Create a custom template with max_planets_per_sector=1 and collision_likelihood=100.
     await pool.query(
-      `INSERT INTO edit_templates (name, max_planets_per_sector, planet_collision_likelihood, planet_collision_min_hours, planet_collision_max_hours)
+      `INSERT INTO universe_template (name, max_planets_per_sector, planet_collision_likelihood, planet_collision_min_hours, planet_collision_max_hours)
        VALUES ('collision_test', 1, 100, 1, 48)
        ON CONFLICT (name) DO UPDATE SET max_planets_per_sector = 1, planet_collision_likelihood = 100, planet_collision_min_hours = 1, planet_collision_max_hours = 48`,
     );

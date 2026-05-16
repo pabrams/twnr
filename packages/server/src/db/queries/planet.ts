@@ -1,6 +1,6 @@
 import { pool } from '../index.js';
 import type { Queryable, PlayerPlanetRow } from '../types.js';
-import { universeConfig } from '../../universe-config.js';
+import { universeConfig } from '@twnr/shared';
 
 const COLONIST_COLUMN: Record<'fuel' | 'organics' | 'equipment' | 'drones', string> = {
     fuel: 'colonists_fuel',

@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { universeConfig } from '@twnr/shared';
 import { withTransaction } from '../../db/index.js';
 import { generateUniverse } from '../../bigbang/index.js';
 import type { RouteDeps, Middleware } from '../middleware.js';
@@ -59,7 +60,7 @@ export function createAdminLifecycleRoutes(
                 topology,
                 fillDensity,
                 maxPathLength,
-                edit_name = 'stock',
+                template_name = 'stock',
             } = req.body;
 
             if (!name || !String(name).trim()) {
@@ -130,11 +131,8 @@ export function createAdminLifecycleRoutes(
             });
 
             const universeId = await withTransaction(async (client) => {
-                // Two steps: keep a pointer to the named template (for
-                // content lookups like hardware prices) AND snapshot the
-                // template's column values into universe_settings so the
-                // universe's setting values are crystallised at creation.
-                const templateId = await getTemplateIdByName(edit_name, client);
+                // pointer for content lookups + snapshot for frozen settings
+                const templateId = await getTemplateIdByName(template_name, client);
                 const newUniverseId = await insertUniverseFull(
                     name,
                     result.seed,
@@ -142,7 +140,29 @@ export function createAdminLifecycleRoutes(
                     client,
                     result.topology,
                 );
-                await snapshotTemplateForUniverse(newUniverseId, edit_name, client);
+                await snapshotTemplateForUniverse(newUniverseId, template_name, client);
+
+                // record the form-supplied bigbang knobs so the per-universe
+                // settings reflect what was actually used, not the template defaults
+                await client.query(
+                    `UPDATE universe_settings
+                     SET sector_count = $2,
+                         warp_dist = $3::jsonb,
+                         two_way_pct = $4,
+                         port_spawn_density = $5,
+                         fill_density = $6,
+                         max_path_length = $7
+                     WHERE universe_id = $1`,
+                    [
+                        newUniverseId,
+                        sectorCount,
+                        JSON.stringify(warpDist ?? universeConfig.warpDist),
+                        twoWayPct ?? universeConfig.twoWayPct,
+                        portDensity ?? universeConfig.portSpawnDensity,
+                        parsedFillDensity ?? universeConfig.fillDensity,
+                        parsedMaxPathLength ?? universeConfig.maxPathLength,
+                    ],
+                );
 
                 const sectorIdMap = new Map<number, number>();
                 for (const s of result.sectors) {
