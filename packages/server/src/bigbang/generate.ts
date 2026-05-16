@@ -8,7 +8,7 @@ import type {
 import { mulberry32 } from './prng.js';
 import { generateGraph } from './graph.js';
 import { generateProximalGraph } from './graph-proximal.js';
-import { scatterPositions, arrangeAnchors } from './positions.js';
+import { packHexCells, arrangeAnchors } from './positions.js';
 
 const portClasses: Record<number, string[]> = {
     1: ['B', 'B', 'S'],
@@ -30,8 +30,6 @@ export function generateUniverse(options: BigBangOptions): BigBangResult {
         twoWayPct,
         warpDist,
         topology,
-        fillDensity,
-        maxPathLength,
         additionalClassZeroPorts,
     } = options;
 
@@ -69,11 +67,10 @@ export function generateUniverse(options: BigBangOptions): BigBangResult {
 
     // Hex layout (proximal only) must happen before graph generation so the
     // RNG stream is seed-determined across topology modes.
-    const rawLayout = topology === 'proximal' ? scatterPositions(N, rng, fillDensity) : null;
+    const rawLayout = topology === 'proximal' ? packHexCells(N, rng) : null;
     const layout =
         rawLayout && topology === 'proximal' ? arrangeAnchors(rawLayout, anchorSectorIds) : rawLayout;
 
-    const guaranteedHubSectors: number[] = [1, starbaseId];
     const forcedHubSectors: number[] = anchorSectorIds;
     const warps =
         topology === 'proximal' && layout
@@ -82,10 +79,8 @@ export function generateUniverse(options: BigBangOptions): BigBangResult {
                   twoWayPct,
                   rng,
                   layout.cells,
-                  maxPathLength,
                   forcedHubSectors,
                   warpDist,
-                  guaranteedHubSectors,
               )
             : generateGraph(N, twoWayPct, rng, warpDist, forcedHubSectors);
 

@@ -25,10 +25,8 @@ export const universeConfig = {
 
     // bigbang generation knobs
     sectorCount: 500,
-    warpDist: [25, 25, 25, 15, 8, 2] as readonly number[],
-    twoWayPct: 98,
+    warpDist: [20, 20, 23, 22, 10, 5] as readonly number[],
+    twoWayPct: 95,
     portSpawnDensity: 80,
     topology: 'proximal' as 'random' | 'proximal',
-    fillDensity: 0.8,
-    maxPathLength: 25,
 } as const;

@@ -229,23 +229,6 @@ export function renderUniverseGenerator(container: HTMLElement, onGenerated: () 
     });
     form.appendChild(twoWayField.row);
 
-    const fillDensityField = makeInput('Fill Density (0.1–1.0, hex grid only)', {
-        type: 'number',
-        value: String(universeConfig.fillDensity),
-        min: '0.1',
-        max: '1.0',
-        step: '0.05',
-    });
-    form.appendChild(fillDensityField.row);
-
-    const maxPathField = makeInput('Max Path Length (wormhole target)', {
-        type: 'number',
-        value: String(universeConfig.maxPathLength),
-        min: '5',
-        max: '10000',
-    });
-    form.appendChild(maxPathField.row);
-
     const topologyField = makeTopologyField();
     form.appendChild(topologyField.row);
 
@@ -299,8 +282,6 @@ export function renderUniverseGenerator(container: HTMLElement, onGenerated: () 
         const seed = seedVal ? parseInt(seedVal, 10) : undefined;
         const portDensity = parseInt(portDensityField.input.value, 10);
         const twoWayPct = parseInt(twoWayField.input.value, 10);
-        const fillDensity = parseFloat(fillDensityField.input.value);
-        const maxPathLength = parseInt(maxPathField.input.value, 10);
         const warpDist = warpDistField.getValues();
 
         if (!warpDist) {
@@ -319,8 +300,6 @@ export function renderUniverseGenerator(container: HTMLElement, onGenerated: () 
             twoWayPct: isNaN(twoWayPct) ? undefined : twoWayPct,
             warpDist,
             topology: topologyField.getValue(),
-            fillDensity: isNaN(fillDensity) ? undefined : fillDensity,
-            maxPathLength: isNaN(maxPathLength) ? undefined : maxPathLength,
         })
             .then((result) => {
                 resultDiv.style.color = '#0ff';

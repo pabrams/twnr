@@ -13,10 +13,6 @@ export interface BigBangOptions {
     /** Cumulative degree distribution, degree-0 prepended so warpDist[degree] indexes directly. */
     warpDist: number[];
     topology: Topology;
-    /** Hex layout: fraction of cells in the bounding rectangle that are occupied (0.1–1.0). */
-    fillDensity: number;
-    /** Hex layout: diameter cap; wormholes are added until BFS eccentricity drops below this. */
-    maxPathLength: number;
     /** Number of class-0 ports beyond the mandatory one at sector 1. Each gets a forced 6-out target and a far-apart hex placement. */
     additionalClassZeroPorts: number;
 }

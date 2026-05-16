@@ -9,5 +9,5 @@ export type {
     BigBangResult,
     Topology,
 } from './types.js';
-export { scatterPositions } from './positions.js';
+export { packHexCells } from './positions.js';
 export { generateProximalGraph } from './graph-proximal.js';

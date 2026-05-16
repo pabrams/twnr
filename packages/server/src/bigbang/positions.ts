@@ -68,6 +68,33 @@ export function arrangeAnchors(
     const N = layout.cells.length;
     if (N === 0 || anchorSectorIds.length === 0) return layout;
 
+    // Restrict anchor candidates to interior cells (all 6 hex neighbors
+    // occupied), so each anchor starts Phase 0 with 6 local bidi edges and
+    // hits its forced target of 6 out-degree without needing wormholes.
+    // Fall back to all cells if too few interior cells exist (small N).
+    const cellKey = (q: number, r: number) => `${q},${r}`;
+    const occupied = new Set<string>();
+    for (const c of layout.cells) occupied.add(cellKey(c.q, c.r));
+    const dirs: HexCell[] = [
+        { q: +1, r: 0 },
+        { q: +1, r: -1 },
+        { q: 0, r: -1 },
+        { q: -1, r: 0 },
+        { q: -1, r: +1 },
+        { q: 0, r: +1 },
+    ];
+    const interiorIdx: number[] = [];
+    for (let i = 0; i < N; i++) {
+        const c = layout.cells[i];
+        let count = 0;
+        for (const d of dirs) {
+            if (occupied.has(cellKey(c.q + d.q, c.r + d.r))) count++;
+        }
+        if (count === 6) interiorIdx.push(i);
+    }
+    const candidates = interiorIdx.length >= anchorSectorIds.length ? interiorIdx : null;
+    const candidateSet = candidates ? new Set(candidates) : null;
+
     // Pick anchor cell indices: centroid-closest, then farthest-first.
     const centroidQ = layout.cells.reduce((s, c) => s + c.q, 0) / N;
     const centroidR = layout.cells.reduce((s, c) => s + c.r, 0) / N;
@@ -75,6 +102,7 @@ export function arrangeAnchors(
     let centralIdx = 0;
     let bestCentralDist = Infinity;
     for (let i = 0; i < N; i++) {
+        if (candidateSet && !candidateSet.has(i)) continue;
         const d = hexDistance(layout.cells[i], centroidCell);
         if (d < bestCentralDist) {
             bestCentralDist = d;
@@ -89,6 +117,7 @@ export function arrangeAnchors(
         let bestMinDist = -1;
         for (let i = 0; i < N; i++) {
             if (chosen[i]) continue;
+            if (candidateSet && !candidateSet.has(i)) continue;
             let minD = Infinity;
             for (const aIdx of anchorCellIndices) {
                 const d = hexDistance(layout.cells[i], layout.cells[aIdx]);
@@ -129,25 +158,11 @@ export function arrangeAnchors(
 }
 
 /**
- * Sample N occupied hex cells from a square-ish bounded region whose total
- * cell count is approximately N / fillDensity. Returns both the cartesian
- * centers (for sectors) and the axial coords (so the warp generator can find
- * neighbors with O(1) hash lookups).
- *
- * Distribution within the region is uniform: every cell is equally likely.
- * Lower fillDensity → bigger empty patches and more peripheral gaps.
+ * 
  */
-export function scatterPositions(
-    N: number,
-    rng: () => number,
-    fillDensity: number,
-): HexLayout {
+export function packHexCells(N: number, rng: () => number): HexLayout {
     if (N < 1) return { positions: [], cells: [] };
-    const density = Math.min(0.999, Math.max(0.05, fillDensity));
-    const totalCells = Math.max(N, Math.ceil(N / density));
-    // Square-ish grid: side ≈ √totalCells. Slight rounding-up so we have a
-    // few extra cells to sample from (helps uniformity at small N).
-    const side = Math.max(1, Math.ceil(Math.sqrt(totalCells)));
+    const side = Math.max(1, Math.ceil(Math.sqrt(N)));
     const allCells: HexCell[] = [];
     for (let q = 0; q < side; q++) {
         for (let r = 0; r < side; r++) {
