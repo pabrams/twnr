@@ -47,8 +47,8 @@ export const COMPUTER = makeDomain('COMPUTER', {
 
     traderListLoading: '\r\n[w]Loading traders...[/w]',
     traderListHeader: '[bc]=== Traders in Universe ===[/bc]',
-    traderListColumns: '  [bw]{name} {clan} {ship}[/bw]',
-    traderListRow: '  [by]{name}[/by] [w]{clan}[/w] [w]{ship}[/w]',
+    traderListColumns: '  [bw]{name} {clan} {rep} {exp} {ship}[/bw]',
+    traderListRow: '  [by]{name}[/by] [w]{clan}[/w] [w]{rep}[/w] [w]{exp}[/w] [w]{ship}[/w]',
     traderListShipDestroyed: '[bb]### [y]SHIP DESTROYED[/y] ###[/bb]',
     traderListFailed: '[br]Failed to load trader list.[/br]',
     traderListClanNA: '[w]NA[/w]',

@@ -112,6 +112,8 @@ export function createUniverseRoutes(
                     coloredShipName: r.ship_display_name,
                     clanNumber: r.clan_number,
                     clanName: r.clan_name,
+                    reputation: r.reputation,
+                    experience: r.experience,
                 })),
             );
         }),

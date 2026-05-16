@@ -243,6 +243,8 @@ export type UniversePlayerRosterRow = {
     ship_display_name: string | null;
     clan_number: number | null;
     clan_name: string | null;
+    reputation: number;
+    experience: number;
 };
 export async function listPlayersInUniverse(
     universeId: number,
@@ -252,13 +254,14 @@ export async function listPlayersInUniverse(
         `SELECT p.name,
                 st.slug AS ship_name, st.display_name AS ship_display_name,
                 c.universe_clan_number AS clan_number,
-                c.name AS clan_name
+                c.name AS clan_name,
+                p.reputation, p.experience
          FROM players p
          LEFT JOIN ships s ON p.ship_id = s.id
          LEFT JOIN universe_ship_types st ON st.universe_id = s.universe_id AND st.slug = s.ship_type_slug
          LEFT JOIN clans c ON c.id = p.clan_id
          WHERE p.universe_id = $1
-         ORDER BY p.name`,
+         ORDER BY p.experience DESC, p.name`,
         [universeId],
     );
     return res.rows;
