@@ -1,11 +1,10 @@
 import type { GeneratedWarp } from './types.js';
-import { DEFAULT_WARP_DIST } from './types.js';
 
 export function generateGraph(
     N: number,
     T: number,
     rng: () => number,
-    warpDist: number[] = DEFAULT_WARP_DIST,
+    warpDist: number[],
     forcedMaxOutSectors: readonly number[] = [],
 ): GeneratedWarp[] {
     const MAX_OUT = 6;

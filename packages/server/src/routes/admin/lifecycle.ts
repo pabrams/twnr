@@ -1,7 +1,6 @@
 import { Router } from 'express';
-import { universeConfig } from '@twnr/shared';
 import { withTransaction } from '../../db/index.js';
-import { generateUniverse } from '../../bigbang/index.js';
+import { generateUniverse, defaultBigBangOptions } from '../../bigbang/index.js';
 import type { RouteDeps, Middleware } from '../middleware.js';
 import { asyncHandler, HttpError, parseIntParam } from '../async-handler.js';
 import {
@@ -119,16 +118,17 @@ export function createAdminLifecycleRoutes(
                 parsedMaxPathLength = mp;
             }
 
-            const result = generateUniverse({
+            const options = defaultBigBangOptions({
                 sectors: sectorCount,
-                seed: seed != null ? Math.floor(Number(seed)) : undefined,
-                portDensity: portDensity != null ? Number(portDensity) : undefined,
-                twoWayPct: twoWayPct != null ? Number(twoWayPct) : undefined,
-                warpDist: parsedWarpDist,
-                topology: parsedTopology,
-                fillDensity: parsedFillDensity,
-                maxPathLength: parsedMaxPathLength,
+                ...(seed != null && { seed: Math.floor(Number(seed)) }),
+                ...(portDensity != null && { portDensity: Number(portDensity) }),
+                ...(twoWayPct != null && { twoWayPct: Number(twoWayPct) }),
+                ...(parsedWarpDist != null && { warpDist: parsedWarpDist }),
+                ...(parsedTopology != null && { topology: parsedTopology }),
+                ...(parsedFillDensity != null && { fillDensity: parsedFillDensity }),
+                ...(parsedMaxPathLength != null && { maxPathLength: parsedMaxPathLength }),
             });
+            const result = generateUniverse(options);
 
             const universeId = await withTransaction(async (client) => {
                 // pointer for content lookups + snapshot for frozen settings
@@ -142,8 +142,9 @@ export function createAdminLifecycleRoutes(
                 );
                 await snapshotTemplateForUniverse(newUniverseId, template_name, client);
 
-                // record the form-supplied bigbang knobs so the per-universe
-                // settings reflect what was actually used, not the template defaults
+                // record the resolved bigbang knobs so the per-universe
+                // settings reflect what was actually used, not the template defaults.
+                // warpDist is stored without the leading-0 sentinel.
                 await client.query(
                     `UPDATE universe_settings
                      SET sector_count = $2,
@@ -155,12 +156,12 @@ export function createAdminLifecycleRoutes(
                      WHERE universe_id = $1`,
                     [
                         newUniverseId,
-                        sectorCount,
-                        JSON.stringify(warpDist ?? universeConfig.warpDist),
-                        twoWayPct ?? universeConfig.twoWayPct,
-                        portDensity ?? universeConfig.portSpawnDensity,
-                        parsedFillDensity ?? universeConfig.fillDensity,
-                        parsedMaxPathLength ?? universeConfig.maxPathLength,
+                        options.sectors,
+                        JSON.stringify(options.warpDist.slice(1)),
+                        options.twoWayPct,
+                        options.portDensity,
+                        options.fillDensity,
+                        options.maxPathLength,
                     ],
                 );
 

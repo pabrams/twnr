@@ -1,4 +1,4 @@
-import { HEX_CELL_SIZE, HEX_SPACING_MULTIPLIER, DEFAULT_FILL_DENSITY } from './types.js';
+import { HEX_CELL_SIZE, HEX_SPACING_MULTIPLIER } from './types.js';
 
 export interface Position {
     x: number;
@@ -56,7 +56,7 @@ export const HEX_NEIGHBOR_DIRS: ReadonlyArray<HexCell> = [
 export function scatterPositions(
     N: number,
     rng: () => number,
-    fillDensity: number = DEFAULT_FILL_DENSITY,
+    fillDensity: number,
 ): HexLayout {
     if (N < 1) return { positions: [], cells: [] };
     const density = Math.min(0.999, Math.max(0.05, fillDensity));

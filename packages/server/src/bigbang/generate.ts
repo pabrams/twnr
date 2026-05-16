@@ -4,15 +4,6 @@ import type {
     GeneratedSector,
     GeneratedPort,
     GeneratedPlanet,
-    Topology,
-} from './types.js';
-import {
-    DEFAULT_WARP_DIST,
-    DEFAULT_TWO_WAY_PCT,
-    DEFAULT_PORT_DENSITY,
-    DEFAULT_TOPOLOGY,
-    DEFAULT_FILL_DENSITY,
-    DEFAULT_MAX_PATH_LENGTH,
 } from './types.js';
 import { mulberry32 } from './prng.js';
 import { generateGraph } from './graph.js';
@@ -31,15 +22,17 @@ const portClasses: Record<number, string[]> = {
 };
 
 export function generateUniverse(options: BigBangOptions): BigBangResult {
-    const N = options.sectors;
-    const portDensity = options.portDensity ?? DEFAULT_PORT_DENSITY;
-    const planetDensity = options.planetDensity ?? 0;
-    const twoWayPct = options.twoWayPct ?? DEFAULT_TWO_WAY_PCT;
-    const warpDist = options.warpDist ?? DEFAULT_WARP_DIST;
-    const seed = options.seed ?? Math.floor(Math.random() * 2147483647);
-    const topology: Topology = options.topology ?? DEFAULT_TOPOLOGY;
-    const fillDensity = options.fillDensity ?? DEFAULT_FILL_DENSITY;
-    const maxPathLength = options.maxPathLength ?? DEFAULT_MAX_PATH_LENGTH;
+    const {
+        sectors: N,
+        seed,
+        portDensity,
+        planetDensity,
+        twoWayPct,
+        warpDist,
+        topology,
+        fillDensity,
+        maxPathLength,
+    } = options;
 
     const rng = mulberry32(seed);
 

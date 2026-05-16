@@ -1,6 +1,6 @@
 import { universeConfig } from '@twnr/shared';
 import { withTransaction } from '../db/index.js';
-import { generateUniverse } from '../bigbang/index.js';
+import { generateUniverse, defaultBigBangOptions } from '../bigbang/index.js';
 import {
     insertUniverseFull,
     getTemplateIdByName,
@@ -20,12 +20,9 @@ import { invalidateGraphCache } from '../state/graph-cache.js';
  * Returns the new universe id. Defaults are tuned for a quick demo.
  */
 export async function bootstrapUniverse(name: string): Promise<number> {
-    // Topology + warp distribution + two-way pct + port density all come from
-    // the shared DEFAULT_* constants via generateUniverse — don't override
-    // them here.
-    const result = generateUniverse({
-        sectors: universeConfig.sectorCount,
-    });
+    const result = generateUniverse(
+        defaultBigBangOptions({ sectors: universeConfig.sectorCount }),
+    );
 
     const universeId = await withTransaction(async (client) => {
         const templateId = await getTemplateIdByName('stock', client);

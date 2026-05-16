@@ -1,13 +1,4 @@
-import { universeConfig, HEX_CELL_SIZE, HEX_SPACING_MULTIPLIER } from '@twnr/shared';
-
-// degree-0 prepended so DEFAULT_WARP_DIST[degree] indexes by degree directly
-export const DEFAULT_WARP_DIST: number[] = [0, ...universeConfig.warpDist];
-
-export const DEFAULT_TWO_WAY_PCT = universeConfig.twoWayPct;
-export const DEFAULT_PORT_DENSITY = universeConfig.portSpawnDensity;
-export const DEFAULT_TOPOLOGY = universeConfig.topology;
-export const DEFAULT_FILL_DENSITY = universeConfig.fillDensity;
-export const DEFAULT_MAX_PATH_LENGTH = universeConfig.maxPathLength;
+import { HEX_CELL_SIZE, HEX_SPACING_MULTIPLIER } from '@twnr/shared';
 
 export { HEX_CELL_SIZE, HEX_SPACING_MULTIPLIER };
 
@@ -15,16 +6,17 @@ export type Topology = 'random' | 'proximal';
 
 export interface BigBangOptions {
     sectors: number;
-    seed?: number;
-    portDensity?: number;
-    planetDensity?: number;
-    twoWayPct?: number;
-    warpDist?: number[];
-    topology?: Topology;
+    seed: number;
+    portDensity: number;
+    planetDensity: number;
+    twoWayPct: number;
+    /** Cumulative degree distribution, degree-0 prepended so warpDist[degree] indexes directly. */
+    warpDist: number[];
+    topology: Topology;
     /** Hex layout: fraction of cells in the bounding rectangle that are occupied (0.1–1.0). */
-    fillDensity?: number;
+    fillDensity: number;
     /** Hex layout: diameter cap; wormholes are added until BFS eccentricity drops below this. */
-    maxPathLength?: number;
+    maxPathLength: number;
 }
 
 export interface GeneratedSector {
