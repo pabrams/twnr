@@ -40,7 +40,7 @@ export async function getMannedTowables(
         `SELECT p.id AS player_id, p.name AS player_name,
                 c.universe_clan_number AS clan_number,
                 sh.id AS ship_id, sh.name AS ship_name,
-                st.name AS ship_type_name, st.display_name AS ship_type_display_name,
+                st.slug AS ship_type_name, st.display_name AS ship_type_display_name,
                 sh.drones AS ship_drones, sh.turns_per_warp AS ship_turns_per_warp
          FROM players p
          JOIN ships sh ON p.ship_id = sh.id
@@ -65,7 +65,7 @@ export async function getUnmannedTowables(
 ): Promise<TowableUnmannedRow[]> {
     const res = await db.query<TowableUnmannedRow>(
         `SELECT sh.id AS ship_id, sh.name AS ship_name,
-                st.name AS ship_type_name, st.display_name AS ship_type_display_name,
+                st.slug AS ship_type_name, st.display_name AS ship_type_display_name,
                 sh.drones AS ship_drones, sh.turns_per_warp AS ship_turns_per_warp,
                 sh.owner_player_id,
                 op.name AS owner_player_name,
@@ -120,7 +120,7 @@ export async function lockTowTarget(
 ): Promise<LockedTowTargetRow | undefined> {
     const res = await db.query<LockedTowTargetRow>(
         `SELECT sh.id AS ship_id, sh.name AS ship_name,
-                st.name AS ship_type_name, st.display_name AS ship_type_display_name,
+                st.slug AS ship_type_name, st.display_name AS ship_type_display_name,
                 sh.drones AS ship_drones,
                 sh.turns_per_warp AS ship_turns_per_warp,
                 sh.sector_id AS ship_sector_id,

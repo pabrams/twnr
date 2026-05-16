@@ -14,14 +14,13 @@ type HardwareItem = {
     result_msg_type: string;
     result_extra: unknown;
 };
-const HARDWARE_JSON_PATH = path.join(
-    process.cwd(),
-    'config',
-    'templates',
-    'stock',
-    'hardware.json',
+const STOCK_TEMPLATE_DIR = path.join(process.cwd(), 'config', 'templates', 'stock');
+const hardwareItems: HardwareItem[] = JSON.parse(
+    fs.readFileSync(path.join(STOCK_TEMPLATE_DIR, 'hardware.json'), 'utf-8'),
 );
-const hardwareItems: HardwareItem[] = JSON.parse(fs.readFileSync(HARDWARE_JSON_PATH, 'utf-8'));
+const stockTemplateMeta: { starter_ship_slug: string } = JSON.parse(
+    fs.readFileSync(path.join(STOCK_TEMPLATE_DIR, 'template.json'), 'utf-8'),
+);
 
 let isConnected = false;
 
@@ -58,7 +57,7 @@ export const connectDB = async (): Promise<void> => {
         turns_per_day INTEGER NOT NULL DEFAULT ${universeConfig.turnsPerDay},
         starting_turns INTEGER NOT NULL DEFAULT ${universeConfig.startingTurns},
         max_turns INTEGER NOT NULL DEFAULT 2000,
-        starting_ship VARCHAR(255) NOT NULL DEFAULT 'Vulpeculan Cruiser',
+        starter_ship_slug VARCHAR(255) NOT NULL DEFAULT 'Vulpeculan Cruiser',
         starting_drones INTEGER NOT NULL DEFAULT 100,
         starting_credits INTEGER NOT NULL DEFAULT 10000,
         starting_port_density SMALLINT NOT NULL DEFAULT 50,
@@ -119,7 +118,7 @@ export const connectDB = async (): Promise<void> => {
         turns_per_day INTEGER NOT NULL,
         starting_turns INTEGER NOT NULL,
         max_turns INTEGER NOT NULL,
-        starting_ship VARCHAR(255) NOT NULL,
+        starter_ship_slug VARCHAR(255) NOT NULL,
         starting_drones INTEGER NOT NULL,
         starting_credits INTEGER NOT NULL,
         starting_port_density SMALLINT NOT NULL,
@@ -178,7 +177,7 @@ export const connectDB = async (): Promise<void> => {
 
       CREATE TABLE IF NOT EXISTS ship_types (
         id SERIAL PRIMARY KEY,
-        name VARCHAR(255) UNIQUE NOT NULL,
+        slug VARCHAR(255) UNIQUE NOT NULL,
         display_name VARCHAR(512),
         make VARCHAR(255),
         sort_order SMALLINT NOT NULL DEFAULT 0,
@@ -239,7 +238,7 @@ export const connectDB = async (): Promise<void> => {
       );
 
       CREATE TABLE IF NOT EXISTS planet_types (
-        name VARCHAR(255) PRIMARY KEY,
+        slug VARCHAR(255) PRIMARY KEY,
         display_name VARCHAR(512),
         description TEXT,
         max_fuel_colos INTEGER NOT NULL DEFAULT 0,
@@ -259,7 +258,7 @@ export const connectDB = async (): Promise<void> => {
       );
 
       CREATE TABLE IF NOT EXISTS planet_types_template (
-        planet_type VARCHAR(255) NOT NULL REFERENCES planet_types(name) ON DELETE CASCADE,
+        planet_type VARCHAR(255) NOT NULL REFERENCES planet_types(slug) ON DELETE CASCADE,
         template_id INTEGER NOT NULL REFERENCES universe_template(id) ON DELETE CASCADE,
         PRIMARY KEY (planet_type, template_id)
       );
@@ -384,7 +383,7 @@ export const connectDB = async (): Promise<void> => {
         id SERIAL PRIMARY KEY,
         sector_id INTEGER NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
         name VARCHAR(255) NOT NULL,
-        type VARCHAR(255) NOT NULL DEFAULT 'Terran' REFERENCES planet_types(name),
+        type VARCHAR(255) NOT NULL DEFAULT 'Terran' REFERENCES planet_types(slug),
         drones INTEGER NOT NULL DEFAULT 0,
         shields INTEGER NOT NULL DEFAULT 0,
         has_base BOOLEAN NOT NULL DEFAULT FALSE,
@@ -604,7 +603,7 @@ export const connectDB = async (): Promise<void> => {
              SET starting_credits = $1,
                  starting_drones = $2,
                  starting_shields = $3,
-                 starting_ship = $4,
+                 starter_ship_slug = $4,
                  starting_turns = $5,
                  turns_per_day = $6,
                  turn_delay = $7,
@@ -626,7 +625,7 @@ export const connectDB = async (): Promise<void> => {
                 universeConfig.startingCredits,
                 universeConfig.startingDrones,
                 universeConfig.startingShields,
-                universeConfig.startingShip,
+                stockTemplateMeta.starter_ship_slug,
                 universeConfig.startingTurns,
                 universeConfig.turnsPerDay,
                 universeConfig.turnDelay,
@@ -668,7 +667,7 @@ export const connectDB = async (): Promise<void> => {
         for (const ship of Object.values(shipConfigs)) {
             const stRes = await client.query(
                 `INSERT INTO ship_types (
-                    name, display_name, make, sort_order,
+                    slug, display_name, make, sort_order,
                     max_drones, max_shields, starting_holds, max_holds,
                     odds_offensive, odds_defensive,
                     has_pod, can_land, has_interdictor,
@@ -689,7 +688,7 @@ export const connectDB = async (): Promise<void> => {
                     $22, $23,
                     $24,
                     $25, $26
-                 ) ON CONFLICT (name) DO UPDATE SET
+                 ) ON CONFLICT (slug) DO UPDATE SET
                     display_name = EXCLUDED.display_name,
                     make = EXCLUDED.make,
                     sort_order = EXCLUDED.sort_order,
@@ -717,7 +716,7 @@ export const connectDB = async (): Promise<void> => {
                     notes = EXCLUDED.notes
                  RETURNING id`,
                 [
-                    ship.name,
+                    ship.slug,
                     ship.displayName ?? null,
                     ship.make || null,
                     ship.sortOrder ?? 0,
@@ -776,9 +775,9 @@ export const connectDB = async (): Promise<void> => {
         // Seed planet_types from config files (idempotent)
         for (const planet of Object.values(planetConfigs)) {
             await client.query(
-                `INSERT INTO planet_types (name, display_name, description, max_fuel_colos, max_org_colos, max_equ_colos, max_drone_colos, max_fuel, max_org, max_equ, max_drones, max_citadel, fuel_production, organics_production, equipment_production, drone_production, danger)
+                `INSERT INTO planet_types (slug, display_name, description, max_fuel_colos, max_org_colos, max_equ_colos, max_drone_colos, max_fuel, max_org, max_equ, max_drones, max_citadel, fuel_production, organics_production, equipment_production, drone_production, danger)
                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
-                 ON CONFLICT (name) DO UPDATE SET
+                 ON CONFLICT (slug) DO UPDATE SET
                     display_name = EXCLUDED.display_name,
                     description = EXCLUDED.description,
                     max_fuel_colos = EXCLUDED.max_fuel_colos,
@@ -796,7 +795,7 @@ export const connectDB = async (): Promise<void> => {
                     drone_production = EXCLUDED.drone_production,
                     danger = EXCLUDED.danger`,
                 [
-                    planet.type,
+                    planet.slug,
                     planet.displayName ?? null,
                     planet.description ?? null,
                     planet.maxFuelColos ?? 0,
@@ -844,6 +843,21 @@ export const connectDB = async (): Promise<void> => {
                 ('Toxic', (SELECT id FROM universe_template WHERE name = 'stock')),
                 ('Volcanic', (SELECT id FROM universe_template WHERE name = 'stock'))
             ON CONFLICT DO NOTHING
+        `);
+
+        // FK: each template's starter_ship_slug must reference a real ship.
+        // Added here (not at CREATE TABLE) because universe_template is
+        // declared before ship_types.
+        await client.query(`
+            DO $$ BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_constraint WHERE conname = 'universe_template_starter_ship_fk'
+                ) THEN
+                    ALTER TABLE universe_template
+                        ADD CONSTRAINT universe_template_starter_ship_fk
+                        FOREIGN KEY (starter_ship_slug) REFERENCES ship_types(slug);
+                END IF;
+            END $$;
         `);
 
         // Audit log is per-session: previous-session entries were signed

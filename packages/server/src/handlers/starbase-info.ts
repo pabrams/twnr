@@ -3,7 +3,7 @@ import { players } from '../state/players.js';
 import { sendEnvelope } from '../state/messaging.js';
 import { getStarbaseSectorNumber } from '../db/queries/sector.js';
 import { getUniverseStats, getOutWarpDegreeDistribution } from '../db/queries/universe.js';
-import { getStartingShipTypeByName } from '../db/queries/ship.js';
+import { getStartingShipTypeBySlug } from '../db/queries/ship.js';
 
 export async function serveStarbaseInfo(playerId: number): Promise<void> {
     const player = players[playerId];
@@ -22,9 +22,9 @@ export async function serveStarbaseInfo(playerId: number): Promise<void> {
 
     // Starting holds comes from the universe's starting ship type.
     let startingHolds = 0;
-    const startingShipName = stats?.starting_ship;
+    const startingShipName = stats?.starter_ship_slug;
     if (startingShipName) {
-        const shipType = await getStartingShipTypeByName(startingShipName);
+        const shipType = await getStartingShipTypeBySlug(startingShipName);
         startingHolds = shipType?.starting_holds ?? 0;
     }
 

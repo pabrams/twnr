@@ -4,7 +4,7 @@ import { players, getPlayerUniverseId } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { withTransaction, AbortTransaction } from '../db/index.js';
 import {
-    getShipTypeByName,
+    getShipTypeBySlug,
     getPlayerShipTradeInfoForUpdate,
     getPlayerShipBuyInfoForUpdate,
     insertEmptyShip,
@@ -36,7 +36,7 @@ export async function serveBuyShipNew(playerId: number, data: BuyShipNewCommand)
         sendError(playerId, 'Not at Starbase');
         return;
     }
-    const targetType = await getShipTypeByName(data.targetShipName);
+    const targetType = await getShipTypeBySlug(data.targetShipName);
     if (!targetType) {
         sendError(playerId, 'Unknown ship');
         return;
@@ -45,8 +45,8 @@ export async function serveBuyShipNew(playerId: number, data: BuyShipNewCommand)
     sendEnvelope(playerId, {
         type: ServerTag.ShipNameRequired,
         reason: 'buyNew',
-        shipTypeName: targetType.name,
-        shipTypeDisplayName: targetType.display_name ?? targetType.name,
+        shipTypeName: targetType.slug,
+        shipTypeDisplayName: targetType.display_name ?? targetType.slug,
     });
 }
 
@@ -59,7 +59,7 @@ export async function serveBuyShipTradein(
         sendError(playerId, 'Not at Starbase');
         return;
     }
-    const targetType = await getShipTypeByName(data.targetShipName);
+    const targetType = await getShipTypeBySlug(data.targetShipName);
     if (!targetType) {
         sendError(playerId, 'Unknown ship');
         return;
@@ -68,8 +68,8 @@ export async function serveBuyShipTradein(
     sendEnvelope(playerId, {
         type: ServerTag.ShipNameRequired,
         reason: 'tradein',
-        shipTypeName: targetType.name,
-        shipTypeDisplayName: targetType.display_name ?? targetType.name,
+        shipTypeName: targetType.slug,
+        shipTypeDisplayName: targetType.display_name ?? targetType.slug,
     });
 }
 
@@ -84,7 +84,7 @@ export async function executeBuyShipNew(
 
     try {
         const result = await withTransaction(async (client) => {
-            const targetType = await getShipTypeByName(targetShipName, client);
+            const targetType = await getShipTypeBySlug(targetShipName, client);
             if (!targetType) {
                 sendError(playerId, 'Unknown ship');
                 throw new AbortTransaction();
@@ -169,7 +169,7 @@ export async function executeBuyShipTradein(
 
     try {
         const result = await withTransaction(async (client) => {
-            const targetType: ShipTypeRow | undefined = await getShipTypeByName(
+            const targetType: ShipTypeRow | undefined = await getShipTypeBySlug(
                 targetShipName,
                 client,
             );

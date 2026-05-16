@@ -60,7 +60,7 @@ export async function listPlayersInSector(
         `SELECT p.id, p.name, p.docked, p.on_planet_id,
                 c.universe_clan_number AS clan_number,
                 sh.name AS ship_name,
-                st.name AS ship_type_name,
+                st.slug AS ship_type_name,
                 st.display_name AS ship_display_name,
                 COALESCE(sh.drones, 0) AS ship_drones
          FROM players p
@@ -190,7 +190,7 @@ export async function getPlayerConnectInfo(
 ): Promise<PlayerConnectRow | undefined> {
     const res = await db.query<PlayerConnectRow>(
         `SELECT p.id, p.name, p.current_sector_id, p.ship_id, s.sector_number,
-                st.name AS ship_name, st.display_name AS ship_display_name,
+                st.slug AS ship_name, st.display_name AS ship_display_name,
                 p.clan_id
          FROM players p
          JOIN sectors s ON p.current_sector_id = s.id
@@ -250,7 +250,7 @@ export async function listPlayersInUniverse(
 ): Promise<UniversePlayerRosterRow[]> {
     const res = await db.query<UniversePlayerRosterRow>(
         `SELECT p.name,
-                st.name AS ship_name, st.display_name AS ship_display_name,
+                st.slug AS ship_name, st.display_name AS ship_display_name,
                 c.universe_clan_number AS clan_number,
                 c.name AS clan_name
          FROM players p

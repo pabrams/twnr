@@ -189,7 +189,7 @@ export async function getPlanetColonistsCapacity(
     const res = await db.query<{ current: number; max: number }>(
         `SELECT p.${col} as current, pt.${maxCol} as max
          FROM planets p
-         JOIN planet_types pt ON pt.name = p.type
+         JOIN planet_types pt ON pt.slug = p.type
          WHERE p.id = $1`,
         [planetId],
     );
@@ -259,7 +259,7 @@ export async function getPlanetCommodityCapacity(
     const res = await db.query<{ current: number; max: number }>(
         `SELECT p.${col} as current, pt.${maxCol} as max
          FROM planets p
-         JOIN planet_types pt ON pt.name = p.type
+         JOIN planet_types pt ON pt.slug = p.type
          WHERE p.id = $1`,
         [planetId],
     );
@@ -277,7 +277,7 @@ export async function listPlayerPlanets(
                 p.colonists_fuel, p.colonists_organics, p.colonists_equipment, p.colonists_drones
          FROM planets p
          JOIN sectors s ON p.sector_id = s.id
-         LEFT JOIN planet_types pt ON pt.name = p.type
+         LEFT JOIN planet_types pt ON pt.slug = p.type
          WHERE p.owner_player_id = $1 AND s.universe_id = $2
          ORDER BY s.sector_number, p.id`,
         [playerId, universeId],
@@ -362,7 +362,7 @@ export async function getPlanetDisplayData(playerId: number): Promise<{
                 pl.created_at, pl.updated_at
          FROM planets pl
          JOIN sectors s ON s.id = pl.sector_id
-         LEFT JOIN planet_types pt ON pt.name = pl.type
+         LEFT JOIN planet_types pt ON pt.slug = pl.type
          LEFT JOIN universe_settings us ON us.universe_id = s.universe_id
          LEFT JOIN players owner ON owner.id = pl.owner_player_id
          LEFT JOIN clans oc ON oc.id = pl.owner_clan_id
@@ -459,7 +459,7 @@ export async function settlePlanetProduction(
                 COALESCE(us.colos_to_produce_one_unit_per_hour, ${universeConfig.colosToProduceOneUnitPerHour}) AS colos_per_unit
          FROM planets p
          JOIN sectors s ON p.sector_id = s.id
-         JOIN planet_types pt ON pt.name = p.type
+         JOIN planet_types pt ON pt.slug = p.type
          LEFT JOIN universe_settings us ON us.universe_id = s.universe_id
          WHERE p.id = $1
          FOR UPDATE OF p`,
@@ -602,7 +602,7 @@ export async function settlePlanetColonistGrowth(
                 COALESCE(us.daily_reproduction_per_1000_colos, ${universeConfig.dailyReproductionPer1000Colos}) AS rate_per_1000
          FROM planets p
          JOIN sectors s ON p.sector_id = s.id
-         JOIN planet_types pt ON pt.name = p.type
+         JOIN planet_types pt ON pt.slug = p.type
          LEFT JOIN universe_settings us ON us.universe_id = s.universe_id
          WHERE p.id = $1
          FOR UPDATE OF p`,

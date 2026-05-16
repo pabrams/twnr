@@ -2,7 +2,7 @@ import { ServerTag } from '@twnr/shared';
 import type { SetShipNameCommand } from '@twnr/shared';
 import { players, getPlayerUniverseId } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
-import { getStartingShipTypeByName, insertStartingShip } from '../db/queries/ship.js';
+import { getStartingShipTypeBySlug, insertStartingShip } from '../db/queries/ship.js';
 import { setPlayerShipId } from '../db/queries/player.js';
 import { getUniverseTemplateDefaults } from '../db/queries/universe.js';
 import { universeConfig } from '@twnr/shared';
@@ -59,10 +59,14 @@ export async function serveSetShipName(playerId: number, data: SetShipNameComman
     }
 
     const templateDefaults = await getUniverseTemplateDefaults(universeId);
-    const startShipName = templateDefaults?.starting_ship ?? universeConfig.startingShip;
-    const startingDrones = templateDefaults?.starting_drones ?? universeConfig.startingDrones;
+    if (!templateDefaults?.starter_ship_slug) {
+        sendError(playerId, 'Universe missing starter ship configuration.');
+        return;
+    }
+    const startShipName = templateDefaults.starter_ship_slug;
+    const startingDrones = templateDefaults.starting_drones ?? universeConfig.startingDrones;
 
-    const startShipType = await getStartingShipTypeByName(startShipName);
+    const startShipType = await getStartingShipTypeBySlug(startShipName);
     if (!startShipType) {
         sendError(playerId, 'Starting ship type not configured.');
         return;

@@ -57,7 +57,7 @@ export async function getPlanetsInSector(
         `SELECT pl.id, pl.name, pl.type, pt.display_name AS display_type
          FROM planets pl
          JOIN sectors s ON pl.sector_id = s.id
-         LEFT JOIN planet_types pt ON pt.name = pl.type
+         LEFT JOIN planet_types pt ON pt.slug = pl.type
          WHERE s.sector_number = $1 AND s.universe_id = $2 ORDER BY pl.id`,
         [sectorNumber, universeId],
     );

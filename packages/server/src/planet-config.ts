@@ -12,7 +12,7 @@ export function reloadPlanetConfigs(): void {
         for (const file of files) {
             if (file.endsWith('.json')) {
                 const data = JSON.parse(fs.readFileSync(path.join(PLANETS_DIR, file), 'utf-8'));
-                planetConfigs[data.type] = data;
+                planetConfigs[data.slug] = data;
             }
         }
     } catch (e) {
