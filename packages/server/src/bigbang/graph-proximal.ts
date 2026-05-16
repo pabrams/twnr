@@ -1,4 +1,5 @@
-import type { GeneratedWarp } from './types.js';
+import type { GeneratedWarp, MaxShortestPath } from './types.js';
+import { maxShortestPathFor } from './types.js';
 import { HEX_NEIGHBOR_DIRS } from './positions.js';
 import type { HexCell } from './positions.js';
 
@@ -79,6 +80,7 @@ export function generateProximalGraph(
     cells: readonly HexCell[],
     forcedHubSectors: readonly number[],
     warpDist: number[],
+    maxShortestPath: MaxShortestPath = 'medium',
 ): GeneratedWarp[] {
     if (cells.length !== N) {
         throw new Error(`generateProximalGraph: expected ${N} cells, got ${cells.length}`);
@@ -282,6 +284,127 @@ export function generateProximalGraph(
         }
     }
 
+    // Phase 5: swap adjacent warps for wormholes until diameter ≤ cap.
+    // Each iteration: BFS double-sweep finds the diameter pair (p, q),
+    // we add a bidi wormhole p↔q, then remove a hex-adjacent bidi pair
+    // from somewhere "redundant" (not at the cap pair, not orphaning
+    // anyone). This preserves the total edge count, so warpDist stays
+    // intact in aggregate (individual sector degrees shift by ±1).
+    //
+    // Adjacency check is by hex distance against the cells array.
+    {
+        const diameterCap = Math.max(2, maxShortestPathFor(maxShortestPath, N));
+        const hexDist = (a: HexCell, b: HexCell): number => {
+            const dq = a.q - b.q;
+            const dr = a.r - b.r;
+            return (Math.abs(dq) + Math.abs(dq + dr) + Math.abs(dr)) / 2;
+        };
+        const isAdjacent = (u: number, v: number): boolean =>
+            hexDist(cells[u - 1], cells[v - 1]) === 1;
+
+        // Stall limit is generous: stochastic BFS sometimes misses the true
+        // periphery, and even successful swaps only shrink the diameter for
+        // a subset of pairs. Bigger universes need many swaps.
+        let stalled = 0;
+        const MAX_STALL = 200;
+        const MAX_ITERS = Math.max(1000, N * 2);
+        for (let iter = 0; iter < MAX_ITERS && stalled < MAX_STALL; iter++) {
+            // Multi-sample double-sweep diameter probe. More samples on
+            // bigger graphs since each probe is a relatively cheap BFS but
+            // the periphery is wider.
+            const adjArr = adj.map((s) => [...s]);
+            const SAMPLES = N >= 5000 ? 8 : 4;
+            let bestU = -1;
+            let bestV = -1;
+            let bestDist = -1;
+            for (let s = 0; s < SAMPLES; s++) {
+                const seed = 1 + Math.floor(rng() * N);
+                const sweep1 = bfsFarthest(N, adjArr, seed);
+                const sweep2 = bfsFarthest(N, adjArr, sweep1.node);
+                if (sweep2.dist > bestDist) {
+                    bestDist = sweep2.dist;
+                    bestU = sweep2.node;
+                    bestV = sweep1.node;
+                }
+            }
+            if (bestDist <= diameterCap) break;
+            const p = bestU;
+            const q = bestV;
+            if (p === q || isAdjacent(p, q) || edges.has(`${p},${q}`)) {
+                stalled++;
+                continue;
+            }
+
+            // Add wormhole p↔q (bidi) if there's capacity.
+            const canPQ = adj[p].size < MAX_OUT && inDeg[q] < MAX_IN;
+            const canQP = adj[q].size < MAX_OUT && inDeg[p] < MAX_IN;
+            if (!canPQ && !canQP) {
+                stalled++;
+                continue;
+            }
+
+            // Find an expendable hex-adjacent bidi pair to remove. Skip
+            // edges touching p, q, or any forced hub (anchors keep their 6
+            // out). Both endpoints must have in-degree AND out-degree ≥ 2
+            // so removing the pair doesn't orphan either side (no zero-in,
+            // no sink-only).
+            const forcedSet = new Set(forcedHubSectors);
+            let swapA = -1;
+            let swapB = -1;
+            for (let attempt = 0; attempt < 100; attempt++) {
+                const a = 1 + Math.floor(rng() * N);
+                if (a === p || a === q || forcedSet.has(a)) continue;
+                if (adj[a].size < 2) continue;
+                const neighbors = [...adj[a]];
+                const b = neighbors[Math.floor(rng() * neighbors.length)];
+                if (b === p || b === q || forcedSet.has(b)) continue;
+                if (!isAdjacent(a, b)) continue;
+                if (!edges.has(`${b},${a}`)) continue;
+                if (inDeg[a] < 2 || inDeg[b] < 2) continue;
+                if (adj[b].size < 2) continue;
+                swapA = a;
+                swapB = b;
+                break;
+            }
+            if (swapA < 0) {
+                stalled++;
+                continue;
+            }
+
+            // Execute swap: remove the adjacent bidi pair, add the
+            // wormhole, then verify SCC. Degree checks above aren't
+            // sufficient to guarantee strong connectivity — roll back if
+            // the swap broke it.
+            removeEdge(swapA, swapB);
+            removeEdge(swapB, swapA);
+            let added = 0;
+            if (canPQ && addEdge(p, q)) added++;
+            if (canQP && addEdge(q, p)) added++;
+            if (added === 0) {
+                addEdge(swapA, swapB);
+                addEdge(swapB, swapA);
+                stalled++;
+                continue;
+            }
+            // SCC check: every Phase-5 swap removes one local edge and adds
+            // one long-range edge. The long-range add can't break SCC, but
+            // the removal can. Cheap full Kosaraju is acceptable here
+            // because Phase 5 runs at most ~MAX_STALL+swaps times.
+            const sccAdj = adj.map((s) => [...s]);
+            const { numComps } = findStronglyConnectedComponents(N, sccAdj);
+            if (numComps > 1) {
+                // Roll back wormhole AND restore adjacent pair.
+                if (canPQ) removeEdge(p, q);
+                if (canQP) removeEdge(q, p);
+                addEdge(swapA, swapB);
+                addEdge(swapB, swapA);
+                stalled++;
+                continue;
+            }
+            stalled = 0;
+        }
+    }
+
     const result: GeneratedWarp[] = [];
     for (const e of edges) {
         const comma = e.indexOf(',');
@@ -352,4 +475,36 @@ function findStronglyConnectedComponents(
     }
 
     return { compId, numComps: nextComp };
+}
+
+/**
+ * BFS from `src`; returns the farthest reachable node and its distance.
+ * Used by Phase 5's double-sweep diameter probe. Unreachable nodes are
+ * treated as infinitely far so the swap loop bridges disconnected
+ * fragments first (Phase 4 should have prevented this, but defensive).
+ */
+function bfsFarthest(N: number, adj: number[][], src: number): { node: number; dist: number } {
+    const dist = new Int32Array(N + 1).fill(-1);
+    dist[src] = 0;
+    const queue: number[] = [src];
+    let head = 0;
+    let farthestNode = src;
+    let farthestDist = 0;
+    while (head < queue.length) {
+        const u = queue[head++];
+        const d = dist[u];
+        for (const v of adj[u]) {
+            if (dist[v] !== -1) continue;
+            dist[v] = d + 1;
+            if (d + 1 > farthestDist) {
+                farthestDist = d + 1;
+                farthestNode = v;
+            }
+            queue.push(v);
+        }
+    }
+    for (let i = 1; i <= N; i++) {
+        if (dist[i] === -1) return { node: i, dist: Number.POSITIVE_INFINITY };
+    }
+    return { node: farthestNode, dist: farthestDist };
 }
