@@ -10,23 +10,18 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { generateUniverse } from '../dist/bigbang/index.js';
-import {
-    DEFAULT_WARP_DIST,
-    DEFAULT_TWO_WAY_PCT,
-    DEFAULT_PORT_DENSITY,
-    DEFAULT_TOPOLOGY,
-} from '../dist/bigbang/types.js';
+import { generateUniverse, defaultBigBangOptions } from '../dist/bigbang/index.js';
+import { universeConfig } from '@twnr/shared';
 
 const args = process.argv.slice(2);
 let outDir = null;
 let sectors = 25000;
-let portDensity = DEFAULT_PORT_DENSITY;
+let portDensity = universeConfig.portSpawnDensity;
 let planetDensity = 0;
-let twoWayPct = DEFAULT_TWO_WAY_PCT;
+let twoWayPct = universeConfig.twoWayPct;
 let seed = 42;
-let warpDist = [...DEFAULT_WARP_DIST];
-let topology = DEFAULT_TOPOLOGY;
+let warpDist = [0, ...universeConfig.warpDist];
+let topology = universeConfig.topology;
 
 for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -130,7 +125,7 @@ if (fs.existsSync(outDir)) {
     fs.mkdirSync(outDir, { recursive: true });
 }
 
-const result = generateUniverse({
+const result = generateUniverse(defaultBigBangOptions({
     sectors,
     seed,
     portDensity,
@@ -138,7 +133,7 @@ const result = generateUniverse({
     twoWayPct,
     warpDist,
     topology,
-});
+}));
 
 // Stats summary on stderr.
 {

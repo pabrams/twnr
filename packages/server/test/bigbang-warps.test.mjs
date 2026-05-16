@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { readCSV, generateUniverse } from './bigbang-helpers.mjs';
-import { DEFAULT_TWO_WAY_PCT } from '@twnr/shared';
+import { universeConfig } from '@twnr/shared';
+const DEFAULT_TWO_WAY_PCT = universeConfig.twoWayPct;
 
 
 /** Returns a Map of value -> count. */

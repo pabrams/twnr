@@ -1,5 +1,4 @@
 import type { GeneratedWarp } from './types.js';
-import { DEFAULT_TWO_WAY_PCT, DEFAULT_MAX_PATH_LENGTH, DEFAULT_WARP_DIST } from './types.js';
 import { HEX_NEIGHBOR_DIRS } from './positions.js';
 import type { HexCell } from './positions.js';
 
@@ -71,22 +70,16 @@ export function generateProximalGraph(
     twoWayPercentage: number,
     rng: () => number,
     cells: readonly HexCell[],
-    maxPathLength: number = DEFAULT_MAX_PATH_LENGTH,
-    forcedHubSectors: readonly number[] = [],
-    warpDist: number[] = DEFAULT_WARP_DIST,
+    maxPathLength: number,
+    forcedHubSectors: readonly number[],
+    warpDist: number[],
 ): GeneratedWarp[] {
     if (cells.length !== N) {
         throw new Error(`generateProximalGraph: expected ${N} cells, got ${cells.length}`);
     }
-    const twoWayPct = Math.max(0, Math.min(100, twoWayPercentage ?? DEFAULT_TWO_WAY_PCT));
+    const twoWayPct = Math.max(0, Math.min(100, twoWayPercentage));
     // `twoWayPct` is interpreted as the desired bidirectional ratio on the
-    // *final directed-edge* graph (matching what the test measures: count
-    // of edges whose reverse also exists, divided by total edges). The
-    // per-pair coin we flip is a different quantity though: a 2-way
-    // attempt emits 2 directed edges, a 1-way attempt emits 1. Solving
-    // 2p / (p+1) = twp/100 for p gives the per-pair probability that
-    // produces the requested directed-edge ratio. Examples: twp=50 →
-    // p=33.3%, twp=98 → p=96.08%. Endpoints (0, 100) map to themselves.
+    // *final directed-edge* graph.
     const pairBidiProb = twoWayPct / Math.max(1, 200 - twoWayPct);
     const diameterCap = Math.max(2, Math.floor(maxPathLength));
     const targetOut = assignTargetOutDegrees(N, rng, warpDist, forcedHubSectors);

@@ -9,8 +9,8 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { universeConfig } from '@twnr/shared';
 import { pool } from '../dist/db/pool.js';
-import { DEFAULT_TOPOLOGY } from '../dist/bigbang/types.js';
 import { connectDB } from '../dist/db/schema.js';
 import { snapshotTemplateForUniverse } from '../dist/db/queries/universe.js';
 
@@ -59,7 +59,7 @@ function readCSV(filepath) {
 async function main() {
   await connectDB();
 
-  let topology = DEFAULT_TOPOLOGY;
+  let topology = universeConfig.topology;
   const manifestPath = join(universeDir, 'manifest.json');
   if (existsSync(manifestPath)) {
     try {

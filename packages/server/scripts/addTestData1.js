@@ -23,7 +23,7 @@
 
 import { pool } from '../dist/db/pool.js';
 import { connectDB } from '../dist/db/schema.js';
-import { generateUniverse } from '../dist/bigbang/index.js';
+import { generateUniverse, defaultBigBangOptions } from '../dist/bigbang/index.js';
 import {
     insertUniverseFull,
     getTemplateIdByName,
@@ -60,7 +60,7 @@ async function main() {
         await client.query('BEGIN');
 
         // ── 1. universe "test" with 1000 sectors ────────────────────────
-        const result = generateUniverse({ sectors: 1000, seed: 42 });
+        const result = generateUniverse(defaultBigBangOptions({ sectors: 1000, seed: 42 }));
         const templateId = await getTemplateIdByName('stock', client);
         universeId = await insertUniverseFull(
             'test',
