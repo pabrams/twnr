@@ -178,8 +178,6 @@ async function main() {
       SET class = 0, fuel = 0, fuel_price = 0, organics = 0, org_price = 0, equipment = 0, equ_price = 0
     `, [sector1Id]);
 
-    // Earth is now imported via planets.csv (above); just set its starting
-    // colonists from universe_settings.
     const earthColRes = await client.query(
       `SELECT starting_earth_colonists AS col FROM universe_settings WHERE universe_id = $1`,
       [universeId]
