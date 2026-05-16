@@ -41,7 +41,12 @@ import {
 } from '../db/queries/planet.js';
 import { getPlayerClanId } from '../db/queries/clan.js';
 import { getPlanetsInSector } from '../db/queries/sector.js';
-import { getOnPlanetId, setDocked, setOnPlanet } from '../db/queries/player.js';
+import {
+    adjustReputationAndExperience,
+    getOnPlanetId,
+    setDocked,
+    setOnPlanet,
+} from '../db/queries/player.js';
 import {
     getShipHardwareQuantityByName,
     decrementShipHardwareByName,
@@ -56,6 +61,7 @@ import {
     getShipCargoWithCredits,
 } from '../db/queries/ship.js';
 import { planetConfigs } from '../planet-config.js';
+import { reputationDeltas, experienceDeltas } from '../game-config.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 import { cargoUsed } from './cargo-utils.js';
 
@@ -229,6 +235,12 @@ export async function serveDestroyPlanet(playerId: number): Promise<void> {
             await decrementShipHardwareByName(playerId, 'planet_buster', client);
             await setOnPlanet(playerId, null, client);
             await deletePlanet(onPlanetId, client);
+            await adjustReputationAndExperience(
+                playerId,
+                reputationDeltas.amountChangeFor.destroyPlanet ?? 0,
+                experienceDeltas.amountChangeFor.destroyPlanet ?? 0,
+                client,
+            );
         });
     } catch (err) {
         console.error('Destroy planet error', err);
