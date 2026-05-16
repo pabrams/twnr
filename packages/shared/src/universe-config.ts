@@ -22,4 +22,13 @@ export const universeConfig = {
     mineDisruptorMax: 5,
     colosToProduceOneUnitPerHour: 1000,
     dailyReproductionPer1000Colos: 20,
+
+    // bigbang generation knobs
+    sectorCount: 500,
+    warpDist: [25, 25, 25, 15, 8, 2] as readonly number[],
+    twoWayPct: 98,
+    portSpawnDensity: 80,
+    topology: 'proximal' as 'random' | 'proximal',
+    fillDensity: 0.8,
+    maxPathLength: 25,
 } as const;

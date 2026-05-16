@@ -1,12 +1,4 @@
-import {
-    DEFAULT_WARP_DIST_1_6,
-    DEFAULT_TWO_WAY_PCT,
-    DEFAULT_PORT_DENSITY,
-    DEFAULT_TOPOLOGY,
-    DEFAULT_SECTOR_COUNT,
-    DEFAULT_FILL_DENSITY,
-    DEFAULT_MAX_PATH_LENGTH,
-} from '@twnr/shared';
+import { universeConfig } from '@twnr/shared';
 import { generateUniverse } from './api.js';
 
 function makeInput(
@@ -81,7 +73,7 @@ function makeTopologyField(): {
         input.type = 'radio';
         input.name = 'topology';
         input.value = val;
-        if (val === DEFAULT_TOPOLOGY) input.checked = true;
+        if (val === universeConfig.topology) input.checked = true;
         wrap.appendChild(input);
         wrap.appendChild(document.createTextNode(val));
         group.appendChild(wrap);
@@ -92,7 +84,7 @@ function makeTopologyField(): {
     hint.style.color = '#666';
     hint.style.fontSize = '11px';
     hint.style.marginTop = '4px';
-    hint.textContent = descriptions[DEFAULT_TOPOLOGY];
+    hint.textContent = descriptions[universeConfig.topology];
     row.appendChild(hint);
     for (const input of inputs) {
         input.addEventListener('change', () => {
@@ -159,7 +151,7 @@ function makeWarpDistField(): {
         input.type = 'number';
         input.min = '0';
         input.max = '100';
-        input.value = String(DEFAULT_WARP_DIST_1_6[d - 1]);
+        input.value = String(universeConfig.warpDist[d - 1]);
         cell.appendChild(input);
 
         grid.appendChild(cell);
@@ -212,11 +204,10 @@ export function renderUniverseGenerator(container: HTMLElement, onGenerated: () 
 
     const sectorsField = makeInput('Sectors (20-25000)', {
         type: 'number',
-        placeholder: String(DEFAULT_SECTOR_COUNT),
+        value: String(universeConfig.sectorCount),
         min: '20',
         max: '25000',
     });
-    sectorsField.input.value = String(DEFAULT_SECTOR_COUNT);
     form.appendChild(sectorsField.row);
 
     const seedField = makeInput('Seed (optional)', { type: 'number', placeholder: 'Random' });
@@ -224,39 +215,35 @@ export function renderUniverseGenerator(container: HTMLElement, onGenerated: () 
 
     const portDensityField = makeInput('Port Density % (0-100)', {
         type: 'number',
-        placeholder: String(DEFAULT_PORT_DENSITY),
+        value: String(universeConfig.portSpawnDensity),
         min: '0',
         max: '100',
     });
-    portDensityField.input.value = String(DEFAULT_PORT_DENSITY);
     form.appendChild(portDensityField.row);
 
     const twoWayField = makeInput('Two-Way Warp % (0-100)', {
         type: 'number',
-        placeholder: String(DEFAULT_TWO_WAY_PCT),
+        value: String(universeConfig.twoWayPct),
         min: '0',
         max: '100',
     });
-    twoWayField.input.value = String(DEFAULT_TWO_WAY_PCT);
     form.appendChild(twoWayField.row);
 
     const fillDensityField = makeInput('Fill Density (0.1–1.0, hex grid only)', {
         type: 'number',
-        placeholder: String(DEFAULT_FILL_DENSITY),
+        value: String(universeConfig.fillDensity),
         min: '0.1',
         max: '1.0',
         step: '0.05',
     });
-    fillDensityField.input.value = String(DEFAULT_FILL_DENSITY);
     form.appendChild(fillDensityField.row);
 
     const maxPathField = makeInput('Max Path Length (wormhole target)', {
         type: 'number',
-        placeholder: String(DEFAULT_MAX_PATH_LENGTH),
+        value: String(universeConfig.maxPathLength),
         min: '5',
         max: '10000',
     });
-    maxPathField.input.value = String(DEFAULT_MAX_PATH_LENGTH);
     form.appendChild(maxPathField.row);
 
     const topologyField = makeTopologyField();
@@ -307,7 +294,7 @@ export function renderUniverseGenerator(container: HTMLElement, onGenerated: () 
             return;
         }
 
-        const sectors = parseInt(sectorsField.input.value, 10) || DEFAULT_SECTOR_COUNT;
+        const sectors = parseInt(sectorsField.input.value, 10) || universeConfig.sectorCount;
         const seedVal = seedField.input.value.trim();
         const seed = seedVal ? parseInt(seedVal, 10) : undefined;
         const portDensity = parseInt(portDensityField.input.value, 10);

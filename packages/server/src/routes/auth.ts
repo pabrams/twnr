@@ -3,7 +3,7 @@ import { randomBytes } from 'crypto';
 import type { AuthResponse, LogoutResponse } from '@twnr/shared';
 import type { RouteDeps, Middleware } from './middleware.js';
 import { asyncHandler, HttpError } from './async-handler.js';
-import { universeConfig } from '../universe-config.js';
+import { universeConfig } from '@twnr/shared';
 import {
     bumpUserTokenVersion,
     createGuestUser,
@@ -12,7 +12,7 @@ import {
 } from '../db/queries/user.js';
 import { insertPlayer, markSectorVisited } from '../db/queries/player.js';
 import { getSectorDbId } from '../db/queries/sector.js';
-import { getFirstUniverseId, getUniverseEditDefaults } from '../db/queries/universe.js';
+import { getFirstUniverseId, getUniverseTemplateDefaults } from '../db/queries/universe.js';
 import { bootstrapUniverse } from '../services/universe-bootstrap.js';
 
 export function createAuthRoutes(router: Router, deps: RouteDeps, middleware: Middleware): void {
@@ -118,11 +118,11 @@ export function createAuthRoutes(router: Router, deps: RouteDeps, middleware: Mi
             }
 
             // Universe-specific starting parameters fall back to global defaults.
-            const editDefaults = await getUniverseEditDefaults(universeId);
+            const templateDefaults = await getUniverseTemplateDefaults(universeId);
             const startSector = universeConfig.startingSector;
-            const startingTurns = editDefaults?.starting_turns ?? universeConfig.startingTurns;
+            const startingTurns = templateDefaults?.starting_turns ?? universeConfig.startingTurns;
             const startingCredits =
-                editDefaults?.starting_credits ?? universeConfig.startingCredits;
+                templateDefaults?.starting_credits ?? universeConfig.startingCredits;
             const startSectorId = await getSectorDbId(startSector, universeId);
             if (startSectorId === undefined) {
                 throw new HttpError(500, 'Starting sector not found');

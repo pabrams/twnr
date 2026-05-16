@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import type { RouteDeps, Middleware } from './middleware.js';
 import { asyncHandler, HttpError, parseIntParam } from './async-handler.js';
-import { universeConfig } from '../universe-config.js';
+import { universeConfig } from '@twnr/shared';
 import {
     createUniverse,
     listUniversesForUser,
-    getUniverseEditDefaults,
+    getUniverseTemplateDefaults,
 } from '../db/queries/universe.js';
 import { insertPlayer, listPlayersInUniverse, markSectorVisited } from '../db/queries/player.js';
 import { getSectorDbId } from '../db/queries/sector.js';
@@ -61,14 +61,15 @@ export function createUniverseRoutes(
                 throw new HttpError(400, 'name is required');
             }
 
-            const editDefaults = await getUniverseEditDefaults(universeId);
-            if (!editDefaults) {
+            const templateDefaults = await getUniverseTemplateDefaults(universeId);
+            if (!templateDefaults) {
                 throw new HttpError(404, 'Universe not found');
             }
 
             const startSector = universeConfig.startingSector;
-            const startingTurns = editDefaults.starting_turns ?? universeConfig.startingTurns;
-            const startingCredits = editDefaults.starting_credits ?? universeConfig.startingCredits;
+            const startingTurns = templateDefaults.starting_turns ?? universeConfig.startingTurns;
+            const startingCredits =
+                templateDefaults.starting_credits ?? universeConfig.startingCredits;
 
             const startSectorId = await getSectorDbId(startSector, universeId);
             if (startSectorId === undefined) {
