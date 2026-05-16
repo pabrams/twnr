@@ -17,6 +17,8 @@ export interface BigBangOptions {
     fillDensity: number;
     /** Hex layout: diameter cap; wormholes are added until BFS eccentricity drops below this. */
     maxPathLength: number;
+    /** Number of class-0 ports beyond the mandatory one at sector 1. Each gets a forced 6-out target and a far-apart hex placement. */
+    additionalClassZeroPorts: number;
 }
 
 export interface GeneratedSector {
@@ -58,4 +60,6 @@ export interface BigBangResult {
     warps: GeneratedWarp[];
     ports: GeneratedPort[];
     planets: GeneratedPlanet[];
+    /** Sector IDs that should be persisted as class-0 ports beyond the mandatory sector-1 hub. */
+    extraClassZeroSectorIds: number[];
 }

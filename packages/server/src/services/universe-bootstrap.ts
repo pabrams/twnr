@@ -64,6 +64,13 @@ export async function bootstrapUniverse(name: string): Promise<number> {
         const sector1Id = sectorIdMap.get(1)!;
         await upsertSpecialPort(sector1Id, 0, client);
 
+        for (const extraId of result.extraClassZeroSectorIds) {
+            const extraDbId = sectorIdMap.get(extraId);
+            if (extraDbId !== undefined) {
+                await upsertSpecialPort(extraDbId, 0, client);
+            }
+        }
+
         const starbaseSectorNumber = await getStarbaseSectorNumber(newUniverseId, client);
         if (starbaseSectorNumber !== null) {
             const starbaseSectorDbId = sectorIdMap.get(starbaseSectorNumber);

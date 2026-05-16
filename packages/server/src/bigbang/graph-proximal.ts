@@ -73,6 +73,7 @@ export function generateProximalGraph(
     maxPathLength: number,
     forcedHubSectors: readonly number[],
     warpDist: number[],
+    guaranteedHubSectors: readonly number[] = [],
 ): GeneratedWarp[] {
     if (cells.length !== N) {
         throw new Error(`generateProximalGraph: expected ${N} cells, got ${cells.length}`);
@@ -159,6 +160,86 @@ export function generateProximalGraph(
         } else if (vOut && hasInRoom(u)) {
             addEdge(v, u);
         }
+    }
+
+    // Phase A.5: top up forced-hub out-degree to MAX_OUT with non-local edges.
+    // Phase A only emits edges to hex-adjacent occupied cells, so a hub whose
+    // neighborhood has <6 occupied cells (e.g. corner of the bounded region)
+    // can't reach 6 from adjacency alone. Run in priority order: guaranteed
+    // hubs first (sector 1, starbase) so they claim receivers before the
+    // softer-target extras; this also matters when MAX_IN caps make it
+    // physically impossible to give every hub 6.
+    //
+    // Receivers are picked at random with capacity checks. Guaranteed hubs
+    // scan the full sector list as a fallback if random sampling stalls;
+    // target hubs give up after the random budget — they're best-effort.
+    // Per-attempt edge add for Phase A.5. Honours twp three ways:
+    //   - if v→hub already exists, adding hub→v makes a bidi pair. Only do so
+    //     when this roll wants bidi.
+    //   - if neither direction exists and roll wants bidi, add both.
+    //   - else (no roll for bidi, no reverse edge) just add hub→v 1-way.
+    // The `allowBidiCreation` flag lets guaranteed hubs accept the
+    // bias-against-twp trade-off in exchange for hitting MAX_OUT; target hubs
+    // pass false and skip cells that would create unwanted bidi.
+    function tryAddBidiOrOneWay(hub: number, v: number, allowBidiCreation: boolean): boolean {
+        if (v === hub) return false;
+        if (edges.has(`${hub},${v}`)) return false;
+        if (inDeg[v] >= MAX_IN) return false;
+        const reverseExists = edges.has(`${v},${hub}`);
+        const wantTwoWay = rng() < pairBidiProb;
+        if (reverseExists) {
+            if (!wantTwoWay && !allowBidiCreation) return false;
+            return addEdge(hub, v);
+        }
+        if (
+            wantTwoWay &&
+            adj[v].length < MAX_OUT &&
+            inDeg[hub] < MAX_IN
+        ) {
+            addEdge(hub, v);
+            addEdge(v, hub);
+            return true;
+        }
+        return addEdge(hub, v);
+    }
+    function topUpHub(hub: number, mode: 'guaranteed' | 'target'): void {
+        if (hub < 1 || hub > N) return;
+        while (adj[hub].length < MAX_OUT) {
+            let added = false;
+            for (let attempt = 0; attempt < 50; attempt++) {
+                const v = 1 + Math.floor(rng() * N);
+                if (tryAddBidiOrOneWay(hub, v, false)) {
+                    added = true;
+                    break;
+                }
+            }
+            if (added) continue;
+            if (mode === 'target') return;
+            // Guaranteed mode: exhaustive scan, allowing bidi creation as a
+            // last resort (twp drift gets cleaned up by Phase D).
+            let exhaustiveAdded = false;
+            for (let v = 1; v <= N; v++) {
+                if (tryAddBidiOrOneWay(hub, v, false)) {
+                    exhaustiveAdded = true;
+                    break;
+                }
+            }
+            if (!exhaustiveAdded) {
+                for (let v = 1; v <= N; v++) {
+                    if (tryAddBidiOrOneWay(hub, v, true)) {
+                        exhaustiveAdded = true;
+                        break;
+                    }
+                }
+            }
+            if (!exhaustiveAdded) return; // pathological — every receiver maxed
+        }
+    }
+    const guaranteedSet = new Set<number>(guaranteedHubSectors);
+    for (const hub of guaranteedHubSectors) topUpHub(hub, 'guaranteed');
+    for (const hub of forcedHubSectors) {
+        if (guaranteedSet.has(hub)) continue;
+        topUpHub(hub, 'target');
     }
 
     // Phase B: enforce strong connectivity by closing the SCC condensation

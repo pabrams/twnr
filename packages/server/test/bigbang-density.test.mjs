@@ -40,9 +40,17 @@ describe('Density Boundaries', () => {
     const dir = generateUniverse({ sectors: N, seed: 99, portDensity: 100, planetDensity: 5 });
     try {
       const { rows } = readCSV(join(dir, 'ports.csv'));
+      const { rows: sRows } = readCSV(join(dir, 'sectors.csv'));
+      // Federation Outposts are class-0 hubs the generator names but doesn't
+      // emit into ports.csv (bootstrap inserts them via upsertSpecialPort).
+      // Exclude them from the "every sector has a port" check.
+      const classZeroSectors = new Set(
+        sRows.filter(r => r[1] === 'Federation Outpost').map(r => parseInt(r[0], 10)),
+      );
       const sectorsWithPorts = new Set(rows.map(r => parseInt(r[0], 10)));
       const eligible = new Set(Array.from({ length: N - 1 }, (_, i) => i + 2));
       for (const sid of eligible) {
+        if (classZeroSectors.has(sid)) continue;
         assert.ok(sectorsWithPorts.has(sid), `Sector ${sid} should have a port at density 100`);
       }
     } finally { rmSync(dir, { recursive: true, force: true }); }

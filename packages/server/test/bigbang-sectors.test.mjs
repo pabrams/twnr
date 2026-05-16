@@ -48,10 +48,10 @@ describe('Sector Generation', () => {
     assert.notEqual(parseInt(starbase[0], 10), 1, 'Starbase must not be sector 1');
   });
 
-  it('all sectors other than sector 1 and Starbase have empty name', () => {
+  it('all sectors other than sector 1, Starbase, and Federation Outposts have empty name', () => {
     for (const row of rows) {
       const sid = parseInt(row[0], 10);
-      if (sid === 1 || row[1] === 'Starbase') continue;
+      if (sid === 1 || row[1] === 'Starbase' || row[1] === 'Federation Outpost') continue;
       assert.equal(row[1], '', `Sector ${sid} should have empty name, got '${row[1]}'`);
     }
   });
