@@ -330,10 +330,10 @@ export async function getHardwarePricesForUniverse(
     db: Queryable = pool,
 ): Promise<HardwarePriceRow[]> {
     const res = await db.query<HardwarePriceRow>(
-        `SELECT hi.name, hi.label, COALESCE(hp.price, hi.default_price) as price
+        `SELECT hi.name, hi.label, COALESCE(uhp.price, hi.default_price) as price
          FROM hardware_item hi
-         LEFT JOIN hardware_price hp ON hp.hardware_item_id = hi.id
-           AND hp.template_id = (SELECT template_id FROM universes WHERE id = $1)
+         LEFT JOIN universe_hardware_price uhp ON uhp.hardware_item_id = hi.id
+           AND uhp.universe_id = $1
          ORDER BY hi.id`,
         [universeId],
     );
