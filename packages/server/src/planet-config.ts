@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import type { PlanetConfig } from '@twnr/shared';
 
-export const PLANETS_DIR = path.join(process.cwd(), 'config', 'planets');
+export const PLANETS_DIR = path.join(process.cwd(), 'config', 'templates', 'stock', 'planets');
 export const planetConfigs: Record<string, PlanetConfig> = {};
 
 export function reloadPlanetConfigs(): void {

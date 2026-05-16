@@ -1,8 +1,27 @@
+import fs from 'fs';
+import path from 'path';
 import { pool, ensureDatabase, databaseName } from './pool.js';
 import { shipConfigs } from '../ship-config.js';
 import { planetConfigs } from '../planet-config.js';
 import { universeConfig } from '@twnr/shared';
 import type { ShipConfig } from '@twnr/shared';
+
+type HardwareItem = {
+    name: string;
+    label: string;
+    kind: 'stackable' | 'toggle';
+    default_price: number;
+    result_msg_type: string;
+    result_extra: unknown;
+};
+const HARDWARE_JSON_PATH = path.join(
+    process.cwd(),
+    'config',
+    'templates',
+    'stock',
+    'hardware.json',
+);
+const hardwareItems: HardwareItem[] = JSON.parse(fs.readFileSync(HARDWARE_JSON_PATH, 'utf-8'));
 
 let isConnected = false;
 
@@ -554,32 +573,30 @@ export const connectDB = async (): Promise<void> => {
       );
     `);
 
-        await client.query(`
-      -- === Seed hardware items ===
-      INSERT INTO hardware_item (name, label, kind, default_price, result_msg_type, result_extra) VALUES
-        ('planet_buster',    'Planet Busters',          'stackable', 40000,  'buyHardwareResult', NULL),
-        ('terraform_device', 'Terraform Devices',       'stackable', 25000,  'buyHardwareResult', NULL),
-        ('buoy',             'Marker Beacons',          'stackable', 250,    'buyHardwareResult', NULL),
-        ('proximity_mine',   'Proximity Mines',         'stackable', 500,    'buyHardwareResult', '{"mineType": "proximity"}'),
-        ('seeker_mine',      'Limpet Mines',            'stackable', 9500,   'buyHardwareResult', '{"mineType": "seeker"}'),
-        ('mine_disruptor',   'Mine Disruptors',         'stackable', 5000,   'buyHardwareResult', NULL),
-        ('cloaking_device',  'Cloaking Devices',        'stackable', 25000,  'buyHardwareResult', NULL),
-        ('corbomite',        'Corbomite',               'stackable', 500,    'buyHardwareResult', NULL),
-        ('photon_torpedo',   'Photon Torpedoes',        'stackable', 60000,  'buyHardwareResult', NULL),
-        ('recon_drone',      'Recon Drones',            'stackable', 1500,   'buyHardwareResult', NULL),
-        ('visual_scanner',   'Visual Scanner',          'toggle',    50000,  'buyHardwareResult', NULL),
-        ('planet_scanner',   'Planet Scanner',          'toggle',    20000,  'buyHardwareResult', NULL),
-        ('hyperspace_1',     'Hyperspace Type 1', 'toggle',    100000, 'buyHardwareResult', '{"driveType": 1}'),
-        ('hyperspace_2',     'Hyperspace Type 2', 'toggle',    150000, 'buyHardwareResult', '{"driveType": 2}')
-      ON CONFLICT (name) DO UPDATE SET
-        label = EXCLUDED.label,
-        kind = EXCLUDED.kind,
-        default_price = EXCLUDED.default_price,
-        result_msg_type = EXCLUDED.result_msg_type,
-        result_extra = EXCLUDED.result_extra;
+        for (const hw of hardwareItems) {
+            await client.query(
+                `INSERT INTO hardware_item (name, label, kind, default_price, result_msg_type, result_extra)
+                 VALUES ($1, $2, $3, $4, $5, $6::jsonb)
+                 ON CONFLICT (name) DO UPDATE SET
+                    label = EXCLUDED.label,
+                    kind = EXCLUDED.kind,
+                    default_price = EXCLUDED.default_price,
+                    result_msg_type = EXCLUDED.result_msg_type,
+                    result_extra = EXCLUDED.result_extra`,
+                [
+                    hw.name,
+                    hw.label,
+                    hw.kind,
+                    hw.default_price,
+                    hw.result_msg_type,
+                    hw.result_extra === null ? null : JSON.stringify(hw.result_extra),
+                ],
+            );
+        }
 
-      INSERT INTO universe_template (name) VALUES ('stock') ON CONFLICT (name) DO NOTHING;
-    `);
+        await client.query(
+            `INSERT INTO universe_template (name) VALUES ('stock') ON CONFLICT (name) DO NOTHING`,
+        );
 
         // sync 'stock' fields from universeConfig
         await client.query(
