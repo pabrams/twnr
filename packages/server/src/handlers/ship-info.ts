@@ -105,7 +105,7 @@ export async function serveGetShipDetail(
         owner_clan_number: number | null;
     }>(
         `SELECT sh.id, sh.universe_ship_number,
-                st.name AS type_name, st.display_name AS type_display_name,
+                st.slug AS type_name, st.display_name AS type_display_name,
                 st.id AS ship_type_id,
                 sec.sector_number,
                 sh.drones, st.max_drones,

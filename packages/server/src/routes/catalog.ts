@@ -41,7 +41,7 @@ export function createCatalogRoutes(router: Router, middleware: Middleware): voi
     );
 
     router.get('/api/planets', (_req, res) => {
-        const planets = Object.values(planetConfigs).sort((a, b) => a.type.localeCompare(b.type));
+        const planets = Object.values(planetConfigs).sort((a, b) => a.slug.localeCompare(b.slug));
         res.json(planets);
     });
 

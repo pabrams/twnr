@@ -138,7 +138,7 @@ export async function snapshotTemplateForUniverse(
         `INSERT INTO universe_settings (
             universe_id, max_planets_per_sector, planet_collision_likelihood,
             planet_collision_min_hours, planet_collision_max_hours,
-            turns_per_day, starting_turns, max_turns, starting_ship,
+            turns_per_day, starting_turns, max_turns, starter_ship_slug,
             starting_drones, starting_credits, starting_port_density,
             max_port_density, port_production_rate, port_memory_hours,
             max_players, max_age_days, max_planets, turn_delay,
@@ -156,7 +156,7 @@ export async function snapshotTemplateForUniverse(
          )
          SELECT $1, max_planets_per_sector, planet_collision_likelihood,
                 planet_collision_min_hours, planet_collision_max_hours,
-                turns_per_day, starting_turns, max_turns, starting_ship,
+                turns_per_day, starting_turns, max_turns, starter_ship_slug,
                 starting_drones, starting_credits, starting_port_density,
                 max_port_density, port_production_rate, port_memory_hours,
                 max_players, max_age_days, max_planets, turn_delay,
@@ -200,7 +200,7 @@ export type UniverseStatsRow = {
     starting_turns: number | null;
     starting_credits: number | null;
     starting_drones: number | null;
-    starting_ship: string | null;
+    starter_ship_slug: string | null;
     respawn_delay_seconds: number | null;
 };
 export async function getUniverseStats(
@@ -214,7 +214,7 @@ export async function getUniverseStats(
                    JOIN sectors s ON p.sector_id = s.id
                    WHERE s.universe_id = u.id) AS port_count,
                 us.max_planets_per_sector,
-                us.starting_turns, us.starting_credits, us.starting_drones, us.starting_ship,
+                us.starting_turns, us.starting_credits, us.starting_drones, us.starter_ship_slug,
                 us.respawn_delay_seconds
          FROM universes u
          LEFT JOIN universe_settings us ON us.universe_id = u.id
@@ -252,7 +252,7 @@ export type UniverseTemplateDefaults = {
     id: number;
     starting_turns: number | null;
     starting_credits: number | null;
-    starting_ship: string | null;
+    starter_ship_slug: string | null;
     starting_drones: number | null;
 };
 export async function getUniverseTemplateDefaults(
@@ -260,7 +260,7 @@ export async function getUniverseTemplateDefaults(
     db: Queryable = pool,
 ): Promise<UniverseTemplateDefaults | undefined> {
     const res = await db.query<UniverseTemplateDefaults>(
-        `SELECT u.id, us.starting_turns, us.starting_credits, us.starting_ship, us.starting_drones
+        `SELECT u.id, us.starting_turns, us.starting_credits, us.starter_ship_slug, us.starting_drones
          FROM universes u
          LEFT JOIN universe_settings us ON us.universe_id = u.id
          WHERE u.id = $1`,

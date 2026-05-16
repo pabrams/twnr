@@ -198,7 +198,7 @@ export async function getSeekerAttachmentsByOwner(
 ): Promise<SeekerAttachmentTargetRow[]> {
     const res = await db.query<SeekerAttachmentTargetRow>(
         `SELECT sa.ship_id AS target_ship_id,
-                COALESCE(st.display_name, st.name) AS target_ship_type_name,
+                COALESCE(st.display_name, st.slug) AS target_ship_type_name,
                 p.name AS target_player_name,
                 s.sector_number
          FROM seeker_attachments sa

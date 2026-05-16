@@ -4,7 +4,7 @@ export const HEX_CELL_SIZE = 100;
 export const HEX_SPACING_MULTIPLIER = 1.4;
 
 export type ShipConfig = {
-    name: string;
+    slug: string;
     displayName?: string;
     sortOrder: number;
     speed: number;
@@ -47,7 +47,7 @@ export type ShipConfig = {
 };
 
 export type PlanetConfig = {
-    type: string;
+    slug: string;
     displayName?: string;
     description: string;
     /** Deaths per 1000 colos per day from environmental hazard. Combined

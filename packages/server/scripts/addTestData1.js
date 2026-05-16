@@ -50,7 +50,7 @@ const HOME_DRONES = 100;
 const HOME_MINES_EACH = 10;
 const ADJACENT_DRONES = 10;
 const COLOS_PER_BUCKET = 1000;
-const SHIP_TYPE_NAME = 'Corporate FlagShip';
+const SHIP_TYPE_SLUG = 'Corporate FlagShip';
 
 async function main() {
     await connectDB();
@@ -111,11 +111,11 @@ async function main() {
         // ── 2. Look up Corporate FlagShip + its max hardware loadout ────
         const shipTypeRes = await client.query(
             `SELECT id, max_drones, max_shields, max_holds, turns_per_warp
-             FROM ship_types WHERE name = $1`,
-            [SHIP_TYPE_NAME],
+             FROM ship_types WHERE slug = $1`,
+            [SHIP_TYPE_SLUG],
         );
         if (shipTypeRes.rows.length === 0) {
-            throw new Error(`ship_type ${SHIP_TYPE_NAME} not found — was the DB seeded?`);
+            throw new Error(`ship_type ${SHIP_TYPE_SLUG} not found — was the DB seeded?`);
         }
         const shipType = shipTypeRes.rows[0];
 

@@ -209,7 +209,7 @@ export async function showPlanetSpecs(ctx: DisplayComputerCtx) {
         ctx.io.term.writeln(
             render(COMPUTER.planetSpecsRow, {
                 letter: indexToLetter(i),
-                type: planet.displayName ?? planet.type,
+                type: planet.displayName ?? planet.slug,
             }),
         );
     });
@@ -219,7 +219,7 @@ export async function showPlanetSpecs(ctx: DisplayComputerCtx) {
 export function showPlanetDetail(ctx: DisplayComputerCtx, planet: PlanetConfig) {
     const { term } = ctx.io;
     term.writeln('');
-    term.writeln(render(COMPUTER.planetDetailHeader, { type: planet.displayName ?? planet.type }));
+    term.writeln(render(COMPUTER.planetDetailHeader, { type: planet.displayName ?? planet.slug }));
     term.writeln(render(COMPUTER.planetDetailDescription, { description: planet.description }));
     const pad = (s: string) => s.padEnd(20);
     term.writeln(

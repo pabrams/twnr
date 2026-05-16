@@ -15,9 +15,8 @@ import { players } from './state/players.js';
 import { sendEnvelope, sendError, broadcastTo } from './state/messaging.js';
 import { routeMessage } from './handlers/message-router.js';
 import { clearPendingShipPurchase } from './state/pending-ship-purchases.js';
-import { getStartingShipTypeByName } from './db/queries/ship.js';
+import { getStartingShipTypeBySlug } from './db/queries/ship.js';
 import { getUniverseTemplateDefaults } from './db/queries/universe.js';
-import { universeConfig } from '@twnr/shared';
 import { getUserTokenVersion, markUserConnected, isGuestUser } from './db/queries/user.js';
 import {
     getPlayerConnectInfo,
@@ -219,11 +218,12 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             | undefined;
         if (playerRow.ship_id === null) {
             const templateDefaults = await getUniverseTemplateDefaults(universeId);
-            const startShipName = templateDefaults?.starting_ship ?? universeConfig.startingShip;
-            const startShipType = await getStartingShipTypeByName(startShipName);
+            const startShipType = templateDefaults?.starter_ship_slug
+                ? await getStartingShipTypeBySlug(templateDefaults.starter_ship_slug)
+                : undefined;
             if (startShipType) {
                 startingShipForWelcome = {
-                    typeName: startShipType.name,
+                    typeName: startShipType.slug,
                     typeDisplayName: startShipType.display_name,
                 };
             }

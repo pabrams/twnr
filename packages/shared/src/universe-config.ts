@@ -1,6 +1,6 @@
-// values feeding default universe generation ('stock' template)
+// Values feeding default universe generation ('stock' template)
+// See also the config/templates/stock folder
 export const universeConfig = {
-    startingShip: 'Vulpeculan Cruiser',
     startingCredits: 10000,
     startingDrones: 100,
     startingShields: 0,

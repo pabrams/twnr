@@ -12,7 +12,7 @@ export function reloadShipConfigs(): void {
         for (const file of files) {
             if (file.endsWith('.json')) {
                 const data = JSON.parse(fs.readFileSync(path.join(SHIPS_DIR, file), 'utf-8'));
-                shipConfigs[data.name] = data;
+                shipConfigs[data.slug] = data;
             }
         }
     } catch (e) {

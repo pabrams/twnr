@@ -192,7 +192,7 @@ export async function getShipInfo(
     db: Queryable = pool,
 ): Promise<ShipInfoRow | undefined> {
     const res = await db.query<ShipInfoRow>(
-        `SELECT st.name AS ship_name, st.display_name AS ship_display_name,
+        `SELECT st.slug AS ship_name, st.display_name AS ship_display_name,
                 s.id AS ship_id, s.ship_type_id,
                 s.drones, s.shields, s.holds,
                 s.turns_per_warp, s.has_density_scanner,
@@ -322,7 +322,7 @@ export async function getShipDronesAndMaxInfo(
     db: Queryable = pool,
 ): Promise<ShipDronesInfoRow | undefined> {
     const res = await db.query<ShipDronesInfoRow>(
-        `SELECT s.drones, st.name as ship_name, st.max_drones
+        `SELECT s.drones, st.slug as ship_name, st.max_drones
          FROM ships s JOIN ship_types st ON s.ship_type_id = st.id
          WHERE s.id = ${SHIP_ID_SUBSELECT}`,
         [playerId],
@@ -347,7 +347,7 @@ export async function getShipDronesAndMaxForUpdate(
 /** Full ship_types row with pricing — for shipyards / trade-in logic. */
 export type ShipTypeRow = {
     id: number;
-    name: string;
+    slug: string;
     display_name: string | null;
     starting_holds: number;
     max_holds: number;
@@ -360,16 +360,16 @@ export type ShipTypeRow = {
     turns_per_warp: number;
 };
 
-/** Look up a ship_types row by its name (e.g. 'Merchant Cruiser'). */
-export async function getShipTypeByName(
-    name: string,
+/** Look up a ship_types row by slug. */
+export async function getShipTypeBySlug(
+    slug: string,
     db: Queryable = pool,
 ): Promise<ShipTypeRow | undefined> {
     const res = await db.query<ShipTypeRow>(
-        `SELECT id, name, display_name, starting_holds, max_holds, max_drones, max_shields,
+        `SELECT id, slug, display_name, starting_holds, max_holds, max_drones, max_shields,
                 cost_drive, cost_computer, cost_hull, hold_cost, turns_per_warp
-         FROM ship_types WHERE name = $1`,
-        [name],
+         FROM ship_types WHERE slug = $1`,
+        [slug],
     );
     return res.rows[0];
 }
@@ -392,7 +392,7 @@ export async function getPlayerShipTradeInfoForUpdate(
 ): Promise<PlayerShipTradeInfoRow | undefined> {
     const res = await db.query<PlayerShipTradeInfoRow>(
         `SELECT p.credits, p.current_sector_id,
-                st.name AS ship_name,
+                st.slug AS ship_name,
                 st.cost_drive AS current_cost_drive, st.cost_computer AS current_cost_computer,
                 st.cost_hull AS current_cost_hull, st.hold_cost AS current_hold_cost,
                 st.starting_holds AS current_starting_holds,
@@ -419,7 +419,7 @@ export async function getPlayerShipBuyInfoForUpdate(
 ): Promise<PlayerShipBuyInfoRow | undefined> {
     const res = await db.query<PlayerShipBuyInfoRow>(
         `SELECT p.credits, p.current_sector_id, sh.id AS ship_id,
-                st.name AS ship_name
+                st.slug AS ship_name
          FROM players p
          JOIN ships sh ON p.ship_id = sh.id
          JOIN ship_types st ON sh.ship_type_id = st.id
@@ -604,7 +604,7 @@ export async function getPlayerShipFull(
                 s.turns_per_warp, s.has_density_scanner,
                 s.fuel, s.organics, s.equipment, s.colonists,
                 s.sector_id, s.ship_type_id,
-                st.name as ship_name, st.max_drones, st.max_shields, st.max_holds,
+                st.slug as ship_name, st.max_drones, st.max_shields, st.max_holds,
                 st.starting_holds, st.turns_per_warp as type_turns_per_warp,
                 st.cost_drive, st.cost_computer, st.cost_hull, st.hold_cost,
                 st.odds_offensive, st.odds_defensive, st.speed,
@@ -622,18 +622,18 @@ export async function getPlayerShipFull(
 /** Partial ship_types info needed for respawning a player on a starting ship. */
 export type StartingShipTypeRow = {
     id: number;
-    name: string;
+    slug: string;
     display_name: string;
     starting_holds: number;
     turns_per_warp: number;
 };
-export async function getStartingShipTypeByName(
-    name: string,
+export async function getStartingShipTypeBySlug(
+    slug: string,
     db: Queryable = pool,
 ): Promise<StartingShipTypeRow | undefined> {
     const res = await db.query<StartingShipTypeRow>(
-        'SELECT id, name, display_name, starting_holds, turns_per_warp FROM ship_types WHERE name = $1',
-        [name],
+        'SELECT id, slug, display_name, starting_holds, turns_per_warp FROM ship_types WHERE slug = $1',
+        [slug],
     );
     return res.rows[0];
 }
@@ -689,7 +689,7 @@ export async function getPlayerOwnedShips(
         `SELECT sh.id, sh.universe_ship_number,
                 sec.sector_number AS sector_number,
                 sh.drones, sh.shields, sh.holds,
-                st.name AS type_name, st.display_name AS type_display_name,
+                st.slug AS type_name, st.display_name AS type_display_name,
                 st.transporter_range,
                 sh.owner_player_id, sh.owner_clan_id,
                 op.name AS owner_player_name,
@@ -743,7 +743,7 @@ export async function getAbandonedShipsInSector(
     }>(
         `SELECT sh.id,
                 sh.name AS ship_name,
-                st.name AS type_name,
+                st.slug AS type_name,
                 st.display_name AS type_display_name,
                 sh.drones,
                 sh.owner_player_id,
