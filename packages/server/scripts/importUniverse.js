@@ -122,29 +122,36 @@ async function main() {
     }
 
     // Import ports
+    // CSV columns: sector,class,
+    //   fuel_qty,fuel_max,fuel_prod,fuel_mcic,
+    //   org_qty,org_max,org_prod,org_mcic,
+    //   equ_qty,equ_max,equ_prod,equ_mcic
     const { rows: portRows } = readCSV(join(universeDir, 'ports.csv'));
     for (const row of portRows) {
       const sectorDbId = sectorIdMap.get(parseInt(row[0], 10));
-      const fuelQty = parseInt(row[2], 10);
-      const orgQty = parseInt(row[4], 10);
-      const equQty = parseInt(row[6], 10);
       await client.query(
         `INSERT INTO ports
-           (sector_id, name, class, fuel, fuel_max, fuel_price, organics, org_max, org_price, equipment, equ_max, equ_price)
+           (sector_id, name, class,
+            fuel, fuel_max, fuel_prod, fuel_mcic,
+            organics, org_max, org_prod, org_mcic,
+            equipment, equ_max, equ_prod, equ_mcic)
          VALUES ($1, (SELECT 'Port ' || sector_number FROM sectors WHERE id = $1),
-                 $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+                 $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
         [
           sectorDbId,
-          parseInt(row[1], 10), // class
-          fuelQty,
-          fuelQty,              // fuel_max
-          parseInt(row[3], 10), // fuel_price
-          orgQty,
-          orgQty,               // org_max
-          parseInt(row[5], 10), // org_price
-          equQty,
-          equQty,               // equ_max
-          parseInt(row[7], 10), // equ_price
+          parseInt(row[1], 10),  // class
+          parseInt(row[2], 10),  // fuel_qty
+          parseInt(row[3], 10),  // fuel_max
+          parseInt(row[4], 10),  // fuel_prod
+          parseInt(row[5], 10),  // fuel_mcic
+          parseInt(row[6], 10),  // org_qty
+          parseInt(row[7], 10),  // org_max
+          parseInt(row[8], 10),  // org_prod
+          parseInt(row[9], 10),  // org_mcic
+          parseInt(row[10], 10), // equ_qty
+          parseInt(row[11], 10), // equ_max
+          parseInt(row[12], 10), // equ_prod
+          parseInt(row[13], 10), // equ_mcic
         ],
       );
     }
@@ -171,11 +178,17 @@ async function main() {
     // Seed Class 0 port in Sector 1
     const sector1Id = sectorIdMap.get(1);
     await client.query(`
-      INSERT INTO ports (sector_id, name, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
+      INSERT INTO ports (sector_id, name, class,
+                         fuel, fuel_max, fuel_prod, fuel_mcic,
+                         organics, org_max, org_prod, org_mcic,
+                         equipment, equ_max, equ_prod, equ_mcic)
       VALUES ($1, (SELECT 'Port ' || sector_number FROM sectors WHERE id = $1),
-              0, 0, 0, 0, 0, 0, 0)
+              0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
       ON CONFLICT (sector_id) DO UPDATE
-      SET class = 0, fuel = 0, fuel_price = 0, organics = 0, org_price = 0, equipment = 0, equ_price = 0
+      SET class = 0,
+          fuel = 0, fuel_max = 0, fuel_prod = 0, fuel_mcic = 0,
+          organics = 0, org_max = 0, org_prod = 0, org_mcic = 0,
+          equipment = 0, equ_max = 0, equ_prod = 0, equ_mcic = 0
     `, [sector1Id]);
 
     const earthColRes = await client.query(
@@ -195,11 +208,17 @@ async function main() {
     );
     if (starbaseRes.rows.length > 0) {
       await client.query(`
-        INSERT INTO ports (sector_id, name, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
+        INSERT INTO ports (sector_id, name, class,
+                           fuel, fuel_max, fuel_prod, fuel_mcic,
+                           organics, org_max, org_prod, org_mcic,
+                           equipment, equ_max, equ_prod, equ_mcic)
         VALUES ($1, (SELECT 'Port ' || sector_number FROM sectors WHERE id = $1),
-                9, 0, 0, 0, 0, 0, 0)
+                9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
         ON CONFLICT (sector_id) DO UPDATE
-        SET class = 9, fuel = 0, fuel_price = 0, organics = 0, org_price = 0, equipment = 0, equ_price = 0
+        SET class = 9,
+            fuel = 0, fuel_max = 0, fuel_prod = 0, fuel_mcic = 0,
+            organics = 0, org_max = 0, org_prod = 0, org_mcic = 0,
+            equipment = 0, equ_max = 0, equ_prod = 0, equ_mcic = 0
       `, [starbaseRes.rows[0].id]);
     }
 

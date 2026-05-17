@@ -1,5 +1,4 @@
 import { getUniverseStats, getUniverseTopology } from './api.js';
-import { renderPortList } from './port-list.js';
 
 export function renderUniverseDetail(
     container: HTMLElement,
@@ -116,10 +115,6 @@ export function renderUniverseDetail(
                 topoTable.appendChild(tr);
             }
             container.appendChild(topoTable);
-
-            const portSection = document.createElement('div');
-            container.appendChild(portSection);
-            renderPortList(portSection, universeId);
         })
         .catch((err: Error) => {
             loading.textContent = err.message || 'Failed to load universe details.';

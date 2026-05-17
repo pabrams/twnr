@@ -1,5 +1,6 @@
 import { pool } from '../index.js';
 import type { Queryable, HardwarePriceRow } from '../types.js';
+import { PORT_CLASS_ACTIONS } from '@twnr/shared';
 
 /** Whitelist of commodity column names — blocks SQL injection via dynamic column. */
 const COMMODITY_COLUMN: Record<'fuel' | 'organics' | 'equipment', string> = {
@@ -23,20 +24,22 @@ export async function getPortClassAtSector(
     return res.rows[0]?.class;
 }
 
-/** Full port row keyed by sector number (returns undefined if no port). */
+/** Full port row keyed by sector number (returns undefined if no port).
+ *  Prices are not stored — callers compute via shared/port-pricing.ts using
+ *  current quantity, max, and MCIC. */
 export type PortFullRow = {
     sector_id: number;
     name: string;
     class: number;
     fuel: number;
     fuel_max: number;
-    fuel_price: number;
+    fuel_mcic: number;
     organics: number;
     org_max: number;
-    org_price: number;
+    org_mcic: number;
     equipment: number;
     equ_max: number;
-    equ_price: number;
+    equ_mcic: number;
 };
 export async function getPortAtSector(
     sectorNumber: number,
@@ -44,8 +47,10 @@ export async function getPortAtSector(
     db: Queryable = pool,
 ): Promise<PortFullRow | undefined> {
     const res = await db.query<PortFullRow>(
-        `SELECT s.sector_number as sector_id, p.name, p.class, p.fuel, p.fuel_max, p.fuel_price,
-                p.organics, p.org_max, p.org_price, p.equipment, p.equ_max, p.equ_price
+        `SELECT s.sector_number as sector_id, p.name, p.class,
+                p.fuel, p.fuel_max, p.fuel_mcic,
+                p.organics, p.org_max, p.org_mcic,
+                p.equipment, p.equ_max, p.equ_mcic
          FROM ports p JOIN sectors s ON p.sector_id = s.id
          WHERE s.sector_number = $1 AND s.universe_id = $2`,
         [sectorNumber, universeId],
@@ -72,16 +77,20 @@ export async function getPortInventoryAtSector(
     return res.rows[0];
 }
 
-/** Port id + class + inventory + prices, locked for trade execution. */
+/** Port id + class + inventory + MCIC + max, locked for trade execution.
+ *  Price is computed at trade time from these fields. */
 export type PortTradeRow = {
     port_id: number;
     class: number;
     fuel: number;
-    fuel_price: number;
+    fuel_max: number;
+    fuel_mcic: number;
     organics: number;
-    org_price: number;
+    org_max: number;
+    org_mcic: number;
     equipment: number;
-    equ_price: number;
+    equ_max: number;
+    equ_mcic: number;
 };
 export async function getPortTradeInfoForUpdate(
     sectorNumber: number,
@@ -89,8 +98,10 @@ export async function getPortTradeInfoForUpdate(
     db: Queryable = pool,
 ): Promise<PortTradeRow | undefined> {
     const res = await db.query<PortTradeRow>(
-        `SELECT p.id as port_id, p.class, p.fuel, p.fuel_price,
-                p.organics, p.org_price, p.equipment, p.equ_price
+        `SELECT p.id as port_id, p.class,
+                p.fuel, p.fuel_max, p.fuel_mcic,
+                p.organics, p.org_max, p.org_mcic,
+                p.equipment, p.equ_max, p.equ_mcic
          FROM ports p JOIN sectors s ON p.sector_id = s.id
          WHERE s.sector_number = $1 AND s.universe_id = $2 FOR UPDATE OF p`,
         [sectorNumber, universeId],
@@ -98,181 +109,64 @@ export async function getPortTradeInfoForUpdate(
     return res.rows[0];
 }
 
-/** Decrement a port's inventory for a commodity by N (used by buy + sell, since
- *  selling also removes from port's "demand" counter). */
-export async function decrementPortCommodity(
+/** Adjust a port's physical stock for a commodity by `delta` (signed).
+ *  Buy from a selling port → delta = -qty (port loses stock). Sell to a
+ *  buying port → delta = +qty (port accumulates stock that will regen back
+ *  toward 0). Caller is responsible for ensuring the result stays within
+ *  [0, max]; the trade handler prechecks both directions. */
+export async function adjustPortCommodity(
     portId: number,
     commodity: Commodity,
-    qty: number,
+    delta: number,
     db: Queryable = pool,
 ): Promise<void> {
     const col = COMMODITY_COLUMN[commodity];
-    await db.query(`UPDATE ports SET ${col} = ${col} - $1 WHERE id = $2`, [qty, portId]);
+    await db.query(`UPDATE ports SET ${col} = ${col} + $1 WHERE id = $2`, [delta, portId]);
 }
 
-/** Port admin row with sector_number instead of sector_id (for listing). */
-export type PortAdminListRow = {
-    sector_id: number;
-    class: number;
-    fuel: number;
-    fuel_price: number;
-    organics: number;
-    org_price: number;
-    equipment: number;
-    equ_price: number;
-};
-export async function listPortsInUniverse(
-    universeId: number,
-    db: Queryable = pool,
-): Promise<PortAdminListRow[]> {
-    const res = await db.query<PortAdminListRow>(
-        `SELECT s.sector_number as sector_id, p.class, p.fuel, p.fuel_price,
-                p.organics, p.org_price, p.equipment, p.equ_price
-         FROM ports p
-         JOIN sectors s ON p.sector_id = s.id
-         WHERE s.universe_id = $1 ORDER BY s.sector_number ASC`,
-        [universeId],
-    );
-    return res.rows;
-}
 
-/** Raw port row (all columns) for admin edit — includes id + max + prices. */
-export type PortAdminRow = {
-    id: number;
-    class: number;
-    fuel: number;
-    fuel_max: number;
-    fuel_price: number;
-    organics: number;
-    org_max: number;
-    org_price: number;
-    equipment: number;
-    equ_max: number;
-    equ_price: number;
-};
-export async function getPortAdminRowByUniverseSector(
-    sectorNumber: number,
-    universeId: number,
-    db: Queryable = pool,
-): Promise<PortAdminRow | undefined> {
-    const res = await db.query<PortAdminRow>(
-        `SELECT p.id, p.class, p.fuel, p.fuel_max, p.fuel_price,
-                p.organics, p.org_max, p.org_price,
-                p.equipment, p.equ_max, p.equ_price
-         FROM ports p
-         JOIN sectors s ON p.sector_id = s.id
-         WHERE s.sector_number = $1 AND s.universe_id = $2`,
-        [sectorNumber, universeId],
-    );
-    return res.rows[0];
-}
-
-/** Does a port already exist for a given sector row? */
-export async function portExistsForSector(
-    sectorDbId: number,
-    db: Queryable = pool,
-): Promise<boolean> {
-    const res = await db.query('SELECT id FROM ports WHERE sector_id = $1', [sectorDbId]);
-    return res.rows.length > 0;
-}
-
-/** Admin update: replace a port's class + all quantities (max = qty) + prices. */
-export async function updatePortFull(
-    portId: number,
-    data: {
-        class: number;
-        fuel: number;
-        fuelPrice: number;
-        organics: number;
-        orgPrice: number;
-        equipment: number;
-        equPrice: number;
-    },
-    db: Queryable = pool,
-): Promise<void> {
-    await db.query(
-        `UPDATE ports SET class = $1, fuel = $2, fuel_max = $2, fuel_price = $3,
-                          organics = $4, org_max = $4, org_price = $5,
-                          equipment = $6, equ_max = $6, equ_price = $7
-         WHERE id = $8`,
-        [
-            data.class,
-            data.fuel,
-            data.fuelPrice,
-            data.organics,
-            data.orgPrice,
-            data.equipment,
-            data.equPrice,
-            portId,
-        ],
-    );
-}
-
-/** Admin create: insert a new port in an existing sector. */
-export async function insertPort(
-    sectorDbId: number,
-    data: {
-        class: number;
-        fuel: number;
-        fuelPrice: number;
-        organics: number;
-        orgPrice: number;
-        equipment: number;
-        equPrice: number;
-    },
-    db: Queryable = pool,
-): Promise<void> {
-    await db.query(
-        `INSERT INTO ports (sector_id, name, class, fuel, fuel_max, fuel_price,
-                            organics, org_max, org_price,
-                            equipment, equ_max, equ_price)
-         VALUES ($1, (SELECT 'Port ' || sector_number FROM sectors WHERE id = $1),
-                 $2, $3, $3, $4, $5, $5, $6, $7, $7, $8)`,
-        [
-            sectorDbId,
-            data.class,
-            data.fuel,
-            data.fuelPrice,
-            data.organics,
-            data.orgPrice,
-            data.equipment,
-            data.equPrice,
-        ],
-    );
-}
-
-/** Delete a port by id. */
-export async function deletePort(portId: number, db: Queryable = pool): Promise<void> {
-    await db.query('DELETE FROM ports WHERE id = $1', [portId]);
-}
-
-/** Generate-time port insert (max values default to initial qty). */
+/** Generate-time port insert (uses bigbang-derived max + productivity + MCIC). */
 export async function insertGeneratedPort(
     sectorId: number,
     portClass: number,
     data: {
         fuelQty: number;
-        fuelPrice: number;
+        fuelMax: number;
+        fuelProd: number;
+        fuelMcic: number;
         orgQty: number;
-        orgPrice: number;
+        orgMax: number;
+        orgProd: number;
+        orgMcic: number;
         equQty: number;
-        equPrice: number;
+        equMax: number;
+        equProd: number;
+        equMcic: number;
     },
     db: Queryable = pool,
 ): Promise<void> {
     await db.query(
-        `INSERT INTO ports (sector_id, name, class, fuel, fuel_max, fuel_price, organics, org_max, org_price, equipment, equ_max, equ_price)
+        `INSERT INTO ports (sector_id, name, class,
+                            fuel, fuel_max, fuel_prod, fuel_mcic,
+                            organics, org_max, org_prod, org_mcic,
+                            equipment, equ_max, equ_prod, equ_mcic)
          VALUES ($1, (SELECT 'Port ' || sector_number FROM sectors WHERE id = $1),
-                 $2, $3, $3, $4, $5, $5, $6, $7, $7, $8)`,
+                 $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
         [
             sectorId,
             portClass,
             data.fuelQty,
-            data.fuelPrice,
+            data.fuelMax,
+            data.fuelProd,
+            data.fuelMcic,
             data.orgQty,
-            data.orgPrice,
+            data.orgMax,
+            data.orgProd,
+            data.orgMcic,
             data.equQty,
-            data.equPrice,
+            data.equMax,
+            data.equProd,
+            data.equMcic,
         ],
     );
 }
@@ -284,13 +178,17 @@ export async function upsertSpecialPort(
     db: Queryable = pool,
 ): Promise<void> {
     await db.query(
-        `INSERT INTO ports (sector_id, name, class, fuel, fuel_max, fuel_price, organics, org_max, org_price, equipment, equ_max, equ_price)
+        `INSERT INTO ports (sector_id, name, class,
+                            fuel, fuel_max, fuel_prod, fuel_mcic,
+                            organics, org_max, org_prod, org_mcic,
+                            equipment, equ_max, equ_prod, equ_mcic)
          VALUES ($1, (SELECT 'Port ' || sector_number FROM sectors WHERE id = $1),
-                 $2, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+                 $2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
          ON CONFLICT (sector_id) DO UPDATE
-         SET class = $2, fuel = 0, fuel_max = 0, fuel_price = 0,
-             organics = 0, org_max = 0, org_price = 0,
-             equipment = 0, equ_max = 0, equ_price = 0`,
+         SET class = $2,
+             fuel = 0, fuel_max = 0, fuel_prod = 0, fuel_mcic = 0,
+             organics = 0, org_max = 0, org_prod = 0, org_mcic = 0,
+             equipment = 0, equ_max = 0, equ_prod = 0, equ_mcic = 0`,
         [sectorId, portClass],
     );
 }
@@ -322,6 +220,110 @@ export async function getPortForSectorDisplay(
         [sectorNumber, universeId],
     );
     return res.rows[0] ?? null;
+}
+
+/** IDs of every trading port (classes 1-8). Class 0/9 ports have zero
+ *  productivity so the hourly job skips them at the list level. */
+export async function listProducingPortIds(db: Queryable = pool): Promise<number[]> {
+    const res = await db.query<{ id: number }>(
+        `SELECT id FROM ports
+         WHERE class BETWEEN 1 AND 8
+           AND (fuel_prod > 0 OR org_prod > 0 OR equ_prod > 0)`,
+    );
+    return res.rows.map((r) => r.id);
+}
+
+/** Direction-aware fractional-accumulator regen, mirroring
+ *  `settlePlanetProduction`. Per commodity:
+ *    - Selling port (S-action): stock += prod * elapsed_hours, clamped to max.
+ *    - Buying port (B-action):  stock -= prod * elapsed_hours, floored at 0.
+ *      The port "consumes" or "resells" what it accumulated by buying, so
+ *      its trading % climbs back toward 100% (= empty / ready to buy).
+ *  Fractional remainder rolls into *_prod_accrual so trade handlers can run
+ *  alongside this without losing sub-unit fractions. Stamps
+ *  last_production_at every call. */
+const ONE_HOUR_MS = 60 * 60 * 1000;
+export async function settlePortProduction(
+    portId: number,
+    db: Queryable = pool,
+): Promise<{ produced: boolean }> {
+    const res = await db.query<{
+        class: number;
+        fuel: number;
+        organics: number;
+        equipment: number;
+        fuel_max: number;
+        org_max: number;
+        equ_max: number;
+        fuel_prod: number;
+        org_prod: number;
+        equ_prod: number;
+        fuel_prod_accrual: number;
+        org_prod_accrual: number;
+        equ_prod_accrual: number;
+        last_production_at: Date;
+    }>(
+        `SELECT class, fuel, organics, equipment,
+                fuel_max, org_max, equ_max,
+                fuel_prod, org_prod, equ_prod,
+                fuel_prod_accrual, org_prod_accrual, equ_prod_accrual,
+                last_production_at
+         FROM ports
+         WHERE id = $1
+         FOR UPDATE`,
+        [portId],
+    );
+    const row = res.rows[0];
+    if (!row) return { produced: false };
+
+    const actions = PORT_CLASS_ACTIONS[row.class];
+    if (!actions) return { produced: false };
+
+    const elapsedMs = Date.now() - new Date(row.last_production_at).getTime();
+    if (elapsedMs <= 0) return { produced: false };
+    const elapsedHours = elapsedMs / ONE_HOUR_MS;
+
+    const settle = (
+        stock: number,
+        max: number,
+        prod: number,
+        accrual: number,
+        action: 'B' | 'S',
+    ): { stock: number; accrual: number } => {
+        if (prod <= 0 || max <= 0) return { stock, accrual: 0 };
+        const newAccrual = accrual + prod * elapsedHours;
+        const whole = Math.floor(newAccrual);
+        const newStock =
+            action === 'S'
+                ? Math.min(max, stock + whole)
+                : Math.max(0, stock - whole);
+        return { stock: newStock, accrual: newAccrual - whole };
+    };
+
+    const fuel = settle(row.fuel, row.fuel_max, row.fuel_prod, row.fuel_prod_accrual, actions.fuel);
+    const org = settle(row.organics, row.org_max, row.org_prod, row.org_prod_accrual, actions.organics);
+    const equ = settle(row.equipment, row.equ_max, row.equ_prod, row.equ_prod_accrual, actions.equipment);
+
+    const produced =
+        fuel.stock !== row.fuel || org.stock !== row.organics || equ.stock !== row.equipment;
+
+    await db.query(
+        `UPDATE ports SET
+            fuel = $2, organics = $3, equipment = $4,
+            fuel_prod_accrual = $5, org_prod_accrual = $6, equ_prod_accrual = $7,
+            last_production_at = NOW()
+         WHERE id = $1`,
+        [
+            portId,
+            fuel.stock,
+            org.stock,
+            equ.stock,
+            fuel.accrual,
+            org.accrual,
+            equ.accrual,
+        ],
+    );
+    return { produced };
 }
 
 /** All hardware items with universe-specific price override (or item default). */

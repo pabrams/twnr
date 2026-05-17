@@ -4,7 +4,8 @@
     "blueCreatesPlanet": 25,
     "redCreatesPlanet": 25,
     "neutralCreatesPlanet": 25,
-    "blueJettisonsColosOncePerDay": 0
+    "blueJettisonsColosOncePerDay": 0,
+    "portTrade": 2
   },
   "factorsFor": {
     "pvpCombat_yourFigsLostDivisor_mixedColor": 15,

@@ -128,18 +128,23 @@ describe('Admin API - Generate Universe', () => {
     assert.equal(sectorRes.rows.length, 1);
     assert.equal(sectorRes.rows[0].name, 'Federation Space');
 
-    // Check Class 0 port at sector 1
+    // Check Class 0 port at sector 1 — special ports carry zeroed quantities,
+    // productivity, and MCIC. Static price columns no longer exist.
     const portRes = await pool.query(
-      'SELECT p.class, p.fuel, p.fuel_price, p.organics, p.org_price, p.equipment, p.equ_price FROM ports p JOIN sectors s ON p.sector_id = s.id WHERE s.sector_number = 1 AND s.universe_id = $1', [uid]
+      `SELECT p.class, p.fuel, p.fuel_max, p.fuel_prod, p.fuel_mcic,
+              p.organics, p.org_max, p.org_prod, p.org_mcic,
+              p.equipment, p.equ_max, p.equ_prod, p.equ_mcic
+       FROM ports p JOIN sectors s ON p.sector_id = s.id
+       WHERE s.sector_number = 1 AND s.universe_id = $1`, [uid]
     );
     assert.equal(portRes.rows.length, 1);
-    assert.equal(portRes.rows[0].class, 0);
-    assert.equal(portRes.rows[0].fuel, 0);
-    assert.equal(portRes.rows[0].fuel_price, 0);
-    assert.equal(portRes.rows[0].organics, 0);
-    assert.equal(portRes.rows[0].org_price, 0);
-    assert.equal(portRes.rows[0].equipment, 0);
-    assert.equal(portRes.rows[0].equ_price, 0);
+    const r = portRes.rows[0];
+    assert.equal(r.class, 0);
+    for (const k of ['fuel', 'fuel_max', 'fuel_prod', 'fuel_mcic',
+                     'organics', 'org_max', 'org_prod', 'org_mcic',
+                     'equipment', 'equ_max', 'equ_prod', 'equ_mcic']) {
+      assert.equal(r[k], 0, `class-0 ${k} should be 0`);
+    }
   });
 
   it('creates a Starbase sector with Class 9 port', async () => {
@@ -156,18 +161,22 @@ describe('Admin API - Generate Universe', () => {
     const starbaseId = sectorRes.rows[0].id;
     assert.ok(starbaseSectorNumber >= 2, 'Starbase should not be sector 1');
 
-    // Check Class 9 port at Starbase with all quantities and prices 0
+    // Check Class 9 port at Starbase with all quantities zeroed (no static
+    // prices — class 9 has no trade flow anyway).
     const portRes = await pool.query(
-      'SELECT p.class, p.fuel, p.fuel_price, p.organics, p.org_price, p.equipment, p.equ_price FROM ports p WHERE p.sector_id = $1', [starbaseId]
+      `SELECT p.class, p.fuel, p.fuel_max, p.fuel_prod, p.fuel_mcic,
+              p.organics, p.org_max, p.org_prod, p.org_mcic,
+              p.equipment, p.equ_max, p.equ_prod, p.equ_mcic
+       FROM ports p WHERE p.sector_id = $1`, [starbaseId]
     );
     assert.equal(portRes.rows.length, 1);
-    assert.equal(portRes.rows[0].class, 9);
-    assert.equal(portRes.rows[0].fuel, 0);
-    assert.equal(portRes.rows[0].fuel_price, 0);
-    assert.equal(portRes.rows[0].organics, 0);
-    assert.equal(portRes.rows[0].org_price, 0);
-    assert.equal(portRes.rows[0].equipment, 0);
-    assert.equal(portRes.rows[0].equ_price, 0);
+    const r = portRes.rows[0];
+    assert.equal(r.class, 9);
+    for (const k of ['fuel', 'fuel_max', 'fuel_prod', 'fuel_mcic',
+                     'organics', 'org_max', 'org_prod', 'org_mcic',
+                     'equipment', 'equ_max', 'equ_prod', 'equ_mcic']) {
+      assert.equal(r[k], 0, `class-9 ${k} should be 0`);
+    }
   });
 
   it('generates a connected warp graph', async () => {
@@ -249,7 +258,7 @@ describe('Admin API - Generate Universe', () => {
       `Expected ~90% bidirectional warps, got ${biPct.toFixed(1)}%`);
   });
 
-  it('trading ports have valid commodity quantities and prices', async () => {
+  it('trading ports spawn with productivity, MCIC, and stock matching action direction', async () => {
     const res = await adminKeyPost('/api/admin/universes/generate', {
       name: 'PriceTest', sectors: 30, seed: 333,
     });
@@ -265,25 +274,33 @@ describe('Admin API - Generate Universe', () => {
       1: ['B', 'B', 'S'], 2: ['B', 'S', 'B'], 3: ['S', 'B', 'B'], 4: ['S', 'S', 'B'],
       5: ['B', 'S', 'S'], 6: ['S', 'B', 'S'], 7: ['S', 'S', 'S'], 8: ['B', 'B', 'B'],
     };
+    const MCIC_RANGE = { fuel: [40, 90], organics: [30, 75], equipment: [20, 65] };
     for (const port of portRes.rows) {
-      // Quantities 0-5000
-      assert.ok(port.fuel >= 0 && port.fuel <= 5000, `Fuel qty ${port.fuel} out of range`);
-      assert.ok(port.organics >= 0 && port.organics <= 5000, `Org qty ${port.organics} out of range`);
-      assert.ok(port.equipment >= 0 && port.equipment <= 5000, `Equ qty ${port.equipment} out of range`);
-      // Prices must match buy/sell tier for the port's class
       const actions = CLASS_ACTIONS[port.class];
       const commodities = [
-        { name: 'fuel', action: actions[0], price: port.fuel_price },
-        { name: 'organics', action: actions[1], price: port.org_price },
-        { name: 'equipment', action: actions[2], price: port.equ_price },
+        { name: 'fuel', action: actions[0], qty: port.fuel, max: port.fuel_max, prod: port.fuel_prod, mcic: port.fuel_mcic },
+        { name: 'organics', action: actions[1], qty: port.organics, max: port.org_max, prod: port.org_prod, mcic: port.org_mcic },
+        { name: 'equipment', action: actions[2], qty: port.equipment, max: port.equ_max, prod: port.equ_prod, mcic: port.equ_mcic },
       ];
       for (const c of commodities) {
+        // Productivity 60-280 (max ∈ [600, 2800]) to match observed legacy starting amounts
+        assert.ok(c.prod >= 60 && c.prod <= 280, `Class ${port.class} ${c.name}: prod ${c.prod} out of [60,280]`);
+        assert.equal(c.max, c.prod * 10, `Class ${port.class} ${c.name}: max ${c.max} != prod*10`);
+        // Physical-stock spawn: selling ports start full, buying ports start empty
         if (c.action === 'S') {
-          assert.ok(c.price >= 10 && c.price <= 50,
-            `Class ${port.class} sector ${port.sector_id}: ${c.name} is Sell, price ${c.price} should be 10-50`);
+          assert.equal(c.qty, c.max, `Class ${port.class} ${c.name} (S): should spawn full, got ${c.qty}/${c.max}`);
         } else {
-          assert.ok(c.price >= 51 && c.price <= 100,
-            `Class ${port.class} sector ${port.sector_id}: ${c.name} is Buy, price ${c.price} should be 51-100`);
+          assert.equal(c.qty, 0, `Class ${port.class} ${c.name} (B): should spawn empty, got ${c.qty}`);
+        }
+        // MCIC magnitude in commodity range and sign matches class action
+        const range = MCIC_RANGE[c.name];
+        const mag = Math.abs(c.mcic);
+        assert.ok(mag >= range[0] && mag <= range[1],
+          `Class ${port.class} ${c.name}: |MCIC| ${mag} not in [${range[0]},${range[1]}]`);
+        if (c.action === 'S') {
+          assert.ok(c.mcic > 0, `Class ${port.class} ${c.name}: S-action MCIC must be positive, got ${c.mcic}`);
+        } else {
+          assert.ok(c.mcic < 0, `Class ${port.class} ${c.name}: B-action MCIC must be negative, got ${c.mcic}`);
         }
       }
     }

@@ -10,7 +10,12 @@ import { generateGraph } from './graph.js';
 import { generateProximalGraph } from './graph-proximal.js';
 import { packHexCells, arrangeAnchors } from './positions.js';
 import { portClassesConfig } from '../game-config.js';
-import { PORT_CLASS_ACTIONS } from '@twnr/shared';
+import {
+    PORT_CLASS_ACTIONS,
+    MCIC_BIGBANG_RANGE,
+    PRODUCTIVITY_BIGBANG_RANGE,
+    type PriceCommodity,
+} from '@twnr/shared';
 
 export function generateUniverse(options: BigBangOptions): BigBangResult {
     const {
@@ -94,26 +99,39 @@ export function generateUniverse(options: BigBangOptions): BigBangResult {
 
     function generatePort(sectorId: number, portClass: number): GeneratedPort {
         const actions = PORT_CLASS_ACTIONS[portClass];
-        const generateCommodity = (type: 'B' | 'S') => {
-            const qty = randomInt(0, 5000);
-            const price = type === 'S' ? randomInt(10, 50) : randomInt(51, 100);
-            return { qty, price };
+        const generateCommodity = (commodity: PriceCommodity, action: 'B' | 'S') => {
+            const prod = randomInt(PRODUCTIVITY_BIGBANG_RANGE.min, PRODUCTIVITY_BIGBANG_RANGE.max);
+            const max = prod * 10;
+            const range = MCIC_BIGBANG_RANGE[commodity];
+            const mag = randomInt(range.min, range.max);
+            // B-action commodities use negative MCIC (port pays more, magnitude
+            // matches the absolute value rolled); S-action commodities use
+            // positive MCIC (port charges more). Sign convention matches legacy.
+            const mcic = action === 'B' ? -mag : mag;
+            // Physical-stock model: selling ports spawn full of sellable
+            // inventory; buying ports spawn empty (no accumulated stock yet,
+            // so trading % = (max-0)/max = 100% — maximum buying interest).
+            const qty = action === 'S' ? max : 0;
+            return { qty, max, prod, mcic };
         };
-        const fuel = generateCommodity(actions.fuel);
-        const org = generateCommodity(actions.organics);
-        const equ = generateCommodity(actions.equipment);
+        const fuel = generateCommodity('fuel', actions.fuel);
+        const org = generateCommodity('organics', actions.organics);
+        const equ = generateCommodity('equipment', actions.equipment);
         return {
             sector: sectorId,
             class: portClass,
             fuel_qty: fuel.qty,
-            fuel_max: fuel.qty,
-            fuel_price: fuel.price,
+            fuel_max: fuel.max,
+            fuel_prod: fuel.prod,
+            fuel_mcic: fuel.mcic,
             org_qty: org.qty,
-            org_max: org.qty,
-            org_price: org.price,
+            org_max: org.max,
+            org_prod: org.prod,
+            org_mcic: org.mcic,
             equ_qty: equ.qty,
-            equ_max: equ.qty,
-            equ_price: equ.price,
+            equ_max: equ.max,
+            equ_prod: equ.prod,
+            equ_mcic: equ.mcic,
         };
     }
 

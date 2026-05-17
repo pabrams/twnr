@@ -43,11 +43,14 @@ export interface PortRow {
     sector_id: number;
     class: number;
     fuel: number;
-    fuel_price: number;
+    fuel_max: number;
+    fuel_mcic: number;
     organics: number;
-    org_price: number;
+    org_max: number;
+    org_mcic: number;
     equipment: number;
-    equ_price: number;
+    equ_max: number;
+    equ_mcic: number;
 }
 
 export interface HardwarePriceRow {
