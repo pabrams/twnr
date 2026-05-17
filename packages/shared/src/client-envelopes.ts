@@ -397,6 +397,27 @@ export type UpgradePortCommand = {
     units: number;
 };
 
+export type HaggleOpenCommand = {
+    type: typeof ClientTag.HaggleOpen;
+    commodity: 'fuel' | 'organics' | 'equipment';
+    quantity: number;
+    action: 'buy' | 'sell';
+};
+
+export type HaggleCounterCommand = {
+    type: typeof ClientTag.HaggleCounter;
+    /** Player's offer in TOTAL credits for the haggle's quantity. */
+    counter: number;
+};
+
+export type HaggleAcceptCommand = {
+    type: typeof ClientTag.HaggleAccept;
+};
+
+export type HaggleQuitCommand = {
+    type: typeof ClientTag.HaggleQuit;
+};
+
 export type ClientEnvelope =
     | MoveCommand
     | MoveToPreviousCommand
@@ -476,4 +497,8 @@ export type ClientEnvelope =
     | ConstructPortInfoCommand
     | BuildPortCommand
     | UpgradePortInfoCommand
-    | UpgradePortCommand;
+    | UpgradePortCommand
+    | HaggleOpenCommand
+    | HaggleCounterCommand
+    | HaggleAcceptCommand
+    | HaggleQuitCommand;

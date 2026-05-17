@@ -218,6 +218,8 @@ async function undockPlayer(playerId: number): Promise<void> {
     if (!player) return;
     player.docked = false;
     await setDocked(playerId, false);
+    const { clearHaggleSession } = await import('./port-haggle.js');
+    clearHaggleSession(playerId);
     const sectorData = await buildSectorDisplayData(playerId);
     if (!sectorData) return;
     await sendEnvelope(playerId, {

@@ -6,4 +6,5 @@ export * from './types.js';
 export * from './port-classes.js';
 export * from './port-pricing.js';
 export * from './port-construction.js';
+export * from './port-haggle.js';
 export { universeConfig } from './universe-config.js';

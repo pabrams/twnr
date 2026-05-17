@@ -288,6 +288,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
         ws.on('close', () => {
             clearInterval(refillInterval);
             clearPendingShipPurchase(playerId);
+            void import('./handlers/port-haggle.js').then((m) => m.clearHaggleSession(playerId));
             const lastSector = players[playerId]?.sector;
             const lastUniverse = players[playerId]?.universeId;
             delete players[playerId];

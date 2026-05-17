@@ -30,6 +30,12 @@ import {
     serveUpgradePort,
 } from './port-construction.js';
 import {
+    serveHaggleOpen,
+    serveHaggleCounter,
+    serveHaggleAccept,
+    serveHaggleQuit,
+} from './port-haggle.js';
+import {
     serveShipInfo,
     serveListOwnedShips,
     serveTransportToShip,
@@ -177,6 +183,12 @@ const handlers: HandlerMap = {
     [ClientTag.BuildPort]: serveBuildPort,
     [ClientTag.UpgradePortInfo]: (pid) => serveUpgradePortInfo(pid),
     [ClientTag.UpgradePort]: serveUpgradePort,
+    [ClientTag.HaggleOpen]: serveHaggleOpen,
+    [ClientTag.HaggleCounter]: serveHaggleCounter,
+    [ClientTag.HaggleAccept]: (pid) => serveHaggleAccept(pid),
+    [ClientTag.HaggleQuit]: (pid) => {
+        serveHaggleQuit(pid);
+    },
 };
 
 export async function routeMessage(playerId: number, data: ClientEnvelope): Promise<void> {
