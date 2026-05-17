@@ -11,9 +11,9 @@
   "maxFuel": 1000000,
   "maxOrg": 1000000,
   "maxEqu": 1000000,
-  "maxFuelColos": 100000,
-  "maxOrgColos": 100000,
-  "maxEquColos": 100000,
+  "maxFuelColos": 200000,
+  "maxOrgColos": 200000,
+  "maxEquColos": 200000,
   "maxDrones": 1000000,
   "maxDroneColos": 100000
 }
