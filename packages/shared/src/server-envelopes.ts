@@ -1097,6 +1097,60 @@ export type UpgradePortReply =
           message: string;
       };
 
+export type HaggleOpenReply =
+    | {
+          type: typeof ServerTag.HaggleOpenResult;
+          outcome: 'opened';
+          commodity: 'fuel' | 'organics' | 'equipment';
+          action: 'buy' | 'sell';
+          quantity: number;
+          /** Port's initial total-credit offer for the requested quantity. */
+          initialOffer: number;
+      }
+    | {
+          type: typeof ServerTag.HaggleOpenResult;
+          outcome: 'error';
+          message: string;
+      };
+
+/** One round of haggle response from the server. `accepted` means trade
+ *  settled at `finalTotal` and cargo/credits are updated. `counter` and
+ *  `final` carry the port's new offer; on `final`, the next player message
+ *  must be HaggleAccept or HaggleQuit. `rejected` ends the session and
+ *  costs the turn deducted by the trade tx (same as a buy). */
+export type HaggleResponseReply =
+    | {
+          type: typeof ServerTag.HaggleResponseResult;
+          outcome: 'accepted';
+          finalTotal: number;
+          credits: number;
+          cargo: { fuel: number; organics: number; equipment: number; colonists: number };
+          emptyHolds: number;
+          turnsUsed?: number;
+          experienceGained?: number;
+      }
+    | {
+          type: typeof ServerTag.HaggleResponseResult;
+          outcome: 'counter';
+          newPortOffer: number;
+      }
+    | {
+          type: typeof ServerTag.HaggleResponseResult;
+          outcome: 'final';
+          newPortOffer: number;
+      }
+    | {
+          type: typeof ServerTag.HaggleResponseResult;
+          outcome: 'rejected';
+          message: string;
+          turnsUsed?: number;
+      }
+    | {
+          type: typeof ServerTag.HaggleResponseResult;
+          outcome: 'error';
+          message: string;
+      };
+
 export type ServerEnvelope =
     | WelcomeEvent
     | PlayerMovedEvent
@@ -1193,4 +1247,6 @@ export type ServerEnvelope =
     | BuildPortReply
     | UpgradePortInfoReply
     | UpgradePortReply
+    | HaggleOpenReply
+    | HaggleResponseReply
     | ErrorReply;

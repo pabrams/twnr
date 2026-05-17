@@ -116,6 +116,8 @@ export const ServerTag = {
     BuildPortResult: 'buildPortResult',
     UpgradePortInfoResult: 'upgradePortInfoResult',
     UpgradePortResult: 'upgradePortResult',
+    HaggleOpenResult: 'haggleOpenResult',
+    HaggleResponseResult: 'haggleResponseResult',
 } as const;
 type ServerTag = typeof ServerTag;
 
@@ -199,5 +201,14 @@ export const ClientTag = {
     BuildPort: 'buildPort',
     UpgradePortInfo: 'upgradePortInfo',
     UpgradePort: 'upgradePort',
+    /** Begin a haggle session for one commodity + quantity. The current
+     *  player's port session (if any) is replaced. */
+    HaggleOpen: 'haggleOpen',
+    /** Player's counter offer (total credits). */
+    HaggleCounter: 'haggleCounter',
+    /** Accept the port's current offer and settle the trade. */
+    HaggleAccept: 'haggleAccept',
+    /** Walk away from the current haggle session without trading. */
+    HaggleQuit: 'haggleQuit',
 } as const;
 type ClientTag = typeof ClientTag;

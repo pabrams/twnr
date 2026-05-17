@@ -4,6 +4,7 @@ import {
     PORT_CLASS_ACTIONS,
     ServerTag,
     type PortClassActions,
+    type ServerEnvelope as ServerEnvelopeT,
 } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
@@ -12,7 +13,7 @@ import { showCommerceReport, showSectorDisplay, type DisplayCtx } from '../displ
 import { type DisplayPortCtx } from '../display-port.js';
 import { type DisplayStarbaseCtx } from '../display-starbase.js';
 import { type MenuArgsSlot } from '../routines/types.js';
-import { askNumber, askConfirm, awaitResponse } from '../routines/prompts.js';
+import { askNumber, awaitResponse } from '../routines/prompts.js';
 import type { Handler } from './index.js';
 import { fmt, refreshMinimap, type RefreshMinimapCtx } from './utils.js';
 
@@ -137,12 +138,6 @@ async function runTradeRoutine(
 
     for (const c of ordered) {
         const action: 'buy' | 'sell' = actions[c.key] === 'S' ? 'buy' : 'sell';
-        const price =
-            c.key === 'fuel'
-                ? (ctx.world.dockedPortInfo?.fuelPrice ?? 0)
-                : c.key === 'organics'
-                  ? (ctx.world.dockedPortInfo?.orgPrice ?? 0)
-                  : (ctx.world.dockedPortInfo?.equPrice ?? 0);
         const portTrading = portInv[c.key];
         const onBoard = cargo[c.key];
         const maxQty =
@@ -162,36 +157,101 @@ async function runTradeRoutine(
         const qty = raw === null || raw < 0 ? maxQty : Math.min(raw, maxQty);
         if (qty <= 0) continue;
 
-        const totalPrice = qty * price;
-        const confirmTpl =
-            action === 'buy' ? TRANSACTION.tradeConfirmSell : TRANSACTION.tradeConfirmBuy;
-        term.writeln(render(confirmTpl, { total: fmt(totalPrice) }));
-        const ok = await askConfirm(ctx, render(TRANSACTION.tradeConfirmAccept), {
-            defaultValue: true,
-        });
-        if (ctx.world.mode !== Menu.Port) return;
-        if (ok !== true) continue;
-
+        // Haggle session: open with quantity, then loop counters until the
+        // port accepts, rejects, or the player walks.
         ctx.io.sendMsg({
-            type: ClientTag.PortTransaction,
-            good: c.key,
+            type: ClientTag.HaggleOpen,
+            commodity: c.key,
             quantity: qty,
             action,
         });
-        const response = await awaitResponse(ctx, [
-            ServerTag.PortTransactionResult,
-            ServerTag.Error,
-        ]);
-        if (response === null) return;
-        if (response.type !== ServerTag.PortTransactionResult) {
-            return;
+        const opened = await awaitResponse(ctx, [ServerTag.HaggleOpenResult, ServerTag.Error]);
+        if (opened === null) return;
+        if (opened.type !== ServerTag.HaggleOpenResult || opened.outcome !== 'opened') {
+            const msg =
+                opened.type === ServerTag.HaggleOpenResult && opened.outcome === 'error'
+                    ? opened.message
+                    : 'Haggle could not start';
+            term.writeln(msg);
+            continue;
         }
 
-        cargo = response.cargo;
-        credits = response.credits;
-        emptyHolds = response.emptyHolds;
-        portInv[c.key] = Math.max(0, portInv[c.key] - qty);
-        term.writeln(render(TRANSACTION.tradeComplete, { credits: fmt(credits) }));
+        term.writeln('');
+        term.writeln(`Agreed, ${qty} units.`);
+        term.writeln('');
+        const verb = action === 'buy' ? "We'll sell them for" : "We'll buy them for";
+        term.writeln(`${verb} ${fmt(opened.initialOffer)} credits.`);
+        let portCurrent = opened.initialOffer;
+        let isFinal = false;
+        let settled: typeof response | null = null;
+        type HaggleResp =
+            Extract<ServerEnvelopeT, { type: typeof ServerTag.HaggleResponseResult }>;
+        let response: HaggleResp | null = null;
+
+        while (!settled) {
+            const counter = await askNumber(ctx, `Your offer [${portCurrent}] ? `, {
+                defaultValue: portCurrent,
+                min: 0,
+            });
+            if (ctx.world.mode !== Menu.Port) return;
+            if (counter === null) {
+                ctx.io.sendMsg({ type: ClientTag.HaggleQuit });
+                term.writeln('');
+                term.writeln('You walk away from the deal.');
+                break;
+            }
+            // Player accepts the port's current offer (default = press enter).
+            if (counter === portCurrent || (isFinal && counter >= portCurrent && action === 'buy') ||
+                (isFinal && counter <= portCurrent && action === 'sell')) {
+                ctx.io.sendMsg({ type: ClientTag.HaggleAccept });
+            } else if (isFinal) {
+                // After final offer the only valid input is accept or quit.
+                ctx.io.sendMsg({ type: ClientTag.HaggleQuit });
+                term.writeln('');
+                term.writeln('You walk away from the deal.');
+                break;
+            } else {
+                ctx.io.sendMsg({ type: ClientTag.HaggleCounter, counter });
+            }
+
+            const r = await awaitResponse(ctx, [ServerTag.HaggleResponseResult, ServerTag.Error]);
+            if (r === null) return;
+            if (r.type !== ServerTag.HaggleResponseResult) {
+                term.writeln('Haggle error');
+                break;
+            }
+            response = r as HaggleResp;
+            if (response.outcome === 'accepted') {
+                settled = response;
+                term.writeln('You are a shrewd trader, they\'re all yours.');
+            } else if (response.outcome === 'counter') {
+                portCurrent = response.newPortOffer;
+                term.writeln('');
+                term.writeln(`${verb} ${fmt(portCurrent)} credits.`);
+            } else if (response.outcome === 'final') {
+                portCurrent = response.newPortOffer;
+                isFinal = true;
+                term.writeln('');
+                term.writeln(`Our final offer is ${fmt(portCurrent)} credits.`);
+            } else if (response.outcome === 'rejected') {
+                term.writeln('');
+                term.writeln('This conversation is terminated!');
+                break;
+            } else {
+                term.writeln(response.message);
+                break;
+            }
+        }
+
+        if (settled) {
+            cargo = settled.cargo;
+            credits = settled.credits;
+            emptyHolds = settled.emptyHolds;
+            portInv[c.key] = action === 'buy'
+                ? Math.max(0, portInv[c.key] - qty)
+                : Math.max(0, portInv[c.key] - qty);
+            term.writeln(render(TRANSACTION.tradeComplete, { credits: fmt(credits) }));
+        }
     }
 
     if (!prompted) {
