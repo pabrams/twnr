@@ -3,6 +3,7 @@
     "destroyPlanet": 50,
     "blueCreatesPlanet": 25,
     "redCreatesPlanet": 25,
-    "neutralCreatesPlanet": 25
+    "neutralCreatesPlanet": 25,
+    "blueJettisonsColosOncePerDay": 0
   }
 }
