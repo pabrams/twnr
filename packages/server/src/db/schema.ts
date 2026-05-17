@@ -351,6 +351,7 @@ export const connectDB = async (): Promise<void> => {
         on_planet_id INTEGER DEFAULT NULL,
         turns INTEGER NOT NULL DEFAULT 0,
         last_turns_granted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        last_colos_jettison_at TIMESTAMPTZ,
         is_knighted BOOLEAN NOT NULL DEFAULT FALSE,
         UNIQUE (user_id, universe_id)
       );

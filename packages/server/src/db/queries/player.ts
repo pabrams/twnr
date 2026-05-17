@@ -24,6 +24,26 @@ export async function getPlayerReputationForUpdate(
     return res.rows[0]?.reputation ?? 0;
 }
 
+/**
+ * Atomically mark "first colos jettison today" for a player. Returns true
+ * only on the FIRST call within a calendar day (UTC); subsequent calls the
+ * same day return false. Update + check happens in one statement so two
+ * concurrent jettisons can't both win the "first today" prize.
+ */
+export async function markFirstColosJettisonOfDay(
+    playerId: number,
+    db: Queryable = pool,
+): Promise<boolean> {
+    const res = await db.query(
+        `UPDATE players SET last_colos_jettison_at = NOW()
+         WHERE id = $1
+           AND (last_colos_jettison_at IS NULL
+                OR last_colos_jettison_at::date < (NOW() AT TIME ZONE 'UTC')::date)`,
+        [playerId],
+    );
+    return (res.rowCount ?? 0) > 0;
+}
+
 /** Resolve a player's current ship_id. Returns null if the player has
  *  no ship (destroyed, awaiting a starter, etc.). */
 export async function getPlayerShipId(
