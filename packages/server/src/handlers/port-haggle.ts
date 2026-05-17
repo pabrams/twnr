@@ -7,7 +7,7 @@
  * so quitting mid-haggle is free (no credits move, no cargo moves).
  *
  * Rejection ("This conversation is terminated!") deducts one turn — same
- * cost as a successful buy under the TW2002 reference — so spamming
+ * cost as a successful buy under the legacy reference — so spamming
  * aggressive counters has a price.
  */
 

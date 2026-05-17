@@ -37,7 +37,7 @@ export const PORT_CONSTRUCTION_COSTS: Record<PortClass, ConstructionCost> = {
 };
 
 /** Daily commodity drain per class (each total divided by days). All entries
- *  divide cleanly in the TW2002 table so there are no fractional days. */
+ *  divide cleanly in the legacy table so there are no fractional days. */
 export function dailyDrainFor(portClass: PortClass): {
     ore: number;
     org: number;
