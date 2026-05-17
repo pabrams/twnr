@@ -21,8 +21,8 @@ export const SECTOR = makeDomain('SECTOR', {
 
     planetsLine: '[mg]Planets[/mg] [by]:[/by] {item}',
     planetsContinuation: '          {item}',
-    planetItem: '{nameColored} [mg]([/mg][w]{type}[/w][mg])[/mg]',
-    planetItemPlain: '[bc]{name}[/bc] [mg]([/mg][w]{type}[/w][mg])[/mg]',
+    planetItem: '{nameColored} [mg]([/mg]{type}[mg])[/mg]',
+    planetItemPlain: '[bc]{name}[/bc] [mg]([/mg]{type}[mg])[/mg]',
 
     collisionWarning:
         '[br]WARNING[/br]: [by]{planet}[/by] on collision course with [by]{target}[/by]! [mg]([/mg]ETA: [br]{hours}[/br]h[mg])[/mg]',
