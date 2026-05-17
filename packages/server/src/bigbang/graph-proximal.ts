@@ -81,6 +81,7 @@ export function generateProximalGraph(
     forcedHubSectors: readonly number[],
     warpDist: number[],
     maxShortestPath: MaxShortestPath = 'medium',
+    wormholesAlwaysTwoWay = true,
 ): GeneratedWarp[] {
     if (cells.length !== N) {
         throw new Error(`generateProximalGraph: expected ${N} cells, got ${cells.length}`);
@@ -335,10 +336,17 @@ export function generateProximalGraph(
                 continue;
             }
 
-            // Add wormhole p↔q (bidi) if there's capacity.
+            // Add wormhole p↔q (bidi) if there's capacity. When
+            // wormholesAlwaysTwoWay is set, skip the candidate if either
+            // direction is blocked — better to leave one diameter pair than
+            // ship a one-way wormhole.
             const canPQ = adj[p].size < MAX_OUT && inDeg[q] < MAX_IN;
             const canQP = adj[q].size < MAX_OUT && inDeg[p] < MAX_IN;
             if (!canPQ && !canQP) {
+                stalled++;
+                continue;
+            }
+            if (wormholesAlwaysTwoWay && !(canPQ && canQP)) {
                 stalled++;
                 continue;
             }

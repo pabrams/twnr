@@ -91,7 +91,8 @@ export const connectDB = async (): Promise<void> => {
         sector_count INTEGER NOT NULL DEFAULT ${universeConfig.sectorCount},
         warp_dist JSONB NOT NULL DEFAULT '${JSON.stringify(universeConfig.warpDist)}'::jsonb,
         two_way_pct SMALLINT NOT NULL DEFAULT ${universeConfig.twoWayPct},
-        port_spawn_density SMALLINT NOT NULL DEFAULT ${universeConfig.portSpawnDensity}
+        port_spawn_density SMALLINT NOT NULL DEFAULT ${universeConfig.portSpawnDensity},
+        wormholes_always_two_way BOOLEAN NOT NULL DEFAULT ${universeConfig.wormholesAlwaysTwoWay}
       );
 
       CREATE TABLE IF NOT EXISTS universes (
@@ -150,7 +151,8 @@ export const connectDB = async (): Promise<void> => {
         sector_count INTEGER NOT NULL DEFAULT ${universeConfig.sectorCount},
         warp_dist JSONB NOT NULL DEFAULT '${JSON.stringify(universeConfig.warpDist)}'::jsonb,
         two_way_pct SMALLINT NOT NULL DEFAULT ${universeConfig.twoWayPct},
-        port_spawn_density SMALLINT NOT NULL DEFAULT ${universeConfig.portSpawnDensity}
+        port_spawn_density SMALLINT NOT NULL DEFAULT ${universeConfig.portSpawnDensity},
+        wormholes_always_two_way BOOLEAN NOT NULL DEFAULT ${universeConfig.wormholesAlwaysTwoWay}
       );
 
       CREATE TABLE IF NOT EXISTS sectors (
@@ -730,7 +732,8 @@ export const connectDB = async (): Promise<void> => {
                  sector_count = $15,
                  warp_dist = $16::jsonb,
                  two_way_pct = $17,
-                 port_spawn_density = $18
+                 port_spawn_density = $18,
+                 wormholes_always_two_way = $19
              WHERE name = 'stock'`,
             [
                 universeConfig.startingCredits,
@@ -751,6 +754,7 @@ export const connectDB = async (): Promise<void> => {
                 JSON.stringify(universeConfig.warpDist),
                 universeConfig.twoWayPct,
                 universeConfig.portSpawnDensity,
+                universeConfig.wormholesAlwaysTwoWay,
             ],
         );
 

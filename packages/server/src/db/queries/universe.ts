@@ -151,7 +151,8 @@ export async function snapshotTemplateForUniverse(
             mine_disruptor_min, mine_disruptor_max,
             respawn_delay_seconds, colos_to_produce_one_unit_per_hour,
             daily_reproduction_per_1000_colos,
-            sector_count, warp_dist, two_way_pct, port_spawn_density
+            sector_count, warp_dist, two_way_pct, port_spawn_density,
+            wormholes_always_two_way
          )
          SELECT $1, max_planets_per_sector, planet_collision_likelihood,
                 planet_collision_min_hours, planet_collision_max_hours,
@@ -168,7 +169,8 @@ export async function snapshotTemplateForUniverse(
                 mine_disruptor_min, mine_disruptor_max,
                 respawn_delay_seconds, colos_to_produce_one_unit_per_hour,
                 daily_reproduction_per_1000_colos,
-                sector_count, warp_dist, two_way_pct, port_spawn_density
+                sector_count, warp_dist, two_way_pct, port_spawn_density,
+                wormholes_always_two_way
          FROM universe_template WHERE name = $2
          ON CONFLICT (universe_id) DO NOTHING`,
         [universeId, templateName],

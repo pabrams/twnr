@@ -30,4 +30,5 @@ export const universeConfig = {
     portSpawnDensity: 80,
     topology: 'proximal' as 'random' | 'proximal',
     maxShortestPath: 'medium' as 'packed' | 'narrow' | 'medium' | 'wide' | 'vast',
+    wormholesAlwaysTwoWay: true,
 } as const;
