@@ -164,7 +164,16 @@ export interface Catalogs {
     hardware: { name: string; label: string; kind: 'stackable' | 'toggle' }[] | null;
     ships: ShipCatalogEntry[] | null;
     planets: PlanetConfig[] | null;
-    class0Prices: { dronePrice: number; shieldPrice: number; holdPrice: number } | null;
+    class0Prices: {
+        dronePrice: number;
+        shieldPrice: number;
+        /** Today's daily base cost B for the cumulative hold-cost formula. */
+        holdBaseCost: number;
+        holdCostIncrement: number;
+        holdBaseCostMin: number;
+        holdBaseCostMax: number;
+        holdCostPeriodDays: number;
+    } | null;
     hardwarePrices: HardwarePriceItem[] | null;
     menus: Map<string, MenuEntry>;
 }

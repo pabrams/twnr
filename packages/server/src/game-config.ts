@@ -27,7 +27,9 @@ function loadJson<T>(file: string): T {
 export interface Class0Prices {
     dronePrice: number;
     shieldPrice: number;
-    holdPrice: number;
+    holdBaseCostMin: number;
+    holdBaseCostMax: number;
+    holdCostPeriodDays: number;
 }
 
 export const class0Prices: Class0Prices = loadJson<Class0Prices>('class0-prices.json');

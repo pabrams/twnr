@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { holdBaseCostNow, HOLD_COST_INCREMENT } from '@twnr/shared';
 import { class0Prices } from '../game-config.js';
 import type { Middleware } from './middleware.js';
 import { asyncHandler, parseIntParam } from './async-handler.js';
@@ -7,7 +8,17 @@ import { listHardwareCatalog } from '../db/queries/hardware.js';
 
 export function createCatalogRoutes(router: Router, _middleware: Middleware): void {
     router.get('/api/class0-prices', (_req, res) => {
-        res.json(class0Prices);
+        // Compute today's base cost so the client can render the next-hold
+        // price without re-deriving it.
+        res.json({
+            ...class0Prices,
+            holdCostIncrement: HOLD_COST_INCREMENT,
+            holdBaseCost: holdBaseCostNow(
+                class0Prices.holdBaseCostMin,
+                class0Prices.holdBaseCostMax,
+                class0Prices.holdCostPeriodDays,
+            ),
+        });
     });
 
     // Ship catalog for a universe (universe_id query param required).
