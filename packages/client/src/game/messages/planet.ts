@@ -50,7 +50,7 @@ export const PLANET = makeDomain('PLANET', {
     landedHeader: '[bg]Landed on[/bg] [bc]{name}[/bc]',
 
     displayTitle: '[bc]Planet #{id}[/bc] in sector [by]{sector}[/by]:  [bg]{name}[/bg]',
-    displayClass: '[mg]Class[/mg]: [w]{type}[/w]',
+    displayClass: '[mg]Class[/mg]: {type}',
     displayOwner: '[mg]Owner[/mg]: [w]{owner}[/w]',
     displayTableHead1:
         '  [by]Item[/by]    [by]Colonists[/by]   [by]Colos to[/by]   [by]Hourly[/by]     [by]Planet[/by]     [by]Ship[/by]       [by]Planet[/by]',
@@ -64,7 +64,7 @@ export const PLANET = makeDomain('PLANET', {
 
     listEmpty: '[br]You own no planets.[/br]',
     listHeader: '[bc]=== Your Planets ===[/bc]',
-    listRow: '  [by]Sector {sector}[/by] — [bc]{name}[/bc] ([w]{type}[/w])',
+    listRow: '  [by]Sector {sector}[/by] — [bc]{name}[/bc] ({type})',
     listColonists:
         '  Colonists: {{MSG.fuelQuantity}}, {{MSG.orgQuantity}}, {{MSG.equQuantity}}, {{MSG.drnQuantity}}',
 

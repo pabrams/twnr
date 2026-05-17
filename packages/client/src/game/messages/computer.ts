@@ -35,10 +35,10 @@ export const COMPUTER = makeDomain('COMPUTER', {
         '\r\n[mg]Which ship are you interested in ([/mg][by]?[/by][mg]=List, [/mg][by]Q[/by][mg]=Quit) [/mg][by]?[/by] ',
 
     planetSpecsHeader: '[bc]=== Planetary Specifications ===[/bc]',
-    planetSpecsRow: '  [mg]<[/mg][by]{letter}[/by][mg]>[/mg]  [g]{type}[/g]',
+    planetSpecsRow: '  [mg]<[/mg][by]{letter}[/by][mg]>[/mg]  {type}',
     planetSpecsPrompt:
         '\r\n[mg]Planet specs[/mg] [mg]([/mg][by]?[/by][mg],[/mg][by]Q[/by][mg])[/mg] [by]?[/by] ',
-    planetDetailHeader: '[bc]=== {type} ===[/bc]',
+    planetDetailHeader: '[bc]===[/bc] {type} [bc]===[/bc]',
     planetDetailDescription: '  [w]{description}[/w]',
     planetDetailLine: '  [by]{label}[/by] [w]{value}[/w]',
 
