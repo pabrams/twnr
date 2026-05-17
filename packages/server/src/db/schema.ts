@@ -439,15 +439,12 @@ export const connectDB = async (): Promise<void> => {
         fuel INTEGER NOT NULL DEFAULT 1000,
         fuel_max INTEGER NOT NULL DEFAULT 1000,
         fuel_price INTEGER NOT NULL,
-        fuel_buys BOOLEAN NOT NULL DEFAULT TRUE,
         organics INTEGER NOT NULL DEFAULT 1000,
         org_max INTEGER NOT NULL DEFAULT 1000,
         org_price INTEGER NOT NULL,
-        org_buys BOOLEAN NOT NULL DEFAULT TRUE,
         equipment INTEGER NOT NULL DEFAULT 1000,
         equ_max INTEGER NOT NULL DEFAULT 1000,
-        equ_price INTEGER NOT NULL,
-        equ_buys BOOLEAN NOT NULL DEFAULT TRUE
+        equ_price INTEGER NOT NULL
       );
 
       CREATE TABLE IF NOT EXISTS planets (
