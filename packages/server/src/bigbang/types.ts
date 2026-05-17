@@ -48,13 +48,11 @@ export interface BigBangOptions {
     portDensity: number;
     planetDensity: number;
     twoWayPct: number;
-    /** Cumulative degree distribution, degree-0 prepended so warpDist[degree] indexes directly. */
     warpDist: number[];
     topology: Topology;
-    /** Number of class-0 ports beyond the mandatory one at sector 1. Each gets a forced 6-out target and a far-apart hex placement. */
     additionalClassZeroPorts: number;
-    /** "Shape" of the universe (proximal only) — names a row of `maxShortestPathTable`. Controls how aggressively wormholes are swapped in to cap diameter. */
     maxShortestPath: MaxShortestPath;
+    wormholesAlwaysTwoWay: boolean;
 }
 
 export interface GeneratedSector {

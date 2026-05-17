@@ -18,6 +18,7 @@ export function defaultBigBangOptions(
         topology: universeConfig.topology,
         additionalClassZeroPorts: 2,
         maxShortestPath: universeConfig.maxShortestPath,
+        wormholesAlwaysTwoWay: universeConfig.wormholesAlwaysTwoWay,
         ...overrides,
     };
 }

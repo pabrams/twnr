@@ -28,6 +28,7 @@ export function generateUniverse(options: BigBangOptions): BigBangResult {
         topology,
         additionalClassZeroPorts,
         maxShortestPath,
+        wormholesAlwaysTwoWay,
     } = options;
 
     const rng = mulberry32(seed);
@@ -79,6 +80,7 @@ export function generateUniverse(options: BigBangOptions): BigBangResult {
                   forcedHubSectors,
                   warpDist,
                   maxShortestPath,
+                  wormholesAlwaysTwoWay,
               )
             : generateGraph(N, twoWayPct, rng, warpDist, forcedHubSectors);
 
