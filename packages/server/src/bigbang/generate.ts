@@ -10,17 +10,7 @@ import { generateGraph } from './graph.js';
 import { generateProximalGraph } from './graph-proximal.js';
 import { packHexCells, arrangeAnchors } from './positions.js';
 import { portClassesConfig } from '../game-config.js';
-
-const portClasses: Record<number, string[]> = {
-    1: ['B', 'B', 'S'],
-    2: ['B', 'S', 'B'],
-    3: ['S', 'B', 'B'],
-    4: ['S', 'S', 'B'],
-    5: ['B', 'S', 'S'],
-    6: ['S', 'B', 'S'],
-    7: ['S', 'S', 'S'],
-    8: ['B', 'B', 'B'],
-};
+import { PORT_CLASS_ACTIONS } from '@twnr/shared';
 
 export function generateUniverse(options: BigBangOptions): BigBangResult {
     const {
@@ -103,15 +93,15 @@ export function generateUniverse(options: BigBangOptions): BigBangResult {
     const ports: GeneratedPort[] = [];
 
     function generatePort(sectorId: number, portClass: number): GeneratedPort {
-        const pClassStr = portClasses[portClass];
-        const generateCommodity = (type: string) => {
+        const actions = PORT_CLASS_ACTIONS[portClass];
+        const generateCommodity = (type: 'B' | 'S') => {
             const qty = randomInt(0, 5000);
             const price = type === 'S' ? randomInt(10, 50) : randomInt(51, 100);
             return { qty, price };
         };
-        const fuel = generateCommodity(pClassStr[0]);
-        const org = generateCommodity(pClassStr[1]);
-        const equ = generateCommodity(pClassStr[2]);
+        const fuel = generateCommodity(actions.fuel);
+        const org = generateCommodity(actions.organics);
+        const equ = generateCommodity(actions.equipment);
         return {
             sector: sectorId,
             class: portClass,
@@ -154,9 +144,9 @@ export function generateUniverse(options: BigBangOptions): BigBangResult {
     }
 
     // Weighted-random class picker from port-classes.json. Class codes
-    // (BBS/BSB/...) stay in `portClasses` above; only the per-class
-    // population shares are tunable. Falls back to class 1 if all weights
-    // are zero (shouldn't happen with the shipped config).
+    // (BBS/BSB/...) live in @twnr/shared's PORT_CLASS_ACTIONS; only the
+    // per-class population shares are tunable here. Falls back to class 1
+    // if all weights are zero (shouldn't happen with the shipped config).
     const portClassWeights = portClassesConfig.generationShares;
     const portClassKeys = Object.keys(portClassWeights)
         .map(Number)
