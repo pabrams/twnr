@@ -431,6 +431,13 @@ export const connectDB = async (): Promise<void> => {
         END IF;
       END $$;
 
+      -- Port columns store "trading capacity remaining": for an S-action
+      -- commodity this is current stock for sale, for a B-action it is the
+      -- buying capacity still available. Both decrement on a player trade and
+      -- regenerate toward *_max at *_prod units/hour (max = prod * 10). Per-
+      -- commodity MCIC ("Maximum Change In Cost") drives the dynamic price
+      -- curve and haggle headroom; price is computed at trade time, never
+      -- stored. See shared/port-pricing.ts.
       CREATE TABLE IF NOT EXISTS ports (
         id SERIAL PRIMARY KEY,
         sector_id INTEGER NOT NULL UNIQUE REFERENCES sectors(id) ON DELETE CASCADE,
@@ -438,13 +445,20 @@ export const connectDB = async (): Promise<void> => {
         name VARCHAR(255) NOT NULL,
         fuel INTEGER NOT NULL DEFAULT 1000,
         fuel_max INTEGER NOT NULL DEFAULT 1000,
-        fuel_price INTEGER NOT NULL,
+        fuel_prod INTEGER NOT NULL DEFAULT 100,
+        fuel_mcic INTEGER NOT NULL DEFAULT 0,
         organics INTEGER NOT NULL DEFAULT 1000,
         org_max INTEGER NOT NULL DEFAULT 1000,
-        org_price INTEGER NOT NULL,
+        org_prod INTEGER NOT NULL DEFAULT 100,
+        org_mcic INTEGER NOT NULL DEFAULT 0,
         equipment INTEGER NOT NULL DEFAULT 1000,
         equ_max INTEGER NOT NULL DEFAULT 1000,
-        equ_price INTEGER NOT NULL
+        equ_prod INTEGER NOT NULL DEFAULT 100,
+        equ_mcic INTEGER NOT NULL DEFAULT 0,
+        last_production_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        fuel_prod_accrual DOUBLE PRECISION NOT NULL DEFAULT 0,
+        org_prod_accrual DOUBLE PRECISION NOT NULL DEFAULT 0,
+        equ_prod_accrual DOUBLE PRECISION NOT NULL DEFAULT 0
       );
 
       CREATE TABLE IF NOT EXISTS planets (

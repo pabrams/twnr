@@ -49,7 +49,13 @@ describe('importUniverse.js --universe-id flag', () => {
 
     writeFileSync(join(tmpDir, 'sectors.csv'), 'id,name\n1,Federation Space\n2,Sector 2\n');
     writeFileSync(join(tmpDir, 'warps.csv'), 'from,to\n1,2\n2,1\n');
-    writeFileSync(join(tmpDir, 'ports.csv'), 'sector,class,fuel,fuel_price,organics,org_price,equipment,equ_price\n2,1,500,10,500,10,500,10\n');
+    // CSV layout matches the new bigbang output. Class 1 (BBS) needs B-action
+    // MCIC negative for fuel/organics, S-action positive for equipment.
+    writeFileSync(join(tmpDir, 'ports.csv'),
+      'sector,class,fuel_qty,fuel_max,fuel_prod,fuel_mcic,'
+      + 'org_qty,org_max,org_prod,org_mcic,'
+      + 'equ_qty,equ_max,equ_prod,equ_mcic\n'
+      + '2,1,500,500,50,-50,500,500,50,-50,500,500,50,50\n');
 
     // Create a universe to import into
     const ts = Date.now();

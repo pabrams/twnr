@@ -63,24 +63,58 @@ async function clearSectorDrones(sectorNumber, universeId = UNIVERSE_ID) {
   if (dbId != null) await pool.query('DELETE FROM sector_drones WHERE sector_id = $1', [dbId]);
 }
 
+// MCIC defaults chosen to sit in the documented bigbang ranges. Sign per
+// class action (B → negative, S → positive). Reused across the test fixtures
+// below; the exact magnitudes don't matter for turn accounting.
+const TEST_PORT_FIELDS = (cls) => {
+  // class 6 = SBS (fuel sells, org buys, equ sells)
+  // class 1 = BBS (fuel buys, org buys, equ sells)
+  const sign = {
+    6: { fuel: 50, org: -50, equ: 50 },
+    1: { fuel: -50, org: -50, equ: 50 },
+    0: { fuel: 0, org: 0, equ: 0 },
+  }[cls] ?? { fuel: 50, org: -50, equ: 50 };
+  return sign;
+};
+
 /** Put a selling port (class 6: sells fuel) in a given sector via DB */
 async function ensureSellingPort(pool, sectorNumber, universeId = UNIVERSE_ID) {
   const dbId = await sectorDbId(sectorNumber, universeId);
+  const m = TEST_PORT_FIELDS(6);
   await pool.query(`
-    INSERT INTO ports (sector_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
-    VALUES ($1, 6, 1000, 5, 1000, 5, 1000, 5)
-    ON CONFLICT (sector_id) DO UPDATE SET class = 6, fuel = 1000, fuel_price = 5
-  `, [dbId]);
+    INSERT INTO ports (sector_id, class,
+                       fuel, fuel_max, fuel_prod, fuel_mcic,
+                       organics, org_max, org_prod, org_mcic,
+                       equipment, equ_max, equ_prod, equ_mcic)
+    VALUES ($1, 6,
+            1000, 1000, 100, $2,
+            1000, 1000, 100, $3,
+            1000, 1000, 100, $4)
+    ON CONFLICT (sector_id) DO UPDATE SET class = 6,
+      fuel = 1000, fuel_max = 1000, fuel_prod = 100, fuel_mcic = $2,
+      organics = 1000, org_max = 1000, org_prod = 100, org_mcic = $3,
+      equipment = 1000, equ_max = 1000, equ_prod = 100, equ_mcic = $4
+  `, [dbId, m.fuel, m.org, m.equ]);
 }
 
 /** Put a port that buys fuel (class 1: buys fuel+organics, sells equipment) */
 async function ensureBuyingPort(pool, sectorNumber, universeId = UNIVERSE_ID) {
   const dbId = await sectorDbId(sectorNumber, universeId);
+  const m = TEST_PORT_FIELDS(1);
   await pool.query(`
-    INSERT INTO ports (sector_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
-    VALUES ($1, 1, 1000, 5, 1000, 5, 1000, 5)
-    ON CONFLICT (sector_id) DO UPDATE SET class = 1, fuel = 1000, fuel_price = 5
-  `, [dbId]);
+    INSERT INTO ports (sector_id, class,
+                       fuel, fuel_max, fuel_prod, fuel_mcic,
+                       organics, org_max, org_prod, org_mcic,
+                       equipment, equ_max, equ_prod, equ_mcic)
+    VALUES ($1, 1,
+            1000, 1000, 100, $2,
+            1000, 1000, 100, $3,
+            1000, 1000, 100, $4)
+    ON CONFLICT (sector_id) DO UPDATE SET class = 1,
+      fuel = 1000, fuel_max = 1000, fuel_prod = 100, fuel_mcic = $2,
+      organics = 1000, org_max = 1000, org_prod = 100, org_mcic = $3,
+      equipment = 1000, equ_max = 1000, equ_prod = 100, equ_mcic = $4
+  `, [dbId, m.fuel, m.org, m.equ]);
 }
 
 /** Find the Starbase sector (port class 9) — returns sector_number */
@@ -928,9 +962,13 @@ describe('HyperspaceJump', () => {
     // Use class 0 port — trading ports now auto-enter trade flow and may auto-undock
     const dbId = await sectorDbId(adj);
     await pool.query(`
-      INSERT INTO ports (sector_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
-      VALUES ($1, 0, 0, 0, 0, 0, 0, 0)
-      ON CONFLICT (sector_id) DO UPDATE SET class = 0, fuel = 0, fuel_price = 0
+      INSERT INTO ports (sector_id, class,
+                         fuel, fuel_max, fuel_prod, fuel_mcic,
+                         organics, org_max, org_prod, org_mcic,
+                         equipment, equ_max, equ_prod, equ_mcic)
+      VALUES ($1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+      ON CONFLICT (sector_id) DO UPDATE SET class = 0,
+        fuel = 0, fuel_max = 0, fuel_prod = 0, fuel_mcic = 0
     `, [dbId]);
     await clearSectorDrones(adj);
     await deployDronesInSector(pool, playerId, adj, 5);
@@ -1014,9 +1052,13 @@ describe('ListDeployedDrones - sector command mode', () => {
     // Use class 0 port — trading ports now auto-enter trade flow and may auto-undock
     const dbId = await sectorDbId(adj);
     await pool.query(`
-      INSERT INTO ports (sector_id, class, fuel, fuel_price, organics, org_price, equipment, equ_price)
-      VALUES ($1, 0, 0, 0, 0, 0, 0, 0)
-      ON CONFLICT (sector_id) DO UPDATE SET class = 0, fuel = 0, fuel_price = 0
+      INSERT INTO ports (sector_id, class,
+                         fuel, fuel_max, fuel_prod, fuel_mcic,
+                         organics, org_max, org_prod, org_mcic,
+                         equipment, equ_max, equ_prod, equ_mcic)
+      VALUES ($1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+      ON CONFLICT (sector_id) DO UPDATE SET class = 0,
+        fuel = 0, fuel_max = 0, fuel_prod = 0, fuel_mcic = 0
     `, [dbId]);
     await clearSectorDrones(adj);
     await wsRequest(wsConn, { type: ClientMsgType.Move, sector: adj }, ServerMsgType.MoveResult);

@@ -41,8 +41,12 @@ describe('Port Generation', () => {
   after(() => { rmSync(outdir, { recursive: true, force: true }); });
 
   it('ports.csv has correct header columns', () => {
-    assert.deepStrictEqual(header,
-      ['sector', 'class', 'fuel_qty', 'fuel_price', 'org_qty', 'org_price', 'equ_qty', 'equ_price']);
+    assert.deepStrictEqual(header, [
+      'sector', 'class',
+      'fuel_qty', 'fuel_max', 'fuel_prod', 'fuel_mcic',
+      'org_qty', 'org_max', 'org_prod', 'org_mcic',
+      'equ_qty', 'equ_max', 'equ_prod', 'equ_mcic',
+    ]);
   });
 
   it('all port classes are 1-8', () => {
@@ -84,41 +88,58 @@ describe('Port Generation', () => {
     }
   });
 
-  it('all commodity quantities are 0-5000', () => {
+  // Column layout: 0=sector, 1=class,
+  // 2=fuel_qty, 3=fuel_max, 4=fuel_prod, 5=fuel_mcic,
+  // 6=org_qty,  7=org_max,  8=org_prod,  9=org_mcic,
+  // 10=equ_qty, 11=equ_max, 12=equ_prod, 13=equ_mcic
+  const COMMODITY_OFFSETS = [
+    { qty: 2,  max: 3,  prod: 4,  mcic: 5,  name: 'fuel',      mcicRange: [40, 90] },
+    { qty: 6,  max: 7,  prod: 8,  mcic: 9,  name: 'organics',  mcicRange: [30, 75] },
+    { qty: 10, max: 11, prod: 12, mcic: 13, name: 'equipment', mcicRange: [20, 65] },
+  ];
+
+  it('productivity is 60-280 and max = prod * 10', () => {
     for (const row of rows) {
-      for (const idx of [2, 4, 6]) {
-        const qty = parseInt(row[idx], 10);
-        assert.ok(qty >= 0,    `Sector ${row[0]}: quantity ${qty} < 0`);
-        assert.ok(qty <= 5000, `Sector ${row[0]}: quantity ${qty} > 5000`);
+      for (const c of COMMODITY_OFFSETS) {
+        const prod = parseInt(row[c.prod], 10);
+        const max = parseInt(row[c.max], 10);
+        assert.ok(prod >= 60 && prod <= 280, `Sector ${row[0]} ${c.name}: prod ${prod} out of [60,280]`);
+        assert.equal(max, prod * 10, `Sector ${row[0]} ${c.name}: max ${max} != prod*10 ${prod * 10}`);
       }
     }
   });
 
-  it('sell prices are 10-50', () => {
+  it('initial stock matches physical-stock model: selling spawns full, buying spawns empty', () => {
     for (const row of rows) {
       const pc = parseInt(row[1], 10);
       const bsa = PORT_CLASSES[pc];
-      const priceIndices = [3, 5, 7];
-      for (let i = 0; i < bsa.length; i++) {
+      for (let i = 0; i < COMMODITY_OFFSETS.length; i++) {
+        const c = COMMODITY_OFFSETS[i];
+        const qty = parseInt(row[c.qty], 10);
+        const max = parseInt(row[c.max], 10);
         if (bsa[i] === 'S') {
-          const price = parseInt(row[priceIndices[i]], 10);
-          assert.ok(price >= 10, `Sector ${row[0]} class ${pc}: sell price ${price} < 10`);
-          assert.ok(price <= 50, `Sector ${row[0]} class ${pc}: sell price ${price} > 50`);
+          assert.equal(qty, max, `Sector ${row[0]} ${c.name} (S): selling port should spawn full, got qty=${qty} vs max=${max}`);
+        } else {
+          assert.equal(qty, 0, `Sector ${row[0]} ${c.name} (B): buying port should spawn empty, got qty=${qty}`);
         }
       }
     }
   });
 
-  it('buy prices are 51-100', () => {
+  it('MCIC sign matches port class action and magnitude is in commodity range', () => {
     for (const row of rows) {
       const pc = parseInt(row[1], 10);
       const bsa = PORT_CLASSES[pc];
-      const priceIndices = [3, 5, 7];
-      for (let i = 0; i < bsa.length; i++) {
+      for (let i = 0; i < COMMODITY_OFFSETS.length; i++) {
+        const c = COMMODITY_OFFSETS[i];
+        const mcic = parseInt(row[c.mcic], 10);
+        const mag = Math.abs(mcic);
+        assert.ok(mag >= c.mcicRange[0] && mag <= c.mcicRange[1],
+          `Sector ${row[0]} ${c.name}: |MCIC| ${mag} not in [${c.mcicRange[0]},${c.mcicRange[1]}]`);
         if (bsa[i] === 'B') {
-          const price = parseInt(row[priceIndices[i]], 10);
-          assert.ok(price >= 51,  `Sector ${row[0]} class ${pc}: buy price ${price} < 51`);
-          assert.ok(price <= 100, `Sector ${row[0]} class ${pc}: buy price ${price} > 100`);
+          assert.ok(mcic < 0, `Sector ${row[0]} class ${pc} ${c.name}: B-action MCIC must be negative, got ${mcic}`);
+        } else {
+          assert.ok(mcic > 0, `Sector ${row[0]} class ${pc} ${c.name}: S-action MCIC must be positive, got ${mcic}`);
         }
       }
     }

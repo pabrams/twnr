@@ -9,6 +9,7 @@ import {
     settlePlanetProduction,
     settlePlanetColonistGrowth,
 } from '../db/queries/planet.js';
+import { listProducingPortIds, settlePortProduction } from '../db/queries/port.js';
 import { cleanupExpiredGuests } from './guest-cleanup.js';
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
@@ -87,6 +88,25 @@ export async function runColonistGrowth(): Promise<number> {
 }
 
 /**
+ * Hourly port regen: per port, accrue `*_prod * elapsed_hours` into each
+ * commodity's trading capacity (clamped to `*_max`). Mirrors the
+ * fractional-accumulator pattern used by planet production so the trade
+ * handler can call `settlePortProduction` mid-hour without losing fractions.
+ */
+export async function runRegeneratePorts(): Promise<number> {
+    const result = await withTransaction(async (client) => {
+        const ids = await listProducingPortIds(client);
+        let updated = 0;
+        for (const id of ids) {
+            const { produced } = await settlePortProduction(id, client);
+            if (produced) updated++;
+        }
+        return updated;
+    });
+    return result ?? 0;
+}
+
+/**
  * Single iteration of the hourly job loop. Add new tasks here as they
  * land. Errors from any one task are logged but don't crash the
  * scheduler.
@@ -103,6 +123,12 @@ export async function runHourlyJobs(): Promise<void> {
         if (produced > 0) console.log(`[hourly] produced commodities on ${produced} planets`);
     } catch (err) {
         console.error('[hourly] produce-commodities failed:', err);
+    }
+    try {
+        const regen = await runRegeneratePorts();
+        if (regen > 0) console.log(`[hourly] regenerated commodities on ${regen} ports`);
+    } catch (err) {
+        console.error('[hourly] regenerate-ports failed:', err);
     }
     try {
         const grown = await runColonistGrowth();

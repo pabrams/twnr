@@ -74,13 +74,16 @@ export interface GeneratedPort {
     class: number;
     fuel_qty: number;
     fuel_max: number;
-    fuel_price: number;
+    fuel_prod: number;
+    fuel_mcic: number;
     org_qty: number;
     org_max: number;
-    org_price: number;
+    org_prod: number;
+    org_mcic: number;
     equ_qty: number;
     equ_max: number;
-    equ_price: number;
+    equ_prod: number;
+    equ_mcic: number;
 }
 
 export interface GeneratedPlanet {

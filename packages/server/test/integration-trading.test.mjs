@@ -28,14 +28,20 @@ describe('Trading System', () => {
        WHERE table_name = 'ports' ORDER BY column_name`
     );
     const cols = res.rows.map(r => r.column_name);
-    assert.ok(cols.includes('sector_id'), 'missing sector_id');
-    assert.ok(cols.includes('class'), 'missing class');
-    assert.ok(cols.includes('fuel'), 'missing fuel');
-    assert.ok(cols.includes('fuel_price'), 'missing fuel_price');
-    assert.ok(cols.includes('organics'), 'missing organics');
-    assert.ok(cols.includes('org_price'), 'missing org_price');
-    assert.ok(cols.includes('equipment'), 'missing equipment');
-    assert.ok(cols.includes('equ_price'), 'missing equ_price');
+    for (const c of [
+      'sector_id', 'class',
+      'fuel', 'fuel_max', 'fuel_prod', 'fuel_mcic',
+      'organics', 'org_max', 'org_prod', 'org_mcic',
+      'equipment', 'equ_max', 'equ_prod', 'equ_mcic',
+      'last_production_at',
+      'fuel_prod_accrual', 'org_prod_accrual', 'equ_prod_accrual',
+    ]) {
+      assert.ok(cols.includes(c), `missing column ${c}`);
+    }
+    // Static price columns must be gone — pricing is computed.
+    for (const c of ['fuel_price', 'org_price', 'equ_price']) {
+      assert.ok(!cols.includes(c), `unexpected legacy column ${c}`);
+    }
   });
 
   it('ships table has cargo columns', async () => {

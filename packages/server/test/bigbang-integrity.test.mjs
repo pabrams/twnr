@@ -157,7 +157,10 @@ describe('CSV Formatting', () => {
 
   it('ports.csv first line is correct header', () => {
     const first = readFileSync(join(outdir, 'ports.csv'), 'utf8').split('\n')[0].trim();
-    assert.equal(first, 'sector,class,fuel_qty,fuel_price,org_qty,org_price,equ_qty,equ_price');
+    assert.equal(first,
+      'sector,class,fuel_qty,fuel_max,fuel_prod,fuel_mcic,'
+      + 'org_qty,org_max,org_prod,org_mcic,'
+      + 'equ_qty,equ_max,equ_prod,equ_mcic');
   });
 
   it('planets.csv first line is "sector,planet_name,planet_type"', () => {

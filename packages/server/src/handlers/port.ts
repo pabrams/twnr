@@ -1,16 +1,28 @@
-import { ServerTag, PORT_CLASS_ACTIONS } from '@twnr/shared';
+import {
+    ServerTag,
+    PORT_CLASS_ACTIONS,
+    computeUnitPriceWithXp,
+    tradingDisplayed,
+    type PriceCommodity,
+} from '@twnr/shared';
 import type { PortInfoCommand, PortTransactionCommand } from '@twnr/shared';
 import { players, getPlayerUniverseId } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
 import { isInEncounter } from '../services/encounter.js';
 import { withTransaction, AbortTransaction } from '../db/index.js';
-import { setDocked, getCurrentSector, deductCredits, addCredits } from '../db/queries/player.js';
+import {
+    setDocked,
+    getCurrentSector,
+    deductCredits,
+    addCredits,
+    adjustReputationAndExperience,
+} from '../db/queries/player.js';
 import {
     getPortAtSector,
     getPortClassAtSector,
     getPortTradeInfoForUpdate,
-    decrementPortCommodity,
+    adjustPortCommodity,
     getHardwarePricesForUniverse,
     type Commodity,
 } from '../db/queries/port.js';
@@ -25,40 +37,70 @@ import { cargoUsed, formatCargo } from './cargo-utils.js';
 import { recordCreditChange } from '../services/audit.js';
 import { getTowingPlayerForShip, clearTowedShip } from '../db/queries/tow.js';
 import { getPlayerShipId } from '../db/queries/player.js';
+import { pool } from '../db/index.js';
+import { experienceDeltas } from '../game-config.js';
 
 const EMPTY_CARGO = { fuel: 0, organics: 0, equipment: 0, colonists: 0 };
 
+/** Build the port-info envelope. The wire payload sends the *displayed*
+ *  trading amount (max−stock for buying ports, stock for selling) plus max
+ *  and price so the client can render the legacy-style commerce report
+ *  directly. Per-unit price is action-and-experience-dependent. */
 function buildPortInfoPayload(
     p: {
         name: string;
         class: number;
         fuel: number;
         fuel_max: number;
-        fuel_price: number;
+        fuel_mcic: number;
         organics: number;
         org_max: number;
-        org_price: number;
+        org_mcic: number;
         equipment: number;
         equ_max: number;
-        equ_price: number;
+        equ_mcic: number;
     },
     sectorId: number,
+    playerXp: number,
 ) {
+    const actions = PORT_CLASS_ACTIONS[p.class];
+    const priceFor = (
+        commodity: PriceCommodity,
+        stock: number,
+        max: number,
+        mcic: number,
+    ): number => {
+        if (!actions) return 0;
+        const action = actions[commodity];
+        return computeUnitPriceWithXp(commodity, stock, max, mcic, playerXp, action);
+    };
+    const displayedFor = (commodity: PriceCommodity, stock: number, max: number): number => {
+        if (!actions) return 0;
+        return tradingDisplayed(actions[commodity], stock, max);
+    };
     return {
         type: ServerTag.PortInfoResult,
         sectorId,
         portName: p.name,
         class: p.class,
-        fuel: p.fuel,
+        fuel: displayedFor('fuel', p.fuel, p.fuel_max),
         fuelMax: p.fuel_max,
-        fuelPrice: p.fuel_price,
-        organics: p.organics,
+        fuelPrice: priceFor('fuel', p.fuel, p.fuel_max, p.fuel_mcic),
+        organics: displayedFor('organics', p.organics, p.org_max),
         orgMax: p.org_max,
-        orgPrice: p.org_price,
-        equipment: p.equipment,
+        orgPrice: priceFor('organics', p.organics, p.org_max, p.org_mcic),
+        equipment: displayedFor('equipment', p.equipment, p.equ_max),
         equMax: p.equ_max,
-        equPrice: p.equ_price,
+        equPrice: priceFor('equipment', p.equipment, p.equ_max, p.equ_mcic),
     };
+}
+
+async function getPlayerXp(playerId: number): Promise<number> {
+    const res = await pool.query<{ experience: number }>(
+        'SELECT experience FROM players WHERE id = $1',
+        [playerId],
+    );
+    return res.rows[0]?.experience ?? 0;
 }
 
 export async function servePortInfo(playerId: number, data: PortInfoCommand): Promise<void> {
@@ -71,13 +113,16 @@ export async function servePortInfo(playerId: number, data: PortInfoCommand): Pr
     const universeId = getPlayerUniverseId(playerId);
     if (universeId === undefined) return;
 
-    const p = await getPortAtSector(sectorId, universeId);
+    const [p, xp] = await Promise.all([
+        getPortAtSector(sectorId, universeId),
+        getPlayerXp(playerId),
+    ]);
     if (!p) {
         sendError(playerId, 'No port in this sector');
         return;
     }
 
-    sendEnvelope(playerId, buildPortInfoPayload(p, p.sector_id));
+    sendEnvelope(playerId, buildPortInfoPayload(p, p.sector_id, xp));
 }
 
 export async function serveDock(playerId: number): Promise<void> {
@@ -94,9 +139,10 @@ export async function serveDock(playerId: number): Promise<void> {
         return;
     }
 
-    const [p, cargo] = await Promise.all([
+    const [p, cargo, xp] = await Promise.all([
         getPortAtSector(player.sector, player.universeId),
         getShipCargoWithCredits(playerId),
+        getPlayerXp(playerId),
     ]);
     if (!p) {
         sendError(playerId, 'No port in this sector');
@@ -129,7 +175,7 @@ export async function serveDock(playerId: number): Promise<void> {
     const emptyHolds = Math.max(0, (cargo?.cargo_limit ?? 0) - cargoUsed(cargoOut));
     const credits = cargo?.credits ?? 0;
 
-    const portInfoPayload = buildPortInfoPayload(p, player.sector);
+    const portInfoPayload = buildPortInfoPayload(p, player.sector, xp);
 
     if (p.class === 0) {
         const ship = await getShipInfo(playerId);
@@ -197,6 +243,17 @@ export async function serveUndock(playerId: number): Promise<void> {
     await undockPlayer(playerId);
 }
 
+const MAX_COL: Record<Commodity, 'fuel_max' | 'org_max' | 'equ_max'> = {
+    fuel: 'fuel_max',
+    organics: 'org_max',
+    equipment: 'equ_max',
+};
+const MCIC_COL: Record<Commodity, 'fuel_mcic' | 'org_mcic' | 'equ_mcic'> = {
+    fuel: 'fuel_mcic',
+    organics: 'org_mcic',
+    equipment: 'equ_mcic',
+};
+
 export async function servePortTransaction(
     playerId: number,
     data: PortTransactionCommand,
@@ -223,12 +280,6 @@ export async function servePortTransaction(
     if (!player) return;
     const universeId = player.universeId;
 
-    const priceColMap: Record<Commodity, 'fuel_price' | 'org_price' | 'equ_price'> = {
-        fuel: 'fuel_price',
-        organics: 'org_price',
-        equipment: 'equ_price',
-    };
-
     try {
         const result = await withTransaction(async (client) => {
             const currentSector = await getCurrentSector(playerId, client);
@@ -253,7 +304,29 @@ export async function servePortTransaction(
                 throw new AbortTransaction();
             }
 
-            const price: number = port[priceColMap[col]];
+            // Read xp inside the trade tx so the awarded-on-success xp from a
+            // prior commodity in the same dock visit is reflected in pricing
+            // for subsequent commodities.
+            const xpRes = await client.query<{ experience: number }>(
+                'SELECT experience FROM players WHERE id = $1',
+                [playerId],
+            );
+            const xp = xpRes.rows[0]?.experience ?? 0;
+
+            // Physical-stock model: `stock` is the port's actual commodity
+            // inventory. Buying ports have available *capacity* = max−stock;
+            // selling ports have available *inventory* = stock.
+            const stock = port[col];
+            const max = port[MAX_COL[col]];
+            const mcic = port[MCIC_COL[col]];
+            const price = computeUnitPriceWithXp(
+                col,
+                stock,
+                max,
+                mcic,
+                xp,
+                portActions[col],
+            );
 
             const cargo = await getShipCargoWithCreditsForUpdate(playerId, client);
             if (!cargo) {
@@ -273,7 +346,7 @@ export async function servePortTransaction(
                     sendError(playerId, 'Insufficient credits');
                     throw new AbortTransaction();
                 }
-                if (port[col] < qty) {
+                if (stock < qty) {
                     sendError(playerId, 'Insufficient port inventory');
                     throw new AbortTransaction();
                 }
@@ -282,7 +355,8 @@ export async function servePortTransaction(
                     throw new AbortTransaction();
                 }
 
-                await decrementPortCommodity(port.port_id, col, qty, client);
+                // Buying from a selling port: stock decreases.
+                await adjustPortCommodity(port.port_id, col, -qty, client);
                 await incrementShipCommodity(playerId, col, qty, client);
                 await deductCredits(playerId, cost, client);
                 await recordCreditChange(client, {
@@ -300,6 +374,11 @@ export async function servePortTransaction(
                     },
                 });
 
+                const xpDelta = experienceDeltas.amountChangeFor.portTrade ?? 0;
+                if (xpDelta !== 0) {
+                    await adjustReputationAndExperience(playerId, 0, xpDelta, client);
+                }
+
                 cargo[col] += qty;
                 cargo.credits -= cost;
                 const used = cargoUsed(cargo);
@@ -311,18 +390,18 @@ export async function servePortTransaction(
                 };
             }
 
-            // sell
+            // sell — port absorbs commodity, its stock grows toward max.
             if (cargo[col] < qty) {
                 sendError(playerId, 'Insufficient cargo');
                 throw new AbortTransaction();
             }
-            if (port[col] < qty) {
+            if (stock + qty > max) {
                 sendError(playerId, 'Port cannot buy that many');
                 throw new AbortTransaction();
             }
 
             const revenue = qty * price;
-            await decrementPortCommodity(port.port_id, col, qty, client);
+            await adjustPortCommodity(port.port_id, col, qty, client);
             await incrementShipCommodity(playerId, col, -qty, client);
             await addCredits(playerId, revenue, client);
             await recordCreditChange(client, {
@@ -339,6 +418,11 @@ export async function servePortTransaction(
                     portClass: port.class,
                 },
             });
+
+            const xpDelta = experienceDeltas.amountChangeFor.portTrade ?? 0;
+            if (xpDelta !== 0) {
+                await adjustReputationAndExperience(playerId, 0, xpDelta, client);
+            }
 
             cargo[col] -= qty;
             cargo.credits += revenue;

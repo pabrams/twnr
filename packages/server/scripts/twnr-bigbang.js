@@ -166,11 +166,13 @@ fs.writeFileSync(path.join(outDir, 'warps.csv'), 'from_sector_id,to_sector_id\n'
 
 const portsRows = result.ports.map(p => toCSVLine([
     p.sector, p.class,
-    p.fuel_qty, p.fuel_price,
-    p.org_qty, p.org_price,
-    p.equ_qty, p.equ_price,
+    p.fuel_qty, p.fuel_max, p.fuel_prod, p.fuel_mcic,
+    p.org_qty, p.org_max, p.org_prod, p.org_mcic,
+    p.equ_qty, p.equ_max, p.equ_prod, p.equ_mcic,
 ]));
-fs.writeFileSync(path.join(outDir, 'ports.csv'), 'sector,class,fuel_qty,fuel_price,org_qty,org_price,equ_qty,equ_price\n' + portsRows.join('\n') + '\n');
+fs.writeFileSync(path.join(outDir, 'ports.csv'),
+    'sector,class,fuel_qty,fuel_max,fuel_prod,fuel_mcic,org_qty,org_max,org_prod,org_mcic,equ_qty,equ_max,equ_prod,equ_mcic\n'
+    + portsRows.join('\n') + '\n');
 
 const planetsRows = result.planets.map(p => toCSVLine([p.sector, p.name, p.type]));
 fs.writeFileSync(path.join(outDir, 'planets.csv'), 'sector,planet_name,planet_type\n' + planetsRows.join('\n') + '\n');
@@ -199,11 +201,17 @@ CREATE TABLE ports (
     sector INTEGER PRIMARY KEY,
     class INTEGER,
     fuel_qty INTEGER,
-    fuel_price INTEGER,
+    fuel_max INTEGER,
+    fuel_prod INTEGER,
+    fuel_mcic INTEGER,
     org_qty INTEGER,
-    org_price INTEGER,
+    org_max INTEGER,
+    org_prod INTEGER,
+    org_mcic INTEGER,
     equ_qty INTEGER,
-    equ_price INTEGER
+    equ_max INTEGER,
+    equ_prod INTEGER,
+    equ_mcic INTEGER
 );
 
 CREATE TABLE planets (
