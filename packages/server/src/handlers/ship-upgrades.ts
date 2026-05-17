@@ -13,6 +13,7 @@ import {
 import { getPortClassAtSector } from '../db/queries/port.js';
 import { class0Prices } from '../game-config.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
+import { notifyTurnChange } from '../services/notify.js';
 import { recordCreditChange } from '../services/audit.js';
 
 async function isAtClass0OrStarbase(
@@ -206,6 +207,9 @@ export async function serveBuyHolds(playerId: number, data: BuyHoldsCommand): Pr
 
         if (!result) return;
 
+        if (result.turnsUsed) {
+            notifyTurnChange(playerId, result.turnsUsed, 'buying cargo holds');
+        }
         await sendEnvelope(playerId, {
             type: ServerTag.BuyHoldsResult,
             credits: result.credits,

@@ -6,6 +6,7 @@ import { sendEnvelope, sendError, broadcastTo } from '../state/messaging.js';
 import { getSectorDrones, resolveSectorId } from '../services/sector-lookup.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
 import { isInEncounter } from '../services/encounter.js';
+import { notifyAttributeChange } from '../services/notify.js';
 import { withTransaction, AbortTransaction } from '../db/index.js';
 import {
     adjustReputationAndExperience,
@@ -292,6 +293,8 @@ export async function serveAttackSectorDrones(
             // PvFigs combat rewards for the attacker only — owner accrues
             // nothing. Owner alignment is the owner's reputation (single
             // player) or the sum of clan members' reputations (clan).
+            let repApplied = 0;
+            let expApplied = 0;
             if (k > 0) {
                 const playerSnap = await getPlayerRepExpForUpdate(playerId, client);
                 let ownerAlign = 0;
@@ -306,6 +309,8 @@ export async function serveAttackSectorDrones(
                     ownerAlign,
                     matchup,
                 });
+                repApplied = deltas.reputationDelta;
+                expApplied = deltas.experienceDelta;
                 if (deltas.experienceDelta !== 0 || deltas.reputationDelta !== 0) {
                     await adjustReputationAndExperience(
                         playerId,
@@ -316,10 +321,20 @@ export async function serveAttackSectorDrones(
                 }
             }
 
-            return { ownerId, k, newShipDrones, newSectorDrones, victory };
+            return {
+                ownerId,
+                k,
+                newShipDrones,
+                newSectorDrones,
+                victory,
+                repApplied,
+                expApplied,
+            };
         });
 
         if (!result) return;
+
+        notifyAttributeChange(playerId, result.repApplied, result.expApplied, 'combat');
 
         const { ownerId, k, newShipDrones, newSectorDrones, victory } = result;
 

@@ -65,6 +65,7 @@ import { planetConfigs } from '../planet-config.js';
 import { reputationDeltas, experienceDeltas } from '../game-config.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 import { cargoUsed } from './cargo-utils.js';
+import { notifyAttributeChange, notifyTurnChange } from '../services/notify.js';
 
 export async function serveGetSectorPlanets(playerId: number): Promise<void> {
     const player = players[playerId];
@@ -199,6 +200,9 @@ export async function serveLeavePlanet(playerId: number): Promise<void> {
         sendError(playerId, 'Insufficient turns');
         return;
     }
+    if (turnResult.turnsUsed) {
+        notifyTurnChange(playerId, turnResult.turnsUsed, 'leaving planet');
+    }
 
     await setOnPlanet(playerId, null);
 
@@ -231,23 +235,22 @@ export async function serveDestroyPlanet(playerId: number): Promise<void> {
     }
     const planetName = ownership.name;
 
+    const destroyRep = reputationDeltas.amountChangeFor.destroyPlanet ?? 0;
+    const destroyExp = experienceDeltas.amountChangeFor.destroyPlanet ?? 0;
     try {
         await withTransaction(async (client) => {
             await decrementShipHardwareByName(playerId, 'planet_buster', client);
             await setOnPlanet(playerId, null, client);
             await deletePlanet(onPlanetId, client);
-            await adjustReputationAndExperience(
-                playerId,
-                reputationDeltas.amountChangeFor.destroyPlanet ?? 0,
-                experienceDeltas.amountChangeFor.destroyPlanet ?? 0,
-                client,
-            );
+            await adjustReputationAndExperience(playerId, destroyRep, destroyExp, client);
         });
     } catch (err) {
         console.error('Destroy planet error', err);
         sendError(playerId, 'Failed to destroy planet.');
         return;
     }
+
+    notifyAttributeChange(playerId, destroyRep, destroyExp, 'destroying a planet');
 
     await sendEnvelope(playerId, {
         type: ServerTag.DestroyPlanetResult,
@@ -419,17 +422,24 @@ export async function serveUseTerraformDevice(playerId: number): Promise<void> {
                     : currentRep < 0
                       ? 'redCreatesPlanet'
                       : 'neutralCreatesPlanet';
-            await adjustReputationAndExperience(
-                playerId,
-                reputationDeltas.amountChangeFor[bucket] ?? 0,
-                experienceDeltas.amountChangeFor[bucket] ?? 0,
-                client,
-            );
+            const repDelta = reputationDeltas.amountChangeFor[bucket] ?? 0;
+            const expDelta = experienceDeltas.amountChangeFor[bucket] ?? 0;
+            await adjustReputationAndExperience(playerId, repDelta, expDelta, client);
 
-            return { newPlanetId, randomName, randomType, randomDisplayType, collision };
+            return {
+                newPlanetId,
+                randomName,
+                randomType,
+                randomDisplayType,
+                collision,
+                repDelta,
+                expDelta,
+            };
         });
 
         if (!result) return;
+
+        notifyAttributeChange(playerId, result.repDelta, result.expDelta, 'creating a planet');
 
         sendEnvelope(playerId, {
             type: ServerTag.UseTerraformDeviceResult,

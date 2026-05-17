@@ -5,6 +5,7 @@ import { getDensityScanRows, getOutWarpSectorNumbers } from '../db/queries/scan.
 import { getShipHardwareQuantityByName } from '../db/queries/hardware.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
+import { notifyTurnChange } from '../services/notify.js';
 
 // Density-score weights — see `Long Range Scan` spec.
 const W_PORT = 100;
@@ -76,6 +77,9 @@ export async function serveVisualScan(playerId: number): Promise<void> {
     if (!turnResult.allowed) {
         sendError(playerId, 'Insufficient turns');
         return;
+    }
+    if (turnResult.turnsUsed) {
+        notifyTurnChange(playerId, turnResult.turnsUsed, 'visual scan');
     }
 
     const outWarps = await getOutWarpSectorNumbers(player.sectorId);

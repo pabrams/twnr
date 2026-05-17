@@ -7,6 +7,50 @@ export type NotifySender =
     | { kind: 'player'; playerId: number; displayName: string }
     | { kind: 'system'; label: string };
 
+/** Push a one-shot Notice describing experience and/or alignment deltas.
+ *  Skips silently when both are zero. Pairs with adjustReputationAndExperience
+ *  call sites that previously moved attributes without telling the player. */
+export function notifyAttributeChange(
+    playerId: number,
+    repDelta: number,
+    expDelta: number,
+    reason: string,
+): void {
+    if (!players[playerId]) return;
+    if (repDelta === 0 && expDelta === 0) return;
+    const lines: string[] = [];
+    if (expDelta !== 0) {
+        const verb = expDelta > 0 ? 'receive' : 'lose';
+        lines.push(`You ${verb} ${Math.abs(expDelta)} experience point(s) for ${reason}.`);
+    }
+    if (repDelta !== 0) {
+        const dir = repDelta > 0 ? 'went up' : 'went down';
+        lines.push(`Your alignment ${dir} by ${Math.abs(repDelta)} point(s) for ${reason}.`);
+    }
+    sendEnvelope(playerId, {
+        type: ServerTag.Notice,
+        senderLabel: null,
+        body: lines.join('\n'),
+    });
+}
+
+/** Push a one-shot Notice describing a turn-balance change. Positive
+ *  `turnsDelta` is a deduction (the typical case); negative is a grant
+ *  (rare). Skips silently when zero. */
+export function notifyTurnChange(playerId: number, turnsDelta: number, reason: string): void {
+    if (!players[playerId]) return;
+    if (turnsDelta === 0) return;
+    const body =
+        turnsDelta > 0
+            ? `${turnsDelta} turn(s) deducted for ${reason}.`
+            : `${Math.abs(turnsDelta)} turn(s) granted for ${reason}.`;
+    sendEnvelope(playerId, {
+        type: ServerTag.Notice,
+        senderLabel: null,
+        body,
+    });
+}
+
 /**
  * Combined mail + notification for an event the recipient needs to know
  * about. Always writes a row to the recipient's inbox; if the recipient is

@@ -7,6 +7,7 @@ import { getGraph } from '../state/graph-cache.js';
 import { getWarpRefs, resolveSectorId } from '../services/sector-lookup.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
 import { isInEncounter } from '../services/encounter.js';
+import { notifyTurnChange } from '../services/notify.js';
 import {
     setDocked,
     moveToSector,
@@ -223,6 +224,9 @@ export async function serveMove(playerId: number, data: MoveCommand): Promise<vo
                   ? `#${ownership.clanNumber} ${ownership.name}`
                   : 'Rogue';
 
+        if (turnResult.turnsUsed) {
+            notifyTurnChange(playerId, turnResult.turnsUsed, 'warping');
+        }
         await sendEnvelope(playerId, {
             type: ServerTag.MoveResult,
             outcome: 'encounter',
@@ -261,6 +265,9 @@ export async function serveMove(playerId: number, data: MoveCommand): Promise<vo
         return;
     }
 
+    if (turnResult.turnsUsed) {
+        notifyTurnChange(playerId, turnResult.turnsUsed, 'warping');
+    }
     await sendEnvelope(playerId, {
         type: ServerTag.MoveResult,
         outcome: 'success',
