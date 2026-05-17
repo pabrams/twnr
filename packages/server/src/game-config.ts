@@ -36,9 +36,7 @@ export const class0Prices: Class0Prices = loadJson<Class0Prices>('class0-prices.
  * Per-feature deltas + tuning factors for a player's reputation and
  * experience. `amountChangeFor` holds fixed integer deltas keyed by feature
  * name. `factorsFor` holds tunable multipliers/divisors for formula-driven
- * features (combat, ship destroy, podding). When adding a new feature that
- * shifts either field, add an entry to one or both sections AND to the JSON
- * file — never hardcode in handler code.
+ * features (combat, ship destroy, podding).
  */
 export interface AttributeDeltas {
     amountChangeFor: Record<string, number>;
@@ -47,3 +45,14 @@ export interface AttributeDeltas {
 
 export const reputationDeltas: AttributeDeltas = loadJson<AttributeDeltas>('reputation.json');
 export const experienceDeltas: AttributeDeltas = loadJson<AttributeDeltas>('experience.json');
+
+/**
+ * Per-class generation weights for bigbang. Keys are class numbers as
+ * strings ("1".."8"), values are non-negative weights — they're sampled
+ * proportionally (don't have to sum to 100, but the stock template does).
+ */
+export interface PortClasses {
+    generationShares: Record<string, number>;
+}
+
+export const portClassesConfig: PortClasses = loadJson<PortClasses>('port-classes.json');
