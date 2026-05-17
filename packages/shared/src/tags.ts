@@ -16,6 +16,8 @@ export const Menu = {
     Shipyards: 'shipyards',
     ShipyardsClass0: 'shipyardsClass0',
     Clan: 'clan',
+    Base: 'base',
+    BaseComputer: 'baseComputer',
 } as const;
 export type MenuName = (typeof Menu)[keyof typeof Menu];
 
@@ -118,6 +120,9 @@ export const ServerTag = {
     UpgradePortResult: 'upgradePortResult',
     HaggleOpenResult: 'haggleOpenResult',
     HaggleResponseResult: 'haggleResponseResult',
+    BaseInfoResult: 'baseInfoResult',
+    BuildBaseResult: 'buildBaseResult',
+    ExitBaseResult: 'exitBaseResult',
 } as const;
 type ServerTag = typeof ServerTag;
 
@@ -210,5 +215,11 @@ export const ClientTag = {
     HaggleAccept: 'haggleAccept',
     /** Walk away from the current haggle session without trading. */
     HaggleQuit: 'haggleQuit',
+    /** Open the "B" menu on the planet the player is on. */
+    BaseInfo: 'baseInfo',
+    /** Start construction of a level-1 base on the current planet. */
+    BuildBase: 'buildBase',
+    /** Exit the Base submenu back to the planet surface. */
+    ExitBase: 'exitBase',
 } as const;
 type ClientTag = typeof ClientTag;

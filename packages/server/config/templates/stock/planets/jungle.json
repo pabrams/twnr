@@ -2,6 +2,15 @@
   "slug": "Jungle",
   "displayName": "[bg:b]Jungle[/bg:b]",
   "description": "Dense tropical world teeming with alien flora",
+  "class": "J",
+  "baseRequirements": [
+    { "fuel": 250, "org": 50,  "equ": 300, "colos": 1000, "days": 5 },
+    { "fuel": 200, "org": 30,  "equ": 300, "colos": 2200, "days": 5 },
+    { "fuel": 500, "org": 150, "equ": 550, "colos": 4200, "days": 7 },
+    { "fuel": 900, "org": 1100,"equ": 1050,"colos": 6800, "days": 11 },
+    { "fuel": 300, "org": 350, "equ": 1050,"colos": 7800, "days": 5 },
+    { "fuel": 900, "org": 1100,"equ": 2050,"colos": 6800, "days": 16 }
+  ],
   "maxCitadel": 5,
   "fuelProduction": 5,
   "organicsProduction": 25,

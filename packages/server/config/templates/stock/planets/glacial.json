@@ -2,6 +2,15 @@
   "slug": "Glacial",
   "displayName": "[bc]Glacial[/bc]",
   "description": "Frozen world with subsurface oceans",
+  "class": "C",
+  "baseRequirements": [
+    { "fuel": 400, "org": 300, "equ": 600, "colos": 1000, "days": 5 },
+    { "fuel": 300, "org": 80,  "equ": 400, "colos": 2400, "days": 5 },
+    { "fuel": 600, "org": 400, "equ": 650, "colos": 4400, "days": 7 },
+    { "fuel": 700, "org": 900, "equ": 700, "colos": 6600, "days": 5 },
+    { "fuel": 300, "org": 400, "equ": 1000,"colos": 9000, "days": 4 },
+    { "fuel": 700, "org": 900, "equ": 1400,"colos": 6600, "days": 8 }
+  ],
   "maxCitadel": 2,
   "fuelProduction": 20,
   "organicsProduction": 0,

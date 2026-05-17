@@ -2,6 +2,15 @@
   "slug": "Volcanic",
   "displayName": "[br]Volcanic[/br]",
   "description": "Geologically active world rich in minerals",
+  "class": "H",
+  "baseRequirements": [
+    { "fuel": 500, "org": 300, "equ": 600, "colos": 800,  "days": 4 },
+    { "fuel": 300, "org": 100, "equ": 400, "colos": 1600, "days": 5 },
+    { "fuel": 1200,"org": 400, "equ": 1500,"colos": 4400, "days": 8 },
+    { "fuel": 2000,"org": 2000,"equ": 2500,"colos": 7000, "days": 12 },
+    { "fuel": 3000,"org": 1200,"equ": 2000,"colos": 10000,"days": 5 },
+    { "fuel": 2000,"org": 2000,"equ": 5000,"colos": 7000, "days": 18 }
+  ],
   "maxCitadel": 1,
   "fuelProduction": 20,
   "organicsProduction": 0,

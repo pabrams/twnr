@@ -15,6 +15,10 @@ export function showComputerPrompt(ctx: DisplayComputerCtx) {
     ctx.io.term.write(render(COMPUTER.prompt, { sector: ctx.world.currentSector }));
 }
 
+export function showBaseComputerPrompt(ctx: DisplayComputerCtx) {
+    ctx.io.term.write(render(COMPUTER.basePrompt, { sector: ctx.world.currentSector }));
+}
+
 export function showComputerHelp(ctx: DisplayComputerCtx) {
     ctx.io.term.writeln('');
     ctx.io.term.writeln(render('[mg]   Computer Commands[/mg]'));

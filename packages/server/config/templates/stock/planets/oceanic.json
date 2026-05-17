@@ -2,6 +2,15 @@
   "slug": "Oceanic",
   "displayName": "[bb]Oceanic[/bb]",
   "description": "Water world with scattered island chains",
+  "class": "O",
+  "baseRequirements": [
+    { "fuel": 500, "org": 200, "equ": 400, "colos": 1400, "days": 6 },
+    { "fuel": 200, "org": 50,  "equ": 300, "colos": 2400, "days": 5 },
+    { "fuel": 600, "org": 400, "equ": 650, "colos": 4400, "days": 8 },
+    { "fuel": 700, "org": 900, "equ": 800, "colos": 7000, "days": 5 },
+    { "fuel": 300, "org": 400, "equ": 1000,"colos": 8000, "days": 4 },
+    { "fuel": 700, "org": 900, "equ": 1600,"colos": 7000, "days": 8 }
+  ],
   "maxCitadel": 4,
   "fuelProduction": 10,
   "organicsProduction": 20,

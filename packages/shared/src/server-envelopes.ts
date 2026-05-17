@@ -1118,6 +1118,67 @@ export type HaggleOpenReply =
  *  `final` carry the port's new offer; on `final`, the next player message
  *  must be HaggleAccept or HaggleQuit. `rejected` ends the session and
  *  costs the turn deducted by the trade tx (same as a buy). */
+/** Reply to the "B" command on a planet. Branches by current base state. */
+export type BaseInfoReply =
+    | {
+          type: typeof ServerTag.BaseInfoResult;
+          mode: 'noBase';
+          planetClass: string;
+          planetTypeDisplay: string;
+          level1: {
+              fuel: number;
+              org: number;
+              equ: number;
+              colos: number;
+              days: number;
+          };
+          /** Planet's current commodity stock + total colos, for unmet-
+           *  requirement display. */
+          planetStock: {
+              fuel: number;
+              org: number;
+              equ: number;
+              colos: number;
+          };
+      }
+    | {
+          type: typeof ServerTag.BaseInfoResult;
+          mode: 'constructing';
+          targetLevel: number;
+          startedAt: string;
+          completesAt: string;
+      }
+    | {
+          type: typeof ServerTag.BaseInfoResult;
+          mode: 'exists';
+          level: number;
+      }
+    | {
+          type: typeof ServerTag.BaseInfoResult;
+          mode: 'error';
+          message: string;
+      };
+
+export type BuildBaseReply =
+    | {
+          type: typeof ServerTag.BuildBaseResult;
+          outcome: 'started';
+          targetLevel: number;
+          daysRequired: number;
+          completesAt: string;
+      }
+    | {
+          type: typeof ServerTag.BuildBaseResult;
+          outcome: 'error';
+          message: string;
+          /** Set when failure was insufficient resources; lists which were short. */
+          shortfall?: { fuel?: number; org?: number; equ?: number; colos?: number };
+      };
+
+export type ExitBaseReply = {
+    type: typeof ServerTag.ExitBaseResult;
+};
+
 export type HaggleResponseReply =
     | {
           type: typeof ServerTag.HaggleResponseResult;
@@ -1249,4 +1310,7 @@ export type ServerEnvelope =
     | UpgradePortReply
     | HaggleOpenReply
     | HaggleResponseReply
+    | BaseInfoReply
+    | BuildBaseReply
+    | ExitBaseReply
     | ErrorReply;

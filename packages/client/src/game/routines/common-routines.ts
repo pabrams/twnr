@@ -28,6 +28,8 @@ registerRoutine('back', (ctx) => {
     } else if (ctx.world.mode === Menu.Computer || ctx.world.mode === Menu.Attack) {
         ctx.world.mode = Menu.Sector;
         ctx.io.sendMsg({ type: ClientTag.SectorDisplay });
+    } else if (ctx.world.mode === Menu.BaseComputer) {
+        ctx.world.mode = Menu.Base;
     } else if (ctx.world.mode === Menu.PlanetEarth) {
         ctx.io.sendMsg({ type: ClientTag.LeavePlanet });
     }

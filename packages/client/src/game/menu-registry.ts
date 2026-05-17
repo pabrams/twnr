@@ -1,8 +1,32 @@
-import { Menu, type MenuEntry, type MenuName } from '@twnr/shared';
+import { Menu, type MenuEntry, type MenuCommandEntry, type MenuName } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { showSectorPrompt } from './display.js';
 import { showAttackPrompt, showDroneEncounterPrompt } from './display-combat.js';
-import { showComputerPrompt } from './display-computer.js';
+import { showComputerPrompt, showBaseComputerPrompt } from './display-computer.js';
+
+/** Common command list for both the sector Computer menu and the Base
+ *  Computer menu. The `back` label differs (back-to-sector vs back-to-base)
+ *  so it's parameterized. */
+function computerCommandsWithBack(backLabel: string): MenuCommandEntry[] {
+    return [
+        { command: 'known_universe',         keyPattern: 'k', label: 'Known universe map',  targetMenu: null, sortOrder: 10 },
+        { command: 'trader_list',            keyPattern: 'l', label: 'Trader list',          targetMenu: null, sortOrder: 20 },
+        { command: 'ship_catalog',           keyPattern: 'c', label: 'Ship catalog',         targetMenu: null, sortOrder: 30 },
+        { command: 'planet_specs',           keyPattern: 'j', label: 'Planet specs',         targetMenu: null, sortOrder: 40 },
+        { command: 'current_ship_specs',     keyPattern: ';', label: 'Current ship specs',   targetMenu: null, sortOrder: 50 },
+        { command: 'list_deployed_drones',   keyPattern: 'd', label: 'Show deployed drones', targetMenu: null, sortOrder: 60 },
+        { command: 'list_deployed_mines',    keyPattern: 'n', label: 'Show deployed mines',  targetMenu: null, sortOrder: 65 },
+        { command: 'read_mail',              keyPattern: 'm', label: 'Read your mail',       targetMenu: null, sortOrder: 66 },
+        { command: 'hail',                   keyPattern: '=', label: 'Hailing frequencies',  targetMenu: null, sortOrder: 67 },
+        { command: 'hyperspace_jump',        keyPattern: 'h', label: 'Hyperspace jump',      targetMenu: null, sortOrder: 70 },
+        { command: 'list_planets',           keyPattern: 'y', label: 'List planets',         targetMenu: null, sortOrder: 80 },
+        { command: 'track_seeker_mines',     keyPattern: 't', label: 'Track limpet mines',   targetMenu: null, sortOrder: 90 },
+        { command: 'change_ship_ownership',  keyPattern: 'o', label: 'Change ship ownership',targetMenu: null, sortOrder: 92 },
+        { command: 'active_ship_scan',       keyPattern: 'z', label: 'Active ship scan',     targetMenu: null, sortOrder: 93 },
+        { command: 'help_menu',              keyPattern: '?', label: 'Help',                 targetMenu: null, sortOrder: 95 },
+        { command: 'back',                   keyPattern: 'q', label: backLabel,              targetMenu: null, sortOrder: 100 },
+    ];
+}
 import { showClanPrompt } from './display-clan.js';
 import { showPlanetMenuOptions, showEarthPrompt } from './display-planet.js';
 import { showClass0Menu } from './display-port.js';
@@ -200,120 +224,7 @@ export const MENU_REGISTRY: MenuEntry[] = [
         name: 'computer',
         label: 'Computer',
         parentMenu: 'sector',
-        commands: [
-            {
-                command: 'known_universe',
-                keyPattern: 'k',
-                label: 'Known universe map',
-                targetMenu: null,
-                sortOrder: 10,
-            },
-            {
-                command: 'trader_list',
-                keyPattern: 'l',
-                label: 'Trader list',
-                targetMenu: null,
-                sortOrder: 20,
-            },
-            {
-                command: 'ship_catalog',
-                keyPattern: 'c',
-                label: 'Ship catalog',
-                targetMenu: null,
-                sortOrder: 30,
-            },
-            {
-                command: 'planet_specs',
-                keyPattern: 'j',
-                label: 'Planet specs',
-                targetMenu: null,
-                sortOrder: 40,
-            },
-            {
-                command: 'current_ship_specs',
-                keyPattern: ';',
-                label: 'Current ship specs',
-                targetMenu: null,
-                sortOrder: 50,
-            },
-            {
-                command: 'list_deployed_drones',
-                keyPattern: 'd',
-                label: 'Show deployed drones',
-                targetMenu: null,
-                sortOrder: 60,
-            },
-            {
-                command: 'list_deployed_mines',
-                keyPattern: 'n',
-                label: 'Show deployed mines',
-                targetMenu: null,
-                sortOrder: 65,
-            },
-            {
-                command: 'read_mail',
-                keyPattern: 'm',
-                label: 'Read your mail',
-                targetMenu: null,
-                sortOrder: 66,
-            },
-            {
-                command: 'hail',
-                keyPattern: '=',
-                label: 'Hailing frequencies',
-                targetMenu: null,
-                sortOrder: 67,
-            },
-            {
-                command: 'hyperspace_jump',
-                keyPattern: 'h',
-                label: 'Hyperspace jump',
-                targetMenu: null,
-                sortOrder: 70,
-            },
-            {
-                command: 'list_planets',
-                keyPattern: 'y',
-                label: 'List planets',
-                targetMenu: null,
-                sortOrder: 80,
-            },
-            {
-                command: 'track_seeker_mines',
-                keyPattern: 't',
-                label: 'Track limpet mines',
-                targetMenu: null,
-                sortOrder: 90,
-            },
-            {
-                command: 'change_ship_ownership',
-                keyPattern: 'o',
-                label: 'Change ship ownership',
-                targetMenu: null,
-                sortOrder: 92,
-            },
-            {
-                command: 'active_ship_scan',
-                keyPattern: 'z',
-                label: 'Active ship scan',
-                targetMenu: null,
-                sortOrder: 93,
-            },
-            {
-                command: 'help_menu',
-                keyPattern: '?',
-                label: 'Help',
-                targetMenu: null,
-                sortOrder: 95,
-            },
-            {
-                command: 'back',
-                keyPattern: 'q',
-                label: 'Back to sector',
-                targetMenu: null,
-                sortOrder: 100,
-            },
-        ],
+        commands: computerCommandsWithBack('Back to sector'),
     },
     {
         name: 'class0',
@@ -419,6 +330,13 @@ export const MENU_REGISTRY: MenuEntry[] = [
                 sortOrder: 37,
             },
             {
+                command: 'planetary_defense_bastion',
+                keyPattern: 'b',
+                label: 'Planetary Defense Bastion',
+                targetMenu: 'base',
+                sortOrder: 38,
+            },
+            {
                 command: 'help_menu',
                 keyPattern: '?',
                 label: 'Help',
@@ -433,6 +351,40 @@ export const MENU_REGISTRY: MenuEntry[] = [
                 sortOrder: 50,
             },
         ],
+    },
+    {
+        name: 'base',
+        label: 'Base',
+        parentMenu: 'planet',
+        commands: [
+            {
+                command: 'base_computer',
+                keyPattern: 'c',
+                label: 'Base Computer',
+                targetMenu: 'baseComputer',
+                sortOrder: 10,
+            },
+            {
+                command: 'help_menu',
+                keyPattern: '?',
+                label: 'Help',
+                targetMenu: null,
+                sortOrder: 40,
+            },
+            {
+                command: 'exit_base',
+                keyPattern: 'q',
+                label: 'Exit to Planet Surface',
+                targetMenu: null,
+                sortOrder: 50,
+            },
+        ],
+    },
+    {
+        name: 'baseComputer',
+        label: 'Base Computer',
+        parentMenu: 'base',
+        commands: computerCommandsWithBack('Back to base'),
     },
     {
         name: 'planetEarth',
@@ -782,4 +734,5 @@ export const MENU_PROMPTS: Partial<Record<MenuName, (ctx: GameContext) => void>>
     [Menu.StarbaseHardware]: showHardwarePrompt,
     [Menu.Shipyards]: showShipyardsMenu,
     [Menu.ShipyardsClass0]: showShipyardsClass0Menu,
+    [Menu.BaseComputer]: showBaseComputerPrompt,
 };

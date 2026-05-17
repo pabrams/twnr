@@ -72,4 +72,36 @@ export const PLANET = makeDomain('PLANET', {
         '\r\n[mg]Claim as ([/mg][by]P[/by][mg]ersonal, [/mg][by]C[/by][mg]lan, [/mg][by]Q[/by][mg]) [/mg][by]?[/by] ',
     claimSuccessPersonal: '\r\n[bg]Planet [/bg][bc]{name}[/bc] [bg]is now yours.[/bg]',
     claimSuccessClan: '\r\n[bg]Planet [/bg][bc]{name}[/bc] [bg]is now clan-owned.[/bg]',
+
+    // Planetary Defense Bastion ("base") prompts.
+    baseIntro1:
+        '[w]This planet does not have a planetary defense bastion (base). You may construct one,[/w]',
+    baseIntro2:
+        '[w]given sufficient materials and manpower.[/w]',
+    baseIntro3:
+        '[w]Once constructed, a base provides a relatively safe refuge for your clanmates and[/w]\r\n' +
+        '[w]belongings from the dangers of open space.[/w]',
+    baseIntro4:
+        '[w]Once constructed, a base provides a hangar to store ships, living quarters, a treasury,[/w]\r\n' +
+        '[w]and a transporter pad. It may be subsequently upgraded to provide various defensive[/w]\r\n' +
+        '[w]functions such as drone combat control, atmospheric and sector cannons, shielding,[/w]\r\n' +
+        '[w]powerful tractor beam technology, and even planetary warp.[/w]',
+    baseRequirementsHeader:
+        '[bc]Constructing a level 1 base on a class [/bc][by]{planetClass}[/by][bc] ([/bc]{planetType}[bc]) planet requires:[/bc]',
+    baseRequirementsLine:
+        '  [by]{label}[/by]  need [bc]{need}[/bc]  have [bc]{have}[/bc]  {status}',
+    baseRequirementsDays:
+        '  [by]Construction time[/by]: [bc]{days}[/bc] day(s)',
+    baseConstructPrompt:
+        '\r\n[bc]Construct a level 1 base?[/bc] [mg]([/mg][by]Y[/by]/[by]N[/by][mg]) [[/mg][by]N[/by][mg]] [/mg]',
+    baseConstructionStarted:
+        '[bg]Construction of your level [/bg][bc]{level}[/bc][bg] base has begun. It will take [/bg][bc]{days}[/bc][bg] day(s).[/bg]\r\n' +
+        '  [by]Expected completion[/by]: [bc]{completes}[/bc]',
+    baseConstructing:
+        '[bc]Base level [/bc][bc]{level}[/bc][bc] construction in progress.[/bc]\r\n' +
+        '  [by]Started[/by]: [bc]{started}[/bc]\r\n' +
+        '  [by]Completes[/by]: [bc]{completes}[/bc]  [g]([/g][bc]{hours}[/bc][g] hours remaining)[/g]',
+    baseShortfall: '  [br]Short[/br]: [w]{items}[/w]',
+    baseError: '[br]Base error[/br]: [w]{message}[/w]',
+    baseEntered: '[bg]Entered base (level [/bg][bc]{level}[/bc][bg]).[/bg]',
 });

@@ -2,6 +2,15 @@
   "slug": "Mountainous",
   "displayName": "[y]Mountainous[/y]",
   "description": "Rocky highland world with deep cavern networks",
+  "class": "L",
+  "baseRequirements": [
+    { "fuel": 150, "org": 100, "equ": 150, "colos": 400,  "days": 2 },
+    { "fuel": 200, "org": 50,  "equ": 250, "colos": 1400, "days": 5 },
+    { "fuel": 600, "org": 250, "equ": 700, "colos": 3600, "days": 5 },
+    { "fuel": 1000,"org": 1200,"equ": 1000,"colos": 5600, "days": 8 },
+    { "fuel": 300, "org": 400, "equ": 1000,"colos": 7000, "days": 5 },
+    { "fuel": 1000,"org": 1200,"equ": 2000,"colos": 5600, "days": 12 }
+  ],
   "maxCitadel": 4,
   "fuelProduction": 20,
   "organicsProduction": 2,

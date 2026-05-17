@@ -418,6 +418,18 @@ export type HaggleQuitCommand = {
     type: typeof ClientTag.HaggleQuit;
 };
 
+export type BaseInfoCommand = {
+    type: typeof ClientTag.BaseInfo;
+};
+
+export type BuildBaseCommand = {
+    type: typeof ClientTag.BuildBase;
+};
+
+export type ExitBaseCommand = {
+    type: typeof ClientTag.ExitBase;
+};
+
 export type ClientEnvelope =
     | MoveCommand
     | MoveToPreviousCommand
@@ -501,4 +513,7 @@ export type ClientEnvelope =
     | HaggleOpenCommand
     | HaggleCounterCommand
     | HaggleAcceptCommand
-    | HaggleQuitCommand;
+    | HaggleQuitCommand
+    | BaseInfoCommand
+    | BuildBaseCommand
+    | ExitBaseCommand;

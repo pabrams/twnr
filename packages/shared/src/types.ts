@@ -46,10 +46,26 @@ export type ShipConfig = {
     notes?: string;
 };
 
+/** Per-level requirements to construct or upgrade a planetary defense bastion
+ *  (PDB, aka "base", aka legacy "citadel"). Six levels, fuel/org/equ are
+ *  one-time stock drains, colos is matched against planet colonist totals,
+ *  days is real-time days the construction takes. */
+export type BaseLevelRequirement = {
+    fuel: number;
+    org: number;
+    equ: number;
+    colos: number;
+    days: number;
+};
+
 export type PlanetConfig = {
     slug: string;
     displayName?: string;
     description: string;
+    /** Single capital letter, unique across planet types. Used in base
+     *  construction requirements display ("Class M, Terran"). */
+    class: string;
+    baseRequirements: BaseLevelRequirement[];
     /** Deaths per 1000 colos per day from environmental hazard. Combined
      *  with the universe-level dailyReproductionPer1000Colos to compute
      *  the planet's net colonist trajectory. */
@@ -68,6 +84,7 @@ export type PlanetConfig = {
     equipmentProduction: number;
     droneProduction: number;
 };
+
 
 export type ShipCatalogEntry = {
     id: number;
