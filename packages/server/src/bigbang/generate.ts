@@ -9,6 +9,7 @@ import { mulberry32 } from './prng.js';
 import { generateGraph } from './graph.js';
 import { generateProximalGraph } from './graph-proximal.js';
 import { packHexCells, arrangeAnchors } from './positions.js';
+import { portClassesConfig } from '../game-config.js';
 
 const portClasses: Record<number, string[]> = {
     1: ['B', 'B', 'S'],
@@ -152,16 +153,27 @@ export function generateUniverse(options: BigBangOptions): BigBangResult {
         ];
     }
 
-    let classPool: number[] = [];
+    // Weighted-random class picker from port-classes.json. Class codes
+    // (BBS/BSB/...) stay in `portClasses` above; only the per-class
+    // population shares are tunable. Falls back to class 1 if all weights
+    // are zero (shouldn't happen with the shipped config).
+    const portClassWeights = portClassesConfig.generationShares;
+    const portClassKeys = Object.keys(portClassWeights)
+        .map(Number)
+        .filter((k) => Number.isInteger(k) && k >= 1 && k <= 8)
+        .sort((a, b) => a - b);
+    const portClassTotalWeight = portClassKeys.reduce(
+        (s, k) => s + Math.max(0, portClassWeights[String(k)] ?? 0),
+        0,
+    );
     function getNextClass(): number {
-        if (classPool.length === 0) {
-            classPool = [1, 2, 3, 4, 5, 6, 7, 8];
-            for (let i = classPool.length - 1; i > 0; i--) {
-                const j = Math.floor(rng() * (i + 1));
-                [classPool[i], classPool[j]] = [classPool[j], classPool[i]];
-            }
+        if (portClassTotalWeight <= 0) return 1;
+        let r = rng() * portClassTotalWeight;
+        for (const k of portClassKeys) {
+            r -= Math.max(0, portClassWeights[String(k)] ?? 0);
+            if (r <= 0) return k;
         }
-        return classPool.pop()!;
+        return portClassKeys[portClassKeys.length - 1] ?? 1;
     }
 
     for (let i = 0; i < numOtherPorts; i++) {
