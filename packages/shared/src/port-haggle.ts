@@ -126,8 +126,11 @@ export function processHaggleCounter(args: {
             previousConcession > 0
                 ? previousConcession
                 : gap * midHaggleConcessionFraction(mcic);
-        let concession = baseline * factor;
-        if (concession > gap) concession = gap;
+        const concession = baseline * factor;
+        // If the port would meet or exceed the player's counter, just accept
+        if (concession >= gap) {
+            return { outcome: 'accept', finalTotal: playerCounter };
+        }
         const newPortOffer =
             action === 'B' ? portCurrent + concession : portCurrent - concession;
         return { outcome: 'final', newPortOffer: Math.floor(newPortOffer) };
