@@ -1,4 +1,4 @@
-import { ClientTag, ServerTag } from '@twnr/shared';
+import { ClientTag, Menu, ServerTag } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { PLANET } from '../messages/index.js';
@@ -10,7 +10,7 @@ import {
     showPlanetLeaveStockpileMenu,
 } from '../display-planet.js';
 import { registerRoutine } from './types.js';
-import { askChar, askNumber, awaitResponse } from './prompts.js';
+import { askChar, askConfirm, askNumber, awaitResponse } from './prompts.js';
 
 type Commodity4 = 'fuel' | 'organics' | 'equipment' | 'drones';
 const COMMODITY_MAP: Record<string, Commodity4> = {
@@ -149,4 +149,113 @@ registerRoutine('destroy_planet', (ctx) => {
 registerRoutine('leave_planet', (ctx) => {
     echoCommand(ctx, 'leavePlanet');
     ctx.io.sendMsg({ type: ClientTag.LeavePlanet });
+});
+
+registerRoutine('planetary_defense_bastion', async (ctx) => {
+    echoCommand(ctx, 'planetaryDefenseBastion');
+    ctx.io.sendMsg({ type: ClientTag.BaseInfo });
+    const reply = await awaitResponse(ctx, [ServerTag.BaseInfoResult, ServerTag.Error]);
+    if (reply === null) return;
+    if (reply.type !== ServerTag.BaseInfoResult) return;
+    const { term } = ctx.io;
+
+    if (reply.mode === 'error') {
+        term.writeln('');
+        term.writeln(render(PLANET.baseError, { message: reply.message }));
+        return;
+    }
+    if (reply.mode === 'exists') {
+        ctx.world.mode = Menu.Base;
+        term.writeln('');
+        term.writeln(render(PLANET.baseEntered, { level: reply.level }));
+        return;
+    }
+    if (reply.mode === 'constructing') {
+        const completes = new Date(reply.completesAt);
+        const started = reply.startedAt ? new Date(reply.startedAt) : null;
+        const msLeft = completes.getTime() - Date.now();
+        const hoursLeft = Math.max(0, Math.ceil(msLeft / (60 * 60 * 1000)));
+        term.writeln('');
+        term.writeln(
+            render(PLANET.baseConstructing, {
+                level: reply.targetLevel,
+                started: started ? started.toLocaleString() : '?',
+                completes: completes.toLocaleString(),
+                hours: hoursLeft,
+            }),
+        );
+        return;
+    }
+
+    // mode === 'noBase'
+    term.writeln('');
+    term.writeln(render(PLANET.baseIntro1));
+    term.writeln(render(PLANET.baseIntro2));
+    term.writeln(render(PLANET.baseIntro3));
+    term.writeln(render(PLANET.baseIntro4));
+    term.writeln('');
+    term.writeln(
+        render(PLANET.baseRequirementsHeader, {
+            planetClass: reply.planetClass,
+            planetType: reply.planetTypeDisplay,
+        }),
+    );
+    const fmtLine = (label: string, need: number, have: number, unit: string) => {
+        const short = have < need;
+        const status = short ? `[br](short by ${need - have})[/br]` : '[g]ok[/g]';
+        return render(PLANET.baseRequirementsLine, {
+            label,
+            need,
+            have,
+            unit,
+            status,
+        });
+    };
+    term.writeln(fmtLine('Fuel Ore  ', reply.level1.fuel, reply.planetStock.fuel, ''));
+    term.writeln(fmtLine('Organics  ', reply.level1.org, reply.planetStock.org, ''));
+    term.writeln(fmtLine('Equipment ', reply.level1.equ, reply.planetStock.equ, ''));
+    term.writeln(fmtLine('Colonists ', reply.level1.colos, reply.planetStock.colos, ''));
+    term.writeln(render(PLANET.baseRequirementsDays, { days: reply.level1.days }));
+    term.writeln('');
+
+    const ok = await askConfirm(ctx, render(PLANET.baseConstructPrompt), { defaultValue: false });
+    if (!ok) return;
+    ctx.io.sendMsg({ type: ClientTag.BuildBase });
+    const result = await awaitResponse(ctx, [ServerTag.BuildBaseResult, ServerTag.Error]);
+    if (result === null) return;
+    if (result.type !== ServerTag.BuildBaseResult) return;
+    if (result.outcome === 'started') {
+        term.writeln('');
+        term.writeln(
+            render(PLANET.baseConstructionStarted, {
+                level: result.targetLevel,
+                days: result.daysRequired,
+                completes: new Date(result.completesAt).toLocaleString(),
+            }),
+        );
+    } else {
+        term.writeln('');
+        term.writeln(render(PLANET.baseError, { message: result.message }));
+        if (result.shortfall) {
+            const parts: string[] = [];
+            if (result.shortfall.fuel) parts.push(`Fuel Ore: ${result.shortfall.fuel}`);
+            if (result.shortfall.org) parts.push(`Organics: ${result.shortfall.org}`);
+            if (result.shortfall.equ) parts.push(`Equipment: ${result.shortfall.equ}`);
+            if (result.shortfall.colos) parts.push(`Colonists: ${result.shortfall.colos}`);
+            if (parts.length > 0) {
+                term.writeln(render(PLANET.baseShortfall, { items: parts.join(', ') }));
+            }
+        }
+    }
+});
+
+registerRoutine('base_computer', (ctx) => {
+    echoCommand(ctx, 'baseComputer');
+    ctx.world.mode = Menu.BaseComputer;
+});
+
+registerRoutine('exit_base', (ctx) => {
+    echoCommand(ctx, 'exitBase');
+    ctx.io.sendMsg({ type: ClientTag.ExitBase });
+    ctx.world.mode = Menu.Planet;
 });

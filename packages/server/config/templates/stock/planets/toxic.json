@@ -2,6 +2,15 @@
   "slug": "Toxic",
   "displayName": "[bm:b]Toxic[/bm:b]",
   "description": "Corrosive atmosphere world with rare chemical compounds",
+  "class": "T",
+  "baseRequirements": [
+    { "fuel": 550, "org": 350, "equ": 700, "colos": 850,  "days": 5 },
+    { "fuel": 350, "org": 150, "equ": 500, "colos": 1700, "days": 6 },
+    { "fuel": 1250,"org": 450, "equ": 1600,"colos": 4500, "days": 9 },
+    { "fuel": 2050,"org": 2050,"equ": 2600,"colos": 7100, "days": 13 },
+    { "fuel": 3050,"org": 1250,"equ": 2100,"colos": 10100,"days": 6 },
+    { "fuel": 2050,"org": 2050,"equ": 5200,"colos": 7100, "days": 19 }
+  ],
   "maxCitadel": 2,
   "fuelProduction": 20,
   "organicsProduction": 0,

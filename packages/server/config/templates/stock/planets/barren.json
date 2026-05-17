@@ -2,6 +2,15 @@
   "slug": "Barren",
   "displayName": "[w]Barren[/w]",
   "description": "Lifeless rock useful for mining operations",
+  "class": "B",
+  "baseRequirements": [
+    { "fuel": 100, "org": 500, "equ": 200, "colos": 600,  "days": 3 },
+    { "fuel": 100, "org": 200, "equ": 150, "colos": 1500, "days": 4 },
+    { "fuel": 400, "org": 600, "equ": 400, "colos": 3500, "days": 6 },
+    { "fuel": 800, "org": 1500,"equ": 800, "colos": 5000, "days": 12 },
+    { "fuel": 200, "org": 600, "equ": 800, "colos": 5000, "days": 6 },
+    { "fuel": 800, "org": 1500,"equ": 1600,"colos": 5000, "days": 18 }
+  ],
   "maxCitadel": 5,
   "fuelProduction": 10,
   "organicsProduction": 0,

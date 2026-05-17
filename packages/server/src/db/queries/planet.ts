@@ -713,3 +713,121 @@ export async function listPlanetIdsWithColonists(db: Queryable = pool): Promise<
     );
     return res.rows.map((r) => r.id);
 }
+
+/** Planet base row — null if the planet has neither an active base nor an
+ *  in-progress construction. Lazily promotes the level when a construction's
+ *  completes_at has passed, so callers always see a fresh picture. */
+export type PlanetBaseRow = {
+    level: number;
+    construction_target_level: number | null;
+    construction_started_at: Date | null;
+    construction_completes_at: Date | null;
+};
+
+export async function getPlanetBase(
+    planetId: number,
+    db: Queryable = pool,
+): Promise<PlanetBaseRow | null> {
+    const res = await db.query<PlanetBaseRow>(
+        `SELECT level, construction_target_level,
+                construction_started_at, construction_completes_at
+         FROM planet_bases WHERE planet_id = $1`,
+        [planetId],
+    );
+    return res.rows[0] ?? null;
+}
+
+/** Promote a base whose construction_completes_at has passed to the target
+ *  level and clear the construction fields. Returns the (possibly updated)
+ *  row or null if no row exists. */
+export async function promotePlanetBaseIfDue(
+    planetId: number,
+    db: Queryable = pool,
+): Promise<PlanetBaseRow | null> {
+    const res = await db.query<PlanetBaseRow>(
+        `UPDATE planet_bases
+         SET level = construction_target_level,
+             construction_target_level = NULL,
+             construction_started_at = NULL,
+             construction_completes_at = NULL
+         WHERE planet_id = $1
+           AND construction_target_level IS NOT NULL
+           AND construction_completes_at <= NOW()
+         RETURNING level, construction_target_level,
+                   construction_started_at, construction_completes_at`,
+        [planetId],
+    );
+    if (res.rows[0]) return res.rows[0];
+    return getPlanetBase(planetId, db);
+}
+
+/** Start a new base construction. Fails (returns false) if a row already
+ *  exists for this planet (caller must check first). */
+export async function insertPlanetBaseConstruction(
+    planetId: number,
+    targetLevel: number,
+    daysRequired: number,
+    db: Queryable = pool,
+): Promise<void> {
+    await db.query(
+        `INSERT INTO planet_bases (
+            planet_id, level, construction_target_level,
+            construction_started_at, construction_completes_at
+         ) VALUES (
+            $1, 0, $2,
+            NOW(), NOW() + ($3::int * INTERVAL '1 day')
+         )`,
+        [planetId, targetLevel, daysRequired],
+    );
+}
+
+/** Total colonists assigned across all 4 buckets on a planet. Used to
+ *  validate base-construction colos requirement (any colos count). */
+export async function getPlanetTotalColonists(
+    planetId: number,
+    db: Queryable = pool,
+): Promise<number> {
+    const res = await db.query<{ total: number }>(
+        `SELECT (colonists_fuel + colonists_organics + colonists_equipment
+                 + colonists_drones)::int AS total
+         FROM planets WHERE id = $1`,
+        [planetId],
+    );
+    return res.rows[0]?.total ?? 0;
+}
+
+/** Planet's class letter + base requirements (read from universe_planet_types). */
+export type PlanetClassInfo = {
+    class: string;
+    base_requirements: unknown[];
+    display_name: string | null;
+    slug: string;
+};
+
+export async function getPlanetClassInfo(
+    planetId: number,
+    db: Queryable = pool,
+): Promise<PlanetClassInfo | null> {
+    const res = await db.query<PlanetClassInfo>(
+        `SELECT pt.class, pt.base_requirements, pt.display_name, pt.slug
+         FROM planets p
+         JOIN universe_planet_types pt
+              ON pt.universe_id = p.universe_id AND pt.slug = p.type
+         WHERE p.id = $1`,
+        [planetId],
+    );
+    return res.rows[0] ?? null;
+}
+
+/** Planet's current commodity stockpile (fuel/org/equ). Locked for update so
+ *  base construction can atomically drain it. */
+export async function getPlanetCommodityStockForUpdate(
+    planetId: number,
+    db: Queryable = pool,
+): Promise<{ fuel: number; organics: number; equipment: number } | null> {
+    const res = await db.query<{ fuel: number; organics: number; equipment: number }>(
+        `SELECT fuel, organics, equipment FROM planets WHERE id = $1 FOR UPDATE`,
+        [planetId],
+    );
+    return res.rows[0] ?? null;
+}

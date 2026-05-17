@@ -2,6 +2,15 @@
   "slug": "Terran",
   "displayName": "[bg]Terran[/bg]",
   "description": "Earth-like world with breathable atmosphere",
+  "class": "M",
+  "baseRequirements": [
+    { "fuel": 300, "org": 200, "equ": 250, "colos": 1000, "days": 4 },
+    { "fuel": 200, "org": 50,  "equ": 250, "colos": 2000, "days": 4 },
+    { "fuel": 500, "org": 250, "equ": 500, "colos": 4000, "days": 5 },
+    { "fuel": 1000,"org": 1200,"equ": 1000,"colos": 6000, "days": 10 },
+    { "fuel": 300, "org": 400, "equ": 1000,"colos": 6000, "days": 5 },
+    { "fuel": 1000,"org": 1200,"equ": 2000,"colos": 6000, "days": 15 }
+  ],
   "maxCitadel": 6,
   "fuelProduction": 10,
   "organicsProduction": 20,

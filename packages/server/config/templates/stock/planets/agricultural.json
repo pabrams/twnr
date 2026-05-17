@@ -2,6 +2,15 @@
   "slug": "Agricultural",
   "displayName": "[g]Agricultural[/g]",
   "description": "Fertile plains world ideal for large-scale farming",
+  "class": "A",
+  "baseRequirements": [
+    { "fuel": 250, "org": 100, "equ": 250, "colos": 1500, "days": 3 },
+    { "fuel": 150, "org": 30,  "equ": 200, "colos": 2200, "days": 4 },
+    { "fuel": 450, "org": 200, "equ": 450, "colos": 4000, "days": 5 },
+    { "fuel": 900, "org": 1000,"equ": 950, "colos": 6000, "days": 9 },
+    { "fuel": 250, "org": 350, "equ": 900, "colos": 6000, "days": 5 },
+    { "fuel": 900, "org": 1000,"equ": 1900,"colos": 6000, "days": 14 }
+  ],
   "maxCitadel": 6,
   "fuelProduction": 1,
   "organicsProduction": 50,

@@ -294,6 +294,8 @@ export const connectDB = async (): Promise<void> => {
         slug VARCHAR(255) NOT NULL,
         display_name VARCHAR(512),
         description TEXT,
+        class CHAR(1) NOT NULL DEFAULT 'M',
+        base_requirements JSONB NOT NULL DEFAULT '[]'::jsonb,
         max_fuel_colos INTEGER NOT NULL DEFAULT 0,
         max_org_colos INTEGER NOT NULL DEFAULT 0,
         max_equ_colos INTEGER NOT NULL DEFAULT 0,
@@ -316,6 +318,8 @@ export const connectDB = async (): Promise<void> => {
         slug VARCHAR(255) NOT NULL,
         display_name VARCHAR(512),
         description TEXT,
+        class CHAR(1) NOT NULL DEFAULT 'M',
+        base_requirements JSONB NOT NULL DEFAULT '[]'::jsonb,
         max_fuel_colos INTEGER NOT NULL DEFAULT 0,
         max_org_colos INTEGER NOT NULL DEFAULT 0,
         max_equ_colos INTEGER NOT NULL DEFAULT 0,
@@ -331,6 +335,21 @@ export const connectDB = async (): Promise<void> => {
         drone_production SMALLINT NOT NULL DEFAULT 0,
         danger SMALLINT NOT NULL DEFAULT 0,
         PRIMARY KEY (universe_id, slug)
+      );
+
+      -- Planetary Defense Bastion (PDB / "base", legacy "citadel"). One row
+      -- per planet with a completed base or in-progress construction. level
+      -- = 0 means no base yet (construction in progress); level >= 1 means
+      -- active base at that level. When construction_target_level IS NOT
+      -- NULL, construction is in progress (initial build OR upgrade to that
+      -- level) and will complete at construction_completes_at. Lazy
+      -- promotion on read.
+      CREATE TABLE IF NOT EXISTS planet_bases (
+        planet_id INTEGER PRIMARY KEY REFERENCES planets(id) ON DELETE CASCADE,
+        level SMALLINT NOT NULL DEFAULT 0,
+        construction_target_level SMALLINT,
+        construction_started_at TIMESTAMPTZ,
+        construction_completes_at TIMESTAMPTZ
       );
 
       CREATE TABLE IF NOT EXISTS players (
@@ -892,11 +911,13 @@ export const connectDB = async (): Promise<void> => {
 
         for (const planet of Object.values(planetConfigs)) {
             await client.query(
-                `INSERT INTO template_planet_types (template_id, slug, display_name, description, max_fuel_colos, max_org_colos, max_equ_colos, max_drone_colos, max_fuel, max_org, max_equ, max_drones, max_citadel, fuel_production, organics_production, equipment_production, drone_production, danger)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+                `INSERT INTO template_planet_types (template_id, slug, display_name, description, class, base_requirements, max_fuel_colos, max_org_colos, max_equ_colos, max_drone_colos, max_fuel, max_org, max_equ, max_drones, max_citadel, fuel_production, organics_production, equipment_production, drone_production, danger)
+                 VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
                  ON CONFLICT (template_id, slug) DO UPDATE SET
                     display_name = EXCLUDED.display_name,
                     description = EXCLUDED.description,
+                    class = EXCLUDED.class,
+                    base_requirements = EXCLUDED.base_requirements,
                     max_fuel_colos = EXCLUDED.max_fuel_colos,
                     max_org_colos = EXCLUDED.max_org_colos,
                     max_equ_colos = EXCLUDED.max_equ_colos,
@@ -916,6 +937,8 @@ export const connectDB = async (): Promise<void> => {
                     planet.slug,
                     planet.displayName ?? null,
                     planet.description ?? null,
+                    planet.class ?? 'M',
+                    JSON.stringify(planet.baseRequirements ?? []),
                     planet.maxFuelColos ?? 0,
                     planet.maxOrgColos ?? 0,
                     planet.maxEquColos ?? 0,

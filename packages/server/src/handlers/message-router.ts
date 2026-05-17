@@ -35,6 +35,7 @@ import {
     serveHaggleAccept,
     serveHaggleQuit,
 } from './port-haggle.js';
+import { serveBaseInfo, serveBuildBase, serveExitBase } from './base.js';
 import {
     serveShipInfo,
     serveListOwnedShips,
@@ -189,6 +190,9 @@ const handlers: HandlerMap = {
     [ClientTag.HaggleQuit]: (pid) => {
         serveHaggleQuit(pid);
     },
+    [ClientTag.BaseInfo]: (pid) => serveBaseInfo(pid),
+    [ClientTag.BuildBase]: (pid) => serveBuildBase(pid),
+    [ClientTag.ExitBase]: (pid) => serveExitBase(pid),
 };
 
 export async function routeMessage(playerId: number, data: ClientEnvelope): Promise<void> {

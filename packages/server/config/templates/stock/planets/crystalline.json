@@ -2,6 +2,15 @@
   "slug": "Crystalline",
   "displayName": "[bw:b]Crystalline[/bw:b]",
   "description": "Silicate world with vast crystal formations prized for electronics",
+  "class": "Y",
+  "baseRequirements": [
+    { "fuel": 600, "org": 350, "equ": 700, "colos": 900,  "days": 5 },
+    { "fuel": 400, "org": 150, "equ": 500, "colos": 1800, "days": 6 },
+    { "fuel": 1300,"org": 450, "equ": 1600,"colos": 4600, "days": 9 },
+    { "fuel": 2100,"org": 2100,"equ": 2600,"colos": 7300, "days": 14 },
+    { "fuel": 3100,"org": 1300,"equ": 2100,"colos": 10500,"days": 6 },
+    { "fuel": 2100,"org": 2100,"equ": 5100,"colos": 7300, "days": 20 }
+  ],
   "maxCitadel": 2,
   "fuelProduction": 5,
   "organicsProduction": 0,

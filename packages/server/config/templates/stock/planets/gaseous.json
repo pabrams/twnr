@@ -2,6 +2,15 @@
   "slug": "Gaseous",
   "displayName": "[w]Gaseous[/w]",
   "description": "Gaseous world",
+  "class": "U",
+  "baseRequirements": [
+    { "fuel": 1200,"org": 400, "equ": 2500,"colos": 3000, "days": 8 },
+    { "fuel": 300, "org": 100, "equ": 400, "colos": 3000, "days": 4 },
+    { "fuel": 500, "org": 500, "equ": 2000,"colos": 5000, "days": 5 },
+    { "fuel": 500, "org": 200, "equ": 600, "colos": 6000, "days": 5 },
+    { "fuel": 200, "org": 200, "equ": 600, "colos": 8000, "days": 4 },
+    { "fuel": 500, "org": 200, "equ": 1200,"colos": 6000, "days": 8 }
+  ],
   "maxCitadel": 4,
   "fuelProduction": 50,
   "organicsProduction": 0,
