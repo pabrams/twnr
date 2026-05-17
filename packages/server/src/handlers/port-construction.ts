@@ -29,7 +29,7 @@ import { recordCreditChange } from '../services/audit.js';
 import { experienceDeltas, reputationDeltas } from '../game-config.js';
 
 /** Class 1-8 import/export label: ports with more B-actions than S are "Import",
- *  others "Export". TW2002 display convention. */
+ *  others "Export". legacy display convention. */
 function importExportLabel(portClass: number): 'Import' | 'Export' {
     const a = PORT_CLASS_ACTIONS[portClass];
     if (!a) return 'Export';

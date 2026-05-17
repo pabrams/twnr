@@ -16,7 +16,7 @@ describe('Port construction — cost table', () => {
         }
     });
 
-    it('matches TW2002 reference values', () => {
+    it('matches legacy reference values', () => {
         assert.deepEqual(PORT_CONSTRUCTION_COSTS[1], { credits: 39250, ore: 120, org: 120, equ: 60, days: 6 });
         assert.deepEqual(PORT_CONSTRUCTION_COSTS[8], { credits: 50000, ore: 200, org: 200, equ: 200, days: 10 });
         assert.deepEqual(PORT_CONSTRUCTION_COSTS[7], { credits: 30000, ore: 20, org: 20, equ: 20, days: 2 });
@@ -51,7 +51,7 @@ describe('Port construction — upgradeUnitCost / playerBuiltMcicFor', () => {
     });
 
     it('player-built MCIC signs match the port-action direction', () => {
-        // From TW2002 sample: fuel ±80/70, org ±70/60, equ ±60/50
+        // From legacy sample: fuel ±80/70, org ±70/60, equ ±60/50
         assert.equal(playerBuiltMcicFor('fuel', 'B'), -80);
         assert.equal(playerBuiltMcicFor('fuel', 'S'), 70);
         assert.equal(playerBuiltMcicFor('organics', 'B'), -70);
@@ -96,7 +96,7 @@ describe('Port upgrade math', () => {
         assert.equal(stock, 280);
     });
 
-    it('matches TW2002 sample: 18 units invested in Organics on a selling port', () => {
+    it('matches legacy sample: 18 units invested in Organics on a selling port', () => {
         // Before: Trading=1640 (selling, stock=1640, max=1640), tp=100%
         // After +18: trading=1820, tp still 100%, max=1820, stock=1820
         const before = { prod: 164, max: 1640, stock: 1640 };
