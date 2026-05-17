@@ -24,6 +24,12 @@ import {
     serveLeaveStarbase,
 } from './port.js';
 import {
+    serveConstructPortInfo,
+    serveBuildPort,
+    serveUpgradePortInfo,
+    serveUpgradePort,
+} from './port-construction.js';
+import {
     serveShipInfo,
     serveListOwnedShips,
     serveTransportToShip,
@@ -167,6 +173,10 @@ const handlers: HandlerMap = {
     [ClientTag.DeleteAllMail]: serveDeleteAllMail,
     [ClientTag.HailResolve]: serveHailResolve,
     [ClientTag.HailSend]: serveHailSend,
+    [ClientTag.ConstructPortInfo]: (pid) => serveConstructPortInfo(pid),
+    [ClientTag.BuildPort]: serveBuildPort,
+    [ClientTag.UpgradePortInfo]: (pid) => serveUpgradePortInfo(pid),
+    [ClientTag.UpgradePort]: serveUpgradePort,
 };
 
 export async function routeMessage(playerId: number, data: ClientEnvelope): Promise<void> {

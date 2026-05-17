@@ -377,6 +377,26 @@ export type GetNeighborhoodCommand = {
     centerYWorld?: number;
 };
 
+export type ConstructPortInfoCommand = {
+    type: typeof ClientTag.ConstructPortInfo;
+};
+
+export type BuildPortCommand = {
+    type: typeof ClientTag.BuildPort;
+    portClass: number;
+    portName: string;
+};
+
+export type UpgradePortInfoCommand = {
+    type: typeof ClientTag.UpgradePortInfo;
+};
+
+export type UpgradePortCommand = {
+    type: typeof ClientTag.UpgradePort;
+    commodity: 'fuel' | 'organics' | 'equipment';
+    units: number;
+};
+
 export type ClientEnvelope =
     | MoveCommand
     | MoveToPreviousCommand
@@ -452,4 +472,8 @@ export type ClientEnvelope =
     | ClanTransferCommand
     | ClanMemoCommand
     | ClanSetPasswordCommand
-    | ClanDropMemberCommand;
+    | ClanDropMemberCommand
+    | ConstructPortInfoCommand
+    | BuildPortCommand
+    | UpgradePortInfoCommand
+    | UpgradePortCommand;

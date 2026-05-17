@@ -112,6 +112,10 @@ export const ServerTag = {
     HailIncoming: 'hailIncoming',
     ClanMemoNotification: 'clanMemoNotification',
     Notice: 'notice',
+    ConstructPortInfoResult: 'constructPortInfoResult',
+    BuildPortResult: 'buildPortResult',
+    UpgradePortInfoResult: 'upgradePortInfoResult',
+    UpgradePortResult: 'upgradePortResult',
 } as const;
 type ServerTag = typeof ServerTag;
 
@@ -191,5 +195,9 @@ export const ClientTag = {
     DeleteAllMail: 'deleteAllMail',
     HailResolve: 'hailResolve',
     HailSend: 'hailSend',
+    ConstructPortInfo: 'constructPortInfo',
+    BuildPort: 'buildPort',
+    UpgradePortInfo: 'upgradePortInfo',
+    UpgradePort: 'upgradePort',
 } as const;
 type ClientTag = typeof ClientTag;

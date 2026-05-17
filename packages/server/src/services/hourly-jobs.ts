@@ -10,6 +10,7 @@ import {
     settlePlanetColonistGrowth,
 } from '../db/queries/planet.js';
 import { listProducingPortIds, settlePortProduction } from '../db/queries/port.js';
+import { runAdvancePortConstructions } from './port-construction-advance.js';
 import { cleanupExpiredGuests } from './guest-cleanup.js';
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
@@ -129,6 +130,12 @@ export async function runHourlyJobs(): Promise<void> {
         if (regen > 0) console.log(`[hourly] regenerated commodities on ${regen} ports`);
     } catch (err) {
         console.error('[hourly] regenerate-ports failed:', err);
+    }
+    try {
+        const advanced = await runAdvancePortConstructions();
+        if (advanced > 0) console.log(`[hourly] advanced ${advanced} port constructions`);
+    } catch (err) {
+        console.error('[hourly] advance-port-constructions failed:', err);
     }
     try {
         const grown = await runColonistGrowth();

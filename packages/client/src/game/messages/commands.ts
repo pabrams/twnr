@@ -15,6 +15,7 @@ export const COMMAND = makeDomain('COMMAND', {
     shortestPath:
         '[bg:b]<Shortest Path>[/bg:b] [g]from[/g] [bc]{from}[/bc] [g]to[/g] [bc]{to}[/bc]',
     portInfo: '[bg:b]<Port Info>[/bg:b]',
+    orderStarport: '[bg:b]<Construct Starport>[/bg:b]',
     shipInfo: '[bg:b]<Ship Info>[/bg:b]',
     dock: '[bg:b]<Dock>[/bg:b]',
     undock: '[bg:b]<Undock>[/bg:b]',

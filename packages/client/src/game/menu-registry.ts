@@ -147,6 +147,13 @@ export const MENU_REGISTRY: MenuEntry[] = [
             },
             { command: 'land', keyPattern: 'l', label: 'Land', targetMenu: null, sortOrder: 100 },
             {
+                command: 'order_starport',
+                keyPattern: 'o',
+                label: 'Order/upgrade StarPort',
+                targetMenu: null,
+                sortOrder: 102,
+            },
+            {
                 command: 'starbase_info',
                 keyPattern: 'v',
                 label: 'Starbase info',
