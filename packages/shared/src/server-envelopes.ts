@@ -1002,6 +1002,101 @@ export type NoticeEvent = {
     body: string;
 };
 
+export type ConstructPortInfoReply =
+    | {
+          type: typeof ServerTag.ConstructPortInfoResult;
+          mode: 'build';
+          /** Per-class cost rows (1..8). */
+          classes: Array<{
+              portClass: number;
+              code: string;
+              credits: number;
+              ore: number;
+              org: number;
+              equ: number;
+              days: number;
+              dailyOre: number;
+              dailyOrg: number;
+              dailyEqu: number;
+              importExport: 'Import' | 'Export';
+          }>;
+          initialProductivity: number;
+          credits: number;
+          existingConstruction?: {
+              portClass: number;
+              portName: string;
+              daysCompleted: number;
+              daysRequired: number;
+          };
+      }
+    | {
+          type: typeof ServerTag.ConstructPortInfoResult;
+          mode: 'noPlanet';
+      }
+    | {
+          type: typeof ServerTag.ConstructPortInfoResult;
+          mode: 'hasPort';
+      };
+
+export type BuildPortReply =
+    | {
+          type: typeof ServerTag.BuildPortResult;
+          outcome: 'started';
+          portClass: number;
+          portName: string;
+          daysRequired: number;
+          credits: number;
+          experienceGained: number;
+          reputationGained: number;
+      }
+    | {
+          type: typeof ServerTag.BuildPortResult;
+          outcome: 'error';
+          message: string;
+      };
+
+export type UpgradePortInfoReply =
+    | {
+          type: typeof ServerTag.UpgradePortInfoResult;
+          mode: 'upgrade';
+          portName: string;
+          portClass: number;
+          credits: number;
+          commodities: Array<{
+              commodity: 'fuel' | 'organics' | 'equipment';
+              action: 'B' | 'S';
+              currentProd: number;
+              currentMax: number;
+              currentStock: number;
+              currentTradingPct: number;
+              unitCost: number;
+          }>;
+      }
+    | {
+          type: typeof ServerTag.UpgradePortInfoResult;
+          mode: 'noPort';
+      };
+
+export type UpgradePortReply =
+    | {
+          type: typeof ServerTag.UpgradePortResult;
+          outcome: 'upgraded';
+          commodity: 'fuel' | 'organics' | 'equipment';
+          units: number;
+          creditsSpent: number;
+          credits: number;
+          experienceGained: number;
+          reputationGained: number;
+          newProd: number;
+          newMax: number;
+          newStock: number;
+      }
+    | {
+          type: typeof ServerTag.UpgradePortResult;
+          outcome: 'error';
+          message: string;
+      };
+
 export type ServerEnvelope =
     | WelcomeEvent
     | PlayerMovedEvent
@@ -1094,4 +1189,8 @@ export type ServerEnvelope =
     | HailIncomingEvent
     | ClanMemoNotificationEvent
     | NoticeEvent
+    | ConstructPortInfoReply
+    | BuildPortReply
+    | UpgradePortInfoReply
+    | UpgradePortReply
     | ErrorReply;

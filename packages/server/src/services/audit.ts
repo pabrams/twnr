@@ -14,7 +14,9 @@ export type AuditActionType =
     | 'buy_holds'
     | 'buy_drones'
     | 'buy_shields'
-    | 'buy_hardware';
+    | 'buy_hardware'
+    | 'build_port'
+    | 'upgrade_port';
 
 export type AuditEntryForSign = {
     player_id: number;

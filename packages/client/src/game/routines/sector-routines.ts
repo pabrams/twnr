@@ -1,4 +1,4 @@
-import { ClientTag, Menu, ServerTag } from '@twnr/shared';
+import { ClientTag, Menu, ServerTag, type ServerEnvelope as ServerEnvelopeT } from '@twnr/shared';
 import { render } from '../renderer.js';
 import { COMPUTER, EVENT, NOTIFY, PANEL, PLANET, SECTOR } from '../messages/index.js';
 import {
@@ -116,6 +116,194 @@ registerRoutine('deploy_drones_info', async (ctx) => {
     if (ownership === null) return;
     ctx.io.sendMsg({ type: ClientTag.DeployDrones, quantity: qty, ownership });
 });
+
+registerRoutine('order_starport', async (ctx) => {
+    echoCommand(ctx, 'orderStarport');
+    ctx.io.sendMsg({ type: ClientTag.ConstructPortInfo });
+    const info = await awaitResponse(ctx, [
+        ServerTag.ConstructPortInfoResult,
+        ServerTag.UpgradePortInfoResult,
+        ServerTag.Error,
+    ]);
+    if (info === null) return;
+
+    if (info.type === ServerTag.ConstructPortInfoResult) {
+        if (info.mode === 'hasPort') {
+            ctx.io.term.writeln('');
+            ctx.io.term.writeln('There is already a port in this sector.');
+            return;
+        }
+        if (info.mode === 'noPlanet') {
+            ctx.io.term.writeln('');
+            ctx.io.term.writeln('You need a planet in this sector before you can construct a port.');
+            return;
+        }
+        if (info.mode === 'build') {
+            await runBuildFlow(ctx, info);
+            return;
+        }
+    }
+    if (info.type === ServerTag.UpgradePortInfoResult) {
+        if (info.mode === 'noPort') {
+            ctx.io.term.writeln('');
+            ctx.io.term.writeln('No port here to upgrade.');
+            return;
+        }
+        await runUpgradeFlow(ctx, info);
+    }
+});
+
+async function runBuildFlow(
+    ctx: Parameters<Parameters<typeof registerRoutine>[1]>[0],
+    info: Extract<
+        ServerEnvelopeT,
+        { type: typeof ServerTag.ConstructPortInfoResult; mode: 'build' }
+    >,
+): Promise<void> {
+    const { term } = ctx.io;
+    term.writeln('');
+    term.writeln('   StarPort Construction          Initial Construction Costs');
+    term.writeln(' Port Class   Ore  Org  Equ    Credits  Ore  Org  Equ  Days   Import/Export');
+    term.writeln(' ---------- - --- --- ----   --------- ---- ---- ---- ----   -------------');
+    for (const row of info.classes) {
+        const credits = row.credits.toLocaleString();
+        const code = row.code;
+        const fmtCode = `${code[0]}    ${code[1]}    ${code[2]}`;
+        term.writeln(
+            `     ${row.portClass}      ${fmtCode}   ` +
+                `${credits.padStart(7)} ${String(row.ore).padStart(4)} ` +
+                `${String(row.org).padStart(4)} ${String(row.equ).padStart(4)} ` +
+                `${String(row.days).padStart(4)}   ${row.importExport}`,
+        );
+    }
+    term.writeln('');
+    term.writeln(`Ports will initially produce ${info.initialProductivity} units/day in each category`);
+    term.writeln(`You have ${info.credits.toLocaleString()} credits.`);
+    if (info.existingConstruction) {
+        const ec = info.existingConstruction;
+        term.writeln('');
+        term.writeln(
+            `Note: construction of "${ec.portName}" (Class ${ec.portClass}) is already underway here — ` +
+                `${ec.daysCompleted}/${ec.daysRequired} days complete.`,
+        );
+        return;
+    }
+
+    const classChoice = await askChar(
+        ctx,
+        'What Class of port do you want to build? (1-8, Q to quit) ',
+        ['1', '2', '3', '4', '5', '6', '7', '8', 'q'],
+    );
+    if (classChoice === null || classChoice === 'q') return;
+    const portClass = parseInt(classChoice, 10);
+    const chosen = info.classes.find((c) => c.portClass === portClass);
+    if (!chosen) return;
+
+    term.writeln('');
+    term.writeln(`Port Class ${chosen.portClass} will require ${chosen.credits.toLocaleString()} credits.`);
+    term.writeln('A Planet capable of producing the following per day:');
+    term.writeln(`${chosen.dailyOre} units of Ore/day for ${chosen.days} days`);
+    term.writeln(`${chosen.dailyOrg} units of Organics/day for ${chosen.days} days`);
+    term.writeln(`${chosen.dailyEqu} units of Equipment/day for ${chosen.days} days`);
+    const confirm = await askConfirm(ctx, 'Do you want to initiate construction on this port? ', {
+        defaultValue: false,
+    });
+    if (!confirm) return;
+
+    term.writeln('What do you want to name this StarPort?');
+    const name = await askLine(ctx, '[---------------------------------------]\r\n');
+    if (name === null) return;
+    const trimmed = name.trim();
+    if (trimmed.length === 0) return;
+
+    ctx.io.sendMsg({ type: ClientTag.BuildPort, portClass, portName: trimmed });
+    const result = await awaitResponse(ctx, [ServerTag.BuildPortResult, ServerTag.Error]);
+    if (result === null) return;
+    if (result.type === ServerTag.BuildPortResult) {
+        if (result.outcome === 'started') {
+            term.writeln(
+                `For building this Starport, you receive ${result.experienceGained} experience point(s).`,
+            );
+            term.writeln(
+                `and your alignment went up by ${result.reputationGained} point(s).`,
+            );
+            term.writeln(
+                `Construction underway. Daily advances will be reported by mail (${result.daysRequired} days total).`,
+            );
+        } else {
+            term.writeln(`Construction failed: ${result.message}`);
+        }
+    }
+}
+
+async function runUpgradeFlow(
+    ctx: Parameters<Parameters<typeof registerRoutine>[1]>[0],
+    info: Extract<
+        ServerEnvelopeT,
+        { type: typeof ServerTag.UpgradePortInfoResult; mode: 'upgrade' }
+    >,
+): Promise<void> {
+    const { term } = ctx.io;
+    term.writeln('');
+    term.writeln('(Upgrade StarPort)');
+    term.writeln('   Upgrade Starport Production');
+    const fmtRow = (i: number, label: string, unitCost: number, action: string, prod: number, max: number, stock: number, tradingPct: number) =>
+        ` ${i} ${label.padEnd(11)} costs $${unitCost}/unit   ` +
+        `(${action}, prod=${prod}, max=${max}, stock=${stock}, ${tradingPct}%)`;
+    const labels = ['Fuel Ore', 'Organics', 'Equipment'];
+    for (let i = 0; i < info.commodities.length; i++) {
+        const c = info.commodities[i];
+        term.writeln(
+            fmtRow(
+                i + 1,
+                labels[i],
+                c.unitCost,
+                c.action,
+                c.currentProd,
+                c.currentMax,
+                c.currentStock,
+                c.currentTradingPct,
+            ),
+        );
+    }
+    term.writeln(`You have ${info.credits.toLocaleString()} credits.`);
+    const choice = await askChar(ctx, 'Choose 1, 2, 3 or Q to quit ', ['1', '2', '3', 'q']);
+    if (choice === null || choice === 'q') return;
+    const idx = parseInt(choice, 10) - 1;
+    const c = info.commodities[idx];
+    if (!c) return;
+
+    const affordable = Math.floor(info.credits / c.unitCost);
+    if (affordable <= 0) {
+        term.writeln(`Insufficient credits to upgrade ${labels[idx]} (need at least $${c.unitCost}).`);
+        return;
+    }
+    term.writeln('');
+    term.writeln(`That will cost ${c.unitCost} per unit to upgrade the ${labels[idx]}`);
+    const units = await askNumber(ctx, `How many units do you want to invest? (${affordable} max, 0 to quit) `, {
+        min: 0,
+        defaultValue: 0,
+    });
+    if (units === null || units <= 0) return;
+    const clamped = Math.min(units, affordable);
+
+    ctx.io.sendMsg({ type: ClientTag.UpgradePort, commodity: c.commodity, units: clamped });
+    const result = await awaitResponse(ctx, [ServerTag.UpgradePortResult, ServerTag.Error]);
+    if (result === null) return;
+    if (result.type === ServerTag.UpgradePortResult) {
+        if (result.outcome === 'upgraded') {
+            term.writeln(
+                `For upgrading this StarPort, you receive ${result.experienceGained} experience point(s).`,
+            );
+            term.writeln(
+                `and your alignment went up by ${result.reputationGained} point(s).`,
+            );
+            term.writeln('StarPort upgraded!');
+        } else {
+            term.writeln(`Upgrade failed: ${result.message}`);
+        }
+    }
+}
 
 registerRoutine('jettison_menu', async (ctx) => {
     echoCommand(ctx, 'jettison');

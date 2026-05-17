@@ -431,18 +431,22 @@ export const connectDB = async (): Promise<void> => {
         END IF;
       END $$;
 
-      -- Port columns store "trading capacity remaining": for an S-action
-      -- commodity this is current stock for sale, for a B-action it is the
-      -- buying capacity still available. Both decrement on a player trade and
-      -- regenerate toward *_max at *_prod units/hour (max = prod * 10). Per-
-      -- commodity MCIC ("Maximum Change In Cost") drives the dynamic price
-      -- curve and haggle headroom; price is computed at trade time, never
-      -- stored. See shared/port-pricing.ts.
+      -- Port columns store physical commodity stock: for an S-action
+      -- commodity this is inventory available for sale, for a B-action it is
+      -- stock the port has accumulated by buying (or via upgrades), which
+      -- regenerates back toward 0 over time. Per-commodity MCIC ("Maximum
+      -- Change In Cost") drives the dynamic price curve and haggle headroom;
+      -- price is computed at trade time, never stored. See
+      -- shared/port-pricing.ts. Owner columns mirror ships/planets: both null
+      -- = NPC port (bigbang); XOR otherwise. Player-built ports start with
+      -- prod=100 per commodity and fixed-magnitude MCIC.
       CREATE TABLE IF NOT EXISTS ports (
         id SERIAL PRIMARY KEY,
         sector_id INTEGER NOT NULL UNIQUE REFERENCES sectors(id) ON DELETE CASCADE,
         class INTEGER NOT NULL,
         name VARCHAR(255) NOT NULL,
+        owner_player_id INTEGER REFERENCES players(id) ON DELETE SET NULL,
+        owner_clan_id INTEGER REFERENCES clans(id) ON DELETE SET NULL,
         fuel INTEGER NOT NULL DEFAULT 1000,
         fuel_max INTEGER NOT NULL DEFAULT 1000,
         fuel_prod INTEGER NOT NULL DEFAULT 100,
@@ -458,7 +462,32 @@ export const connectDB = async (): Promise<void> => {
         last_production_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         fuel_prod_accrual DOUBLE PRECISION NOT NULL DEFAULT 0,
         org_prod_accrual DOUBLE PRECISION NOT NULL DEFAULT 0,
-        equ_prod_accrual DOUBLE PRECISION NOT NULL DEFAULT 0
+        equ_prod_accrual DOUBLE PRECISION NOT NULL DEFAULT 0,
+        CONSTRAINT ports_single_owner_type
+          CHECK (NOT (owner_player_id IS NOT NULL AND owner_clan_id IS NOT NULL))
+      );
+
+      -- In-progress port construction. One row per sector currently being
+      -- built; sector PK guarantees only one build per sector.
+      -- Hourly job attempts one "advance" every 24h: drains daily-quantity
+      -- commodities from a planet in the sector and bumps days_completed.
+      -- If the sector has no planet with enough stock, the day skips
+      -- (last_advance_attempt_at still moves so we don't retry within 24h).
+      -- When days_completed reaches days_required, the row is promoted to a
+      -- ports row and deleted.
+      CREATE TABLE IF NOT EXISTS port_construction (
+        sector_id INTEGER PRIMARY KEY REFERENCES sectors(id) ON DELETE CASCADE,
+        builder_player_id INTEGER REFERENCES players(id) ON DELETE SET NULL,
+        owner_player_id INTEGER REFERENCES players(id) ON DELETE SET NULL,
+        owner_clan_id INTEGER REFERENCES clans(id) ON DELETE SET NULL,
+        port_class SMALLINT NOT NULL,
+        port_name VARCHAR(255) NOT NULL,
+        started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        days_required SMALLINT NOT NULL,
+        days_completed SMALLINT NOT NULL DEFAULT 0,
+        last_advance_attempt_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        CONSTRAINT port_construction_single_owner_type
+          CHECK (NOT (owner_player_id IS NOT NULL AND owner_clan_id IS NOT NULL))
       );
 
       CREATE TABLE IF NOT EXISTS planets (
