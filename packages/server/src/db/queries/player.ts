@@ -25,6 +25,22 @@ export async function getPlayerReputationForUpdate(
 }
 
 /**
+ * Snapshot reputation+experience under a FOR UPDATE lock. Used by combat
+ * reward calculations so the attacker-bonus math sees a consistent
+ * defender state even if other transactions are mid-flight.
+ */
+export async function getPlayerRepExpForUpdate(
+    playerId: number,
+    db: Queryable = pool,
+): Promise<{ reputation: number; experience: number }> {
+    const res = await db.query<{ reputation: number; experience: number }>(
+        'SELECT reputation, experience FROM players WHERE id = $1 FOR UPDATE',
+        [playerId],
+    );
+    return res.rows[0] ?? { reputation: 0, experience: 0 };
+}
+
+/**
  * Atomically mark "first colos jettison today" for a player. Returns true
  * only on the FIRST call within a calendar day (UTC); subsequent calls the
  * same day return false. Update + check happens in one statement so two

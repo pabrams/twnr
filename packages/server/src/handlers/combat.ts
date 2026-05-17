@@ -11,8 +11,19 @@ import {
     setShipDronesAndShields,
     destroyShipRecord,
 } from '../db/queries/ship.js';
-import { listPlayersInSector, getAttackTargetInfo } from '../db/queries/player.js';
+import {
+    adjustReputationAndExperience,
+    getAttackTargetInfo,
+    getPlayerRepExpForUpdate,
+    listPlayersInSector,
+} from '../db/queries/player.js';
 import { getSectorBeacon } from '../db/queries/beacons.js';
+import {
+    pvpAttackerDeltas,
+    pvpMatchup,
+    shipDestroyAttackerBonus,
+    shipDestroyDefenderPenalty,
+} from '../services/combat-rewards.js';
 
 export async function serveGetAttackTargets(playerId: number): Promise<void> {
     const player = players[playerId];
@@ -102,6 +113,53 @@ export async function serveAttackShip(attackerId: number, data: AttackShipComman
                 await destroyShipRecord(targetPlayerId, client);
             } else {
                 await setShipDronesAndShields(targetPlayerId, targetDrones, targetShields, client);
+            }
+
+            // Combat rewards: attacker gains exp/rep based on the figs it
+            // lost and the defender's pre-penalty rep. On destroy the
+            // attacker gets a bonus from the defender's PRE-penalty snapshot
+            // and the defender takes a self-percentage penalty. Defender
+            // accrues nothing unless destroyed.
+            const attackerSnap = await getPlayerRepExpForUpdate(attackerId, client);
+            const defenderSnap = await getPlayerRepExpForUpdate(targetPlayerId, client);
+            const matchup = pvpMatchup(attackerSnap.reputation, defenderSnap.reputation);
+
+            const combat = pvpAttackerDeltas({
+                attackerDronesLost,
+                defenderRep: defenderSnap.reputation,
+                matchup,
+            });
+            let attackerExpDelta = combat.experienceDelta;
+            let attackerRepDelta = combat.reputationDelta;
+
+            if (destroyed) {
+                const bonus = shipDestroyAttackerBonus({
+                    defenderRepBefore: defenderSnap.reputation,
+                    defenderExpBefore: defenderSnap.experience,
+                });
+                attackerExpDelta += bonus.experienceDelta;
+                attackerRepDelta += bonus.reputationDelta;
+
+                const penalty = shipDestroyDefenderPenalty({
+                    defenderRepBefore: defenderSnap.reputation,
+                    defenderExpBefore: defenderSnap.experience,
+                });
+                if (penalty.experienceDelta !== 0 || penalty.reputationDelta !== 0) {
+                    await adjustReputationAndExperience(
+                        targetPlayerId,
+                        penalty.reputationDelta,
+                        penalty.experienceDelta,
+                        client,
+                    );
+                }
+            }
+            if (attackerExpDelta !== 0 || attackerRepDelta !== 0) {
+                await adjustReputationAndExperience(
+                    attackerId,
+                    attackerRepDelta,
+                    attackerExpDelta,
+                    client,
+                );
             }
 
             return { destroyed, attackerDronesLost, defenderDronesLost, shieldsLost };

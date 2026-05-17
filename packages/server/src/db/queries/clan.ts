@@ -141,6 +141,22 @@ export async function getClanMembers(
     return res.rows;
 }
 
+/**
+ * Sum of reputation across all members of a clan. Used as the "corp
+ * alignment" for clan-owned sector fighters when computing combat rewards.
+ * Returns 0 for an empty clan.
+ */
+export async function getClanTotalReputation(
+    clanId: number,
+    db: Queryable = pool,
+): Promise<number> {
+    const res = await db.query<{ sum: string | null }>(
+        'SELECT COALESCE(SUM(reputation), 0)::text AS sum FROM players WHERE clan_id = $1',
+        [clanId],
+    );
+    return Number(res.rows[0]?.sum ?? 0);
+}
+
 export async function getClanMemberCount(clanId: number, db: Queryable = pool): Promise<number> {
     const res = await db.query<{ c: number }>(
         'SELECT COUNT(*)::int AS c FROM players WHERE clan_id = $1',

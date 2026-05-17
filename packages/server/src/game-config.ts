@@ -33,13 +33,16 @@ export interface Class0Prices {
 export const class0Prices: Class0Prices = loadJson<Class0Prices>('class0-prices.json');
 
 /**
- * Per-feature deltas to a player's reputation and experience. One key per
- * feature that mutates the field. When adding a new feature that should
- * shift either field, add an entry here AND to the JSON file — never
- * hardcode the delta in handler code.
+ * Per-feature deltas + tuning factors for a player's reputation and
+ * experience. `amountChangeFor` holds fixed integer deltas keyed by feature
+ * name. `factorsFor` holds tunable multipliers/divisors for formula-driven
+ * features (combat, ship destroy, podding). When adding a new feature that
+ * shifts either field, add an entry to one or both sections AND to the JSON
+ * file — never hardcode in handler code.
  */
 export interface AttributeDeltas {
     amountChangeFor: Record<string, number>;
+    factorsFor: Record<string, number>;
 }
 
 export const reputationDeltas: AttributeDeltas = loadJson<AttributeDeltas>('reputation.json');

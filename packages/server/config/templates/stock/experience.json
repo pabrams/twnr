@@ -5,5 +5,16 @@
     "redCreatesPlanet": 25,
     "neutralCreatesPlanet": 25,
     "blueJettisonsColosOncePerDay": 0
+  },
+  "factorsFor": {
+    "pvpCombat_yourFigsLostDivisor_mixedColor": 15,
+    "pvpCombat_yourFigsLostDivisor_sameColor": 35,
+    "pvpCombat_yourFigsLostDivisor_neutralCombatant": 25,
+    "pvfigsCombat_yourFigsLostDivisor_mixedColor": 15,
+    "pvfigsCombat_yourFigsLostDivisor_sameColor_blueOrNeutral": 35,
+    "shipDestroyBonus_fractionOfEnemyExp": 0.10,
+    "shipDestroyPenalty_fractionOfSelfExp": 0.50,
+    "podBonus_fractionOfEnemyExp": 0.10,
+    "podPenalty_fractionOfSelfExp": 0.10
   }
 }

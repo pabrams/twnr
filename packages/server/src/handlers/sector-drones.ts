@@ -7,7 +7,14 @@ import { getSectorDrones, resolveSectorId } from '../services/sector-lookup.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
 import { isInEncounter } from '../services/encounter.js';
 import { withTransaction, AbortTransaction } from '../db/index.js';
-import { moveToSector, getPreviousSectorNumber, getOnPlanetId } from '../db/queries/player.js';
+import {
+    adjustReputationAndExperience,
+    getOnPlanetId,
+    getPlayerRepExpForUpdate,
+    getPlayerReputationForUpdate,
+    getPreviousSectorNumber,
+    moveToSector,
+} from '../db/queries/player.js';
 import {
     moveShipToSector,
     setShipDrones,
@@ -25,7 +32,8 @@ import {
     getDeployedDronesByOwner,
 } from '../db/queries/drones.js';
 import { resolveMinesOnEntry } from '../services/mine-encounter.js';
-import { getPlayerClanId, getClanMembers } from '../db/queries/clan.js';
+import { getPlayerClanId, getClanMembers, getClanTotalReputation } from '../db/queries/clan.js';
+import { pvfigsAttackerDeltas, pvfigsMatchup } from '../services/combat-rewards.js';
 import { formatOwner, ownershipFrom } from '../services/owner-format.js';
 
 export async function serveListDeployedDrones(playerId: number): Promise<void> {
@@ -266,6 +274,7 @@ export async function serveAttackSectorDrones(
 
             const sectorDroneQty = existing.quantity;
             const ownerId = existing.owner_player_id;
+            const ownerClanId = existing.owner_clan_id;
 
             const k = Math.min(dronesToAttack, sectorDroneQty);
             const newShipDrones = shipDrones - k;
@@ -278,6 +287,33 @@ export async function serveAttackSectorDrones(
                 await deleteSectorDrones(sectorDbId, client);
             } else {
                 await updateSectorDroneQuantity(sectorDbId, newSectorDrones, client);
+            }
+
+            // PvFigs combat rewards for the attacker only — owner accrues
+            // nothing. Owner alignment is the owner's reputation (single
+            // player) or the sum of clan members' reputations (clan).
+            if (k > 0) {
+                const playerSnap = await getPlayerRepExpForUpdate(playerId, client);
+                let ownerAlign = 0;
+                if (ownerId !== null) {
+                    ownerAlign = await getPlayerReputationForUpdate(ownerId, client);
+                } else if (ownerClanId !== null) {
+                    ownerAlign = await getClanTotalReputation(ownerClanId, client);
+                }
+                const matchup = pvfigsMatchup(playerSnap.reputation, ownerAlign);
+                const deltas = pvfigsAttackerDeltas({
+                    playerDronesLost: k,
+                    ownerAlign,
+                    matchup,
+                });
+                if (deltas.experienceDelta !== 0 || deltas.reputationDelta !== 0) {
+                    await adjustReputationAndExperience(
+                        playerId,
+                        deltas.reputationDelta,
+                        deltas.experienceDelta,
+                        client,
+                    );
+                }
             }
 
             return { ownerId, k, newShipDrones, newSectorDrones, victory };
