@@ -42,6 +42,7 @@ import {
 import { checkAndDeductTurns } from '../turn-logic.js';
 import { cargoUsed, formatCargo } from './cargo-utils.js';
 import { recordCreditChange } from '../services/audit.js';
+import { notifyAttributeChange, notifyTurnChange } from '../services/notify.js';
 import { experienceDeltas } from '../game-config.js';
 
 type HaggleSession = {
@@ -272,6 +273,7 @@ export async function serveHaggleCounter(
         } catch (err) {
             console.error('Haggle reject turn deduction failed', err);
         }
+        if (turnsUsed) notifyTurnChange(playerId, turnsUsed, 'rejected haggle');
         sendEnvelope(playerId, {
             type: ServerTag.HaggleResponseResult,
             outcome: 'rejected',
@@ -490,6 +492,8 @@ async function settleTrade(
 
         if (!result) return;
         clearHaggleSession(playerId);
+        notifyAttributeChange(playerId, 0, result.experienceGained ?? 0, 'trading');
+        if (result.turnsUsed) notifyTurnChange(playerId, result.turnsUsed, 'trading');
         sendEnvelope(playerId, {
             type: ServerTag.HaggleResponseResult,
             outcome: 'accepted',

@@ -39,6 +39,7 @@ import { getTowingPlayerForShip, clearTowedShip } from '../db/queries/tow.js';
 import { getPlayerShipId } from '../db/queries/player.js';
 import { pool } from '../db/index.js';
 import { experienceDeltas } from '../game-config.js';
+import { notifyAttributeChange, notifyTurnChange } from '../services/notify.js';
 
 const EMPTY_CARGO = { fuel: 0, organics: 0, equipment: 0, colonists: 0 };
 
@@ -437,6 +438,12 @@ export async function servePortTransaction(
         });
 
         if (!result) return;
+
+        const xpDelta = experienceDeltas.amountChangeFor.portTrade ?? 0;
+        notifyAttributeChange(playerId, 0, xpDelta, 'trading');
+        if ('turnsUsed' in result && result.turnsUsed) {
+            notifyTurnChange(playerId, result.turnsUsed, 'trading');
+        }
 
         sendEnvelope(playerId, {
             type: ServerTag.PortTransactionResult,

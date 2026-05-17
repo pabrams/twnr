@@ -12,6 +12,7 @@ import {
 } from '../db/queries/ship.js';
 import { getDeployedDronesByOwnerBySector } from '../db/queries/drones.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
+import { notifyTurnChange } from '../services/notify.js';
 import { resolveMinesOnEntry } from '../services/mine-encounter.js';
 
 export async function serveHyperspaceJump(
@@ -115,6 +116,9 @@ export async function serveHyperspaceJump(
         markSectorVisited(playerId, targetSectorId),
     ]);
 
+    if (turnResult.turnsUsed) {
+        notifyTurnChange(playerId, turnResult.turnsUsed, 'hyperspace jump');
+    }
     sendEnvelope(playerId, {
         type: ServerTag.HyperspaceJumpResult,
         targetSector,

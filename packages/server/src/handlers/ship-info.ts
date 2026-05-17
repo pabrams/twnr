@@ -24,6 +24,7 @@ import { getPlayerClanId, getClanById } from '../db/queries/clan.js';
 import { getPlayerTurns } from '../db/queries/turn.js';
 import { getGraph } from '../state/graph-cache.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
+import { notifyTurnChange } from '../services/notify.js';
 import { cargoUsed } from './cargo-utils.js';
 import { formatOwner, ownershipFrom } from '../services/owner-format.js';
 
@@ -287,6 +288,9 @@ export async function serveTransportToShip(
     if (!turnResult.allowed) {
         sendError(playerId, 'Insufficient turns');
         return;
+    }
+    if (turnResult.turnsUsed) {
+        notifyTurnChange(playerId, turnResult.turnsUsed, 'transporter pad');
     }
 
     await Promise.all([

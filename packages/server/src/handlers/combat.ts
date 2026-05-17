@@ -18,6 +18,7 @@ import {
     listPlayersInSector,
 } from '../db/queries/player.js';
 import { getSectorBeacon } from '../db/queries/beacons.js';
+import { notifyAttributeChange } from '../services/notify.js';
 import {
     pvpAttackerDeltas,
     pvpMatchup,
@@ -131,6 +132,8 @@ export async function serveAttackShip(attackerId: number, data: AttackShipComman
             });
             let attackerExpDelta = combat.experienceDelta;
             let attackerRepDelta = combat.reputationDelta;
+            let defenderExpDelta = 0;
+            let defenderRepDelta = 0;
 
             if (destroyed) {
                 const bonus = shipDestroyAttackerBonus({
@@ -144,6 +147,8 @@ export async function serveAttackShip(attackerId: number, data: AttackShipComman
                     defenderRepBefore: defenderSnap.reputation,
                     defenderExpBefore: defenderSnap.experience,
                 });
+                defenderExpDelta = penalty.experienceDelta;
+                defenderRepDelta = penalty.reputationDelta;
                 if (penalty.experienceDelta !== 0 || penalty.reputationDelta !== 0) {
                     await adjustReputationAndExperience(
                         targetPlayerId,
@@ -162,12 +167,35 @@ export async function serveAttackShip(attackerId: number, data: AttackShipComman
                 );
             }
 
-            return { destroyed, attackerDronesLost, defenderDronesLost, shieldsLost };
+            return {
+                destroyed,
+                attackerDronesLost,
+                defenderDronesLost,
+                shieldsLost,
+                attackerExpDelta,
+                attackerRepDelta,
+                defenderExpDelta,
+                defenderRepDelta,
+            };
         });
 
         if (!result) return;
 
         const { destroyed, attackerDronesLost, defenderDronesLost, shieldsLost } = result;
+        notifyAttributeChange(
+            attackerId,
+            result.attackerRepDelta,
+            result.attackerExpDelta,
+            'combat',
+        );
+        if (targetPlayerId !== null) {
+            notifyAttributeChange(
+                targetPlayerId,
+                result.defenderRepDelta,
+                result.defenderExpDelta,
+                'combat',
+            );
+        }
 
         const resultMsg: ServerEnvelope = {
             type: ServerTag.AttackShipResult,

@@ -8,6 +8,7 @@ import {
     markFirstColosJettisonOfDay,
 } from '../db/queries/player.js';
 import { reputationDeltas, experienceDeltas } from '../game-config.js';
+import { notifyAttributeChange } from '../services/notify.js';
 
 export async function serveJettison(playerId: number): Promise<void> {
     const cargo = await getShipCargo(playerId);
@@ -20,6 +21,8 @@ export async function serveJettison(playerId: number): Promise<void> {
         return;
     }
 
+    let appliedRep = 0;
+    let appliedExp = 0;
     await withTransaction(async (client) => {
         await zeroShipCargo(playerId, client);
 
@@ -32,16 +35,20 @@ export async function serveJettison(playerId: number): Promise<void> {
                 const isFirstToday = await markFirstColosJettisonOfDay(playerId, client);
                 if (isFirstToday) {
                     const key = 'blueJettisonsColosOncePerDay';
+                    appliedRep = reputationDeltas.amountChangeFor[key] ?? 0;
+                    appliedExp = experienceDeltas.amountChangeFor[key] ?? 0;
                     await adjustReputationAndExperience(
                         playerId,
-                        reputationDeltas.amountChangeFor[key] ?? 0,
-                        experienceDeltas.amountChangeFor[key] ?? 0,
+                        appliedRep,
+                        appliedExp,
                         client,
                     );
                 }
             }
         }
     });
+
+    notifyAttributeChange(playerId, appliedRep, appliedExp, 'jettisoning colonists');
 
     await sendEnvelope(playerId, {
         type: ServerTag.JettisonResult,
