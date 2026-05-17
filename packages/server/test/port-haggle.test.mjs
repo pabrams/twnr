@@ -94,9 +94,21 @@ describe('Haggle — processHaggleCounter (S-port, player buys)', () => {
         }
     });
 
-    it('issues final offer when out of mid rounds', () => {
-        const step = processHaggleCounter({ ...base, midRoundsLeft: 0, playerCounter: 800 });
+    it('issues final offer when out of mid rounds and port can\'t fully close the gap', () => {
+        const step = processHaggleCounter({
+            ...base,
+            midRoundsLeft: 0,
+            portCurrent: 950,
+            playerCounter: 780,
+        });
         assert.equal(step.outcome, 'final');
+        if (step.outcome === 'final') assert.equal(step.newPortOffer, 800);
+    });
+
+    it('accepts on final-offer attempt when concession would meet the counter', () => {
+        const step = processHaggleCounter({ ...base, midRoundsLeft: 0, playerCounter: 800 });
+        assert.equal(step.outcome, 'accept');
+        if (step.outcome === 'accept') assert.equal(step.finalTotal, 800);
     });
 
     it('accepts when player counter is within tolerance of port current', () => {
@@ -176,5 +188,35 @@ describe('Haggle — gap-analysis sample (Org sell port)', () => {
 describe('Haggle — tolerance constant', () => {
     it('is 10 credits', () => {
         assert.equal(HAGGLE_ACCEPT_TOLERANCE_CREDITS, 10);
+    });
+});
+
+describe('Haggle — regression: final offer never matches player counter', () => {
+    it('accepts when final concession would meet/exceed the player counter', () => {
+        const step = processHaggleCounter({
+            action: 'B',
+            commodity: 'equipment',
+            mcic: -60,
+            initialOffer: 15840,
+            portCurrent: 15936,
+            playerCounter: 15999,
+            midRoundsLeft: 0,
+        });
+        assert.equal(step.outcome, 'accept');
+        if (step.outcome === 'accept') assert.equal(step.finalTotal, 15999);
+    });
+
+    it('still issues a final offer when the concession is strictly less than the gap', () => {
+        const step = processHaggleCounter({
+            action: 'B',
+            commodity: 'equipment',
+            mcic: -60,
+            initialOffer: 15840,
+            portCurrent: 15850,
+            playerCounter: 16500,
+            midRoundsLeft: 0,
+        });
+        assert.equal(step.outcome, 'final');
+        if (step.outcome === 'final') assert.equal(step.newPortOffer, 15875);
     });
 });
