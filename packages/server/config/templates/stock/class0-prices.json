@@ -1,5 +1,7 @@
 {
   "dronePrice": 20,
   "shieldPrice": 10,
-  "holdPrice": 50
+  "holdBaseCostMin": 151,
+  "holdBaseCostMax": 249,
+  "holdCostPeriodDays": 18
 }
