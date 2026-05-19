@@ -11,6 +11,7 @@ export const COMMAND = makeDomain('COMMAND', {
     moveMenu: '[bg:b]<Move>[/bg:b]',
     moveToPrevious: '[bw:b]<Move to Previous>[/bw:b]',
     sectorDisplay: '[bg:b]<Re-Display>[/bg:b]',
+    sectorScan: '[bg:b]<Sector Scan>[/bg:b]',
     playersOnline: '[bg:b]<Players Online>[/bg:b]',
     shortestPath:
         '[bg:b]<Shortest Path>[/bg:b] [g]from[/g] [bc]{from}[/bc] [g]to[/g] [bc]{to}[/bc]',
