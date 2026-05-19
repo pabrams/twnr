@@ -9,6 +9,8 @@ export const SECTOR = makeDomain('SECTOR', {
     header: '[bg]Sector[/bg]  [by]:[/by] [bc]{sector}[/bc]',
 
     port: '[mg]Port[/mg]    [by]:[/by] [bc]{name}[/bc][by],[/by] [mg]Class[/mg] [bc]{class}[/bc] [mg]([/mg]{label}[mg])[/mg]',
+    portUnderConstruction:
+        '[mg]Port[/mg]    [by]:[/by] [bc]{name}[/bc][by],[/by] [mg]Class[/mg] [bc]{class}[/bc] [mg]([/mg]{label}[mg])[/mg] [by]([/by][br]Under Construction - {days} days left[/br][by])[/by]',
 
     dronesYours: '[mg]Drones[/mg]  [by]:[/by] [bc]{qty}[/bc] [mg](yours)[/mg]',
     dronesYourClan: '[mg]Drones[/mg]  [by]:[/by] [bc]{qty}[/bc] [mg](belong to your clan)[/mg]',

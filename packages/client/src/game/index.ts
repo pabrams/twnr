@@ -98,6 +98,7 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
             mode: Menu.Sector,
             currentSector: 0,
             currentPort: null,
+            currentPortConstruction: null,
             dockedPortInfo: null,
             visitedSet: new Set<number>(),
             totalSectors: 0,

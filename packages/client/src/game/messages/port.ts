@@ -8,6 +8,8 @@ export const PORT = makeDomain('PORT', {
     menuHeader:
         '[bc]{name}[/bc][by],[/by] [mg]Class[/mg] [bc]{class}[/bc] [mg]([/mg]{label}[mg])[/mg]',
     menuNoPort: '\r\n[br]No port in this sector.[/br]',
+    menuUnderConstruction:
+        '\r\n[br]{name} is still under construction - {days} days remaining.[/br]',
 
     classLabel0: '[bc]Special[/bc]',
     classLabel1: '[g]B[/g][g]B[/g][bc]S[/bc]',

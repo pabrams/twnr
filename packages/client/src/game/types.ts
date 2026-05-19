@@ -113,6 +113,7 @@ export interface WorldState {
     mode: MenuName;
     currentSector: number;
     currentPort: { class: number; name: string } | null;
+    currentPortConstruction: { class: number; name: string; daysLeft: number } | null;
     dockedPortInfo: PortInfoReply | null;
     visitedSet: Set<number>;
     totalSectors: number;

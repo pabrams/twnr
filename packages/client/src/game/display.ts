@@ -76,6 +76,7 @@ export function showSectorDisplay(ctx: DisplayCtx, data: SectorDisplayData) {
         warps,
         players,
         port,
+        portConstruction,
         sectorDrones,
         planets,
         ships,
@@ -86,6 +87,7 @@ export function showSectorDisplay(ctx: DisplayCtx, data: SectorDisplayData) {
     ctx.world.visitedSet.add(sector);
     ctx.world.currentSector = sector;
     ctx.world.currentPort = port ?? null;
+    ctx.world.currentPortConstruction = portConstruction ?? null;
     ctx.world.currentWarps = warps;
     const viewerId = ctx.player.id;
     const viewerClanId = ctx.player.clanId;
@@ -103,6 +105,15 @@ export function showSectorDisplay(ctx: DisplayCtx, data: SectorDisplayData) {
                 name: port.name,
                 class: port.class,
                 label: portClassLabel(port.class),
+            }),
+        );
+    } else if (portConstruction) {
+        term.writeln(
+            render(SECTOR.portUnderConstruction, {
+                name: portConstruction.name,
+                class: portConstruction.class,
+                label: portClassLabel(portConstruction.class),
+                days: portConstruction.daysLeft,
             }),
         );
     }
@@ -277,8 +288,17 @@ export function showHelp(ctx: DisplayCtx) {
 
 export function showPortMenu(ctx: DisplayCtx) {
     if (!ctx.world.currentPort) {
-        ctx.io.term.writeln(render(PORT.menuNoPort));
-        showPrompt(ctx as GameContext);
+        const construction = ctx.world.currentPortConstruction;
+        if (construction) {
+            ctx.io.term.writeln(
+                render(PORT.menuUnderConstruction, {
+                    name: construction.name,
+                    days: construction.daysLeft,
+                }),
+            );
+        } else {
+            ctx.io.term.writeln(render(PORT.menuNoPort));
+        }
         return;
     }
     ctx.io.term.writeln('');

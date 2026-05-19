@@ -86,6 +86,7 @@ export type SectorDisplayData = {
     }[];
     warps: SectorRef[];
     port?: { class: number; name: string } | null;
+    portConstruction?: { class: number; name: string; daysLeft: number } | null;
     sectorDrones?: SectorDroneInfo | null;
     planets: { id: number; name: string; type: string; displayType: string | null }[];
     ships?: {
