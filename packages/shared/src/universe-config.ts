@@ -12,7 +12,7 @@ export const universeConfig = {
     planetCollisionLikelihood: 50,
     planetCollisionMinHours: 24,
     planetCollisionMaxHours: 24,
-    maxPlanetsPerSector: 2,
+    maxPlanetsPerSector: 6,
     respawnDelaySeconds: 86400,
     proximityMineDamage: 100,
     proximityDetonationPct: 50,
