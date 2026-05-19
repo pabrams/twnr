@@ -5,6 +5,7 @@ import { PLANET } from '../messages/index.js';
 import { echoCommand } from '../display.js';
 import { registerRoutine } from './types.js';
 import { askChar, askConfirm, askNumber, awaitResponse } from './prompts.js';
+import { fmt } from '../handlers/utils.js';
 
 type Product3 = 'fuel' | 'organics' | 'equipment';
 const PRODUCT_BY_DIGIT: Record<string, Product3> = {
@@ -299,6 +300,68 @@ registerRoutine('planetary_defense_bastion', async (ctx) => {
 registerRoutine('base_computer', (ctx) => {
     echoCommand(ctx, 'baseComputer');
     ctx.world.mode = Menu.BaseComputer;
+});
+
+registerRoutine('treasury_transfer', async (ctx) => {
+    echoCommand(ctx, 'treasuryTransfer');
+    const { term } = ctx.io;
+
+    ctx.io.sendMsg({ type: ClientTag.TreasuryInfo });
+    const info = await awaitResponse(ctx, [ServerTag.TreasuryInfoResult, ServerTag.Error]);
+    if (info === null) return;
+    if (info.type !== ServerTag.TreasuryInfoResult) return;
+    if (info.outcome !== 'ok') {
+        term.writeln('');
+        term.writeln(render(PLANET.treasuryError, { message: info.message }));
+        return;
+    }
+
+    const dirCh = await askChar(ctx, render(PLANET.treasuryDirectionPrompt), ['t', 'f']);
+    if (dirCh === null) return;
+    const direction: 'to' | 'from' = dirCh === 't' ? 'to' : 'from';
+
+    term.writeln(
+        render(PLANET.treasuryBalances, {
+            credits: fmt(info.credits),
+            treasury: fmt(info.treasury),
+        }),
+    );
+
+    const cap = direction === 'to' ? info.credits : info.treasury;
+    if (cap <= 0) {
+        term.writeln('');
+        term.writeln(
+            render(PLANET.treasuryError, {
+                message:
+                    direction === 'to' ? 'No credits on hand to transfer' : 'Treasury is empty',
+            }),
+        );
+        return;
+    }
+
+    const amount = await askNumber(ctx, render(PLANET.treasuryAmountPrompt), {
+        min: 1,
+        max: cap,
+    });
+    if (amount === null) return;
+
+    ctx.io.sendMsg({ type: ClientTag.TreasuryTransfer, direction, amount });
+    const result = await awaitResponse(ctx, [ServerTag.TreasuryTransferResult, ServerTag.Error]);
+    if (result === null) return;
+    if (result.type !== ServerTag.TreasuryTransferResult) return;
+    if (result.outcome !== 'ok') {
+        term.writeln('');
+        term.writeln(render(PLANET.treasuryError, { message: result.message }));
+        return;
+    }
+    term.writeln(
+        render(PLANET.treasuryTransferOk, {
+            amount: fmt(result.amount),
+            direction: result.direction === 'to' ? 'into' : 'from',
+            credits: fmt(result.credits),
+            treasury: fmt(result.treasury),
+        }),
+    );
 });
 
 registerRoutine('scan_sector', (ctx) => {

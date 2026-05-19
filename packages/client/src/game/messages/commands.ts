@@ -20,6 +20,7 @@ export const COMMAND = makeDomain('COMMAND', {
     planetaryDefenseBastion: '[bg:b]<Planetary Defense Bastion>[/bg:b]',
     baseComputer: '[bc]<Base Computer activated>[/bc]',
     exitBase: '[bg:b]<Exit to Planet Surface>[/bg:b]',
+    treasuryTransfer: '[bg:b]<Treasury Fund Transfers>[/bg:b]',
     shipInfo: '[bg:b]<Ship Info>[/bg:b]',
     dock: '[bg:b]<Dock>[/bg:b]',
     undock: '[bg:b]<Undock>[/bg:b]',

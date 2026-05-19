@@ -437,6 +437,16 @@ export type ExitBaseCommand = {
     type: typeof ClientTag.ExitBase;
 };
 
+export type TreasuryInfoCommand = {
+    type: typeof ClientTag.TreasuryInfo;
+};
+
+export type TreasuryTransferCommand = {
+    type: typeof ClientTag.TreasuryTransfer;
+    direction: 'to' | 'from';
+    amount: number;
+};
+
 export type ClientEnvelope =
     | MoveCommand
     | MoveToPreviousCommand
@@ -524,4 +534,6 @@ export type ClientEnvelope =
     | HaggleQuitCommand
     | BaseInfoCommand
     | BuildBaseCommand
-    | ExitBaseCommand;
+    | ExitBaseCommand
+    | TreasuryInfoCommand
+    | TreasuryTransferCommand;

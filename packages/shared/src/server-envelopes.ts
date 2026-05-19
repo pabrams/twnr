@@ -342,6 +342,10 @@ export type PlanetDisplayData = {
     max_org_colos: number;
     max_equ_colos: number;
     colos_per_unit_per_hour: number;
+    base_level: number | null;
+    base_treasury: number | null;
+    base_construction_target_level: number | null;
+    base_construction_completes_at: Date | string | null;
     created_at: Date | string;
     updated_at?: Date | string | null;
 };
@@ -1184,6 +1188,35 @@ export type ExitBaseReply = {
     type: typeof ServerTag.ExitBaseResult;
 };
 
+export type TreasuryInfoReply =
+    | {
+          type: typeof ServerTag.TreasuryInfoResult;
+          outcome: 'ok';
+          level: number;
+          treasury: number;
+          credits: number;
+      }
+    | {
+          type: typeof ServerTag.TreasuryInfoResult;
+          outcome: 'error';
+          message: string;
+      };
+
+export type TreasuryTransferReply =
+    | {
+          type: typeof ServerTag.TreasuryTransferResult;
+          outcome: 'ok';
+          direction: 'to' | 'from';
+          amount: number;
+          credits: number;
+          treasury: number;
+      }
+    | {
+          type: typeof ServerTag.TreasuryTransferResult;
+          outcome: 'error';
+          message: string;
+      };
+
 export type HaggleResponseReply =
     | {
           type: typeof ServerTag.HaggleResponseResult;
@@ -1319,4 +1352,6 @@ export type ServerEnvelope =
     | BaseInfoReply
     | BuildBaseReply
     | ExitBaseReply
+    | TreasuryInfoReply
+    | TreasuryTransferReply
     | ErrorReply;

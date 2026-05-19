@@ -124,6 +124,8 @@ export const ServerTag = {
     BaseInfoResult: 'baseInfoResult',
     BuildBaseResult: 'buildBaseResult',
     ExitBaseResult: 'exitBaseResult',
+    TreasuryInfoResult: 'treasuryInfoResult',
+    TreasuryTransferResult: 'treasuryTransferResult',
 } as const;
 type ServerTag = typeof ServerTag;
 
@@ -215,5 +217,7 @@ export const ClientTag = {
     BaseInfo: 'baseInfo',
     BuildBase: 'buildBase',
     ExitBase: 'exitBase',
+    TreasuryInfo: 'treasuryInfo',
+    TreasuryTransfer: 'treasuryTransfer',
 } as const;
 type ClientTag = typeof ClientTag;

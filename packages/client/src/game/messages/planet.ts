@@ -144,4 +144,18 @@ export const PLANET = makeDomain('PLANET', {
     baseEntered: '[bg]Entered base (level [/bg][bc]{level}[/bc][bg]).[/bg]',
     basePrompt:
         '\r\n[mg]Base command[/mg] [mg][[/mg][bc]{sector}[/bc][mg]][/mg] [mg]([/mg][by]?[/by]=[by]Help[/by][mg])[/mg] [by]:[/by] ',
+    displayBaseSummary:
+        '[bc]This planet has a level [/bc][by]{level}[/by][bc] base. The treasury contains [/bc][by]{treasury}[/by][bc] credits.[/bc]',
+    displayBaseConstructing:
+        '[bc]A level [/bc][by]{level}[/by][bc] base is under construction here. Completes at [/bc][by]{completes}[/by][bc] ([/bc][by]{hours}[/by][bc] hour(s) remaining).[/bc]',
+    treasuryDirectionPrompt:
+        '\r\n[mg]Transfer ([/mg][by]T[/by][mg]o or [/mg][by]F[/by][mg]rom treasury, [/mg][by]Q[/by][mg] to cancel) [/mg][by]?[/by] ',
+    treasuryBalances:
+        '\r\n[bc]Credits on hand[/bc]: [by]{credits}[/by]\r\n[bc]Treasury balance[/bc]: [by]{treasury}[/by]',
+    treasuryAmountPrompt:
+        '[mg]Amount to transfer ([/mg][by]Q[/by][mg] to cancel) [/mg][by]:[/by] ',
+    treasuryTransferOk:
+        '\r\n[bg]Transferred [/bg][bc]{amount}[/bc][bg] credits {direction} the treasury.[/bg]\r\n' +
+        '[bc]Credits on hand[/bc]: [by]{credits}[/by]\r\n[bc]Treasury balance[/bc]: [by]{treasury}[/by]',
+    treasuryError: '[br]Treasury error[/br]: [w]{message}[/w]',
 });
