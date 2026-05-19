@@ -28,7 +28,7 @@ function computerCommandsWithBack(backLabel: string): MenuCommandEntry[] {
     ];
 }
 import { showClanPrompt } from './display-clan.js';
-import { showPlanetMenuOptions, showEarthPrompt } from './display-planet.js';
+import { showPlanetMenuOptions, showEarthPrompt, showBasePrompt } from './display-planet.js';
 import { showClass0Menu } from './display-port.js';
 import {
     showStarbaseMenu,
@@ -734,5 +734,6 @@ export const MENU_PROMPTS: Partial<Record<MenuName, (ctx: GameContext) => void>>
     [Menu.StarbaseHardware]: showHardwarePrompt,
     [Menu.Shipyards]: showShipyardsMenu,
     [Menu.ShipyardsClass0]: showShipyardsClass0Menu,
+    [Menu.Base]: showBasePrompt,
     [Menu.BaseComputer]: showBaseComputerPrompt,
 };

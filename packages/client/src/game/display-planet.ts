@@ -64,6 +64,10 @@ export function showEarthPrompt(ctx: DisplayPlanetCtx) {
     ctx.io.term.write(render(PLANET.prompt));
 }
 
+export function showBasePrompt(ctx: GameContext) {
+    ctx.io.term.write(render(PLANET.basePrompt, { sector: ctx.world.currentSector }));
+}
+
 export function showNoPlanet(ctx: DisplayPlanetCtx) {
     ctx.io.term.writeln('');
     ctx.io.term.writeln(render(SECTOR.noPlanet));
