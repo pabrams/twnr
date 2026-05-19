@@ -232,17 +232,17 @@ export async function snapshotTemplateForUniverse(
         `INSERT INTO universe_planet_types (
             universe_id, slug, display_name, description,
             class, base_requirements,
-            max_fuel_colos, max_org_colos, max_equ_colos, max_drone_colos,
+            max_fuel_colos, max_org_colos, max_equ_colos,
             max_fuel, max_org, max_equ, max_drones,
             max_citadel, fuel_production, organics_production, equipment_production,
-            drone_production, danger
+            fig_factor_fuel, fig_factor_org, fig_factor_equ, danger
          )
          SELECT $1, tpt.slug, tpt.display_name, tpt.description,
                 tpt.class, tpt.base_requirements,
-                tpt.max_fuel_colos, tpt.max_org_colos, tpt.max_equ_colos, tpt.max_drone_colos,
+                tpt.max_fuel_colos, tpt.max_org_colos, tpt.max_equ_colos,
                 tpt.max_fuel, tpt.max_org, tpt.max_equ, tpt.max_drones,
                 tpt.max_citadel, tpt.fuel_production, tpt.organics_production, tpt.equipment_production,
-                tpt.drone_production, tpt.danger
+                tpt.fig_factor_fuel, tpt.fig_factor_org, tpt.fig_factor_equ, tpt.danger
          FROM template_planet_types tpt
          JOIN universe_template ut ON ut.id = tpt.template_id
          WHERE ut.name = $2

@@ -29,11 +29,12 @@ type PlanetDisplayMsg = {
     colonists_fuel: number;
     colonists_organics: number;
     colonists_equipment: number;
-    colonists_drones: number;
     fuel_production: number;
     organics_production: number;
     equipment_production: number;
-    drone_production: number;
+    fig_factor_fuel: number;
+    fig_factor_org: number;
+    fig_factor_equ: number;
     max_fuel: number;
     max_org: number;
     max_equ: number;
@@ -58,6 +59,29 @@ function hourlyOutput(colos: number, prodRate: number, cpu: number): string {
     return fmtCompact(Math.floor((colos * prodRate) / cpu));
 }
 
+/** Drones per hour produced from the current colonist distribution and the
+ *  planet's per-group fig factors. A 0 fig factor means that group can't
+ *  contribute drones. */
+function dronesPerHourFrom(msg: PlanetDisplayMsg): number {
+    const fromFuel = msg.fig_factor_fuel > 0 ? msg.colonists_fuel / msg.fig_factor_fuel : 0;
+    const fromOrg = msg.fig_factor_org > 0 ? msg.colonists_organics / msg.fig_factor_org : 0;
+    const fromEqu = msg.fig_factor_equ > 0 ? msg.colonists_equipment / msg.fig_factor_equ : 0;
+    return fromFuel + fromOrg + fromEqu;
+}
+
+/** Effective colonists-per-drone-per-hour given the current distribution.
+ *  Returns "N/A" if no drones can be produced (all relevant groups are 0
+ *  or the planet class has no productive groups). */
+function effectiveColosPerDrone(msg: PlanetDisplayMsg): string {
+    const totalAssigned =
+        (msg.fig_factor_fuel > 0 ? msg.colonists_fuel : 0) +
+        (msg.fig_factor_org > 0 ? msg.colonists_organics : 0) +
+        (msg.fig_factor_equ > 0 ? msg.colonists_equipment : 0);
+    const drones = dronesPerHourFrom(msg);
+    if (drones <= 0 || totalAssigned <= 0) return 'N/A';
+    return fmtCompact(Math.ceil(totalAssigned / drones));
+}
+
 function renderPlanetTable(
     ctx: { io: { term: { writeln: (s: string) => void } }; world: { currentSector: number } },
     msg: PlanetDisplayMsg,
@@ -78,7 +102,7 @@ function renderPlanetTable(
     ctx.io.term.writeln(render(PLANET.displayTableHead2));
     ctx.io.term.writeln(render(PLANET.displayTableSep));
 
-    const rows = [
+    const productRows = [
         {
             item: 'Fuel Ore',
             colos: msg.colonists_fuel,
@@ -103,16 +127,8 @@ function renderPlanetTable(
             ship: msg.ship_equipment,
             max: msg.max_equ,
         },
-        {
-            item: 'Drones',
-            colos: msg.colonists_drones,
-            prod: msg.drone_production,
-            planet: msg.drones,
-            ship: msg.ship_drones,
-            max: msg.max_drones,
-        },
     ];
-    for (const r of rows) {
+    for (const r of productRows) {
         ctx.io.term.writeln(
             render(PLANET.displayTableRow, {
                 item: padStartVisible(r.item, 9),
@@ -125,6 +141,18 @@ function renderPlanetTable(
             }),
         );
     }
+    const dronesHourly = Math.floor(dronesPerHourFrom(msg));
+    ctx.io.term.writeln(
+        render(PLANET.displayTableRow, {
+            item: padStartVisible('Drones', 9),
+            colos: padStartVisible('N/A', 9),
+            c2b1: padStartVisible(effectiveColosPerDrone(msg), 9),
+            hourly: padStartVisible(fmtCompact(dronesHourly), 9),
+            planet: padStartVisible(fmtCompact(msg.drones), 9),
+            ship: padStartVisible(fmtCompact(msg.ship_drones), 9),
+            max: padStartVisible(fmtCompact(msg.max_drones), 9),
+        }),
+    );
 
     ctx.io.term.writeln(render(PLANET.displayHolds, { holds: fmt(msg.empty_holds) }));
 }
@@ -323,7 +351,6 @@ export const listPlanets: Handler<'listPlanetsResult', PlanetContext> = (ctx, ms
                     fuel: p.colonists_fuel,
                     organics: p.colonists_organics,
                     equipment: p.colonists_equipment,
-                    drones: p.colonists_drones,
                 }),
             );
         }

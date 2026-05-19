@@ -77,12 +77,16 @@ export type PlanetConfig = {
     maxOrg: number;
     maxEqu: number;
     maxDrones: number;
-    maxDroneColos: number;
     maxCitadel: number;
     fuelProduction: number;
     organicsProduction: number;
     equipmentProduction: number;
-    droneProduction: number;
+    /** Colonists per drone-per-hour, by source production group. 0 = that
+     *  group contributes no drones (e.g. Volcanic class has organics=0).
+     *  Drones produced = sum(colonists_X / figFactorX) for X in {fuel,org,equ}. */
+    figFactorFuel: number;
+    figFactorOrg: number;
+    figFactorEqu: number;
 };
 
 

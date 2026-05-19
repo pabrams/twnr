@@ -320,7 +320,6 @@ export type PlanetDisplayData = {
     colonists_fuel: number;
     colonists_organics: number;
     colonists_equipment: number;
-    colonists_drones: number;
     empty_holds: number;
     ship_colonists: number;
     ship_drones: number;
@@ -331,7 +330,9 @@ export type PlanetDisplayData = {
     fuel_production: number;
     organics_production: number;
     equipment_production: number;
-    drone_production: number;
+    fig_factor_fuel: number;
+    fig_factor_org: number;
+    fig_factor_equ: number;
     max_fuel: number;
     max_org: number;
     max_equ: number;
@@ -339,7 +340,6 @@ export type PlanetDisplayData = {
     max_fuel_colos: number;
     max_org_colos: number;
     max_equ_colos: number;
-    max_drone_colos: number;
     colos_per_unit_per_hour: number;
     created_at: Date | string;
     updated_at?: Date | string | null;
@@ -397,7 +397,7 @@ export type DockStarbaseReply = {
 export type TakeColonistsReply = {
     type: typeof ServerTag.TakeColonistsResult;
     quantity: number;
-    commodity: 'fuel' | 'organics' | 'equipment' | 'drones';
+    commodity: 'fuel' | 'organics' | 'equipment';
     planetColonists: number;
     shipColonists: number;
 } & Partial<SectorDisplayData>;
@@ -405,7 +405,7 @@ export type TakeColonistsReply = {
 export type LeaveColonistsReply = {
     type: typeof ServerTag.LeaveColonistsResult;
     quantity: number;
-    commodity: 'fuel' | 'organics' | 'equipment' | 'drones';
+    commodity: 'fuel' | 'organics' | 'equipment';
     planetColonists: number;
     shipColonists: number;
 } & Partial<SectorDisplayData>;
@@ -547,7 +547,6 @@ export type ListPlanetsReply = {
         colonists_fuel: number;
         colonists_organics: number;
         colonists_equipment: number;
-        colonists_drones: number;
     }[];
 };
 

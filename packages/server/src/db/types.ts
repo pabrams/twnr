@@ -87,6 +87,5 @@ export interface PlayerPlanetRow {
     colonists_fuel: number;
     colonists_organics: number;
     colonists_equipment: number;
-    colonists_drones: number;
 }
 

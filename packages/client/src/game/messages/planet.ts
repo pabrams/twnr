@@ -104,7 +104,7 @@ export const PLANET = makeDomain('PLANET', {
     listHeader: '[bc]=== Your Planets ===[/bc]',
     listRow: '  [by]Sector {sector}[/by] — [bc]{name}[/bc] ({type})',
     listColonists:
-        '  Colonists: {{MSG.fuelQuantity}}, {{MSG.orgQuantity}}, {{MSG.equQuantity}}, {{MSG.drnQuantity}}',
+        '  Colonists: {{MSG.fuelQuantity}}, {{MSG.orgQuantity}}, {{MSG.equQuantity}}',
 
     claimOwnershipPrompt:
         '\r\n[mg]Claim as ([/mg][by]P[/by][mg]ersonal, [/mg][by]C[/by][mg]lan, [/mg][by]Q[/by][mg]) [/mg][by]?[/by] ',

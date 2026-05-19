@@ -463,12 +463,7 @@ export async function serveUseTerraformDevice(playerId: number): Promise<void> {
 /** Validate a colonist commodity argument. Sends an error envelope and
  * returns null on bad input; returns the typed value on success. */
 function parseColonistCommodity(playerId: number, commodity: string): ColonistCommodity | null {
-    if (
-        commodity !== 'fuel' &&
-        commodity !== 'organics' &&
-        commodity !== 'equipment' &&
-        commodity !== 'drones'
-    ) {
+    if (commodity !== 'fuel' && commodity !== 'organics' && commodity !== 'equipment') {
         sendError(playerId, 'Invalid commodity');
         return null;
     }
@@ -996,7 +991,6 @@ export async function serveListPlanets(playerId: number): Promise<void> {
             colonists_fuel: r.colonists_fuel,
             colonists_organics: r.colonists_organics,
             colonists_equipment: r.colonists_equipment,
-            colonists_drones: r.colonists_drones,
         })),
     });
 }
