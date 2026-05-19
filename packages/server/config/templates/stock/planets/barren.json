@@ -15,7 +15,9 @@
   "fuelProduction": 10,
   "organicsProduction": 0,
   "equipmentProduction": 20,
-  "droneProduction": 10,
+  "figFactorFuel": 100,
+  "figFactorOrg": 0,
+  "figFactorEqu": 80,
   "danger": 20,
   "maxFuel": 1000000,
   "maxOrg": 1000000,
@@ -23,6 +25,5 @@
   "maxFuelColos": 100000,
   "maxOrgColos": 100000,
   "maxEquColos": 100000,
-  "maxDrones": 1000000,
-  "maxDroneColos": 100000
+  "maxDrones": 1000000
 }

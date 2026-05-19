@@ -106,13 +106,13 @@ export type GetSectorPlanetsCommand = {
 export type TakeColonistsCommand = {
     type: typeof ClientTag.TakeColonists;
     quantity: number;
-    commodity: 'fuel' | 'organics' | 'equipment' | 'drones';
+    commodity: 'fuel' | 'organics' | 'equipment';
 };
 
 export type LeaveColonistsCommand = {
     type: typeof ClientTag.LeaveColonists;
     quantity: number;
-    commodity: 'fuel' | 'organics' | 'equipment' | 'drones';
+    commodity: 'fuel' | 'organics' | 'equipment';
 };
 
 export type TakeCommodityCommand = {

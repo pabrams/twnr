@@ -299,7 +299,6 @@ export const connectDB = async (): Promise<void> => {
         max_fuel_colos INTEGER NOT NULL DEFAULT 0,
         max_org_colos INTEGER NOT NULL DEFAULT 0,
         max_equ_colos INTEGER NOT NULL DEFAULT 0,
-        max_drone_colos INTEGER NOT NULL DEFAULT 0,
         max_fuel INTEGER NOT NULL DEFAULT 0,
         max_org INTEGER NOT NULL DEFAULT 0,
         max_equ INTEGER NOT NULL DEFAULT 0,
@@ -308,7 +307,9 @@ export const connectDB = async (): Promise<void> => {
         fuel_production SMALLINT NOT NULL DEFAULT 0,
         organics_production SMALLINT NOT NULL DEFAULT 0,
         equipment_production SMALLINT NOT NULL DEFAULT 0,
-        drone_production SMALLINT NOT NULL DEFAULT 0,
+        fig_factor_fuel INTEGER NOT NULL DEFAULT 0,
+        fig_factor_org INTEGER NOT NULL DEFAULT 0,
+        fig_factor_equ INTEGER NOT NULL DEFAULT 0,
         danger SMALLINT NOT NULL DEFAULT 0,
         PRIMARY KEY (template_id, slug)
       );
@@ -323,7 +324,6 @@ export const connectDB = async (): Promise<void> => {
         max_fuel_colos INTEGER NOT NULL DEFAULT 0,
         max_org_colos INTEGER NOT NULL DEFAULT 0,
         max_equ_colos INTEGER NOT NULL DEFAULT 0,
-        max_drone_colos INTEGER NOT NULL DEFAULT 0,
         max_fuel INTEGER NOT NULL DEFAULT 0,
         max_org INTEGER NOT NULL DEFAULT 0,
         max_equ INTEGER NOT NULL DEFAULT 0,
@@ -332,7 +332,9 @@ export const connectDB = async (): Promise<void> => {
         fuel_production SMALLINT NOT NULL DEFAULT 0,
         organics_production SMALLINT NOT NULL DEFAULT 0,
         equipment_production SMALLINT NOT NULL DEFAULT 0,
-        drone_production SMALLINT NOT NULL DEFAULT 0,
+        fig_factor_fuel INTEGER NOT NULL DEFAULT 0,
+        fig_factor_org INTEGER NOT NULL DEFAULT 0,
+        fig_factor_equ INTEGER NOT NULL DEFAULT 0,
         danger SMALLINT NOT NULL DEFAULT 0,
         PRIMARY KEY (universe_id, slug)
       );
@@ -514,7 +516,6 @@ export const connectDB = async (): Promise<void> => {
         colonists_fuel INTEGER NOT NULL DEFAULT 0,
         colonists_organics INTEGER NOT NULL DEFAULT 0,
         colonists_equipment INTEGER NOT NULL DEFAULT 0,
-        colonists_drones INTEGER NOT NULL DEFAULT 0,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ,
         last_production_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -526,11 +527,9 @@ export const connectDB = async (): Promise<void> => {
         fuel_birth_accrual DOUBLE PRECISION NOT NULL DEFAULT 0,
         org_birth_accrual DOUBLE PRECISION NOT NULL DEFAULT 0,
         equ_birth_accrual DOUBLE PRECISION NOT NULL DEFAULT 0,
-        drn_birth_accrual DOUBLE PRECISION NOT NULL DEFAULT 0,
         fuel_death_accrual DOUBLE PRECISION NOT NULL DEFAULT 0,
         org_death_accrual DOUBLE PRECISION NOT NULL DEFAULT 0,
         equ_death_accrual DOUBLE PRECISION NOT NULL DEFAULT 0,
-        drn_death_accrual DOUBLE PRECISION NOT NULL DEFAULT 0,
         CONSTRAINT planets_single_owner_type
           CHECK (NOT (owner_player_id IS NOT NULL AND owner_clan_id IS NOT NULL))
       );
@@ -911,8 +910,8 @@ export const connectDB = async (): Promise<void> => {
 
         for (const planet of Object.values(planetConfigs)) {
             await client.query(
-                `INSERT INTO template_planet_types (template_id, slug, display_name, description, class, base_requirements, max_fuel_colos, max_org_colos, max_equ_colos, max_drone_colos, max_fuel, max_org, max_equ, max_drones, max_citadel, fuel_production, organics_production, equipment_production, drone_production, danger)
-                 VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+                `INSERT INTO template_planet_types (template_id, slug, display_name, description, class, base_requirements, max_fuel_colos, max_org_colos, max_equ_colos, max_fuel, max_org, max_equ, max_drones, max_citadel, fuel_production, organics_production, equipment_production, fig_factor_fuel, fig_factor_org, fig_factor_equ, danger)
+                 VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
                  ON CONFLICT (template_id, slug) DO UPDATE SET
                     display_name = EXCLUDED.display_name,
                     description = EXCLUDED.description,
@@ -921,7 +920,6 @@ export const connectDB = async (): Promise<void> => {
                     max_fuel_colos = EXCLUDED.max_fuel_colos,
                     max_org_colos = EXCLUDED.max_org_colos,
                     max_equ_colos = EXCLUDED.max_equ_colos,
-                    max_drone_colos = EXCLUDED.max_drone_colos,
                     max_fuel = EXCLUDED.max_fuel,
                     max_org = EXCLUDED.max_org,
                     max_equ = EXCLUDED.max_equ,
@@ -930,7 +928,9 @@ export const connectDB = async (): Promise<void> => {
                     fuel_production = EXCLUDED.fuel_production,
                     organics_production = EXCLUDED.organics_production,
                     equipment_production = EXCLUDED.equipment_production,
-                    drone_production = EXCLUDED.drone_production,
+                    fig_factor_fuel = EXCLUDED.fig_factor_fuel,
+                    fig_factor_org = EXCLUDED.fig_factor_org,
+                    fig_factor_equ = EXCLUDED.fig_factor_equ,
                     danger = EXCLUDED.danger`,
                 [
                     stockTemplateId,
@@ -942,7 +942,6 @@ export const connectDB = async (): Promise<void> => {
                     planet.maxFuelColos ?? 0,
                     planet.maxOrgColos ?? 0,
                     planet.maxEquColos ?? 0,
-                    planet.maxDroneColos ?? 0,
                     planet.maxFuel ?? 0,
                     planet.maxOrg ?? 0,
                     planet.maxEqu ?? 0,
@@ -951,7 +950,9 @@ export const connectDB = async (): Promise<void> => {
                     planet.fuelProduction ?? 0,
                     planet.organicsProduction ?? 0,
                     planet.equipmentProduction ?? 0,
-                    planet.droneProduction ?? 0,
+                    planet.figFactorFuel ?? 0,
+                    planet.figFactorOrg ?? 0,
+                    planet.figFactorEqu ?? 0,
                     planet.danger ?? 0,
                 ],
             );
