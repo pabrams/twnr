@@ -142,4 +142,6 @@ export const PLANET = makeDomain('PLANET', {
     baseShortfall: '  [br]Short[/br]: [w]{items}[/w]',
     baseError: '[br]Base error[/br]: [w]{message}[/w]',
     baseEntered: '[bg]Entered base (level [/bg][bc]{level}[/bc][bg]).[/bg]',
+    basePrompt:
+        '\r\n[mg]Base command[/mg] [mg][[/mg][bc]{sector}[/bc][mg]][/mg] [mg]([/mg][by]?[/by]=[by]Help[/by][mg])[/mg] [by]:[/by] ',
 });
