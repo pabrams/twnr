@@ -60,6 +60,7 @@ import {
     serveLeaveColonists,
     serveTakeCommodity,
     serveLeaveCommodity,
+    serveChangePopulation,
     serveListPlanets,
     serveClaimPlanet,
 } from './planet.js';
@@ -139,6 +140,7 @@ const handlers: HandlerMap = {
     [ClientTag.LeaveColonists]: serveLeaveColonists,
     [ClientTag.TakeCommodity]: serveTakeCommodity,
     [ClientTag.LeaveCommodity]: serveLeaveCommodity,
+    [ClientTag.ChangePopulation]: serveChangePopulation,
     [ClientTag.ListPlanets]: serveListPlanets,
     [ClientTag.ListOwnedShips]: serveListOwnedShips,
     [ClientTag.GetShipDetail]: serveGetShipDetail,

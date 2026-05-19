@@ -74,6 +74,7 @@ const handlers: HandlerMap = {
     [ServerTag.LeaveColonistsResult]: planet.leaveColonists,
     [ServerTag.TakeCommodityResult]: planet.takeCommodity,
     [ServerTag.LeaveCommodityResult]: planet.leaveCommodity,
+    [ServerTag.ChangePopulationResult]: planet.changePopulation,
     [ServerTag.LandOnPlanetResult]: planet.landOnPlanet,
     [ServerTag.PlanetDisplayResult]: planet.planetDisplay,
     [ServerTag.DestroyPlanetResult]: planet.destroyPlanet,

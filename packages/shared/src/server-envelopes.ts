@@ -426,6 +426,15 @@ export type LeaveCommodityReply = {
     shipCommodity: number;
 };
 
+export type ChangePopulationReply = {
+    type: typeof ServerTag.ChangePopulationResult;
+    quantity: number;
+    from: 'fuel' | 'organics' | 'equipment';
+    to: 'fuel' | 'organics' | 'equipment';
+    fromCount: number;
+    toCount: number;
+};
+
 export type DeployDronesInfoReply = {
     type: typeof ServerTag.DeployDronesInfoResult;
     sectorDrones: number;
@@ -1114,11 +1123,6 @@ export type HaggleOpenReply =
           message: string;
       };
 
-/** One round of haggle response from the server. `accepted` means trade
- *  settled at `finalTotal` and cargo/credits are updated. `counter` and
- *  `final` carry the port's new offer; on `final`, the next player message
- *  must be HaggleAccept or HaggleQuit. `rejected` ends the session and
- *  costs the turn deducted by the trade tx (same as a buy). */
 /** Reply to the "B" command on a planet. Branches by current base state. */
 export type BaseInfoReply =
     | {
@@ -1243,6 +1247,7 @@ export type ServerEnvelope =
     | LeaveColonistsReply
     | TakeCommodityReply
     | LeaveCommodityReply
+    | ChangePopulationReply
     | DeployDronesInfoReply
     | DeployDronesReply
     | AttackSectorDronesReply
