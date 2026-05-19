@@ -9,6 +9,7 @@ import { isFriendlyOwner } from './owner.js';
 import { ownershipFrom } from './owner-format.js';
 import {
     getPortForSector,
+    getPortConstructionForSector,
     getWarpRefs,
     getSectorDrones,
     getEmptyShipsInSector,
@@ -30,6 +31,7 @@ export async function buildSectorDisplayData(playerId: number, sectorNumber?: nu
             getEmptyShipsInSector(sector, universeId),
             getSectorDbId(sector, universeId),
         ]);
+    const portConstruction = port ? null : await getPortConstructionForSector(sector, universeId);
 
     const viewerClanId = await getPlayerClanId(playerId);
 
@@ -80,6 +82,7 @@ export async function buildSectorDisplayData(playerId: number, sectorNumber?: nu
         warps,
         players: playersInSector,
         port,
+        portConstruction,
         sectorDrones,
         planets,
         ships: emptyShips.length > 0 ? emptyShips : undefined,

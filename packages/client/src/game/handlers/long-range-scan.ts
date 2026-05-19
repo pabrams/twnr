@@ -40,6 +40,7 @@ type VisualCtx = Pick<GameContext, 'catalogs' | 'io' | 'minimap' | 'player' | 'w
 export const visualScan: Handler<'visualScanResult', VisualCtx> = (ctx, msg) => {
     const savedSector = ctx.world.currentSector;
     const savedPort = ctx.world.currentPort;
+    const savedPortConstruction = ctx.world.currentPortConstruction;
     const savedWarps = ctx.world.currentWarps;
     for (const data of msg.sectors) {
         showSectorDisplay(ctx, data);
@@ -48,6 +49,7 @@ export const visualScan: Handler<'visualScanResult', VisualCtx> = (ctx, msg) => 
     // commands don't think they're in the last-scanned sector.
     ctx.world.currentSector = savedSector;
     ctx.world.currentPort = savedPort;
+    ctx.world.currentPortConstruction = savedPortConstruction;
     ctx.world.currentWarps = savedWarps;
     // Newly-scanned sectors are now in the player's visited set; refresh
     // the minimap so they appear immediately (plus their outwarps as

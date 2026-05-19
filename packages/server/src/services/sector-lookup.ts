@@ -2,7 +2,10 @@ import type { OwnershipInfo } from '@twnr/shared';
 import { getWarpRefsForPlayer, getSectorDbId } from '../db/queries/sector.js';
 import { getAbandonedShipsInSector } from '../db/queries/ship.js';
 import { getSectorDroneDisplayInfo } from '../db/queries/drones.js';
-import { getPortForSectorDisplay } from '../db/queries/port.js';
+import {
+    getPortForSectorDisplay,
+    getPortConstructionForSectorDisplay,
+} from '../db/queries/port.js';
 import { getVisitedSectorNumbers } from '../db/queries/player.js';
 import { ownershipFrom } from './owner-format.js';
 
@@ -26,6 +29,13 @@ export async function getPortForSector(
     const row = await getPortForSectorDisplay(sectorNumber, universeId);
     if (!row) return null;
     return { class: row.class, name: row.name };
+}
+
+export async function getPortConstructionForSector(
+    sectorNumber: number,
+    universeId: number,
+): Promise<{ class: number; name: string; daysLeft: number } | null> {
+    return getPortConstructionForSectorDisplay(sectorNumber, universeId);
 }
 
 export async function getSectorDrones(

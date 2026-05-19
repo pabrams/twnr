@@ -404,6 +404,34 @@ export async function getPortForSectorDisplay(
     return res.rows[0] ?? null;
 }
 
+/** Construction descriptor for sector display (name, class, days remaining). */
+export async function getPortConstructionForSectorDisplay(
+    sectorNumber: number,
+    universeId: number,
+    db: Queryable = pool,
+): Promise<{ class: number; name: string; daysLeft: number } | null> {
+    const res = await db.query<{
+        class: number;
+        name: string;
+        days_required: number;
+        days_completed: number;
+    }>(
+        `SELECT pc.port_class AS class, pc.port_name AS name,
+                pc.days_required, pc.days_completed
+         FROM port_construction pc
+         JOIN sectors s ON s.id = pc.sector_id
+         WHERE s.sector_number = $1 AND s.universe_id = $2`,
+        [sectorNumber, universeId],
+    );
+    const row = res.rows[0];
+    if (!row) return null;
+    return {
+        class: row.class,
+        name: row.name,
+        daysLeft: Math.max(0, row.days_required - row.days_completed),
+    };
+}
+
 /** IDs of every trading port (classes 1-8). Class 0/9 ports have zero
  *  productivity so the hourly job skips them at the list level. */
 export async function listProducingPortIds(db: Queryable = pool): Promise<number[]> {
