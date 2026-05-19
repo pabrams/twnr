@@ -365,6 +365,13 @@ export const MENU_REGISTRY: MenuEntry[] = [
                 sortOrder: 20,
             },
             {
+                command: 'treasury_transfer',
+                keyPattern: 't',
+                label: 'Treasury Fund Transfers',
+                targetMenu: null,
+                sortOrder: 30,
+            },
+            {
                 command: 'help_menu',
                 keyPattern: '?',
                 label: 'Help',

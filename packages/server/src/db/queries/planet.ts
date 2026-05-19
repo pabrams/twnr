@@ -351,6 +351,10 @@ export async function getPlanetDisplayData(playerId: number): Promise<{
     max_org_colos: number;
     max_equ_colos: number;
     colos_per_unit_per_hour: number;
+    base_level: number | null;
+    base_treasury: number | null;
+    base_construction_target_level: number | null;
+    base_construction_completes_at: Date | null;
     created_at: Date;
     updated_at: Date | null;
 } | null> {
@@ -359,6 +363,10 @@ export async function getPlanetDisplayData(playerId: number): Promise<{
     ]);
     const onPlanetId = playerRes.rows[0]?.on_planet_id;
     if (!onPlanetId) return null;
+
+    // Lazy-promote any base whose construction has elapsed so display reflects
+    // the freshly active level rather than the stale "constructing" state.
+    await promotePlanetBaseIfDue(onPlanetId);
 
     const planetRes = await pool.query(
         `SELECT pl.id, pl.universe_planet_number, pl.sector_id, pl.name, pl.type, pt.display_name AS display_type,
@@ -373,6 +381,10 @@ export async function getPlanetDisplayData(playerId: number): Promise<{
                 pt.max_fuel, pt.max_org, pt.max_equ, pt.max_drones,
                 pt.max_fuel_colos, pt.max_org_colos, pt.max_equ_colos,
                 COALESCE(us.colos_to_produce_one_unit_per_hour, ${universeConfig.colosToProduceOneUnitPerHour}) AS colos_per_unit_per_hour,
+                pb.level AS base_level,
+                pb.treasury::int AS base_treasury,
+                pb.construction_target_level AS base_construction_target_level,
+                pb.construction_completes_at AS base_construction_completes_at,
                 pl.created_at, pl.updated_at
          FROM planets pl
          JOIN sectors s ON s.id = pl.sector_id
@@ -380,6 +392,7 @@ export async function getPlanetDisplayData(playerId: number): Promise<{
          LEFT JOIN universe_settings us ON us.universe_id = s.universe_id
          LEFT JOIN players owner ON owner.id = pl.owner_player_id
          LEFT JOIN clans oc ON oc.id = pl.owner_clan_id
+         LEFT JOIN planet_bases pb ON pb.planet_id = pl.id
          WHERE pl.id = $1`,
         [onPlanetId],
     );
@@ -719,6 +732,7 @@ export async function listPlanetIdsWithColonists(db: Queryable = pool): Promise<
  *  completes_at has passed, so callers always see a fresh picture. */
 export type PlanetBaseRow = {
     level: number;
+    treasury: number;
     construction_target_level: number | null;
     construction_started_at: Date | null;
     construction_completes_at: Date | null;
@@ -729,7 +743,7 @@ export async function getPlanetBase(
     db: Queryable = pool,
 ): Promise<PlanetBaseRow | null> {
     const res = await db.query<PlanetBaseRow>(
-        `SELECT level, construction_target_level,
+        `SELECT level, treasury::int AS treasury, construction_target_level,
                 construction_started_at, construction_completes_at
          FROM planet_bases WHERE planet_id = $1`,
         [planetId],
@@ -753,12 +767,37 @@ export async function promotePlanetBaseIfDue(
          WHERE planet_id = $1
            AND construction_target_level IS NOT NULL
            AND construction_completes_at <= NOW()
-         RETURNING level, construction_target_level,
+         RETURNING level, treasury::int AS treasury, construction_target_level,
                    construction_started_at, construction_completes_at`,
         [planetId],
     );
     if (res.rows[0]) return res.rows[0];
     return getPlanetBase(planetId, db);
+}
+
+/** Lock and read the treasury balance + level for a planet base. Returns null
+ *  if the planet has no base row at all. */
+export async function getPlanetBaseTreasuryForUpdate(
+    planetId: number,
+    db: Queryable = pool,
+): Promise<{ level: number; treasury: number } | null> {
+    const res = await db.query<{ level: number; treasury: number }>(
+        `SELECT level, treasury::int AS treasury
+         FROM planet_bases WHERE planet_id = $1 FOR UPDATE`,
+        [planetId],
+    );
+    return res.rows[0] ?? null;
+}
+
+export async function adjustPlanetBaseTreasury(
+    planetId: number,
+    delta: number,
+    db: Queryable = pool,
+): Promise<void> {
+    await db.query(`UPDATE planet_bases SET treasury = treasury + $1 WHERE planet_id = $2`, [
+        delta,
+        planetId,
+    ]);
 }
 
 /** Start a new base construction. Fails (returns false) if a row already

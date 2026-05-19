@@ -20,6 +20,10 @@ type PlanetDisplayMsg = {
     id: number;
     universe_planet_number: number;
     name: string;
+    base_level: number | null;
+    base_treasury: number | null;
+    base_construction_target_level: number | null;
+    base_construction_completes_at: string | Date | null;
     planetType: string;
     displayType: string | null;
     owner_name: string | null;
@@ -61,8 +65,7 @@ function hourlyOutput(colos: number, prodRate: number, cpu: number): string {
 }
 
 /** Drones per hour produced from the current colonist distribution and the
- *  planet's per-group fig factors. A 0 fig factor means that group can't
- *  contribute drones. */
+ *  planet's per-group fig factors.*/
 function dronesPerHourFrom(msg: PlanetDisplayMsg): number {
     const fromFuel = msg.fig_factor_fuel > 0 ? msg.colonists_fuel / msg.fig_factor_fuel : 0;
     const fromOrg = msg.fig_factor_org > 0 ? msg.colonists_organics / msg.fig_factor_org : 0;
@@ -71,8 +74,7 @@ function dronesPerHourFrom(msg: PlanetDisplayMsg): number {
 }
 
 /** Effective colonists-per-drone-per-hour given the current distribution.
- *  Returns "N/A" if no drones can be produced (all relevant groups are 0
- *  or the planet class has no productive groups). */
+  */
 function effectiveColosPerDrone(msg: PlanetDisplayMsg): string {
     const totalAssigned =
         (msg.fig_factor_fuel > 0 ? msg.colonists_fuel : 0) +
@@ -158,6 +160,36 @@ function renderPlanetTable(
     );
 
     ctx.io.term.writeln(render(PLANET.displayHolds, { holds: fmt(msg.empty_holds) }));
+    renderBaseLine(ctx, msg);
+}
+
+function renderBaseLine(
+    ctx: { io: { term: { writeln: (s: string) => void } } },
+    msg: PlanetDisplayMsg,
+): void {
+    const targetLevel = msg.base_construction_target_level;
+    const completesAt = msg.base_construction_completes_at;
+    if (targetLevel !== null && completesAt !== null) {
+        const completes = new Date(completesAt);
+        const msLeft = completes.getTime() - Date.now();
+        const hoursLeft = Math.max(0, Math.ceil(msLeft / (60 * 60 * 1000)));
+        ctx.io.term.writeln(
+            render(PLANET.displayBaseConstructing, {
+                level: targetLevel,
+                completes: completes.toLocaleString(),
+                hours: hoursLeft,
+            }),
+        );
+        return;
+    }
+    if (msg.base_level !== null && msg.base_level >= 1) {
+        ctx.io.term.writeln(
+            render(PLANET.displayBaseSummary, {
+                level: msg.base_level,
+                treasury: fmt(msg.base_treasury ?? 0),
+            }),
+        );
+    }
 }
 
 type PlanetContext = Pick<GameContext, 'io' | 'input' | 'ship' | 'planet' | 'world'> &

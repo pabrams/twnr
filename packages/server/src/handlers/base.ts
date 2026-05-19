@@ -26,8 +26,15 @@ import {
     getPlanetClassInfo,
     getPlanetCommodityStockForUpdate,
     updatePlanetCommodity,
+    getPlanetBaseTreasuryForUpdate,
+    adjustPlanetBaseTreasury,
 } from '../db/queries/planet.js';
-import { getOnPlanetId } from '../db/queries/player.js';
+import {
+    getOnPlanetId,
+    getCreditsForUpdate,
+    addCredits,
+    deductCredits,
+} from '../db/queries/player.js';
 
 function level1Of(reqs: unknown): BaseLevelRequirement | null {
     if (!Array.isArray(reqs) || reqs.length === 0) return null;
@@ -235,4 +242,139 @@ export async function serveBuildBase(playerId: number): Promise<void> {
 
 export async function serveExitBase(playerId: number): Promise<void> {
     sendEnvelope(playerId, { type: ServerTag.ExitBaseResult });
+}
+
+export async function serveTreasuryInfo(playerId: number): Promise<void> {
+    const player = players[playerId];
+    if (!player) return;
+
+    const onPlanetId = await getOnPlanetId(playerId);
+    if (!onPlanetId) {
+        sendEnvelope(playerId, {
+            type: ServerTag.TreasuryInfoResult,
+            outcome: 'error',
+            message: 'Not on a planet',
+        });
+        return;
+    }
+    const base = await promotePlanetBaseIfDue(onPlanetId);
+    if (!base || base.level < 1) {
+        sendEnvelope(playerId, {
+            type: ServerTag.TreasuryInfoResult,
+            outcome: 'error',
+            message: 'No active base on this planet',
+        });
+        return;
+    }
+    const creditsRes = await pool.query<{ credits: number }>(
+        'SELECT credits FROM players WHERE id = $1',
+        [playerId],
+    );
+    const credits = creditsRes.rows[0]?.credits ?? 0;
+    sendEnvelope(playerId, {
+        type: ServerTag.TreasuryInfoResult,
+        outcome: 'ok',
+        level: base.level,
+        treasury: base.treasury,
+        credits,
+    });
+}
+
+export async function serveTreasuryTransfer(
+    playerId: number,
+    data: { direction: 'to' | 'from'; amount: number },
+): Promise<void> {
+    const player = players[playerId];
+    if (!player) return;
+
+    const { direction, amount } = data;
+    if (!Number.isInteger(amount) || amount <= 0) {
+        sendEnvelope(playerId, {
+            type: ServerTag.TreasuryTransferResult,
+            outcome: 'error',
+            message: 'Amount must be a positive integer',
+        });
+        return;
+    }
+    if (direction !== 'to' && direction !== 'from') {
+        sendEnvelope(playerId, {
+            type: ServerTag.TreasuryTransferResult,
+            outcome: 'error',
+            message: 'Invalid direction',
+        });
+        return;
+    }
+
+    const onPlanetId = await getOnPlanetId(playerId);
+    if (!onPlanetId) {
+        sendEnvelope(playerId, {
+            type: ServerTag.TreasuryTransferResult,
+            outcome: 'error',
+            message: 'Not on a planet',
+        });
+        return;
+    }
+
+    try {
+        const result = await withTransaction(async (client) => {
+            const base = await getPlanetBaseTreasuryForUpdate(onPlanetId, client);
+            if (!base || base.level < 1) {
+                sendEnvelope(playerId, {
+                    type: ServerTag.TreasuryTransferResult,
+                    outcome: 'error',
+                    message: 'No active base on this planet',
+                });
+                throw new AbortTransaction();
+            }
+            const credits = await getCreditsForUpdate(playerId, client);
+            if (credits === undefined) {
+                sendEnvelope(playerId, {
+                    type: ServerTag.TreasuryTransferResult,
+                    outcome: 'error',
+                    message: 'Player not found',
+                });
+                throw new AbortTransaction();
+            }
+
+            if (direction === 'to') {
+                if (credits < amount) {
+                    sendEnvelope(playerId, {
+                        type: ServerTag.TreasuryTransferResult,
+                        outcome: 'error',
+                        message: 'Insufficient credits on hand',
+                    });
+                    throw new AbortTransaction();
+                }
+                await deductCredits(playerId, amount, client);
+                await adjustPlanetBaseTreasury(onPlanetId, amount, client);
+                return { credits: credits - amount, treasury: base.treasury + amount };
+            }
+            // direction === 'from'
+            if (base.treasury < amount) {
+                sendEnvelope(playerId, {
+                    type: ServerTag.TreasuryTransferResult,
+                    outcome: 'error',
+                    message: 'Insufficient credits in treasury',
+                });
+                throw new AbortTransaction();
+            }
+            await adjustPlanetBaseTreasury(onPlanetId, -amount, client);
+            await addCredits(playerId, amount, client);
+            return { credits: credits + amount, treasury: base.treasury - amount };
+        });
+        if (!result) return;
+
+        sendEnvelope(playerId, {
+            type: ServerTag.TreasuryTransferResult,
+            outcome: 'ok',
+            direction,
+            amount,
+            credits: result.credits,
+            treasury: result.treasury,
+        });
+    } catch (err) {
+        if (err instanceof AbortTransaction) return;
+        console.error('Treasury transfer error', err);
+        sendError(playerId, 'Internal server error');
+    }
 }

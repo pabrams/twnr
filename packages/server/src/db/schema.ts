@@ -567,6 +567,7 @@ export const connectDB = async (): Promise<void> => {
       CREATE TABLE IF NOT EXISTS planet_bases (
         planet_id INTEGER PRIMARY KEY REFERENCES planets(id) ON DELETE CASCADE,
         level SMALLINT NOT NULL DEFAULT 0,
+        treasury BIGINT NOT NULL DEFAULT 0,
         construction_target_level SMALLINT,
         construction_started_at TIMESTAMPTZ,
         construction_completes_at TIMESTAMPTZ
