@@ -11,8 +11,11 @@ export type ColonistCommodity = keyof typeof COLONIST_COLUMN;
 
 export async function upsertEarthPlanet(sectorDbId: number, db: Queryable = pool): Promise<void> {
     await db.query(
-        `INSERT INTO planets (sector_id, universe_id, name, type)
-         SELECT s.id, s.universe_id, 'Earth', 'Terran' FROM sectors s WHERE s.id = $1
+        `INSERT INTO planets (sector_id, universe_id, universe_planet_number, name, type)
+         SELECT s.id, s.universe_id,
+                COALESCE((SELECT MAX(universe_planet_number) FROM planets WHERE universe_id = s.universe_id), 0) + 1,
+                'Earth', 'Terran'
+         FROM sectors s WHERE s.id = $1
          ON CONFLICT DO NOTHING`,
         [sectorDbId],
     );
@@ -102,8 +105,10 @@ export async function insertPlanet(
     db: Queryable = pool,
 ): Promise<number> {
     const res = await db.query<{ id: number }>(
-        `INSERT INTO planets (sector_id, universe_id, name, type, owner_player_id)
-         SELECT s.id, s.universe_id, $2, $3, $4
+        `INSERT INTO planets (sector_id, universe_id, universe_planet_number, name, type, owner_player_id)
+         SELECT s.id, s.universe_id,
+                COALESCE((SELECT MAX(universe_planet_number) FROM planets WHERE universe_id = s.universe_id), 0) + 1,
+                $2, $3, $4
          FROM sectors s WHERE s.id = $1
          RETURNING id`,
         [sectorDbId, name, type, ownerPlayerId],
@@ -118,8 +123,10 @@ export async function insertUnownedPlanet(
     db: Queryable = pool,
 ): Promise<void> {
     await db.query(
-        `INSERT INTO planets (sector_id, universe_id, name, type)
-         SELECT s.id, s.universe_id, $2, $3
+        `INSERT INTO planets (sector_id, universe_id, universe_planet_number, name, type)
+         SELECT s.id, s.universe_id,
+                COALESCE((SELECT MAX(universe_planet_number) FROM planets WHERE universe_id = s.universe_id), 0) + 1,
+                $2, $3
          FROM sectors s WHERE s.id = $1
          ON CONFLICT DO NOTHING`,
         [sectorDbId, name, type],
@@ -317,6 +324,7 @@ export async function getPlanetInSector(
 
 export async function getPlanetDisplayData(playerId: number): Promise<{
     id: number;
+    universe_planet_number: number;
     sector_id: number;
     name: string;
     planetType: string;
@@ -353,7 +361,7 @@ export async function getPlanetDisplayData(playerId: number): Promise<{
     if (!onPlanetId) return null;
 
     const planetRes = await pool.query(
-        `SELECT pl.id, pl.sector_id, pl.name, pl.type, pt.display_name AS display_type,
+        `SELECT pl.id, pl.universe_planet_number, pl.sector_id, pl.name, pl.type, pt.display_name AS display_type,
                 pl.owner_player_id, pl.owner_clan_id,
                 owner.name AS owner_player_name,
                 oc.name AS owner_clan_name,

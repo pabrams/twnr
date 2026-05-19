@@ -239,10 +239,12 @@ async function main() {
             }
             const planetRes = await client.query(
                 `INSERT INTO planets (
-                    sector_id, universe_id, name, type, owner_player_id,
+                    sector_id, universe_id, universe_planet_number, name, type, owner_player_id,
                     colonists_fuel, colonists_organics, colonists_equipment,
                     has_base
-                 ) SELECT s.id, s.universe_id, $2, 'Terran', $3, $4, $4, $4, TRUE
+                 ) SELECT s.id, s.universe_id,
+                          COALESCE((SELECT MAX(universe_planet_number) FROM planets WHERE universe_id = s.universe_id), 0) + 1,
+                          $2, 'Terran', $3, $4, $4, $4, TRUE
                    FROM sectors s WHERE s.id = $1
                  RETURNING id`,
                 [homeSectorDbId, def.name, playerId, COLOS_PER_BUCKET],
