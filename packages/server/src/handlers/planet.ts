@@ -5,6 +5,7 @@ import type {
     LeaveColonistsCommand,
     TakeCommodityCommand,
     LeaveCommodityCommand,
+    ChangePopulationCommand,
     ClaimPlanetCommand,
 } from '@twnr/shared';
 import { players } from '../state/players.js';
@@ -76,7 +77,6 @@ export async function serveGetSectorPlanets(playerId: number): Promise<void> {
         return;
     }
 
-    // auto-land on Earth - no planet selection in sector 1
     if (player.sector === 1) {
         const earthId = await getEarthId(player.universeId);
         if (earthId) {
@@ -824,9 +824,88 @@ export async function serveLeaveCommodity(
     });
 }
 
-/** Read the current ship-side count for a take/leave-commodity response.
- *  `drones` reads from ship.drones (not cargo holds), so it needs a
- *  separate query path than the cargo-bucket commodities. */
+export async function serveChangePopulation(
+    playerId: number,
+    data: ChangePopulationCommand,
+): Promise<void> {
+    const { quantity, from, to } = data;
+    const player = players[playerId];
+    if (!player) return;
+
+    if (from !== 'fuel' && from !== 'organics' && from !== 'equipment') {
+        sendError(playerId, 'Invalid source production group');
+        return;
+    }
+    if (to !== 'fuel' && to !== 'organics' && to !== 'equipment') {
+        sendError(playerId, 'Invalid target production group');
+        return;
+    }
+    if (from === to) {
+        sendError(playerId, 'Source and target groups are the same');
+        return;
+    }
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+        sendError(playerId, 'Invalid quantity');
+        return;
+    }
+
+    const onPlanetId = await getOnPlanetId(playerId);
+    if (!onPlanetId) {
+        sendError(playerId, 'Not on a planet');
+        return;
+    }
+
+    let moved: number | undefined;
+    try {
+        moved = await withTransaction(async (client) => {
+            await settlePlanetProduction(onPlanetId, client);
+            await settlePlanetColonistGrowth(onPlanetId, client);
+
+            const sourceAvail = await getPlanetColonistsForUpdate(onPlanetId, from, client);
+            if (sourceAvail === undefined) {
+                sendError(playerId, 'Planet not found');
+                throw new AbortTransaction();
+            }
+            if (sourceAvail <= 0) {
+                sendError(playerId, `No colonists in ${from} group`);
+                throw new AbortTransaction();
+            }
+
+            const targetCap = await getPlanetColonistsCapacity(onPlanetId, to, client);
+            if (!targetCap) {
+                sendError(playerId, 'Planet not found');
+                throw new AbortTransaction();
+            }
+            const room = Math.max(0, targetCap.max - targetCap.current);
+            if (room <= 0) {
+                sendError(playerId, `Target ${to} group is at max`);
+                throw new AbortTransaction();
+            }
+
+            const actual = Math.min(quantity, sourceAvail, room);
+            await updatePlanetColonists(onPlanetId, from, -actual, client);
+            await updatePlanetColonists(onPlanetId, to, actual, client);
+            return actual;
+        });
+    } catch (err) {
+        console.error('Change population error', err);
+        sendError(playerId, 'Failed to change population');
+    }
+
+    if (moved === undefined) return;
+
+    const fromCount = (await getPlanetColonistsRemaining(onPlanetId, from)) ?? 0;
+    const toCount = (await getPlanetColonistsRemaining(onPlanetId, to)) ?? 0;
+    sendEnvelope(playerId, {
+        type: ServerTag.ChangePopulationResult,
+        quantity: moved,
+        from,
+        to,
+        fromCount,
+        toCount,
+    });
+}
+
 async function readShipCommodity(playerId: number, col: PlanetCommodity): Promise<number> {
     if (col === 'drones') {
         const droneState = await getShipDronesAndMaxForUpdate(playerId);
@@ -837,9 +916,6 @@ async function readShipCommodity(playerId: number, col: PlanetCommodity): Promis
     return col === 'fuel' ? ship.fuel : col === 'organics' ? ship.organics : ship.equipment;
 }
 
-/** O (Claim Planet): take ownership of the planet the player is currently
- *  on (works on enemy planets too). `ownership='clan'` is only valid if
- *  the player is in a clan. */
 export async function serveClaimPlanet(playerId: number, data: ClaimPlanetCommand): Promise<void> {
     const { ownership } = data;
     const player = players[playerId];
@@ -857,9 +933,7 @@ export async function serveClaimPlanet(playerId: number, data: ClaimPlanetComman
         return;
     }
 
-    // Capture prior ownership BEFORE updating, so we can notify the displaced
-    // owner that someone else just claimed their planet.
-    const prior = await getPlanetOwnership(onPlanetId);
+    const previousOwner = await getPlanetOwnership(onPlanetId);
 
     if (ownership === 'clan') {
         await setPlanetOwnership(onPlanetId, null, playerClanId);
@@ -867,7 +941,7 @@ export async function serveClaimPlanet(playerId: number, data: ClaimPlanetComman
         await setPlanetOwnership(onPlanetId, playerId, null);
     }
 
-    const planetName = prior?.name ?? (await getPlanetName(onPlanetId)) ?? 'Planet';
+    const planetName = previousOwner?.name ?? (await getPlanetName(onPlanetId)) ?? 'Planet';
     sendEnvelope(playerId, {
         type: ServerTag.ClaimPlanetResult,
         planetId: onPlanetId,
@@ -875,19 +949,19 @@ export async function serveClaimPlanet(playerId: number, data: ClaimPlanetComman
         ownership,
     });
 
-    if (prior) {
+    if (previousOwner) {
         const { notifyAndMail } = await import('../services/notify.js');
-        const body = `${player.name} claimed planet ${planetName} in sector ${prior.sector_number}.`;
-        if (prior.owner_player_id !== null && prior.owner_player_id !== playerId) {
+        const body = `${player.name} claimed planet ${planetName} in sector ${previousOwner.sector_number}.`;
+        if (previousOwner.owner_player_id !== null && previousOwner.owner_player_id !== playerId) {
             await notifyAndMail({
-                recipientId: prior.owner_player_id,
+                recipientId: previousOwner.owner_player_id,
                 sender: { kind: 'player', playerId, displayName: player.name },
                 kind: 'planet_claimed',
                 body,
             });
-        } else if (prior.owner_clan_id !== null && prior.owner_clan_id !== playerClanId) {
+        } else if (previousOwner.owner_clan_id !== null && previousOwner.owner_clan_id !== playerClanId) {
             const { getClanMembers } = await import('../db/queries/clan.js');
-            const members = await getClanMembers(prior.owner_clan_id);
+            const members = await getClanMembers(previousOwner.owner_clan_id);
             for (const m of members) {
                 if (m.id === playerId) continue;
                 await notifyAndMail({

@@ -3,120 +3,167 @@ import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { PLANET } from '../messages/index.js';
 import { echoCommand } from '../display.js';
-import {
-    showPlanetTakeCommodityMenu,
-    showPlanetLeaveCommodityMenu,
-    showPlanetTakeStockpileMenu,
-    showPlanetLeaveStockpileMenu,
-} from '../display-planet.js';
 import { registerRoutine } from './types.js';
 import { askChar, askConfirm, askNumber, awaitResponse } from './prompts.js';
 
-type Commodity4 = 'fuel' | 'organics' | 'equipment' | 'drones';
-const COMMODITY_MAP: Record<string, Commodity4> = {
-    f: 'fuel',
-    o: 'organics',
-    e: 'equipment',
-    d: 'drones',
+type Product3 = 'fuel' | 'organics' | 'equipment';
+const PRODUCT_BY_DIGIT: Record<string, Product3> = {
+    '1': 'fuel',
+    '2': 'organics',
+    '3': 'equipment',
+};
+const PRODUCT_LABEL: Record<Product3, string> = {
+    fuel: 'Ore',
+    organics: 'Organics',
+    equipment: 'Equipment',
 };
 
-async function pickCommodity(ctx: GameContext): Promise<Commodity4 | null> {
-    const ch = await askChar(ctx, render(PLANET.commodityPrompt), ['f', 'o', 'e', 'd']);
-    return ch ? (COMMODITY_MAP[ch] ?? null) : null;
+async function askProductGroup(
+    ctx: GameContext,
+    promptKey: 'productGroupTakingPrompt' | 'productGroupLeavingPrompt' | 'colonistGroupChangingPrompt' | 'colonistGroupFromPrompt' | 'colonistGroupToPrompt',
+): Promise<Product3 | null> {
+    const ch = await askChar(ctx, render(PLANET[promptKey]), ['1', '2', '3']);
+    return ch ? (PRODUCT_BY_DIGIT[ch] ?? null) : null;
 }
 
-registerRoutine('take_colonists', async (ctx) => {
-    echoCommand(ctx, 'takeColonists');
-    showPlanetTakeCommodityMenu(ctx);
-    const commodity = await pickCommodity(ctx);
-    if (!commodity) return;
-    const qty = await askNumber(
+async function askDisplayPlanet(ctx: GameContext, defaultYes: boolean): Promise<boolean | null> {
+    return askConfirm(
         ctx,
-        render(PLANET.takePrompt, { emptyHolds: ctx.ship.planetEmptyHolds }),
-        { defaultValue: -1 },
+        render(PLANET.displayPlanetPrompt, { default: defaultYes ? 'Y' : 'N' }),
+        { defaultValue: defaultYes },
     );
-    if (qty === null) return;
-    ctx.io.sendMsg({ type: ClientTag.TakeColonists, quantity: qty, commodity });
+}
+
+async function maybeShowPlanet(ctx: GameContext, defaultYes: boolean): Promise<boolean> {
+    const show = await askDisplayPlanet(ctx, defaultYes);
+    if (show === null) return false;
+    if (show) {
+        ctx.io.sendMsg({ type: ClientTag.PlanetDisplay });
+        await awaitResponse(ctx, [ServerTag.PlanetDisplayResult, ServerTag.Error]);
+    }
+    return true;
+}
+
+registerRoutine('load_unload_colonists', async (ctx) => {
+    ctx.io.term.writeln('');
+    ctx.io.term.writeln(render(PLANET.loadUnloadBanner));
+    if (!(await maybeShowPlanet(ctx, false))) return;
+    const action = await askChar(
+        ctx,
+        render(PLANET.leaveOrTakeColonistsPrompt, { default: 'L' }),
+        ['l', 't'],
+        { defaultChar: 'l' },
+    );
+    if (!action) return;
+    const commodity = await askProductGroup(ctx, 'colonistGroupChangingPrompt');
+    if (!commodity) return;
+    if (action === 't') {
+        const qty = await askNumber(
+            ctx,
+            render(PLANET.colonistQtyTakePrompt, { emptyHolds: ctx.ship.planetEmptyHolds }),
+            { defaultValue: -1 },
+        );
+        if (qty === null) return;
+        ctx.io.sendMsg({ type: ClientTag.TakeColonists, quantity: qty, commodity });
+    } else {
+        const qty = await askNumber(
+            ctx,
+            render(PLANET.colonistQtyLeavePrompt, { shipColonists: ctx.ship.shipColonists }),
+            { defaultValue: -1 },
+        );
+        if (qty === null) return;
+        ctx.io.sendMsg({ type: ClientTag.LeaveColonists, quantity: qty, commodity });
+    }
 });
 
-registerRoutine('leave_colonists', async (ctx) => {
-    echoCommand(ctx, 'leaveColonists');
-    showPlanetLeaveCommodityMenu(ctx);
-    const commodity = await pickCommodity(ctx);
-    if (!commodity) return;
-    const qty = await askNumber(
-        ctx,
-        render(PLANET.leavePrompt, { shipColonists: ctx.ship.shipColonists }),
-        { defaultValue: -1 },
-    );
-    if (qty === null) return;
-    ctx.io.sendMsg({ type: ClientTag.LeaveColonists, quantity: qty, commodity });
-});
-
-function takeDefault(ctx: GameContext, commodity: Commodity4): number {
+function takeDefault(ctx: GameContext, commodity: Product3): number {
     const planet =
         commodity === 'fuel'
             ? ctx.planet.fuel
             : commodity === 'organics'
               ? ctx.planet.organics
-              : commodity === 'equipment'
-                ? ctx.planet.equipment
-                : ctx.planet.drones;
-    const shipRoom =
-        commodity === 'drones'
-            ? Math.max(0, ctx.ship.shipMaxDrones - ctx.ship.shipDrones)
-            : ctx.ship.planetEmptyHolds;
-    return Math.max(0, Math.min(planet, shipRoom));
+              : ctx.planet.equipment;
+    return Math.max(0, Math.min(planet, ctx.ship.planetEmptyHolds));
 }
 
-function leaveDefault(ctx: GameContext, commodity: Commodity4): number {
+function leaveDefault(ctx: GameContext, commodity: Product3): number {
     const onShip =
         commodity === 'fuel'
             ? ctx.ship.shipFuel
             : commodity === 'organics'
               ? ctx.ship.shipOrganics
-              : commodity === 'equipment'
-                ? ctx.ship.shipEquipment
-                : ctx.ship.shipDrones;
+              : ctx.ship.shipEquipment;
     const planetRoom =
         commodity === 'fuel'
             ? Math.max(0, ctx.planet.maxFuel - ctx.planet.fuel)
             : commodity === 'organics'
               ? Math.max(0, ctx.planet.maxOrg - ctx.planet.organics)
-              : commodity === 'equipment'
-                ? Math.max(0, ctx.planet.maxEqu - ctx.planet.equipment)
-                : Math.max(0, ctx.planet.maxDrones - ctx.planet.drones);
+              : Math.max(0, ctx.planet.maxEqu - ctx.planet.equipment);
     return Math.max(0, Math.min(onShip, planetRoom));
 }
 
-registerRoutine('take_commodity', async (ctx) => {
-    echoCommand(ctx, 'takeCommodity');
-    showPlanetTakeStockpileMenu(ctx);
-    const commodity = await pickCommodity(ctx);
-    if (!commodity) return;
-    const def = takeDefault(ctx, commodity);
-    const qty = await askNumber(
+registerRoutine('take_leave_product', async (ctx) => {
+    ctx.io.term.writeln('');
+    ctx.io.term.writeln(render(PLANET.takeLeaveBanner));
+    if (!(await maybeShowPlanet(ctx, false))) return;
+    const action = await askChar(
         ctx,
-        render(PLANET.takeStockpileQtyPrompt, { commodity, default: def }),
-        { defaultValue: def },
+        render(PLANET.leaveOrTakeProductPrompt, { default: 'T' }),
+        ['l', 't'],
+        { defaultChar: 't' },
     );
-    if (qty === null) return;
-    ctx.io.sendMsg({ type: ClientTag.TakeCommodity, quantity: qty, commodity });
+    if (!action) return;
+    const commodity = await askProductGroup(
+        ctx,
+        action === 't' ? 'productGroupTakingPrompt' : 'productGroupLeavingPrompt',
+    );
+    if (!commodity) return;
+    const label = PRODUCT_LABEL[commodity];
+    if (action === 't') {
+        const def = takeDefault(ctx, commodity);
+        const qty = await askNumber(
+            ctx,
+            render(PLANET.productQtyTakePrompt, {
+                commodity: label,
+                emptyHolds: ctx.ship.planetEmptyHolds,
+            }),
+            { defaultValue: def },
+        );
+        if (qty === null) return;
+        ctx.io.sendMsg({ type: ClientTag.TakeCommodity, quantity: qty, commodity });
+    } else {
+        const onBoard =
+            commodity === 'fuel'
+                ? ctx.ship.shipFuel
+                : commodity === 'organics'
+                  ? ctx.ship.shipOrganics
+                  : ctx.ship.shipEquipment;
+        const def = leaveDefault(ctx, commodity);
+        const qty = await askNumber(
+            ctx,
+            render(PLANET.productQtyLeavePrompt, { commodity: label, onBoard }),
+            { defaultValue: def },
+        );
+        if (qty === null) return;
+        ctx.io.sendMsg({ type: ClientTag.LeaveCommodity, quantity: qty, commodity });
+    }
 });
 
-registerRoutine('leave_commodity', async (ctx) => {
-    echoCommand(ctx, 'leaveCommodity');
-    showPlanetLeaveStockpileMenu(ctx);
-    const commodity = await pickCommodity(ctx);
-    if (!commodity) return;
-    const def = leaveDefault(ctx, commodity);
-    const qty = await askNumber(
-        ctx,
-        render(PLANET.leaveStockpileQtyPrompt, { commodity, default: def }),
-        { defaultValue: def },
-    );
+registerRoutine('change_population', async (ctx) => {
+    ctx.io.term.writeln('');
+    ctx.io.term.writeln(render(PLANET.changePopulationBanner));
+    if (!(await maybeShowPlanet(ctx, true))) return;
+    const from = await askProductGroup(ctx, 'colonistGroupFromPrompt');
+    if (!from) return;
+    const qty = await askNumber(ctx, render(PLANET.populationQtyPrompt), { min: 1 });
     if (qty === null) return;
-    ctx.io.sendMsg({ type: ClientTag.LeaveCommodity, quantity: qty, commodity });
+    const to = await askProductGroup(ctx, 'colonistGroupToPrompt');
+    if (!to) return;
+    if (from === to) {
+        ctx.io.term.writeln(render(PLANET.sameGroup));
+        return;
+    }
+    ctx.io.sendMsg({ type: ClientTag.ChangePopulation, quantity: qty, from, to });
 });
 
 registerRoutine('planet_display', (ctx) => {

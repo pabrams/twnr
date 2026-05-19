@@ -127,6 +127,13 @@ export type LeaveCommodityCommand = {
     commodity: 'fuel' | 'organics' | 'equipment' | 'drones';
 };
 
+export type ChangePopulationCommand = {
+    type: typeof ClientTag.ChangePopulation;
+    quantity: number;
+    from: 'fuel' | 'organics' | 'equipment';
+    to: 'fuel' | 'organics' | 'equipment';
+};
+
 export type DeployDronesInfoCommand = {
     type: typeof ClientTag.DeployDronesInfo;
 };
@@ -457,6 +464,7 @@ export type ClientEnvelope =
     | LeaveColonistsCommand
     | TakeCommodityCommand
     | LeaveCommodityCommand
+    | ChangePopulationCommand
     | DeployDronesInfoCommand
     | DeployDronesCommand
     | AttackSectorDronesCommand

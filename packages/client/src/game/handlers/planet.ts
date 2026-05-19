@@ -205,6 +205,12 @@ export const leaveCommodity: Handler<'leaveCommodityResult', PlanetContext> = (c
     );
 };
 
+export const changePopulation: Handler<'changePopulationResult', PlanetContext> = (ctx, msg) => {
+    ctx.io.term.writeln('');
+    ctx.io.term.writeln(render(PLANET.populationMoved));
+    void msg;
+};
+
 export const leaveColonists: Handler<'leaveColonistsResult', PlanetContext> = (ctx, msg) => {
     ctx.ship.shipColonists = msg.shipColonists;
     if (msg.commodity === 'fuel') ctx.world.earthColonists = msg.planetColonists;

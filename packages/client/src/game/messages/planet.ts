@@ -20,6 +20,44 @@ export const PLANET = makeDomain('PLANET', {
     leavePrompt:
         '\r\n[by]How many colonists to leave?[/by] [mg]([/mg][bc]{shipColonists}[/bc] [g]on board[/g][mg])[/mg] [mg][[/mg][bc]{shipColonists}[/bc][mg]][/mg] ',
 
+    loadUnloadBanner: '[bg]<Load/Unload Colonists>[/bg]',
+    takeLeaveBanner: '[bg]<Take/Leave Products>[/bg]',
+    changePopulationBanner: '[bg]<Change Colonist Population>[/bg]',
+    displayPlanetPrompt:
+        '\r\n[mg]Display planet?[/mg] [mg]([/mg][by]Y[/by]/[by]N[/by][mg]) [[/mg][by]{default}[/by][mg]][/mg] [by]:[/by] ',
+    leaveOrTakeColonistsPrompt:
+        '[mg]([/mg][by]L[/by][mg])eave or ([/mg][by]T[/by][mg])ake Colonists?[/mg] [mg][[/mg][by]{default}[/by][mg]][/mg] [by]:[/by] ',
+    leaveOrTakeProductPrompt:
+        '[mg]([/mg][by]L[/by][mg])eave or ([/mg][by]T[/by][mg])ake Product?[/mg] [mg][[/mg][by]{default}[/by][mg]][/mg] [by]:[/by] ',
+    productGroupTakingPrompt:
+        '[mg]Which product are you taking?[/mg]\r\n[mg]([/mg][by]1[/by][mg])Ore, ([/mg][by]2[/by][mg])Org or ([/mg][by]3[/by][mg])Equipment?[/mg] ',
+    productGroupLeavingPrompt:
+        '[mg]Which product are you leaving?[/mg]\r\n[mg]([/mg][by]1[/by][mg])Ore, ([/mg][by]2[/by][mg])Org or ([/mg][by]3[/by][mg])Equipment?[/mg] ',
+    colonistGroupChangingPrompt:
+        '[mg]Which production group are you changing?[/mg]\r\n[mg]([/mg][by]1[/by][mg])Ore, ([/mg][by]2[/by][mg])Org or ([/mg][by]3[/by][mg])Equipment Production?[/mg] ',
+    colonistGroupFromPrompt:
+        '[mg]Which production group are you moving Colonists from?[/mg]\r\n[mg]([/mg][by]1[/by][mg])Ore, ([/mg][by]2[/by][mg])Org or ([/mg][by]3[/by][mg])Equipment?[/mg] ',
+    colonistGroupToPrompt:
+        '[mg]And which group are you moving them to?[/mg]\r\n[mg]([/mg][by]1[/by][mg])Ore, ([/mg][by]2[/by][mg])Org or ([/mg][by]3[/by][mg])Equipment?[/mg] ',
+    productQtyTakePrompt:
+        '[mg]How many holds of[/mg] [bc]{commodity}[/bc] [mg]do you want to take ([/mg][by][{emptyHolds}][/by] [mg]empty holds) ?[/mg] ',
+    productQtyLeavePrompt:
+        '[mg]How many holds of[/mg] [bc]{commodity}[/bc] [mg]do you want to leave ([/mg][by][{onBoard}][/by] [mg]on board[/mg][mg]) ?[/mg] ',
+    colonistQtyTakePrompt:
+        '[mg]How many groups of Colonists do you want to take ([/mg][by][{emptyHolds}][/by] [mg]empty holds) ?[/mg] ',
+    colonistQtyLeavePrompt:
+        '[mg]How many groups of Colonists do you want to leave ([/mg][by][{shipColonists}][/by] [mg]on board) ?[/mg] ',
+    populationQtyPrompt:
+        '[mg]How many groups of Colonists do you want to move?[/mg] ',
+    colonistsLoaded: '[bg]The Colonists file aboard your ship, eager to head out.[/bg]',
+    colonistsUnloaded: '[bg]The Colonists settle in to their new homes on the planet.[/bg]',
+    productLoaded: '[bg]You load the {commodity} aboard your ship.[/bg]',
+    productUnloaded: '[bg]You unload the {commodity} from your ship.[/bg]',
+    notThatMany: '[br]There aren\'t that many on the planet![/br]',
+    notThatMuchOnShip: '[br]You don\'t have that many on board![/br]',
+    populationMoved: '[bg]The Colonists drop what they were doing and start their new jobs.[/bg]',
+    sameGroup: '[br]That\'s the same group.[/br]',
+
     takeCommodityHeader: '[bc]Which colonists to take?[/bc]',
     leaveCommodityHeader: '[bc]Assign colonists to which commodity?[/bc]',
     commodityPrompt:

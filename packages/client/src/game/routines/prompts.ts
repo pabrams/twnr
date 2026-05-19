@@ -1,28 +1,20 @@
 import type { ServerEnvelope } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 
-/**
- * Prompts only need the io (terminal) and input (pendingResolver) slots.
- * Narrowing lets handler-side code that holds a Pick<GameContext, ...>
- * pass it in directly without widening to GameContext.
- */
 export type PromptCtx = Pick<GameContext, 'io' | 'input'>;
 
-/** Park, line-mode: resolves with the next submitted line on Enter. */
 function parkLine(ctx: PromptCtx): Promise<string | null> {
     return new Promise((resolve) => {
         ctx.input.pendingResolver = { mode: 'line', resolve };
     });
 }
 
-/** Park, char-mode: resolves with the next keystroke (no Enter required). */
 function parkChar(ctx: PromptCtx): Promise<string | null> {
     return new Promise((resolve) => {
         ctx.input.pendingResolver = { mode: 'char', resolve };
     });
 }
 
-/** Free-form line. `q` and empty Enter both cancel. */
 export async function askLine(ctx: PromptCtx, prompt: string): Promise<string | null> {
     ctx.io.term.write(prompt);
     const line = await parkLine(ctx);
@@ -32,12 +24,6 @@ export async function askLine(ctx: PromptCtx, prompt: string): Promise<string | 
     return trimmed;
 }
 
-/**
- * Collect a multi-line message, one line at a time, with `linePrompt` shown
- * before each line. Blank line ends the message and returns the joined body
- * (newline-separated). Returns null if the user cancels by pressing Q on an
- * otherwise-empty line at the start (no lines collected yet).
- */
 export async function askMultiLine(ctx: PromptCtx, linePrompt: string): Promise<string | null> {
     const lines: string[] = [];
     while (true) {
@@ -49,10 +35,6 @@ export async function askMultiLine(ctx: PromptCtx, linePrompt: string): Promise<
     }
 }
 
-/** Like askLine, but resolves immediately (no Enter required) when the
- *  first keystroke matches one of `instantChars`. Used by menus where a
- *  number (multi-char) and a single-letter shortcut both make sense — e.g.
- *  the transporter "pick a ship #, or I/Q" prompt. */
 export async function askLineWithShortcuts(
     ctx: PromptCtx,
     prompt: string,
@@ -60,8 +42,7 @@ export async function askLineWithShortcuts(
 ): Promise<string | null> {
     const instantLower = new Set(instantChars.map((c) => c.toLowerCase()));
     ctx.io.term.write(prompt);
-    // First keystroke: char-mode park. If it's one of the shortcuts, return
-    // it immediately. If it's a digit (or any other char), echo it and
+    // First keystroke:If it's a digit, echo it and
     // switch to line mode to assemble the rest of the number.
     const first = await parkChar(ctx);
     if (first === null) return null;
@@ -71,9 +52,7 @@ export async function askLineWithShortcuts(
         ctx.io.term.writeln(first);
         return firstLower;
     }
-    // Backspace/Enter on the first keystroke — drop or accept as empty.
     if (first === '\r' || first === '\n') return null;
-    // Switch to line mode with `first` already in the buffer + echoed.
     ctx.io.term.write(first);
     ctx.input.inputAssembly = first;
     const full = await parkLine(ctx);
@@ -87,12 +66,18 @@ export async function askChar(
     ctx: PromptCtx,
     prompt: string,
     allowed: string[],
+    opts?: { defaultChar?: string },
 ): Promise<string | null> {
     const allowedLower = allowed.map((k) => k.toLowerCase());
+    const def = opts?.defaultChar?.toLowerCase();
     while (true) {
         ctx.io.term.write(prompt);
         const ch = await parkChar(ctx);
         if (ch === null) return null;
+        if ((ch === '\r' || ch === '\n') && def !== undefined) {
+            ctx.io.term.writeln('');
+            return def;
+        }
         const lower = ch.toLowerCase();
         if (lower === 'q') return null;
         if (allowedLower.includes(lower)) {

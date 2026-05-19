@@ -46,6 +46,7 @@ export const ServerTag = {
     LeaveColonistsResult: 'leaveColonistsResult',
     TakeCommodityResult: 'takeCommodityResult',
     LeaveCommodityResult: 'leaveCommodityResult',
+    ChangePopulationResult: 'changePopulationResult',
     DeployDronesInfoResult: 'deployDronesInfoResult',
     DeployMineInfoResult: 'deployMineInfoResult',
     DeployDronesResult: 'deployDronesResult',
@@ -153,6 +154,7 @@ export const ClientTag = {
     LeaveColonists: 'leaveColonists',
     TakeCommodity: 'takeCommodity',
     LeaveCommodity: 'leaveCommodity',
+    ChangePopulation: 'changePopulation',
     DeployDronesInfo: 'deployDronesInfo',
     DeployDrones: 'deployDrones',
     AttackSectorDrones: 'attackSectorDrones',
@@ -206,20 +208,12 @@ export const ClientTag = {
     BuildPort: 'buildPort',
     UpgradePortInfo: 'upgradePortInfo',
     UpgradePort: 'upgradePort',
-    /** Begin a haggle session for one commodity + quantity. The current
-     *  player's port session (if any) is replaced. */
     HaggleOpen: 'haggleOpen',
-    /** Player's counter offer (total credits). */
     HaggleCounter: 'haggleCounter',
-    /** Accept the port's current offer and settle the trade. */
     HaggleAccept: 'haggleAccept',
-    /** Walk away from the current haggle session without trading. */
     HaggleQuit: 'haggleQuit',
-    /** Open the "B" menu on the planet the player is on. */
     BaseInfo: 'baseInfo',
-    /** Start construction of a level-1 base on the current planet. */
     BuildBase: 'buildBase',
-    /** Exit the Base submenu back to the planet surface. */
     ExitBase: 'exitBase',
 } as const;
 type ClientTag = typeof ClientTag;
