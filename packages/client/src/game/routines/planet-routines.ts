@@ -301,6 +301,11 @@ registerRoutine('base_computer', (ctx) => {
     ctx.world.mode = Menu.BaseComputer;
 });
 
+registerRoutine('scan_sector', (ctx) => {
+    echoCommand(ctx, 'sectorScan');
+    ctx.io.sendMsg({ type: ClientTag.SectorDisplay });
+});
+
 registerRoutine('exit_base', (ctx) => {
     echoCommand(ctx, 'exitBase');
     ctx.io.sendMsg({ type: ClientTag.ExitBase });

@@ -358,6 +358,13 @@ export const MENU_REGISTRY: MenuEntry[] = [
                 sortOrder: 10,
             },
             {
+                command: 'scan_sector',
+                keyPattern: 's',
+                label: 'Scan the Sector',
+                targetMenu: null,
+                sortOrder: 20,
+            },
+            {
                 command: 'help_menu',
                 keyPattern: '?',
                 label: 'Help',
