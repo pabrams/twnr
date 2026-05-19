@@ -102,6 +102,12 @@ async function main() {
         }
         const sector1Id = sectorIdMap.get(1);
         await upsertSpecialPort(sector1Id, 0, client);
+        for (const extraId of result.extraClassZeroSectorIds) {
+            const extraDbId = sectorIdMap.get(extraId);
+            if (extraDbId !== undefined) {
+                await upsertSpecialPort(extraDbId, 0, client);
+            }
+        }
         const starbaseSectorNumber = await getStarbaseSectorNumber(universeId, client);
         if (starbaseSectorNumber !== null) {
             const sbDbId = sectorIdMap.get(starbaseSectorNumber);
@@ -234,8 +240,8 @@ async function main() {
             await client.query(
                 `INSERT INTO planets (
                     sector_id, universe_id, name, type, owner_player_id,
-                    colonists_fuel, colonists_organics, colonists_equipment, colonists_drones
-                 ) SELECT s.id, s.universe_id, $2, 'Terran', $3, $4, $4, $4, $4
+                    colonists_fuel, colonists_organics, colonists_equipment
+                 ) SELECT s.id, s.universe_id, $2, 'Terran', $3, $4, $4, $4
                    FROM sectors s WHERE s.id = $1`,
                 [homeSectorDbId, def.name, playerId, COLOS_PER_BUCKET],
             );
