@@ -308,6 +308,7 @@ export type GetSectorPlanetsReply = {
 
 export type PlanetDisplayData = {
     id: number;
+    universe_planet_number: number;
     sector_id: number;
     name: string;
     planetType: string;

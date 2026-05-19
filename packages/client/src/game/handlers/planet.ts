@@ -18,6 +18,7 @@ import { padStartVisible } from '../display-utils.js';
 
 type PlanetDisplayMsg = {
     id: number;
+    universe_planet_number: number;
     name: string;
     planetType: string;
     displayType: string | null;
@@ -89,7 +90,9 @@ function renderPlanetTable(
     const sector = ctx.world.currentSector;
     const cpu = msg.colos_per_unit_per_hour;
     ctx.io.term.writeln('');
-    ctx.io.term.writeln(render(PLANET.displayTitle, { id: msg.id, sector, name: msg.name }));
+    ctx.io.term.writeln(
+        render(PLANET.displayTitle, { id: msg.universe_planet_number, sector, name: msg.name }),
+    );
     ctx.io.term.writeln(
         render(PLANET.displayClass, {
             class: msg.planetType,
