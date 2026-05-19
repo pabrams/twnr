@@ -337,21 +337,6 @@ export const connectDB = async (): Promise<void> => {
         PRIMARY KEY (universe_id, slug)
       );
 
-      -- Planetary Defense Bastion (PDB / "base", legacy "citadel"). One row
-      -- per planet with a completed base or in-progress construction. level
-      -- = 0 means no base yet (construction in progress); level >= 1 means
-      -- active base at that level. When construction_target_level IS NOT
-      -- NULL, construction is in progress (initial build OR upgrade to that
-      -- level) and will complete at construction_completes_at. Lazy
-      -- promotion on read.
-      CREATE TABLE IF NOT EXISTS planet_bases (
-        planet_id INTEGER PRIMARY KEY REFERENCES planets(id) ON DELETE CASCADE,
-        level SMALLINT NOT NULL DEFAULT 0,
-        construction_target_level SMALLINT,
-        construction_started_at TIMESTAMPTZ,
-        construction_completes_at TIMESTAMPTZ
-      );
-
       CREATE TABLE IF NOT EXISTS players (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255),
@@ -569,6 +554,21 @@ export const connectDB = async (): Promise<void> => {
         colliding_with INTEGER NOT NULL REFERENCES planets(id) ON DELETE CASCADE,
         collision_at TIMESTAMPTZ NOT NULL,
         PRIMARY KEY (collision_planet, colliding_with)
+      );
+
+      -- Planetary Defense Bastion (PDB / "base", legacy "citadel"). One row
+      -- per planet with a completed base or in-progress construction. level
+      -- = 0 means no base yet (construction in progress); level >= 1 means
+      -- active base at that level. When construction_target_level IS NOT
+      -- NULL, construction is in progress (initial build OR upgrade to that
+      -- level) and will complete at construction_completes_at. Lazy
+      -- promotion on read.
+      CREATE TABLE IF NOT EXISTS planet_bases (
+        planet_id INTEGER PRIMARY KEY REFERENCES planets(id) ON DELETE CASCADE,
+        level SMALLINT NOT NULL DEFAULT 0,
+        construction_target_level SMALLINT,
+        construction_started_at TIMESTAMPTZ,
+        construction_completes_at TIMESTAMPTZ
       );
 
       CREATE TABLE IF NOT EXISTS sector_drones (
