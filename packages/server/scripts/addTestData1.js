@@ -237,13 +237,20 @@ async function main() {
                     [homeSectorDbId, mineType, HOME_MINES_EACH, playerId],
                 );
             }
-            await client.query(
+            const planetRes = await client.query(
                 `INSERT INTO planets (
                     sector_id, universe_id, name, type, owner_player_id,
-                    colonists_fuel, colonists_organics, colonists_equipment
-                 ) SELECT s.id, s.universe_id, $2, 'Terran', $3, $4, $4, $4
-                   FROM sectors s WHERE s.id = $1`,
+                    colonists_fuel, colonists_organics, colonists_equipment,
+                    has_base
+                 ) SELECT s.id, s.universe_id, $2, 'Terran', $3, $4, $4, $4, TRUE
+                   FROM sectors s WHERE s.id = $1
+                 RETURNING id`,
                 [homeSectorDbId, def.name, playerId, COLOS_PER_BUCKET],
+            );
+            const planetId = planetRes.rows[0].id;
+            await client.query(
+                `INSERT INTO planet_bases (planet_id, level) VALUES ($1, 1)`,
+                [planetId],
             );
 
             playerHomes.push({ def, playerId, userId: user.id, homeSectorDbId });
