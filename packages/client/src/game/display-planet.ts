@@ -61,8 +61,6 @@ export function showEarthMenu(ctx: DisplayPlanetCtx, colonistsFuel: number) {
 
 export function showEarthPrompt(ctx: DisplayPlanetCtx) {
     void ctx;
-    // PLANET.prompt is currently shared with the regular planet menu.
-    // When Earth diverges further (e.g. its own header colors) split it out.
     ctx.io.term.write(render(PLANET.prompt));
 }
 
