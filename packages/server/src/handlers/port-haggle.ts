@@ -35,10 +35,7 @@ import {
     adjustPortCommodity,
     type Commodity,
 } from '../db/queries/port.js';
-import {
-    getShipCargoWithCreditsForUpdate,
-    incrementShipCommodity,
-} from '../db/queries/ship.js';
+import { getShipCargoWithCreditsForUpdate, incrementShipCommodity } from '../db/queries/ship.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 import { cargoUsed, formatCargo } from './cargo-utils.js';
 import { recordCreditChange } from '../services/audit.js';
@@ -98,7 +95,11 @@ export async function serveHaggleOpen(playerId: number, data: HaggleOpenCommand)
     const player = players[playerId];
     if (!player) return;
 
-    if (data.commodity !== 'fuel' && data.commodity !== 'organics' && data.commodity !== 'equipment') {
+    if (
+        data.commodity !== 'fuel' &&
+        data.commodity !== 'organics' &&
+        data.commodity !== 'equipment'
+    ) {
         sendEnvelope(playerId, {
             type: ServerTag.HaggleOpenResult,
             outcome: 'error',
@@ -114,7 +115,9 @@ export async function serveHaggleOpen(playerId: number, data: HaggleOpenCommand)
         });
         return;
     }
-    const qty = Number.isInteger(data.quantity) ? data.quantity : parseInt(String(data.quantity), 10);
+    const qty = Number.isInteger(data.quantity)
+        ? data.quantity
+        : parseInt(String(data.quantity), 10);
     if (isNaN(qty) || qty <= 0) {
         sendEnvelope(playerId, {
             type: ServerTag.HaggleOpenResult,

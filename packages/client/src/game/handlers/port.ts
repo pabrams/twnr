@@ -184,8 +184,7 @@ async function runTradeRoutine(
         let portCurrent = opened.initialOffer;
         let isFinal = false;
         let settled: typeof response | null = null;
-        type HaggleResp =
-            Extract<ServerEnvelopeT, { type: typeof ServerTag.HaggleResponseResult }>;
+        type HaggleResp = Extract<ServerEnvelopeT, { type: typeof ServerTag.HaggleResponseResult }>;
         let response: HaggleResp | null = null;
 
         while (!settled) {
@@ -201,8 +200,11 @@ async function runTradeRoutine(
                 break;
             }
             // Player accepts the port's current offer (default = press enter).
-            if (counter === portCurrent || (isFinal && counter >= portCurrent && action === 'buy') ||
-                (isFinal && counter <= portCurrent && action === 'sell')) {
+            if (
+                counter === portCurrent ||
+                (isFinal && counter >= portCurrent && action === 'buy') ||
+                (isFinal && counter <= portCurrent && action === 'sell')
+            ) {
                 ctx.io.sendMsg({ type: ClientTag.HaggleAccept });
             } else if (isFinal) {
                 // After final offer the only valid input is accept or quit.
@@ -223,7 +225,7 @@ async function runTradeRoutine(
             response = r as HaggleResp;
             if (response.outcome === 'accepted') {
                 settled = response;
-                term.writeln('You are a shrewd trader, they\'re all yours.');
+                term.writeln("You are a shrewd trader, they're all yours.");
             } else if (response.outcome === 'counter') {
                 portCurrent = response.newPortOffer;
                 term.writeln('');
@@ -247,9 +249,10 @@ async function runTradeRoutine(
             cargo = settled.cargo;
             credits = settled.credits;
             emptyHolds = settled.emptyHolds;
-            portInv[c.key] = action === 'buy'
-                ? Math.max(0, portInv[c.key] - qty)
-                : Math.max(0, portInv[c.key] - qty);
+            portInv[c.key] =
+                action === 'buy'
+                    ? Math.max(0, portInv[c.key] - qty)
+                    : Math.max(0, portInv[c.key] - qty);
             term.writeln(render(TRANSACTION.tradeComplete, { credits: fmt(credits) }));
         }
     }

@@ -61,10 +61,7 @@ export function hexDistance(a: HexCell, b: HexCell): number {
  * sector `i`, with anchor IDs displaced into their chosen cells and the
  * sectors they displaced filling the vacancies.
  */
-export function arrangeAnchors(
-    layout: HexLayout,
-    anchorSectorIds: readonly number[],
-): HexLayout {
+export function arrangeAnchors(layout: HexLayout, anchorSectorIds: readonly number[]): HexLayout {
     const N = layout.cells.length;
     if (N === 0 || anchorSectorIds.length === 0) return layout;
 
@@ -158,7 +155,7 @@ export function arrangeAnchors(
 }
 
 /**
- * 
+ *
  */
 export function packHexCells(N: number, rng: () => number): HexLayout {
     if (N < 1) return { positions: [], cells: [] };

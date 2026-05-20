@@ -954,7 +954,10 @@ export async function serveClaimPlanet(playerId: number, data: ClaimPlanetComman
                 kind: 'planet_claimed',
                 body,
             });
-        } else if (previousOwner.owner_clan_id !== null && previousOwner.owner_clan_id !== playerClanId) {
+        } else if (
+            previousOwner.owner_clan_id !== null &&
+            previousOwner.owner_clan_id !== playerClanId
+        ) {
             const { getClanMembers } = await import('../db/queries/clan.js');
             const members = await getClanMembers(previousOwner.owner_clan_id);
             for (const m of members) {

@@ -37,12 +37,7 @@ export async function serveJettison(playerId: number): Promise<void> {
                     const key = 'blueJettisonsColosOncePerDay';
                     appliedRep = reputationDeltas.amountChangeFor[key] ?? 0;
                     appliedExp = experienceDeltas.amountChangeFor[key] ?? 0;
-                    await adjustReputationAndExperience(
-                        playerId,
-                        appliedRep,
-                        appliedExp,
-                        client,
-                    );
+                    await adjustReputationAndExperience(playerId, appliedRep, appliedExp, client);
                 }
             }
         }

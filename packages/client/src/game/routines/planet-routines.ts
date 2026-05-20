@@ -21,7 +21,12 @@ const PRODUCT_LABEL: Record<Product3, string> = {
 
 async function askProductGroup(
     ctx: GameContext,
-    promptKey: 'productGroupTakingPrompt' | 'productGroupLeavingPrompt' | 'colonistGroupChangingPrompt' | 'colonistGroupFromPrompt' | 'colonistGroupToPrompt',
+    promptKey:
+        | 'productGroupTakingPrompt'
+        | 'productGroupLeavingPrompt'
+        | 'colonistGroupChangingPrompt'
+        | 'colonistGroupFromPrompt'
+        | 'colonistGroupToPrompt',
 ): Promise<Product3 | null> {
     const ch = await askChar(ctx, render(PLANET[promptKey]), ['1', '2', '3']);
     return ch ? (PRODUCT_BY_DIGIT[ch] ?? null) : null;
@@ -390,10 +395,7 @@ registerRoutine('base_transporter', async (ctx) => {
         });
         if (!ok) return;
         ctx.io.sendMsg({ type: ClientTag.BwarpInstall });
-        const result = await awaitResponse(ctx, [
-            ServerTag.BwarpInstallResult,
-            ServerTag.Error,
-        ]);
+        const result = await awaitResponse(ctx, [ServerTag.BwarpInstallResult, ServerTag.Error]);
         if (result === null) return;
         if (result.type !== ServerTag.BwarpInstallResult) return;
         if (result.outcome !== 'ok') {
@@ -457,10 +459,7 @@ registerRoutine('base_transporter', async (ctx) => {
         }
 
         ctx.io.sendMsg({ type: ClientTag.BwarpBeam, targetSector: target, commit: false });
-        const distance = await awaitResponse(ctx, [
-            ServerTag.BwarpBeamResult,
-            ServerTag.Error,
-        ]);
+        const distance = await awaitResponse(ctx, [ServerTag.BwarpBeamResult, ServerTag.Error]);
         if (distance === null) return;
         if (distance.type !== ServerTag.BwarpBeamResult) return;
         if (distance.outcome === 'error') {

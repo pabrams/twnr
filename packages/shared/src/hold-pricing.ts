@@ -66,8 +66,7 @@ export function holdCostRange(
     increment: number = HOLD_COST_INCREMENT,
 ): number {
     return (
-        holdCostFromZero(targetHolds, B, increment) -
-        holdCostFromZero(currentHolds, B, increment)
+        holdCostFromZero(targetHolds, B, increment) - holdCostFromZero(currentHolds, B, increment)
     );
 }
 

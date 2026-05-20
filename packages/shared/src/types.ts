@@ -89,7 +89,6 @@ export type PlanetConfig = {
     figFactorEqu: number;
 };
 
-
 export type ShipCatalogEntry = {
     id: number;
     name: string;

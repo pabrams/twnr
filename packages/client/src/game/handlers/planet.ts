@@ -75,7 +75,7 @@ function dronesPerHourFrom(msg: PlanetDisplayMsg): number {
 }
 
 /** Effective colonists-per-drone-per-hour given the current distribution.
-  */
+ */
 function effectiveColosPerDrone(msg: PlanetDisplayMsg): string {
     const totalAssigned =
         (msg.fig_factor_fuel > 0 ? msg.colonists_fuel : 0) +
