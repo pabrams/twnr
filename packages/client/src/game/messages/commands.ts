@@ -21,6 +21,7 @@ export const COMMAND = makeDomain('COMMAND', {
     baseComputer: '[bc]<Base Computer activated>[/bc]',
     exitBase: '[bg:b]<Exit to Planet Surface>[/bg:b]',
     treasuryTransfer: '[bg:b]<Treasury Fund Transfers>[/bg:b]',
+    baseTransporter: '[bg:b]<Base Transporter>[/bg:b]',
     shipInfo: '[bg:b]<Ship Info>[/bg:b]',
     dock: '[bg:b]<Dock>[/bg:b]',
     undock: '[bg:b]<Undock>[/bg:b]',

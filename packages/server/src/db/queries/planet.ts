@@ -353,6 +353,7 @@ export async function getPlanetDisplayData(playerId: number): Promise<{
     colos_per_unit_per_hour: number;
     base_level: number | null;
     base_treasury: number | null;
+    base_transporter_range: number | null;
     base_construction_target_level: number | null;
     base_construction_completes_at: Date | null;
     created_at: Date;
@@ -383,6 +384,7 @@ export async function getPlanetDisplayData(playerId: number): Promise<{
                 COALESCE(us.colos_to_produce_one_unit_per_hour, ${universeConfig.colosToProduceOneUnitPerHour}) AS colos_per_unit_per_hour,
                 pb.level AS base_level,
                 pb.treasury::int AS base_treasury,
+                pb.transporter_range AS base_transporter_range,
                 pb.construction_target_level AS base_construction_target_level,
                 pb.construction_completes_at AS base_construction_completes_at,
                 pl.created_at, pl.updated_at
@@ -798,6 +800,43 @@ export async function adjustPlanetBaseTreasury(
         delta,
         planetId,
     ]);
+}
+
+/** Lock and read base level + transporter range + treasury. Returns null if no base row. */
+export async function getPlanetBaseTransporterForUpdate(
+    planetId: number,
+    db: Queryable = pool,
+): Promise<{ level: number; transporter_range: number; treasury: number } | null> {
+    const res = await db.query<{ level: number; transporter_range: number; treasury: number }>(
+        `SELECT level, transporter_range, treasury::int AS treasury
+         FROM planet_bases WHERE planet_id = $1 FOR UPDATE`,
+        [planetId],
+    );
+    return res.rows[0] ?? null;
+}
+
+export async function setPlanetBaseTransporterRange(
+    planetId: number,
+    range: number,
+    db: Queryable = pool,
+): Promise<void> {
+    await db.query(`UPDATE planet_bases SET transporter_range = $1 WHERE planet_id = $2`, [
+        range,
+        planetId,
+    ]);
+}
+
+/** Lock + read the planet's fuel stockpile. Used by bwarp beam (planet pays
+ *  for the jump, not the ship). */
+export async function getPlanetFuelForUpdate(
+    planetId: number,
+    db: Queryable = pool,
+): Promise<number | undefined> {
+    const res = await db.query<{ fuel: number }>(
+        `SELECT fuel FROM planets WHERE id = $1 FOR UPDATE`,
+        [planetId],
+    );
+    return res.rows[0]?.fuel;
 }
 
 /** Start a new base construction. Fails (returns false) if a row already

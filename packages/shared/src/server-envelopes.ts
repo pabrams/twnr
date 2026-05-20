@@ -344,6 +344,7 @@ export type PlanetDisplayData = {
     colos_per_unit_per_hour: number;
     base_level: number | null;
     base_treasury: number | null;
+    base_transporter_range: number | null;
     base_construction_target_level: number | null;
     base_construction_completes_at: Date | string | null;
     created_at: Date | string;
@@ -1217,6 +1218,78 @@ export type TreasuryTransferReply =
           message: string;
       };
 
+export type BwarpInfoReply =
+    | {
+          type: typeof ServerTag.BwarpInfoResult;
+          outcome: 'notInstalled';
+          installCost: number;
+          initRange: number;
+      }
+    | {
+          type: typeof ServerTag.BwarpInfoResult;
+          outcome: 'installed';
+          range: number;
+          upgradeCost: number;
+          fuelPerHop: number;
+      }
+    | {
+          type: typeof ServerTag.BwarpInfoResult;
+          outcome: 'error';
+          message: string;
+      };
+
+export type BwarpInstallReply =
+    | {
+          type: typeof ServerTag.BwarpInstallResult;
+          outcome: 'ok';
+          range: number;
+          credits: number;
+      }
+    | {
+          type: typeof ServerTag.BwarpInstallResult;
+          outcome: 'error';
+          message: string;
+      };
+
+export type BwarpUpgradeReply =
+    | {
+          type: typeof ServerTag.BwarpUpgradeResult;
+          outcome: 'ok';
+          range: number;
+          cost: number;
+          credits: number;
+          treasury: number;
+      }
+    | {
+          type: typeof ServerTag.BwarpUpgradeResult;
+          outcome: 'error';
+          message: string;
+      };
+
+export type BwarpBeamReply =
+    | {
+          type: typeof ServerTag.BwarpBeamResult;
+          outcome: 'distance';
+          targetSector: number;
+          hops: number;
+          range: number;
+          fuelCost: number;
+          planetFuel: number;
+      }
+    | {
+          type: typeof ServerTag.BwarpBeamResult;
+          outcome: 'beamed';
+          targetSector: number;
+          hops: number;
+          fuelUsed: number;
+          turnsUsed: number;
+      }
+    | {
+          type: typeof ServerTag.BwarpBeamResult;
+          outcome: 'error';
+          message: string;
+      };
+
 export type HaggleResponseReply =
     | {
           type: typeof ServerTag.HaggleResponseResult;
@@ -1354,4 +1427,8 @@ export type ServerEnvelope =
     | ExitBaseReply
     | TreasuryInfoReply
     | TreasuryTransferReply
+    | BwarpInfoReply
+    | BwarpInstallReply
+    | BwarpUpgradeReply
+    | BwarpBeamReply
     | ErrorReply;

@@ -41,6 +41,10 @@ import {
     serveExitBase,
     serveTreasuryInfo,
     serveTreasuryTransfer,
+    serveBwarpInfo,
+    serveBwarpInstall,
+    serveBwarpUpgrade,
+    serveBwarpBeam,
 } from './base.js';
 import {
     serveShipInfo,
@@ -204,6 +208,11 @@ const handlers: HandlerMap = {
     [ClientTag.TreasuryInfo]: (pid) => serveTreasuryInfo(pid),
     [ClientTag.TreasuryTransfer]: (pid, data) =>
         serveTreasuryTransfer(pid, { direction: data.direction, amount: data.amount }),
+    [ClientTag.BwarpInfo]: (pid) => serveBwarpInfo(pid),
+    [ClientTag.BwarpInstall]: (pid) => serveBwarpInstall(pid),
+    [ClientTag.BwarpUpgrade]: (pid) => serveBwarpUpgrade(pid),
+    [ClientTag.BwarpBeam]: (pid, data) =>
+        serveBwarpBeam(pid, { targetSector: data.targetSector, commit: data.commit }),
 };
 
 export async function routeMessage(playerId: number, data: ClientEnvelope): Promise<void> {

@@ -4,7 +4,7 @@ import { render } from '../renderer.js';
 import { PLANET } from '../messages/index.js';
 import { echoCommand } from '../display.js';
 import { registerRoutine } from './types.js';
-import { askChar, askConfirm, askNumber, awaitResponse } from './prompts.js';
+import { askChar, askConfirm, askLineWithShortcuts, askNumber, awaitResponse } from './prompts.js';
 import { fmt } from '../handlers/utils.js';
 
 type Product3 = 'fuel' | 'organics' | 'equipment';
@@ -367,6 +367,166 @@ registerRoutine('treasury_transfer', async (ctx) => {
 registerRoutine('scan_sector', (ctx) => {
     echoCommand(ctx, 'sectorScan');
     ctx.io.sendMsg({ type: ClientTag.SectorDisplay });
+});
+
+registerRoutine('base_transporter', async (ctx) => {
+    echoCommand(ctx, 'baseTransporter');
+    const { term } = ctx.io;
+
+    ctx.io.sendMsg({ type: ClientTag.BwarpInfo });
+    const info = await awaitResponse(ctx, [ServerTag.BwarpInfoResult, ServerTag.Error]);
+    if (info === null) return;
+    if (info.type !== ServerTag.BwarpInfoResult) return;
+    if (info.outcome === 'error') {
+        term.writeln('');
+        term.writeln(render(PLANET.bwarpError, { message: info.message }));
+        return;
+    }
+
+    if (info.outcome === 'notInstalled') {
+        term.writeln(render(PLANET.bwarpNotInstalledIntro, { cost: fmt(info.installCost) }));
+        const ok = await askConfirm(ctx, render(PLANET.bwarpInstallPrompt), {
+            defaultValue: false,
+        });
+        if (!ok) return;
+        ctx.io.sendMsg({ type: ClientTag.BwarpInstall });
+        const result = await awaitResponse(ctx, [
+            ServerTag.BwarpInstallResult,
+            ServerTag.Error,
+        ]);
+        if (result === null) return;
+        if (result.type !== ServerTag.BwarpInstallResult) return;
+        if (result.outcome !== 'ok') {
+            term.writeln('');
+            term.writeln(render(PLANET.bwarpError, { message: result.message }));
+            return;
+        }
+        term.writeln(
+            render(PLANET.bwarpInstallFlavor, {
+                range: result.range,
+                cost: fmt(info.installCost),
+            }),
+        );
+        return;
+    }
+
+    // installed
+    term.writeln(render(PLANET.bwarpInstalledIntro));
+    let currentRange = info.range;
+    const upgradeCost = info.upgradeCost;
+
+    // Beam/upgrade loop until the user beams, quits, or hits an error.
+    while (true) {
+        term.writeln(render(PLANET.bwarpRangeLine, { range: currentRange }));
+        const reply = await askLineWithShortcuts(ctx, render(PLANET.bwarpBeamPrompt), ['u']);
+        if (reply === null) return;
+        if (reply === 'u') {
+            term.writeln(render(PLANET.bwarpUpgradePitch, { cost: fmt(upgradeCost) }));
+            const ok = await askConfirm(ctx, render(PLANET.bwarpUpgradePrompt), {
+                defaultValue: false,
+            });
+            if (!ok) continue;
+            ctx.io.sendMsg({ type: ClientTag.BwarpUpgrade });
+            const upgrade = await awaitResponse(ctx, [
+                ServerTag.BwarpUpgradeResult,
+                ServerTag.Error,
+            ]);
+            if (upgrade === null) return;
+            if (upgrade.type !== ServerTag.BwarpUpgradeResult) return;
+            if (upgrade.outcome !== 'ok') {
+                term.writeln('');
+                term.writeln(render(PLANET.bwarpError, { message: upgrade.message }));
+                continue;
+            }
+            currentRange = upgrade.range;
+            term.writeln(
+                render(PLANET.bwarpUpgradeFlavor, {
+                    cost: fmt(upgrade.cost),
+                    treasury: fmt(upgrade.treasury),
+                    range: upgrade.range,
+                }),
+            );
+            continue;
+        }
+
+        const target = parseInt(reply, 10);
+        if (!Number.isFinite(target) || target <= 0) {
+            term.writeln('');
+            term.writeln(render(PLANET.bwarpError, { message: 'Enter a sector number.' }));
+            continue;
+        }
+
+        ctx.io.sendMsg({ type: ClientTag.BwarpBeam, targetSector: target, commit: false });
+        const distance = await awaitResponse(ctx, [
+            ServerTag.BwarpBeamResult,
+            ServerTag.Error,
+        ]);
+        if (distance === null) return;
+        if (distance.type !== ServerTag.BwarpBeamResult) return;
+        if (distance.outcome === 'error') {
+            term.writeln('');
+            term.writeln(render(PLANET.bwarpError, { message: distance.message }));
+            continue;
+        }
+        if (distance.outcome !== 'distance') return;
+
+        term.writeln(
+            render(PLANET.bwarpDistanceLine, {
+                sector: distance.targetSector,
+                hops: distance.hops,
+            }),
+        );
+        if (distance.hops > distance.range) {
+            term.writeln(
+                render(PLANET.bwarpOutOfRange, {
+                    range: distance.range,
+                    hops: distance.hops,
+                }),
+            );
+            continue;
+        }
+        term.writeln(
+            render(PLANET.bwarpFuelCheck, {
+                fuelCost: fmt(distance.fuelCost),
+                planetFuel: fmt(distance.planetFuel),
+            }),
+        );
+        if (distance.fuelCost > distance.planetFuel) {
+            term.writeln(render(PLANET.bwarpInsufficientFuel));
+            continue;
+        }
+
+        const engage = await askConfirm(ctx, render(PLANET.bwarpEngagePrompt), {
+            defaultValue: true,
+        });
+        if (!engage) continue;
+
+        ctx.io.sendMsg({ type: ClientTag.BwarpBeam, targetSector: target, commit: true });
+        const beam = await awaitResponse(ctx, [ServerTag.BwarpBeamResult, ServerTag.Error]);
+        if (beam === null) return;
+        if (beam.type !== ServerTag.BwarpBeamResult) return;
+        if (beam.outcome !== 'beamed') {
+            term.writeln('');
+            term.writeln(
+                render(PLANET.bwarpError, {
+                    message: beam.outcome === 'error' ? beam.message : 'Beam aborted.',
+                }),
+            );
+            continue;
+        }
+        term.writeln(
+            render(PLANET.bwarpBeamedFlavor, {
+                sector: beam.targetSector,
+                hops: beam.hops,
+                fuelUsed: fmt(beam.fuelUsed),
+            }),
+        );
+        // Transition out of the base/planet: we're now in the destination sector.
+        ctx.world.mode = Menu.Sector;
+        ctx.world.currentSector = beam.targetSector;
+        ctx.io.sendMsg({ type: ClientTag.SectorDisplay });
+        return;
+    }
 });
 
 registerRoutine('exit_base', (ctx) => {

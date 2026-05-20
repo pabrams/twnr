@@ -148,6 +148,8 @@ export const PLANET = makeDomain('PLANET', {
         '[bc]This planet has a level [/bc][by]{level}[/by][bc] base. The treasury contains [/bc][by]{treasury}[/by][bc] credits.[/bc]',
     displayBaseConstructing:
         '[bc]A level [/bc][by]{level}[/by][bc] base is under construction here. Completes at [/bc][by]{completes}[/by][bc] ([/bc][by]{hours}[/by][bc] hour(s) remaining).[/bc]',
+    displayTransporterLine:
+        '     [mg]-=-=-=-=-=-[/mg] [bc]TransPort power = [/bc][by]{hops}[/by][bc] hops[/bc] [mg]-=-=-=-=-=-[/mg]',
     treasuryDirectionPrompt:
         '\r\n[mg]Transfer ([/mg][by]T[/by][mg]o or [/mg][by]F[/by][mg]rom treasury, [/mg][by]Q[/by][mg] to cancel) [/mg][by]?[/by] ',
     treasuryBalances:
@@ -158,4 +160,57 @@ export const PLANET = makeDomain('PLANET', {
         '\r\n[bg]Transferred [/bg][bc]{amount}[/bc][bg] credits {direction} the treasury.[/bg]\r\n' +
         '[bc]Credits on hand[/bc]: [by]{credits}[/by]\r\n[bc]Treasury balance[/bc]: [by]{treasury}[/by]',
     treasuryError: '[br]Treasury error[/br]: [w]{message}[/w]',
+
+    // Planetary Transporter ("bwarp") flow.
+    bwarpNotInstalledIntro:
+        '\r\n[w]This Planetary Bastion does not have a transporter installed. You can order one[/w]\r\n' +
+        '[w]for [/w][by]{cost}[/by][w] credits and have it installed immediately.[/w]',
+    bwarpInstallPrompt:
+        '\r\n[bc]Order a planetary transporter?[/bc] [mg]([/mg][by]Y[/by]/[by]N[/by][mg]) [[/mg][by]N[/by][mg]] [/mg]',
+    bwarpInstallFlavor:
+        '\r\n[w]You send a subspace message to the Transport-o-Matic Transporter company along with[/w]\r\n' +
+        '[w]your payment, and the planet\'s transponder address and credentials. Seconds later,[/w]\r\n' +
+        '[w]a huge rectangular but otherwise nondescript spacecraft materializes in the sector[/w]\r\n' +
+        '[w]and quickly lands. The top of the ship opens up and a small fleet of drones lifts out,[/w]\r\n' +
+        '[w]collectively carrying the transporter device. An army of robots hook it up to the[/w]\r\n' +
+        '[w]planet\'s fuel storage and installs the transporter pad in the center of your hangar.[/w]\r\n' +
+        '[w]Before you know it, the job is done. The conveyor drones all take stations in[/w]\r\n' +
+        '[w]designated alcoves of the transporter pad housing as the robots return to their ship[/w]\r\n' +
+        '[w]and are gone as quickly as they arrived.[/w]\r\n' +
+        '\r\n[bg]The transporter is installed with a range of [/bg][bc]{range}[/bc][bg] hop(s).[/bg]\r\n' +
+        '[by]{cost}[/by][bg] credits have been deducted from your personal funds.[/bg]',
+    bwarpInstalledIntro:
+        '\r\n[w]The conveyor drones position your ship on the immense transporter pad as the huge[/w]\r\n' +
+        '[w]transference generators power up.[/w]',
+    bwarpRangeLine:
+        '\r\n[bc]This transporter has a range of [/bc][by]{range}[/by][bc] hop(s).[/bc]',
+    bwarpBeamPrompt:
+        '[mg]Beam to what sector? ([/mg][by]U[/by]=[by]Upgrade[/by] [by]Q[/by]=[by]Quit[/by][mg]) [/mg]',
+    bwarpUpgradePitch:
+        '\r\n[bc]The cost for a field upgrade to this transporter is [/bc][by]{cost}[/by][bc].[/bc]\r\n' +
+        '[bc]Each upgrade will increase the range by one sector.[/bc]',
+    bwarpUpgradePrompt:
+        '\r\n[bc]Do you want to upgrade this transporter?[/bc] [mg]([/mg][by]Y[/by]/[by]N[/by][mg]) [[/mg][by]N[/by][mg]] [/mg]',
+    bwarpUpgradeFlavor:
+        '\r\n[w]You send an upgrade order for a Planetary Transporter to Transport-o-Matic and even[/w]\r\n' +
+        '[w]faster than the original purchase, the upgrade is installed.[/w]\r\n' +
+        '\r\n[by]{cost}[/by][bg] credits have been deducted from your personal funds.[/bg]\r\n' +
+        '[bc]Bastion treasury contains [/bc][by]{treasury}[/by][bc] credits.[/bc]\r\n' +
+        '[bc]New transporter range: [/bc][by]{range}[/by][bc] hop(s).[/bc]',
+    bwarpDistanceLine:
+        '[bc]Sector [/bc][by]{sector}[/by][bc] is [/bc][by]{hops}[/by][bc] hop(s) away from here.[/bc]',
+    bwarpOutOfRange:
+        '[br]Target out of range[/br] [w](have [/w][by]{range}[/by][w] hops, need [/w][by]{hops}[/by][w]).[/w]',
+    bwarpFuelCheck:
+        '[bc]Beam cost: [/bc][by]{fuelCost}[/by][bc] fuel ore (planet stock: [/bc][by]{planetFuel}[/by][bc]).[/bc]',
+    bwarpInsufficientFuel:
+        '[br]Insufficient planet fuel[/br] [w]for this jump.[/w]',
+    bwarpEngagePrompt:
+        '\r\n[w]Federation beacon acknowledged, coordinates cleared for beaming.[/w]\r\n' +
+        '[w]Locating beam pinpointed, TransWarp Locked.[/w]\r\n' +
+        '[bc]All Systems Ready, shall we engage?[/bc] [mg]([/mg][by]Y[/by]/[by]N[/by][mg]) [[/mg][by]Y[/by][mg]] [/mg]',
+    bwarpBeamedFlavor:
+        '\r\n[bg]Beamed to sector [/bg][bc]{sector}[/bc][bg] ([/bg][bc]{hops}[/bc][bg] hop(s)).[/bg]\r\n' +
+        '[by]{fuelUsed}[/by][bg] fuel ore consumed from planet stock.[/bg]',
+    bwarpError: '[br]Transporter error[/br]: [w]{message}[/w]',
 });
