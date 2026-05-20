@@ -72,9 +72,7 @@ export async function showClass0Menu(ctx: DisplayPortCtx) {
         );
     }
     term.writeln(render(PORT.class0CommerceHeader, { timestamp: formatTimestamp() }));
-    term.writeln(
-        render(PORT.class0RowHolds, { price: pad(nextHold), canBuy: pad(canBuyHolds) }),
-    );
+    term.writeln(render(PORT.class0RowHolds, { price: pad(nextHold), canBuy: pad(canBuyHolds) }));
     term.writeln(
         render(PORT.class0RowDrones, { price: pad(p.dronePrice), canBuy: pad(canBuyDrones) }),
     );

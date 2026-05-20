@@ -104,7 +104,6 @@ const handlers: HandlerMap = {
     [ServerTag.DensityScanResult]: longRangeScan.densityScan,
     [ServerTag.VisualScanResult]: longRangeScan.visualScan,
 
-
     [ServerTag.TowReleasedAlert]: tow.towReleasedAlert,
     [ServerTag.TowAttachedAlert]: tow.towAttachedAlert,
 };

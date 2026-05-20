@@ -124,7 +124,6 @@ export async function adjustPortCommodity(
     await db.query(`UPDATE ports SET ${col} = ${col} + $1 WHERE id = $2`, [delta, portId]);
 }
 
-
 /** Generate-time port insert (uses bigbang-derived max + productivity + MCIC). */
 export async function insertGeneratedPort(
     sectorId: number,
@@ -229,11 +228,23 @@ export async function insertPlayerBuiltPort(
                  $10, $11, $12, $13,
                  $14, $15, $16, $17)`,
         [
-            sectorDbId, portName, portClass,
-            owner.playerId, owner.clanId,
-            data.fuelStock, data.fuelMax, data.fuelProd, data.fuelMcic,
-            data.orgStock, data.orgMax, data.orgProd, data.orgMcic,
-            data.equStock, data.equMax, data.equProd, data.equMcic,
+            sectorDbId,
+            portName,
+            portClass,
+            owner.playerId,
+            owner.clanId,
+            data.fuelStock,
+            data.fuelMax,
+            data.fuelProd,
+            data.fuelMcic,
+            data.orgStock,
+            data.orgMax,
+            data.orgProd,
+            data.orgMcic,
+            data.equStock,
+            data.equMax,
+            data.equProd,
+            data.equMcic,
         ],
     );
 }
@@ -503,16 +514,25 @@ export async function settlePortProduction(
         if (prod <= 0 || max <= 0) return { stock, accrual: 0 };
         const newAccrual = accrual + prod * elapsedHours;
         const whole = Math.floor(newAccrual);
-        const newStock =
-            action === 'S'
-                ? Math.min(max, stock + whole)
-                : Math.max(0, stock - whole);
+        const newStock = action === 'S' ? Math.min(max, stock + whole) : Math.max(0, stock - whole);
         return { stock: newStock, accrual: newAccrual - whole };
     };
 
     const fuel = settle(row.fuel, row.fuel_max, row.fuel_prod, row.fuel_prod_accrual, actions.fuel);
-    const org = settle(row.organics, row.org_max, row.org_prod, row.org_prod_accrual, actions.organics);
-    const equ = settle(row.equipment, row.equ_max, row.equ_prod, row.equ_prod_accrual, actions.equipment);
+    const org = settle(
+        row.organics,
+        row.org_max,
+        row.org_prod,
+        row.org_prod_accrual,
+        actions.organics,
+    );
+    const equ = settle(
+        row.equipment,
+        row.equ_max,
+        row.equ_prod,
+        row.equ_prod_accrual,
+        actions.equipment,
+    );
 
     const produced =
         fuel.stock !== row.fuel || org.stock !== row.organics || equ.stock !== row.equipment;
@@ -523,15 +543,7 @@ export async function settlePortProduction(
             fuel_prod_accrual = $5, org_prod_accrual = $6, equ_prod_accrual = $7,
             last_production_at = NOW()
          WHERE id = $1`,
-        [
-            portId,
-            fuel.stock,
-            org.stock,
-            equ.stock,
-            fuel.accrual,
-            org.accrual,
-            equ.accrual,
-        ],
+        [portId, fuel.stock, org.stock, equ.stock, fuel.accrual, org.accrual, equ.accrual],
     );
     return { produced };
 }

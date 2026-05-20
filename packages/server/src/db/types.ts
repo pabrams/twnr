@@ -88,4 +88,3 @@ export interface PlayerPlanetRow {
     colonists_organics: number;
     colonists_equipment: number;
 }
-

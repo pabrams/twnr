@@ -355,7 +355,9 @@ export async function deleteVisitedSectorsForPlayers(
     db: Queryable = pool,
 ): Promise<void> {
     if (playerIds.length === 0) return;
-    await db.query('DELETE FROM player_visited_sectors WHERE player_id = ANY($1::int[])', [playerIds]);
+    await db.query('DELETE FROM player_visited_sectors WHERE player_id = ANY($1::int[])', [
+        playerIds,
+    ]);
 }
 
 /** Null out `ship_id` for many players at once (pre-delete step). */

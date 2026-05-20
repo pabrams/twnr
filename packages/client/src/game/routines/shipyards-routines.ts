@@ -73,9 +73,7 @@ registerRoutine('buy_ship', async (ctx) => {
         if (nameReq === null) return;
         if (nameReq.type !== ServerTag.ShipNameRequired) return;
         const typeLabel = nameReq.shipTypeDisplayName ?? nameReq.shipTypeName;
-        const promptTpl = isTradein
-            ? EVENT.shipNamePromptTradein
-            : EVENT.shipNamePromptBuyNew;
+        const promptTpl = isTradein ? EVENT.shipNamePromptTradein : EVENT.shipNamePromptBuyNew;
         await promptShipName(ctx, promptTpl, typeLabel);
         // The buy-result handler (handlers/ship-exchange.ts) renders the
         // "ship purchased / traded" message + updates ctx.ship state when

@@ -30,10 +30,7 @@ export const HAGGLE_HEADROOM_REF: Record<
 
 /** Maximum acceptable player-favorable ratio of counter:initial for a given
  *  commodity + |MCIC|. Above this, the port "terminates" the conversation. */
-export function maxAcceptablePlayerFavorablePct(
-    commodity: PriceCommodity,
-    mcic: number,
-): number {
+export function maxAcceptablePlayerFavorablePct(commodity: PriceCommodity, mcic: number): number {
     const ref = HAGGLE_HEADROOM_REF[commodity];
     const m = Math.abs(mcic);
     if (m <= ref.mcicLow) return ref.pctLow;
@@ -96,8 +93,7 @@ export function processHaggleCounter(args: {
     }
 
     // Reject if player asks for more than the per-commodity / MCIC ceiling.
-    const favPct =
-        action === 'B' ? playerCounter / initialOffer : initialOffer / playerCounter;
+    const favPct = action === 'B' ? playerCounter / initialOffer : initialOffer / playerCounter;
     const maxPct = maxAcceptablePlayerFavorablePct(commodity, mcic);
     if (favPct > maxPct) {
         return { outcome: 'reject', reason: 'too_aggressive' };
@@ -123,24 +119,20 @@ export function processHaggleCounter(args: {
         const previousConcession =
             action === 'B' ? portCurrent - initialOffer : initialOffer - portCurrent;
         const baseline =
-            previousConcession > 0
-                ? previousConcession
-                : gap * midHaggleConcessionFraction(mcic);
+            previousConcession > 0 ? previousConcession : gap * midHaggleConcessionFraction(mcic);
         const concession = baseline * factor;
         // If the port would meet or exceed the player's counter, just accept
         if (concession >= gap) {
             return { outcome: 'accept', finalTotal: playerCounter };
         }
-        const newPortOffer =
-            action === 'B' ? portCurrent + concession : portCurrent - concession;
+        const newPortOffer = action === 'B' ? portCurrent + concession : portCurrent - concession;
         return { outcome: 'final', newPortOffer: Math.floor(newPortOffer) };
     }
 
     // Mid round.
     const fraction = midHaggleConcessionFraction(mcic);
     const concession = gap * fraction;
-    const newPortOffer =
-        action === 'B' ? portCurrent + concession : portCurrent - concession;
+    const newPortOffer = action === 'B' ? portCurrent + concession : portCurrent - concession;
     return {
         outcome: 'counter',
         newPortOffer: Math.floor(newPortOffer),

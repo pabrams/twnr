@@ -13,10 +13,7 @@ import type { BuildPortCommand, UpgradePortCommand } from '@twnr/shared';
 import { players } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { withTransaction, AbortTransaction, pool } from '../db/index.js';
-import {
-    deductCredits,
-    adjustReputationAndExperience,
-} from '../db/queries/player.js';
+import { deductCredits, adjustReputationAndExperience } from '../db/queries/player.js';
 import {
     getPortAtSector,
     getPortConstructionAtSectorForUpdate,
@@ -357,7 +354,11 @@ export async function serveUpgradePort(playerId: number, data: UpgradePortComman
     const player = players[playerId];
     if (!player) return;
 
-    if (data.commodity !== 'fuel' && data.commodity !== 'organics' && data.commodity !== 'equipment') {
+    if (
+        data.commodity !== 'fuel' &&
+        data.commodity !== 'organics' &&
+        data.commodity !== 'equipment'
+    ) {
         sendEnvelope(playerId, {
             type: ServerTag.UpgradePortResult,
             outcome: 'error',
@@ -455,18 +456,13 @@ export async function serveUpgradePort(playerId: number, data: UpgradePortComman
                 (experienceDeltas.amountChangeFor.upgradePortCreditsPerXp as number | undefined) ??
                 3000;
             const xp = Math.floor(totalCost / xpDivisor);
-            const rep =
-                (reputationDeltas.amountChangeFor.upgradePort as number | undefined) ?? 0;
+            const rep = (reputationDeltas.amountChangeFor.upgradePort as number | undefined) ?? 0;
             if (xp !== 0 || rep !== 0) {
                 await adjustReputationAndExperience(playerId, rep, xp, client);
             }
 
             const prefix =
-                data.commodity === 'fuel'
-                    ? 'fuel'
-                    : data.commodity === 'organics'
-                      ? 'org'
-                      : 'equ';
+                data.commodity === 'fuel' ? 'fuel' : data.commodity === 'organics' ? 'org' : 'equ';
             const stockKey = data.commodity as 'fuel' | 'organics' | 'equipment';
             const newProd = port[`${prefix}_prod` as 'fuel_prod' | 'org_prod' | 'equ_prod'] + units;
             const newMax = port[`${prefix}_max` as 'fuel_max' | 'org_max' | 'equ_max'] + units * 10;

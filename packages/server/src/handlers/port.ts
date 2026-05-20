@@ -322,14 +322,7 @@ export async function servePortTransaction(
             const stock = port[col];
             const max = port[MAX_COL[col]];
             const mcic = port[MCIC_COL[col]];
-            const price = computeUnitPriceWithXp(
-                col,
-                stock,
-                max,
-                mcic,
-                xp,
-                portActions[col],
-            );
+            const price = computeUnitPriceWithXp(col, stock, max, mcic, xp, portActions[col]);
 
             const cargo = await getShipCargoWithCreditsForUpdate(playerId, client);
             if (!cargo) {

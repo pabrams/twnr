@@ -57,8 +57,7 @@ export function pvpAttackerDeltas(args: {
     const { attackerDronesLost, defenderRep, matchup } = args;
     if (attackerDronesLost <= 0) return { reputationDelta: 0, experienceDelta: 0 };
 
-    const expDivisor =
-        experienceDeltas.factorsFor[`pvpCombat_yourFigsLostDivisor_${matchup}`] ?? 0;
+    const expDivisor = experienceDeltas.factorsFor[`pvpCombat_yourFigsLostDivisor_${matchup}`] ?? 0;
     const experienceDelta = Math.floor(safeDiv(attackerDronesLost, expDivisor));
 
     const figsLostDivisor = reputationDeltas.factorsFor.pvpCombat_yourFigsLostDivisor ?? 0;

@@ -127,10 +127,11 @@ export async function serveBaseInfo(playerId: number): Promise<void> {
 
     const [stock, totalColos] = await Promise.all([
         pool
-            .query<{ fuel: number; organics: number; equipment: number }>(
-                `SELECT fuel, organics, equipment FROM planets WHERE id = $1`,
-                [onPlanetId],
-            )
+            .query<{
+                fuel: number;
+                organics: number;
+                equipment: number;
+            }>(`SELECT fuel, organics, equipment FROM planets WHERE id = $1`, [onPlanetId])
             .then((r) => r.rows[0] ?? { fuel: 0, organics: 0, equipment: 0 }),
         getPlanetTotalColonists(onPlanetId),
     ]);
@@ -395,11 +396,7 @@ export async function serveTreasuryTransfer(
 // not been widened. Read it via the dedicated locking helper instead.
 type PlanetBaseRowMaybeTransporter = { transporter_range?: number };
 
-function shortestHopCount(
-    warps: Record<number, number[]>,
-    from: number,
-    to: number,
-): number {
+function shortestHopCount(warps: Record<number, number[]>, from: number, to: number): number {
     if (from === to) return 0;
     const visited = new Set<number>([from]);
     const queue: { sector: number; hops: number }[] = [{ sector: from, hops: 0 }];

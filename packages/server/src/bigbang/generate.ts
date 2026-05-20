@@ -67,7 +67,9 @@ export function generateUniverse(options: BigBangOptions): BigBangResult {
     // RNG stream is seed-determined across topology modes.
     const rawLayout = topology === 'proximal' ? packHexCells(N, rng) : null;
     const layout =
-        rawLayout && topology === 'proximal' ? arrangeAnchors(rawLayout, anchorSectorIds) : rawLayout;
+        rawLayout && topology === 'proximal'
+            ? arrangeAnchors(rawLayout, anchorSectorIds)
+            : rawLayout;
 
     const forcedHubSectors: number[] = anchorSectorIds;
     const warps =

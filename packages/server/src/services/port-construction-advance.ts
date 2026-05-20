@@ -59,11 +59,7 @@ async function tryDrainFromPlanets(
             getPlanetCommodityForUpdate(planetId, 'organics', client),
             getPlanetCommodityForUpdate(planetId, 'equipment', client),
         ]);
-        if (
-            (fuel ?? 0) >= drain.ore &&
-            (org ?? 0) >= drain.org &&
-            (equ ?? 0) >= drain.equ
-        ) {
+        if ((fuel ?? 0) >= drain.ore && (org ?? 0) >= drain.org && (equ ?? 0) >= drain.equ) {
             await updatePlanetCommodity(planetId, 'fuel', -drain.ore, client);
             await updatePlanetCommodity(planetId, 'organics', -drain.org, client);
             await updatePlanetCommodity(planetId, 'equipment', -drain.equ, client);
@@ -76,10 +72,7 @@ async function tryDrainFromPlanets(
 /** Resolve mail recipients: if owned by a clan, all current clan members;
  *  otherwise the original builder. Falls back to builder if a clan is empty
  *  for any reason. */
-async function resolveRecipients(
-    row: PortConstructionRow,
-    client: Queryable,
-): Promise<number[]> {
+async function resolveRecipients(row: PortConstructionRow, client: Queryable): Promise<number[]> {
     if (row.owner_clan_id !== null) {
         const members = await getClanMembers(row.owner_clan_id, client);
         if (members.length > 0) return members.map((m) => m.id);

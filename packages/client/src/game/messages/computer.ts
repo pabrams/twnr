@@ -7,7 +7,8 @@ import { makeDomain } from './_domain.js';
 
 export const COMPUTER = makeDomain('COMPUTER', {
     prompt: '\r\n[mg]Computer command[/mg] [mg][[/mg][bc]{sector}[/bc][mg]][/mg] [mg]([/mg][by]?[/by][br]=[/br][by]Help[/by][mg])[/mg] [by]:[/by] ',
-    basePrompt: '\r\n[mg]Base Computer command[/mg] [mg][[/mg][bc]{sector}[/bc][mg]][/mg] [mg]([/mg][by]?[/by][br]=[/br][by]Help[/by][mg])[/mg] [by]:[/by] ',
+    basePrompt:
+        '\r\n[mg]Base Computer command[/mg] [mg][[/mg][bc]{sector}[/bc][mg]][/mg] [mg]([/mg][by]?[/by][br]=[/br][by]Help[/by][mg])[/mg] [by]:[/by] ',
 
     activated: '\r\n[bc]<Computer activated>[/bc]',
     deactivated: '\r\n[bc]<Computer deactivated>[/bc]',

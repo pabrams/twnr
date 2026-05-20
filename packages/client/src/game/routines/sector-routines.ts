@@ -135,7 +135,9 @@ registerRoutine('order_starport', async (ctx) => {
         }
         if (info.mode === 'noPlanet') {
             ctx.io.term.writeln('');
-            ctx.io.term.writeln('You need a planet in this sector before you can construct a port.');
+            ctx.io.term.writeln(
+                'You need a planet in this sector before you can construct a port.',
+            );
             return;
         }
         if (info.mode === 'build') {
@@ -177,7 +179,9 @@ async function runBuildFlow(
         );
     }
     term.writeln('');
-    term.writeln(`Ports will initially produce ${info.initialProductivity} units/day in each category`);
+    term.writeln(
+        `Ports will initially produce ${info.initialProductivity} units/day in each category`,
+    );
     term.writeln(`You have ${info.credits.toLocaleString()} credits.`);
     if (info.existingConstruction) {
         const ec = info.existingConstruction;
@@ -200,7 +204,9 @@ async function runBuildFlow(
     if (!chosen) return;
 
     term.writeln('');
-    term.writeln(`Port Class ${chosen.portClass} will require ${chosen.credits.toLocaleString()} credits.`);
+    term.writeln(
+        `Port Class ${chosen.portClass} will require ${chosen.credits.toLocaleString()} credits.`,
+    );
     term.writeln('A Planet capable of producing the following per day:');
     term.writeln(`${chosen.dailyOre} units of Ore/day for ${chosen.days} days`);
     term.writeln(`${chosen.dailyOrg} units of Organics/day for ${chosen.days} days`);
@@ -224,9 +230,7 @@ async function runBuildFlow(
             term.writeln(
                 `For building this Starport, you receive ${result.experienceGained} experience point(s).`,
             );
-            term.writeln(
-                `and your alignment went up by ${result.reputationGained} point(s).`,
-            );
+            term.writeln(`and your alignment went up by ${result.reputationGained} point(s).`);
             term.writeln(
                 `Construction underway. Daily advances will be reported by mail (${result.daysRequired} days total).`,
             );
@@ -247,7 +251,16 @@ async function runUpgradeFlow(
     term.writeln('');
     term.writeln('(Upgrade StarPort)');
     term.writeln('   Upgrade Starport Production');
-    const fmtRow = (i: number, label: string, unitCost: number, action: string, prod: number, max: number, stock: number, tradingPct: number) =>
+    const fmtRow = (
+        i: number,
+        label: string,
+        unitCost: number,
+        action: string,
+        prod: number,
+        max: number,
+        stock: number,
+        tradingPct: number,
+    ) =>
         ` ${i} ${label.padEnd(11)} costs $${unitCost}/unit   ` +
         `(${action}, prod=${prod}, max=${max}, stock=${stock}, ${tradingPct}%)`;
     const labels = ['Fuel Ore', 'Organics', 'Equipment'];
@@ -275,15 +288,21 @@ async function runUpgradeFlow(
 
     const affordable = Math.floor(info.credits / c.unitCost);
     if (affordable <= 0) {
-        term.writeln(`Insufficient credits to upgrade ${labels[idx]} (need at least $${c.unitCost}).`);
+        term.writeln(
+            `Insufficient credits to upgrade ${labels[idx]} (need at least $${c.unitCost}).`,
+        );
         return;
     }
     term.writeln('');
     term.writeln(`That will cost ${c.unitCost} per unit to upgrade the ${labels[idx]}`);
-    const units = await askNumber(ctx, `How many units do you want to invest? (${affordable} max, 0 to quit) `, {
-        min: 0,
-        defaultValue: 0,
-    });
+    const units = await askNumber(
+        ctx,
+        `How many units do you want to invest? (${affordable} max, 0 to quit) `,
+        {
+            min: 0,
+            defaultValue: 0,
+        },
+    );
     if (units === null || units <= 0) return;
     const clamped = Math.min(units, affordable);
 
@@ -295,9 +314,7 @@ async function runUpgradeFlow(
             term.writeln(
                 `For upgrading this StarPort, you receive ${result.experienceGained} experience point(s).`,
             );
-            term.writeln(
-                `and your alignment went up by ${result.reputationGained} point(s).`,
-            );
+            term.writeln(`and your alignment went up by ${result.reputationGained} point(s).`);
             term.writeln('StarPort upgraded!');
         } else {
             term.writeln(`Upgrade failed: ${result.message}`);
