@@ -372,6 +372,13 @@ export const MENU_REGISTRY: MenuEntry[] = [
                 sortOrder: 30,
             },
             {
+                command: 'base_transporter',
+                keyPattern: 'b',
+                label: 'Base Transporter',
+                targetMenu: null,
+                sortOrder: 35,
+            },
+            {
                 command: 'help_menu',
                 keyPattern: '?',
                 label: 'Help',

@@ -568,6 +568,7 @@ export const connectDB = async (): Promise<void> => {
         planet_id INTEGER PRIMARY KEY REFERENCES planets(id) ON DELETE CASCADE,
         level SMALLINT NOT NULL DEFAULT 0,
         treasury BIGINT NOT NULL DEFAULT 0,
+        transporter_range SMALLINT NOT NULL DEFAULT 0,
         construction_target_level SMALLINT,
         construction_started_at TIMESTAMPTZ,
         construction_completes_at TIMESTAMPTZ

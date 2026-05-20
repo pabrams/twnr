@@ -126,6 +126,10 @@ export const ServerTag = {
     ExitBaseResult: 'exitBaseResult',
     TreasuryInfoResult: 'treasuryInfoResult',
     TreasuryTransferResult: 'treasuryTransferResult',
+    BwarpInfoResult: 'bwarpInfoResult',
+    BwarpInstallResult: 'bwarpInstallResult',
+    BwarpUpgradeResult: 'bwarpUpgradeResult',
+    BwarpBeamResult: 'bwarpBeamResult',
 } as const;
 type ServerTag = typeof ServerTag;
 
@@ -219,5 +223,9 @@ export const ClientTag = {
     ExitBase: 'exitBase',
     TreasuryInfo: 'treasuryInfo',
     TreasuryTransfer: 'treasuryTransfer',
+    BwarpInfo: 'bwarpInfo',
+    BwarpInstall: 'bwarpInstall',
+    BwarpUpgrade: 'bwarpUpgrade',
+    BwarpBeam: 'bwarpBeam',
 } as const;
 type ClientTag = typeof ClientTag;

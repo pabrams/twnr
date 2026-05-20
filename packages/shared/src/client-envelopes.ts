@@ -447,6 +447,25 @@ export type TreasuryTransferCommand = {
     amount: number;
 };
 
+export type BwarpInfoCommand = {
+    type: typeof ClientTag.BwarpInfo;
+};
+
+export type BwarpInstallCommand = {
+    type: typeof ClientTag.BwarpInstall;
+};
+
+export type BwarpUpgradeCommand = {
+    type: typeof ClientTag.BwarpUpgrade;
+};
+
+export type BwarpBeamCommand = {
+    type: typeof ClientTag.BwarpBeam;
+    targetSector: number;
+    /** false = ask for distance + validation only; true = actually beam. */
+    commit: boolean;
+};
+
 export type ClientEnvelope =
     | MoveCommand
     | MoveToPreviousCommand
@@ -536,4 +555,8 @@ export type ClientEnvelope =
     | BuildBaseCommand
     | ExitBaseCommand
     | TreasuryInfoCommand
-    | TreasuryTransferCommand;
+    | TreasuryTransferCommand
+    | BwarpInfoCommand
+    | BwarpInstallCommand
+    | BwarpUpgradeCommand
+    | BwarpBeamCommand;

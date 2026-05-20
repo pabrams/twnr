@@ -22,6 +22,7 @@ type PlanetDisplayMsg = {
     name: string;
     base_level: number | null;
     base_treasury: number | null;
+    base_transporter_range: number | null;
     base_construction_target_level: number | null;
     base_construction_completes_at: string | Date | null;
     planetType: string;
@@ -189,6 +190,10 @@ function renderBaseLine(
                 treasury: fmt(msg.base_treasury ?? 0),
             }),
         );
+        const range = msg.base_transporter_range ?? 0;
+        if (range >= 1) {
+            ctx.io.term.writeln(render(PLANET.displayTransporterLine, { hops: range }));
+        }
     }
 }
 

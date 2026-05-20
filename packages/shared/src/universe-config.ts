@@ -22,6 +22,10 @@ export const universeConfig = {
     mineDisruptorMax: 5,
     colosToProduceOneUnitPerHour: 1000,
     dailyReproductionPer1000Colos: 20,
+    bwarpCost: 50000,
+    bwarpUpgradeCost: 25000,
+    bwarpInitRange: 1,
+    bwarpFuelPerHop: 10,
 
     // bigbang generation knobs
     sectorCount: 500,
