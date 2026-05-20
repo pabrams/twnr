@@ -7,7 +7,7 @@ import { makeDomain } from './_domain.js';
 
 export const PLANET = makeDomain('PLANET', {
     landing: '[bg]Landing on[/bg] [bc]{name}[/bc][by]...[/by]',
-    colonists: '  [by]Colonists[/by]: [bg]{count}[/bg]',
+    colonists: '  [g]Colonists[/g][by]:[/by][bc]{count}[/bc]',
 
     prompt: '\r\n[mg]Planet command[/mg] [mg]([/mg][by]?[/by]=[by]Help[/by][mg])[/mg] [by]:[/by] ',
 
@@ -47,16 +47,15 @@ export const PLANET = makeDomain('PLANET', {
         '[mg]How many groups of Colonists do you want to take ([/mg][by][{emptyHolds}][/by] [mg]empty holds) ?[/mg] ',
     colonistQtyLeavePrompt:
         '[mg]How many groups of Colonists do you want to leave ([/mg][by][{shipColonists}][/by] [mg]on board) ?[/mg] ',
-    populationQtyPrompt:
-        '[mg]How many groups of Colonists do you want to move?[/mg] ',
+    populationQtyPrompt: '[mg]How many groups of Colonists do you want to move?[/mg] ',
     colonistsLoaded: '[bg]The Colonists file aboard your ship, eager to head out.[/bg]',
     colonistsUnloaded: '[bg]The Colonists settle in to their new homes on the planet.[/bg]',
     productLoaded: '[bg]You load the {commodity} aboard your ship.[/bg]',
     productUnloaded: '[bg]You unload the {commodity} from your ship.[/bg]',
-    notThatMany: '[br]There aren\'t that many on the planet![/br]',
-    notThatMuchOnShip: '[br]You don\'t have that many on board![/br]',
+    notThatMany: "[br]There aren't that many on the planet![/br]",
+    notThatMuchOnShip: "[br]You don't have that many on board![/br]",
     populationMoved: '[bg]The Colonists drop what they were doing and start their new jobs.[/bg]',
-    sameGroup: '[br]That\'s the same group.[/br]',
+    sameGroup: "[br]That's the same group.[/br]",
 
     takeCommodityHeader: '[bc]Which colonists to take?[/bc]',
     leaveCommodityHeader: '[bc]Assign colonists to which commodity?[/bc]',
@@ -88,8 +87,8 @@ export const PLANET = makeDomain('PLANET', {
     landedHeader: '[bg]Landed on[/bg] [bc]{name}[/bc]',
 
     displayTitle: '[bc]Planet #{id}[/bc] in sector [by]{sector}[/by]:  [bg]{name}[/bg]',
-    displayClass: '[mg]Class[/mg]: {type}',
-    displayOwner: '[mg]Owner[/mg]: [w]{owner}[/w]',
+    displayClass: '[bg]Class[/bg]: {type}',
+    displayOwner: '[bg]Owner[/bg]: [bm]{owner}[/bm]',
     displayTableHead1:
         '  [by]Item[/by]    [by]Colonists[/by]   [by]Colos to[/by]   [by]Hourly[/by]     [by]Planet[/by]     [by]Ship[/by]       [by]Planet[/by]',
     displayTableHead2:
@@ -97,14 +96,13 @@ export const PLANET = makeDomain('PLANET', {
     displayTableSep:
         ' [g]-------- ----------  ---------  ---------  ---------  --------- ---------[/g]',
     displayTableRow:
-        '[w]{item}[/w]  [bc]{colos}[/bc]  [c]{c2b1}[/c]  [bc]{hourly}[/bc]  [bc]{planet}[/bc]  [bc]{ship}[/bc]  [c]{max}[/c]',
+        '[g]{item}[/g]  [bc]{colos}[/bc]  [c]{c2b1}[/c]  [bc]{hourly}[/bc]  [bc]{planet}[/bc]  [bc]{ship}[/bc]  [c]{max}[/c]',
     displayHolds: '\r\n[g]You have[/g] [bc]{holds}[/bc] [g]free cargo holds.[/g]',
 
     listEmpty: '[br]You own no planets.[/br]',
     listHeader: '[bc]=== Your Planets ===[/bc]',
     listRow: '  [by]Sector {sector}[/by] — [bc]{name}[/bc] ({type})',
-    listColonists:
-        '  Colonists: {{MSG.fuelQuantity}}, {{MSG.orgQuantity}}, {{MSG.equQuantity}}',
+    listColonists: '  Colonists: {{MSG.fuelQuantity}}, {{MSG.orgQuantity}}, {{MSG.equQuantity}}',
 
     claimOwnershipPrompt:
         '\r\n[mg]Claim as ([/mg][by]P[/by][mg]ersonal, [/mg][by]C[/by][mg]lan, [/mg][by]Q[/by][mg]) [/mg][by]?[/by] ',
@@ -113,23 +111,21 @@ export const PLANET = makeDomain('PLANET', {
 
     // Planetary Defense Bastion ("base") prompts.
     baseIntro1:
-        '[w]This planet does not have a planetary defense bastion (base). You may construct one,[/w]',
-    baseIntro2:
-        '[w]given sufficient materials and manpower.[/w]',
+        '[g]This planet does not have a planetary defense bastion (base). You may construct one,[/g]',
+    baseIntro2: '[g]if you have the necessary resources.[/g]',
     baseIntro3:
-        '[w]Once constructed, a base provides a relatively safe refuge for your clanmates and[/w]\r\n' +
-        '[w]belongings from the dangers of open space.[/w]',
+        '[g]Once constructed, a base provides a relatively safe refuge for your clanmates and[/g]\r\n' +
+        '[g]belongings from the dangers of open space.[/g]',
     baseIntro4:
-        '[w]Once constructed, a base provides a hangar to store ships, living quarters, a treasury,[/w]\r\n' +
-        '[w]and a transporter pad. It may be subsequently upgraded to provide various defensive[/w]\r\n' +
-        '[w]functions such as drone combat control, atmospheric and sector cannons, shielding,[/w]\r\n' +
-        '[w]powerful tractor beam technology, and even planetary warp.[/w]',
+        '[g]Once constructed, a base provides a hangar to store ships, living quarters, a treasury,[/g]\r\n' +
+        '[g]and a transporter pad. It may be subsequently upgraded to provide various defensive[/g]\r\n' +
+        '[g]functions such as drone combat control, atmospheric and sector cannons, shielding,[/g]\r\n' +
+        '[g]powerful tractor beam technology, and even planetary warp.[/g]',
     baseRequirementsHeader:
         '[bc]Constructing a level 1 base on a class [/bc][by]{planetClass}[/by][bc] ([/bc]{planetType}[bc]) planet requires:[/bc]',
     baseRequirementsLine:
         '  [by]{label}[/by]  need [bc]{need}[/bc]  have [bc]{have}[/bc]  {status}',
-    baseRequirementsDays:
-        '  [by]Construction time[/by]: [bc]{days}[/bc] day(s)',
+    baseRequirementsDays: '  [by]Construction time[/by]: [bc]{days}[/bc] day(s)',
     baseConstructPrompt:
         '\r\n[bc]Construct a level 1 base?[/bc] [mg]([/mg][by]Y[/by]/[by]N[/by][mg]) [[/mg][by]N[/by][mg]] [/mg]',
     baseConstructionStarted:
@@ -139,8 +135,8 @@ export const PLANET = makeDomain('PLANET', {
         '[bc]Base level [/bc][bc]{level}[/bc][bc] construction in progress.[/bc]\r\n' +
         '  [by]Started[/by]: [bc]{started}[/bc]\r\n' +
         '  [by]Completes[/by]: [bc]{completes}[/bc]  [g]([/g][bc]{hours}[/bc][g] hours remaining)[/g]',
-    baseShortfall: '  [br]Short[/br]: [w]{items}[/w]',
-    baseError: '[br]Base error[/br]: [w]{message}[/w]',
+    baseShortfall: '  [br]Short[/br]: [g]{items}[/g]',
+    baseError: '[br]Base error[/br]: [g]{message}[/g]',
     baseEntered: '[bg]Entered base (level [/bg][bc]{level}[/bc][bg]).[/bg]',
     basePrompt:
         '\r\n[mg]Base command[/mg] [mg][[/mg][bc]{sector}[/bc][mg]][/mg] [mg]([/mg][by]?[/by]=[by]Help[/by][mg])[/mg] [by]:[/by] ',
@@ -154,34 +150,32 @@ export const PLANET = makeDomain('PLANET', {
         '\r\n[mg]Transfer ([/mg][by]T[/by][mg]o or [/mg][by]F[/by][mg]rom treasury, [/mg][by]Q[/by][mg] to cancel) [/mg][by]?[/by] ',
     treasuryBalances:
         '\r\n[bc]Credits on hand[/bc]: [by]{credits}[/by]\r\n[bc]Treasury balance[/bc]: [by]{treasury}[/by]',
-    treasuryAmountPrompt:
-        '[mg]Amount to transfer ([/mg][by]Q[/by][mg] to cancel) [/mg][by]:[/by] ',
+    treasuryAmountPrompt: '[mg]Amount to transfer ([/mg][by]Q[/by][mg] to cancel) [/mg][by]:[/by] ',
     treasuryTransferOk:
         '\r\n[bg]Transferred [/bg][bc]{amount}[/bc][bg] credits {direction} the treasury.[/bg]\r\n' +
         '[bc]Credits on hand[/bc]: [by]{credits}[/by]\r\n[bc]Treasury balance[/bc]: [by]{treasury}[/by]',
-    treasuryError: '[br]Treasury error[/br]: [w]{message}[/w]',
+    treasuryError: '[br]{message}[/br]',
 
     // Planetary Transporter ("bwarp") flow.
     bwarpNotInstalledIntro:
-        '\r\n[w]This Planetary Bastion does not have a transporter installed. You can order one[/w]\r\n' +
-        '[w]for [/w][by]{cost}[/by][w] credits and have it installed immediately.[/w]',
+        '\r\n[g]This Planetary Bastion does not have a transporter installed. You can order one[/g]\r\n' +
+        '[g]for [/g][by]{cost}[/by][g] credits and have it installed immediately.[/g]',
     bwarpInstallPrompt:
         '\r\n[bc]Order a planetary transporter?[/bc] [mg]([/mg][by]Y[/by]/[by]N[/by][mg]) [[/mg][by]N[/by][mg]] [/mg]',
     bwarpInstallFlavor:
-        '\r\n[w]You send a subspace message to the Transport-o-Matic Transporter company along with[/w]\r\n' +
-        '[w]your payment, and the planet\'s transponder address and credentials. Seconds later,[/w]\r\n' +
-        '[w]a huge rectangular but otherwise nondescript spacecraft materializes in the sector[/w]\r\n' +
-        '[w]and quickly lands. The top of the ship opens up and a small fleet of drones lifts out,[/w]\r\n' +
-        '[w]collectively carrying the transporter device. An army of robots hook it up to the[/w]\r\n' +
-        '[w]planet\'s fuel storage and installs the transporter pad in the center of your hangar.[/w]\r\n' +
-        '[w]Before you know it, the job is done. The conveyor drones all take stations in[/w]\r\n' +
-        '[w]designated alcoves of the transporter pad housing as the robots return to their ship[/w]\r\n' +
-        '[w]and are gone as quickly as they arrived.[/w]\r\n' +
+        '\r\n[g]You send a subspace message to the Transport-o-Matic Transporter company along with[/g]\r\n' +
+        '[g]your payment, including the planet transponder credentials. Seconds later,[/g]\r\n' +
+        '[g]a huge rectangular but otherwise nondescript spacecraft materializes in the sector[/g]\r\n' +
+        '[g]and quickly lands. The top of the ship opens up and a small fleet of drones lifts out,[/g]\r\n' +
+        '[g]carrying the transporter pad. They set it down in the center of your spacecraft hangar, [/g]\r\n' +
+        '[g]and a contingent of robots installs it. Before you know it, the job is done. The conveyor [/g]\r\n' +
+        '[g]drones all take stations in designated alcoves of the transporter pad housing. [/g]\r\n' +
+        '[g]The robots return to their ship, which is gone as quickly as it arrived.[/g]\r\n' +
         '\r\n[bg]The transporter is installed with a range of [/bg][bc]{range}[/bc][bg] hop(s).[/bg]\r\n' +
         '[by]{cost}[/by][bg] credits have been deducted from your personal funds.[/bg]',
     bwarpInstalledIntro:
-        '\r\n[w]The conveyor drones position your ship on the immense transporter pad as the huge[/w]\r\n' +
-        '[w]transference generators power up.[/w]',
+        '\r\n[g]The conveyor drones position your ship on the immense transporter pad as the huge[/g]\r\n' +
+        '[g]transference generators power up.[/g]',
     bwarpRangeLine:
         '\r\n[bc]This transporter has a range of [/bc][by]{range}[/by][bc] hop(s).[/bc]',
     bwarpBeamPrompt:
@@ -192,25 +186,24 @@ export const PLANET = makeDomain('PLANET', {
     bwarpUpgradePrompt:
         '\r\n[bc]Do you want to upgrade this transporter?[/bc] [mg]([/mg][by]Y[/by]/[by]N[/by][mg]) [[/mg][by]N[/by][mg]] [/mg]',
     bwarpUpgradeFlavor:
-        '\r\n[w]You send an upgrade order for a Planetary Transporter to Transport-o-Matic and even[/w]\r\n' +
-        '[w]faster than the original purchase, the upgrade is installed.[/w]\r\n' +
+        '\r\n[g]You send an upgrade order for a Planetary Transporter to Transport-o-Matic and even[/g]\r\n' +
+        '[g]faster than the original purchase, the upgrade is installed.[/g]\r\n' +
         '\r\n[by]{cost}[/by][bg] credits have been deducted from your personal funds.[/bg]\r\n' +
         '[bc]Bastion treasury contains [/bc][by]{treasury}[/by][bc] credits.[/bc]\r\n' +
         '[bc]New transporter range: [/bc][by]{range}[/by][bc] hop(s).[/bc]',
     bwarpDistanceLine:
         '[bc]Sector [/bc][by]{sector}[/by][bc] is [/bc][by]{hops}[/by][bc] hop(s) away from here.[/bc]',
     bwarpOutOfRange:
-        '[br]Target out of range[/br] [w](have [/w][by]{range}[/by][w] hops, need [/w][by]{hops}[/by][w]).[/w]',
+        '[br]Target out of range[/br] [g](have [/g][by]{range}[/by][g] hops, need [/g][by]{hops}[/by][g]).[/g]',
     bwarpFuelCheck:
         '[bc]Beam cost: [/bc][by]{fuelCost}[/by][bc] fuel ore (planet stock: [/bc][by]{planetFuel}[/by][bc]).[/bc]',
-    bwarpInsufficientFuel:
-        '[br]Insufficient planet fuel[/br] [w]for this jump.[/w]',
+    bwarpInsufficientFuel: '[br]Insufficient planet fuel[/br] [g]for this jump.[/g]',
     bwarpEngagePrompt:
-        '\r\n[w]Federation beacon acknowledged, coordinates cleared for beaming.[/w]\r\n' +
-        '[w]Locating beam pinpointed, TransWarp Locked.[/w]\r\n' +
+        '\r\n[g]Federation beacon acknowledged, coordinates cleared for beaming.[/g]\r\n' +
+        '[g]Locating beam pinpointed, TransWarp Locked.[/g]\r\n' +
         '[bc]All Systems Ready, shall we engage?[/bc] [mg]([/mg][by]Y[/by]/[by]N[/by][mg]) [[/mg][by]Y[/by][mg]] [/mg]',
     bwarpBeamedFlavor:
-        '\r\n[bg]Beamed to sector [/bg][bc]{sector}[/bc][bg] ([/bg][bc]{hops}[/bc][bg] hop(s)).[/bg]\r\n' +
-        '[by]{fuelUsed}[/by][bg] fuel ore consumed from planet stock.[/bg]',
-    bwarpError: '[br]Transporter error[/br]: [w]{message}[/w]',
+        '\r\n[bg]Beamed to sector [/bg][bc]{sector}[/bc][bg] ([/bg][bc]{hops}[/bc][bg] hop(s)).[/bg]',
+    // '\r\n[by]{fuelUsed}[/by][bg] fuel ore consumed from planet stock.[/bg]',
+    bwarpError: '[br]Transporter error[/br]: [g]{message}[/g]',
 });
