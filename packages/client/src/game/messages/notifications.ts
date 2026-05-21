@@ -22,14 +22,14 @@ export const NOTIFY = makeDomain('NOTIFY', {
         '\r\n[by]*** Guest demo account ***[/by]' +
         '\r\n[y]This account and its progress may be deleted at any time after you log out or disconnect.[/y]' +
         '\r\n[y]Register an email account to keep your progress.[/y]',
-    goodbye: '\r\n[w]Disconnecting...[/w]',
+    goodbye: '\r\n[br]Disconnecting...[/br]',
 
     playerIn: '\r\n[by][bm]{name}[/bm] warped into the sector.[/by]',
     playerOut: '\r\n[y][bm]{name}[/bm] warped out of the sector.[/y]',
 
     starbaseLocation:
         '\r\n[br]***[/br] [bc]Starbase[/bc] [g]is in sector[/g] [by]{sector}[/by] [br]***[/br] ',
-    noStarbase: '\r\n[w]No Starbase in this universe.[/w]',
+    noStarbase: '\r\n[br]No Starbase in this universe.[/br]',
 
     universeStatsHeader: '\r\n[bc]=== Universe «{name}» ===[/bc]',
     universeStatsLine: '  [g]{label}[/g] [by]:[/by] [bc]{value}[/bc]',
@@ -45,7 +45,7 @@ export const NOTIFY = makeDomain('NOTIFY', {
 
     unknownCommand: 'Unknown command: {cmd}',
 
-    noPreviousSector: '\r\n[w]No previous sector to return to.[/w]',
+    noPreviousSector: '\r\n[br]No previous sector to return to.[/br]',
     quitConfirm:
         '\r\n[by]Are you sure you want to quit?[/by] [mg]([/mg][by]Y[/by]/[by]N[/by][mg])[/mg] [mg][[/mg][by]N[/by][mg]][/mg] ',
 });

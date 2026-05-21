@@ -41,22 +41,22 @@ export const COMPUTER = makeDomain('COMPUTER', {
     planetSpecsPrompt:
         '\r\n[mg]Planet specs[/mg] [mg]([/mg][by]?[/by][mg],[/mg][by]Q[/by][mg])[/mg] [by]?[/by] ',
     planetDetailHeader: '[bc]===[/bc] {type} [bc]===[/bc]',
-    planetDetailDescription: '  [w]{description}[/w]',
-    planetDetailLine: '  [by]{label}[/by] [w]{value}[/w]',
+    planetDetailDescription: '  [g]{description}[/g]',
+    planetDetailLine: '  [by]{label}[/by] [g]{value}[/g]',
 
-    planetSpecsLoading: '\r\n[w]Loading planetary specs...[/w]',
+    planetSpecsLoading: '\r\n[g]Loading planetary specs...[/g]',
     planetSpecsFailed: '[br]Failed to load planetary specs.[/br]',
 
-    traderListLoading: '\r\n[w]Loading traders...[/w]',
+    traderListLoading: '\r\n[g]Loading traders...[/g]',
     traderListHeader: '[bc]=== Traders in Universe ===[/bc]',
     traderListColumns: '  [bw]{name} {clan} {rep} {exp} {ship}[/bw]',
-    traderListRow: '  [by]{name}[/by] [w]{clan}[/w] [w]{rep}[/w] [w]{exp}[/w] [w]{ship}[/w]',
+    traderListRow: '  [by]{name}[/by] [g]{clan}[/g] [g]{rep}[/g] [g]{exp}[/g] [g]{ship}[/g]',
     traderListShipDestroyed: '[bb]### [y]SHIP DESTROYED[/y] ###[/bb]',
     traderListFailed: '[br]Failed to load trader list.[/br]',
-    traderListClanNA: '[w]NA[/w]',
+    traderListClanNA: '[g]NA[/g]',
     traderListClanValue: '[bc]#{n}[/bc]',
 
-    shipDataRequesting: '[w]Requesting ship data...[/w]',
+    shipDataRequesting: '[g]Requesting ship data...[/g]',
     shipConfigNotFound: '[br]Ship config not found for: {name}[/br]',
 
     ownershipPrompt:
@@ -70,17 +70,17 @@ export const COMPUTER = makeDomain('COMPUTER', {
     activeShipScanRule:
         '[g]-----------------------------------------------------------------------------------[/g]',
     activeShipScanRow:
-        '{marker} [by]{shipNum}[/by] [bc]{sect}[/bc] [w]{name}[/w] [w]{owner}[/w] [bc]{drones}[/bc] [bc]{shields}[/bc] [bc]{holds}[/bc] {hops}  [g]{type}[/g]',
+        '{marker} [by]{shipNum}[/by] [bc]{sect}[/bc] [g]{name}[/g] [g]{owner}[/g] [bc]{drones}[/bc] [bc]{shields}[/bc] [bc]{holds}[/bc] {hops}  [g]{type}[/g]',
     activeShipScanHopsInRange: '[bg]{hops}[/bg]',
     activeShipScanHopsOutOfRange: '[br]{hops}[/br]',
     activeShipScanHopsNeutral: '[bc]{hops}[/bc]',
     activeShipScanCurrentMarker: '[br]*[/br]',
     activeShipScanBlankMarker: ' ',
-    activeShipScanEmpty: '[w]You own no ships.[/w]',
+    activeShipScanEmpty: '[g]You own no ships.[/g]',
 
-    transporterIntrasectorOnly: '[w]Your [/w][bc]{ship}[/bc] [w]can only beam intrasector.[/w]',
+    transporterIntrasectorOnly: '[g]Your [/g][bc]{ship}[/bc] [g]can only beam intrasector.[/g]',
     transporterRangeStatement:
-        '[w]Your [/w][bc]{ship}[/bc] [w]has a transport range of [/w][bc]{range}[/bc] [w]hops.[/w]',
+        '[g]Your [/g][bc]{ship}[/bc] [g]has a transport range of [/g][bc]{range}[/bc] [g]hops.[/g]',
     transporterNoCurrentShip: '[br]You have no ship.[/br]',
     transporterOptionsBlank: '',
     transporterOptionDetails: '[mg]<[/mg][by]I[/by][mg]>[/mg] [bc]Ship details[/bc]',
@@ -90,7 +90,7 @@ export const COMPUTER = makeDomain('COMPUTER', {
     transporterDetailsPrompt:
         '\r\n[mg]Show details for which ship? ([/mg][by]Q[/by][mg]=Quit) [/mg][by]?[/by] ',
     transporterSuccess: '[bg]Security code accepted, engaging transporter control.[/bg]',
-    transporterTurnsLeft: '[w]One turn deducted, [/w][bc]{turns}[/bc] [w]turns left.[/w]',
+    transporterTurnsLeft: '[g]One turn deducted, [/g][bc]{turns}[/bc] [g]turns left.[/g]',
     transporterUnknownShip: '[br]No ship with that number.[/br]',
     transporterCannotSelf: '[br]Already on that ship.[/br]',
     transporterDetailHeader: '[bc]Ship #{shipNum}[/bc]',
