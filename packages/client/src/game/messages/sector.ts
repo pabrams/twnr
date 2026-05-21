@@ -8,15 +8,15 @@ import { makeDomain } from './_domain.js';
 export const SECTOR = makeDomain('SECTOR', {
     header: '[bg]Sector[/bg]  [by]:[/by] [bc]{sector}[/bc]',
 
-    port: '[mg]Port[/mg]    [by]:[/by] [bc]{name}[/bc][by],[/by] [mg]Class[/mg] [bc]{class}[/bc] [mg]([/mg]{label}[mg])[/mg]',
+    port: '[mg]Port[/mg]    [by]:[/by] [bc]{name}[/bc][by],[/by] [mg]Class[/mg] [bc]{class}[/bc] [mg]([/mg][bw]{label}[/bw][mg])[/mg]',
     portUnderConstruction:
-        '[mg]Port[/mg]    [by]:[/by] [bc]{name}[/bc][by],[/by] [mg]Class[/mg] [bc]{class}[/bc] [mg]([/mg]{label}[mg])[/mg] [by]([/by][br]Under Construction - {days} days left[/br][by])[/by]',
+        '[mg]Port[/mg]    [by]:[/by] [bc]{name}[/bc][by],[/by] [mg]Class[/mg] [bc]{class}[/bc] [mg]([/mg][bw]{label}[/bw][mg])[/mg] [by]([/by][br]Under Construction - {days} days left[/br][by])[/by]',
 
     dronesYours: '[mg]Drones[/mg]  [by]:[/by] [bc]{qty}[/bc] [mg](yours)[/mg]',
     dronesYourClan: '[mg]Drones[/mg]  [by]:[/by] [bc]{qty}[/bc] [mg](belong to your clan)[/mg]',
     dronesEnemy: '[mg]Drones[/mg]  [by]:[/by] [br]{qty}[/br] [mg]([/mg]{ownership}[mg])[/mg]',
-    ownershipClan: '[w]owned by clan[/w] [bc]#{num}[/bc][by]:[/by] [bc]{name}[/bc]',
-    ownershipPlayer: '[w]owned by[/w] [by]{name}[/by]',
+    ownershipClan: '[g]owned by clan[/g] [bc]#{num}[/bc][by]:[/by] [bc]{name}[/bc]',
+    ownershipPlayer: '[g]owned by[/g] [by]{name}[/by]',
     ownershipYours: '[mg]yours[/mg]',
     ownershipYourClan: '[mg]belong to your clan[/mg]',
     ownershipRogue: '[br]Rogue[/br]',
@@ -48,7 +48,7 @@ export const SECTOR = makeDomain('SECTOR', {
         '[by]{shipName}[/by] [mg]([/mg]{shipTypeColored}[mg], [/mg]{ownership}[mg])[/mg] w/ [bc]{drones}[/bc] ftrs',
     shipItemPlain:
         '[by]{shipName}[/by] [mg]([/mg][bc]{shipType}[/bc][mg], [/mg]{ownership}[mg])[/mg] w/ [bc]{drones}[/bc] ftrs',
-    ownershipPlayerOwnedBy: '[w]Owned by[/w] [by]{name}[/by]{clanSuffix}',
+    ownershipPlayerOwnedBy: '[g]Owned by[/g] [by]{name}[/by]{clanSuffix}',
 
     minesLine: '[mg]Mines[/mg]   [by]:[/by] [bc]{qty}[/bc] [mg](yours)[/mg]',
     minesLineYourClan: '[mg]Mines[/mg]   [by]:[/by] [bc]{qty}[/bc] [mg](belong to your clan)[/mg]',
@@ -75,15 +75,15 @@ export const SECTOR = makeDomain('SECTOR', {
     autopilotConfirm:
         '\r\n[mg]Engage the autopilot?[/mg] [mg]([/mg][by]Y[/by]/[by]N[/by][mg]) [Y][/mg] ',
 
-    beaconBanner: '[bc]<Release Beacon>[/bc]',
+    beaconBanner: '[g:b]<Release Beacon>[/g:b]',
     beaconLaunchPrompt:
-        'Do you wish to launch a Marker Beacon here? [mg]([/mg][by]Y[/by]/[by]N[/by][mg]) [N][/mg] ',
-    beaconMessagePrompt: 'What message should be on this beacon? (41 chars)\r\n',
+        '[mg]Do you wish to launch a Marker Beacon here?[/mg] [mg]([/mg][by]Y[/by]/[by]N[/by][mg]) [N][/mg] ',
+    beaconMessagePrompt: '[mg]Enter a message to be transmitted by the beacon (41 chars) [by]:[/by][/mg]\r\n',
     beaconLaunched: '[bg]Beacon Launched![/bg]',
     beaconCollision:
         '[br]Your beacon collides with the one that was already here and both detonate![/br]',
     beaconNoBeacons: '[br]No beacons on board![/br]',
-    beaconLine: '[mg]Beacon[/mg]  [by]:[/by] [br]{message}[/br]',
+    beaconLine: '[mg]Beacon[/mg]  [by]:[/by] [r]{message}[/r]',
 
     attackBeaconPrompt:
         'Destroy the Marker Beacon here? [mg]([/mg][by]Y[/by]/[by]N[/by][mg]) [N][/mg] ',
@@ -91,7 +91,7 @@ export const SECTOR = makeDomain('SECTOR', {
         '[bg]You launch a drone which quickly destroys the Beacon (and itself)[/bg]',
 
     noPlanet:
-        '[w]There is no planet in this sector. You could create one with a Terraform Device.[/w]',
+        '[g]There is no planet in this sector. You could create one with a Terraform Device.[/g]',
 
     moveMenuHeader: '[bm]Adjacent sectors[/bm]',
     moveMenuRow: '  [mg]<[/mg][g]{n}[/g][mg]>[/mg] {sector}',

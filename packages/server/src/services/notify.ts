@@ -42,7 +42,7 @@ export function notifyTurnChange(playerId: number, turnsDelta: number, reason: s
     if (turnsDelta === 0) return;
     const body =
         turnsDelta > 0
-            ? `${turnsDelta} turn(s) deducted for ${reason}.`
+            ? reason==='warping' ? '' : `${turnsDelta} turn(s) deducted for ${reason}.`
             : `${Math.abs(turnsDelta)} turn(s) granted for ${reason}.`;
     sendEnvelope(playerId, {
         type: ServerTag.Notice,

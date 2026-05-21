@@ -38,7 +38,7 @@ export const EVENT = makeDomain('EVENT', {
         '\r\n[bc]{label} mines — [by]{ship}[/by] on ship, [by]{sector}[/by] in sector.[/bc]',
 
     combatLost:
-        '[by]Combat:[/by] Lost [br]{lost}[/br] drones. Sector drones remaining: [br]{remaining}[/br]. Ship drones: [w]{ship}[/w]',
+        '[g]Lost [by]{lost}[/by] drones. Sector drones remaining: [br]{remaining}[/br]. Ship drones: [g]{ship}[/g]',
     sectorCleared: '[bg]Sector cleared![/bg]',
     retreated: '\r\n[by]Retreated to sector[/by] [bc]{sector}[/bc]',
 
@@ -129,7 +129,7 @@ export const EVENT = makeDomain('EVENT', {
         '\r\n[by]Type memo [<ENTER> to send line. Blank line to end transmission][/by]',
     clanMemoLinePrompt: '[by]M:[/by] ',
     noticeHeader: '\r\n[bc]Notice from[/bc] [by]{name}[/by][bc]:[/bc]',
-    noticeBodyLine: '[by]>[/by] {line}',
+    noticeBodyLine: '{line}',
     towedAlongManned: ' [bc]{name} enters the sector with you.[/bc]',
     towedAlongUnmanned: ' [bc]The {name} (ship) enters the sector with you.[/bc]',
     playerMovedTowedManned:

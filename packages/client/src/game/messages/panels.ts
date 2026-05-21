@@ -30,8 +30,8 @@ export const PANEL = makeDomain('PANEL', {
     shipTurnsPerWarp: '[mg]Turns per warp[/mg]     [by]:[/by] [bc]{turns}[/bc]',
     shipHardwareRowStackable: '[mg]{label}[/mg] [by]:[/by] [bc]{qty}[/bc] [g]/[/g] [c]{max}[/c]',
     shipHardwareRowToggleOn: '[mg]{label}[/mg] [by]:[/by] [bg]installed[/bg]',
-    shipHardwareRowToggleOff: '[mg]{label}[/mg] [by]:[/by] [w]—[/w]',
-    shipHardwareRowUnavailable: '[mg]{label}[/mg] [by]:[/by] [w]n/a[/w]',
+    shipHardwareRowToggleOff: '[mg]{label}[/mg] [by]:[/by] [g]—[/g]',
+    shipHardwareRowUnavailable: '[mg]{label}[/mg] [by]:[/by] [g]n/a[/g]',
 
     playersOnlineHeader: '[bc]Players Online[/bc] ({count}):',
     playersOnlineRow: '  [by]{name}[/by]{suffix}',
@@ -42,9 +42,9 @@ export const PANEL = makeDomain('PANEL', {
     deployedDronesColumns: ' [bw]Sector      Drones    Personal/Clan    Mode        Tolls[/bw]',
     deployedDronesRule: '[g]===========================================================[/g]',
     deployedDronesRow:
-        '  [bc]{sector}[/bc]      [bc]{qty}[/bc]      [bc]{kind}[/bc]   [g]{mode}[/g]   [w]{tolls}[/w]',
+        '  [bc]{sector}[/bc]      [bc]{qty}[/bc]      [bc]{kind}[/bc]   [g]{mode}[/g]   [g]{tolls}[/g]',
     deployedDronesTotalsRow:
-        '              [bc]{qty} Total[/bc]                          [w]{tolls} Total[/w]',
+        '              [bc]{qty} Total[/bc]                          [g]{tolls} Total[/g]',
 
     deployedMinesEmpty: '[g]No mines deployed.[/g]',
     deployedMinesTitle: '       [bc]Deployed  {label}  Scan[/bc]',

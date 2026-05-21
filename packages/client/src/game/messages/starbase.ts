@@ -11,7 +11,7 @@ export const STARBASE = makeDomain('STARBASE', {
     hardwarePrompt:
         '\r\n[mg]<[/mg][bc]Starbase Hardware[/bc][mg]>[/mg] [mg]What do you need[/mg] [mg]([/mg][by]?[/by][mg])[/mg][mg]?[/mg] ',
     hardwareItemRow: '  [mg]<[/mg][g]{key}[/g][mg]>[/mg]  [c]{label}[/c] [y]{price}[/y]',
-    hardwareLoading: '\r\n[w]Loading hardware catalog...[/w]',
+    hardwareLoading: '\r\n[g]Loading hardware catalog...[/g]',
     hardwareCredits: '\r\n[mg]Credits[/mg] [by]:[/by] [bc]{credits}[/bc]',
     hardwareItemDetail:
         '\r\n[c]{label}[/c]  [g]price[/g] [by]{price}[/by]  [g]on board[/g] [bc]{current}[/bc][g]/[/g][c]{max}[/c]  [g]can buy[/g] [by]{canBuy}[/by]',
@@ -33,7 +33,7 @@ export const STARBASE = makeDomain('STARBASE', {
 
     tradeinHeader: '{ship} [g]:[/g] [by]{price}[/by] cr',
     tradeinCredit: '[mg]Trade-in credit[/mg]: [by]{credit}[/by] cr',
-    tradeinNet: '[by]Net cost with trade-in[/by]: [w]{net}[/w] cr',
+    tradeinNet: '[mg]Net cost with trade-in[/mg]: [by]{net}[/by] cr',
     tradeinConfirm:
         '\r\n[c]Trade in your current ship?[/c] [mg]([/mg][by]Y[/by]/[by]N[/by]/[by]Q[/by]uit[mg])[/mg] ',
 

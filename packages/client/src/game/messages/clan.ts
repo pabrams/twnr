@@ -14,7 +14,7 @@ export const CLAN = makeDomain('CLAN', {
     passwordConfirmPrompt: '\r\n[mg]Confirm password[/mg] [by]:[/by] ',
     passwordMismatch: '[br]Passwords do not match.[/br]',
 
-    notInClan: '[w]You are not in a clan.[/w]',
+    notInClan: '[g]You are not in a clan.[/g]',
     alreadyInClan: '[br]You are already in a clan.[/br]',
 
     createSuccess:
@@ -24,13 +24,13 @@ export const CLAN = makeDomain('CLAN', {
     leaveDissolved:
         '\r\n[by]Clan dissolved.[/by] [bg]{personal} asset(s) converted to personal,[/bg] [br]{rogue} clan asset(s) became rogue.[/br]',
 
-    listLoading: '\r\n[w]Loading clans...[/w]',
+    listLoading: '\r\n[g]Loading clans...[/g]',
     listHeader: '[bc]=== Clans in Universe ===[/bc]',
     listColumns: '   [bw]{num} {name} {members} {leader}[/bw]',
-    listRow: '{marker} [by]{num}[/by] [bc]{name}[/bc] [w]{members}[/w] [g]{leader}[/g]',
+    listRow: '{marker} [by]{num}[/by] [bc]{name}[/bc] [g]{members}[/g] [g]{leader}[/g]',
     listOwnMarker: '[br]*[/br]',
     listBlankMarker: ' ',
-    listEmpty: '[w]No clans in this universe yet.[/w]',
+    listEmpty: '[g]No clans in this universe yet.[/g]',
 
     infoHeader: '[bc]=== Your Clan ===[/bc]',
     infoLine: '  [g]{label}[/g] [by]:[/by] [bc]{value}[/bc]',
@@ -39,20 +39,20 @@ export const CLAN = makeDomain('CLAN', {
     infoLeaderTag: ' [bg](leader)[/bg]',
 
     dissolveWarning:
-        '\r\n[br]You are the last member.[/br] [w]Leaving dissolves the clan.[/w]\r\n' +
-        '[w]Clan ships/drones/mines/beacons in this sector become personal.[/w]\r\n' +
-        '[w]Clan assets elsewhere (including all clan planets) become rogue.[/w]\r\n' +
-        '[w]Cancel and transfer ownership manually if you want to keep specific assets.[/w]',
+        '\r\n[br]You are the last member.[/br] [g]Leaving dissolves the clan.[/g]\r\n' +
+        '[g]Clan ships/drones/mines/beacons in this sector become personal.[/g]\r\n' +
+        '[g]Clan assets elsewhere (including all clan planets) become rogue.[/g]\r\n' +
+        '[g]Cancel and transfer ownership manually if you want to keep specific assets.[/g]',
     dissolveConfirm: '\r\n[by]Confirm dissolve clan? (y/[N])[/by] ',
 
     leaderSuccessorPrompt: '\r\n[mg]Pick a successor by number (Q to cancel)[/mg] [by]?[/by] ',
-    leaderSuccessorHeader: '\r\n[w]As leader, you must designate a successor:[/w]',
+    leaderSuccessorHeader: '\r\n[g]As leader, you must designate a successor:[/g]',
     leaderSuccessorRow: '  [by]{num}[/by]  [bc]{name}[/bc]',
 
     needSuccessor: '[br]Designate a successor first.[/br]',
     invalidSuccessor: '[br]Invalid successor selection.[/br]',
 
-    transferMembersHeader: '\r\n[w]Clan members:[/w]',
+    transferMembersHeader: '\r\n[g]Clan members:[/g]',
     transferMemberRow: '  [by]{num}[/by]  [bc]{name}[/bc]',
     transferTargetPrompt:
         '\r\n[mg]Recipient ([/mg][by]#[/by][mg],[/mg][by]Q[/by][mg])[/mg] [by]?[/by] ',
@@ -63,7 +63,7 @@ export const CLAN = makeDomain('CLAN', {
     transferSuccess:
         '\r\n[bg]Sent [/bg][bc]{delivered}[/bc] [bg]{kind} to [/bg][bc]{target}[/bc][bg].[/bg]',
     transferDiscarded:
-        '\r\n[by]Note: [/by][w]{discarded} {kind} discarded (recipient at capacity).[/w]',
+        '\r\n[by]Note: [/by][g]{discarded} {kind} discarded (recipient at capacity).[/g]',
 
     memoBodyPrompt: '\r\n[mg]Memo text (Q to cancel)[/mg] [by]:[/by] ',
     memoSent: '\r\n[bg]Memo sent to [/bg][bc]{count}[/bc] [bg]clan member(s).[/bg]',
@@ -78,6 +78,6 @@ export const CLAN = makeDomain('CLAN', {
     dropSuccess: '\r\n[bg]Dropped [/bg][bc]{name}[/bc][bg] from the clan.[/bg]',
 
     incomingMemoHeader: '\r\n[by]== Memo ==[/by]',
-    incomingMemoLine: '[w]{from}: {body}[/w]',
+    incomingMemoLine: '[g]{from}: {body}[/g]',
     notLeader: '[br]Only the clan leader can do that.[/br]',
 });
