@@ -5,6 +5,7 @@ import type { GameContext } from './types.js';
 import { setupConnection } from './connection.js';
 import { setupInput } from './input.js';
 import { createMinimap, flashTerminalBorder } from './minimap.js';
+import { createStatsPanel } from './stats-panel.js';
 import { render } from './renderer.js';
 import { NOTIFY } from './messages/index.js';
 import { MENU_REGISTRY, MENU_PROMPTS } from './menu-registry.js';
@@ -28,14 +29,25 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
     term.open(termDiv);
 
     // Pin logical width to globalConstants.terminalCols and scale fontSize to
-    // whatever the container can hold. Small screens get small text, not
-    // wrapped text. CHAR_WIDTH_RATIO and LINE_HEIGHT_RATIO are empirical for
-    // Courier New at xterm's defaults — measured against
-    // term._core._renderService.dimensions.css.cell after the first paint.
+    // whatever the container can hold. The width side stays approximate
+    // (CHAR_WIDTH_RATIO ≈ 0.6 for Courier); the height side reads the actual
+    // rendered cell height from xterm after the fontSize is applied so we
+    // never ask for more rows than physically fit. LINE_HEIGHT_RATIO is only
+    // used as a fallback on the very first call before xterm has measured.
     const CHAR_WIDTH_RATIO = 0.6;
-    const LINE_HEIGHT_RATIO = 1.08;
+    const LINE_HEIGHT_RATIO_FALLBACK = 1.2;
     const MIN_FONT_SIZE = 6;
     const MAX_FONT_SIZE = 32;
+    type CellDims = { width: number; height: number };
+    type CoreWithRender = {
+        _core?: { _renderService?: { dimensions?: { css?: { cell?: CellDims } } } };
+    };
+    function readCellHeight(fontSize: number): number {
+        const cell = (term as unknown as CoreWithRender)._core?._renderService?.dimensions?.css
+            ?.cell;
+        if (cell && Number.isFinite(cell.height) && cell.height > 0) return cell.height;
+        return fontSize * LINE_HEIGHT_RATIO_FALLBACK;
+    }
     function refit() {
         const style = window.getComputedStyle(termDiv);
         const padX =
@@ -45,11 +57,14 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
         const w = termDiv.clientWidth - padX;
         const h = termDiv.clientHeight - padY;
         if (w <= 0 || h <= 0) return;
-        const cellWidthAt1 = CHAR_WIDTH_RATIO;
-        const rawFontSize = Math.floor(w / globalConstants.terminalCols / cellWidthAt1);
+        const rawFontSize = Math.floor(w / globalConstants.terminalCols / CHAR_WIDTH_RATIO);
         const fontSize = Math.max(MIN_FONT_SIZE, Math.min(MAX_FONT_SIZE, rawFontSize));
         term.options.fontSize = fontSize;
-        const rows = Math.max(10, Math.floor(h / (fontSize * LINE_HEIGHT_RATIO)));
+        // Reading dimensions right after setting fontSize gives the updated
+        // cell height; one row of safety margin avoids the bottom prompt
+        // getting clipped by integer rounding or 1px container chrome.
+        const cellHeight = readCellHeight(fontSize);
+        const rows = Math.max(10, Math.floor(h / cellHeight) - 1);
         term.resize(globalConstants.terminalCols, rows);
     }
     refit();
@@ -176,6 +191,7 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
             hardwareStoreItems: [],
         },
         minimap: {},
+        stats: {},
         pendingMenuArgs: null,
         connection: {
             disconnected: false,
@@ -289,6 +305,11 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
         minimapEl.addEventListener('click', () => {
             term.focus();
         });
+    }
+
+    const statsEl = document.getElementById('stats');
+    if (statsEl) {
+        ctx.stats.handle = createStatsPanel(statsEl);
     }
 
     setupInput(term, ctx);

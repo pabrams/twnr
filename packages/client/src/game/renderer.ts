@@ -1,6 +1,6 @@
-import { colorPalette, type ColorConfig, type ColorPalette } from '../config/colors.js';
+import { colorPalette, rgb, type ColorConfig, type ColorPalette } from '../config/colors.js';
 
-const TAG_TO_COLOR: Record<string, ColorConfig> = {
+export const TAG_TO_COLOR: Record<string, ColorConfig> = {
     k: colorPalette.black,
     mg: colorPalette.magenta,
     bg: colorPalette.boldGreen,
@@ -141,6 +141,46 @@ export function render(template: string, vars: Record<string, unknown> = {}): st
 
 export function listTags(): string[] {
     return Object.keys(TAG_TO_COLOR);
+}
+
+/**
+ * HTML counterpart to `render`: parses the same `[tag]…[/tag]` markup and
+ * emits a DocumentFragment with colored `<span>`s for the DOM panels (stats,
+ * minimap labels, etc.). Foreground color only — DOM panels handle their own
+ * backgrounds via CSS.
+ */
+export function renderTaggedHtml(tagged: string): DocumentFragment {
+    const frag = document.createDocumentFragment();
+    const parts = tagged.split(TAG_RE);
+    const stack: string[] = [];
+    for (let i = 0; i < parts.length; i++) {
+        if (i % 2 === 0) {
+            const text = parts[i];
+            if (!text) continue;
+            const top = stack.length > 0 ? stack[stack.length - 1] : undefined;
+            const colonIdx = top?.indexOf(':') ?? -1;
+            const fgName = top ? (colonIdx === -1 ? top : top.slice(0, colonIdx)) : '';
+            const color = fgName ? TAG_TO_COLOR[fgName] : undefined;
+            if (color) {
+                const span = document.createElement('span');
+                span.style.color = rgb(color);
+                span.textContent = text;
+                frag.appendChild(span);
+            } else {
+                frag.appendChild(document.createTextNode(text));
+            }
+            continue;
+        }
+        const tag = parts[i];
+        if (tag.startsWith('/')) {
+            const name = tag.slice(1);
+            const idx = stack.lastIndexOf(name);
+            if (idx !== -1) stack.splice(idx, 1);
+        } else {
+            stack.push(tag);
+        }
+    }
+    return frag;
 }
 
 export { colorPalette };

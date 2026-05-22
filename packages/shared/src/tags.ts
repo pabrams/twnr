@@ -130,6 +130,7 @@ export const ServerTag = {
     BwarpInstallResult: 'bwarpInstallResult',
     BwarpUpgradeResult: 'bwarpUpgradeResult',
     BwarpBeamResult: 'bwarpBeamResult',
+    StatsSnapshot: 'statsSnapshot',
 } as const;
 type ServerTag = typeof ServerTag;
 
