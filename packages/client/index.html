@@ -213,9 +213,17 @@
     </div>
   </div>
   <script>
-    document.getElementById('mobile-notice-dismiss')?.addEventListener('click', () => {
-      document.getElementById('mobile-notice')?.classList.add('dismissed');
-    });
+    (function () {
+      var KEY = 'twnr.mobile-notice-dismissed';
+      var notice = document.getElementById('mobile-notice');
+      var btn = document.getElementById('mobile-notice-dismiss');
+      function dismiss() {
+        if (notice) notice.style.display = 'none';
+        try { sessionStorage.setItem(KEY, '1'); } catch (_) {}
+      }
+      try { if (sessionStorage.getItem(KEY) === '1') dismiss(); } catch (_) {}
+      if (btn) btn.addEventListener('click', dismiss);
+    })();
   </script>
   <script type="module" src="/src/main.ts"></script>
 </body>

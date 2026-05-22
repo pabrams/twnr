@@ -1,6 +1,5 @@
 import { Terminal } from '@xterm/xterm';
-import { FitAddon } from '@xterm/addon-fit';
-import { ClientTag, Menu } from '@twnr/shared';
+import { ClientTag, Menu, globalConstants } from '@twnr/shared';
 import type { ClientEnvelope, MenuEntry } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { setupConnection } from './connection.js';
@@ -18,18 +17,42 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
         fontFamily: 'Courier New, Courier, monospace',
         fontSize: 17,
         scrollback: 50000,
+        cols: globalConstants.terminalCols,
         theme: {
             background: '#000000',
             foreground: '#ffffff',
         },
     });
 
-    const fitAddon = new FitAddon();
-    term.loadAddon(fitAddon);
     term.open(termDiv);
-    fitAddon.fit();
 
-    window.addEventListener('resize', () => fitAddon.fit());
+    // Pin logical width to globalConstants.terminalCols and scale fontSize to
+    // whatever the container can hold. Small screens get small text, not
+    // wrapped text. CHAR_WIDTH_RATIO and LINE_HEIGHT_RATIO are empirical for
+    // Courier New at xterm's defaults — measured against
+    // term._core._renderService.dimensions.css.cell after the first paint.
+    const CHAR_WIDTH_RATIO = 0.6;
+    const LINE_HEIGHT_RATIO = 1.2;
+    const MIN_FONT_SIZE = 6;
+    const MAX_FONT_SIZE = 32;
+    function refit() {
+        const style = window.getComputedStyle(termDiv);
+        const padX =
+            parseFloat(style.paddingLeft || '0') + parseFloat(style.paddingRight || '0');
+        const padY =
+            parseFloat(style.paddingTop || '0') + parseFloat(style.paddingBottom || '0');
+        const w = termDiv.clientWidth - padX;
+        const h = termDiv.clientHeight - padY;
+        if (w <= 0 || h <= 0) return;
+        const cellWidthAt1 = CHAR_WIDTH_RATIO;
+        const rawFontSize = Math.floor(w / globalConstants.terminalCols / cellWidthAt1);
+        const fontSize = Math.max(MIN_FONT_SIZE, Math.min(MAX_FONT_SIZE, rawFontSize));
+        term.options.fontSize = fontSize;
+        const rows = Math.max(10, Math.floor(h / (fontSize * LINE_HEIGHT_RATIO)));
+        term.resize(globalConstants.terminalCols, rows);
+    }
+    refit();
+    window.addEventListener('resize', refit);
 
     // xterm's viewport captures wheel events to scroll its scrollback buffer,
     // regardless of modifier keys. When the mouse is over the terminal that
