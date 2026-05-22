@@ -39,7 +39,7 @@ const NumOrNull = Num.nullable();
 const IntOrNull = Int.nullable();
 const StrOrNull = Str.nullable();
 const HardwareMap = z.record(Str, Num);
-const DateOrString = z.union([z.date(), z.string()]);
+const DateString = z.string();
 
 const CargoSchema = z.object({
     fuel: Num,
@@ -458,9 +458,9 @@ export const PlanetDisplayDataSchema = z.object({
     base_treasury: NumOrNull,
     base_transporter_range: NumOrNull,
     base_construction_target_level: IntOrNull,
-    base_construction_completes_at: DateOrString.nullable(),
-    created_at: DateOrString,
-    updated_at: DateOrString.nullable().optional(),
+    base_construction_completes_at: DateString.nullable(),
+    created_at: DateString,
+    updated_at: DateString.nullable().optional(),
 });
 export type PlanetDisplayData = z.infer<typeof PlanetDisplayDataSchema>;
 

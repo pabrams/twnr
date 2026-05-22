@@ -355,9 +355,9 @@ export async function getPlanetDisplayData(playerId: number): Promise<{
     base_treasury: number | null;
     base_transporter_range: number | null;
     base_construction_target_level: number | null;
-    base_construction_completes_at: Date | null;
-    created_at: Date;
-    updated_at: Date | null;
+    base_construction_completes_at: string | null;
+    created_at: string;
+    updated_at: string | null;
 } | null> {
     const playerRes = await pool.query('SELECT on_planet_id FROM players WHERE id = $1', [
         playerId,
@@ -403,7 +403,15 @@ export async function getPlanetDisplayData(playerId: number): Promise<{
     const row = planetRes.rows[0];
     const { formatOwner } = await import('../../services/owner-format.js');
     const owner_name = formatOwner(row);
-    const { type: planetType, display_type: displayType, ...rest } = { ...row, owner_name };
+    const toIso = (d: Date | null | undefined): string | null =>
+        d instanceof Date ? d.toISOString() : (d ?? null);
+    const { type: planetType, display_type: displayType, ...rest } = {
+        ...row,
+        owner_name,
+        base_construction_completes_at: toIso(row.base_construction_completes_at),
+        created_at: row.created_at.toISOString(),
+        updated_at: toIso(row.updated_at),
+    };
     return { planetType, displayType, ...rest };
 }
 
