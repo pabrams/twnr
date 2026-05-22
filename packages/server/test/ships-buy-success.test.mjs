@@ -5,13 +5,13 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { connectWS as _connectWS, closeWS, wsRequest } from './helpers.mjs';
 import { ensureServer, createPool } from './global-setup.mjs';
-import { ClientMsgType, ServerMsgType } from '@twnr/shared';
+import { ClientTag, ServerTag } from '@twnr/shared';
 
 const __filename = fileURLToPath(import.meta.url);
 const PROJECT_ROOT = join(dirname(__filename), '..');
 
-const merchantCfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', '01-vulpeculan-cruiser.json'), 'utf8'));
-const escapePodCfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', '00-escape-pod.json'), 'utf8'));
+const merchantCfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'templates', 'stock', 'ships', '01-vulpeculan-cruiser.json'), 'utf8'));
+const escapePodCfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'templates', 'stock', 'ships', '00-escape-pod.json'), 'utf8'));
 const STARTING_CREDITS = 10000;
 const DRONE_PRICE = 20;
 const SHIELD_PRICE  = 10;
@@ -19,12 +19,12 @@ const HOLD_PRICE    = 50;
 const UNIVERSE_ID = 1;
 
 async function navigateTo(ws, targetSector) {
-  const disp = await wsRequest(ws, { type: ClientMsgType.SectorDisplay }, ServerMsgType.SectorDisplayResult);
+  const disp = await wsRequest(ws, { type: ClientTag.SectorDisplay }, ServerTag.SectorDisplayResult);
   if (disp.sector === targetSector) return;
-  const path = await wsRequest(ws, { type: ClientMsgType.ShortestPath, from: disp.sector, to: targetSector }, ServerMsgType.ShortestPathResult);
-  if (path.type === ServerMsgType.Error) throw new Error(`No path to ${targetSector}`);
+  const path = await wsRequest(ws, { type: ClientTag.ShortestPath, from: disp.sector, to: targetSector }, ServerTag.ShortestPathResult);
+  if (path.type === ServerTag.Error) throw new Error(`No path to ${targetSector}`);
   for (let i = 1; i < path.path.length; i++) {
-    await wsRequest(ws, { type: ClientMsgType.Move, sector: path.path[i].sector }, ServerMsgType.MoveResult);
+    await wsRequest(ws, { type: ClientTag.Move, sector: path.path[i].sector }, ServerTag.MoveResult);
   }
 }
 
@@ -59,8 +59,8 @@ describe('Buy equipment — success', () => {
     const { ws } = await connectWS();
     const qty = 3;
     try {
-      const msg = await wsRequest(ws, { type: ClientMsgType.BuyDrones, quantity: qty }, ServerMsgType.BuyDronesResult);
-      assert.equal(msg.type, ServerMsgType.BuyDronesResult);
+      const msg = await wsRequest(ws, { type: ClientTag.BuyDrones, quantity: qty }, ServerTag.BuyDronesResult);
+      assert.equal(msg.type, ServerTag.BuyDronesResult);
       assert.equal(msg.drones, qty);
       assert.equal(msg.credits, STARTING_CREDITS - qty * DRONE_PRICE);
     } finally {
@@ -72,8 +72,8 @@ describe('Buy equipment — success', () => {
     const { ws } = await connectWS();
     const qty = 5;
     try {
-      const msg = await wsRequest(ws, { type: ClientMsgType.BuyShields, quantity: qty }, ServerMsgType.BuyShieldsResult);
-      assert.equal(msg.type, ServerMsgType.BuyShieldsResult);
+      const msg = await wsRequest(ws, { type: ClientTag.BuyShields, quantity: qty }, ServerTag.BuyShieldsResult);
+      assert.equal(msg.type, ServerTag.BuyShieldsResult);
       assert.equal(msg.shields, qty);
       assert.equal(msg.credits, STARTING_CREDITS - qty * SHIELD_PRICE);
     } finally {
@@ -85,8 +85,8 @@ describe('Buy equipment — success', () => {
     const { ws } = await connectWS();
     const qty = 3;
     try {
-      const msg = await wsRequest(ws, { type: ClientMsgType.BuyHolds, quantity: qty }, ServerMsgType.BuyHoldsResult);
-      assert.equal(msg.type, ServerMsgType.BuyHoldsResult);
+      const msg = await wsRequest(ws, { type: ClientTag.BuyHolds, quantity: qty }, ServerTag.BuyHoldsResult);
+      assert.equal(msg.type, ServerTag.BuyHoldsResult);
       assert.equal(msg.cargoLimit, merchantCfg.startingHolds + qty);
       assert.equal(msg.credits, STARTING_CREDITS - qty * HOLD_PRICE);
     } finally {
@@ -102,8 +102,8 @@ describe('Buy equipment — success', () => {
       const nearCap = merchantCfg.maxDrones - 2;
       await pool.query('UPDATE ships SET drones = $1 WHERE id = (SELECT ship_id FROM players WHERE id = $2)', [nearCap, playerId]);
       // Then try to buy 3 more — would exceed cap by 1
-      const msg = await wsRequest(ws, { type: ClientMsgType.BuyDrones, quantity: 3 }, ServerMsgType.BuyDronesResult);
-      assert.equal(msg.type, ServerMsgType.Error);
+      const msg = await wsRequest(ws, { type: ClientTag.BuyDrones, quantity: 3 }, ServerTag.BuyDronesResult);
+      assert.equal(msg.type, ServerTag.Error);
       assert.equal(msg.message, 'Exceeds maximum');
     } finally {
       await closeWS(ws);
@@ -114,9 +114,9 @@ describe('Buy equipment — success', () => {
     const { ws } = await connectWS();
     const firstBuy = merchantCfg.maxShields - 2;
     try {
-      await wsRequest(ws, { type: ClientMsgType.BuyShields, quantity: firstBuy }, ServerMsgType.BuyShieldsResult);
-      const msg = await wsRequest(ws, { type: ClientMsgType.BuyShields, quantity: 3 }, ServerMsgType.BuyShieldsResult);
-      assert.equal(msg.type, ServerMsgType.Error);
+      await wsRequest(ws, { type: ClientTag.BuyShields, quantity: firstBuy }, ServerTag.BuyShieldsResult);
+      const msg = await wsRequest(ws, { type: ClientTag.BuyShields, quantity: 3 }, ServerTag.BuyShieldsResult);
+      assert.equal(msg.type, ServerTag.Error);
       assert.equal(msg.message, 'Exceeds maximum');
     } finally {
       await closeWS(ws);
@@ -132,17 +132,17 @@ describe('Buy equipment — success', () => {
     try {
       // Exchange to Escape Pod at Starbase (navigate there first)
       await navigateTo(ws, starbaseId);
-      await wsRequest(ws, { type: ClientMsgType.DockStarbase }, ServerMsgType.DockStarbaseResult);
-      const exchMsg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: escapePodCfg.name }, ServerMsgType.BuyShipTradeinResult);
-      assert.equal(exchMsg.type, ServerMsgType.BuyShipTradeinResult);
+      await wsRequest(ws, { type: ClientTag.DockStarbase }, ServerTag.DockStarbaseResult);
+      const exchMsg = await wsRequest(ws, { type: ClientTag.BuyShipTradein, targetShipName: escapePodCfg.name }, ServerTag.BuyShipTradeinResult);
+      assert.equal(exchMsg.type, ServerTag.BuyShipTradeinResult);
 
       // Teleport to sector 1 (class 0 port) via DB — buyHolds reads current_sector_id from DB
       await pool.query(`UPDATE players SET current_sector_id = (SELECT id FROM sectors WHERE sector_number = 1 AND universe_id = ${UNIVERSE_ID}) WHERE id = $1`, [welcome.playerId]);
 
       // Trying to buy maxHolds - startingHolds + 1 holds should fail
       const overLimit = escapePodCfg.maxHolds - escapePodCfg.startingHolds + 1;
-      const msg = await wsRequest(ws, { type: ClientMsgType.BuyHolds, quantity: overLimit }, ServerMsgType.BuyHoldsResult);
-      assert.equal(msg.type, ServerMsgType.Error);
+      const msg = await wsRequest(ws, { type: ClientTag.BuyHolds, quantity: overLimit }, ServerTag.BuyHoldsResult);
+      assert.equal(msg.type, ServerTag.Error);
       assert.equal(msg.message, 'Exceeds maximum');
     } finally {
       await closeWS(ws);
@@ -153,8 +153,8 @@ describe('Buy equipment — success', () => {
     const { ws } = await connectWS();
     try {
       // one more than the room available
-      const msg = await wsRequest(ws, { type: ClientMsgType.BuyHolds, quantity: merchantCfg.maxHolds - merchantCfg.startingHolds + 1 }, ServerMsgType.BuyHoldsResult);
-      assert.equal(msg.type, ServerMsgType.Error);
+      const msg = await wsRequest(ws, { type: ClientTag.BuyHolds, quantity: merchantCfg.maxHolds - merchantCfg.startingHolds + 1 }, ServerTag.BuyHoldsResult);
+      assert.equal(msg.type, ServerTag.Error);
       assert.equal(msg.message, 'Exceeds maximum');
     } finally {
       await closeWS(ws);
@@ -165,8 +165,8 @@ describe('Buy equipment — success', () => {
     const { ws } = await connectWS();
     try {
       const qty = merchantCfg.maxHolds - merchantCfg.startingHolds;
-      const msg = await wsRequest(ws, { type: ClientMsgType.BuyHolds, quantity: qty }, ServerMsgType.BuyHoldsResult);
-      assert.equal(msg.type, ServerMsgType.BuyHoldsResult, 'buying exactly up to maxHolds should succeed');
+      const msg = await wsRequest(ws, { type: ClientTag.BuyHolds, quantity: qty }, ServerTag.BuyHoldsResult);
+      assert.equal(msg.type, ServerTag.BuyHoldsResult, 'buying exactly up to maxHolds should succeed');
       assert.equal(msg.cargoLimit, merchantCfg.maxHolds);
     } finally {
       await closeWS(ws);
@@ -184,8 +184,8 @@ describe('Buy equipment — success', () => {
       await pool.query('UPDATE ships SET fuel = 10, organics = 9 WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
       await navigateTo(ws, fuelSector);
       // Buying 2 more fuel: 10+9+2 = 21 > cargoLimit(20) — should fail
-      const msg = await wsRequest(ws, { type: ClientMsgType.PortTransaction, good: 'fuel', quantity: 2, action: 'buy' }, ServerMsgType.PortTransactionResult);
-      assert.equal(msg.type, ServerMsgType.Error);
+      const msg = await wsRequest(ws, { type: ClientTag.PortTransaction, good: 'fuel', quantity: 2, action: 'buy' }, ServerTag.PortTransactionResult);
+      assert.equal(msg.type, ServerTag.Error);
       assert.equal(msg.message, 'Insufficient cargo holds');
     } finally {
       await closeWS(ws);
@@ -203,14 +203,14 @@ describe('Buy equipment — success', () => {
     try {
       // Navigate to Starbase and exchange to Escape Pod (startingHolds=1)
       await navigateTo(ws, starbaseId);
-      await wsRequest(ws, { type: ClientMsgType.DockStarbase }, ServerMsgType.DockStarbaseResult);
-      const exchMsg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: escapePodCfg.name }, ServerMsgType.BuyShipTradeinResult);
-      assert.equal(exchMsg.type, ServerMsgType.BuyShipTradeinResult);
+      await wsRequest(ws, { type: ClientTag.DockStarbase }, ServerTag.DockStarbaseResult);
+      const exchMsg = await wsRequest(ws, { type: ClientTag.BuyShipTradein, targetShipName: escapePodCfg.name }, ServerTag.BuyShipTradeinResult);
+      assert.equal(exchMsg.type, ServerTag.BuyShipTradeinResult);
 
       // Navigate to fuel port and try to buy 2 fuel — exceeds new cargoLimit of 1
       await navigateTo(ws, fuelSector);
-      const msg = await wsRequest(ws, { type: ClientMsgType.PortTransaction, good: 'fuel', quantity: 2, action: 'buy' }, ServerMsgType.PortTransactionResult);
-      assert.equal(msg.type, ServerMsgType.Error);
+      const msg = await wsRequest(ws, { type: ClientTag.PortTransaction, good: 'fuel', quantity: 2, action: 'buy' }, ServerTag.PortTransactionResult);
+      assert.equal(msg.type, ServerTag.Error);
       assert.equal(msg.message, 'Insufficient cargo holds');
     } finally {
       await closeWS(ws);
@@ -225,13 +225,13 @@ describe('Buy equipment — success', () => {
     const { ws } = await connectWS();
     try {
       // Buy 3 holds → holds becomes startingHolds + 3 = 23
-      const buyMsg = await wsRequest(ws, { type: ClientMsgType.BuyHolds, quantity: 3 }, ServerMsgType.BuyHoldsResult);
-      assert.equal(buyMsg.type, ServerMsgType.BuyHoldsResult);
+      const buyMsg = await wsRequest(ws, { type: ClientTag.BuyHolds, quantity: 3 }, ServerTag.BuyHoldsResult);
+      assert.equal(buyMsg.type, ServerTag.BuyHoldsResult);
 
       // Navigate to fuel seller and buy 23 units (should succeed with new cargo limit)
       await navigateTo(ws, fuelSector);
-      const msg = await wsRequest(ws, { type: ClientMsgType.PortTransaction, good: 'fuel', quantity: merchantCfg.startingHolds + 3, action: 'buy' }, ServerMsgType.PortTransactionResult);
-      assert.equal(msg.type, ServerMsgType.PortTransactionResult, `should be able to buy ${merchantCfg.startingHolds + 3} fuel after buying 3 extra holds`);
+      const msg = await wsRequest(ws, { type: ClientTag.PortTransaction, good: 'fuel', quantity: merchantCfg.startingHolds + 3, action: 'buy' }, ServerTag.PortTransactionResult);
+      assert.equal(msg.type, ServerTag.PortTransactionResult, `should be able to buy ${merchantCfg.startingHolds + 3} fuel after buying 3 extra holds`);
     } finally {
       await closeWS(ws);
     }

@@ -5,23 +5,23 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { connectWS as _connectWS, closeWS, wsRequest } from './helpers.mjs';
 import { ensureServer, createPool } from './global-setup.mjs';
-import { ClientMsgType, ServerMsgType } from '@twnr/shared';
+import { ClientTag, ServerTag } from '@twnr/shared';
 
 const __filename = fileURLToPath(import.meta.url);
 const PROJECT_ROOT = join(dirname(__filename), '..');
-const merchantCfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', '01-vulpeculan-cruiser.json'), 'utf8'));
+const merchantCfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'templates', 'stock', 'ships', '01-vulpeculan-cruiser.json'), 'utf8'));
 const STARTING_HOLDS = merchantCfg.startingHolds;
 
 
 const UNIVERSE_ID = 1;
 
 async function navigateTo(ws, targetSector) {
-  const disp = await wsRequest(ws, { type: ClientMsgType.SectorDisplay }, ServerMsgType.SectorDisplayResult);
+  const disp = await wsRequest(ws, { type: ClientTag.SectorDisplay }, ServerTag.SectorDisplayResult);
   if (disp.sector === targetSector) return;
-  const path = await wsRequest(ws, { type: ClientMsgType.ShortestPath, from: disp.sector, to: targetSector }, ServerMsgType.ShortestPathResult);
-  if (path.type === ServerMsgType.Error) throw new Error(`No path to ${targetSector}`);
+  const path = await wsRequest(ws, { type: ClientTag.ShortestPath, from: disp.sector, to: targetSector }, ServerTag.ShortestPathResult);
+  if (path.type === ServerTag.Error) throw new Error(`No path to ${targetSector}`);
   for (let i = 1; i < path.path.length; i++) {
-    await wsRequest(ws, { type: ClientMsgType.Move, sector: path.path[i].sector }, 'moveResult');
+    await wsRequest(ws, { type: ClientTag.Move, sector: path.path[i].sector }, 'moveResult');
   }
 }
 
@@ -56,8 +56,8 @@ describe('Trade at class 0 port', () => {
     // New players start at sector 1, which has a class 0 port
     const { ws } = await connectWS();
     try {
-      const msg = await wsRequest(ws, { type: ClientMsgType.PortTransaction, good: 'fuel', quantity: 1, action: 'buy' }, ServerMsgType.PortTransactionResult);
-      assert.equal(msg.type, ServerMsgType.Error);
+      const msg = await wsRequest(ws, { type: ClientTag.PortTransaction, good: 'fuel', quantity: 1, action: 'buy' }, ServerTag.PortTransactionResult);
+      assert.equal(msg.type, ServerTag.Error);
     } finally {
       await closeWS(ws);
     }
@@ -68,8 +68,8 @@ describe('Trade at class 0 port', () => {
     const playerId = welcome.playerId;
     try {
       await pool.query('UPDATE ships SET fuel = 3 WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
-      const msg = await wsRequest(ws, { type: ClientMsgType.PortTransaction, good: 'fuel', quantity: 1, action: 'sell' }, ServerMsgType.PortTransactionResult);
-      assert.equal(msg.type, ServerMsgType.Error);
+      const msg = await wsRequest(ws, { type: ClientTag.PortTransaction, good: 'fuel', quantity: 1, action: 'sell' }, ServerTag.PortTransactionResult);
+      assert.equal(msg.type, ServerTag.Error);
     } finally {
       await closeWS(ws);
     }
@@ -85,8 +85,8 @@ describe('Cargo hold enforcement', () => {
     try {
       await navigateTo(ws, fuelSector);
       // try to buy 1 more than startingHolds
-      const msg = await wsRequest(ws, { type: ClientMsgType.PortTransaction, good: 'fuel', quantity: STARTING_HOLDS + 1, action: 'buy' }, ServerMsgType.PortTransactionResult);
-      assert.equal(msg.type, ServerMsgType.Error);
+      const msg = await wsRequest(ws, { type: ClientTag.PortTransaction, good: 'fuel', quantity: STARTING_HOLDS + 1, action: 'buy' }, ServerTag.PortTransactionResult);
+      assert.equal(msg.type, ServerTag.Error);
       assert.equal(msg.message, 'Insufficient cargo holds');
     } finally {
       await closeWS(ws);
@@ -100,8 +100,8 @@ describe('Cargo hold enforcement', () => {
     const { ws } = await connectWS();
     try {
       await navigateTo(ws, fuelSector);
-      const msg = await wsRequest(ws, { type: ClientMsgType.PortTransaction, good: 'fuel', quantity: STARTING_HOLDS, action: 'buy' }, ServerMsgType.PortTransactionResult);
-      assert.equal(msg.type, ServerMsgType.PortTransactionResult, 'buying exactly holds should succeed');
+      const msg = await wsRequest(ws, { type: ClientTag.PortTransaction, good: 'fuel', quantity: STARTING_HOLDS, action: 'buy' }, ServerTag.PortTransactionResult);
+      assert.equal(msg.type, ServerTag.PortTransactionResult, 'buying exactly holds should succeed');
     } finally {
       await closeWS(ws);
     }
@@ -114,9 +114,9 @@ describe('Cargo hold enforcement', () => {
     const { ws } = await connectWS();
     try {
       await navigateTo(ws, fuelSector);
-      await wsRequest(ws, { type: ClientMsgType.PortTransaction, good: 'fuel', quantity: STARTING_HOLDS, action: 'buy' }, ServerMsgType.PortTransactionResult);
-      const msg = await wsRequest(ws, { type: ClientMsgType.PortTransaction, good: 'fuel', quantity: 1, action: 'buy' }, ServerMsgType.PortTransactionResult);
-      assert.equal(msg.type, ServerMsgType.Error);
+      await wsRequest(ws, { type: ClientTag.PortTransaction, good: 'fuel', quantity: STARTING_HOLDS, action: 'buy' }, ServerTag.PortTransactionResult);
+      const msg = await wsRequest(ws, { type: ClientTag.PortTransaction, good: 'fuel', quantity: 1, action: 'buy' }, ServerTag.PortTransactionResult);
+      assert.equal(msg.type, ServerTag.Error);
       assert.equal(msg.message, 'Insufficient cargo holds');
     } finally {
       await closeWS(ws);

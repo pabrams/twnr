@@ -8,7 +8,7 @@ import { WebSocket, WebSocketServer } from 'ws';
 import { connectDB } from './db/index.js';
 import { createRoutes } from './routes/index.js';
 import * as auth from './auth/index.js';
-import { ServerTag } from '@twnr/shared';
+import { ServerTag, ClientEnvelopeSchema } from '@twnr/shared';
 import type { AuthTokenPayload, ClientEnvelope, ServerEnvelope } from '@twnr/shared';
 import { shipConfigs } from './ship-config.js';
 import { players } from './state/players.js';
@@ -265,13 +265,27 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             }
             tokens--;
 
-            let data: ClientEnvelope;
+            let raw: unknown;
             try {
-                data = JSON.parse(message.toString()) as ClientEnvelope;
+                raw = JSON.parse(message.toString());
             } catch {
                 sendError(playerId, 'Invalid JSON');
                 return;
             }
+
+            const parsed = ClientEnvelopeSchema.safeParse(raw);
+            if (!parsed.success) {
+                const tagRaw =
+                    raw && typeof raw === 'object' && 'type' in raw
+                        ? (raw as { type: unknown }).type
+                        : undefined;
+                const tag = typeof tagRaw === 'string' ? tagRaw : '<unknown>';
+                const first = parsed.error.issues[0];
+                const where = first?.path.join('.') || '<root>';
+                sendError(playerId, `Invalid envelope (${tag}): ${where} — ${first?.message}`);
+                return;
+            }
+            const data: ClientEnvelope = parsed.data;
 
             try {
                 await routeMessage(playerId, data);

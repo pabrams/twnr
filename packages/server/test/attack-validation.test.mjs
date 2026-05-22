@@ -2,7 +2,7 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createTestUser, createTestPlayer, connectWS, closeWS, wsRequest } from './helpers.mjs';
 import { ensureServer, createPool } from './global-setup.mjs';
-import { ClientMsgType, ServerMsgType } from '@twnr/shared';
+import { ClientTag, ServerTag } from '@twnr/shared';
 
 const UNIVERSE_ID = 1;
 
@@ -30,16 +30,16 @@ after(async () => {
 // ─── Shared types ───────────────────────────────────────────────────────────
 
 describe('Shared types', () => {
-  it('ClientMsgType should include AttackShip', async () => {
+  it('ClientTag should include AttackShip', async () => {
     const shared = await import('@twnr/shared');
-    assert.ok(shared.ClientMsgType.AttackShip, 'ClientMsgType.AttackShip should be defined');
-    assert.equal(typeof shared.ClientMsgType.AttackShip, 'string');
+    assert.ok(shared.ClientTag.AttackShip, 'ClientTag.AttackShip should be defined');
+    assert.equal(typeof shared.ClientTag.AttackShip, 'string');
   });
 
-  it('ServerMsgType should include AttackShipResult', async () => {
+  it('ServerTag should include AttackShipResult', async () => {
     const shared = await import('@twnr/shared');
-    assert.ok(shared.ServerMsgType.AttackShipResult, 'ServerMsgType.AttackShipResult should be defined');
-    assert.equal(typeof shared.ServerMsgType.AttackShipResult, 'string');
+    assert.ok(shared.ServerTag.AttackShipResult, 'ServerTag.AttackShipResult should be defined');
+    assert.equal(typeof shared.ServerTag.AttackShipResult, 'string');
   });
 });
 
@@ -66,8 +66,8 @@ describe('Attack validation', () => {
     const p = await createPlayer('self_atk', 1, 5, 0);
     const { ws } = await connectPlayer(p.token);
     try {
-      const res = await wsRequest(ws, { type: ClientMsgType.AttackShip, targetPlayerId: p.id, drones: 1 }, ServerMsgType.AttackShipResult);
-      assert.equal(res.type, ServerMsgType.Error, 'Should return error for self-attack');
+      const res = await wsRequest(ws, { type: ClientTag.AttackShip, targetPlayerId: p.id, drones: 1 }, ServerTag.AttackShipResult);
+      assert.equal(res.type, ServerTag.Error, 'Should return error for self-attack');
     } finally {
       await closeWS(ws);
     }
@@ -79,8 +79,8 @@ describe('Attack validation', () => {
     const { ws: ws1 } = await connectPlayer(atk.token);
     const { ws: ws2 } = await connectPlayer(def.token);
     try {
-      const res = await wsRequest(ws1, { type: ClientMsgType.AttackShip, targetPlayerId: def.id, drones: 0 }, ServerMsgType.AttackShipResult);
-      assert.equal(res.type, ServerMsgType.Error);
+      const res = await wsRequest(ws1, { type: ClientTag.AttackShip, targetPlayerId: def.id, drones: 0 }, ServerTag.AttackShipResult);
+      assert.equal(res.type, ServerTag.Error);
     } finally {
       await closeWS(ws1);
       await closeWS(ws2);
@@ -93,8 +93,8 @@ describe('Attack validation', () => {
     const { ws: ws1 } = await connectPlayer(atk.token);
     const { ws: ws2 } = await connectPlayer(def.token);
     try {
-      const res = await wsRequest(ws1, { type: ClientMsgType.AttackShip, targetPlayerId: def.id, drones: -1 }, ServerMsgType.AttackShipResult);
-      assert.equal(res.type, ServerMsgType.Error);
+      const res = await wsRequest(ws1, { type: ClientTag.AttackShip, targetPlayerId: def.id, drones: -1 }, ServerTag.AttackShipResult);
+      assert.equal(res.type, ServerTag.Error);
     } finally {
       await closeWS(ws1);
       await closeWS(ws2);
@@ -107,8 +107,8 @@ describe('Attack validation', () => {
     const { ws: ws1 } = await connectPlayer(atk.token);
     const { ws: ws2 } = await connectPlayer(def.token);
     try {
-      const res = await wsRequest(ws1, { type: ClientMsgType.AttackShip, targetPlayerId: def.id, drones: 5 }, ServerMsgType.AttackShipResult);
-      assert.equal(res.type, ServerMsgType.Error);
+      const res = await wsRequest(ws1, { type: ClientTag.AttackShip, targetPlayerId: def.id, drones: 5 }, ServerTag.AttackShipResult);
+      assert.equal(res.type, ServerTag.Error);
     } finally {
       await closeWS(ws1);
       await closeWS(ws2);
@@ -121,8 +121,8 @@ describe('Attack validation', () => {
     const { ws: ws1 } = await connectPlayer(atk.token);
     const { ws: ws2 } = await connectPlayer(def.token);
     try {
-      const res = await wsRequest(ws1, { type: ClientMsgType.AttackShip, targetPlayerId: def.id, drones: 1 }, ServerMsgType.AttackShipResult);
-      assert.equal(res.type, ServerMsgType.Error);
+      const res = await wsRequest(ws1, { type: ClientTag.AttackShip, targetPlayerId: def.id, drones: 1 }, ServerTag.AttackShipResult);
+      assert.equal(res.type, ServerTag.Error);
     } finally {
       await closeWS(ws1);
       await closeWS(ws2);

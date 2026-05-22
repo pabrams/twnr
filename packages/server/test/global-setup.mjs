@@ -80,7 +80,8 @@ let setupPromise = null;
 
 async function isServerRunning() {
   try {
-    const res = await fetch(`${BASE}/api/ships`, { signal: AbortSignal.timeout(2000) });
+    // Health probe: /api/hardware has no params, no auth.
+    const res = await fetch(`${BASE}/api/hardware`, { signal: AbortSignal.timeout(2000) });
     return res.ok;
   } catch {
     return false;

@@ -5,12 +5,12 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { connectWS as _connectWS, closeWS, wsRequest } from './helpers.mjs';
 import { ensureServer, createPool } from './global-setup.mjs';
-import { ClientMsgType, ServerMsgType } from '@twnr/shared';
+import { ClientTag, ServerTag } from '@twnr/shared';
 
 const __filename = fileURLToPath(import.meta.url);
 const PROJECT_ROOT = join(dirname(__filename), '..');
 
-const merchantCfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', '01-vulpeculan-cruiser.json'), 'utf8'));
+const merchantCfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'templates', 'stock', 'ships', '01-vulpeculan-cruiser.json'), 'utf8'));
 const UNIVERSE_ID = 1;
 
 // ─── globals ──────────────────────────────────────────────────────────────────
@@ -38,8 +38,8 @@ describe('Buy shields — validation', () => {
   it('returns "Invalid quantity" for quantity 0', async () => {
     const { ws } = await connectWS();
     try {
-      const msg = await wsRequest(ws, { type: ClientMsgType.BuyShields, quantity: 0 }, ServerMsgType.BuyShieldsResult);
-      assert.equal(msg.type, ServerMsgType.Error);
+      const msg = await wsRequest(ws, { type: ClientTag.BuyShields, quantity: 0 }, ServerTag.BuyShieldsResult);
+      assert.equal(msg.type, ServerTag.Error);
       assert.equal(msg.message, 'Invalid quantity');
     } finally {
       await closeWS(ws);
@@ -49,8 +49,8 @@ describe('Buy shields — validation', () => {
   it('returns "Invalid quantity" for negative quantity', async () => {
     const { ws } = await connectWS();
     try {
-      const msg = await wsRequest(ws, { type: ClientMsgType.BuyShields, quantity: -1 }, ServerMsgType.BuyShieldsResult);
-      assert.equal(msg.type, ServerMsgType.Error);
+      const msg = await wsRequest(ws, { type: ClientTag.BuyShields, quantity: -1 }, ServerTag.BuyShieldsResult);
+      assert.equal(msg.type, ServerTag.Error);
       assert.equal(msg.message, 'Invalid quantity');
     } finally {
       await closeWS(ws);
@@ -60,8 +60,8 @@ describe('Buy shields — validation', () => {
   it('returns "Invalid quantity" for a float quantity', async () => {
     const { ws } = await connectWS();
     try {
-      const msg = await wsRequest(ws, { type: ClientMsgType.BuyShields, quantity: 2.9 }, ServerMsgType.BuyShieldsResult);
-      assert.equal(msg.type, ServerMsgType.Error);
+      const msg = await wsRequest(ws, { type: ClientTag.BuyShields, quantity: 2.9 }, ServerTag.BuyShieldsResult);
+      assert.equal(msg.type, ServerTag.Error);
       assert.equal(msg.message, 'Invalid quantity');
     } finally {
       await closeWS(ws);
@@ -77,8 +77,8 @@ describe('Buy shields — validation', () => {
     const playerId = welcome.playerId;
     try {
       await pool.query('UPDATE players SET current_sector_id = $1 WHERE id = $2', [otherSector, playerId]);
-      const msg = await wsRequest(ws, { type: ClientMsgType.BuyShields, quantity: 1 }, ServerMsgType.BuyShieldsResult);
-      assert.equal(msg.type, ServerMsgType.Error);
+      const msg = await wsRequest(ws, { type: ClientTag.BuyShields, quantity: 1 }, ServerTag.BuyShieldsResult);
+      assert.equal(msg.type, ServerTag.Error);
       assert.equal(msg.message, 'Not at a class 0 port or starbase');
     } finally {
       await closeWS(ws);
@@ -88,8 +88,8 @@ describe('Buy shields — validation', () => {
   it('returns "Exceeds maximum" when shields + quantity > maxShields', async () => {
     const { ws } = await connectWS();
     try {
-      const msg = await wsRequest(ws, { type: ClientMsgType.BuyShields, quantity: merchantCfg.maxShields + 1 }, ServerMsgType.BuyShieldsResult);
-      assert.equal(msg.type, ServerMsgType.Error);
+      const msg = await wsRequest(ws, { type: ClientTag.BuyShields, quantity: merchantCfg.maxShields + 1 }, ServerTag.BuyShieldsResult);
+      assert.equal(msg.type, ServerTag.Error);
       assert.equal(msg.message, 'Exceeds maximum');
     } finally {
       await closeWS(ws);
@@ -101,8 +101,8 @@ describe('Buy shields — validation', () => {
     const playerId = welcome.playerId;
     try {
       await pool.query('UPDATE players SET credits = 0 WHERE id = $1', [playerId]);
-      const msg = await wsRequest(ws, { type: ClientMsgType.BuyShields, quantity: 1 }, ServerMsgType.BuyShieldsResult);
-      assert.equal(msg.type, ServerMsgType.Error);
+      const msg = await wsRequest(ws, { type: ClientTag.BuyShields, quantity: 1 }, ServerTag.BuyShieldsResult);
+      assert.equal(msg.type, ServerTag.Error);
       assert.equal(msg.message, 'Insufficient credits');
     } finally {
       await closeWS(ws);

@@ -1,7 +1,15 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import type { RouteDeps, Middleware } from './middleware.js';
-import { asyncHandler, HttpError, parseIntParam } from './async-handler.js';
+import { asyncHandler, HttpError, parseBody, parseIntParam } from './async-handler.js';
 import { universeConfig } from '@twnr/shared';
+
+const NameBodySchema = z.object({
+    name: z
+        .string()
+        .min(1)
+        .refine((s) => s.trim().length > 0, 'name is required'),
+});
 import {
     createUniverse,
     listUniversesForUser,
@@ -22,10 +30,7 @@ export function createUniverseRoutes(
         '/api/universes',
         authenticateToken,
         asyncHandler(async (req, res) => {
-            const { name } = req.body;
-            if (!name || !name.trim()) {
-                throw new HttpError(400, 'name is required');
-            }
+            const { name } = parseBody(req, NameBodySchema);
 
             const universe = await createUniverse(name);
             res.status(201).json({ universeId: universe.id, name: universe.name });
@@ -55,11 +60,7 @@ export function createUniverseRoutes(
         asyncHandler(async (req, res) => {
             const { userId } = getAuthenticatedPlayer(req);
             const universeId = parseIntParam(req.params.id, 'id');
-            const { name } = req.body;
-
-            if (!name || !name.trim()) {
-                throw new HttpError(400, 'name is required');
-            }
+            const { name } = parseBody(req, NameBodySchema);
 
             const templateDefaults = await getUniverseTemplateDefaults(universeId);
             if (!templateDefaults) {

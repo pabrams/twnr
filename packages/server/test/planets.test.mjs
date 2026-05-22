@@ -6,12 +6,12 @@ import { fileURLToPath } from 'node:url';
 import WebSocket from 'ws';
 import { ensureServer, createPool, ADMIN_API_KEY, BASE, WS_BASE } from './global-setup.mjs';
 import { createTestUser, createTestPlayer as createTestPlayerDB } from './helpers.mjs';
-import { ClientMsgType, ServerMsgType } from '@twnr/shared';
+import { ClientTag, ServerTag } from '@twnr/shared';
 
 const __filename = fileURLToPath(import.meta.url);
 const PROJECT_ROOT = join(dirname(__filename), '..');
 
-const CONFIG_SHIPS_DIR = join(PROJECT_ROOT, 'config', 'ships');
+const CONFIG_SHIPS_DIR = join(PROJECT_ROOT, 'config', 'templates', 'stock', 'ships');
 
 async function adminKeyPost(path, body) {
   const res = await fetch(`${BASE}${path}`, {
@@ -95,20 +95,20 @@ async function createTestPlayer(universeId) {
 
   // Navigate to a sector, handling drone encounters along the way
   async function navigateTo(targetSector, fromSector) {
-    sendMsg({ type: ClientMsgType.ShortestPath, from: fromSector, to: targetSector });
-    const pathMsg = await waitForMessage(ServerMsgType.ShortestPathResult);
+    sendMsg({ type: ClientTag.ShortestPath, from: fromSector, to: targetSector });
+    const pathMsg = await waitForMessage(ServerTag.ShortestPathResult);
     for (const step of pathMsg.path.slice(1)) {
-      sendMsg({ type: ClientMsgType.Move, sector: step.sector });
+      sendMsg({ type: ClientTag.Move, sector: step.sector });
       // Drain messages until we get moveResult success, handling drone encounters
       let moved = false;
       for (let attempt = 0; attempt < 5 && !moved; attempt++) {
         try {
           const msg = await waitForAny(3000);
-          if (msg.type === ServerMsgType.MoveResult && msg.outcome === 'success') {
+          if (msg.type === ServerTag.MoveResult && msg.outcome === 'success') {
             moved = true;
-          } else if (msg.type === ServerMsgType.MoveResult && msg.outcome === 'encounter') {
+          } else if (msg.type === ServerTag.MoveResult && msg.outcome === 'encounter') {
             // Retreat from drones
-            sendMsg({ type: ClientMsgType.RetreatFromDrones });
+            sendMsg({ type: ClientTag.RetreatFromDrones });
           }
           // Ignore other message types, keep draining
         } catch {
@@ -127,7 +127,7 @@ async function createTestPlayer(universeId) {
   }
 
   // Wait for welcome message
-  const welcome = await waitForMessage(ServerMsgType.Welcome);
+  const welcome = await waitForMessage(ServerTag.Welcome);
 
   return { ws, playerId: welcome.playerId, token, sendMsg, waitForMessage, waitForAny, navigateTo, messages, close };
 }
@@ -588,16 +588,16 @@ describe('WS: sector display includes planets', () => {
   after(() => { player?.close(); });
 
   it('sectorDisplay message includes planets array', async () => {
-    player.sendMsg({ type: ClientMsgType.SectorDisplay });
-    const msg = await player.waitForMessage(ServerMsgType.SectorDisplayResult);
+    player.sendMsg({ type: ClientTag.SectorDisplay });
+    const msg = await player.waitForMessage(ServerTag.SectorDisplayResult);
     assert.ok('planets' in msg, 'sectorDisplay should include planets field');
     assert.ok(Array.isArray(msg.planets), 'planets should be an array');
   });
 
   it('sector 1 planets array contains Earth with id, name, type', async () => {
     // Player starts in sector 1 which has Earth
-    player.sendMsg({ type: ClientMsgType.SectorDisplay });
-    const msg = await player.waitForMessage(ServerMsgType.SectorDisplayResult);
+    player.sendMsg({ type: ClientTag.SectorDisplay });
+    const msg = await player.waitForMessage(ServerTag.SectorDisplayResult);
     assert.ok(msg.planets.length >= 1, 'sector 1 should have at least Earth');
     const earth = msg.planets.find(p => p.name === 'Earth');
     assert.ok(earth, 'Earth should be in sector 1 planets');
@@ -624,11 +624,11 @@ describe('WS: sector display includes planets', () => {
     // Ensure no planets in that sector
     await pool.query('DELETE FROM planets WHERE sector_id = $1', [targetSectorDbId]);
 
-    player.sendMsg({ type: ClientMsgType.Move, sector: targetSector });
-    await player.waitForMessage(ServerMsgType.MoveResult);
+    player.sendMsg({ type: ClientTag.Move, sector: targetSector });
+    await player.waitForMessage(ServerTag.MoveResult);
 
-    player.sendMsg({ type: ClientMsgType.SectorDisplay });
-    const msg = await player.waitForMessage(ServerMsgType.SectorDisplayResult);
+    player.sendMsg({ type: ClientTag.SectorDisplay });
+    const msg = await player.waitForMessage(ServerTag.SectorDisplayResult);
     assert.ok('planets' in msg, 'sectorDisplay should include planets field');
     assert.ok(Array.isArray(msg.planets), 'planets should be an array');
     assert.equal(msg.planets.length, 0, 'sector with no planets should return empty array');
@@ -675,24 +675,24 @@ describe('WS: land command returns planet list', () => {
   after(() => { player?.close(); });
 
   it('sector 1 land auto-lands on Earth', async () => {
-    player.sendMsg({ type: ClientMsgType.GetSectorPlanets });
-    const msg = await player.waitForMessage(ServerMsgType.LandOnPlanetResult);
+    player.sendMsg({ type: ClientTag.GetSectorPlanets });
+    const msg = await player.waitForMessage(ServerTag.LandOnPlanetResult);
     assert.ok('name' in msg, 'auto-land result should include planet name');
     assert.equal(msg.name, 'Earth', 'sector 1 should auto-land on Earth');
     assert.ok('planetType' in msg, 'auto-land result should include planetType');
     assert.ok('id' in msg, 'auto-land result should include planet id');
 
     // Leave the planet so subsequent tests can move
-    player.sendMsg({ type: ClientMsgType.LeavePlanet });
-    await player.waitForMessage(ServerMsgType.LeavePlanetResult);
+    player.sendMsg({ type: ClientTag.LeavePlanet });
+    await player.waitForMessage(ServerTag.LeavePlanetResult);
   });
 
   it('land in non-sector-1 with planets returns planet list', async () => {
-    player.sendMsg({ type: ClientMsgType.Move, sector: planetSector });
-    await player.waitForMessage(ServerMsgType.MoveResult);
+    player.sendMsg({ type: ClientTag.Move, sector: planetSector });
+    await player.waitForMessage(ServerTag.MoveResult);
 
-    player.sendMsg({ type: ClientMsgType.GetSectorPlanets });
-    const msg = await player.waitForMessage(ServerMsgType.GetSectorPlanetsResult);
+    player.sendMsg({ type: ClientTag.GetSectorPlanets });
+    const msg = await player.waitForMessage(ServerTag.GetSectorPlanetsResult);
     assert.ok('planets' in msg, 'planetList should include planets field');
     assert.ok(Array.isArray(msg.planets), 'planets should be an array');
     assert.ok(msg.planets.length >= 1, 'sector should have at least one planet');
@@ -719,11 +719,11 @@ describe('WS: land command returns planet list', () => {
     // Ensure no planets in that sector
     await pool.query('DELETE FROM planets WHERE sector_id = $1', [targetSectorDbId]);
 
-    player.sendMsg({ type: ClientMsgType.Move, sector: targetSector });
-    await player.waitForMessage(ServerMsgType.MoveResult);
+    player.sendMsg({ type: ClientTag.Move, sector: targetSector });
+    await player.waitForMessage(ServerTag.MoveResult);
 
-    player.sendMsg({ type: ClientMsgType.GetSectorPlanets });
-    const msg = await player.waitForMessage(ServerMsgType.GetSectorPlanetsResult);
+    player.sendMsg({ type: ClientTag.GetSectorPlanets });
+    const msg = await player.waitForMessage(ServerTag.GetSectorPlanetsResult);
     assert.ok('planets' in msg, 'planetList should include planets field');
     assert.ok(Array.isArray(msg.planets), 'planets should be an array');
     assert.equal(msg.planets.length, 0, 'land in sector with no planets should return empty array');
@@ -755,8 +755,8 @@ describe('WS: land on planet, display, leave', () => {
     );
     const earthId = planets.rows[0].id;
 
-    player.sendMsg({ type: ClientMsgType.LandOnPlanet, planetId: earthId });
-    const msg = await player.waitForMessage(ServerMsgType.LandOnPlanetResult);
+    player.sendMsg({ type: ClientTag.LandOnPlanet, planetId: earthId });
+    const msg = await player.waitForMessage(ServerTag.LandOnPlanetResult);
     assert.ok(msg, 'should receive planetDisplayResult');
     assert.equal(msg.id, earthId);
     assert.equal(msg.name, 'Earth');
@@ -780,15 +780,15 @@ describe('WS: land on planet, display, leave', () => {
   });
 
   it('planetDisplay while on planet returns planet details', async () => {
-    player.sendMsg({ type: ClientMsgType.PlanetDisplay });
-    const msg = await player.waitForMessage(ServerMsgType.PlanetDisplayResult);
+    player.sendMsg({ type: ClientTag.PlanetDisplay });
+    const msg = await player.waitForMessage(ServerTag.PlanetDisplayResult);
     assert.ok(msg, 'should receive planetDisplayResult');
     assert.equal(msg.name, 'Earth');
   });
 
   it('on_planet_id is cleared after leaving planet', async () => {
-    player.sendMsg({ type: ClientMsgType.LeavePlanet });
-    await player.waitForMessage(ServerMsgType.LeavePlanetResult);
+    player.sendMsg({ type: ClientTag.LeavePlanet });
+    await player.waitForMessage(ServerTag.LeavePlanetResult);
     const res = await pool.query('SELECT on_planet_id FROM players WHERE id = $1', [player.playerId]);
     assert.equal(res.rows[0].on_planet_id, null, 'on_planet_id should be null after leaving');
   });
@@ -821,11 +821,11 @@ describe('WS: use terraform device', () => {
     );
     if (warps.rows.length > 0) {
       const target = warps.rows[0].sector_to;
-      player.sendMsg({ type: ClientMsgType.Move, sector: target });
-      await player.waitForMessage(ServerMsgType.MoveResult);
+      player.sendMsg({ type: ClientTag.Move, sector: target });
+      await player.waitForMessage(ServerTag.MoveResult);
     }
 
-    player.sendMsg({ type: ClientMsgType.UseTerraformDevice });
+    player.sendMsg({ type: ClientTag.UseTerraformDevice });
     const msg = await player.waitForMessage('useTerraformDeviceResult');
     assert.equal(msg.success, false);
     assert.equal(msg.reason, 'no_devices');
@@ -841,15 +841,15 @@ describe('WS: use terraform device', () => {
     const currentSector = (await pool.query('SELECT s.sector_number FROM players p JOIN sectors s ON p.current_sector_id = s.id WHERE p.id = $1', [player.playerId])).rows[0].sector_number;
     if (currentSector !== 1) {
       // Navigate back — find a path
-      player.sendMsg({ type: ClientMsgType.ShortestPath, from: currentSector, to: 1 });
+      player.sendMsg({ type: ClientTag.ShortestPath, from: currentSector, to: 1 });
       const pathMsg = await player.waitForMessage('shortestPathResult');
       for (const step of pathMsg.path.slice(1)) {
-        player.sendMsg({ type: ClientMsgType.Move, sector: step.sector });
-        await player.waitForMessage(ServerMsgType.MoveResult);
+        player.sendMsg({ type: ClientTag.Move, sector: step.sector });
+        await player.waitForMessage(ServerTag.MoveResult);
       }
     }
 
-    player.sendMsg({ type: ClientMsgType.UseTerraformDevice });
+    player.sendMsg({ type: ClientTag.UseTerraformDevice });
     const msg = await player.waitForMessage('useTerraformDeviceResult');
     assert.equal(msg.success, false);
     assert.equal(msg.reason, 'restricted_sector');
@@ -873,8 +873,8 @@ describe('WS: use terraform device', () => {
     const targetSector = warps.rows[0].sector_to;
     const targetSectorDbId = warps.rows[0].sector_db_id;
 
-    player.sendMsg({ type: ClientMsgType.Move, sector: targetSector });
-    await player.waitForMessage(ServerMsgType.MoveResult);
+    player.sendMsg({ type: ClientTag.Move, sector: targetSector });
+    await player.waitForMessage(ServerTag.MoveResult);
 
     // Give the player a terraform device
     await pool.query(`INSERT INTO ship_hardware (ship_id, hardware_item_id, quantity) VALUES ((SELECT ship_id FROM players WHERE id = $1), (SELECT id FROM hardware_item WHERE name = 'terraform_device'), 1) ON CONFLICT (ship_id, hardware_item_id) DO UPDATE SET quantity = 1`, [player.playerId]);
@@ -884,7 +884,7 @@ describe('WS: use terraform device', () => {
       [targetSectorDbId],
     );
 
-    player.sendMsg({ type: ClientMsgType.UseTerraformDevice });
+    player.sendMsg({ type: ClientTag.UseTerraformDevice });
     const msg = await player.waitForMessage('useTerraformDeviceResult');
     assert.equal(msg.success, true, 'terraform should succeed');
     assert.ok(msg.planet, 'should include planet info');
@@ -934,19 +934,19 @@ describe('WS: starbase and hardware store', () => {
     player = await createTestPlayer(universeId);
 
     // Navigate to starbase
-    player.sendMsg({ type: ClientMsgType.ShortestPath, from: 1, to: starbaseSector });
+    player.sendMsg({ type: ClientTag.ShortestPath, from: 1, to: starbaseSector });
     const pathMsg = await player.waitForMessage('shortestPathResult');
     for (const step of pathMsg.path.slice(1)) {
-      player.sendMsg({ type: ClientMsgType.Move, sector: step.sector });
+      player.sendMsg({ type: ClientTag.Move, sector: step.sector });
       // Consume whatever comes back (moveResult success or encounter)
-      await player.waitForMessage(ServerMsgType.MoveResult).catch(() => null);
+      await player.waitForMessage(ServerTag.MoveResult).catch(() => null);
     }
   });
 
   after(() => { player?.close(); });
 
   it('dockStarbase at class 9 port responds with starbaseMenu', async () => {
-    player.sendMsg({ type: ClientMsgType.DockStarbase });
+    player.sendMsg({ type: ClientTag.DockStarbase });
     const msg = await player.waitForMessage('dockStarbaseResult');
     assert.ok(msg, 'should receive starbaseMenu');
   });
@@ -954,7 +954,7 @@ describe('WS: starbase and hardware store', () => {
   it('buyHardware with insufficient credits returns error', async () => {
     // Drain credits
     await pool.query('UPDATE players SET credits = 0 WHERE id = $1', [player.playerId]);
-    player.sendMsg({ type: ClientMsgType.BuyHardware, itemName: 'planet_buster', quantity: 1 });
+    player.sendMsg({ type: ClientTag.BuyHardware, itemName: 'planet_buster', quantity: 1 });
     const msg = await player.waitForMessage('error');
     assert.ok(msg.message, 'should have error message');
   });
@@ -962,7 +962,7 @@ describe('WS: starbase and hardware store', () => {
   it('buyHardware planet_buster with sufficient credits succeeds', async () => {
     // Give credits and ensure ship can carry busters
     await pool.query('UPDATE players SET credits = 100000 WHERE id = $1', [player.playerId]);
-    const shipConfig = JSON.parse(readFileSync(join(CONFIG_SHIPS_DIR, '..', '..', 'config', 'ships', '01-vulpeculan-cruiser.json'), 'utf8'));
+    const shipConfig = JSON.parse(readFileSync(join(CONFIG_SHIPS_DIR, '..', '..', 'config', 'templates', 'stock', 'ships', '01-vulpeculan-cruiser.json'), 'utf8'));
 
     // If Vulpeculan Cruiser can't carry busters, give them a different ship
     if (shipConfig.maxPlanetBusters === 0) {
@@ -972,7 +972,7 @@ describe('WS: starbase and hardware store', () => {
       await pool.query('UPDATE ships SET ship_type_id = (SELECT id FROM ship_types WHERE name = $1) WHERE id = (SELECT ship_id FROM players WHERE id = $2)', [busterShip.name, player.playerId]);
     }
 
-    player.sendMsg({ type: ClientMsgType.BuyHardware, itemName: 'planet_buster', quantity: 1 });
+    player.sendMsg({ type: ClientTag.BuyHardware, itemName: 'planet_buster', quantity: 1 });
     const msg = await player.waitForMessage('buyHardwareResult');
     assert.ok(msg, 'should receive buyHardwareResult');
     assert.equal(msg.type, 'buyHardwareResult');
@@ -988,7 +988,7 @@ describe('WS: starbase and hardware store', () => {
     const terraShip = allConfigs.find(c => c.maxTerraformDevices > 0);
     assert.ok(terraShip, 'at least one ship config must have maxTerraformDevices > 0');
     await pool.query('UPDATE ships SET ship_type_id = (SELECT id FROM ship_types WHERE name = $1) WHERE id = (SELECT ship_id FROM players WHERE id = $2)', [terraShip.name, player.playerId]);
-    player.sendMsg({ type: ClientMsgType.BuyHardware, itemName: 'terraform_device', quantity: 1 });
+    player.sendMsg({ type: ClientTag.BuyHardware, itemName: 'terraform_device', quantity: 1 });
     const msg = await player.waitForMessage('buyHardwareResult');
     assert.ok(msg, 'should receive buyHardwareResult');
     assert.equal(msg.type, 'buyHardwareResult');
@@ -996,7 +996,7 @@ describe('WS: starbase and hardware store', () => {
   });
 
   it('leaveStarbase responds with leaveStarbaseResult', async () => {
-    player.sendMsg({ type: ClientMsgType.LeaveStarbase });
+    player.sendMsg({ type: ClientTag.LeaveStarbase });
     const msg = await player.waitForMessage('leaveStarbaseResult');
     assert.ok(msg, 'should receive sectorDisplay after leaving starbase');
   });
@@ -1018,7 +1018,7 @@ describe('WS: destroy planet', () => {
   after(() => { player?.close(); });
 
   it('destroyPlanet without being on a planet returns error', async () => {
-    player.sendMsg({ type: ClientMsgType.DestroyPlanet });
+    player.sendMsg({ type: ClientTag.DestroyPlanet });
     const msg = await player.waitForMessage('error');
     assert.ok(msg.message, 'should have error message');
   });
@@ -1029,13 +1029,13 @@ describe('WS: destroy planet', () => {
       "SELECT p.id FROM planets p JOIN sectors s ON p.sector_id = s.id WHERE s.universe_id = $1 AND p.name = 'Earth'", [universeId],
     );
     const earthId = planets.rows[0].id;
-    player.sendMsg({ type: ClientMsgType.LandOnPlanet, planetId: earthId });
-    await player.waitForMessage(ServerMsgType.LandOnPlanetResult);
+    player.sendMsg({ type: ClientTag.LandOnPlanet, planetId: earthId });
+    await player.waitForMessage(ServerTag.LandOnPlanetResult);
 
     // Make sure no planet busters
     await pool.query(`INSERT INTO ship_hardware (ship_id, hardware_item_id, quantity) VALUES ((SELECT ship_id FROM players WHERE id = $1), (SELECT id FROM hardware_item WHERE name = 'planet_buster'), 0) ON CONFLICT (ship_id, hardware_item_id) DO UPDATE SET quantity = 0`, [player.playerId]);
 
-    player.sendMsg({ type: ClientMsgType.DestroyPlanet });
+    player.sendMsg({ type: ClientTag.DestroyPlanet });
     const msg = await player.waitForMessage('error');
     assert.ok(msg.message, 'should have error message about no busters');
   });
@@ -1061,24 +1061,24 @@ describe('WS: destroy planet', () => {
     const newPlanetId = ins.rows[0].id;
 
     // Move to that sector
-    player.sendMsg({ type: ClientMsgType.LeavePlanet });
+    player.sendMsg({ type: ClientTag.LeavePlanet });
     await player.waitForMessage('leavePlanetResult').catch(() => null);
 
-    player.sendMsg({ type: ClientMsgType.ShortestPath, from: 1, to: targetSector });
+    player.sendMsg({ type: ClientTag.ShortestPath, from: 1, to: targetSector });
     const pathMsg = await player.waitForMessage('shortestPathResult');
     for (const step of pathMsg.path.slice(1)) {
-      player.sendMsg({ type: ClientMsgType.Move, sector: step.sector });
-      await player.waitForMessage(ServerMsgType.MoveResult);
+      player.sendMsg({ type: ClientTag.Move, sector: step.sector });
+      await player.waitForMessage(ServerTag.MoveResult);
     }
 
     // Land on the doomed planet
-    player.sendMsg({ type: ClientMsgType.LandOnPlanet, planetId: newPlanetId });
-    await player.waitForMessage(ServerMsgType.LandOnPlanetResult);
+    player.sendMsg({ type: ClientTag.LandOnPlanet, planetId: newPlanetId });
+    await player.waitForMessage(ServerTag.LandOnPlanetResult);
 
     // Give planet buster
     await pool.query(`INSERT INTO ship_hardware (ship_id, hardware_item_id, quantity) VALUES ((SELECT ship_id FROM players WHERE id = $1), (SELECT id FROM hardware_item WHERE name = 'planet_buster'), 1) ON CONFLICT (ship_id, hardware_item_id) DO UPDATE SET quantity = 1`, [player.playerId]);
 
-    player.sendMsg({ type: ClientMsgType.DestroyPlanet });
+    player.sendMsg({ type: ClientTag.DestroyPlanet });
     const msg = await player.waitForMessage('destroyPlanetResult');
     assert.equal(msg.destroyed, true);
     assert.equal(msg.planetId, newPlanetId);
@@ -1094,7 +1094,7 @@ describe('WS: destroy planet', () => {
     assert.equal(shipRes.rows[0].planet_busters, 0, 'planet buster should be consumed');
 
     // Should also receive a sectorDisplay after destruction
-    const sectorMsg = await player.waitForMessage(ServerMsgType.SectorDisplayResult);
+    const sectorMsg = await player.waitForMessage(ServerTag.SectorDisplayResult);
     assert.ok(sectorMsg, 'should receive sectorDisplay after planet destruction');
   });
 });
@@ -1133,7 +1133,7 @@ describe('WS: landOnPlanet validation', () => {
     const planetId = ins.rows[0].id;
 
     // Player is in sector 1, try to land on planet in otherSector
-    player.sendMsg({ type: ClientMsgType.LandOnPlanet, planetId });
+    player.sendMsg({ type: ClientTag.LandOnPlanet, planetId });
     const msg = await player.waitForMessage('error');
     assert.ok(msg.message, 'should receive error for planet not in current sector');
 
@@ -1163,15 +1163,15 @@ describe('WS: buy hardware exceeds ship maximum', () => {
     player = await createTestPlayer(universeId);
 
     // Navigate to starbase
-    player.sendMsg({ type: ClientMsgType.ShortestPath, from: 1, to: starbaseSector });
+    player.sendMsg({ type: ClientTag.ShortestPath, from: 1, to: starbaseSector });
     const pathMsg = await player.waitForMessage('shortestPathResult');
     for (const step of pathMsg.path.slice(1)) {
-      player.sendMsg({ type: ClientMsgType.Move, sector: step.sector });
-      await player.waitForMessage(ServerMsgType.MoveResult).catch(() => null);
+      player.sendMsg({ type: ClientTag.Move, sector: step.sector });
+      await player.waitForMessage(ServerTag.MoveResult).catch(() => null);
     }
 
     // Dock at starbase
-    player.sendMsg({ type: ClientMsgType.DockStarbase });
+    player.sendMsg({ type: ClientTag.DockStarbase });
     await player.waitForMessage('dockStarbaseResult');
   });
 
@@ -1187,7 +1187,7 @@ describe('WS: buy hardware exceeds ship maximum', () => {
 
     // Try buying more than max
     const overMax = (shipConfig?.maxPlanetBusters || 0) + 10;
-    player.sendMsg({ type: ClientMsgType.BuyHardware, itemName: 'planet_buster', quantity: overMax });
+    player.sendMsg({ type: ClientTag.BuyHardware, itemName: 'planet_buster', quantity: overMax });
     const msg = await player.waitForMessage('error');
     assert.ok(msg.message, 'should return error when exceeding max planet busters');
   });
@@ -1206,7 +1206,7 @@ describe('WS: buy hardware exceeds ship maximum', () => {
         [player.playerId, busterShip.maxPlanetBusters - 1]);
 
       // Try buying 2 more, which should exceed max
-      player.sendMsg({ type: ClientMsgType.BuyHardware, itemName: 'planet_buster', quantity: 2 });
+      player.sendMsg({ type: ClientTag.BuyHardware, itemName: 'planet_buster', quantity: 2 });
       const msg = await player.waitForMessage('error');
       assert.ok(msg.message, 'should return error when cumulative total exceeds max');
     }
@@ -1220,25 +1220,25 @@ describe('WS: buy hardware exceeds ship maximum', () => {
     const shipConfig = allConfigs.find(c => c.name === shipRes.rows[0].ship_name);
 
     const overMax = (shipConfig?.maxTerraformDevices || 0) + 10;
-    player.sendMsg({ type: ClientMsgType.BuyHardware, itemName: 'terraform_device', quantity: overMax });
+    player.sendMsg({ type: ClientTag.BuyHardware, itemName: 'terraform_device', quantity: overMax });
     const msg = await player.waitForMessage('error');
     assert.ok(msg.message, 'should return error when exceeding max terraform devices');
   });
 
   it('dockStarbase in non-class-9 sector returns error', async () => {
     // Leave starbase first
-    player.sendMsg({ type: ClientMsgType.LeaveStarbase });
+    player.sendMsg({ type: ClientTag.LeaveStarbase });
     await player.waitForMessage('leaveStarbaseResult').catch(() => null);
 
     // Move to sector 1 (which has class 0 port, not class 9)
-    player.sendMsg({ type: ClientMsgType.ShortestPath, from: starbaseSector, to: 1 });
+    player.sendMsg({ type: ClientTag.ShortestPath, from: starbaseSector, to: 1 });
     const pathMsg = await player.waitForMessage('shortestPathResult');
     for (const step of pathMsg.path.slice(1)) {
-      player.sendMsg({ type: ClientMsgType.Move, sector: step.sector });
-      await player.waitForMessage(ServerMsgType.MoveResult).catch(() => null);
+      player.sendMsg({ type: ClientTag.Move, sector: step.sector });
+      await player.waitForMessage(ServerTag.MoveResult).catch(() => null);
     }
 
-    player.sendMsg({ type: ClientMsgType.DockStarbase });
+    player.sendMsg({ type: ClientTag.DockStarbase });
     const msg = await player.waitForMessage('error');
     assert.ok(msg.message, 'should return error for dockStarbase in non-class-9 sector');
   });
@@ -1266,11 +1266,11 @@ describe('WS: buy hardware requires starbase docking', () => {
     player = await createTestPlayer(universeId);
 
     // Navigate to starbase sector but do NOT call dockStarbase
-    player.sendMsg({ type: ClientMsgType.ShortestPath, from: 1, to: starbaseSector });
+    player.sendMsg({ type: ClientTag.ShortestPath, from: 1, to: starbaseSector });
     const pathMsg = await player.waitForMessage('shortestPathResult');
     for (const step of pathMsg.path.slice(1)) {
-      player.sendMsg({ type: ClientMsgType.Move, sector: step.sector });
-      await player.waitForMessage(ServerMsgType.MoveResult).catch(() => null);
+      player.sendMsg({ type: ClientTag.Move, sector: step.sector });
+      await player.waitForMessage(ServerTag.MoveResult).catch(() => null);
     }
 
     // Give credits and a ship that can carry busters
@@ -1285,7 +1285,7 @@ describe('WS: buy hardware requires starbase docking', () => {
   after(() => { player?.close(); });
 
   it('buyPlanetBusters in starbase sector without docking returns error', async () => {
-    player.sendMsg({ type: ClientMsgType.BuyHardware, itemName: 'planet_buster', quantity: 1 });
+    player.sendMsg({ type: ClientTag.BuyHardware, itemName: 'planet_buster', quantity: 1 });
     const msg = await player.waitForMessage('error');
     assert.ok(msg.message, 'should return error when not docked at starbase');
   });
@@ -1296,7 +1296,7 @@ describe('WS: buy hardware requires starbase docking', () => {
     if (terraShip) {
       await pool.query('UPDATE ships SET ship_type_id = (SELECT id FROM ship_types WHERE name = $1) WHERE id = (SELECT ship_id FROM players WHERE id = $2)', [terraShip.name, player.playerId]);
     }
-    player.sendMsg({ type: ClientMsgType.BuyHardware, itemName: 'terraform_device', quantity: 1 });
+    player.sendMsg({ type: ClientTag.BuyHardware, itemName: 'terraform_device', quantity: 1 });
     const msg = await player.waitForMessage('error');
     assert.ok(msg.message, 'should return error when not docked at starbase');
   });
@@ -1323,14 +1323,14 @@ describe('WS: buy hardware credit deduction', () => {
     player = await createTestPlayer(universeId);
 
     // Navigate to starbase
-    player.sendMsg({ type: ClientMsgType.ShortestPath, from: 1, to: starbaseSector });
+    player.sendMsg({ type: ClientTag.ShortestPath, from: 1, to: starbaseSector });
     const pathMsg = await player.waitForMessage('shortestPathResult');
     for (const step of pathMsg.path.slice(1)) {
-      player.sendMsg({ type: ClientMsgType.Move, sector: step.sector });
-      await player.waitForMessage(ServerMsgType.MoveResult).catch(() => null);
+      player.sendMsg({ type: ClientTag.Move, sector: step.sector });
+      await player.waitForMessage(ServerTag.MoveResult).catch(() => null);
     }
 
-    player.sendMsg({ type: ClientMsgType.DockStarbase });
+    player.sendMsg({ type: ClientTag.DockStarbase });
     await player.waitForMessage('dockStarbaseResult');
   });
 
@@ -1345,7 +1345,7 @@ describe('WS: buy hardware credit deduction', () => {
     await pool.query('INSERT INTO ship_hardware (ship_id, hardware_item_id, quantity) VALUES ((SELECT ship_id FROM players WHERE id = $1), (SELECT id FROM hardware_item WHERE name = \'planet_buster\'), 0) ON CONFLICT (ship_id, hardware_item_id) DO UPDATE SET quantity = 0', [player.playerId]);
     await pool.query('UPDATE players SET credits = 200000 WHERE id = $1', [player.playerId]);
 
-    player.sendMsg({ type: ClientMsgType.BuyHardware, itemName: 'planet_buster', quantity: 2 });
+    player.sendMsg({ type: ClientTag.BuyHardware, itemName: 'planet_buster', quantity: 2 });
     const msg = await player.waitForMessage('buyHardwareResult');
     assert.equal(msg.type, 'buyHardwareResult');
     assert.equal(msg.quantity, 2);
@@ -1363,7 +1363,7 @@ describe('WS: buy hardware credit deduction', () => {
     await pool.query('INSERT INTO ship_hardware (ship_id, hardware_item_id, quantity) VALUES ((SELECT ship_id FROM players WHERE id = $1), (SELECT id FROM hardware_item WHERE name = \'terraform_device\'), 0) ON CONFLICT (ship_id, hardware_item_id) DO UPDATE SET quantity = 0', [player.playerId]);
     await pool.query('UPDATE players SET credits = 200000 WHERE id = $1', [player.playerId]);
 
-    player.sendMsg({ type: ClientMsgType.BuyHardware, itemName: 'terraform_device', quantity: 2 });
+    player.sendMsg({ type: ClientTag.BuyHardware, itemName: 'terraform_device', quantity: 2 });
     const msg = await player.waitForMessage('buyHardwareResult');
     assert.equal(msg.type, 'buyHardwareResult');
     assert.equal(msg.quantity, 2);
@@ -1374,10 +1374,10 @@ describe('WS: buy hardware credit deduction', () => {
 
   it('buyPlanetBusters when not at starbase returns error', async () => {
     // Leave starbase
-    player.sendMsg({ type: ClientMsgType.LeaveStarbase });
+    player.sendMsg({ type: ClientTag.LeaveStarbase });
     await player.waitForMessage('leaveStarbaseResult').catch(() => null);
 
-    player.sendMsg({ type: ClientMsgType.BuyHardware, itemName: 'planet_buster', quantity: 1 });
+    player.sendMsg({ type: ClientTag.BuyHardware, itemName: 'planet_buster', quantity: 1 });
     const msg = await player.waitForMessage('error');
     assert.ok(msg.message, 'should return error when not at starbase');
   });
@@ -1419,8 +1419,8 @@ describe('WS: terraform collision logic', () => {
     const targetSectorDbId = warps.rows[0].sector_db_id;
 
     // Move to that sector
-    player.sendMsg({ type: ClientMsgType.Move, sector: targetSector });
-    await player.waitForMessage(ServerMsgType.MoveResult);
+    player.sendMsg({ type: ClientTag.Move, sector: targetSector });
+    await player.waitForMessage(ServerTag.MoveResult);
 
     // Seed an existing planet in the sector so it already has 1 (which equals max)
     await pool.query(
@@ -1435,7 +1435,7 @@ describe('WS: terraform collision logic', () => {
     // Sector already has 1 planet and max_planets_per_sector=1, so it's at capacity
     await pool.query(`INSERT INTO ship_hardware (ship_id, hardware_item_id, quantity) VALUES ((SELECT ship_id FROM players WHERE id = $1), (SELECT id FROM hardware_item WHERE name = 'terraform_device'), 1) ON CONFLICT (ship_id, hardware_item_id) DO UPDATE SET quantity = 1`, [player.playerId]);
 
-    player.sendMsg({ type: ClientMsgType.UseTerraformDevice });
+    player.sendMsg({ type: ClientTag.UseTerraformDevice });
     const msg = await player.waitForMessage('useTerraformDeviceResult');
     assert.equal(msg.success, true, 'terraform should still succeed even at capacity');
     assert.ok('collision' in msg, 'terraformResult should include collision field');
@@ -1445,7 +1445,7 @@ describe('WS: terraform collision logic', () => {
     // Give terraform device
     await pool.query(`INSERT INTO ship_hardware (ship_id, hardware_item_id, quantity) VALUES ((SELECT ship_id FROM players WHERE id = $1), (SELECT id FROM hardware_item WHERE name = 'terraform_device'), 1) ON CONFLICT (ship_id, hardware_item_id) DO UPDATE SET quantity = 1`, [player.playerId]);
 
-    player.sendMsg({ type: ClientMsgType.UseTerraformDevice });
+    player.sendMsg({ type: ClientTag.UseTerraformDevice });
     const msg = await player.waitForMessage('useTerraformDeviceResult');
     assert.equal(msg.success, true, 'terraform should succeed');
     assert.ok(msg.planet, 'should include planet info');
@@ -1484,7 +1484,7 @@ describe('WS: terraform collision logic', () => {
     // Give 2 devices, use 1
     await pool.query(`INSERT INTO ship_hardware (ship_id, hardware_item_id, quantity) VALUES ((SELECT ship_id FROM players WHERE id = $1), (SELECT id FROM hardware_item WHERE name = 'terraform_device'), 2) ON CONFLICT (ship_id, hardware_item_id) DO UPDATE SET quantity = 2`, [player.playerId]);
 
-    player.sendMsg({ type: ClientMsgType.UseTerraformDevice });
+    player.sendMsg({ type: ClientTag.UseTerraformDevice });
     const msg = await player.waitForMessage('useTerraformDeviceResult');
     assert.equal(msg.success, true);
     assert.ok('terraformDevices' in msg, 'should include terraformDevices remaining count');
@@ -1531,16 +1531,16 @@ describe('WS: on_planet_id cleared after destroyPlanet', () => {
     const newPlanetId = ins.rows[0].id;
 
     // Move to that sector
-    player.sendMsg({ type: ClientMsgType.ShortestPath, from: 1, to: targetSector });
+    player.sendMsg({ type: ClientTag.ShortestPath, from: 1, to: targetSector });
     const pathMsg = await player.waitForMessage('shortestPathResult');
     for (const step of pathMsg.path.slice(1)) {
-      player.sendMsg({ type: ClientMsgType.Move, sector: step.sector });
-      await player.waitForMessage(ServerMsgType.MoveResult);
+      player.sendMsg({ type: ClientTag.Move, sector: step.sector });
+      await player.waitForMessage(ServerTag.MoveResult);
     }
 
     // Land on the planet
-    player.sendMsg({ type: ClientMsgType.LandOnPlanet, planetId: newPlanetId });
-    await player.waitForMessage(ServerMsgType.LandOnPlanetResult);
+    player.sendMsg({ type: ClientTag.LandOnPlanet, planetId: newPlanetId });
+    await player.waitForMessage(ServerTag.LandOnPlanetResult);
 
     // Verify on_planet_id is set
     const beforeRes = await pool.query('SELECT on_planet_id FROM players WHERE id = $1', [player.playerId]);
@@ -1548,9 +1548,9 @@ describe('WS: on_planet_id cleared after destroyPlanet', () => {
 
     // Give planet buster and destroy
     await pool.query(`INSERT INTO ship_hardware (ship_id, hardware_item_id, quantity) VALUES ((SELECT ship_id FROM players WHERE id = $1), (SELECT id FROM hardware_item WHERE name = 'planet_buster'), 1) ON CONFLICT (ship_id, hardware_item_id) DO UPDATE SET quantity = 1`, [player.playerId]);
-    player.sendMsg({ type: ClientMsgType.DestroyPlanet });
+    player.sendMsg({ type: ClientTag.DestroyPlanet });
     await player.waitForMessage('destroyPlanetResult');
-    await player.waitForMessage(ServerMsgType.SectorDisplayResult);
+    await player.waitForMessage(ServerTag.SectorDisplayResult);
 
     // Verify on_planet_id is cleared
     const afterRes = await pool.query('SELECT on_planet_id FROM players WHERE id = $1', [player.playerId]);
@@ -1589,13 +1589,13 @@ describe('WS: terraform success response completeness', () => {
     // Remove any existing planets from that sector
     await pool.query('DELETE FROM planets WHERE sector_id = $1', [targetSectorDbId]);
 
-    player.sendMsg({ type: ClientMsgType.Move, sector: targetSector });
-    await player.waitForMessage(ServerMsgType.MoveResult);
+    player.sendMsg({ type: ClientTag.Move, sector: targetSector });
+    await player.waitForMessage(ServerTag.MoveResult);
 
     // Give 2 terraform devices
     await pool.query(`INSERT INTO ship_hardware (ship_id, hardware_item_id, quantity) VALUES ((SELECT ship_id FROM players WHERE id = $1), (SELECT id FROM hardware_item WHERE name = 'terraform_device'), 2) ON CONFLICT (ship_id, hardware_item_id) DO UPDATE SET quantity = 2`, [player.playerId]);
 
-    player.sendMsg({ type: ClientMsgType.UseTerraformDevice });
+    player.sendMsg({ type: ClientTag.UseTerraformDevice });
     const msg = await player.waitForMessage('useTerraformDeviceResult');
     assert.equal(msg.success, true);
     assert.ok('collision' in msg, 'terraformResult should include collision field');

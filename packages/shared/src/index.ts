@@ -9,3 +9,4 @@ export * from './port-construction.js';
 export * from './port-haggle.js';
 export * from './hold-pricing.js';
 export { universeConfig } from './universe-config.js';
+export { globalConstants } from './global-constants.js';

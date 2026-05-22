@@ -7,7 +7,7 @@ import {
     getPlayerReputationForUpdate,
     markFirstColosJettisonOfDay,
 } from '../db/queries/player.js';
-import { reputationDeltas, experienceDeltas } from '../game-config.js';
+import { reputationDeltas, experienceDeltas, scalarDelta } from '../game-config.js';
 import { notifyAttributeChange } from '../services/notify.js';
 
 export async function serveJettison(playerId: number): Promise<void> {
@@ -35,8 +35,8 @@ export async function serveJettison(playerId: number): Promise<void> {
                 const isFirstToday = await markFirstColosJettisonOfDay(playerId, client);
                 if (isFirstToday) {
                     const key = 'blueJettisonsColosOncePerDay';
-                    appliedRep = reputationDeltas.amountChangeFor[key] ?? 0;
-                    appliedExp = experienceDeltas.amountChangeFor[key] ?? 0;
+                    appliedRep = scalarDelta(reputationDeltas, key);
+                    appliedExp = scalarDelta(experienceDeltas, key);
                     await adjustReputationAndExperience(playerId, appliedRep, appliedExp, client);
                 }
             }

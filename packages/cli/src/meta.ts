@@ -1,20 +1,25 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { z } from 'zod';
 import { ClientTag } from '@twnr/shared';
 
 export function listCommands(): string[] {
     return Object.values(ClientTag).sort();
 }
 
-type SchemaFile = { definitions: Record<string, unknown> };
+const SchemaFileSchema = z.object({
+    definitions: z.record(z.string(), z.unknown()),
+});
+type SchemaFile = z.infer<typeof SchemaFileSchema>;
 let cached: SchemaFile | null = null;
 
 function loadSchema(): SchemaFile {
     if (cached) return cached;
     const here = dirname(fileURLToPath(import.meta.url));
     const schemaPath = resolve(here, '../../..', 'docs/client-messages.schema.json');
-    cached = JSON.parse(readFileSync(schemaPath, 'utf8')) as SchemaFile;
+    const raw = JSON.parse(readFileSync(schemaPath, 'utf8'));
+    cached = SchemaFileSchema.parse(raw);
     return cached;
 }
 

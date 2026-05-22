@@ -2,18 +2,18 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { connectWS as _connectWS, closeWS, wsRequest } from './helpers.mjs';
 import { ensureServer, createPool } from './global-setup.mjs';
-import { ClientMsgType, ServerMsgType } from '@twnr/shared';
+import { ClientTag, ServerTag } from '@twnr/shared';
 
 
 const UNIVERSE_ID = 1;
 
 async function navigateTo(ws, targetSector) {
-  const disp = await wsRequest(ws, { type: ClientMsgType.SectorDisplay }, ServerMsgType.SectorDisplayResult);
+  const disp = await wsRequest(ws, { type: ClientTag.SectorDisplay }, ServerTag.SectorDisplayResult);
   if (disp.sector === targetSector) return;
-  const path = await wsRequest(ws, { type: ClientMsgType.ShortestPath, from: disp.sector, to: targetSector }, ServerMsgType.ShortestPathResult);
-  if (path.type === ServerMsgType.Error) throw new Error(`No path to ${targetSector}`);
+  const path = await wsRequest(ws, { type: ClientTag.ShortestPath, from: disp.sector, to: targetSector }, ServerTag.ShortestPathResult);
+  if (path.type === ServerTag.Error) throw new Error(`No path to ${targetSector}`);
   for (let i = 1; i < path.path.length; i++) {
-    await wsRequest(ws, { type: ClientMsgType.Move, sector: path.path[i].sector }, ServerMsgType.MoveResult);
+    await wsRequest(ws, { type: ClientTag.Move, sector: path.path[i].sector }, ServerTag.MoveResult);
   }
 }
 
@@ -54,8 +54,8 @@ describe('Movement Constraint', () => {
       const adjRes = await pool.query('SELECT s_to.sector_number AS sector_to FROM warps w JOIN sectors s_from ON w.from_sector_id = s_from.id JOIN sectors s_to ON w.to_sector_id = s_to.id WHERE s_from.sector_number = 1 AND s_from.universe_id = $1 LIMIT 1', [UNIVERSE_ID]);
       const target = adjRes.rows.length > 0 ? Number(adjRes.rows[0].sector_to) : 2;
 
-      const msg = await wsRequest(ws, { type: ClientMsgType.Move, sector: target }, ServerMsgType.MoveResult);
-      assert.equal(msg.type, ServerMsgType.MoveResult);
+      const msg = await wsRequest(ws, { type: ClientTag.Move, sector: target }, ServerTag.MoveResult);
+      assert.equal(msg.type, ServerTag.MoveResult);
       assert.equal(msg.outcome, 'noShip');
     } finally {
       await closeWS(ws);
@@ -73,8 +73,8 @@ describe('Existing feature regression', () => {
     try {
       await pool.query('UPDATE ships SET fuel = 3 WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
       await navigateTo(ws, fuelSector);
-      const msg = await wsRequest(ws, { type: ClientMsgType.PortTransaction, good: 'fuel', quantity: 2, action: 'sell' }, ServerMsgType.PortTransactionResult);
-      assert.equal(msg.type,  ServerMsgType.PortTransactionResult);
+      const msg = await wsRequest(ws, { type: ClientTag.PortTransaction, good: 'fuel', quantity: 2, action: 'sell' }, ServerTag.PortTransactionResult);
+      assert.equal(msg.type,  ServerTag.PortTransactionResult);
     } finally {
       await closeWS(ws);
     }

@@ -23,7 +23,7 @@ import {
 import { getPlanetIdsInSectorForUpdate } from '../db/queries/planet.js';
 import { getSectorDbId } from '../db/queries/sector.js';
 import { recordCreditChange } from '../services/audit.js';
-import { experienceDeltas, reputationDeltas } from '../game-config.js';
+import { experienceDeltas, reputationDeltas, scalarDelta } from '../game-config.js';
 
 /** Class 1-8 import/export label: ports with more B-actions than S are "Import",
  *  others "Export". legacy display convention. */
@@ -241,12 +241,10 @@ export async function serveBuildPort(playerId: number, data: BuildPortCommand): 
                 client,
             );
 
-            const xpTable = experienceDeltas.amountChangeFor.buildPortByClass as unknown as
-                | Record<string, number>
-                | undefined;
-            const repTable = reputationDeltas.amountChangeFor.buildPortByClass as unknown as
-                | Record<string, number>
-                | undefined;
+            const xpEntry = experienceDeltas.amountChangeFor.buildPortByClass;
+            const repEntry = reputationDeltas.amountChangeFor.buildPortByClass;
+            const xpTable = typeof xpEntry === 'object' ? xpEntry : undefined;
+            const repTable = typeof repEntry === 'object' ? repEntry : undefined;
             const xp = xpTable?.[String(portClass)] ?? 0;
             const rep = repTable?.[String(portClass)] ?? 0;
             if (xp !== 0 || rep !== 0) {
@@ -452,11 +450,9 @@ export async function serveUpgradePort(playerId: number, data: UpgradePortComman
 
             await applyPortUpgrade(port.id, data.commodity, units, client);
 
-            const xpDivisor =
-                (experienceDeltas.amountChangeFor.upgradePortCreditsPerXp as number | undefined) ??
-                3000;
+            const xpDivisor = scalarDelta(experienceDeltas, 'upgradePortCreditsPerXp') || 3000;
             const xp = Math.floor(totalCost / xpDivisor);
-            const rep = (reputationDeltas.amountChangeFor.upgradePort as number | undefined) ?? 0;
+            const rep = scalarDelta(reputationDeltas, 'upgradePort');
             if (xp !== 0 || rep !== 0) {
                 await adjustReputationAndExperience(playerId, rep, xp, client);
             }

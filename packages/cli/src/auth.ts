@@ -1,28 +1,33 @@
+import { z } from 'zod';
 import { saveSession, type Session } from './session.js';
 
-type GuestResponse = {
-    userId: number;
-    name: string;
-    role: string;
-    token: string;
-    universeId: number;
-    isGuest: true;
-};
+const GuestResponseSchema = z.object({
+    userId: z.number(),
+    name: z.string(),
+    role: z.string(),
+    token: z.string(),
+    universeId: z.number(),
+    isGuest: z.literal(true),
+});
 
-type LoginResponse = {
-    userId: number;
-    role: string;
-    token: string;
-};
+const LoginResponseSchema = z.object({
+    userId: z.number(),
+    role: z.string(),
+    token: z.string(),
+});
 
-type RegisterResponse = {
-    userId: number;
-    name: string;
-    role: string;
-    token: string;
-};
+const RegisterResponseSchema = z.object({
+    userId: z.number(),
+    name: z.string(),
+    role: z.string(),
+    token: z.string(),
+});
 
-async function postJson<T>(url: string, body: unknown): Promise<T> {
+async function postJson<S extends z.ZodType>(
+    url: string,
+    body: unknown,
+    schema: S,
+): Promise<z.infer<S>> {
     const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -32,11 +37,18 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
     if (!res.ok) {
         throw new Error(`POST ${url} -> ${res.status}: ${text}`);
     }
-    return JSON.parse(text) as T;
+    const parsed = schema.safeParse(JSON.parse(text));
+    if (!parsed.success) {
+        const issues = parsed.error.issues
+            .map((i) => `  ${i.path.join('.') || '<root>'}: ${i.message}`)
+            .join('\n');
+        throw new Error(`POST ${url} returned unexpected shape:\n${issues}`);
+    }
+    return parsed.data;
 }
 
 export async function loginGuest(host: string): Promise<Session> {
-    const data = await postJson<GuestResponse>(`${host}/api/auth/guest`, {});
+    const data = await postJson(`${host}/api/auth/guest`, {}, GuestResponseSchema);
     const session: Session = {
         host,
         token: data.token,
@@ -50,7 +62,7 @@ export async function loginGuest(host: string): Promise<Session> {
 }
 
 export async function login(host: string, email: string, password: string): Promise<Session> {
-    const data = await postJson<LoginResponse>(`${host}/api/auth/login`, { email, password });
+    const data = await postJson(`${host}/api/auth/login`, { email, password }, LoginResponseSchema);
     const session: Session = {
         host,
         token: data.token,
@@ -67,11 +79,11 @@ export async function register(
     email: string,
     password: string,
 ): Promise<Session> {
-    const data = await postJson<RegisterResponse>(`${host}/api/auth/register`, {
-        name,
-        email,
-        password,
-    });
+    const data = await postJson(
+        `${host}/api/auth/register`,
+        { name, email, password },
+        RegisterResponseSchema,
+    );
     const session: Session = {
         host,
         token: data.token,

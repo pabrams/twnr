@@ -2,7 +2,7 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createTestUser, createTestPlayer, connectWS, closeWS, wsRequest } from './helpers.mjs';
 import { ensureServer, createPool } from './global-setup.mjs';
-import { ClientMsgType, ServerMsgType } from '@twnr/shared';
+import { ClientTag, ServerTag } from '@twnr/shared';
 
 const UNIVERSE_ID = 1;
 
@@ -36,8 +36,8 @@ describe('Combat resolution', () => {
     const { ws: ws1 } = await connectPlayer(atk.token);
     const { ws: ws2 } = await connectPlayer(def.token);
     try {
-      const res = await wsRequest(ws1, { type: ClientMsgType.AttackShip, targetPlayerId: def.id, drones: 3 }, ServerMsgType.AttackShipResult);
-      assert.equal(res.type, ServerMsgType.AttackShipResult);
+      const res = await wsRequest(ws1, { type: ClientTag.AttackShip, targetPlayerId: def.id, drones: 3 }, ServerTag.AttackShipResult);
+      assert.equal(res.type, ServerTag.AttackShipResult);
 
       const atkShip = await pool.query('SELECT drones FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [atk.id]);
       assert.equal(atkShip.rows[0].drones, 7, 'Attacker should have 7 drones remaining');
@@ -56,8 +56,8 @@ describe('Combat resolution', () => {
     const { ws: ws1 } = await connectPlayer(atk.token);
     const { ws: ws2 } = await connectPlayer(def.token);
     try {
-      const res = await wsRequest(ws1, { type: ClientMsgType.AttackShip, targetPlayerId: def.id, drones: 4 }, ServerMsgType.AttackShipResult);
-      assert.equal(res.type, ServerMsgType.AttackShipResult);
+      const res = await wsRequest(ws1, { type: ClientTag.AttackShip, targetPlayerId: def.id, drones: 4 }, ServerTag.AttackShipResult);
+      assert.equal(res.type, ServerTag.AttackShipResult);
 
       const atkShip = await pool.query('SELECT drones FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [atk.id]);
       assert.equal(atkShip.rows[0].drones, 6, 'Attacker should have 6 drones remaining');
@@ -76,8 +76,8 @@ describe('Combat resolution', () => {
     const { ws: ws1 } = await connectPlayer(atk.token);
     const { ws: ws2 } = await connectPlayer(def.token);
     try {
-      const res = await wsRequest(ws1, { type: ClientMsgType.AttackShip, targetPlayerId: def.id, drones: 5 }, ServerMsgType.AttackShipResult);
-      assert.equal(res.type, ServerMsgType.AttackShipResult);
+      const res = await wsRequest(ws1, { type: ClientTag.AttackShip, targetPlayerId: def.id, drones: 5 }, ServerTag.AttackShipResult);
+      assert.equal(res.type, ServerTag.AttackShipResult);
 
       const atkShip = await pool.query('SELECT drones FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [atk.id]);
       assert.equal(atkShip.rows[0].drones, 5, 'Attacker should have 5 drones remaining');
@@ -101,8 +101,8 @@ describe('Ship destruction', () => {
     const { ws: ws1 } = await connectPlayer(atk.token);
     const { ws: ws2 } = await connectPlayer(def.token);
     try {
-      const res = await wsRequest(ws1, { type: ClientMsgType.AttackShip, targetPlayerId: def.id, drones: 5 }, ServerMsgType.AttackShipResult);
-      assert.equal(res.type, ServerMsgType.AttackShipResult);
+      const res = await wsRequest(ws1, { type: ClientTag.AttackShip, targetPlayerId: def.id, drones: 5 }, ServerTag.AttackShipResult);
+      assert.equal(res.type, ServerTag.AttackShipResult);
 
       const atkShip = await pool.query('SELECT drones FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [atk.id]);
       assert.equal(atkShip.rows[0].drones, 8, 'Attacker should have 8 drones remaining');
@@ -126,8 +126,8 @@ describe('Ship destruction', () => {
     const { ws: ws1 } = await connectPlayer(atk.token);
     const { ws: ws2 } = await connectPlayer(def.token);
     try {
-      const res = await wsRequest(ws1, { type: ClientMsgType.AttackShip, targetPlayerId: def.id, drones: 1 }, ServerMsgType.AttackShipResult);
-      assert.equal(res.type, ServerMsgType.AttackShipResult);
+      const res = await wsRequest(ws1, { type: ClientTag.AttackShip, targetPlayerId: def.id, drones: 1 }, ServerTag.AttackShipResult);
+      assert.equal(res.type, ServerTag.AttackShipResult);
 
       const atkShip = await pool.query('SELECT drones FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [atk.id]);
       assert.equal(atkShip.rows[0].drones, 5, 'Attacker should still have 5 drones');
