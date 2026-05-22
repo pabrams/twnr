@@ -1580,6 +1580,31 @@ export const HaggleResponseReplySchema = z.discriminatedUnion('outcome', [
 ]);
 export type HaggleResponseReply = z.infer<typeof HaggleResponseReplySchema>;
 
+export const StatsSnapshotSchema = z.object({
+    type: z.literal(ServerTag.StatsSnapshot),
+    sector: Int,
+    turns: Num,
+    experience: Num,
+    alignment: Num,
+    credits: Num,
+    shipTypeName: Str,
+    shipTypeDisplayName: StrOrNull,
+    holds: z.object({
+        fuel: Num,
+        organics: Num,
+        equipment: Num,
+        colonists: Num,
+        empty: Num,
+        total: Num,
+    }),
+    ship: z.object({
+        drones: Num,
+        shields: Num,
+    }),
+    hardware: HardwareMap,
+});
+export type StatsSnapshot = z.infer<typeof StatsSnapshotSchema>;
+
 export const ServerEnvelopeSchema = z.discriminatedUnion('type', [
     WelcomeEventSchema,
     PlayerMovedEventSchema,
@@ -1688,6 +1713,7 @@ export const ServerEnvelopeSchema = z.discriminatedUnion('type', [
     BwarpInstallReplySchema,
     BwarpUpgradeReplySchema,
     BwarpBeamReplySchema,
+    StatsSnapshotSchema,
     ErrorReplySchema,
 ]);
 export type ServerEnvelope = z.infer<typeof ServerEnvelopeSchema>;

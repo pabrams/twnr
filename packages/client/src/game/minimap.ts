@@ -1,12 +1,7 @@
 import type { NeighborhoodReply, NeighborhoodSector } from '@twnr/shared';
 import { HEX_CELL_SIZE, HEX_SPACING_MULTIPLIER, portClassTriplet } from '@twnr/shared';
-import { colorPalette } from '../config/colors.js';
+import { colorPalette, rgb } from '../config/colors.js';
 import './minimap.css';
-
-/** Convert one of the palette entries to an `rgb(...)` CSS string. */
-function rgb(c: { r: number; g: number; b: number }): string {
-    return `rgb(${c.r}, ${c.g}, ${c.b})`;
-}
 
 const COLORS = {
     sectorLabel: rgb(colorPalette.boldGreen),

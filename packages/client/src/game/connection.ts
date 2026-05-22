@@ -25,6 +25,7 @@ const PROMPT_SUPPRESSING = new Set<string>([
     ServerTag.ProximityMineHit,
     ServerTag.SeekerMineAttached,
     ServerTag.SeekerMinePickupAlert,
+    ServerTag.StatsSnapshot,
 ]);
 
 export function setupConnection(

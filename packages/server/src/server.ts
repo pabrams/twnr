@@ -29,6 +29,7 @@ import {
 import { countSectorsInUniverse, getStarbaseSectorNumber } from './db/queries/sector.js';
 import { tryRespawnPlayer } from './services/respawn.js';
 import { startHourlyScheduler } from './services/hourly-jobs.js';
+import { sendStatsSnapshot } from './services/stats-snapshot.js';
 
 const app: ReturnType<typeof express> = express();
 app.set('trust proxy', 1);
@@ -252,6 +253,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             }),
         };
         await sendEnvelope(playerId, welcomeMsg);
+        await sendStatsSnapshot(playerId);
 
         let tokens = 50;
         const refillInterval = setInterval(() => {
@@ -293,6 +295,14 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
                 console.error('Message handler error:', err);
                 sendError(playerId, 'Internal server error');
             }
+
+            // Push a stats snapshot after every routed message so the right-
+            // side panel stays in sync without each handler needing to opt in.
+            // Async pushes (combat, mail, time-based) call sendStatsSnapshot
+            // directly from their own code paths.
+            sendStatsSnapshot(playerId).catch((err) =>
+                console.error('Stats snapshot error:', err),
+            );
 
             logPlayerCommand(playerId, universeId, data.type, data).catch((err) =>
                 console.error('Command log error:', err),

@@ -12,6 +12,7 @@ import type {
 } from '@twnr/shared';
 import { Menu } from '@twnr/shared';
 import type { Minimap } from './minimap.js';
+import type { StatsPanel } from './stats-panel.js';
 
 export type KeystrokeEvent = {
     key: string;
@@ -198,6 +199,10 @@ export interface MinimapView {
     handle?: Minimap;
 }
 
+export interface StatsView {
+    handle?: StatsPanel;
+}
+
 /**
  * Args passed forward to the next menu after a server-roundtripped
  * ChangeMenu. Source menu sets via `setMenuArgs`; destination's
@@ -223,6 +228,7 @@ export interface GameContext {
     catalogs: Catalogs;
     starbase: StarbaseSession;
     minimap: MinimapView;
+    stats: StatsView;
     pendingMenuArgs: MenuArgs | null;
     connection: ConnectionState;
 }

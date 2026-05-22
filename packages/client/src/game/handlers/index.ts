@@ -106,6 +106,10 @@ const handlers: HandlerMap = {
 
     [ServerTag.TowReleasedAlert]: tow.towReleasedAlert,
     [ServerTag.TowAttachedAlert]: tow.towAttachedAlert,
+
+    [ServerTag.StatsSnapshot]: (ctx, msg) => {
+        ctx.stats.handle?.update(msg);
+    },
 };
 
 /** Returns the handler's result — `undefined` for sync handlers, a Promise
