@@ -12,34 +12,22 @@ import { MENU_REGISTRY, MENU_PROMPTS } from './menu-registry.js';
 import { registerMenu } from './routines/index.js';
 import type { MenuName } from '@twnr/shared';
 
-/**
- * Measure how many pixels one cell of a given fontFamily/lineHeight takes
- * per unit of fontSize. A hidden DOM probe with the same font settings xterm
- * renders with gives us the exact glyph advance and line box, so the refit
- * math is arithmetic against measured values instead of empirical guesses.
- * Linear in fontSize for monospace fonts, so one measurement at a reference
- * size scales to every other size.
- */
-function measureFontMetrics(
-    fontFamily: string,
-    lineHeight: number,
-): { widthPerSize: number; heightPerSize: number } {
-    const REF_FONT_SIZE = 16;
-    const SAMPLE_COLS = 80;
-    const probe = document.createElement('span');
-    probe.style.position = 'absolute';
-    probe.style.visibility = 'hidden';
-    probe.style.whiteSpace = 'pre';
-    probe.style.fontFamily = fontFamily;
-    probe.style.fontSize = `${REF_FONT_SIZE}px`;
-    probe.style.lineHeight = String(lineHeight);
-    probe.textContent = 'M'.repeat(SAMPLE_COLS);
-    document.body.appendChild(probe);
-    const rect = probe.getBoundingClientRect();
-    document.body.removeChild(probe);
+
+function makeCellPredictor(fontFamily: string): {
+    cellWidth: (fontSize: number) => number;
+    cellHeight: (fontSize: number) => number;
+} {
+    const REF = 16;
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d')!;
+    ctx.font = `${REF}px ${fontFamily}`;
+    const m = ctx.measureText('W');
+    const widthPerSize = m.width / REF;
+    const heightPerSize = (m.fontBoundingBoxAscent + m.fontBoundingBoxDescent) / REF;
+    const dpr = window.devicePixelRatio || 1;
     return {
-        widthPerSize: rect.width / SAMPLE_COLS / REF_FONT_SIZE,
-        heightPerSize: rect.height / REF_FONT_SIZE,
+        cellWidth: (fontSize) => fontSize * widthPerSize,
+        cellHeight: (fontSize) => Math.ceil(fontSize * heightPerSize * dpr) / dpr,
     };
 }
 
@@ -48,7 +36,6 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
         cursorBlink: true,
         fontFamily: 'Courier New, Courier, monospace',
         fontSize: 17,
-        lineHeight: 0.9,
         scrollback: 50000,
         cols: globalConstants.terminalCols,
         theme: {
@@ -59,18 +46,9 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
 
     term.open(termDiv);
 
-    // Pin logical width to globalConstants.terminalCols and scale fontSize to
-    // whatever the container can hold. The two ratios (px per fontSize unit,
-    // for cell width and height) are measured once from a hidden DOM probe
-    // using the same font-family and lineHeight xterm renders with, so
-    // they reflect the actual rendered glyph metrics rather than empirical
-    // guesses.
     const MIN_FONT_SIZE = 6;
     const MAX_FONT_SIZE = 32;
-    const { widthPerSize, heightPerSize } = measureFontMetrics(
-        'Courier New, Courier, monospace',
-        0.9,
-    );
+    const cell = makeCellPredictor('Courier New, Courier, monospace');
     function refit() {
         const style = window.getComputedStyle(termDiv);
         const padX =
@@ -80,9 +58,9 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
         const w = termDiv.clientWidth - padX;
         const h = termDiv.clientHeight - padY;
         if (w <= 0 || h <= 0) return;
-        const rawFontSize = Math.floor(w / globalConstants.terminalCols / widthPerSize);
+        const rawFontSize = Math.floor(w / globalConstants.terminalCols / cell.cellWidth(1));
         const fontSize = Math.max(MIN_FONT_SIZE, Math.min(MAX_FONT_SIZE, rawFontSize));
-        const rows = Math.max(10, Math.floor(h / (fontSize * heightPerSize)));
+        const rows = Math.max(10, Math.floor(h / cell.cellHeight(fontSize)));
         term.options.fontSize = fontSize;
         term.resize(globalConstants.terminalCols, rows);
     }
