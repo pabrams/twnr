@@ -16,6 +16,7 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
         cursorBlink: true,
         fontFamily: 'Courier New, Courier, monospace',
         fontSize: 17,
+        lineHeight: 0.9,
         scrollback: 50000,
         cols: globalConstants.terminalCols,
         theme: {
@@ -32,7 +33,7 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
     // Courier New at xterm's defaults — measured against
     // term._core._renderService.dimensions.css.cell after the first paint.
     const CHAR_WIDTH_RATIO = 0.6;
-    const LINE_HEIGHT_RATIO = 1.2;
+    const LINE_HEIGHT_RATIO = 1.08;
     const MIN_FONT_SIZE = 6;
     const MAX_FONT_SIZE = 32;
     function refit() {
