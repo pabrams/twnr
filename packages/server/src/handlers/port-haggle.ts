@@ -40,7 +40,7 @@ import { checkAndDeductTurns } from '../turn-logic.js';
 import { cargoUsed, formatCargo } from './cargo-utils.js';
 import { recordCreditChange } from '../services/audit.js';
 import { notifyAttributeChange, notifyTurnChange } from '../services/notify.js';
-import { experienceDeltas } from '../game-config.js';
+import { experienceDeltas, scalarDelta } from '../game-config.js';
 
 type HaggleSession = {
     playerId: number;
@@ -477,7 +477,7 @@ async function settleTrade(
                 cargo.credits += agreedTotal;
             }
 
-            const xpDelta = experienceDeltas.amountChangeFor.portTrade ?? 0;
+            const xpDelta = scalarDelta(experienceDeltas, 'portTrade');
             if (xpDelta !== 0) {
                 await adjustReputationAndExperience(playerId, 0, xpDelta, client);
             }

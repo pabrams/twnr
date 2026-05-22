@@ -2,7 +2,7 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { connectWS, closeWS, httpPost } from './helpers.mjs';
 import { ensureServer, createPool, BASE, WS_BASE } from './global-setup.mjs';
-import { ServerMsgType } from '@twnr/shared';
+import { ServerTag } from '@twnr/shared';
 const UNIVERSE_ID = 1;
 
 let pool;
@@ -39,7 +39,7 @@ describe('Security', () => {
   it('allows WebSocket connections from configured origins', async () => {
     const { ws: wsConn, welcome } = await ws({ origin: BASE });
 
-    assert.equal(welcome.type, ServerMsgType.Welcome);
+    assert.equal(welcome.type, ServerTag.Welcome);
     await closeWS(wsConn);
   });
 

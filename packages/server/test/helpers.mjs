@@ -1,12 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
-import { ClientMsgType, ServerMsgType, PORT_CLASS_ACTIONS } from '@twnr/shared';
-import { BASE as BASE_URL, WS_BASE as WS_URL, createPool, createTestUserWithToken } from './global-setup.mjs';
+import { ClientTag, ServerTag, PORT_CLASS_ACTIONS } from '@twnr/shared';
+import { BASE as BASE_URL, WS_BASE as WS_URL, createTestUserWithToken } from './global-setup.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const PROJECT_ROOT = join(dirname(__filename), '..');
-const merchantCfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', '01-vulpeculan-cruiser.json'), 'utf8'));
+const merchantCfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'templates', 'stock', 'ships', '01-vulpeculan-cruiser.json'), 'utf8'));
 
 export { createPool } from './global-setup.mjs';
 
@@ -178,16 +178,16 @@ export async function httpPost(path, data, options = {}) {
 
 export async function findPortSector(ws) {
   for (let i = 1; i <= 100; i++) {
-    const res = await wsRequest(ws, { type: ClientMsgType.PortInfo, sectorId: i }, ServerMsgType.PortInfoResult);
-    if (res.type === ServerMsgType.PortInfoResult) return { sectorId: i, port: res };
+    const res = await wsRequest(ws, { type: ClientTag.PortInfo, sectorId: i }, ServerTag.PortInfoResult);
+    if (res.type === ServerTag.PortInfoResult) return { sectorId: i, port: res };
   }
   return null;
 }
 
 export async function findPortSelling(ws, good) {
   for (let i = 1; i <= 100; i++) {
-    const res = await wsRequest(ws, { type: ClientMsgType.PortInfo, sectorId: i }, ServerMsgType.PortInfoResult);
-    if (res.type === ServerMsgType.PortInfoResult) {
+    const res = await wsRequest(ws, { type: ClientTag.PortInfo, sectorId: i }, ServerTag.PortInfoResult);
+    if (res.type === ServerTag.PortInfoResult) {
       const actions = PORT_CLASS_ACTIONS[res.class];
       if (actions && actions[good] === 'S') return { sectorId: i, port: res };
     }
@@ -197,8 +197,8 @@ export async function findPortSelling(ws, good) {
 
 export async function findPortBuying(ws, good) {
   for (let i = 1; i <= 100; i++) {
-    const res = await wsRequest(ws, { type: ClientMsgType.PortInfo, sectorId: i }, ServerMsgType.PortInfoResult);
-    if (res.type === ServerMsgType.PortInfoResult) {
+    const res = await wsRequest(ws, { type: ClientTag.PortInfo, sectorId: i }, ServerTag.PortInfoResult);
+    if (res.type === ServerTag.PortInfoResult) {
       const actions = PORT_CLASS_ACTIONS[res.class];
       if (actions && actions[good] === 'B') return { sectorId: i, port: res };
     }
@@ -207,15 +207,15 @@ export async function findPortBuying(ws, good) {
 }
 
 export async function movePlayerTo(ws, targetSector) {
-  const disp = await wsRequest(ws, { type: ClientMsgType.SectorDisplay }, ServerMsgType.SectorDisplayResult);
+  const disp = await wsRequest(ws, { type: ClientTag.SectorDisplay }, ServerTag.SectorDisplayResult);
   if (disp.sector === targetSector) return true;
 
-  const pathRes = await wsRequest(ws, { type: ClientMsgType.ShortestPath, from: disp.sector, to: targetSector }, ServerMsgType.ShortestPathResult);
-  if (pathRes.type === ServerMsgType.Error) return false;
+  const pathRes = await wsRequest(ws, { type: ClientTag.ShortestPath, from: disp.sector, to: targetSector }, ServerTag.ShortestPathResult);
+  if (pathRes.type === ServerTag.Error) return false;
 
   for (let i = 1; i < pathRes.path.length; i++) {
-    const moveMsg = await wsRequest(ws, { type: ClientMsgType.Move, sector: pathRes.path[i].sector }, ServerMsgType.MoveResult);
-    if (moveMsg.type === ServerMsgType.Error || moveMsg.outcome === 'error') return false;
+    const moveMsg = await wsRequest(ws, { type: ClientTag.Move, sector: pathRes.path[i].sector }, ServerTag.MoveResult);
+    if (moveMsg.type === ServerTag.Error || moveMsg.outcome === 'error') return false;
   }
   return true;
 }

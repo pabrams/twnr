@@ -1,8 +1,10 @@
 import { Router } from 'express';
+import { z } from 'zod';
+import { globalConstants } from '@twnr/shared';
 import { withTransaction } from '../../db/index.js';
 import { generateUniverse, defaultBigBangOptions } from '../../bigbang/index.js';
 import type { RouteDeps, Middleware } from '../middleware.js';
-import { asyncHandler, HttpError, parseIntParam } from '../async-handler.js';
+import { asyncHandler, HttpError, parseBody, parseIntParam } from '../async-handler.js';
 import {
     universeExists,
     getUniverseBasicInfo,
@@ -37,6 +39,37 @@ import {
     deletePlayersInUniverse,
 } from '../../db/queries/player.js';
 
+const GenerateBodySchema = z.object({
+    name: z
+        .string()
+        .min(1)
+        .refine((s) => s.trim().length > 0, 'name is required'),
+    sectors: z.coerce
+        .number()
+        .int()
+        .min(globalConstants.minSectorsPerUniverse)
+        .max(globalConstants.maxSectorsPerUniverse),
+    seed: z.coerce.number().int().optional(),
+    portDensity: z.coerce.number().optional(),
+    twoWayPct: z.coerce.number().optional(),
+    warpDist: z
+        .array(z.number().nonnegative())
+        .length(6)
+        .refine((arr) => Math.abs(arr.reduce((a, b) => a + b, 0) - 100) <= 0.01, {
+            message: 'warpDist values must sum to 100',
+        })
+        .optional(),
+    topology: z.enum(['random', 'proximal']).optional(),
+    template_name: z.string().default('stock'),
+});
+
+const RenameUniverseBodySchema = z.object({
+    name: z
+        .string()
+        .min(1)
+        .refine((s) => s.trim().length > 0, 'name is required'),
+});
+
 export function createAdminLifecycleRoutes(
     router: Router,
     deps: RouteDeps,
@@ -57,51 +90,19 @@ export function createAdminLifecycleRoutes(
                 twoWayPct,
                 warpDist,
                 topology,
-                template_name = 'stock',
-            } = req.body;
+                template_name,
+            } = parseBody(req, GenerateBodySchema);
 
-            if (!name || !String(name).trim()) {
-                throw new HttpError(400, 'name is required');
-            }
-            const sectorCount = parseInt(sectors, 10);
-            if (!sectors || isNaN(sectorCount) || sectorCount < 20 || sectorCount > 25000) {
-                throw new HttpError(400, 'sectors is required and must be between 20 and 25000');
-            }
-
-            let parsedWarpDist: number[] | undefined;
-            if (warpDist != null) {
-                if (
-                    !Array.isArray(warpDist) ||
-                    warpDist.length !== 6 ||
-                    warpDist.some((v: unknown) => typeof v !== 'number' || v < 0)
-                ) {
-                    throw new HttpError(
-                        400,
-                        'warpDist must be an array of 6 non-negative numbers (degrees 1-6)',
-                    );
-                }
-                const sum = warpDist.reduce((a: number, b: number) => a + b, 0);
-                if (Math.abs(sum - 100) > 0.01) {
-                    throw new HttpError(400, `warpDist values must sum to 100 (got ${sum})`);
-                }
-                parsedWarpDist = [0, ...warpDist];
-            }
-
-            let parsedTopology: 'random' | 'proximal' | undefined;
-            if (topology != null) {
-                if (topology !== 'random' && topology !== 'proximal') {
-                    throw new HttpError(400, "topology must be 'random' or 'proximal'");
-                }
-                parsedTopology = topology;
-            }
+            // generator's warpDist is 1-indexed with a placeholder at [0]
+            const parsedWarpDist = warpDist ? [0, ...warpDist] : undefined;
 
             const options = defaultBigBangOptions({
-                sectors: sectorCount,
-                ...(seed != null && { seed: Math.floor(Number(seed)) }),
-                ...(portDensity != null && { portDensity: Number(portDensity) }),
-                ...(twoWayPct != null && { twoWayPct: Number(twoWayPct) }),
+                sectors,
+                ...(seed != null && { seed }),
+                ...(portDensity != null && { portDensity }),
+                ...(twoWayPct != null && { twoWayPct }),
                 ...(parsedWarpDist != null && { warpDist: parsedWarpDist }),
-                ...(parsedTopology != null && { topology: parsedTopology }),
+                ...(topology != null && { topology }),
             });
             const result = generateUniverse(options);
 
@@ -283,11 +284,7 @@ export function createAdminLifecycleRoutes(
         authenticateAdmin,
         asyncHandler(async (req, res) => {
             const universeId = parseIntParam(req.params.id, 'id');
-            const { name } = req.body;
-
-            if (!name || !String(name).trim()) {
-                throw new HttpError(400, 'name is required');
-            }
+            const { name } = parseBody(req, RenameUniverseBodySchema);
 
             const renamed = await renameUniverse(universeId, name);
             if (!renamed) {

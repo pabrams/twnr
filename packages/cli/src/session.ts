@@ -1,15 +1,17 @@
 import { mkdirSync, readFileSync, writeFileSync, existsSync, unlinkSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { z } from 'zod';
 
-export type Session = {
-    host: string;
-    token: string;
-    userId: number;
-    name?: string;
-    universeId?: number;
-    isGuest?: boolean;
-};
+export const SessionSchema = z.object({
+    host: z.string(),
+    token: z.string(),
+    userId: z.number(),
+    name: z.string().optional(),
+    universeId: z.number().optional(),
+    isGuest: z.boolean().optional(),
+});
+export type Session = z.infer<typeof SessionSchema>;
 
 function sessionPath(): string {
     const base = process.env.XDG_CONFIG_HOME || join(homedir(), '.config');
@@ -19,7 +21,13 @@ function sessionPath(): string {
 export function loadSession(): Session | null {
     const path = sessionPath();
     if (!existsSync(path)) return null;
-    return JSON.parse(readFileSync(path, 'utf8')) as Session;
+    const raw = JSON.parse(readFileSync(path, 'utf8'));
+    const result = SessionSchema.safeParse(raw);
+    if (!result.success) {
+        console.error(`Session file at ${path} is malformed:`, result.error.issues);
+        return null;
+    }
+    return result.data;
 }
 
 export function saveSession(s: Session): string {

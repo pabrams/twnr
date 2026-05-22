@@ -26,13 +26,13 @@ after(async () => {
 // ─── tests ────────────────────────────────────────────────────────────────────
 
 describe('Config Files', () => {
-  it('config/ships/01-vulpeculan-cruiser.json exists', () => {
-    const p = join(PROJECT_ROOT, 'config', 'ships', '01-vulpeculan-cruiser.json');
-    assert.ok(existsSync(p), '01-vulpeculan-cruiser.json should exist at config/ships/');
+  it('config/templates/stock/ships/01-vulpeculan-cruiser.json exists', () => {
+    const p = join(PROJECT_ROOT, 'config', 'templates', 'stock', 'ships', '01-vulpeculan-cruiser.json');
+    assert.ok(existsSync(p), '01-vulpeculan-cruiser.json should exist at config/templates/stock/ships/');
   });
 
   it('vulpeculan-cruiser.json has correct fields and values', () => {
-    const p = join(PROJECT_ROOT, 'config', 'ships', '01-vulpeculan-cruiser.json');
+    const p = join(PROJECT_ROOT, 'config', 'templates', 'stock', 'ships', '01-vulpeculan-cruiser.json');
     assert.ok(existsSync(p), '01-vulpeculan-cruiser.json must exist');
     const cfg = JSON.parse(readFileSync(p, 'utf8'));
     assert.equal(cfg.name, 'Vulpeculan Cruiser');
@@ -45,13 +45,13 @@ describe('Config Files', () => {
     assert.equal(expectedPrice, 41300);
   });
 
-  it('config/ships/02-hydra-skiff.json exists', () => {
-    const p = join(PROJECT_ROOT, 'config', 'ships', '02-hydra-skiff.json');
-    assert.ok(existsSync(p), '02-hydra-skiff.json should exist at config/ships/');
+  it('config/templates/stock/ships/02-hydra-skiff.json exists', () => {
+    const p = join(PROJECT_ROOT, 'config', 'templates', 'stock', 'ships', '02-hydra-skiff.json');
+    assert.ok(existsSync(p), '02-hydra-skiff.json should exist at config/templates/stock/ships/');
   });
 
   it('hydra-skiff.json has correct fields and values', () => {
-    const p = join(PROJECT_ROOT, 'config', 'ships', '02-hydra-skiff.json');
+    const p = join(PROJECT_ROOT, 'config', 'templates', 'stock', 'ships', '02-hydra-skiff.json');
     assert.ok(existsSync(p), '02-hydra-skiff.json must exist');
     const cfg = JSON.parse(readFileSync(p, 'utf8'));
     assert.equal(cfg.name, 'Hydra Skiff');

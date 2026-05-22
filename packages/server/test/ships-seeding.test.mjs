@@ -9,7 +9,7 @@ import { ensureServer, createPool } from './global-setup.mjs';
 const __filename = fileURLToPath(import.meta.url);
 const PROJECT_ROOT = join(dirname(__filename), '..');
 
-const merchantCfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', '01-vulpeculan-cruiser.json'), 'utf8'));
+const merchantCfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'templates', 'stock', 'ships', '01-vulpeculan-cruiser.json'), 'utf8'));
 const UNIVERSE_ID = 1;
 
 // ─── globals ──────────────────────────────────────────────────────────────────

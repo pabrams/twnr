@@ -2,7 +2,7 @@ import { describe, it, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { connectWS, closeWS, wsRequest, createTestUser } from './helpers.mjs';
 import { ensureServer, createPool } from './global-setup.mjs';
-import { ClientMsgType, ServerMsgType } from '@twnr/shared';
+import { ClientTag, ServerTag } from '@twnr/shared';
 
 const UNIVERSE_ID = 1;
 
@@ -195,10 +195,10 @@ describe('Deploy mines', () => {
     await setShipHardware(attackerPlayer.ship_id, 'proximity_mine', 10);
     const res = await wsRequest(
       attackerWs,
-      { type: ClientMsgType.DeployMine, mineType: 'proximity', quantity: 5 },
-      ServerMsgType.DeployMineResult,
+      { type: ClientTag.DeployMine, mineType: 'proximity', quantity: 5 },
+      ServerTag.DeployMineResult,
     );
-    assert.equal(res.type, ServerMsgType.DeployMineResult);
+    assert.equal(res.type, ServerTag.DeployMineResult);
     assert.equal(res.deployed, 5);
     assert.equal(res.shipRemaining, 5);
     assert.equal(res.sectorTotal, 5);
@@ -228,10 +228,10 @@ describe('Deploy mines', () => {
 
     const res = await wsRequest(
       attackerWs,
-      { type: ClientMsgType.DeployMine, mineType: 'proximity', quantity: 1 },
-      ServerMsgType.DeployMineResult,
+      { type: ClientTag.DeployMine, mineType: 'proximity', quantity: 1 },
+      ServerTag.DeployMineResult,
     );
-    assert.equal(res.type, ServerMsgType.Error);
+    assert.equal(res.type, ServerTag.Error);
     await pool.query('DELETE FROM players WHERE id = $1', [otherId]);
     await closeWS(attackerWs);
   });
@@ -240,10 +240,10 @@ describe('Deploy mines', () => {
     await setShipHardware(attackerPlayer.ship_id, 'seeker_mine', 2);
     const res = await wsRequest(
       attackerWs,
-      { type: ClientMsgType.DeployMine, mineType: 'seeker', quantity: 5 },
-      ServerMsgType.DeployMineResult,
+      { type: ClientTag.DeployMine, mineType: 'seeker', quantity: 5 },
+      ServerTag.DeployMineResult,
     );
-    assert.equal(res.type, ServerMsgType.Error);
+    assert.equal(res.type, ServerTag.Error);
     await closeWS(attackerWs);
   });
 
@@ -252,20 +252,20 @@ describe('Deploy mines', () => {
     await setShipHardware(attackerPlayer.ship_id, 'seeker_mine', 5);
     await wsRequest(
       attackerWs,
-      { type: ClientMsgType.DeployMine, mineType: 'proximity', quantity: 3 },
-      ServerMsgType.DeployMineResult,
+      { type: ClientTag.DeployMine, mineType: 'proximity', quantity: 3 },
+      ServerTag.DeployMineResult,
     );
     await wsRequest(
       attackerWs,
-      { type: ClientMsgType.DeployMine, mineType: 'seeker', quantity: 2 },
-      ServerMsgType.DeployMineResult,
+      { type: ClientTag.DeployMine, mineType: 'seeker', quantity: 2 },
+      ServerTag.DeployMineResult,
     );
     const res = await wsRequest(
       attackerWs,
-      { type: ClientMsgType.ListDeployedMines },
-      ServerMsgType.ListDeployedMinesResult,
+      { type: ClientTag.ListDeployedMines },
+      ServerTag.ListDeployedMinesResult,
     );
-    assert.equal(res.type, ServerMsgType.ListDeployedMinesResult);
+    assert.equal(res.type, ServerTag.ListDeployedMinesResult);
     const types = res.mines.map((m) => m.mineType).sort();
     assert.deepEqual(types, ['proximity', 'seeker']);
     const prox = res.mines.find((m) => m.mineType === 'proximity');
@@ -301,10 +301,10 @@ describe('Mine disruptor', () => {
 
     const res = await wsRequest(
       wsConn,
-      { type: ClientMsgType.MineDisruptor, targetSector: adj },
-      ServerMsgType.MineDisruptorResult,
+      { type: ClientTag.MineDisruptor, targetSector: adj },
+      ServerTag.MineDisruptorResult,
     );
-    assert.equal(res.type, ServerMsgType.MineDisruptorResult);
+    assert.equal(res.type, ServerTag.MineDisruptorResult);
     assert.equal(res.minesDisrupted, 4);
     assert.equal(res.proximityMinesRemaining, 6);
 
@@ -326,10 +326,10 @@ describe('Mine disruptor', () => {
     // 99999 is not a real sector and definitely not adjacent.
     const res = await wsRequest(
       wsConn,
-      { type: ClientMsgType.MineDisruptor, targetSector: 99999 },
-      ServerMsgType.MineDisruptorResult,
+      { type: ClientTag.MineDisruptor, targetSector: 99999 },
+      ServerTag.MineDisruptorResult,
     );
-    assert.equal(res.type, ServerMsgType.Error);
+    assert.equal(res.type, ServerTag.Error);
     await closeWS(wsConn);
   });
 });
@@ -366,7 +366,7 @@ describe('Proximity mine detonation on entry', () => {
       function handler(data) {
         const raw = JSON.parse(data.toString());
         const msg = raw.payload ?? raw;
-        if (msg.type === ServerMsgType.ProximityMineHit) {
+        if (msg.type === ServerTag.ProximityMineHit) {
           clearTimeout(timer);
           wsConn.removeListener('message', handler);
           resolve(msg);
@@ -377,8 +377,8 @@ describe('Proximity mine detonation on entry', () => {
 
     await wsRequest(
       wsConn,
-      { type: ClientMsgType.Move, sector: adj },
-      ServerMsgType.MoveResult,
+      { type: ClientTag.Move, sector: adj },
+      ServerTag.MoveResult,
     );
 
     const hit = await hitPromise;
@@ -412,8 +412,8 @@ describe('Proximity mine detonation on entry', () => {
 
     await wsRequest(
       wsConn,
-      { type: ClientMsgType.Move, sector: adj },
-      ServerMsgType.MoveResult,
+      { type: ClientTag.Move, sector: adj },
+      ServerTag.MoveResult,
     );
 
     // Ship survived: shields and drones intact.
@@ -449,8 +449,8 @@ describe('Seeker mine attach/drop', () => {
 
     await wsRequest(
       wsConn,
-      { type: ClientMsgType.Move, sector: adj },
-      ServerMsgType.MoveResult,
+      { type: ClientTag.Move, sector: adj },
+      ServerTag.MoveResult,
     );
 
     // Allow async post-move resolution to flush.
@@ -512,8 +512,8 @@ describe('Seeker mine attach/drop', () => {
 
     await wsRequest(
       wsConn,
-      { type: ClientMsgType.Move, sector: adj },
-      ServerMsgType.MoveResult,
+      { type: ClientTag.Move, sector: adj },
+      ServerTag.MoveResult,
     );
     await new Promise((r) => setTimeout(r, 200));
 
@@ -561,10 +561,10 @@ describe('Track seeker mines', () => {
 
     const res = await wsRequest(
       wsConn,
-      { type: ClientMsgType.TrackSeekerMines },
-      ServerMsgType.TrackSeekerMinesResult,
+      { type: ClientTag.TrackSeekerMines },
+      ServerTag.TrackSeekerMinesResult,
     );
-    assert.equal(res.type, ServerMsgType.TrackSeekerMinesResult);
+    assert.equal(res.type, ServerTag.TrackSeekerMinesResult);
     assert.equal(res.targets.length, 1);
     assert.equal(res.targets[0].sectorNumber, 5);
     assert.equal(res.targets[0].targetShipId, victimShipId);

@@ -2,7 +2,7 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createTestUser, createTestPlayer, connectWS, closeWS, wsRequest } from './helpers.mjs';
 import { ensureServer, createPool, BASE, WS_BASE } from './global-setup.mjs';
-import { ClientMsgType, ServerMsgType } from '@twnr/shared';
+import { ClientTag, ServerTag } from '@twnr/shared';
 
 async function wsConnectExpectClose(token, universeId, timeoutMs = 3000) {
   const { default: WebSocket } = await import('ws');
@@ -157,9 +157,9 @@ describe('Attack result message', () => {
     const { ws: ws1 } = await connectPlayer(atk.token);
     const { ws: ws2 } = await connectPlayer(def.token);
     try {
-      const res = await wsRequest(ws1, { type: ClientMsgType.AttackShip, targetPlayerId: def.id, drones: 2 }, ServerMsgType.AttackShipResult);
-      assert.equal(res.type, ServerMsgType.AttackShipResult, 'Should receive an attackResult message');
-      assert.notEqual(res.type, ServerMsgType.Error, 'Should not be an error');
+      const res = await wsRequest(ws1, { type: ClientTag.AttackShip, targetPlayerId: def.id, drones: 2 }, ServerTag.AttackShipResult);
+      assert.equal(res.type, ServerTag.AttackShipResult, 'Should receive an attackResult message');
+      assert.notEqual(res.type, ServerTag.Error, 'Should not be an error');
     } finally {
       await closeWS(ws1);
       await closeWS(ws2);

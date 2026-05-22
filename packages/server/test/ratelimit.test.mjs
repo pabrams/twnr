@@ -2,7 +2,7 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createTestUser, createTestPlayer } from './helpers.mjs';
 import { ensureServer, createPool, BASE, WS_BASE } from './global-setup.mjs';
-import { ClientMsgType, ServerMsgType } from '@twnr/shared';
+import { ClientTag, ServerTag } from '@twnr/shared';
 
 const UNIVERSE_ID = 1;
 
@@ -78,7 +78,7 @@ describe('Rate Limiting', () => {
         conn.on('message', (data) => {
           const raw = JSON.parse(data.toString());
           const msg = raw.payload ?? raw;
-          if (msg.type === ServerMsgType.Welcome) { clearTimeout(timer); resolve(conn); }
+          if (msg.type === ServerTag.Welcome) { clearTimeout(timer); resolve(conn); }
         });
         conn.on('error', (err) => { clearTimeout(timer); reject(err); });
       });
@@ -88,14 +88,14 @@ describe('Rate Limiting', () => {
 
       // Send 55 display messages rapidly — burst cap is 50, so last 5 should be rate limited
       for (let i = 0; i < 55; i++) {
-        ws.send(JSON.stringify({ type: ClientMsgType.SectorDisplay }));
+        ws.send(JSON.stringify({ type: ClientTag.SectorDisplay }));
       }
 
       // Wait for responses to settle
       await new Promise((resolve) => setTimeout(resolve, 500));
       ws.close();
 
-      const rateLimited = responses.some((r) => r.type === ServerMsgType.RateLimited);
+      const rateLimited = responses.some((r) => r.type === ServerTag.RateLimited);
       assert.ok(rateLimited, `Expected a rateLimited message after 55 rapid messages, got: ${JSON.stringify(responses.map(r => r.type))}`);
     });
   });
@@ -112,14 +112,14 @@ describe('Rate Limiting', () => {
         conn.on('message', (data) => {
           const raw = JSON.parse(data.toString());
           const msg = raw.payload ?? raw;
-          if (msg.type === ServerMsgType.Welcome) { clearTimeout(timer); resolve(conn); }
+          if (msg.type === ServerTag.Welcome) { clearTimeout(timer); resolve(conn); }
         });
         conn.on('error', (err) => { clearTimeout(timer); reject(err); });
       });
 
       // Exhaust the burst capacity
       for (let i = 0; i < 55; i++) {
-        ws.send(JSON.stringify({ type: ClientMsgType.SectorDisplay }));
+        ws.send(JSON.stringify({ type: ClientTag.SectorDisplay }));
       }
 
       // Wait for token bucket to refill (refills 20/sec)
@@ -131,18 +131,18 @@ describe('Rate Limiting', () => {
         function handler(data) {
           const raw = JSON.parse(data.toString());
           const msg = raw.payload ?? raw;
-          if (msg.type === ServerMsgType.SectorDisplayResult || msg.type === ServerMsgType.RateLimited) {
+          if (msg.type === ServerTag.SectorDisplayResult || msg.type === ServerTag.RateLimited) {
             clearTimeout(timer);
             ws.removeListener('message', handler);
             resolve(msg);
           }
         }
         ws.on('message', handler);
-        ws.send(JSON.stringify({ type: ClientMsgType.SectorDisplay }));
+        ws.send(JSON.stringify({ type: ClientTag.SectorDisplay }));
       });
 
       ws.close();
-      assert.equal(result.type, ServerMsgType.SectorDisplayResult,
+      assert.equal(result.type, ServerTag.SectorDisplayResult,
         `Expected sectorDisplayResult after recovery, got ${result.type}`);
     });
 
@@ -163,7 +163,7 @@ describe('Rate Limiting', () => {
         conn.on('message', (data) => {
           const raw = JSON.parse(data.toString());
           const msg = raw.payload ?? raw;
-          if (msg.type === ServerMsgType.Welcome) { clearTimeout(timer); resolve(conn); }
+          if (msg.type === ServerTag.Welcome) { clearTimeout(timer); resolve(conn); }
         });
         conn.on('error', (err) => { clearTimeout(timer); reject(err); });
       });
@@ -174,14 +174,14 @@ describe('Rate Limiting', () => {
         function handler(data) {
           const raw = JSON.parse(data.toString());
           const msg = raw.payload ?? raw;
-          if (msg.type === ServerMsgType.SectorDisplayResult) {
+          if (msg.type === ServerTag.SectorDisplayResult) {
             clearTimeout(timer);
             ws.removeListener('message', handler);
             resolve(msg);
           }
         }
         ws.on('message', handler);
-        ws.send(JSON.stringify({ type: ClientMsgType.SectorDisplay }));
+        ws.send(JSON.stringify({ type: ClientTag.SectorDisplay }));
       });
 
       const startSector = sectorResult.sector;
@@ -198,14 +198,14 @@ describe('Rate Limiting', () => {
       // Send 55 rapid Move commands (ping-pong) — this will trigger rate limiting
       for (let i = 0; i < 55; i++) {
         const target = i % 2 === 0 ? adjSector : startSector;
-        ws.send(JSON.stringify({ type: ClientMsgType.Move, sector: target }));
+        ws.send(JSON.stringify({ type: ClientTag.Move, sector: target }));
       }
 
       // Wait for rate limit tokens to refill
       await new Promise((resolve) => setTimeout(resolve, 3000));
 
       // Verify we got at least one rateLimited response
-      const gotRateLimited = allResponses.some((r) => r.type === ServerMsgType.RateLimited);
+      const gotRateLimited = allResponses.some((r) => r.type === ServerTag.RateLimited);
       assert.ok(gotRateLimited, 'Should have hit rate limit during burst');
 
       // Now verify the connection is still usable — send a SectorDisplay and expect a real response
@@ -216,18 +216,18 @@ describe('Rate Limiting', () => {
         function handler(data) {
           const raw = JSON.parse(data.toString());
           const msg = raw.payload ?? raw;
-          if (msg.type === ServerMsgType.SectorDisplayResult) {
+          if (msg.type === ServerTag.SectorDisplayResult) {
             clearTimeout(timer);
             ws.removeListener('message', handler);
             resolve(msg);
           }
         }
         ws.on('message', handler);
-        ws.send(JSON.stringify({ type: ClientMsgType.SectorDisplay }));
+        ws.send(JSON.stringify({ type: ClientTag.SectorDisplay }));
       });
 
       ws.close();
-      assert.equal(recovery.type, ServerMsgType.SectorDisplayResult,
+      assert.equal(recovery.type, ServerTag.SectorDisplayResult,
         'Connection should be responsive after rate-limited burst');
     });
   });

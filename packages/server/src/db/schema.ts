@@ -1,25 +1,35 @@
-import fs from 'fs';
 import path from 'path';
+import { z } from 'zod';
 import { pool, ensureDatabase, databaseName } from './pool.js';
 import { shipConfigs } from '../ship-config.js';
 import { planetConfigs } from '../planet-config.js';
 import { universeConfig } from '@twnr/shared';
 import type { ShipConfig } from '@twnr/shared';
+import { loadJsonFile } from '../util/load-json.js';
 
-type HardwareItem = {
-    name: string;
-    label: string;
-    kind: 'stackable' | 'toggle';
-    default_price: number;
-    result_msg_type: string;
-    result_extra: unknown;
-};
+const HardwareItemSchema = z.object({
+    name: z.string(),
+    label: z.string(),
+    kind: z.enum(['stackable', 'toggle']),
+    default_price: z.number(),
+    result_msg_type: z.string(),
+    result_extra: z.unknown(),
+});
+type HardwareItem = z.infer<typeof HardwareItemSchema>;
+
+const StockTemplateMetaSchema = z.object({
+    starter_ship_slug: z.string(),
+});
+
 const STOCK_TEMPLATE_DIR = path.join(process.cwd(), 'config', 'templates', 'stock');
-const hardwareItems: HardwareItem[] = JSON.parse(
-    fs.readFileSync(path.join(STOCK_TEMPLATE_DIR, 'hardware.json'), 'utf-8'),
+
+const hardwareItems: HardwareItem[] = loadJsonFile(
+    path.join(STOCK_TEMPLATE_DIR, 'hardware.json'),
+    z.array(HardwareItemSchema),
 );
-const stockTemplateMeta: { starter_ship_slug: string } = JSON.parse(
-    fs.readFileSync(path.join(STOCK_TEMPLATE_DIR, 'template.json'), 'utf-8'),
+const stockTemplateMeta = loadJsonFile(
+    path.join(STOCK_TEMPLATE_DIR, 'template.json'),
+    StockTemplateMetaSchema,
 );
 
 let isConnected = false;

@@ -63,7 +63,7 @@ import {
     getShipCargoWithCredits,
 } from '../db/queries/ship.js';
 import { planetConfigs } from '../planet-config.js';
-import { reputationDeltas, experienceDeltas } from '../game-config.js';
+import { reputationDeltas, experienceDeltas, scalarDelta } from '../game-config.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 import { cargoUsed } from './cargo-utils.js';
 import { notifyAttributeChange, notifyTurnChange } from '../services/notify.js';
@@ -235,8 +235,8 @@ export async function serveDestroyPlanet(playerId: number): Promise<void> {
     }
     const planetName = ownership.name;
 
-    const destroyRep = reputationDeltas.amountChangeFor.destroyPlanet ?? 0;
-    const destroyExp = experienceDeltas.amountChangeFor.destroyPlanet ?? 0;
+    const destroyRep = scalarDelta(reputationDeltas, 'destroyPlanet');
+    const destroyExp = scalarDelta(experienceDeltas, 'destroyPlanet');
     try {
         await withTransaction(async (client) => {
             await decrementShipHardwareByName(playerId, 'planet_buster', client);
@@ -422,8 +422,8 @@ export async function serveUseTerraformDevice(playerId: number): Promise<void> {
                     : currentRep < 0
                       ? 'redCreatesPlanet'
                       : 'neutralCreatesPlanet';
-            const repDelta = reputationDeltas.amountChangeFor[bucket] ?? 0;
-            const expDelta = experienceDeltas.amountChangeFor[bucket] ?? 0;
+            const repDelta = scalarDelta(reputationDeltas, bucket);
+            const expDelta = scalarDelta(experienceDeltas, bucket);
             await adjustReputationAndExperience(playerId, repDelta, expDelta, client);
 
             return {

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { connectWS, closeWS, wsRequest, waitForMsg } from './helpers.mjs';
 import { ensureServer, createPool } from './global-setup.mjs';
 import { adminKeyPost, adminKeyDelete } from './admin-helpers.mjs';
-import { ClientMsgType, ServerMsgType } from '@twnr/shared';
+import { ClientTag, ServerTag } from '@twnr/shared';
 
 const DEFAULT_UNIVERSE_ID = 1;
 
@@ -40,11 +40,11 @@ function requestNeighborhood(ws, halfExtent = 600) {
   return wsRequest(
     ws,
     {
-      type: ClientMsgType.GetNeighborhood,
+      type: ClientTag.GetNeighborhood,
       halfWidthWorld: halfExtent,
       halfHeightWorld: halfExtent,
     },
-    ServerMsgType.NeighborhoodResult,
+    ServerTag.NeighborhoodResult,
   );
 }
 
@@ -73,7 +73,7 @@ describe('GET_NEIGHBORHOOD wire protocol', () => {
     const { ws } = await connectWS({ pool, universeId: randomUniverseId });
     try {
       const msg = await requestNeighborhood(ws, 3);
-      assert.equal(msg.type, ServerMsgType.NeighborhoodResult);
+      assert.equal(msg.type, ServerTag.NeighborhoodResult);
       assert.equal(msg.topology, 'random');
       assert.deepStrictEqual(msg.sectors, []);
       assert.deepStrictEqual(msg.warps, []);
@@ -87,10 +87,10 @@ describe('GET_NEIGHBORHOOD wire protocol', () => {
     try {
       const msg = await wsRequest(
         ws,
-        { type: ClientMsgType.GetNeighborhood, halfWidthWorld: 'big', halfHeightWorld: 600 },
-        ServerMsgType.NeighborhoodResult,
+        { type: ClientTag.GetNeighborhood, halfWidthWorld: 'big', halfHeightWorld: 600 },
+        ServerTag.NeighborhoodResult,
       );
-      assert.equal(msg.type, ServerMsgType.Error);
+      assert.equal(msg.type, ServerTag.Error);
       assert.match(msg.message, /halfWidthWorld and halfHeightWorld must be numbers/i);
     } finally {
       await closeWS(ws);
@@ -169,9 +169,9 @@ describe('GET_NEIGHBORHOOD in a proximal universe', () => {
     try {
       await drain(p1.ws); await drain(p2.ws);
       // Move p1 one hop.
-      const warps1 = await wsRequest(p1.ws, { type: ClientMsgType.WarpsOut, id: p1.welcome.sector }, ServerMsgType.WarpsOutResult);
+      const warps1 = await wsRequest(p1.ws, { type: ClientTag.WarpsOut, id: p1.welcome.sector }, ServerTag.WarpsOutResult);
       const nextSector = warps1.warps[0].sector;
-      await wsRequest(p1.ws, { type: ClientMsgType.Move, sector: nextSector }, ServerMsgType.MoveResult);
+      await wsRequest(p1.ws, { type: ClientTag.Move, sector: nextSector }, ServerTag.MoveResult);
       await drain(p1.ws);
 
       const nbh1 = await requestNeighborhood(p1.ws, 3);
@@ -201,13 +201,13 @@ describe('GET_NEIGHBORHOOD in a proximal universe', () => {
       await drain(ws);
       // Negative → clamped to default.
       const m1 = await requestNeighborhood(ws, -10);
-      assert.equal(m1.type, ServerMsgType.NeighborhoodResult);
+      assert.equal(m1.type, ServerTag.NeighborhoodResult);
       // Below MIN_HALF_EXTENT (50) → clamped up to MIN.
       const m2 = await requestNeighborhood(ws, 5);
-      assert.equal(m2.type, ServerMsgType.NeighborhoodResult);
+      assert.equal(m2.type, ServerTag.NeighborhoodResult);
       // Above MAX_HALF_EXTENT (1_000_000) → clamped down to MAX.
       const m3 = await requestNeighborhood(ws, 5_000_000);
-      assert.equal(m3.type, ServerMsgType.NeighborhoodResult);
+      assert.equal(m3.type, ServerTag.NeighborhoodResult);
     } finally {
       await closeWS(ws);
     }
@@ -219,7 +219,7 @@ describe('Per-player observation snapshots', () => {
     const { ws, welcome } = await connectWS({ pool, universeId: DEFAULT_UNIVERSE_ID });
     try {
       // Hydrate: trigger a sector display to force an observation record.
-      await wsRequest(ws, { type: ClientMsgType.SectorDisplay }, ServerMsgType.SectorDisplayResult);
+      await wsRequest(ws, { type: ClientTag.SectorDisplay }, ServerTag.SectorDisplayResult);
       // Look up player id from the welcome.
       const pid = welcome.playerId;
       const res = await pool.query(

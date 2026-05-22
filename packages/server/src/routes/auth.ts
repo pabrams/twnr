@@ -1,9 +1,21 @@
 import { Router } from 'express';
 import { randomBytes } from 'crypto';
+import { z } from 'zod';
 import type { AuthResponse, LogoutResponse } from '@twnr/shared';
 import type { RouteDeps, Middleware } from './middleware.js';
-import { asyncHandler, HttpError } from './async-handler.js';
+import { asyncHandler, HttpError, parseBody } from './async-handler.js';
 import { universeConfig } from '@twnr/shared';
+
+const RegisterBodySchema = z.object({
+    name: z.string().min(1),
+    email: z.string().min(1),
+    password: z.string().min(1),
+});
+
+const LoginBodySchema = z.object({
+    email: z.string().min(1),
+    password: z.string().min(1),
+});
 import {
     bumpUserTokenVersion,
     createGuestUser,
@@ -45,10 +57,7 @@ export function createAuthRoutes(router: Router, deps: RouteDeps, middleware: Mi
         registerLimiter,
         asyncHandler(async (req, res) => {
             if (signupDisabled) throw new HttpError(403, 'Signup is disabled');
-            const { name, email, password } = req.body;
-            if (!name || !email || !password) {
-                throw new HttpError(400, 'name, email and password are required');
-            }
+            const { name, email, password } = parseBody(req, RegisterBodySchema);
 
             const hash = hashPassword(password);
             const role =
@@ -163,10 +172,7 @@ export function createAuthRoutes(router: Router, deps: RouteDeps, middleware: Mi
         '/api/auth/login',
         loginLimiter,
         asyncHandler(async (req, res) => {
-            const { email, password } = req.body;
-            if (!email || !password) {
-                throw new HttpError(400, 'email and password are required');
-            }
+            const { email, password } = parseBody(req, LoginBodySchema);
 
             const user = await getUserByEmail(email);
             if (!user || !verifyPassword(password, user.password_hash)) {

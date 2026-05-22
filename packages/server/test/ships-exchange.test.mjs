@@ -5,25 +5,25 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { connectWS as _connectWS, closeWS, wsRequest } from './helpers.mjs';
 import { ensureServer, createPool } from './global-setup.mjs';
-import { ClientMsgType, ServerMsgType } from '@twnr/shared';
+import { ClientTag, ServerTag } from '@twnr/shared';
 
 const __filename = fileURLToPath(import.meta.url);
 const PROJECT_ROOT = join(dirname(__filename), '..');
 
-const merchantCfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', '01-vulpeculan-cruiser.json'), 'utf8'));
-const warbirdCfg  = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', '02-hydra-skiff.json'),  'utf8'));
-const tugCfg      = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'ships', '11-purveyor-tug.json'),  'utf8'));
+const merchantCfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'templates', 'stock', 'ships', '01-vulpeculan-cruiser.json'), 'utf8'));
+const warbirdCfg  = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'templates', 'stock', 'ships', '02-hydra-skiff.json'),  'utf8'));
+const tugCfg      = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'templates', 'stock', 'ships', '11-purveyor-tug.json'),  'utf8'));
 const shipPrice = (cfg) => cfg.costDrive + cfg.costComputer + cfg.costHull + cfg.startingHolds * cfg.holdCost;
 const STARTING_CREDITS = 10000;
 const UNIVERSE_ID = 1;
 
 async function navigateTo(ws, targetSector) {
-  const disp = await wsRequest(ws, { type: ClientMsgType.SectorDisplay }, ServerMsgType.SectorDisplayResult);
+  const disp = await wsRequest(ws, { type: ClientTag.SectorDisplay }, ServerTag.SectorDisplayResult);
   if (disp.sector === targetSector) return;
-  const path = await wsRequest(ws, { type: ClientMsgType.ShortestPath, from: disp.sector, to: targetSector }, ServerMsgType.ShortestPathResult);
-  if (path.type === ServerMsgType.Error) throw new Error(`No path to ${targetSector}`);
+  const path = await wsRequest(ws, { type: ClientTag.ShortestPath, from: disp.sector, to: targetSector }, ServerTag.ShortestPathResult);
+  if (path.type === ServerTag.Error) throw new Error(`No path to ${targetSector}`);
   for (let i = 1; i < path.path.length; i++) {
-    await wsRequest(ws, { type: ClientMsgType.Move, sector: path.path[i].sector }, ServerMsgType.MoveResult);
+    await wsRequest(ws, { type: ClientTag.Move, sector: path.path[i].sector }, ServerTag.MoveResult);
   }
 }
 
@@ -57,7 +57,7 @@ describe('Ship exchange — validation', () => {
   it('returns "Not at Starbase" when player is not in Starbase', async () => {
     const { ws } = await connectWS();
     try {
-      const msg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: warbirdCfg.name }, ServerMsgType.BuyShipTradeinResult);
+      const msg = await wsRequest(ws, { type: ClientTag.BuyShipTradein, targetShipName: warbirdCfg.name }, ServerTag.BuyShipTradeinResult);
       assert.equal(msg.type, 'error');
       assert.equal(msg.message, 'Not at Starbase');
     } finally {
@@ -72,8 +72,8 @@ describe('Ship exchange — validation', () => {
     const { ws } = await connectWS();
     try {
       await navigateTo(ws, starbaseId);
-      await wsRequest(ws, { type: ClientMsgType.DockStarbase }, ServerMsgType.DockStarbaseResult);
-      const msg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: 'Galaxy Hauler' }, ServerMsgType.BuyShipTradeinResult);
+      await wsRequest(ws, { type: ClientTag.DockStarbase }, ServerTag.DockStarbaseResult);
+      const msg = await wsRequest(ws, { type: ClientTag.BuyShipTradein, targetShipName: 'Galaxy Hauler' }, ServerTag.BuyShipTradeinResult);
       assert.equal(msg.type, 'error');
       assert.equal(msg.message, 'Unknown ship');
     } finally {
@@ -88,8 +88,8 @@ describe('Ship exchange — validation', () => {
     const { ws } = await connectWS();
     try {
       await navigateTo(ws, starbaseId);
-      await wsRequest(ws, { type: ClientMsgType.DockStarbase }, ServerMsgType.DockStarbaseResult);
-      const msg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: merchantCfg.name }, ServerMsgType.BuyShipTradeinResult);
+      await wsRequest(ws, { type: ClientTag.DockStarbase }, ServerTag.DockStarbaseResult);
+      const msg = await wsRequest(ws, { type: ClientTag.BuyShipTradein, targetShipName: merchantCfg.name }, ServerTag.BuyShipTradeinResult);
       assert.equal(msg.type, 'error');
       assert.equal(msg.message, 'Already on that ship');
     } finally {
@@ -105,12 +105,12 @@ describe('Ship exchange — validation', () => {
     const playerId = welcome.playerId;
     try {
       await navigateTo(ws, starbaseId);
-      await wsRequest(ws, { type: ClientMsgType.DockStarbase }, ServerMsgType.DockStarbaseResult);
+      await wsRequest(ws, { type: ClientTag.DockStarbase }, ServerTag.DockStarbaseResult);
       // Torpedo Boat costs more than Vulpeculan Cruiser, so this is a real upgrade
       const upgradeCost = shipPrice(tugCfg) - shipPrice(merchantCfg);
       assert.ok(upgradeCost > 0, 'Purveyor Tug should cost more than Vulpeculan Cruiser');
       await pool.query('UPDATE players SET credits = $1 WHERE id = $2', [upgradeCost - 1, playerId]);
-      const msg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: tugCfg.name }, ServerMsgType.BuyShipTradeinResult);
+      const msg = await wsRequest(ws, { type: ClientTag.BuyShipTradein, targetShipName: tugCfg.name }, ServerTag.BuyShipTradeinResult);
       assert.equal(msg.type, 'error');
       assert.equal(msg.message, 'Insufficient credits');
     } finally {
@@ -136,9 +136,9 @@ describe('Ship exchange — success', () => {
     const playerId = welcome.playerId;
     try {
       await navigateTo(ws, starbaseId);
-      await wsRequest(ws, { type: ClientMsgType.DockStarbase }, ServerMsgType.DockStarbaseResult);
-      const msg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: warbirdCfg.name }, ServerMsgType.BuyShipTradeinResult);
-      assert.equal(msg.type, ServerMsgType.BuyShipTradeinResult);
+      await wsRequest(ws, { type: ClientTag.DockStarbase }, ServerTag.DockStarbaseResult);
+      const msg = await wsRequest(ws, { type: ClientTag.BuyShipTradein, targetShipName: warbirdCfg.name }, ServerTag.BuyShipTradeinResult);
+      assert.equal(msg.type, ServerTag.BuyShipTradeinResult);
       assert.equal(msg.shipName, warbirdCfg.name);
       assert.equal(msg.credits, STARTING_CREDITS - upgradeCost);
       assert.equal(msg.maxDrones, warbirdCfg.maxDrones);
@@ -164,13 +164,13 @@ describe('Ship exchange — success', () => {
     const playerId = welcome.playerId;
     try {
       // Buy some drones and shields first (player starts at sector 1, class 0 port)
-      await wsRequest(ws, { type: ClientMsgType.BuyDrones, quantity: Math.min(5, merchantCfg.maxDrones) }, ServerMsgType.BuyDronesResult);
-      await wsRequest(ws, { type: ClientMsgType.BuyShields, quantity: Math.min(4, merchantCfg.maxShields) }, ServerMsgType.BuyShieldsResult);
+      await wsRequest(ws, { type: ClientTag.BuyDrones, quantity: Math.min(5, merchantCfg.maxDrones) }, ServerTag.BuyDronesResult);
+      await wsRequest(ws, { type: ClientTag.BuyShields, quantity: Math.min(4, merchantCfg.maxShields) }, ServerTag.BuyShieldsResult);
 
       await navigateTo(ws, starbaseId);
-      await wsRequest(ws, { type: ClientMsgType.DockStarbase }, ServerMsgType.DockStarbaseResult);
-      const msg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: warbirdCfg.name }, ServerMsgType.BuyShipTradeinResult);
-      assert.equal(msg.type, ServerMsgType.BuyShipTradeinResult);
+      await wsRequest(ws, { type: ClientTag.DockStarbase }, ServerTag.DockStarbaseResult);
+      const msg = await wsRequest(ws, { type: ClientTag.BuyShipTradein, targetShipName: warbirdCfg.name }, ServerTag.BuyShipTradeinResult);
+      assert.equal(msg.type, ServerTag.BuyShipTradeinResult);
 
       const shipRes = await pool.query('SELECT drones, shields FROM ships WHERE id = (SELECT ship_id FROM players WHERE id = $1)', [playerId]);
       assert.equal(Number(shipRes.rows[0].drones), 0, 'drones should be reset to 0 on exchange');
@@ -187,12 +187,12 @@ describe('Ship exchange — success', () => {
     const { ws } = await connectWS();
     try {
       await navigateTo(ws, starbaseId);
-      await wsRequest(ws, { type: ClientMsgType.DockStarbase }, ServerMsgType.DockStarbaseResult);
+      await wsRequest(ws, { type: ClientTag.DockStarbase }, ServerTag.DockStarbaseResult);
       // Upgrade first
-      await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: warbirdCfg.name }, ServerMsgType.BuyShipTradeinResult);
+      await wsRequest(ws, { type: ClientTag.BuyShipTradein, targetShipName: warbirdCfg.name }, ServerTag.BuyShipTradeinResult);
       // Now downgrade
-      const msg = await wsRequest(ws, { type: ClientMsgType.BuyShipTradein, targetShipName: merchantCfg.name }, ServerMsgType.BuyShipTradeinResult);
-      assert.equal(msg.type, ServerMsgType.BuyShipTradeinResult);
+      const msg = await wsRequest(ws, { type: ClientTag.BuyShipTradein, targetShipName: merchantCfg.name }, ServerTag.BuyShipTradeinResult);
+      assert.equal(msg.type, ServerTag.BuyShipTradeinResult);
       assert.equal(msg.shipName, merchantCfg.name);
       assert.equal(msg.credits, STARTING_CREDITS, 'credits restored after upgrade then downgrade');
       assert.equal(msg.cargoLimit, merchantCfg.startingHolds);

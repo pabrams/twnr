@@ -1,562 +1,657 @@
-// WebSocket messages (client → server)
+// WebSocket messages (client → server). Each export pairs a zod schema
+// (used for parsing untrusted JSON at the WS boundary) with the inferred
+// TypeScript type, so existing consumers can keep importing the type name.
 
+import { z } from 'zod';
 import { ClientTag } from './tags.js';
 
-export type MoveCommand = {
-    type: typeof ClientTag.Move;
-    sector: number;
-};
-
-export type MoveToPreviousCommand = {
-    type: typeof ClientTag.MoveToPrevious;
-};
-
-export type GetAttackTargetsCommand = {
-    type: typeof ClientTag.GetAttackTargets;
-};
-
-export type StarbaseInfoCommand = {
-    type: typeof ClientTag.StarbaseInfo;
-};
-
-export type TerraformInfoCommand = {
-    type: typeof ClientTag.TerraformInfo;
-};
-
-export type HardwareStoreInfoCommand = {
-    type: typeof ClientTag.HardwareStoreInfo;
-};
-
-export type SectorDisplayCommand = {
-    type: typeof ClientTag.SectorDisplay;
-};
-
-export type PlayersOnlineCommand = {
-    type: typeof ClientTag.PlayersOnline;
-};
-
-export type WarpsOutCommand = {
-    type: typeof ClientTag.WarpsOut;
-    id: number;
-};
-
-export type ShortestPathCommand = {
-    type: typeof ClientTag.ShortestPath;
-    from: number;
-    to: number;
-};
-
-export type PortInfoCommand = {
-    type: typeof ClientTag.PortInfo;
-    sectorId: number;
-};
-
-export type ShipInfoCommand = {
-    type: typeof ClientTag.ShipInfo;
-};
-
-export type PortTransactionCommand = {
-    type: typeof ClientTag.PortTransaction;
-    good: string;
-    quantity: number;
-    action: 'buy' | 'sell';
-};
-
-export type BuyDronesCommand = {
-    type: typeof ClientTag.BuyDrones;
-    quantity: number;
-};
-
-export type BuyShieldsCommand = {
-    type: typeof ClientTag.BuyShields;
-    quantity: number;
-};
-
-export type BuyHoldsCommand = {
-    type: typeof ClientTag.BuyHolds;
-    quantity: number;
-};
-
-export type BuyShipTradeinCommand = {
-    type: typeof ClientTag.BuyShipTradein;
-    targetShipName: string;
-};
-export type AttackShipCommand = {
-    type: typeof ClientTag.AttackShip;
-    targetPlayerId: number;
-    drones: number;
-};
-
-export type DockCommand = {
-    type: typeof ClientTag.Dock;
-};
-
-export type UndockCommand = {
-    type: typeof ClientTag.Undock;
-};
-
-export type JettisonCommand = {
-    type: typeof ClientTag.Jettison;
-};
-
-export type GetSectorPlanetsCommand = {
-    type: typeof ClientTag.GetSectorPlanets;
-};
-
-export type TakeColonistsCommand = {
-    type: typeof ClientTag.TakeColonists;
-    quantity: number;
-    commodity: 'fuel' | 'organics' | 'equipment';
-};
-
-export type LeaveColonistsCommand = {
-    type: typeof ClientTag.LeaveColonists;
-    quantity: number;
-    commodity: 'fuel' | 'organics' | 'equipment';
-};
-
-export type TakeCommodityCommand = {
-    type: typeof ClientTag.TakeCommodity;
-    quantity: number;
-    commodity: 'fuel' | 'organics' | 'equipment' | 'drones';
-};
-
-export type LeaveCommodityCommand = {
-    type: typeof ClientTag.LeaveCommodity;
-    quantity: number;
-    commodity: 'fuel' | 'organics' | 'equipment' | 'drones';
-};
-
-export type ChangePopulationCommand = {
-    type: typeof ClientTag.ChangePopulation;
-    quantity: number;
-    from: 'fuel' | 'organics' | 'equipment';
-    to: 'fuel' | 'organics' | 'equipment';
-};
-
-export type DeployDronesInfoCommand = {
-    type: typeof ClientTag.DeployDronesInfo;
-};
-
-export type DeployDronesCommand = {
-    type: typeof ClientTag.DeployDrones;
-    quantity: number;
-    ownership?: 'personal' | 'clan';
-};
-
-export type AttackSectorDronesCommand = {
-    type: typeof ClientTag.AttackSectorDrones;
-    drones: number;
-};
-
-export type RetreatFromDronesCommand = {
-    type: typeof ClientTag.RetreatFromDrones;
-};
-
-export type UseTerraformDeviceCommand = {
-    type: typeof ClientTag.UseTerraformDevice;
-};
-
-export type LandOnPlanetCommand = {
-    type: typeof ClientTag.LandOnPlanet;
-    planetId: number;
-};
-
-export type PlanetDisplayCommand = {
-    type: typeof ClientTag.PlanetDisplay;
-};
-
-export type DestroyPlanetCommand = {
-    type: typeof ClientTag.DestroyPlanet;
-};
-
-export type LeavePlanetCommand = {
-    type: typeof ClientTag.LeavePlanet;
-};
-
-export type BuyHardwareCommand = {
-    type: typeof ClientTag.BuyHardware;
-    itemName: string;
-    quantity?: number;
-};
-
-export type DockStarbaseCommand = {
-    type: typeof ClientTag.DockStarbase;
-};
-
-export type LeaveStarbaseCommand = {
-    type: typeof ClientTag.LeaveStarbase;
-};
-
-export type BuyShipNewCommand = {
-    type: typeof ClientTag.BuyShipNew;
-    targetShipName: string;
-};
-
-export type ListDeployedDronesCommand = {
-    type: typeof ClientTag.ListDeployedDrones;
-};
-
-export type ListPlanetsCommand = {
-    type: typeof ClientTag.ListPlanets;
-};
-
-export type ListOwnedShipsCommand = {
-    type: typeof ClientTag.ListOwnedShips;
-};
-
-export type GetShipDetailCommand = {
-    type: typeof ClientTag.GetShipDetail;
-    shipId: number;
-};
-
-export type ReleaseBeaconCommand = {
-    type: typeof ClientTag.ReleaseBeacon;
-    message: string;
-};
-
-export type AttackBeaconCommand = {
-    type: typeof ClientTag.AttackBeacon;
-};
-
-export type DensityScanCommand = {
-    type: typeof ClientTag.DensityScan;
-};
-
-export type VisualScanCommand = {
-    type: typeof ClientTag.VisualScan;
-};
-
-export type SetShipNameCommand = {
-    type: typeof ClientTag.SetShipName;
-    name: string;
-};
-
-export type TowSpacecraftCommand = {
-    type: typeof ClientTag.TowSpacecraft;
-};
-
-export type TowAttachCommand = {
-    type: typeof ClientTag.TowAttach;
-    shipId: number;
-};
-
-export type ReadMailCommand = {
-    type: typeof ClientTag.ReadMail;
-};
-
-export type CheckMailSinceLastLogoutCommand = {
-    type: typeof ClientTag.CheckMailSinceLastLogout;
-};
-
-export type DeleteAllMailCommand = {
-    type: typeof ClientTag.DeleteAllMail;
-};
-
-export type HailResolveCommand = {
-    type: typeof ClientTag.HailResolve;
-    name: string;
-};
-
-export type HailSendCommand = {
-    type: typeof ClientTag.HailSend;
-    recipientPlayerId: number;
-    body: string;
-};
-
-export type TransportToShipCommand = {
-    type: typeof ClientTag.TransportToShip;
-    shipId: number;
-};
-
-export type ClanCreateCommand = {
-    type: typeof ClientTag.ClanCreate;
-    name: string;
-    password: string;
-};
-
-export type ClanJoinCommand = {
-    type: typeof ClientTag.ClanJoin;
-    name: string;
-    password: string;
-};
-
-export type ClanLeaveCommand = {
-    type: typeof ClientTag.ClanLeave;
-    /** Required when leaving as leader with other members remaining. */
-    successorPlayerId?: number;
-    /** Required when leaving as the last member (triggers dissolution). */
-    confirmDissolve?: boolean;
-};
-
-export type ClanListCommand = {
-    type: typeof ClientTag.ClanList;
-};
-
-export type ClanInfoCommand = {
-    type: typeof ClientTag.ClanInfo;
-};
-
-export type ChangeShipOwnershipCommand = {
-    type: typeof ClientTag.ChangeShipOwnership;
-    ownership: 'personal' | 'clan';
-};
-
-export type ClaimPlanetCommand = {
-    type: typeof ClientTag.ClaimPlanet;
-    ownership: 'personal' | 'clan';
-};
-
-export type ClanTransferKind = 'credits' | 'drones' | 'shields' | 'mines';
-export type ClanTransferCommand = {
-    type: typeof ClientTag.ClanTransfer;
-    kind: ClanTransferKind;
-    targetPlayerId: number;
-    quantity: number;
-    mineType?: 'proximity' | 'seeker';
-};
-
-export type ClanMemoCommand = {
-    type: typeof ClientTag.ClanMemo;
-    body: string;
-};
-
-export type ClanSetPasswordCommand = {
-    type: typeof ClientTag.ClanSetPassword;
-    newPassword: string;
-};
-
-export type ClanDropMemberCommand = {
-    type: typeof ClientTag.ClanDropMember;
-    targetPlayerId: number;
-};
-
-export type HyperspaceJumpCommand = {
-    type: typeof ClientTag.HyperspaceJump;
-    targetSector: number;
-};
-
-export type VisitedSectorsCommand = {
-    type: typeof ClientTag.VisitedSectors;
-};
-
-export type DeployMineInfoCommand = {
-    type: typeof ClientTag.DeployMineInfo;
-    mineType: 'proximity' | 'seeker';
-};
-
-export type DeployMineCommand = {
-    type: typeof ClientTag.DeployMine;
-    mineType: 'proximity' | 'seeker';
-    quantity: number;
-    ownership?: 'personal' | 'clan';
-};
-
-export type ListDeployedMinesCommand = {
-    type: typeof ClientTag.ListDeployedMines;
-};
-
-export type TrackSeekerMinesCommand = {
-    type: typeof ClientTag.TrackSeekerMines;
-};
-
-export type MineDisruptorCommand = {
-    type: typeof ClientTag.MineDisruptor;
-    targetSector: number;
-};
-
-export type GetNeighborhoodCommand = {
-    type: typeof ClientTag.GetNeighborhood;
-    /**
-     * Half-extent of the visible viewport in world units (axis-aligned bbox).
-     * Server returns sectors with |x - cx| ≤ halfWidthWorld and
-     * |y - cy| ≤ halfHeightWorld, still scoped by the player's
-     * visited/glimpsed set unless they are an admin.
-     */
-    halfWidthWorld: number;
-    halfHeightWorld: number;
-    /**
-     * Optional viewport center in world units. When omitted, the server
-     * centers on the player's current sector. Used by the client when the
-     * user has panned/zoomed-toward-cursor away from the player position.
-     */
-    centerXWorld?: number;
-    centerYWorld?: number;
-};
-
-export type ConstructPortInfoCommand = {
-    type: typeof ClientTag.ConstructPortInfo;
-};
-
-export type BuildPortCommand = {
-    type: typeof ClientTag.BuildPort;
-    portClass: number;
-    portName: string;
-};
-
-export type UpgradePortInfoCommand = {
-    type: typeof ClientTag.UpgradePortInfo;
-};
-
-export type UpgradePortCommand = {
-    type: typeof ClientTag.UpgradePort;
-    commodity: 'fuel' | 'organics' | 'equipment';
-    units: number;
-};
-
-export type HaggleOpenCommand = {
-    type: typeof ClientTag.HaggleOpen;
-    commodity: 'fuel' | 'organics' | 'equipment';
-    quantity: number;
-    action: 'buy' | 'sell';
-};
-
-export type HaggleCounterCommand = {
-    type: typeof ClientTag.HaggleCounter;
-    /** Player's offer in TOTAL credits for the haggle's quantity. */
-    counter: number;
-};
-
-export type HaggleAcceptCommand = {
-    type: typeof ClientTag.HaggleAccept;
-};
-
-export type HaggleQuitCommand = {
-    type: typeof ClientTag.HaggleQuit;
-};
-
-export type BaseInfoCommand = {
-    type: typeof ClientTag.BaseInfo;
-};
-
-export type BuildBaseCommand = {
-    type: typeof ClientTag.BuildBase;
-};
-
-export type ExitBaseCommand = {
-    type: typeof ClientTag.ExitBase;
-};
-
-export type TreasuryInfoCommand = {
-    type: typeof ClientTag.TreasuryInfo;
-};
-
-export type TreasuryTransferCommand = {
-    type: typeof ClientTag.TreasuryTransfer;
-    direction: 'to' | 'from';
-    amount: number;
-};
-
-export type BwarpInfoCommand = {
-    type: typeof ClientTag.BwarpInfo;
-};
-
-export type BwarpInstallCommand = {
-    type: typeof ClientTag.BwarpInstall;
-};
-
-export type BwarpUpgradeCommand = {
-    type: typeof ClientTag.BwarpUpgrade;
-};
-
-export type BwarpBeamCommand = {
-    type: typeof ClientTag.BwarpBeam;
-    targetSector: number;
-    /** false = ask for distance + validation only; true = actually beam. */
-    commit: boolean;
-};
-
-export type ClientEnvelope =
-    | MoveCommand
-    | MoveToPreviousCommand
-    | GetAttackTargetsCommand
-    | StarbaseInfoCommand
-    | TerraformInfoCommand
-    | HardwareStoreInfoCommand
-    | SectorDisplayCommand
-    | PlayersOnlineCommand
-    | WarpsOutCommand
-    | ShortestPathCommand
-    | PortInfoCommand
-    | ShipInfoCommand
-    | PortTransactionCommand
-    | BuyDronesCommand
-    | BuyShieldsCommand
-    | BuyHoldsCommand
-    | BuyShipTradeinCommand
-    | AttackShipCommand
-    | DockCommand
-    | UndockCommand
-    | JettisonCommand
-    | GetSectorPlanetsCommand
-    | TakeColonistsCommand
-    | LeaveColonistsCommand
-    | TakeCommodityCommand
-    | LeaveCommodityCommand
-    | ChangePopulationCommand
-    | DeployDronesInfoCommand
-    | DeployDronesCommand
-    | AttackSectorDronesCommand
-    | RetreatFromDronesCommand
-    | UseTerraformDeviceCommand
-    | LandOnPlanetCommand
-    | PlanetDisplayCommand
-    | DestroyPlanetCommand
-    | LeavePlanetCommand
-    | BuyHardwareCommand
-    | DockStarbaseCommand
-    | LeaveStarbaseCommand
-    | BuyShipNewCommand
-    | ListDeployedDronesCommand
-    | ListPlanetsCommand
-    | HyperspaceJumpCommand
-    | VisitedSectorsCommand
-    | GetNeighborhoodCommand
-    | DeployMineInfoCommand
-    | DeployMineCommand
-    | ListDeployedMinesCommand
-    | TrackSeekerMinesCommand
-    | MineDisruptorCommand
-    | ListOwnedShipsCommand
-    | GetShipDetailCommand
-    | TransportToShipCommand
-    | ReleaseBeaconCommand
-    | AttackBeaconCommand
-    | DensityScanCommand
-    | VisualScanCommand
-    | SetShipNameCommand
-    | TowSpacecraftCommand
-    | TowAttachCommand
-    | ReadMailCommand
-    | CheckMailSinceLastLogoutCommand
-    | DeleteAllMailCommand
-    | HailResolveCommand
-    | HailSendCommand
-    | ClanCreateCommand
-    | ClanJoinCommand
-    | ClanLeaveCommand
-    | ClanListCommand
-    | ClanInfoCommand
-    | ChangeShipOwnershipCommand
-    | ClaimPlanetCommand
-    | ClanTransferCommand
-    | ClanMemoCommand
-    | ClanSetPasswordCommand
-    | ClanDropMemberCommand
-    | ConstructPortInfoCommand
-    | BuildPortCommand
-    | UpgradePortInfoCommand
-    | UpgradePortCommand
-    | HaggleOpenCommand
-    | HaggleCounterCommand
-    | HaggleAcceptCommand
-    | HaggleQuitCommand
-    | BaseInfoCommand
-    | BuildBaseCommand
-    | ExitBaseCommand
-    | TreasuryInfoCommand
-    | TreasuryTransferCommand
-    | BwarpInfoCommand
-    | BwarpInstallCommand
-    | BwarpUpgradeCommand
-    | BwarpBeamCommand;
+const Commodity3 = z.enum(['fuel', 'organics', 'equipment']);
+const Commodity4 = z.enum(['fuel', 'organics', 'equipment', 'drones']);
+const Ownership = z.enum(['personal', 'clan']);
+const MineType = z.enum(['proximity', 'seeker']);
+const TradeAction = z.enum(['buy', 'sell']);
+const Int = z.number().int();
+
+export const MoveCommandSchema = z.object({
+    type: z.literal(ClientTag.Move),
+    sector: Int,
+});
+export type MoveCommand = z.infer<typeof MoveCommandSchema>;
+
+export const MoveToPreviousCommandSchema = z.object({
+    type: z.literal(ClientTag.MoveToPrevious),
+});
+export type MoveToPreviousCommand = z.infer<typeof MoveToPreviousCommandSchema>;
+
+export const GetAttackTargetsCommandSchema = z.object({
+    type: z.literal(ClientTag.GetAttackTargets),
+});
+export type GetAttackTargetsCommand = z.infer<typeof GetAttackTargetsCommandSchema>;
+
+export const StarbaseInfoCommandSchema = z.object({
+    type: z.literal(ClientTag.StarbaseInfo),
+});
+export type StarbaseInfoCommand = z.infer<typeof StarbaseInfoCommandSchema>;
+
+export const TerraformInfoCommandSchema = z.object({
+    type: z.literal(ClientTag.TerraformInfo),
+});
+export type TerraformInfoCommand = z.infer<typeof TerraformInfoCommandSchema>;
+
+export const HardwareStoreInfoCommandSchema = z.object({
+    type: z.literal(ClientTag.HardwareStoreInfo),
+});
+export type HardwareStoreInfoCommand = z.infer<typeof HardwareStoreInfoCommandSchema>;
+
+export const SectorDisplayCommandSchema = z.object({
+    type: z.literal(ClientTag.SectorDisplay),
+});
+export type SectorDisplayCommand = z.infer<typeof SectorDisplayCommandSchema>;
+
+export const PlayersOnlineCommandSchema = z.object({
+    type: z.literal(ClientTag.PlayersOnline),
+});
+export type PlayersOnlineCommand = z.infer<typeof PlayersOnlineCommandSchema>;
+
+export const WarpsOutCommandSchema = z.object({
+    type: z.literal(ClientTag.WarpsOut),
+    id: Int,
+});
+export type WarpsOutCommand = z.infer<typeof WarpsOutCommandSchema>;
+
+export const ShortestPathCommandSchema = z.object({
+    type: z.literal(ClientTag.ShortestPath),
+    from: Int,
+    to: Int,
+});
+export type ShortestPathCommand = z.infer<typeof ShortestPathCommandSchema>;
+
+export const PortInfoCommandSchema = z.object({
+    type: z.literal(ClientTag.PortInfo),
+    sectorId: Int,
+});
+export type PortInfoCommand = z.infer<typeof PortInfoCommandSchema>;
+
+export const ShipInfoCommandSchema = z.object({
+    type: z.literal(ClientTag.ShipInfo),
+});
+export type ShipInfoCommand = z.infer<typeof ShipInfoCommandSchema>;
+
+export const PortTransactionCommandSchema = z.object({
+    type: z.literal(ClientTag.PortTransaction),
+    good: z.string(),
+    quantity: Int,
+    action: TradeAction,
+});
+export type PortTransactionCommand = z.infer<typeof PortTransactionCommandSchema>;
+
+export const BuyDronesCommandSchema = z.object({
+    type: z.literal(ClientTag.BuyDrones),
+    quantity: Int,
+});
+export type BuyDronesCommand = z.infer<typeof BuyDronesCommandSchema>;
+
+export const BuyShieldsCommandSchema = z.object({
+    type: z.literal(ClientTag.BuyShields),
+    quantity: Int,
+});
+export type BuyShieldsCommand = z.infer<typeof BuyShieldsCommandSchema>;
+
+export const BuyHoldsCommandSchema = z.object({
+    type: z.literal(ClientTag.BuyHolds),
+    quantity: Int,
+});
+export type BuyHoldsCommand = z.infer<typeof BuyHoldsCommandSchema>;
+
+export const BuyShipTradeinCommandSchema = z.object({
+    type: z.literal(ClientTag.BuyShipTradein),
+    targetShipName: z.string(),
+});
+export type BuyShipTradeinCommand = z.infer<typeof BuyShipTradeinCommandSchema>;
+
+export const AttackShipCommandSchema = z.object({
+    type: z.literal(ClientTag.AttackShip),
+    targetPlayerId: Int,
+    drones: Int,
+});
+export type AttackShipCommand = z.infer<typeof AttackShipCommandSchema>;
+
+export const DockCommandSchema = z.object({
+    type: z.literal(ClientTag.Dock),
+});
+export type DockCommand = z.infer<typeof DockCommandSchema>;
+
+export const UndockCommandSchema = z.object({
+    type: z.literal(ClientTag.Undock),
+});
+export type UndockCommand = z.infer<typeof UndockCommandSchema>;
+
+export const JettisonCommandSchema = z.object({
+    type: z.literal(ClientTag.Jettison),
+});
+export type JettisonCommand = z.infer<typeof JettisonCommandSchema>;
+
+export const GetSectorPlanetsCommandSchema = z.object({
+    type: z.literal(ClientTag.GetSectorPlanets),
+});
+export type GetSectorPlanetsCommand = z.infer<typeof GetSectorPlanetsCommandSchema>;
+
+export const TakeColonistsCommandSchema = z.object({
+    type: z.literal(ClientTag.TakeColonists),
+    quantity: Int,
+    commodity: Commodity3,
+});
+export type TakeColonistsCommand = z.infer<typeof TakeColonistsCommandSchema>;
+
+export const LeaveColonistsCommandSchema = z.object({
+    type: z.literal(ClientTag.LeaveColonists),
+    quantity: Int,
+    commodity: Commodity3,
+});
+export type LeaveColonistsCommand = z.infer<typeof LeaveColonistsCommandSchema>;
+
+export const TakeCommodityCommandSchema = z.object({
+    type: z.literal(ClientTag.TakeCommodity),
+    quantity: Int,
+    commodity: Commodity4,
+});
+export type TakeCommodityCommand = z.infer<typeof TakeCommodityCommandSchema>;
+
+export const LeaveCommodityCommandSchema = z.object({
+    type: z.literal(ClientTag.LeaveCommodity),
+    quantity: Int,
+    commodity: Commodity4,
+});
+export type LeaveCommodityCommand = z.infer<typeof LeaveCommodityCommandSchema>;
+
+export const ChangePopulationCommandSchema = z.object({
+    type: z.literal(ClientTag.ChangePopulation),
+    quantity: Int,
+    from: Commodity3,
+    to: Commodity3,
+});
+export type ChangePopulationCommand = z.infer<typeof ChangePopulationCommandSchema>;
+
+export const DeployDronesInfoCommandSchema = z.object({
+    type: z.literal(ClientTag.DeployDronesInfo),
+});
+export type DeployDronesInfoCommand = z.infer<typeof DeployDronesInfoCommandSchema>;
+
+export const DeployDronesCommandSchema = z.object({
+    type: z.literal(ClientTag.DeployDrones),
+    quantity: Int,
+    ownership: Ownership.optional(),
+});
+export type DeployDronesCommand = z.infer<typeof DeployDronesCommandSchema>;
+
+export const AttackSectorDronesCommandSchema = z.object({
+    type: z.literal(ClientTag.AttackSectorDrones),
+    drones: Int,
+});
+export type AttackSectorDronesCommand = z.infer<typeof AttackSectorDronesCommandSchema>;
+
+export const RetreatFromDronesCommandSchema = z.object({
+    type: z.literal(ClientTag.RetreatFromDrones),
+});
+export type RetreatFromDronesCommand = z.infer<typeof RetreatFromDronesCommandSchema>;
+
+export const UseTerraformDeviceCommandSchema = z.object({
+    type: z.literal(ClientTag.UseTerraformDevice),
+});
+export type UseTerraformDeviceCommand = z.infer<typeof UseTerraformDeviceCommandSchema>;
+
+export const LandOnPlanetCommandSchema = z.object({
+    type: z.literal(ClientTag.LandOnPlanet),
+    planetId: Int,
+});
+export type LandOnPlanetCommand = z.infer<typeof LandOnPlanetCommandSchema>;
+
+export const PlanetDisplayCommandSchema = z.object({
+    type: z.literal(ClientTag.PlanetDisplay),
+});
+export type PlanetDisplayCommand = z.infer<typeof PlanetDisplayCommandSchema>;
+
+export const DestroyPlanetCommandSchema = z.object({
+    type: z.literal(ClientTag.DestroyPlanet),
+});
+export type DestroyPlanetCommand = z.infer<typeof DestroyPlanetCommandSchema>;
+
+export const LeavePlanetCommandSchema = z.object({
+    type: z.literal(ClientTag.LeavePlanet),
+});
+export type LeavePlanetCommand = z.infer<typeof LeavePlanetCommandSchema>;
+
+export const BuyHardwareCommandSchema = z.object({
+    type: z.literal(ClientTag.BuyHardware),
+    itemName: z.string(),
+    quantity: Int.optional(),
+});
+export type BuyHardwareCommand = z.infer<typeof BuyHardwareCommandSchema>;
+
+export const DockStarbaseCommandSchema = z.object({
+    type: z.literal(ClientTag.DockStarbase),
+});
+export type DockStarbaseCommand = z.infer<typeof DockStarbaseCommandSchema>;
+
+export const LeaveStarbaseCommandSchema = z.object({
+    type: z.literal(ClientTag.LeaveStarbase),
+});
+export type LeaveStarbaseCommand = z.infer<typeof LeaveStarbaseCommandSchema>;
+
+export const BuyShipNewCommandSchema = z.object({
+    type: z.literal(ClientTag.BuyShipNew),
+    targetShipName: z.string(),
+});
+export type BuyShipNewCommand = z.infer<typeof BuyShipNewCommandSchema>;
+
+export const ListDeployedDronesCommandSchema = z.object({
+    type: z.literal(ClientTag.ListDeployedDrones),
+});
+export type ListDeployedDronesCommand = z.infer<typeof ListDeployedDronesCommandSchema>;
+
+export const ListPlanetsCommandSchema = z.object({
+    type: z.literal(ClientTag.ListPlanets),
+});
+export type ListPlanetsCommand = z.infer<typeof ListPlanetsCommandSchema>;
+
+export const ListOwnedShipsCommandSchema = z.object({
+    type: z.literal(ClientTag.ListOwnedShips),
+});
+export type ListOwnedShipsCommand = z.infer<typeof ListOwnedShipsCommandSchema>;
+
+export const GetShipDetailCommandSchema = z.object({
+    type: z.literal(ClientTag.GetShipDetail),
+    shipId: Int,
+});
+export type GetShipDetailCommand = z.infer<typeof GetShipDetailCommandSchema>;
+
+export const ReleaseBeaconCommandSchema = z.object({
+    type: z.literal(ClientTag.ReleaseBeacon),
+    message: z.string(),
+});
+export type ReleaseBeaconCommand = z.infer<typeof ReleaseBeaconCommandSchema>;
+
+export const AttackBeaconCommandSchema = z.object({
+    type: z.literal(ClientTag.AttackBeacon),
+});
+export type AttackBeaconCommand = z.infer<typeof AttackBeaconCommandSchema>;
+
+export const DensityScanCommandSchema = z.object({
+    type: z.literal(ClientTag.DensityScan),
+});
+export type DensityScanCommand = z.infer<typeof DensityScanCommandSchema>;
+
+export const VisualScanCommandSchema = z.object({
+    type: z.literal(ClientTag.VisualScan),
+});
+export type VisualScanCommand = z.infer<typeof VisualScanCommandSchema>;
+
+export const SetShipNameCommandSchema = z.object({
+    type: z.literal(ClientTag.SetShipName),
+    name: z.string(),
+});
+export type SetShipNameCommand = z.infer<typeof SetShipNameCommandSchema>;
+
+export const TowSpacecraftCommandSchema = z.object({
+    type: z.literal(ClientTag.TowSpacecraft),
+});
+export type TowSpacecraftCommand = z.infer<typeof TowSpacecraftCommandSchema>;
+
+export const TowAttachCommandSchema = z.object({
+    type: z.literal(ClientTag.TowAttach),
+    shipId: Int,
+});
+export type TowAttachCommand = z.infer<typeof TowAttachCommandSchema>;
+
+export const ReadMailCommandSchema = z.object({
+    type: z.literal(ClientTag.ReadMail),
+});
+export type ReadMailCommand = z.infer<typeof ReadMailCommandSchema>;
+
+export const CheckMailSinceLastLogoutCommandSchema = z.object({
+    type: z.literal(ClientTag.CheckMailSinceLastLogout),
+});
+export type CheckMailSinceLastLogoutCommand = z.infer<typeof CheckMailSinceLastLogoutCommandSchema>;
+
+export const DeleteAllMailCommandSchema = z.object({
+    type: z.literal(ClientTag.DeleteAllMail),
+});
+export type DeleteAllMailCommand = z.infer<typeof DeleteAllMailCommandSchema>;
+
+export const HailResolveCommandSchema = z.object({
+    type: z.literal(ClientTag.HailResolve),
+    name: z.string(),
+});
+export type HailResolveCommand = z.infer<typeof HailResolveCommandSchema>;
+
+export const HailSendCommandSchema = z.object({
+    type: z.literal(ClientTag.HailSend),
+    recipientPlayerId: Int,
+    body: z.string(),
+});
+export type HailSendCommand = z.infer<typeof HailSendCommandSchema>;
+
+export const TransportToShipCommandSchema = z.object({
+    type: z.literal(ClientTag.TransportToShip),
+    shipId: Int,
+});
+export type TransportToShipCommand = z.infer<typeof TransportToShipCommandSchema>;
+
+export const ClanCreateCommandSchema = z.object({
+    type: z.literal(ClientTag.ClanCreate),
+    name: z.string(),
+    password: z.string(),
+});
+export type ClanCreateCommand = z.infer<typeof ClanCreateCommandSchema>;
+
+export const ClanJoinCommandSchema = z.object({
+    type: z.literal(ClientTag.ClanJoin),
+    name: z.string(),
+    password: z.string(),
+});
+export type ClanJoinCommand = z.infer<typeof ClanJoinCommandSchema>;
+
+export const ClanLeaveCommandSchema = z.object({
+    type: z.literal(ClientTag.ClanLeave),
+    successorPlayerId: Int.optional(),
+    confirmDissolve: z.boolean().optional(),
+});
+export type ClanLeaveCommand = z.infer<typeof ClanLeaveCommandSchema>;
+
+export const ClanListCommandSchema = z.object({
+    type: z.literal(ClientTag.ClanList),
+});
+export type ClanListCommand = z.infer<typeof ClanListCommandSchema>;
+
+export const ClanInfoCommandSchema = z.object({
+    type: z.literal(ClientTag.ClanInfo),
+});
+export type ClanInfoCommand = z.infer<typeof ClanInfoCommandSchema>;
+
+export const ChangeShipOwnershipCommandSchema = z.object({
+    type: z.literal(ClientTag.ChangeShipOwnership),
+    ownership: Ownership,
+});
+export type ChangeShipOwnershipCommand = z.infer<typeof ChangeShipOwnershipCommandSchema>;
+
+export const ClaimPlanetCommandSchema = z.object({
+    type: z.literal(ClientTag.ClaimPlanet),
+    ownership: Ownership,
+});
+export type ClaimPlanetCommand = z.infer<typeof ClaimPlanetCommandSchema>;
+
+export const ClanTransferKindSchema = z.enum(['credits', 'drones', 'shields', 'mines']);
+export type ClanTransferKind = z.infer<typeof ClanTransferKindSchema>;
+
+export const ClanTransferCommandSchema = z.object({
+    type: z.literal(ClientTag.ClanTransfer),
+    kind: ClanTransferKindSchema,
+    targetPlayerId: Int,
+    quantity: Int,
+    mineType: MineType.optional(),
+});
+export type ClanTransferCommand = z.infer<typeof ClanTransferCommandSchema>;
+
+export const ClanMemoCommandSchema = z.object({
+    type: z.literal(ClientTag.ClanMemo),
+    body: z.string(),
+});
+export type ClanMemoCommand = z.infer<typeof ClanMemoCommandSchema>;
+
+export const ClanSetPasswordCommandSchema = z.object({
+    type: z.literal(ClientTag.ClanSetPassword),
+    newPassword: z.string(),
+});
+export type ClanSetPasswordCommand = z.infer<typeof ClanSetPasswordCommandSchema>;
+
+export const ClanDropMemberCommandSchema = z.object({
+    type: z.literal(ClientTag.ClanDropMember),
+    targetPlayerId: Int,
+});
+export type ClanDropMemberCommand = z.infer<typeof ClanDropMemberCommandSchema>;
+
+export const HyperspaceJumpCommandSchema = z.object({
+    type: z.literal(ClientTag.HyperspaceJump),
+    targetSector: Int,
+});
+export type HyperspaceJumpCommand = z.infer<typeof HyperspaceJumpCommandSchema>;
+
+export const VisitedSectorsCommandSchema = z.object({
+    type: z.literal(ClientTag.VisitedSectors),
+});
+export type VisitedSectorsCommand = z.infer<typeof VisitedSectorsCommandSchema>;
+
+export const DeployMineInfoCommandSchema = z.object({
+    type: z.literal(ClientTag.DeployMineInfo),
+    mineType: MineType,
+});
+export type DeployMineInfoCommand = z.infer<typeof DeployMineInfoCommandSchema>;
+
+export const DeployMineCommandSchema = z.object({
+    type: z.literal(ClientTag.DeployMine),
+    mineType: MineType,
+    quantity: Int,
+    ownership: Ownership.optional(),
+});
+export type DeployMineCommand = z.infer<typeof DeployMineCommandSchema>;
+
+export const ListDeployedMinesCommandSchema = z.object({
+    type: z.literal(ClientTag.ListDeployedMines),
+});
+export type ListDeployedMinesCommand = z.infer<typeof ListDeployedMinesCommandSchema>;
+
+export const TrackSeekerMinesCommandSchema = z.object({
+    type: z.literal(ClientTag.TrackSeekerMines),
+});
+export type TrackSeekerMinesCommand = z.infer<typeof TrackSeekerMinesCommandSchema>;
+
+export const MineDisruptorCommandSchema = z.object({
+    type: z.literal(ClientTag.MineDisruptor),
+    targetSector: Int,
+});
+export type MineDisruptorCommand = z.infer<typeof MineDisruptorCommandSchema>;
+
+// halfWidthWorld/halfHeightWorld and optional center are floats (world units),
+// not ints. Sectors are scoped by visited set unless admin.
+export const GetNeighborhoodCommandSchema = z.object({
+    type: z.literal(ClientTag.GetNeighborhood),
+    halfWidthWorld: z.number(),
+    halfHeightWorld: z.number(),
+    centerXWorld: z.number().optional(),
+    centerYWorld: z.number().optional(),
+});
+export type GetNeighborhoodCommand = z.infer<typeof GetNeighborhoodCommandSchema>;
+
+export const ConstructPortInfoCommandSchema = z.object({
+    type: z.literal(ClientTag.ConstructPortInfo),
+});
+export type ConstructPortInfoCommand = z.infer<typeof ConstructPortInfoCommandSchema>;
+
+export const BuildPortCommandSchema = z.object({
+    type: z.literal(ClientTag.BuildPort),
+    portClass: Int,
+    portName: z.string(),
+});
+export type BuildPortCommand = z.infer<typeof BuildPortCommandSchema>;
+
+export const UpgradePortInfoCommandSchema = z.object({
+    type: z.literal(ClientTag.UpgradePortInfo),
+});
+export type UpgradePortInfoCommand = z.infer<typeof UpgradePortInfoCommandSchema>;
+
+export const UpgradePortCommandSchema = z.object({
+    type: z.literal(ClientTag.UpgradePort),
+    commodity: Commodity3,
+    units: Int,
+});
+export type UpgradePortCommand = z.infer<typeof UpgradePortCommandSchema>;
+
+export const HaggleOpenCommandSchema = z.object({
+    type: z.literal(ClientTag.HaggleOpen),
+    commodity: Commodity3,
+    quantity: Int,
+    action: TradeAction,
+});
+export type HaggleOpenCommand = z.infer<typeof HaggleOpenCommandSchema>;
+
+export const HaggleCounterCommandSchema = z.object({
+    type: z.literal(ClientTag.HaggleCounter),
+    counter: Int,
+});
+export type HaggleCounterCommand = z.infer<typeof HaggleCounterCommandSchema>;
+
+export const HaggleAcceptCommandSchema = z.object({
+    type: z.literal(ClientTag.HaggleAccept),
+});
+export type HaggleAcceptCommand = z.infer<typeof HaggleAcceptCommandSchema>;
+
+export const HaggleQuitCommandSchema = z.object({
+    type: z.literal(ClientTag.HaggleQuit),
+});
+export type HaggleQuitCommand = z.infer<typeof HaggleQuitCommandSchema>;
+
+export const BaseInfoCommandSchema = z.object({
+    type: z.literal(ClientTag.BaseInfo),
+});
+export type BaseInfoCommand = z.infer<typeof BaseInfoCommandSchema>;
+
+export const BuildBaseCommandSchema = z.object({
+    type: z.literal(ClientTag.BuildBase),
+});
+export type BuildBaseCommand = z.infer<typeof BuildBaseCommandSchema>;
+
+export const ExitBaseCommandSchema = z.object({
+    type: z.literal(ClientTag.ExitBase),
+});
+export type ExitBaseCommand = z.infer<typeof ExitBaseCommandSchema>;
+
+export const TreasuryInfoCommandSchema = z.object({
+    type: z.literal(ClientTag.TreasuryInfo),
+});
+export type TreasuryInfoCommand = z.infer<typeof TreasuryInfoCommandSchema>;
+
+export const TreasuryTransferCommandSchema = z.object({
+    type: z.literal(ClientTag.TreasuryTransfer),
+    direction: z.enum(['to', 'from']),
+    amount: Int,
+});
+export type TreasuryTransferCommand = z.infer<typeof TreasuryTransferCommandSchema>;
+
+export const BwarpInfoCommandSchema = z.object({
+    type: z.literal(ClientTag.BwarpInfo),
+});
+export type BwarpInfoCommand = z.infer<typeof BwarpInfoCommandSchema>;
+
+export const BwarpInstallCommandSchema = z.object({
+    type: z.literal(ClientTag.BwarpInstall),
+});
+export type BwarpInstallCommand = z.infer<typeof BwarpInstallCommandSchema>;
+
+export const BwarpUpgradeCommandSchema = z.object({
+    type: z.literal(ClientTag.BwarpUpgrade),
+});
+export type BwarpUpgradeCommand = z.infer<typeof BwarpUpgradeCommandSchema>;
+
+export const BwarpBeamCommandSchema = z.object({
+    type: z.literal(ClientTag.BwarpBeam),
+    targetSector: Int,
+    commit: z.boolean(),
+});
+export type BwarpBeamCommand = z.infer<typeof BwarpBeamCommandSchema>;
+
+export const ClientEnvelopeSchema = z.discriminatedUnion('type', [
+    MoveCommandSchema,
+    MoveToPreviousCommandSchema,
+    GetAttackTargetsCommandSchema,
+    StarbaseInfoCommandSchema,
+    TerraformInfoCommandSchema,
+    HardwareStoreInfoCommandSchema,
+    SectorDisplayCommandSchema,
+    PlayersOnlineCommandSchema,
+    WarpsOutCommandSchema,
+    ShortestPathCommandSchema,
+    PortInfoCommandSchema,
+    ShipInfoCommandSchema,
+    PortTransactionCommandSchema,
+    BuyDronesCommandSchema,
+    BuyShieldsCommandSchema,
+    BuyHoldsCommandSchema,
+    BuyShipTradeinCommandSchema,
+    AttackShipCommandSchema,
+    DockCommandSchema,
+    UndockCommandSchema,
+    JettisonCommandSchema,
+    GetSectorPlanetsCommandSchema,
+    TakeColonistsCommandSchema,
+    LeaveColonistsCommandSchema,
+    TakeCommodityCommandSchema,
+    LeaveCommodityCommandSchema,
+    ChangePopulationCommandSchema,
+    DeployDronesInfoCommandSchema,
+    DeployDronesCommandSchema,
+    AttackSectorDronesCommandSchema,
+    RetreatFromDronesCommandSchema,
+    UseTerraformDeviceCommandSchema,
+    LandOnPlanetCommandSchema,
+    PlanetDisplayCommandSchema,
+    DestroyPlanetCommandSchema,
+    LeavePlanetCommandSchema,
+    BuyHardwareCommandSchema,
+    DockStarbaseCommandSchema,
+    LeaveStarbaseCommandSchema,
+    BuyShipNewCommandSchema,
+    ListDeployedDronesCommandSchema,
+    ListPlanetsCommandSchema,
+    HyperspaceJumpCommandSchema,
+    VisitedSectorsCommandSchema,
+    GetNeighborhoodCommandSchema,
+    DeployMineInfoCommandSchema,
+    DeployMineCommandSchema,
+    ListDeployedMinesCommandSchema,
+    TrackSeekerMinesCommandSchema,
+    MineDisruptorCommandSchema,
+    ListOwnedShipsCommandSchema,
+    GetShipDetailCommandSchema,
+    TransportToShipCommandSchema,
+    ReleaseBeaconCommandSchema,
+    AttackBeaconCommandSchema,
+    DensityScanCommandSchema,
+    VisualScanCommandSchema,
+    SetShipNameCommandSchema,
+    TowSpacecraftCommandSchema,
+    TowAttachCommandSchema,
+    ReadMailCommandSchema,
+    CheckMailSinceLastLogoutCommandSchema,
+    DeleteAllMailCommandSchema,
+    HailResolveCommandSchema,
+    HailSendCommandSchema,
+    ClanCreateCommandSchema,
+    ClanJoinCommandSchema,
+    ClanLeaveCommandSchema,
+    ClanListCommandSchema,
+    ClanInfoCommandSchema,
+    ChangeShipOwnershipCommandSchema,
+    ClaimPlanetCommandSchema,
+    ClanTransferCommandSchema,
+    ClanMemoCommandSchema,
+    ClanSetPasswordCommandSchema,
+    ClanDropMemberCommandSchema,
+    ConstructPortInfoCommandSchema,
+    BuildPortCommandSchema,
+    UpgradePortInfoCommandSchema,
+    UpgradePortCommandSchema,
+    HaggleOpenCommandSchema,
+    HaggleCounterCommandSchema,
+    HaggleAcceptCommandSchema,
+    HaggleQuitCommandSchema,
+    BaseInfoCommandSchema,
+    BuildBaseCommandSchema,
+    ExitBaseCommandSchema,
+    TreasuryInfoCommandSchema,
+    TreasuryTransferCommandSchema,
+    BwarpInfoCommandSchema,
+    BwarpInstallCommandSchema,
+    BwarpUpgradeCommandSchema,
+    BwarpBeamCommandSchema,
+]);
+export type ClientEnvelope = z.infer<typeof ClientEnvelopeSchema>;

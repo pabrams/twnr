@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction, RequestHandler } from 'express';
+import type { z } from 'zod';
 
 /** Thrown inside an async route handler to produce a specific HTTP response. */
 export class HttpError extends Error {
@@ -16,6 +17,22 @@ export function parseIntParam(val: unknown, name: string): number {
     const n = parseInt(typeof val === 'string' ? val : '', 10);
     if (isNaN(n)) throw new HttpError(400, `${name} must be a number`);
     return n;
+}
+
+/**
+ * Validate `req.body` against a zod schema. Returns the parsed value on
+ * success; throws HttpError(400) with the first issue path + message on
+ * failure. Keeps the handler body terse and consistent with structured
+ * 400s across the API.
+ */
+export function parseBody<S extends z.ZodType>(req: Request, schema: S): z.infer<S> {
+    const result = schema.safeParse(req.body);
+    if (!result.success) {
+        const first = result.error.issues[0];
+        const where = first?.path.join('.') || '<root>';
+        throw new HttpError(400, `${where}: ${first?.message}`);
+    }
+    return result.data;
 }
 
 type AsyncRouteHandler = (req: Request, res: Response, next: NextFunction) => Promise<unknown>;

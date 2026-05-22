@@ -1,93 +1,95 @@
+// Shared types used across packages. Anything imported by a runtime parser
+// (config-file loaders, HTTP response handlers) has a paired zod schema so
+// the parse site can be schema-driven; pure compile-time helpers stay as
+// plain type aliases.
+
+import { z } from 'zod';
+
 // hex-grid spatial constants: server bakes them into sector coords at
 // generation, client uses them to interpret those coords when rendering
 export const HEX_CELL_SIZE = 100;
 export const HEX_SPACING_MULTIPLIER = 1.4;
 
-export type ShipConfig = {
-    slug: string;
-    displayName?: string;
-    sortOrder: number;
-    speed: number;
-    startingHolds: number;
-    maxHolds: number;
-    maxShields: number;
-    maxDrones: number;
-    oddsOffensive: number;
-    oddsDefensive: number;
-    maxDroneAttack: number;
-    turnsPerWarp: number;
-    costDrive: number;
-    costComputer: number;
-    costHull: number;
-    holdCost: number;
-    maxBuoy: number;
-    maxProximity: number;
-    maxSeeker: number;
-    maxTerraformDevices: number;
-    maxPlanetBusters: number;
-    maxCloaking: number;
-    maxCorbomite: number;
-    maxPhoton: number;
-    maxDisruptors: number;
-    maxReconDrones: number;
-    transporterRange: number;
-    hasPod: boolean;
-    canLand: boolean;
-    hasInterdictor: boolean;
-    hasTractor: boolean;
-    canHaveHyperspace1: boolean;
-    canHaveHyperspace2: boolean;
-    canHaveVisualScanner: boolean;
-    canHavePlanetScanner: boolean;
-    make?: string;
-    hasPlanetaryDefenseBonus?: boolean;
-    planetaryDefenseOdds?: number;
-    pilotingRestriction?: string;
-    notes?: string;
-};
+export const ShipConfigSchema = z.object({
+    slug: z.string(),
+    displayName: z.string().optional(),
+    sortOrder: z.number(),
+    speed: z.number(),
+    startingHolds: z.number(),
+    maxHolds: z.number(),
+    maxShields: z.number(),
+    maxDrones: z.number(),
+    oddsOffensive: z.number(),
+    oddsDefensive: z.number(),
+    maxDroneAttack: z.number(),
+    turnsPerWarp: z.number(),
+    costDrive: z.number(),
+    costComputer: z.number(),
+    costHull: z.number(),
+    holdCost: z.number(),
+    maxBuoy: z.number(),
+    maxProximity: z.number(),
+    maxSeeker: z.number(),
+    maxTerraformDevices: z.number(),
+    maxPlanetBusters: z.number(),
+    maxCloaking: z.number(),
+    maxCorbomite: z.number(),
+    maxPhoton: z.number(),
+    maxDisruptors: z.number(),
+    maxReconDrones: z.number(),
+    transporterRange: z.number(),
+    hasPod: z.boolean(),
+    canLand: z.boolean(),
+    hasInterdictor: z.boolean(),
+    hasTractor: z.boolean(),
+    canHaveHyperspace1: z.boolean(),
+    canHaveHyperspace2: z.boolean(),
+    canHaveVisualScanner: z.boolean(),
+    canHavePlanetScanner: z.boolean(),
+    make: z.string().optional(),
+    hasPlanetaryDefenseBonus: z.boolean().optional(),
+    planetaryDefenseOdds: z.number().optional(),
+    pilotingRestriction: z.string().optional(),
+    notes: z.string().optional(),
+});
+export type ShipConfig = z.infer<typeof ShipConfigSchema>;
 
 /** Per-level requirements to construct or upgrade a planetary defense bastion
  *  (PDB, aka "base", aka legacy "citadel"). Six levels, fuel/org/equ are
  *  one-time stock drains, colos is matched against planet colonist totals,
  *  days is real-time days the construction takes. */
-export type BaseLevelRequirement = {
-    fuel: number;
-    org: number;
-    equ: number;
-    colos: number;
-    days: number;
-};
+export const BaseLevelRequirementSchema = z.object({
+    fuel: z.number(),
+    org: z.number(),
+    equ: z.number(),
+    colos: z.number(),
+    days: z.number(),
+});
+export type BaseLevelRequirement = z.infer<typeof BaseLevelRequirementSchema>;
 
-export type PlanetConfig = {
-    slug: string;
-    displayName?: string;
-    description: string;
-    /** Single capital letter, unique across planet types. Used in base
-     *  construction requirements display ("Class M, Terran"). */
-    class: string;
-    baseRequirements: BaseLevelRequirement[];
-    /** Deaths per 1000 colos per day from environmental hazard. Combined
-     *  with the universe-level dailyReproductionPer1000Colos to compute
-     *  the planet's net colonist trajectory. */
-    danger: number;
-    maxFuelColos: number;
-    maxOrgColos: number;
-    maxEquColos: number;
-    maxFuel: number;
-    maxOrg: number;
-    maxEqu: number;
-    maxDrones: number;
-    maxCitadel: number;
-    fuelProduction: number;
-    organicsProduction: number;
-    equipmentProduction: number;
-    /** Colonists per drone-per-hour, by source production group. 0 = that
-     *  group contributes no drones (e.g. Volcanic class has organics=0).
-     *  Drones produced = sum(colonists_X / figFactorX) for X in {fuel,org,equ}. */
-    figFactorFuel: number;
-    figFactorOrg: number;
-    figFactorEqu: number;
-};
+export const PlanetConfigSchema = z.object({
+    slug: z.string(),
+    displayName: z.string().optional(),
+    description: z.string(),
+    class: z.string(),
+    baseRequirements: z.array(BaseLevelRequirementSchema),
+    danger: z.number(),
+    maxFuelColos: z.number(),
+    maxOrgColos: z.number(),
+    maxEquColos: z.number(),
+    maxFuel: z.number(),
+    maxOrg: z.number(),
+    maxEqu: z.number(),
+    maxDrones: z.number(),
+    maxCitadel: z.number(),
+    fuelProduction: z.number(),
+    organicsProduction: z.number(),
+    equipmentProduction: z.number(),
+    figFactorFuel: z.number(),
+    figFactorOrg: z.number(),
+    figFactorEqu: z.number(),
+});
+export type PlanetConfig = z.infer<typeof PlanetConfigSchema>;
 
 export type ShipCatalogEntry = {
     id: number;
@@ -122,32 +124,36 @@ export type ShipCatalogEntry = {
     hardware: Record<string, number>;
 };
 
-export type AuthTokenPayload = {
-    userId: number;
-    name?: string;
-    role?: string;
-    tokenVersion: number;
-};
+export const AuthTokenPayloadSchema = z.object({
+    userId: z.number(),
+    name: z.string().optional(),
+    role: z.string().optional(),
+    tokenVersion: z.number(),
+});
+export type AuthTokenPayload = z.infer<typeof AuthTokenPayloadSchema>;
 
-export type AuthResponse = {
-    userId: number;
-    name?: string;
-    role: string;
-    token: string;
-};
+export const AuthResponseSchema = z.object({
+    userId: z.number(),
+    name: z.string().optional(),
+    role: z.string(),
+    token: z.string(),
+});
+export type AuthResponse = z.infer<typeof AuthResponseSchema>;
 
-export type LogoutResponse = {
-    success: boolean;
-};
+export const LogoutResponseSchema = z.object({
+    success: z.boolean(),
+});
+export type LogoutResponse = z.infer<typeof LogoutResponseSchema>;
 
-export type ServerStatsResponse = {
-    uptime: number;
-    playersOnline: number;
-    totalPlayers: number;
-    totalSectors: number;
-    nodeVersion: string;
-    platform: string;
-};
+export const ServerStatsResponseSchema = z.object({
+    uptime: z.number(),
+    playersOnline: z.number(),
+    totalPlayers: z.number(),
+    totalSectors: z.number(),
+    nodeVersion: z.string(),
+    platform: z.string(),
+});
+export type ServerStatsResponse = z.infer<typeof ServerStatsResponseSchema>;
 
 export type MenuCommandEntry = {
     command: string;
