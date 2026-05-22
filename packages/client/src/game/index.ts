@@ -12,6 +12,37 @@ import { MENU_REGISTRY, MENU_PROMPTS } from './menu-registry.js';
 import { registerMenu } from './routines/index.js';
 import type { MenuName } from '@twnr/shared';
 
+/**
+ * Measure how many pixels one cell of a given fontFamily/lineHeight takes
+ * per unit of fontSize. A hidden DOM probe with the same font settings xterm
+ * renders with gives us the exact glyph advance and line box, so the refit
+ * math is arithmetic against measured values instead of empirical guesses.
+ * Linear in fontSize for monospace fonts, so one measurement at a reference
+ * size scales to every other size.
+ */
+function measureFontMetrics(
+    fontFamily: string,
+    lineHeight: number,
+): { widthPerSize: number; heightPerSize: number } {
+    const REF_FONT_SIZE = 16;
+    const SAMPLE_COLS = 80;
+    const probe = document.createElement('span');
+    probe.style.position = 'absolute';
+    probe.style.visibility = 'hidden';
+    probe.style.whiteSpace = 'pre';
+    probe.style.fontFamily = fontFamily;
+    probe.style.fontSize = `${REF_FONT_SIZE}px`;
+    probe.style.lineHeight = String(lineHeight);
+    probe.textContent = 'M'.repeat(SAMPLE_COLS);
+    document.body.appendChild(probe);
+    const rect = probe.getBoundingClientRect();
+    document.body.removeChild(probe);
+    return {
+        widthPerSize: rect.width / SAMPLE_COLS / REF_FONT_SIZE,
+        heightPerSize: rect.height / REF_FONT_SIZE,
+    };
+}
+
 export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect: () => void) {
     const term = new Terminal({
         cursorBlink: true,
@@ -29,25 +60,17 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
     term.open(termDiv);
 
     // Pin logical width to globalConstants.terminalCols and scale fontSize to
-    // whatever the container can hold. The width side stays approximate
-    // (CHAR_WIDTH_RATIO ≈ 0.6 for Courier); the height side reads the actual
-    // rendered cell height from xterm after the fontSize is applied so we
-    // never ask for more rows than physically fit. LINE_HEIGHT_RATIO is only
-    // used as a fallback on the very first call before xterm has measured.
-    const CHAR_WIDTH_RATIO = 0.6;
-    const LINE_HEIGHT_RATIO_FALLBACK = 1.2;
+    // whatever the container can hold. The two ratios (px per fontSize unit,
+    // for cell width and height) are measured once from a hidden DOM probe
+    // using the same font-family and lineHeight xterm renders with, so
+    // they reflect the actual rendered glyph metrics rather than empirical
+    // guesses.
     const MIN_FONT_SIZE = 6;
     const MAX_FONT_SIZE = 32;
-    type CellDims = { width: number; height: number };
-    type CoreWithRender = {
-        _core?: { _renderService?: { dimensions?: { css?: { cell?: CellDims } } } };
-    };
-    function readCellHeight(fontSize: number): number {
-        const cell = (term as unknown as CoreWithRender)._core?._renderService?.dimensions?.css
-            ?.cell;
-        if (cell && Number.isFinite(cell.height) && cell.height > 0) return cell.height;
-        return fontSize * LINE_HEIGHT_RATIO_FALLBACK;
-    }
+    const { widthPerSize, heightPerSize } = measureFontMetrics(
+        'Courier New, Courier, monospace',
+        0.9,
+    );
     function refit() {
         const style = window.getComputedStyle(termDiv);
         const padX =
@@ -57,24 +80,17 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
         const w = termDiv.clientWidth - padX;
         const h = termDiv.clientHeight - padY;
         if (w <= 0 || h <= 0) return;
-        const rawFontSize = Math.floor(w / globalConstants.terminalCols / CHAR_WIDTH_RATIO);
+        const rawFontSize = Math.floor(w / globalConstants.terminalCols / widthPerSize);
         const fontSize = Math.max(MIN_FONT_SIZE, Math.min(MAX_FONT_SIZE, rawFontSize));
+        const rows = Math.max(10, Math.floor(h / (fontSize * heightPerSize)));
         term.options.fontSize = fontSize;
-        // Reading dimensions right after setting fontSize gives the updated
-        // cell height; one row of safety margin avoids the bottom prompt
-        // getting clipped by integer rounding or 1px container chrome.
-        const cellHeight = readCellHeight(fontSize);
-        const rows = Math.max(10, Math.floor(h / cellHeight) - 1);
         term.resize(globalConstants.terminalCols, rows);
     }
     refit();
     window.addEventListener('resize', refit);
 
-    // xterm's viewport captures wheel events to scroll its scrollback buffer,
-    // regardless of modifier keys. When the mouse is over the terminal that
-    // eats the event before the browser sees Ctrl+wheel as a zoom gesture.
     // Stop propagation at capture phase for Ctrl+wheel so xterm never sees it
-    // and the browser handles it as a page zoom (no preventDefault).
+    // and the browser handles it as a page zoom.
     termDiv.addEventListener(
         'wheel',
         (e) => {
@@ -222,9 +238,6 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
         ctx.input.inputQueue = [];
         ctx.input.inputAssembly = '';
         ctx.input.inFlight = false;
-        // Guest accounts are server-side deleted on WS close, so reconnecting
-        // would just hit a "User not found" close. Surface that and skip the
-        // reconnect option for guests.
         if (ctx.player.isGuest) {
             term.writeln(render(NOTIFY.deletingGuest, { name: ctx.player.name }));
         }
@@ -253,29 +266,18 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
         onDisconnect();
     };
 
-    // Hardcoded menu registry — same shape as the dropped /api/menu-registry
-    // endpoint so dispatchByRegistry, common-routines back/help_menu, and
-    // anything else that reads `ctx.catalogs.menus` works unchanged.
     {
         const map = new Map<string, MenuEntry>();
         for (const entry of MENU_REGISTRY) map.set(entry.name, entry);
         ctx.catalogs.menus = map;
     }
-    // Bind each menu's prompt-renderer. Menus omitted from MENU_PROMPTS
-    // (e.g. `port`) render nothing — their visible UI is server-pushed.
     for (const [name, renderPrompt] of Object.entries(MENU_PROMPTS)) {
         registerMenu(name as MenuName, { renderPrompt });
     }
 
-    // Mini-map setup. The mini-map lives in the adjacent #minimap panel and
-    // uses the same xterm input pipeline for click-injection.
     const minimapEl = document.getElementById('minimap');
     if (minimapEl) {
         const minimap = createMinimap(minimapEl, (sectorNumber, currentSectorNumber) => {
-            // If the clicked sector is the current sector, submit an empty line
-            // (re-display). Otherwise: if the target isn't an outgoing
-            // single-hop warp, flash the terminal border as a visual hint that
-            // this will trigger autopilot rather than a direct move.
             if (sectorNumber === currentSectorNumber || sectorNumber === ctx.world.currentSector) {
                 ctx.io.submitLineFromMap('');
                 return;
