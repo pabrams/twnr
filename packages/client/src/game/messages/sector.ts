@@ -78,7 +78,8 @@ export const SECTOR = makeDomain('SECTOR', {
     beaconBanner: '[g:b]<Release Beacon>[/g:b]',
     beaconLaunchPrompt:
         '[mg]Do you wish to launch a Marker Beacon here?[/mg] [mg]([/mg][by]Y[/by]/[by]N[/by][mg]) [N][/mg] ',
-    beaconMessagePrompt: '[mg]Enter a message to be transmitted by the beacon (41 chars) [by]:[/by][/mg]\r\n',
+    beaconMessagePrompt:
+        '[mg]Enter a message to be transmitted by the beacon (41 chars) [by]:[/by][/mg]\r\n',
     beaconLaunched: '[bg]Beacon Launched![/bg]',
     beaconCollision:
         '[br]Your beacon collides with the one that was already here and both detonate![/br]',
