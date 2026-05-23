@@ -108,6 +108,8 @@ const handlers: HandlerMap = {
     [ServerTag.TowAttachedAlert]: tow.towAttachedAlert,
 
     [ServerTag.StatsSnapshot]: (ctx, msg) => {
+        ctx.ship.shipDrones = msg.ship.drones;
+        ctx.ship.shipMaxDroneAttack = msg.ship.maxDroneAttack;
         ctx.stats.handle?.update(msg);
     },
 };

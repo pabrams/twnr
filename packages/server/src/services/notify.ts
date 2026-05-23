@@ -34,34 +34,17 @@ export function notifyAttributeChange(
     });
 }
 
-/** Push a one-shot Notice describing a turn-balance change. Positive
- *  `turnsDelta` is a deduction (the typical case); negative is a grant
- *  (rare). Skips silently when zero. */
 export function notifyTurnChange(playerId: number, turnsDelta: number, reason: string): void {
     if (!players[playerId]) return;
     if (turnsDelta === 0) return;
+    if (reason === 'warping') return;
     const body =
         turnsDelta > 0
-            ? reason === 'warping'
-                ? ''
-                : `${turnsDelta} turn(s) deducted for ${reason}.`
+            ? `${turnsDelta} turn(s) deducted for ${reason}.`
             : `${Math.abs(turnsDelta)} turn(s) granted for ${reason}.`;
-    sendEnvelope(playerId, {
-        type: ServerTag.Notice,
-        senderLabel: null,
-        body,
-    });
+    sendEnvelope(playerId, { type: ServerTag.Notice, senderLabel: null, body });
 }
 
-/**
- * Combined mail + notification for an event the recipient needs to know
- * about. Always writes a row to the recipient's inbox; if the recipient is
- * online, also pushes a Notice envelope so they see it inline immediately.
- *
- * Sender is either a player (mail row gets sender_player_id; notification
- * label = displayName) or a system label (mail row gets sender_label; both
- * use the same label string).
- */
 export async function notifyAndMail(opts: {
     recipientId: number;
     sender: NotifySender;

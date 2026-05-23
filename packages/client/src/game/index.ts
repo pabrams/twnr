@@ -148,6 +148,7 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
             planetEmptyHolds: 0,
             shipDrones: 0,
             shipMaxDrones: 0,
+            shipMaxDroneAttack: 0,
             shipFuel: 0,
             shipOrganics: 0,
             shipEquipment: 0,

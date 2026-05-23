@@ -10,6 +10,7 @@ type StatsRow = {
     experience: number;
     ship_type_slug: string;
     ship_type_display_name: string | null;
+    max_drone_attack: number;
     drones: number;
     shields: number;
     holds: number;
@@ -33,6 +34,7 @@ export async function buildStatsSnapshot(playerId: number): Promise<StatsSnapsho
                 p.turns, p.credits, p.reputation, p.experience,
                 s.ship_type_slug,
                 st.display_name AS ship_type_display_name,
+                st.max_drone_attack,
                 s.drones, s.shields, s.holds,
                 s.fuel, s.organics, s.equipment, s.colonists
          FROM players p
@@ -78,6 +80,7 @@ export async function buildStatsSnapshot(playerId: number): Promise<StatsSnapsho
         ship: {
             drones: row.drones,
             shields: row.shields,
+            maxDroneAttack: row.max_drone_attack,
         },
         hardware,
     };
