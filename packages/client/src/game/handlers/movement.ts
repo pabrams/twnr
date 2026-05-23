@@ -105,6 +105,10 @@ export const nonAdjacent: Handler<'nonAdjacentMoveRequested', MovementContext> =
 };
 
 export const shortestPath: Handler<'shortestPathResult', MovementContext> = (ctx, msg) => {
+    if (msg.hops === 0) {
+        ctx.io.term.writeln(render(EVENT.alreadyInSector));
+        return;
+    }
     if (msg.path.length <= 1) {
         ctx.io.term.writeln(render(EVENT.noPathFound));
         return;

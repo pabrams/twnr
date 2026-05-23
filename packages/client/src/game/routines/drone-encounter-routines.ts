@@ -7,7 +7,11 @@ import { askNumber } from './prompts.js';
 
 registerRoutine('attack_sector_drones', async (ctx) => {
     echoCommand(ctx, 'attackSectorDrones');
-    const qty = await askNumber(ctx, render(COMBAT.droneAttackQtyPrompt), { min: 1 });
+    const defaultQty = Math.min(ctx.ship.shipDrones, ctx.ship.shipMaxDroneAttack);
+    const qty = await askNumber(ctx, render(COMBAT.droneAttackQtyPrompt), {
+        min: 0,
+        defaultValue: defaultQty,
+    });
     if (qty === null) return;
     ctx.io.sendMsg({ type: ClientTag.AttackSectorDrones, drones: qty });
 });

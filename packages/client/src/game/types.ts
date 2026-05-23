@@ -135,6 +135,7 @@ export interface ShipState {
     planetEmptyHolds: number;
     shipDrones: number;
     shipMaxDrones: number;
+    shipMaxDroneAttack: number;
     shipFuel: number;
     shipOrganics: number;
     shipEquipment: number;

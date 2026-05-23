@@ -12,7 +12,11 @@ registerRoutine('select_target', async (ctx, line) => {
     }
     const targetId = ctx.world.sectorPlayers[idx].id;
     ctx.encounter.attackTarget = targetId;
-    const drones = await askNumber(ctx, render(COMBAT.attackQtyPrompt), { min: 1 });
+    const defaultQty = Math.min(ctx.ship.shipDrones, ctx.ship.shipMaxDroneAttack);
+    const drones = await askNumber(ctx, render(COMBAT.attackQtyPrompt), {
+        min: 0,
+        defaultValue: defaultQty,
+    });
     if (drones === null) {
         ctx.encounter.attackTarget = null;
         return;

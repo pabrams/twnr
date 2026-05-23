@@ -74,9 +74,9 @@ export async function askChar(
         ctx.io.term.write(prompt);
         const ch = await parkChar(ctx);
         if (ch === null) return null;
-        if ((ch === '\r' || ch === '\n') && def !== undefined) {
+        if (ch === '\r' || ch === '\n') {
             ctx.io.term.writeln('');
-            return def;
+            return def ?? null;
         }
         const lower = ch.toLowerCase();
         if (lower === 'q') return null;
@@ -85,7 +85,7 @@ export async function askChar(
             return lower;
         }
         ctx.io.term.writeln('');
-        ctx.io.term.writeln(`Invalid choice — try one of: ${allowed.join(', ')}`);
+        ctx.io.term.writeln(`Invalid choice — ${allowed.join(', ')} (Q or Enter to cancel).`);
     }
 }
 

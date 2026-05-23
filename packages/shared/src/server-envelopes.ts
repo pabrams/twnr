@@ -1600,6 +1600,7 @@ export const StatsSnapshotSchema = z.object({
     ship: z.object({
         drones: Num,
         shields: Num,
+        maxDroneAttack: Num,
     }),
     hardware: HardwareMap,
 });
