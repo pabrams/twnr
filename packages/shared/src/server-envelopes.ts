@@ -998,6 +998,17 @@ export const NeighborhoodSectorSchema = z.object({
     fringe: Bool,
     port: z.object({ class: Int, observed_at: Str }).nullable(),
     planets: z.array(z.object({ name: Str, type: StrOrNull, observed_at: Str })),
+    /** Player-perspective snapshot of what's in this sector. Defaults to all
+     *  false for sectors the player hasn't entered or had any observation of. */
+    observations: z
+        .object({
+            friendlyDrones: Bool,
+            enemyDrones: Bool,
+            friendlyProxMines: Bool,
+            enemyProxMines: Bool,
+            friendlySeekerMines: Bool,
+        })
+        .optional(),
 });
 export type NeighborhoodSector = z.infer<typeof NeighborhoodSectorSchema>;
 

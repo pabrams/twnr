@@ -717,6 +717,24 @@ export const connectDB = async (): Promise<void> => {
         observed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         PRIMARY KEY (player_id, sector_id, planet_name)
       );
+
+      -- Per-player snapshot of drones/mines/limpets known to be in a sector.
+      -- Decoupled from live state so the minimap reflects what the player has
+      -- observed, not what's actually there now. Updated on sector entry, on
+      -- own deployments, and on receive of "your drones destroyed"-style
+      -- notifications. Limpet (seeker) enemy presence is intentionally not
+      -- tracked — players can't see enemy limpets.
+      CREATE TABLE IF NOT EXISTS player_sector_observations (
+        player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+        sector_id INTEGER NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
+        friendly_drones BOOLEAN NOT NULL DEFAULT FALSE,
+        enemy_drones BOOLEAN NOT NULL DEFAULT FALSE,
+        friendly_prox_mines BOOLEAN NOT NULL DEFAULT FALSE,
+        enemy_prox_mines BOOLEAN NOT NULL DEFAULT FALSE,
+        friendly_seeker_mines BOOLEAN NOT NULL DEFAULT FALSE,
+        last_observed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (player_id, sector_id)
+      );
     `);
 
         for (const hw of hardwareItems) {

@@ -129,6 +129,38 @@
     fill: #fc6;
 }
 
+/* Bottom-half of a visited pill — black fill behind the port triplet,
+   shaped as a path so its lower corners match the outer pill radius. */
+.minimap-sector-pill-bottom {
+    fill: #000;
+    pointer-events: none;
+}
+.minimap-port-triplet {
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: bold;
+    pointer-events: none;
+    fill: #ccc;
+}
+.minimap-port-triplet--sell {
+    fill: #0ff;
+}
+.minimap-port-triplet--buy {
+    fill: #080;
+}
+
+/* Observation icons (drones/mines/limpets) on visited pills. */
+.minimap-obs-icon {
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: bold;
+    pointer-events: none;
+}
+.minimap-obs-icon--friendly {
+    fill: #0f0;
+}
+.minimap-obs-icon--enemy {
+    fill: #f33;
+}
+
 /* Hover-out highlight: while the user mouses over a sector pill, every warp
    leading out of that sector and every destination pill picks up these
    classes. */

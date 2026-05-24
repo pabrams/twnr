@@ -33,6 +33,7 @@ import {
     getDeployedDronesByOwner,
 } from '../db/queries/drones.js';
 import { resolveMinesOnEntry } from '../services/mine-encounter.js';
+import { refreshSectorObservation } from '../services/sector-observations.js';
 import { getPlayerClanId, getClanMembers, getClanTotalReputation } from '../db/queries/clan.js';
 import { pvfigsAttackerDeltas, pvfigsMatchup } from '../services/combat-rewards.js';
 import { formatOwner, ownershipFrom } from '../services/owner-format.js';
@@ -89,9 +90,6 @@ export async function serveDeployDronesInfo(playerId: number): Promise<void> {
         return;
     }
 
-    // No menu transition — the deployDronesQty menu is gone. The client's
-    // deployDronesInfo handler displays the info and asks for qty inline
-    // via askNumber, then sends DeployDrones. Player stays on sector.
     await sendEnvelope(playerId, {
         type: ServerTag.DeployDronesInfoResult,
         sectorDrones: sectorDrones?.quantity ?? 0,
@@ -127,12 +125,15 @@ export async function serveDeployDrones(
     const sectorId = player.sector;
     const universeId = player.universeId;
 
-    // Always resolve clan_id — needed for both clan-ownership deploys AND
-    // friendly-existing detection when deploying personal into a sector
-    // that already holds the player's clan's drones (so we can convert).
     const playerClanId = await getPlayerClanId(playerId);
     if (ownership === 'clan' && playerClanId === null) {
         sendError(playerId, 'You are not in a clan.');
+        return;
+    }
+
+    const deploySectorDbId = await getSectorDbId(sectorId, universeId);
+    if (!deploySectorDbId) {
+        sendError(playerId, 'Sector not found');
         return;
     }
 
@@ -147,11 +148,7 @@ export async function serveDeployDrones(
             const shipDrones = shipInfo.drones;
             const maxDrones = shipInfo.max_drones ?? 0;
 
-            const sectorDbId = await getSectorDbId(sectorId, universeId);
-            if (!sectorDbId) {
-                sendError(playerId, 'Sector not found');
-                throw new AbortTransaction();
-            }
+            const sectorDbId = deploySectorDbId;
 
             const existing = await getSectorDronesRowForUpdate(sectorDbId, client);
 
@@ -215,6 +212,8 @@ export async function serveDeployDrones(
         });
 
         if (newShipDrones === undefined) return;
+
+        await refreshSectorObservation(playerId, deploySectorDbId);
 
         await sendEnvelope(playerId, {
             type: ServerTag.DeployDronesResult,
@@ -392,6 +391,15 @@ export async function serveAttackSectorDrones(
             if (k > 0) {
                 await insertSystemMemo(rid, 'Deployed Drones', 'drones_destroyed', destroyBody);
             }
+            // Their mental map should reflect the loss without needing to fly
+            // back to the sector themselves.
+            if (sectorDbId !== undefined && sectorDbId !== null) {
+                await refreshSectorObservation(rid, sectorDbId);
+            }
+        }
+        // Attacker is in the sector, so refresh their own observation too.
+        if (sectorDbId !== undefined && sectorDbId !== null) {
+            await refreshSectorObservation(playerId, sectorDbId);
         }
     } catch (err) {
         console.error('Attack sector drones error', err);

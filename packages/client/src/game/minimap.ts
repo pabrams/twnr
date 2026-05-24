@@ -41,7 +41,32 @@ type MinimapState = {
      * a new sector.
      */
     viewportCenter: { x: number; y: number } | null;
+    /** When true, pills show the port-triplet bottom half, planet glyphs, and
+     *  observation icons (drones/mines/limpets). When false, pills collapse
+     *  to just the sector number for a denser, less busy map. Persisted in
+     *  localStorage. */
+    extrasEnabled: boolean;
 };
+
+const EXTRAS_LS_KEY = 'twnr.minimap.extras';
+
+function readExtrasPreference(): boolean {
+    try {
+        const v = localStorage.getItem(EXTRAS_LS_KEY);
+        if (v === '0') return false;
+    } catch {
+        /* localStorage unavailable */
+    }
+    return true;
+}
+
+function writeExtrasPreference(enabled: boolean): void {
+    try {
+        localStorage.setItem(EXTRAS_LS_KEY, enabled ? '1' : '0');
+    } catch {
+        /* localStorage unavailable */
+    }
+}
 
 export type MinimapInjectionHandler = (sectorNumber: number, currentSector: number) => void;
 
@@ -85,6 +110,7 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
         quickMoveTargets: null,
         adminMode: false,
         viewportCenter: null,
+        extrasEnabled: readExtrasPreference(),
     };
 
     const body = container.querySelector<HTMLElement>('.minimap-body')!;
@@ -128,6 +154,20 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             refreshHandler?.();
         }),
     );
+    const extrasBtn = makeHeaderBtn('●●', '', () => {
+        state.extrasEnabled = !state.extrasEnabled;
+        writeExtrasPreference(state.extrasEnabled);
+        updateExtrasBtn();
+        render();
+    });
+    function updateExtrasBtn(): void {
+        extrasBtn.textContent = state.extrasEnabled ? '●●' : '○○';
+        extrasBtn.title = state.extrasEnabled
+            ? 'Hide extras (port triplet, planet, drone/mine icons)'
+            : 'Show extras (port triplet, planet, drone/mine icons)';
+    }
+    updateExtrasBtn();
+    header.appendChild(extrasBtn);
 
     /**
      * Half-extents of the viewport in world units. At zoom = 1, the panel
@@ -513,19 +553,42 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
         const labelSize = HEX_CELL_SIZE * LABEL_FRACTION_OF_CELL;
         const strokeW = HEX_CELL_SIZE * 0.04;
 
-        // Precompute pill bounds so warp lines can be trimmed to each pill's
-        // edge, leaving arrowheads visible outside the destination pill.
-        const pillById = new Map<number, { rw: number; rh: number }>();
-        for (const s of sectors) {
-            if (!disp.has(s.id)) continue;
+        // Extras (port triplet / planet glyph / observation icons) only appear
+        // on visited sectors and only when the toggle is enabled. The bottom-
+        // half is added to total pill height (so warps trim around the full
+        // box). 3-char triplet drives the minimum width when extras are on.
+        const BOTTOM_HALF_FONT_RATIO = 0.7;
+        function pillDims(s: NeighborhoodSector): {
+            rw: number;
+            topRh: number;
+            bottomRh: number;
+            totalRh: number;
+            fontPx: number;
+            bottomFontPx: number;
+        } {
             const isCurrent = s.id === currentId;
             const fontPx = isCurrent ? labelSize * 1.2 : labelSize;
             const cw = fontPx * 0.62;
             const px = fontPx * 0.5;
             const py = fontPx * 0.3;
-            const rw = String(s.sector_number).length * cw + px * 2;
-            const rh = fontPx + py * 2;
-            pillById.set(s.id, { rw, rh });
+            const showExtras = state.extrasEnabled && s.visibility === 'visited';
+            const bottomFontPx = fontPx * BOTTOM_HALF_FONT_RATIO;
+            const bottomCw = bottomFontPx * 0.62;
+            const minLabelWidth = String(s.sector_number).length * cw;
+            const minTripletWidth = showExtras ? 3 * bottomCw : 0;
+            const rw = Math.max(minLabelWidth, minTripletWidth) + px * 2;
+            const topRh = fontPx + py * 2;
+            const bottomRh = showExtras ? bottomFontPx + py * 1.4 : 0;
+            return { rw, topRh, bottomRh, totalRh: topRh + bottomRh, fontPx, bottomFontPx };
+        }
+
+        // Precompute pill bounds so warp lines can be trimmed to each pill's
+        // edge, leaving arrowheads visible outside the destination pill.
+        const pillById = new Map<number, { rw: number; rh: number }>();
+        for (const s of sectors) {
+            if (!disp.has(s.id)) continue;
+            const { rw, totalRh } = pillDims(s);
+            pillById.set(s.id, { rw, rh: totalRh });
         }
 
         // Trim a line from `fromPt` toward a pill centered at `centerPt` so it
@@ -847,13 +910,9 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             if (!p) continue;
             const isCurrent = s.id === currentId;
             const labelText = String(s.sector_number);
-            const fontPx = isCurrent ? labelSize * 1.2 : labelSize;
-            const cw = fontPx * 0.62;
-            const px = fontPx * 0.5;
-            const py = fontPx * 0.3;
-            const rw = labelText.length * cw + px * 2;
-            const rh = fontPx + py * 2;
+            const { rw, topRh, bottomRh, totalRh, fontPx, bottomFontPx } = pillDims(s);
             const rx = fontPx * 0.35;
+            const labelY = -bottomRh / 2;
 
             const group = document.createElementNS(SVG_NS, 'g');
             group.classList.add('sector-node');
@@ -861,9 +920,9 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
 
             const rect = document.createElementNS(SVG_NS, 'rect');
             rect.setAttribute('x', String(-rw / 2));
-            rect.setAttribute('y', String(-rh / 2));
+            rect.setAttribute('y', String(-totalRh / 2));
             rect.setAttribute('width', String(rw));
-            rect.setAttribute('height', String(rh));
+            rect.setAttribute('height', String(totalRh));
             rect.setAttribute('rx', String(rx));
             rect.setAttribute('ry', String(rx));
             if (isCurrent) {
@@ -885,6 +944,61 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             pillRectsBySectorId.set(s.id, rect);
             group.appendChild(rect);
 
+            // Bottom-half: black fill behind the port triplet. Shaped as a
+            // path so its lower corners match the outer pill radius while its
+            // top edge is the straight divider line.
+            if (bottomRh > 0) {
+                const dividerY = (topRh - bottomRh) / 2;
+                const bottomY = totalRh / 2;
+                const xL = -rw / 2;
+                const xR = rw / 2;
+                const fill = document.createElementNS(SVG_NS, 'path');
+                fill.classList.add('minimap-sector-pill-bottom');
+                fill.setAttribute(
+                    'd',
+                    `M ${xL} ${dividerY} L ${xR} ${dividerY} L ${xR} ${bottomY - rx} ` +
+                        `Q ${xR} ${bottomY} ${xR - rx} ${bottomY} ` +
+                        `L ${xL + rx} ${bottomY} ` +
+                        `Q ${xL} ${bottomY} ${xL} ${bottomY - rx} Z`,
+                );
+                group.appendChild(fill);
+
+                if (s.port) {
+                    const triplet = portClassTriplet(s.port.class);
+                    const bandCenterY = topRh / 2;
+                    if (triplet) {
+                        const bottomCw = bottomFontPx * 0.62;
+                        for (let i = 0; i < triplet.length; i++) {
+                            const ch = triplet[i];
+                            const t = document.createElementNS(SVG_NS, 'text');
+                            t.classList.add('minimap-port-triplet');
+                            if (ch === 'S') t.classList.add('minimap-port-triplet--sell');
+                            else if (ch === 'B') t.classList.add('minimap-port-triplet--buy');
+                            t.setAttribute('text-anchor', 'middle');
+                            t.setAttribute('dominant-baseline', 'central');
+                            t.setAttribute('font-size', String(bottomFontPx));
+                            t.setAttribute(
+                                'x',
+                                String(bottomCw * (i - (triplet.length - 1) / 2)),
+                            );
+                            t.setAttribute('y', String(bandCenterY));
+                            t.textContent = ch;
+                            group.appendChild(t);
+                        }
+                    } else {
+                        const t = document.createElementNS(SVG_NS, 'text');
+                        t.classList.add('minimap-port-triplet');
+                        t.setAttribute('text-anchor', 'middle');
+                        t.setAttribute('dominant-baseline', 'central');
+                        t.setAttribute('font-size', String(bottomFontPx));
+                        t.setAttribute('x', '0');
+                        t.setAttribute('y', String(bandCenterY));
+                        t.textContent = `C${s.port.class}`;
+                        group.appendChild(t);
+                    }
+                }
+            }
+
             const label = document.createElementNS(SVG_NS, 'text');
             label.classList.add('minimap-sector-label');
             if (isCurrent) {
@@ -897,23 +1011,80 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             label.setAttribute('text-anchor', 'middle');
             label.setAttribute('dominant-baseline', 'central');
             label.setAttribute('font-size', String(fontPx));
+            label.setAttribute('y', String(labelY));
             label.textContent = labelText;
             group.appendChild(label);
 
-            if (s.visibility === 'visited' && s.planets.length > 0) {
+            if (
+                state.extrasEnabled &&
+                s.visibility === 'visited' &&
+                s.planets.length > 0
+            ) {
                 const planetGlyph = document.createElementNS(SVG_NS, 'text');
                 planetGlyph.classList.add('minimap-planet-glyph');
                 planetGlyph.setAttribute('text-anchor', 'start');
                 planetGlyph.setAttribute('x', String(rw / 2 - fontPx * 0.15));
-                planetGlyph.setAttribute('y', String(-rh / 2 - fontPx * 0.15));
+                planetGlyph.setAttribute('y', String(-totalRh / 2 - fontPx * 0.15));
                 planetGlyph.setAttribute('font-size', String(fontPx * 0.9));
                 planetGlyph.textContent = s.planets.length > 1 ? `◉${s.planets.length}` : '◉';
                 group.appendChild(planetGlyph);
             }
 
+            // Observation icons (drones/mines/limpets). Three corners are
+            // already in use: planets sit just above the top-right; quick-move
+            // badges hang below the bottom-center; sector_number occupies the
+            // top half. We tuck:
+            //   drones  → top-left, just outside the pill
+            //   mines   → bottom-left, just outside the pill
+            //   limpets → bottom-right, just outside the pill (letter L)
+            const obs = s.observations;
+            if (state.extrasEnabled && s.visibility === 'visited' && obs) {
+                const iconFontPx = fontPx * 0.7;
+                const offset = fontPx * 0.15;
+                if (obs.friendlyDrones || obs.enemyDrones) {
+                    const cls = obs.friendlyDrones
+                        ? 'minimap-obs-icon--friendly'
+                        : 'minimap-obs-icon--enemy';
+                    const t = document.createElementNS(SVG_NS, 'text');
+                    t.classList.add('minimap-obs-icon', cls);
+                    t.setAttribute('text-anchor', 'end');
+                    t.setAttribute('dominant-baseline', 'alphabetic');
+                    t.setAttribute('x', String(-rw / 2 + iconFontPx * 0.5));
+                    t.setAttribute('y', String(-totalRh / 2 - offset));
+                    t.setAttribute('font-size', String(iconFontPx));
+                    t.textContent = '▲';
+                    group.appendChild(t);
+                }
+                if (obs.friendlyProxMines || obs.enemyProxMines) {
+                    const cls = obs.friendlyProxMines
+                        ? 'minimap-obs-icon--friendly'
+                        : 'minimap-obs-icon--enemy';
+                    const t = document.createElementNS(SVG_NS, 'text');
+                    t.classList.add('minimap-obs-icon', cls);
+                    t.setAttribute('text-anchor', 'end');
+                    t.setAttribute('dominant-baseline', 'hanging');
+                    t.setAttribute('x', String(-rw / 2 + iconFontPx * 0.5));
+                    t.setAttribute('y', String(totalRh / 2 + offset * 0.2));
+                    t.setAttribute('font-size', String(iconFontPx));
+                    t.textContent = '✱';
+                    group.appendChild(t);
+                }
+                if (obs.friendlySeekerMines) {
+                    const t = document.createElementNS(SVG_NS, 'text');
+                    t.classList.add('minimap-obs-icon', 'minimap-obs-icon--friendly');
+                    t.setAttribute('text-anchor', 'start');
+                    t.setAttribute('dominant-baseline', 'hanging');
+                    t.setAttribute('x', String(rw / 2 - iconFontPx * 0.5));
+                    t.setAttribute('y', String(totalRh / 2 + offset * 0.2));
+                    t.setAttribute('font-size', String(iconFontPx));
+                    t.textContent = 'L';
+                    group.appendChild(t);
+                }
+            }
+
             if (quickMoveIndex !== undefined) {
                 const badgeR = fontPx * 0.65;
-                const badgeY = rh / 2 + badgeR + fontPx * 0.25;
+                const badgeY = totalRh / 2 + badgeR + fontPx * 0.25;
                 const badgeCircle = document.createElementNS(SVG_NS, 'circle');
                 badgeCircle.classList.add('minimap-quick-move-badge');
                 badgeCircle.setAttribute('cx', '0');
