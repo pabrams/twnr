@@ -2,7 +2,12 @@ import { ServerTag } from '@twnr/shared';
 import type { ServerEnvelope, AttackShipCommand } from '@twnr/shared';
 
 import { players, isVisibleInSector } from '../state/players.js';
-import { sendEnvelope, sendError, closeDestroyedSession } from '../state/messaging.js';
+import {
+    sendEnvelope,
+    sendError,
+    closeDestroyedSession,
+    broadcastEnvelope,
+} from '../state/messaging.js';
 import { withTransaction, AbortTransaction } from '../db/index.js';
 import {
     getShipDronesForUpdate,
@@ -31,9 +36,10 @@ export async function serveGetAttackTargets(playerId: number): Promise<void> {
     if (!player) return;
 
     const rows = await listPlayersInSector(player.sector, player.universeId, playerId);
-    const roster = rows
-        .filter((row) => isVisibleInSector(row.id, row.docked, row.on_planet_id))
-        .map((row) => ({ id: row.id, name: row.name }));
+    const visible = rows.filter((row) =>
+        isVisibleInSector(row.id, row.docked, row.on_planet_id),
+    );
+    const roster = visible.map((row) => ({ id: row.id, name: row.name }));
 
     const beacon = await getSectorBeacon(player.sectorId);
 
@@ -42,6 +48,18 @@ export async function serveGetAttackTargets(playerId: number): Promise<void> {
         players: roster,
         beaconPresent: !!beacon,
     });
+
+    // Warn everyone else in the sector that the attacker is about to fire.
+    if (visible.length > 0) {
+        broadcastEnvelope(
+            {
+                type: ServerTag.Notice,
+                senderLabel: null,
+                body: `[br]${player.name} is powering up their weapon systems![/br]`,
+            },
+            visible.map((row) => row.id),
+        );
+    }
 }
 
 export async function serveAttackShip(attackerId: number, data: AttackShipCommand): Promise<void> {
@@ -116,7 +134,7 @@ export async function serveAttackShip(attackerId: number, data: AttackShipComman
                 await setShipDronesAndShields(targetPlayerId, targetDrones, targetShields, client);
             }
 
-            // Combat rewards: attacker gains exp/rep based on the figs it
+            // Combat rewards: attacker gains exp/rep based on the drones it
             // lost and the defender's pre-penalty rep. On destroy the
             // attacker gets a bonus from the defender's PRE-penalty snapshot
             // and the defender takes a self-percentage penalty. Defender
