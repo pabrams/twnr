@@ -3,6 +3,7 @@ import type { DeployMineInfoCommand, DeployMineCommand, MineDisruptorCommand } f
 import { players } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { isInEncounter } from '../services/encounter.js';
+import { refreshSectorObservation } from '../services/sector-observations.js';
 import { withTransaction, AbortTransaction } from '../db/index.js';
 import { getGraph } from '../state/graph-cache.js';
 import { getSectorDbId } from '../db/queries/sector.js';
@@ -197,6 +198,8 @@ export async function serveDeployMine(playerId: number, data: DeployMineCommand)
         });
 
         if (!result) return;
+
+        await refreshSectorObservation(playerId, sectorDbId);
 
         await sendEnvelope(playerId, {
             type: ServerTag.DeployMineResult,

@@ -8,6 +8,7 @@ import { getWarpRefs, resolveSectorId } from '../services/sector-lookup.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
 import { isInEncounter } from '../services/encounter.js';
 import { notifyTurnChange } from '../services/notify.js';
+import { refreshSectorObservation } from '../services/sector-observations.js';
 import {
     setDocked,
     moveToSector,
@@ -109,6 +110,7 @@ export async function serveMove(playerId: number, data: MoveCommand): Promise<vo
         moveToSector(playerId, targetSectorId),
         moveShipToSector(playerId, targetSectorId),
         markSectorVisited(playerId, targetSectorId),
+        refreshSectorObservation(playerId, targetSectorId),
     ]);
 
     let towedAlong: TowedAlong | undefined;
@@ -196,10 +198,7 @@ export async function serveMove(playerId: number, data: MoveCommand): Promise<vo
         }
     }
 
-    // Resolve any enemy mines in the destination sector. Proximity mines may
-    // damage or destroy the ship before the player can do anything; seeker
-    // mines may attach silently. Run before drone-encounter check so a kill
-    // shortcuts further work.
+    // Resolve any enemy mines in the destination sector.
     const mineOutcome = await resolveMinesOnEntry(playerId);
     if (mineOutcome.destroyed) {
         await sendEnvelope(playerId, {

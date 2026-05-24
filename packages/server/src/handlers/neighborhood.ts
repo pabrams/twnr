@@ -12,6 +12,7 @@ import {
     listVisitedSectorsForUniverse,
     listPlanetObservationsForSectors,
 } from '../db/queries/observations.js';
+import { listSectorObservations } from '../services/sector-observations.js';
 import { pool } from '../db/pool.js';
 
 /** Smallest viewport extent the client may legitimately request (world units). */
@@ -65,7 +66,7 @@ export async function serveGetNeighborhood(
     // Pull all sector metadata for this universe (id, sector_number, x, y).
     // Cheap enough for any sane universe size; cropping happens client-side
     // would push too much data over the wire on big universes, so we filter
-    // here in JS after the fetch. (DB-side bbox query would also work but
+    // here in JS after the fetch. (TODO: DB-side bbox query would also work but
     // requires an index we don't yet have.)
     const sectorMetaRes = await pool.query<{
         id: number;
@@ -201,6 +202,14 @@ export async function serveGetNeighborhood(
         });
     }
 
+    const visitedSectorIds: number[] = [];
+    for (const id of includedSectors) {
+        if (isAdmin || visitedIds.has(id) || id === currentSectorId) {
+            visitedSectorIds.push(id);
+        }
+    }
+    const observationsBySector = await listSectorObservations(playerId, visitedSectorIds);
+
     const sectors: NeighborhoodSector[] = [];
     for (const id of includedSectors) {
         const meta = sectorMeta.get(id);
@@ -219,6 +228,7 @@ export async function serveGetNeighborhood(
             }
             planets = planetsBySector.get(id) ?? [];
         }
+        const obs = isVisited ? observationsBySector.get(id) : undefined;
         sectors.push({
             id: meta.id,
             sector_number: meta.sector_number,
@@ -228,6 +238,7 @@ export async function serveGetNeighborhood(
             fringe: fringeIds.has(id),
             port,
             planets,
+            ...(obs ? { observations: obs } : {}),
         });
     }
 
