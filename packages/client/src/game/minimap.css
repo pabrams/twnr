@@ -148,6 +148,31 @@
     fill: #080;
 }
 
+/* Vertical context-style menu anchored near the player's last click on
+   the minimap. Used for autopilot Y/N and drone-encounter Attack/Retreat. */
+#minimap {
+    position: relative;
+}
+.minimap-menu {
+    position: absolute; z-index: 20;
+    background: #000; border: 1px solid #0ff;
+    box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.6);
+    font-family: 'Courier New', Courier, monospace;
+    min-width: 120px; padding: 2px 0;
+    display: flex; flex-direction: column;
+}
+.minimap-menu-title {
+    color: #888; font-size: 11px; font-weight: bold;
+    padding: 4px 12px 2px; letter-spacing: 0.5px;
+    border-bottom: 1px solid #222; margin-bottom: 2px;
+}
+.minimap-menu-item {
+    background: none; color: #c0c0c0; border: none;
+    padding: 5px 14px; font-family: inherit; font-size: 13px;
+    cursor: pointer; text-align: left; width: 100%; line-height: 1.2;
+}
+.minimap-menu-item:hover { background: #022; color: #ff0; }
+
 /* Observation icons (drones/mines/limpets) on visited pills. */
 .minimap-obs-icon {
     font-family: 'Courier New', Courier, monospace;

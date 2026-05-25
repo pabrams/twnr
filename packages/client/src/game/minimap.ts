@@ -69,6 +69,9 @@ function writeExtrasPreference(enabled: boolean): void {
 }
 
 export type MinimapInjectionHandler = (sectorNumber: number, currentSector: number) => void;
+export type MinimapKeyInjector = (key: string) => void;
+
+export type MinimapMenuButton = { label: string; key: string };
 
 export interface Minimap {
     update(data: NeighborhoodReply, currentSectorNumber: number): void;
@@ -86,6 +89,12 @@ export interface Minimap {
     onRequestRefresh(handler: () => void): void;
     setQuickMove(targets: number[] | null): void;
     setAdminMode(adminMode: boolean): void;
+    /** Pop up a floating button panel anchored to the minimap. Clicking a
+     *  button injects its key via the supplied keyInjector (see
+     *  createMinimap) and dismisses the panel. The panel also closes on
+     *  closeMenu() — typically called when the player types in xterm. */
+    openMenu(opts: { title?: string; buttons: MinimapMenuButton[] }): void;
+    closeMenu(): void;
 }
 
 /**
@@ -101,7 +110,11 @@ const ZOOM_STEP = 1.15;
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
-export function createMinimap(container: HTMLElement, onInject: MinimapInjectionHandler): Minimap {
+export function createMinimap(
+    container: HTMLElement,
+    onInject: MinimapInjectionHandler,
+    onInjectKey: MinimapKeyInjector,
+): Minimap {
     const state: MinimapState = {
         zoom: 1.0,
         data: null,
@@ -1146,6 +1159,69 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
         }
     }
 
+    // Floating context-style menu, anchored near the last known mouse
+    // position over the minimap (typically wherever the player just
+    // clicked). Vertical list — closest to the OS right-click menu the
+    // player already expects. Buttons inject keys via onInjectKey;
+    // closeMenu() also dismisses it.
+    let menuEl: HTMLElement | null = null;
+    let lastMouseX: number | null = null;
+    let lastMouseY: number | null = null;
+    container.addEventListener('mousemove', (e: MouseEvent) => {
+        const rect = container.getBoundingClientRect();
+        lastMouseX = e.clientX - rect.left;
+        lastMouseY = e.clientY - rect.top;
+    });
+    function destroyMenu(): void {
+        if (menuEl) {
+            menuEl.remove();
+            menuEl = null;
+        }
+    }
+    function buildMenu(title: string | undefined, items: MinimapMenuButton[]): HTMLElement {
+        const el = document.createElement('div');
+        el.className = 'minimap-menu';
+        if (title) {
+            const h = document.createElement('div');
+            h.className = 'minimap-menu-title';
+            h.textContent = title;
+            el.appendChild(h);
+        }
+        for (const b of items) {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'minimap-menu-item';
+            item.textContent = b.label;
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                destroyMenu();
+                onInjectKey(b.key);
+            });
+            el.appendChild(item);
+        }
+        return el;
+    }
+    function positionMenu(el: HTMLElement): void {
+        const rect = container.getBoundingClientRect();
+        const margin = 4;
+        // Append first so we can measure the menu's own dimensions.
+        const w = el.offsetWidth;
+        const h = el.offsetHeight;
+        const anchorX = lastMouseX ?? rect.width / 2;
+        const anchorY = lastMouseY ?? rect.height / 2;
+        // Place slightly to the right/below the cursor like a native context
+        // menu; clamp to keep it fully inside the container.
+        let x = anchorX + 2;
+        let y = anchorY + 2;
+        if (x + w + margin > rect.width) x = Math.max(margin, anchorX - w - 2);
+        if (y + h + margin > rect.height) y = Math.max(margin, anchorY - h - 2);
+        x = Math.max(margin, Math.min(rect.width - w - margin, x));
+        y = Math.max(margin, Math.min(rect.height - h - margin, y));
+        el.style.left = `${x}px`;
+        el.style.top = `${y}px`;
+    }
+
     return {
         update(data, currentSectorNumber) {
             // When the player moves to a new sector, drop any cursor-zoom
@@ -1180,6 +1256,15 @@ export function createMinimap(container: HTMLElement, onInject: MinimapInjection
             if (state.adminMode === adminMode) return;
             state.adminMode = adminMode;
             container.classList.toggle('is-admin-mode', adminMode);
+        },
+        openMenu(opts) {
+            destroyMenu();
+            menuEl = buildMenu(opts.title, opts.buttons);
+            container.appendChild(menuEl);
+            positionMenu(menuEl);
+        },
+        closeMenu() {
+            destroyMenu();
         },
     };
 }

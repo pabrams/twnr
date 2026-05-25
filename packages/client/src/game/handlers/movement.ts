@@ -10,7 +10,10 @@ import { askConfirm } from '../routines/prompts.js';
 import type { Handler } from './index.js';
 import { refreshMinimap, type RefreshMinimapCtx } from './utils.js';
 
-type MovementContext = Pick<GameContext, 'autopilot' | 'encounter' | 'input' | 'io' | 'world'> &
+type MovementContext = Pick<
+    GameContext,
+    'autopilot' | 'encounter' | 'input' | 'io' | 'minimap' | 'world'
+> &
     DisplayCtx &
     DisplayPortCtx &
     DisplayCombatCtx &
@@ -58,6 +61,9 @@ export const move: Handler<'moveResult', MovementContext> = (ctx, msg) => {
             }
             const droneQty = msg.sectorDrones?.quantity ?? 0;
             showDroneEncounter(ctx, droneQty, msg.ownerName, msg.shipDrones);
+            // Mirror the DroneEncounter menu commands as minimap buttons so
+            // mouse users don't have to switch back to the keyboard.
+            openEncounterMenu(ctx);
             break;
         }
         case 'nonAdjacent':
@@ -116,6 +122,23 @@ export const shortestPath: Handler<'shortestPathResult', MovementContext> = (ctx
     return promptAutopilot(ctx, msg);
 };
 
+/** Walk the DroneEncounter menu registry and turn each single-key command
+ *  into a button on the minimap panel. Keeps the visible options in sync
+ *  with whatever the xterm menu shows. */
+function openEncounterMenu(ctx: MovementContext): void {
+    const menu = ctx.catalogs.menus.get(Menu.DroneEncounter);
+    if (!menu) return;
+    const buttons = menu.commands
+        .filter((c) => c.keyPattern.length === 1)
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((c) => ({ label: c.label, key: c.keyPattern }));
+    if (buttons.length === 0) return;
+    ctx.minimap.handle?.openMenu({
+        title: 'Drone encounter',
+        buttons,
+    });
+}
+
 async function promptAutopilot(
     ctx: MovementContext,
     msg: { path: { sector: number; visited: boolean }[]; hops: number; turns: number },
@@ -135,7 +158,19 @@ async function promptAutopilot(
         .join(sep);
     term.writeln(`  ${list}`);
 
-    const ok = await askConfirm(ctx, render(SECTOR.autopilotConfirm), { defaultValue: false });
+    ctx.minimap.handle?.openMenu({
+        title: 'Engage autopilot?',
+        buttons: [
+            { label: 'Yes', key: 'y' },
+            { label: 'No', key: 'n' },
+        ],
+    });
+    let ok: boolean | null;
+    try {
+        ok = await askConfirm(ctx, render(SECTOR.autopilotConfirm), { defaultValue: false });
+    } finally {
+        ctx.minimap.handle?.closeMenu();
+    }
     if (!ok) return;
 
     ctx.autopilot.path = msg.path.map((p) => p.sector);
