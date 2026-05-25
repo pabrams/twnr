@@ -36,15 +36,7 @@ export type ProximityHitResult = {
     destroyed: boolean;
 };
 
-/**
- * Resolve proximity mine detonations when a player enters a sector with
- * enemy proximity mines. Each enemy mine independently detonates with
- * probability `proximity_detonation_pct` and inflicts
- * `proximity_mine_damage` per hit, soaked first by shields then drones.
- * Mines that detonate are removed; mines that don't are left in place.
- *
- * Returns null if there are no enemy proximity mines in the sector.
- */
+
 export async function resolveProximityMines(playerId: number): Promise<ProximityHitResult | null> {
     const player = players[playerId];
     if (!player) return null;
@@ -76,17 +68,17 @@ export async function resolveProximityMines(playerId: number): Promise<Proximity
             await setSectorMineQuantity(sectorDbId, 'proximity', remaining, client);
         }
 
-        // Apply damage: first shields, then drones.
+        // Apply damage: first drones, then shields.
         const shipState = await getShipDronesAndShieldsForUpdate(playerId, client);
         if (!shipState) {
             return { detonations, damage: 0, shieldsLost: 0, dronesLost: 0, destroyed: false };
         }
         const damage = detonations * settings.proximity_mine_damage;
         let remainingDamage = damage;
-        const shieldsLost = Math.min(shipState.shields, remainingDamage);
-        remainingDamage -= shieldsLost;
         const dronesLost = Math.min(shipState.drones, remainingDamage);
         remainingDamage -= dronesLost;
+        const shieldsLost = Math.min(shipState.shields, remainingDamage);
+        remainingDamage -= shieldsLost;
         const newShields = shipState.shields - shieldsLost;
         const newDrones = shipState.drones - dronesLost;
         const destroyed = remainingDamage > 0;
