@@ -11,7 +11,7 @@ import * as auth from './auth/index.js';
 import { ServerTag, ClientEnvelopeSchema } from '@twnr/shared';
 import type { AuthTokenPayload, ClientEnvelope, ServerEnvelope } from '@twnr/shared';
 import { shipConfigs } from './ship-config.js';
-import { players } from './state/players.js';
+import { onlinePlayers } from './state/players.js';
 import { sendEnvelope, sendError, broadcastTo } from './state/messaging.js';
 import { routeMessage } from './handlers/message-router.js';
 import { clearPendingShipPurchase } from './state/pending-ship-purchases.js';
@@ -106,7 +106,7 @@ app.use(
         getJwtToken: auth.getJwtToken,
         getAuthenticatedPlayer: auth.getAuthenticatedPlayer,
         shipConfigs,
-        players,
+        players: onlinePlayers,
         AUTH_COOKIE_NAME: auth.AUTH_COOKIE_NAME,
         ADMIN_API_KEY: auth.ADMIN_API_KEY,
     }),
@@ -193,7 +193,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
         await markSectorVisited(playerId, sectorId);
 
         const isAdmin = authPayload.role === 'admin';
-        players[playerId] = {
+        onlinePlayers[playerId] = {
             ws,
             sector,
             sectorId,
@@ -313,9 +313,9 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             clearInterval(refillInterval);
             clearPendingShipPurchase(playerId);
             void import('./handlers/port-haggle.js').then((m) => m.clearHaggleSession(playerId));
-            const lastSector = players[playerId]?.sector;
-            const lastUniverse = players[playerId]?.universeId;
-            delete players[playerId];
+            const lastSector = onlinePlayers[playerId]?.sector;
+            const lastUniverse = onlinePlayers[playerId]?.universeId;
+            delete onlinePlayers[playerId];
 
             (async () => {
                 try {
@@ -327,7 +327,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
 
             if (lastSector && lastUniverse) {
                 const clientsToNotify = new Set<WebSocket>();
-                for (const p of Object.values(players)) {
+                for (const p of Object.values(onlinePlayers)) {
                     if (p.sector === lastSector && p.universeId === lastUniverse) {
                         clientsToNotify.add(p.ws);
                     }

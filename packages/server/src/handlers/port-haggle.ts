@@ -21,7 +21,7 @@ import {
     type PortAction,
 } from '@twnr/shared';
 import type { HaggleOpenCommand, HaggleCounterCommand } from '@twnr/shared';
-import { players } from '../state/players.js';
+import { onlinePlayers } from '../state/players.js';
 import { sendEnvelope } from '../state/messaging.js';
 import { withTransaction, AbortTransaction } from '../db/index.js';
 import { runMutation } from './run-mutation.js';
@@ -91,7 +91,7 @@ function getActiveSession(playerId: number): HaggleSession | null {
 }
 
 export async function serveHaggleOpen(playerId: number, data: HaggleOpenCommand): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (
@@ -176,7 +176,7 @@ export async function serveHaggleOpen(playerId: number, data: HaggleOpenCommand)
 
     // Snapshot xp for the initial unit price (no further xp reads until
     // accept, so pricing stays stable across rounds).
-    const player_ = players[playerId];
+    const player_ = onlinePlayers[playerId];
     if (!player_) return;
     const xp = await (async () => {
         const { pool } = await import('../db/index.js');
@@ -222,7 +222,7 @@ export async function serveHaggleCounter(
     playerId: number,
     data: HaggleCounterCommand,
 ): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
     const session = getActiveSession(playerId);
     if (!session) {

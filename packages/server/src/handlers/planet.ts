@@ -9,7 +9,7 @@ import type {
     ClaimPlanetCommand,
     SetTerraformedPlanetCommand,
 } from '@twnr/shared';
-import { players } from '../state/players.js';
+import { onlinePlayers } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
 import { isInEncounter } from '../services/encounter.js';
@@ -73,7 +73,7 @@ import { cargoUsed } from './cargo-utils.js';
 import { notifyTurnChange } from '../services/notify.js';
 
 export async function serveGetSectorPlanets(playerId: number): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (await isInEncounter(playerId)) {
@@ -100,7 +100,7 @@ export async function serveLandOnPlanet(
     data: LandOnPlanetCommand,
 ): Promise<void> {
     const { planetId } = data;
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (await isInEncounter(playerId)) {
@@ -167,7 +167,7 @@ async function getShipPlanetContext(playerId: number): Promise<{
 }
 
 export async function servePlanetDisplay(playerId: number): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     const onPlanetId = await getOnPlanetId(playerId);
@@ -196,7 +196,7 @@ export async function servePlanetDisplay(playerId: number): Promise<void> {
 }
 
 export async function serveLeavePlanet(playerId: number): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     const turnResult = await checkAndDeductTurns(playerId, player.universeId, 1);
@@ -217,7 +217,7 @@ export async function serveLeavePlanet(playerId: number): Promise<void> {
 }
 
 export async function serveDestroyPlanet(playerId: number): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     const onPlanetId = await getOnPlanetId(playerId);
@@ -297,7 +297,7 @@ export async function serveDestroyPlanet(playerId: number): Promise<void> {
  * count and whether the player can terraform here
  */
 export async function serveTerraformInfo(playerId: number): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (await isInEncounter(playerId)) {
@@ -339,7 +339,7 @@ export async function serveTerraformInfo(playerId: number): Promise<void> {
 }
 
 export async function serveUseTerraformDevice(playerId: number): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     const sectorId = player.sector;
@@ -561,7 +561,7 @@ export async function serveTakeColonists(
     data: TakeColonistsCommand,
 ): Promise<void> {
     const { quantity, commodity } = data;
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     const col = parseColonistCommodity(playerId, commodity);
@@ -638,7 +638,7 @@ export async function serveLeaveColonists(
     data: LeaveColonistsCommand,
 ): Promise<void> {
     const { quantity, commodity } = data;
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     const col = parseColonistCommodity(playerId, commodity);
@@ -708,7 +708,7 @@ export async function serveTakeCommodity(
     data: TakeCommodityCommand,
 ): Promise<void> {
     const { quantity, commodity } = data;
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     const col = parsePlanetCommodity(playerId, commodity);
@@ -789,7 +789,7 @@ export async function serveLeaveCommodity(
     data: LeaveCommodityCommand,
 ): Promise<void> {
     const { quantity, commodity } = data;
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     const col = parsePlanetCommodity(playerId, commodity);
@@ -869,7 +869,7 @@ export async function serveChangePopulation(
     data: ChangePopulationCommand,
 ): Promise<void> {
     const { quantity, from, to } = data;
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (from !== 'fuel' && from !== 'organics' && from !== 'equipment') {
@@ -956,7 +956,7 @@ async function readShipCommodity(playerId: number, col: PlanetCommodity): Promis
 
 export async function serveClaimPlanet(playerId: number, data: ClaimPlanetCommand): Promise<void> {
     const { ownership } = data;
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     const onPlanetId = await getOnPlanetId(playerId);
@@ -1017,7 +1017,7 @@ export async function serveClaimPlanet(playerId: number, data: ClaimPlanetComman
 }
 
 export async function serveListPlanets(playerId: number): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     const rows = await listPlayerPlanets(playerId, player.universeId);

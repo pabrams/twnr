@@ -1,4 +1,4 @@
-import { players } from '../state/players.js';
+import { onlinePlayers } from '../state/players.js';
 import { hasEnemyDronesInSector } from '../db/queries/drones.js';
 
 /**
@@ -6,7 +6,7 @@ import { hasEnemyDronesInSector } from '../db/queries/drones.js';
  * sector contains drones not owned by them.
  */
 export async function isInEncounter(playerId: number): Promise<boolean> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return false;
     return hasEnemyDronesInSector(player.sector, player.universeId, playerId);
 }

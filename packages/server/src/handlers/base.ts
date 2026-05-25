@@ -1,5 +1,5 @@
 import { ServerTag, universeConfig, type BaseLevelRequirement } from '@twnr/shared';
-import { players } from '../state/players.js';
+import { onlinePlayers } from '../state/players.js';
 import { sendEnvelope } from '../state/messaging.js';
 import { AbortTransaction, pool } from '../db/index.js';
 import { runMutation } from './run-mutation.js';
@@ -55,7 +55,7 @@ function level1Of(reqs: unknown): BaseLevelRequirement | null {
 }
 
 export async function serveBaseInfo(playerId: number): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     const onPlanetId = await getOnPlanetId(playerId);
@@ -143,7 +143,7 @@ export async function serveBaseInfo(playerId: number): Promise<void> {
 }
 
 export async function serveBuildBase(playerId: number): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     const onPlanetId = await getOnPlanetId(playerId);
@@ -240,7 +240,7 @@ export async function serveExitBase(playerId: number): Promise<void> {
 }
 
 export async function serveTreasuryInfo(playerId: number): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     const onPlanetId = await getOnPlanetId(playerId);
@@ -279,7 +279,7 @@ export async function serveTreasuryTransfer(
     playerId: number,
     data: { direction: 'to' | 'from'; amount: number },
 ): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     const { direction, amount } = data;
@@ -394,7 +394,7 @@ function shortestHopCount(warps: Record<number, number[]>, from: number, to: num
 }
 
 export async function serveBwarpInfo(playerId: number): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
     const onPlanetId = await getOnPlanetId(playerId);
     if (!onPlanetId) {
@@ -434,7 +434,7 @@ export async function serveBwarpInfo(playerId: number): Promise<void> {
 }
 
 export async function serveBwarpInstall(playerId: number): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
     const onPlanetId = await getOnPlanetId(playerId);
     if (!onPlanetId) {
@@ -499,7 +499,7 @@ export async function serveBwarpInstall(playerId: number): Promise<void> {
 }
 
 export async function serveBwarpUpgrade(playerId: number): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
     const onPlanetId = await getOnPlanetId(playerId);
     if (!onPlanetId) {
@@ -562,7 +562,7 @@ export async function serveBwarpBeam(
     playerId: number,
     data: { targetSector: number; commit: boolean },
 ): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
     const { targetSector, commit } = data;
 

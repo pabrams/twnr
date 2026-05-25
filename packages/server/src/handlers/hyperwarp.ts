@@ -1,6 +1,6 @@
 import { ServerTag } from '@twnr/shared';
 import type { HyperspaceJumpCommand } from '@twnr/shared';
-import { players } from '../state/players.js';
+import { onlinePlayers } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { getGraph } from '../state/graph-cache.js';
 import { resolveSectorId } from '../services/sector-lookup.js';
@@ -20,7 +20,7 @@ export async function serveHyperspaceJump(
     data: HyperspaceJumpCommand,
 ): Promise<void> {
     const { targetSector } = data;
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (player.docked || player.at_starbase) {

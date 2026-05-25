@@ -4,7 +4,7 @@ import { recordSectorObservation } from '../db/queries/observations.js';
 import { listPlayersInSector } from '../db/queries/player.js';
 import { getPlayerClanId } from '../db/queries/clan.js';
 import { getSectorBeacon } from '../db/queries/beacons.js';
-import { players, isVisibleInSector } from '../state/players.js';
+import { onlinePlayers, isVisibleInSector } from '../state/players.js';
 import { isFriendlyOwner } from './owner.js';
 import { ownershipFrom } from './owner-format.js';
 import {
@@ -16,7 +16,7 @@ import {
 } from './sector-lookup.js';
 
 export async function buildSectorDisplayData(playerId: number, sectorNumber?: number) {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return null;
     const sector = sectorNumber ?? player.sector;
     const universeId = player.universeId;

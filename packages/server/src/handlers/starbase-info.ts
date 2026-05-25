@@ -1,12 +1,12 @@
 import { ServerTag, universeConfig } from '@twnr/shared';
-import { players } from '../state/players.js';
+import { onlinePlayers } from '../state/players.js';
 import { sendEnvelope } from '../state/messaging.js';
 import { getStarbaseSectorNumber } from '../db/queries/sector.js';
 import { getUniverseStats, getOutWarpDegreeDistribution } from '../db/queries/universe.js';
 import { getStartingShipTypeBySlug } from '../db/queries/ship.js';
 
 export async function serveStarbaseInfo(playerId: number): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     const universeId = player.universeId;

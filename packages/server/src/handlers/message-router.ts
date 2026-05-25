@@ -1,6 +1,6 @@
 import { ClientTag, type ClientEnvelope } from '@twnr/shared';
 import { sendError } from '../state/messaging.js';
-import { players } from '../state/players.js';
+import { onlinePlayers } from '../state/players.js';
 import { getPendingShipPurchase } from '../state/pending-ship-purchases.js';
 import { serveSetShipName } from './ship-name.js';
 import { serveTowSpacecraft, serveTowAttach } from './tow.js';
@@ -222,7 +222,7 @@ export async function routeMessage(playerId: number, data: ClientEnvelope): Prom
     // Naming gate: while the player has no ship (initial / post-respawn) or a
     // pending ship purchase, the only command we accept is SetShipName.
     if (data.type !== ClientTag.SetShipName) {
-        const player = players[playerId];
+        const player = onlinePlayers[playerId];
         const needsName =
             player !== undefined &&
             (player.shipId === null || getPendingShipPurchase(playerId) !== undefined);

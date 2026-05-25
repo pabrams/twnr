@@ -6,7 +6,7 @@ import type {
 } from '@twnr/shared';
 import { pool } from '../db/index.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
-import { players, getPlayerUniverseId } from '../state/players.js';
+import { onlinePlayers, getPlayerUniverseId } from '../state/players.js';
 import {
     getShipInfo,
     getPlayerOwnedShips,
@@ -179,7 +179,7 @@ export async function serveGetShipDetail(
 }
 
 export async function serveListOwnedShips(playerId: number): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     const rows = await getPlayerOwnedShips(playerId);
@@ -232,7 +232,7 @@ export async function serveTransportToShip(
     data: TransportToShipCommand,
 ): Promise<void> {
     const { shipId } = data;
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (player.docked || player.at_starbase) {
@@ -319,7 +319,7 @@ export async function serveChangeShipOwnership(
     data: ChangeShipOwnershipCommand,
 ): Promise<void> {
     const { ownership } = data;
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
     if (player.shipId === null) {
         sendError(playerId, 'No ship.');

@@ -6,7 +6,7 @@ import {
     type PriceCommodity,
 } from '@twnr/shared';
 import type { PortInfoCommand, PortTransactionCommand } from '@twnr/shared';
-import { players, getPlayerUniverseId } from '../state/players.js';
+import { onlinePlayers, getPlayerUniverseId } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
 import { isInEncounter } from '../services/encounter.js';
@@ -124,7 +124,7 @@ export async function servePortInfo(playerId: number, data: PortInfoCommand): Pr
 }
 
 export async function serveDock(playerId: number): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (player.docked) {
@@ -160,7 +160,7 @@ export async function serveDock(playerId: number): Promise<void> {
         if (towerId !== null && towerId !== playerId) {
             await clearTowedShip(towerId);
             freedFromTow = true;
-            if (players[towerId]) {
+            if (onlinePlayers[towerId]) {
                 sendEnvelope(towerId, {
                     type: ServerTag.TowReleasedAlert,
                     towedName: player.name,
@@ -212,7 +212,7 @@ export async function serveDock(playerId: number): Promise<void> {
 }
 
 async function undockPlayer(playerId: number): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
     player.docked = false;
     await setDocked(playerId, false);
@@ -228,7 +228,7 @@ async function undockPlayer(playerId: number): Promise<void> {
 }
 
 export async function serveUndock(playerId: number): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (!player.docked) {
@@ -276,7 +276,7 @@ export async function servePortTransaction(
         return;
     }
 
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
     const universeId = player.universeId;
 
@@ -448,7 +448,7 @@ export async function servePortTransaction(
 }
 
 export async function serveDockStarbase(playerId: number): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (await isInEncounter(playerId)) {
@@ -487,7 +487,7 @@ export async function serveDockStarbase(playerId: number): Promise<void> {
 }
 
 export async function serveLeaveStarbase(playerId: number): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (!player.at_starbase) {

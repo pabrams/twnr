@@ -1,6 +1,6 @@
 import { ServerTag } from '@twnr/shared';
 import type { DeployMineInfoCommand, DeployMineCommand, MineDisruptorCommand } from '@twnr/shared';
-import { players } from '../state/players.js';
+import { onlinePlayers } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { isInEncounter } from '../services/encounter.js';
 import { refreshSectorObservation } from '../services/sector-observations.js';
@@ -51,7 +51,7 @@ export async function serveDeployMineInfo(
         sendError(playerId, 'Invalid mine type');
         return;
     }
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
     if (player.docked || player.at_starbase) {
         sendError(playerId, 'Cannot deploy mines while docked');
@@ -106,7 +106,7 @@ export async function serveDeployMine(playerId: number, data: DeployMineCommand)
         return;
     }
 
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
     if (player.docked || player.at_starbase) {
         sendError(playerId, 'Cannot deploy mines while docked');
@@ -210,7 +210,7 @@ export async function serveDeployMine(playerId: number, data: DeployMineCommand)
 }
 
 export async function serveListDeployedMines(playerId: number): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
     const rows = await getDeployedMinesByOwner(playerId);
     const { formatOwner, ownershipFrom } = await import('../services/owner-format.js');
@@ -227,7 +227,7 @@ export async function serveListDeployedMines(playerId: number): Promise<void> {
 }
 
 export async function serveTrackSeekerMines(playerId: number): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
     const rows = await getSeekerAttachmentsByOwner(playerId);
     sendEnvelope(playerId, {
@@ -251,7 +251,7 @@ export async function serveMineDisruptor(
         sendError(playerId, 'Invalid target sector');
         return;
     }
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
     if (player.docked || player.at_starbase) {
         sendError(playerId, 'Cannot fire disruptor while docked');

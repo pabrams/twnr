@@ -1,6 +1,6 @@
 import { ServerTag, type BuyHardwareReply } from '@twnr/shared';
 import type { BuyHardwareCommand } from '@twnr/shared';
-import { players } from '../state/players.js';
+import { onlinePlayers } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { AbortTransaction } from '../db/index.js';
 import { runMutation } from './run-mutation.js';
@@ -21,7 +21,7 @@ import { recordCreditChange } from '../services/audit.js';
  * with per-universe price, ship's current quantity, and ship-type maximum.
  */
 export async function serveHardwareStoreInfo(playerId: number): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player?.at_starbase) {
         sendError(playerId, 'Not at Starbase');
         return;
@@ -48,7 +48,7 @@ export async function serveHardwareStoreInfo(playerId: number): Promise<void> {
 /** Unified handler for buying any hardware item. */
 export async function serveBuyHardware(playerId: number, data: BuyHardwareCommand): Promise<void> {
     const { itemName, quantity } = data;
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player?.at_starbase) {
         sendError(playerId, 'Not at Starbase');
         return;

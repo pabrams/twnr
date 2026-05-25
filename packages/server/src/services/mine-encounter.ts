@@ -1,5 +1,5 @@
 import { ServerTag } from '@twnr/shared';
-import { players } from '../state/players.js';
+import { onlinePlayers } from '../state/players.js';
 import { sendEnvelope, broadcastEnvelope } from '../state/messaging.js';
 import { getClanMembers } from '../db/queries/clan.js';
 import { withTransaction } from '../db/index.js';
@@ -38,7 +38,7 @@ export type ProximityHitResult = {
 
 
 export async function resolveProximityMines(playerId: number): Promise<ProximityHitResult | null> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return null;
 
     const sectorDbId = player.sectorId;
@@ -111,7 +111,7 @@ export async function resolveSeekerMines(playerId: number): Promise<{
     newOwnerClanId: number | null;
     droppedPrevious: boolean;
 } | null> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return null;
 
     const sectorDbId = player.sectorId;

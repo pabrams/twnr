@@ -1,5 +1,5 @@
 import { ServerTag, type DensityScanEntry, type SectorDisplayData } from '@twnr/shared';
-import { players } from '../state/players.js';
+import { onlinePlayers } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { getDensityScanRows, getOutWarpSectorNumbers } from '../db/queries/scan.js';
 import { getShipHardwareQuantityByName } from '../db/queries/hardware.js';
@@ -21,7 +21,7 @@ const W_BEACON = 1;
  *  count, plus a flag telling the client whether to offer the visual
  *  follow-up. */
 export async function serveDensityScan(playerId: number): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
     if (player.docked || player.at_starbase) {
         sendError(playerId, 'Cannot scan while docked');
@@ -60,7 +60,7 @@ export async function serveDensityScan(playerId: number): Promise<void> {
  *  for each adjacent (out-warp) sector. Server rejects if the player
  *  doesn't actually have a visual scanner. */
 export async function serveVisualScan(playerId: number): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
     if (player.docked || player.at_starbase) {
         sendError(playerId, 'Cannot scan while docked');

@@ -1,7 +1,7 @@
 import { WebSocket } from 'ws';
 import { ServerTag } from '@twnr/shared';
 import type { MoveCommand, WarpsOutCommand, ShortestPathCommand } from '@twnr/shared';
-import { players, getPlayerUniverseId } from '../state/players.js';
+import { onlinePlayers, getPlayerUniverseId } from '../state/players.js';
 import { sendEnvelope, sendError, broadcastTo, closeDestroyedSession } from '../state/messaging.js';
 import { getGraph } from '../state/graph-cache.js';
 import { getWarpRefs, resolveSectorId } from '../services/sector-lookup.js';
@@ -43,7 +43,7 @@ export async function serveMove(playerId: number, data: MoveCommand): Promise<vo
         return;
     }
 
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     // Block movement during pending drone encounter (derived: enemy drones in current sector)
@@ -119,7 +119,7 @@ export async function serveMove(playerId: number, data: MoveCommand): Promise<vo
         // an online owner. They get a passive sector update; their next
         // re-display will reflect it.
         if (towState.towed_owner_player_id !== null) {
-            const owner = players[towState.towed_owner_player_id];
+            const owner = onlinePlayers[towState.towed_owner_player_id];
             if (owner) {
                 owner.sector = targetSector;
                 owner.sectorId = targetSectorId;
@@ -153,7 +153,7 @@ export async function serveMove(playerId: number, data: MoveCommand): Promise<vo
 
     const oldSectorClients = new Set<WebSocket>();
     const newSectorClients = new Set<WebSocket>();
-    for (const [idStr, p] of Object.entries(players)) {
+    for (const [idStr, p] of Object.entries(onlinePlayers)) {
         if (Number(idStr) === playerId) continue;
         if (p.universeId !== universeId) continue;
         if (p.docked) continue;
@@ -188,7 +188,7 @@ export async function serveMove(playerId: number, data: MoveCommand): Promise<vo
     // on their MoveResult below.
     if (freedFromTow && towerId !== null) {
         await clearTowedShip(towerId);
-        const towerOnline = players[towerId];
+        const towerOnline = onlinePlayers[towerId];
         if (towerOnline) {
             sendEnvelope(towerId, {
                 type: ServerTag.TowReleasedAlert,
@@ -242,7 +242,7 @@ export async function serveMove(playerId: number, data: MoveCommand): Promise<vo
         // Alert the owner about the intrusion (skip for rogue drones)
         const ownerId = sectorData.sectorDrones.ownerId;
         if (ownerId != null) {
-            const owner = players[ownerId];
+            const owner = onlinePlayers[ownerId];
             if (owner && owner.ws.readyState === 1) {
                 sendEnvelope(ownerId, {
                     type: ServerTag.SectorDronesAlert,
@@ -283,7 +283,7 @@ export async function serveMoveToPrevious(playerId: number): Promise<void> {
 }
 
 export async function serveSectorDisplay(playerId: number): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     const data = await buildSectorDisplayData(playerId);
