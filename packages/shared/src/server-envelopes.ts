@@ -1072,6 +1072,7 @@ export const TrackedSeekerMineEntrySchema = z.object({
     targetShipName: Str,
     targetOwnerName: Str,
     sectorNumber: Int,
+    ownership: OwnershipInfoSchema,
 });
 export type TrackedSeekerMineEntry = z.infer<typeof TrackedSeekerMineEntrySchema>;
 

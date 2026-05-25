@@ -188,10 +188,16 @@ export type SeekerAttachmentTargetRow = {
     target_ship_type_name: string;
     target_player_name: string | null;
     sector_number: number;
+    /** Limpet's ownership — for OwnerJoinCols / ownershipFrom. */
+    owner_player_id: number | null;
+    owner_clan_id: number | null;
+    owner_player_name: string | null;
+    owner_clan_name: string | null;
+    owner_clan_number: number | null;
 };
 
-/** Seeker mines attached to other ships that belong to the given player
- *  personally OR to their clan, with current target location. */
+/** Seeker mines attached to other ships that belong to the given player or their clan.
+ */
 export async function getSeekerAttachmentsByOwner(
     ownerPlayerId: number,
     db: Queryable = pool,
@@ -200,12 +206,19 @@ export async function getSeekerAttachmentsByOwner(
         `SELECT sa.ship_id AS target_ship_id,
                 COALESCE(st.display_name, st.slug) AS target_ship_type_name,
                 p.name AS target_player_name,
-                s.sector_number
+                s.sector_number,
+                sa.owner_player_id,
+                sa.owner_clan_id,
+                op.name AS owner_player_name,
+                oc.name AS owner_clan_name,
+                oc.universe_clan_number AS owner_clan_number
          FROM seeker_attachments sa
          JOIN ships sh ON sh.id = sa.ship_id
          JOIN universe_ship_types st ON st.universe_id = sh.universe_id AND st.slug = sh.ship_type_slug
          LEFT JOIN players p ON p.id = sh.owner_player_id
          LEFT JOIN sectors s ON s.id = sh.sector_id
+         LEFT JOIN players op ON op.id = sa.owner_player_id
+         LEFT JOIN clans oc ON oc.id = sa.owner_clan_id
          WHERE sa.owner_player_id = $1
             OR sa.owner_clan_id = (SELECT clan_id FROM players WHERE id = $1)
          ORDER BY s.sector_number`,
