@@ -316,6 +316,8 @@ export async function serveMineDisruptor(
 
         if (!result) return;
 
+        await refreshSectorObservation(playerId, targetSectorDbId);
+
         await sendEnvelope(playerId, {
             type: ServerTag.MineDisruptorResult,
             targetSector,
