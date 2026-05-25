@@ -95,12 +95,12 @@
 }
 
 .minimap-sector-pill--current {
-    fill: #00f;
-    stroke: #0f0;
+    fill: #000;
+    stroke: #F0F;
 }
 .minimap-sector-pill--visited {
-    fill: #008;
-    stroke: #080;
+    fill: #000;
+    stroke: #808;
 }
 .minimap-sector-pill--glimpsed {
     fill: none;
@@ -129,10 +129,8 @@
     fill: #fc6;
 }
 
-/* Bottom-half of a visited pill — black fill behind the port triplet,
-   shaped as a path so its lower corners match the outer pill radius. */
-.minimap-sector-pill-bottom {
-    fill: #000;
+.minimap-sector-pill-divider {
+    stroke: #808;
     pointer-events: none;
 }
 .minimap-port-triplet {
