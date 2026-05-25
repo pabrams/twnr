@@ -67,7 +67,7 @@ export const EVENT = makeDomain('EVENT', {
         '[g]Now you just need some colonists to settle here and work the natural\r\n' +
         'resources.[/g]',
     terraformNamePrompt:
-        '\r\n[by]What do you want to name this planet?[/by] [g]({type})  (Press enter for a random name)[/g]\r\n[mg]>[/mg] ',
+        '\r\n[by]What do you want to name this planet?[/by] [g]({type}) (Leave blank for random name)[/g]\r\n[mg]>[/mg] ',
     terraformOwnershipPrompt:
         '\r\n[by]Should this be a ([/by][bc]C[/bc][by])lan planet or ([/by][bc]P[/bc][by])ersonal planet?[/by] [mg][[/mg][by]P[/by][mg]][/mg] ',
     terraformConfirmed: '\r\n[bg]Planet[/bg] [bc]{name}[/bc] [bg]registered.[/bg]',

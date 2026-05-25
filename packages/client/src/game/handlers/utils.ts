@@ -33,9 +33,9 @@ export function renderAttributeChange(
 ): void {
     if (expDelta === 0 && repDelta === 0) return;
     if (expDelta !== 0) {
-        const verb = expDelta > 0 ? 'receive' : 'lose';
+        const verb = expDelta > 0 ? 'receive' : 'lost';
         ctx.io.term.writeln(
-            `You ${verb} ${Math.abs(expDelta)} experience point(s) for ${reason}.`,
+            `[g]You ${verb} [by]${Math.abs(expDelta)}[/by] experience point(s).[/g]`,
         );
     }
     if (repDelta !== 0) {
