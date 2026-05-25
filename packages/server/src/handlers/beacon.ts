@@ -1,6 +1,6 @@
 import { ServerTag } from '@twnr/shared';
 import type { ReleaseBeaconCommand } from '@twnr/shared';
-import { players } from '../state/players.js';
+import { onlinePlayers } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { AbortTransaction } from '../db/index.js';
 import { runMutation } from './run-mutation.js';
@@ -24,7 +24,7 @@ export async function serveReleaseBeacon(
     playerId: number,
     data: ReleaseBeaconCommand,
 ): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (player.docked || player.at_starbase) {
@@ -80,7 +80,7 @@ export async function serveReleaseBeacon(
 }
 
 export async function serveAttackBeacon(playerId: number): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (player.docked || player.at_starbase) {

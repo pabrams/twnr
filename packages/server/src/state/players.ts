@@ -13,10 +13,10 @@ export interface Player {
 }
 
 /** Online-player registry. Populated on WebSocket connect, deleted on close. */
-export const players: Record<number, Player> = {};
+export const onlinePlayers: Record<number, Player> = {};
 
 export function getPlayerUniverseId(playerId: number): number | undefined {
-    return players[playerId]?.universeId;
+    return onlinePlayers[playerId]?.universeId;
 }
 
 /**
@@ -28,6 +28,6 @@ export function isVisibleInSector(
     onPlanetId: number | null,
 ): boolean {
     if (onPlanetId !== null) return false;
-    const online = players[playerId] !== undefined;
+    const online = onlinePlayers[playerId] !== undefined;
     return !(online && docked);
 }

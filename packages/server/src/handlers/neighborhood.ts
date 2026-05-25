@@ -5,7 +5,7 @@ import type {
     NeighborhoodWarp,
     GetNeighborhoodCommand,
 } from '@twnr/shared';
-import { players } from '../state/players.js';
+import { onlinePlayers } from '../state/players.js';
 import { sendEnvelope } from '../state/messaging.js';
 import { getUniverseTopology } from '../db/queries/universe.js';
 import {
@@ -40,7 +40,7 @@ export async function serveGetNeighborhood(
     data: GetNeighborhoodCommand,
 ): Promise<void> {
     const { halfWidthWorld, halfHeightWorld, centerXWorld, centerYWorld } = data;
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
     const universeId = player.universeId;
     const currentSectorId = player.sectorId;

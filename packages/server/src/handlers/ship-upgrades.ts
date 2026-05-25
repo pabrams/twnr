@@ -1,6 +1,6 @@
 import { ServerTag, holdBaseCostNow, holdCostRange } from '@twnr/shared';
 import type { BuyDronesCommand, BuyShieldsCommand, BuyHoldsCommand } from '@twnr/shared';
-import { players, getPlayerUniverseId } from '../state/players.js';
+import { onlinePlayers, getPlayerUniverseId } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { AbortTransaction } from '../db/index.js';
 import { runMutation } from './run-mutation.js';
@@ -22,7 +22,7 @@ async function isAtClass0OrStarbase(
     universeId: number,
     client: Parameters<typeof getCurrentSector>[1],
 ): Promise<boolean> {
-    if (players[playerId]?.at_starbase) return true;
+    if (onlinePlayers[playerId]?.at_starbase) return true;
     const currentSector = await getCurrentSector(playerId, client);
     if (currentSector === undefined) return false;
     const portClass = await getPortClassAtSector(currentSector, universeId, client);

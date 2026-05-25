@@ -1,5 +1,5 @@
 import { ServerTag } from '@twnr/shared';
-import { players } from '../state/players.js';
+import { onlinePlayers } from '../state/players.js';
 import { sendEnvelope } from '../state/messaging.js';
 import { insertMemo, insertSystemMemo } from '../db/queries/message.js';
 
@@ -9,7 +9,7 @@ export type NotifySender =
 
 
 export function notifyTurnChange(playerId: number, turnsDelta: number, reason: string): void {
-    if (!players[playerId]) return;
+    if (!onlinePlayers[playerId]) return;
     if (turnsDelta === 0) return;
     if (reason === 'warping') return;
     const body =
@@ -35,7 +35,7 @@ export async function notifyAndMail(opts: {
         await insertSystemMemo(recipientId, sender.label, kind, body);
         notifyLabel = sender.label;
     }
-    if (players[recipientId]) {
+    if (onlinePlayers[recipientId]) {
         sendEnvelope(recipientId, {
             type: ServerTag.Notice,
             senderLabel: notifyLabel,

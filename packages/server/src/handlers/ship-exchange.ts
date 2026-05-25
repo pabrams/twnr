@@ -1,6 +1,6 @@
 import { ServerTag } from '@twnr/shared';
 import type { BuyShipTradeinCommand, BuyShipNewCommand } from '@twnr/shared';
-import { players, getPlayerUniverseId } from '../state/players.js';
+import { onlinePlayers, getPlayerUniverseId } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { AbortTransaction } from '../db/index.js';
 import { runMutation } from './run-mutation.js';
@@ -33,7 +33,7 @@ function calculateShipPrice(shipType: {
 
 /** Pre-buy entry: validate, store pending purchase, prompt for ship name. */
 export async function serveBuyShipNew(playerId: number, data: BuyShipNewCommand): Promise<void> {
-    if (!players[playerId]?.at_starbase) {
+    if (!onlinePlayers[playerId]?.at_starbase) {
         sendError(playerId, 'Not at Starbase');
         return;
     }
@@ -58,7 +58,7 @@ export async function serveBuyShipTradein(
     playerId: number,
     data: BuyShipTradeinCommand,
 ): Promise<void> {
-    if (!players[playerId]?.at_starbase) {
+    if (!onlinePlayers[playerId]?.at_starbase) {
         sendError(playerId, 'Not at Starbase');
         return;
     }

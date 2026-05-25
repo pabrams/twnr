@@ -1,7 +1,7 @@
 import { WebSocket } from 'ws';
 import { ServerTag } from '@twnr/shared';
 import type { DeployDronesCommand, AttackSectorDronesCommand } from '@twnr/shared';
-import { players } from '../state/players.js';
+import { onlinePlayers } from '../state/players.js';
 import { sendEnvelope, sendError, broadcastTo } from '../state/messaging.js';
 import { getSectorDrones, resolveSectorId } from '../services/sector-lookup.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
@@ -39,7 +39,7 @@ import { pvfigsAttackerDeltas, pvfigsMatchup } from '../services/combat-rewards.
 import { formatOwner, ownershipFrom } from '../services/owner-format.js';
 
 export async function serveListDeployedDrones(playerId: number): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (player.docked || player.at_starbase) {
@@ -65,7 +65,7 @@ export async function serveListDeployedDrones(playerId: number): Promise<void> {
 }
 
 export async function serveDeployDronesInfo(playerId: number): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (player.docked) {
@@ -109,7 +109,7 @@ export async function serveDeployDrones(
         return;
     }
 
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (player.docked) {
@@ -233,7 +233,7 @@ export async function serveAttackSectorDrones(
         return;
     }
 
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (!(await isInEncounter(playerId))) {
@@ -342,7 +342,7 @@ export async function serveAttackSectorDrones(
             const { insertSystemMemo } = await import('../db/queries/message.js');
             const mailRecipients: number[] = [];
             if (ownerId !== null) {
-                const owner = players[ownerId];
+                const owner = onlinePlayers[ownerId];
                 if (owner && owner.ws.readyState === 1) {
                     sendEnvelope(ownerId, {
                         type: ServerTag.SectorDronesAlert,
@@ -364,7 +364,7 @@ export async function serveAttackSectorDrones(
                     for (const m of clanMembers) {
                         if (m.id === playerId) continue;
                         mailRecipients.push(m.id);
-                        const p = players[m.id];
+                        const p = onlinePlayers[m.id];
                         if (p && p.ws.readyState === 1) {
                             sendEnvelope(m.id, {
                                 type: ServerTag.SectorDronesAlert,
@@ -405,7 +405,7 @@ export async function serveAttackSectorDrones(
 }
 
 export async function serveRetreatFromDrones(playerId: number): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (!(await isInEncounter(playerId))) {
@@ -431,7 +431,7 @@ export async function serveRetreatFromDrones(playerId: number): Promise<void> {
 
     const oldSectorClients = new Set<WebSocket>();
     const newSectorClients = new Set<WebSocket>();
-    for (const [idStr, p] of Object.entries(players)) {
+    for (const [idStr, p] of Object.entries(onlinePlayers)) {
         if (Number(idStr) === playerId) continue;
         if (p.universeId !== universeId) continue;
         if (p.docked) continue;

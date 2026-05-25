@@ -1,7 +1,7 @@
 import { ServerTag } from '@twnr/shared';
 import type { AttackShipCommand } from '@twnr/shared';
 
-import { players, isVisibleInSector } from '../state/players.js';
+import { onlinePlayers, isVisibleInSector } from '../state/players.js';
 import {
     sendEnvelope,
     sendError,
@@ -32,7 +32,7 @@ import {
 } from '../services/combat-rewards.js';
 
 export async function serveGetAttackTargets(playerId: number): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     const rows = await listPlayersInSector(player.sector, player.universeId, playerId);
@@ -74,7 +74,7 @@ export async function serveAttackShip(attackerId: number, data: AttackShipComman
         return;
     }
 
-    const attacker = players[attackerId];
+    const attacker = onlinePlayers[attackerId];
     if (!attacker) {
         sendError(attackerId, 'Target is not in this sector');
         return;
@@ -91,7 +91,7 @@ export async function serveAttackShip(attackerId: number, data: AttackShipComman
         return;
     }
 
-    const onlineTarget = players[targetPlayerId];
+    const onlineTarget = onlinePlayers[targetPlayerId];
 
     await runMutation(
         attackerId,

@@ -11,7 +11,7 @@ import type {
 import { pool, withTransaction, AbortTransaction } from '../db/index.js';
 import { runMutation } from './run-mutation.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
-import { players } from '../state/players.js';
+import { onlinePlayers } from '../state/players.js';
 import { hashPassword, verifyPassword } from '../auth/password.js';
 import {
     insertClan,
@@ -43,7 +43,7 @@ function isValidPassword(password: string): boolean {
 
 export async function serveClanCreate(playerId: number, data: ClanCreateCommand): Promise<void> {
     const { name, password } = data;
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (!isValidClanName(name)) {
@@ -97,7 +97,7 @@ export async function serveClanCreate(playerId: number, data: ClanCreateCommand)
 
 export async function serveClanJoin(playerId: number, data: ClanJoinCommand): Promise<void> {
     const { name, password } = data;
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     const existingClanId = await getPlayerClanId(playerId);
@@ -137,7 +137,7 @@ export async function serveClanJoin(playerId: number, data: ClanJoinCommand): Pr
 export async function serveClanLeave(playerId: number, data: ClanLeaveCommand): Promise<void> {
     const successorPlayerId = data.successorPlayerId;
     const confirmDissolve = data.confirmDissolve === true;
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     const clanId = await getPlayerClanId(playerId);
@@ -240,7 +240,7 @@ export async function serveClanLeave(playerId: number, data: ClanLeaveCommand): 
 }
 
 export async function serveClanList(playerId: number): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     const rows = await listClansInUniverse(player.universeId);
@@ -260,7 +260,7 @@ export async function serveClanList(playerId: number): Promise<void> {
 }
 
 export async function serveClanInfo(playerId: number): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     const clanId = await getPlayerClanId(playerId);
@@ -295,7 +295,7 @@ export async function serveClanInfo(playerId: number): Promise<void> {
 }
 
 export async function serveClanmateLocations(playerId: number): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
     const clanId = await getPlayerClanId(playerId);
     if (clanId === null) {
@@ -599,7 +599,7 @@ export async function serveClanTransfer(
 
 export async function serveClanMemo(senderId: number, data: ClanMemoCommand): Promise<void> {
     const { body } = data;
-    const player = players[senderId];
+    const player = onlinePlayers[senderId];
     if (!player) return;
     const clanId = await getPlayerClanId(senderId);
     if (clanId === null) {
@@ -619,7 +619,7 @@ export async function serveClanMemo(senderId: number, data: ClanMemoCommand): Pr
         await insertMemo(m.id, senderId, clanId, 'memo', trimmed);
         // Online clan members get only a notification — the body lives in
         // their inbox, surfaced when they next run the M command.
-        if (players[m.id]) {
+        if (onlinePlayers[m.id]) {
             sendEnvelope(m.id, {
                 type: ServerTag.ClanMemoNotification,
                 senderName,
@@ -665,7 +665,7 @@ export async function serveClanDropMember(
     data: ClanDropMemberCommand,
 ): Promise<void> {
     const { targetPlayerId } = data;
-    const player = players[leaderPlayerId];
+    const player = onlinePlayers[leaderPlayerId];
     if (!player) return;
     if (leaderPlayerId === targetPlayerId) {
         sendError(leaderPlayerId, 'Use Leave to remove yourself.');
@@ -698,7 +698,7 @@ export async function serveClanDropMember(
         'dropped',
         `You have been dropped from ${clan.name} by ${leaderName}.`,
     );
-    const online = players[targetPlayerId];
+    const online = onlinePlayers[targetPlayerId];
     if (online) {
         // Tell the target their clan state changed so the client's cached
         // `ctx.player.clanId` gets cleared

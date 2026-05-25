@@ -1,6 +1,6 @@
 import { ServerTag } from '@twnr/shared';
 import type { SetShipNameCommand } from '@twnr/shared';
-import { players, getPlayerUniverseId } from '../state/players.js';
+import { onlinePlayers } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { getStartingShipTypeBySlug, insertStartingShip } from '../db/queries/ship.js';
 import { setPlayerShipId } from '../db/queries/player.js';
@@ -46,17 +46,13 @@ export async function serveSetShipName(playerId: number, data: SetShipNameComman
         return;
     }
 
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player || player.shipId !== null) {
         sendError(playerId, 'No ship needs naming.');
         return;
     }
 
-    const universeId = getPlayerUniverseId(playerId);
-    if (universeId === undefined) {
-        sendError(playerId, 'Player not in a universe.');
-        return;
-    }
+    const universeId = player.universeId;
 
     const templateDefaults = await getUniverseTemplateDefaults(universeId);
     if (!templateDefaults?.starter_ship_slug) {

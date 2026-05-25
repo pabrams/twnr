@@ -1,6 +1,6 @@
 import { ServerTag } from '@twnr/shared';
 import type { TowAttachCommand, TowableMannedEntry, TowableUnmannedEntry } from '@twnr/shared';
-import { players } from '../state/players.js';
+import { onlinePlayers } from '../state/players.js';
 import { sendEnvelope } from '../state/messaging.js';
 import { AbortTransaction } from '../db/index.js';
 import { runMutation } from './run-mutation.js';
@@ -21,7 +21,7 @@ export function combinedTurnsPerWarp(selfTpw: number, towedTpw: number): number 
 }
 
 export async function serveTowSpacecraft(playerId: number): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     // Already towing? Detach.
@@ -97,7 +97,7 @@ export async function serveTowSpacecraft(playerId: number): Promise<void> {
 }
 
 export async function serveTowAttach(playerId: number, data: TowAttachCommand): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     const clanId = await getPlayerClanId(playerId);
@@ -181,7 +181,7 @@ export async function serveTowAttach(playerId: number, data: TowAttachCommand): 
             });
 
             // Manned target: alert the pilot that they're being towed.
-            if (result.pilotPlayerId !== null && players[result.pilotPlayerId]) {
+            if (result.pilotPlayerId !== null && onlinePlayers[result.pilotPlayerId]) {
                 sendEnvelope(result.pilotPlayerId, {
                     type: ServerTag.TowAttachedAlert,
                     towingName: player.name,

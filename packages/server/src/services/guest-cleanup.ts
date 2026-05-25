@@ -1,4 +1,4 @@
-import { players } from '../state/players.js';
+import { onlinePlayers } from '../state/players.js';
 import { isGuestUser, deleteUserById } from '../db/queries/user.js';
 import {
     deleteVisitedSectorsForPlayers,
@@ -30,7 +30,7 @@ async function deleteGuestUserById(userId: number, playerId: number): Promise<vo
  *
  */
 export async function cleanupExpiredGuests(maxIdleDays = 7): Promise<{ deleted: number }> {
-    const onlinePlayerIds = new Set(Object.keys(players).map(Number));
+    const onlinePlayerIds = new Set(Object.keys(onlinePlayers).map(Number));
 
     const res = await pool.query<{ user_id: number; player_id: number }>(
         `SELECT u.id AS user_id, p.id AS player_id

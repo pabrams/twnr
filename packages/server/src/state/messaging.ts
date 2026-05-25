@@ -1,21 +1,21 @@
 import type { WebSocket } from 'ws';
 import type { ServerEnvelope } from '@twnr/shared';
 import { ServerTag } from '@twnr/shared';
-import { players } from './players.js';
+import { onlinePlayers } from './players.js';
 
 function frame(body: ServerEnvelope): string {
     return JSON.stringify(body);
 }
 
 export async function sendEnvelope(playerId: number, body: ServerEnvelope): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player || player.ws.readyState !== 1) return;
     player.ws.send(frame(body));
 }
 
 /** Emit an Error result. */
 export function sendError(playerId: number, message: string): void {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player || player.ws.readyState !== 1) return;
     player.ws.send(frame({ type: ServerTag.Error, message }));
 }
@@ -28,7 +28,7 @@ export function sendError(playerId: number, message: string): void {
  * has been sent, so the client always sees the same terminal step.
  */
 export function closeDestroyedSession(playerId: number, reason: string): void {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player || player.ws.readyState !== 1) return;
     player.ws.close(1008, reason);
 }
@@ -47,7 +47,7 @@ export function broadcastTo(
 /** Broadcast a result by player id. */
 export function broadcastEnvelope(data: ServerEnvelope, targetPlayerIds: number[]): void {
     for (const pid of targetPlayerIds) {
-        const player = players[pid];
+        const player = onlinePlayers[pid];
         if (player && player.ws.readyState === 1) {
             player.ws.send(frame(data));
         }

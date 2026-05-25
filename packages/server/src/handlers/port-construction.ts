@@ -10,7 +10,7 @@ import {
     type PriceCommodity,
 } from '@twnr/shared';
 import type { BuildPortCommand, UpgradePortCommand } from '@twnr/shared';
-import { players } from '../state/players.js';
+import { onlinePlayers } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { AbortTransaction, pool } from '../db/index.js';
 import { runMutation } from './run-mutation.js';
@@ -30,7 +30,7 @@ import { experienceDeltas, reputationDeltas, scalarDelta } from '../game-config.
  *  table (no port + planet present) or the upgrade table (port exists), or
  *  reject (no port + no planet, can't construct here). */
 export async function serveConstructPortInfo(playerId: number): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     const port = await getPortAtSector(player.sector, player.universeId);
@@ -113,7 +113,7 @@ export async function serveConstructPortInfo(playerId: number): Promise<void> {
 const MAX_PORT_NAME_LEN = 39;
 
 export async function serveBuildPort(playerId: number, data: BuildPortCommand): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     const portClass = data.portClass;
@@ -263,7 +263,7 @@ export async function serveBuildPort(playerId: number, data: BuildPortCommand): 
 }
 
 export async function serveUpgradePortInfo(playerId: number): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     const port = await getPortAtSector(player.sector, player.universeId);
@@ -338,7 +338,7 @@ export async function serveUpgradePortInfo(playerId: number): Promise<void> {
 }
 
 export async function serveUpgradePort(playerId: number, data: UpgradePortCommand): Promise<void> {
-    const player = players[playerId];
+    const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (
