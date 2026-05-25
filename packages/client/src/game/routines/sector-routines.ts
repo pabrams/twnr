@@ -165,8 +165,8 @@ async function runBuildFlow(
     const { term } = ctx.io;
     term.writeln('');
     term.writeln('   StarPort Construction          Initial Construction Costs');
-    term.writeln(' Port Class   Ore  Org  Equ    Credits  Ore  Org  Equ  Days   Import/Export');
-    term.writeln(' ---------- - --- --- ----   --------- ---- ---- ---- ----   -------------');
+    term.writeln(' Port Class   Ore  Org  Equ    Credits  Ore  Org  Equ  Days');
+    term.writeln(' ---------- - --- --- ----   --------- ---- ---- ---- ----');
     for (const row of info.classes) {
         const credits = row.credits.toLocaleString();
         const code = row.code;
@@ -175,7 +175,7 @@ async function runBuildFlow(
             `     ${row.portClass}      ${fmtCode}   ` +
                 `${credits.padStart(7)} ${String(row.ore).padStart(4)} ` +
                 `${String(row.org).padStart(4)} ${String(row.equ).padStart(4)} ` +
-                `${String(row.days).padStart(4)}   ${row.importExport}`,
+                `${String(row.days).padStart(4)}`,
         );
     }
     term.writeln('');
