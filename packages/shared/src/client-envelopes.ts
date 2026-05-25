@@ -200,6 +200,14 @@ export const UseTerraformDeviceCommandSchema = z.object({
 });
 export type UseTerraformDeviceCommand = z.infer<typeof UseTerraformDeviceCommandSchema>;
 
+export const SetTerraformedPlanetCommandSchema = z.object({
+    type: z.literal(ClientTag.SetTerraformedPlanet),
+    planetId: Int,
+    name: z.string(),
+    ownership: z.enum(['personal', 'clan']),
+});
+export type SetTerraformedPlanetCommand = z.infer<typeof SetTerraformedPlanetCommandSchema>;
+
 export const LandOnPlanetCommandSchema = z.object({
     type: z.literal(ClientTag.LandOnPlanet),
     planetId: Int,
@@ -592,6 +600,7 @@ export const ClientEnvelopeSchema = z.discriminatedUnion('type', [
     AttackSectorDronesCommandSchema,
     RetreatFromDronesCommandSchema,
     UseTerraformDeviceCommandSchema,
+    SetTerraformedPlanetCommandSchema,
     LandOnPlanetCommandSchema,
     PlanetDisplayCommandSchema,
     DestroyPlanetCommandSchema,

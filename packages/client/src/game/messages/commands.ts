@@ -45,7 +45,6 @@ export const COMMAND = makeDomain('COMMAND', {
     attackShip: '[bg:b]<Attack Ship>[/bg:b]',
     attackSectorDrones: '[bg:b]<Attack Sector Drones>[/bg:b]',
     retreatFromDrones: '[bg:b]<Retreat>[/bg:b]',
-    useTerraformDevice: '[bg:b]<Terraform>[/bg:b]',
     destroyPlanet: '[bg:b]<Destroy Planet>[/bg:b]',
     dockStarbase: '[bg:b]<Enter Starbase>[/bg:b]',
     leaveStarbase: '[bg:b]<Leave Starbase>[/bg:b]',
