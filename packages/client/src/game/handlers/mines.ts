@@ -16,10 +16,6 @@ export const deployMine: Handler<'deployMineResult', MinesContext> = (ctx, msg) 
     );
 };
 
-/** Render deployed-mines table, filtered by the type the user picked in
- *  the show-deployed-mines routine. The mineType filter is stashed on
- *  `ctx.world.mineScanFilter` by the routine before sending the request,
- *  so the handler knows which rows to keep. */
 export const listDeployedMines: Handler<'listDeployedMinesResult', MinesContext> = (ctx, msg) => {
     ctx.io.term.writeln('');
     const filter = ctx.world.mineScanFilter ?? null;
@@ -59,15 +55,15 @@ export const trackSeekerMines: Handler<'trackSeekerMinesResult', MinesContext> =
     ctx.io.term.writeln('');
     ctx.io.term.writeln(render(PANEL.limpetScanColumns));
     ctx.io.term.writeln(render(PANEL.limpetScanRule));
-    // Each target row has owner info via the existing fields. For now we
-    // render `Personal` for every attached limpet (since track only
-    // surfaces limpets owned by the viewer personally — clan-shared
-    // tracking isn't in the schema yet).
     for (const t of msg.targets) {
+        const kind =
+            t.ownership.kind === 'clan'
+                ? `Clan #${t.ownership.clanNumber}`
+                : 'Personal';
         ctx.io.term.writeln(
             render(PANEL.limpetScanRow, {
                 sector: String(t.sectorNumber).padStart(6),
-                kind: 'Personal',
+                kind,
             }),
         );
     }

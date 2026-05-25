@@ -4,6 +4,7 @@ import { players } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { isInEncounter } from '../services/encounter.js';
 import { refreshSectorObservation } from '../services/sector-observations.js';
+import { ownershipFrom } from '../services/owner-format.js';
 import { withTransaction, AbortTransaction } from '../db/index.js';
 import { getGraph } from '../state/graph-cache.js';
 import { getSectorDbId } from '../db/queries/sector.js';
@@ -241,6 +242,7 @@ export async function serveTrackSeekerMines(playerId: number): Promise<void> {
             targetShipName: r.target_ship_type_name,
             targetOwnerName: r.target_player_name ?? 'Unknown',
             sectorNumber: r.sector_number,
+            ownership: ownershipFrom(r),
         })),
     });
 }
