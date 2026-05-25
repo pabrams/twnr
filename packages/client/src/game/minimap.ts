@@ -938,9 +938,12 @@ export function createMinimap(
             rect.setAttribute('height', String(totalRh));
             rect.setAttribute('rx', String(rx));
             rect.setAttribute('ry', String(rx));
+            // Uniform border around the whole pill — same width and color
+            // for current and visited so the perimeter reads as one shape.
+            // Glimpsed keeps its dashed look as the "not-yet-visited" hint.
             if (isCurrent) {
                 rect.classList.add('minimap-sector-pill--current');
-                rect.setAttribute('stroke-width', String(strokeW * 1.5));
+                rect.setAttribute('stroke-width', String(strokeW));
             } else if (s.visibility === 'visited') {
                 rect.classList.add('minimap-sector-pill--visited');
                 rect.setAttribute('stroke-width', String(strokeW));
@@ -957,24 +960,20 @@ export function createMinimap(
             pillRectsBySectorId.set(s.id, rect);
             group.appendChild(rect);
 
-            // Bottom-half: black fill behind the port triplet. Shaped as a
-            // path so its lower corners match the outer pill radius while its
-            // top edge is the straight divider line.
+            // Pill interior is uniformly black (see CSS); a thin divider
+            // line separates the sector-number half from the port-triplet
+            // half. Same stroke width as the outer border so the whole
+            // pill looks like one consistent frame.
             if (bottomRh > 0) {
                 const dividerY = (topRh - bottomRh) / 2;
-                const bottomY = totalRh / 2;
-                const xL = -rw / 2;
-                const xR = rw / 2;
-                const fill = document.createElementNS(SVG_NS, 'path');
-                fill.classList.add('minimap-sector-pill-bottom');
-                fill.setAttribute(
-                    'd',
-                    `M ${xL} ${dividerY} L ${xR} ${dividerY} L ${xR} ${bottomY - rx} ` +
-                        `Q ${xR} ${bottomY} ${xR - rx} ${bottomY} ` +
-                        `L ${xL + rx} ${bottomY} ` +
-                        `Q ${xL} ${bottomY} ${xL} ${bottomY - rx} Z`,
-                );
-                group.appendChild(fill);
+                const divider = document.createElementNS(SVG_NS, 'line');
+                divider.classList.add('minimap-sector-pill-divider');
+                divider.setAttribute('x1', String(-rw / 2));
+                divider.setAttribute('x2', String(rw / 2));
+                divider.setAttribute('y1', String(dividerY));
+                divider.setAttribute('y2', String(dividerY));
+                divider.setAttribute('stroke-width', String(strokeW));
+                group.appendChild(divider);
 
                 if (s.port) {
                     const triplet = portClassTriplet(s.port.class);
