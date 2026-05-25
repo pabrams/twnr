@@ -1038,7 +1038,7 @@ export function createMinimap(
                 planetGlyph.setAttribute('x', String(rw / 2 - fontPx * 0.15));
                 planetGlyph.setAttribute('y', String(-totalRh / 2 - fontPx * 0.15));
                 planetGlyph.setAttribute('font-size', String(fontPx * 0.9));
-                planetGlyph.textContent = s.planets.length > 1 ? `◉${s.planets.length}` : '◉';
+                planetGlyph.textContent = '◉';
                 group.appendChild(planetGlyph);
             }
 
