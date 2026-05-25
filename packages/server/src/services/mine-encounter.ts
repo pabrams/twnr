@@ -113,20 +113,7 @@ export async function resolveProximityMines(playerId: number): Promise<Proximity
     return result;
 }
 
-/**
- * Resolve limpet (seeker) mine attach attempts when a player enters a sector with
- * enemy limpet mines. Each enemy mine rolls with probability
- * `seeker_attach_pct`. If at least one succeeds, exactly one mine attaches
- * to the entering ship; any previous attachment drops off (and is lost).
- * The successful mine and any other mines that rolled "yes" are consumed.
- *
- * The owner of the new attachment is notified with probability
- * `seeker_pickup_detect_pct`.
- *
- * Returns the new attaching owner id (for notification scheduling), or null
- * if no attach occurred. The intruder receives a `SeekerMineAttached`
- * envelope on success.
- */
+
 export async function resolveSeekerMines(playerId: number): Promise<{
     newOwnerPlayerId: number | null;
     newOwnerClanId: number | null;
@@ -138,8 +125,6 @@ export async function resolveSeekerMines(playerId: number): Promise<{
     const sectorDbId = player.sectorId;
 
     const settings = await getMineUniverseSettings(player.universeId);
-    if (settings.seeker_attach_pct <= 0) return null;
-
     const playerClanId = await getPlayerClanId(playerId);
 
     const outcome = await withTransaction(async (client) => {
@@ -147,29 +132,17 @@ export async function resolveSeekerMines(playerId: number): Promise<{
         if (!mineRow || mineRow.quantity <= 0) return null;
         if (isFriendlyOwner(mineRow, playerId, playerClanId)) return null;
 
-        // Each mine rolls independently. Mines that roll "yes" are spent
-        // (one of them attaches; the rest are wasted but consumed because
-        // they "tried"). Mines that roll "no" remain in the sector.
-        let attempts = 0;
-        for (let i = 0; i < mineRow.quantity; i++) {
-            if (rollPercent(settings.seeker_attach_pct)) attempts++;
-        }
-        if (attempts === 0) return null;
-
-        // Look up the intruder's ship id.
         const shipId = await getPlayerShipId(playerId, client);
         if (!shipId) return null;
 
-        const remaining = mineRow.quantity - attempts;
+        // Exactly one limpet attaches; exactly one mine consumed.
+        const remaining = mineRow.quantity - 1;
         if (remaining <= 0) {
             await deleteSectorMines(sectorDbId, 'seeker', client);
         } else {
             await setSectorMineQuantity(sectorDbId, 'seeker', remaining, client);
         }
 
-        // Drop-off: if the ship already has a seeker mine attached, the
-        // existing one falls off (we just delete it from seeker_attachments;
-        // the deployer's count stays where it was — the mine is "spent").
         const previous = await getSeekerAttachmentForUpdate(shipId, client);
         const droppedPrevious = previous != null;
         if (droppedPrevious) {
@@ -192,35 +165,36 @@ export async function resolveSeekerMines(playerId: number): Promise<{
 
     if (!outcome) return null;
 
-    sendEnvelope(playerId, {
-        type: ServerTag.SeekerMineAttached,
-        sector: player.sector,
-        droppedPrevious: outcome.droppedPrevious,
-    });
-
-    // Pickup-detect notification: roll once, then deliver to the owner
-    // (single player) or to all online clan members (clan-owned).
-    if (rollPercent(settings.seeker_pickup_detect_pct)) {
-        const alert = {
-            type: ServerTag.SeekerMinePickupAlert,
+    // Audible cue to the victim — gated on the new notice probability. When
+    // the roll fails the limpet still attached, just silently.
+    if (rollPercent(settings.seeker_victim_notice_pct)) {
+        sendEnvelope(playerId, {
+            type: ServerTag.SeekerMineAttached,
             sector: player.sector,
-            targetShipName: 'unknown',
-            targetOwnerName: player.name,
-        };
-        if (outcome.newOwnerPlayerId !== null) {
-            sendEnvelope(outcome.newOwnerPlayerId, alert);
-        } else if (outcome.newOwnerClanId !== null) {
-            const members = await getClanMembers(outcome.newOwnerClanId);
-            broadcastEnvelope(
-                alert,
-                members.map((m) => m.id),
-            );
-        }
+            droppedPrevious: outcome.droppedPrevious,
+        });
     }
 
-    // Mail the activation to the limpet's owner (or each clan member if
-    // clan-owned). Independent of the pickup-detect roll above — that
-    // governs the live alert, not the persistent record.
+    // Deployer is always alerted in real time (single player → them; clan-
+    // owned → broadcast to all online clan members).
+    const alert = {
+        type: ServerTag.SeekerMinePickupAlert,
+        sector: player.sector,
+        targetShipName: 'unknown',
+        targetOwnerName: player.name,
+    };
+    if (outcome.newOwnerPlayerId !== null) {
+        sendEnvelope(outcome.newOwnerPlayerId, alert);
+    } else if (outcome.newOwnerClanId !== null) {
+        const members = await getClanMembers(outcome.newOwnerClanId);
+        broadcastEnvelope(
+            alert,
+            members.map((m) => m.id),
+        );
+    }
+
+    // Mail entry for the limpet's owner (or each clan member if clan-owned)
+    // so the activation persists even for offline owners.
     const { insertSystemMemo } = await import('../db/queries/message.js');
     const activationBody = `Limpet mine in ${player.sector} activated.`;
     if (outcome.newOwnerPlayerId !== null) {

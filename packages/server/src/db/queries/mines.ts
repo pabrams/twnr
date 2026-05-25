@@ -262,8 +262,7 @@ export async function deleteSeekerAttachment(shipId: number, db: Queryable = poo
 export type MineUniverseSettings = {
     proximity_mine_damage: number;
     proximity_detonation_pct: number;
-    seeker_attach_pct: number;
-    seeker_pickup_detect_pct: number;
+    seeker_victim_notice_pct: number;
     mine_disruptor_min: number;
     mine_disruptor_max: number;
 };
@@ -274,7 +273,7 @@ export async function getMineUniverseSettings(
 ): Promise<MineUniverseSettings> {
     const res = await db.query<MineUniverseSettings>(
         `SELECT proximity_mine_damage, proximity_detonation_pct,
-                seeker_attach_pct, seeker_pickup_detect_pct,
+                seeker_victim_notice_pct,
                 mine_disruptor_min, mine_disruptor_max
          FROM universe_settings WHERE universe_id = $1`,
         [universeId],
@@ -283,8 +282,7 @@ export async function getMineUniverseSettings(
         res.rows[0] ?? {
             proximity_mine_damage: 100,
             proximity_detonation_pct: 50,
-            seeker_attach_pct: 25,
-            seeker_pickup_detect_pct: 80,
+            seeker_victim_notice_pct: 25,
             mine_disruptor_min: 3,
             mine_disruptor_max: 5,
         }
