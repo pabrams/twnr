@@ -1,23 +1,8 @@
-/**
- * Planetary Defense Bastion (PDB / "base") handlers.
- *
- * Triggered by the "B" command on a planet. Three flows:
- *   - No base + not constructing → reply `noBase` with level-1 reqs; client
- *     prompts to start. BuildBase deducts fuel/org/equ (not colos) and
- *     inserts a construction row.
- *   - Constructing → reply `constructing` with start + ETA; client renders
- *     progress and exits back to planet (no menu transition).
- *   - Active base (level >= 1) → reply `exists`; client transitions to
- *     Menu.Base. Lazy promotion via `promotePlanetBaseIfDue`.
- *
- * No mail on completion. Completion is detected lazily when the player
- * checks B again.
- */
-
 import { ServerTag, universeConfig, type BaseLevelRequirement } from '@twnr/shared';
 import { players } from '../state/players.js';
-import { sendEnvelope, sendError } from '../state/messaging.js';
-import { withTransaction, AbortTransaction, pool } from '../db/index.js';
+import { sendEnvelope } from '../state/messaging.js';
+import { AbortTransaction, pool } from '../db/index.js';
+import { runMutation } from './run-mutation.js';
 import {
     getPlanetBase,
     promotePlanetBaseIfDue,
@@ -171,8 +156,10 @@ export async function serveBuildBase(playerId: number): Promise<void> {
         return;
     }
 
-    try {
-        const result = await withTransaction(async (client) => {
+    await runMutation(
+        playerId,
+        'Build base',
+        async (client) => {
             // Refuse if a base or in-progress construction already exists.
             const existing = await getPlanetBase(onPlanetId, client);
             if (existing) {
@@ -233,24 +220,19 @@ export async function serveBuildBase(playerId: number): Promise<void> {
             await insertPlanetBaseConstruction(onPlanetId, 1, level1.days, client);
 
             return { targetLevel: 1, daysRequired: level1.days };
-        });
-
-        if (!result) return;
-
-        // Fetch completion time for the reply.
-        const base = await getPlanetBase(onPlanetId);
-        sendEnvelope(playerId, {
-            type: ServerTag.BuildBaseResult,
-            outcome: 'started',
-            targetLevel: result.targetLevel,
-            daysRequired: result.daysRequired,
-            completesAt: base?.construction_completes_at?.toISOString() ?? '',
-        });
-    } catch (err) {
-        if (err instanceof AbortTransaction) return;
-        console.error('Build base error', err);
-        sendError(playerId, 'Internal server error');
-    }
+        },
+        async (result) => {
+            // Fetch completion time for the reply.
+            const base = await getPlanetBase(onPlanetId);
+            sendEnvelope(playerId, {
+                type: ServerTag.BuildBaseResult,
+                outcome: 'started',
+                targetLevel: result.targetLevel,
+                daysRequired: result.daysRequired,
+                completesAt: base?.construction_completes_at?.toISOString() ?? '',
+            });
+        },
+    );
 }
 
 export async function serveExitBase(playerId: number): Promise<void> {
@@ -328,8 +310,10 @@ export async function serveTreasuryTransfer(
         return;
     }
 
-    try {
-        const result = await withTransaction(async (client) => {
+    await runMutation(
+        playerId,
+        'Treasury transfer',
+        async (client) => {
             const base = await getPlanetBaseTreasuryForUpdate(onPlanetId, client);
             if (!base || base.level < 1) {
                 sendEnvelope(playerId, {
@@ -374,22 +358,17 @@ export async function serveTreasuryTransfer(
             await adjustPlanetBaseTreasury(onPlanetId, -amount, client);
             await addCredits(playerId, amount, client);
             return { credits: credits + amount, treasury: base.treasury - amount };
-        });
-        if (!result) return;
-
-        sendEnvelope(playerId, {
-            type: ServerTag.TreasuryTransferResult,
-            outcome: 'ok',
-            direction,
-            amount,
-            credits: result.credits,
-            treasury: result.treasury,
-        });
-    } catch (err) {
-        if (err instanceof AbortTransaction) return;
-        console.error('Treasury transfer error', err);
-        sendError(playerId, 'Internal server error');
-    }
+        },
+        (result) =>
+            sendEnvelope(playerId, {
+                type: ServerTag.TreasuryTransferResult,
+                outcome: 'ok',
+                direction,
+                amount,
+                credits: result.credits,
+                treasury: result.treasury,
+            }),
+    );
 }
 
 // PlanetBaseRow doesn't include transporter_range — the canonical query has
@@ -466,8 +445,10 @@ export async function serveBwarpInstall(playerId: number): Promise<void> {
         });
         return;
     }
-    try {
-        const result = await withTransaction(async (client) => {
+    await runMutation(
+        playerId,
+        'Bwarp install',
+        async (client) => {
             const row = await getPlanetBaseTransporterForUpdate(onPlanetId, client);
             if (!row || row.level < 1) {
                 sendEnvelope(playerId, {
@@ -506,19 +487,15 @@ export async function serveBwarpInstall(playerId: number): Promise<void> {
             await deductCredits(playerId, cost, client);
             await setPlanetBaseTransporterRange(onPlanetId, universeConfig.bwarpInitRange, client);
             return { credits: credits - cost, range: universeConfig.bwarpInitRange };
-        });
-        if (!result) return;
-        sendEnvelope(playerId, {
-            type: ServerTag.BwarpInstallResult,
-            outcome: 'ok',
-            range: result.range,
-            credits: result.credits,
-        });
-    } catch (err) {
-        if (err instanceof AbortTransaction) return;
-        console.error('Bwarp install error', err);
-        sendError(playerId, 'Internal server error');
-    }
+        },
+        (result) =>
+            sendEnvelope(playerId, {
+                type: ServerTag.BwarpInstallResult,
+                outcome: 'ok',
+                range: result.range,
+                credits: result.credits,
+            }),
+    );
 }
 
 export async function serveBwarpUpgrade(playerId: number): Promise<void> {
@@ -533,8 +510,10 @@ export async function serveBwarpUpgrade(playerId: number): Promise<void> {
         });
         return;
     }
-    try {
-        const result = await withTransaction(async (client) => {
+    await runMutation(
+        playerId,
+        'Bwarp upgrade',
+        async (client) => {
             const row = await getPlanetBaseTransporterForUpdate(onPlanetId, client);
             if (!row || row.level < 1 || row.transporter_range < 1) {
                 sendEnvelope(playerId, {
@@ -566,21 +545,17 @@ export async function serveBwarpUpgrade(playerId: number): Promise<void> {
             const newRange = row.transporter_range + 1;
             await setPlanetBaseTransporterRange(onPlanetId, newRange, client);
             return { credits: credits - cost, range: newRange, treasury: row.treasury, cost };
-        });
-        if (!result) return;
-        sendEnvelope(playerId, {
-            type: ServerTag.BwarpUpgradeResult,
-            outcome: 'ok',
-            range: result.range,
-            cost: result.cost,
-            credits: result.credits,
-            treasury: result.treasury,
-        });
-    } catch (err) {
-        if (err instanceof AbortTransaction) return;
-        console.error('Bwarp upgrade error', err);
-        sendError(playerId, 'Internal server error');
-    }
+        },
+        (result) =>
+            sendEnvelope(playerId, {
+                type: ServerTag.BwarpUpgradeResult,
+                outcome: 'ok',
+                range: result.range,
+                cost: result.cost,
+                credits: result.credits,
+                treasury: result.treasury,
+            }),
+    );
 }
 
 export async function serveBwarpBeam(
@@ -647,8 +622,10 @@ export async function serveBwarpBeam(
         return;
     }
 
-    try {
-        const result = await withTransaction(async (client) => {
+    await runMutation(
+        playerId,
+        'Bwarp beam',
+        async (client) => {
             const row = await getPlanetBaseTransporterForUpdate(onPlanetId, client);
             if (!row || row.level < 1 || row.transporter_range < 1) {
                 sendEnvelope(playerId, {
@@ -702,26 +679,22 @@ export async function serveBwarpBeam(
             await moveToSector(playerId, targetSectorId, client);
             await markSectorVisited(playerId, targetSectorId, client);
             return { hops, fuelCost, turnsUsed: turnResult.turnsUsed, targetSectorId };
-        });
-        if (!result) return;
-
-        player.sector = targetSector;
-        player.sectorId = result.targetSectorId;
-        if (result.turnsUsed) {
-            notifyTurnChange(playerId, result.turnsUsed, 'planetary transporter');
-        }
-        sendEnvelope(playerId, {
-            type: ServerTag.BwarpBeamResult,
-            outcome: 'beamed',
-            targetSector,
-            hops: result.hops,
-            fuelUsed: result.fuelCost,
-            turnsUsed: result.turnsUsed,
-        });
-        await resolveMinesOnEntry(playerId);
-    } catch (err) {
-        if (err instanceof AbortTransaction) return;
-        console.error('Bwarp beam error', err);
-        sendError(playerId, 'Internal server error');
-    }
+        },
+        async (result) => {
+            player.sector = targetSector;
+            player.sectorId = result.targetSectorId;
+            if (result.turnsUsed) {
+                notifyTurnChange(playerId, result.turnsUsed, 'planetary transporter');
+            }
+            sendEnvelope(playerId, {
+                type: ServerTag.BwarpBeamResult,
+                outcome: 'beamed',
+                targetSector,
+                hops: result.hops,
+                fuelUsed: result.fuelCost,
+                turnsUsed: result.turnsUsed,
+            });
+            await resolveMinesOnEntry(playerId);
+        },
+    );
 }

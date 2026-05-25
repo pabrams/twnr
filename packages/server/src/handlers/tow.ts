@@ -2,7 +2,8 @@ import { ServerTag } from '@twnr/shared';
 import type { TowAttachCommand, TowableMannedEntry, TowableUnmannedEntry } from '@twnr/shared';
 import { players } from '../state/players.js';
 import { sendEnvelope } from '../state/messaging.js';
-import { withTransaction, AbortTransaction } from '../db/index.js';
+import { AbortTransaction } from '../db/index.js';
+import { runMutation } from './run-mutation.js';
 import {
     getMannedTowables,
     getUnmannedTowables,
@@ -101,8 +102,10 @@ export async function serveTowAttach(playerId: number, data: TowAttachCommand): 
 
     const clanId = await getPlayerClanId(playerId);
 
-    try {
-        const result = await withTransaction(async (client) => {
+    await runMutation(
+        playerId,
+        'tow attach',
+        async (client) => {
             const target = await lockTowTarget(data.shipId, client);
             if (!target) {
                 sendEnvelope(playerId, {
@@ -168,30 +171,28 @@ export async function serveTowAttach(playerId: number, data: TowAttachCommand): 
                 targetName,
                 pilotPlayerId: target.pilot_player_id,
             };
-        });
-
-        if (!result) return;
-
-        sendEnvelope(playerId, {
-            type: ServerTag.TowAttachResult,
-            outcome: 'ok',
-            message: `You lock your Tractor Beam on ${result.targetName}`,
-            turnsPerWarp: result.tpw,
-        });
-
-        // Manned target: alert the pilot that they're being towed.
-        if (result.pilotPlayerId !== null && players[result.pilotPlayerId]) {
-            sendEnvelope(result.pilotPlayerId, {
-                type: ServerTag.TowAttachedAlert,
-                towingName: player.name,
+        },
+        (result) => {
+            sendEnvelope(playerId, {
+                type: ServerTag.TowAttachResult,
+                outcome: 'ok',
+                message: `You lock your Tractor Beam on ${result.targetName}`,
+                turnsPerWarp: result.tpw,
             });
-        }
-    } catch (err) {
-        console.error('tow attach error:', err);
-        sendEnvelope(playerId, {
-            type: ServerTag.TowAttachResult,
-            outcome: 'error',
-            message: 'Internal server error.',
-        });
-    }
+
+            // Manned target: alert the pilot that they're being towed.
+            if (result.pilotPlayerId !== null && players[result.pilotPlayerId]) {
+                sendEnvelope(result.pilotPlayerId, {
+                    type: ServerTag.TowAttachedAlert,
+                    towingName: player.name,
+                });
+            }
+        },
+        () =>
+            sendEnvelope(playerId, {
+                type: ServerTag.TowAttachResult,
+                outcome: 'error',
+                message: 'Internal server error.',
+            }),
+    );
 }

@@ -9,6 +9,7 @@ import type {
     ClanDropMemberCommand,
 } from '@twnr/shared';
 import { pool, withTransaction, AbortTransaction } from '../db/index.js';
+import { runMutation } from './run-mutation.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { players } from '../state/players.js';
 import { hashPassword, verifyPassword } from '../auth/password.js';
@@ -69,8 +70,10 @@ export async function serveClanCreate(playerId: number, data: ClanCreateCommand)
 
     const passwordHash = hashPassword(password);
 
-    try {
-        const created = await withTransaction(async (client) => {
+    await runMutation(
+        playerId,
+        'clan create',
+        async (client) => {
             const inserted = await insertClan(
                 player.universeId,
                 trimmedName,
@@ -80,21 +83,16 @@ export async function serveClanCreate(playerId: number, data: ClanCreateCommand)
             );
             await setPlayerClanId(playerId, inserted.id, client);
             return inserted;
-        });
-        if (!created) {
-            sendError(playerId, 'Failed to create clan.');
-            return;
-        }
-        sendEnvelope(playerId, {
-            type: ServerTag.ClanCreateResult,
-            clanId: created.id,
-            clanNumber: created.universeClanNumber,
-            name: trimmedName,
-        });
-    } catch (err) {
-        console.error('clan create error', err);
-        sendError(playerId, 'Failed to create clan.');
-    }
+        },
+        (created) =>
+            sendEnvelope(playerId, {
+                type: ServerTag.ClanCreateResult,
+                clanId: created.id,
+                clanNumber: created.universeClanNumber,
+                name: trimmedName,
+            }),
+        'Failed to create clan.',
+    );
 }
 
 export async function serveClanJoin(playerId: number, data: ClanJoinCommand): Promise<void> {
@@ -167,27 +165,24 @@ export async function serveClanLeave(playerId: number, data: ClanLeaveCommand): 
             );
             return;
         }
-        try {
-            const result = await withTransaction(async (client) => {
+        await runMutation(
+            playerId,
+            'clan dissolve',
+            async (client) => {
                 const stats = await dissolveClanAssets(clanId, playerId, player.sectorId, client);
                 await setPlayerClanId(playerId, null, client);
                 await deleteClan(clanId, client);
                 return stats;
-            });
-            if (!result) {
-                sendError(playerId, 'Failed to dissolve clan.');
-                return;
-            }
-            sendEnvelope(playerId, {
-                type: ServerTag.ClanLeaveResult,
-                outcome: 'dissolved',
-                convertedToPersonal: result.convertedToPersonal,
-                convertedToRogue: result.convertedToRogue,
-            });
-        } catch (err) {
-            console.error('clan dissolve error', err);
-            sendError(playerId, 'Failed to dissolve clan.');
-        }
+            },
+            (result) =>
+                sendEnvelope(playerId, {
+                    type: ServerTag.ClanLeaveResult,
+                    outcome: 'dissolved',
+                    convertedToPersonal: result.convertedToPersonal,
+                    convertedToRogue: result.convertedToRogue,
+                }),
+            'Failed to dissolve clan.',
+        );
         return;
     }
 
@@ -214,22 +209,23 @@ export async function serveClanLeave(playerId: number, data: ClanLeaveCommand): 
             sendError(playerId, 'Successor is not a member of this clan.');
             return;
         }
-        try {
-            await withTransaction(async (client) => {
+        await runMutation(
+            playerId,
+            'clan leader handoff',
+            async (client) => {
                 await setClanLeader(clanId, successor.id, client);
                 await setPlayerClanId(playerId, null, client);
-            });
-        } catch (err) {
-            console.error('clan leader handoff error', err);
-            sendError(playerId, 'Failed to hand off leadership.');
-            return;
-        }
-        sendEnvelope(playerId, {
-            type: ServerTag.ClanLeaveResult,
-            outcome: 'left',
-            convertedToPersonal: 0,
-            convertedToRogue: 0,
-        });
+                return true;
+            },
+            () =>
+                sendEnvelope(playerId, {
+                    type: ServerTag.ClanLeaveResult,
+                    outcome: 'left',
+                    convertedToPersonal: 0,
+                    convertedToRogue: 0,
+                }),
+            'Failed to hand off leadership.',
+        );
         return;
     }
 

@@ -8,7 +8,8 @@ import {
     closeDestroyedSession,
     broadcastEnvelope,
 } from '../state/messaging.js';
-import { withTransaction, AbortTransaction } from '../db/index.js';
+import { AbortTransaction } from '../db/index.js';
+import { runMutation } from './run-mutation.js';
 import {
     getShipDronesForUpdate,
     getShipDronesAndShieldsForUpdate,
@@ -92,8 +93,10 @@ export async function serveAttackShip(attackerId: number, data: AttackShipComman
 
     const onlineTarget = players[targetPlayerId];
 
-    try {
-        const result = await withTransaction(async (client) => {
+    await runMutation(
+        attackerId,
+        'Attack',
+        async (client) => {
             const attackerDrones = await getShipDronesForUpdate(attackerId, client);
             const targetShip = await getShipDronesAndShieldsForUpdate(targetPlayerId, client);
 
@@ -194,40 +197,36 @@ export async function serveAttackShip(attackerId: number, data: AttackShipComman
                 defenderExpDelta,
                 defenderRepDelta,
             };
-        });
+        },
+        async (result) => {
+            const { destroyed, attackerDronesLost, defenderDronesLost, shieldsLost } = result;
 
-        if (!result) return;
-
-        const { destroyed, attackerDronesLost, defenderDronesLost, shieldsLost } = result;
-
-        await sendEnvelope(attackerId, {
-            type: ServerTag.AttackShipResult,
-            destroyed,
-            attackerDronesLost,
-            defenderDronesLost,
-            defenderShieldsLost: shieldsLost,
-            message: destroyed ? 'Target destroyed!' : 'Attack completed.',
-            expDelta: result.attackerExpDelta,
-            repDelta: result.attackerRepDelta,
-        });
-
-        if (onlineTarget?.ws && onlineTarget.ws.readyState === 1) {
-            await sendEnvelope(targetPlayerId, {
+            sendEnvelope(attackerId, {
                 type: ServerTag.AttackShipResult,
                 destroyed,
                 attackerDronesLost,
                 defenderDronesLost,
                 defenderShieldsLost: shieldsLost,
-                message: destroyed ? 'Your ship was destroyed!' : 'You were attacked!',
-                expDelta: result.defenderExpDelta,
-                repDelta: result.defenderRepDelta,
+                message: destroyed ? 'Target destroyed!' : 'Attack completed.',
+                expDelta: result.attackerExpDelta,
+                repDelta: result.attackerRepDelta,
             });
-            if (destroyed) {
-                closeDestroyedSession(targetPlayerId, 'Ship destroyed');
+
+            if (onlineTarget?.ws && onlineTarget.ws.readyState === 1) {
+                sendEnvelope(targetPlayerId, {
+                    type: ServerTag.AttackShipResult,
+                    destroyed,
+                    attackerDronesLost,
+                    defenderDronesLost,
+                    defenderShieldsLost: shieldsLost,
+                    message: destroyed ? 'Your ship was destroyed!' : 'You were attacked!',
+                    expDelta: result.defenderExpDelta,
+                    repDelta: result.defenderRepDelta,
+                });
+                if (destroyed) {
+                    closeDestroyedSession(targetPlayerId, 'Ship destroyed');
+                }
             }
-        }
-    } catch (e) {
-        console.error('Attack error', e);
-        sendError(attackerId, 'Internal server error');
-    }
+        },
+    );
 }

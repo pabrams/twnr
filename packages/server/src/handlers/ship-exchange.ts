@@ -2,7 +2,8 @@ import { ServerTag } from '@twnr/shared';
 import type { BuyShipTradeinCommand, BuyShipNewCommand } from '@twnr/shared';
 import { players, getPlayerUniverseId } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
-import { withTransaction, AbortTransaction } from '../db/index.js';
+import { AbortTransaction } from '../db/index.js';
+import { runMutation } from './run-mutation.js';
 import {
     getShipTypeBySlug,
     getPlayerShipTradeInfoForUpdate,
@@ -86,8 +87,10 @@ export async function executeBuyShipNew(
     const universeId = getPlayerUniverseId(playerId);
     if (universeId === undefined) return;
 
-    try {
-        const result = await withTransaction(async (client) => {
+    await runMutation(
+        playerId,
+        'Ship exchange new',
+        async (client) => {
             const targetType = await getShipTypeBySlug(universeId, targetShipName, client);
             if (!targetType) {
                 sendError(playerId, 'Unknown ship');
@@ -143,23 +146,18 @@ export async function executeBuyShipNew(
                 cargoLimit: newCargoLimit,
                 coloredName: targetType.display_name,
             };
-        });
-
-        if (!result) return;
-
-        await sendEnvelope(playerId, {
-            type: ServerTag.BuyShipNewResult,
-            shipName: targetShipName,
-            coloredShipName: result.coloredName,
-            credits: result.credits,
-            maxDrones: result.maxDrones,
-            maxShields: result.maxShields,
-            cargoLimit: result.cargoLimit,
-        });
-    } catch (err) {
-        console.error('ship-exchange new error:', err);
-        sendError(playerId, 'Internal server error');
-    }
+        },
+        (result) =>
+            sendEnvelope(playerId, {
+                type: ServerTag.BuyShipNewResult,
+                shipName: targetShipName,
+                coloredShipName: result.coloredName,
+                credits: result.credits,
+                maxDrones: result.maxDrones,
+                maxShields: result.maxShields,
+                cargoLimit: result.cargoLimit,
+            }),
+    );
 }
 
 /** Commit a deferred Trade-in purchase using the supplied ship name. */
@@ -171,8 +169,10 @@ export async function executeBuyShipTradein(
     const universeId = getPlayerUniverseId(playerId);
     if (universeId === undefined) return;
 
-    try {
-        const result = await withTransaction(async (client) => {
+    await runMutation(
+        playerId,
+        'Ship exchange tradein',
+        async (client) => {
             const targetType: ShipTypeRow | undefined = await getShipTypeBySlug(
                 universeId,
                 targetShipName,
@@ -243,21 +243,16 @@ export async function executeBuyShipTradein(
                 cargoLimit: newCargoLimit,
                 coloredName: targetType.display_name,
             };
-        });
-
-        if (!result) return;
-
-        await sendEnvelope(playerId, {
-            type: ServerTag.BuyShipTradeinResult,
-            shipName: targetShipName,
-            coloredShipName: result.coloredName,
-            credits: result.credits,
-            maxDrones: result.maxDrones,
-            maxShields: result.maxShields,
-            cargoLimit: result.cargoLimit,
-        });
-    } catch (err) {
-        console.error('ship-exchange tradein error:', err);
-        sendError(playerId, 'Internal server error');
-    }
+        },
+        (result) =>
+            sendEnvelope(playerId, {
+                type: ServerTag.BuyShipTradeinResult,
+                shipName: targetShipName,
+                coloredShipName: result.coloredName,
+                credits: result.credits,
+                maxDrones: result.maxDrones,
+                maxShields: result.maxShields,
+                cargoLimit: result.cargoLimit,
+            }),
+    );
 }

@@ -6,7 +6,8 @@ import { sendEnvelope, sendError, broadcastTo } from '../state/messaging.js';
 import { getSectorDrones, resolveSectorId } from '../services/sector-lookup.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
 import { isInEncounter } from '../services/encounter.js';
-import { withTransaction, AbortTransaction } from '../db/index.js';
+import { AbortTransaction } from '../db/index.js';
+import { runMutation } from './run-mutation.js';
 import {
     adjustReputationAndExperience,
     getOnPlanetId,
@@ -136,8 +137,10 @@ export async function serveDeployDrones(
         return;
     }
 
-    try {
-        const newShipDrones = await withTransaction(async (client) => {
+    await runMutation(
+        playerId,
+        'Deploy drones',
+        async (client) => {
             const shipInfo = await getShipDronesAndMaxForUpdate(playerId, client);
             if (!shipInfo) {
                 sendEnvelope(playerId, { type: ServerTag.NoShip });
@@ -208,21 +211,16 @@ export async function serveDeployDrones(
             }
 
             return updatedShipDrones;
-        });
-
-        if (newShipDrones === undefined) return;
-
-        await refreshSectorObservation(playerId, deploySectorDbId);
-
-        await sendEnvelope(playerId, {
-            type: ServerTag.DeployDronesResult,
-            sectorDrones: target,
-            shipDrones: newShipDrones,
-        });
-    } catch (err) {
-        console.error('Deploy drones error', err);
-        sendError(playerId, 'Internal server error');
-    }
+        },
+        async (newShipDrones) => {
+            await refreshSectorObservation(playerId, deploySectorDbId);
+            sendEnvelope(playerId, {
+                type: ServerTag.DeployDronesResult,
+                sectorDrones: target,
+                shipDrones: newShipDrones,
+            });
+        },
+    );
 }
 
 export async function serveAttackSectorDrones(
@@ -248,8 +246,10 @@ export async function serveAttackSectorDrones(
 
     const sectorDbId = await getSectorDbId(sectorId, universeId);
 
-    try {
-        const result = await withTransaction(async (client) => {
+    await runMutation(
+        playerId,
+        'Attack sector drones',
+        async (client) => {
             const shipDrones = await getShipDronesForUpdate(playerId, client);
             if (shipDrones === undefined) {
                 sendEnvelope(playerId, { type: ServerTag.NoShip });
@@ -288,9 +288,6 @@ export async function serveAttackSectorDrones(
                 await updateSectorDroneQuantity(sectorDbId, newSectorDrones, client);
             }
 
-            // PvFigs combat rewards for the attacker only — owner accrues
-            // nothing. Owner alignment is the owner's reputation (single
-            // player) or the sum of clan members' reputations (clan).
             let repApplied = 0;
             let expApplied = 0;
             if (k > 0) {
@@ -328,82 +325,83 @@ export async function serveAttackSectorDrones(
                 repApplied,
                 expApplied,
             };
-        });
+        },
+        async (result) => {
+            const { ownerId, k, newShipDrones, newSectorDrones, victory } = result;
 
-        if (!result) return;
+            sendEnvelope(playerId, {
+                type: ServerTag.AttackSectorDronesResult,
+                victory,
+                dronesLost: k,
+                sectorDronesRemaining: newSectorDrones,
+                shipDrones: newShipDrones,
+                expDelta: result.expApplied,
+                repDelta: result.repApplied,
+            });
 
-        const { ownerId, k, newShipDrones, newSectorDrones, victory } = result;
-
-        await sendEnvelope(playerId, {
-            type: ServerTag.AttackSectorDronesResult,
-            victory,
-            dronesLost: k,
-            sectorDronesRemaining: newSectorDrones,
-            shipDrones: newShipDrones,
-            expDelta: result.expApplied,
-            repDelta: result.repApplied,
-        });
-
-        const { insertSystemMemo } = await import('../db/queries/message.js');
-        const mailRecipients: number[] = [];
-        if (ownerId !== null) {
-            const owner = players[ownerId];
-            if (owner && owner.ws.readyState === 1) {
-                sendEnvelope(ownerId, {
-                    type: ServerTag.SectorDronesAlert,
-                    event: victory ? 'destroyed' : 'attacked',
-                    sector: sectorId,
-                    dronesLost: k,
-                    dronesRemaining: newSectorDrones,
-                    intruderName: player.name,
-                });
-            }
-            mailRecipients.push(ownerId);
-        } else {
-            // Clan-owned drones: alert every member of the clan (online get an
-            // inline alert; everyone in the clan gets a mail entry).
-            const existing = await getSectorDronesRowForUpdate(sectorDbId!);
-            const ownerClanId = existing?.owner_clan_id ?? null;
-            if (ownerClanId !== null) {
-                const clanMembers = await getClanMembers(ownerClanId);
-                for (const m of clanMembers) {
-                    if (m.id === playerId) continue;
-                    mailRecipients.push(m.id);
-                    const p = players[m.id];
-                    if (p && p.ws.readyState === 1) {
-                        sendEnvelope(m.id, {
-                            type: ServerTag.SectorDronesAlert,
-                            event: victory ? 'destroyed' : 'attacked',
-                            sector: sectorId,
-                            dronesLost: k,
-                            dronesRemaining: newSectorDrones,
-                            intruderName: player.name,
-                        });
+            const { insertSystemMemo } = await import('../db/queries/message.js');
+            const mailRecipients: number[] = [];
+            if (ownerId !== null) {
+                const owner = players[ownerId];
+                if (owner && owner.ws.readyState === 1) {
+                    sendEnvelope(ownerId, {
+                        type: ServerTag.SectorDronesAlert,
+                        event: victory ? 'destroyed' : 'attacked',
+                        sector: sectorId,
+                        dronesLost: k,
+                        dronesRemaining: newSectorDrones,
+                        intruderName: player.name,
+                    });
+                }
+                mailRecipients.push(ownerId);
+            } else {
+                // Clan-owned drones: alert every member of the clan (online get an
+                // inline alert; everyone in the clan gets a mail entry).
+                const existing = await getSectorDronesRowForUpdate(sectorDbId!);
+                const ownerClanId = existing?.owner_clan_id ?? null;
+                if (ownerClanId !== null) {
+                    const clanMembers = await getClanMembers(ownerClanId);
+                    for (const m of clanMembers) {
+                        if (m.id === playerId) continue;
+                        mailRecipients.push(m.id);
+                        const p = players[m.id];
+                        if (p && p.ws.readyState === 1) {
+                            sendEnvelope(m.id, {
+                                type: ServerTag.SectorDronesAlert,
+                                event: victory ? 'destroyed' : 'attacked',
+                                sector: sectorId,
+                                dronesLost: k,
+                                dronesRemaining: newSectorDrones,
+                                intruderName: player.name,
+                            });
+                        }
                     }
                 }
             }
-        }
-        const attackBody = `Report Sector ${sectorId}: ${player.name} is attacking!`;
-        const destroyBody = `${player.name} destroyed ${k} of your drones in sector ${sectorId}`;
-        for (const rid of mailRecipients) {
-            await insertSystemMemo(rid, 'Deployed Drones', 'drones_attacked', attackBody);
-            if (k > 0) {
-                await insertSystemMemo(rid, 'Deployed Drones', 'drones_destroyed', destroyBody);
+            const attackBody = `Report Sector ${sectorId}: ${player.name} is attacking!`;
+            const destroyBody = `${player.name} destroyed ${k} of your drones in sector ${sectorId}`;
+            for (const rid of mailRecipients) {
+                await insertSystemMemo(rid, 'Deployed Drones', 'drones_attacked', attackBody);
+                if (k > 0) {
+                    await insertSystemMemo(
+                        rid,
+                        'Deployed Drones',
+                        'drones_destroyed',
+                        destroyBody,
+                    );
+                }
+                // Their mental map should reflect the loss without needing to fly
+                // back to the sector themselves.
+                if (sectorDbId !== undefined && sectorDbId !== null) {
+                    await refreshSectorObservation(rid, sectorDbId);
+                }
             }
-            // Their mental map should reflect the loss without needing to fly
-            // back to the sector themselves.
+            // Attacker is in the sector, so refresh their own observation too.
             if (sectorDbId !== undefined && sectorDbId !== null) {
-                await refreshSectorObservation(rid, sectorDbId);
+                await refreshSectorObservation(playerId, sectorDbId);
             }
-        }
-        // Attacker is in the sector, so refresh their own observation too.
-        if (sectorDbId !== undefined && sectorDbId !== null) {
-            await refreshSectorObservation(playerId, sectorDbId);
-        }
-    } catch (err) {
-        console.error('Attack sector drones error', err);
-        sendError(playerId, 'Internal server error');
-    }
+        },
+    );
 }
 
 export async function serveRetreatFromDrones(playerId: number): Promise<void> {
