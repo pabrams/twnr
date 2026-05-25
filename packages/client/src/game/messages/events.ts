@@ -71,6 +71,7 @@ export const EVENT = makeDomain('EVENT', {
     terraformOwnershipPrompt:
         '\r\n[by]Should this be a ([/by][bc]C[/bc][by])lan planet or ([/by][bc]P[/bc][by])ersonal planet?[/by] [mg][[/mg][by]P[/by][mg]][/mg] ',
     terraformConfirmed: '\r\n[bg]Planet[/bg] [bc]{name}[/bc] [bg]registered.[/bg]',
+    seekerVictimNotice: '\r\n[y]You hear a faint metallic thud...[/y]',
     terraformCollision: '[by:r]*** Warning ***: intersecting orbits detected![/by:r]',
     terraformDevicesRemaining: '  [by]Terraform devices remaining[/by]: [bc]{count}[/bc]',
     terraformFailure: '\r\n[br]{reason}[/br]',

@@ -99,13 +99,8 @@ export const proximityMineHit: Handler<'proximityMineHit', MinesContext> = (ctx,
     }
 };
 
-export const seekerMineAttached: Handler<'seekerMineAttached', MinesContext> = (ctx, msg) => {
-    ctx.io.term.writeln('');
-    if (msg.droppedPrevious) {
-        ctx.io.term.writeln(`A limpet mine has attached to your ship — the previous one fell off.`);
-    } else {
-        ctx.io.term.writeln(`A limpet mine has attached to your ship in sector ${msg.sector}.`);
-    }
+export const seekerMineAttached: Handler<'seekerMineAttached', MinesContext> = (ctx) => {
+    ctx.io.term.writeln(render(EVENT.seekerVictimNotice));
 };
 
 export const seekerMinePickupAlert: Handler<'seekerMinePickupAlert', MinesContext> = (ctx, msg) => {
