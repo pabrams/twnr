@@ -2,7 +2,8 @@ import { ClientTag, ServerTag } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { EVENT } from '../messages/index.js';
-import { askLine, awaitResponse } from '../routines/prompts.js';
+import { askLine } from '../routines/prompts.js';
+import { awaitResponse } from '../routines/io.js';
 
 type ShipNamePromptCtx = Pick<GameContext, 'io' | 'input'>;
 

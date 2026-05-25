@@ -2,7 +2,8 @@ import { ClientTag, Menu } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { NOTIFY, EVENT, PLANET } from '../messages/index.js';
-import { askConfirm, askChar, askLineRaw, awaitResponse } from '../routines/prompts.js';
+import { askConfirm, askChar, askLineRaw } from '../routines/prompts.js';
+import { awaitResponse } from '../routines/io.js';
 import { type DisplayCtx } from '../display.js';
 import { ServerTag } from '@twnr/shared';
 import {

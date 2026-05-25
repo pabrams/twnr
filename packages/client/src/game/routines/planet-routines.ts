@@ -4,7 +4,8 @@ import { render } from '../renderer.js';
 import { PLANET } from '../messages/index.js';
 import { echoCommand } from '../display.js';
 import { registerRoutine } from './types.js';
-import { askChar, askConfirm, askLineWithShortcuts, askNumber, awaitResponse } from './prompts.js';
+import { askChar, askConfirm, askLineWithShortcuts, askNumber } from './prompts.js';
+import { request } from './io.js';
 import { fmt } from '../handlers/utils.js';
 
 type Product3 = 'fuel' | 'organics' | 'equipment';
@@ -44,8 +45,7 @@ async function maybeShowPlanet(ctx: GameContext, defaultYes: boolean): Promise<b
     const show = await askDisplayPlanet(ctx, defaultYes);
     if (show === null) return false;
     if (show) {
-        ctx.io.sendMsg({ type: ClientTag.PlanetDisplay });
-        await awaitResponse(ctx, [ServerTag.PlanetDisplayResult, ServerTag.Error]);
+        await request(ctx, { type: ClientTag.PlanetDisplay }, ServerTag.PlanetDisplayResult);
     }
     return true;
 }
@@ -182,10 +182,12 @@ registerRoutine('claim_planet', async (ctx) => {
     const ch = await askChar(ctx, render(PLANET.claimOwnershipPrompt), ['p', 'c']);
     if (ch === null) return;
     const ownership = ch === 'p' ? 'personal' : 'clan';
-    ctx.io.sendMsg({ type: ClientTag.ClaimPlanet, ownership });
-    const result = await awaitResponse(ctx, [ServerTag.ClaimPlanetResult, ServerTag.Error]);
-    if (result === null) return;
-    if (result.type !== ServerTag.ClaimPlanetResult) return;
+    const result = await request(
+        ctx,
+        { type: ClientTag.ClaimPlanet, ownership },
+        ServerTag.ClaimPlanetResult,
+    );
+    if (!result) return;
     ctx.io.term.writeln(
         render(
             result.ownership === 'clan' ? PLANET.claimSuccessClan : PLANET.claimSuccessPersonal,
@@ -206,10 +208,8 @@ registerRoutine('leave_planet', (ctx) => {
 
 registerRoutine('planetary_defense_bastion', async (ctx) => {
     echoCommand(ctx, 'planetaryDefenseBastion');
-    ctx.io.sendMsg({ type: ClientTag.BaseInfo });
-    const reply = await awaitResponse(ctx, [ServerTag.BaseInfoResult, ServerTag.Error]);
-    if (reply === null) return;
-    if (reply.type !== ServerTag.BaseInfoResult) return;
+    const reply = await request(ctx, { type: ClientTag.BaseInfo }, ServerTag.BaseInfoResult);
+    if (!reply) return;
     const { term } = ctx.io;
 
     if (reply.mode === 'error') {
@@ -273,10 +273,8 @@ registerRoutine('planetary_defense_bastion', async (ctx) => {
 
     const ok = await askConfirm(ctx, render(PLANET.baseConstructPrompt), { defaultValue: false });
     if (!ok) return;
-    ctx.io.sendMsg({ type: ClientTag.BuildBase });
-    const result = await awaitResponse(ctx, [ServerTag.BuildBaseResult, ServerTag.Error]);
-    if (result === null) return;
-    if (result.type !== ServerTag.BuildBaseResult) return;
+    const result = await request(ctx, { type: ClientTag.BuildBase }, ServerTag.BuildBaseResult);
+    if (!result) return;
     if (result.outcome === 'started') {
         term.writeln('');
         term.writeln(
@@ -311,10 +309,8 @@ registerRoutine('treasury_transfer', async (ctx) => {
     echoCommand(ctx, 'treasuryTransfer');
     const { term } = ctx.io;
 
-    ctx.io.sendMsg({ type: ClientTag.TreasuryInfo });
-    const info = await awaitResponse(ctx, [ServerTag.TreasuryInfoResult, ServerTag.Error]);
-    if (info === null) return;
-    if (info.type !== ServerTag.TreasuryInfoResult) return;
+    const info = await request(ctx, { type: ClientTag.TreasuryInfo }, ServerTag.TreasuryInfoResult);
+    if (!info) return;
     if (info.outcome !== 'ok') {
         term.writeln('');
         term.writeln(render(PLANET.treasuryError, { message: info.message }));
@@ -350,10 +346,12 @@ registerRoutine('treasury_transfer', async (ctx) => {
     });
     if (amount === null) return;
 
-    ctx.io.sendMsg({ type: ClientTag.TreasuryTransfer, direction, amount });
-    const result = await awaitResponse(ctx, [ServerTag.TreasuryTransferResult, ServerTag.Error]);
-    if (result === null) return;
-    if (result.type !== ServerTag.TreasuryTransferResult) return;
+    const result = await request(
+        ctx,
+        { type: ClientTag.TreasuryTransfer, direction, amount },
+        ServerTag.TreasuryTransferResult,
+    );
+    if (!result) return;
     if (result.outcome !== 'ok') {
         term.writeln('');
         term.writeln(render(PLANET.treasuryError, { message: result.message }));
@@ -378,10 +376,8 @@ registerRoutine('base_transporter', async (ctx) => {
     echoCommand(ctx, 'baseTransporter');
     const { term } = ctx.io;
 
-    ctx.io.sendMsg({ type: ClientTag.BwarpInfo });
-    const info = await awaitResponse(ctx, [ServerTag.BwarpInfoResult, ServerTag.Error]);
-    if (info === null) return;
-    if (info.type !== ServerTag.BwarpInfoResult) return;
+    const info = await request(ctx, { type: ClientTag.BwarpInfo }, ServerTag.BwarpInfoResult);
+    if (!info) return;
     if (info.outcome === 'error') {
         term.writeln('');
         term.writeln(render(PLANET.bwarpError, { message: info.message }));
@@ -394,10 +390,12 @@ registerRoutine('base_transporter', async (ctx) => {
             defaultValue: false,
         });
         if (!ok) return;
-        ctx.io.sendMsg({ type: ClientTag.BwarpInstall });
-        const result = await awaitResponse(ctx, [ServerTag.BwarpInstallResult, ServerTag.Error]);
-        if (result === null) return;
-        if (result.type !== ServerTag.BwarpInstallResult) return;
+        const result = await request(
+            ctx,
+            { type: ClientTag.BwarpInstall },
+            ServerTag.BwarpInstallResult,
+        );
+        if (!result) return;
         if (result.outcome !== 'ok') {
             term.writeln('');
             term.writeln(render(PLANET.bwarpError, { message: result.message }));
@@ -428,13 +426,12 @@ registerRoutine('base_transporter', async (ctx) => {
                 defaultValue: false,
             });
             if (!ok) continue;
-            ctx.io.sendMsg({ type: ClientTag.BwarpUpgrade });
-            const upgrade = await awaitResponse(ctx, [
+            const upgrade = await request(
+                ctx,
+                { type: ClientTag.BwarpUpgrade },
                 ServerTag.BwarpUpgradeResult,
-                ServerTag.Error,
-            ]);
-            if (upgrade === null) return;
-            if (upgrade.type !== ServerTag.BwarpUpgradeResult) return;
+            );
+            if (!upgrade) return;
             if (upgrade.outcome !== 'ok') {
                 term.writeln('');
                 term.writeln(render(PLANET.bwarpError, { message: upgrade.message }));
@@ -458,10 +455,12 @@ registerRoutine('base_transporter', async (ctx) => {
             continue;
         }
 
-        ctx.io.sendMsg({ type: ClientTag.BwarpBeam, targetSector: target, commit: false });
-        const distance = await awaitResponse(ctx, [ServerTag.BwarpBeamResult, ServerTag.Error]);
-        if (distance === null) return;
-        if (distance.type !== ServerTag.BwarpBeamResult) return;
+        const distance = await request(
+            ctx,
+            { type: ClientTag.BwarpBeam, targetSector: target, commit: false },
+            ServerTag.BwarpBeamResult,
+        );
+        if (!distance) return;
         if (distance.outcome === 'error') {
             term.writeln('');
             term.writeln(render(PLANET.bwarpError, { message: distance.message }));
@@ -500,10 +499,12 @@ registerRoutine('base_transporter', async (ctx) => {
         });
         if (!engage) continue;
 
-        ctx.io.sendMsg({ type: ClientTag.BwarpBeam, targetSector: target, commit: true });
-        const beam = await awaitResponse(ctx, [ServerTag.BwarpBeamResult, ServerTag.Error]);
-        if (beam === null) return;
-        if (beam.type !== ServerTag.BwarpBeamResult) return;
+        const beam = await request(
+            ctx,
+            { type: ClientTag.BwarpBeam, targetSector: target, commit: true },
+            ServerTag.BwarpBeamResult,
+        );
+        if (!beam) return;
         if (beam.outcome !== 'beamed') {
             term.writeln('');
             term.writeln(

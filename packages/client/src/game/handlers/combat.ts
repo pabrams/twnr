@@ -4,7 +4,8 @@ import { render } from '../renderer.js';
 import { EVENT, SECTOR } from '../messages/index.js';
 import { type DisplayCtx } from '../display.js';
 import { showDroneEncounter, showAttackMenu, type DisplayCombatCtx } from '../display-combat.js';
-import { askConfirm, awaitResponse } from '../routines/prompts.js';
+import { askConfirm } from '../routines/prompts.js';
+import { awaitResponse } from '../routines/io.js';
 import { refreshMinimap, renderAttributeChange, type RefreshMinimapCtx } from './utils.js';
 import type { Handler } from './index.js';
 

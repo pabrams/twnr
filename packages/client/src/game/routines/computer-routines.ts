@@ -15,20 +15,20 @@ import {
 } from '../display-computer.js';
 import { indexToLetter, letterToIndex } from '../display-starbase.js';
 import { registerRoutine } from './types.js';
-import { askChar, askConfirm, askLine, askMultiLine, askNumber, awaitResponse } from './prompts.js';
+import { askChar, askConfirm, askLine, askMultiLine, askNumber } from './prompts.js';
+import { request } from './io.js';
 
 registerRoutine('known_universe', async (ctx) => {
     while (true) {
         const ch = await askChar(ctx, render(COMPUTER.knownUniversePrompt), ['e', 'u']);
         if (ch === null) return;
         const mode = ch === 'e' ? 'explored' : 'unexplored';
-        ctx.io.sendMsg({ type: ClientTag.VisitedSectors });
-        const response = await awaitResponse(ctx, [
+        const response = await request(
+            ctx,
+            { type: ClientTag.VisitedSectors },
             ServerTag.VisitedSectorsResult,
-            ServerTag.Error,
-        ]);
-        if (response === null) return;
-        if (response.type !== ServerTag.VisitedSectorsResult) return;
+        );
+        if (!response) return;
         renderVisitedSectorsResult(ctx, response, mode);
     }
 });
@@ -118,10 +118,12 @@ registerRoutine('list_deployed_mines', async (ctx) => {
 
 registerRoutine('active_ship_scan', async (ctx) => {
     echoCommand(ctx, 'activeShipScan');
-    ctx.io.sendMsg({ type: ClientTag.ListOwnedShips });
-    const response = await awaitResponse(ctx, [ServerTag.ListOwnedShipsResult, ServerTag.Error]);
-    if (response === null) return;
-    if (response.type !== ServerTag.ListOwnedShipsResult) return;
+    const response = await request(
+        ctx,
+        { type: ClientTag.ListOwnedShips },
+        ServerTag.ListOwnedShipsResult,
+    );
+    if (!response) return;
     renderActiveShipScan(ctx, response);
 });
 
@@ -130,10 +132,12 @@ registerRoutine('change_ship_ownership', async (ctx) => {
     const ch = await askChar(ctx, render(COMPUTER.ownershipPrompt), ['p', 'c']);
     if (ch === null) return;
     const ownership = ch === 'p' ? 'personal' : 'clan';
-    ctx.io.sendMsg({ type: ClientTag.ChangeShipOwnership, ownership });
-    const result = await awaitResponse(ctx, [ServerTag.ChangeShipOwnershipResult, ServerTag.Error]);
-    if (result === null) return;
-    if (result.type !== ServerTag.ChangeShipOwnershipResult) return;
+    const result = await request(
+        ctx,
+        { type: ClientTag.ChangeShipOwnership, ownership },
+        ServerTag.ChangeShipOwnershipResult,
+    );
+    if (!result) return;
     ctx.io.term.writeln(
         render(
             result.ownership === 'clan'
@@ -145,10 +149,8 @@ registerRoutine('change_ship_ownership', async (ctx) => {
 
 registerRoutine('read_mail', async (ctx) => {
     echoCommand(ctx, 'readMail');
-    ctx.io.sendMsg({ type: ClientTag.ReadMail });
-    const reply = await awaitResponse(ctx, [ServerTag.MemoDelivery, ServerTag.Error]);
-    if (reply === null) return;
-    if (reply.type !== ServerTag.MemoDelivery) return;
+    const reply = await request(ctx, { type: ClientTag.ReadMail }, ServerTag.MemoDelivery);
+    if (!reply) return;
     if (reply.memos.length === 0) {
         ctx.io.term.writeln(render(EVENT.mailReadEmpty));
         return;
@@ -164,10 +166,12 @@ registerRoutine('hail', async (ctx) => {
     const target = await askLine(ctx, render(EVENT.hailNamePrompt));
     if (target === null) return;
     ctx.io.term.writeln(render(EVENT.hailRequesting, { name: target }));
-    ctx.io.sendMsg({ type: ClientTag.HailResolve, name: target });
-    const resolved = await awaitResponse(ctx, [ServerTag.HailResolveResult, ServerTag.Error]);
-    if (resolved === null) return;
-    if (resolved.type !== ServerTag.HailResolveResult) return;
+    const resolved = await request(
+        ctx,
+        { type: ClientTag.HailResolve, name: target },
+        ServerTag.HailResolveResult,
+    );
+    if (!resolved) return;
     if (resolved.outcome === 'notFound') {
         ctx.io.term.writeln(render(EVENT.hailNotFound));
         return;
@@ -197,14 +201,12 @@ registerRoutine('hail', async (ctx) => {
         ctx.io.term.writeln(render(EVENT.hailEmpty));
         return;
     }
-    ctx.io.sendMsg({
-        type: ClientTag.HailSend,
-        recipientPlayerId: resolved.recipientPlayerId,
-        body,
-    });
-    const sendResult = await awaitResponse(ctx, [ServerTag.HailSendResult, ServerTag.Error]);
-    if (sendResult === null) return;
-    if (sendResult.type !== ServerTag.HailSendResult) return;
+    const sendResult = await request(
+        ctx,
+        { type: ClientTag.HailSend, recipientPlayerId: resolved.recipientPlayerId, body },
+        ServerTag.HailSendResult,
+    );
+    if (!sendResult) return;
     if (sendResult.outcome === 'delivered') {
         ctx.io.term.writeln(render(EVENT.hailTerminated));
     } else if (sendResult.outcome === 'queued') {

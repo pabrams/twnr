@@ -3,7 +3,8 @@ import type { WelcomeEvent } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { EVENT } from '../messages/index.js';
-import { askConfirm, awaitResponse } from '../routines/prompts.js';
+import { askConfirm } from '../routines/prompts.js';
+import { awaitResponse } from '../routines/io.js';
 import { renderMailEntries } from '../display-mail.js';
 import { promptShipName } from './ship-name.js';
 

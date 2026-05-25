@@ -13,7 +13,8 @@ import { showShipDetail } from '../display-computer.js';
 import { class0QtyPreamble } from '../display-port.js';
 import { COMMON, COMPUTER, EVENT, NOTIFY, STARBASE } from '../messages/index.js';
 import { registerRoutine } from './types.js';
-import { askChar, askConfirm, askNumber, awaitResponse } from './prompts.js';
+import { askChar, askConfirm, askNumber } from './prompts.js';
+import { awaitResponse } from './io.js';
 import { promptShipName } from '../handlers/ship-name.js';
 
 function calculateShipPrice(ship: ShipCatalogEntry): number {
