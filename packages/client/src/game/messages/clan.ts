@@ -77,6 +77,13 @@ export const CLAN = makeDomain('CLAN', {
     dropConfirmPrompt: '\r\n[by]Confirm dropping [/by][bc]{name}[/bc] [by]from clan? (y/[N])[/by] ',
     dropSuccess: '\r\n[bg]Dropped [/bg][bc]{name}[/bc][bg] from the clan.[/bg]',
 
+    locationsHeader:
+        '    [bw]Clan Member Name                   Sector  Fighters Shields Mines      Credits[/bw]',
+    locationsDivider: '[g]------------------------------------------------------------------------------[/g]',
+    locationsRow:
+        '[bc]{name}[/bc] [by]{sector}[/by] [g]{fighters}[/g] [g]{shields}[/g] [g]{mines}[/g] [bg]{credits}[/bg]',
+    locationsEmpty: '[g]No clan members.[/g]',
+
     incomingMemoHeader: '\r\n[by]== Memo ==[/by]',
     incomingMemoLine: '[g]{from}: {body}[/g]',
     notLeader: '[br]Only the clan leader can do that.[/br]',

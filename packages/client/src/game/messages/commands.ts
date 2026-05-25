@@ -79,6 +79,7 @@ export const COMMAND = makeDomain('COMMAND', {
     clanMemo: '\r\n[bc]<Send Clan Memo>[/bc]',
     clanSetPassword: '\r\n[bc]<Clan Security>[/bc]',
     clanDropMember: '\r\n[bc]<Drop Member>[/bc]',
+    clanLocations: '\r\n[bc]<Clanmate Locations>[/bc]',
     clanHelp: '',
     changeShipOwnership: '\r\n[bc]<Change Ship Ownership>[/bc]',
     claimPlanet: '\r\n[bc]<Claim Planet>[/bc]',

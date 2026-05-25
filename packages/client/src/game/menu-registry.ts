@@ -805,6 +805,13 @@ export const MENU_REGISTRY: MenuEntry[] = [
                 sortOrder: 85,
             },
             {
+                command: 'clan_locations',
+                keyPattern: 'l',
+                label: 'Clanmate Locations',
+                targetMenu: null,
+                sortOrder: 87,
+            },
+            {
                 command: 'clan_help',
                 keyPattern: '?',
                 label: 'Help',

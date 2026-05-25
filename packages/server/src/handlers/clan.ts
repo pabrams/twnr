@@ -18,6 +18,7 @@ import {
     getClanByNameInUniverse,
     listClansInUniverse,
     getClanMembers,
+    getClanmateLocations,
     getClanMemberCount,
     getMaxClanSize,
     setPlayerClanId,
@@ -294,6 +295,29 @@ export async function serveClanInfo(playerId: number): Promise<void> {
             })),
             maxSize,
         },
+    });
+}
+
+export async function serveClanmateLocations(playerId: number): Promise<void> {
+    const player = players[playerId];
+    if (!player) return;
+    const clanId = await getPlayerClanId(playerId);
+    if (clanId === null) {
+        sendError(playerId, 'You are not in a clan.');
+        return;
+    }
+    const rows = await getClanmateLocations(clanId);
+    sendEnvelope(playerId, {
+        type: ServerTag.ClanmateLocationsResult,
+        members: rows.map((r) => ({
+            playerId: r.id,
+            name: r.name,
+            sector: r.sector_number,
+            fighters: r.fighters,
+            shields: r.shields,
+            mines: r.mines,
+            credits: r.credits,
+        })),
     });
 }
 

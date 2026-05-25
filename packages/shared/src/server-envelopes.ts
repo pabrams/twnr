@@ -883,6 +883,23 @@ export const MemoDeliveryEventSchema = z.object({
 });
 export type MemoDeliveryEvent = z.infer<typeof MemoDeliveryEventSchema>;
 
+export const ClanmateLocationEntrySchema = z.object({
+    playerId: Int,
+    name: Str,
+    sector: IntOrNull,
+    fighters: Num,
+    shields: Num,
+    mines: Num,
+    credits: Num,
+});
+export type ClanmateLocationEntry = z.infer<typeof ClanmateLocationEntrySchema>;
+
+export const ClanmateLocationsReplySchema = z.object({
+    type: z.literal(ServerTag.ClanmateLocationsResult),
+    members: z.array(ClanmateLocationEntrySchema),
+});
+export type ClanmateLocationsReply = z.infer<typeof ClanmateLocationsReplySchema>;
+
 export const ClanInfoReplySchema = z.object({
     type: z.literal(ServerTag.ClanInfoResult),
     clan: z
@@ -1720,6 +1737,7 @@ export const ServerEnvelopeSchema = z.discriminatedUnion('type', [
     ClanMemoReplySchema,
     ClanSetPasswordReplySchema,
     ClanDropMemberReplySchema,
+    ClanmateLocationsReplySchema,
     ClanMembershipChangedEventSchema,
     ReleaseBeaconReplySchema,
     AttackBeaconReplySchema,

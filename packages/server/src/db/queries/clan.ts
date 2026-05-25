@@ -141,6 +141,47 @@ export async function getClanMembers(
     return res.rows;
 }
 
+export type ClanmateLocationRow = {
+    id: number;
+    name: string;
+    sector_number: number | null;
+    fighters: number;
+    shields: number;
+    mines: number;
+    credits: number;
+};
+
+/** Per-clanmate snapshot for the L command in the clan menu: current sector,
+ *  ship fighter/shield counts, summed proximity+seeker mines on board, and
+ *  credits. Players with no ship show zeroes and null sector. */
+export async function getClanmateLocations(
+    clanId: number,
+    db: Queryable = pool,
+): Promise<ClanmateLocationRow[]> {
+    const res = await db.query<ClanmateLocationRow>(
+        `SELECT p.id,
+                p.name,
+                sec.sector_number AS sector_number,
+                COALESCE(s.drones, 0)::int  AS fighters,
+                COALESCE(s.shields, 0)::int AS shields,
+                COALESCE((
+                    SELECT SUM(sh.quantity)::int
+                    FROM ship_hardware sh
+                    JOIN hardware_item hi ON hi.id = sh.hardware_item_id
+                    WHERE sh.ship_id = s.id
+                      AND hi.name IN ('proximity_mine', 'seeker_mine')
+                ), 0) AS mines,
+                p.credits
+         FROM players p
+         LEFT JOIN ships s ON s.id = p.ship_id
+         LEFT JOIN sectors sec ON sec.id = p.current_sector_id
+         WHERE p.clan_id = $1
+         ORDER BY (p.id = (SELECT leader_id FROM clans WHERE id = $1)) DESC, p.name`,
+        [clanId],
+    );
+    return res.rows;
+}
+
 /**
  * Sum of reputation across all members of a clan. Used as the "corp
  * alignment" for clan-owned sector fighters when computing combat rewards.
