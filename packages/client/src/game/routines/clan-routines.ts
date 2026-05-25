@@ -6,6 +6,7 @@ import {
     showClanHelp,
     renderClanList,
     renderClanInfo,
+    renderClanmateLocations,
     renderSuccessorChoices,
 } from '../display-clan.js';
 import { registerRoutine } from './types.js';
@@ -153,6 +154,17 @@ registerRoutine('clan_drop_member', async (ctx) => {
 
 registerRoutine('clan_help', (ctx) => {
     showClanHelp(ctx);
+});
+
+registerRoutine('clan_locations', async (ctx) => {
+    echoCommand(ctx, 'clanLocations');
+    ctx.io.sendMsg({ type: ClientTag.ClanmateLocations });
+    const response = await awaitResponse(ctx, [
+        ServerTag.ClanmateLocationsResult,
+        ServerTag.Error,
+    ]);
+    if (response === null || response.type !== ServerTag.ClanmateLocationsResult) return;
+    renderClanmateLocations(ctx, response.members);
 });
 
 registerRoutine('clan_display_list', async (ctx) => {

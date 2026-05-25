@@ -376,6 +376,11 @@ export const ClanInfoCommandSchema = z.object({
 });
 export type ClanInfoCommand = z.infer<typeof ClanInfoCommandSchema>;
 
+export const ClanmateLocationsCommandSchema = z.object({
+    type: z.literal(ClientTag.ClanmateLocations),
+});
+export type ClanmateLocationsCommand = z.infer<typeof ClanmateLocationsCommandSchema>;
+
 export const ChangeShipOwnershipCommandSchema = z.object({
     type: z.literal(ClientTag.ChangeShipOwnership),
     ownership: Ownership,
@@ -639,6 +644,7 @@ export const ClientEnvelopeSchema = z.discriminatedUnion('type', [
     ClanLeaveCommandSchema,
     ClanListCommandSchema,
     ClanInfoCommandSchema,
+    ClanmateLocationsCommandSchema,
     ChangeShipOwnershipCommandSchema,
     ClaimPlanetCommandSchema,
     ClanTransferCommandSchema,

@@ -1,0 +1,19 @@
+                           Corporate Planet Scan
+
+ Sector  Reg   Name    Ore  Org  Equ   Ore   Org   Equ      Drones       Base
+ Shields Population    -=Productions=-  -=-=-=-=-On Hands-=-=-=-=-       
+==============================================================================
+    99   #19   icee                     Class C, Glacial                   L0
+   ---   (0)              0    0    0     0     0     0          0          0
+    99   #20   home                     Class M, Earth Type                L1
+   ---   (0)              0    0    0     0     0     0          0        23M
+    99   #21   scobby                   Class M, Earth Type                L2
+   ---   (0)              0    0    0     0     0     0          0         1T
+    99   #22   ice crean                Class C, Glacial                   L2
+   ---   (0)              0    0    0     0     0     0          0          0
+    99   #23   iceee                    Class C, Glacial                   L6
+   837   (0)              0    0    0     0     0     0          0          0
+======   ============  ==== ==== ==== ===== ===== ===== ========== ==========
+   ---   (105M)         55T   3T   1T  325T   22T    9T        15T        23M
+
+Corporate command [TL=00:00:00]:[20] (?=Help)?

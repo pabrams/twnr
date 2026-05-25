@@ -102,6 +102,7 @@ import {
     serveClanMemo,
     serveClanSetPassword,
     serveClanDropMember,
+    serveClanmateLocations,
 } from './clan.js';
 import { serveReleaseBeacon, serveAttackBeacon } from './beacon.js';
 import { serveDensityScan, serveVisualScan } from './long-range-scan.js';
@@ -167,6 +168,7 @@ const handlers: HandlerMap = {
     [ClientTag.ClanMemo]: serveClanMemo,
     [ClientTag.ClanSetPassword]: serveClanSetPassword,
     [ClientTag.ClanDropMember]: serveClanDropMember,
+    [ClientTag.ClanmateLocations]: (pid) => serveClanmateLocations(pid),
     [ClientTag.DeployDronesInfo]: serveDeployDronesInfo,
     [ClientTag.DeployDrones]: serveDeployDrones,
     [ClientTag.AttackSectorDrones]: serveAttackSectorDrones,

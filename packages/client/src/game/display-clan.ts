@@ -27,6 +27,7 @@ export function showClanHelp(ctx: DisplayClanCtx) {
     t.writeln(render(COMMON.menuRow, { key: 'T', text: '[bc]Send Clan Memo[/bc]' }));
     t.writeln(render(COMMON.menuRow, { key: 'P', text: '[bc]Clan Security (leader)[/bc]' }));
     t.writeln(render(COMMON.menuRow, { key: 'R', text: '[bc]Drop Member (leader)[/bc]' }));
+    t.writeln(render(COMMON.menuRow, { key: 'L', text: '[bc]Clanmate Locations[/bc]' }));
     t.writeln(render(COMMON.menuRow, { key: 'Q', text: '[bc]Exit Clan Menu[/bc]' }));
 }
 
@@ -97,6 +98,45 @@ export function renderClanInfo(ctx: DisplayClanCtx, info: ClanInfo | null) {
             render(CLAN.infoMemberRow, {
                 name: m.name,
                 leaderTag: m.isLeader ? render(CLAN.infoLeaderTag) : '',
+            }),
+        );
+    }
+}
+
+type ClanmateLocation = {
+    name: string;
+    sector: number | null;
+    fighters: number;
+    shields: number;
+    mines: number;
+    credits: number;
+};
+
+function fmtCredits(n: number): string {
+    if (n >= 1_000_000_000) return `${Math.round(n / 1_000_000_000)}B`;
+    if (n >= 1_000_000) return `${Math.round(n / 1_000_000)}M`;
+    if (n >= 1_000) return `${Math.round(n / 1_000)}T`;
+    return String(n);
+}
+
+export function renderClanmateLocations(ctx: DisplayClanCtx, members: ClanmateLocation[]) {
+    const t = ctx.io.term;
+    t.writeln('');
+    t.writeln(render(CLAN.locationsHeader));
+    t.writeln(render(CLAN.locationsDivider));
+    if (members.length === 0) {
+        t.writeln(render(CLAN.locationsEmpty));
+        return;
+    }
+    for (const m of members) {
+        t.writeln(
+            render(CLAN.locationsRow, {
+                name: m.name.padEnd(35),
+                sector: (m.sector === null ? '-' : String(m.sector)).padStart(6),
+                fighters: String(m.fighters).padStart(9),
+                shields: String(m.shields).padStart(8),
+                mines: String(m.mines).padStart(6),
+                credits: fmtCredits(m.credits).padStart(11),
             }),
         );
     }
