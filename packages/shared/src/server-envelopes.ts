@@ -1287,7 +1287,6 @@ export const ConstructPortInfoReplySchema = z.discriminatedUnion('mode', [
                 dailyOre: Num,
                 dailyOrg: Num,
                 dailyEqu: Num,
-                importExport: z.enum(['Import', 'Export']),
             }),
         ),
         initialProductivity: Num,

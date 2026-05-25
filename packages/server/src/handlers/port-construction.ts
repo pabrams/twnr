@@ -25,15 +25,6 @@ import { getSectorDbId } from '../db/queries/sector.js';
 import { recordCreditChange } from '../services/audit.js';
 import { experienceDeltas, reputationDeltas, scalarDelta } from '../game-config.js';
 
-/** Class 1-8 import/export label: ports with more B-actions than S are "Import",
- *  others "Export". legacy display convention. */
-function importExportLabel(portClass: number): 'Import' | 'Export' {
-    const a = PORT_CLASS_ACTIONS[portClass];
-    if (!a) return 'Export';
-    const bCount = [a.fuel, a.organics, a.equipment].filter((x) => x === 'B').length;
-    return bCount >= 2 ? 'Import' : 'Export';
-}
-
 /** Reply to the "O" command: tell the client whether to render the build
  *  table (no port + planet present) or the upgrade table (port exists), or
  *  reject (no port + no planet, can't construct here). */
@@ -96,7 +87,6 @@ export async function serveConstructPortInfo(playerId: number): Promise<void> {
                 dailyOre: daily.ore,
                 dailyOrg: daily.org,
                 dailyEqu: daily.equ,
-                importExport: importExportLabel(portClass),
             };
         });
 
