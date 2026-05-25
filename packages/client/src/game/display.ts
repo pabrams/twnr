@@ -63,7 +63,7 @@ export function echoMenuCommand(ctx: DisplayCtx, commandName: string): void {
     const menu = ctx.catalogs.menus.get(ctx.world.mode);
     const row = menu?.commands.find((c) => c.command === commandName);
     if (!row) return;
-    ctx.io.term.writeln(render(`\r\n[bc]<${row.label}>[/bc]`));
+    ctx.io.term.writeln(render(COMMAND.menuEcho, { label: row.label }));
 }
 
 function colorSectorRef(ref: SectorRef): string {
