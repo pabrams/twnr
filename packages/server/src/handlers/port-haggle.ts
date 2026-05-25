@@ -39,7 +39,7 @@ import { getShipCargoWithCreditsForUpdate, incrementShipCommodity } from '../db/
 import { checkAndDeductTurns } from '../turn-logic.js';
 import { cargoUsed, formatCargo } from './cargo-utils.js';
 import { recordCreditChange } from '../services/audit.js';
-import { notifyAttributeChange, notifyTurnChange } from '../services/notify.js';
+import { notifyTurnChange } from '../services/notify.js';
 import { experienceDeltas, scalarDelta } from '../game-config.js';
 
 type HaggleSession = {
@@ -75,8 +75,6 @@ const MCIC_COL: Record<Commodity, 'fuel_mcic' | 'org_mcic' | 'equ_mcic'> = {
     equipment: 'equ_mcic',
 };
 
-/** Clear any active session for the player. Called on Undock, WS disconnect,
- *  and when starting a new session. */
 export function clearHaggleSession(playerId: number): void {
     sessions.delete(playerId);
 }
@@ -489,18 +487,18 @@ async function settleTrade(
                 cargo: formatCargo(cargo),
                 emptyHolds: Math.max(0, cargo.cargo_limit - used),
                 turnsUsed,
-                experienceGained: xpDelta,
+                expDelta: xpDelta,
             };
         });
 
         if (!result) return;
         clearHaggleSession(playerId);
-        notifyAttributeChange(playerId, 0, result.experienceGained ?? 0, 'trading');
         if (result.turnsUsed) notifyTurnChange(playerId, result.turnsUsed, 'trading');
         sendEnvelope(playerId, {
             type: ServerTag.HaggleResponseResult,
             outcome: 'accepted',
             ...result,
+            repDelta: 0,
         });
     } catch (err) {
         if (err instanceof AbortTransaction) return;

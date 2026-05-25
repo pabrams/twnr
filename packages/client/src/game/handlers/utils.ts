@@ -25,13 +25,30 @@ export function formatDuration(totalSeconds: number): string {
     return `${days} day${days === 1 ? '' : 's'}`;
 }
 
+export function renderAttributeChange(
+    ctx: Pick<GameContext, 'io'>,
+    expDelta: number,
+    repDelta: number,
+    reason: string,
+): void {
+    if (expDelta === 0 && repDelta === 0) return;
+    if (expDelta !== 0) {
+        const verb = expDelta > 0 ? 'receive' : 'lose';
+        ctx.io.term.writeln(
+            `You ${verb} ${Math.abs(expDelta)} experience point(s) for ${reason}.`,
+        );
+    }
+    if (repDelta !== 0) {
+        const dir = repDelta > 0 ? 'went up' : 'went down';
+        ctx.io.term.writeln(
+            `Your alignment ${dir} by ${Math.abs(repDelta)} point(s) for ${reason}.`,
+        );
+    }
+}
+
 export function refreshMinimap(ctx: RefreshMinimapCtx): void {
     if (!ctx.minimap.handle) return;
     const vp = ctx.minimap.handle.getViewport();
-    // Silent: doesn't toggle `inFlight`, so any handler that called
-    // refreshMinimap can still complete its tick with a normal prompt
-    // re-render (the panel update arrives later and is suppressed via
-    // PROMPT_SUPPRESSING in connection.ts).
     ctx.io.sendMsg(
         {
             type: ClientTag.GetNeighborhood,
