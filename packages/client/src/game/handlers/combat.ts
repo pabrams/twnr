@@ -5,7 +5,7 @@ import { EVENT, SECTOR } from '../messages/index.js';
 import { type DisplayCtx } from '../display.js';
 import { showDroneEncounter, showAttackMenu, type DisplayCombatCtx } from '../display-combat.js';
 import { askConfirm, awaitResponse } from '../routines/prompts.js';
-import { refreshMinimap, type RefreshMinimapCtx } from './utils.js';
+import { refreshMinimap, renderAttributeChange, type RefreshMinimapCtx } from './utils.js';
 import type { Handler } from './index.js';
 
 type CombatContext = Pick<
@@ -54,6 +54,7 @@ export const attackShip: Handler<'attackShipResult', CombatContext> = (ctx, msg)
             value: msg.defenderDronesLost,
         }),
     );
+    renderAttributeChange(ctx, msg.expDelta ?? 0, msg.repDelta ?? 0, 'combat');
 };
 
 export const getAttackTargets: Handler<'getAttackTargetsResult', CombatContext> = async (
@@ -99,6 +100,7 @@ export const attackSectorDrones: Handler<'attackSectorDronesResult', CombatConte
             ship: msg.shipDrones,
         }),
     );
+    renderAttributeChange(ctx, msg.expDelta ?? 0, msg.repDelta ?? 0, 'combat');
     refreshMinimap(ctx);
     if (msg.victory) {
         // Drones cleared — exit the droneEncounter sub-mode.

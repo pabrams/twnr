@@ -39,14 +39,10 @@ import { getTowingPlayerForShip, clearTowedShip } from '../db/queries/tow.js';
 import { getPlayerShipId } from '../db/queries/player.js';
 import { pool } from '../db/index.js';
 import { experienceDeltas, scalarDelta } from '../game-config.js';
-import { notifyAttributeChange, notifyTurnChange } from '../services/notify.js';
+import { notifyTurnChange } from '../services/notify.js';
 
 const EMPTY_CARGO = { fuel: 0, organics: 0, equipment: 0, colonists: 0 };
 
-/** Build the port-info envelope. The wire payload sends the *displayed*
- *  trading amount (max−stock for buying ports, stock for selling) plus max
- *  and price so the client can render the legacy-style commerce report
- *  directly. Per-unit price is action-and-experience-dependent. */
 function buildPortInfoPayload(
     p: {
         name: string;
@@ -433,7 +429,6 @@ export async function servePortTransaction(
         if (!result) return;
 
         const xpDelta = scalarDelta(experienceDeltas, 'portTrade');
-        notifyAttributeChange(playerId, 0, xpDelta, 'trading');
         if ('turnsUsed' in result && result.turnsUsed) {
             notifyTurnChange(playerId, result.turnsUsed, 'trading');
         }
@@ -444,6 +439,8 @@ export async function servePortTransaction(
             cargo: result.cargo,
             emptyHolds: result.emptyHolds,
             ...('turnsUsed' in result ? { turnsUsed: result.turnsUsed } : {}),
+            expDelta: xpDelta,
+            repDelta: 0,
         });
     } catch (err) {
         console.error('Trade error', err);

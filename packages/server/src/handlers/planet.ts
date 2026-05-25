@@ -69,7 +69,7 @@ import { planetConfigs } from '../planet-config.js';
 import { reputationDeltas, experienceDeltas, scalarDelta } from '../game-config.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 import { cargoUsed } from './cargo-utils.js';
-import { notifyAttributeChange, notifyTurnChange } from '../services/notify.js';
+import { notifyTurnChange } from '../services/notify.js';
 
 export async function serveGetSectorPlanets(playerId: number): Promise<void> {
     const player = players[playerId];
@@ -253,13 +253,13 @@ export async function serveDestroyPlanet(playerId: number): Promise<void> {
         return;
     }
 
-    notifyAttributeChange(playerId, destroyRep, destroyExp, 'destroying a planet');
-
     await sendEnvelope(playerId, {
         type: ServerTag.DestroyPlanetResult,
         destroyed: true,
         planetId: onPlanetId,
         planetName,
+        expDelta: destroyExp,
+        repDelta: destroyRep,
     });
 
     // Mail+notify any prior owners (other than the destroyer themselves).
@@ -442,8 +442,6 @@ export async function serveUseTerraformDevice(playerId: number): Promise<void> {
 
         if (!result) return;
 
-        notifyAttributeChange(playerId, result.repDelta, result.expDelta, 'creating a planet');
-
         sendEnvelope(playerId, {
             type: ServerTag.UseTerraformDeviceResult,
             success: true,
@@ -456,6 +454,8 @@ export async function serveUseTerraformDevice(playerId: number): Promise<void> {
             },
             collision: result.collision,
             terraformDevices: terraformQty - 1,
+            expDelta: result.expDelta,
+            repDelta: result.repDelta,
         });
     } catch (err) {
         console.error('Use terraform device error', err);
@@ -463,10 +463,6 @@ export async function serveUseTerraformDevice(playerId: number): Promise<void> {
     }
 }
 
-/** Follow-up to a just-completed terraform: rename the planet to whatever the
- *  player chose, and optionally flip it to clan ownership. The planet has
- *  already been created and the XP/rep already awarded by
- *  serveUseTerraformDevice — this only updates the name/owner. */
 export async function serveSetTerraformedPlanet(
     playerId: number,
     data: SetTerraformedPlanetCommand,

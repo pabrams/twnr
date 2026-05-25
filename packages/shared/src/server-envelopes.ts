@@ -325,6 +325,8 @@ export const PortTransactionReplySchema = z.object({
     cargo: CargoSchema,
     emptyHolds: Num,
     turnsUsed: Num.optional(),
+    expDelta: Num.optional(),
+    repDelta: Num.optional(),
 });
 export type PortTransactionReply = z.infer<typeof PortTransactionReplySchema>;
 
@@ -368,6 +370,8 @@ export const AttackShipReplySchema = z.object({
     defenderShieldsLost: Num,
     defenderDronesLost: Num,
     message: Str.optional(),
+    expDelta: Num.optional(),
+    repDelta: Num.optional(),
 });
 export type AttackShipReply = z.infer<typeof AttackShipReplySchema>;
 
@@ -409,6 +413,8 @@ export const UseTerraformDeviceReplySchema = z.object({
         .optional(),
     collision: Bool.optional(),
     terraformDevices: Num.optional(),
+    expDelta: Num.optional(),
+    repDelta: Num.optional(),
 });
 export type UseTerraformDeviceReply = z.infer<typeof UseTerraformDeviceReplySchema>;
 
@@ -495,6 +501,8 @@ export const DestroyPlanetReplySchema = z.object({
     destroyed: Bool,
     planetId: Int,
     planetName: Str,
+    expDelta: Num.optional(),
+    repDelta: Num.optional(),
 });
 export type DestroyPlanetReply = z.infer<typeof DestroyPlanetReplySchema>;
 
@@ -525,9 +533,6 @@ export const DockStarbaseReplySchema = z.object({
 });
 export type DockStarbaseReply = z.infer<typeof DockStarbaseReplySchema>;
 
-// SectorDisplayData fields are tacked on via Partial — present on .planet
-// returns, absent on standalone returns from a non-sector context. Use
-// .partial() then spread into the reply.
 const SectorDisplayPartial = SectorDisplayDataSchema.partial();
 
 export const TakeColonistsReplySchema = SectorDisplayPartial.extend({
@@ -597,6 +602,8 @@ export const AttackSectorDronesReplySchema = z.object({
     dronesLost: Num,
     sectorDronesRemaining: Num,
     shipDrones: Num,
+    expDelta: Num.optional(),
+    repDelta: Num.optional(),
 });
 export type AttackSectorDronesReply = z.infer<typeof AttackSectorDronesReplySchema>;
 
@@ -622,6 +629,8 @@ export const JettisonReplySchema = z.discriminatedUnion('outcome', [
         type: JettisonLit,
         outcome: z.literal('success'),
         jettisoned: CargoSchema,
+        expDelta: Num.optional(),
+        repDelta: Num.optional(),
     }),
     z.object({
         type: JettisonLit,
@@ -1582,7 +1591,8 @@ export const HaggleResponseReplySchema = z.discriminatedUnion('outcome', [
         cargo: CargoSchema,
         emptyHolds: Num,
         turnsUsed: Num.optional(),
-        experienceGained: Num.optional(),
+        expDelta: Num.optional(),
+        repDelta: Num.optional(),
     }),
     z.object({
         type: HaggleResponseLit,

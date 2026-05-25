@@ -7,32 +7,6 @@ export type NotifySender =
     | { kind: 'player'; playerId: number; displayName: string }
     | { kind: 'system'; label: string };
 
-/** Push a one-shot Notice describing experience and/or alignment deltas.
- *  Skips silently when both are zero. Pairs with adjustReputationAndExperience
- *  call sites that previously moved attributes without telling the player. */
-export function notifyAttributeChange(
-    playerId: number,
-    repDelta: number,
-    expDelta: number,
-    reason: string,
-): void {
-    if (!players[playerId]) return;
-    if (repDelta === 0 && expDelta === 0) return;
-    const lines: string[] = [];
-    if (expDelta !== 0) {
-        const verb = expDelta > 0 ? 'receive' : 'lose';
-        lines.push(`You ${verb} ${Math.abs(expDelta)} experience point(s) for ${reason}.`);
-    }
-    if (repDelta !== 0) {
-        const dir = repDelta > 0 ? 'went up' : 'went down';
-        lines.push(`Your alignment ${dir} by ${Math.abs(repDelta)} point(s) for ${reason}.`);
-    }
-    sendEnvelope(playerId, {
-        type: ServerTag.Notice,
-        senderLabel: null,
-        body: lines.join('\n'),
-    });
-}
 
 export function notifyTurnChange(playerId: number, turnsDelta: number, reason: string): void {
     if (!players[playerId]) return;

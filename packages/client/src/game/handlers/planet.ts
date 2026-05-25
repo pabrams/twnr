@@ -14,7 +14,7 @@ import {
 import { type DisplayStarbaseCtx } from '../display-starbase.js';
 import { type DisplayComputerCtx } from '../display-computer.js';
 import type { Handler } from './index.js';
-import { fmt, fmtCompact, type RefreshMinimapCtx } from './utils.js';
+import { fmt, fmtCompact, renderAttributeChange, type RefreshMinimapCtx } from './utils.js';
 import { padStartVisible } from '../display-utils.js';
 
 type PlanetDisplayMsg = {
@@ -339,6 +339,12 @@ export const destroyPlanet: Handler<'destroyPlanetResult', PlanetContext> = (ctx
     if (msg.destroyed) {
         ctx.world.mode = Menu.Sector;
         ctx.io.term.writeln(render(EVENT.planetDestroyed, { name: msg.planetName }));
+        renderAttributeChange(
+            ctx,
+            msg.expDelta ?? 0,
+            msg.repDelta ?? 0,
+            'destroying a planet',
+        );
     }
 };
 
@@ -359,17 +365,18 @@ export const useTerraformDevice: Handler<'useTerraformDeviceResult', PlanetConte
     const planet = msg.planet;
     ctx.io.term.writeln(render(EVENT.terraformNarrative));
     if (msg.collision) ctx.io.term.writeln(render(EVENT.terraformCollision));
-    ctx.io.term.writeln(
-        render(EVENT.terraformDevicesRemaining, { count: msg.terraformDevices }),
+
+    renderAttributeChange(
+        ctx,
+        msg.expDelta ?? 0,
+        msg.repDelta ?? 0,
+        'creating a planet',
     );
 
     const typeLabel = planet.displayType ?? planet.type;
     const rawName = await askLineRaw(
         ctx,
-        render(EVENT.terraformNamePrompt, {
-            type: typeLabel,
-            defaultName: planet.name,
-        }),
+        render(EVENT.terraformNamePrompt, { type: typeLabel }),
     );
     const name = rawName === null || rawName === '' ? planet.name : rawName;
     let ownership: 'personal' | 'clan' = 'personal';
@@ -393,6 +400,9 @@ export const useTerraformDevice: Handler<'useTerraformDeviceResult', PlanetConte
     if (response.type === ServerTag.SetTerraformedPlanetResult) {
         if (response.outcome === 'success') {
             ctx.io.term.writeln(render(EVENT.terraformConfirmed, { name: response.name }));
+            ctx.io.term.writeln(
+                render(EVENT.terraformDevicesRemaining, { count: msg.terraformDevices }),
+            );
         } else {
             ctx.io.term.writeln(render(EVENT.terraformFailure, { reason: response.message }));
         }

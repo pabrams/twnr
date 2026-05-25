@@ -6,7 +6,6 @@ import { sendEnvelope, sendError, broadcastTo } from '../state/messaging.js';
 import { getSectorDrones, resolveSectorId } from '../services/sector-lookup.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
 import { isInEncounter } from '../services/encounter.js';
-import { notifyAttributeChange } from '../services/notify.js';
 import { withTransaction, AbortTransaction } from '../db/index.js';
 import {
     adjustReputationAndExperience,
@@ -333,8 +332,6 @@ export async function serveAttackSectorDrones(
 
         if (!result) return;
 
-        notifyAttributeChange(playerId, result.repApplied, result.expApplied, 'combat');
-
         const { ownerId, k, newShipDrones, newSectorDrones, victory } = result;
 
         await sendEnvelope(playerId, {
@@ -343,6 +340,8 @@ export async function serveAttackSectorDrones(
             dronesLost: k,
             sectorDronesRemaining: newSectorDrones,
             shipDrones: newShipDrones,
+            expDelta: result.expApplied,
+            repDelta: result.repApplied,
         });
 
         const { insertSystemMemo } = await import('../db/queries/message.js');

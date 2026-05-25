@@ -1,5 +1,5 @@
 import { ServerTag } from '@twnr/shared';
-import type { ServerEnvelope, AttackShipCommand } from '@twnr/shared';
+import type { AttackShipCommand } from '@twnr/shared';
 
 import { players, isVisibleInSector } from '../state/players.js';
 import {
@@ -23,7 +23,6 @@ import {
     listPlayersInSector,
 } from '../db/queries/player.js';
 import { getSectorBeacon } from '../db/queries/beacons.js';
-import { notifyAttributeChange } from '../services/notify.js';
 import {
     pvpAttackerDeltas,
     pvpMatchup,
@@ -200,30 +199,17 @@ export async function serveAttackShip(attackerId: number, data: AttackShipComman
         if (!result) return;
 
         const { destroyed, attackerDronesLost, defenderDronesLost, shieldsLost } = result;
-        notifyAttributeChange(
-            attackerId,
-            result.attackerRepDelta,
-            result.attackerExpDelta,
-            'combat',
-        );
-        if (targetPlayerId !== null) {
-            notifyAttributeChange(
-                targetPlayerId,
-                result.defenderRepDelta,
-                result.defenderExpDelta,
-                'combat',
-            );
-        }
 
-        const resultMsg: ServerEnvelope = {
+        await sendEnvelope(attackerId, {
             type: ServerTag.AttackShipResult,
             destroyed,
             attackerDronesLost,
             defenderDronesLost,
             defenderShieldsLost: shieldsLost,
             message: destroyed ? 'Target destroyed!' : 'Attack completed.',
-        };
-        await sendEnvelope(attackerId, resultMsg);
+            expDelta: result.attackerExpDelta,
+            repDelta: result.attackerRepDelta,
+        });
 
         if (onlineTarget?.ws && onlineTarget.ws.readyState === 1) {
             await sendEnvelope(targetPlayerId, {
@@ -233,6 +219,8 @@ export async function serveAttackShip(attackerId: number, data: AttackShipComman
                 defenderDronesLost,
                 defenderShieldsLost: shieldsLost,
                 message: destroyed ? 'Your ship was destroyed!' : 'You were attacked!',
+                expDelta: result.defenderExpDelta,
+                repDelta: result.defenderRepDelta,
             });
             if (destroyed) {
                 closeDestroyedSession(targetPlayerId, 'Ship destroyed');

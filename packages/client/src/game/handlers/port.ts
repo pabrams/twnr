@@ -15,7 +15,7 @@ import { type DisplayStarbaseCtx } from '../display-starbase.js';
 import { type MenuArgsSlot } from '../routines/types.js';
 import { askNumber, awaitResponse } from '../routines/prompts.js';
 import type { Handler } from './index.js';
-import { fmt, refreshMinimap, type RefreshMinimapCtx } from './utils.js';
+import { fmt, refreshMinimap, renderAttributeChange, type RefreshMinimapCtx } from './utils.js';
 
 type PortContext = Pick<GameContext, 'catalogs' | 'input' | 'io' | 'starbase' | 'world'> &
     DisplayCtx &
@@ -254,6 +254,7 @@ async function runTradeRoutine(
                     ? Math.max(0, portInv[c.key] - qty)
                     : Math.max(0, portInv[c.key] - qty);
             term.writeln(render(TRANSACTION.tradeComplete, { credits: fmt(credits) }));
+            renderAttributeChange(ctx, settled.expDelta ?? 0, settled.repDelta ?? 0, 'trading');
         }
     }
 
@@ -288,6 +289,12 @@ export const jettison: Handler<'jettisonResult', PortContext> = (ctx, msg) => {
             .filter(Boolean)
             .join(', ');
         ctx.io.term.writeln(render(TRANSACTION.jettisoned, { items: items || 'nothing' }));
+        renderAttributeChange(
+            ctx,
+            msg.expDelta ?? 0,
+            msg.repDelta ?? 0,
+            'jettisoning colonists',
+        );
     } else {
         ctx.io.term.writeln(render(NOTIFY.error, { message: msg.message }));
     }
