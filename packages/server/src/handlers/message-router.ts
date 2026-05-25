@@ -108,7 +108,6 @@ import { serveDensityScan, serveVisualScan } from './long-range-scan.js';
 
 type ClientCommandByType = { [C in ClientEnvelope as C['type']]: C };
 
-/** A handler receives the player id and the typed command envelope. */
 export type Handler<K extends ClientEnvelope['type']> = (
     playerId: number,
     data: ClientCommandByType[K],

@@ -286,7 +286,6 @@ export async function insertPlayer(
     return res.rows[0].id;
 }
 
-/** Point a player at a ship they just received. */
 export async function setPlayerShipId(
     playerId: number,
     shipId: number,

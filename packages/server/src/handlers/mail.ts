@@ -26,7 +26,6 @@ export async function serveDeleteAllMail(playerId: number): Promise<void> {
     await deleteAllMailForPlayer(playerId);
 }
 
-/** Mail received since the player's last logout. */
 export async function serveCheckMailSinceLastLogout(playerId: number): Promise<void> {
     const lastLogout = await getPlayerLastLogoutAt(playerId);
     const rows = await getMailSince(playerId, lastLogout);
