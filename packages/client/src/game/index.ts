@@ -4,7 +4,7 @@ import type { ClientEnvelope, MenuEntry } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { setupConnection } from './connection.js';
 import { setupInput } from './input.js';
-import { createMinimap, flashTerminalBorder } from './minimap.js';
+import { createMinimap } from './minimap.js';
 import { createStatsPanel } from './stats-panel.js';
 import { render } from './renderer.js';
 import { NOTIFY } from './messages/index.js';
@@ -108,6 +108,9 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
             },
             debug: false,
             submitLineFromMap: () => {
+                /* populated by setupInput */
+            },
+            submitKeyFromMap: () => {
                 /* populated by setupInput */
             },
         },
@@ -256,17 +259,23 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
 
     const minimapEl = document.getElementById('minimap');
     if (minimapEl) {
-        const minimap = createMinimap(minimapEl, (sectorNumber, currentSectorNumber) => {
-            if (sectorNumber === currentSectorNumber || sectorNumber === ctx.world.currentSector) {
-                ctx.io.submitLineFromMap('');
-                return;
-            }
-            const isAdjacent = ctx.world.currentWarps.some((w) => w.sector === sectorNumber);
-            if (!isAdjacent) {
-                flashTerminalBorder(termDiv);
-            }
-            ctx.io.submitLineFromMap(String(sectorNumber));
-        });
+        const minimap = createMinimap(
+            minimapEl,
+            (sectorNumber, currentSectorNumber) => {
+                if (
+                    sectorNumber === currentSectorNumber ||
+                    sectorNumber === ctx.world.currentSector
+                ) {
+                    ctx.io.submitLineFromMap('');
+                    return;
+                }
+                ctx.io.submitLineFromMap(String(sectorNumber));
+            },
+            (key) => {
+                ctx.io.submitKeyFromMap(key);
+                term.focus();
+            },
+        );
         ctx.minimap.handle = minimap;
         minimap.onRequestRefresh(() => {
             const vp = minimap.getViewport();

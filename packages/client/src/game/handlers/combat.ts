@@ -7,9 +7,24 @@ import { showDroneEncounter, showAttackMenu, type DisplayCombatCtx } from '../di
 import { askConfirm, awaitResponse } from '../routines/prompts.js';
 import type { Handler } from './index.js';
 
-type CombatContext = Pick<GameContext, 'autopilot' | 'encounter' | 'input' | 'io' | 'world'> &
+type CombatContext = Pick<
+    GameContext,
+    'autopilot' | 'catalogs' | 'encounter' | 'input' | 'io' | 'minimap' | 'world'
+> &
     DisplayCtx &
     DisplayCombatCtx;
+
+/** Re-open the minimap floating menu for the DroneEncounter commands. */
+function reopenEncounterMenu(ctx: CombatContext): void {
+    const menu = ctx.catalogs.menus.get(Menu.DroneEncounter);
+    if (!menu) return;
+    const buttons = menu.commands
+        .filter((c) => c.keyPattern.length === 1)
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((c) => ({ label: c.label, key: c.keyPattern }));
+    if (buttons.length === 0) return;
+    ctx.minimap.handle?.openMenu({ title: 'Drone encounter', buttons });
+}
 
 export const attackShip: Handler<'attackShipResult', CombatContext> = (ctx, msg) => {
     if (ctx.world.mode === Menu.Attack) ctx.world.mode = Menu.Sector;
@@ -103,6 +118,7 @@ export const attackSectorDrones: Handler<'attackSectorDronesResult', CombatConte
         }
     } else {
         showDroneEncounter(ctx, msg.sectorDronesRemaining, ctx.encounter.ownerName, msg.shipDrones);
+        reopenEncounterMenu(ctx);
     }
 };
 

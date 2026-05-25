@@ -98,6 +98,9 @@ export function drainInputQueue(ctx: GameContext) {
 
 export function setupInput(term: Terminal, ctx: GameContext) {
     term.onKey(({ key, domEvent }) => {
+        // Any direct xterm input dismisses the minimap floating menu — the
+        // player switched intent from clicking back to typing.
+        ctx.minimap.handle?.closeMenu();
         if (key === '~') {
             ctx.io.setDebug(!ctx.io.debug);
             return;
@@ -131,6 +134,18 @@ export function setupInput(term: Terminal, ctx: GameContext) {
         if (trimmed.length > 0) term.writeln(trimmed);
         else term.writeln('');
         onInput(ctx, trimmed);
+    };
+    // Single-key injection (minimap floating-menu buttons). Routes through
+    // the same processKeystroke that a real key event would hit, so it works
+    // for char-mode sub-prompts (askChar/askConfirm) AND single-key menu
+    // commands. inFlight buffering matches the keyboard path.
+    ctx.io.submitKeyFromMap = (key: string) => {
+        const ev: KeystrokeEvent = { key, isEnter: false, isBackspace: false };
+        if (ctx.input.inFlight) {
+            ctx.input.userInputBuffer.push(ev);
+            return;
+        }
+        processKeystroke(ctx, ev);
     };
 }
 
