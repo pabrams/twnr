@@ -278,7 +278,7 @@ export const MENU_REGISTRY: MenuEntry[] = [
             {
                 command: 'clan_menu',
                 keyPattern: 't',
-                label: 'Clan',
+                label: 'Clan Menu',
                 targetMenu: 'clan',
                 sortOrder: 109,
             },
@@ -812,7 +812,7 @@ export const MENU_REGISTRY: MenuEntry[] = [
                 sortOrder: 87,
             },
             {
-                command: 'clan_help',
+                command: 'help_menu',
                 keyPattern: '?',
                 label: 'Help',
                 targetMenu: null,

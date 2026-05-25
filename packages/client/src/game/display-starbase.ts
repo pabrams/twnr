@@ -18,14 +18,6 @@ export function showStarbaseMenu(ctx: DisplayStarbaseCtx) {
     showStarbasePrompt(ctx);
 }
 
-export function showStarbaseHelp(ctx: DisplayStarbaseCtx) {
-    ctx.io.term.writeln('');
-    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'S', text: 'Shipyards' }));
-    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'H', text: 'Hardware Store' }));
-    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Leave Starbase' }));
-    showStarbasePrompt(ctx);
-}
-
 function fmt(n: number): string {
     return n.toLocaleString();
 }
@@ -114,15 +106,6 @@ export function showShipyardsPrompt(ctx: DisplayStarbaseCtx) {
 }
 
 export function showShipyardsMenu(ctx: DisplayStarbaseCtx) {
-    showShipyardsPrompt(ctx);
-}
-
-export function showShipyardsHelp(ctx: DisplayStarbaseCtx) {
-    ctx.io.term.writeln('');
-    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'B', text: 'Buy a new ship' }));
-    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'E', text: 'Examine ship specs' }));
-    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'P', text: 'Purchase equipment (Class 0)' }));
-    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back to Starbase' }));
     showShipyardsPrompt(ctx);
 }
 

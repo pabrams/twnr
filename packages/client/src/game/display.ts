@@ -59,6 +59,13 @@ export function echoCommand(
     if (tpl) ctx.io.term.writeln(render(tpl, vars ?? {}));
 }
 
+export function echoMenuCommand(ctx: DisplayCtx, commandName: string): void {
+    const menu = ctx.catalogs.menus.get(ctx.world.mode);
+    const row = menu?.commands.find((c) => c.command === commandName);
+    if (!row) return;
+    ctx.io.term.writeln(render(`\r\n[bc]<${row.label}>[/bc]`));
+}
+
 function colorSectorRef(ref: SectorRef): string {
     const tpl = ref.visited ? SECTOR.warpVisited : SECTOR.warpUnvisited;
     return render(tpl, { sector: ref.sector });
