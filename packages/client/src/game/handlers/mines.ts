@@ -94,7 +94,7 @@ export const proximityMineHit: Handler<'proximityMineHit', MinesContext> = (ctx,
     } else {
         ctx.io.term.writeln(
             `${msg.detonations} proximity mine(s) detonated for ${msg.damage} damage ` +
-                `(shields -${msg.shieldsLost}, drones -${msg.dronesLost}).`,
+                `(drones -${msg.dronesLost}, shields -${msg.shieldsLost}).`,
         );
     }
     refreshMinimap(ctx);
