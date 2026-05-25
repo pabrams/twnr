@@ -3,6 +3,7 @@ import { render } from '../renderer.js';
 import { COMPUTER, EVENT, NOTIFY, PANEL, PLANET, SECTOR } from '../messages/index.js';
 import {
     echoCommand,
+    echoMenuCommand,
     hideMoveMenuOverlay,
     showMoveMenu,
     showPortMenu,
@@ -454,7 +455,7 @@ registerRoutine('players_online', (ctx) => {
 });
 
 registerRoutine('clan_menu', (ctx) => {
-    echoCommand(ctx, 'clanMenu');
+    echoMenuCommand(ctx, 'clan_menu');
     ctx.world.mode = Menu.Clan;
 });
 
@@ -477,10 +478,6 @@ registerRoutine('transporter_pad', async (ctx) => {
         renderTransporterOptions(ctx);
     };
 
-    // Fetch the ship list once, then loop on the prompt. The list is only
-    // re-painted when the user explicitly asks for it via `?`, or after a
-    // successful transport (because the ship's own sector changed). The
-    // `I` (details) path stays on the same prompt afterwards.
     let scan = await fetchScan();
     if (!scan) return;
     paintScan(scan);

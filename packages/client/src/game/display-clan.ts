@@ -1,34 +1,11 @@
 import type { GameContext } from './types.js';
 import { render } from './renderer.js';
-import { CLAN, COMMON } from './messages/index.js';
+import { CLAN } from './messages/index.js';
 
 export type DisplayClanCtx = Pick<GameContext, 'io' | 'world'>;
 
 export function showClanPrompt(ctx: DisplayClanCtx) {
     ctx.io.term.write(render(CLAN.prompt, { sector: ctx.world.currentSector }));
-}
-
-export function showClanHelp(ctx: DisplayClanCtx) {
-    const t = ctx.io.term;
-    t.writeln('');
-    t.writeln(render('[mg]   Clan Commands[/mg]'));
-    t.writeln(
-        render('[by]   =[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]='),
-    );
-    t.writeln(render(COMMON.menuRow, { key: 'D', text: '[bc]Display Clans[/bc]' }));
-    t.writeln(render(COMMON.menuRow, { key: 'I', text: '[bc]Your Clan Info[/bc]' }));
-    t.writeln(render(COMMON.menuRow, { key: 'M', text: '[bc]Make a New Clan[/bc]' }));
-    t.writeln(render(COMMON.menuRow, { key: 'J', text: '[bc]Join a Clan[/bc]' }));
-    t.writeln(render(COMMON.menuRow, { key: 'X', text: '[bc]Leave Your Clan[/bc]' }));
-    t.writeln(render(COMMON.menuRow, { key: 'C', text: '[bc]Credit Transfer[/bc]' }));
-    t.writeln(render(COMMON.menuRow, { key: 'F', text: '[bc]Drone (Fighter) Transfer[/bc]' }));
-    t.writeln(render(COMMON.menuRow, { key: 'H', text: '[bc]Mine Transfer[/bc]' }));
-    t.writeln(render(COMMON.menuRow, { key: 'S', text: '[bc]Shield Transfer[/bc]' }));
-    t.writeln(render(COMMON.menuRow, { key: 'T', text: '[bc]Send Clan Memo[/bc]' }));
-    t.writeln(render(COMMON.menuRow, { key: 'P', text: '[bc]Clan Security (leader)[/bc]' }));
-    t.writeln(render(COMMON.menuRow, { key: 'R', text: '[bc]Drop Member (leader)[/bc]' }));
-    t.writeln(render(COMMON.menuRow, { key: 'L', text: '[bc]Clanmate Locations[/bc]' }));
-    t.writeln(render(COMMON.menuRow, { key: 'Q', text: '[bc]Exit Clan Menu[/bc]' }));
 }
 
 type ClanListEntry = {

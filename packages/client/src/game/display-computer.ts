@@ -19,25 +19,6 @@ export function showBaseComputerPrompt(ctx: DisplayComputerCtx) {
     ctx.io.term.write(render(COMPUTER.basePrompt, { sector: ctx.world.currentSector }));
 }
 
-export function showComputerHelp(ctx: DisplayComputerCtx) {
-    ctx.io.term.writeln('');
-    ctx.io.term.writeln(render('[mg]   Computer Commands[/mg]'));
-    ctx.io.term.writeln(
-        render('[by]   =[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]=[g]-[/g]='),
-    );
-    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'K', text: '[bc]Known Universe[/bc]' }));
-    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'L', text: '[bc]List Traders[/bc]' }));
-    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'C', text: '[bc]Ship Catalog[/bc]' }));
-    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'J', text: '[bc]Planetary Specs[/bc]' }));
-    ctx.io.term.writeln(render(COMMON.menuRow, { key: ';', text: '[bc]Current Ship Specs[/bc]' }));
-    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Y', text: '[bc]Your Planets[/bc]' }));
-    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Z', text: '[bc]Active Ship Scan[/bc]' }));
-    ctx.io.term.writeln(
-        render(COMMON.menuRow, { key: 'O', text: '[bc]Change Ship Ownership[/bc]' }),
-    );
-    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: '[bc]Exit Computer[/bc]' }));
-}
-
 export function renderVisitedSectorsResult(
     ctx: DisplayComputerCtx,
     msg: { sectors: number[]; totalSectors: number },
