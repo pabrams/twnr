@@ -1,4 +1,3 @@
-import type { ServerEnvelope } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 
 export type PromptCtx = Pick<GameContext, 'io' | 'input'>;
@@ -129,12 +128,6 @@ export async function askNumber(
         }
         return n;
     }
-}
-
-export function awaitResponse(ctx: PromptCtx, types: string[]): Promise<ServerEnvelope | null> {
-    return new Promise((resolve) => {
-        ctx.input.pendingResponse = { types: new Set(types), resolve };
-    });
 }
 
 export async function askDeployOwnership(

@@ -24,8 +24,8 @@ import {
     askLine,
     askLineWithShortcuts,
     askNumber,
-    awaitResponse,
 } from './prompts.js';
+import { awaitResponse, request } from './io.js';
 
 registerRoutine('display_sector', (ctx) => {
     echoCommand(ctx, 'sectorDisplay');
@@ -94,10 +94,12 @@ registerRoutine('computer_menu', (ctx) => {
 
 registerRoutine('deploy_drones_info', async (ctx) => {
     echoCommand(ctx, 'deployDronesInfo');
-    ctx.io.sendMsg({ type: ClientTag.DeployDronesInfo });
-    const reply = await awaitResponse(ctx, [ServerTag.DeployDronesInfoResult, ServerTag.Error]);
-    if (reply === null) return;
-    if (reply.type !== ServerTag.DeployDronesInfoResult) return;
+    const reply = await request(
+        ctx,
+        { type: ClientTag.DeployDronesInfo },
+        ServerTag.DeployDronesInfoResult,
+    );
+    if (!reply) return;
     const total = reply.shipDrones + reply.sectorDrones;
     const minInSector = Math.max(0, total - reply.shipMaxDrones);
     ctx.io.term.writeln('');
@@ -223,21 +225,22 @@ async function runBuildFlow(
     const trimmed = name.trim();
     if (trimmed.length === 0) return;
 
-    ctx.io.sendMsg({ type: ClientTag.BuildPort, portClass, portName: trimmed });
-    const result = await awaitResponse(ctx, [ServerTag.BuildPortResult, ServerTag.Error]);
-    if (result === null) return;
-    if (result.type === ServerTag.BuildPortResult) {
-        if (result.outcome === 'started') {
-            term.writeln(
-                `For building this Starport, you receive ${result.experienceGained} experience point(s).`,
-            );
-            term.writeln(`and your alignment went up by ${result.reputationGained} point(s).`);
-            term.writeln(
-                `Construction underway. Daily advances will be reported by mail (${result.daysRequired} days total).`,
-            );
-        } else {
-            term.writeln(`Construction failed: ${result.message}`);
-        }
+    const result = await request(
+        ctx,
+        { type: ClientTag.BuildPort, portClass, portName: trimmed },
+        ServerTag.BuildPortResult,
+    );
+    if (!result) return;
+    if (result.outcome === 'started') {
+        term.writeln(
+            `For building this Starport, you receive ${result.experienceGained} experience point(s).`,
+        );
+        term.writeln(`and your alignment went up by ${result.reputationGained} point(s).`);
+        term.writeln(
+            `Construction underway. Daily advances will be reported by mail (${result.daysRequired} days total).`,
+        );
+    } else {
+        term.writeln(`Construction failed: ${result.message}`);
     }
 }
 
@@ -307,19 +310,20 @@ async function runUpgradeFlow(
     if (units === null || units <= 0) return;
     const clamped = Math.min(units, affordable);
 
-    ctx.io.sendMsg({ type: ClientTag.UpgradePort, commodity: c.commodity, units: clamped });
-    const result = await awaitResponse(ctx, [ServerTag.UpgradePortResult, ServerTag.Error]);
-    if (result === null) return;
-    if (result.type === ServerTag.UpgradePortResult) {
-        if (result.outcome === 'upgraded') {
-            term.writeln(
-                `For upgrading this StarPort, you receive ${result.experienceGained} experience point(s).`,
-            );
-            term.writeln(`and your alignment went up by ${result.reputationGained} point(s).`);
-            term.writeln('StarPort upgraded!');
-        } else {
-            term.writeln(`Upgrade failed: ${result.message}`);
-        }
+    const result = await request(
+        ctx,
+        { type: ClientTag.UpgradePort, commodity: c.commodity, units: clamped },
+        ServerTag.UpgradePortResult,
+    );
+    if (!result) return;
+    if (result.outcome === 'upgraded') {
+        term.writeln(
+            `For upgrading this StarPort, you receive ${result.experienceGained} experience point(s).`,
+        );
+        term.writeln(`and your alignment went up by ${result.reputationGained} point(s).`);
+        term.writeln('StarPort upgraded!');
+    } else {
+        term.writeln(`Upgrade failed: ${result.message}`);
     }
 }
 
@@ -336,10 +340,12 @@ registerRoutine('handle_mines_menu', async (ctx) => {
     if (typeChar === null) return;
     const mineType: 'proximity' | 'seeker' = typeChar === 'p' ? 'proximity' : 'seeker';
 
-    ctx.io.sendMsg({ type: ClientTag.DeployMineInfo, mineType });
-    const info = await awaitResponse(ctx, [ServerTag.DeployMineInfoResult, ServerTag.Error]);
-    if (info === null) return;
-    if (info.type !== ServerTag.DeployMineInfoResult) return;
+    const info = await request(
+        ctx,
+        { type: ClientTag.DeployMineInfo, mineType },
+        ServerTag.DeployMineInfoResult,
+    );
+    if (!info) return;
 
     const label = mineType === 'seeker' ? 'Limpet' : 'Proximity';
     const total = info.shipMines + info.sectorMines;
@@ -373,10 +379,8 @@ registerRoutine('mine_disruptor_menu', async (ctx) => {
 });
 
 registerRoutine('long_range_scan', async (ctx) => {
-    ctx.io.sendMsg({ type: ClientTag.DensityScan });
-    const reply = await awaitResponse(ctx, [ServerTag.DensityScanResult, ServerTag.Error]);
-    if (reply === null) return;
-    if (reply.type !== ServerTag.DensityScanResult) return;
+    const reply = await request(ctx, { type: ClientTag.DensityScan }, ServerTag.DensityScanResult);
+    if (!reply) return;
     if (!reply.hasVisualScanner) return;
     const ok = await askConfirm(ctx, render(PANEL.visualScanPrompt), { defaultValue: false });
     if (!ok) return;
@@ -391,10 +395,12 @@ registerRoutine('release_beacon', async (ctx) => {
     ctx.io.term.write(render(SECTOR.beaconMessagePrompt));
     const message = await askLine(ctx, '');
     if (message === null) return;
-    ctx.io.sendMsg({ type: ClientTag.ReleaseBeacon, message: message.slice(0, 41) });
-    const reply = await awaitResponse(ctx, [ServerTag.ReleaseBeaconResult, ServerTag.Error]);
-    if (reply === null) return;
-    if (reply.type !== ServerTag.ReleaseBeaconResult) return;
+    const reply = await request(
+        ctx,
+        { type: ClientTag.ReleaseBeacon, message: message.slice(0, 41) },
+        ServerTag.ReleaseBeaconResult,
+    );
+    if (!reply) return;
     if (reply.outcome === 'noBeacons') {
         ctx.io.term.writeln(render(SECTOR.beaconNoBeacons));
         return;
@@ -462,13 +468,8 @@ registerRoutine('clan_menu', (ctx) => {
 registerRoutine('transporter_pad', async (ctx) => {
     echoCommand(ctx, 'transporterPad');
 
-    const fetchScan = async () => {
-        ctx.io.sendMsg({ type: ClientTag.ListOwnedShips });
-        const reply = await awaitResponse(ctx, [ServerTag.ListOwnedShipsResult, ServerTag.Error]);
-        if (reply === null) return null;
-        if (reply.type !== ServerTag.ListOwnedShipsResult) return null;
-        return reply;
-    };
+    const fetchScan = () =>
+        request(ctx, { type: ClientTag.ListOwnedShips }, ServerTag.ListOwnedShipsResult);
     const paintScan = (s: NonNullable<Awaited<ReturnType<typeof fetchScan>>>) => {
         renderTransporterPrelude(ctx, s);
         renderActiveShipScan(ctx, s, {
@@ -504,10 +505,12 @@ registerRoutine('transporter_pad', async (ctx) => {
                 ctx.io.term.writeln(render(COMPUTER.transporterUnknownShip));
                 continue;
             }
-            ctx.io.sendMsg({ type: ClientTag.GetShipDetail, shipId: target.id });
-            const detail = await awaitResponse(ctx, [ServerTag.ShipDetailResult, ServerTag.Error]);
-            if (detail === null) continue;
-            if (detail.type !== ServerTag.ShipDetailResult) continue;
+            const detail = await request(
+                ctx,
+                { type: ClientTag.GetShipDetail, shipId: target.id },
+                ServerTag.ShipDetailResult,
+            );
+            if (!detail) continue;
             renderShipDetail(ctx, detail);
             continue;
         }
@@ -547,10 +550,8 @@ registerRoutine('transporter_pad', async (ctx) => {
 
 registerRoutine('tow_spacecraft', async (ctx) => {
     echoCommand(ctx, 'towSpacecraft');
-    ctx.io.sendMsg({ type: ClientTag.TowSpacecraft });
-    const reply = await awaitResponse(ctx, [ServerTag.TowSpacecraftResult, ServerTag.Error]);
-    if (reply === null) return;
-    if (reply.type !== ServerTag.TowSpacecraftResult) return;
+    const reply = await request(ctx, { type: ClientTag.TowSpacecraft }, ServerTag.TowSpacecraftResult);
+    if (!reply) return;
 
     if (reply.outcome === 'disengaged') {
         ctx.io.term.writeln(render(EVENT.towDisengaged));
@@ -583,10 +584,12 @@ registerRoutine('tow_spacecraft', async (ctx) => {
     };
 
     const finalizeAttach = async (shipId: number) => {
-        ctx.io.sendMsg({ type: ClientTag.TowAttach, shipId });
-        const attach = await awaitResponse(ctx, [ServerTag.TowAttachResult, ServerTag.Error]);
-        if (attach === null) return;
-        if (attach.type !== ServerTag.TowAttachResult) return;
+        const attach = await request(
+            ctx,
+            { type: ClientTag.TowAttach, shipId },
+            ServerTag.TowAttachResult,
+        );
+        if (!attach) return;
         if (attach.outcome === 'ok') {
             ctx.io.term.writeln(
                 render(EVENT.towEngaged, { message: attach.message, tpw: attach.turnsPerWarp }),

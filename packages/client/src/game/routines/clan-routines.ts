@@ -9,15 +9,15 @@ import {
     renderSuccessorChoices,
 } from '../display-clan.js';
 import { registerRoutine } from './types.js';
-import { askChar, askConfirm, askLine, askMultiLine, askNumber, awaitResponse } from './prompts.js';
+import { askChar, askConfirm, askLine, askMultiLine, askNumber } from './prompts.js';
+import { awaitResponse, request } from './io.js';
 import type { GameContext } from '../types.js';
 
 async function fetchClanMembers(
     ctx: GameContext,
 ): Promise<{ playerId: number; name: string; isLeader: boolean }[] | null> {
-    ctx.io.sendMsg({ type: ClientTag.ClanInfo });
-    const info = await awaitResponse(ctx, [ServerTag.ClanInfoResult, ServerTag.Error]);
-    if (info === null || info.type !== ServerTag.ClanInfoResult) return null;
+    const info = await request(ctx, { type: ClientTag.ClanInfo }, ServerTag.ClanInfoResult);
+    if (info === null) return null;
     if (!info.clan) {
         ctx.io.term.writeln(render(CLAN.notInClan));
         return null;
@@ -69,15 +69,18 @@ async function doTransfer(
     }
     const qty = await askNumber(ctx, render(CLAN.transferQtyPrompt), { min: 1 });
     if (qty === null) return;
-    ctx.io.sendMsg({
-        type: ClientTag.ClanTransfer,
-        kind,
-        targetPlayerId: target.playerId,
-        quantity: qty,
-        mineType,
-    });
-    const result = await awaitResponse(ctx, [ServerTag.ClanTransferResult, ServerTag.Error]);
-    if (result === null || result.type !== ServerTag.ClanTransferResult) return;
+    const result = await request(
+        ctx,
+        {
+            type: ClientTag.ClanTransfer,
+            kind,
+            targetPlayerId: target.playerId,
+            quantity: qty,
+            mineType,
+        },
+        ServerTag.ClanTransferResult,
+    );
+    if (!result) return;
     ctx.io.term.writeln(
         render(CLAN.transferSuccess, {
             delivered: result.delivered,
@@ -114,9 +117,8 @@ registerRoutine('clan_memo', async (ctx) => {
     ctx.io.term.writeln(render(EVENT.clanMemoTypeBanner));
     const body = await askMultiLine(ctx, render(EVENT.clanMemoLinePrompt));
     if (body === null || body.trim() === '') return;
-    ctx.io.sendMsg({ type: ClientTag.ClanMemo, body });
-    const result = await awaitResponse(ctx, [ServerTag.ClanMemoResult, ServerTag.Error]);
-    if (result === null || result.type !== ServerTag.ClanMemoResult) return;
+    const result = await request(ctx, { type: ClientTag.ClanMemo, body }, ServerTag.ClanMemoResult);
+    if (!result) return;
     ctx.io.term.writeln(render(CLAN.memoSent, { count: result.recipientCount }));
 });
 
@@ -130,9 +132,12 @@ registerRoutine('clan_set_password', async (ctx) => {
         ctx.io.term.writeln(render(CLAN.passwordMismatch));
         return;
     }
-    ctx.io.sendMsg({ type: ClientTag.ClanSetPassword, newPassword: pw1 });
-    const result = await awaitResponse(ctx, [ServerTag.ClanSetPasswordResult, ServerTag.Error]);
-    if (result === null || result.type !== ServerTag.ClanSetPasswordResult) return;
+    const result = await request(
+        ctx,
+        { type: ClientTag.ClanSetPassword, newPassword: pw1 },
+        ServerTag.ClanSetPasswordResult,
+    );
+    if (!result) return;
     ctx.io.term.writeln(render(CLAN.setPasswordSuccess));
 });
 
@@ -146,44 +151,41 @@ registerRoutine('clan_drop_member', async (ctx) => {
         defaultValue: false,
     });
     if (!ok) return;
-    ctx.io.sendMsg({ type: ClientTag.ClanDropMember, targetPlayerId: target.playerId });
-    const result = await awaitResponse(ctx, [ServerTag.ClanDropMemberResult, ServerTag.Error]);
-    if (result === null || result.type !== ServerTag.ClanDropMemberResult) return;
+    const result = await request(
+        ctx,
+        { type: ClientTag.ClanDropMember, targetPlayerId: target.playerId },
+        ServerTag.ClanDropMemberResult,
+    );
+    if (!result) return;
     ctx.io.term.writeln(render(CLAN.dropSuccess, { name: result.droppedName }));
 });
 
 registerRoutine('clan_locations', async (ctx) => {
     echoMenuCommand(ctx, 'clan_locations');
-    ctx.io.sendMsg({ type: ClientTag.ClanmateLocations });
-    const response = await awaitResponse(ctx, [
+    const response = await request(
+        ctx,
+        { type: ClientTag.ClanmateLocations },
         ServerTag.ClanmateLocationsResult,
-        ServerTag.Error,
-    ]);
-    if (response === null || response.type !== ServerTag.ClanmateLocationsResult) return;
+    );
+    if (!response) return;
     renderClanmateLocations(ctx, response.members);
 });
 
 registerRoutine('clan_display_list', async (ctx) => {
     echoMenuCommand(ctx, 'clan_display_list');
     ctx.io.term.writeln(render(CLAN.listLoading));
-    ctx.io.sendMsg({ type: ClientTag.ClanList });
-    const response = await awaitResponse(ctx, [ServerTag.ClanListResult, ServerTag.Error]);
-    if (response === null) return;
-    if (response.type !== ServerTag.ClanListResult) return;
+    const response = await request(ctx, { type: ClientTag.ClanList }, ServerTag.ClanListResult);
+    if (!response) return;
 
-    ctx.io.sendMsg({ type: ClientTag.ClanInfo });
-    const info = await awaitResponse(ctx, [ServerTag.ClanInfoResult, ServerTag.Error]);
-    const maxSize =
-        info && info.type === ServerTag.ClanInfoResult && info.clan ? info.clan.maxSize : 4;
+    const info = await request(ctx, { type: ClientTag.ClanInfo }, ServerTag.ClanInfoResult);
+    const maxSize = info?.clan ? info.clan.maxSize : 4;
     renderClanList(ctx, response.clans, maxSize);
 });
 
 registerRoutine('clan_display_info', async (ctx) => {
     echoMenuCommand(ctx, 'clan_display_info');
-    ctx.io.sendMsg({ type: ClientTag.ClanInfo });
-    const response = await awaitResponse(ctx, [ServerTag.ClanInfoResult, ServerTag.Error]);
-    if (response === null) return;
-    if (response.type !== ServerTag.ClanInfoResult) return;
+    const response = await request(ctx, { type: ClientTag.ClanInfo }, ServerTag.ClanInfoResult);
+    if (!response) return;
     renderClanInfo(ctx, response.clan);
 });
 
@@ -199,10 +201,12 @@ registerRoutine('clan_make', async (ctx) => {
         ctx.io.term.writeln(render(CLAN.passwordMismatch));
         return;
     }
-    ctx.io.sendMsg({ type: ClientTag.ClanCreate, name, password: pw1 });
-    const result = await awaitResponse(ctx, [ServerTag.ClanCreateResult, ServerTag.Error]);
-    if (result === null) return;
-    if (result.type !== ServerTag.ClanCreateResult) return;
+    const result = await request(
+        ctx,
+        { type: ClientTag.ClanCreate, name, password: pw1 },
+        ServerTag.ClanCreateResult,
+    );
+    if (!result) return;
     ctx.player.clanId = result.clanId;
     ctx.io.term.writeln(
         render(CLAN.createSuccess, { number: result.clanNumber, name: result.name }),
@@ -215,20 +219,20 @@ registerRoutine('clan_join', async (ctx) => {
     if (name === null) return;
     const pw = await askLine(ctx, render(CLAN.passwordPrompt));
     if (pw === null) return;
-    ctx.io.sendMsg({ type: ClientTag.ClanJoin, name, password: pw });
-    const result = await awaitResponse(ctx, [ServerTag.ClanJoinResult, ServerTag.Error]);
-    if (result === null) return;
-    if (result.type !== ServerTag.ClanJoinResult) return;
+    const result = await request(
+        ctx,
+        { type: ClientTag.ClanJoin, name, password: pw },
+        ServerTag.ClanJoinResult,
+    );
+    if (!result) return;
     ctx.player.clanId = result.clanId;
     ctx.io.term.writeln(render(CLAN.joinSuccess, { number: result.clanNumber, name: result.name }));
 });
 
 registerRoutine('clan_leave', async (ctx) => {
     echoMenuCommand(ctx, 'clan_leave');
-    ctx.io.sendMsg({ type: ClientTag.ClanInfo });
-    const info = await awaitResponse(ctx, [ServerTag.ClanInfoResult, ServerTag.Error]);
+    const info = await request(ctx, { type: ClientTag.ClanInfo }, ServerTag.ClanInfoResult);
     if (info === null) return;
-    if (info.type !== ServerTag.ClanInfoResult) return;
     if (!info.clan) {
         ctx.io.term.writeln(render(CLAN.notInClan));
         return;
@@ -243,10 +247,12 @@ registerRoutine('clan_leave', async (ctx) => {
         ctx.io.term.writeln(render(CLAN.dissolveWarning));
         const ok = await askConfirm(ctx, render(CLAN.dissolveConfirm), { defaultValue: false });
         if (!ok) return;
-        ctx.io.sendMsg({ type: ClientTag.ClanLeave, confirmDissolve: true });
-        const result = await awaitResponse(ctx, [ServerTag.ClanLeaveResult, ServerTag.Error]);
-        if (result === null) return;
-        if (result.type !== ServerTag.ClanLeaveResult) return;
+        const result = await request(
+            ctx,
+            { type: ClientTag.ClanLeave, confirmDissolve: true },
+            ServerTag.ClanLeaveResult,
+        );
+        if (!result) return;
         ctx.player.clanId = null;
         ctx.io.term.writeln(
             render(CLAN.leaveDissolved, {

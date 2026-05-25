@@ -13,7 +13,8 @@ import { showCommerceReport, showSectorDisplay, type DisplayCtx } from '../displ
 import { type DisplayPortCtx } from '../display-port.js';
 import { type DisplayStarbaseCtx } from '../display-starbase.js';
 import { type MenuArgsSlot } from '../routines/types.js';
-import { askNumber, awaitResponse } from '../routines/prompts.js';
+import { askNumber } from '../routines/prompts.js';
+import { awaitResponse } from '../routines/io.js';
 import type { Handler } from './index.js';
 import { fmt, refreshMinimap, renderAttributeChange, type RefreshMinimapCtx } from './utils.js';
 
