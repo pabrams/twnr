@@ -10,7 +10,8 @@ import { players, getPlayerUniverseId } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
 import { isInEncounter } from '../services/encounter.js';
-import { withTransaction, AbortTransaction } from '../db/index.js';
+import { AbortTransaction } from '../db/index.js';
+import { runMutation } from './run-mutation.js';
 import {
     setDocked,
     getCurrentSector,
@@ -279,8 +280,10 @@ export async function servePortTransaction(
     if (!player) return;
     const universeId = player.universeId;
 
-    try {
-        const result = await withTransaction(async (client) => {
+    await runMutation(
+        playerId,
+        'Trade',
+        async (client) => {
             const currentSector = await getCurrentSector(playerId, client);
             if (currentSector === undefined) {
                 sendError(playerId, 'Player not found');
@@ -424,28 +427,24 @@ export async function servePortTransaction(
                 cargo: formatCargo(cargo),
                 emptyHolds: Math.max(0, cargo.cargo_limit - used),
             };
-        });
+        },
+        (result) => {
+            const xpDelta = scalarDelta(experienceDeltas, 'portTrade');
+            if ('turnsUsed' in result && result.turnsUsed) {
+                notifyTurnChange(playerId, result.turnsUsed, 'trading');
+            }
 
-        if (!result) return;
-
-        const xpDelta = scalarDelta(experienceDeltas, 'portTrade');
-        if ('turnsUsed' in result && result.turnsUsed) {
-            notifyTurnChange(playerId, result.turnsUsed, 'trading');
-        }
-
-        sendEnvelope(playerId, {
-            type: ServerTag.PortTransactionResult,
-            credits: result.credits,
-            cargo: result.cargo,
-            emptyHolds: result.emptyHolds,
-            ...('turnsUsed' in result ? { turnsUsed: result.turnsUsed } : {}),
-            expDelta: xpDelta,
-            repDelta: 0,
-        });
-    } catch (err) {
-        console.error('Trade error', err);
-        sendError(playerId, 'Internal server error');
-    }
+            sendEnvelope(playerId, {
+                type: ServerTag.PortTransactionResult,
+                credits: result.credits,
+                cargo: result.cargo,
+                emptyHolds: result.emptyHolds,
+                ...('turnsUsed' in result ? { turnsUsed: result.turnsUsed } : {}),
+                expDelta: xpDelta,
+                repDelta: 0,
+            });
+        },
+    );
 }
 
 export async function serveDockStarbase(playerId: number): Promise<void> {

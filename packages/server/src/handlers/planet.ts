@@ -13,7 +13,8 @@ import { players } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
 import { isInEncounter } from '../services/encounter.js';
-import { withTransaction, AbortTransaction } from '../db/index.js';
+import { AbortTransaction } from '../db/index.js';
+import { runMutation } from './run-mutation.js';
 import {
     getEarthId,
     getPlanetInSector,
@@ -240,54 +241,55 @@ export async function serveDestroyPlanet(playerId: number): Promise<void> {
 
     const destroyRep = scalarDelta(reputationDeltas, 'destroyPlanet');
     const destroyExp = scalarDelta(experienceDeltas, 'destroyPlanet');
-    try {
-        await withTransaction(async (client) => {
+    await runMutation(
+        playerId,
+        'Destroy planet',
+        async (client) => {
             await decrementShipHardwareByName(playerId, 'planet_buster', client);
             await setOnPlanet(playerId, null, client);
             await deletePlanet(onPlanetId, client);
             await adjustReputationAndExperience(playerId, destroyRep, destroyExp, client);
-        });
-    } catch (err) {
-        console.error('Destroy planet error', err);
-        sendError(playerId, 'Failed to destroy planet.');
-        return;
-    }
-
-    await sendEnvelope(playerId, {
-        type: ServerTag.DestroyPlanetResult,
-        destroyed: true,
-        planetId: onPlanetId,
-        planetName,
-        expDelta: destroyExp,
-        repDelta: destroyRep,
-    });
-
-    // Mail+notify any prior owners (other than the destroyer themselves).
-    const { notifyAndMail } = await import('../services/notify.js');
-    const body = `${player.name} destroyed planet ${planetName} in sector ${ownership.sector_number}.`;
-    if (ownership.owner_player_id !== null && ownership.owner_player_id !== playerId) {
-        await notifyAndMail({
-            recipientId: ownership.owner_player_id,
-            sender: { kind: 'player', playerId, displayName: player.name },
-            kind: 'planet_destroyed',
-            body,
-        });
-    } else if (ownership.owner_clan_id !== null) {
-        const { getClanMembers } = await import('../db/queries/clan.js');
-        const members = await getClanMembers(ownership.owner_clan_id);
-        for (const m of members) {
-            if (m.id === playerId) continue;
-            await notifyAndMail({
-                recipientId: m.id,
-                sender: { kind: 'player', playerId, displayName: player.name },
-                kind: 'planet_destroyed',
-                body,
+            return true;
+        },
+        async () => {
+            await sendEnvelope(playerId, {
+                type: ServerTag.DestroyPlanetResult,
+                destroyed: true,
+                planetId: onPlanetId,
+                planetName,
+                expDelta: destroyExp,
+                repDelta: destroyRep,
             });
-        }
-    }
 
-    const data = await buildSectorDisplayData(playerId);
-    if (data) sendEnvelope(playerId, { type: ServerTag.SectorDisplayResult, ...data });
+            // Mail+notify any prior owners (other than the destroyer themselves).
+            const { notifyAndMail } = await import('../services/notify.js');
+            const body = `${player.name} destroyed planet ${planetName} in sector ${ownership.sector_number}.`;
+            if (ownership.owner_player_id !== null && ownership.owner_player_id !== playerId) {
+                await notifyAndMail({
+                    recipientId: ownership.owner_player_id,
+                    sender: { kind: 'player', playerId, displayName: player.name },
+                    kind: 'planet_destroyed',
+                    body,
+                });
+            } else if (ownership.owner_clan_id !== null) {
+                const { getClanMembers } = await import('../db/queries/clan.js');
+                const members = await getClanMembers(ownership.owner_clan_id);
+                for (const m of members) {
+                    if (m.id === playerId) continue;
+                    await notifyAndMail({
+                        recipientId: m.id,
+                        sender: { kind: 'player', playerId, displayName: player.name },
+                        kind: 'planet_destroyed',
+                        body,
+                    });
+                }
+            }
+
+            const data = await buildSectorDisplayData(playerId);
+            if (data) sendEnvelope(playerId, { type: ServerTag.SectorDisplayResult, ...data });
+        },
+        'Failed to destroy planet.',
+    );
 }
 
 /**
@@ -377,8 +379,10 @@ export async function serveUseTerraformDevice(playerId: number): Promise<void> {
         return;
     }
 
-    try {
-        const result = await withTransaction(async (client) => {
+    await runMutation(
+        playerId,
+        'Use terraform device',
+        async (client) => {
             const universeInfo = await getTerraformConfigForUniverse(universeId, client);
             if (!universeInfo) {
                 sendError(playerId, 'Universe not found');
@@ -438,29 +442,25 @@ export async function serveUseTerraformDevice(playerId: number): Promise<void> {
                 repDelta,
                 expDelta,
             };
-        });
-
-        if (!result) return;
-
-        sendEnvelope(playerId, {
-            type: ServerTag.UseTerraformDeviceResult,
-            success: true,
-            planet: {
-                id: result.newPlanetId,
-                name: result.randomName,
-                type: result.randomType,
-                displayType: result.randomDisplayType,
-                sectorId,
-            },
-            collision: result.collision,
-            terraformDevices: terraformQty - 1,
-            expDelta: result.expDelta,
-            repDelta: result.repDelta,
-        });
-    } catch (err) {
-        console.error('Use terraform device error', err);
-        sendError(playerId, 'Failed to use terraform device.');
-    }
+        },
+        (result) =>
+            sendEnvelope(playerId, {
+                type: ServerTag.UseTerraformDeviceResult,
+                success: true,
+                planet: {
+                    id: result.newPlanetId,
+                    name: result.randomName,
+                    type: result.randomType,
+                    displayType: result.randomDisplayType,
+                    sectorId,
+                },
+                collision: result.collision,
+                terraformDevices: terraformQty - 1,
+                expDelta: result.expDelta,
+                repDelta: result.repDelta,
+            }),
+        'Failed to use terraform device.',
+    );
 }
 
 export async function serveSetTerraformedPlanet(
@@ -575,9 +575,10 @@ export async function serveTakeColonists(
 
     const onEarth = player.sector === 1;
 
-    let toTake: number | undefined;
-    try {
-        toTake = await withTransaction(async (client) => {
+    await runMutation(
+        playerId,
+        'Take colonists',
+        async (client) => {
             await settlePlanetProduction(onPlanetId, client);
             await settlePlanetColonistGrowth(onPlanetId, client);
 
@@ -610,29 +611,26 @@ export async function serveTakeColonists(
             await updatePlanetColonists(onPlanetId, col, -take, client);
             await incrementShipColonists(playerId, take, client);
             return take;
-        });
-    } catch (err) {
-        console.error('Take colonists error', err);
-        sendError(playerId, 'Failed to take colonists');
-    }
+        },
+        async (toTake) => {
+            const planetRemaining = await getPlanetColonistsRemaining(onPlanetId, col);
+            const shipColonists = await getShipColonists(playerId);
+            const result = {
+                type: ServerTag.TakeColonistsResult,
+                quantity: toTake,
+                commodity: col,
+                planetColonists: planetRemaining ?? 0,
+                shipColonists: shipColonists ?? 0,
+            };
 
-    if (toTake === undefined) return;
-
-    const planetRemaining = await getPlanetColonistsRemaining(onPlanetId, col);
-    const shipColonists = await getShipColonists(playerId);
-    const result = {
-        type: ServerTag.TakeColonistsResult,
-        quantity: toTake,
-        commodity: col,
-        planetColonists: planetRemaining ?? 0,
-        shipColonists: shipColonists ?? 0,
-    };
-
-    if (onEarth) {
-        await liftoffWithResult(playerId, result);
-        return;
-    }
-    sendEnvelope(playerId, result);
+            if (onEarth) {
+                await liftoffWithResult(playerId, result);
+                return;
+            }
+            sendEnvelope(playerId, result);
+        },
+        'Failed to take colonists',
+    );
 }
 
 export async function serveLeaveColonists(
@@ -653,9 +651,10 @@ export async function serveLeaveColonists(
     }
     const onEarth = player.sector === 1;
 
-    let actual: number | undefined;
-    try {
-        actual = await withTransaction(async (client) => {
+    await runMutation(
+        playerId,
+        'Leave colonists',
+        async (client) => {
             await settlePlanetProduction(onPlanetId, client);
             await settlePlanetColonistGrowth(onPlanetId, client);
 
@@ -682,29 +681,26 @@ export async function serveLeaveColonists(
             await incrementShipColonists(playerId, -leave, client);
             await updatePlanetColonists(onPlanetId, col, leave, client);
             return leave;
-        });
-    } catch (err) {
-        console.error('Leave colonists error', err);
-        sendError(playerId, 'Failed to leave colonists');
-    }
+        },
+        async (actual) => {
+            const planetRemaining = await getPlanetColonistsRemaining(onPlanetId, col);
+            const shipColonistsNow = await getShipColonists(playerId);
+            const result = {
+                type: ServerTag.LeaveColonistsResult,
+                quantity: actual,
+                commodity: col,
+                planetColonists: planetRemaining ?? 0,
+                shipColonists: shipColonistsNow ?? 0,
+            };
 
-    if (actual === undefined) return;
-
-    const planetRemaining = await getPlanetColonistsRemaining(onPlanetId, col);
-    const shipColonistsNow = await getShipColonists(playerId);
-    const result = {
-        type: ServerTag.LeaveColonistsResult,
-        quantity: actual,
-        commodity: col,
-        planetColonists: planetRemaining ?? 0,
-        shipColonists: shipColonistsNow ?? 0,
-    };
-
-    if (onEarth) {
-        await liftoffWithResult(playerId, result);
-        return;
-    }
-    sendEnvelope(playerId, result);
+            if (onEarth) {
+                await liftoffWithResult(playerId, result);
+                return;
+            }
+            sendEnvelope(playerId, result);
+        },
+        'Failed to leave colonists',
+    );
 }
 
 export async function serveTakeCommodity(
@@ -724,9 +720,10 @@ export async function serveTakeCommodity(
         return;
     }
 
-    let toTake: number | undefined;
-    try {
-        toTake = await withTransaction(async (client) => {
+    await runMutation(
+        playerId,
+        'Take commodity',
+        async (client) => {
             const available = await getPlanetCommodityForUpdate(onPlanetId, col, client);
             if (available === undefined) {
                 sendError(playerId, 'Planet not found');
@@ -770,24 +767,21 @@ export async function serveTakeCommodity(
             await updatePlanetCommodity(onPlanetId, col, -take, client);
             await incrementShipCommodity(playerId, col, take, client);
             return take;
-        });
-    } catch (err) {
-        console.error('Take commodity error', err);
-        sendError(playerId, 'Failed to take commodity');
-    }
+        },
+        async (toTake) => {
+            const planetRemaining = await getPlanetCommodityRemaining(onPlanetId, col);
+            const shipCommodity = await readShipCommodity(playerId, col);
 
-    if (toTake === undefined) return;
-
-    const planetRemaining = await getPlanetCommodityRemaining(onPlanetId, col);
-    const shipCommodity = await readShipCommodity(playerId, col);
-
-    sendEnvelope(playerId, {
-        type: ServerTag.TakeCommodityResult,
-        quantity: toTake,
-        commodity: col,
-        planetCommodity: planetRemaining ?? 0,
-        shipCommodity,
-    });
+            sendEnvelope(playerId, {
+                type: ServerTag.TakeCommodityResult,
+                quantity: toTake,
+                commodity: col,
+                planetCommodity: planetRemaining ?? 0,
+                shipCommodity,
+            });
+        },
+        'Failed to take commodity',
+    );
 }
 
 export async function serveLeaveCommodity(
@@ -807,9 +801,10 @@ export async function serveLeaveCommodity(
         return;
     }
 
-    let actual: number | undefined;
-    try {
-        actual = await withTransaction(async (client) => {
+    await runMutation(
+        playerId,
+        'Leave commodity',
+        async (client) => {
             let onShip: number;
             if (col === 'drones') {
                 const droneState = await getShipDronesAndMaxForUpdate(playerId, client);
@@ -852,24 +847,21 @@ export async function serveLeaveCommodity(
             await incrementShipCommodity(playerId, col, -leave, client);
             await updatePlanetCommodity(onPlanetId, col, leave, client);
             return leave;
-        });
-    } catch (err) {
-        console.error('Leave commodity error', err);
-        sendError(playerId, 'Failed to leave commodity');
-    }
+        },
+        async (actual) => {
+            const planetRemaining = await getPlanetCommodityRemaining(onPlanetId, col);
+            const shipCommodity = await readShipCommodity(playerId, col);
 
-    if (actual === undefined) return;
-
-    const planetRemaining = await getPlanetCommodityRemaining(onPlanetId, col);
-    const shipCommodity = await readShipCommodity(playerId, col);
-
-    sendEnvelope(playerId, {
-        type: ServerTag.LeaveCommodityResult,
-        quantity: actual,
-        commodity: col,
-        planetCommodity: planetRemaining ?? 0,
-        shipCommodity,
-    });
+            sendEnvelope(playerId, {
+                type: ServerTag.LeaveCommodityResult,
+                quantity: actual,
+                commodity: col,
+                planetCommodity: planetRemaining ?? 0,
+                shipCommodity,
+            });
+        },
+        'Failed to leave commodity',
+    );
 }
 
 export async function serveChangePopulation(
@@ -903,9 +895,10 @@ export async function serveChangePopulation(
         return;
     }
 
-    let moved: number | undefined;
-    try {
-        moved = await withTransaction(async (client) => {
+    await runMutation(
+        playerId,
+        'Change population',
+        async (client) => {
             await settlePlanetProduction(onPlanetId, client);
             await settlePlanetColonistGrowth(onPlanetId, client);
 
@@ -934,24 +927,21 @@ export async function serveChangePopulation(
             await updatePlanetColonists(onPlanetId, from, -actual, client);
             await updatePlanetColonists(onPlanetId, to, actual, client);
             return actual;
-        });
-    } catch (err) {
-        console.error('Change population error', err);
-        sendError(playerId, 'Failed to change population');
-    }
-
-    if (moved === undefined) return;
-
-    const fromCount = (await getPlanetColonistsRemaining(onPlanetId, from)) ?? 0;
-    const toCount = (await getPlanetColonistsRemaining(onPlanetId, to)) ?? 0;
-    sendEnvelope(playerId, {
-        type: ServerTag.ChangePopulationResult,
-        quantity: moved,
-        from,
-        to,
-        fromCount,
-        toCount,
-    });
+        },
+        async (moved) => {
+            const fromCount = (await getPlanetColonistsRemaining(onPlanetId, from)) ?? 0;
+            const toCount = (await getPlanetColonistsRemaining(onPlanetId, to)) ?? 0;
+            sendEnvelope(playerId, {
+                type: ServerTag.ChangePopulationResult,
+                quantity: moved,
+                from,
+                to,
+                fromCount,
+                toCount,
+            });
+        },
+        'Failed to change population',
+    );
 }
 
 async function readShipCommodity(playerId: number, col: PlanetCommodity): Promise<number> {

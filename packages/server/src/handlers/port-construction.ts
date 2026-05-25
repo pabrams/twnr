@@ -12,7 +12,8 @@ import {
 import type { BuildPortCommand, UpgradePortCommand } from '@twnr/shared';
 import { players } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
-import { withTransaction, AbortTransaction, pool } from '../db/index.js';
+import { AbortTransaction, pool } from '../db/index.js';
+import { runMutation } from './run-mutation.js';
 import { deductCredits, adjustReputationAndExperience } from '../db/queries/player.js';
 import {
     getPortAtSector,
@@ -136,8 +137,10 @@ export async function serveBuildPort(playerId: number, data: BuildPortCommand): 
 
     const cost = PORT_CONSTRUCTION_COSTS[portClass as PortClass];
 
-    try {
-        const result = await withTransaction(async (client) => {
+    await runMutation(
+        playerId,
+        'Build port',
+        async (client) => {
             const sectorDbId = await getSectorDbId(player.sector, player.universeId);
             if (sectorDbId === undefined) {
                 sendEnvelope(playerId, {
@@ -249,18 +252,14 @@ export async function serveBuildPort(playerId: number, data: BuildPortCommand): 
                 experienceGained: xp,
                 reputationGained: rep,
             };
-        });
-
-        if (!result) return;
-        sendEnvelope(playerId, {
-            type: ServerTag.BuildPortResult,
-            outcome: 'started',
-            ...result,
-        });
-    } catch (err) {
-        console.error('Build port error', err);
-        sendError(playerId, 'Internal server error');
-    }
+        },
+        (result) =>
+            sendEnvelope(playerId, {
+                type: ServerTag.BuildPortResult,
+                outcome: 'started',
+                ...result,
+            }),
+    );
 }
 
 export async function serveUpgradePortInfo(playerId: number): Promise<void> {
@@ -367,8 +366,10 @@ export async function serveUpgradePort(playerId: number, data: UpgradePortComman
     const unitCost = upgradeUnitCost(data.commodity);
     const totalCost = units * unitCost;
 
-    try {
-        const result = await withTransaction(async (client) => {
+    await runMutation(
+        playerId,
+        'Upgrade port',
+        async (client) => {
             const portRes = await client.query<{
                 id: number;
                 class: number;
@@ -465,16 +466,12 @@ export async function serveUpgradePort(playerId: number, data: UpgradePortComman
                 newMax,
                 newStock,
             };
-        });
-
-        if (!result) return;
-        sendEnvelope(playerId, {
-            type: ServerTag.UpgradePortResult,
-            outcome: 'upgraded',
-            ...result,
-        });
-    } catch (err) {
-        console.error('Upgrade port error', err);
-        sendError(playerId, 'Internal server error');
-    }
+        },
+        (result) =>
+            sendEnvelope(playerId, {
+                type: ServerTag.UpgradePortResult,
+                outcome: 'upgraded',
+                ...result,
+            }),
+    );
 }

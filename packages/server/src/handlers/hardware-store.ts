@@ -2,7 +2,8 @@ import { ServerTag, type BuyHardwareReply } from '@twnr/shared';
 import type { BuyHardwareCommand } from '@twnr/shared';
 import { players } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
-import { withTransaction, AbortTransaction } from '../db/index.js';
+import { AbortTransaction } from '../db/index.js';
+import { runMutation } from './run-mutation.js';
 import { getCreditsForUpdate, deductCredits } from '../db/queries/player.js';
 import {
     getHardwareItemByName,
@@ -82,8 +83,10 @@ async function buyStackable(
     }
 
     const cost = qty * unitPrice;
-    try {
-        const result = await withTransaction(async (client) => {
+    await runMutation(
+        playerId,
+        'Buy hardware',
+        async (client) => {
             const capacity = await getShipHardwareCapacityForUpdate(playerId, hw.id, client);
             if (!capacity) {
                 sendError(playerId, 'Ship not found');
@@ -124,30 +127,27 @@ async function buyStackable(
                 },
             });
             return { credits, current_qty };
-        });
-
-        if (!result) return;
-
-        await sendEnvelope(playerId, {
-            type: ServerTag.BuyHardwareResult,
-            itemName: hw.name,
-            label: hw.label,
-            kind: 'stackable',
-            quantity: qty,
-            totalOnShip: result.current_qty + qty,
-            credits: result.credits - cost,
-            cost,
-            ...(hw.result_extra ?? {}),
-        } as BuyHardwareReply);
-    } catch (err) {
-        console.error('Buy hardware error', err);
-        sendError(playerId, 'Internal server error');
-    }
+        },
+        (result) =>
+            sendEnvelope(playerId, {
+                type: ServerTag.BuyHardwareResult,
+                itemName: hw.name,
+                label: hw.label,
+                kind: 'stackable',
+                quantity: qty,
+                totalOnShip: result.current_qty + qty,
+                credits: result.credits - cost,
+                cost,
+                ...(hw.result_extra ?? {}),
+            } as BuyHardwareReply),
+    );
 }
 
 async function buyToggle(playerId: number, hw: HardwareItemRow, unitPrice: number): Promise<void> {
-    try {
-        const result = await withTransaction(async (client) => {
+    await runMutation(
+        playerId,
+        'Buy hardware',
+        async (client) => {
             const capacity = await getShipHardwareCapacityForUpdate(playerId, hw.id, client);
             if (!capacity) {
                 sendError(playerId, 'Ship not found');
@@ -185,21 +185,16 @@ async function buyToggle(playerId: number, hw: HardwareItemRow, unitPrice: numbe
                 },
             });
             return { credits };
-        });
-
-        if (!result) return;
-
-        await sendEnvelope(playerId, {
-            type: ServerTag.BuyHardwareResult,
-            itemName: hw.name,
-            label: hw.label,
-            kind: 'toggle',
-            credits: result.credits - unitPrice,
-            cost: unitPrice,
-            ...(hw.result_extra ?? {}),
-        } as BuyHardwareReply);
-    } catch (err) {
-        console.error('Buy hardware error', err);
-        sendError(playerId, 'Internal server error');
-    }
+        },
+        (result) =>
+            sendEnvelope(playerId, {
+                type: ServerTag.BuyHardwareResult,
+                itemName: hw.name,
+                label: hw.label,
+                kind: 'toggle',
+                credits: result.credits - unitPrice,
+                cost: unitPrice,
+                ...(hw.result_extra ?? {}),
+            } as BuyHardwareReply),
+    );
 }

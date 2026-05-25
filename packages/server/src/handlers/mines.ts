@@ -5,7 +5,8 @@ import { sendEnvelope, sendError } from '../state/messaging.js';
 import { isInEncounter } from '../services/encounter.js';
 import { refreshSectorObservation } from '../services/sector-observations.js';
 import { ownershipFrom } from '../services/owner-format.js';
-import { withTransaction, AbortTransaction } from '../db/index.js';
+import { AbortTransaction } from '../db/index.js';
+import { runMutation } from './run-mutation.js';
 import { getGraph } from '../state/graph-cache.js';
 import { getSectorDbId } from '../db/queries/sector.js';
 import {
@@ -131,8 +132,10 @@ export async function serveDeployMine(playerId: number, data: DeployMineCommand)
         return;
     }
 
-    try {
-        const result = await withTransaction(async (client) => {
+    await runMutation(
+        playerId,
+        'Deploy mine',
+        async (client) => {
             const existing = await getSectorMineForUpdate(sectorDbId, mineType, client);
             const currentInSector = existing?.quantity ?? 0;
 
@@ -178,9 +181,6 @@ export async function serveDeployMine(playerId: number, data: DeployMineCommand)
                 await upsertShipHardwareQuantity(cap.ship_id, hw.id, pickup, client);
             }
 
-            // Write the sector row: explicit target (or delete on 0),
-            // with the chosen ownership applied. When delta === 0 this
-            // still flips owner cols if ownership differs from existing.
             const ownerPlayerArg = ownership === 'personal' ? playerId : null;
             const ownerClanArg = ownership === 'clan' ? playerClanId : null;
             await setSectorMineTo(
@@ -196,22 +196,17 @@ export async function serveDeployMine(playerId: number, data: DeployMineCommand)
                 sectorMines: resolvedTarget,
                 shipMines: cap.current_qty - delta,
             };
-        });
-
-        if (!result) return;
-
-        await refreshSectorObservation(playerId, sectorDbId);
-
-        await sendEnvelope(playerId, {
-            type: ServerTag.DeployMineResult,
-            mineType,
-            sectorMines: result.sectorMines,
-            shipMines: result.shipMines,
-        });
-    } catch (err) {
-        console.error('Deploy mine error', err);
-        sendError(playerId, 'Internal server error');
-    }
+        },
+        async (result) => {
+            await refreshSectorObservation(playerId, sectorDbId);
+            sendEnvelope(playerId, {
+                type: ServerTag.DeployMineResult,
+                mineType,
+                sectorMines: result.sectorMines,
+                shipMines: result.shipMines,
+            });
+        },
+    );
 }
 
 export async function serveListDeployedMines(playerId: number): Promise<void> {
@@ -293,8 +288,10 @@ export async function serveMineDisruptor(
     const hi = Math.max(lo, settings.mine_disruptor_max);
     const removeTarget = lo + Math.floor(Math.random() * (hi - lo + 1));
 
-    try {
-        const result = await withTransaction(async (client) => {
+    await runMutation(
+        playerId,
+        'Mine disruptor',
+        async (client) => {
             const mineRow = await getSectorMineForUpdate(targetSectorDbId, 'proximity', client);
             const existing = mineRow?.quantity ?? 0;
             const removed = Math.min(existing, removeTarget);
@@ -312,20 +309,15 @@ export async function serveMineDisruptor(
             await decrementShipHardwareByName(playerId, 'mine_disruptor', client);
 
             return { removed, remaining };
-        });
-
-        if (!result) return;
-
-        await refreshSectorObservation(playerId, targetSectorDbId);
-
-        await sendEnvelope(playerId, {
-            type: ServerTag.MineDisruptorResult,
-            targetSector,
-            minesDisrupted: result.removed,
-            proximityMinesRemaining: result.remaining,
-        });
-    } catch (err) {
-        console.error('Mine disruptor error', err);
-        sendError(playerId, 'Internal server error');
-    }
+        },
+        async (result) => {
+            await refreshSectorObservation(playerId, targetSectorDbId);
+            sendEnvelope(playerId, {
+                type: ServerTag.MineDisruptorResult,
+                targetSector,
+                minesDisrupted: result.removed,
+                proximityMinesRemaining: result.remaining,
+            });
+        },
+    );
 }

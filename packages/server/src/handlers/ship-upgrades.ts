@@ -2,7 +2,8 @@ import { ServerTag, holdBaseCostNow, holdCostRange } from '@twnr/shared';
 import type { BuyDronesCommand, BuyShieldsCommand, BuyHoldsCommand } from '@twnr/shared';
 import { players, getPlayerUniverseId } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
-import { withTransaction, AbortTransaction } from '../db/index.js';
+import { AbortTransaction } from '../db/index.js';
+import { runMutation } from './run-mutation.js';
 import { getCurrentSector, deductCredits } from '../db/queries/player.js';
 import {
     getShipUpgradeInfoForUpdate,
@@ -38,8 +39,10 @@ export async function serveBuyDrones(playerId: number, data: BuyDronesCommand): 
     const universeId = getPlayerUniverseId(playerId);
     if (universeId === undefined) return;
 
-    try {
-        const result = await withTransaction(async (client) => {
+    await runMutation(
+        playerId,
+        'Buy drones',
+        async (client) => {
             if (!(await isAtClass0OrStarbase(playerId, universeId, client))) {
                 sendError(playerId, 'Not at a class 0 port or starbase');
                 throw new AbortTransaction();
@@ -73,18 +76,14 @@ export async function serveBuyDrones(playerId: number, data: BuyDronesCommand): 
                 context: { qty, unitPrice: class0Prices.dronePrice },
             });
             return { credits: data.credits - cost, drones: data.drones + qty };
-        });
-
-        if (!result) return;
-
-        await sendEnvelope(playerId, {
-            type: ServerTag.BuyDronesResult,
-            credits: result.credits,
-            drones: result.drones,
-        });
-    } catch {
-        sendError(playerId, 'Internal server error');
-    }
+        },
+        (result) =>
+            sendEnvelope(playerId, {
+                type: ServerTag.BuyDronesResult,
+                credits: result.credits,
+                drones: result.drones,
+            }),
+    );
 }
 
 export async function serveBuyShields(playerId: number, data: BuyShieldsCommand): Promise<void> {
@@ -98,8 +97,10 @@ export async function serveBuyShields(playerId: number, data: BuyShieldsCommand)
     const universeId = getPlayerUniverseId(playerId);
     if (universeId === undefined) return;
 
-    try {
-        const result = await withTransaction(async (client) => {
+    await runMutation(
+        playerId,
+        'Buy shields',
+        async (client) => {
             if (!(await isAtClass0OrStarbase(playerId, universeId, client))) {
                 sendError(playerId, 'Not at a class 0 port or starbase');
                 throw new AbortTransaction();
@@ -133,18 +134,14 @@ export async function serveBuyShields(playerId: number, data: BuyShieldsCommand)
                 context: { qty, unitPrice: class0Prices.shieldPrice },
             });
             return { credits: data.credits - cost, shields: data.shields + qty };
-        });
-
-        if (!result) return;
-
-        await sendEnvelope(playerId, {
-            type: ServerTag.BuyShieldsResult,
-            credits: result.credits,
-            shields: result.shields,
-        });
-    } catch {
-        sendError(playerId, 'Internal server error');
-    }
+        },
+        (result) =>
+            sendEnvelope(playerId, {
+                type: ServerTag.BuyShieldsResult,
+                credits: result.credits,
+                shields: result.shields,
+            }),
+    );
 }
 
 export async function serveBuyHolds(playerId: number, data: BuyHoldsCommand): Promise<void> {
@@ -158,8 +155,10 @@ export async function serveBuyHolds(playerId: number, data: BuyHoldsCommand): Pr
     const universeId = getPlayerUniverseId(playerId);
     if (universeId === undefined) return;
 
-    try {
-        const result = await withTransaction(async (client) => {
+    await runMutation(
+        playerId,
+        'Buy holds',
+        async (client) => {
             if (!(await isAtClass0OrStarbase(playerId, universeId, client))) {
                 sendError(playerId, 'Not at a class 0 port or starbase');
                 throw new AbortTransaction();
@@ -182,8 +181,7 @@ export async function serveBuyHolds(playerId: number, data: BuyHoldsCommand): Pr
                 throw new AbortTransaction();
             }
 
-            // Cumulative pricing: each successive hold costs B + I more
-            // than the last.
+            // each successive hold costs B + I more than the last.
             const baseCost = holdBaseCostNow(
                 class0Prices.holdBaseCostMin,
                 class0Prices.holdBaseCostMax,
@@ -216,20 +214,17 @@ export async function serveBuyHolds(playerId: number, data: BuyHoldsCommand): Pr
                 cargoLimit: data.holds + qty,
                 turnsUsed: turnResult.turnsUsed,
             };
-        });
-
-        if (!result) return;
-
-        if (result.turnsUsed) {
-            notifyTurnChange(playerId, result.turnsUsed, 'buying cargo holds');
-        }
-        await sendEnvelope(playerId, {
-            type: ServerTag.BuyHoldsResult,
-            credits: result.credits,
-            cargoLimit: result.cargoLimit,
-            turnsUsed: result.turnsUsed,
-        });
-    } catch {
-        sendError(playerId, 'Internal server error');
-    }
+        },
+        (result) => {
+            if (result.turnsUsed) {
+                notifyTurnChange(playerId, result.turnsUsed, 'buying cargo holds');
+            }
+            sendEnvelope(playerId, {
+                type: ServerTag.BuyHoldsResult,
+                credits: result.credits,
+                cargoLimit: result.cargoLimit,
+                turnsUsed: result.turnsUsed,
+            });
+        },
+    );
 }

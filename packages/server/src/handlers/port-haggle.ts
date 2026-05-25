@@ -22,8 +22,9 @@ import {
 } from '@twnr/shared';
 import type { HaggleOpenCommand, HaggleCounterCommand } from '@twnr/shared';
 import { players } from '../state/players.js';
-import { sendEnvelope, sendError } from '../state/messaging.js';
+import { sendEnvelope } from '../state/messaging.js';
 import { withTransaction, AbortTransaction } from '../db/index.js';
+import { runMutation } from './run-mutation.js';
 import {
     deductCredits,
     addCredits,
@@ -332,8 +333,10 @@ async function settleTrade(
     session: HaggleSession,
     agreedTotal: number,
 ): Promise<void> {
-    try {
-        const result = await withTransaction(async (client) => {
+    await runMutation(
+        playerId,
+        'Haggle settle',
+        async (client) => {
             // Re-fetch current sector / port under lock (avoid stale).
             const currentSector = await getCurrentSector(playerId, client);
             if (currentSector !== session.sectorNumber) {
@@ -489,20 +492,16 @@ async function settleTrade(
                 turnsUsed,
                 expDelta: xpDelta,
             };
-        });
-
-        if (!result) return;
-        clearHaggleSession(playerId);
-        if (result.turnsUsed) notifyTurnChange(playerId, result.turnsUsed, 'trading');
-        sendEnvelope(playerId, {
-            type: ServerTag.HaggleResponseResult,
-            outcome: 'accepted',
-            ...result,
-            repDelta: 0,
-        });
-    } catch (err) {
-        if (err instanceof AbortTransaction) return;
-        console.error('Haggle settle error', err);
-        sendError(playerId, 'Internal server error');
-    }
+        },
+        (result) => {
+            clearHaggleSession(playerId);
+            if (result.turnsUsed) notifyTurnChange(playerId, result.turnsUsed, 'trading');
+            sendEnvelope(playerId, {
+                type: ServerTag.HaggleResponseResult,
+                outcome: 'accepted',
+                ...result,
+                repDelta: 0,
+            });
+        },
+    );
 }

@@ -2,7 +2,8 @@ import { ServerTag } from '@twnr/shared';
 import type { ReleaseBeaconCommand } from '@twnr/shared';
 import { players } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
-import { withTransaction, AbortTransaction } from '../db/index.js';
+import { AbortTransaction } from '../db/index.js';
+import { runMutation } from './run-mutation.js';
 import {
     getHardwareItemByName,
     getShipHardwareCapacityForUpdate,
@@ -44,8 +45,10 @@ export async function serveReleaseBeacon(
         return;
     }
 
-    try {
-        const result = await withTransaction(async (client) => {
+    await runMutation(
+        playerId,
+        'Release beacon',
+        async (client) => {
             const cap = await getShipHardwareCapacityForUpdate(playerId, hw.id, client);
             if (!cap || cap.current_qty <= 0) {
                 sendEnvelope(playerId, {
@@ -65,20 +68,15 @@ export async function serveReleaseBeacon(
             }
             await insertSectorBeacon(sectorDbId, message, playerId, null, client);
             return { outcome: 'launched' as const, remaining: cap.current_qty - 1 };
-        });
-        if (!result) return;
-
-        sendEnvelope(playerId, {
-            type: ServerTag.ReleaseBeaconResult,
-            outcome: result.outcome,
-            sector: player.sector,
-            beaconsRemaining: result.remaining,
-        });
-    } catch (err) {
-        if (err instanceof AbortTransaction) return;
-        console.error('Release beacon error', err);
-        sendError(playerId, 'Internal server error');
-    }
+        },
+        (result) =>
+            sendEnvelope(playerId, {
+                type: ServerTag.ReleaseBeaconResult,
+                outcome: result.outcome,
+                sector: player.sector,
+                beaconsRemaining: result.remaining,
+            }),
+    );
 }
 
 export async function serveAttackBeacon(playerId: number): Promise<void> {
@@ -96,8 +94,10 @@ export async function serveAttackBeacon(playerId: number): Promise<void> {
 
     const sectorDbId = player.sectorId;
 
-    try {
-        const result = await withTransaction(async (client) => {
+    await runMutation(
+        playerId,
+        'Attack beacon',
+        async (client) => {
             const existing = await getSectorBeaconForUpdate(sectorDbId, client);
             if (!existing) {
                 sendError(playerId, 'No beacon to attack');
@@ -112,16 +112,12 @@ export async function serveAttackBeacon(playerId: number): Promise<void> {
             const newDrones = drones - 1;
             await setShipDrones(playerId, newDrones, client);
             return { destroyed: true as const, shipDrones: newDrones };
-        });
-        if (!result) return;
-        sendEnvelope(playerId, {
-            type: ServerTag.AttackBeaconResult,
-            destroyed: result.destroyed,
-            shipDrones: result.shipDrones,
-        });
-    } catch (err) {
-        if (err instanceof AbortTransaction) return;
-        console.error('Attack beacon error', err);
-        sendError(playerId, 'Internal server error');
-    }
+        },
+        (result) =>
+            sendEnvelope(playerId, {
+                type: ServerTag.AttackBeaconResult,
+                destroyed: result.destroyed,
+                shipDrones: result.shipDrones,
+            }),
+    );
 }
