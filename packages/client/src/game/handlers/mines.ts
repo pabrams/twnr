@@ -2,8 +2,9 @@ import type { GameContext } from '../types.js';
 import type { Handler } from './index.js';
 import { render } from '../renderer.js';
 import { EVENT, PANEL } from '../messages/index.js';
+import { refreshMinimap, type RefreshMinimapCtx } from './utils.js';
 
-type MinesContext = Pick<GameContext, 'io' | 'world'>;
+type MinesContext = Pick<GameContext, 'io' | 'minimap' | 'world'> & RefreshMinimapCtx;
 
 export const deployMine: Handler<'deployMineResult', MinesContext> = (ctx, msg) => {
     const label = msg.mineType === 'seeker' ? 'Limpet' : 'Proximity';
@@ -14,6 +15,8 @@ export const deployMine: Handler<'deployMineResult', MinesContext> = (ctx, msg) 
             sector: msg.sectorMines,
         }),
     );
+
+    refreshMinimap(ctx);
 };
 
 export const listDeployedMines: Handler<'listDeployedMinesResult', MinesContext> = (ctx, msg) => {
@@ -79,6 +82,7 @@ export const mineDisruptor: Handler<'mineDisruptorResult', MinesContext> = (ctx,
             `removed ${msg.minesDisrupted} proximity mine(s) ` +
             `(${msg.proximityMinesRemaining} remaining).`,
     );
+    refreshMinimap(ctx);
 };
 
 export const proximityMineHit: Handler<'proximityMineHit', MinesContext> = (ctx, msg) => {
@@ -93,6 +97,7 @@ export const proximityMineHit: Handler<'proximityMineHit', MinesContext> = (ctx,
                 `(shields -${msg.shieldsLost}, drones -${msg.dronesLost}).`,
         );
     }
+    refreshMinimap(ctx);
 };
 
 export const seekerMineAttached: Handler<'seekerMineAttached', MinesContext> = (ctx) => {

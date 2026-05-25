@@ -110,7 +110,6 @@ export async function serveMove(playerId: number, data: MoveCommand): Promise<vo
         moveToSector(playerId, targetSectorId),
         moveShipToSector(playerId, targetSectorId),
         markSectorVisited(playerId, targetSectorId),
-        refreshSectorObservation(playerId, targetSectorId),
     ]);
 
     let towedAlong: TowedAlong | undefined;
@@ -200,6 +199,7 @@ export async function serveMove(playerId: number, data: MoveCommand): Promise<vo
 
     // Resolve any enemy mines in the destination sector.
     const mineOutcome = await resolveMinesOnEntry(playerId);
+    await refreshSectorObservation(playerId, targetSectorId);
     if (mineOutcome.destroyed) {
         await sendEnvelope(playerId, {
             type: ServerTag.MoveResult,

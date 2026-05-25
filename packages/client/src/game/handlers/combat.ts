@@ -5,6 +5,7 @@ import { EVENT, SECTOR } from '../messages/index.js';
 import { type DisplayCtx } from '../display.js';
 import { showDroneEncounter, showAttackMenu, type DisplayCombatCtx } from '../display-combat.js';
 import { askConfirm, awaitResponse } from '../routines/prompts.js';
+import { refreshMinimap, type RefreshMinimapCtx } from './utils.js';
 import type { Handler } from './index.js';
 
 type CombatContext = Pick<
@@ -12,7 +13,8 @@ type CombatContext = Pick<
     'autopilot' | 'catalogs' | 'encounter' | 'input' | 'io' | 'minimap' | 'world'
 > &
     DisplayCtx &
-    DisplayCombatCtx;
+    DisplayCombatCtx &
+    RefreshMinimapCtx;
 
 /** Re-open the minimap floating menu for the DroneEncounter commands. */
 function reopenEncounterMenu(ctx: CombatContext): void {
@@ -82,6 +84,7 @@ export const deployDrones: Handler<'deployDronesResult', CombatContext> = (ctx, 
             ship: msg.shipDrones,
         }),
     );
+    refreshMinimap(ctx);
 };
 
 export const attackSectorDrones: Handler<'attackSectorDronesResult', CombatContext> = (
@@ -96,6 +99,7 @@ export const attackSectorDrones: Handler<'attackSectorDronesResult', CombatConte
             ship: msg.shipDrones,
         }),
     );
+    refreshMinimap(ctx);
     if (msg.victory) {
         // Drones cleared — exit the droneEncounter sub-mode.
         ctx.world.mode = Menu.Sector;
