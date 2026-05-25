@@ -24,6 +24,16 @@ export async function askLine(ctx: PromptCtx, prompt: string): Promise<string | 
     return trimmed;
 }
 
+/** Like askLine, but doesn't treat 'q' or empty input as cancel — use for
+ *  free-text fields (names, messages) where 'q' is a legitimate value. Returns
+ *  the trimmed string (possibly ''); only returns null on connection drop. */
+export async function askLineRaw(ctx: PromptCtx, prompt: string): Promise<string | null> {
+    ctx.io.term.write(prompt);
+    const line = await parkLine(ctx);
+    if (line === null) return null;
+    return line.trim();
+}
+
 export async function askMultiLine(ctx: PromptCtx, linePrompt: string): Promise<string | null> {
     const lines: string[] = [];
     while (true) {

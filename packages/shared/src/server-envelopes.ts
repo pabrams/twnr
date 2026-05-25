@@ -412,6 +412,22 @@ export const UseTerraformDeviceReplySchema = z.object({
 });
 export type UseTerraformDeviceReply = z.infer<typeof UseTerraformDeviceReplySchema>;
 
+export const SetTerraformedPlanetReplySchema = z.discriminatedUnion('outcome', [
+    z.object({
+        type: z.literal(ServerTag.SetTerraformedPlanetResult),
+        outcome: z.literal('success'),
+        planetId: Int,
+        name: Str,
+        ownership: z.enum(['personal', 'clan']),
+    }),
+    z.object({
+        type: z.literal(ServerTag.SetTerraformedPlanetResult),
+        outcome: z.literal('error'),
+        message: Str,
+    }),
+]);
+export type SetTerraformedPlanetReply = z.infer<typeof SetTerraformedPlanetReplySchema>;
+
 export const GetSectorPlanetsReplySchema = z.object({
     type: z.literal(ServerTag.GetSectorPlanetsResult),
     planets: z.array(z.object({ id: Int, name: Str, type: Str, displayType: StrOrNull })),
@@ -1654,6 +1670,7 @@ export const ServerEnvelopeSchema = z.discriminatedUnion('type', [
     RetreatFromDronesReplySchema,
     SectorDronesAlertEventSchema,
     UseTerraformDeviceReplySchema,
+    SetTerraformedPlanetReplySchema,
     GetSectorPlanetsReplySchema,
     LandOnPlanetReplySchema,
     PlanetDisplayReplySchema,

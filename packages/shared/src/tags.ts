@@ -131,6 +131,7 @@ export const ServerTag = {
     BwarpUpgradeResult: 'bwarpUpgradeResult',
     BwarpBeamResult: 'bwarpBeamResult',
     StatsSnapshot: 'statsSnapshot',
+    SetTerraformedPlanetResult: 'setTerraformedPlanetResult',
 } as const;
 type ServerTag = typeof ServerTag;
 
@@ -167,6 +168,7 @@ export const ClientTag = {
     AttackSectorDrones: 'attackSectorDrones',
     RetreatFromDrones: 'retreatFromDrones',
     UseTerraformDevice: 'useTerraformDevice',
+    SetTerraformedPlanet: 'setTerraformedPlanet',
     LandOnPlanet: 'landOnPlanet',
     PlanetDisplay: 'planetDisplay',
     DestroyPlanet: 'destroyPlanet',

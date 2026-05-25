@@ -52,6 +52,25 @@ export async function setPlanetOwnership(
     ]);
 }
 
+export async function setPlanetName(
+    planetId: number,
+    name: string,
+    db: Queryable = pool,
+): Promise<void> {
+    await db.query('UPDATE planets SET name = $1 WHERE id = $2', [name, planetId]);
+}
+
+export async function getPlanetOwnerPlayerId(
+    planetId: number,
+    db: Queryable = pool,
+): Promise<number | null | undefined> {
+    const res = await db.query<{ owner_player_id: number | null }>(
+        'SELECT owner_player_id FROM planets WHERE id = $1',
+        [planetId],
+    );
+    return res.rows[0]?.owner_player_id;
+}
+
 export async function getSectorByNumber(
     sectorNumber: number,
     universeId: number,

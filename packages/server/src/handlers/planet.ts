@@ -7,6 +7,7 @@ import type {
     LeaveCommodityCommand,
     ChangePopulationCommand,
     ClaimPlanetCommand,
+    SetTerraformedPlanetCommand,
 } from '@twnr/shared';
 import { players } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
@@ -37,6 +38,8 @@ import {
     settlePlanetProduction,
     settlePlanetColonistGrowth,
     setPlanetOwnership,
+    setPlanetName,
+    getPlanetOwnerPlayerId,
     type ColonistCommodity,
     type PlanetCommodity,
 } from '../db/queries/planet.js';
@@ -460,6 +463,63 @@ export async function serveUseTerraformDevice(playerId: number): Promise<void> {
     }
 }
 
+/** Follow-up to a just-completed terraform: rename the planet to whatever the
+ *  player chose, and optionally flip it to clan ownership. The planet has
+ *  already been created and the XP/rep already awarded by
+ *  serveUseTerraformDevice — this only updates the name/owner. */
+export async function serveSetTerraformedPlanet(
+    playerId: number,
+    data: SetTerraformedPlanetCommand,
+): Promise<void> {
+    const { planetId, name, ownership } = data;
+    const trimmedName = name.trim();
+    if (trimmedName.length === 0 || trimmedName.length > 64) {
+        sendEnvelope(playerId, {
+            type: ServerTag.SetTerraformedPlanetResult,
+            outcome: 'error',
+            message: 'Name must be 1-64 characters.',
+        });
+        return;
+    }
+    const owner = await getPlanetOwnerPlayerId(planetId);
+    if (owner === undefined) {
+        sendEnvelope(playerId, {
+            type: ServerTag.SetTerraformedPlanetResult,
+            outcome: 'error',
+            message: 'Planet not found.',
+        });
+        return;
+    }
+    if (owner !== playerId) {
+        sendEnvelope(playerId, {
+            type: ServerTag.SetTerraformedPlanetResult,
+            outcome: 'error',
+            message: 'You do not own that planet.',
+        });
+        return;
+    }
+    const clanId = ownership === 'clan' ? await getPlayerClanId(playerId) : null;
+    if (ownership === 'clan' && clanId === null) {
+        sendEnvelope(playerId, {
+            type: ServerTag.SetTerraformedPlanetResult,
+            outcome: 'error',
+            message: 'You are not in a clan.',
+        });
+        return;
+    }
+    await setPlanetName(planetId, trimmedName);
+    if (ownership === 'clan') {
+        await setPlanetOwnership(planetId, null, clanId);
+    }
+    sendEnvelope(playerId, {
+        type: ServerTag.SetTerraformedPlanetResult,
+        outcome: 'success',
+        planetId,
+        name: trimmedName,
+        ownership,
+    });
+}
+
 /** Validate a colonist commodity argument. Sends an error envelope and
  * returns null on bad input; returns the typed value on success. */
 function parseColonistCommodity(playerId: number, commodity: string): ColonistCommodity | null {
@@ -471,8 +531,7 @@ function parseColonistCommodity(playerId: number, commodity: string): ColonistCo
 }
 
 /** Validate a planet-commodity argument (fuel/organics/equipment/drones).
- *  Same shape as parseColonistCommodity; the typed alias keeps the planet
- *  stockpile flow distinct from the colonist flow. */
+ */
 function parsePlanetCommodity(playerId: number, commodity: string): PlanetCommodity | null {
     if (
         commodity !== 'fuel' &&
@@ -487,9 +546,7 @@ function parsePlanetCommodity(playerId: number, commodity: string): PlanetCommod
 }
 
 /** Lift the player off the planet and deliver the result + sector display
- * in one envelope. `result` carries the message-specific fields (quantity,
- * commodity, totals); the sector data is merged in. Use whenever a planet
- * action ends with the player back in the sector. */
+ * TODO: This is only used for Earth, for some reason. Smells bad. */
 async function liftoffWithResult<T extends { type: (typeof ServerTag)[keyof typeof ServerTag] }>(
     playerId: number,
     result: T,

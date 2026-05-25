@@ -55,8 +55,22 @@ export const EVENT = makeDomain('EVENT', {
     terraformDevicesAvailable: '\r\n[g]You have[/g] [bc]{count}[/bc] [g]Terraform Devices.[/g]',
     terraformNoDevices: '\r\n[bg]You have no Terraform Devices.[/bg]',
     terraformConfirm:
-        '[by]Terraform a planet in this sector?[/by] [mg]([/mg][by]Y[/by]/[by]N[/by][mg])[/mg] [mg][[/mg][by]N[/by][mg]][/mg] ',
-    terraformSuccess: '\r\n[bg]Terraform successful![/bg] Created [bc]{name}[/bc] ({type})',
+        '[by]Do you wish to launch one?[/by] [mg]([/mg][by]Y[/by]/[by]N[/by][mg])[/mg] [mg][[/mg][by]N[/by][mg]][/mg] ',
+    terraformNarrative:
+        '\r\n[g]Your science officer locates a land mass with the requisite attributes, and your\r\n' +
+        'communications officer contacts the galactic planet registry to record your\r\n' +
+        'intention to terraform in this sector.[/g]\r\n\r\n' +
+        '[g]Orbiting the target, you launch a terraform device. A few minutes later, you\r\n' +
+        'see a bright point where the device touches down, and a brilliant glowing ring\r\n' +
+        'expands quickly from the point of impact until it has spread over the entire\r\n' +
+        'surface.[/g]\r\n\r\n' +
+        '[g]Now you just need some colonists to settle here and work the natural\r\n' +
+        'resources.[/g]',
+    terraformNamePrompt:
+        '\r\n[by]What do you want to name this planet?[/by] [g]({type})[/g]\r\n[mg]>[/mg] [g][[/g][bc]{defaultName}[/bc][g]] [/g]',
+    terraformOwnershipPrompt:
+        '\r\n[by]Should this be a ([/by][bc]C[/bc][by])lan planet or ([/by][bc]P[/bc][by])ersonal planet?[/by] [mg][[/mg][by]P[/by][mg]][/mg] ',
+    terraformConfirmed: '\r\n[bg]Planet[/bg] [bc]{name}[/bc] [bg]registered.[/bg]',
     terraformCollision: '[by:r]*** Warning ***: intersecting orbits detected![/by:r]',
     terraformDevicesRemaining: '  [by]Terraform devices remaining[/by]: [bc]{count}[/bc]',
     terraformFailure: '\r\n[br]{reason}[/br]',
