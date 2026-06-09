@@ -1160,9 +1160,7 @@ export function createMinimap(
 
     // Floating context-style menu, anchored near the last known mouse
     // position over the minimap (typically wherever the player just
-    // clicked). Vertical list — closest to the OS right-click menu the
-    // player already expects. Buttons inject keys via onInjectKey;
-    // closeMenu() also dismisses it.
+    // clicked). 
     let menuEl: HTMLElement | null = null;
     let lastMouseX: number | null = null;
     let lastMouseY: number | null = null;
@@ -1170,6 +1168,9 @@ export function createMinimap(
         const rect = container.getBoundingClientRect();
         lastMouseX = e.clientX - rect.left;
         lastMouseY = e.clientY - rect.top;
+    });
+    container.addEventListener('mousedown', (e: MouseEvent) => {
+        if (menuEl && !menuEl.contains(e.target as Node)) destroyMenu();
     });
     function destroyMenu(): void {
         if (menuEl) {
