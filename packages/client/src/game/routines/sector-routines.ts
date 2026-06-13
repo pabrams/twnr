@@ -427,13 +427,19 @@ registerRoutine('land', async (ctx) => {
         return;
     }
     showPlanetSelectMenu(ctx, planets);
-    const idx = await askNumber(ctx, render(PLANET.planetSelectPrompt), {
-        min: 1,
-        max: planets.length,
-    });
-    if (idx === null) return;
+
+    const byRegistry = new Map(planets.map((p) => [p.registryNumber, p]));
+    let chosen: (typeof planets)[number] | undefined;
+    while (chosen === undefined) {
+        const n = await askNumber(ctx, render(PLANET.planetSelectPrompt));
+        if (n === null) return;
+        chosen = byRegistry.get(n);
+        if (chosen === undefined) {
+            ctx.io.term.writeln(render(PLANET.planetSelectNoSuchRegistry));
+        }
+    }
     echoCommand(ctx, 'landOnPlanet');
-    ctx.io.sendMsg({ type: ClientTag.LandOnPlanet, planetId: planets[idx - 1].id });
+    ctx.io.sendMsg({ type: ClientTag.LandOnPlanet, planetId: chosen.id });
 });
 
 registerRoutine('use_terraform_device', (ctx) => {
