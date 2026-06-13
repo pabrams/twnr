@@ -47,22 +47,32 @@ export async function findVisitedSectorsInSet(
 export async function getPlanetsInSector(
     sectorNumber: number,
     universeId: number,
-): Promise<{ id: number; name: string; type: string; displayType: string | null }[]> {
+): Promise<
+    {
+        id: number;
+        registryNumber: number;
+        name: string;
+        type: string;
+        displayType: string | null;
+    }[]
+> {
     const res = await pool.query<{
         id: number;
+        registry_number: number;
         name: string;
         type: string;
         display_type: string | null;
     }>(
-        `SELECT pl.id, pl.name, pl.type, pt.display_name AS display_type
+        `SELECT pl.id, pl.universe_planet_number AS registry_number, pl.name, pl.type, pt.display_name AS display_type
          FROM planets pl
          JOIN sectors s ON pl.sector_id = s.id
          LEFT JOIN universe_planet_types pt ON pt.universe_id = pl.universe_id AND pt.slug = pl.type
-         WHERE s.sector_number = $1 AND s.universe_id = $2 ORDER BY pl.id`,
+         WHERE s.sector_number = $1 AND s.universe_id = $2 ORDER BY pl.universe_planet_number`,
         [sectorNumber, universeId],
     );
     return res.rows.map((r) => ({
         id: r.id,
+        registryNumber: r.registry_number,
         name: r.name,
         type: r.type,
         displayType: r.display_type,

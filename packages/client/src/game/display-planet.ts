@@ -75,15 +75,21 @@ export function showNoPlanet(ctx: DisplayPlanetCtx) {
 
 export function showPlanetSelectMenu(
     ctx: DisplayPlanetCtx,
-    planets: { id: number; name: string; type: string; displayType: string | null }[],
+    planets: {
+        id: number;
+        registryNumber: number;
+        name: string;
+        type: string;
+        displayType: string | null;
+    }[],
 ) {
     ctx.io.term.writeln('');
     ctx.io.term.writeln(render(PLANET.planetSelectHeader));
     ctx.io.term.writeln(render(PLANET.planetSelectSep));
-    planets.forEach((p, i) => {
+    planets.forEach((p) => {
         ctx.io.term.writeln(
             render(PLANET.planetSelectRow, {
-                n: String(i + 1).padStart(4, ' '),
+                n: String(p.registryNumber).padStart(4, ' '),
                 name: p.name,
             }),
         );

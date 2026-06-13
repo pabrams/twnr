@@ -436,7 +436,9 @@ export type SetTerraformedPlanetReply = z.infer<typeof SetTerraformedPlanetReply
 
 export const GetSectorPlanetsReplySchema = z.object({
     type: z.literal(ServerTag.GetSectorPlanetsResult),
-    planets: z.array(z.object({ id: Int, name: Str, type: Str, displayType: StrOrNull })),
+    planets: z.array(
+        z.object({ id: Int, registryNumber: Int, name: Str, type: Str, displayType: StrOrNull }),
+    ),
 });
 export type GetSectorPlanetsReply = z.infer<typeof GetSectorPlanetsReplySchema>;
 

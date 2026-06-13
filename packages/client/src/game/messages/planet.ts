@@ -77,6 +77,7 @@ export const PLANET = makeDomain('PLANET', {
     planetSelectRow: '   [mg]<[/mg][by]{n}[/by][mg]>[/mg]  [bc]{name}[/bc]',
     planetSelectPrompt:
         '\r\n[mg]Land on which planet[/mg] [mg]<[/mg][by]Q[/by] [mg]to abort> ?[/mg] ',
+    planetSelectNoSuchRegistry: '[r]No planet with that registry # in this sector.[/r]',
 
     takeColonistsHeader: '[bg]You took [bc]{qty}[/bc] colonists.[/bg]',
     leaveColonistsHeader: '[bg]You left [bc]{qty}[/bc] colonists.[/bg]',
