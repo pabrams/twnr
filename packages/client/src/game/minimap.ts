@@ -634,6 +634,7 @@ export function createMinimap(
 
         const warpLines: SVGLineElement[] = [];
         const pillRectsBySectorId = new Map<number, SVGRectElement>();
+        const pillGroupBySectorId = new Map<number, SVGGElement>();
         // For each visited source sector that has warp(s) leading off the
         // panel, an always-visible destination node sits at the line's
         // clipped endpoint showing the target sector_number. Keyed by
@@ -670,6 +671,23 @@ export function createMinimap(
             const insetT = insetWorldPx / dirLen;
             const t = Math.max(0, tMax - insetT);
             return { x: startPt.x + dir.x * t, y: startPt.y + dir.y * t };
+        }
+
+        // SVG has no z-index — paint order is document order. Bring an element
+        // to the front of its parent by re-appending it; the returned fn puts
+        // it back. Restore fns must be invoked in reverse raise order. Used on
+        // hover so a hovered pill / off-screen node and its neighbours surface
+        // above anything they overlap (common where off-screen wormhole nodes
+        // pile up at the same screen edge).
+        function raiseToFront(el: Element): () => void {
+            const parent = el.parentNode;
+            if (!parent) return () => {};
+            const next = el.nextSibling;
+            parent.appendChild(el);
+            return () => {
+                if (next && next.parentNode === parent) parent.insertBefore(el, next);
+                else parent.appendChild(el);
+            };
         }
 
         for (const w of state.data.warps) {
@@ -901,12 +919,18 @@ export function createMinimap(
                 const labelSrcId = w.from_sector_id;
                 const labelLine = line;
                 const labelDst = dst;
+                const labelRaiseRestores: Array<() => void> = [];
                 labelGroup.addEventListener('mouseenter', () => {
                     setHoveredInfo(labelDst);
                     labelGroup.classList.add('is-highlighted');
                     labelLine.classList.add('minimap-warp--hover-out');
                     const srcRect = pillRectsBySectorId.get(labelSrcId);
                     if (srcRect) srcRect.classList.add('minimap-sector-pill--hover-source');
+                    const srcGroup = pillGroupBySectorId.get(labelSrcId);
+                    if (srcGroup) labelRaiseRestores.push(raiseToFront(srcGroup));
+                    // Surface the node above any other off-screen nodes it
+                    // overlaps at this screen edge.
+                    labelRaiseRestores.push(raiseToFront(labelGroup));
                 });
                 labelGroup.addEventListener('mouseleave', () => {
                     clearHoveredInfo(current);
@@ -914,6 +938,7 @@ export function createMinimap(
                     labelLine.classList.remove('minimap-warp--hover-out');
                     const srcRect = pillRectsBySectorId.get(labelSrcId);
                     if (srcRect) srcRect.classList.remove('minimap-sector-pill--hover-source');
+                    while (labelRaiseRestores.length) labelRaiseRestores.pop()!();
                 });
                 labelGroup.addEventListener('click', () => {
                     onInject(
@@ -988,6 +1013,7 @@ export function createMinimap(
                 rect.setAttribute('stroke-width', String(strokeW * 1.8));
             }
             pillRectsBySectorId.set(s.id, rect);
+            pillGroupBySectorId.set(s.id, group);
             group.appendChild(rect);
 
             // Pill interior is uniformly black (see CSS); a thin divider
@@ -1146,6 +1172,9 @@ export function createMinimap(
             }
 
             const hoverSectorId = s.id;
+            // Restore fns for elements raised on hover, popped in reverse on
+            // clear so the base draw order is left untouched.
+            const raiseRestores: Array<() => void> = [];
             const applyHoverHighlight = () => {
                 rect.classList.add('minimap-sector-pill--hover-source');
                 for (const line of warpLines) {
@@ -1159,9 +1188,18 @@ export function createMinimap(
                     line.classList.add('minimap-warp--hover-out');
                     const targetRect = pillRectsBySectorId.get(otherId);
                     if (targetRect) targetRect.classList.add('minimap-sector-pill--hover-target');
+                    const targetGroup = pillGroupBySectorId.get(otherId);
+                    if (targetGroup) raiseRestores.push(raiseToFront(targetGroup));
                 }
                 const labels = endLabelsBySrcId.get(hoverSectorId);
-                if (labels) for (const l of labels) l.classList.add('is-highlighted');
+                if (labels)
+                    for (const l of labels) {
+                        l.classList.add('is-highlighted');
+                        raiseRestores.push(raiseToFront(l));
+                    }
+                // Raise the hovered pill last so it sits on top of its newly
+                // raised neighbours.
+                raiseRestores.push(raiseToFront(group));
             };
             const clearHoverHighlight = () => {
                 rect.classList.remove('minimap-sector-pill--hover-source');
@@ -1171,6 +1209,7 @@ export function createMinimap(
                 }
                 const labels = endLabelsBySrcId.get(hoverSectorId);
                 if (labels) for (const l of labels) l.classList.remove('is-highlighted');
+                while (raiseRestores.length) raiseRestores.pop()!();
             };
             group.addEventListener('mouseenter', () => {
                 setHoveredInfo(s);
