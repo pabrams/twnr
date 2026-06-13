@@ -928,9 +928,9 @@ export function createMinimap(
                     if (srcRect) srcRect.classList.add('minimap-sector-pill--hover-source');
                     const srcGroup = pillGroupBySectorId.get(labelSrcId);
                     if (srcGroup) labelRaiseRestores.push(raiseToFront(srcGroup));
-                    // Surface the node above any other off-screen nodes it
-                    // overlaps at this screen edge.
-                    labelRaiseRestores.push(raiseToFront(labelGroup));
+                    // The node itself is already topmost (it got the hover);
+                    // re-appending the element under the cursor would fire
+                    // spurious leave/enter events.
                 });
                 labelGroup.addEventListener('mouseleave', () => {
                     clearHoveredInfo(current);
@@ -1197,9 +1197,9 @@ export function createMinimap(
                         l.classList.add('is-highlighted');
                         raiseRestores.push(raiseToFront(l));
                     }
-                // Raise the hovered pill last so it sits on top of its newly
-                // raised neighbours.
-                raiseRestores.push(raiseToFront(group));
+                // The hovered pill is already topmost (that's why it got the
+                // hover), so it needs no raise — and re-appending the element
+                // under the cursor would fire spurious leave/enter events.
             };
             const clearHoverHighlight = () => {
                 rect.classList.remove('minimap-sector-pill--hover-source');
