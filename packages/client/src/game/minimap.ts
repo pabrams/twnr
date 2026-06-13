@@ -628,17 +628,17 @@ export function createMinimap(
 
         const warpGroup = document.createElementNS(SVG_NS, 'g');
         svg.appendChild(warpGroup);
-        // Top-of-z overlay for hover-only end-labels
+        // Top-of-z overlay for off-screen destination nodes
         const overlayGroup = document.createElementNS(SVG_NS, 'g');
         const drawnBi = new Set<string>();
 
         const warpLines: SVGLineElement[] = [];
         const pillRectsBySectorId = new Map<number, SVGRectElement>();
-        // For each visited source sector that has wormhole(s) leading off the
-        // panel, an end-label pill (hidden by default) sits at the line's
-        // clipped endpoint, and shows the destination sector_number on
-        // hover. Keyed by source-sector id so multiple offscreen wormholes
-        // from the same source all light up together.
+        // For each visited source sector that has warp(s) leading off the
+        // panel, an always-visible destination node sits at the line's
+        // clipped endpoint showing the target sector_number. Keyed by
+        // source-sector id so hovering the near end highlights every
+        // offscreen target from that source together.
         const endLabelsBySrcId = new Map<number, SVGGElement[]>();
         // Distance threshold for "wormhole". With flat-top hex `size =
         // HEX_CELL_SIZE` and spacing multiplied by HEX_SPACING_MULTIPLIER,
@@ -814,14 +814,17 @@ export function createMinimap(
             }
             warpGroup.appendChild(line);
 
-            // Hover-only end-label: shows the destination sector_number for
-            // any warp that exits the panel, so the user can identify each
-            // out-warp without clicking. Two visual variants:
+            // Off-screen destination node: shows the destination
+            // sector_number for a wormhole warp that exits the panel, pinned a
+            // hair inside the screen edge along the warp's direction. Always
+            // visible and clickable (move / autopilot), so wormhole targets
+            // can be reached without first hovering the near end. Limited to
+            // wormholes — a regular (proximal) warp's far end sits just off
+            // the edge and would obscure its on-screen counterpart. Two
+            // variants:
             //   - --visited: dark yellow (target is a known sector)
-            //   - --glimpsed: magenta (target is unvisited / fringe)
-            // Positioned a hair inside the screen edge along the warp's
-            // direction so the pill is fully visible.
-            if (!dstOnscreen) {
+            //   - --glimpsed: dark magenta (target is unvisited / fringe)
+            if (!dstOnscreen && isWormhole) {
                 const ldx = end.x - start.x;
                 const ldy = end.y - start.y;
                 const llen = Math.sqrt(ldx * ldx + ldy * ldy) || 1;
@@ -865,13 +868,10 @@ export function createMinimap(
                 ltext.textContent = dstNum;
                 labelGroup.appendChild(ltext);
 
-                // Quick-move target sitting off-screen: keep the label
-                // always-visible (not hover-only) while the move menu is
-                // open, and tack on the same green numbered badge the
-                // on-screen quick-move pills show.
+                // Quick-move target sitting off-screen: tack on the same green
+                // numbered badge the on-screen quick-move pills show.
                 const qIdx = isQuickMoveWarp ? quickMoveIndexById.get(w.to_sector_id) : undefined;
                 if (qIdx !== undefined) {
-                    labelGroup.classList.add('minimap-warp-end-label--quick-move');
                     const badgeR = fontPx * 0.65;
                     const badgeY = lrh / 2 + badgeR + fontPx * 0.25;
                     const badgeCircle = document.createElementNS(SVG_NS, 'circle');
@@ -891,6 +891,36 @@ export function createMinimap(
                     badgeText.textContent = String(qIdx);
                     labelGroup.appendChild(badgeText);
                 }
+
+                // Clicking the node submits the destination sector_number —
+                // the same path a pill click takes — so the server moves
+                // immediately when the player is at the near end (1 warp away)
+                // or offers autopilot otherwise. Hovering it highlights the
+                // node, its inbound warp, and the near-end pill, and shows the
+                // destination in the info panel.
+                const labelSrcId = w.from_sector_id;
+                const labelLine = line;
+                const labelDst = dst;
+                labelGroup.addEventListener('mouseenter', () => {
+                    setHoveredInfo(labelDst);
+                    labelGroup.classList.add('is-highlighted');
+                    labelLine.classList.add('minimap-warp--hover-out');
+                    const srcRect = pillRectsBySectorId.get(labelSrcId);
+                    if (srcRect) srcRect.classList.add('minimap-sector-pill--hover-source');
+                });
+                labelGroup.addEventListener('mouseleave', () => {
+                    clearHoveredInfo(current);
+                    labelGroup.classList.remove('is-highlighted');
+                    labelLine.classList.remove('minimap-warp--hover-out');
+                    const srcRect = pillRectsBySectorId.get(labelSrcId);
+                    if (srcRect) srcRect.classList.remove('minimap-sector-pill--hover-source');
+                });
+                labelGroup.addEventListener('click', () => {
+                    onInject(
+                        labelDst.sector_number,
+                        current?.sector_number ?? state.currentSectorNumber,
+                    );
+                });
 
                 overlayGroup.appendChild(labelGroup);
                 if (!endLabelsBySrcId.has(w.from_sector_id)) {
@@ -1131,7 +1161,7 @@ export function createMinimap(
                     if (targetRect) targetRect.classList.add('minimap-sector-pill--hover-target');
                 }
                 const labels = endLabelsBySrcId.get(hoverSectorId);
-                if (labels) for (const l of labels) l.classList.add('is-visible');
+                if (labels) for (const l of labels) l.classList.add('is-highlighted');
             };
             const clearHoverHighlight = () => {
                 rect.classList.remove('minimap-sector-pill--hover-source');
@@ -1140,7 +1170,7 @@ export function createMinimap(
                     r.classList.remove('minimap-sector-pill--hover-target');
                 }
                 const labels = endLabelsBySrcId.get(hoverSectorId);
-                if (labels) for (const l of labels) l.classList.remove('is-visible');
+                if (labels) for (const l of labels) l.classList.remove('is-highlighted');
             };
             group.addEventListener('mouseenter', () => {
                 setHoveredInfo(s);
