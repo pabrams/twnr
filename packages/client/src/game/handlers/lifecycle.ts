@@ -36,7 +36,11 @@ export const welcome: Handler<'welcome', LifecycleContext> = async (ctx, msg) =>
     if (msg.isGuest) {
         ctx.io.term.writeln(render(NOTIFY.welcomeGuest));
     }
-    refreshMinimap(ctx);
+    // Skip the eager paint while the player still owes a ship name: the server
+    // naming gate rejects GetNeighborhood with "Name your ship first." The
+    // re-display at the end of runConnectFlow refreshes the minimap anyway.
+    const needsShipName = msg.shipName === '' && !!msg.startingShip;
+    if (!needsShipName) refreshMinimap(ctx);
     // Single orchestrator: ship-naming (if needed) → mail check → re-display.
     await runConnectFlow(ctx, msg);
 };
