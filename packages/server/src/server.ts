@@ -255,13 +255,19 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
         await sendEnvelope(playerId, welcomeMsg);
         await sendStatsSnapshot(playerId);
 
-        let tokens = 50;
-        const refillInterval = setInterval(() => {
-            tokens = Math.min(50, tokens + 20);
-        }, 1000);
+        const BUCKET_CAPACITY = 50;
+        const BUCKET_REFILL_PER_SEC = 20;
+        let tokens = BUCKET_CAPACITY;
+        let lastRefill = Date.now();
 
         ws.on('message', async (message) => {
-            if (tokens <= 0) {
+            const now = Date.now();
+            tokens = Math.min(
+                BUCKET_CAPACITY,
+                tokens + ((now - lastRefill) / 1000) * BUCKET_REFILL_PER_SEC,
+            );
+            lastRefill = now;
+            if (tokens < 1) {
                 sendEnvelope(playerId, { type: ServerTag.RateLimited });
                 return;
             }
@@ -310,7 +316,6 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
         });
 
         ws.on('close', () => {
-            clearInterval(refillInterval);
             clearPendingShipPurchase(playerId);
             void import('./handlers/port-haggle.js').then((m) => m.clearHaggleSession(playerId));
             const lastSector = onlinePlayers[playerId]?.sector;
