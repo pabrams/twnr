@@ -60,9 +60,25 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
         if (w <= 0 || h <= 0) return;
         const rawFontSize = Math.floor(w / globalConstants.terminalCols / cell.cellWidth(1));
         const fontSize = Math.max(MIN_FONT_SIZE, Math.min(MAX_FONT_SIZE, rawFontSize));
-        const rows = Math.max(10, Math.floor(h / cell.cellHeight(fontSize)));
+        let rows = Math.max(10, Math.floor(h / cell.cellHeight(fontSize)));
         term.options.fontSize = fontSize;
         term.resize(globalConstants.terminalCols, rows);
+        // The predicted cell height can run a fraction short of xterm's real
+        // per-row height at fractional devicePixelRatios (e.g. browser zoom
+        // 75%), over-counting rows so the bottom row clips off-screen. The DOM
+        // renderer sets .xterm-screen's height synchronously inside resize(),
+        // so measure the actual rendered height and shed rows until it fits.
+        const screen = termDiv.querySelector<HTMLElement>('.xterm-screen');
+        if (screen) {
+            for (
+                let i = 0;
+                i < 4 && rows > 10 && screen.getBoundingClientRect().height > h + 0.5;
+                i++
+            ) {
+                rows -= 1;
+                term.resize(globalConstants.terminalCols, rows);
+            }
+        }
     }
     refit();
     window.addEventListener('resize', refit);
