@@ -359,8 +359,9 @@ async function transferCredits(
     }
 
     const delivered = await withTransaction(async (client) => {
+        // Read the sender's balance, then debit sender / credit target in one tx.
         const r = await client.query<{ credits: number }>(
-            'SELECT credits FROM players WHERE id = $1 FOR UPDATE',
+            'SELECT credits FROM players WHERE id = $1',
             [senderId],
         );
         const senderCredits = r.rows[0]?.credits ?? 0;

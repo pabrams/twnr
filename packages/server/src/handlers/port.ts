@@ -29,7 +29,6 @@ import {
 } from '../db/queries/port.js';
 import {
     getShipCargoWithCredits,
-    getShipCargoWithCreditsForUpdate,
     getShipInfo,
     incrementShipCommodity,
 } from '../db/queries/ship.js';
@@ -323,7 +322,7 @@ export async function servePortTransaction(
             const mcic = port[MCIC_COL[col]];
             const price = computeUnitPriceWithXp(col, stock, max, mcic, xp, portActions[col]);
 
-            const cargo = await getShipCargoWithCreditsForUpdate(playerId, client);
+            const cargo = await getShipCargoWithCredits(playerId, client);
             if (!cargo) {
                 sendError(playerId, 'Player not found');
                 throw new AbortTransaction();
