@@ -36,9 +36,7 @@ export async function serveGetAttackTargets(playerId: number): Promise<void> {
     if (!player) return;
 
     const rows = await listPlayersInSector(player.sector, player.universeId, playerId);
-    const visible = rows.filter((row) =>
-        isVisibleInSector(row.id, row.docked, row.on_planet_id),
-    );
+    const visible = rows.filter((row) => isVisibleInSector(row.id, row.docked, row.on_planet_id));
     const roster = visible.map((row) => ({ id: row.id, name: row.name }));
 
     const beacon = await getSectorBeacon(player.sectorId);

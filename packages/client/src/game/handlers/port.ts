@@ -290,12 +290,7 @@ export const jettison: Handler<'jettisonResult', PortContext> = (ctx, msg) => {
             .filter(Boolean)
             .join(', ');
         ctx.io.term.writeln(render(TRANSACTION.jettisoned, { items: items || 'nothing' }));
-        renderAttributeChange(
-            ctx,
-            msg.expDelta ?? 0,
-            msg.repDelta ?? 0,
-            'jettisoning colonists',
-        );
+        renderAttributeChange(ctx, msg.expDelta ?? 0, msg.repDelta ?? 0, 'jettisoning colonists');
     } else {
         ctx.io.term.writeln(render(NOTIFY.error, { message: msg.message }));
     }

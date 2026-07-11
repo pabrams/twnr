@@ -12,7 +12,6 @@ import { MENU_REGISTRY, MENU_PROMPTS } from './menu-registry.js';
 import { registerMenu } from './routines/index.js';
 import type { MenuName } from '@twnr/shared';
 
-
 function makeCellPredictor(fontFamily: string): {
     cellWidth: (fontSize: number) => number;
     cellHeight: (fontSize: number) => number;
@@ -51,10 +50,8 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
     const cell = makeCellPredictor('Courier New, Courier, monospace');
     function refit() {
         const style = window.getComputedStyle(termDiv);
-        const padX =
-            parseFloat(style.paddingLeft || '0') + parseFloat(style.paddingRight || '0');
-        const padY =
-            parseFloat(style.paddingTop || '0') + parseFloat(style.paddingBottom || '0');
+        const padX = parseFloat(style.paddingLeft || '0') + parseFloat(style.paddingRight || '0');
+        const padY = parseFloat(style.paddingTop || '0') + parseFloat(style.paddingBottom || '0');
         const w = termDiv.clientWidth - padX;
         const h = termDiv.clientHeight - padY;
         if (w <= 0 || h <= 0) return;

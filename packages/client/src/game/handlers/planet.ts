@@ -340,12 +340,7 @@ export const destroyPlanet: Handler<'destroyPlanetResult', PlanetContext> = (ctx
     if (msg.destroyed) {
         ctx.world.mode = Menu.Sector;
         ctx.io.term.writeln(render(EVENT.planetDestroyed, { name: msg.planetName }));
-        renderAttributeChange(
-            ctx,
-            msg.expDelta ?? 0,
-            msg.repDelta ?? 0,
-            'destroying a planet',
-        );
+        renderAttributeChange(ctx, msg.expDelta ?? 0, msg.repDelta ?? 0, 'destroying a planet');
     }
 };
 
@@ -367,18 +362,10 @@ export const useTerraformDevice: Handler<'useTerraformDeviceResult', PlanetConte
     ctx.io.term.writeln(render(EVENT.terraformNarrative));
     if (msg.collision) ctx.io.term.writeln(render(EVENT.terraformCollision));
 
-    renderAttributeChange(
-        ctx,
-        msg.expDelta ?? 0,
-        msg.repDelta ?? 0,
-        'creating a planet',
-    );
+    renderAttributeChange(ctx, msg.expDelta ?? 0, msg.repDelta ?? 0, 'creating a planet');
 
     const typeLabel = planet.displayType ?? planet.type;
-    const rawName = await askLineRaw(
-        ctx,
-        render(EVENT.terraformNamePrompt, { type: typeLabel }),
-    );
+    const rawName = await askLineRaw(ctx, render(EVENT.terraformNamePrompt, { type: typeLabel }));
     const name = rawName === null || rawName === '' ? planet.name : rawName;
     let ownership: 'personal' | 'clan' = 'personal';
     if (ctx.player.clanId !== null) {

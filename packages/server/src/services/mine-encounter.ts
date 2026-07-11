@@ -36,7 +36,6 @@ export type ProximityHitResult = {
     destroyed: boolean;
 };
 
-
 export async function resolveProximityMines(playerId: number): Promise<ProximityHitResult | null> {
     const player = onlinePlayers[playerId];
     if (!player) return null;
@@ -104,7 +103,6 @@ export async function resolveProximityMines(playerId: number): Promise<Proximity
     });
     return result;
 }
-
 
 export async function resolveSeekerMines(playerId: number): Promise<{
     newOwnerPlayerId: number | null;

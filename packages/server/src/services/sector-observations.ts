@@ -41,12 +41,8 @@ export async function snapshotSectorForPlayer(
         [sectorId],
     );
 
-    const isFriendly = (
-        ownerPlayer: number | null,
-        ownerClan: number | null,
-    ): boolean =>
-        ownerPlayer === playerId ||
-        (clanId !== null && ownerClan === clanId);
+    const isFriendly = (ownerPlayer: number | null, ownerClan: number | null): boolean =>
+        ownerPlayer === playerId || (clanId !== null && ownerClan === clanId);
 
     let friendlyDrones = false;
     let enemyDrones = false;
@@ -109,10 +105,7 @@ export async function writeSectorObservation(
 }
 
 /** Snapshot + write. Use this from sector-entry / deploy / destruction sites. */
-export async function refreshSectorObservation(
-    playerId: number,
-    sectorId: number,
-): Promise<void> {
+export async function refreshSectorObservation(playerId: number, sectorId: number): Promise<void> {
     const flags = await snapshotSectorForPlayer(playerId, sectorId);
     await writeSectorObservation(playerId, sectorId, flags);
 }
@@ -122,12 +115,7 @@ export async function refreshSectorObservation(
 export async function listSectorObservations(
     playerId: number,
     sectorIds: number[],
-): Promise<
-    Map<
-        number,
-        SectorObservationFlags
-    >
-> {
+): Promise<Map<number, SectorObservationFlags>> {
     const out = new Map<number, SectorObservationFlags>();
     if (sectorIds.length === 0) return out;
     const res = await pool.query<{

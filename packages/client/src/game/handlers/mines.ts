@@ -59,10 +59,7 @@ export const trackSeekerMines: Handler<'trackSeekerMinesResult', MinesContext> =
     ctx.io.term.writeln(render(PANEL.limpetScanColumns));
     ctx.io.term.writeln(render(PANEL.limpetScanRule));
     for (const t of msg.targets) {
-        const kind =
-            t.ownership.kind === 'clan'
-                ? `Clan #${t.ownership.clanNumber}`
-                : 'Personal';
+        const kind = t.ownership.kind === 'clan' ? `Clan #${t.ownership.clanNumber}` : 'Personal';
         ctx.io.term.writeln(
             render(PANEL.limpetScanRow, {
                 sector: String(t.sectorNumber).padStart(6),

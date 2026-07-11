@@ -383,12 +383,7 @@ export async function serveAttackSectorDrones(
             for (const rid of mailRecipients) {
                 await insertSystemMemo(rid, 'Deployed Drones', 'drones_attacked', attackBody);
                 if (k > 0) {
-                    await insertSystemMemo(
-                        rid,
-                        'Deployed Drones',
-                        'drones_destroyed',
-                        destroyBody,
-                    );
+                    await insertSystemMemo(rid, 'Deployed Drones', 'drones_destroyed', destroyBody);
                 }
                 // Their mental map should reflect the loss without needing to fly
                 // back to the sector themselves.

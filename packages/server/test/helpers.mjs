@@ -29,9 +29,14 @@ export async function createTestPlayer(pool, userId, universeId, name, sector = 
   const startingTurns = univRes.rows[0]?.starting_turns ?? 500;
   const sectorIdRes = await pool.query('SELECT id FROM sectors WHERE sector_number = $1 AND universe_id = $2', [sector, universeId]);
   const sectorId = sectorIdRes.rows[0]?.id;
-  const shipTypeRes = await pool.query('SELECT id, starting_holds FROM ship_types WHERE name = $1', [merchantCfg.name]);
-  const shipTypeId = shipTypeRes.rows[0]?.id;
-  const startingHolds = shipTypeRes.rows[0]?.starting_holds ?? merchantCfg.startingHolds;
+  const shipTypeRes = await pool.query(
+    'SELECT slug, starting_holds, turns_per_warp FROM universe_ship_types WHERE universe_id = $1 AND slug = $2',
+    [universeId, merchantCfg.slug],
+  );
+  const shipType = shipTypeRes.rows[0];
+  const shipTypeSlug = shipType?.slug ?? merchantCfg.slug;
+  const startingHolds = shipType?.starting_holds ?? merchantCfg.startingHolds;
+  const turnsPerWarp = shipType?.turns_per_warp ?? merchantCfg.turnsPerWarp ?? 2;
   const res = await pool.query(
     `INSERT INTO players (name, user_id, universe_id, current_sector_id, credits, turns)
      VALUES ($1, $2, $3, $4, 10000, $5) RETURNING id`,
@@ -39,9 +44,15 @@ export async function createTestPlayer(pool, userId, universeId, name, sector = 
   );
   const playerId = res.rows[0].id;
 
+  // Mirror production insertStartingShip: ships are keyed by
+  // (universe_id, universe_ship_number) and reference a universe ship-type slug.
   const shipRes = await pool.query(
-    `INSERT INTO ships (owner_id, ship_type_id, sector_id, drones, shields, holds) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-    [playerId, shipTypeId, sectorId, drones, shields, startingHolds],
+    `INSERT INTO ships (universe_id, universe_ship_number, name, owner_player_id, ship_type_slug, sector_id, drones, shields, holds, turns_per_warp)
+     SELECT $1,
+            COALESCE((SELECT MAX(universe_ship_number) FROM ships WHERE universe_id = $1), 0) + 1,
+            $2, $3, $4, $5, $6, $7, $8, $9
+     RETURNING id`,
+    [universeId, `${name}'s ship`, playerId, shipTypeSlug, sectorId, drones, shields, startingHolds, turnsPerWarp],
   );
   await pool.query('UPDATE players SET ship_id = $1 WHERE id = $2', [shipRes.rows[0].id, playerId]);
 

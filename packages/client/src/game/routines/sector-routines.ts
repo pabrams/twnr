@@ -556,7 +556,11 @@ registerRoutine('transporter_pad', async (ctx) => {
 
 registerRoutine('tow_spacecraft', async (ctx) => {
     echoCommand(ctx, 'towSpacecraft');
-    const reply = await request(ctx, { type: ClientTag.TowSpacecraft }, ServerTag.TowSpacecraftResult);
+    const reply = await request(
+        ctx,
+        { type: ClientTag.TowSpacecraft },
+        ServerTag.TowSpacecraftResult,
+    );
     if (!reply) return;
 
     if (reply.outcome === 'disengaged') {

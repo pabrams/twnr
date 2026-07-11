@@ -1045,10 +1045,7 @@ export function createMinimap(
                             t.setAttribute('text-anchor', 'middle');
                             t.setAttribute('dominant-baseline', 'central');
                             t.setAttribute('font-size', String(bottomFontPx));
-                            t.setAttribute(
-                                'x',
-                                String(bottomCw * (i - (triplet.length - 1) / 2)),
-                            );
+                            t.setAttribute('x', String(bottomCw * (i - (triplet.length - 1) / 2)));
                             t.setAttribute('y', String(bandCenterY));
                             t.textContent = ch;
                             group.appendChild(t);
@@ -1083,11 +1080,7 @@ export function createMinimap(
             label.textContent = labelText;
             group.appendChild(label);
 
-            if (
-                state.extrasEnabled &&
-                s.visibility === 'visited' &&
-                s.planets.length > 0
-            ) {
+            if (state.extrasEnabled && s.visibility === 'visited' && s.planets.length > 0) {
                 const planetGlyph = document.createElementNS(SVG_NS, 'text');
                 planetGlyph.classList.add('minimap-planet-glyph');
                 planetGlyph.setAttribute('text-anchor', 'start');
@@ -1229,7 +1222,7 @@ export function createMinimap(
 
     // Floating context-style menu, anchored near the last known mouse
     // position over the minimap (typically wherever the player just
-    // clicked). 
+    // clicked).
     let menuEl: HTMLElement | null = null;
     let lastMouseX: number | null = null;
     let lastMouseY: number | null = null;

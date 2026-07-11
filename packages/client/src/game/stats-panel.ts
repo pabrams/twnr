@@ -77,11 +77,7 @@ export function createStatsPanel(container: HTMLElement): StatsPanel {
         });
         row(trader, 'Exp', fmt(snap.experience));
         const alignClass =
-            snap.alignment > 0
-                ? 'alignment-good'
-                : snap.alignment < 0
-                  ? 'alignment-bad'
-                  : '';
+            snap.alignment > 0 ? 'alignment-good' : snap.alignment < 0 ? 'alignment-bad' : '';
         row(trader, 'Align', fmt(snap.alignment), { valueClass: alignClass });
         row(trader, 'Cr', fmtCompact(snap.credits), { valueClass: 'credits' });
 
@@ -100,9 +96,7 @@ export function createStatsPanel(container: HTMLElement): StatsPanel {
         const headline = document.createElement('div');
         headline.className = 'stats-headline';
         headline.title = snap.shipTypeName;
-        headline.appendChild(
-            renderTaggedHtml(snap.shipTypeDisplayName ?? snap.shipTypeName),
-        );
+        headline.appendChild(renderTaggedHtml(snap.shipTypeDisplayName ?? snap.shipTypeName));
         ship.appendChild(headline);
         row(ship, 'Drones', fmt(snap.ship.drones));
         row(ship, 'Shlds', fmt(snap.ship.shields));

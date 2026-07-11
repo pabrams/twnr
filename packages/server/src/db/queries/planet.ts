@@ -424,7 +424,11 @@ export async function getPlanetDisplayData(playerId: number): Promise<{
     const owner_name = formatOwner(row);
     const toIso = (d: Date | null | undefined): string | null =>
         d instanceof Date ? d.toISOString() : (d ?? null);
-    const { type: planetType, display_type: displayType, ...rest } = {
+    const {
+        type: planetType,
+        display_type: displayType,
+        ...rest
+    } = {
         ...row,
         owner_name,
         base_construction_completes_at: toIso(row.base_construction_completes_at),

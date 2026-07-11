@@ -78,24 +78,26 @@ done
 echo "==> Running tests..."
 node --test --test-concurrency=1 "$@" $(ls test/*.test.mjs | grep -v ratelimit)
 
-# Run rate-limit tests in a second pass with rate limiting enabled
-echo "==> Restarting server with rate limiting enabled..."
-kill -9 "$SERVER_PID" 2>/dev/null || true
-wait "$SERVER_PID" 2>/dev/null || true
-sleep 1
-
-unset DISABLE_RATE_LIMIT
-
-fuser -k "${PORT}/tcp" 2>/dev/null || true
-node dist/server.js &
-SERVER_PID=$!
-
-for i in $(seq 1 30); do
-  if curl -s http://localhost:3001/api/ships >/dev/null 2>&1; then
-    break
-  fi
+# Run rate-limit tests in a second pass with rate limiting enabled (if present)
+if [ -f test/ratelimit.test.mjs ]; then
+  echo "==> Restarting server with rate limiting enabled..."
+  kill -9 "$SERVER_PID" 2>/dev/null || true
+  wait "$SERVER_PID" 2>/dev/null || true
   sleep 1
-done
 
-echo "==> Running rate-limit tests..."
-node --test --test-concurrency=1 "$@" test/ratelimit.test.mjs
+  unset DISABLE_RATE_LIMIT
+
+  fuser -k "${PORT}/tcp" 2>/dev/null || true
+  node dist/server.js &
+  SERVER_PID=$!
+
+  for i in $(seq 1 30); do
+    if curl -s http://localhost:3001/api/ships >/dev/null 2>&1; then
+      break
+    fi
+    sleep 1
+  done
+
+  echo "==> Running rate-limit tests..."
+  node --test --test-concurrency=1 "$@" test/ratelimit.test.mjs
+fi

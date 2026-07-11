@@ -306,9 +306,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             // side panel stays in sync without each handler needing to opt in.
             // Async pushes (combat, mail, time-based) call sendStatsSnapshot
             // directly from their own code paths.
-            sendStatsSnapshot(playerId).catch((err) =>
-                console.error('Stats snapshot error:', err),
-            );
+            sendStatsSnapshot(playerId).catch((err) => console.error('Stats snapshot error:', err));
 
             logPlayerCommand(playerId, universeId, data.type, data).catch((err) =>
                 console.error('Command log error:', err),

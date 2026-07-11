@@ -7,7 +7,6 @@ export type NotifySender =
     | { kind: 'player'; playerId: number; displayName: string }
     | { kind: 'system'; label: string };
 
-
 export function notifyTurnChange(playerId: number, turnsDelta: number, reason: string): void {
     if (!onlinePlayers[playerId]) return;
     if (turnsDelta === 0) return;
