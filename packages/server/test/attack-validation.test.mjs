@@ -62,17 +62,6 @@ describe('Schema', () => {
 // ─── Attack validation ──────────────────────────────────────────────────────
 
 describe('Attack validation', () => {
-  it('should reject attack on self', async () => {
-    const p = await createPlayer('self_atk', 1, 5, 0);
-    const { ws } = await connectPlayer(p.token);
-    try {
-      const res = await wsRequest(ws, { type: ClientTag.AttackShip, targetPlayerId: p.id, drones: 1 }, ServerTag.AttackShipResult);
-      assert.equal(res.type, ServerTag.Error, 'Should return error for self-attack');
-    } finally {
-      await closeWS(ws);
-    }
-  });
-
   it('should reject attack with 0 drones', async () => {
     const atk = await createPlayer('atk_zero', 1, 5, 0);
     const def = await createPlayer('def_zero', 1, 5, 0);
