@@ -107,7 +107,7 @@ export async function getShipHardwareCapacityForUpdate(
          LEFT JOIN ship_hardware sh ON sh.ship_id = s.id AND sh.hardware_item_id = $2
          LEFT JOIN universe_ship_type_hardware sth ON sth.universe_id = s.universe_id AND sth.ship_type_slug = s.ship_type_slug AND sth.hardware_item_id = $2
          WHERE s.id = (SELECT ship_id FROM players WHERE id = $1)
-         FOR UPDATE OF s`,
+         FOR UPDATE OF sh`,
         [playerId, hardwareItemId],
     );
     return res.rows[0];
