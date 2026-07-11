@@ -557,7 +557,7 @@ export async function getShipCargoWithCreditsForUpdate(
     const res = await db.query<CargoWithCreditsRow>(
         `SELECT s.fuel, s.organics, s.equipment, s.colonists, s.holds as cargo_limit, p.credits
          FROM players p JOIN ships s ON p.ship_id = s.id
-         WHERE p.id = $1 FOR UPDATE OF s, p`,
+         WHERE p.id = $1 FOR UPDATE OF s`,
         [playerId],
     );
     return res.rows[0];

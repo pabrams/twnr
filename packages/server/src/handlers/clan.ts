@@ -368,6 +368,9 @@ async function transferCredits(
             sendError(senderId, `Insufficient credits (have ${senderCredits}).`);
             throw new AbortTransaction();
         }
+        // Lock the recipient row before crediting it so the read-modify-write
+        // on both balances is serialized.
+        await client.query('SELECT credits FROM players WHERE id = $1 FOR UPDATE', [targetId]);
         await client.query('UPDATE players SET credits = credits - $1 WHERE id = $2', [
             quantity,
             senderId,
