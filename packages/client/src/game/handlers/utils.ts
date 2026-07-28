@@ -1,4 +1,6 @@
 import { ClientTag } from '@twnr/shared';
+import { render } from '../renderer.js';
+import { EVENT } from '../messages/index.js';
 import type { GameContext } from '../types.js';
 
 export type RefreshMinimapCtx = Pick<GameContext, 'io' | 'minimap'>;
@@ -33,15 +35,18 @@ export function renderAttributeChange(
 ): void {
     if (expDelta === 0 && repDelta === 0) return;
     if (expDelta !== 0) {
-        const verb = expDelta > 0 ? 'receive' : 'lost';
         ctx.io.term.writeln(
-            `[g]You ${verb} [by]${Math.abs(expDelta)}[/by] experience point(s).[/g]`,
+            render(expDelta > 0 ? EVENT.expGained : EVENT.expLost, {
+                amount: Math.abs(expDelta),
+            }),
         );
     }
     if (repDelta !== 0) {
-        const dir = repDelta > 0 ? 'went up' : 'went down';
         ctx.io.term.writeln(
-            `Your alignment ${dir} by ${Math.abs(repDelta)} point(s) for ${reason}.`,
+            render(repDelta > 0 ? EVENT.alignmentUp : EVENT.alignmentDown, {
+                amount: Math.abs(repDelta),
+                reason,
+            }),
         );
     }
 }

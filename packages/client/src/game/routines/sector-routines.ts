@@ -1,6 +1,6 @@
 import { ClientTag, Menu, ServerTag, type ServerEnvelope as ServerEnvelopeT } from '@twnr/shared';
 import { render } from '../renderer.js';
-import { COMPUTER, EVENT, NOTIFY, PANEL, PLANET, SECTOR } from '../messages/index.js';
+import { COMPUTER, EVENT, NOTIFY, PANEL, PLANET, PORT, SECTOR } from '../messages/index.js';
 import {
     echoCommand,
     echoMenuCommand,
@@ -232,15 +232,11 @@ async function runBuildFlow(
     );
     if (!result) return;
     if (result.outcome === 'started') {
-        term.writeln(
-            `For building this Starport, you receive ${result.experienceGained} experience point(s).`,
-        );
-        term.writeln(`and your alignment went up by ${result.reputationGained} point(s).`);
-        term.writeln(
-            `Construction underway. Daily advances will be reported by mail (${result.daysRequired} days total).`,
-        );
+        term.writeln(render(PORT.buildExpGained, { exp: result.experienceGained }));
+        term.writeln(render(PORT.buildAlignmentUp, { rep: result.reputationGained }));
+        term.writeln(render(PORT.buildUnderway, { days: result.daysRequired }));
     } else {
-        term.writeln(`Construction failed: ${result.message}`);
+        term.writeln(render(PORT.buildFailed, { message: result.message }));
     }
 }
 
@@ -317,13 +313,11 @@ async function runUpgradeFlow(
     );
     if (!result) return;
     if (result.outcome === 'upgraded') {
-        term.writeln(
-            `For upgrading this StarPort, you receive ${result.experienceGained} experience point(s).`,
-        );
-        term.writeln(`and your alignment went up by ${result.reputationGained} point(s).`);
-        term.writeln('StarPort upgraded!');
+        term.writeln(render(PORT.upgradeExpGained, { exp: result.experienceGained }));
+        term.writeln(render(PORT.buildAlignmentUp, { rep: result.reputationGained }));
+        term.writeln(render(PORT.upgradeComplete));
     } else {
-        term.writeln(`Upgrade failed: ${result.message}`);
+        term.writeln(render(PORT.upgradeFailed, { message: result.message }));
     }
 }
 

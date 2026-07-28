@@ -160,4 +160,9 @@ export const EVENT = makeDomain('EVENT', {
     shipNamePromptBuyNew: '\r\n[by]Name your new {type}: [/by]',
     shipNamePromptTradein: '\r\n[by]Name your new {type}: [/by]',
     shipNameInvalid: '[br]{message}[/br]',
+
+    expGained: '[g]You receive [by]{amount}[/by] experience point(s).[/g]',
+    expLost: '[g]You lost [by]{amount}[/by] experience point(s).[/g]',
+    alignmentUp: 'Your alignment went up by {amount} point(s) for {reason}.',
+    alignmentDown: 'Your alignment went down by {amount} point(s) for {reason}.',
 });
