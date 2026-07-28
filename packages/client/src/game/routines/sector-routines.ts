@@ -61,9 +61,9 @@ registerRoutine('move_menu', async (ctx) => {
 });
 
 registerRoutine('port_menu', async (ctx) => {
+    echoCommand(ctx, 'portInfo');
     showPortMenu(ctx);
     if (!ctx.world.currentPort) return;
-    echoCommand(ctx, 'portInfo');
     const ch = await askChar(ctx, '', ['t', 's', 'q']);
     if (ch === null || ch === 'q') return;
     if (ch === 't') {
