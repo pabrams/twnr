@@ -46,11 +46,6 @@ export async function serveListDeployedDrones(playerId: number): Promise<void> {
         sendError(playerId, 'Cannot use this command while docked');
         return;
     }
-    const onPlanetId = await getOnPlanetId(playerId);
-    if (onPlanetId) {
-        sendError(playerId, 'Cannot use this command while on a planet');
-        return;
-    }
 
     const rows = await getDeployedDronesByOwner(playerId);
     sendEnvelope(playerId, {
