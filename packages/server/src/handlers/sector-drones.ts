@@ -10,7 +10,6 @@ import { AbortTransaction } from '../db/index.js';
 import { runMutation } from './run-mutation.js';
 import {
     adjustReputationAndExperience,
-    getOnPlanetId,
     getPlayerRepExpForUpdate,
     getPlayerReputationForUpdate,
     getPreviousSectorNumber,
