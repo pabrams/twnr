@@ -40,7 +40,11 @@
       "Bash(awk '/export async function insertPlayer/{f=1} f{print} f&&/^}/{c++} c&&f{exit}' src/db/queries/player.ts)",
       "Bash(bash /tmp/claude-1000/-home-i-repos-twnr/38551ec6-3904-44ca-83a3-845435a81098/scratchpad/verify-helpers.sh)",
       "Read(//home/i/repos/**)",
-      "Bash(echo \"vue exit: $?\")"
+      "Bash(echo \"vue exit: $?\")",
+      "Bash(PGPASSWORD=twnr_pass psql -h localhost -U twnr_user -d postgres -tAc \"select current_user\")",
+      "Read(//home/i/**)",
+      "Bash(env)",
+      "Bash(docker exec *)"
     ]
   }
 }
