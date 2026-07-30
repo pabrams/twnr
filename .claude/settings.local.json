@@ -38,7 +38,9 @@
       "Bash(awk '/CREATE TABLE IF NOT EXISTS ships /{f=1} f{print} f&&/\\\\\\);/{exit}' src/db/schema.ts)",
       "Bash(awk '/CREATE TABLE IF NOT EXISTS universe_ship_types /{f=1} f{print} f&&/\\\\\\);/{exit}' src/db/schema.ts)",
       "Bash(awk '/export async function insertPlayer/{f=1} f{print} f&&/^}/{c++} c&&f{exit}' src/db/queries/player.ts)",
-      "Bash(bash /tmp/claude-1000/-home-i-repos-twnr/38551ec6-3904-44ca-83a3-845435a81098/scratchpad/verify-helpers.sh)"
+      "Bash(bash /tmp/claude-1000/-home-i-repos-twnr/38551ec6-3904-44ca-83a3-845435a81098/scratchpad/verify-helpers.sh)",
+      "Read(//home/i/repos/**)",
+      "Bash(echo \"vue exit: $?\")"
     ]
   }
 }
