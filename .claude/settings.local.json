@@ -44,7 +44,16 @@
       "Bash(PGPASSWORD=twnr_pass psql -h localhost -U twnr_user -d postgres -tAc \"select current_user\")",
       "Read(//home/i/**)",
       "Bash(env)",
-      "Bash(docker exec *)"
+      "Bash(docker exec *)",
+      "Bash(docker volume *)",
+      "Bash(docker network *)",
+      "Bash(docker system *)",
+      "Bash(set -e)",
+      "Bash(docker rm *)",
+      "Bash(docker compose *)",
+      "Bash(PGPASSWORD=twnr_pass psql -h localhost -U twnr_user -d postgres -tAc \"select 'connected as ' || current_user\")",
+      "Bash(PGPASSWORD=twnr_pass psql -h localhost -U twnr_user -d postgres -tAc \"select datname from pg_database where datname not like 'template%'\")",
+      "Bash(docker builder *)"
     ]
   }
 }
