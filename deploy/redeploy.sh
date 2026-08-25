@@ -32,8 +32,9 @@ for arg in "$@"; do
   esac
 done
 
+branch=$(git rev-parse --abbrev-ref HEAD)
+
 if [[ "$skip_push" -eq 0 ]]; then
-  branch=$(git rev-parse --abbrev-ref HEAD)
   echo "==> Pushing $branch to origin"
   git push origin "$branch"
 fi
@@ -43,7 +44,10 @@ echo "==> Redeploying on $INSTANCE ($ZONE)"
 gcloud compute ssh "$INSTANCE" --zone="$ZONE" --command="bash -s" <<EOF
 set -euo pipefail
 cd ~/twnr
-git pull --ff-only
+
+git fetch --prune origin
+git reset --hard
+git checkout -B "$branch" "origin/$branch"
 compose() {
   docker run --rm \\
     -v /var/run/docker.sock:/var/run/docker.sock \\
