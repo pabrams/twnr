@@ -8,7 +8,7 @@ import { awaitResponse } from '../routines/io.js';
 import { renderMailEntries } from '../display-mail.js';
 import { promptShipName } from './ship-name.js';
 
-type ConnectFlowCtx = Pick<GameContext, 'io' | 'input'>;
+type ConnectFlowCtx = Pick<GameContext, 'io' | 'input' | 'player'>;
 
 /**
  * Single async orchestrator that runs whenever a Welcome envelope arrives.
