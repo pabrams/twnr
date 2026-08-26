@@ -82,9 +82,9 @@ fi
 
 compose up -d
 docker ps --format 'table {{.Names}}\t{{.Status}}'
-EOF
 
 if [[ "$tail_logs" -eq 1 ]]; then
   echo "==> Tailing app logs (Ctrl+C to stop)"
-  gcloud compute ssh "$INSTANCE" --zone="$ZONE" --command="docker logs -f --tail=50 twnr-app-1"
+  docker logs -f --tail=50 twnr-app-1 || true
 fi
+EOF
