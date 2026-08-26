@@ -210,10 +210,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             getOnPlanetId(playerId),
         ]);
 
-        // If the player is shipless, fold the starting-ship type info into
-        // the Welcome envelope so the client's connect flow can drive the
-        // "name your new ship" prompt directly — no separate ShipNameRequired
-        // round trip on connect.
+
         let startingShipForWelcome:
             | { typeName: string; typeDisplayName: string | null }
             | undefined;
@@ -302,10 +299,6 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
                 sendError(playerId, 'Internal server error');
             }
 
-            // Push a stats snapshot after every routed message so the right-
-            // side panel stays in sync without each handler needing to opt in.
-            // Async pushes (combat, mail, time-based) call sendStatsSnapshot
-            // directly from their own code paths.
             sendStatsSnapshot(playerId).catch((err) => console.error('Stats snapshot error:', err));
 
             logPlayerCommand(playerId, universeId, data.type, data).catch((err) =>
