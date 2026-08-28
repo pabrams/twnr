@@ -1,63 +1,266 @@
-import type { NeighborhoodReply, NeighborhoodSector } from '@twnr/shared';
+import type { NeighborhoodReply, NeighborhoodSector, NeighborhoodWarp } from '@twnr/shared';
 import { HEX_CELL_SIZE, HEX_SPACING_MULTIPLIER, portClassTriplet } from '@twnr/shared';
 import { colorPalette, rgb } from '../config/colors.js';
 import './minimap.css';
 
-const COLORS = {
-    sectorLabel: rgb(colorPalette.boldGreen),
-    sep: rgb(colorPalette.boldYellow),
-    sectorNumber: rgb(colorPalette.boldCyan),
-    portLabel: rgb(colorPalette.magenta),
-    portClass: rgb(colorPalette.boldCyan),
-    portTripletParens: rgb(colorPalette.magenta),
-    portTripletS: rgb(colorPalette.boldCyan),
-    portTripletB: rgb(colorPalette.green),
-    planetsLabel: rgb(colorPalette.magenta),
-    planetCount: rgb(colorPalette.boldYellow),
-    planetName: rgb(colorPalette.boldCyan),
-    planetType: rgb(colorPalette.white),
-    observedLabel: rgb(colorPalette.cyan),
-    observedValue: rgb(colorPalette.yellow),
-};
+const SVG_NS = 'http://www.w3.org/2000/svg';
 
-function span(text: string, color?: string): HTMLSpanElement {
+/** Hex cells visible across the panel width at zoom = 1. */
+const BASE_CELLS_ACROSS = 12;
+/** Pill height as a fraction of one hex cell, in world units. */
+const LABEL_FRACTION_OF_CELL = 0.45;
+const MIN_ZOOM = 0.1;
+const MAX_ZOOM = 8.0;
+const ZOOM_STEP = 1.15;
+const PAN_REFRESH_MS = 150;
+const BOTTOM_HALF_FONT_RATIO = 0.7;
+const EXTRAS_LS_KEY = 'twnr.minimap.extras';
+
+/**
+ * Long-range ("wormhole") edge threshold. With flat-top hexes at HEX_CELL_SIZE
+ * scaled by HEX_SPACING_MULTIPLIER, adjacent centres sit √3 apart and the
+ * closest non-adjacent pair at 3; a threshold of 2 separates them cleanly.
+ */
+const WORMHOLE_DIST_SQ = (HEX_CELL_SIZE * 2 * HEX_SPACING_MULTIPLIER) ** 2;
+
+type Pt = { x: number; y: number };
+
+// --- DOM helpers ---
+
+type ClassSpec = string | (string | false | undefined)[] | undefined;
+type Attrs = Record<string, string | number>;
+
+function applyClasses(el: Element, classes: ClassSpec): void {
+    if (typeof classes === 'string') el.classList.add(classes);
+    else if (classes) for (const c of classes) if (c) el.classList.add(c);
+}
+
+function svgEl<K extends keyof SVGElementTagNameMap>(
+    tag: K,
+    classes?: ClassSpec,
+    attrs?: Attrs,
+): SVGElementTagNameMap[K] {
+    const el = document.createElementNS(SVG_NS, tag);
+    applyClasses(el, classes);
+    if (attrs) for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, String(v));
+    return el;
+}
+
+/** SVG <text>, centred on its anchor point unless the caller overrides. */
+function svgText(classes: ClassSpec, attrs: Attrs, text: string): SVGTextElement {
+    const t = svgEl('text', classes, {
+        'text-anchor': 'middle',
+        'dominant-baseline': 'central',
+        ...attrs,
+    });
+    t.textContent = text;
+    return t;
+}
+
+function span(text: string, className?: string): HTMLSpanElement {
     const s = document.createElement('span');
     s.textContent = text;
-    if (color) s.style.color = color;
+    if (className) s.className = className;
     return s;
 }
 
-type MinimapState = {
-    zoom: number;
-    data: NeighborhoodReply | null;
-    currentSectorNumber: number;
-    currentSectorId: number;
-    quickMoveTargets: number[] | null;
-    adminMode: boolean;
-    /**
-     * Viewport center in world units. null = "follow current sector"; the
-     * server is told to center on the player. Set to a concrete world point
-     * after the user zooms/pans away. Reset to null when the player moves to
-     * a new sector.
-     */
-    viewportCenter: { x: number; y: number } | null;
-    /** When true, pills show the port-triplet bottom half, planet glyphs, and
-     *  observation icons (drones/mines/limpets). When false, pills collapse
-     *  to just the sector number for a denser, less busy map. Persisted in
-     *  localStorage. */
-    extrasEnabled: boolean;
+/**
+ * SVG has no z-index — paint order is document order. Re-append `el` to bring
+ * it to the front; the returned fn puts it back. Restores must run in reverse
+ * raise order.
+ */
+function raiseToFront(el: Element): () => void {
+    const parent = el.parentNode;
+    if (!parent) return () => {};
+    const next = el.nextSibling;
+    parent.appendChild(el);
+    return () => {
+        if (next && next.parentNode === parent) parent.insertBefore(el, next);
+        else parent.appendChild(el);
+    };
+}
+
+// --- Geometry ---
+
+type ViewBox = {
+    cx: number;
+    cy: number;
+    halfW: number;
+    halfH: number;
+    left: number;
+    right: number;
+    top: number;
+    bottom: number;
 };
 
-const EXTRAS_LS_KEY = 'twnr.minimap.extras';
+function makeViewBox(cx: number, cy: number, halfW: number, halfH: number): ViewBox {
+    return {
+        cx,
+        cy,
+        halfW,
+        halfH,
+        left: cx - halfW,
+        right: cx + halfW,
+        top: cy - halfH,
+        bottom: cy + halfH,
+    };
+}
+
+function contains(v: ViewBox, p: Pt): boolean {
+    return p.x >= v.left && p.x <= v.right && p.y >= v.top && p.y <= v.bottom;
+}
+
+function readViewBox(svg: SVGSVGElement): { x: number; y: number; w: number; h: number } | null {
+    const attr = svg.getAttribute('viewBox');
+    if (!attr) return null;
+    const [x, y, w, h] = attr.split(/\s+/).map(Number);
+    if (![x, y, w, h].every(Number.isFinite)) return null;
+    return { x, y, w, h };
+}
+
+/**
+ * Trim a line from `fromPt` toward a pill centred at `centerPt` so it ends
+ * exactly `pad` world units outside the pill's axis-aligned bbox.
+ */
+function trimToPill(fromPt: Pt, centerPt: Pt, rw: number, rh: number, pad: number): Pt {
+    const dx = fromPt.x - centerPt.x;
+    const dy = fromPt.y - centerPt.y;
+    const adx = Math.abs(dx);
+    const ady = Math.abs(dy);
+    if (adx < 1e-6 && ady < 1e-6) return { x: centerPt.x, y: centerPt.y };
+    const tx = adx > 1e-6 ? (rw / 2 + pad) / adx : Infinity;
+    const ty = ady > 1e-6 ? (rh / 2 + pad) / ady : Infinity;
+    const t = Math.min(tx, ty);
+    return { x: centerPt.x + dx * t, y: centerPt.y + dy * t };
+}
+
+/** Clip a ray to the viewBox, inset slightly so arrowheads stay on-panel. */
+function clipToViewBox(view: ViewBox, startPt: Pt, dir: Pt): Pt {
+    let tMax = Infinity;
+    if (dir.x > 1e-9) tMax = Math.min(tMax, (view.right - startPt.x) / dir.x);
+    else if (dir.x < -1e-9) tMax = Math.min(tMax, (view.left - startPt.x) / dir.x);
+    if (dir.y > 1e-9) tMax = Math.min(tMax, (view.bottom - startPt.y) / dir.y);
+    else if (dir.y < -1e-9) tMax = Math.min(tMax, (view.top - startPt.y) / dir.y);
+    if (!Number.isFinite(tMax) || tMax <= 0) return startPt;
+    const dirLen = Math.sqrt(dir.x * dir.x + dir.y * dir.y) || 1;
+    const t = Math.max(0, tMax - (HEX_CELL_SIZE * 0.05) / dirLen);
+    return { x: startPt.x + dir.x * t, y: startPt.y + dir.y * t };
+}
+
+// --- Pill sizing ---
+
+type PillDims = {
+    rw: number;
+    topRh: number;
+    bottomRh: number;
+    totalRh: number;
+    fontPx: number;
+    bottomFontPx: number;
+};
+
+/**
+ * Extras (port triplet / planet glyph / observation icons) show only on
+ * visited sectors with the toggle on. The bottom half counts toward total pill
+ * height so warps trim around the full box, and the 3-char triplet sets the
+ * minimum width when extras are on.
+ */
+function computePillDims(
+    s: NeighborhoodSector,
+    isCurrent: boolean,
+    labelSize: number,
+    extrasEnabled: boolean,
+): PillDims {
+    const fontPx = isCurrent ? labelSize * 1.2 : labelSize;
+    const cw = fontPx * 0.62;
+    const px = fontPx * 0.5;
+    const py = fontPx * 0.3;
+    const showExtras = extrasEnabled && s.visibility === 'visited';
+    const bottomFontPx = fontPx * BOTTOM_HALF_FONT_RATIO;
+    const minLabelWidth = String(s.sector_number).length * cw;
+    const minTripletWidth = showExtras ? 3 * (bottomFontPx * 0.62) : 0;
+    const rw = Math.max(minLabelWidth, minTripletWidth) + px * 2;
+    const topRh = fontPx + py * 2;
+    const bottomRh = showExtras ? bottomFontPx + py * 1.4 : 0;
+    return { rw, topRh, bottomRh, totalRh: topRh + bottomRh, fontPx, bottomFontPx };
+}
+
+// --- Shared SVG pieces ---
+
+const ARROW_MARKERS = [
+    { id: 'arrDim', cls: 'minimap-arrowhead--dim' },
+    { id: 'arrRed', cls: 'minimap-arrowhead--danger' },
+    { id: 'arrTwoWay', cls: 'minimap-arrowhead--two-way' },
+    { id: 'arrWormhole', cls: 'minimap-arrowhead--wormhole' },
+];
+
+function buildArrowDefs(): SVGDefsElement {
+    const defs = svgEl('defs');
+    for (const m of ARROW_MARKERS) {
+        const marker = svgEl('marker', undefined, {
+            id: m.id,
+            viewBox: '0 0 10 10',
+            refX: 9,
+            refY: 5,
+            markerWidth: 5,
+            markerHeight: 5,
+            orient: 'auto-start-reverse',
+        });
+        marker.appendChild(svgEl('path', m.cls, { d: 'M 0 0 L 10 5 L 0 10 z' }));
+        defs.appendChild(marker);
+    }
+    return defs;
+}
+
+/** Numbered badge hanging below a pill or off-screen node. */
+function drawQuickMoveBadge(
+    parent: SVGGElement,
+    index: number,
+    halfH: number,
+    fontPx: number,
+    strokeW: number,
+): void {
+    const r = fontPx * 0.65;
+    const cy = halfH + r + fontPx * 0.25;
+    parent.appendChild(
+        svgEl('circle', 'minimap-quick-move-badge', { cx: 0, cy, r, 'stroke-width': strokeW }),
+    );
+    parent.appendChild(
+        svgText(
+            'minimap-quick-move-badge-text',
+            { x: 0, y: cy, 'font-size': fontPx * 0.95 },
+            String(index),
+        ),
+    );
+}
+
+// --- Info panel formatting ---
+
+/** Most recent observation across the sector's port and planets. */
+function latestObservation(sector: NeighborhoodSector): string | null {
+    let latest: string | null = null;
+    if (sector.port) latest = sector.port.observed_at;
+    for (const p of sector.planets) {
+        if (latest === null || p.observed_at > latest) latest = p.observed_at;
+    }
+    return latest;
+}
+
+function formatObserved(iso: string): string {
+    try {
+        return new Date(iso).toLocaleString();
+    } catch {
+        return iso;
+    }
+}
+
+// --- Preferences ---
 
 function readExtrasPreference(): boolean {
     try {
-        const v = localStorage.getItem(EXTRAS_LS_KEY);
-        if (v === '0') return false;
+        return localStorage.getItem(EXTRAS_LS_KEY) !== '0';
     } catch {
-        /* localStorage unavailable */
+        return true;
     }
-    return true;
 }
 
 function writeExtrasPreference(enabled: boolean): void {
@@ -68,18 +271,16 @@ function writeExtrasPreference(enabled: boolean): void {
     }
 }
 
+// --- Public API ---
+
 export type MinimapInjectionHandler = (sectorNumber: number, currentSector: number) => void;
 export type MinimapKeyInjector = (key: string) => void;
-
 export type MinimapMenuButton = { label: string; key: string };
 
 export interface Minimap {
     update(data: NeighborhoodReply, currentSectorNumber: number): void;
-    /**
-     * Viewport spec for the next neighborhood request. centerXWorld/Y are
-     * undefined while the viewport is following the current sector; they
-     * become concrete once the user zooms-toward-cursor or pans.
-     */
+    /** Viewport for the next neighborhood request. centerXWorld/Y are undefined
+     *  while the viewport follows the current sector. */
     getViewport(): {
         halfWidthWorld: number;
         halfHeightWorld: number;
@@ -89,26 +290,54 @@ export interface Minimap {
     onRequestRefresh(handler: () => void): void;
     setQuickMove(targets: number[] | null): void;
     setAdminMode(adminMode: boolean): void;
-    /** Pop up a floating button panel anchored to the minimap. Clicking a
-     *  button injects its key via the supplied keyInjector (see
-     *  createMinimap) and dismisses the panel. The panel also closes on
-     *  closeMenu() — typically called when the player types in xterm. */
+    /** Floating button panel anchored to the minimap; clicking a button injects
+     *  its key and dismisses the panel. */
     openMenu(opts: { title?: string; buttons: MinimapMenuButton[] }): void;
     closeMenu(): void;
 }
 
-/**
- * Number of hex cells visible across the panel width at zoom = 1. Higher
- * zoom shows fewer cells (zoomed in); lower zoom shows more.
- */
-const BASE_CELLS_ACROSS = 12;
-/** Label/pill height as a fraction of one hex cell, in world units. */
-const LABEL_FRACTION_OF_CELL = 0.45;
-const MIN_ZOOM = 0.1;
-const MAX_ZOOM = 8.0;
-const ZOOM_STEP = 1.15;
+type MinimapState = {
+    zoom: number;
+    data: NeighborhoodReply | null;
+    currentSectorNumber: number;
+    currentSectorId: number;
+    quickMoveTargets: number[] | null;
+    adminMode: boolean;
+    /** Viewport centre in world units; null means "follow the current sector".
+     *  Set once the user zooms/pans away, cleared when the player moves. */
+    viewportCenter: Pt | null;
+    /** Whether pills show the port triplet, planet glyph and observation icons.
+     *  Persisted in localStorage. */
+    extrasEnabled: boolean;
+};
 
-const SVG_NS = 'http://www.w3.org/2000/svg';
+/** Everything the two render passes share for one frame. */
+type RenderContext = {
+    sectors: NeighborhoodSector[];
+    warps: NeighborhoodWarp[];
+    byId: Map<number, NeighborhoodSector>;
+    current: NeighborhoodSector | undefined;
+    currentId: number;
+    /** Sectors that get a real pill, keyed by id. */
+    disp: Map<number, Pt>;
+    /** Out-of-view fringe targets — direction vectors only, never pills. */
+    fringePos: Map<number, Pt>;
+    dims: Map<number, PillDims>;
+    quickMoveIndexById: Map<number, number>;
+    view: ViewBox;
+    labelSize: number;
+    strokeW: number;
+    worldPerPx: number;
+    warpGroup: SVGGElement;
+    nodeGroup: SVGGElement;
+    overlayGroup: SVGGElement;
+    warpLines: SVGLineElement[];
+    pillRectsBySectorId: Map<number, SVGRectElement>;
+    pillGroupBySectorId: Map<number, SVGGElement>;
+    /** Off-screen destination nodes keyed by source sector, so hovering the
+     *  near end highlights every off-screen target from that source. */
+    endLabelsBySrcId: Map<number, SVGGElement[]>;
+};
 
 export function createMinimap(
     container: HTMLElement,
@@ -126,13 +355,22 @@ export function createMinimap(
         extrasEnabled: readExtrasPreference(),
     };
 
-    const body = container.querySelector<HTMLElement>('.minimap-body')!;
+    const panel = container.querySelector<HTMLElement>('.minimap-body')!;
     const svg = container.querySelector<SVGSVGElement>('.minimap-svg')!;
     const emptyState = container.querySelector<HTMLElement>('.empty-state')!;
     const infoPanel = container.querySelector<HTMLElement>('.minimap-info-panel')!;
     const header = container.querySelector<HTMLElement>('.minimap-header')!;
 
+    // Expose the terminal palette to CSS so info-panel colours stay in sync
+    // with colors.ts without being set inline per element.
+    for (const [name, c] of Object.entries(colorPalette)) {
+        container.style.setProperty(`--pal-${name}`, rgb(c));
+    }
+
+    const arrowDefs = buildArrowDefs();
     let refreshHandler: (() => void) | null = null;
+
+    // --- Header controls ---
 
     const zoomReadout = document.createElement('span');
     zoomReadout.className = 'minimap-zoom-readout';
@@ -182,13 +420,12 @@ export function createMinimap(
     updateExtrasBtn();
     header.appendChild(extrasBtn);
 
+    // --- Viewport ---
+
     /**
-     * Half-extents of the viewport in world units. At zoom = 1, the panel
-     * width spans BASE_CELLS_ACROSS hex cells; height scales by aspect ratio.
-     * Higher zoom = smaller bbox = fewer cells visible (and labels appear
-     * larger because more pixels per cell). Center is the saved viewport
-     * center if the user has zoomed/panned away from the player; otherwise
-     * undefined, which tells the server to center on the current sector.
+     * Half-extents of the viewport in world units. At zoom = 1 the panel width
+     * spans BASE_CELLS_ACROSS hex cells; height scales by aspect ratio. An
+     * undefined centre tells the server to centre on the current sector.
      */
     function computeViewport(): {
         halfWidthWorld: number;
@@ -196,10 +433,9 @@ export function createMinimap(
         centerXWorld?: number;
         centerYWorld?: number;
     } {
-        const panelW = body.clientWidth || 320;
-        const panelH = body.clientHeight || 320;
-        const cellsAcross = BASE_CELLS_ACROSS / state.zoom;
-        const worldWidth = cellsAcross * HEX_CELL_SIZE;
+        const panelW = panel.clientWidth || 320;
+        const panelH = panel.clientHeight || 320;
+        const worldWidth = (BASE_CELLS_ACROSS / state.zoom) * HEX_CELL_SIZE;
         const worldHeight = (worldWidth * panelH) / panelW;
         return {
             halfWidthWorld: worldWidth / 2,
@@ -209,27 +445,28 @@ export function createMinimap(
         };
     }
 
-    /**
-     * Map a screen-space mouse event to its world-space coords inside the
-     * SVG. Returns null if the event isn't over the SVG (so we fall back to
-     * the current center). Linear inversion of the current viewBox.
-     */
-    function mouseToWorld(e: MouseEvent): { x: number; y: number } | null {
+    /** World position of the player's sector, from the last payload. */
+    function currentSectorWorld(): Pt | null {
+        if (!state.data) return null;
+        const cur = state.data.sectors.find((s) => s.id === state.data!.current_sector_id);
+        if (!cur || cur.x == null || cur.y == null) return null;
+        return { x: cur.x, y: cur.y };
+    }
+
+    /** Screen-space mouse event → world coords, by inverting the viewBox. */
+    function mouseToWorld(e: MouseEvent): Pt | null {
         const rect = svg.getBoundingClientRect();
         if (rect.width <= 0 || rect.height <= 0) return null;
         const sx = (e.clientX - rect.left) / rect.width;
         const sy = (e.clientY - rect.top) / rect.height;
         if (sx < 0 || sx > 1 || sy < 0 || sy > 1) return null;
-        const vbAttr = svg.getAttribute('viewBox');
-        if (!vbAttr) return null;
-        const [vbx, vby, vbw, vbh] = vbAttr.split(/\s+/).map(Number);
-        if (![vbx, vby, vbw, vbh].every(Number.isFinite)) return null;
-        return { x: vbx + sx * vbw, y: vby + sy * vbh };
+        const vb = readViewBox(svg);
+        if (!vb) return null;
+        return { x: vb.x + sx * vb.w, y: vb.y + sy * vb.h };
     }
 
-    // Alt+wheel zooms toward the world point under the cursor (Google Maps
-    // style): the pixel under the mouse stays put while everything else
-    // scales around it. Ctrl+wheel browser zoom is independent.
+    // Alt+wheel zooms toward the world point under the cursor: that pixel stays
+    // put while everything else scales around it.
     container.addEventListener(
         'wheel',
         (e: WheelEvent) => {
@@ -240,14 +477,10 @@ export function createMinimap(
             const next = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, state.zoom * factor));
             if (Math.abs(next - state.zoom) < 1e-4) return;
 
-            // Lock the world point under the cursor before changing zoom,
-            // then shift the viewport center so that point stays under it.
             const worldUnder = mouseToWorld(e);
             const oldZoom = state.zoom;
             state.zoom = next;
             if (worldUnder) {
-                // Find current viewport center: either the saved center, or
-                // (if we're still following) the current sector's position.
                 const oldCenter = state.viewportCenter ?? currentSectorWorld();
                 if (oldCenter) {
                     const ratio = oldZoom / next;
@@ -263,14 +496,10 @@ export function createMinimap(
         { passive: false },
     );
 
-    // Middle-mouse drag pans the viewport. mousedown starts the gesture on
-    // the panel; move/up listeners attach to the document so dragging
-    // outside the panel still tracks. The center is updated locally on each
-    // mousemove (immediate visual feedback). A throttled refresh fires
-    // during drag so the server streams sectors into the new bbox while
-    // panning — without this, pills don't appear until mouseup. A final
-    // refresh on mouseup makes sure we end with up-to-date data.
-    const PAN_REFRESH_MS = 150;
+    // Middle-mouse drag pans. Move/up listen on the document so dragging
+    // outside the panel still tracks. A throttled refresh during the drag
+    // streams sectors into the new bbox; without it pills only appear on
+    // mouseup.
     let panState: { lastX: number; lastY: number } | null = null;
     let panRefreshTimer: ReturnType<typeof setTimeout> | null = null;
     function schedulePanRefresh(): void {
@@ -280,45 +509,41 @@ export function createMinimap(
             refreshHandler?.();
         }, PAN_REFRESH_MS);
     }
-    body.addEventListener('mousedown', (e: MouseEvent) => {
+    panel.addEventListener('mousedown', (e: MouseEvent) => {
         if (e.button !== 1) return;
         e.preventDefault();
-        // Initialize viewportCenter from the current sector if we were still
-        // "following the player" — otherwise the first pan tick has nothing
-        // to shift.
+        // Seed the centre from the current sector if we were still following
+        // the player, or the first pan tick has nothing to shift.
         if (state.viewportCenter === null) {
             const cur = currentSectorWorld();
-            if (cur) state.viewportCenter = { x: cur.x, y: cur.y };
-            else return;
+            if (!cur) return;
+            state.viewportCenter = { x: cur.x, y: cur.y };
         }
         panState = { lastX: e.clientX, lastY: e.clientY };
-        body.classList.add('is-panning');
+        panel.classList.add('is-panning');
     });
     document.addEventListener('mousemove', (e: MouseEvent) => {
         if (!panState || !state.viewportCenter) return;
         const rect = svg.getBoundingClientRect();
         if (rect.width <= 0 || rect.height <= 0) return;
-        const vbAttr = svg.getAttribute('viewBox');
-        if (!vbAttr) return;
-        const [, , vbw, vbh] = vbAttr.split(/\s+/).map(Number);
-        if (!Number.isFinite(vbw) || !Number.isFinite(vbh)) return;
+        const vb = readViewBox(svg);
+        if (!vb) return;
         const dxPx = e.clientX - panState.lastX;
         const dyPx = e.clientY - panState.lastY;
         panState.lastX = e.clientX;
         panState.lastY = e.clientY;
         // Drag right -> see what's to the left -> camera moves left.
         state.viewportCenter = {
-            x: state.viewportCenter.x - (dxPx * vbw) / rect.width,
-            y: state.viewportCenter.y - (dyPx * vbh) / rect.height,
+            x: state.viewportCenter.x - (dxPx * vb.w) / rect.width,
+            y: state.viewportCenter.y - (dyPx * vb.h) / rect.height,
         };
         render();
         schedulePanRefresh();
     });
     document.addEventListener('mouseup', (e: MouseEvent) => {
-        if (!panState) return;
-        if (e.button !== 1) return;
+        if (!panState || e.button !== 1) return;
         panState = null;
-        body.classList.remove('is-panning');
+        panel.classList.remove('is-panning');
         if (panRefreshTimer !== null) {
             clearTimeout(panRefreshTimer);
             panRefreshTimer = null;
@@ -326,104 +551,117 @@ export function createMinimap(
         refreshHandler?.();
     });
 
-    /** World position of the player's current sector if we know it from the last payload. */
-    function currentSectorWorld(): { x: number; y: number } | null {
-        if (!state.data) return null;
-        const cur = state.data.sectors.find((s) => s.id === state.data!.current_sector_id);
-        if (!cur || cur.x == null || cur.y == null) return null;
-        return { x: cur.x, y: cur.y };
-    }
+    // --- Info panel ---
 
     function setHoveredInfo(sector: NeighborhoodSector): void {
         renderInfoPanel(sector);
         infoPanel.classList.add('is-hovering');
     }
+
     function clearHoveredInfo(currentSector: NeighborhoodSector | undefined): void {
         renderInfoPanel(currentSector);
         infoPanel.classList.remove('is-hovering');
     }
 
-    /**
-     * Build the info panel as a body (scrollable) + footer (Observed line,
-     * pinned to the bottom regardless of how much body content there is).
-     */
+    /** Scrollable body plus a footer (Observed line) pinned to the bottom. */
     function renderInfoPanel(sector: NeighborhoodSector | undefined): void {
         infoPanel.replaceChildren();
         if (!sector) return;
 
-        const body = document.createElement('div');
-        body.className = 'info-body';
+        const bodyEl = document.createElement('div');
+        bodyEl.className = 'info-body';
 
-        body.appendChild(span('Sector', COLORS.sectorLabel));
-        body.appendChild(span(' : ', COLORS.sep));
-        body.appendChild(span(`${sector.sector_number}\n`, COLORS.sectorNumber));
+        bodyEl.appendChild(span('Sector', 'info-sector-label'));
+        bodyEl.appendChild(span(' : ', 'info-sep'));
+        bodyEl.appendChild(span(`${sector.sector_number}\n`, 'info-sector-number'));
 
         if (sector.visibility !== 'glimpsed') {
             if (sector.port) {
                 const triplet = portClassTriplet(sector.port.class);
-                body.appendChild(span('Port', COLORS.portLabel));
-                body.appendChild(span(' : ', COLORS.sep));
-                body.appendChild(span(`Class ${sector.port.class} `, COLORS.portClass));
-                body.appendChild(span('(', COLORS.portTripletParens));
+                bodyEl.appendChild(span('Port', 'info-port-label'));
+                bodyEl.appendChild(span(' : ', 'info-sep'));
+                bodyEl.appendChild(span(`Class ${sector.port.class} `, 'info-port-class'));
+                bodyEl.appendChild(span('(', 'info-parens'));
                 if (triplet) {
                     for (const ch of triplet) {
-                        if (ch === 'S') body.appendChild(span('S', COLORS.portTripletS));
-                        else if (ch === 'B') body.appendChild(span('B', COLORS.portTripletB));
+                        if (ch === 'S') bodyEl.appendChild(span('S', 'info-triplet-sell'));
+                        else if (ch === 'B') bodyEl.appendChild(span('B', 'info-triplet-buy'));
                     }
                 } else {
-                    body.appendChild(span('Special', COLORS.portClass));
+                    bodyEl.appendChild(span('Special', 'info-port-class'));
                 }
-                body.appendChild(span(')', COLORS.portTripletParens));
-                body.appendChild(document.createTextNode('\n'));
+                bodyEl.appendChild(span(')', 'info-parens'));
+                bodyEl.appendChild(document.createTextNode('\n'));
             }
             if (sector.planets.length > 0) {
-                body.appendChild(span('Planets', COLORS.planetsLabel));
-                body.appendChild(span(' : ', COLORS.sep));
-                body.appendChild(span(`${sector.planets.length}\n`, COLORS.planetCount));
+                bodyEl.appendChild(span('Planets', 'info-planets-label'));
+                bodyEl.appendChild(span(' : ', 'info-sep'));
+                bodyEl.appendChild(span(`${sector.planets.length}\n`, 'info-planet-count'));
                 for (const p of sector.planets) {
-                    body.appendChild(document.createTextNode('  • '));
-                    body.appendChild(span(p.name, COLORS.planetName));
+                    bodyEl.appendChild(document.createTextNode('  • '));
+                    bodyEl.appendChild(span(p.name, 'info-planet-name'));
                     if (p.type) {
-                        body.appendChild(document.createTextNode(' '));
-                        body.appendChild(span(`(${p.type})`, COLORS.planetType));
+                        bodyEl.appendChild(document.createTextNode(' '));
+                        bodyEl.appendChild(span(`(${p.type})`, 'info-planet-type'));
                     }
-                    body.appendChild(document.createTextNode('\n'));
+                    bodyEl.appendChild(document.createTextNode('\n'));
                 }
             }
         }
-        infoPanel.appendChild(body);
+        infoPanel.appendChild(bodyEl);
 
         const latest = latestObservation(sector);
         if (latest) {
             const footer = document.createElement('div');
             footer.className = 'info-footer';
-            footer.appendChild(span('Observed', COLORS.observedLabel));
-            footer.appendChild(span(' : ', COLORS.sep));
-            footer.appendChild(span(formatObserved(latest), COLORS.observedValue));
+            footer.appendChild(span('Observed', 'info-observed-label'));
+            footer.appendChild(span(' : ', 'info-sep'));
+            footer.appendChild(span(formatObserved(latest), 'info-observed-value'));
             infoPanel.appendChild(footer);
         }
     }
 
-    /**
-     * Most recent observation timestamp across the sector's port and planets.
-     * Returns null if nothing's been observed (glimpsed-only sectors).
-     */
-    function latestObservation(sector: NeighborhoodSector): string | null {
-        let latest: string | null = null;
-        if (sector.port) latest = sector.port.observed_at;
-        for (const p of sector.planets) {
-            if (latest === null || p.observed_at > latest) latest = p.observed_at;
-        }
-        return latest;
+    // --- Render ---
+
+    function showEmpty(message: string): void {
+        emptyState.classList.remove('is-hidden');
+        emptyState.textContent = message;
     }
 
-    function formatObserved(iso: string): string {
-        try {
-            const d = new Date(iso);
-            return d.toLocaleString();
-        } catch {
-            return iso;
+    /** Resolve the viewport centre: saved centre, else the player's sector,
+     *  else the bbox of positioned sectors. */
+    function resolveCenter(sectors: NeighborhoodSector[], current?: NeighborhoodSector): Pt | null {
+        if (state.viewportCenter) return state.viewportCenter;
+        if (current && current.x != null && current.y != null) {
+            return { x: current.x, y: current.y };
         }
+        let minX = Infinity;
+        let minY = Infinity;
+        let maxX = -Infinity;
+        let maxY = -Infinity;
+        for (const s of sectors) {
+            if (s.x == null || s.y == null) continue;
+            minX = Math.min(minX, s.x);
+            maxX = Math.max(maxX, s.x);
+            minY = Math.min(minY, s.y);
+            maxY = Math.max(maxY, s.y);
+        }
+        if (!Number.isFinite(minX)) return null;
+        return { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
+    }
+
+    /** Map each open-move-menu target sector_number to its 1-based slot,
+     *  keyed by sector id so warps and pills can both look it up. */
+    function buildQuickMoveIndex(sectors: NeighborhoodSector[]): Map<number, number> {
+        const byIndex = new Map<number, number>();
+        if (!state.quickMoveTargets || state.quickMoveTargets.length === 0) return byIndex;
+        const numberToId = new Map<number, number>();
+        for (const s of sectors) numberToId.set(s.sector_number, s.id);
+        state.quickMoveTargets.forEach((secNum, i) => {
+            const id = numberToId.get(secNum);
+            if (id !== undefined) byIndex.set(id, i + 1);
+        });
+        return byIndex;
     }
 
     function render(): void {
@@ -434,14 +672,12 @@ export function createMinimap(
         }
         container.classList.remove('is-hidden');
         if (!state.data) {
-            emptyState.classList.remove('is-hidden');
-            emptyState.textContent = 'Loading map…';
+            showEmpty('Loading map…');
             clearHoveredInfo(undefined);
             return;
         }
         if (state.data.sectors.length === 0) {
-            emptyState.classList.remove('is-hidden');
-            emptyState.textContent = 'No visited sectors yet — move to populate the map.';
+            showEmpty('No visited sectors yet — move to populate the map.');
             clearHoveredInfo(undefined);
             return;
         }
@@ -455,307 +691,144 @@ export function createMinimap(
 
         clearHoveredInfo(current);
 
-        // Quick-move: map each target sector_number (from the open move menu)
-        // to its 1-based slot, and resolve those to sector_ids we can match
-        // against adjacent warps
-        const quickMoveIndexById = new Map<number, number>();
-        if (state.quickMoveTargets && state.quickMoveTargets.length > 0) {
-            const numberToId = new Map<number, number>();
-            for (const s of sectors) numberToId.set(s.sector_number, s.id);
-            state.quickMoveTargets.forEach((secNum, i) => {
-                const id = numberToId.get(secNum);
-                if (id !== undefined) quickMoveIndexById.set(id, i + 1);
-            });
-        }
-
-        // ViewBox is the requested bbox centered on either the user's
-        // saved viewport center (after zoom-toward-cursor) or the player's
-        // current sector. If neither has a position, fall back to the bbox
-        // of returned sectors.
         const viewport = computeViewport();
-        const halfW = viewport.halfWidthWorld;
-        const halfH = viewport.halfHeightWorld;
-        let cxView: number;
-        let cyView: number;
-        if (state.viewportCenter) {
-            cxView = state.viewportCenter.x;
-            cyView = state.viewportCenter.y;
-        } else if (current && current.x != null && current.y != null) {
-            cxView = current.x;
-            cyView = current.y;
-        } else {
-            let minX = Infinity;
-            let minY = Infinity;
-            let maxX = -Infinity;
-            let maxY = -Infinity;
-            for (const s of sectors) {
-                if (s.x == null || s.y == null) continue;
-                if (s.x < minX) minX = s.x;
-                if (s.x > maxX) maxX = s.x;
-                if (s.y < minY) minY = s.y;
-                if (s.y > maxY) maxY = s.y;
-            }
-            if (!Number.isFinite(minX)) {
-                emptyState.classList.remove('is-hidden');
-                emptyState.textContent = 'No positioned sectors in view.';
-                return;
-            }
-            cxView = (minX + maxX) / 2;
-            cyView = (minY + maxY) / 2;
+        const center = resolveCenter(sectors, current);
+        if (!center) {
+            showEmpty('No positioned sectors in view.');
+            return;
         }
+        const view = makeViewBox(
+            center.x,
+            center.y,
+            viewport.halfWidthWorld,
+            viewport.halfHeightWorld,
+        );
 
-        // Bucket sectors by where they sit relative to the rendered viewport:
-        //   - disp: anything inside the viewport gets a real pill, including
-        //     in-bbox fringe (glimpsed) sectors which render with the
-        //     existing dashed --glimpsed border.
-        //   - fringePos: out-of-bbox fringe targets used as direction
-        //     vectors only — they get clipped-to-edge stubs and an optional
-        //     hover label, never a pill.
-        const disp = new Map<number, { x: number; y: number }>();
-        const fringePos = new Map<number, { x: number; y: number }>();
-        const vbLeftPre = cxView - halfW;
-        const vbRightPre = cxView + halfW;
-        const vbTopPre = cyView - halfH;
-        const vbBottomPre = cyView + halfH;
+        // In-view sectors get a real pill (in-view fringe included, with its
+        // dashed glimpsed border). Out-of-view fringe becomes a direction
+        // vector for a clipped-to-edge stub.
+        const disp = new Map<number, Pt>();
+        const fringePos = new Map<number, Pt>();
         for (const s of sectors) {
             if (s.x == null || s.y == null) continue;
-            const inBbox =
-                s.x >= vbLeftPre && s.x <= vbRightPre && s.y >= vbTopPre && s.y <= vbBottomPre;
-            if (s.fringe && !inBbox) {
-                fringePos.set(s.id, { x: s.x, y: s.y });
-                continue;
-            }
-            disp.set(s.id, { x: s.x, y: s.y });
+            const p = { x: s.x, y: s.y };
+            if (s.fringe && !contains(view, p)) fringePos.set(s.id, p);
+            else disp.set(s.id, p);
         }
 
-        const viewSize = Math.max(halfW, halfH) * 2;
-        svg.setAttribute(
-            'viewBox',
-            `${cxView - halfW} ${cyView - halfH} ${halfW * 2} ${halfH * 2}`,
-        );
+        svg.setAttribute('viewBox', `${view.left} ${view.top} ${view.halfW * 2} ${view.halfH * 2}`);
         svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+        svg.appendChild(arrowDefs);
 
-        const arrowHeadDefs = document.createElementNS(SVG_NS, 'defs');
-        arrowHeadDefs.innerHTML = `
-            <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5"
-                orient="auto-start-reverse">
-              <path class="minimap-arrowhead--neutral" d="M 0 0 L 10 5 L 0 10 z" />
-            </marker>
-            <marker id="arrDim" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5"
-                orient="auto-start-reverse">
-              <path class="minimap-arrowhead--dim" d="M 0 0 L 10 5 L 0 10 z" />
-            </marker>
-            <marker id="arrRed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5"
-                orient="auto-start-reverse">
-              <path class="minimap-arrowhead--danger" d="M 0 0 L 10 5 L 0 10 z" />
-            </marker>
-            <marker id="arrTwoWay" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5"
-                orient="auto-start-reverse">
-              <path class="minimap-arrowhead--two-way" d="M 0 0 L 10 5 L 0 10 z" />
-            </marker>
-            <marker id="arrWormhole" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5"
-                orient="auto-start-reverse">
-              <path class="minimap-arrowhead--wormhole" d="M 0 0 L 10 5 L 0 10 z" />
-            </marker>`;
-        svg.appendChild(arrowHeadDefs);
-
-        // Sizes live in world units pinned to the hex-cell scale, so labels
-        // and stroke width are a fixed fraction of a hex cell
-        const panelPx = body.clientWidth || 320;
-        const worldPerPx = viewSize / panelPx;
+        // Sizes are pinned to the hex-cell scale, so pills and strokes stay a
+        // fixed fraction of a cell.
         const labelSize = HEX_CELL_SIZE * LABEL_FRACTION_OF_CELL;
-        const strokeW = HEX_CELL_SIZE * 0.04;
 
-        // Extras (port triplet / planet glyph / observation icons) only appear
-        // on visited sectors and only when the toggle is enabled. The bottom-
-        // half is added to total pill height (so warps trim around the full
-        // box). 3-char triplet drives the minimum width when extras are on.
-        const BOTTOM_HALF_FONT_RATIO = 0.7;
-        function pillDims(s: NeighborhoodSector): {
-            rw: number;
-            topRh: number;
-            bottomRh: number;
-            totalRh: number;
-            fontPx: number;
-            bottomFontPx: number;
-        } {
-            const isCurrent = s.id === currentId;
-            const fontPx = isCurrent ? labelSize * 1.2 : labelSize;
-            const cw = fontPx * 0.62;
-            const px = fontPx * 0.5;
-            const py = fontPx * 0.3;
-            const showExtras = state.extrasEnabled && s.visibility === 'visited';
-            const bottomFontPx = fontPx * BOTTOM_HALF_FONT_RATIO;
-            const bottomCw = bottomFontPx * 0.62;
-            const minLabelWidth = String(s.sector_number).length * cw;
-            const minTripletWidth = showExtras ? 3 * bottomCw : 0;
-            const rw = Math.max(minLabelWidth, minTripletWidth) + px * 2;
-            const topRh = fontPx + py * 2;
-            const bottomRh = showExtras ? bottomFontPx + py * 1.4 : 0;
-            return { rw, topRh, bottomRh, totalRh: topRh + bottomRh, fontPx, bottomFontPx };
-        }
-
-        // Precompute pill bounds so warp lines can be trimmed to each pill's
-        // edge, leaving arrowheads visible outside the destination pill.
-        const pillById = new Map<number, { rw: number; rh: number }>();
+        const dims = new Map<number, PillDims>();
         for (const s of sectors) {
             if (!disp.has(s.id)) continue;
-            const { rw, totalRh } = pillDims(s);
-            pillById.set(s.id, { rw, rh: totalRh });
+            dims.set(s.id, computePillDims(s, s.id === currentId, labelSize, state.extrasEnabled));
         }
 
-        // Trim a line from `fromPt` toward a pill centered at `centerPt` so it
-        // ends exactly `pad` world units outside the pill's axis-aligned bbox.
-        function trimToPill(
-            fromPt: { x: number; y: number },
-            centerPt: { x: number; y: number },
-            rw: number,
-            rh: number,
-            pad: number,
-        ): { x: number; y: number } {
-            const dx = fromPt.x - centerPt.x;
-            const dy = fromPt.y - centerPt.y;
-            const adx = Math.abs(dx);
-            const ady = Math.abs(dy);
-            if (adx < 1e-6 && ady < 1e-6) return { x: centerPt.x, y: centerPt.y };
-            const halfW = rw / 2 + pad;
-            const halfH = rh / 2 + pad;
-            const tx = adx > 1e-6 ? halfW / adx : Infinity;
-            const ty = ady > 1e-6 ? halfH / ady : Infinity;
-            const t = Math.min(tx, ty);
-            return { x: centerPt.x + dx * t, y: centerPt.y + dy * t };
-        }
-
-        const warpGroup = document.createElementNS(SVG_NS, 'g');
+        const warpGroup = svgEl('g');
+        const nodeGroup = svgEl('g');
+        const overlayGroup = svgEl('g');
         svg.appendChild(warpGroup);
-        // Top-of-z overlay for off-screen destination nodes
-        const overlayGroup = document.createElementNS(SVG_NS, 'g');
+
+        const rc: RenderContext = {
+            sectors,
+            warps: state.data.warps,
+            byId,
+            current,
+            currentId,
+            disp,
+            fringePos,
+            dims,
+            quickMoveIndexById: buildQuickMoveIndex(sectors),
+            view,
+            labelSize,
+            strokeW: HEX_CELL_SIZE * 0.04,
+            // computeViewport builds the viewBox at the panel's aspect ratio,
+            // so `meet` scales it uniformly by panelWidth / viewBoxWidth.
+            worldPerPx: (view.halfW * 2) / (panel.clientWidth || 320),
+            warpGroup,
+            nodeGroup,
+            overlayGroup,
+            warpLines: [],
+            pillRectsBySectorId: new Map(),
+            pillGroupBySectorId: new Map(),
+            endLabelsBySrcId: new Map(),
+        };
+
+        renderWarps(rc);
+
+        svg.appendChild(nodeGroup);
+        // Off-screen nodes and hover labels sit above everything else.
+        svg.appendChild(overlayGroup);
+
+        renderPills(rc);
+    }
+
+    // --- Warps ---
+
+    function renderWarps(rc: RenderContext): void {
+        const { view, strokeW } = rc;
         const drawnBi = new Set<string>();
 
-        const warpLines: SVGLineElement[] = [];
-        const pillRectsBySectorId = new Map<number, SVGRectElement>();
-        const pillGroupBySectorId = new Map<number, SVGGElement>();
-        // For each visited source sector that has warp(s) leading off the
-        // panel, an always-visible destination node sits at the line's
-        // clipped endpoint showing the target sector_number. Keyed by
-        // source-sector id so hovering the near end highlights every
-        // offscreen target from that source together.
-        const endLabelsBySrcId = new Map<number, SVGGElement[]>();
-        // Distance threshold for "wormhole". With flat-top hex `size =
-        // HEX_CELL_SIZE` and spacing multiplied by HEX_SPACING_MULTIPLIER,
-        // adjacent center-to-center distance is √3 × HEX_CELL_SIZE × M and
-        // the closest non-adjacent pair sits at 3 × HEX_CELL_SIZE × M. A
-        // threshold of 2 × HEX_CELL_SIZE × M cleanly separates locals from
-        // any long-range wormhole.
-        const WORMHOLE_DIST_SQ = (HEX_CELL_SIZE * 2 * HEX_SPACING_MULTIPLIER) ** 2;
-        const vbLeft = cxView - halfW;
-        const vbRight = cxView + halfW;
-        const vbTop = cyView - halfH;
-        const vbBottom = cyView + halfH;
-        const inViewBox = (p: { x: number; y: number }): boolean =>
-            p.x >= vbLeft && p.x <= vbRight && p.y >= vbTop && p.y <= vbBottom;
-        // Clip a ray (start, dir) to the rendered viewBox; returns the exit
-        // point with a small inset so the arrowhead sits inside the panel.
-        const insetWorldPx = HEX_CELL_SIZE * 0.05;
-        function clipToViewBox(
-            startPt: { x: number; y: number },
-            dir: { x: number; y: number },
-        ): { x: number; y: number } {
-            let tMax = Infinity;
-            if (dir.x > 1e-9) tMax = Math.min(tMax, (vbRight - startPt.x) / dir.x);
-            else if (dir.x < -1e-9) tMax = Math.min(tMax, (vbLeft - startPt.x) / dir.x);
-            if (dir.y > 1e-9) tMax = Math.min(tMax, (vbBottom - startPt.y) / dir.y);
-            else if (dir.y < -1e-9) tMax = Math.min(tMax, (vbTop - startPt.y) / dir.y);
-            if (!Number.isFinite(tMax) || tMax <= 0) return startPt;
-            const dirLen = Math.sqrt(dir.x * dir.x + dir.y * dir.y) || 1;
-            const insetT = insetWorldPx / dirLen;
-            const t = Math.max(0, tMax - insetT);
-            return { x: startPt.x + dir.x * t, y: startPt.y + dir.y * t };
-        }
-
-        // SVG has no z-index — paint order is document order. Bring an element
-        // to the front of its parent by re-appending it; the returned fn puts
-        // it back. Restore fns must be invoked in reverse raise order. Used on
-        // hover so a hovered pill / off-screen node and its neighbours surface
-        // above anything they overlap (common where off-screen wormhole nodes
-        // pile up at the same screen edge).
-        function raiseToFront(el: Element): () => void {
-            const parent = el.parentNode;
-            if (!parent) return () => {};
-            const next = el.nextSibling;
-            parent.appendChild(el);
-            return () => {
-                if (next && next.parentNode === parent) parent.insertBefore(el, next);
-                else parent.appendChild(el);
-            };
-        }
-
-        for (const w of state.data.warps) {
-            const src = byId.get(w.from_sector_id);
-            const dst = byId.get(w.to_sector_id);
+        for (const w of rc.warps) {
+            const src = rc.byId.get(w.from_sector_id);
+            const dst = rc.byId.get(w.to_sector_id);
             if (!src || !dst) continue;
-            const srcP = disp.get(w.from_sector_id);
-            const dstP = disp.get(w.to_sector_id) ?? fringePos.get(w.to_sector_id);
+            const srcP = rc.disp.get(w.from_sector_id);
+            const dstP = rc.disp.get(w.to_sector_id) ?? rc.fringePos.get(w.to_sector_id);
             if (!srcP || !dstP) continue;
-            const srcPill = pillById.get(w.from_sector_id);
-            const dstPill = pillById.get(w.to_sector_id);
+            const srcPill = rc.dims.get(w.from_sector_id);
             if (!srcPill) continue;
+            // Off-screen sources would draw ghost lines across the panel from
+            // something the user can't see — very visible mid-pan.
+            if (!contains(view, srcP)) continue;
+
+            const dstPill = rc.dims.get(w.to_sector_id);
             const srcVisited = src.visibility === 'visited';
             const dstVisited = dst.visibility === 'visited';
-            const isFringe = dst.fringe === true;
-            const srcOnscreen = inViewBox(srcP);
-            const dstOnscreen = inViewBox(dstP);
-            // Suppress warps whose source is off-screen. Without this, the
-            // "extend to viewBox edge" treatment for off-screen targets
-            // produces ghost lines that cut across the panel from a source
-            // we can't even see — particularly noticeable mid-drag when
-            // pan moves loaded data outside the new viewport.
-            if (!srcOnscreen) continue;
+            const dstOnscreen = contains(view, dstP);
             const dxFull = dstP.x - srcP.x;
             const dyFull = dstP.y - srcP.y;
-            const distSq = dxFull * dxFull + dyFull * dyFull;
-            // Wormhole label: visited→visited long-range edge. Glimpsed
-            // targets keep their existing magenta-dotted styling regardless.
-            // Wormhole-ness is a property of the edge geometry (long-range),
-            // not target visibility — a wormhole to an unvisited sector is
-            // still a wormhole and should render in dark yellow.
-            const isWormhole = srcVisited && distSq > WORMHOLE_DIST_SQ;
+
+            // Wormhole-ness is a property of the edge geometry, not of target
+            // visibility — a long-range warp to an unvisited sector is still a
+            // wormhole and wins over the glimpsed-target styling.
+            const isWormhole = srcVisited && dxFull * dxFull + dyFull * dyFull > WORMHOLE_DIST_SQ;
             const isTwoWay = srcVisited && dstVisited && w.known_two_way;
             if (isTwoWay) {
                 const key = `${Math.min(w.from_sector_id, w.to_sector_id)}-${Math.max(w.from_sector_id, w.to_sector_id)}`;
                 if (drawnBi.has(key)) continue;
                 drawnBi.add(key);
             }
-            const dstPad = isTwoWay ? strokeW * 0.5 : strokeW * 3;
-            const srcPad = strokeW * 0.5;
-            const start = trimToPill(dstP, srcP, srcPill.rw, srcPill.rh, srcPad);
-            let end: { x: number; y: number };
+
+            const start = trimToPill(dstP, srcP, srcPill.rw, srcPill.totalRh, strokeW * 0.5);
+            let end: Pt;
             if (!dstOnscreen) {
-                // Target outside the viewBox — extend the line to the panel
-                // edge so the user sees there's an outgoing warp + which
-                // direction it goes. Used for wormholes (dark-yellow dotted)
-                // and for long-range glimpsed warps (magenta dotted).
-                end = clipToViewBox(start, { x: dxFull, y: dyFull });
+                // Extend to the panel edge so the outgoing warp and its
+                // direction stay visible.
+                end = clipToViewBox(view, start, { x: dxFull, y: dyFull });
             } else if (dstPill) {
-                end = trimToPill(srcP, dstP, dstPill.rw, dstPill.rh, dstPad);
+                const pad = isTwoWay ? strokeW * 0.5 : strokeW * 3;
+                end = trimToPill(srcP, dstP, dstPill.rw, dstPill.totalRh, pad);
             } else {
                 continue;
             }
 
-            // Offset directed warps slightly to the RIGHT of their direction
-            // of travel. Opposite-direction warps between the same pair end
-            // up on opposite sides of the axis, so overlapping one-ways
-            // separate visually instead of drawing on top of each other.
-            // TODO: Do we need this?
+            // Nudge directed warps to the right of their travel direction, so
+            // opposite one-ways between the same pair separate visually.
+            // TODO: unclear whether this is still needed.
             if (!isTwoWay) {
-                const dx = dstP.x - srcP.x;
-                const dy = dstP.y - srcP.y;
-                const len = Math.sqrt(dx * dx + dy * dy);
+                const len = Math.sqrt(dxFull * dxFull + dyFull * dyFull);
                 if (len > 1e-6) {
-                    const off = 3 * worldPerPx; // ~3 on-screen pixels
-                    // Right-perpendicular in SVG y-down coords: (-uy, ux).
-                    const offX = (-dy / len) * off;
-                    const offY = (dx / len) * off;
+                    const off = 3 * rc.worldPerPx;
+                    // Right-perpendicular in SVG's y-down coords: (-uy, ux).
+                    const offX = (-dyFull / len) * off;
+                    const offY = (dxFull / len) * off;
                     start.x += offX;
                     start.y += offY;
                     end.x += offX;
@@ -763,469 +836,479 @@ export function createMinimap(
                 }
             }
 
-            // Two-way warps get a slightly wider black halo drawn immediately
-            // behind the colored line. At crossings, a later warp's halo
-            // punches a visible gap through earlier warps, making it clear
-            // which segments are connected (the "tunnel under" effect).
+            const coords = { x1: start.x, y1: start.y, x2: end.x, y2: end.y };
+
+            // Two-way warps get a black halo behind the line. At crossings a
+            // later halo punches a gap through earlier warps, so it reads as
+            // one segment tunnelling under another.
             if (isTwoWay) {
-                const halo = document.createElementNS(SVG_NS, 'line');
-                halo.classList.add('minimap-warp-halo');
-                halo.setAttribute('x1', String(start.x));
-                halo.setAttribute('y1', String(start.y));
-                halo.setAttribute('x2', String(end.x));
-                halo.setAttribute('y2', String(end.y));
-                halo.setAttribute('stroke-width', String(strokeW * 2.4));
-                warpGroup.appendChild(halo);
+                rc.warpGroup.appendChild(
+                    svgEl('line', 'minimap-warp-halo', {
+                        ...coords,
+                        'stroke-width': strokeW * 2.4,
+                    }),
+                );
             }
 
-            const line = document.createElementNS(SVG_NS, 'line');
-            line.classList.add('minimap-warp');
-            line.setAttribute('x1', String(start.x));
-            line.setAttribute('y1', String(start.y));
-            line.setAttribute('x2', String(end.x));
-            line.setAttribute('y2', String(end.y));
-            line.setAttribute('stroke-width', String(strokeW));
+            const isQuickMoveWarp =
+                (w.from_sector_id === rc.currentId && rc.quickMoveIndexById.has(w.to_sector_id)) ||
+                (w.to_sector_id === rc.currentId && rc.quickMoveIndexById.has(w.from_sector_id));
 
+            const line = svgEl(
+                'line',
+                ['minimap-warp', isQuickMoveWarp && 'minimap-warp--quick-move'],
+                { ...coords, 'stroke-width': strokeW },
+            );
             line.dataset.fromId = String(w.from_sector_id);
             line.dataset.toId = String(w.to_sector_id);
             if (isTwoWay) line.dataset.twoWay = 'true';
-            warpLines.push(line);
+            styleWarpLine(line, {
+                strokeW,
+                isWormhole,
+                isTwoWay,
+                dstOnscreen,
+                isFringe: dst.fringe === true,
+                explored: srcVisited && dstVisited,
+            });
+            rc.warpLines.push(line);
+            rc.warpGroup.appendChild(line);
 
-            const isQuickMoveWarp =
-                (w.from_sector_id === currentId && quickMoveIndexById.has(w.to_sector_id)) ||
-                (w.to_sector_id === currentId && quickMoveIndexById.has(w.from_sector_id));
-            if (isQuickMoveWarp) {
-                line.classList.add('minimap-warp--quick-move');
-            }
-            if (isWormhole) {
-                // Long-range edge — dark yellow regardless of target
-                // visibility. Dotted + arrowhead when the far end is
-                // off-screen so it's clear this isn't a local hop. Wins
-                // over the glimpsed-target style; a wormhole to an
-                // unvisited sector still reads as a wormhole.
-                if (!dstOnscreen) {
-                    line.classList.add('minimap-warp--wormhole-stub');
-                    line.setAttribute('stroke-dasharray', `${strokeW * 2} ${strokeW * 2}`);
-                    line.setAttribute('marker-end', 'url(#arrWormhole)');
-                } else {
-                    line.classList.add('minimap-warp--wormhole');
-                    if (!isTwoWay) line.setAttribute('marker-end', 'url(#arrWormhole)');
-                }
-            } else if (!srcVisited || !dstVisited) {
-                // Local edge to a glimpsed target: dotted with the dim
-                // arrowhead. (Wormholes to glimpsed targets were handled
-                // above.)
-                line.classList.add('minimap-warp--unexplored');
-                line.setAttribute('stroke-dasharray', `${strokeW * 2} ${strokeW * 2}`);
-                line.setAttribute('marker-end', 'url(#arrDim)');
-            } else if (isTwoWay) {
-                line.classList.add('minimap-warp--two-way');
-                if (isFringe || !dstOnscreen) {
-                    line.setAttribute('marker-end', 'url(#arrTwoWay)');
-                }
-            } else {
-                line.classList.add('minimap-warp--one-way-confirmed');
-                line.setAttribute('marker-end', 'url(#arrRed)');
-                if (!dstOnscreen) {
-                    line.setAttribute('stroke-dasharray', `${strokeW * 2} ${strokeW * 2}`);
-                }
-            }
-            warpGroup.appendChild(line);
-
-            // Off-screen destination node: shows the destination
-            // sector_number for a wormhole warp that exits the panel, pinned a
-            // hair inside the screen edge along the warp's direction. Always
-            // visible and clickable (move / autopilot), so wormhole targets
-            // can be reached without first hovering the near end. Limited to
-            // wormholes — a regular (proximal) warp's far end sits just off
-            // the edge and would obscure its on-screen counterpart. Two
-            // variants:
-            //   - --visited: dark yellow (target is a known sector)
-            //   - --glimpsed: dark magenta (target is unvisited / fringe)
+            // Only wormholes get an off-screen destination node: a regular
+            // warp's far end sits just past the edge and would cover its
+            // on-screen counterpart.
             if (!dstOnscreen && isWormhole) {
-                const ldx = end.x - start.x;
-                const ldy = end.y - start.y;
-                const llen = Math.sqrt(ldx * ldx + ldy * ldy) || 1;
-                const labelInset = HEX_CELL_SIZE * 0.6;
-                const labelX = end.x - (ldx / llen) * labelInset;
-                const labelY = end.y - (ldy / llen) * labelInset;
-
-                const labelGroup = document.createElementNS(SVG_NS, 'g');
-                labelGroup.classList.add('minimap-warp-end-label');
-                labelGroup.classList.add(
-                    dstVisited
-                        ? 'minimap-warp-end-label--visited'
-                        : 'minimap-warp-end-label--glimpsed',
-                );
-                labelGroup.setAttribute('transform', `translate(${labelX}, ${labelY})`);
-
-                const dstNum = String(dst.sector_number);
-                const fontPx = labelSize * 0.95;
-                const cw = fontPx * 0.62;
-                const ppx = fontPx * 0.45;
-                const ppy = fontPx * 0.28;
-                const lrw = dstNum.length * cw + ppx * 2;
-                const lrh = fontPx + ppy * 2;
-                const lrx = fontPx * 0.3;
-
-                const lrect = document.createElementNS(SVG_NS, 'rect');
-                lrect.setAttribute('x', String(-lrw / 2));
-                lrect.setAttribute('y', String(-lrh / 2));
-                lrect.setAttribute('width', String(lrw));
-                lrect.setAttribute('height', String(lrh));
-                lrect.setAttribute('rx', String(lrx));
-                lrect.setAttribute('ry', String(lrx));
-                lrect.setAttribute('stroke-width', String(strokeW));
-                labelGroup.appendChild(lrect);
-
-                const ltext = document.createElementNS(SVG_NS, 'text');
-                ltext.classList.add('minimap-warp-end-label-text');
-                ltext.setAttribute('text-anchor', 'middle');
-                ltext.setAttribute('dominant-baseline', 'central');
-                ltext.setAttribute('font-size', String(fontPx));
-                ltext.textContent = dstNum;
-                labelGroup.appendChild(ltext);
-
-                // Quick-move target sitting off-screen: tack on the same green
-                // numbered badge the on-screen quick-move pills show.
-                const qIdx = isQuickMoveWarp ? quickMoveIndexById.get(w.to_sector_id) : undefined;
-                if (qIdx !== undefined) {
-                    const badgeR = fontPx * 0.65;
-                    const badgeY = lrh / 2 + badgeR + fontPx * 0.25;
-                    const badgeCircle = document.createElementNS(SVG_NS, 'circle');
-                    badgeCircle.classList.add('minimap-quick-move-badge');
-                    badgeCircle.setAttribute('cx', '0');
-                    badgeCircle.setAttribute('cy', String(badgeY));
-                    badgeCircle.setAttribute('r', String(badgeR));
-                    badgeCircle.setAttribute('stroke-width', String(strokeW));
-                    labelGroup.appendChild(badgeCircle);
-                    const badgeText = document.createElementNS(SVG_NS, 'text');
-                    badgeText.classList.add('minimap-quick-move-badge-text');
-                    badgeText.setAttribute('text-anchor', 'middle');
-                    badgeText.setAttribute('dominant-baseline', 'central');
-                    badgeText.setAttribute('x', '0');
-                    badgeText.setAttribute('y', String(badgeY));
-                    badgeText.setAttribute('font-size', String(fontPx * 0.95));
-                    badgeText.textContent = String(qIdx);
-                    labelGroup.appendChild(badgeText);
-                }
-
-                // Clicking the node submits the destination sector_number —
-                // the same path a pill click takes — so the server moves
-                // immediately when the player is at the near end (1 warp away)
-                // or offers autopilot otherwise. Hovering it highlights the
-                // node, its inbound warp, and the near-end pill, and shows the
-                // destination in the info panel.
-                const labelSrcId = w.from_sector_id;
-                const labelLine = line;
-                const labelDst = dst;
-                const labelRaiseRestores: Array<() => void> = [];
-                labelGroup.addEventListener('mouseenter', () => {
-                    setHoveredInfo(labelDst);
-                    labelGroup.classList.add('is-highlighted');
-                    labelLine.classList.add('minimap-warp--hover-out');
-                    const srcRect = pillRectsBySectorId.get(labelSrcId);
-                    if (srcRect) srcRect.classList.add('minimap-sector-pill--hover-source');
-                    const srcGroup = pillGroupBySectorId.get(labelSrcId);
-                    if (srcGroup) labelRaiseRestores.push(raiseToFront(srcGroup));
-                    // The node itself is already topmost (it got the hover);
-                    // re-appending the element under the cursor would fire
-                    // spurious leave/enter events.
+                const node = buildOffscreenNode(rc, {
+                    dst,
+                    dstVisited,
+                    start,
+                    end,
+                    quickMoveIndex: isQuickMoveWarp
+                        ? rc.quickMoveIndexById.get(w.to_sector_id)
+                        : undefined,
+                    line,
+                    srcId: w.from_sector_id,
                 });
-                labelGroup.addEventListener('mouseleave', () => {
-                    clearHoveredInfo(current);
-                    labelGroup.classList.remove('is-highlighted');
-                    labelLine.classList.remove('minimap-warp--hover-out');
-                    const srcRect = pillRectsBySectorId.get(labelSrcId);
-                    if (srcRect) srcRect.classList.remove('minimap-sector-pill--hover-source');
-                    while (labelRaiseRestores.length) labelRaiseRestores.pop()!();
-                });
-                labelGroup.addEventListener('click', () => {
-                    onInject(
-                        labelDst.sector_number,
-                        current?.sector_number ?? state.currentSectorNumber,
-                    );
-                });
-
-                overlayGroup.appendChild(labelGroup);
-                if (!endLabelsBySrcId.has(w.from_sector_id)) {
-                    endLabelsBySrcId.set(w.from_sector_id, []);
-                }
-                endLabelsBySrcId.get(w.from_sector_id)!.push(labelGroup);
+                rc.overlayGroup.appendChild(node);
+                const list = rc.endLabelsBySrcId.get(w.from_sector_id);
+                if (list) list.push(node);
+                else rc.endLabelsBySrcId.set(w.from_sector_id, [node]);
             }
-        }
-
-        const nodeGroup = document.createElementNS(SVG_NS, 'g');
-        svg.appendChild(nodeGroup);
-        // Hover labels go on top of everything else.
-        svg.appendChild(overlayGroup);
-
-        // z-order: if pills still visually overlap after collision
-        // resolution, the most important ones stay readable. Background
-        // sectors first, then adjacent out-warp targets, then the current
-        // sector on top.
-        const currentAdjSet = new Set<number>();
-        for (const w of state.data.warps) {
-            if (w.from_sector_id === currentId) currentAdjSet.add(w.to_sector_id);
-        }
-        const drawOrder = [...sectors].sort((a, b) => {
-            const aPrio = a.id === currentId ? 2 : currentAdjSet.has(a.id) ? 1 : 0;
-            const bPrio = b.id === currentId ? 2 : currentAdjSet.has(b.id) ? 1 : 0;
-            return aPrio - bPrio;
-        });
-        for (const s of drawOrder) {
-            const p = disp.get(s.id);
-            if (!p) continue;
-            const isCurrent = s.id === currentId;
-            const labelText = String(s.sector_number);
-            const { rw, topRh, bottomRh, totalRh, fontPx, bottomFontPx } = pillDims(s);
-            const rx = fontPx * 0.35;
-            const labelY = -bottomRh / 2;
-
-            const group = document.createElementNS(SVG_NS, 'g');
-            group.classList.add('sector-node');
-            group.setAttribute('transform', `translate(${p.x}, ${p.y})`);
-
-            const rect = document.createElementNS(SVG_NS, 'rect');
-            rect.setAttribute('x', String(-rw / 2));
-            rect.setAttribute('y', String(-totalRh / 2));
-            rect.setAttribute('width', String(rw));
-            rect.setAttribute('height', String(totalRh));
-            rect.setAttribute('rx', String(rx));
-            rect.setAttribute('ry', String(rx));
-            // Uniform border around the whole pill — same width and color
-            // for current and visited so the perimeter reads as one shape.
-            // Glimpsed keeps its dashed look as the "not-yet-visited" hint.
-            if (isCurrent) {
-                rect.classList.add('minimap-sector-pill--current');
-                rect.setAttribute('stroke-width', String(strokeW));
-            } else if (s.visibility === 'visited') {
-                rect.classList.add('minimap-sector-pill--visited');
-                rect.setAttribute('stroke-width', String(strokeW));
-            } else {
-                rect.classList.add('minimap-sector-pill--glimpsed');
-                rect.setAttribute('stroke-width', String(strokeW * 0.8));
-                rect.setAttribute('stroke-dasharray', `${strokeW} ${strokeW}`);
-            }
-            const quickMoveIndex = quickMoveIndexById.get(s.id);
-            if (quickMoveIndex !== undefined) {
-                rect.classList.add('minimap-sector-pill--quick-move');
-                rect.setAttribute('stroke-width', String(strokeW * 1.8));
-            }
-            pillRectsBySectorId.set(s.id, rect);
-            pillGroupBySectorId.set(s.id, group);
-            group.appendChild(rect);
-
-            // Pill interior is uniformly black (see CSS); a thin divider
-            // line separates the sector-number half from the port-triplet
-            // half. Same stroke width as the outer border so the whole
-            // pill looks like one consistent frame.
-            if (bottomRh > 0) {
-                const dividerY = (topRh - bottomRh) / 2;
-                const divider = document.createElementNS(SVG_NS, 'line');
-                divider.classList.add('minimap-sector-pill-divider');
-                divider.setAttribute('x1', String(-rw / 2));
-                divider.setAttribute('x2', String(rw / 2));
-                divider.setAttribute('y1', String(dividerY));
-                divider.setAttribute('y2', String(dividerY));
-                divider.setAttribute('stroke-width', String(strokeW));
-                group.appendChild(divider);
-
-                if (s.port) {
-                    const triplet = portClassTriplet(s.port.class);
-                    const bandCenterY = topRh / 2;
-                    if (triplet) {
-                        const bottomCw = bottomFontPx * 0.62;
-                        for (let i = 0; i < triplet.length; i++) {
-                            const ch = triplet[i];
-                            const t = document.createElementNS(SVG_NS, 'text');
-                            t.classList.add('minimap-port-triplet');
-                            if (ch === 'S') t.classList.add('minimap-port-triplet--sell');
-                            else if (ch === 'B') t.classList.add('minimap-port-triplet--buy');
-                            t.setAttribute('text-anchor', 'middle');
-                            t.setAttribute('dominant-baseline', 'central');
-                            t.setAttribute('font-size', String(bottomFontPx));
-                            t.setAttribute('x', String(bottomCw * (i - (triplet.length - 1) / 2)));
-                            t.setAttribute('y', String(bandCenterY));
-                            t.textContent = ch;
-                            group.appendChild(t);
-                        }
-                    } else {
-                        const t = document.createElementNS(SVG_NS, 'text');
-                        t.classList.add('minimap-port-triplet');
-                        t.setAttribute('text-anchor', 'middle');
-                        t.setAttribute('dominant-baseline', 'central');
-                        t.setAttribute('font-size', String(bottomFontPx));
-                        t.setAttribute('x', '0');
-                        t.setAttribute('y', String(bandCenterY));
-                        t.textContent = `C${s.port.class}`;
-                        group.appendChild(t);
-                    }
-                }
-            }
-
-            const label = document.createElementNS(SVG_NS, 'text');
-            label.classList.add('minimap-sector-label');
-            if (isCurrent) {
-                label.classList.add('minimap-sector-label--current');
-            } else if (s.visibility === 'visited') {
-                label.classList.add('minimap-sector-label--visited');
-            } else {
-                label.classList.add('minimap-sector-label--glimpsed');
-            }
-            label.setAttribute('text-anchor', 'middle');
-            label.setAttribute('dominant-baseline', 'central');
-            label.setAttribute('font-size', String(fontPx));
-            label.setAttribute('y', String(labelY));
-            label.textContent = labelText;
-            group.appendChild(label);
-
-            if (state.extrasEnabled && s.visibility === 'visited' && s.planets.length > 0) {
-                const planetGlyph = document.createElementNS(SVG_NS, 'text');
-                planetGlyph.classList.add('minimap-planet-glyph');
-                planetGlyph.setAttribute('text-anchor', 'start');
-                planetGlyph.setAttribute('x', String(rw / 2 - fontPx * 0.15));
-                planetGlyph.setAttribute('y', String(-totalRh / 2 - fontPx * 0.15));
-                planetGlyph.setAttribute('font-size', String(fontPx * 0.9));
-                planetGlyph.textContent = '◉';
-                group.appendChild(planetGlyph);
-            }
-
-            // Observation icons (drones/mines/limpets). Three corners are
-            // already in use: planets sit just above the top-right; quick-move
-            // badges hang below the bottom-center; sector_number occupies the
-            // top half. We tuck:
-            //   drones  → top-left, just outside the pill
-            //   mines   → bottom-left, just outside the pill
-            //   limpets → bottom-right, just outside the pill (letter L)
-            const obs = s.observations;
-            if (state.extrasEnabled && s.visibility === 'visited' && obs) {
-                const iconFontPx = fontPx * 0.7;
-                const offset = fontPx * 0.15;
-                if (obs.friendlyDrones || obs.enemyDrones) {
-                    const cls = obs.friendlyDrones
-                        ? 'minimap-obs-icon--friendly'
-                        : 'minimap-obs-icon--enemy';
-                    const t = document.createElementNS(SVG_NS, 'text');
-                    t.classList.add('minimap-obs-icon', cls);
-                    t.setAttribute('text-anchor', 'end');
-                    t.setAttribute('dominant-baseline', 'alphabetic');
-                    t.setAttribute('x', String(-rw / 2 + iconFontPx * 0.5));
-                    t.setAttribute('y', String(-totalRh / 2 - offset));
-                    t.setAttribute('font-size', String(iconFontPx));
-                    t.textContent = '▲';
-                    group.appendChild(t);
-                }
-                if (obs.friendlyProxMines || obs.enemyProxMines) {
-                    const cls = obs.friendlyProxMines
-                        ? 'minimap-obs-icon--friendly'
-                        : 'minimap-obs-icon--enemy';
-                    const t = document.createElementNS(SVG_NS, 'text');
-                    t.classList.add('minimap-obs-icon', cls);
-                    t.setAttribute('text-anchor', 'end');
-                    t.setAttribute('dominant-baseline', 'hanging');
-                    t.setAttribute('x', String(-rw / 2 + iconFontPx * 0.5));
-                    t.setAttribute('y', String(totalRh / 2 + offset * 0.2));
-                    t.setAttribute('font-size', String(iconFontPx));
-                    t.textContent = '✱';
-                    group.appendChild(t);
-                }
-                if (obs.friendlySeekerMines) {
-                    const t = document.createElementNS(SVG_NS, 'text');
-                    t.classList.add('minimap-obs-icon', 'minimap-obs-icon--friendly');
-                    t.setAttribute('text-anchor', 'start');
-                    t.setAttribute('dominant-baseline', 'hanging');
-                    t.setAttribute('x', String(rw / 2 - iconFontPx * 0.5));
-                    t.setAttribute('y', String(totalRh / 2 + offset * 0.2));
-                    t.setAttribute('font-size', String(iconFontPx));
-                    t.textContent = 'L';
-                    group.appendChild(t);
-                }
-            }
-
-            if (quickMoveIndex !== undefined) {
-                const badgeR = fontPx * 0.65;
-                const badgeY = totalRh / 2 + badgeR + fontPx * 0.25;
-                const badgeCircle = document.createElementNS(SVG_NS, 'circle');
-                badgeCircle.classList.add('minimap-quick-move-badge');
-                badgeCircle.setAttribute('cx', '0');
-                badgeCircle.setAttribute('cy', String(badgeY));
-                badgeCircle.setAttribute('r', String(badgeR));
-                badgeCircle.setAttribute('stroke-width', String(strokeW));
-                group.appendChild(badgeCircle);
-                const badgeText = document.createElementNS(SVG_NS, 'text');
-                badgeText.classList.add('minimap-quick-move-badge-text');
-                badgeText.setAttribute('text-anchor', 'middle');
-                badgeText.setAttribute('dominant-baseline', 'central');
-                badgeText.setAttribute('x', '0');
-                badgeText.setAttribute('y', String(badgeY));
-                badgeText.setAttribute('font-size', String(fontPx * 0.95));
-                badgeText.textContent = String(quickMoveIndex);
-                group.appendChild(badgeText);
-            }
-
-            const hoverSectorId = s.id;
-            // Restore fns for elements raised on hover, popped in reverse on
-            // clear so the base draw order is left untouched.
-            const raiseRestores: Array<() => void> = [];
-            const applyHoverHighlight = () => {
-                rect.classList.add('minimap-sector-pill--hover-source');
-                for (const line of warpLines) {
-                    const fromId = Number(line.dataset.fromId);
-                    const toId = Number(line.dataset.toId);
-                    const twoWay = line.dataset.twoWay === 'true';
-                    let otherId: number | null = null;
-                    if (fromId === hoverSectorId) otherId = toId;
-                    else if (twoWay && toId === hoverSectorId) otherId = fromId;
-                    if (otherId === null) continue;
-                    line.classList.add('minimap-warp--hover-out');
-                    const targetRect = pillRectsBySectorId.get(otherId);
-                    if (targetRect) targetRect.classList.add('minimap-sector-pill--hover-target');
-                    const targetGroup = pillGroupBySectorId.get(otherId);
-                    if (targetGroup) raiseRestores.push(raiseToFront(targetGroup));
-                }
-                const labels = endLabelsBySrcId.get(hoverSectorId);
-                if (labels)
-                    for (const l of labels) {
-                        l.classList.add('is-highlighted');
-                        raiseRestores.push(raiseToFront(l));
-                    }
-                // The hovered pill is already topmost (that's why it got the
-                // hover), so it needs no raise — and re-appending the element
-                // under the cursor would fire spurious leave/enter events.
-            };
-            const clearHoverHighlight = () => {
-                rect.classList.remove('minimap-sector-pill--hover-source');
-                for (const line of warpLines) line.classList.remove('minimap-warp--hover-out');
-                for (const r of pillRectsBySectorId.values()) {
-                    r.classList.remove('minimap-sector-pill--hover-target');
-                }
-                const labels = endLabelsBySrcId.get(hoverSectorId);
-                if (labels) for (const l of labels) l.classList.remove('is-highlighted');
-                while (raiseRestores.length) raiseRestores.pop()!();
-            };
-            group.addEventListener('mouseenter', () => {
-                setHoveredInfo(s);
-                applyHoverHighlight();
-            });
-            group.addEventListener('mouseleave', () => {
-                clearHoveredInfo(current);
-                clearHoverHighlight();
-            });
-            group.addEventListener('click', () => {
-                onInject(s.sector_number, current?.sector_number ?? state.currentSectorNumber);
-            });
-
-            nodeGroup.appendChild(group);
         }
     }
 
-    // Floating context-style menu, anchored near the last known mouse
-    // position over the minimap (typically wherever the player just
-    // clicked).
+    function styleWarpLine(
+        line: SVGLineElement,
+        o: {
+            strokeW: number;
+            isWormhole: boolean;
+            isTwoWay: boolean;
+            dstOnscreen: boolean;
+            isFringe: boolean;
+            explored: boolean;
+        },
+    ): void {
+        const dash = `${o.strokeW * 2} ${o.strokeW * 2}`;
+        if (o.isWormhole) {
+            if (!o.dstOnscreen) {
+                line.classList.add('minimap-warp--wormhole-stub');
+                line.setAttribute('stroke-dasharray', dash);
+                line.setAttribute('marker-end', 'url(#arrWormhole)');
+            } else {
+                line.classList.add('minimap-warp--wormhole');
+                if (!o.isTwoWay) line.setAttribute('marker-end', 'url(#arrWormhole)');
+            }
+        } else if (!o.explored) {
+            line.classList.add('minimap-warp--unexplored');
+            line.setAttribute('stroke-dasharray', dash);
+            line.setAttribute('marker-end', 'url(#arrDim)');
+        } else if (o.isTwoWay) {
+            line.classList.add('minimap-warp--two-way');
+            if (o.isFringe || !o.dstOnscreen) line.setAttribute('marker-end', 'url(#arrTwoWay)');
+        } else {
+            line.classList.add('minimap-warp--one-way-confirmed');
+            line.setAttribute('marker-end', 'url(#arrRed)');
+            if (!o.dstOnscreen) line.setAttribute('stroke-dasharray', dash);
+        }
+    }
+
+    /**
+     * Always-visible, clickable node pinned just inside the panel edge showing
+     * an off-panel wormhole target. Clicking submits the destination
+     * sector_number down the same path a pill click takes, so the server moves
+     * (1 warp away) or offers autopilot.
+     */
+    function buildOffscreenNode(
+        rc: RenderContext,
+        o: {
+            dst: NeighborhoodSector;
+            dstVisited: boolean;
+            start: Pt;
+            end: Pt;
+            quickMoveIndex: number | undefined;
+            line: SVGLineElement;
+            srcId: number;
+        },
+    ): SVGGElement {
+        const { dst, dstVisited, start, end, quickMoveIndex, line, srcId } = o;
+        const ldx = end.x - start.x;
+        const ldy = end.y - start.y;
+        const llen = Math.sqrt(ldx * ldx + ldy * ldy) || 1;
+        const inset = HEX_CELL_SIZE * 0.6;
+        const x = end.x - (ldx / llen) * inset;
+        const y = end.y - (ldy / llen) * inset;
+
+        const group = svgEl(
+            'g',
+            [
+                'minimap-warp-end-label',
+                dstVisited ? 'minimap-warp-end-label--visited' : 'minimap-warp-end-label--glimpsed',
+            ],
+            { transform: `translate(${x}, ${y})` },
+        );
+
+        const dstNum = String(dst.sector_number);
+        const fontPx = rc.labelSize * 0.95;
+        const rw = dstNum.length * (fontPx * 0.62) + fontPx * 0.45 * 2;
+        const rh = fontPx + fontPx * 0.28 * 2;
+        const rx = fontPx * 0.3;
+
+        group.appendChild(
+            svgEl('rect', undefined, {
+                x: -rw / 2,
+                y: -rh / 2,
+                width: rw,
+                height: rh,
+                rx,
+                ry: rx,
+                'stroke-width': rc.strokeW,
+            }),
+        );
+        group.appendChild(svgText('minimap-warp-end-label-text', { 'font-size': fontPx }, dstNum));
+        if (quickMoveIndex !== undefined) {
+            drawQuickMoveBadge(group, quickMoveIndex, rh / 2, fontPx, rc.strokeW);
+        }
+
+        // Hovering surfaces the node, its inbound warp and the near-end pill.
+        // The node itself is already topmost (it took the hover); re-appending
+        // the element under the cursor would fire spurious leave/enter events.
+        const raiseRestores: Array<() => void> = [];
+        group.addEventListener('mouseenter', () => {
+            setHoveredInfo(dst);
+            group.classList.add('is-highlighted');
+            line.classList.add('minimap-warp--hover-out');
+            rc.pillRectsBySectorId.get(srcId)?.classList.add('minimap-sector-pill--hover-source');
+            const srcGroup = rc.pillGroupBySectorId.get(srcId);
+            if (srcGroup) raiseRestores.push(raiseToFront(srcGroup));
+        });
+        group.addEventListener('mouseleave', () => {
+            clearHoveredInfo(rc.current);
+            group.classList.remove('is-highlighted');
+            line.classList.remove('minimap-warp--hover-out');
+            rc.pillRectsBySectorId
+                .get(srcId)
+                ?.classList.remove('minimap-sector-pill--hover-source');
+            while (raiseRestores.length) raiseRestores.pop()!();
+        });
+        group.addEventListener('click', () => {
+            onInject(dst.sector_number, rc.current?.sector_number ?? state.currentSectorNumber);
+        });
+
+        return group;
+    }
+
+    // --- Pills ---
+
+    function renderPills(rc: RenderContext): void {
+        const { strokeW } = rc;
+
+        // Where pills still overlap, the important ones stay readable:
+        // background sectors first, then the current sector's out-warp
+        // targets, then the current sector on top.
+        const adjacent = new Set<number>();
+        for (const w of rc.warps) {
+            if (w.from_sector_id === rc.currentId) adjacent.add(w.to_sector_id);
+        }
+        const priority = (s: NeighborhoodSector): number =>
+            s.id === rc.currentId ? 2 : adjacent.has(s.id) ? 1 : 0;
+        const drawOrder = [...rc.sectors].sort((a, b) => priority(a) - priority(b));
+
+        for (const s of drawOrder) {
+            const p = rc.disp.get(s.id);
+            const d = rc.dims.get(s.id);
+            if (!p || !d) continue;
+            const isCurrent = s.id === rc.currentId;
+            const visited = s.visibility === 'visited';
+            const quickMoveIndex = rc.quickMoveIndexById.get(s.id);
+
+            const group = svgEl('g', 'sector-node', { transform: `translate(${p.x}, ${p.y})` });
+
+            // One uniform border around the whole pill, so the perimeter reads
+            // as a single shape. Glimpsed keeps a dashed border as the
+            // not-yet-visited hint.
+            const rx = d.fontPx * 0.35;
+            const rect = svgEl(
+                'rect',
+                [
+                    isCurrent
+                        ? 'minimap-sector-pill--current'
+                        : visited
+                          ? 'minimap-sector-pill--visited'
+                          : 'minimap-sector-pill--glimpsed',
+                    quickMoveIndex !== undefined && 'minimap-sector-pill--quick-move',
+                ],
+                {
+                    x: -d.rw / 2,
+                    y: -d.totalRh / 2,
+                    width: d.rw,
+                    height: d.totalRh,
+                    rx,
+                    ry: rx,
+                },
+            );
+            if (isCurrent || visited) {
+                rect.setAttribute('stroke-width', String(strokeW));
+            } else {
+                rect.setAttribute('stroke-width', String(strokeW * 0.8));
+                rect.setAttribute('stroke-dasharray', `${strokeW} ${strokeW}`);
+            }
+            // Thickened border wins over the visibility width; a glimpsed
+            // quick-move target keeps its dashes.
+            if (quickMoveIndex !== undefined) {
+                rect.setAttribute('stroke-width', String(strokeW * 1.8));
+            }
+            rc.pillRectsBySectorId.set(s.id, rect);
+            rc.pillGroupBySectorId.set(s.id, group);
+            group.appendChild(rect);
+
+            if (d.bottomRh > 0) drawPortBand(group, s, d, strokeW);
+
+            group.appendChild(
+                svgText(
+                    [
+                        'minimap-sector-label',
+                        isCurrent
+                            ? 'minimap-sector-label--current'
+                            : visited
+                              ? 'minimap-sector-label--visited'
+                              : 'minimap-sector-label--glimpsed',
+                    ],
+                    { 'font-size': d.fontPx, y: -d.bottomRh / 2 },
+                    String(s.sector_number),
+                ),
+            );
+
+            if (state.extrasEnabled && visited) {
+                if (s.planets.length > 0) {
+                    group.appendChild(
+                        svgText(
+                            'minimap-planet-glyph',
+                            {
+                                'text-anchor': 'start',
+                                'dominant-baseline': 'auto',
+                                x: d.rw / 2 - d.fontPx * 0.15,
+                                y: -d.totalRh / 2 - d.fontPx * 0.15,
+                                'font-size': d.fontPx * 0.9,
+                            },
+                            '◉',
+                        ),
+                    );
+                }
+                if (s.observations) drawObservationIcons(group, s.observations, d);
+            }
+
+            if (quickMoveIndex !== undefined) {
+                drawQuickMoveBadge(group, quickMoveIndex, d.totalRh / 2, d.fontPx, strokeW);
+            }
+
+            attachPillHover(rc, s, group, rect);
+            rc.nodeGroup.appendChild(group);
+        }
+    }
+
+    /** Divider plus the port-class triplet in the pill's bottom half. */
+    function drawPortBand(
+        group: SVGGElement,
+        s: NeighborhoodSector,
+        d: PillDims,
+        strokeW: number,
+    ): void {
+        group.appendChild(
+            svgEl('line', 'minimap-sector-pill-divider', {
+                x1: -d.rw / 2,
+                x2: d.rw / 2,
+                y1: (d.topRh - d.bottomRh) / 2,
+                y2: (d.topRh - d.bottomRh) / 2,
+                'stroke-width': strokeW,
+            }),
+        );
+        if (!s.port) return;
+
+        const y = d.topRh / 2;
+        const triplet = portClassTriplet(s.port.class);
+        if (!triplet) {
+            group.appendChild(
+                svgText(
+                    'minimap-port-triplet',
+                    { x: 0, y, 'font-size': d.bottomFontPx },
+                    `C${s.port.class}`,
+                ),
+            );
+            return;
+        }
+        const cw = d.bottomFontPx * 0.62;
+        for (let i = 0; i < triplet.length; i++) {
+            const ch = triplet[i];
+            group.appendChild(
+                svgText(
+                    [
+                        'minimap-port-triplet',
+                        ch === 'S' && 'minimap-port-triplet--sell',
+                        ch === 'B' && 'minimap-port-triplet--buy',
+                    ],
+                    {
+                        x: cw * (i - (triplet.length - 1) / 2),
+                        y,
+                        'font-size': d.bottomFontPx,
+                    },
+                    ch,
+                ),
+            );
+        }
+    }
+
+    /**
+     * Observation icons, tucked into the corners the pill isn't already using
+     * (planets take top-right, quick-move badges hang below, the sector number
+     * owns the top half): drones top-left, mines bottom-left, limpets
+     * bottom-right.
+     */
+    function drawObservationIcons(
+        group: SVGGElement,
+        obs: NonNullable<NeighborhoodSector['observations']>,
+        d: PillDims,
+    ): void {
+        const fontPx = d.fontPx * 0.7;
+        const offset = d.fontPx * 0.15;
+        const leftX = -d.rw / 2 + fontPx * 0.5;
+        const icon = (friendly: boolean, attrs: Attrs, glyph: string): void => {
+            group.appendChild(
+                svgText(
+                    [
+                        'minimap-obs-icon',
+                        friendly ? 'minimap-obs-icon--friendly' : 'minimap-obs-icon--enemy',
+                    ],
+                    { 'font-size': fontPx, ...attrs },
+                    glyph,
+                ),
+            );
+        };
+
+        if (obs.friendlyDrones || obs.enemyDrones) {
+            icon(
+                !!obs.friendlyDrones,
+                {
+                    'text-anchor': 'end',
+                    'dominant-baseline': 'alphabetic',
+                    x: leftX,
+                    y: -d.totalRh / 2 - offset,
+                },
+                '▲',
+            );
+        }
+        if (obs.friendlyProxMines || obs.enemyProxMines) {
+            icon(
+                !!obs.friendlyProxMines,
+                {
+                    'text-anchor': 'end',
+                    'dominant-baseline': 'hanging',
+                    x: leftX,
+                    y: d.totalRh / 2 + offset * 0.2,
+                },
+                '✱',
+            );
+        }
+        if (obs.friendlySeekerMines) {
+            icon(
+                true,
+                {
+                    'text-anchor': 'start',
+                    'dominant-baseline': 'hanging',
+                    x: d.rw / 2 - fontPx * 0.5,
+                    y: d.totalRh / 2 + offset * 0.2,
+                },
+                'L',
+            );
+        }
+    }
+
+    /** Hovering a pill highlights its out-warps, their destination pills, and
+     *  any off-screen nodes fed by this sector. */
+    function attachPillHover(
+        rc: RenderContext,
+        s: NeighborhoodSector,
+        group: SVGGElement,
+        rect: SVGRectElement,
+    ): void {
+        // Restores for elements raised on hover, popped in reverse on clear so
+        // the base draw order is left untouched.
+        const raiseRestores: Array<() => void> = [];
+
+        const apply = (): void => {
+            rect.classList.add('minimap-sector-pill--hover-source');
+            for (const line of rc.warpLines) {
+                const fromId = Number(line.dataset.fromId);
+                const toId = Number(line.dataset.toId);
+                const twoWay = line.dataset.twoWay === 'true';
+                let otherId: number | null = null;
+                if (fromId === s.id) otherId = toId;
+                else if (twoWay && toId === s.id) otherId = fromId;
+                if (otherId === null) continue;
+                line.classList.add('minimap-warp--hover-out');
+                rc.pillRectsBySectorId
+                    .get(otherId)
+                    ?.classList.add('minimap-sector-pill--hover-target');
+                const targetGroup = rc.pillGroupBySectorId.get(otherId);
+                if (targetGroup) raiseRestores.push(raiseToFront(targetGroup));
+            }
+            for (const l of rc.endLabelsBySrcId.get(s.id) ?? []) {
+                l.classList.add('is-highlighted');
+                raiseRestores.push(raiseToFront(l));
+            }
+            // The hovered pill is already topmost — re-appending the element
+            // under the cursor would fire spurious leave/enter events.
+        };
+
+        const clear = (): void => {
+            rect.classList.remove('minimap-sector-pill--hover-source');
+            for (const line of rc.warpLines) line.classList.remove('minimap-warp--hover-out');
+            for (const r of rc.pillRectsBySectorId.values()) {
+                r.classList.remove('minimap-sector-pill--hover-target');
+            }
+            for (const l of rc.endLabelsBySrcId.get(s.id) ?? []) {
+                l.classList.remove('is-highlighted');
+            }
+            while (raiseRestores.length) raiseRestores.pop()!();
+        };
+
+        group.addEventListener('mouseenter', () => {
+            setHoveredInfo(s);
+            apply();
+        });
+        group.addEventListener('mouseleave', () => {
+            clearHoveredInfo(rc.current);
+            clear();
+        });
+        group.addEventListener('click', () => {
+            onInject(s.sector_number, rc.current?.sector_number ?? state.currentSectorNumber);
+        });
+    }
+
+    // --- Floating menu ---
+
     let menuEl: HTMLElement | null = null;
     let lastMouseX: number | null = null;
     let lastMouseY: number | null = null;
+
     container.addEventListener('mousemove', (e: MouseEvent) => {
         const rect = container.getBoundingClientRect();
         lastMouseX = e.clientX - rect.left;
@@ -1234,12 +1317,12 @@ export function createMinimap(
     container.addEventListener('mousedown', (e: MouseEvent) => {
         if (menuEl && !menuEl.contains(e.target as Node)) destroyMenu();
     });
+
     function destroyMenu(): void {
-        if (menuEl) {
-            menuEl.remove();
-            menuEl = null;
-        }
+        menuEl?.remove();
+        menuEl = null;
     }
+
     function buildMenu(title: string | undefined, items: MinimapMenuButton[]): HTMLElement {
         const el = document.createElement('div');
         el.className = 'minimap-menu';
@@ -1264,32 +1347,29 @@ export function createMinimap(
         }
         return el;
     }
+
+    /** Place just right/below the cursor like a native context menu, clamped
+     *  to stay fully inside the container. Must run after the element is in
+     *  the DOM so it can be measured. */
     function positionMenu(el: HTMLElement): void {
         const rect = container.getBoundingClientRect();
         const margin = 4;
-        // Append first so we can measure the menu's own dimensions.
         const w = el.offsetWidth;
         const h = el.offsetHeight;
         const anchorX = lastMouseX ?? rect.width / 2;
         const anchorY = lastMouseY ?? rect.height / 2;
-        // Place slightly to the right/below the cursor like a native context
-        // menu; clamp to keep it fully inside the container.
         let x = anchorX + 2;
         let y = anchorY + 2;
         if (x + w + margin > rect.width) x = Math.max(margin, anchorX - w - 2);
         if (y + h + margin > rect.height) y = Math.max(margin, anchorY - h - 2);
-        x = Math.max(margin, Math.min(rect.width - w - margin, x));
-        y = Math.max(margin, Math.min(rect.height - h - margin, y));
-        el.style.left = `${x}px`;
-        el.style.top = `${y}px`;
+        el.style.left = `${Math.max(margin, Math.min(rect.width - w - margin, x))}px`;
+        el.style.top = `${Math.max(margin, Math.min(rect.height - h - margin, y))}px`;
     }
 
     return {
         update(data, currentSectorNumber) {
-            // When the player moves to a new sector, drop any cursor-zoom
-            // pan offset so the viewport snaps back to following the player.
-            // We detect this by comparing the data's current_sector_id to
-            // the last one we rendered.
+            // Moving to a new sector drops any pan/zoom offset so the viewport
+            // snaps back to following the player.
             if (state.currentSectorId !== 0 && state.currentSectorId !== data.current_sector_id) {
                 state.viewportCenter = null;
             }
@@ -1306,8 +1386,8 @@ export function createMinimap(
         },
         setQuickMove(targets) {
             const hasTargets = !!(targets && targets.length > 0);
-            state.quickMoveTargets = hasTargets ? [...targets] : null;
-            // Opening the move menu (M): recenter on the player.
+            state.quickMoveTargets = hasTargets ? [...targets!] : null;
+            // Opening the move menu (M) recenters on the player.
             if (hasTargets && state.viewportCenter !== null) {
                 state.viewportCenter = null;
                 refreshHandler?.();
@@ -1329,9 +1409,4 @@ export function createMinimap(
             destroyMenu();
         },
     };
-}
-
-export function flashTerminalBorder(termEl: HTMLElement, duration = 800): void {
-    termEl.classList.add('flash-border');
-    window.setTimeout(() => termEl.classList.remove('flash-border'), duration);
 }

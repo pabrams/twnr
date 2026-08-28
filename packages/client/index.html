@@ -10,45 +10,6 @@
     #game-container { display: none; width: 100%; height: 100%; flex-direction: row; }
     #terminal { flex: 1; min-width: 0; height: 100%; position: relative; border: 2px solid transparent; padding-left: 12px; transition: border-color 0.1s; box-sizing: border-box; }
     #terminal.flash-border { border-color: #ff8800; }
-    #minimap {
-      width: 560px; flex-shrink: 0; height: 100%; border-right: 1px solid #444;
-      display: flex; flex-direction: column; color: #c0c0c0; font-size: 16px;
-    }
-    #minimap .minimap-header {
-      padding: 8px 14px; border-bottom: 1px solid #333; display: flex; gap: 10px;
-      align-items: center; background: #0a0a16;
-    }
-    #minimap .minimap-zoom-readout {
-      color: #888; font-size: 15px; font-family: 'Courier New', Courier, monospace;
-      letter-spacing: 0.5px;
-    }
-    #minimap .minimap-action-btn {
-      background: #222; color: #c0c0c0; border: 1px solid #444; padding: 3px 8px;
-      font-family: 'Courier New', Courier, monospace; font-size: 14px;
-      cursor: pointer; line-height: 1; min-width: 26px;
-    }
-    #minimap .minimap-action-btn:hover { background: #333; color: #fff; }
-    #minimap .minimap-body.is-panning,
-    #minimap .minimap-body.is-panning svg { cursor: grabbing; }
-    #minimap .minimap-body {
-      flex: 1; position: relative; overflow: hidden;
-    }
-    #minimap .empty-state {
-      position: absolute; inset: 0; display: flex; align-items: center;
-      justify-content: center; color: #666; font-style: italic; text-align: center;
-      padding: 20px;
-    }
-    #minimap svg { width: 100%; height: 100%; display: block; }
-    #minimap .sector-node { cursor: pointer; }
-    #minimap .sector-node:focus { outline: 1px solid #0ff; }
-    /* Admin-mode minimap takes most of the viewport so a deep BFS has room
-       to render without sectors piling on top of each other. The terminal
-       is still beside it for typing movement commands. */
-    #minimap.is-admin-mode { width: 70vw; }
-    @media (max-width: 900px) {
-      #minimap { width: 380px; }
-      #minimap.is-admin-mode { width: 60vw; }
-    }
     #stats {
       width: 24ch; flex-shrink: 0; height: 100%; border-left: 1px solid #444;
       display: flex; flex-direction: column; color: #c0c0c0;
