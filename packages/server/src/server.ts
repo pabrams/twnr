@@ -210,7 +210,6 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             getOnPlanetId(playerId),
         ]);
 
-
         let startingShipForWelcome:
             | { typeName: string; typeDisplayName: string | null }
             | undefined;
