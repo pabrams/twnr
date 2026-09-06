@@ -17,6 +17,7 @@
         "typescript": "^5.0.0"
     },
     "scripts": {
+        "postinstall": "node scripts/link-cli.mjs",
         "build": "tsc",
         "start": "node ./dist/index.js",
         "dev": "tsx watch src/index.ts"
