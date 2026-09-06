@@ -17,16 +17,14 @@ let cached: SchemaFile | null = null;
 function loadSchema(): SchemaFile {
     if (cached) return cached;
     const here = dirname(fileURLToPath(import.meta.url));
-    const schemaPath = resolve(here, '../../..', 'docs/client-messages.schema.json');
+    const schemaPath = resolve(here, '../../..', 'docs/client-envelopes.schema.json');
     const raw = JSON.parse(readFileSync(schemaPath, 'utf8'));
     cached = SchemaFileSchema.parse(raw);
     return cached;
 }
 
 /** Strip schema boilerplate that's identical across every wire message:
- *  the outer `type: "object"` and `additionalProperties: false`. They're
- *  meaningful but never vary; hiding them lets the REPL show only the
- *  per-message bits (properties + required). */
+ *  the outer `type: "object"` and `additionalProperties: false`. . */
 function stripBoilerplate(def: unknown): unknown {
     if (!def || typeof def !== 'object') return def;
     const obj = def as Record<string, unknown>;
