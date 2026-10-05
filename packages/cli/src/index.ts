@@ -14,12 +14,17 @@ usage:
   twnr register --name N --email E --password P [--host URL]
   twnr login --email E --password P [--host URL]
   twnr connect [--universe N] [--drain-ms N] [--debug] [--pretty]
-  twnr commands [<name>]
+  twnr commands [<name>]   list wire message types for 'connect';
+                           with <name>, show that message's payload schema
   twnr whoami
   twnr logout
 
 stdin/stdout for 'connect': one ClientEnvelope JSON per line in,
 one ServerEnvelope JSON per line out. Diagnostics on stderr.
+
+Wire message types (from \`twnr commands\`) are not CLI subcommands —
+send them as JSON lines on connect's stdin, e.g.:
+  echo '{"type":"getShipDetail","shipId":1}' | twnr connect --drain-ms 500
 `;
 
 function die(msg: string, code = 1): never {
@@ -146,6 +151,14 @@ async function main(): Promise<void> {
         return;
     }
 
+    if (listCommands().includes(cmd)) {
+        die(
+            `"${cmd}" is a wire message type, not a CLI subcommand.\n` +
+                `Send it as a JSON line on connect's stdin:\n` +
+                `  echo '{"type":"${cmd}",...}' | twnr connect --drain-ms 500\n` +
+                `See its payload schema with: twnr commands ${cmd}`,
+        );
+    }
     die(`unknown command: ${cmd}\n\n${USAGE}`);
 }
 
