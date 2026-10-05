@@ -7,11 +7,15 @@ import { ClientTag } from '@twnr/shared';
 export function listCommands(): string[] {
     return Object.values(ClientTag).sort();
 }
-const VariantSchema = z.object({
-    properties: z.object({
-        type: z.object({ const: z.string() }).loose(),
-    }).loose(),
-}).loose();
+const VariantSchema = z
+    .object({
+        properties: z
+            .object({
+                type: z.object({ const: z.string() }).loose(),
+            })
+            .loose(),
+    })
+    .loose();
 
 const SchemaFileSchema = z.object({
     oneOf: z.array(VariantSchema),
@@ -42,8 +46,7 @@ function stripBoilerplate(def: unknown): unknown {
 
 export function showCommand(target: string): unknown | null {
     const schema = loadSchema();
-    const match = schema.oneOf.find(
-        (def) => def.properties.type.const == target);
+    const match = schema.oneOf.find((def) => def.properties.type.const == target);
 
     return match ? stripBoilerplate(match) : null;
 }
