@@ -563,3 +563,55 @@ export async function getHardwarePricesForUniverse(
     );
     return res.rows;
 }
+
+export type PortProductionRow = {
+    fuel_prod: number;
+    org_prod: number;
+    equ_prod: number;
+};
+
+export async function getPortProductionAtSector(
+    sectorNumber: number,
+    universeId: number,
+    db: Queryable = pool,
+): Promise<PortProductionRow | undefined> {
+    const res = await db.query<PortProductionRow>(
+        `SELECT p.fuel_prod, p.org_prod, p.equ_prod
+         FROM ports p JOIN sectors s ON p.sector_id = s.id
+         WHERE s.sector_number = $1 AND s.universe_id = $2`,
+        [sectorNumber, universeId],
+    );
+    return res.rows[0];
+}
+
+export type PortUpgradeInfoRow = {
+    id: number;
+    class: number;
+    fuel_prod: number;
+    org_prod: number;
+    equ_prod: number;
+    fuel_max: number;
+    org_max: number;
+    equ_max: number;
+    fuel: number;
+    organics: number;
+    equipment: number;
+};
+
+export async function getPortUpgradeInfoForUpdate(
+    sectorNumber: number,
+    universeId: number,
+    db: Queryable = pool,
+): Promise<PortUpgradeInfoRow | undefined> {
+    const res = await db.query<PortUpgradeInfoRow>(
+        `SELECT p.id, p.class,
+                p.fuel_prod, p.org_prod, p.equ_prod,
+                p.fuel_max, p.org_max, p.equ_max,
+                p.fuel, p.organics, p.equipment
+         FROM ports p JOIN sectors s ON p.sector_id = s.id
+         WHERE s.sector_number = $1 AND s.universe_id = $2
+         FOR UPDATE OF p`,
+        [sectorNumber, universeId],
+    );
+    return res.rows[0];
+}

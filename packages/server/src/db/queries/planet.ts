@@ -870,7 +870,7 @@ export async function getPlanetFuelForUpdate(
     return res.rows[0]?.fuel;
 }
 
-/** Start a new base construction. Fails (returns false) if a row already
+/** Fails (returns false) if a row already
  *  exists for this planet (caller must check first). */
 export async function insertPlanetBaseConstruction(
     planetId: number,
@@ -890,8 +890,6 @@ export async function insertPlanetBaseConstruction(
     );
 }
 
-/** Total colonists assigned across all 3 production groups on a planet. Used
- *  to validate base-construction colos requirement (any colos count). */
 export async function getPlanetTotalColonists(
     planetId: number,
     db: Queryable = pool,
@@ -938,4 +936,34 @@ export async function getPlanetCommodityStockForUpdate(
         [planetId],
     );
     return res.rows[0] ?? null;
+}
+
+export async function getPlanetStock(
+    planetId: number,
+    db: Queryable = pool,
+): Promise<{ fuel: number; organics: number; equipment: number }> {
+    const res = await db.query<{ fuel: number; organics: number; equipment: number }>(
+        'SELECT fuel, organics, equipment FROM planets WHERE id = $1',
+        [planetId],
+    );
+    return res.rows[0] ?? { fuel: 0, organics: 0, equipment: 0 };
+}
+
+export async function getPlanetFuel(planetId: number, db: Queryable = pool): Promise<number> {
+    const res = await db.query<{ fuel: number }>('SELECT fuel FROM planets WHERE id = $1', [
+        planetId,
+    ]);
+    return res.rows[0]?.fuel ?? 0;
+}
+
+/** All planet-type rows for a universe, for the admin/catalog API. */
+export async function listUniversePlanetTypes(
+    universeId: number,
+    db: Queryable = pool,
+): Promise<Record<string, unknown>[]> {
+    const res = await db.query(
+        'SELECT * FROM universe_planet_types WHERE universe_id = $1 ORDER BY slug',
+        [universeId],
+    );
+    return res.rows;
 }

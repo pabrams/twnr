@@ -301,3 +301,29 @@ export async function getMineUniverseSettings(
         }
     );
 }
+
+/** Owners + quantities of all live mine stacks in a sector. */
+export async function getSectorMineOwners(
+    sectorDbId: number,
+    db: Queryable = pool,
+): Promise<
+    {
+        mine_type: MineType;
+        owner_player_id: number | null;
+        owner_clan_id: number | null;
+        quantity: number;
+    }[]
+> {
+    const res = await db.query<{
+        mine_type: MineType;
+        owner_player_id: number | null;
+        owner_clan_id: number | null;
+        quantity: number;
+    }>(
+        `SELECT mine_type, owner_player_id, owner_clan_id, quantity
+         FROM sector_mines
+         WHERE sector_id = $1 AND quantity > 0`,
+        [sectorDbId],
+    );
+    return res.rows;
+}

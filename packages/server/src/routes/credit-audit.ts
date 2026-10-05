@@ -1,7 +1,9 @@
 import { Router } from 'express';
-import { pool } from '../db/index.js';
 import { asyncHandler, parseIntParam, HttpError } from './async-handler.js';
-import { verifyEntry, type AuditLogRow } from '../services/audit.js';
+import { verifyEntry } from '../services/audit.js';
+import { getPlayerCreditsAndUniverse } from '../db/queries/player.js';
+import { getUniverseStartingCredits } from '../db/queries/universe.js';
+import { listAuditLogForPlayer } from '../db/queries/audit.js';
 
 /**
  * Credit-audit verifier: GET /api/players/:id/credit-audit
@@ -23,29 +25,15 @@ export function createCreditAuditRoutes(router: Router): void {
         asyncHandler(async (req, res) => {
             const playerId = parseIntParam(req.params.id, 'id');
 
-            const playerRes = await pool.query<{
-                credits: number;
-                universe_id: number;
-            }>('SELECT credits, universe_id FROM players WHERE id = $1', [playerId]);
-            const player = playerRes.rows[0];
+            const player = await getPlayerCreditsAndUniverse(playerId);
             if (!player) throw new HttpError(404, 'Player not found');
 
-            const settingsRes = await pool.query<{ starting_credits: number }>(
-                'SELECT starting_credits FROM universe_settings WHERE universe_id = $1',
-                [player.universe_id],
-            );
-            const startingCredits = settingsRes.rows[0]?.starting_credits ?? 0;
-
-            const auditRes = await pool.query<AuditLogRow>(
-                `SELECT id, player_id, action_type, delta, prev_credits, new_credits,
-                        context, created_at, hmac
-                 FROM audit_log WHERE player_id = $1 ORDER BY id ASC`,
-                [playerId],
-            );
+            const startingCredits = await getUniverseStartingCredits(player.universe_id);
+            const auditRows = await listAuditLogForPlayer(playerId);
 
             let validDeltaSum = 0;
             let invalidEntries = 0;
-            for (const row of auditRes.rows) {
+            for (const row of auditRows) {
                 if (verifyEntry(row)) {
                     validDeltaSum += row.delta;
                 } else {

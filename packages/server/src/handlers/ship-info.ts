@@ -4,7 +4,6 @@ import type {
     TransportToShipCommand,
     ChangeShipOwnershipCommand,
 } from '@twnr/shared';
-import { pool } from '../db/index.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { onlinePlayers, getPlayerUniverseId } from '../state/players.js';
 import {
@@ -12,6 +11,8 @@ import {
     getPlayerOwnedShips,
     setShipOwnership,
     getShipOwnership,
+    getOwnedShipDetail,
+    getTransportTargetInfo,
 } from '../db/queries/ship.js';
 import { getShipHardwareQuantities, getShipTypeHardwareMax } from '../db/queries/hardware.js';
 import {
@@ -87,54 +88,7 @@ export async function serveGetShipDetail(
     data: GetShipDetailCommand,
 ): Promise<void> {
     const { shipId } = data;
-    const res = await pool.query<{
-        id: number;
-        universe_ship_number: number;
-        type_name: string;
-        type_display_name: string | null;
-        ship_type_slug: string;
-        sector_number: number | null;
-        drones: number;
-        max_drones: number;
-        shields: number;
-        max_shields: number;
-        holds: number;
-        max_holds: number;
-        transporter_range: number;
-        fuel: number;
-        organics: number;
-        equipment: number;
-        colonists: number;
-        owner_player_id: number | null;
-        owner_clan_id: number | null;
-        owner_player_name: string | null;
-        owner_clan_name: string | null;
-        owner_clan_number: number | null;
-    }>(
-        `SELECT sh.id, sh.universe_ship_number,
-                st.slug AS type_name, st.display_name AS type_display_name,
-                st.slug AS ship_type_slug,
-                sec.sector_number,
-                sh.drones, st.max_drones,
-                sh.shields, st.max_shields,
-                sh.holds, st.max_holds,
-                st.transporter_range,
-                sh.fuel, sh.organics, sh.equipment, sh.colonists,
-                sh.owner_player_id, sh.owner_clan_id,
-                op.name AS owner_player_name,
-                oc.name AS owner_clan_name,
-                oc.universe_clan_number AS owner_clan_number
-         FROM ships sh
-         JOIN universe_ship_types st ON st.universe_id = sh.universe_id AND st.slug = sh.ship_type_slug
-         LEFT JOIN sectors sec ON sh.sector_id = sec.id
-         LEFT JOIN players op ON op.id = sh.owner_player_id
-         LEFT JOIN clans oc ON oc.id = sh.owner_clan_id
-         WHERE sh.id = $1
-           AND (sh.owner_player_id = $2
-                OR sh.owner_clan_id = (SELECT clan_id FROM players WHERE id = $2))`,
-        [shipId, playerId],
-    );
-    const row = res.rows[0];
+    const row = await getOwnedShipDetail(shipId, playerId);
     if (!row) {
         sendError(playerId, 'Ship not found or not owned by you.');
         return;
@@ -244,25 +198,7 @@ export async function serveTransportToShip(
         return;
     }
 
-    const lookup = await pool.query<{
-        current_range: number | null;
-        target_sector_id: number | null;
-        target_sector_number: number | null;
-    }>(
-        `SELECT cur_st.transporter_range AS current_range,
-                tgt.sector_id AS target_sector_id,
-                tgt_sec.sector_number AS target_sector_number
-         FROM ships tgt
-         LEFT JOIN sectors tgt_sec ON tgt.sector_id = tgt_sec.id
-         LEFT JOIN players p ON p.id = $1
-         LEFT JOIN ships cur ON cur.id = p.ship_id
-         LEFT JOIN universe_ship_types cur_st ON cur_st.universe_id = cur.universe_id AND cur_st.slug = cur.ship_type_slug
-         WHERE tgt.id = $2
-           AND (tgt.owner_player_id = $1
-                OR tgt.owner_clan_id = (SELECT clan_id FROM players WHERE id = $1))`,
-        [playerId, shipId],
-    );
-    const row = lookup.rows[0];
+    const row = await getTransportTargetInfo(playerId, shipId);
     if (!row || row.target_sector_id === null || row.target_sector_number === null) {
         sendError(playerId, 'Target ship not found');
         return;

@@ -13,7 +13,7 @@ import {
     listPlanetObservationsForSectors,
 } from '../db/queries/observations.js';
 import { listSectorObservations } from '../services/sector-observations.js';
-import { pool } from '../db/pool.js';
+import { listSectorPositions, listWarpEdgesByIds } from '../db/queries/sector.js';
 
 /** Smallest viewport extent the client may legitimately request (world units). */
 const MIN_HALF_EXTENT = 50;
@@ -68,17 +68,12 @@ export async function serveGetNeighborhood(
     // would push too much data over the wire on big universes, so we filter
     // here in JS after the fetch. (TODO: DB-side bbox query would also work but
     // requires an index we don't yet have.)
-    const sectorMetaRes = await pool.query<{
-        id: number;
-        sector_number: number;
-        x: number | null;
-        y: number | null;
-    }>('SELECT id, sector_number, x, y FROM sectors WHERE universe_id = $1', [universeId]);
+    const sectorMetaRows = await listSectorPositions(universeId);
     const sectorMeta = new Map<
         number,
         { id: number; sector_number: number; x: number | null; y: number | null }
     >();
-    for (const row of sectorMetaRes.rows) {
+    for (const row of sectorMetaRows) {
         sectorMeta.set(row.id, row);
     }
 
@@ -119,16 +114,10 @@ export async function serveGetNeighborhood(
     // All warps in this universe — needed both for emitting result warps and
     // for computing glimpsed sectors (target of an outbound warp from a
     // visited source).
-    const warpRes = await pool.query<{ from_id: number; to_id: number }>(
-        `SELECT w.from_sector_id AS from_id, w.to_sector_id AS to_id
-         FROM warps w
-         JOIN sectors s ON w.from_sector_id = s.id
-         WHERE s.universe_id = $1`,
-        [universeId],
-    );
+    const warpRows = await listWarpEdgesByIds(universeId);
 
     const edgeSet = new Set<string>();
-    for (const w of warpRes.rows) edgeSet.add(`${w.from_id},${w.to_id}`);
+    for (const w of warpRows) edgeSet.add(`${w.from_id},${w.to_id}`);
 
     // Determine which sector ids are "in view" (positionally) — the
     // axis-aligned bbox around the current sector.
@@ -160,7 +149,7 @@ export async function serveGetNeighborhood(
             if (visitedIds.has(id) || id === currentSectorId) includedSectors.add(id);
         }
         // Glimpsed-in-bbox: targets in bbox of warps from visited sources.
-        for (const w of warpRes.rows) {
+        for (const w of warpRows) {
             if (!inBbox.has(w.to_id)) continue;
             if (includedSectors.has(w.to_id)) continue;
             if (!sourceKnowable(w.from_id)) continue;
@@ -171,7 +160,7 @@ export async function serveGetNeighborhood(
     // Out-of-bbox warp targets: include them as fringe so the client can draw
     // stub lines toward them. Source must be in-bbox and knowable so we don't
     // leak warps for sectors the player can't see.
-    for (const w of warpRes.rows) {
+    for (const w of warpRows) {
         if (!includedSectors.has(w.from_id)) continue;
         if (!sourceKnowable(w.from_id)) continue;
         if (includedSectors.has(w.to_id)) continue;
@@ -247,7 +236,7 @@ export async function serveGetNeighborhood(
     // result. known_two_way needs both endpoints knowable + reverse edge.
     const warps: NeighborhoodWarp[] = [];
     const emittedKeys = new Set<string>();
-    for (const w of warpRes.rows) {
+    for (const w of warpRows) {
         if (!sourceKnowable(w.from_id)) continue;
         if (!includedSectors.has(w.to_id)) continue;
         // Emit warps with the source either in the result OR the source is

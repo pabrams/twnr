@@ -1,12 +1,11 @@
 import { onlinePlayers } from '../state/players.js';
-import { isGuestUser, deleteUserById } from '../db/queries/user.js';
+import { isGuestUser, deleteUserById, listExpiredGuests } from '../db/queries/user.js';
 import {
     deleteVisitedSectorsForPlayers,
     clearShipIdsForPlayers,
     deleteShipsByOwners,
     deletePlayerById,
 } from '../db/queries/player.js';
-import { pool } from '../db/index.js';
 
 /**
  * Hard-delete a single guest user and all rows tied to them: visited sectors,
@@ -32,17 +31,10 @@ async function deleteGuestUserById(userId: number, playerId: number): Promise<vo
 export async function cleanupExpiredGuests(maxIdleDays = 7): Promise<{ deleted: number }> {
     const onlinePlayerIds = new Set(Object.keys(onlinePlayers).map(Number));
 
-    const res = await pool.query<{ user_id: number; player_id: number }>(
-        `SELECT u.id AS user_id, p.id AS player_id
-           FROM users u
-           JOIN players p ON p.user_id = u.id
-          WHERE u.is_guest = true
-            AND COALESCE(p.last_logout_at, p.last_login_at) < NOW() - ($1 || ' days')::interval`,
-        [maxIdleDays],
-    );
+    const rows = await listExpiredGuests(maxIdleDays);
 
     let deleted = 0;
-    for (const row of res.rows) {
+    for (const row of rows) {
         if (onlinePlayerIds.has(row.player_id)) continue;
         if (!(await isGuestUser(row.user_id))) continue;
         await deleteGuestUserById(row.user_id, row.player_id);

@@ -123,3 +123,59 @@ export async function listPlanetObservationsForSectors(
     );
     return res.rows;
 }
+
+export type SectorObservationRow = {
+    friendly_drones: boolean;
+    enemy_drones: boolean;
+    friendly_prox_mines: boolean;
+    enemy_prox_mines: boolean;
+    friendly_seeker_mines: boolean;
+};
+
+/** Upsert a player's drone/mine observation flags for one sector. */
+export async function upsertSectorObservation(
+    playerId: number,
+    sectorDbId: number,
+    flags: SectorObservationRow,
+    db: Queryable = pool,
+): Promise<void> {
+    await db.query(
+        `INSERT INTO player_sector_observations
+           (player_id, sector_id, friendly_drones, enemy_drones,
+            friendly_prox_mines, enemy_prox_mines, friendly_seeker_mines,
+            last_observed_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+         ON CONFLICT (player_id, sector_id) DO UPDATE
+         SET friendly_drones = EXCLUDED.friendly_drones,
+             enemy_drones = EXCLUDED.enemy_drones,
+             friendly_prox_mines = EXCLUDED.friendly_prox_mines,
+             enemy_prox_mines = EXCLUDED.enemy_prox_mines,
+             friendly_seeker_mines = EXCLUDED.friendly_seeker_mines,
+             last_observed_at = NOW()`,
+        [
+            playerId,
+            sectorDbId,
+            flags.friendly_drones,
+            flags.enemy_drones,
+            flags.friendly_prox_mines,
+            flags.enemy_prox_mines,
+            flags.friendly_seeker_mines,
+        ],
+    );
+}
+
+export async function listSectorObservationRows(
+    playerId: number,
+    sectorIds: number[],
+    db: Queryable = pool,
+): Promise<(SectorObservationRow & { sector_id: number })[]> {
+    if (sectorIds.length === 0) return [];
+    const res = await db.query<SectorObservationRow & { sector_id: number }>(
+        `SELECT sector_id, friendly_drones, enemy_drones,
+                friendly_prox_mines, enemy_prox_mines, friendly_seeker_mines
+         FROM player_sector_observations
+         WHERE player_id = $1 AND sector_id = ANY($2::int[])`,
+        [playerId, sectorIds],
+    );
+    return res.rows;
+}

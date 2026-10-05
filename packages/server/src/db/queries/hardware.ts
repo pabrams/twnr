@@ -217,3 +217,34 @@ export async function getShipTypeHardwareMax(
     );
     return res.rows;
 }
+
+/** Hardware max-quantity rows for every ship type in a universe. */
+export async function listShipTypeHardwareMaxForUniverse(
+    universeId: number,
+    db: Queryable = pool,
+): Promise<{ ship_type_slug: string; name: string; max_quantity: number }[]> {
+    const res = await db.query<{ ship_type_slug: string; name: string; max_quantity: number }>(
+        `SELECT sth.ship_type_slug, hi.name, sth.max_quantity
+         FROM universe_ship_type_hardware sth
+         JOIN hardware_item hi ON hi.id = sth.hardware_item_id
+         WHERE sth.universe_id = $1`,
+        [universeId],
+    );
+    return res.rows;
+}
+
+/** Installed hardware (name + quantity) on a player's current ship. */
+export async function getPlayerShipHardware(
+    playerId: number,
+    db: Queryable = pool,
+): Promise<HardwareRow[]> {
+    const res = await db.query<HardwareRow>(
+        `SELECT hi.name, sh.quantity
+         FROM ship_hardware sh
+         JOIN hardware_item hi ON hi.id = sh.hardware_item_id
+         JOIN players p ON p.ship_id = sh.ship_id
+         WHERE p.id = $1`,
+        [playerId],
+    );
+    return res.rows;
+}

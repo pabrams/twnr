@@ -467,3 +467,112 @@ export async function getVisitedSectorNumbers(
     );
     return res.rows.map((r) => r.sector_number);
 }
+
+export async function getPlayerName(
+    playerId: number,
+    db: Queryable = pool,
+): Promise<string | undefined> {
+    const res = await db.query<{ name: string }>('SELECT name FROM players WHERE id = $1', [
+        playerId,
+    ]);
+    return res.rows[0]?.name;
+}
+
+export async function getPlayerExperience(playerId: number, db: Queryable = pool): Promise<number> {
+    const res = await db.query<{ experience: number }>(
+        'SELECT experience FROM players WHERE id = $1',
+        [playerId],
+    );
+    return res.rows[0]?.experience ?? 0;
+}
+
+export async function getPlayerCredits(playerId: number, db: Queryable = pool): Promise<number> {
+    const res = await db.query<{ credits: number }>('SELECT credits FROM players WHERE id = $1', [
+        playerId,
+    ]);
+    return res.rows[0]?.credits ?? 0;
+}
+
+export async function getCreditsAndClanForUpdate(
+    playerId: number,
+    db: Queryable = pool,
+): Promise<{ credits: number; clan_id: number | null } | undefined> {
+    const res = await db.query<{ credits: number; clan_id: number | null }>(
+        'SELECT credits, clan_id FROM players WHERE id = $1 FOR UPDATE',
+        [playerId],
+    );
+    return res.rows[0];
+}
+
+export async function getPlayerCreditsAndUniverse(
+    playerId: number,
+    db: Queryable = pool,
+): Promise<{ credits: number; universe_id: number } | undefined> {
+    const res = await db.query<{ credits: number; universe_id: number }>(
+        'SELECT credits, universe_id FROM players WHERE id = $1',
+        [playerId],
+    );
+    return res.rows[0];
+}
+
+export type StatsSnapshotRow = {
+    sector_number: number | null;
+    turns: number;
+    credits: number;
+    reputation: number;
+    experience: number;
+    ship_type_slug: string;
+    ship_type_display_name: string | null;
+    max_drone_attack: number;
+    drones: number;
+    shields: number;
+    holds: number;
+    fuel: number;
+    organics: number;
+    equipment: number;
+    colonists: number;
+};
+
+/** One-round-trip read of every field in the right-side stats column. */
+export async function getStatsSnapshotRow(
+    playerId: number,
+    db: Queryable = pool,
+): Promise<StatsSnapshotRow | undefined> {
+    const res = await db.query<StatsSnapshotRow>(
+        `SELECT sec.sector_number,
+                p.turns, p.credits, p.reputation, p.experience,
+                s.ship_type_slug,
+                st.display_name AS ship_type_display_name,
+                st.max_drone_attack,
+                s.drones, s.shields, s.holds,
+                s.fuel, s.organics, s.equipment, s.colonists
+         FROM players p
+         LEFT JOIN sectors sec ON sec.id = p.current_sector_id
+         LEFT JOIN ships s ON s.id = p.ship_id
+         LEFT JOIN universe_ship_types st
+           ON st.universe_id = s.universe_id AND st.slug = s.ship_type_slug
+         WHERE p.id = $1`,
+        [playerId],
+    );
+    return res.rows[0];
+}
+
+export type RespawnInfoRow = {
+    ship_destroyed_date: Date | null;
+    universe_id: number;
+    respawn_delay_seconds: number | null;
+};
+
+export async function getRespawnInfo(
+    playerId: number,
+    db: Queryable = pool,
+): Promise<RespawnInfoRow | undefined> {
+    const res = await db.query<RespawnInfoRow>(
+        `SELECT p.ship_destroyed_date, p.universe_id, us.respawn_delay_seconds
+         FROM players p
+         LEFT JOIN universe_settings us ON us.universe_id = p.universe_id
+         WHERE p.id = $1`,
+        [playerId],
+    );
+    return res.rows[0];
+}

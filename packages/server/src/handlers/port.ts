@@ -18,6 +18,7 @@ import {
     deductCredits,
     addCredits,
     adjustReputationAndExperience,
+    getPlayerExperience,
 } from '../db/queries/player.js';
 import {
     getPortAtSector,
@@ -38,7 +39,6 @@ import { cargoUsed, formatCargo } from './cargo-utils.js';
 import { recordCreditChange } from '../services/audit.js';
 import { getTowingPlayerForShip, clearTowedShip } from '../db/queries/tow.js';
 import { getPlayerShipId } from '../db/queries/player.js';
-import { pool } from '../db/index.js';
 import { experienceDeltas, scalarDelta } from '../game-config.js';
 import { notifyTurnChange } from '../services/notify.js';
 
@@ -93,14 +93,6 @@ function buildPortInfoPayload(
     };
 }
 
-async function getPlayerXp(playerId: number): Promise<number> {
-    const res = await pool.query<{ experience: number }>(
-        'SELECT experience FROM players WHERE id = $1',
-        [playerId],
-    );
-    return res.rows[0]?.experience ?? 0;
-}
-
 export async function servePortInfo(playerId: number, data: PortInfoCommand): Promise<void> {
     const { sectorId } = data;
     if (!Number.isInteger(sectorId) || sectorId <= 0) {
@@ -113,7 +105,7 @@ export async function servePortInfo(playerId: number, data: PortInfoCommand): Pr
 
     const [p, xp] = await Promise.all([
         getPortAtSector(sectorId, universeId),
-        getPlayerXp(playerId),
+        getPlayerExperience(playerId),
     ]);
     if (!p) {
         sendError(playerId, 'No port in this sector');
@@ -140,7 +132,7 @@ export async function serveDock(playerId: number): Promise<void> {
     const [p, cargo, xp] = await Promise.all([
         getPortAtSector(player.sector, player.universeId),
         getShipCargoWithCredits(playerId),
-        getPlayerXp(playerId),
+        getPlayerExperience(playerId),
     ]);
     if (!p) {
         sendError(playerId, 'No port in this sector');
@@ -309,11 +301,7 @@ export async function servePortTransaction(
             // Read xp inside the trade tx so the awarded-on-success xp from a
             // prior commodity in the same dock visit is reflected in pricing
             // for subsequent commodities.
-            const xpRes = await client.query<{ experience: number }>(
-                'SELECT experience FROM players WHERE id = $1',
-                [playerId],
-            );
-            const xp = xpRes.rows[0]?.experience ?? 0;
+            const xp = await getPlayerExperience(playerId, client);
 
             // Physical-stock model: `stock` is the port's actual commodity
             // inventory. Buying ports have available *capacity* = max−stock;

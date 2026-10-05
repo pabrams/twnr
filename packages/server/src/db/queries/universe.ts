@@ -342,3 +342,42 @@ export async function getUniverseTemplateDefaults(
     );
     return res.rows[0];
 }
+
+export async function getUniverseStartingCredits(
+    universeId: number,
+    db: Queryable = pool,
+): Promise<number> {
+    const res = await db.query<{ starting_credits: number }>(
+        'SELECT starting_credits FROM universe_settings WHERE universe_id = $1',
+        [universeId],
+    );
+    return res.rows[0]?.starting_credits ?? 0;
+}
+
+/** Record the resolved bigbang knobs on a freshly created universe. */
+export async function updateUniverseBigbangSettings(
+    universeId: number,
+    settings: {
+        sectorCount: number;
+        warpDist: number[];
+        twoWayPct: number;
+        portSpawnDensity: number;
+    },
+    db: Queryable = pool,
+): Promise<void> {
+    await db.query(
+        `UPDATE universe_settings
+         SET sector_count = $2,
+             warp_dist = $3::jsonb,
+             two_way_pct = $4,
+             port_spawn_density = $5
+         WHERE universe_id = $1`,
+        [
+            universeId,
+            settings.sectorCount,
+            JSON.stringify(settings.warpDist),
+            settings.twoWayPct,
+            settings.portSpawnDensity,
+        ],
+    );
+}

@@ -12,14 +12,22 @@ import {
 import type { BuildPortCommand, UpgradePortCommand } from '@twnr/shared';
 import { onlinePlayers } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
-import { AbortTransaction, pool } from '../db/index.js';
+import { AbortTransaction } from '../db/index.js';
 import { runMutation } from './run-mutation.js';
-import { deductCredits, adjustReputationAndExperience } from '../db/queries/player.js';
+import {
+    deductCredits,
+    adjustReputationAndExperience,
+    getPlayerCredits,
+    getCreditsForUpdate,
+    getCreditsAndClanForUpdate,
+} from '../db/queries/player.js';
 import {
     getPortAtSector,
     getPortConstructionAtSectorForUpdate,
     insertPortConstruction,
     applyPortUpgrade,
+    getPortProductionAtSector,
+    getPortUpgradeInfoForUpdate,
 } from '../db/queries/port.js';
 import { getPlanetIdsInSectorForUpdate } from '../db/queries/planet.js';
 import { getSectorDbId } from '../db/queries/sector.js';
@@ -65,11 +73,7 @@ export async function serveConstructPortInfo(playerId: number): Promise<void> {
     // Check existing construction on this sector.
     const existing = await getPortConstructionAtSectorForUpdate(player.sector, player.universeId);
 
-    const creditsRes = await pool.query<{ credits: number }>(
-        'SELECT credits FROM players WHERE id = $1',
-        [playerId],
-    );
-    const credits = creditsRes.rows[0]?.credits ?? 0;
+    const credits = await getPlayerCredits(playerId);
 
     const classes = (Object.keys(PORT_CONSTRUCTION_COSTS) as unknown as PortClass[])
         .map((k) => Number(k) as PortClass)
@@ -153,11 +157,7 @@ export async function serveBuildPort(playerId: number, data: BuildPortCommand): 
 
             // Lock player credits + clan_id; reject if already constructing
             // here, port exists, no planet, or insufficient credits.
-            const playerRes = await client.query<{ credits: number; clan_id: number | null }>(
-                'SELECT credits, clan_id FROM players WHERE id = $1 FOR UPDATE',
-                [playerId],
-            );
-            const playerRow = playerRes.rows[0];
+            const playerRow = await getCreditsAndClanForUpdate(playerId, client);
             if (!playerRow) {
                 sendEnvelope(playerId, {
                     type: ServerTag.BuildPortResult,
@@ -275,11 +275,7 @@ export async function serveUpgradePortInfo(playerId: number): Promise<void> {
         return;
     }
 
-    const creditsRes = await pool.query<{ credits: number }>(
-        'SELECT credits FROM players WHERE id = $1',
-        [playerId],
-    );
-    const credits = creditsRes.rows[0]?.credits ?? 0;
+    const credits = await getPlayerCredits(playerId);
 
     const actions = PORT_CLASS_ACTIONS[port.class];
     const commodities: Array<{
@@ -311,20 +307,11 @@ export async function serveUpgradePortInfo(playerId: number): Promise<void> {
 
     // Patch in productivity from a focused query (getPortAtSector doesn't
     // include prod columns; we need them for the upgrade-info display).
-    const prodRes = await pool.query<{
-        fuel_prod: number;
-        org_prod: number;
-        equ_prod: number;
-    }>(
-        `SELECT p.fuel_prod, p.org_prod, p.equ_prod
-         FROM ports p JOIN sectors s ON p.sector_id = s.id
-         WHERE s.sector_number = $1 AND s.universe_id = $2`,
-        [player.sector, player.universeId],
-    );
-    if (prodRes.rows[0]) {
-        commodities[0].currentProd = prodRes.rows[0].fuel_prod;
-        commodities[1].currentProd = prodRes.rows[0].org_prod;
-        commodities[2].currentProd = prodRes.rows[0].equ_prod;
+    const prod = await getPortProductionAtSector(player.sector, player.universeId);
+    if (prod) {
+        commodities[0].currentProd = prod.fuel_prod;
+        commodities[1].currentProd = prod.org_prod;
+        commodities[2].currentProd = prod.equ_prod;
     }
 
     sendEnvelope(playerId, {
@@ -370,29 +357,11 @@ export async function serveUpgradePort(playerId: number, data: UpgradePortComman
         playerId,
         'Upgrade port',
         async (client) => {
-            const portRes = await client.query<{
-                id: number;
-                class: number;
-                fuel_prod: number;
-                org_prod: number;
-                equ_prod: number;
-                fuel_max: number;
-                org_max: number;
-                equ_max: number;
-                fuel: number;
-                organics: number;
-                equipment: number;
-            }>(
-                `SELECT p.id, p.class,
-                        p.fuel_prod, p.org_prod, p.equ_prod,
-                        p.fuel_max, p.org_max, p.equ_max,
-                        p.fuel, p.organics, p.equipment
-                 FROM ports p JOIN sectors s ON p.sector_id = s.id
-                 WHERE s.sector_number = $1 AND s.universe_id = $2
-                 FOR UPDATE OF p`,
-                [player.sector, player.universeId],
+            const port = await getPortUpgradeInfoForUpdate(
+                player.sector,
+                player.universeId,
+                client,
             );
-            const port = portRes.rows[0];
             if (!port) {
                 sendEnvelope(playerId, {
                     type: ServerTag.UpgradePortResult,
@@ -410,11 +379,7 @@ export async function serveUpgradePort(playerId: number, data: UpgradePortComman
                 throw new AbortTransaction();
             }
 
-            const credRes = await client.query<{ credits: number }>(
-                'SELECT credits FROM players WHERE id = $1 FOR UPDATE',
-                [playerId],
-            );
-            const credits = credRes.rows[0]?.credits ?? 0;
+            const credits = (await getCreditsForUpdate(playerId, client)) ?? 0;
             if (credits < totalCost) {
                 sendEnvelope(playerId, {
                     type: ServerTag.UpgradePortResult,

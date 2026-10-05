@@ -1,7 +1,7 @@
 import { ServerTag, universeConfig, type BaseLevelRequirement } from '@twnr/shared';
 import { onlinePlayers } from '../state/players.js';
 import { sendEnvelope } from '../state/messaging.js';
-import { AbortTransaction, pool } from '../db/index.js';
+import { AbortTransaction } from '../db/index.js';
 import { runMutation } from './run-mutation.js';
 import {
     getPlanetBase,
@@ -16,6 +16,8 @@ import {
     getPlanetBaseTransporterForUpdate,
     setPlanetBaseTransporterRange,
     getPlanetFuelForUpdate,
+    getPlanetStock,
+    getPlanetFuel,
 } from '../db/queries/planet.js';
 import {
     getOnPlanetId,
@@ -25,6 +27,7 @@ import {
     moveToSector,
     markSectorVisited,
     setOnPlanet,
+    getPlayerCredits,
 } from '../db/queries/player.js';
 import { getGraph } from '../state/graph-cache.js';
 import { resolveSectorId } from '../services/sector-lookup.js';
@@ -111,13 +114,7 @@ export async function serveBaseInfo(playerId: number): Promise<void> {
     }
 
     const [stock, totalColos] = await Promise.all([
-        pool
-            .query<{
-                fuel: number;
-                organics: number;
-                equipment: number;
-            }>(`SELECT fuel, organics, equipment FROM planets WHERE id = $1`, [onPlanetId])
-            .then((r) => r.rows[0] ?? { fuel: 0, organics: 0, equipment: 0 }),
+        getPlanetStock(onPlanetId),
         getPlanetTotalColonists(onPlanetId),
     ]);
 
@@ -261,11 +258,7 @@ export async function serveTreasuryInfo(playerId: number): Promise<void> {
         });
         return;
     }
-    const creditsRes = await pool.query<{ credits: number }>(
-        'SELECT credits FROM players WHERE id = $1',
-        [playerId],
-    );
-    const credits = creditsRes.rows[0]?.credits ?? 0;
+    const credits = await getPlayerCredits(playerId);
     sendEnvelope(playerId, {
         type: ServerTag.TreasuryInfoResult,
         outcome: 'ok',
@@ -605,11 +598,7 @@ export async function serveBwarpBeam(
             });
             return;
         }
-        const fuelRes = await pool.query<{ fuel: number }>(
-            `SELECT fuel FROM planets WHERE id = $1`,
-            [onPlanetId],
-        );
-        const planetFuel = fuelRes.rows[0]?.fuel ?? 0;
+        const planetFuel = await getPlanetFuel(onPlanetId);
         sendEnvelope(playerId, {
             type: ServerTag.BwarpBeamResult,
             outcome: 'distance',

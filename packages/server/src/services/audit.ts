@@ -1,5 +1,8 @@
 import crypto from 'crypto';
 import type { Queryable } from '../db/types.js';
+import { insertAuditLogEntry, type AuditLogRow } from '../db/queries/audit.js';
+
+export type { AuditLogRow } from '../db/queries/audit.js';
 
 // Per-session HMAC key. Generated once at module load, kept in module-scope
 // memory only — never persisted to env, file, or DB. Each server restart
@@ -72,33 +75,8 @@ export async function recordCreditChange(
         created_at: createdAt,
     };
     const hmac = signEntry(entry);
-    await client.query(
-        `INSERT INTO audit_log (player_id, action_type, delta, prev_credits, new_credits, context, created_at, hmac)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [
-            entry.player_id,
-            entry.action_type,
-            entry.delta,
-            entry.prev_credits,
-            entry.new_credits,
-            entry.context === null ? null : JSON.stringify(entry.context),
-            createdAt,
-            hmac,
-        ],
-    );
+    await insertAuditLogEntry({ ...entry, hmac }, client);
 }
-
-export type AuditLogRow = {
-    id: number;
-    player_id: number;
-    action_type: string;
-    delta: number;
-    prev_credits: number;
-    new_credits: number;
-    context: unknown;
-    created_at: Date;
-    hmac: string;
-};
 
 /**
  * Recompute the HMAC for a stored row and return whether it matches what the

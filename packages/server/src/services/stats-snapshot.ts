@@ -1,24 +1,7 @@
 import { ServerTag, type StatsSnapshot } from '@twnr/shared';
-import { pool } from '../db/index.js';
 import { sendEnvelope } from '../state/messaging.js';
-
-type StatsRow = {
-    sector_number: number | null;
-    turns: number;
-    credits: number;
-    reputation: number;
-    experience: number;
-    ship_type_slug: string;
-    ship_type_display_name: string | null;
-    max_drone_attack: number;
-    drones: number;
-    shields: number;
-    holds: number;
-    fuel: number;
-    organics: number;
-    equipment: number;
-    colonists: number;
-};
+import { getStatsSnapshotRow } from '../db/queries/player.js';
+import { getPlayerShipHardware } from '../db/queries/hardware.js';
 
 /**
  * Single round-trip snapshot of every field rendered in the right-side stats
@@ -29,35 +12,12 @@ type StatsRow = {
  * caller should skip the push in that case.
  */
 export async function buildStatsSnapshot(playerId: number): Promise<StatsSnapshot | null> {
-    const res = await pool.query<StatsRow>(
-        `SELECT sec.sector_number,
-                p.turns, p.credits, p.reputation, p.experience,
-                s.ship_type_slug,
-                st.display_name AS ship_type_display_name,
-                st.max_drone_attack,
-                s.drones, s.shields, s.holds,
-                s.fuel, s.organics, s.equipment, s.colonists
-         FROM players p
-         LEFT JOIN sectors sec ON sec.id = p.current_sector_id
-         LEFT JOIN ships s ON s.id = p.ship_id
-         LEFT JOIN universe_ship_types st
-           ON st.universe_id = s.universe_id AND st.slug = s.ship_type_slug
-         WHERE p.id = $1`,
-        [playerId],
-    );
-    const row = res.rows[0];
+    const row = await getStatsSnapshotRow(playerId);
     if (!row || row.ship_type_slug === null) return null;
 
-    const hwRes = await pool.query<{ name: string; quantity: number }>(
-        `SELECT hi.name, sh.quantity
-         FROM ship_hardware sh
-         JOIN hardware_item hi ON hi.id = sh.hardware_item_id
-         JOIN players p ON p.ship_id = sh.ship_id
-         WHERE p.id = $1`,
-        [playerId],
-    );
+    const hwRows = await getPlayerShipHardware(playerId);
     const hardware: Record<string, number> = {};
-    for (const h of hwRes.rows) hardware[h.name] = h.quantity;
+    for (const h of hwRows) hardware[h.name] = h.quantity;
 
     const used = row.fuel + row.organics + row.equipment + row.colonists;
     return {

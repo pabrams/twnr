@@ -175,3 +175,21 @@ export async function getSectorDroneDisplayInfo(
         ownership: ownershipFrom(row),
     };
 }
+
+/** Owners + quantities of all live drone stacks in a sector. */
+export async function getSectorDroneOwners(
+    sectorDbId: number,
+    db: Queryable = pool,
+): Promise<{ owner_player_id: number | null; owner_clan_id: number | null; quantity: number }[]> {
+    const res = await db.query<{
+        owner_player_id: number | null;
+        owner_clan_id: number | null;
+        quantity: number;
+    }>(
+        `SELECT owner_player_id, owner_clan_id, quantity
+         FROM sector_drones
+         WHERE sector_id = $1 AND quantity > 0`,
+        [sectorDbId],
+    );
+    return res.rows;
+}

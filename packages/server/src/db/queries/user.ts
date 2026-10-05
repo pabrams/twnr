@@ -88,3 +88,19 @@ export async function isGuestUser(userId: number, db: Queryable = pool): Promise
 export async function deleteUserById(userId: number, db: Queryable = pool): Promise<void> {
     await db.query('DELETE FROM users WHERE id = $1', [userId]);
 }
+
+/** Guest users idle past the cutoff, with their player row. */
+export async function listExpiredGuests(
+    maxIdleDays: number,
+    db: Queryable = pool,
+): Promise<{ user_id: number; player_id: number }[]> {
+    const res = await db.query<{ user_id: number; player_id: number }>(
+        `SELECT u.id AS user_id, p.id AS player_id
+           FROM users u
+           JOIN players p ON p.user_id = u.id
+          WHERE u.is_guest = true
+            AND COALESCE(p.last_logout_at, p.last_login_at) < NOW() - ($1 || ' days')::interval`,
+        [maxIdleDays],
+    );
+    return res.rows;
+}

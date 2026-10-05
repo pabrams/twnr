@@ -776,3 +776,145 @@ export async function getAbandonedShipsInSector(
         owner_clan_number: r.owner_clan_number,
     }));
 }
+
+type ShipCounter = 'drones' | 'shields';
+
+/** Clan transfer: sender's ship id + current drones/shields, locked FOR UPDATE. */
+export async function getShipCounterForUpdate(
+    playerId: number,
+    field: ShipCounter,
+    db: Queryable = pool,
+): Promise<{ ship_id: number; current: number } | undefined> {
+    const res = await db.query<{ ship_id: number; current: number }>(
+        `SELECT s.id AS ship_id, s.${field} AS current
+         FROM players p JOIN ships s ON p.ship_id = s.id
+         WHERE p.id = $1 FOR UPDATE`,
+        [playerId],
+    );
+    return res.rows[0];
+}
+
+/** Clan transfer: target's ship id + current and max drones/shields, locked FOR UPDATE. */
+export async function getShipCounterWithMaxForUpdate(
+    playerId: number,
+    field: ShipCounter,
+    db: Queryable = pool,
+): Promise<{ ship_id: number; current: number; max: number } | undefined> {
+    const maxCol = field === 'drones' ? 'max_drones' : 'max_shields';
+    const res = await db.query<{ ship_id: number; current: number; max: number }>(
+        `SELECT s.id AS ship_id, s.${field} AS current, st.${maxCol} AS max
+         FROM players p JOIN ships s ON p.ship_id = s.id
+         JOIN universe_ship_types st ON st.universe_id = s.universe_id AND st.slug = s.ship_type_slug
+         WHERE p.id = $1 FOR UPDATE OF s`,
+        [playerId],
+    );
+    return res.rows[0];
+}
+
+export async function adjustShipCounter(
+    shipId: number,
+    field: ShipCounter,
+    delta: number,
+    db: Queryable = pool,
+): Promise<void> {
+    await db.query(`UPDATE ships SET ${field} = ${field} + $1 WHERE id = $2`, [delta, shipId]);
+}
+
+export type OwnedShipDetailRow = {
+    id: number;
+    universe_ship_number: number;
+    type_name: string;
+    type_display_name: string | null;
+    ship_type_slug: string;
+    sector_number: number | null;
+    drones: number;
+    max_drones: number;
+    shields: number;
+    max_shields: number;
+    holds: number;
+    max_holds: number;
+    transporter_range: number;
+    fuel: number;
+    organics: number;
+    equipment: number;
+    colonists: number;
+    owner_player_id: number | null;
+    owner_clan_id: number | null;
+    owner_player_name: string | null;
+    owner_clan_name: string | null;
+    owner_clan_number: number | null;
+};
+
+/** Full detail for one ship, visible only to its owner (player or clanmate). */
+export async function getOwnedShipDetail(
+    shipId: number,
+    viewerPlayerId: number,
+    db: Queryable = pool,
+): Promise<OwnedShipDetailRow | undefined> {
+    const res = await db.query<OwnedShipDetailRow>(
+        `SELECT sh.id, sh.universe_ship_number,
+                st.slug AS type_name, st.display_name AS type_display_name,
+                st.slug AS ship_type_slug,
+                sec.sector_number,
+                sh.drones, st.max_drones,
+                sh.shields, st.max_shields,
+                sh.holds, st.max_holds,
+                st.transporter_range,
+                sh.fuel, sh.organics, sh.equipment, sh.colonists,
+                sh.owner_player_id, sh.owner_clan_id,
+                op.name AS owner_player_name,
+                oc.name AS owner_clan_name,
+                oc.universe_clan_number AS owner_clan_number
+         FROM ships sh
+         JOIN universe_ship_types st ON st.universe_id = sh.universe_id AND st.slug = sh.ship_type_slug
+         LEFT JOIN sectors sec ON sh.sector_id = sec.id
+         LEFT JOIN players op ON op.id = sh.owner_player_id
+         LEFT JOIN clans oc ON oc.id = sh.owner_clan_id
+         WHERE sh.id = $1
+           AND (sh.owner_player_id = $2
+                OR sh.owner_clan_id = (SELECT clan_id FROM players WHERE id = $2))`,
+        [shipId, viewerPlayerId],
+    );
+    return res.rows[0];
+}
+
+export type TransportTargetRow = {
+    current_range: number | null;
+    target_sector_id: number | null;
+    target_sector_number: number | null;
+};
+
+/** Transporter pad: viewer's current ship range + an owned target ship's location. */
+export async function getTransportTargetInfo(
+    viewerPlayerId: number,
+    targetShipId: number,
+    db: Queryable = pool,
+): Promise<TransportTargetRow | undefined> {
+    const res = await db.query<TransportTargetRow>(
+        `SELECT cur_st.transporter_range AS current_range,
+                tgt.sector_id AS target_sector_id,
+                tgt_sec.sector_number AS target_sector_number
+         FROM ships tgt
+         LEFT JOIN sectors tgt_sec ON tgt.sector_id = tgt_sec.id
+         LEFT JOIN players p ON p.id = $1
+         LEFT JOIN ships cur ON cur.id = p.ship_id
+         LEFT JOIN universe_ship_types cur_st ON cur_st.universe_id = cur.universe_id AND cur_st.slug = cur.ship_type_slug
+         WHERE tgt.id = $2
+           AND (tgt.owner_player_id = $1
+                OR tgt.owner_clan_id = (SELECT clan_id FROM players WHERE id = $1))`,
+        [viewerPlayerId, targetShipId],
+    );
+    return res.rows[0];
+}
+
+/** All ship-type rows for a universe, for the admin/catalog API. */
+export async function listUniverseShipTypes(
+    universeId: number,
+    db: Queryable = pool,
+): Promise<Record<string, unknown>[]> {
+    const res = await db.query(
+        'SELECT * FROM universe_ship_types WHERE universe_id = $1 ORDER BY sort_order, slug',
+        [universeId],
+    );
+    return res.rows;
+}

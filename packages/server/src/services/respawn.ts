@@ -1,5 +1,4 @@
-import { pool } from '../db/index.js';
-import { clearPlayerShip, applyRespawnReset } from '../db/queries/player.js';
+import { clearPlayerShip, applyRespawnReset, getRespawnInfo } from '../db/queries/player.js';
 import { getSectorDbId } from '../db/queries/sector.js';
 import { deleteShipByOwner } from '../db/queries/ship.js';
 import { universeConfig } from '@twnr/shared';
@@ -23,18 +22,7 @@ export type RespawnOutcome =
  * destruction → respawn transition lives in one place.
  */
 export async function tryRespawnPlayer(playerId: number): Promise<RespawnOutcome> {
-    const res = await pool.query<{
-        ship_destroyed_date: Date | null;
-        universe_id: number;
-        respawn_delay_seconds: number | null;
-    }>(
-        `SELECT p.ship_destroyed_date, p.universe_id, us.respawn_delay_seconds
-         FROM players p
-         LEFT JOIN universe_settings us ON us.universe_id = p.universe_id
-         WHERE p.id = $1`,
-        [playerId],
-    );
-    const row = res.rows[0];
+    const row = await getRespawnInfo(playerId);
     if (!row || !row.ship_destroyed_date) return { kind: 'no-respawn' };
 
     const delaySecs = row.respawn_delay_seconds ?? universeConfig.respawnDelaySeconds;

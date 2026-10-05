@@ -8,7 +8,7 @@ import type {
     ClanSetPasswordCommand,
     ClanDropMemberCommand,
 } from '@twnr/shared';
-import { pool, withTransaction, AbortTransaction } from '../db/index.js';
+import { withTransaction, AbortTransaction } from '../db/index.js';
 import { runMutation } from './run-mutation.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { onlinePlayers } from '../state/players.js';
@@ -29,8 +29,26 @@ import {
     dissolveClanAssets,
     isPlayerOnClanShip,
     getPlayerClanId,
+    getPlayersClanIds,
 } from '../db/queries/clan.js';
 import { insertMemo } from '../db/queries/message.js';
+import {
+    getPlayerName,
+    getCreditsForUpdate,
+    deductCredits,
+    addCredits,
+} from '../db/queries/player.js';
+import {
+    getShipCounterForUpdate,
+    getShipCounterWithMaxForUpdate,
+    adjustShipCounter,
+} from '../db/queries/ship.js';
+import {
+    getHardwareItemByName,
+    getShipHardwareCapacityForUpdate,
+    decrementShipHardwareQuantity,
+    upsertShipHardwareQuantity,
+} from '../db/queries/hardware.js';
 
 function isValidClanName(name: string): boolean {
     const trimmed = name.trim();
@@ -325,25 +343,16 @@ async function requireSameClan(senderId: number, targetId: number): Promise<numb
         sendError(senderId, 'Cannot transfer to yourself.');
         return null;
     }
-    const res = await pool.query<{ s: number | null; t: number | null }>(
-        `SELECT s.clan_id AS s, t.clan_id AS t
-         FROM players s, players t
-         WHERE s.id = $1 AND t.id = $2`,
-        [senderId, targetId],
-    );
-    const row = res.rows[0];
-    if (!row || row.s === null || row.t === null || row.s !== row.t) {
+    const row = await getPlayersClanIds(senderId, targetId);
+    if (!row || row.a === null || row.b === null || row.a !== row.b) {
         sendError(senderId, 'Target is not a member of your clan.');
         return null;
     }
-    return row.s;
+    return row.a;
 }
 
-async function getPlayerName(playerId: number): Promise<string> {
-    const r = await pool.query<{ name: string }>('SELECT name FROM players WHERE id = $1', [
-        playerId,
-    ]);
-    return r.rows[0]?.name ?? 'Player';
+async function getPlayerDisplayName(playerId: number): Promise<string> {
+    return (await getPlayerName(playerId)) ?? 'Player';
 }
 
 async function transferCredits(
@@ -359,23 +368,13 @@ async function transferCredits(
     }
 
     const delivered = await withTransaction(async (client) => {
-        const r = await client.query<{ credits: number }>(
-            'SELECT credits FROM players WHERE id = $1 FOR UPDATE',
-            [senderId],
-        );
-        const senderCredits = r.rows[0]?.credits ?? 0;
+        const senderCredits = (await getCreditsForUpdate(senderId, client)) ?? 0;
         if (senderCredits < quantity) {
             sendError(senderId, `Insufficient credits (have ${senderCredits}).`);
             throw new AbortTransaction();
         }
-        await client.query('UPDATE players SET credits = credits - $1 WHERE id = $2', [
-            quantity,
-            senderId,
-        ]);
-        await client.query('UPDATE players SET credits = credits + $1 WHERE id = $2', [
-            quantity,
-            targetId,
-        ]);
+        await deductCredits(senderId, quantity, client);
+        await addCredits(targetId, quantity, client);
         return quantity;
     });
     return { delivered: delivered ?? 0 };
@@ -394,52 +393,28 @@ async function transferDronesOrShields(
         return { delivered: 0 };
     }
 
-    const max_col = field === 'drones' ? 'max_drones' : 'max_shields';
     const delivered = await withTransaction(async (client) => {
-        const sender = await client.query<{ ship_id: number; v: number }>(
-            `SELECT s.id AS ship_id, s.${field} AS v
-             FROM players p JOIN ships s ON p.ship_id = s.id
-             WHERE p.id = $1 FOR UPDATE`,
-            [senderId],
-        );
-        const senderRow = sender.rows[0];
+        const senderRow = await getShipCounterForUpdate(senderId, field, client);
         if (!senderRow) {
             sendError(senderId, 'You have no ship.');
             throw new AbortTransaction();
         }
-        if (senderRow.v < quantity) {
-            sendError(senderId, `Insufficient ${field} (have ${senderRow.v}).`);
+        if (senderRow.current < quantity) {
+            sendError(senderId, `Insufficient ${field} (have ${senderRow.current}).`);
             throw new AbortTransaction();
         }
 
-        const target = await client.query<{
-            ship_id: number;
-            v: number;
-            max_v: number;
-        }>(
-            `SELECT s.id AS ship_id, s.${field} AS v, st.${max_col} AS max_v
-             FROM players p JOIN ships s ON p.ship_id = s.id
-             JOIN universe_ship_types st ON st.universe_id = s.universe_id AND st.slug = s.ship_type_slug
-             WHERE p.id = $1 FOR UPDATE`,
-            [targetId],
-        );
-        const targetRow = target.rows[0];
+        const targetRow = await getShipCounterWithMaxForUpdate(targetId, field, client);
         if (!targetRow) {
             sendError(senderId, 'Target has no ship.');
             throw new AbortTransaction();
         }
-        const room = Math.max(0, targetRow.max_v - targetRow.v);
+        const room = Math.max(0, targetRow.max - targetRow.current);
         const deliveredQty = Math.min(quantity, room);
 
-        await client.query(`UPDATE ships SET ${field} = ${field} - $1 WHERE id = $2`, [
-            quantity,
-            senderRow.ship_id,
-        ]);
+        await adjustShipCounter(senderRow.ship_id, field, -quantity, client);
         if (deliveredQty > 0) {
-            await client.query(`UPDATE ships SET ${field} = ${field} + $1 WHERE id = $2`, [
-                deliveredQty,
-                targetRow.ship_id,
-            ]);
+            await adjustShipCounter(targetRow.ship_id, field, deliveredQty, client);
         }
         return deliveredQty;
     });
@@ -461,73 +436,33 @@ async function transferMines(
     const hwName = mineType === 'proximity' ? 'proximity_mine' : 'seeker_mine';
 
     const delivered = await withTransaction(async (client) => {
-        const hwRow = await client.query<{ id: number }>(
-            'SELECT id FROM hardware_item WHERE name = $1',
-            [hwName],
-        );
-        const hwId = hwRow.rows[0]?.id;
+        const hwId = (await getHardwareItemByName(hwName, client))?.id;
         if (!hwId) {
             sendError(senderId, 'Mine hardware not configured.');
             throw new AbortTransaction();
         }
 
-        // Sender ship + current mine count.
-        const sender = await client.query<{ ship_id: number; qty: number }>(
-            `SELECT s.id AS ship_id,
-                    COALESCE((SELECT quantity FROM ship_hardware sh
-                              WHERE sh.ship_id = s.id AND sh.hardware_item_id = $2), 0) AS qty
-             FROM players p JOIN ships s ON p.ship_id = s.id
-             WHERE p.id = $1 FOR UPDATE`,
-            [senderId, hwId],
-        );
-        const senderRow = sender.rows[0];
-        if (!senderRow || senderRow.qty < quantity) {
-            sendError(senderId, `Insufficient ${mineType} mines (have ${senderRow?.qty ?? 0}).`);
+        const senderRow = await getShipHardwareCapacityForUpdate(senderId, hwId, client);
+        if (!senderRow || senderRow.current_qty < quantity) {
+            sendError(
+                senderId,
+                `Insufficient ${mineType} mines (have ${senderRow?.current_qty ?? 0}).`,
+            );
             throw new AbortTransaction();
         }
 
-        // Target ship + max capacity + current mine count.
-        const target = await client.query<{
-            ship_id: number;
-            ship_type_slug: string;
-            max_qty: number;
-            qty: number;
-        }>(
-            `SELECT s.id AS ship_id, s.ship_type_slug,
-                    COALESCE(sth.max_quantity, 0) AS max_qty,
-                    COALESCE((SELECT quantity FROM ship_hardware sh
-                              WHERE sh.ship_id = s.id AND sh.hardware_item_id = $2), 0) AS qty
-             FROM players p JOIN ships s ON p.ship_id = s.id
-             LEFT JOIN universe_ship_type_hardware sth
-                ON sth.universe_id = s.universe_id
-                AND sth.ship_type_slug = s.ship_type_slug
-                AND sth.hardware_item_id = $2
-             WHERE p.id = $1 FOR UPDATE`,
-            [targetId, hwId],
-        );
-        const targetRow = target.rows[0];
+        const targetRow = await getShipHardwareCapacityForUpdate(targetId, hwId, client);
         if (!targetRow) {
             sendError(senderId, 'Target has no ship.');
             throw new AbortTransaction();
         }
-        const room = Math.max(0, targetRow.max_qty - targetRow.qty);
+        const room = Math.max(0, targetRow.max_qty - targetRow.current_qty);
         const deliveredQty = Math.min(quantity, room);
 
-        // Decrement sender (always full quantity).
-        await client.query(
-            `UPDATE ship_hardware SET quantity = quantity - $1
-             WHERE ship_id = $2 AND hardware_item_id = $3`,
-            [quantity, senderRow.ship_id, hwId],
-        );
-        // Increment target (upsert).
+        // Decrement sender (always full quantity), increment target (upsert).
+        await decrementShipHardwareQuantity(senderRow.ship_id, hwId, quantity, client);
         if (deliveredQty > 0) {
-            await client.query(
-                `INSERT INTO ship_hardware (ship_id, hardware_item_id, quantity)
-                 VALUES ($1, $2, $3)
-                 ON CONFLICT (ship_id, hardware_item_id)
-                 DO UPDATE SET quantity = ship_hardware.quantity + $3`,
-                [targetRow.ship_id, hwId, deliveredQty],
-            );
+            await upsertShipHardwareQuantity(targetRow.ship_id, hwId, deliveredQty, client);
         }
         return deliveredQty;
     });
@@ -561,8 +496,8 @@ export async function serveClanTransfer(
         return;
     }
 
-    const senderName = await getPlayerName(senderId);
-    const targetName = await getPlayerName(targetPlayerId);
+    const senderName = await getPlayerDisplayName(senderId);
+    const targetName = await getPlayerDisplayName(targetPlayerId);
     const kindLabel =
         kind === 'mines'
             ? mineType === 'seeker'
@@ -614,7 +549,7 @@ export async function serveClanMemo(senderId: number, data: ClanMemoCommand): Pr
 
     const members = await getClanMembers(clanId);
     const recipients = members.filter((m) => m.id !== senderId);
-    const senderName = recipients.length > 0 ? await getPlayerName(senderId) : '';
+    const senderName = recipients.length > 0 ? await getPlayerDisplayName(senderId) : '';
     for (const m of recipients) {
         await insertMemo(m.id, senderId, clanId, 'memo', trimmed);
         // Online clan members get only a notification — the body lives in
@@ -689,8 +624,8 @@ export async function serveClanDropMember(
 
     await setPlayerClanId(targetPlayerId, null);
 
-    const leaderName = await getPlayerName(leaderPlayerId);
-    const targetName = await getPlayerName(targetPlayerId);
+    const leaderName = await getPlayerDisplayName(leaderPlayerId);
+    const targetName = await getPlayerDisplayName(targetPlayerId);
     await insertMemo(
         targetPlayerId,
         leaderPlayerId,

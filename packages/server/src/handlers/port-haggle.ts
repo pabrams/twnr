@@ -30,6 +30,7 @@ import {
     addCredits,
     getCurrentSector,
     adjustReputationAndExperience,
+    getPlayerExperience,
 } from '../db/queries/player.js';
 import {
     getPortTradeInfoForUpdate,
@@ -178,14 +179,7 @@ export async function serveHaggleOpen(playerId: number, data: HaggleOpenCommand)
     // accept, so pricing stays stable across rounds).
     const player_ = onlinePlayers[playerId];
     if (!player_) return;
-    const xp = await (async () => {
-        const { pool } = await import('../db/index.js');
-        const res = await pool.query<{ experience: number }>(
-            'SELECT experience FROM players WHERE id = $1',
-            [playerId],
-        );
-        return res.rows[0]?.experience ?? 0;
-    })();
+    const xp = await getPlayerExperience(playerId);
 
     const portAction = actions[col];
     const unitPrice = computeUnitPriceWithXp(col, stock, max, mcic, xp, portAction);

@@ -14,6 +14,7 @@ import {
     getTemplateIdByName,
     snapshotTemplateForUniverse,
     getEarthStartingColonistsForUniverse,
+    updateUniverseBigbangSettings,
 } from '../../db/queries/universe.js';
 import {
     countSectorsInUniverse,
@@ -121,20 +122,15 @@ export function createAdminLifecycleRoutes(
                 // record the resolved bigbang knobs so the per-universe
                 // settings reflect what was actually used, not the template defaults.
                 // warpDist is stored without the leading-0 sentinel.
-                await client.query(
-                    `UPDATE universe_settings
-                     SET sector_count = $2,
-                         warp_dist = $3::jsonb,
-                         two_way_pct = $4,
-                         port_spawn_density = $5
-                     WHERE universe_id = $1`,
-                    [
-                        newUniverseId,
-                        options.sectors,
-                        JSON.stringify(options.warpDist.slice(1)),
-                        options.twoWayPct,
-                        options.portDensity,
-                    ],
+                await updateUniverseBigbangSettings(
+                    newUniverseId,
+                    {
+                        sectorCount: options.sectors,
+                        warpDist: options.warpDist.slice(1),
+                        twoWayPct: options.twoWayPct,
+                        portSpawnDensity: options.portDensity,
+                    },
+                    client,
                 );
 
                 const sectorIdMap = new Map<number, number>();

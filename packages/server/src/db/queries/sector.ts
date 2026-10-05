@@ -219,3 +219,37 @@ export async function getWarpRefsForPlayer(
     );
     return res.rows.map((r) => ({ sector: r.sector_number, visited: r.visited }));
 }
+
+export type SectorPositionRow = {
+    id: number;
+    sector_number: number;
+    x: number | null;
+    y: number | null;
+};
+
+/** All sector positions in a universe (neighborhood map metadata). */
+export async function listSectorPositions(
+    universeId: number,
+    db: Queryable = pool,
+): Promise<SectorPositionRow[]> {
+    const res = await db.query<SectorPositionRow>(
+        'SELECT id, sector_number, x, y FROM sectors WHERE universe_id = $1',
+        [universeId],
+    );
+    return res.rows;
+}
+
+/** All warp edges in a universe, as sector db ids. */
+export async function listWarpEdgesByIds(
+    universeId: number,
+    db: Queryable = pool,
+): Promise<{ from_id: number; to_id: number }[]> {
+    const res = await db.query<{ from_id: number; to_id: number }>(
+        `SELECT w.from_sector_id AS from_id, w.to_sector_id AS to_id
+         FROM warps w
+         JOIN sectors s ON w.from_sector_id = s.id
+         WHERE s.universe_id = $1`,
+        [universeId],
+    );
+    return res.rows;
+}

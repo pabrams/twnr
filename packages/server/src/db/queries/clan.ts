@@ -305,3 +305,18 @@ export async function dissolveClanAssets(
     const convertedToRogue = r5.rows[0]?.n ?? 0;
     return { convertedToPersonal, convertedToRogue };
 }
+
+/** Clan ids of two players at once (clan-transfer validation). */
+export async function getPlayersClanIds(
+    playerAId: number,
+    playerBId: number,
+    db: Queryable = pool,
+): Promise<{ a: number | null; b: number | null } | undefined> {
+    const res = await db.query<{ a: number | null; b: number | null }>(
+        `SELECT a.clan_id AS a, b.clan_id AS b
+         FROM players a, players b
+         WHERE a.id = $1 AND b.id = $2`,
+        [playerAId, playerBId],
+    );
+    return res.rows[0];
+}
