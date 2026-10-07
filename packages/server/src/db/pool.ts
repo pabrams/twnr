@@ -3,25 +3,22 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { execSync } from 'node:child_process';
 
-/**
- * Per-worktree DB isolation: when PGDATABASE is unset, derive
- * `<sanitized_leaf>_<8-char-sha256-of-toplevel-path>`. The hash suffix
- * keeps two unrelated clones at e.g. `~/repos/twnr` and `~/scratch/twnr`
- * from colliding on the same DB. PGDATABASE always wins (production sets
- * it explicitly in docker-compose.production.yml). Falls back to cwd if
- * git is unavailable (e.g. stripped container).
- */
-function deriveDatabaseName(): string {
-    if (process.env.PGDATABASE) return process.env.PGDATABASE;
-    let root: string;
+
+
+export function worktreeRoot(): string {
     try {
-        root = execSync('git rev-parse --show-toplevel', {
+        return execSync('git rev-parse --show-toplevel', {
             encoding: 'utf8',
             stdio: ['ignore', 'pipe', 'ignore'],
         }).trim();
     } catch {
-        root = process.cwd();
+        return process.cwd();
     }
+}
+
+function deriveDatabaseName(): string {
+    if (process.env.PGDATABASE) return process.env.PGDATABASE;
+    const root = worktreeRoot();
     const sanitized =
         path
             .basename(root)

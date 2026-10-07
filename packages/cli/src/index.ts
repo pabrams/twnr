@@ -1,11 +1,27 @@
 #!/usr/bin/env node
+import { execSync } from 'node:child_process';
 import { parseArgs } from 'node:util';
+import { devServerPort } from '@twnr/shared';
 import { loginGuest, login, register } from './auth.js';
 import { connect } from './connect.js';
 import { loadSession, clearSession } from './session.js';
 import { listCommands, showCommand } from './meta.js';
 
-const DEFAULT_HOST = process.env.TWNR_HOST || 'http://localhost:3000';
+function defaultHost(): string {
+    if (process.env.TWNR_HOST) return process.env.TWNR_HOST;
+    if (process.env.PORT) return `http://localhost:${process.env.PORT}`;
+    try {
+        const root = execSync('git rev-parse --show-toplevel', {
+            encoding: 'utf8',
+            stdio: ['ignore', 'pipe', 'ignore'],
+        }).trim();
+        return `http://localhost:${devServerPort(root)}`;
+    } catch {
+        return 'http://localhost:3000';
+    }
+}
+
+const DEFAULT_HOST = defaultHost();
 
 const USAGE = `twnr — minimal CLI client for the twnr server
 

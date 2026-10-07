@@ -8,7 +8,8 @@ import { WebSocket, WebSocketServer } from 'ws';
 import { connectDB } from './db/index.js';
 import { createRoutes } from './routes/index.js';
 import * as auth from './auth/index.js';
-import { ServerTag, ClientEnvelopeSchema } from '@twnr/shared';
+import { ServerTag, ClientEnvelopeSchema, devServerPort } from '@twnr/shared';
+import { worktreeRoot } from './db/pool.js';
 import type { AuthTokenPayload, ClientEnvelope, ServerEnvelope } from '@twnr/shared';
 import { shipConfigs } from './ship-config.js';
 import { onlinePlayers } from './state/players.js';
@@ -341,7 +342,26 @@ export async function startServer() {
         await connectDB();
         startHourlyScheduler();
 
-        const port = parseInt(process.env.PORT || '3000', 10);
+
+        const port = process.env.PORT
+            ? parseInt(process.env.PORT, 10)
+            : devServerPort(worktreeRoot());
+
+        const onListenError = (err: NodeJS.ErrnoException): never => {
+            if (err.code === 'EADDRINUSE') {
+                console.error(
+                    `Port ${port} is already in use — another twnr server is probably ` +
+                        `running for this worktree. Stop it (\`pnpm --filter @twnr/server kill:dev\`) ` +
+                        `or set PORT to override.`,
+                );
+            } else {
+                console.error('Server error:', err);
+            }
+            process.exit(1);
+        };
+        server.on('error', onListenError);
+        wss.on('error', onListenError);
+
         server.listen(port, () => {
             console.log(`Server listening on port ${port}`);
         });
