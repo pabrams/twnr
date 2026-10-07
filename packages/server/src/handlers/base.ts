@@ -5,7 +5,6 @@ import { AbortTransaction } from '../db/index.js';
 import { runMutation } from './run-mutation.js';
 import {
     getPlanetBase,
-    promotePlanetBaseIfDue,
     insertPlanetBaseConstruction,
     getPlanetTotalColonists,
     getPlanetClassInfo,
@@ -71,8 +70,7 @@ export async function serveBaseInfo(playerId: number): Promise<void> {
         return;
     }
 
-    // Lazy-promote any in-progress base whose timer has elapsed.
-    const base = await promotePlanetBaseIfDue(onPlanetId);
+    const base = await getPlanetBase(onPlanetId);
 
     if (base && base.level >= 1) {
         sendEnvelope(playerId, {
@@ -249,7 +247,7 @@ export async function serveTreasuryInfo(playerId: number): Promise<void> {
         });
         return;
     }
-    const base = await promotePlanetBaseIfDue(onPlanetId);
+    const base = await getPlanetBase(onPlanetId);
     if (!base || base.level < 1) {
         sendEnvelope(playerId, {
             type: ServerTag.TreasuryInfoResult,
@@ -364,10 +362,6 @@ export async function serveTreasuryTransfer(
     );
 }
 
-// PlanetBaseRow doesn't include transporter_range — the canonical query has
-// not been widened. Read it via the dedicated locking helper instead.
-type PlanetBaseRowMaybeTransporter = { transporter_range?: number };
-
 function shortestHopCount(warps: Record<number, number[]>, from: number, to: number): number {
     if (from === to) return 0;
     const visited = new Set<number>([from]);
@@ -398,7 +392,7 @@ export async function serveBwarpInfo(playerId: number): Promise<void> {
         });
         return;
     }
-    const base = await promotePlanetBaseIfDue(onPlanetId);
+    const base = await getPlanetBase(onPlanetId);
     if (!base || base.level < 1) {
         sendEnvelope(playerId, {
             type: ServerTag.BwarpInfoResult,
@@ -407,7 +401,7 @@ export async function serveBwarpInfo(playerId: number): Promise<void> {
         });
         return;
     }
-    const range = (base as PlanetBaseRowMaybeTransporter).transporter_range ?? 0;
+    const range = base.transporter_range;
     if (range < 1) {
         sendEnvelope(playerId, {
             type: ServerTag.BwarpInfoResult,
@@ -578,8 +572,8 @@ export async function serveBwarpBeam(
     }
 
     if (!commit) {
-        const base = await promotePlanetBaseIfDue(onPlanetId);
-        const range = (base as PlanetBaseRowMaybeTransporter | null)?.transporter_range ?? 0;
+        const base = await getPlanetBase(onPlanetId);
+        const range = base?.transporter_range ?? 0;
         if (!base || base.level < 1 || range < 1) {
             sendEnvelope(playerId, {
                 type: ServerTag.BwarpBeamResult,

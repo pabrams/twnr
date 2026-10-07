@@ -386,7 +386,7 @@ export async function getPlanetDisplayData(playerId: number): Promise<{
 
     // Lazy-promote any base whose construction has elapsed so display reflects
     // the freshly active level rather than the stale "constructing" state.
-    await promotePlanetBaseIfDue(onPlanetId);
+    await getPlanetBase(onPlanetId);
 
     const planetRes = await pool.query(
         `SELECT pl.id, pl.universe_planet_number, pl.sector_id, pl.name, pl.type, pt.display_name AS display_type,
@@ -766,32 +766,22 @@ export async function listPlanetIdsWithColonists(db: Queryable = pool): Promise<
 export type PlanetBaseRow = {
     level: number;
     treasury: number;
+    transporter_range: number;
     construction_target_level: number | null;
     construction_started_at: Date | null;
     construction_completes_at: Date | null;
 };
 
+/** Read a planet's base row, first completing any construction whose
+ *  completion time has passed (level := target, construction fields
+ *  cleared). Returns null if the planet has no base row. The hourly job
+ *  also completes due constructions in bulk (`promoteDuePlanetBases`);
+ *  settling here too keeps interactive reads exact between ticks. */
 export async function getPlanetBase(
     planetId: number,
     db: Queryable = pool,
 ): Promise<PlanetBaseRow | null> {
-    const res = await db.query<PlanetBaseRow>(
-        `SELECT level, treasury::int AS treasury, construction_target_level,
-                construction_started_at, construction_completes_at
-         FROM planet_bases WHERE planet_id = $1`,
-        [planetId],
-    );
-    return res.rows[0] ?? null;
-}
-
-/** Promote a base whose construction_completes_at has passed to the target
- *  level and clear the construction fields. Returns the (possibly updated)
- *  row or null if no row exists. */
-export async function promotePlanetBaseIfDue(
-    planetId: number,
-    db: Queryable = pool,
-): Promise<PlanetBaseRow | null> {
-    const res = await db.query<PlanetBaseRow>(
+    const promoted = await db.query<PlanetBaseRow>(
         `UPDATE planet_bases
          SET level = construction_target_level,
              construction_target_level = NULL,
@@ -800,12 +790,37 @@ export async function promotePlanetBaseIfDue(
          WHERE planet_id = $1
            AND construction_target_level IS NOT NULL
            AND construction_completes_at <= NOW()
-         RETURNING level, treasury::int AS treasury, construction_target_level,
-                   construction_started_at, construction_completes_at`,
+         RETURNING level, treasury::int AS treasury, transporter_range,
+                   construction_target_level, construction_started_at,
+                   construction_completes_at`,
         [planetId],
     );
-    if (res.rows[0]) return res.rows[0];
-    return getPlanetBase(planetId, db);
+    if (promoted.rows[0]) return promoted.rows[0];
+    const res = await db.query<PlanetBaseRow>(
+        `SELECT level, treasury::int AS treasury, transporter_range,
+                construction_target_level, construction_started_at,
+                construction_completes_at
+         FROM planet_bases WHERE planet_id = $1`,
+        [planetId],
+    );
+    return res.rows[0] ?? null;
+}
+
+/** Hourly job: complete every due base construction across all planets.
+ *  Returns the number of bases levelled up. */
+export async function promoteDuePlanetBases(db: Queryable = pool): Promise<number> {
+    const res = await db.query<{ planet_id: number }>(
+        `UPDATE planet_bases
+         SET level = construction_target_level,
+             construction_target_level = NULL,
+             construction_started_at = NULL,
+             construction_completes_at = NULL
+         WHERE construction_target_level IS NOT NULL
+           AND construction_completes_at <= NOW()
+         RETURNING planet_id`,
+        [],
+    );
+    return res.rows.length;
 }
 
 /** Lock and read the treasury balance + level for a planet base. Returns null

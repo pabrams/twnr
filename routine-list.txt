@@ -1,0 +1,65 @@
+Thought for 27s (ctrl+o to expand)
+
+● Out of ~90 registered routines, most are menu navigation or pure display —
+  those stay native. The genuine script candidates are the multi-step
+  transaction flows: get facts → make a decision → send commands, possibly
+  looping. Grouped by how much they'd gain:
+
+  Tier 1 — the classic automation targets (these are why people scripted
+  TW2002):
+
+  1. Trade/haggle session (runTradeRoutine, currently in the dock handler) —
+     the crown jewel. Per-commodity quantity decisions + the counter-offer
+     loop. As a script, "human decides" swaps for "strategy decides" and you
+     have a port-pair trade bot — the exact thing your optimal-trade benchmark
+     task does by hand.
+  2. Autopilot — path + confirm + the step loop with hazard pauses. The
+     scripted version generalizes to "go to sector X, stop on anything
+     interesting," i.e. an explore bot.
+  3. Colonist logistics — take_from_earth, leave_on_earth,
+     load_unload_colonists, change_population, take_leave_product. Individually
+     small, but chained they're the colonizer loop (Earth → planet, repeat),
+     the second-most-scripted flow in TW history.
+  4. Deploy drones / mines — deploy_drones_info, handle_mines_menu,
+     mine_disruptor_menu, list_deployed_*. Qty + ownership decisions; scripted
+     form is "maintain N drones in every sector I own."
+  5. Shopping flows — buy_ship, choose_holds/drones/shields,
+     shipyards_equipment, hardware_store, buy_mines_menu. All the same shape:
+     show prices, pick quantity against budget. A "re-equip to loadout X"
+     script replaces five menus.
+
+  Tier 2 — same shape, less automation demand:
+
+  6. Clan transfers (clan_transfer_credits/drones/shields/mines) +
+     treasury_transfer — pick target, pick amount. Scriptable "pay clan tax"
+     use case.
+  7. Port construction/upgrade (order_starport) — build-vs-upgrade branch with
+     quantity prompts.
+  8. Terraform (use_terraform_device + the name/ownership prompts) and
+     claim_planet.
+  9. Targeted actions from a list — tow_spacecraft, transporter_pad,
+     select_target, jettison_menu, hyperspace_jump.
+  10. Messaging — hail, clan_memo, release_beacon (compose + send).
+
+  Combat flows — scriptable but flag them: attack_menu, attack_sector_drones,
+  retreat/encounter routines. A script can decide "retreat if their drones >
+  mine," and bots will want that — but the drone-encounter state machine is
+  server-gated and timing-sensitive, so I'd do these last, and it's also where
+  you'd make deliberate game-design calls about how much combat automation you
+  want to allow.
+
+  Explicitly not scripts:
+  - Display/info routines (display_sector, scan_sector, long_range_scan,
+    known_universe, players_online, trader_list, read_mail, planet_specs,
+    ship_catalog…) — these become SDK query functions that scripts call for
+    data. The rendering stays in the client.
+  - Navigation/mode plumbing (back, every *_menu mode switch, help_menu,
+    quit_game) — pure UI, meaningless headless.
+
+  If you want a migration order that de-risks the architecture: start with
+  deploy drones (smallest, already in clean routine form, exercises
+  ask+request+send), then colonist logistics (chaining several commands proves
+  script composition), then the trade session (the hardest and most valuable —
+  if the script layer can express haggling, it can express anything). Autopilot
+  last among the big ones, since it overlaps with your deferred
+  location-vs-submode refactor where autopilot was headed client-side anyway.

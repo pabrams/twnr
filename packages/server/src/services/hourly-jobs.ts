@@ -8,6 +8,7 @@ import {
     listPlanetIdsWithColonists,
     settlePlanetProduction,
     settlePlanetColonistGrowth,
+    promoteDuePlanetBases,
 } from '../db/queries/planet.js';
 import { listProducingPortIds, settlePortProduction } from '../db/queries/port.js';
 import { runAdvancePortConstructions } from './port-construction-advance.js';
@@ -142,6 +143,12 @@ export async function runHourlyJobs(): Promise<void> {
         if (grown > 0) console.log(`[hourly] colonist growth applied on ${grown} planets`);
     } catch (err) {
         console.error('[hourly] colonist-growth failed:', err);
+    }
+    try {
+        const promoted = await promoteDuePlanetBases();
+        if (promoted > 0) console.log(`[hourly] completed ${promoted} base constructions`);
+    } catch (err) {
+        console.error('[hourly] promote-bases failed:', err);
     }
     try {
         const { deleted } = await cleanupExpiredGuests();
