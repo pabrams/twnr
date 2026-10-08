@@ -49,7 +49,6 @@ const handlers: HandlerMap = {
     [ServerTag.HyperspaceJumpResult]: movement.hyperspaceJump,
     [ServerTag.PreviousSectorResult]: movement.previousSector,
 
-    [ServerTag.DockResult]: port.dock,
     [ServerTag.UndockResult]: port.undock,
     [ServerTag.JettisonResult]: port.jettison,
     [ServerTag.DockStarbaseResult]: port.dockStarbase,
@@ -78,10 +77,8 @@ const handlers: HandlerMap = {
     [ServerTag.LandOnPlanetResult]: planet.landOnPlanet,
     [ServerTag.PlanetDisplayResult]: planet.planetDisplay,
     [ServerTag.DestroyPlanetResult]: planet.destroyPlanet,
-    [ServerTag.UseTerraformDeviceResult]: planet.useTerraformDevice,
     [ServerTag.LeavePlanetResult]: planet.leavePlanet,
     [ServerTag.ListPlanetsResult]: planet.listPlanets,
-    [ServerTag.TerraformInfoResult]: planet.terraformInfo,
 
     [ServerTag.ShipInfoResult]: shipExchange.shipInfo,
     [ServerTag.BuyShipTradeinResult]: shipExchange.buyShipTradein,

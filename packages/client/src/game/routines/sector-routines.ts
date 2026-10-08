@@ -22,10 +22,13 @@ import {
     askConfirm,
     askDeployOwnership,
     askLine,
+    askLineRaw,
     askLineWithShortcuts,
     askNumber,
 } from './prompts.js';
 import { awaitResponse, request } from './io.js';
+import { renderAttributeChange } from '../handlers/utils.js';
+import { runDockFlow } from '../handlers/port.js';
 
 registerRoutine('display_sector', (ctx) => {
     echoCommand(ctx, 'sectorDisplay');
@@ -68,7 +71,8 @@ registerRoutine('port_menu', async (ctx) => {
     if (ch === null || ch === 'q') return;
     if (ch === 't') {
         if (ctx.world.currentPort.class === 9) return;
-        ctx.io.sendMsg({ type: ClientTag.Dock });
+        const res = await request(ctx, { type: ClientTag.Dock }, ServerTag.DockResult);
+        if (res) await runDockFlow(ctx, res);
         return;
     }
     if (ch === 's') {
@@ -436,9 +440,71 @@ registerRoutine('land', async (ctx) => {
     ctx.io.sendMsg({ type: ClientTag.LandOnPlanet, planetId: chosen.id });
 });
 
-registerRoutine('use_terraform_device', (ctx) => {
+registerRoutine('use_terraform_device', async (ctx) => {
     echoCommand(ctx, 'terraformInfo');
-    ctx.io.sendMsg({ type: ClientTag.TerraformInfo });
+    const info = await request(
+        ctx,
+        { type: ClientTag.TerraformInfo },
+        ServerTag.TerraformInfoResult,
+    );
+    if (!info) return;
+    if (!info.canTerraform) {
+        if (info.reason === 'no_devices') {
+            ctx.io.term.writeln(render(EVENT.terraformNoDevices));
+        } else {
+            ctx.io.term.writeln(render(NOTIFY.error, { message: 'Cannot terraform here.' }));
+        }
+        return;
+    }
+    ctx.io.term.writeln(render(EVENT.terraformDevicesAvailable, { count: info.devices }));
+    const ok = await askConfirm(ctx, render(EVENT.terraformConfirm), { defaultValue: false });
+    if (!ok) return;
+
+    const result = await request(
+        ctx,
+        { type: ClientTag.UseTerraformDevice },
+        ServerTag.UseTerraformDeviceResult,
+    );
+    if (!result) return;
+    if (!result.success || !result.planet) {
+        const reason =
+            result.reason === 'no_devices'
+                ? 'No terraform devices on ship.'
+                : result.reason === 'restricted_sector'
+                  ? 'Cannot terraform in this sector.'
+                  : 'Terraform failed.';
+        ctx.io.term.writeln(render(EVENT.terraformFailure, { reason }));
+        return;
+    }
+    const planet = result.planet;
+    ctx.io.term.writeln(render(EVENT.terraformNarrative));
+    if (result.collision) ctx.io.term.writeln(render(EVENT.terraformCollision));
+    renderAttributeChange(ctx, result.expDelta ?? 0, result.repDelta ?? 0, 'creating a planet');
+
+    const typeLabel = planet.displayType ?? planet.type;
+    const rawName = await askLineRaw(ctx, render(EVENT.terraformNamePrompt, { type: typeLabel }));
+    const name = rawName === null || rawName === '' ? planet.name : rawName;
+    let ownership: 'personal' | 'clan' = 'personal';
+    if (ctx.player.clanId !== null) {
+        const ch = await askChar(ctx, render(EVENT.terraformOwnershipPrompt), ['c', 'p'], {
+            defaultChar: 'p',
+        });
+        ownership = ch === 'c' ? 'clan' : 'personal';
+    }
+    const setRes = await request(
+        ctx,
+        { type: ClientTag.SetTerraformedPlanet, planetId: planet.id, name, ownership },
+        ServerTag.SetTerraformedPlanetResult,
+    );
+    if (!setRes) return;
+    if (setRes.outcome === 'success') {
+        ctx.io.term.writeln(render(EVENT.terraformConfirmed, { name: setRes.name }));
+        ctx.io.term.writeln(
+            render(EVENT.terraformDevicesRemaining, { count: result.terraformDevices }),
+        );
+    } else {
+        ctx.io.term.writeln(render(EVENT.terraformFailure, { reason: setRes.message }));
+    }
 });
 
 registerRoutine('starbase_info', (ctx) => {

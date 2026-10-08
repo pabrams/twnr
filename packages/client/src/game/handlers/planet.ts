@@ -1,11 +1,8 @@
-import { ClientTag, Menu } from '@twnr/shared';
+import { Menu } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
-import { NOTIFY, EVENT, PLANET } from '../messages/index.js';
-import { askConfirm, askChar, askLineRaw } from '../routines/prompts.js';
-import { awaitResponse } from '../routines/io.js';
+import { EVENT, PLANET } from '../messages/index.js';
 import { type DisplayCtx } from '../display.js';
-import { ServerTag } from '@twnr/shared';
 import {
     showPlanetMenu,
     showEarthMenu,
@@ -344,59 +341,6 @@ export const destroyPlanet: Handler<'destroyPlanetResult', PlanetContext> = (ctx
     }
 };
 
-export const useTerraformDevice: Handler<'useTerraformDeviceResult', PlanetContext> = async (
-    ctx,
-    msg,
-) => {
-    if (!msg.success || !msg.planet) {
-        const reason =
-            msg.reason === 'no_devices'
-                ? 'No terraform devices on ship.'
-                : msg.reason === 'restricted_sector'
-                  ? 'Cannot terraform in this sector.'
-                  : 'Terraform failed.';
-        ctx.io.term.writeln(render(EVENT.terraformFailure, { reason }));
-        return;
-    }
-    const planet = msg.planet;
-    ctx.io.term.writeln(render(EVENT.terraformNarrative));
-    if (msg.collision) ctx.io.term.writeln(render(EVENT.terraformCollision));
-
-    renderAttributeChange(ctx, msg.expDelta ?? 0, msg.repDelta ?? 0, 'creating a planet');
-
-    const typeLabel = planet.displayType ?? planet.type;
-    const rawName = await askLineRaw(ctx, render(EVENT.terraformNamePrompt, { type: typeLabel }));
-    const name = rawName === null || rawName === '' ? planet.name : rawName;
-    let ownership: 'personal' | 'clan' = 'personal';
-    if (ctx.player.clanId !== null) {
-        const ch = await askChar(ctx, render(EVENT.terraformOwnershipPrompt), ['c', 'p'], {
-            defaultChar: 'p',
-        });
-        ownership = ch === 'c' ? 'clan' : 'personal';
-    }
-    ctx.io.sendMsg({
-        type: ClientTag.SetTerraformedPlanet,
-        planetId: planet.id,
-        name,
-        ownership,
-    });
-    const response = await awaitResponse(ctx, [
-        ServerTag.SetTerraformedPlanetResult,
-        ServerTag.Error,
-    ]);
-    if (response === null) return;
-    if (response.type === ServerTag.SetTerraformedPlanetResult) {
-        if (response.outcome === 'success') {
-            ctx.io.term.writeln(render(EVENT.terraformConfirmed, { name: response.name }));
-            ctx.io.term.writeln(
-                render(EVENT.terraformDevicesRemaining, { count: msg.terraformDevices }),
-            );
-        } else {
-            ctx.io.term.writeln(render(EVENT.terraformFailure, { reason: response.message }));
-        }
-    }
-};
-
 export const leavePlanet: Handler<'leavePlanetResult', PlanetContext> = (ctx) => {
     ctx.world.mode = Menu.Sector;
     ctx.io.term.writeln(render(EVENT.leftPlanet));
@@ -426,22 +370,3 @@ export const listPlanets: Handler<'listPlanetsResult', PlanetContext> = (ctx, ms
         }
     }
 };
-
-export const terraformInfo: Handler<'terraformInfoResult', PlanetContext> = (ctx, msg) => {
-    if (msg.canTerraform) {
-        ctx.io.term.writeln(render(EVENT.terraformDevicesAvailable, { count: msg.devices }));
-
-        return terraformAskAndFire(ctx);
-    } else if (msg.reason === 'no_devices') {
-        ctx.io.term.writeln(render(EVENT.terraformNoDevices));
-    } else {
-        ctx.io.term.writeln(render(NOTIFY.error, { message: 'Cannot terraform here.' }));
-    }
-};
-
-async function terraformAskAndFire(ctx: PlanetContext): Promise<void> {
-    const ok = await askConfirm(ctx, render(EVENT.terraformConfirm), { defaultValue: false });
-    if (ok) {
-        ctx.io.sendMsg({ type: ClientTag.UseTerraformDevice });
-    }
-}

@@ -28,7 +28,10 @@ type PortContext = Pick<GameContext, 'catalogs' | 'input' | 'io' | 'starbase' | 
 type Cargo = { fuel: number; organics: number; equipment: number; colonists: number };
 type CommodityKey = keyof PortClassActions;
 
-export const dock: Handler<'dockResult', PortContext> = (ctx, msg) => {
+export async function runDockFlow(
+    ctx: PortContext,
+    msg: Extract<ServerEnvelopeT, { type: typeof ServerTag.DockResult }>,
+): Promise<void> {
     if (!msg.docked || !msg.port) return;
     ctx.world.dockedPortInfo = msg.port;
     if (msg.freedFromTow) ctx.io.term.writeln(render(EVENT.towFreedByDock));
@@ -100,7 +103,7 @@ export const dock: Handler<'dockResult', PortContext> = (ctx, msg) => {
         emptyHolds,
     );
     return runTradeRoutine(ctx, actions, commodities, cargo, credits, emptyHolds);
-};
+}
 
 async function runTradeRoutine(
     ctx: PortContext,
