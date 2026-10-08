@@ -20,6 +20,11 @@
     background: #000;
     color: #c0c0c0;
     font-size: 16px;
+    /* The minimap is a deliberately-colored diagram, not body text — opt the
+       whole subtree out of OS/browser forced-colors (high-contrast) mode so
+       pill fills, strokes and labels keep their authored colors instead of
+       being recolored (e.g. black pill backgrounds flipping to white). */
+    forced-color-adjust: none;
 }
 /* Admin mode takes most of the viewport so a deep BFS has room to render
    without sectors piling up. The terminal stays beside it for typing. */
