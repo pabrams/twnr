@@ -42,12 +42,17 @@
     "docs": "node scripts/gen-envelope-schemas.mjs && node scripts/generate-docs.mjs"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^8.57.2",
-    "@typescript-eslint/parser": "^8.57.2",
-    "eslint": "^10.1.0",
+    "@typescript-eslint/eslint-plugin": "^8.71.2",
+    "@typescript-eslint/parser": "^8.71.2",
+    "eslint": "^10.12.0",
     "eslint-plugin-n": "^17.24.0",
-    "prettier": "^3.8.1",
-    "tsx": "^4.21.0",
-    "zod": "^4.4.3"
+    "prettier": "^3.9.10",
+    "tsx": "^4.23.15",
+    "zod": "^4.6.7"
+  },
+  "pnpm": {
+    "overrides": {
+      "@types/node": "^22.20.5"
+    }
   }
 }
