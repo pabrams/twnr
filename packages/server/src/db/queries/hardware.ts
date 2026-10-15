@@ -22,7 +22,6 @@ export async function getHardwareItemByName(
     return res.rows[0];
 }
 
-
 export type HardwareCatalogRow = { name: string; label: string; kind: 'stackable' | 'toggle' };
 export async function listHardwareCatalog(db: Queryable = pool): Promise<HardwareCatalogRow[]> {
     const res = await db.query<HardwareCatalogRow>(
