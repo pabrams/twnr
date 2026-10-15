@@ -7,7 +7,8 @@ import { serveTowSpacecraft, serveTowAttach } from './tow.js';
 import { serveReadMail, serveDeleteAllMail, serveCheckMailSinceLastLogout } from './mail.js';
 import { serveHailResolve, serveHailSend } from './hail.js';
 import { serveVisitedSectors } from './visited.js';
-import { servePlayersOnline } from './players.js';
+import { servePlayersOnline, serveTraderList } from './players.js';
+import { serveShipCatalog, servePlanetCatalog, serveHardwareCatalog } from './catalog.js';
 import {
     serveMove,
     serveMoveToPrevious,
@@ -216,6 +217,10 @@ const handlers: HandlerMap = {
     [ClientTag.BwarpUpgrade]: (pid) => serveBwarpUpgrade(pid),
     [ClientTag.BwarpBeam]: (pid, data) =>
         serveBwarpBeam(pid, { targetSector: data.targetSector, commit: data.commit }),
+    [ClientTag.ShipCatalog]: serveShipCatalog,
+    [ClientTag.PlanetCatalog]: servePlanetCatalog,
+    [ClientTag.HardwareCatalog]: serveHardwareCatalog,
+    [ClientTag.TraderList]: serveTraderList,
 };
 
 export async function routeMessage(playerId: number, data: ClientEnvelope): Promise<void> {

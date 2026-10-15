@@ -37,6 +37,7 @@ import {
 import { checkAndDeductTurns } from '../turn-logic.js';
 import { cargoUsed, formatCargo } from './cargo-utils.js';
 import { recordCreditChange } from '../services/audit.js';
+import { currentClass0Prices } from '../services/class0-prices.js';
 import { getTowingPlayerForShip, clearTowedShip } from '../db/queries/tow.js';
 import { getPlayerShipId } from '../db/queries/player.js';
 import { experienceDeltas, scalarDelta } from '../game-config.js';
@@ -188,6 +189,7 @@ export async function serveDock(playerId: number): Promise<void> {
                       maxHolds: ship.max_holds,
                   }
                 : undefined,
+            class0Prices: currentClass0Prices(),
         });
         return;
     }
@@ -459,6 +461,7 @@ export async function serveDockStarbase(playerId: number): Promise<void> {
     await sendEnvelope(playerId, {
         type: ServerTag.DockStarbaseResult,
         prices: priceRows.map((r) => ({ name: r.name, label: r.label, price: r.price })),
+        class0Prices: currentClass0Prices(),
         credits: ship?.credits,
         shipInfo: ship
             ? {

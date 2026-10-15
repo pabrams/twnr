@@ -15,35 +15,28 @@ import { COMMON, COMPUTER, EVENT, NOTIFY, STARBASE } from '../messages/index.js'
 import { registerRoutine } from './types.js';
 import { askChar, askConfirm, askNumber } from './prompts.js';
 import { awaitResponse } from './io.js';
+import { loadShipCatalog } from './catalogs.js';
 import { promptShipName } from '../handlers/ship-name.js';
 
-function calculateShipPrice(ship: ShipCatalogEntry): number {
-    return (
-        (ship.cost_drive ?? 0) +
-        (ship.cost_computer ?? 0) +
-        (ship.cost_hull ?? 0) +
-        (ship.starting_holds ?? 0) * (ship.hold_cost ?? 0)
-    );
-}
-
-function getCurrentShipPrice(ctx: GameContext): number {
-    if (!ctx.catalogs.ships || !ctx.ship.currentShipName) return 0;
-    const ship = ctx.catalogs.ships.find((s) => s.name === ctx.ship.currentShipName);
-    return ship ? calculateShipPrice(ship) : 0;
+/** Trade-in credit for the ship currently flown: its catalog base cost. */
+function getCurrentShipPrice(ctx: GameContext, ships: ShipCatalogEntry[]): number {
+    if (!ctx.ship.currentShipName) return 0;
+    const ship = ships.find((s) => s.name === ctx.ship.currentShipName);
+    return ship?.baseCost ?? 0;
 }
 
 registerRoutine('buy_ship', async (ctx) => {
     echoCommand(ctx, 'shipyardsBuy');
-    await showShipBuyList(ctx);
-    const ships = ctx.catalogs.ships;
+    const ships = await loadShipCatalog(ctx);
     if (!ships || ships.length === 0) return;
+    showShipBuyList(ctx, ships);
     const letters = ships.map((_, i) => indexToLetter(i).toLowerCase());
     const allowed = [...letters, '?'];
     while (true) {
         const ch = await askChar(ctx, render(STARBASE.shipyardsBuyPrompt), allowed);
         if (ch === null) return;
         if (ch === '?') {
-            await showShipBuyList(ctx);
+            showShipBuyList(ctx, ships);
             continue;
         }
         const idx = letterToIndex(ch);
@@ -56,9 +49,9 @@ registerRoutine('buy_ship', async (ctx) => {
             ctx.io.term.writeln(render(COMMON.errorLine, { text: 'Already flying that ship.' }));
             continue;
         }
-        const price = calculateShipPrice(ship);
-        const tradein = getCurrentShipPrice(ctx);
-        showTradeinInfo(ctx, ship.display_name ?? ship.name, price, tradein);
+        const price = ship.baseCost;
+        const tradein = getCurrentShipPrice(ctx, ships);
+        showTradeinInfo(ctx, ship.displayName ?? ship.name, price, tradein);
         const yes = await askConfirm(ctx, render(STARBASE.tradeinConfirm));
         if (yes === null) continue;
         const isTradein = yes;
@@ -89,16 +82,16 @@ registerRoutine('buy_ship', async (ctx) => {
 
 registerRoutine('examine_ships', async (ctx) => {
     echoCommand(ctx, 'shipyardsExamine');
-    await showShipExamineList(ctx);
-    const ships = ctx.catalogs.ships;
+    const ships = await loadShipCatalog(ctx);
     if (!ships || ships.length === 0) return;
+    showShipExamineList(ctx, ships);
     const letters = ships.map((_, i) => indexToLetter(i).toLowerCase());
     const allowed = [...letters, '?'];
     while (true) {
         const ch = await askChar(ctx, render(COMPUTER.shipInterestPrompt), allowed);
         if (ch === null) return;
         if (ch === '?') {
-            await showShipExamineList(ctx);
+            showShipExamineList(ctx, ships);
             continue;
         }
         const idx = letterToIndex(ch);

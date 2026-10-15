@@ -29,7 +29,6 @@ export const STARBASE = makeDomain('STARBASE', {
     shipyardsExamineRow: '  [by]{letter}[/by]  [w]{name}[/w]',
 
     loadingShipCatalog: '\r\n[c]Loading ship catalog...[/c]',
-    shipCatalogFailed: '[br]Failed to load ship catalog.[/br]',
 
     tradeinHeader: '{ship} [g]:[/g] [by]{price}[/by] cr',
     tradeinCredit: '[mg]Trade-in credit[/mg]: [by]{credit}[/by] cr',

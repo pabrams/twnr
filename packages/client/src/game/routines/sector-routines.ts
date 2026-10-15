@@ -7,7 +7,6 @@ import {
     hideMoveMenuOverlay,
     showMoveMenu,
     showPortMenu,
-    showPlayerInfo,
 } from '../display.js';
 import { showPlanetSelectMenu } from '../display-planet.js';
 import {
@@ -27,6 +26,7 @@ import {
     askNumber,
 } from './prompts.js';
 import { awaitResponse, request } from './io.js';
+import { ensureHardwareCatalog } from './catalogs.js';
 import { renderAttributeChange } from '../handlers/utils.js';
 import { runDockFlow } from '../handlers/port.js';
 
@@ -81,9 +81,10 @@ registerRoutine('port_menu', async (ctx) => {
     }
 });
 
-registerRoutine('player_info', (ctx) => {
+registerRoutine('player_info', async (ctx) => {
     echoCommand(ctx, 'shipInfo');
-    showPlayerInfo(ctx);
+    await ensureHardwareCatalog(ctx);
+    ctx.io.sendMsg({ type: ClientTag.ShipInfo });
 });
 
 registerRoutine('attack_menu', (ctx) => {
@@ -577,6 +578,7 @@ registerRoutine('transporter_pad', async (ctx) => {
                 ServerTag.ShipDetailResult,
             );
             if (!detail) continue;
+            await ensureHardwareCatalog(ctx);
             renderShipDetail(ctx, detail);
             continue;
         }

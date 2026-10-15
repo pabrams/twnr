@@ -342,7 +342,6 @@ export async function startServer() {
         await connectDB();
         startHourlyScheduler();
 
-
         const port = process.env.PORT
             ? parseInt(process.env.PORT, 10)
             : devServerPort(worktreeRoot());

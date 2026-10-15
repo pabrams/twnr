@@ -4,11 +4,13 @@ import type {
     MenuName,
     PortInfoReply,
     MenuEntry,
+    Class0PriceList,
+    HardwareCatalogItem,
     HardwarePriceItem,
     HardwareStoreItem,
     ServerEnvelope,
     ShipCatalogEntry,
-    PlanetConfig,
+    PlanetCatalogEntry,
 } from '@twnr/shared';
 import { Menu } from '@twnr/shared';
 import type { Minimap } from './minimap.js';
@@ -163,20 +165,16 @@ export interface EncounterState {
     ownerName: string;
 }
 
+/**
+ * Reference data the client caches for the session. The three universe
+ * catalogs are fetched lazily on first use (see routines/catalogs.ts); the
+ * class-0 price list arrives with DockResult / DockStarbaseResult.
+ */
 export interface Catalogs {
-    hardware: { name: string; label: string; kind: 'stackable' | 'toggle' }[] | null;
+    hardware: HardwareCatalogItem[] | null;
     ships: ShipCatalogEntry[] | null;
-    planets: PlanetConfig[] | null;
-    class0Prices: {
-        dronePrice: number;
-        shieldPrice: number;
-        /** Today's daily base cost B for the cumulative hold-cost formula. */
-        holdBaseCost: number;
-        holdCostIncrement: number;
-        holdBaseCostMin: number;
-        holdBaseCostMax: number;
-        holdCostPeriodDays: number;
-    } | null;
+    planets: PlanetCatalogEntry[] | null;
+    class0Prices: Class0PriceList | null;
     hardwarePrices: HardwarePriceItem[] | null;
     menus: Map<string, MenuEntry>;
 }

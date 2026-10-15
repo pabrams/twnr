@@ -37,6 +37,7 @@ export async function runDockFlow(
     if (msg.freedFromTow) ctx.io.term.writeln(render(EVENT.towFreedByDock));
     if (msg.port.class === 0) {
         ctx.world.mode = Menu.Class0;
+        if (msg.class0Prices) ctx.catalogs.class0Prices = msg.class0Prices;
         if (msg.shipInfo) {
             ctx.starbase.class0ShipState = {
                 shipName: msg.shipInfo.shipName,
@@ -302,6 +303,7 @@ export const jettison: Handler<'jettisonResult', PortContext> = (ctx, msg) => {
 export const dockStarbase: Handler<'dockStarbaseResult', PortContext> = (ctx, msg) => {
     ctx.world.mode = Menu.Starbase;
     ctx.catalogs.hardwarePrices = msg.prices;
+    ctx.catalogs.class0Prices = msg.class0Prices;
     if (msg.shipInfo) {
         ctx.starbase.class0ShipState = {
             shipName: msg.shipInfo.shipName,

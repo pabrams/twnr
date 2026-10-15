@@ -80,8 +80,11 @@ let setupPromise = null;
 
 async function isServerRunning() {
   try {
-    // Health probe: /api/hardware has no params, no auth.
-    const res = await fetch(`${BASE}/api/hardware`, { signal: AbortSignal.timeout(2000) });
+    // Health probe: admin server-stats, authenticated with the test admin key.
+    const res = await fetch(`${BASE}/api/admin/server-stats`, {
+      headers: { 'x-admin-key': ADMIN_API_KEY },
+      signal: AbortSignal.timeout(2000),
+    });
     return res.ok;
   } catch {
     return false;

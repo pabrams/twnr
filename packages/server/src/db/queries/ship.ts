@@ -908,12 +908,50 @@ export async function getTransportTargetInfo(
 }
 
 /** All ship-type rows for a universe, for the admin/catalog API. */
+/** Full ship-type spec row, for the ship catalog (Computer / Shipyards). */
+export type ShipCatalogRow = {
+    slug: string;
+    display_name: string | null;
+    make: string | null;
+    max_drones: number;
+    max_shields: number;
+    starting_holds: number;
+    max_holds: number;
+    odds_offensive: number;
+    odds_defensive: number;
+    max_drone_attack: number;
+    speed: number;
+    turns_per_warp: number;
+    transporter_range: number;
+    cost_drive: number;
+    cost_computer: number;
+    cost_hull: number;
+    hold_cost: number;
+    base_cost: number;
+    has_pod: boolean;
+    can_land: boolean;
+    has_interdictor: boolean;
+    has_tractor: boolean;
+    has_planetary_defense_bonus: boolean;
+    planetary_defense_odds: number | null;
+    piloting_restriction: string | null;
+    notes: string | null;
+};
+
+/** Every ship type in a universe, in catalog order. */
 export async function listUniverseShipTypes(
     universeId: number,
     db: Queryable = pool,
-): Promise<Record<string, unknown>[]> {
-    const res = await db.query(
-        'SELECT * FROM universe_ship_types WHERE universe_id = $1 ORDER BY sort_order, slug',
+): Promise<ShipCatalogRow[]> {
+    const res = await db.query<ShipCatalogRow>(
+        `SELECT slug, display_name, make, max_drones, max_shields, starting_holds, max_holds,
+                odds_offensive, odds_defensive, max_drone_attack, speed, turns_per_warp,
+                transporter_range, cost_drive, cost_computer, cost_hull, hold_cost, base_cost,
+                has_pod, can_land, has_interdictor, has_tractor, has_planetary_defense_bonus,
+                planetary_defense_odds, piloting_restriction, notes
+         FROM universe_ship_types
+         WHERE universe_id = $1
+         ORDER BY sort_order, slug`,
         [universeId],
     );
     return res.rows;

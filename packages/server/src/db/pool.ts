@@ -3,8 +3,6 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { execSync } from 'node:child_process';
 
-
-
 export function worktreeRoot(): string {
     try {
         return execSync('git rev-parse --show-toplevel', {

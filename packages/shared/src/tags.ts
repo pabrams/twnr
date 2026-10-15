@@ -133,6 +133,10 @@ export const ServerTag = {
     BwarpBeamResult: 'bwarpBeamResult',
     StatsSnapshot: 'statsSnapshot',
     SetTerraformedPlanetResult: 'setTerraformedPlanetResult',
+    ShipCatalogResult: 'shipCatalogResult',
+    PlanetCatalogResult: 'planetCatalogResult',
+    HardwareCatalogResult: 'hardwareCatalogResult',
+    TraderListResult: 'traderListResult',
 } as const;
 type ServerTag = typeof ServerTag;
 
@@ -232,5 +236,9 @@ export const ClientTag = {
     BwarpInstall: 'bwarpInstall',
     BwarpUpgrade: 'bwarpUpgrade',
     BwarpBeam: 'bwarpBeam',
+    ShipCatalog: 'shipCatalog',
+    PlanetCatalog: 'planetCatalog',
+    HardwareCatalog: 'hardwareCatalog',
+    TraderList: 'traderList',
 } as const;
 type ClientTag = typeof ClientTag;

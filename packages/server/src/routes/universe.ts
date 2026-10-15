@@ -15,7 +15,7 @@ import {
     listUniversesForUser,
     getUniverseTemplateDefaults,
 } from '../db/queries/universe.js';
-import { insertPlayer, listPlayersInUniverse, markSectorVisited } from '../db/queries/player.js';
+import { insertPlayer, markSectorVisited } from '../db/queries/player.js';
 import { getSectorDbId } from '../db/queries/sector.js';
 
 export function createUniverseRoutes(
@@ -97,26 +97,6 @@ export function createUniverseRoutes(
             await markSectorVisited(playerId, startSectorId);
 
             res.status(201).json({ playerId, universeId });
-        }),
-    );
-
-    router.get(
-        '/api/universes/:id/players',
-        authenticateToken,
-        asyncHandler(async (req, res) => {
-            const universeId = parseIntParam(req.params.id, 'id');
-            const rows = await listPlayersInUniverse(universeId);
-            res.json(
-                rows.map((r) => ({
-                    name: r.name,
-                    shipName: r.ship_name,
-                    coloredShipName: r.ship_display_name,
-                    clanNumber: r.clan_number,
-                    clanName: r.clan_name,
-                    reputation: r.reputation,
-                    experience: r.experience,
-                })),
-            );
         }),
     );
 }

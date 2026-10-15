@@ -375,6 +375,18 @@ export const AttackShipReplySchema = z.object({
 });
 export type AttackShipReply = z.infer<typeof AttackShipReplySchema>;
 
+/** Price list for the class-0 equipment shop (class-0 ports and the Starbase
+ *  shipyards). Drones/shields are flat per-unit prices; holds use the
+ *  cumulative formula in hold-pricing.ts, so the server sends today's daily
+ *  base cost and the per-hold increment rather than a single unit price. */
+export const Class0PriceListSchema = z.object({
+    dronePrice: Num,
+    shieldPrice: Num,
+    holdBaseCost: Num,
+    holdCostIncrement: Num,
+});
+export type Class0PriceList = z.infer<typeof Class0PriceListSchema>;
+
 export const DockReplySchema = z.object({
     type: z.literal(ServerTag.DockResult),
     docked: Bool,
@@ -384,6 +396,8 @@ export const DockReplySchema = z.object({
     emptyHolds: Num.optional(),
     freedFromTow: z.literal(true).optional(),
     shipInfo: ShipInfoEmbedSchema.optional(),
+    /** Present when docked at a class-0 port. */
+    class0Prices: Class0PriceListSchema.optional(),
 });
 export type DockReply = z.infer<typeof DockReplySchema>;
 
@@ -530,6 +544,7 @@ export type HardwarePriceItem = z.infer<typeof HardwarePriceItemSchema>;
 export const DockStarbaseReplySchema = z.object({
     type: z.literal(ServerTag.DockStarbaseResult),
     prices: z.array(HardwarePriceItemSchema),
+    class0Prices: Class0PriceListSchema,
     credits: Num.optional(),
     shipInfo: ShipInfoEmbedSchema.optional(),
 });
@@ -1636,6 +1651,113 @@ export const HaggleResponseReplySchema = z.discriminatedUnion('outcome', [
 ]);
 export type HaggleResponseReply = z.infer<typeof HaggleResponseReplySchema>;
 
+/** One ship type in a universe's catalog (Computer → Ship catalog; Shipyards →
+ *  Buy/Examine). `name` is the ship-type slug — the value BuyShipNew /
+ *  BuyShipTradein take as `targetShipName`. */
+export const ShipCatalogEntrySchema = z.object({
+    name: Str,
+    displayName: StrOrNull,
+    make: StrOrNull,
+    maxDrones: Num,
+    maxShields: Num,
+    startingHolds: Num,
+    maxHolds: Num,
+    oddsOffensive: Num,
+    oddsDefensive: Num,
+    maxDroneAttack: Num,
+    speed: Num,
+    turnsPerWarp: Num,
+    transporterRange: Num,
+    costDrive: Num,
+    costComputer: Num,
+    costHull: Num,
+    holdCost: Num,
+    /** costDrive + costComputer + costHull + startingHolds·holdCost — the
+     *  shipyards purchase price and the trade-in credit when sold. */
+    baseCost: Num,
+    hasPod: Bool,
+    canLand: Bool,
+    hasInterdictor: Bool,
+    hasTractor: Bool,
+    hasPlanetaryDefenseBonus: Bool,
+    planetaryDefenseOdds: NumOrNull,
+    pilotingRestriction: StrOrNull,
+    notes: StrOrNull,
+    /** Max installable quantity per hardware item name (toggles are 0/1). */
+    hardware: HardwareMap,
+});
+export type ShipCatalogEntry = z.infer<typeof ShipCatalogEntrySchema>;
+
+export const ShipCatalogReplySchema = z.object({
+    type: z.literal(ServerTag.ShipCatalogResult),
+    ships: z.array(ShipCatalogEntrySchema),
+});
+export type ShipCatalogReply = z.infer<typeof ShipCatalogReplySchema>;
+
+/** One planet type in a universe's catalog (Computer → Planet specs). */
+export const PlanetCatalogEntrySchema = z.object({
+    slug: Str,
+    displayName: StrOrNull,
+    description: StrOrNull,
+    class: Str,
+    danger: Num,
+    maxFuelColos: Num,
+    maxOrgColos: Num,
+    maxEquColos: Num,
+    maxFuel: Num,
+    maxOrg: Num,
+    maxEqu: Num,
+    maxDrones: Num,
+    maxCitadel: Num,
+    fuelProduction: Num,
+    organicsProduction: Num,
+    equipmentProduction: Num,
+    figFactorFuel: Num,
+    figFactorOrg: Num,
+    figFactorEqu: Num,
+});
+export type PlanetCatalogEntry = z.infer<typeof PlanetCatalogEntrySchema>;
+
+export const PlanetCatalogReplySchema = z.object({
+    type: z.literal(ServerTag.PlanetCatalogResult),
+    planets: z.array(PlanetCatalogEntrySchema),
+});
+export type PlanetCatalogReply = z.infer<typeof PlanetCatalogReplySchema>;
+
+/** Hardware item identity (name → label/kind), for labelling the `hardware`
+ *  maps carried by ShipInfoResult / ShipDetailResult / ShipCatalogResult. */
+export const HardwareCatalogItemSchema = z.object({
+    name: Str,
+    label: Str,
+    kind: z.enum(['stackable', 'toggle']),
+});
+export type HardwareCatalogItem = z.infer<typeof HardwareCatalogItemSchema>;
+
+export const HardwareCatalogReplySchema = z.object({
+    type: z.literal(ServerTag.HardwareCatalogResult),
+    items: z.array(HardwareCatalogItemSchema),
+});
+export type HardwareCatalogReply = z.infer<typeof HardwareCatalogReplySchema>;
+
+/** One row of the Computer → Trader list: every player in the universe, online
+ *  or not. `shipName` is null when the trader's ship is destroyed. */
+export const TraderListEntrySchema = z.object({
+    name: Str,
+    shipName: StrOrNull,
+    coloredShipName: StrOrNull,
+    clanNumber: IntOrNull,
+    clanName: StrOrNull,
+    reputation: Num,
+    experience: Num,
+});
+export type TraderListEntry = z.infer<typeof TraderListEntrySchema>;
+
+export const TraderListReplySchema = z.object({
+    type: z.literal(ServerTag.TraderListResult),
+    traders: z.array(TraderListEntrySchema),
+});
+export type TraderListReply = z.infer<typeof TraderListReplySchema>;
+
 export const StatsSnapshotSchema = z.object({
     type: z.literal(ServerTag.StatsSnapshot),
     sector: Int,
@@ -1773,6 +1895,10 @@ export const ServerEnvelopeSchema = z.discriminatedUnion('type', [
     BwarpUpgradeReplySchema,
     BwarpBeamReplySchema,
     StatsSnapshotSchema,
+    ShipCatalogReplySchema,
+    PlanetCatalogReplySchema,
+    HardwareCatalogReplySchema,
+    TraderListReplySchema,
     ErrorReplySchema,
 ]);
 export type ServerEnvelope = z.infer<typeof ServerEnvelopeSchema>;

@@ -924,7 +924,7 @@ export const MENU_PROMPTS: Partial<Record<MenuName, (ctx: GameContext) => void>>
     [Menu.Planet]: showPlanetMenuOptions,
     [Menu.PlanetEarth]: showEarthPrompt,
     [Menu.DroneEncounter]: showDroneEncounterPrompt,
-    [Menu.Class0]: (ctx) => void showClass0Menu(ctx),
+    [Menu.Class0]: showClass0Menu,
     [Menu.Starbase]: showStarbaseMenu,
     [Menu.StarbaseHardware]: showHardwarePrompt,
     [Menu.Shipyards]: showShipyardsMenu,

@@ -1,4 +1,4 @@
-import { ServerTag, holdBaseCostNow, holdCostRange } from '@twnr/shared';
+import { ServerTag, holdCostRange } from '@twnr/shared';
 import type { BuyDronesCommand, BuyShieldsCommand, BuyHoldsCommand } from '@twnr/shared';
 import { onlinePlayers, getPlayerUniverseId } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
@@ -13,6 +13,7 @@ import {
 } from '../db/queries/ship.js';
 import { getPortClassAtSector } from '../db/queries/port.js';
 import { class0Prices } from '../game-config.js';
+import { currentClass0Prices } from '../services/class0-prices.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 import { notifyTurnChange } from '../services/notify.js';
 import { recordCreditChange } from '../services/audit.js';
@@ -182,11 +183,7 @@ export async function serveBuyHolds(playerId: number, data: BuyHoldsCommand): Pr
             }
 
             // each successive hold costs B + I more than the last.
-            const baseCost = holdBaseCostNow(
-                class0Prices.holdBaseCostMin,
-                class0Prices.holdBaseCostMax,
-                class0Prices.holdCostPeriodDays,
-            );
+            const { holdBaseCost: baseCost } = currentClass0Prices();
             const cost = holdCostRange(data.holds, data.holds + qty, baseCost);
             if (data.credits < cost) {
                 sendError(playerId, 'Insufficient credits');

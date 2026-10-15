@@ -572,6 +572,29 @@ export const BwarpBeamCommandSchema = z.object({
 });
 export type BwarpBeamCommand = z.infer<typeof BwarpBeamCommandSchema>;
 
+// Universe catalogs (ship types, planet types, hardware items) and the trader
+// roster — static-ish reference data the Computer/Shipyards menus browse.
+// Clients typically request each once per session and cache it.
+export const ShipCatalogCommandSchema = z.object({
+    type: z.literal(ClientTag.ShipCatalog),
+});
+export type ShipCatalogCommand = z.infer<typeof ShipCatalogCommandSchema>;
+
+export const PlanetCatalogCommandSchema = z.object({
+    type: z.literal(ClientTag.PlanetCatalog),
+});
+export type PlanetCatalogCommand = z.infer<typeof PlanetCatalogCommandSchema>;
+
+export const HardwareCatalogCommandSchema = z.object({
+    type: z.literal(ClientTag.HardwareCatalog),
+});
+export type HardwareCatalogCommand = z.infer<typeof HardwareCatalogCommandSchema>;
+
+export const TraderListCommandSchema = z.object({
+    type: z.literal(ClientTag.TraderList),
+});
+export type TraderListCommand = z.infer<typeof TraderListCommandSchema>;
+
 export const ClientEnvelopeSchema = z.discriminatedUnion('type', [
     MoveCommandSchema,
     MoveToPreviousCommandSchema,
@@ -668,5 +691,9 @@ export const ClientEnvelopeSchema = z.discriminatedUnion('type', [
     BwarpInstallCommandSchema,
     BwarpUpgradeCommandSchema,
     BwarpBeamCommandSchema,
+    ShipCatalogCommandSchema,
+    PlanetCatalogCommandSchema,
+    HardwareCatalogCommandSchema,
+    TraderListCommandSchema,
 ]);
 export type ClientEnvelope = z.infer<typeof ClientEnvelopeSchema>;

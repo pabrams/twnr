@@ -22,17 +22,15 @@ export async function getHardwareItemByName(
     return res.rows[0];
 }
 
-/** Catalog of all hardware items (name + label + kind), for the hardware-store UI. */
-export async function listHardwareCatalog(
-    db: Queryable = pool,
-): Promise<{ name: string; label: string; kind: string }[]> {
-    const res = await db.query<{ name: string; label: string; kind: string }>(
+
+export type HardwareCatalogRow = { name: string; label: string; kind: 'stackable' | 'toggle' };
+export async function listHardwareCatalog(db: Queryable = pool): Promise<HardwareCatalogRow[]> {
+    const res = await db.query<HardwareCatalogRow>(
         'SELECT name, label, kind FROM hardware_item ORDER BY id',
     );
     return res.rows;
 }
 
-/** One-shot: player credits + every hardware item with per-universe price, ship's current qty, ship-type max. */
 export type HardwareStoreRow = {
     credits: number;
     name: string;

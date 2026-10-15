@@ -122,41 +122,17 @@ export function letterToIndex(letter: string): number {
     return code;
 }
 
-function calculateShipPrice(ship: ShipCatalogEntry): number {
-    return (
-        (ship.cost_drive ?? 0) +
-        (ship.cost_computer ?? 0) +
-        (ship.cost_hull ?? 0) +
-        (ship.starting_holds ?? 0) * (ship.hold_cost ?? 0)
-    );
-}
-
-async function loadShipConfigs(ctx: DisplayStarbaseCtx): Promise<boolean> {
-    if (ctx.catalogs.ships) return true;
-    ctx.io.term.writeln(render(STARBASE.loadingShipCatalog));
-    try {
-        const res = await fetch(`/api/ships?universe_id=${ctx.player.universeId}`);
-        ctx.catalogs.ships = await res.json();
-        return true;
-    } catch {
-        ctx.io.term.writeln(render(STARBASE.shipCatalogFailed));
-        showShipyardsPrompt(ctx);
-        return false;
-    }
-}
-
-export async function showShipBuyList(ctx: DisplayStarbaseCtx) {
-    if (!(await loadShipConfigs(ctx))) return;
+export function showShipBuyList(ctx: DisplayStarbaseCtx, ships: ShipCatalogEntry[]) {
     ctx.io.term.writeln('');
     ctx.io.term.writeln(render(STARBASE.shipyardsBuyHeader));
-    ctx.catalogs.ships!.forEach((ship, i) => {
+    ships.forEach((ship, i) => {
         const current =
             ship.name === ctx.ship.currentShipName ? render(STARBASE.shipyardsBuyCurrent) : '';
         ctx.io.term.writeln(
             render(STARBASE.shipyardsBuyRow, {
                 letter: indexToLetter(i),
-                name: padEndVisible(ship.display_name ?? ship.name, 24),
-                price: calculateShipPrice(ship).toLocaleString().padStart(10),
+                name: padEndVisible(ship.displayName ?? ship.name, 24),
+                price: ship.baseCost.toLocaleString().padStart(10),
                 current,
             }),
         );
@@ -168,19 +144,14 @@ export function showShipyardsBuyPrompt(ctx: DisplayStarbaseCtx) {
     ctx.io.term.write(render(STARBASE.shipyardsBuyPrompt));
 }
 
-export function showShipExamineList(ctx: DisplayStarbaseCtx) {
-    return showShipListInternal(ctx, 'Examine');
-}
-
-async function showShipListInternal(ctx: DisplayStarbaseCtx, label: string) {
-    if (!(await loadShipConfigs(ctx))) return;
+export function showShipExamineList(ctx: DisplayStarbaseCtx, ships: ShipCatalogEntry[]) {
     ctx.io.term.writeln('');
-    ctx.io.term.writeln(render(STARBASE.shipyardsExamineHeader, { label }));
-    ctx.catalogs.ships!.forEach((ship, i) => {
+    ctx.io.term.writeln(render(STARBASE.shipyardsExamineHeader, { label: 'Examine' }));
+    ships.forEach((ship, i) => {
         ctx.io.term.writeln(
             render(STARBASE.shipyardsExamineRow, {
                 letter: indexToLetter(i),
-                name: ship.display_name ?? ship.name,
+                name: ship.displayName ?? ship.name,
             }),
         );
     });

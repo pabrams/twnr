@@ -36,24 +36,12 @@ function formatTimestamp(): string {
     return `${time} ${date}`;
 }
 
-export async function showClass0Menu(ctx: DisplayPortCtx) {
-    if (!ctx.catalogs.class0Prices) {
-        try {
-            const res = await fetch('/api/class0-prices');
-            ctx.catalogs.class0Prices = await res.json();
-        } catch {
-            ctx.catalogs.class0Prices = {
-                dronePrice: 20,
-                shieldPrice: 10,
-                holdBaseCost: 200,
-                holdCostIncrement: 20,
-                holdBaseCostMin: 151,
-                holdBaseCostMax: 249,
-                holdCostPeriodDays: 18,
-            };
-        }
-    }
-    const p = ctx.catalogs.class0Prices!;
+/** Class-0 equipment menu. Prices arrive with DockResult (class-0 port) /
+ *  DockStarbaseResult (shipyards), so there's nothing to render until one of
+ *  those has landed. */
+export function showClass0Menu(ctx: DisplayPortCtx) {
+    const p = ctx.catalogs.class0Prices;
+    if (!p) return;
     const { term } = ctx.io;
     const canBuyHolds = class0MaxBuy('holds', ctx);
     const canBuyDrones = class0MaxBuy('drones', ctx);

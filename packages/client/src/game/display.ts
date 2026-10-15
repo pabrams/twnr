@@ -1,4 +1,3 @@
-import { ClientTag } from '@twnr/shared';
 import type { SectorRef, OwnershipInfo, SectorDisplayData } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { render } from './renderer.js';
@@ -383,17 +382,4 @@ export function showCommerceReport(
             holds: emptyHolds,
         }),
     );
-}
-
-export async function showPlayerInfo(ctx: DisplayCtx) {
-    // Prefetch hardware catalog so the ShipInfo panel can label hardware items.
-    if (!ctx.catalogs.hardware) {
-        try {
-            const res = await fetch('/api/hardware');
-            ctx.catalogs.hardware = await res.json();
-        } catch {
-            ctx.catalogs.hardware = [];
-        }
-    }
-    ctx.io.sendMsg({ type: ClientTag.ShipInfo });
 }

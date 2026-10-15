@@ -69,7 +69,7 @@ SERVER_PID=$!
 
 # Wait for server to be ready
 for i in $(seq 1 30); do
-  if curl -s http://localhost:3001/api/ships >/dev/null 2>&1; then
+  if curl -sf -H "x-admin-key: $ADMIN_API_KEY" http://localhost:3001/api/admin/server-stats >/dev/null 2>&1; then
     break
   fi
   sleep 1
@@ -92,7 +92,7 @@ if [ -f test/ratelimit.test.mjs ]; then
   SERVER_PID=$!
 
   for i in $(seq 1 30); do
-    if curl -s http://localhost:3001/api/ships >/dev/null 2>&1; then
+    if curl -sf -H "x-admin-key: $ADMIN_API_KEY" http://localhost:3001/api/admin/server-stats >/dev/null 2>&1; then
       break
     fi
     sleep 1

@@ -122,7 +122,7 @@ function applyBuyShipResult(
             shields: 0,
             maxShields: msg.maxShields,
             holds: msg.cargoLimit,
-            maxHolds: cfg?.max_holds ?? msg.cargoLimit,
+            maxHolds: cfg?.maxHolds ?? msg.cargoLimit,
         };
     }
 }

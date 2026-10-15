@@ -1,8 +1,8 @@
 import { ClientTag } from '@twnr/shared';
-import type { ShipCatalogEntry, PlanetConfig } from '@twnr/shared';
+import type { ShipCatalogEntry, PlanetCatalogEntry, TraderListEntry } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { render } from './renderer.js';
-import { COMPUTER, COMMON, STARBASE } from './messages/index.js';
+import { COMPUTER, COMMON } from './messages/index.js';
 import { indexToLetter } from './display-starbase.js';
 import { centerVisible, threeColRows } from './display-utils.js';
 
@@ -44,28 +44,14 @@ export function renderVisitedSectorsResult(
     }
 }
 
-async function loadShipConfigs(ctx: DisplayComputerCtx): Promise<boolean> {
-    if (ctx.catalogs.ships) return true;
-    ctx.io.term.writeln(render(STARBASE.loadingShipCatalog));
-    try {
-        const res = await fetch(`/api/ships?universe_id=${ctx.player.universeId}`);
-        ctx.catalogs.ships = await res.json();
-        return true;
-    } catch {
-        ctx.io.term.writeln(render(STARBASE.shipCatalogFailed));
-        return false;
-    }
-}
-
-export async function showShipCatalog(ctx: DisplayComputerCtx) {
-    if (!(await loadShipConfigs(ctx))) return;
+export function showShipCatalog(ctx: DisplayComputerCtx, ships: ShipCatalogEntry[]) {
     ctx.io.term.writeln('');
     ctx.io.term.writeln(render(COMPUTER.shipCatalogHeader));
-    ctx.catalogs.ships!.forEach((ship, i) => {
+    ships.forEach((ship, i) => {
         ctx.io.term.writeln(
             render(COMPUTER.shipCatalogRow, {
                 letter: indexToLetter(i),
-                name: ship.display_name ?? ship.name,
+                name: ship.displayName ?? ship.name,
             }),
         );
     });
@@ -105,7 +91,7 @@ export function showShipDetail(ctx: DisplayComputerCtx, ship: ShipCatalogEntry) 
     const { term } = ctx.io;
     term.writeln('');
     const headerText = render(COMPUTER.shipDetailHeader, {
-        name: ship.display_name ?? ship.name,
+        name: ship.displayName ?? ship.name,
     });
     term.writeln('  ' + centerVisible(headerText, SHIP_DETAIL_BODY_WIDTH));
     term.writeln('');
@@ -113,27 +99,27 @@ export function showShipDetail(ctx: DisplayComputerCtx, ship: ShipCatalogEntry) 
         term.writeln(render(COMPUTER.shipDetailLine, { label: 'Make', value: ship.make }));
     }
 
-    const hw = ship.hardware ?? {};
+    const hw = ship.hardware;
     const specs: { label: string; value: string }[] = [
-        { label: 'Main Drive Cost', value: fmtNum(ship.cost_drive ?? 0) },
-        { label: 'Initial Holds', value: fmtNum(ship.starting_holds) },
-        { label: 'Maximum Shields', value: fmtNum(ship.max_shields) },
-        { label: 'Computer Cost', value: fmtNum(ship.cost_computer ?? 0) },
-        { label: 'Maximum Holds', value: fmtNum(ship.max_holds) },
-        { label: 'Max Drones', value: fmtNum(ship.max_drones) },
-        { label: 'Ship Hull Cost', value: fmtNum(ship.cost_hull ?? 0) },
-        { label: 'Basic Hold Cost', value: fmtNum(ship.hold_cost ?? 0) },
-        { label: 'Max Drone Attack', value: fmtNum(ship.max_drone_attack) },
-        { label: 'Ship Base Cost', value: fmtNum(ship.base_cost ?? 0) },
-        { label: 'Turns Per Warp', value: fmtNum(ship.turns_per_warp) },
-        { label: 'Transport Range', value: fmtNum(ship.transporter_range) },
+        { label: 'Main Drive Cost', value: fmtNum(ship.costDrive) },
+        { label: 'Initial Holds', value: fmtNum(ship.startingHolds) },
+        { label: 'Maximum Shields', value: fmtNum(ship.maxShields) },
+        { label: 'Computer Cost', value: fmtNum(ship.costComputer) },
+        { label: 'Maximum Holds', value: fmtNum(ship.maxHolds) },
+        { label: 'Max Drones', value: fmtNum(ship.maxDrones) },
+        { label: 'Ship Hull Cost', value: fmtNum(ship.costHull) },
+        { label: 'Basic Hold Cost', value: fmtNum(ship.holdCost) },
+        { label: 'Max Drone Attack', value: fmtNum(ship.maxDroneAttack) },
+        { label: 'Ship Base Cost', value: fmtNum(ship.baseCost) },
+        { label: 'Turns Per Warp', value: fmtNum(ship.turnsPerWarp) },
+        { label: 'Transport Range', value: fmtNum(ship.transporterRange) },
         { label: 'Speed', value: fmtNum(ship.speed) },
-        { label: 'Offensive Odds', value: String(ship.odds_offensive) },
-        { label: 'Defensive Odds', value: String(ship.odds_defensive) },
-        { label: 'Escape Pod', value: boolToYesNoString(ship.has_pod) },
-        { label: 'Can Land', value: boolToYesNoString(ship.can_land) },
-        { label: 'Tractor Beam', value: boolToYesNoString(ship.has_tractor) },
-        { label: 'Interdictor', value: boolToYesNoString(ship.has_interdictor) },
+        { label: 'Offensive Odds', value: String(ship.oddsOffensive) },
+        { label: 'Defensive Odds', value: String(ship.oddsDefensive) },
+        { label: 'Escape Pod', value: boolToYesNoString(ship.hasPod) },
+        { label: 'Can Land', value: boolToYesNoString(ship.canLand) },
+        { label: 'Tractor Beam', value: boolToYesNoString(ship.hasTractor) },
+        { label: 'Interdictor', value: boolToYesNoString(ship.hasInterdictor) },
         { label: 'Visual Scanner', value: boolToYesNoString((hw.visual_scanner ?? 0) > 0) },
         { label: 'Planet Scanner', value: boolToYesNoString((hw.planet_scanner ?? 0) > 0) },
     ];
@@ -177,20 +163,10 @@ export function showShipDetail(ctx: DisplayComputerCtx, ship: ShipCatalogEntry) 
     }
 }
 
-export async function showPlanetSpecs(ctx: DisplayComputerCtx) {
-    if (!ctx.catalogs.planets) {
-        ctx.io.term.writeln(render(COMPUTER.planetSpecsLoading));
-        try {
-            const res = await fetch(`/api/planets?universe_id=${ctx.player.universeId}`);
-            ctx.catalogs.planets = await res.json();
-        } catch {
-            ctx.io.term.writeln(render(COMPUTER.planetSpecsFailed));
-            return;
-        }
-    }
+export function showPlanetSpecs(ctx: DisplayComputerCtx, planets: PlanetCatalogEntry[]) {
     ctx.io.term.writeln('');
     ctx.io.term.writeln(render(COMPUTER.planetSpecsHeader));
-    ctx.catalogs.planets!.forEach((planet, i) => {
+    planets.forEach((planet, i) => {
         ctx.io.term.writeln(
             render(COMPUTER.planetSpecsRow, {
                 letter: indexToLetter(i),
@@ -201,11 +177,13 @@ export async function showPlanetSpecs(ctx: DisplayComputerCtx) {
     ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Back' }));
 }
 
-export function showPlanetDetail(ctx: DisplayComputerCtx, planet: PlanetConfig) {
+export function showPlanetDetail(ctx: DisplayComputerCtx, planet: PlanetCatalogEntry) {
     const { term } = ctx.io;
     term.writeln('');
     term.writeln(render(COMPUTER.planetDetailHeader, { type: planet.displayName ?? planet.slug }));
-    term.writeln(render(COMPUTER.planetDetailDescription, { description: planet.description }));
+    if (planet.description) {
+        term.writeln(render(COMPUTER.planetDetailDescription, { description: planet.description }));
+    }
     const pad = (s: string) => s.padEnd(20);
     term.writeln(
         render(COMPUTER.planetDetailLine, {
@@ -251,14 +229,13 @@ export function showPlanetDetail(ctx: DisplayComputerCtx, planet: PlanetConfig) 
     );
 }
 
-export async function showCurrentShipSpecs(ctx: DisplayComputerCtx) {
-    if (!(await loadShipConfigs(ctx))) return;
+export function showCurrentShipSpecs(ctx: DisplayComputerCtx, ships: ShipCatalogEntry[]) {
     if (!ctx.ship.currentShipName) {
         ctx.io.term.writeln(render(COMPUTER.shipDataRequesting));
         ctx.io.sendMsg({ type: ClientTag.ShipInfo });
         return;
     }
-    const ship = ctx.catalogs.ships!.find((s) => s.name === ctx.ship.currentShipName);
+    const ship = ships.find((s) => s.name === ctx.ship.currentShipName);
     if (!ship) {
         ctx.io.term.writeln(
             render(COMPUTER.shipConfigNotFound, { name: ctx.ship.currentShipName }),
@@ -446,52 +423,37 @@ export function renderShipDetail(ctx: DisplayComputerCtx, s: ShipDetailDisplay) 
     }
 }
 
-export async function showTraderList(ctx: DisplayComputerCtx) {
-    ctx.io.term.writeln(render(COMPUTER.traderListLoading));
-    try {
-        const res = await fetch(`/api/universes/${ctx.player.universeId}/players`);
-        const traders: {
-            name: string;
-            shipName: string | null;
-            coloredShipName: string | null;
-            clanNumber: number | null;
-            clanName: string | null;
-            reputation: number;
-            experience: number;
-        }[] = await res.json();
-        ctx.io.term.writeln('');
-        ctx.io.term.writeln(render(COMPUTER.traderListHeader));
+export function showTraderList(ctx: DisplayComputerCtx, traders: TraderListEntry[]) {
+    ctx.io.term.writeln('');
+    ctx.io.term.writeln(render(COMPUTER.traderListHeader));
+    ctx.io.term.writeln(
+        render(COMPUTER.traderListColumns, {
+            name: 'Name'.padEnd(24),
+            clan: 'Clan'.padEnd(5),
+            rep: 'Rep'.padStart(6),
+            exp: 'Exp'.padStart(6),
+            ship: 'Ship',
+        }),
+    );
+    for (const t of traders) {
+        const ship =
+            t.shipName === null
+                ? render(COMPUTER.traderListShipDestroyed)
+                : (t.coloredShipName ?? t.shipName);
+        const clanCell =
+            t.clanNumber === null
+                ? render(COMPUTER.traderListClanNA, {}) + '   '
+                : render(COMPUTER.traderListClanValue, {
+                      n: String(t.clanNumber).padEnd(4),
+                  });
         ctx.io.term.writeln(
-            render(COMPUTER.traderListColumns, {
-                name: 'Name'.padEnd(24),
-                clan: 'Clan'.padEnd(5),
-                rep: 'Rep'.padStart(6),
-                exp: 'Exp'.padStart(6),
-                ship: 'Ship',
+            render(COMPUTER.traderListRow, {
+                name: t.name.padEnd(24),
+                clan: clanCell,
+                rep: String(t.reputation).padStart(6),
+                exp: String(t.experience).padStart(6),
+                ship,
             }),
         );
-        for (const t of traders) {
-            const ship =
-                t.shipName === null
-                    ? render(COMPUTER.traderListShipDestroyed)
-                    : (t.coloredShipName ?? t.shipName);
-            const clanCell =
-                t.clanNumber === null
-                    ? render(COMPUTER.traderListClanNA, {}) + '   '
-                    : render(COMPUTER.traderListClanValue, {
-                          n: String(t.clanNumber).padEnd(4),
-                      });
-            ctx.io.term.writeln(
-                render(COMPUTER.traderListRow, {
-                    name: t.name.padEnd(24),
-                    clan: clanCell,
-                    rep: String(t.reputation).padStart(6),
-                    exp: String(t.experience).padStart(6),
-                    ship,
-                }),
-            );
-        }
-    } catch {
-        ctx.io.term.writeln(render(COMPUTER.traderListFailed));
     }
 }

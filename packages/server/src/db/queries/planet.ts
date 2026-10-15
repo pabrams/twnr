@@ -972,12 +972,43 @@ export async function getPlanetFuel(planetId: number, db: Queryable = pool): Pro
 }
 
 /** All planet-type rows for a universe, for the admin/catalog API. */
+/** Planet-type spec row, for the planet catalog (Computer → Planet specs). */
+export type PlanetCatalogRow = {
+    slug: string;
+    display_name: string | null;
+    description: string | null;
+    class: string;
+    danger: number;
+    max_fuel_colos: number;
+    max_org_colos: number;
+    max_equ_colos: number;
+    max_fuel: number;
+    max_org: number;
+    max_equ: number;
+    max_drones: number;
+    max_citadel: number;
+    fuel_production: number;
+    organics_production: number;
+    equipment_production: number;
+    fig_factor_fuel: number;
+    fig_factor_org: number;
+    fig_factor_equ: number;
+};
+
+/** Every planet type in a universe, ordered by slug. */
 export async function listUniversePlanetTypes(
     universeId: number,
     db: Queryable = pool,
-): Promise<Record<string, unknown>[]> {
-    const res = await db.query(
-        'SELECT * FROM universe_planet_types WHERE universe_id = $1 ORDER BY slug',
+): Promise<PlanetCatalogRow[]> {
+    const res = await db.query<PlanetCatalogRow>(
+        `SELECT slug, display_name, description, class, danger,
+                max_fuel_colos, max_org_colos, max_equ_colos,
+                max_fuel, max_org, max_equ, max_drones, max_citadel,
+                fuel_production, organics_production, equipment_production,
+                fig_factor_fuel, fig_factor_org, fig_factor_equ
+         FROM universe_planet_types
+         WHERE universe_id = $1
+         ORDER BY slug`,
         [universeId],
     );
     return res.rows;

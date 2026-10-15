@@ -17,6 +17,7 @@ import { indexToLetter, letterToIndex } from '../display-starbase.js';
 import { registerRoutine } from './types.js';
 import { askChar, askConfirm, askLine, askMultiLine, askNumber } from './prompts.js';
 import { request } from './io.js';
+import { loadPlanetCatalog, loadShipCatalog } from './catalogs.js';
 
 registerRoutine('known_universe', async (ctx) => {
     while (true) {
@@ -34,20 +35,23 @@ registerRoutine('known_universe', async (ctx) => {
 });
 
 registerRoutine('trader_list', async (ctx) => {
-    await showTraderList(ctx);
+    ctx.io.term.writeln(render(COMPUTER.traderListLoading));
+    const reply = await request(ctx, { type: ClientTag.TraderList }, ServerTag.TraderListResult);
+    if (!reply) return;
+    showTraderList(ctx, reply.traders);
 });
 
 registerRoutine('ship_catalog', async (ctx) => {
-    await showShipCatalog(ctx);
-    const ships = ctx.catalogs.ships;
+    const ships = await loadShipCatalog(ctx);
     if (!ships || ships.length === 0) return;
+    showShipCatalog(ctx, ships);
     const letters = ships.map((_, i) => indexToLetter(i).toLowerCase());
     const allowed = [...letters, '?'];
     while (true) {
         const ch = await askChar(ctx, render(COMPUTER.shipInterestPrompt), allowed);
         if (ch === null) return;
         if (ch === '?') {
-            await showShipCatalog(ctx);
+            showShipCatalog(ctx, ships);
             continue;
         }
         const idx = letterToIndex(ch);
@@ -60,16 +64,16 @@ registerRoutine('ship_catalog', async (ctx) => {
 });
 
 registerRoutine('planet_specs', async (ctx) => {
-    await showPlanetSpecs(ctx);
-    const planets = ctx.catalogs.planets;
+    const planets = await loadPlanetCatalog(ctx);
     if (!planets || planets.length === 0) return;
+    showPlanetSpecs(ctx, planets);
     const letters = planets.map((_, i) => indexToLetter(i).toLowerCase());
     const allowed = [...letters, '?'];
     while (true) {
         const ch = await askChar(ctx, render(COMPUTER.planetSpecsPrompt), allowed);
         if (ch === null) return;
         if (ch === '?') {
-            await showPlanetSpecs(ctx);
+            showPlanetSpecs(ctx, planets);
             continue;
         }
         const idx = letterToIndex(ch);
@@ -82,7 +86,9 @@ registerRoutine('planet_specs', async (ctx) => {
 });
 
 registerRoutine('current_ship_specs', async (ctx) => {
-    await showCurrentShipSpecs(ctx);
+    const ships = await loadShipCatalog(ctx);
+    if (!ships) return;
+    showCurrentShipSpecs(ctx, ships);
 });
 
 registerRoutine('hyperspace_jump', async (ctx) => {

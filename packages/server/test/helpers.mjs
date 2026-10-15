@@ -86,6 +86,14 @@ export async function connectWS(options = {}) {
     const timer = setTimeout(() => { ws.terminate(); reject(new Error('WS connect timeout')); }, 2000);
     let cookies = [];
 
+    // The server attaches its message listener only after it has pushed the
+    // post-welcome statsSnapshot, so a command sent the instant welcome lands
+    // can be dropped. `ready` resolves once that snapshot arrives; tests that
+    // send immediately after connecting should `await ready` first. (Players
+    // without a ship never get a snapshot, so it is opt-in.)
+    let markReady;
+    const ready = new Promise((r) => { markReady = r; });
+
     ws.on('upgrade', (res) => {
       cookies = res.headers['set-cookie'] || [];
     });
@@ -95,7 +103,9 @@ export async function connectWS(options = {}) {
       const msg = raw.payload ?? raw;
       if (msg.type === 'welcome') {
         clearTimeout(timer);
-        resolve({ ws, welcome: msg, cookies });
+        resolve({ ws, welcome: msg, cookies, ready });
+      } else if (msg.type === 'statsSnapshot') {
+        markReady();
       }
     });
     ws.on('error', (err) => { clearTimeout(timer); reject(err); });
