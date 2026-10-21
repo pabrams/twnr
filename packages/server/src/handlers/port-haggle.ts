@@ -50,7 +50,7 @@ type HaggleSession = {
 
 const sessions = new Map<number, HaggleSession>();
 
-const SESSION_TIMEOUT_MS = 5 * 60 * 1000;
+const HAGGLE_SESSION_TIMEOUT_MS = 5 * 60 * 1000;
 
 const MAX_COL: Record<Commodity, 'fuel_max' | 'org_max' | 'equ_max'> = {
     fuel: 'fuel_max',
@@ -70,7 +70,7 @@ export function clearHaggleSession(playerId: number): void {
 function getActiveHaggleSession(playerId: number): HaggleSession | null {
     const s = sessions.get(playerId);
     if (!s) return null;
-    if (Date.now() - s.openedAt > SESSION_TIMEOUT_MS) {
+    if (Date.now() - s.openedAt > HAGGLE_SESSION_TIMEOUT_MS) {
         sessions.delete(playerId);
         return null;
     }
