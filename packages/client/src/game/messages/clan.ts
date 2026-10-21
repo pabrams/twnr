@@ -1,7 +1,3 @@
-/**
- * Clan menu: prompts, help text, list/info renders, leave/join/dissolve flows.
- */
-
 import { makeDomain } from './_domain.js';
 
 export const CLAN = makeDomain('CLAN', {

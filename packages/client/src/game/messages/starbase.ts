@@ -1,7 +1,3 @@
-/**
- * Starbase: root prompt, Hardware Store, Shipyards, Class-0 equipment shop.
- */
-
 import { makeDomain } from './_domain.js';
 
 export const STARBASE = makeDomain('STARBASE', {

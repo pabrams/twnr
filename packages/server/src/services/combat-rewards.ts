@@ -8,7 +8,6 @@ export function colorOf(rep: number): AlignColor {
     return 'neutral';
 }
 
-/** Color bucket used by PvFigs math: rep === 0 collapses into 'blue'. */
 function colorOfNeutralAsBlue(rep: number): 'blue' | 'red' {
     return rep < 0 ? 'red' : 'blue';
 }
@@ -29,7 +28,7 @@ export function pvfigsMatchup(playerRep: number, ownerRep: number): PvfigsMatchu
     return p === o ? 'sameColor' : 'mixedColor';
 }
 
-/** Divide and return 0 when the divisor is zero — config-tuning safety. */
+/** Returns 0 on zero divisor — config divisors may be unset. */
 function safeDiv(num: number, denom: number): number {
     if (!denom) return 0;
     return num / denom;
@@ -41,13 +40,9 @@ export interface CombatDeltas {
 }
 
 /**
- * PvP combat rewards for the *attacker* (the defender accrues nothing from
- * the fig exchange itself — only the SD penalty when destroyed).
- *
- * Sign convention: attacking a red enemy yields +rep, attacking blue yields
- * −rep. The raw spec formula uses `enemy_align × multiplier`; we negate
- * `enemy_align` here so a positive `enemyAlignMultiplier` in config means
- * "the magnitude of the effect" without flipping bookkeeping.
+ * Attacker-only: the defender accrues nothing from the fig exchange itself.
+ * Sign convention: enemy align is negated (attacking red = +rep, blue = −rep)
+ * so a positive `enemyAlignMultiplier` in config is a pure magnitude.
  */
 export function pvpAttackerDeltas(args: {
     attackerDronesLost: number;
@@ -69,11 +64,7 @@ export function pvpAttackerDeltas(args: {
     return { reputationDelta, experienceDelta };
 }
 
-/**
- * Attacker bonus when the attacker destroys the defender's ship. Snapshot
- * the defender's exp/rep BEFORE applying the SD penalty so this bonus
- * doesn't see the diminished values.
- */
+/** Pass the defender's exp/rep snapshotted BEFORE the SD penalty, or the bonus sees diminished values. */
 export function shipDestroyAttackerBonus(args: {
     defenderRepBefore: number;
     defenderExpBefore: number;
@@ -83,18 +74,12 @@ export function shipDestroyAttackerBonus(args: {
     const repFraction = reputationDeltas.factorsFor.shipDestroyBonus_fractionOfEnemyAlign ?? 0;
     return {
         experienceDelta: Math.floor(defenderExpBefore * expFraction),
-        // Same sign convention as combat: destroying a red gives +rep,
-        // destroying a blue gives −rep. Negate defender's align.
+        // Same sign convention: destroying red = +rep, blue = −rep.
         reputationDelta: Math.round(-defenderRepBefore * repFraction),
     };
 }
 
-/**
- * Defender penalty when their ship is destroyed: they lose a fraction of
- * their own exp and align. Align loss is "toward 0" so we subtract the
- * fraction of the current value (blue loses positive, red loses negative
- * → both pull toward neutral).
- */
+/** Align loss pulls toward 0: a fraction of the current signed value, so blue and red both drift neutral. */
 export function shipDestroyDefenderPenalty(args: {
     defenderRepBefore: number;
     defenderExpBefore: number;
@@ -108,13 +93,7 @@ export function shipDestroyDefenderPenalty(args: {
     };
 }
 
-/**
- * PvFigs (sector-fighter) combat rewards for the attacking player. Owner
- * (player or clan) accrues nothing.
- *
- * Sign convention matches PvP — owner_align negated so attacking red yields
- * +rep regardless of which divisor branch fires.
- */
+/** Attacker-only (the fig owner accrues nothing); owner align negated, same sign convention as PvP. */
 export function pvfigsAttackerDeltas(args: {
     playerDronesLost: number;
     ownerAlign: number;

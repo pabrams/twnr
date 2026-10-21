@@ -59,7 +59,6 @@ describe('Haggle — FINAL_OFFER_FACTOR', () => {
 
 describe('Haggle — rollMidHaggleRounds', () => {
     it('returns 0..3 inclusive', () => {
-        // Force boundaries via deterministic rng
         assert.equal(rollMidHaggleRounds(() => 0), 0);
         assert.equal(rollMidHaggleRounds(() => 0.999), 3);
         assert.equal(rollMidHaggleRounds(() => 0.5), 2);
@@ -77,9 +76,7 @@ describe('Haggle — processHaggleCounter (S-port, player buys)', () => {
     };
 
     it('rejects an absurdly low counter (player asks for too much)', () => {
-        // Fuel @ MCIC=50 → maxPct ≈ 1.15 + 0.4914 × 30 ≈ 1.297
-        // Min counter = initial / maxPct ≈ 1000 / 1.297 ≈ 771
-        // Counter of 700 is below min → reject
+        // Fuel @ MCIC=50 → maxPct ≈ 1.297 → min counter ≈ 1000/1.297 ≈ 771; 700 is below
         const step = processHaggleCounter({ ...base, playerCounter: 700 });
         assert.equal(step.outcome, 'reject');
     });
@@ -161,12 +158,8 @@ describe('Haggle — processHaggleCounter (B-port, player sells)', () => {
 
 describe('Haggle — gap-analysis sample (Org sell port)', () => {
     it('reproduces the example: initial 973, player 895, port 966', () => {
-        // The user-provided example was a buy from sell port at MCIC ≈ -40-something
-        // Initial 973, player counters 895, port counters 966.
-        // Port concession = 973 - 966 = 7, gap = 973 - 895 = 78, fraction = 7/78 ≈ 0.09
-        // That's far below our 0.65 fraction, so the sample was a port with very
-        // different MCIC or just stochastic. Verify our model is *consistent*
-        // rather than reproducing the exact numbers.
+        // The real-game sample (973 → 966) implies fraction ≈ 0.09, not reproducible
+        // under our band model — assert model consistency, not the exact numbers.
         const step = processHaggleCounter({
             action: 'S',
             commodity: 'equipment',
@@ -178,8 +171,7 @@ describe('Haggle — gap-analysis sample (Org sell port)', () => {
         });
         assert.equal(step.outcome, 'counter');
         if (step.outcome === 'counter') {
-            // Equ @ |MCIC|=50 → fraction = 0.65. Gap = 78. Concession = 50.7.
-            // Port new = floor(973 - 50.7) = floor(922.3) = 922.
+            // Equ @ |MCIC|=50 → fraction 0.65; gap 78 → floor(973 - 50.7) = 922
             assert.equal(step.newPortOffer, 922);
         }
     });

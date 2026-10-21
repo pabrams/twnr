@@ -4,9 +4,6 @@ import { render } from '../renderer.js';
 import { HELP } from '../messages/index.js';
 import { registerRoutine } from './types.js';
 
-/** Render the per-menu Back echo from the menu_command label, e.g. the
- * starbase row's "Leave Starbase" → "<Leave Starbase>". Falls back to
- * "<Back>" if the row has no label. */
 function backEcho(label: string | undefined): string {
     return `[bg:b]<${label ?? 'Back'}>[/bg:b]`;
 }

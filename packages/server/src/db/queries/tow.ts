@@ -28,9 +28,6 @@ export type TowableUnmannedRow = {
     owner_clan_number: number | null;
 };
 
-/** Other players (and their ships) in the same sector as `playerId`. Used as
- *  the manned-tow candidate list — excludes `playerId` themselves. Includes
- *  players who are docked or on a planet; the caller can filter visibility. */
 export async function getMannedTowables(
     playerId: number,
     sectorDbId: number,
@@ -55,8 +52,6 @@ export async function getMannedTowables(
     return res.rows;
 }
 
-/** Unmanned ships (no player currently piloting) in the sector owned by the
- *  given player or their clan. */
 export async function getUnmannedTowables(
     playerId: number,
     clanId: number | null,
@@ -108,12 +103,8 @@ export type LockedTowTargetRow = {
     pilot_player_name: string | null;
 };
 
-/**
- * Lock the candidate ship row and return its current state. The lock blocks
- * concurrent moves of this ship (which UPDATE the same row), so callers can
- * safely re-verify sector + drone + ownership invariants before committing
- * the tow.
- */
+/** The row lock blocks concurrent moves of this ship, letting callers re-verify
+ *  sector/drone/ownership invariants before committing the tow. */
 export async function lockTowTarget(
     shipId: number,
     db: Queryable,
@@ -149,7 +140,6 @@ export type TowStateRow = {
     towed_owner_player_name: string | null;
 };
 
-/** Tow context for the towing player. Null if not towing. */
 export async function getTowState(
     playerId: number,
     db: Queryable = pool,
@@ -169,7 +159,6 @@ export async function getTowState(
     return res.rows[0] ?? null;
 }
 
-/** Returns the towing player's id if `shipId` is currently being towed, else null. */
 export async function getTowingPlayerForShip(
     shipId: number,
     db: Queryable = pool,
@@ -180,8 +169,6 @@ export async function getTowingPlayerForShip(
     return res.rows[0]?.id ?? null;
 }
 
-/** Move the towed ship along with its tower: set sector_id; if a player
- *  currently pilots that ship, update their current_sector_id too. */
 export async function moveTowedShip(
     towedShipId: number,
     destSectorDbId: number,

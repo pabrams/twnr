@@ -248,8 +248,6 @@ export async function serveTransportToShip(
     });
 }
 
-/** O (Change Ship Ownership): flip current ship between personal and
- *  clan-owned. */
 export async function serveChangeShipOwnership(
     playerId: number,
     data: ChangeShipOwnershipCommand,

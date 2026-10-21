@@ -1,28 +1,18 @@
 /**
  * Cargo-hold pricing — legacy formula.
- *
  *   Cost(H_from→H_to) = Σ_{k=H_from}^{H_to-1} (B + k·I)
  *                     = B·(H_to − H_from) + I·(H_to·(H_to−1) − H_from·(H_from−1))/2
- *
- *   B = daily base cost (cycles between `min` and `max` over `periodDays`)
- *   I = increment per hold (`HOLD_COST_INCREMENT`, 20)
- *
- * The daily base cost is a deterministic triangular wave keyed off the UTC
- * day, so all players see the same B on a given day. With min=151, max=249,
- * periodDays=18: day 0 = 151, day 9 = 249, day 18 = 151, …
+ * B = daily base cost, a deterministic triangular wave between `min` and `max`
+ * over `periodDays`, keyed off the UTC day so every player sees the same B.
+ * I = increment per hold (HOLD_COST_INCREMENT).
  */
 
 export const HOLD_COST_INCREMENT = 20;
 
-/** Days since the Unix epoch (UTC). Used as the seed for the daily base
- *  cost cycle so every player on a given calendar day sees the same B. */
 export function utcDaysSinceEpoch(now: Date = new Date()): number {
     return Math.floor(now.getTime() / 86_400_000);
 }
 
-/** Today's base cost B given the min/max/period. Triangular wave: rises
- *  from `min` to `max` over `floor(periodDays/2)` days, then falls back
- *  over the remaining `periodDays - floor(periodDays/2)` days. */
 export function holdBaseCostForDay(
     daysSinceEpoch: number,
     min: number,
@@ -48,7 +38,6 @@ export function holdBaseCostNow(
     return holdBaseCostForDay(utcDaysSinceEpoch(now), min, max, periodDays);
 }
 
-/** Total cost to buy `H` holds from 0 at base B. */
 export function holdCostFromZero(
     H: number,
     B: number,
@@ -58,7 +47,6 @@ export function holdCostFromZero(
     return B * H + (increment * H * (H - 1)) / 2;
 }
 
-/** Total cost to go from currentHolds → targetHolds. */
 export function holdCostRange(
     currentHolds: number,
     targetHolds: number,
@@ -70,9 +58,6 @@ export function holdCostRange(
     );
 }
 
-/** Cost of the next single hold (the one that takes you from
- *  `currentHolds` to `currentHolds + 1`). Equivalent to holdCostRange
- *  with qty=1 but cheaper. */
 export function nextHoldCost(
     currentHolds: number,
     B: number,
@@ -81,8 +66,7 @@ export function nextHoldCost(
     return B + currentHolds * increment;
 }
 
-/** Maximum number of additional holds affordable at base B with the given
- *  credit budget. Closed-form via the quadratic, no iteration. */
+/** Max additional holds affordable with `credits`; closed-form, no iteration. */
 export function maxAffordableHolds(
     currentHolds: number,
     credits: number,

@@ -6,16 +6,11 @@ import { readCSV, generateUniverse } from './bigbang-helpers.mjs';
 
 const VALID_PLANET_TYPES = new Set(['Terran', 'Volcanic', 'Glacial', 'Gas Giant', 'Mountainous']);
 
-/** Returns a Map of value -> count. */
 function counter(arr) {
   const map = new Map();
   for (const x of arr) map.set(x, (map.get(x) || 0) + 1);
   return map;
 }
-
-// ---------------------------------------------------------------------------
-// Planet Generation
-// ---------------------------------------------------------------------------
 
 describe('Planet Generation', () => {
   const NUM_SECTORS    = 200;

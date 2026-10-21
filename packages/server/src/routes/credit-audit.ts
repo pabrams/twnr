@@ -5,20 +5,9 @@ import { getPlayerCreditsAndUniverse } from '../db/queries/player.js';
 import { getUniverseStartingCredits } from '../db/queries/universe.js';
 import { listAuditLogForPlayer } from '../db/queries/audit.js';
 
-/**
- * Credit-audit verifier: GET /api/players/:id/credit-audit
- *
- * Returns the player's starting credits, current balance, and the balance
- * implied by summing HMAC-valid audit entries. `consistent: false` means a
- * mismatch — either some entries failed HMAC verification, or the live
- * `players.credits` doesn't equal `starting_credits + sum(delta)`.
- *
- * Both kinds of tampering surface here:
- *   - Direct UPDATE players SET credits = ... → current ≠ expected
- *   - INSERT/UPDATE/DELETE on audit_log (without the in-memory secret)
- *     → either invalid_entries > 0, or the deleted/inserted row shifts
- *       the sum so current ≠ expected
- */
+// consistent:false signals tampering: entries failing HMAC verification, or
+// players.credits != starting_credits + sum(valid deltas) — catching both a
+// direct credits UPDATE and audit_log rows changed without the HMAC secret.
 export function createCreditAuditRoutes(router: Router): void {
     router.get(
         '/api/players/:id/credit-audit',

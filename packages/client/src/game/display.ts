@@ -272,12 +272,10 @@ export function showMoveMenu(ctx: DisplayCtx) {
         term.writeln(render(SECTOR.moveMenuRow, { n: i + 1, sector }));
     });
     term.writeln(render(SECTOR.moveMenuQuit));
-    // Light up the minimap with 1..N badges for each adjacent sector.
     ctx.minimap.handle?.setQuickMove(warps.map((w) => w.sector));
 }
 
-/** Clear the minimap quick-move overlay. Call whenever the Move menu closes. */
-export function hideMoveMenuOverlay(ctx: DisplayCtx) {
+export function closeMoveMenu(ctx: DisplayCtx) {
     ctx.minimap.handle?.setQuickMove(null);
 }
 

@@ -1,15 +1,7 @@
 import { getPlayerShipFull } from '../db/queries/ship.js';
 import { getShipHardwareQuantities, getShipTypeHardwareMax } from '../db/queries/hardware.js';
 
-/**
- * Get the player's current ship denormalised with hardware maps:
- *
- *   - `hardware`: { name → current quantity } for everything installed
- *   - `hardware_max`: { name → cap } for everything the ship type allows
- *
- * Returns null if the player has no ship. Centralised here so handlers
- * don't have to remember to pull and zip three queries every time.
- */
+/** Return shape is untyped: attaches `hardware` {name → installed qty} and `hardware_max` {name → ship-type cap}. */
 export async function getPlayerShip(playerId: number) {
     const ship = await getPlayerShipFull(playerId);
     if (!ship) return null;

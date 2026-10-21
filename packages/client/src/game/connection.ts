@@ -8,18 +8,10 @@ import { getMenuHandler } from './routines/index.js';
 import { dispatch } from './handlers/index.js';
 import { drainInputQueue } from './input.js';
 
-/** Server messages whose handler should NOT trigger a menu prompt re-render.
- *
- *  There are two reasons why a servertag (envelope) would go here:
- *
- *  1. Panel-only updates that have no terminal output (otherwise the prompt
- *     duplicates on every panel refresh, e.g. minimap zoom/pan).
- *  2. Interim events arriving mid-flow before the concluding result
- *     envelope. Mine events fire during a move *before* MoveResult, while
- *     `ctx.world.currentSector` still points at the previous sector; a
- *     prompt rendered now would show the wrong sector. The MoveResult that
- *     follows is the right paint point.
- */
+/** Envelopes that must not trigger a prompt re-render: panel-only updates with no
+ *  terminal output (the prompt would duplicate on every refresh), and interim events
+ *  arriving before their concluding result — mine events fire mid-move while
+ *  currentSector still points at the previous sector; MoveResult is the paint point. */
 const PROMPT_SUPPRESSING = new Set<string>([
     ServerTag.NeighborhoodResult,
     ServerTag.ProximityMineHit,
@@ -50,13 +42,13 @@ export function setupConnection(
             return;
         }
         const parsed = ServerEnvelopeSchema.safeParse(raw);
-        if (!parsed.success) {
-            // Server is the trust root, so a schema mismatch here is a client/server
-            // drift bug, not malicious input. Therefore log and try to forward the raw object
-            // so play can continue, but the parse error tells us to fix the schema.
+        let msg: ServerEnvelope;
+        if (parsed.success) {
+            msg = parsed.data;
+        } else {
             console.error('ServerEnvelope failed schema validation', parsed.error.issues, raw);
+            msg = raw as ServerEnvelope;
         }
-        const msg: ServerEnvelope = parsed.success ? parsed.data : (raw as ServerEnvelope);
         if (ctx.io.debug) {
             const lines = JSON.stringify(msg, null, 2).split('\n');
             ctx.io.term.writeln(`\r\n\x1b[38;5;243m← ${lines[0]}\x1b[0m`);
@@ -86,12 +78,6 @@ export function setupConnection(
                 getMenuHandler(ctx.world.mode)?.renderPrompt?.(ctx);
             }
         };
-        // Single paint per incoming envelope. Three cases:
-        //   - A routine consumed the envelope via awaitResponse: that
-        //     routine's own finishUp will paint when it completes..
-        //   - Handler returned a promise: wait for the whole async chain
-        //     to settle, then paint.
-        //   - Handler was sync: paint now.
         if (resolvedResponse) {
             // routine owns the paint
         } else if (

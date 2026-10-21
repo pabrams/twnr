@@ -10,16 +10,10 @@ const merchantCfg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'config', 'templa
 
 export { createPool } from './global-setup.mjs';
 
-/**
- * Creates a test user in the users table and returns { userId, token }.
- */
 export async function createTestUser(pool) {
   return createTestUserWithToken(pool);
 }
 
-/**
- * Creates a player in a universe for the given user. Returns playerId.
- */
 export async function createTestPlayer(pool, userId, universeId, name, sector = 1, drones = 0, shields = 0) {
   const univRes = await pool.query(
     `SELECT COALESCE(us.starting_turns, 500) as starting_turns
@@ -44,8 +38,7 @@ export async function createTestPlayer(pool, userId, universeId, name, sector = 
   );
   const playerId = res.rows[0].id;
 
-  // Mirror production insertStartingShip: ships are keyed by
-  // (universe_id, universe_ship_number) and reference a universe ship-type slug.
+  // Mirrors production insertStartingShip: ships keyed by (universe_id, universe_ship_number).
   const shipRes = await pool.query(
     `INSERT INTO ships (universe_id, universe_ship_number, name, owner_player_id, ship_type_slug, sector_id, drones, shields, holds, turns_per_warp)
      SELECT $1,
@@ -66,7 +59,6 @@ export async function connectWS(options = {}) {
   let token = providedToken;
   let universeId = providedUniverseId;
 
-  // Auto-create a user and player if no token provided
   if (!token && optPool) {
     const { userId, token: newToken } = await createTestUser(optPool);
     token = newToken;
@@ -86,11 +78,9 @@ export async function connectWS(options = {}) {
     const timer = setTimeout(() => { ws.terminate(); reject(new Error('WS connect timeout')); }, 2000);
     let cookies = [];
 
-    // The server attaches its message listener only after it has pushed the
-    // post-welcome statsSnapshot, so a command sent the instant welcome lands
-    // can be dropped. `ready` resolves once that snapshot arrives; tests that
-    // send immediately after connecting should `await ready` first. (Players
-    // without a ship never get a snapshot, so it is opt-in.)
+    // Server attaches its message listener only after the post-welcome statsSnapshot,
+    // so a command sent right after welcome can be dropped — `await ready` first.
+    // (Shipless players never get a snapshot, so it's opt-in.)
     let markReady;
     const ready = new Promise((r) => { markReady = r; });
 

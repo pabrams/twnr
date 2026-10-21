@@ -17,7 +17,6 @@ type CombatContext = Pick<
     DisplayCombatCtx &
     RefreshMinimapCtx;
 
-/** Re-open the minimap floating menu for the DroneEncounter commands. */
 function reopenEncounterMenu(ctx: CombatContext): void {
     const menu = ctx.catalogs.menus.get(Menu.DroneEncounter);
     if (!menu) return;
@@ -104,7 +103,6 @@ export const attackSectorDrones: Handler<'attackSectorDronesResult', CombatConte
     renderAttributeChange(ctx, msg.expDelta ?? 0, msg.repDelta ?? 0, 'combat');
     refreshMinimap(ctx);
     if (msg.victory) {
-        // Drones cleared — exit the droneEncounter sub-mode.
         ctx.world.mode = Menu.Sector;
         ctx.io.term.writeln(render(EVENT.sectorCleared));
         if (ctx.autopilot.paused) {

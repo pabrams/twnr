@@ -31,7 +31,6 @@ function calculateShipPrice(shipType: {
     );
 }
 
-/** Pre-buy entry: validate, store pending purchase, prompt for ship name. */
 export async function serveBuyShipNew(playerId: number, data: BuyShipNewCommand): Promise<void> {
     if (!onlinePlayers[playerId]?.at_starbase) {
         sendError(playerId, 'Not at Starbase');
@@ -53,7 +52,6 @@ export async function serveBuyShipNew(playerId: number, data: BuyShipNewCommand)
     });
 }
 
-/** Pre-tradein entry: validate, store pending purchase, prompt for ship name. */
 export async function serveBuyShipTradein(
     playerId: number,
     data: BuyShipTradeinCommand,
@@ -78,7 +76,7 @@ export async function serveBuyShipTradein(
     });
 }
 
-/** Commit a deferred Buy-new purchase using the supplied ship name. */
+/** Deferred commit — runs only after SetShipName supplies the name. */
 export async function executeBuyShipNew(
     playerId: number,
     targetShipName: string,
@@ -160,7 +158,7 @@ export async function executeBuyShipNew(
     );
 }
 
-/** Commit a deferred Trade-in purchase using the supplied ship name. */
+/** Deferred commit — runs only after SetShipName supplies the name. */
 export async function executeBuyShipTradein(
     playerId: number,
     targetShipName: string,

@@ -41,7 +41,6 @@ const MINE_TYPE_LABEL: Record<MineType, string> = {
     seeker: 'Limpet',
 };
 
-/** Info-only roundtrip used by the client's Handle-Mines flow.  */
 export async function serveDeployMineInfo(
     playerId: number,
     data: DeployMineInfoCommand,
@@ -139,7 +138,7 @@ export async function serveDeployMine(playerId: number, data: DeployMineCommand)
             const existing = await getSectorMineForUpdate(sectorDbId, mineType, client);
             const currentInSector = existing?.quantity ?? 0;
 
-            // Re-check ownership
+            // Re-check ownership under lock.
             if (existing && existing.quantity > 0) {
                 const friendly = isFriendlyOwner(existing, playerId, playerClanId);
                 if (!friendly) {
@@ -262,7 +261,6 @@ export async function serveMineDisruptor(
         return;
     }
 
-    // Adjacency check.
     const warps = await getGraph(player.universeId);
     if (!warps[player.sector]?.includes(targetSector)) {
         sendError(playerId, 'Target sector is not adjacent');
@@ -275,7 +273,6 @@ export async function serveMineDisruptor(
         return;
     }
 
-    // Ensure player has at least one disruptor.
     const have = await getShipHardwareQuantityByName(playerId, 'mine_disruptor');
     if (have <= 0) {
         sendError(playerId, 'No mine disruptors on ship');

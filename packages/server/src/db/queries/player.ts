@@ -24,11 +24,6 @@ export async function getPlayerReputationForUpdate(
     return res.rows[0]?.reputation ?? 0;
 }
 
-/**
- * Snapshot reputation+experience under a FOR UPDATE lock. Used by combat
- * reward calculations so the attacker-bonus math sees a consistent
- * defender state even if other transactions are mid-flight.
- */
 export async function getPlayerRepExpForUpdate(
     playerId: number,
     db: Queryable = pool,
@@ -40,12 +35,7 @@ export async function getPlayerRepExpForUpdate(
     return res.rows[0] ?? { reputation: 0, experience: 0 };
 }
 
-/**
- * Atomically mark "first colos jettison today" for a player. Returns true
- * only on the FIRST call within a calendar day (UTC); subsequent calls the
- * same day return false. Update + check happens in one statement so two
- * concurrent jettisons can't both win the "first today" prize.
- */
+/** True only on the first call per UTC day; update+check is one statement so concurrent jettisons can't both win. */
 export async function markFirstColosJettisonOfDay(
     playerId: number,
     db: Queryable = pool,
@@ -60,8 +50,6 @@ export async function markFirstColosJettisonOfDay(
     return (res.rowCount ?? 0) > 0;
 }
 
-/** Resolve a player's current ship_id. Returns null if the player has
- *  no ship (destroyed, awaiting a starter, etc.). */
 export async function getPlayerShipId(
     playerId: number,
     db: Queryable = pool,
@@ -107,8 +95,7 @@ export type SectorPlayerRow = {
     ship_drones: number;
 };
 
-/** Every player whose current sector matches, regardless of online status.
- *  Caller applies the visibility predicate (planet/cloak/online-and-docked). */
+/** Unfiltered — caller applies the visibility predicate (planet/cloak/online-and-docked). */
 export async function listPlayersInSector(
     sectorNumber: number,
     universeId: number,
@@ -140,7 +127,6 @@ export type AttackTargetRow = {
     on_planet_id: number | null;
 };
 
-/** Sector + visibility fields for a single player by id, online or not. */
 export async function getAttackTargetInfo(
     playerId: number,
     db: Queryable = pool,
@@ -229,7 +215,6 @@ export async function markSectorVisited(
     );
 }
 
-/** Player record for WebSocket connect: includes joined sector + ship info. */
 export type PlayerConnectRow = {
     id: number;
     name: string;
@@ -241,7 +226,6 @@ export type PlayerConnectRow = {
     clan_id: number | null;
 };
 
-/** Look up a user's player record in a specific universe, with joined sector + ship. */
 export async function getPlayerConnectInfo(
     userId: number,
     universeId: number,
@@ -261,14 +245,12 @@ export async function getPlayerConnectInfo(
     return res.rows[0];
 }
 
-/** Mark a player as logged-in: clear `docked` and stamp `last_login_at`. */
 export async function markPlayerLoggedIn(playerId: number, db: Queryable = pool): Promise<void> {
     await db.query('UPDATE players SET docked = FALSE, last_login_at = NOW() WHERE id = $1', [
         playerId,
     ]);
 }
 
-/** Create a player row on universe join. Returns the new player id. */
 export async function insertPlayer(
     name: string,
     userId: number,
@@ -294,7 +276,6 @@ export async function setPlayerShipId(
     await db.query('UPDATE players SET ship_id = $1 WHERE id = $2', [shipId, playerId]);
 }
 
-/** Roster of players in a universe with their current ship type name + clan info. */
 export type UniversePlayerRosterRow = {
     name: string;
     ship_name: string | null;
@@ -325,7 +306,6 @@ export async function listPlayersInUniverse(
     return res.rows;
 }
 
-/** Count players in a universe. */
 export async function countPlayersInUniverse(
     universeId: number,
     db: Queryable = pool,
@@ -337,7 +317,6 @@ export async function countPlayersInUniverse(
     return res.rows[0]?.count ?? 0;
 }
 
-/** List player ids in a universe (used by universe delete). */
 export async function listPlayerIdsInUniverse(
     universeId: number,
     db: Queryable = pool,
@@ -348,7 +327,6 @@ export async function listPlayerIdsInUniverse(
     return res.rows.map((r) => r.id);
 }
 
-/** Delete all `player_visited_sectors` rows for the given player ids. */
 export async function deleteVisitedSectorsForPlayers(
     playerIds: number[],
     db: Queryable = pool,
@@ -359,7 +337,6 @@ export async function deleteVisitedSectorsForPlayers(
     ]);
 }
 
-/** Null out `ship_id` for many players at once (pre-delete step). */
 export async function clearShipIdsForPlayers(
     playerIds: number[],
     db: Queryable = pool,
@@ -368,7 +345,6 @@ export async function clearShipIdsForPlayers(
     await db.query('UPDATE players SET ship_id = NULL WHERE id = ANY($1::int[])', [playerIds]);
 }
 
-/** Delete all ships owned by the given player ids. */
 export async function deleteShipsByOwners(
     playerIds: number[],
     db: Queryable = pool,
@@ -377,7 +353,6 @@ export async function deleteShipsByOwners(
     await db.query('DELETE FROM ships WHERE owner_player_id = ANY($1::int[])', [playerIds]);
 }
 
-/** Delete all players in a universe (used by universe-delete). */
 export async function deletePlayersInUniverse(
     universeId: number,
     db: Queryable = pool,
@@ -385,22 +360,15 @@ export async function deletePlayersInUniverse(
     await db.query('DELETE FROM players WHERE universe_id = $1', [universeId]);
 }
 
-/** Delete a single player row by id. */
 export async function deletePlayerById(playerId: number, db: Queryable = pool): Promise<void> {
     await db.query('DELETE FROM players WHERE id = $1', [playerId]);
 }
 
-/** Clear a player's ship_id so they can be re-assigned a new ship. */
 export async function clearPlayerShip(playerId: number, db: Queryable = pool): Promise<void> {
     await db.query('UPDATE players SET ship_id = NULL WHERE id = $1', [playerId]);
 }
 
-/**
- * Finalize a respawn once the destruction cooldown has elapsed:
- * clear ship_destroyed_date, move the player to the starting sector, and
- * reset their credits. The new ship row itself is created later when the
- * player types a name (see serveSetShipName), so ship_id stays NULL here.
- */
+/** ship_id deliberately stays NULL — the new ship is created later, when the player names it. */
 export async function applyRespawnReset(
     playerId: number,
     startSectorId: number,
@@ -429,18 +397,15 @@ export async function findPlayersByNamePrefix(
     return res.rows;
 }
 
-/** Count total players across all universes (admin stats). */
 export async function countAllPlayers(db: Queryable = pool): Promise<number> {
     const res = await db.query<{ count: number }>('SELECT COUNT(*)::int FROM players');
     return res.rows[0]?.count ?? 0;
 }
 
-/** Stamp a player's `last_logout_at` to NOW(). */
 export async function markPlayerLoggedOut(playerId: number, db: Queryable = pool): Promise<void> {
     await db.query('UPDATE players SET last_logout_at = NOW() WHERE id = $1', [playerId]);
 }
 
-/** Append a row to the per-player command log (fire-and-forget from callers). */
 export async function logPlayerCommand(
     playerId: number,
     universeId: number,
@@ -454,7 +419,6 @@ export async function logPlayerCommand(
     );
 }
 
-/** All sector_numbers the given player has visited (across all sectors). */
 export async function getVisitedSectorNumbers(
     playerId: number,
     db: Queryable = pool,
@@ -533,7 +497,6 @@ export type StatsSnapshotRow = {
     colonists: number;
 };
 
-/** One-round-trip read of every field in the right-side stats column. */
 export async function getStatsSnapshotRow(
     playerId: number,
     db: Queryable = pool,

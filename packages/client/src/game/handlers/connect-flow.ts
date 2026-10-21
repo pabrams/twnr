@@ -10,18 +10,9 @@ import { promptShipName } from './ship-name.js';
 
 type ConnectFlowCtx = Pick<GameContext, 'io' | 'input' | 'player'>;
 
-/**
- * Single async orchestrator that runs whenever a Welcome envelope arrives.
- * Server invariants (routeMessage gate, mail-since-last-logout query) stay
- * authoritative; this routine just drives the client-side sequence:
- *
- *   1. If the player has no ship, drive the name prompt. Server's
- *      routeMessage gate would reject any other command until SetShipName
- *      lands anyway, so this step has to run first.
- *   2. CheckMailSinceLastLogout + render inbox + optional delete prompt.
- *   3. Trigger a location-aware re-display via the input pipeline so the
- *      normal `<Re-Display>` echo + sector/planet/starbase paint happens.
- */
+/** Runs on every Welcome envelope. Ship naming must come first — the server's
+ *  routeMessage gate rejects all other commands until SetShipName lands; then
+ *  connect mail, then a location-aware re-display through the input pipeline. */
 export async function runConnectFlow(ctx: ConnectFlowCtx, msg: WelcomeEvent): Promise<void> {
     if (msg.shipName === '' && msg.startingShip) {
         const typeLabel = msg.startingShip.typeDisplayName ?? msg.startingShip.typeName;

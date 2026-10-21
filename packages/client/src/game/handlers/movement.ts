@@ -61,8 +61,6 @@ export const move: Handler<'moveResult', MovementContext> = (ctx, msg) => {
             }
             const droneQty = msg.sectorDrones?.quantity ?? 0;
             showDroneEncounter(ctx, droneQty, msg.ownerName, msg.shipDrones);
-            // Mirror the DroneEncounter menu commands as minimap buttons so
-            // mouse users don't have to switch back to the keyboard.
             openEncounterMenu(ctx);
             break;
         }
@@ -122,9 +120,7 @@ export const shortestPath: Handler<'shortestPathResult', MovementContext> = (ctx
     return promptAutopilot(ctx, msg);
 };
 
-/** Walk the DroneEncounter menu registry and turn each single-key command
- *  into a button on the minimap panel. Keeps the visible options in sync
- *  with whatever the xterm menu shows. */
+/** Minimap buttons derive from the DroneEncounter menu registry so they stay in sync with the xterm menu. */
 function openEncounterMenu(ctx: MovementContext): void {
     const menu = ctx.catalogs.menus.get(Menu.DroneEncounter);
     if (!menu) return;

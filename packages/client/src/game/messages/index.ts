@@ -34,8 +34,7 @@ export {
     CLAN,
 };
 
-/** Registration order matters for bare-key collisions (first wins). MSG
- *  registers first so its entries are the default bare-key resolution. */
+/** Registration order matters for bare-key collisions (first wins); MSG registers first as the default. */
 function buildAndRegister() {
     clearRegistry();
     const DOMAINS = {
@@ -66,10 +65,8 @@ function buildAndRegister() {
 
 buildAndRegister();
 
-// Vite HMR — edits to any message file re-run this module, rebuilding the
-// registry in-place without a page reload (preserves the WebSocket session).
-// `{{ref}}` lookups get updated templates live. Direct imports of SECTOR.x
-// etc. hold stale refs until the next page refresh.
+// Vite HMR rebuilds the registry in place (preserving the WebSocket session): `{{ref}}`
+// lookups update live, but direct imports of SECTOR.x etc. stay stale until page refresh.
 if (import.meta.hot) {
     import.meta.hot.accept();
 }

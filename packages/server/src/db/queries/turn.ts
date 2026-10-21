@@ -2,7 +2,6 @@ import { pool } from '../index.js';
 import type { Queryable } from '../types.js';
 import { universeConfig } from '@twnr/shared';
 
-/** Per-universe turn-economy config (with template fallbacks). */
 export type UniverseTurnSettings = {
     turns_per_day: number;
     turn_delay: number;
@@ -40,7 +39,6 @@ export async function decrementPlayerTurns(
     await db.query('UPDATE players SET turns = turns - $1 WHERE id = $2', [cost, playerId]);
 }
 
-/** Move-time fetch: ship existence + per-warp cost + universe turn config. */
 export type MoveTurnContextRow = {
     ship_id: number | null;
     turns: number;
@@ -49,7 +47,6 @@ export type MoveTurnContextRow = {
     turn_delay: number;
 };
 
-/** Universes that have turn accounting enabled (turns_per_day > 0). */
 export type TurnEnabledUniverseRow = {
     id: number;
     turns_per_day: number;
@@ -70,14 +67,13 @@ export async function listTurnEnabledUniverses(
     return res.rows;
 }
 
-/** Player rows for the turn-grant pass — locks each row FOR UPDATE so the
- *  hourly grant doesn't race a player's in-flight turn deduction. */
 export type TurnGrantPlayerRow = {
     id: number;
     turns: number;
     last_turns_granted_at: Date;
 };
 
+/** FOR UPDATE so the hourly grant doesn't race a player's in-flight turn deduction. */
 export async function lockPlayersForTurnGrant(
     universeId: number,
     db: Queryable = pool,

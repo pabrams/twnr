@@ -15,9 +15,6 @@ export type DensityScanRow = {
     warp_count: number;
 };
 
-/** One row per out-warp from `fromSectorDbId`, with aggregate counts the
- *  density-scan handler weights into a score. `visited` is computed for
- *  the calling player. */
 export async function getDensityScanRows(
     fromSectorDbId: number,
     playerId: number,
@@ -44,8 +41,6 @@ export async function getDensityScanRows(
     return res.rows;
 }
 
-/** Out-warp sector numbers from `fromSectorDbId` — used by visual scan to
- *  iterate sectors to paint. */
 export async function getOutWarpSectorNumbers(
     fromSectorDbId: number,
     db: Queryable = pool,

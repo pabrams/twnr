@@ -1,7 +1,6 @@
 import { pool } from '../index.js';
 import type { Queryable } from '../types.js';
 
-/** Fetch the token_version for a user (to validate JWT on connect). */
 export async function getUserTokenVersion(
     userId: number,
     db: Queryable = pool,
@@ -13,17 +12,15 @@ export async function getUserTokenVersion(
     return res.rows[0]?.token_version;
 }
 
-/** Stamp a user's last_connected_at to NOW(). */
 export async function markUserConnected(userId: number, db: Queryable = pool): Promise<void> {
     await db.query('UPDATE users SET last_connected_at = NOW() WHERE id = $1', [userId]);
 }
 
-/** Bump a user's token_version, invalidating their existing JWT(s). */
+/** Bumping token_version invalidates the user's existing JWTs. */
 export async function bumpUserTokenVersion(userId: number, db: Queryable = pool): Promise<void> {
     await db.query('UPDATE users SET token_version = token_version + 1 WHERE id = $1', [userId]);
 }
 
-/** Look up a user by email for login verification. */
 export type UserLoginRow = {
     id: number;
     role: string;
@@ -41,7 +38,6 @@ export async function getUserByEmail(
     return res.rows[0];
 }
 
-/** Create a new user account. Returns the freshly-inserted row. */
 export type UserCreatedRow = {
     id: number;
     email: string;
@@ -62,7 +58,6 @@ export async function createUser(
     return res.rows[0];
 }
 
-/** Create a guest user account (is_guest=true). Same shape as createUser. */
 export async function createGuestUser(
     email: string,
     passwordHash: string,
@@ -76,7 +71,6 @@ export async function createGuestUser(
     return res.rows[0];
 }
 
-/** True if the user is a guest account (cleaned up on disconnect). */
 export async function isGuestUser(userId: number, db: Queryable = pool): Promise<boolean> {
     const res = await db.query<{ is_guest: boolean }>('SELECT is_guest FROM users WHERE id = $1', [
         userId,
@@ -84,12 +78,10 @@ export async function isGuestUser(userId: number, db: Queryable = pool): Promise
     return res.rows[0]?.is_guest === true;
 }
 
-/** Delete a user row by id (used to clean up guest accounts post-disconnect). */
 export async function deleteUserById(userId: number, db: Queryable = pool): Promise<void> {
     await db.query('DELETE FROM users WHERE id = $1', [userId]);
 }
 
-/** Guest users idle past the cutoff, with their player row. */
 export async function listExpiredGuests(
     maxIdleDays: number,
     db: Queryable = pool,

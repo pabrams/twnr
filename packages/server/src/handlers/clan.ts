@@ -173,8 +173,7 @@ export async function serveClanLeave(playerId: number, data: ClanLeaveCommand): 
     const memberCount = await getClanMemberCount(clanId);
     const isLastMember = memberCount <= 1;
 
-    // Last member: dissolution path. Caller must confirm because it
-    // wipes clan-owned assets.
+    // Dissolution wipes clan-owned assets, so explicit confirmation is required.
     if (isLastMember) {
         if (!confirmDissolve) {
             sendError(
@@ -204,7 +203,6 @@ export async function serveClanLeave(playerId: number, data: ClanLeaveCommand): 
         return;
     }
 
-    // Non-last member: block leave if currently piloting a clan ship.
     if (await isPlayerOnClanShip(playerId, clanId)) {
         sendError(
             playerId,
@@ -215,7 +213,6 @@ export async function serveClanLeave(playerId: number, data: ClanLeaveCommand): 
 
     const isLeader = clan.leader_id === playerId;
 
-    // Leader leaving with other members: need a valid successor.
     if (isLeader) {
         if (successorPlayerId === undefined) {
             sendError(playerId, 'Leader must designate a successor before leaving.');
@@ -247,7 +244,6 @@ export async function serveClanLeave(playerId: number, data: ClanLeaveCommand): 
         return;
     }
 
-    // Regular member leave.
     await setPlayerClanId(playerId, null);
     sendEnvelope(playerId, {
         type: ServerTag.ClanLeaveResult,
@@ -335,9 +331,7 @@ export async function serveClanmateLocations(playerId: number): Promise<void> {
     });
 }
 
-/** Helper: confirm sender & target are both in the same clan (and not the
- *  same player). Returns the clan id on success, sends an error and returns
- *  null on failure. */
+/** Sends the error itself; returns the shared clan id, or null on failure. */
 async function requireSameClan(senderId: number, targetId: number): Promise<number | null> {
     if (senderId === targetId) {
         sendError(senderId, 'Cannot transfer to yourself.');
@@ -459,7 +453,7 @@ async function transferMines(
         const room = Math.max(0, targetRow.max_qty - targetRow.current_qty);
         const deliveredQty = Math.min(quantity, room);
 
-        // Decrement sender (always full quantity), increment target (upsert).
+        // Sender always loses the full quantity; overflow past target capacity is discarded.
         await decrementShipHardwareQuantity(senderRow.ship_id, hwId, quantity, client);
         if (deliveredQty > 0) {
             await upsertShipHardwareQuantity(targetRow.ship_id, hwId, deliveredQty, client);
@@ -491,8 +485,7 @@ export async function serveClanTransfer(
     }
 
     if (result.delivered === 0 && kind !== 'credits') {
-        // Already sent error inside the transfer helper if zero delivered.
-        // (credits has no clamp; zero only happens on error path.)
+        // Transfer helpers already sent the error (credits never clamps to zero).
         return;
     }
 
@@ -552,8 +545,7 @@ export async function serveClanMemo(senderId: number, data: ClanMemoCommand): Pr
     const senderName = recipients.length > 0 ? await getPlayerDisplayName(senderId) : '';
     for (const m of recipients) {
         await insertMemo(m.id, senderId, clanId, 'memo', trimmed);
-        // Online clan members get only a notification — the body lives in
-        // their inbox, surfaced when they next run the M command.
+        // Notification only — the memo body stays in the inbox.
         if (onlinePlayers[m.id]) {
             sendEnvelope(m.id, {
                 type: ServerTag.ClanMemoNotification,
@@ -635,8 +627,7 @@ export async function serveClanDropMember(
     );
     const online = onlinePlayers[targetPlayerId];
     if (online) {
-        // Tell the target their clan state changed so the client's cached
-        // `ctx.player.clanId` gets cleared
+        // The client caches clanId; this envelope invalidates it.
         sendEnvelope(targetPlayerId, {
             type: ServerTag.ClanMembershipChanged,
             clanId: null,

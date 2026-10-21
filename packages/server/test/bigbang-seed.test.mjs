@@ -4,10 +4,6 @@ import { rmSync, existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { generateUniverse } from './bigbang-helpers.mjs';
 
-// ---------------------------------------------------------------------------
-// Seed Reproducibility
-// ---------------------------------------------------------------------------
-
 describe('Seed Reproducibility', () => {
   it('same seed + same options produces identical output files', () => {
     const outdir1 = generateUniverse({ sectors: 50, seed: 12345, portDensity: 50, planetDensity: 10, twoWayPct: 70 });
@@ -24,10 +20,6 @@ describe('Seed Reproducibility', () => {
     }
   });
 });
-
-// ---------------------------------------------------------------------------
-// Output Files
-// ---------------------------------------------------------------------------
 
 describe('Output Files', () => {
   let outdir;

@@ -6,10 +6,7 @@ import type { HexCell } from './positions.js';
 const MAX_OUT = 6;
 const MAX_IN = 6;
 
-/**
- * Sample a per-sector target out-degree from a 1-indexed cumulative
- * distribution `warpDist[1..6]`. Forced-hub sectors get MAX_OUT regardless.
- */
+/** warpDist is 1-indexed (warpDist[1..6]); forced-hub sectors get MAX_OUT regardless. */
 function assignTargetOutDegrees(
     N: number,
     rng: () => number,
@@ -43,36 +40,7 @@ function assignTargetOutDegrees(
     return targetOut;
 }
 
-/**
- * Subtractive warp generator on a hex layout:
- *
- *   - Phase 0: every hex-adjacent occupied pair starts as a bidi warp.
- *     Each sector's initial out-degree equals the number of its occupied
- *     hex neighbors (3 on a corner, 4 on an edge, 6 in the interior).
- *
- *   - Phase 1: each sector samples a target out-degree from `warpDist`
- *     (`forcedHubSectors` get MAX_OUT).
- *
- *   - Phase 2: walk overfull sectors and prune their out-edges down to
- *     target. Per removal: if the neighbor on the other end is also
- *     overfull we DELETE the bidi pair (drops both endpoints by 1); if
- *     the neighbor is at or below its target we DEGRADE to 1-way
- *     (removes only the overfull side's direction). This naturally
- *     biases the area around low-target sectors toward bidi and the
- *     area around hubs toward 1-way fanout.
- *
- *   - Phase 3: a final pass nudges the bidi/one-way ratio toward
- *     `twoWayPct` by demoting random bidi pairs to 1-way (or promoting
- *     1-ways to bidi). Demotion is in-degree-safe; promotion respects
- *     each endpoint's targetOut so the warpDist achievement stays put.
- *
- *   - Phase 4: re-verify strong connectivity. Pruning can disconnect
- *     the graph; we stitch SCCs into a single ring exactly like the
- *     previous version did.
- *
- * Wormholes and the diameter cap are intentionally gone — the universe
- * diameter is now whatever the local-only structure produces.
- */
+/** Subtractive warp generator: seed every hex-adjacent pair as bidi, prune to sampled out-degrees, rebalance the bidi ratio, stitch SCCs, then swap in wormholes until diameter ≤ cap. */
 export function generateProximalGraph(
     N: number,
     twoWayPercentage: number,
@@ -89,7 +57,6 @@ export function generateProximalGraph(
     const twoWayPct = Math.max(0, Math.min(100, twoWayPercentage));
     const targetOut = assignTargetOutDegrees(N, rng, warpDist, forcedHubSectors);
 
-    // Index occupied hex cells by axial coordinate for O(1) neighbor lookup.
     const cellKey = (q: number, r: number): string => `${q},${r}`;
     const cellToSector = new Map<string, number>();
     for (let i = 0; i < N; i++) {
@@ -131,17 +98,14 @@ export function generateProximalGraph(
         }
     }
 
-    // Phase 2: prune overfull sectors. Process by descending surplus so the
-    // most-overfull sectors find the most overfull neighbors (both want to
-    // lose) and we get clean bidi-pair deletes early. Re-sort as we go since
-    // each removal updates the surplus of both endpoints.
+    // Phase 2: prune overfull sectors in descending-surplus order, re-ranked per
+    // removal since each removal changes both endpoints' surplus.
     function surplus(s: number): number {
         return adj[s].size - targetOut[s];
     }
     const overfullQueue: number[] = [];
     for (let s = 1; s <= N; s++) if (surplus(s) > 0) overfullQueue.push(s);
     while (overfullQueue.length > 0) {
-        // Pick the current most-overfull sector.
         let bestIdx = 0;
         let bestSurplus = surplus(overfullQueue[0]);
         for (let i = 1; i < overfullQueue.length; i++) {
@@ -157,48 +121,37 @@ export function generateProximalGraph(
             overfullQueue.splice(bestIdx, 1);
             continue;
         }
-        // Pick a removal target. Prefer neighbors that are themselves
-        // overfull (DELETE the bidi pair — drops both); otherwise DEGRADE.
-        // Within each tier, shuffle for spatial uniformity.
+        // Prefer mutually-overfull neighbors (delete the bidi pair), else degrade
+        // to 1-way; shuffled for spatial uniformity.
         const candidates = [...adj[u]];
-        // Fisher–Yates
         for (let i = candidates.length - 1; i > 0; i--) {
             const j = Math.floor(rng() * (i + 1));
             [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
         }
         let removed = false;
-        // First pass: find a neighbor that's also overfull (mutual DELETE).
         for (const v of candidates) {
             if (surplus(v) <= 0) continue;
-            // DELETE the bidi pair.
             removeEdge(u, v);
             if (edges.has(`${v},${u}`)) removeEdge(v, u);
             removed = true;
             break;
         }
         if (!removed) {
-            // Second pass: any neighbor. DEGRADE — drop u→v only (or both
-            // if no reverse exists). Try to preserve reverse so v's
-            // out-degree stays put.
             for (const v of candidates) {
                 removeEdge(u, v);
-                // Don't touch v→u; this leaves a 1-way v→u edge if it
-                // existed, which is exactly the degrade behavior.
+                // v→u is deliberately kept: the pair degrades to 1-way.
                 removed = true;
                 break;
             }
         }
         if (!removed) {
-            // Pathological — sector has surplus but no out-edges (can't
-            // happen given the surplus check, but defensive).
+            // Defensive: unreachable while every targetOut ≥ 1.
             overfullQueue.splice(bestIdx, 1);
         }
     }
 
-    // Phase 3: rebalance bidi ratio toward twoWayPct. Same math as the old
-    // Phase D, but promotions are capped at the recipient's targetOut so we
-    // don't undo Phase 2's distribution work. Demotion uses the existing
-    // safety: skip if removal would leave the recipient at in-degree 0.
+    // Phase 3: nudge the bidi/one-way ratio toward twoWayPct. Demotion skips an
+    // edge whose removal would leave an endpoint at in-degree 0.
     {
         const X = twoWayPct / 100;
         let bidiPairCount = 0;
@@ -222,10 +175,7 @@ export function generateProximalGraph(
                 const j = Math.floor(rng() * (i + 1));
                 [oneWayList[i], oneWayList[j]] = [oneWayList[j], oneWayList[i]];
             }
-            // Promotion lets sectors exceed their warpDist target up to
-            // MAX_OUT — the hard cap. With the subtractive Phase 2 the
-            // total 1-way pool is small (only DEGRADEs around hubs), so
-            // this can't runaway the way it did in the old additive code.
+            // Promotion may push a sector past its warpDist target, capped only at MAX_OUT.
             let promoted = 0;
             for (const [a, b] of oneWayList) {
                 if (promoted >= K) break;
@@ -259,10 +209,8 @@ export function generateProximalGraph(
         }
     }
 
-    // Phase 4: enforce strong connectivity by closing the SCC condensation
-    // into a single ring of bridge edges. Identical to the previous Phase
-    // B/E logic — needed because pruning can disconnect the graph and the
-    // wormhole pass that previously masked this is gone.
+    // Phase 4: pruning can disconnect the graph — stitch the SCCs into a single
+    // ring to restore strong connectivity.
     {
         const adjArr: number[][] = adj.map((s) => [...s]);
         const { compId, numComps } = findStronglyConnectedComponents(N, adjArr);
@@ -285,14 +233,9 @@ export function generateProximalGraph(
         }
     }
 
-    // Phase 5: swap adjacent warps for wormholes until diameter ≤ cap.
-    // Each iteration: BFS double-sweep finds the diameter pair (p, q),
-    // we add a bidi wormhole p↔q, then remove a hex-adjacent bidi pair
-    // from somewhere "redundant" (not at the cap pair, not orphaning
-    // anyone). This preserves the total edge count, so warpDist stays
-    // intact in aggregate (individual sector degrees shift by ±1).
-    //
-    // Adjacency check is by hex distance against the cells array.
+    // Phase 5: swap hex-adjacent bidi pairs for long-range wormholes until
+    // diameter ≤ cap; each swap preserves total edge count, so warpDist holds
+    // in aggregate (individual degrees shift ±1).
     {
         const diameterCap = Math.max(2, maxShortestPathFor(maxShortestPath, N));
         const hexDist = (a: HexCell, b: HexCell): number => {
@@ -303,16 +246,12 @@ export function generateProximalGraph(
         const isAdjacent = (u: number, v: number): boolean =>
             hexDist(cells[u - 1], cells[v - 1]) === 1;
 
-        // Stall limit is generous: stochastic BFS sometimes misses the true
-        // periphery, and even successful swaps only shrink the diameter for
-        // a subset of pairs. Bigger universes need many swaps.
+        // Generous stall limit: the stochastic BFS probe can miss the true periphery.
         let stalled = 0;
         const MAX_STALL = 200;
         const MAX_ITERS = Math.max(1000, N * 2);
         for (let iter = 0; iter < MAX_ITERS && stalled < MAX_STALL; iter++) {
-            // Multi-sample double-sweep diameter probe. More samples on
-            // bigger graphs since each probe is a relatively cheap BFS but
-            // the periphery is wider.
+            // Multi-sample double-sweep: a single probe underestimates the diameter.
             const adjArr = adj.map((s) => [...s]);
             const SAMPLES = N >= 5000 ? 8 : 4;
             let bestU = -1;
@@ -336,10 +275,7 @@ export function generateProximalGraph(
                 continue;
             }
 
-            // Add wormhole p↔q (bidi) if there's capacity. When
-            // wormholesAlwaysTwoWay is set, skip the candidate if either
-            // direction is blocked — better to leave one diameter pair than
-            // ship a one-way wormhole.
+            // wormholesAlwaysTwoWay: skip the candidate rather than ship a one-way wormhole.
             const canPQ = adj[p].size < MAX_OUT && inDeg[q] < MAX_IN;
             const canQP = adj[q].size < MAX_OUT && inDeg[p] < MAX_IN;
             if (!canPQ && !canQP) {
@@ -351,11 +287,8 @@ export function generateProximalGraph(
                 continue;
             }
 
-            // Find an expendable hex-adjacent bidi pair to remove. Skip
-            // edges touching p, q, or any forced hub (anchors keep their 6
-            // out). Both endpoints must have in-degree AND out-degree ≥ 2
-            // so removing the pair doesn't orphan either side (no zero-in,
-            // no sink-only).
+            // Removal candidates must avoid p, q, and forced hubs, and both
+            // endpoints need in- AND out-degree ≥ 2 so neither side is orphaned.
             const forcedSet = new Set(forcedHubSectors);
             let swapA = -1;
             let swapB = -1;
@@ -379,10 +312,8 @@ export function generateProximalGraph(
                 continue;
             }
 
-            // Execute swap: remove the adjacent bidi pair, add the
-            // wormhole, then verify SCC. Degree checks above aren't
-            // sufficient to guarantee strong connectivity — roll back if
-            // the swap broke it.
+            // Degree checks don't guarantee strong connectivity — verify SCC
+            // after the swap and roll back on failure.
             removeEdge(swapA, swapB);
             removeEdge(swapB, swapA);
             let added = 0;
@@ -394,14 +325,9 @@ export function generateProximalGraph(
                 stalled++;
                 continue;
             }
-            // SCC check: every Phase-5 swap removes one local edge and adds
-            // one long-range edge. The long-range add can't break SCC, but
-            // the removal can. Cheap full Kosaraju is acceptable here
-            // because Phase 5 runs at most ~MAX_STALL+swaps times.
             const sccAdj = adj.map((s) => [...s]);
             const { numComps } = findStronglyConnectedComponents(N, sccAdj);
             if (numComps > 1) {
-                // Roll back wormhole AND restore adjacent pair.
                 if (canPQ) removeEdge(p, q);
                 if (canQP) removeEdge(q, p);
                 addEdge(swapA, swapB);
@@ -425,12 +351,7 @@ export function generateProximalGraph(
     return result;
 }
 
-/**
- * Kosaraju's strongly-connected-components algorithm. Returns 1-indexed
- * `compId[i]` giving the SCC id of sector `i`. SCCs are numbered in
- * topological order of the condensation DAG. Iterative — handles N=1000+
- * without stack overflow.
- */
+/** Iterative Kosaraju (no stack overflow at N=1000+); compId is 1-indexed and SCCs are numbered in condensation topological order. */
 function findStronglyConnectedComponents(
     N: number,
     adj: number[][],
@@ -485,12 +406,7 @@ function findStronglyConnectedComponents(
     return { compId, numComps: nextComp };
 }
 
-/**
- * BFS from `src`; returns the farthest reachable node and its distance.
- * Used by Phase 5's double-sweep diameter probe. Unreachable nodes are
- * treated as infinitely far so the swap loop bridges disconnected
- * fragments first (Phase 4 should have prevented this, but defensive).
- */
+/** Farthest node from src by BFS; unreachable nodes count as infinitely far so disconnected fragments get bridged first. */
 function bfsFarthest(N: number, adj: number[][], src: number): { node: number; dist: number } {
     const dist = new Int32Array(N + 1).fill(-1);
     dist[src] = 0;

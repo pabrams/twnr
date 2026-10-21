@@ -23,8 +23,7 @@ export type KeystrokeEvent = {
 };
 
 export interface ConnectionState {
-    /** True between WS close and successful reconnect. The input pipeline
-     * intercepts Enter (reconnect) / Esc (leave universe) while this is set. */
+    /** True between WS close and reconnect; input intercepts Enter (reconnect) / Esc (leave) while set. */
     disconnected: boolean;
     /** Open a fresh WS to the same universe and rebind it onto this ctx. */
     reconnect: () => void;
@@ -35,68 +34,37 @@ export interface ConnectionState {
 export interface IO {
     term: Terminal;
     ws: WebSocket;
-    /**
-     * Send a client message. The optional `silent: true` form is for
-     * fire-and-forget panel data refreshes.
-     */
+    /** `silent: true` skips setting inFlight — for fire-and-forget panel refreshes. */
     sendMsg: (msg: ClientEnvelope, opts?: { silent?: boolean }) => void;
     setDebug: (on: boolean) => void;
     debug: boolean;
-    /** Submit a text line as if the user had typed it into the xterm (used by the mini-map). */
+    /** Submit a text line as if the user had typed it into the xterm. */
     submitLineFromMap: (line: string) => void;
-    /** Inject a single key as if typed in xterm — used by minimap floating-
-     *  menu buttons.*/
+    /** Inject a single key as if typed into the xterm. */
     submitKeyFromMap: (key: string) => void;
 }
 
 export interface InputLayer {
-    /**
-     * Layer 1 — user keystrokes that arrived during a server roundtrip.
-     * Drains first (before the burst queue) and uses swallow-on-invalid: a
-     * direct keystroke that's still wrong for the new menu was a user typo,
-     * drop it. Empty in the steady state — keys only land here while inFlight
-     * is true.
-     */
+    /** Layer 1 — user keystrokes that arrived mid-roundtrip (only while inFlight).
+     *  Drains before the burst queue; swallow-on-invalid: a stale key was a typo. */
     userInputBuffer: KeystrokeEvent[];
-    /**
-     * Layer 2 — the burst/script keystroke queue. Direct user keystrokes from
-     * xterm bypass this entirely; only programmatic sources (burst commands,
-     * future script engine) enqueue here. Drains after Layer 1 is empty and
-     * uses park-on-invalid — a programmatic burst stays coherent even if the
-     * menu state diverged, and the user unjams via the secondary prompt.
-     */
+    /** Layer 2 — programmatic burst/script keys only (user keys bypass it).
+     *  Drains after Layer 1; park-on-invalid so a burst stays coherent if the menu diverged. */
     inputQueue: KeystrokeEvent[];
     /** True while a server roundtrip is in flight; drain waits for it to clear. */
     inFlight: boolean;
     /** Layer 1 digit-assembly buffer, shared between direct keystrokes and queue drain. */
     inputAssembly: string;
-    /**
-     * Set by `askLine` / `askChar` / `askNumber` / `askConfirm` while a
-     * client routine is awaiting user input mid-flow. When set, the input
-     * pipeline routes the next input to `resolve` instead of dispatching
-     * it to the menu's command registry. Two modes:
-     *
-     *   - `mode: 'line'`  — assemble characters until Enter, then resolve
-     *     with the trimmed line (used by askLine/askNumber).
-     *   - `mode: 'char'`  — resolve on the next keystroke without waiting
-     *     for Enter (used by askChar/askConfirm for y/n style prompts).
-     *
-     * Cleared on resolve, on cancel, and on server-driven menu changes
-     * (so a routine cannot leak past a menu transition). Single-slot —
-     * routines must `await` each prompt sequentially.
-     */
+    /** Set by ask* while a routine awaits input: the next input resolves here instead of
+     *  menu dispatch ('line' assembles until Enter; 'char' resolves on the next keystroke).
+     *  Cleared on resolve, cancel, and server menu changes. Single-slot — await prompts sequentially. */
     pendingResolver: {
         mode: 'line' | 'char';
         resolve: (input: string | null) => void;
     } | null;
-    /**
-     * Set by `awaitResponse` while a client routine is awaiting a specific
-     * server response after a roundtrip. Connection.ts resolves this when
-     * a matching message arrives (and suppresses the auto renderPrompt for
-     * that envelope so the routine owns the next prompt). Cleared on
-     * resolve, on cancel, and on server-driven menu changes — routines
-     * should always check for `null` after the await.
-     */
+    /** Set by awaitResponse: connection.ts resolves it on a matching envelope and suppresses
+     *  that envelope's auto renderPrompt. Cleared on resolve, cancel, and server menu
+     *  changes — routines must check for null after the await. */
     pendingResponse: {
         types: Set<string>;
         resolve: (msg: ServerEnvelope | null) => void;
@@ -124,9 +92,7 @@ export interface WorldState {
     currentWarps: { sector: number; visited: boolean }[];
     starbaseSector: number | null;
     earthColonists: number;
-    /** Set by the show-deployed-mines routine before issuing
-     *  ListDeployedMines so the handler knows which type to filter to.
-     *  Null = no scan in progress. */
+    /** Which mine type the pending ListDeployedMines reply filters to; null = no scan in progress. */
     mineScanFilter: 'proximity' | 'seeker' | null;
 }
 
@@ -165,11 +131,7 @@ export interface EncounterState {
     ownerName: string;
 }
 
-/**
- * Reference data the client caches for the session. The three universe
- * catalogs are fetched lazily on first use (see routines/catalogs.ts); the
- * class-0 price list arrives with DockResult / DockStarbaseResult.
- */
+/** Session caches: the universe catalogs are fetched lazily on first use; class0Prices arrives with DockResult / DockStarbaseResult. */
 export interface Catalogs {
     hardware: HardwareCatalogItem[] | null;
     ships: ShipCatalogEntry[] | null;
@@ -202,12 +164,7 @@ export interface StatsView {
     handle?: StatsPanel;
 }
 
-/**
- * Args passed forward to the next menu after a server-roundtripped
- * ChangeMenu. Source menu sets via `setMenuArgs`; destination's
- * `renderPrompt`/`input` reads via `consumeMenuArgs`. Discriminated by
- * destination menu so each side's typing stays honest.
- */
+/** Args carried across a server-roundtripped ChangeMenu (setMenuArgs → consumeMenuArgs), discriminated by destination menu. */
 export type MenuArgs = {
     menu: typeof Menu.AutopilotPrompt;
     path: { sector: number; visited: boolean }[];

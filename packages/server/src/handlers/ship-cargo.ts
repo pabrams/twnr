@@ -25,9 +25,7 @@ export async function serveJettison(playerId: number): Promise<void> {
     await withTransaction(async (client) => {
         await zeroShipCargo(playerId, client);
 
-        // Blue-jettisons-colos penalty: only when colonists were actually
-        // jettisoned, only for blue players (rep > 0), and only on the
-        // first such jettison this UTC day.
+        // Jettisoning colonists penalizes blue players (rep > 0) only once per UTC day.
         if (cargo.colonists > 0) {
             const rep = await getPlayerReputationForUpdate(playerId, client);
             if (rep > 0) {

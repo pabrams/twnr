@@ -27,8 +27,6 @@ after(async () => {
   if (pool) await pool.end();
 });
 
-// ─── Shared types ───────────────────────────────────────────────────────────
-
 describe('Shared types', () => {
   it('ClientTag should include AttackShip', async () => {
     const shared = await import('@twnr/shared');
@@ -43,8 +41,6 @@ describe('Shared types', () => {
   });
 });
 
-// ─── Schema ─────────────────────────────────────────────────────────────────
-
 describe('Schema', () => {
   it('players table should have ship_destroyed_date column', async () => {
     const res = await pool.query(
@@ -58,8 +54,6 @@ describe('Schema', () => {
     );
   });
 });
-
-// ─── Attack validation ──────────────────────────────────────────────────────
 
 describe('Attack validation', () => {
   it('should reject attack with 0 drones', async () => {

@@ -47,7 +47,6 @@ export async function serveGetAttackTargets(playerId: number): Promise<void> {
         beaconPresent: !!beacon,
     });
 
-    // Warn everyone else in the sector that the attacker is about to fire.
     if (visible.length > 0) {
         broadcastEnvelope(
             {
@@ -134,11 +133,8 @@ export async function serveAttackShip(attackerId: number, data: AttackShipComman
                 await setShipDronesAndShields(targetPlayerId, targetDrones, targetShields, client);
             }
 
-            // Combat rewards: attacker gains exp/rep based on the drones it
-            // lost and the defender's pre-penalty rep. On destroy the
-            // attacker gets a bonus from the defender's PRE-penalty snapshot
-            // and the defender takes a self-percentage penalty. Defender
-            // accrues nothing unless destroyed.
+            // Rewards use the defender's PRE-penalty rep/exp snapshot; the
+            // defender accrues nothing unless destroyed.
             const attackerSnap = await getPlayerRepExpForUpdate(attackerId, client);
             const defenderSnap = await getPlayerRepExpForUpdate(targetPlayerId, client);
             const matchup = pvpMatchup(attackerSnap.reputation, defenderSnap.reputation);

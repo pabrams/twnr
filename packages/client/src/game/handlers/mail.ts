@@ -28,13 +28,8 @@ export const hailIncoming: Handler<'hailIncoming', MailContext> = (ctx, msg) => 
     }
 };
 
-/**
- * Only the `incoming` mode actually renders here — used for unprompted
- * in-game pushes (e.g. a clan member being dropped). `connect` and `read`
- * are server responses to client-initiated commands and are consumed by
- * their awaiting routines (connect-flow and read_mail) via `awaitResponse`;
- * the routines own the rendering for those modes.
- */
+/** Only unprompted `incoming` pushes render here; `connect` and `read` replies are
+ *  consumed via awaitResponse by their routines, which own the rendering. */
 export const memoDelivery: Handler<'memoDelivery', MailContext> = (ctx, msg) => {
     if (msg.reason === 'incoming') {
         renderMailEntries(ctx, msg.memos);

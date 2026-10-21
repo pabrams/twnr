@@ -4,7 +4,6 @@ import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { runCLI, makeTempDir, readCSV } from './bigbang-helpers.mjs';
 
-// Helpers for running the CLI in an arbitrary out-dir with topology.
 function runBigbang(outdir, extra = []) {
   return runCLI([outdir, ...extra]);
 }
@@ -122,10 +121,8 @@ describe('Topology flag (proximal)', () => {
   });
 
   it('out-degree distribution has expected overall shape', () => {
-    // N=500 is below the 1000-sector threshold where ±5pp applies; the
-    // budget-bump used for feasibility shifts low degrees upward a bit. We
-    // assert a looser shape here — no degree dominates, distribution is
-    // monotonic-ish around its peak, and total edges match sum of degrees.
+    // N=500 is below the 1000-sector ±5pp threshold, and the feasibility budget-bump
+    // shifts low degrees upward — so assert a looser shape, not exact percentages.
     const { rows: warpRows } = readCSV(join(outdir, 'warps.csv'));
     const outDeg = new Map();
     for (const r of warpRows) {
@@ -134,7 +131,6 @@ describe('Topology flag (proximal)', () => {
     }
     const counts = new Array(7).fill(0);
     for (const [, c] of outDeg) if (c >= 1 && c <= 6) counts[c]++;
-    // All sectors accounted for.
     assert.equal(counts.slice(1).reduce((a, b) => a + b, 0), N);
     // Degree 2 is the mode in the default distribution; allow headroom.
     assert.ok(counts[2] >= N * 0.15, `Expected degree 2 to be common, got ${counts[2]}`);

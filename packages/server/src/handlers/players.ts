@@ -3,8 +3,6 @@ import { onlinePlayers } from '../state/players.js';
 import { sendEnvelope } from '../state/messaging.js';
 import { listPlayersInUniverse } from '../db/queries/player.js';
 
-/** Snapshot of the in-memory player registry filtered to the caller's
- *  universe. Used by the Players-Online command. */
 export function servePlayersOnline(playerId: number): void {
     const callerUniverse = onlinePlayers[playerId]?.universeId;
     const online = Object.entries(onlinePlayers)
@@ -13,8 +11,7 @@ export function servePlayersOnline(playerId: number): void {
     sendEnvelope(playerId, { type: ServerTag.PlayersOnlineResult, players: online });
 }
 
-/** Computer → Trader list: every player in the caller's universe (online or
- *  not) with ship type, clan, and standing, ranked by experience. */
+/** Includes offline players, ranked by experience. */
 export async function serveTraderList(playerId: number): Promise<void> {
     const player = onlinePlayers[playerId];
     if (!player) return;

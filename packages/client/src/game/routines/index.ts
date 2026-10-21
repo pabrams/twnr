@@ -1,10 +1,4 @@
-/**
- * Single import point for routine registrations. Importing this file pulls
- * in every routine module, each of which calls `registerRoutine` /
- * `registerMenuRoutine` at import time. Menu identity + prompt renderers
- * are now declared in `../menu-registry.ts`; this file is purely about the
- * implementations.
- */
+/** Importing this file registers every routine — each module calls registerRoutine / registerMenuRoutine at import time. */
 
 export {
     registerMenu,

@@ -349,8 +349,6 @@ export async function serveAttackSectorDrones(
                 }
                 mailRecipients.push(ownerId);
             } else {
-                // Clan-owned drones: alert every member of the clan (online get an
-                // inline alert; everyone in the clan gets a mail entry).
                 const existing = await getSectorDronesRowForUpdate(sectorDbId!);
                 const ownerClanId = existing?.owner_clan_id ?? null;
                 if (ownerClanId !== null) {
@@ -379,13 +377,11 @@ export async function serveAttackSectorDrones(
                 if (k > 0) {
                     await insertSystemMemo(rid, 'Deployed Drones', 'drones_destroyed', destroyBody);
                 }
-                // Their mental map should reflect the loss without needing to fly
-                // back to the sector themselves.
+                // Owners' observations reflect the loss without revisiting the sector.
                 if (sectorDbId !== undefined && sectorDbId !== null) {
                     await refreshSectorObservation(rid, sectorDbId);
                 }
             }
-            // Attacker is in the sector, so refresh their own observation too.
             if (sectorDbId !== undefined && sectorDbId !== null) {
                 await refreshSectorObservation(playerId, sectorDbId);
             }

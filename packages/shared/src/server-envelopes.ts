@@ -1,12 +1,9 @@
-// WebSocket messages (server → client). Each export pairs a zod schema with
-// the inferred TypeScript type; existing consumers can keep importing the
-// type name unchanged.
+// WebSocket messages (server → client).
 
 import { z } from 'zod';
 import { ServerTag } from './tags.js';
 
-// Menu name set — duplicated as a zod schema here so the envelope can be
-// validated standalone. Kept in sync with the Menu const in ./tags.ts.
+// Must stay in sync with the Menu const in ./tags.ts.
 const MenuNameSchema = z.enum([
     'sector',
     'port',
@@ -375,10 +372,8 @@ export const AttackShipReplySchema = z.object({
 });
 export type AttackShipReply = z.infer<typeof AttackShipReplySchema>;
 
-/** Price list for the class-0 equipment shop (class-0 ports and the Starbase
- *  shipyards). Drones/shields are flat per-unit prices; holds use the
- *  cumulative formula in hold-pricing.ts, so the server sends today's daily
- *  base cost and the per-hold increment rather than a single unit price. */
+/** Drones/shields are flat per-unit prices; holds follow hold-pricing.ts, so
+ *  the server sends today's base cost + increment, not a unit price. */
 export const Class0PriceListSchema = z.object({
     dronePrice: Num,
     shieldPrice: Num,
@@ -1057,8 +1052,7 @@ export const NeighborhoodSectorSchema = z.object({
     fringe: Bool,
     port: z.object({ class: Int, observed_at: Str }).nullable(),
     planets: z.array(z.object({ name: Str, type: StrOrNull, observed_at: Str })),
-    /** Player-perspective snapshot of what's in this sector. Defaults to all
-     *  false for sectors the player hasn't entered or had any observation of. */
+    /** Player-perspective snapshot; all false when the player has never observed the sector. */
     observations: z
         .object({
             friendlyDrones: Bool,
@@ -1651,9 +1645,8 @@ export const HaggleResponseReplySchema = z.discriminatedUnion('outcome', [
 ]);
 export type HaggleResponseReply = z.infer<typeof HaggleResponseReplySchema>;
 
-/** One ship type in a universe's catalog (Computer → Ship catalog; Shipyards →
- *  Buy/Examine). `name` is the ship-type slug — the value BuyShipNew /
- *  BuyShipTradein take as `targetShipName`. */
+/** `name` is the ship-type slug — the value BuyShipNew / BuyShipTradein take
+ *  as `targetShipName`. */
 export const ShipCatalogEntrySchema = z.object({
     name: Str,
     displayName: StrOrNull,
@@ -1672,8 +1665,7 @@ export const ShipCatalogEntrySchema = z.object({
     costComputer: Num,
     costHull: Num,
     holdCost: Num,
-    /** costDrive + costComputer + costHull + startingHolds·holdCost — the
-     *  shipyards purchase price and the trade-in credit when sold. */
+    /** costDrive + costComputer + costHull + startingHolds·holdCost; also the trade-in credit. */
     baseCost: Num,
     hasPod: Bool,
     canLand: Bool,
@@ -1694,7 +1686,6 @@ export const ShipCatalogReplySchema = z.object({
 });
 export type ShipCatalogReply = z.infer<typeof ShipCatalogReplySchema>;
 
-/** One planet type in a universe's catalog (Computer → Planet specs). */
 export const PlanetCatalogEntrySchema = z.object({
     slug: Str,
     displayName: StrOrNull,
@@ -1724,8 +1715,7 @@ export const PlanetCatalogReplySchema = z.object({
 });
 export type PlanetCatalogReply = z.infer<typeof PlanetCatalogReplySchema>;
 
-/** Hardware item identity (name → label/kind), for labelling the `hardware`
- *  maps carried by ShipInfoResult / ShipDetailResult / ShipCatalogResult. */
+/** `name` keys the `hardware` maps in ShipInfo/ShipDetail/ShipCatalog replies. */
 export const HardwareCatalogItemSchema = z.object({
     name: Str,
     label: Str,
@@ -1739,8 +1729,7 @@ export const HardwareCatalogReplySchema = z.object({
 });
 export type HardwareCatalogReply = z.infer<typeof HardwareCatalogReplySchema>;
 
-/** One row of the Computer → Trader list: every player in the universe, online
- *  or not. `shipName` is null when the trader's ship is destroyed. */
+/** Every player in the universe, online or not; `shipName` null while the ship is destroyed. */
 export const TraderListEntrySchema = z.object({
     name: Str,
     shipName: StrOrNull,

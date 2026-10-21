@@ -43,8 +43,7 @@ function frameCode(frame: Frame): string {
     if (frame.bg) code += bgCode(frame.bg);
     return code;
 }
-/** Compute the cumulative frame (fg/bg) from a stack — more recently pushed
- *  entries override earlier ones for either attribute. */
+/** More recently pushed entries override earlier ones per attribute. */
 function effectiveFrame(stack: Frame[]): Frame {
     const out: Frame = {};
     for (const f of stack) {
@@ -143,12 +142,7 @@ export function listTags(): string[] {
     return Object.keys(TAG_TO_COLOR);
 }
 
-/**
- * HTML counterpart to `render`: parses the same `[tag]…[/tag]` markup and
- * emits a DocumentFragment with colored `<span>`s for the DOM panels (stats,
- * minimap labels, etc.). Foreground color only — DOM panels handle their own
- * backgrounds via CSS.
- */
+/** HTML counterpart to `render`. Foreground color only — DOM panels handle their own backgrounds via CSS. */
 export function renderTaggedHtml(tagged: string): DocumentFragment {
     const frag = document.createDocumentFragment();
     const parts = tagged.split(TAG_RE);

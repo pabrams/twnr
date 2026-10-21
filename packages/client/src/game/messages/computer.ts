@@ -1,8 +1,3 @@
-/**
- * Ship computer: prompts, known-universe, ship catalog, ship/planet detail,
- * trader list.
- */
-
 import { makeDomain } from './_domain.js';
 
 export const COMPUTER = makeDomain('COMPUTER', {

@@ -33,8 +33,6 @@ function loadSchema(): SchemaFile {
     return cached;
 }
 
-/** Strip schema boilerplate that's identical across every wire message:
- *  the outer `type: "object"` and `additionalProperties: false`. . */
 function stripBoilerplate(def: unknown): unknown {
     if (!def || typeof def !== 'object') return def;
     const obj = def as Record<string, unknown>;

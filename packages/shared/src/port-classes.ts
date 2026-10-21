@@ -1,8 +1,4 @@
-/**
- * Port-class buy/sell behavior table. Class N's row dictates whether the
- * port buys (B) or sells (S) each commodity. Pure data, shared between
- * server, client, and tests.
- */
+// Class N's row: whether the port buys (B) or sells (S) each commodity.
 
 export type PortAction = 'B' | 'S';
 export type PortClassActions = Record<'fuel' | 'organics' | 'equipment', PortAction>;
@@ -18,7 +14,6 @@ export const PORT_CLASS_ACTIONS: Record<number, PortClassActions> = {
     8: { fuel: 'B', organics: 'B', equipment: 'B' },
 };
 
-/** Three-letter buy/sell label for a port class (e.g. class 1 → "BBS"), or null for special/unknown classes. */
 export function portClassTriplet(cls: number): string | null {
     const a = PORT_CLASS_ACTIONS[cls];
     return a ? a.fuel + a.organics + a.equipment : null;

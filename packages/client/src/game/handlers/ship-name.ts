@@ -19,15 +19,9 @@ function defaultShipName(playerName: string): string {
     return stem === '' ? 'Unnamed ship' : `${stem}${DEFAULT_NAME_SUFFIX}`;
 }
 
-/**
- * Drive the "name your ship" prompt loop and complete the SetShipName /
- * SetShipNameResult round trip. Re-prompts on invalid input (blank, too
- * long, server-rejected). Cancellation is intentionally not supported —
- * the server gates all other commands until naming completes. Blank input
- * accepts the offered default.
- *
- * `promptTemplate` is rendered with `{ type, default }`.
- */
+/** Re-prompts until the server accepts; cancellation is intentionally unsupported — the
+ *  server gates all other commands until naming completes. Blank input takes the default;
+ *  promptTemplate renders with { type, default }. */
 export async function promptShipName(
     ctx: ShipNamePromptCtx,
     promptTemplate: string,

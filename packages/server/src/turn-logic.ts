@@ -19,11 +19,6 @@ export interface MoveTurnContext {
     turnDelay: number;
 }
 
-/**
- * One-shot fetch of everything the move handler needs to decide whether a warp
- * is allowed: ship existence, current turns, per-warp cost, and the universe's
- * turn-economy config.
- */
 export async function fetchMoveTurnContext(
     playerId: number,
     universeId: number,
@@ -39,11 +34,7 @@ export async function fetchMoveTurnContext(
     };
 }
 
-/**
- * Deduct turns using already-fetched context — skips the read queries that
- * checkAndDeductTurns would otherwise run. Enforces turn_delay even in
- * unlimited-turn games.
- */
+/** turn_delay is enforced even in unlimited-turn (turnsPerDay = 0) games. */
 export async function deductTurns(
     playerId: number,
     cost: number,
@@ -62,10 +53,7 @@ export async function deductTurns(
     return { allowed: true, turnsUsed: cost };
 }
 
-/**
- * Check and deduct turns for an action. Enforces the universe's turn_delay
- * (cost * turn_delay ms) before returning, even in unlimited-turn games.
- */
+/** Sleeps cost * turn_delay ms before returning, even in unlimited-turn games. */
 export async function checkAndDeductTurns(
     playerId: number,
     universeId: number,

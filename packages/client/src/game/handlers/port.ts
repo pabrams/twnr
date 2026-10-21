@@ -121,10 +121,8 @@ async function runTradeRoutine(
     initialEmptyHolds: number,
 ): Promise<void> {
     const { term } = ctx.io;
-    // Local mirror of state that changes as trades complete. Each
-    // PortTransactionResult re-syncs cargo/credits/emptyHolds; port
-    // inventory we decrement locally (only this player trades during
-    // their dock session).
+    // Cargo/credits/emptyHolds re-sync from each trade result; port inventory is
+    // decremented locally — only this player trades during their dock session.
     const portInv: Record<CommodityKey, number> = {
         fuel: commodities[0].trading,
         organics: commodities[1].trading,
@@ -162,8 +160,6 @@ async function runTradeRoutine(
         const qty = raw === null || raw < 0 ? maxQty : Math.min(raw, maxQty);
         if (qty <= 0) continue;
 
-        // Haggle session: open with quantity, then loop counters until the
-        // port accepts, rejects, or the player walks.
         ctx.io.sendMsg({
             type: ClientTag.HaggleOpen,
             commodity: c.key,

@@ -19,14 +19,9 @@ export type Class0Prices = z.infer<typeof Class0PricesSchema>;
 
 export const class0Prices: Class0Prices = loadConfig('class0-prices.json', Class0PricesSchema);
 
-/**
- * Per-feature deltas + tuning factors for a player's reputation and
- * experience. `amountChangeFor` values are either a fixed delta (e.g.
- * `destroyPlanet: -1`) or a nested map keyed by some discriminator the
- * caller picks, e.g. `buildPortByClass: { "1": 12, "2": 14, ... }` is
- * looked up by port class. `factorsFor` is plain string → number for
- * formula-driven features (combat, ship destroy, podding).
- */
+// JSON format: `amountChangeFor` values are a fixed delta or a nested map
+// keyed by a caller-chosen discriminator (e.g. buildPortByClass keyed by port
+// class); `factorsFor` is flat string → number for formula-driven features.
 const AmountChangeValue = z.union([z.number(), z.record(z.string(), z.number())]);
 const AttributeDeltasSchema = z.object({
     amountChangeFor: z.record(z.string(), AmountChangeValue),
@@ -43,20 +38,14 @@ export const experienceDeltas: AttributeDeltas = loadConfig(
     AttributeDeltasSchema,
 );
 
-/** Read a scalar (non-nested) entry from an attribute deltas map.
- *  Returns the number when the entry is a plain number, 0 otherwise — covers
- *  both missing keys and the nested-map case (which has its own dedicated
- *  caller, see e.g. `buildPortByClass`). */
+/** Scalar entries only: missing keys and nested-map entries both return 0. */
 export function scalarDelta(deltas: AttributeDeltas, key: string): number {
     const v = deltas.amountChangeFor[key];
     return typeof v === 'number' ? v : 0;
 }
 
-/**
- * Per-class generation weights for bigbang. Keys are class numbers as
- * strings ("1".."8"), values are non-negative weights; they're sampled
- * proportionally (don't have to sum to 100, but the stock template does).
- */
+// Keys are class numbers as strings ("1".."8"); weights are sampled
+// proportionally and need not sum to 100.
 const PortClassesSchema = z.object({
     generationShares: z.record(z.string(), z.number()),
 });

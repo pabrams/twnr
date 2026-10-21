@@ -34,8 +34,6 @@ export async function getClanByNameInUniverse(
     return res.rows[0];
 }
 
-/** Insert a new clan row, computing the next per-universe clan number
- *  inside the INSERT via MAX+1 (same pattern as ships.universe_ship_number). */
 export async function insertClan(
     universeId: number,
     name: string,
@@ -107,9 +105,6 @@ export async function listClansInUniverse(
     return res.rows;
 }
 
-/** Resolve a player's clan_id (null when not in a clan). Shared by every
- *  call site that needs to gate on clan membership or check clan-friendly
- *  ownership of an asset. */
 export async function getPlayerClanId(
     playerId: number,
     db: Queryable = pool,
@@ -126,7 +121,6 @@ export type ClanMemberRow = {
     name: string;
 };
 
-/** Members of a clan, leader first then by id. */
 export async function getClanMembers(
     clanId: number,
     db: Queryable = pool,
@@ -151,9 +145,6 @@ export type ClanmateLocationRow = {
     credits: number;
 };
 
-/** Per-clanmate snapshot for the L command in the clan menu: current sector,
- *  ship fighter/shield counts, summed proximity+seeker mines on board, and
- *  credits. Players with no ship show zeroes and null sector. */
 export async function getClanmateLocations(
     clanId: number,
     db: Queryable = pool,
@@ -182,11 +173,6 @@ export async function getClanmateLocations(
     return res.rows;
 }
 
-/**
- * Sum of reputation across all members of a clan. Used as the "corp
- * alignment" for clan-owned sector fighters when computing combat rewards.
- * Returns 0 for an empty clan.
- */
 export async function getClanTotalReputation(
     clanId: number,
     db: Queryable = pool,
@@ -214,8 +200,6 @@ export async function getMaxClanSize(universeId: number, db: Queryable = pool): 
     return res.rows[0]?.max_clan_size ?? 4;
 }
 
-/** True iff the player's current ship is owned by their clan. Used to block
- *  leaving the clan while piloting a clan ship (non-last-member rule). */
 export async function isPlayerOnClanShip(
     playerId: number,
     clanId: number,
@@ -231,18 +215,13 @@ export async function isPlayerOnClanShip(
     return res.rows[0]?.ok === true;
 }
 
-/** Dissolution helper: re-owns clan assets in the leaver's current sector
- *  (except planets) to the leaving player, and clears clan ownership of
- *  everything else (assets in other sectors become rogue). Caller is
- *  responsible for the DELETE on the clan row + clearing the player's
- *  clan_id. */
+/** Caller must still delete the clan row and clear the leaver's clan_id. */
 export async function dissolveClanAssets(
     clanId: number,
     leavingPlayerId: number,
     currentSectorId: number,
     db: Queryable = pool,
 ): Promise<{ convertedToPersonal: number; convertedToRogue: number }> {
-    // Ships in current sector → personal
     const r1 = await db.query<{ n: number }>(
         `WITH upd AS (
             UPDATE ships SET owner_clan_id = NULL, owner_player_id = $1
@@ -251,7 +230,6 @@ export async function dissolveClanAssets(
          ) SELECT COUNT(*)::int AS n FROM upd`,
         [leavingPlayerId, clanId, currentSectorId],
     );
-    // sector_drones in current sector → personal
     const r2 = await db.query<{ n: number }>(
         `WITH upd AS (
             UPDATE sector_drones SET owner_clan_id = NULL, owner_player_id = $1
@@ -260,7 +238,6 @@ export async function dissolveClanAssets(
          ) SELECT COUNT(*)::int AS n FROM upd`,
         [leavingPlayerId, clanId, currentSectorId],
     );
-    // sector_mines in current sector → personal
     const r3 = await db.query<{ n: number }>(
         `WITH upd AS (
             UPDATE sector_mines SET owner_clan_id = NULL, owner_player_id = $1
@@ -269,7 +246,6 @@ export async function dissolveClanAssets(
          ) SELECT COUNT(*)::int AS n FROM upd`,
         [leavingPlayerId, clanId, currentSectorId],
     );
-    // sector_beacons in current sector → personal
     const r4 = await db.query<{ n: number }>(
         `WITH upd AS (
             UPDATE sector_beacons SET owner_clan_id = NULL, owner_player_id = $1
@@ -279,10 +255,8 @@ export async function dissolveClanAssets(
         [leavingPlayerId, clanId, currentSectorId],
     );
 
-    // Everything else owned by this clan → rogue (clear owner_clan_id).
-    // Planets (any sector) are intentionally included here — planets do NOT
-    // convert to personal even in the current sector; they go rogue and can
-    // be claimed via the planet menu later.
+    // Planets intentionally never convert to personal — even in the current
+    // sector they go rogue.
     const r5 = await db.query<{ n: number }>(
         `WITH r AS (
             UPDATE ships SET owner_clan_id = NULL WHERE owner_clan_id = $1 RETURNING 1
@@ -306,7 +280,6 @@ export async function dissolveClanAssets(
     return { convertedToPersonal, convertedToRogue };
 }
 
-/** Clan ids of two players at once (clan-transfer validation). */
 export async function getPlayersClanIds(
     playerAId: number,
     playerBId: number,

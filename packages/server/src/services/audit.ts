@@ -4,10 +4,8 @@ import { insertAuditLogEntry, type AuditLogRow } from '../db/queries/audit.js';
 
 export type { AuditLogRow } from '../db/queries/audit.js';
 
-// Per-session HMAC key. Generated once at module load, kept in module-scope
-// memory only — never persisted to env, file, or DB. Each server restart
-// gets a fresh key, which is why audit_log is truncated at boot
-// (entries signed with an old key can never verify under the new one).
+// Per-session HMAC key, memory-only by design. A restart mints a fresh key,
+// which is why audit_log is truncated at boot: old-key rows can never verify.
 const auditSecret: Buffer = crypto.randomBytes(32);
 
 export type AuditActionType =
@@ -45,13 +43,9 @@ export function signEntry(entry: AuditEntryForSign): string {
 }
 
 /**
- * Insert an HMAC-signed audit row recording a credit change. Must be called
- * inside the same transaction (`client`) that mutated `players.credits` so the
- * audit row commits atomically with the balance update.
- *
- * `delta` is the signed credit change (negative = spend). `prevCredits` is the
- * balance before the change; `newCredits` is the balance after. The verifier
- * sums deltas over HMAC-valid rows and compares against the live balance.
+ * Must run inside the same transaction that mutated `players.credits` so the
+ * audit row commits atomically with the balance. `delta` is signed (negative = spend);
+ * the verifier sums deltas over HMAC-valid rows against the live balance.
  */
 export async function recordCreditChange(
     client: Queryable,
@@ -78,10 +72,6 @@ export async function recordCreditChange(
     await insertAuditLogEntry({ ...entry, hmac }, client);
 }
 
-/**
- * Recompute the HMAC for a stored row and return whether it matches what the
- * row actually has. Used by the verifier endpoint to detect tampering.
- */
 export function verifyEntry(row: AuditLogRow): boolean {
     const expected = signEntry({
         player_id: row.player_id,

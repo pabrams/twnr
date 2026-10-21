@@ -91,14 +91,7 @@ export function createAuthRoutes(router: Router, deps: RouteDeps, middleware: Mi
         }),
     );
 
-    // ─── Guest (demo) ──────────────────────────────────────────────────
-    //
-    // One-click demo path: creates an `is_guest=true` user, ensures a universe
-    // exists (auto-bootstraps one with defaults if not), inserts a player +
-    // starting ship, and returns a token + universeId so the client can
-    // connect to the WS without going through universe-select.
-    // Guest users are deleted on disconnect (see server.ts close handler).
-
+    // Guest users are deleted on disconnect (server.ts close handler).
     router.post(
         '/api/auth/guest',
         registerLimiter,
@@ -120,13 +113,11 @@ export function createAuthRoutes(router: Router, deps: RouteDeps, middleware: Mi
                 throw err;
             }
 
-            // Ensure a universe exists.
             let universeId = await getFirstUniverseId();
             if (universeId === null) {
                 universeId = await bootstrapUniverse('Demo Universe');
             }
 
-            // Universe-specific starting parameters fall back to global defaults.
             const templateDefaults = await getUniverseTemplateDefaults(universeId);
             const startSector = universeConfig.startingSector;
             const startingTurns = templateDefaults?.starting_turns ?? universeConfig.startingTurns;

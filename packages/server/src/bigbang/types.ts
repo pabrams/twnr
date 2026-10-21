@@ -4,19 +4,10 @@ export { HEX_CELL_SIZE, HEX_SPACING_MULTIPLIER };
 
 export type Topology = 'random' | 'proximal';
 
-/**
- * Universe "shape" knob — controls how far apart the periphery sectors are.
- * Smaller values = tighter universe (more wormholes swapped in); larger
- * values = sprawling universe (few or no wormholes). The actual diameter
- * cap is interpolated from `maxShortestPathTable` per N.
- */
+/** Universe shape knob: smaller = tighter (more wormholes swapped in); the actual diameter cap comes from maxShortestPathTable per N. */
 export type MaxShortestPath = 'packed' | 'narrow' | 'medium' | 'wide' | 'vast';
 
-/**
- * Hand-tuned diameter targets per profile per universe size. The runtime
- * cap is linearly interpolated in log(N) between bracketing rows; lerp
- * clamps to the table bounds outside [100, 30000].
- */
+/** Hand-tuned diameter targets; the runtime cap lerps in log(N) between rows and clamps outside [100, 30000]. */
 export const maxShortestPathTable: Record<MaxShortestPath, ReadonlyArray<[number, number]>> = {
     packed: [
         [100, 10],
@@ -65,7 +56,6 @@ export const maxShortestPathTable: Record<MaxShortestPath, ReadonlyArray<[number
     ],
 };
 
-/** Compute the diameter cap for a given profile and universe size. */
 export function maxShortestPathFor(profile: MaxShortestPath, N: number): number {
     const rows = maxShortestPathTable[profile];
     if (N <= rows[0][0]) return rows[0][1];

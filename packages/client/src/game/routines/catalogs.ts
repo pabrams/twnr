@@ -7,13 +7,8 @@ import { request, type IOCtx } from './io.js';
 
 export type CatalogCtx = IOCtx & Pick<GameContext, 'catalogs'>;
 
-/**
- * Lazy loaders for the universe catalogs. Each issues its WS request on first
- * use and memoizes the reply on `ctx.catalogs`, so repeat visits to the
- * Computer / Shipyards menus don't round-trip. Returns null when the server
- * errored or the socket dropped (the Error handler has already printed the
- * reason) — callers bail the same way they do after `request`.
- */
+/** Lazy catalog loaders: request on first use, memoize on ctx.catalogs. Null means
+ *  server error or socket drop — the Error handler has already printed the reason. */
 
 export async function loadShipCatalog(ctx: CatalogCtx): Promise<ShipCatalogEntry[] | null> {
     if (ctx.catalogs.ships) return ctx.catalogs.ships;

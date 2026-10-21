@@ -1,11 +1,7 @@
 import { universeConfig } from '@twnr/shared';
 import type { BigBangOptions } from './types.js';
 
-/**
- * Build a fully-populated BigBangOptions from universeConfig plus any
- * caller-supplied overrides. Generates a random seed when one isn't passed.
- * warpDist is stored with a leading 0 so warpDist[degree] indexes directly.
- */
+/** warpDist carries a leading 0 so warpDist[degree] indexes directly; seed is random unless overridden. */
 export function defaultBigBangOptions(
     overrides: Partial<BigBangOptions> & { sectors: number },
 ): BigBangOptions {

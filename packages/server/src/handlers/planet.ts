@@ -261,7 +261,6 @@ export async function serveDestroyPlanet(playerId: number): Promise<void> {
                 repDelta: destroyRep,
             });
 
-            // Mail+notify any prior owners (other than the destroyer themselves).
             const { notifyAndMail } = await import('../services/notify.js');
             const body = `${player.name} destroyed planet ${planetName} in sector ${ownership.sector_number}.`;
             if (ownership.owner_player_id !== null && ownership.owner_player_id !== playerId) {
@@ -292,10 +291,7 @@ export async function serveDestroyPlanet(playerId: number): Promise<void> {
     );
 }
 
-/**
- * Pre-check for the 'U' command from the sector menu. Returns the device
- * count and whether the player can terraform here
- */
+/** Pre-check for the sector-menu 'U' command. */
 export async function serveTerraformInfo(playerId: number): Promise<void> {
     const player = onlinePlayers[playerId];
     if (!player) return;
@@ -516,8 +512,7 @@ export async function serveSetTerraformedPlanet(
     });
 }
 
-/** Validate a colonist commodity argument. Sends an error envelope and
- * returns null on bad input; returns the typed value on success. */
+/** Sends the error itself; returns null on bad input. */
 function parseColonistCommodity(playerId: number, commodity: string): ColonistCommodity | null {
     if (commodity !== 'fuel' && commodity !== 'organics' && commodity !== 'equipment') {
         sendError(playerId, 'Invalid commodity');
@@ -526,8 +521,7 @@ function parseColonistCommodity(playerId: number, commodity: string): ColonistCo
     return commodity as ColonistCommodity;
 }
 
-/** Validate a planet-commodity argument (fuel/organics/equipment/drones).
- */
+/** Sends the error itself; returns null on bad input. */
 function parsePlanetCommodity(playerId: number, commodity: string): PlanetCommodity | null {
     if (
         commodity !== 'fuel' &&
@@ -541,8 +535,7 @@ function parsePlanetCommodity(playerId: number, commodity: string): PlanetCommod
     return commodity as PlanetCommodity;
 }
 
-/** Lift the player off the planet and deliver the result + sector display
- * TODO: This is only used for Earth, for some reason. Smells bad. */
+/** TODO: only used for Earth, for some reason — smells bad. */
 async function liftoffWithResult<T extends { type: (typeof ServerTag)[keyof typeof ServerTag] }>(
     playerId: number,
     result: T,

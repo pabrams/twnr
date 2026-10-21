@@ -44,8 +44,6 @@ after(async () => {
   if (pool) await pool.end();
 });
 
-// ─── Ship catalog ─────────────────────────────────────────────────────────
-
 describe('ShipCatalog', () => {
   it('returns every ship type in the universe with hardware maxima', async () => {
     const p = await createPlayer('catalog_ships');
@@ -100,8 +98,6 @@ describe('ShipCatalog', () => {
   });
 });
 
-// ─── Planet catalog ─────────────────────────────────────────────────────────
-
 describe('PlanetCatalog', () => {
   it('returns every planet type in the universe in config shape', async () => {
     const p = await createPlayer('catalog_planets');
@@ -132,8 +128,6 @@ describe('PlanetCatalog', () => {
   });
 });
 
-// ─── Hardware catalog ───────────────────────────────────────────────────────
-
 describe('HardwareCatalog', () => {
   it('returns every hardware item with label and kind', async () => {
     const p = await createPlayer('catalog_hardware');
@@ -156,8 +150,6 @@ describe('HardwareCatalog', () => {
     }
   });
 });
-
-// ─── Trader list ────────────────────────────────────────────────────────────
 
 describe('TraderList', () => {
   it('lists every player in the universe, including offline ones, by experience', async () => {
@@ -189,8 +181,6 @@ describe('TraderList', () => {
     }
   });
 });
-
-// ─── Class-0 prices ride along with the dock results ────────────────────────
 
 describe('Class-0 price list', () => {
   it('DockStarbaseResult carries today\'s class-0 prices', async () => {

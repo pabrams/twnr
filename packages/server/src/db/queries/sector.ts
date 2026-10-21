@@ -12,7 +12,6 @@ export async function countSectorsInUniverse(
     return res.rows[0]?.count ?? 0;
 }
 
-/** Look up which of the given sector numbers exist in a universe. */
 export async function findSectorsByNumbers(
     sectorNumbers: number[],
     universeId: number,
@@ -26,7 +25,6 @@ export async function findSectorsByNumbers(
     return new Set(res.rows.map((r) => r.sector_number));
 }
 
-/** For a given set of sector numbers, return the subset the player has visited. */
 export async function findVisitedSectorsInSet(
     playerId: number,
     universeId: number,
@@ -111,7 +109,6 @@ export async function getSectorDbId(
     return res.rows[0]?.id;
 }
 
-/** Return all sector numbers in a universe, ordered ascending. */
 export async function listSectorNumbers(
     universeId: number,
     db: Queryable = pool,
@@ -123,7 +120,6 @@ export async function listSectorNumbers(
     return res.rows.map((r) => r.sector_number);
 }
 
-/** Return all warp edges (from, to) in a universe, as sector numbers. */
 export async function listWarpEdges(
     universeId: number,
     db: Queryable = pool,
@@ -139,7 +135,6 @@ export async function listWarpEdges(
     return res.rows.map((r) => ({ from: r.sector_from, to: r.sector_to }));
 }
 
-/** Insert a sector at universe-generation time; returns its id. */
 export async function insertSector(
     universeId: number,
     sectorNumber: number,
@@ -155,7 +150,6 @@ export async function insertSector(
     return res.rows[0].id;
 }
 
-/** Insert a warp edge by internal sector ids (generation time). */
 export async function insertWarp(
     fromSectorId: number,
     toSectorId: number,
@@ -167,7 +161,6 @@ export async function insertWarp(
     ]);
 }
 
-/** Count warps in a universe (joined through sectors). */
 export async function countWarpsInUniverse(
     universeId: number,
     db: Queryable = pool,
@@ -181,13 +174,11 @@ export async function countWarpsInUniverse(
     return res.rows[0]?.count ?? 0;
 }
 
-/** Count total sectors across all universes (admin stats). */
 export async function countAllSectors(db: Queryable = pool): Promise<number> {
     const res = await db.query<{ count: number }>('SELECT COUNT(*)::int FROM sectors');
     return res.rows[0]?.count ?? 0;
 }
 
-/** Sector number of the sector named 'Starbase' in a universe, if any. */
 export async function getStarbaseSectorNumber(
     universeId: number,
     db: Queryable = pool,
@@ -199,7 +190,6 @@ export async function getStarbaseSectorNumber(
     return res.rows[0]?.sector_number ?? null;
 }
 
-/** Warp destinations from a sector, each with a per-player visited flag. */
 export async function getWarpRefsForPlayer(
     playerId: number,
     sectorNumber: number,
@@ -227,7 +217,6 @@ export type SectorPositionRow = {
     y: number | null;
 };
 
-/** All sector positions in a universe (neighborhood map metadata). */
 export async function listSectorPositions(
     universeId: number,
     db: Queryable = pool,
@@ -239,7 +228,6 @@ export async function listSectorPositions(
     return res.rows;
 }
 
-/** All warp edges in a universe, as sector db ids. */
 export async function listWarpEdgesByIds(
     universeId: number,
     db: Queryable = pool,

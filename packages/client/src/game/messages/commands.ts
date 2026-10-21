@@ -1,8 +1,4 @@
-/**
- * Command echoes — rendered by sendMsg before a client→server command goes out.
- * Key is the ClientTag string; template vars are the message's own fields.
- * No entry = no echo. Edit freely.
- */
+/** Command echoes. Key is the ClientTag string; template vars are the message's own fields; no entry = no echo. */
 
 import { makeDomain } from './_domain.js';
 

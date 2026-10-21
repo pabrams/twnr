@@ -1,15 +1,3 @@
-/**
- * Hourly job: advance every port_construction row whose 24h window has
- * elapsed. Each advance attempt looks for a planet in the sector that has
- * enough of all three commodities for the day's drain; if found, deduct and
- * bump `days_completed`. If not, the day skips. Either way, the builder
- * (and clan if owned) is notified via mail.
- *
- * When `days_completed` reaches `days_required`, the row is promoted to a
- * full ports row (player-built ports use fixed-magnitude MCIC + prod=100)
- * and the construction row is deleted.
- */
-
 import {
     PORT_CLASS_ACTIONS,
     PORT_CONSTRUCTION_COSTS,
@@ -43,9 +31,7 @@ const KIND_COMPLETED = 'port_completed';
 
 type DrainReq = { ore: number; org: number; equ: number };
 
-/** Try to deduct the day's drain from a single planet in the sector. Returns
- *  the planet ID + drained amount on success, or null on failure (no planet
- *  in the sector has all three). Uses FOR UPDATE locks. */
+/** The whole drain must come from one planet holding all three commodities. */
 async function tryDrainFromPlanets(
     sectorDbId: number,
     drain: DrainReq,
@@ -53,7 +39,6 @@ async function tryDrainFromPlanets(
 ): Promise<{ planetId: number; drained: DrainReq } | null> {
     const planetIds = await getPlanetIdsInSectorForUpdate(sectorDbId, client);
     for (const planetId of planetIds) {
-        // Re-fetch each commodity under FOR UPDATE (the helper already locks).
         const [fuel, org, equ] = await Promise.all([
             getPlanetCommodityForUpdate(planetId, 'fuel', client),
             getPlanetCommodityForUpdate(planetId, 'organics', client),
@@ -69,9 +54,6 @@ async function tryDrainFromPlanets(
     return null;
 }
 
-/** Resolve mail recipients: if owned by a clan, all current clan members;
- *  otherwise the original builder. Falls back to builder if a clan is empty
- *  for any reason. */
 async function resolveRecipients(row: PortConstructionRow, client: Queryable): Promise<number[]> {
     if (row.owner_clan_id !== null) {
         const members = await getClanMembers(row.owner_clan_id, client);
@@ -125,8 +107,7 @@ async function promoteToPort(row: PortConstructionRow, client: Queryable): Promi
     await deletePortConstruction(row.sector_id, client);
 }
 
-/** Run one round of advance attempts. Returns the number of constructions
- *  acted on (advance attempted, halted, or completed). */
+/** Returned count includes halted attempts, not just successful advances. */
 export async function runAdvancePortConstructions(): Promise<number> {
     const due = await listConstructionsDueForAdvance();
     let acted = 0;
@@ -142,7 +123,6 @@ export async function runAdvancePortConstructions(): Promise<number> {
             const recipients = await resolveRecipients(row, client);
 
             if (drained === null) {
-                // No planet had enough — day skips.
                 await recordConstructionAdvanceAttempt(row.sector_id, false, client);
                 const cost = PORT_CONSTRUCTION_COSTS[row.port_class as PortClass];
                 const body =
@@ -155,12 +135,10 @@ export async function runAdvancePortConstructions(): Promise<number> {
                 return;
             }
 
-            // Advance the day.
             await recordConstructionAdvanceAttempt(row.sector_id, true, client);
             const newDaysCompleted = row.days_completed + 1;
 
             if (newDaysCompleted >= row.days_required) {
-                // Promote to a live port.
                 await promoteToPort({ ...row, days_completed: newDaysCompleted }, client);
                 const body =
                     `Your StarPort "${row.port_name}" is complete at sector ${row.sector_number}. ` +

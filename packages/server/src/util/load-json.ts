@@ -1,11 +1,6 @@
 import fs from 'fs';
 import { z } from 'zod';
 
-/**
- * Read a JSON file from disk and validate it against a zod schema. Throws
- * with a labeled message identifying which stage failed (read / parse /
- * validate).
- */
 export function loadJsonFile<S extends z.ZodType>(filePath: string, schema: S): z.infer<S> {
     let raw: string;
     try {

@@ -1,8 +1,3 @@
-/**
- * Sector display — header line, port, drones, planets, warps, players, ships.
- * Also the main command prompt, player-info header, autopilot prompts.
- */
-
 import { makeDomain } from './_domain.js';
 
 export const SECTOR = makeDomain('SECTOR', {

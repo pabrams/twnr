@@ -49,11 +49,9 @@ app.use(express.json());
 const server: Server = createServer(app);
 const wss = new WebSocketServer({ server });
 
-// Heartbeat: ping every 30s; sockets that don't pong by the next tick get
-// terminated, which fires the close handler. Without this, hard disconnects
-// (yanked ethernet, killed wifi) wouldn't surface until TCP keepalive kicks
-// in (~2 hours on Linux defaults), during which the docked-while-online
-// visibility predicate would keep them hidden in their sector.
+// Heartbeat: without it, hard disconnects don't surface until TCP keepalive
+// (~2h on Linux defaults), during which the docked-while-online visibility
+// predicate would keep the player hidden in their sector.
 const aliveSockets = new WeakSet<WebSocket>();
 const HEARTBEAT_INTERVAL_MS = 30_000;
 const heartbeatInterval = setInterval(() => {
@@ -165,19 +163,16 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             return;
         }
 
-        // Per-universe destruction-cooldown gate. Site auth is independent
-        // of online status — a destroyed player can stay logged in (and
-        // online in other universes), but reconnecting to *this* universe
-        // either has to wait out the respawn delay or, if the delay has
-        // elapsed, gets a fresh starting ship + sector + credits inline
-        // and proceeds with the connect.
+        // Destruction cooldown is per-universe: a destroyed player stays
+        // authenticated (and online elsewhere), but this universe gates
+        // the connect until the respawn delay elapses.
         const respawn = await tryRespawnPlayer(playerRow.id);
         if (respawn.kind === 'wait') {
             ws.close(1008, `Ship destroyed; respawn in ${respawn.remainingSeconds}s`);
             return;
         }
         if (respawn.kind === 'respawned') {
-            // Reload the row — ship_id/current_sector_id/credits all changed.
+            // Respawn changed ship/sector/credits — reload the row.
             playerRow = await getPlayerConnectInfo(userId, universeId);
             if (!playerRow) {
                 ws.close(1008, 'No player in this universe');
@@ -370,7 +365,6 @@ export async function startServer() {
     }
 }
 
-// Only start the server if this file is run directly.
 if (process.argv[1] && process.argv[1].endsWith('server.js')) {
     startServer();
 }

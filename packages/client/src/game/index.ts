@@ -60,11 +60,9 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
         let rows = Math.max(10, Math.floor(h / cell.cellHeight(fontSize)));
         term.options.fontSize = fontSize;
         term.resize(globalConstants.terminalCols, rows);
-        // The predicted cell height can run a fraction short of xterm's real
-        // per-row height at fractional devicePixelRatios (e.g. browser zoom
-        // 75%), over-counting rows so the bottom row clips off-screen. The DOM
-        // renderer sets .xterm-screen's height synchronously inside resize(),
-        // so measure the actual rendered height and shed rows until it fits.
+        // At fractional devicePixelRatios the predicted cell height can run short of
+        // xterm's real per-row height, clipping the bottom row. resize() sets
+        // .xterm-screen's height synchronously, so measure it and shed rows until it fits.
         const screen = termDiv.querySelector<HTMLElement>('.xterm-screen');
         if (screen) {
             for (
@@ -80,8 +78,7 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
     refit();
     window.addEventListener('resize', refit);
 
-    // Stop propagation at capture phase for Ctrl+wheel so xterm never sees it
-    // and the browser handles it as a page zoom.
+    // Stop Ctrl+wheel at capture phase so xterm never sees it and the browser page-zooms.
     termDiv.addEventListener(
         'wheel',
         (e) => {
@@ -93,8 +90,7 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
     const wsProtocol = location.protocol === 'https:' ? 'wss' : 'ws';
     const wsUrl = `${wsProtocol}://${location.host}/ws?universe=${universeId}`;
 
-    // ctx.io.ws is mutated by reconnect(); sendMsg always reads the current
-    // socket so messages route to the live connection.
+    // ctx.io.ws is mutated by reconnect(); always read the current socket.
     function sendMsg(msg: ClientEnvelope, opts?: { silent?: boolean }) {
         const sock = ctx.io.ws;
         if (sock.readyState !== WebSocket.OPEN) return;
@@ -217,8 +213,7 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
 
     function onClose(info: { code: number; reason: string }): void {
         ctx.connection.disconnected = true;
-        // Cancel any in-flight prompt or buffered input so the next reconnect
-        // starts from a clean slate.
+        // Cancel in-flight prompts and buffered input so reconnect starts clean.
         if (ctx.input.pendingResolver) {
             const r = ctx.input.pendingResolver;
             ctx.input.pendingResolver = null;
@@ -303,8 +298,7 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
                 { silent: true },
             );
         });
-        // The minimap has no inputs that need keyboard focus, so push focus
-        // back to the terminal after any click inside the panel.
+        // The minimap needs no keyboard focus; push it back to the terminal after any click.
         minimapEl.addEventListener('click', () => {
             term.focus();
         });

@@ -5,10 +5,6 @@ import { join } from 'node:path';
 import { readCSV, generateUniverse } from './bigbang-helpers.mjs';
 
 
-// ---------------------------------------------------------------------------
-// Referential Integrity
-// ---------------------------------------------------------------------------
-
 describe('Referential Integrity', () => {
   let outdir, validSectorIds, sectorRows, warpRows, portRows, planetRows;
 
@@ -57,10 +53,6 @@ describe('Referential Integrity', () => {
     }
   });
 });
-
-// ---------------------------------------------------------------------------
-// Import SQL
-// ---------------------------------------------------------------------------
 
 describe('Import SQL', () => {
   let outdir, sql, sqlStripped;
@@ -125,10 +117,6 @@ describe('Import SQL', () => {
       'SQL should use VARCHAR or TEXT for string columns');
   });
 });
-
-// ---------------------------------------------------------------------------
-// CSV Formatting
-// ---------------------------------------------------------------------------
 
 describe('CSV Formatting', () => {
   let outdir;

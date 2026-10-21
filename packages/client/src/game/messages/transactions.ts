@@ -1,7 +1,3 @@
-/**
- * Purchase, trade, and ship-exchange results.
- */
-
 import { makeDomain } from './_domain.js';
 
 export const TRANSACTION = makeDomain('TRANSACTION', {

@@ -34,16 +34,13 @@ import { getSectorDbId } from '../db/queries/sector.js';
 import { recordCreditChange } from '../services/audit.js';
 import { experienceDeltas, reputationDeltas, scalarDelta } from '../game-config.js';
 
-/** Reply to the "O" command: tell the client whether to render the build
- *  table (no port + planet present) or the upgrade table (port exists), or
- *  reject (no port + no planet, can't construct here). */
+/** "O" command: build table (planet, no port), upgrade table (port exists), or reject. */
 export async function serveConstructPortInfo(playerId: number): Promise<void> {
     const player = onlinePlayers[playerId];
     if (!player) return;
 
     const port = await getPortAtSector(player.sector, player.universeId);
     if (port && port.class !== 0 && port.class !== 9) {
-        // Existing tradable port → upgrade mode.
         await serveUpgradePortInfo(playerId);
         return;
     }
@@ -55,7 +52,6 @@ export async function serveConstructPortInfo(playerId: number): Promise<void> {
         return;
     }
 
-    // No port. Need a planet in sector to construct.
     const sectorDbId = await getSectorDbId(player.sector, player.universeId);
     if (sectorDbId === undefined) {
         sendError(playerId, 'Sector not found');
@@ -70,7 +66,6 @@ export async function serveConstructPortInfo(playerId: number): Promise<void> {
         return;
     }
 
-    // Check existing construction on this sector.
     const existing = await getPortConstructionAtSectorForUpdate(player.sector, player.universeId);
 
     const credits = await getPlayerCredits(playerId);
@@ -155,8 +150,6 @@ export async function serveBuildPort(playerId: number, data: BuildPortCommand): 
                 throw new AbortTransaction();
             }
 
-            // Lock player credits + clan_id; reject if already constructing
-            // here, port exists, no planet, or insufficient credits.
             const playerRow = await getCreditsAndClanForUpdate(playerId, client);
             if (!playerRow) {
                 sendEnvelope(playerId, {
@@ -217,8 +210,7 @@ export async function serveBuildPort(playerId: number, data: BuildPortCommand): 
                 context: { sector: player.sector, portClass, portName },
             });
 
-            // Ownership snapshot: if builder is in a clan, the port belongs
-            // to that clan; otherwise to the builder personally.
+            // Ownership snapshots at build time: clan if the builder has one, else personal.
             const ownerClanId = playerRow.clan_id;
             const ownerPlayerId = ownerClanId === null ? playerId : null;
             await insertPortConstruction(
@@ -293,7 +285,6 @@ export async function serveUpgradePortInfo(playerId: number): Promise<void> {
         const prefix = commodity === 'fuel' ? 'fuel' : commodity === 'organics' ? 'org' : 'equ';
         const stock = portRow[stockCol];
         const max = portRow[`${prefix}_max`];
-        // prod isn't returned by getPortAtSector; admin-level lookup needed.
         return {
             commodity,
             action,
@@ -305,8 +296,7 @@ export async function serveUpgradePortInfo(playerId: number): Promise<void> {
         };
     });
 
-    // Patch in productivity from a focused query (getPortAtSector doesn't
-    // include prod columns; we need them for the upgrade-info display).
+    // getPortAtSector doesn't include prod columns; patch them from a focused query.
     const prod = await getPortProductionAtSector(player.sector, player.universeId);
     if (prod) {
         commodities[0].currentProd = prod.fuel_prod;

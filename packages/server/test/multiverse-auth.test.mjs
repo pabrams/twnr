@@ -3,8 +3,6 @@ import assert from 'node:assert/strict';
 import jwt from 'jsonwebtoken';
 import { ensureServer, createPool as _gsCreatePool, createTestUserWithToken, BASE, JWT_SECRET } from './global-setup.mjs';
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
 async function createTestUser(name, email, password) {
   const { userId, token } = await createTestUserWithToken(pool, { name, email, password });
   return { status: 201, body: { userId }, token };
@@ -42,8 +40,6 @@ async function loginUser(email, password) {
   return { status: res.status, body, token };
 }
 
-// ─── Setup ──────────────────────────────────────────────────────────────────
-
 let pool;
 
 before(async () => {
@@ -55,8 +51,6 @@ after(async () => {
   if (pool) await pool.end();
 });
 
-// ─── 5. Registration and Login ──────────────────────────────────────────────
-
 describe('Registration', () => {
   it('POST /api/auth/register creates a user (not a player) and returns userId', async () => {
     const ts = Date.now();
@@ -64,11 +58,9 @@ describe('Registration', () => {
     assert.equal(status, 201, `Expected 201, got ${status}: ${JSON.stringify(body)}`);
     assert.ok(body.userId !== undefined, 'Response should contain userId');
 
-    // Verify user exists in users table
     const userRes = await pool.query('SELECT id, email FROM users WHERE id = $1', [body.userId]);
     assert.equal(userRes.rows.length, 1, 'User should exist in users table');
 
-    // Verify NO player row was created
     const playerRes = await pool.query('SELECT id FROM players WHERE user_id = $1', [body.userId]);
     assert.equal(playerRes.rows.length, 0, 'No player should be created on registration');
   });

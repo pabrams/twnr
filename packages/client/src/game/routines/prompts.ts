@@ -51,8 +51,7 @@ export async function askLineWithShortcuts(
 ): Promise<string | null> {
     const instantLower = new Set(instantChars.map((c) => c.toLowerCase()));
     ctx.io.term.write(prompt);
-    // First keystroke:If it's a digit, echo it and
-    // switch to line mode to assemble the rest of the number.
+    // A non-shortcut first char is echoed, seeds inputAssembly, and switches to line mode.
     const first = await parkChar(ctx);
     if (first === null) return null;
     const firstLower = first.toLowerCase();

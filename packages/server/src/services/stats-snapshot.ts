@@ -3,14 +3,7 @@ import { sendEnvelope } from '../state/messaging.js';
 import { getStatsSnapshotRow } from '../db/queries/player.js';
 import { getPlayerShipHardware } from '../db/queries/hardware.js';
 
-/**
- * Single round-trip snapshot of every field rendered in the right-side stats
- * column. Pushed after every routed client message and on async events (combat,
- * mail, time-based) that change a tracked field.
- *
- * Returns null when the player has no ship (e.g. between respawn and re-entry);
- * caller should skip the push in that case.
- */
+/** Null when the player has no ship (between destruction and respawn). */
 export async function buildStatsSnapshot(playerId: number): Promise<StatsSnapshot | null> {
     const row = await getStatsSnapshotRow(playerId);
     if (!row || row.ship_type_slug === null) return null;
@@ -46,7 +39,6 @@ export async function buildStatsSnapshot(playerId: number): Promise<StatsSnapsho
     };
 }
 
-/** Build + send the snapshot. No-op when the player has no active ship. */
 export async function sendStatsSnapshot(playerId: number): Promise<void> {
     const snap = await buildStatsSnapshot(playerId);
     if (!snap) return;

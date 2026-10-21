@@ -67,11 +67,8 @@ describe('Port construction — upgradeUnitCost / playerBuiltMcicFor', () => {
 
 describe('Port construction — MCIC constants are consistent with bigbang ranges', () => {
     it('|MCIC| for player-built ports exceeds the bigbang max (so they\'re strictly better)', () => {
-        // Bigbang ranges: fuel 40-90, org 30-75, equ 20-65.
-        // Player-built S magnitudes: fuel 70, org 60, equ 50.
-        // Player-built B magnitudes: fuel 80, org 70, equ 60.
-        // All sit at or near the high end of the bigbang range — player-built
-        // ports are profitable but not absurd.
+        // Bigbang ranges: fuel 40-90, org 30-75, equ 20-65; player-built magnitudes
+        // sit at the high end — profitable but not absurd.
         assert.ok(Math.abs(PLAYER_BUILT_PORT_MCIC.fuel.S) <= 90);
         assert.ok(Math.abs(PLAYER_BUILT_PORT_MCIC.fuel.B) <= 90);
         assert.ok(Math.abs(PLAYER_BUILT_PORT_MCIC.equipment.S) <= 65);
@@ -81,7 +78,6 @@ describe('Port construction — MCIC constants are consistent with bigbang range
 
 describe('Port upgrade math', () => {
     it('investing N units grows prod by N, max by 10N, stock by 10N', () => {
-        // Simulate: start prod=100, max=1000, stock=200 (buy port at 80% full)
         let prod = 100;
         let max = 1000;
         let stock = 200;

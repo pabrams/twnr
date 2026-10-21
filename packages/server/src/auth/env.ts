@@ -1,9 +1,3 @@
-/**
- * Retrieves a required environment variable or throws if missing.
- * @param name - The environment variable name
- * @returns The environment variable value
- * @throws {Error} If the variable is not set
- */
 export function requireEnv(name: string): string {
     const value = process.env[name];
     if (!value) {

@@ -5,10 +5,6 @@ import { join } from 'node:path';
 import { readCSV, generateUniverse } from './bigbang-helpers.mjs';
 
 
-// ---------------------------------------------------------------------------
-// Sector Generation
-// ---------------------------------------------------------------------------
-
 describe('Sector Generation', () => {
   const NUM_SECTORS = 100;
   let outdir, header, rows;

@@ -47,27 +47,23 @@ UNIVERSE_DIR=$(mktemp -d)
 node scripts/twnr-bigbang.js "$UNIVERSE_DIR" --sectors 100 --seed 42
 
 echo "==> Importing universe..."
-# Drop old tables
 psql -h "${PGHOST:-localhost}" -d "$PGDATABASE" -U "$PGUSER" \
   -f "$PROJECT_ROOT/scripts/drop-all-tables.sql" >/dev/null 2>&1
 
 node scripts/importUniverse.js "$UNIVERSE_DIR" --force
 rm -rf "$UNIVERSE_DIR"
 
-# Fix sequences
 psql -h "${PGHOST:-localhost}" -d "$PGDATABASE" -U "$PGUSER" -c \
   "SELECT setval('universes_id_seq', COALESCE((SELECT MAX(id) FROM universes), 0) + 1);
    SELECT setval('sectors_id_seq', COALESCE((SELECT MAX(id) FROM sectors), 0) + 1);
    SELECT setval('ports_id_seq', COALESCE((SELECT MAX(id) FROM ports), 0) + 1)" >/dev/null 2>&1
 
-# Kill anything already on our test port
 fuser -k "${PORT}/tcp" 2>/dev/null || true
 
 echo "==> Starting server..."
 node dist/server.js &
 SERVER_PID=$!
 
-# Wait for server to be ready
 for i in $(seq 1 30); do
   if curl -sf -H "x-admin-key: $ADMIN_API_KEY" http://localhost:3001/api/admin/server-stats >/dev/null 2>&1; then
     break
@@ -78,7 +74,7 @@ done
 echo "==> Running tests..."
 node --test --test-concurrency=1 "$@" $(ls test/*.test.mjs | grep -v ratelimit)
 
-# Run rate-limit tests in a second pass with rate limiting enabled (if present)
+# Second pass with rate limiting enabled
 if [ -f test/ratelimit.test.mjs ]; then
   echo "==> Restarting server with rate limiting enabled..."
   kill -9 "$SERVER_PID" 2>/dev/null || true

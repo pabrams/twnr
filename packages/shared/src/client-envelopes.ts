@@ -1,6 +1,4 @@
-// WebSocket messages (client → server). Each export pairs a zod schema
-// (used for parsing untrusted JSON at the WS boundary) with the inferred
-// TypeScript type, so existing consumers can keep importing the type name.
+// WebSocket messages (client → server); schemas parse untrusted JSON at the WS boundary.
 
 import { z } from 'zod';
 import { ClientTag } from './tags.js';
@@ -464,8 +462,7 @@ export const MineDisruptorCommandSchema = z.object({
 });
 export type MineDisruptorCommand = z.infer<typeof MineDisruptorCommandSchema>;
 
-// halfWidthWorld/halfHeightWorld and optional center are floats (world units),
-// not ints. Sectors are scoped by visited set unless admin.
+// Dimensions and center are floats in world units, not sector ints.
 export const GetNeighborhoodCommandSchema = z.object({
     type: z.literal(ClientTag.GetNeighborhood),
     halfWidthWorld: z.number(),
@@ -572,9 +569,6 @@ export const BwarpBeamCommandSchema = z.object({
 });
 export type BwarpBeamCommand = z.infer<typeof BwarpBeamCommandSchema>;
 
-// Universe catalogs (ship types, planet types, hardware items) and the trader
-// roster — static-ish reference data the Computer/Shipyards menus browse.
-// Clients typically request each once per session and cache it.
 export const ShipCatalogCommandSchema = z.object({
     type: z.literal(ClientTag.ShipCatalog),
 });

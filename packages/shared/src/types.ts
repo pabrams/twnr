@@ -1,12 +1,10 @@
-// Shared types used across packages. Anything imported by a runtime parser
-// (config-file loaders, HTTP response handlers) has a paired zod schema so
-// the parse site can be schema-driven; pure compile-time helpers stay as
-// plain type aliases.
+// Anything parsed at runtime (config loaders, HTTP responses) gets a paired
+// zod schema; pure compile-time helpers stay plain type aliases.
 
 import { z } from 'zod';
 
-// hex-grid spatial constants: server bakes them into sector coords at
-// generation, client uses them to interpret those coords when rendering
+// Baked into stored sector coords at generation — changing them breaks
+// existing universes' coordinates.
 export const HEX_CELL_SIZE = 100;
 export const HEX_SPACING_MULTIPLIER = 1.4;
 
@@ -54,10 +52,8 @@ export const ShipConfigSchema = z.object({
 });
 export type ShipConfig = z.infer<typeof ShipConfigSchema>;
 
-/** Per-level requirements to construct or upgrade a planetary defense bastion
- *  (PDB, aka "base", aka legacy "citadel"). Six levels, fuel/org/equ are
- *  one-time stock drains, colos is matched against planet colonist totals,
- *  days is real-time days the construction takes. */
+/** One base ("citadel") level: fuel/org/equ are one-time stock drains, colos
+ *  is checked against planet colonist totals, days is real-time days. */
 export const BaseLevelRequirementSchema = z.object({
     fuel: z.number(),
     org: z.number(),
@@ -90,9 +86,6 @@ export const PlanetConfigSchema = z.object({
     figFactorEqu: z.number(),
 });
 export type PlanetConfig = z.infer<typeof PlanetConfigSchema>;
-
-// ShipCatalogEntry now lives in server-envelopes.ts as a zod-backed wire type
-// (the ship catalog is delivered over the WS protocol, not REST).
 
 export const AuthTokenPayloadSchema = z.object({
     userId: z.number(),

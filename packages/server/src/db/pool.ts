@@ -36,11 +36,7 @@ export const pool = new Pool({
     password: process.env.PGPASSWORD,
 });
 
-/**
- * Connect to the `postgres` system DB and CREATE DATABASE if missing. Safe to
- * call multiple times. Identifier is sanitized in deriveDatabaseName, so the
- * quoted interpolation below cannot inject SQL.
- */
+/** Idempotent. The identifier is sanitized in deriveDatabaseName, so the quoted interpolation below cannot inject SQL. */
 export async function ensureDatabase(): Promise<void> {
     const admin = new Client({
         host: process.env.PGHOST || 'localhost',

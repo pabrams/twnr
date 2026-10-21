@@ -1,10 +1,5 @@
-/**
- * Shared display helpers for the client. The renderer turns `[tag]text[/tag]`
- * spans into ANSI escapes, so any padding/alignment has to measure the
- * VISIBLE length of a string — raw `.length` counts the tag markup that will
- * eventually be stripped. These helpers wrap the color-tag regex once so
- * callers can pad colored values and keep columns aligned on screen.
- */
+/** Padding/alignment must measure VISIBLE length — raw `.length` counts the
+ *  `[tag]` markup and ANSI escapes that the renderer strips or emits. */
 
 const TAG_RE = /\[\/?[a-zA-Z:0-9]+\]/g;
 const ANSI_RE = /\x1b\[[0-9;]*m/g;

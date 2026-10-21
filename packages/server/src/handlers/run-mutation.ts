@@ -3,16 +3,9 @@ import { withTransaction } from '../db/index.js';
 import { sendError } from '../state/messaging.js';
 
 /**
- * Run a transactional mutation with uniform error handling — the shape ~30
- * handlers repeat by hand.
- *
- * `tx` runs inside withTransaction; throw AbortTransaction to roll back and
- * skip `onSuccess` (validation failures send their own reply before aborting).
- * `onSuccess` fires with the committed result only — withTransaction resolves
- * `undefined` on abort, which is skipped here. Unexpected errors are logged as
- * `${label} error` and answered with a failure reply: by default
- * `sendError(playerId, 'Internal server error')`, overridable via `onError`
- * (a custom message string, or a callback for a non-Error envelope).
+ * Throw AbortTransaction inside `tx` to roll back and skip `onSuccess` —
+ * validation failures must send their own reply before aborting. `undefined`
+ * from `tx` is treated as an abort.
  */
 export async function runMutation<T>(
     playerId: number,

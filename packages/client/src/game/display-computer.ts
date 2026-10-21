@@ -133,8 +133,6 @@ export function showShipDetail(ctx: DisplayComputerCtx, ship: ShipCatalogEntry) 
         term.writeln(render(COMPUTER.shipDetailRow, { row }));
     }
 
-    // Hardware capacities (after specs). Toggles become Yes/No; stackables
-    // show their max count.
     const hwItems: { label: string; value: string }[] = [];
     for (const h of HW_DISPLAY) {
         if (h.name === 'visual_scanner' || h.name === 'planet_scanner') continue; // shown above

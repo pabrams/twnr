@@ -1,7 +1,3 @@
-/**
- * Port menu, commerce report, trade prompts, Class-0 (Supply Depot) shop.
- */
-
 import { makeDomain } from './_domain.js';
 
 export const PORT = makeDomain('PORT', {

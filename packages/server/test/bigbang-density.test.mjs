@@ -5,10 +5,6 @@ import { join } from 'node:path';
 import { readCSV, generateUniverse } from './bigbang-helpers.mjs';
 
 
-// ---------------------------------------------------------------------------
-// Density Boundaries
-// ---------------------------------------------------------------------------
-
 describe('Density Boundaries', () => {
   it('--planet-density 0 produces only Earth (sector 1) and no other planets', () => {
     const dir = generateUniverse({ sectors: 50, seed: 99, portDensity: 50, planetDensity: 0 });

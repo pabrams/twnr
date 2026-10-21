@@ -1,7 +1,3 @@
-/**
- * Combat: attack-player menu, drone encounter, attack quantity prompts.
- */
-
 import { makeDomain } from './_domain.js';
 
 export const COMBAT = makeDomain('COMBAT', {

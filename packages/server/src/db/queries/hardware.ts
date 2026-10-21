@@ -10,7 +10,6 @@ export type HardwareItemRow = {
     result_extra: Record<string, unknown> | null;
 };
 
-/** Look up a hardware item by its programmatic name (e.g. 'hyperspace_1'). */
 export async function getHardwareItemByName(
     itemName: string,
     db: Queryable = pool,
@@ -71,7 +70,6 @@ export async function getHardwareStoreRows(
     return res.rows;
 }
 
-/** Resolve the hardware price for a universe, falling back to the item's default. */
 export async function getHardwarePriceForUniverse(
     universeId: number,
     hardwareItemId: number,
@@ -85,7 +83,6 @@ export async function getHardwarePriceForUniverse(
     return res.rows[0]?.price;
 }
 
-/** Ship + current-hardware-qty + max-allowed row, locked for update on the ship. */
 export type ShipHardwareCapacityRow = {
     ship_id: number;
     current_qty: number;
@@ -110,7 +107,6 @@ export async function getShipHardwareCapacityForUpdate(
     return res.rows[0];
 }
 
-/** Add quantity to a ship's hardware stack (insert if none). */
 export async function upsertShipHardwareQuantity(
     shipId: number,
     hardwareItemId: number,
@@ -125,7 +121,6 @@ export async function upsertShipHardwareQuantity(
     );
 }
 
-/** Set a ship's toggle-hardware to installed (quantity = 1). */
 export async function setShipHardwareInstalled(
     shipId: number,
     hardwareItemId: number,
@@ -139,7 +134,6 @@ export async function setShipHardwareInstalled(
     );
 }
 
-/** Fetch the quantity of a named hardware item on a player's ship (0 if not installed). */
 export async function getShipHardwareQuantityByName(
     playerId: number,
     itemName: string,
@@ -155,9 +149,7 @@ export async function getShipHardwareQuantityByName(
     return res.rows[0]?.quantity ?? 0;
 }
 
-/** Decrement a ship's hardware-item count by an explicit quantity.
- *  Caller is expected to have verified the ship currently holds at least
- *  this many (no underflow guard here). */
+/** No underflow guard — caller must have verified the ship holds at least this many. */
 export async function decrementShipHardwareQuantity(
     shipId: number,
     hardwareItemId: number,
@@ -171,7 +163,6 @@ export async function decrementShipHardwareQuantity(
     );
 }
 
-/** Decrement a named hardware item's quantity on a player's ship by 1. */
 export async function decrementShipHardwareByName(
     playerId: number,
     itemName: string,
@@ -215,7 +206,6 @@ export async function getShipTypeHardwareMax(
     return res.rows;
 }
 
-/** Hardware max-quantity rows for every ship type in a universe. */
 export async function listShipTypeHardwareMaxForUniverse(
     universeId: number,
     db: Queryable = pool,
@@ -230,7 +220,6 @@ export async function listShipTypeHardwareMaxForUniverse(
     return res.rows;
 }
 
-/** Installed hardware (name + quantity) on a player's current ship. */
 export async function getPlayerShipHardware(
     playerId: number,
     db: Queryable = pool,

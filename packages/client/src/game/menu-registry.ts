@@ -4,9 +4,6 @@ import { showSectorPrompt } from './display.js';
 import { showAttackPrompt, showDroneEncounterPrompt } from './display-combat.js';
 import { showComputerPrompt, showBaseComputerPrompt } from './display-computer.js';
 
-/** Common command list for both the sector Computer menu and the Base
- *  Computer menu. The `back` label differs (back-to-sector vs back-to-base)
- *  so it's parameterized. */
 function computerCommandsWithBack(backLabel: string): MenuCommandEntry[] {
     return [
         {
@@ -121,13 +118,6 @@ import {
     showShipyardsClass0Menu,
 } from './display-starbase.js';
 
-/**
- * Single source of truth for both the data side of menus (key bindings,
- * labels) and the behavior side (prompt renderer). Each menu's commands
- * dispatch through the routine registry in `routines/`; the registry below
- * tells the client what keys are valid where and what to render at the
- * prompt for each menu.
- */
 export const MENU_REGISTRY: MenuEntry[] = [
     {
         name: 'sector',
@@ -913,9 +903,7 @@ export const MENU_REGISTRY: MenuEntry[] = [
     },
 ];
 
-/** Prompt-renderer bindings for each menu. Menus not listed here (e.g.
- *  `port`) render nothing by themselves — useful for transitional states
- *  whose visible UI is driven by server responses. */
+/** Menus not listed here render nothing by themselves — transitional states whose UI is driven by server responses. */
 export const MENU_PROMPTS: Partial<Record<MenuName, (ctx: GameContext) => void>> = {
     [Menu.Sector]: showSectorPrompt,
     [Menu.Attack]: showAttackPrompt,

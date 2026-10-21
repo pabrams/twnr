@@ -1,11 +1,9 @@
 import { pool } from '../index.js';
 import type { Queryable } from '../types.js';
 
-/** Subselect for the player's ship — used in WHERE clauses. */
 const SHIP_ID_SUBSELECT = '(SELECT ship_id FROM players WHERE id = $1)';
 
-/** Set a ship's owner. Exactly one of `ownerPlayerId` / `ownerClanId`
- *  must be non-null (XOR enforced by the table's check constraint). */
+/** Exactly one of ownerPlayerId/ownerClanId must be non-null (table check constraint). */
 export async function setShipOwnership(
     shipId: number,
     ownerPlayerId: number | null,
@@ -89,7 +87,6 @@ export async function getShipFuel(playerId: number): Promise<number | undefined>
     return res.rows[0]?.fuel;
 }
 
-/** Combat: fetch drones + shields for a player's ship with row lock. */
 export async function getShipDronesAndShieldsForUpdate(
     playerId: number,
     db: Queryable = pool,
@@ -101,7 +98,6 @@ export async function getShipDronesAndShieldsForUpdate(
     return res.rows[0];
 }
 
-/** Combat: update both drones and shields on a player's ship. */
 export async function setShipDronesAndShields(
     playerId: number,
     drones: number,
@@ -114,12 +110,10 @@ export async function setShipDronesAndShields(
     );
 }
 
-/** Combat: remove a ship record when its owner's ship is destroyed. */
 export async function deleteShipByOwner(ownerId: number, db: Queryable = pool): Promise<void> {
     await db.query('DELETE FROM ships WHERE owner_player_id = $1', [ownerId]);
 }
 
-/** Combat: mark a player as ship-less and stamp destruction time. */
 export async function markPlayerShipDestroyed(
     playerId: number,
     db: Queryable = pool,
@@ -129,18 +123,12 @@ export async function markPlayerShipDestroyed(
     ]);
 }
 
-/**
- * Single DB-side path for ship destruction: removes the ship row and stamps
- * the player as destroyed. All destruction sites (combat, mines, future
- * planet-collisions, etc.) should call this rather than the two helpers
- * separately so the destruction transition stays in one place.
- */
+/** The single destruction path — destruction sites call this, never the two helpers separately. */
 export async function destroyShipRecord(playerId: number, db: Queryable = pool): Promise<void> {
     await deleteShipByOwner(playerId, db);
     await markPlayerShipDestroyed(playerId, db);
 }
 
-/** Cargo: fetch the four cargo-commodity quantities on a player's ship. */
 export async function getShipCargo(
     playerId: number,
     db: Queryable = pool,
@@ -157,7 +145,6 @@ export async function getShipCargo(
     return res.rows[0];
 }
 
-/** Cargo: empty all four cargo commodities on a player's ship (jettison). */
 export async function zeroShipCargo(playerId: number, db: Queryable = pool): Promise<void> {
     await db.query(
         `UPDATE ships SET fuel = 0, organics = 0, equipment = 0, colonists = 0 WHERE id = ${SHIP_ID_SUBSELECT}`,
@@ -186,7 +173,6 @@ export type ShipInfoRow = {
     max_holds: number;
 };
 
-/** Ship info: all stats needed by the "i" command / ShipInfo panel. */
 export async function getShipInfo(
     playerId: number,
     db: Queryable = pool,
@@ -208,7 +194,6 @@ export async function getShipInfo(
     return res.rows[0];
 }
 
-/** Hyperwarp: fetch ship id, turns/warp, and whether hyperspace 1 or 2 is equipped. */
 export type HyperspaceInfoRow = {
     ship_id: number;
     turns_per_warp: number;
@@ -235,7 +220,6 @@ export async function getShipHyperspaceInfo(
     return res.rows[0];
 }
 
-/** Hyperwarp: deduct fuel and move ship to a new sector in one UPDATE. */
 export async function deductShipFuelAndMoveShip(
     shipId: number,
     fuelCost: number,
@@ -249,7 +233,6 @@ export async function deductShipFuelAndMoveShip(
     ]);
 }
 
-/** Class-0 upgrade: credits + current ship stats + all maxes, locked. */
 export type ShipUpgradeRow = {
     credits: number;
     drones: number;
@@ -275,7 +258,6 @@ export async function getShipUpgradeInfoForUpdate(
     return res.rows[0];
 }
 
-/** Class-0 upgrade: add N drones to a player's ship. */
 export async function incrementShipDrones(
     playerId: number,
     qty: number,
@@ -287,7 +269,6 @@ export async function incrementShipDrones(
     );
 }
 
-/** Class-0 upgrade: add N shields to a player's ship. */
 export async function incrementShipShields(
     playerId: number,
     qty: number,
@@ -299,7 +280,6 @@ export async function incrementShipShields(
     );
 }
 
-/** Class-0 upgrade: add N holds to a player's ship. */
 export async function incrementShipHolds(
     playerId: number,
     qty: number,
@@ -311,7 +291,6 @@ export async function incrementShipHolds(
     );
 }
 
-/** Deploy-drones info: current drones + ship-type max + ship-type name. */
 export type ShipDronesInfoRow = {
     drones: number;
     ship_name: string;
@@ -330,7 +309,6 @@ export async function getShipDronesAndMaxInfo(
     return res.rows[0];
 }
 
-/** Deploy-drones: current drones + ship-type max, locked for update. */
 export async function getShipDronesAndMaxForUpdate(
     playerId: number,
     db: Queryable = pool,
@@ -344,7 +322,6 @@ export async function getShipDronesAndMaxForUpdate(
     return res.rows[0];
 }
 
-/** Universe-scoped ship type with pricing — for shipyards / trade-in logic. */
 export type ShipTypeRow = {
     slug: string;
     display_name: string | null;
@@ -359,7 +336,6 @@ export type ShipTypeRow = {
     turns_per_warp: number;
 };
 
-/** Look up a ship type by (universe_id, slug). */
 export async function getShipTypeBySlug(
     universeId: number,
     slug: string,
@@ -374,7 +350,6 @@ export async function getShipTypeBySlug(
     return res.rows[0];
 }
 
-/** Ship-exchange trade-in view: credits, current sector, current ship pricing + ship_id, locked. */
 export type PlayerShipTradeInfoRow = {
     credits: number;
     current_sector_id: number;
@@ -406,7 +381,6 @@ export async function getPlayerShipTradeInfoForUpdate(
     return res.rows[0];
 }
 
-/** Buy-new-ship view: just credits + sector + current ship_id + name, locked. */
 export type PlayerShipBuyInfoRow = {
     credits: number;
     current_sector_id: number;
@@ -429,7 +403,6 @@ export async function getPlayerShipBuyInfoForUpdate(
     return res.rows[0];
 }
 
-/** Insert a new empty ship; returns its id. */
 export async function insertEmptyShip(
     ownerId: number,
     universeId: number,
@@ -451,7 +424,6 @@ export async function insertEmptyShip(
     return res.rows[0].id;
 }
 
-/** Atomically point a player at a new ship and deduct credits. */
 export async function setPlayerShipAndDeductCredits(
     playerId: number,
     shipId: number,
@@ -465,12 +437,10 @@ export async function setPlayerShipAndDeductCredits(
     ]);
 }
 
-/** Delete a ship by its row id (used on trade-in). */
 export async function deleteShipById(shipId: number, db: Queryable = pool): Promise<void> {
     await db.query('DELETE FROM ships WHERE id = $1', [shipId]);
 }
 
-/** Ship cargo + holds capacity, locked for update (colonist pickup flow). */
 export async function getShipHoldsAndCargoForUpdate(
     playerId: number,
     db: Queryable = pool,
@@ -492,7 +462,6 @@ export async function getShipHoldsAndCargoForUpdate(
     return res.rows[0];
 }
 
-/** Fetch the colonists count on a player's ship, locked for update. */
 export async function getShipColonistsForUpdate(
     playerId: number,
     db: Queryable = pool,
@@ -504,7 +473,6 @@ export async function getShipColonistsForUpdate(
     return res.rows[0]?.colonists;
 }
 
-/** Fetch the current colonists count on a player's ship. */
 export async function getShipColonists(
     playerId: number,
     db: Queryable = pool,
@@ -516,7 +484,6 @@ export async function getShipColonists(
     return res.rows[0]?.colonists;
 }
 
-/** Apply a +/- delta to the colonists count on a player's ship. */
 export async function incrementShipColonists(
     playerId: number,
     delta: number,
@@ -528,7 +495,6 @@ export async function incrementShipColonists(
     );
 }
 
-/** Cargo quantities + credits + holds capacity for a player. */
 export type CargoWithCreditsRow = {
     fuel: number;
     organics: number;
@@ -549,7 +515,6 @@ export async function getShipCargoWithCredits(
     return res.rows[0];
 }
 
-/** Same as getShipCargoWithCredits but locks both player + ship rows for trade. */
 export async function getShipCargoWithCreditsForUpdate(
     playerId: number,
     db: Queryable = pool,
@@ -563,11 +528,7 @@ export async function getShipCargoWithCreditsForUpdate(
     return res.rows[0];
 }
 
-/** Whitelist of ship cargo columns — blocks SQL injection via dynamic column.
- *  `drones` is included here so the same increment helper works for
- *  planet ↔ ship drone trade, even though drones live outside cargo
- *  holds (handlers must clamp by ship_type.max_drones, not by free
- *  holds). */
+/** Column whitelist (dynamic-SQL injection guard). drones is not cargo: clamp by ship_type.max_drones, not free holds. */
 const SHIP_COMMODITY_COLUMN: Record<
     'fuel' | 'organics' | 'equipment' | 'colonists' | 'drones',
     string
@@ -580,7 +541,6 @@ const SHIP_COMMODITY_COLUMN: Record<
 };
 export type ShipCommodity = keyof typeof SHIP_COMMODITY_COLUMN;
 
-/** Apply a +/- delta to a commodity on a player's ship. */
 export async function incrementShipCommodity(
     playerId: number,
     commodity: ShipCommodity,
@@ -594,7 +554,6 @@ export async function incrementShipCommodity(
     );
 }
 
-/** Full player-ship + ship-type row (wide) — used by ship-lookup to denormalise. */
 export async function getPlayerShipFull(
     playerId: number,
     db: Queryable = pool,
@@ -619,7 +578,6 @@ export async function getPlayerShipFull(
     return res.rows[0] ?? null;
 }
 
-/** Partial ship type info needed for respawning a player on a starting ship. */
 export type StartingShipTypeRow = {
     slug: string;
     display_name: string;
@@ -638,7 +596,6 @@ export async function getStartingShipTypeBySlug(
     return res.rows[0];
 }
 
-/** Create a starting ship for a respawning or just-registered player; returns its id. */
 export async function insertStartingShip(
     ownerId: number,
     universeId: number,
@@ -678,9 +635,6 @@ export type OwnedShipRow = {
     owner_clan_name: string | null;
     owner_clan_number: number | null;
 };
-/** Ships visible to the player: their personal ships, plus all ships
- *  owned by their clan. Used Active Ship Scan and Transporter
- *  Pad. */
 export async function getPlayerOwnedShips(
     playerId: number,
     db: Queryable = pool,
@@ -708,8 +662,7 @@ export async function getPlayerOwnedShips(
     return res.rows;
 }
 
-/** Abandoned (owner-less) ships present in a sector. Returns owner JOIN
- *  cols so callers can derive structured ownership info. */
+/** "Abandoned" = no player piloting it; the ship may still have an owner. */
 export async function getAbandonedShipsInSector(
     sectorNumber: number,
     universeId: number,
@@ -779,7 +732,6 @@ export async function getAbandonedShipsInSector(
 
 type ShipCounter = 'drones' | 'shields';
 
-/** Clan transfer: sender's ship id + current drones/shields, locked FOR UPDATE. */
 export async function getShipCounterForUpdate(
     playerId: number,
     field: ShipCounter,
@@ -794,7 +746,6 @@ export async function getShipCounterForUpdate(
     return res.rows[0];
 }
 
-/** Clan transfer: target's ship id + current and max drones/shields, locked FOR UPDATE. */
 export async function getShipCounterWithMaxForUpdate(
     playerId: number,
     field: ShipCounter,
@@ -845,7 +796,6 @@ export type OwnedShipDetailRow = {
     owner_clan_number: number | null;
 };
 
-/** Full detail for one ship, visible only to its owner (player or clanmate). */
 export async function getOwnedShipDetail(
     shipId: number,
     viewerPlayerId: number,
@@ -884,7 +834,6 @@ export type TransportTargetRow = {
     target_sector_number: number | null;
 };
 
-/** Transporter pad: viewer's current ship range + an owned target ship's location. */
 export async function getTransportTargetInfo(
     viewerPlayerId: number,
     targetShipId: number,
@@ -907,8 +856,6 @@ export async function getTransportTargetInfo(
     return res.rows[0];
 }
 
-/** All ship-type rows for a universe, for the admin/catalog API. */
-/** Full ship-type spec row, for the ship catalog (Computer / Shipyards). */
 export type ShipCatalogRow = {
     slug: string;
     display_name: string | null;
@@ -938,7 +885,6 @@ export type ShipCatalogRow = {
     notes: string | null;
 };
 
-/** Every ship type in a universe, in catalog order. */
 export async function listUniverseShipTypes(
     universeId: number,
     db: Queryable = pool,

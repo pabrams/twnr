@@ -15,16 +15,11 @@ const PORT_CLASSES = {
   8: ['B', 'B', 'B'],
 };
 
-/** Returns a Map of value -> count. */
 function counter(arr) {
   const map = new Map();
   for (const x of arr) map.set(x, (map.get(x) || 0) + 1);
   return map;
 }
-
-// ---------------------------------------------------------------------------
-// Port Generation
-// ---------------------------------------------------------------------------
 
 describe('Port Generation', () => {
   const NUM_SECTORS  = 200;

@@ -26,8 +26,7 @@ export async function insertMemo(
     );
 }
 
-/** Insert a system-sourced mail row (sender is a label like "Deployed Drones",
- *  not a player). */
+/** The sender is a label (e.g. "Deployed Drones"), not a player. */
 export async function insertSystemMemo(
     recipientPlayerId: number,
     senderLabel: string,

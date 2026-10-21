@@ -1,12 +1,5 @@
-/**
- * Shared test infrastructure.
- *
- * When running via `test/run-tests.sh`, the server is already running.
- * When running a single test file directly, `ensureServer()` starts one.
- *
- * Call `await ensureServer()` in your top-level `before()` hook.
- * Each test file should create its own pool via `createPool()`.
- */
+// Shared test infra. run-tests.sh pre-starts the server; `ensureServer()` (call it
+// in your top-level before()) starts one when a test file runs standalone.
 
 import pg from 'pg';
 import crypto from 'crypto';
@@ -43,18 +36,12 @@ export function createPool() {
   });
 }
 
-// ─── shared auth helpers ─────────────────────────────────────────────────────
-
 export function hashPassword(password) {
   const salt = crypto.randomBytes(16);
   const derivedKey = crypto.scryptSync(password, salt, 64);
   return `scrypt$${salt.toString('base64url')}$${derivedKey.toString('base64url')}`;
 }
 
-/**
- * Creates a test user in the DB and returns { userId, token }.
- * If name/email are omitted, they are auto-generated.
- */
 export async function createTestUserWithToken(pool, { name, email, password = 'testpass', role = 'player' } = {}) {
   const ts = Date.now() + Math.random();
   const actualName = name ?? `TestUser_${ts}`;
@@ -73,14 +60,11 @@ export async function createTestUserWithToken(pool, { name, email, password = 't
   return { userId: user.id, token };
 }
 
-// ─── singleton state ─────────────────────────────────────────────────────────
-
 let serverProc = null;
 let setupPromise = null;
 
 async function isServerRunning() {
   try {
-    // Health probe: admin server-stats, authenticated with the test admin key.
     const res = await fetch(`${BASE}/api/admin/server-stats`, {
       headers: { 'x-admin-key': ADMIN_API_KEY },
       signal: AbortSignal.timeout(2000),
@@ -144,12 +128,10 @@ function startServer() {
 }
 
 async function doSetup() {
-  // If server is already running (e.g. from run-tests.sh), just use it
   if (await isServerRunning()) {
     return;
   }
 
-  // Full setup: bigbang → drop → import → start server
   const universeDir = join(tmpdir(), `twnr_test_${Date.now()}`);
 
   const gen = spawnSync(process.execPath, [
@@ -178,10 +160,7 @@ async function doSetup() {
   await pool.end();
 }
 
-/**
- * Ensures the test server is running. Safe to call from every test file —
- * only the first call does actual work; subsequent calls are instant.
- */
+// Idempotent: only the first call does real work.
 export async function ensureServer() {
   if (!setupPromise) {
     setupPromise = doSetup();

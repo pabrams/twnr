@@ -27,8 +27,6 @@ after(async () => {
   if (pool) await pool.end();
 });
 
-// ─── Combat resolution ──────────────────────────────────────────────────────
-
 describe('Combat resolution', () => {
   it('shields absorb first at 1:1 (attacker drones consumed by shields)', async () => {
     const atk = await createPlayer('atk_sh1', 1, 10, 0);
@@ -91,8 +89,6 @@ describe('Combat resolution', () => {
     }
   });
 });
-
-// ─── Ship destruction ───────────────────────────────────────────────────────
 
 describe('Ship destruction', () => {
   it('destroys ship when attacker overwhelms all defenses', async () => {

@@ -41,8 +41,6 @@ export const colorPalette: ColorPalette = {
     boldWhite: { r: 255, g: 255, b: 255 },
 };
 
-/** ColorConfig → CSS `rgb(r, g, b)` string. Used by every DOM panel that
- *  needs to apply palette colors inline (minimap, stats). */
 export function rgb(c: ColorConfig): string {
     return `rgb(${c.r}, ${c.g}, ${c.b})`;
 }

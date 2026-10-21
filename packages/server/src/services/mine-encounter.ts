@@ -21,7 +21,7 @@ import { getPlayerClanId } from '../db/queries/clan.js';
 import { getPlayerShipId } from '../db/queries/player.js';
 import { isFriendlyOwner } from './owner.js';
 
-/** RNG-of-record. Tests can monkey-patch Math.random to make outcomes deterministic. */
+/** Tests monkey-patch Math.random for determinism — route all rolls through here. */
 function rollPercent(pct: number): boolean {
     if (pct <= 0) return false;
     if (pct >= 100) return true;
@@ -50,10 +50,8 @@ export async function resolveProximityMines(playerId: number): Promise<Proximity
     const result = await withTransaction(async (client) => {
         const mineRow = await getSectorMineForUpdate(sectorDbId, 'proximity', client);
         if (!mineRow || mineRow.quantity <= 0) return null;
-        // Player's own (or clan's) mines never detonate against them.
         if (isFriendlyOwner(mineRow, playerId, playerClanId)) return null;
 
-        // Roll each mine independently.
         let detonations = 0;
         for (let i = 0; i < mineRow.quantity; i++) {
             if (rollPercent(settings.proximity_detonation_pct)) detonations++;
@@ -67,7 +65,6 @@ export async function resolveProximityMines(playerId: number): Promise<Proximity
             await setSectorMineQuantity(sectorDbId, 'proximity', remaining, client);
         }
 
-        // Apply damage: first drones, then shields.
         const shipState = await getShipDronesAndShieldsForUpdate(playerId, client);
         if (!shipState) {
             return { detonations, damage: 0, shieldsLost: 0, dronesLost: 0, destroyed: false };
@@ -125,7 +122,6 @@ export async function resolveSeekerMines(playerId: number): Promise<{
         const shipId = await getPlayerShipId(playerId, client);
         if (!shipId) return null;
 
-        // Exactly one limpet attaches; exactly one mine consumed.
         const remaining = mineRow.quantity - 1;
         if (remaining <= 0) {
             await deleteSectorMines(sectorDbId, 'seeker', client);
@@ -155,8 +151,7 @@ export async function resolveSeekerMines(playerId: number): Promise<{
 
     if (!outcome) return null;
 
-    // Audible cue to the victim — gated on the new notice probability. When
-    // the roll fails the limpet still attached, just silently.
+    // Victim notice is probabilistic; on a failed roll the limpet attaches silently.
     if (rollPercent(settings.seeker_victim_notice_pct)) {
         sendEnvelope(playerId, {
             type: ServerTag.SeekerMineAttached,
@@ -165,8 +160,6 @@ export async function resolveSeekerMines(playerId: number): Promise<{
         });
     }
 
-    // Deployer is always alerted in real time (single player → them; clan-
-    // owned → broadcast to all online clan members).
     const alert = {
         type: ServerTag.SeekerMinePickupAlert,
         sector: player.sector,
@@ -183,8 +176,7 @@ export async function resolveSeekerMines(playerId: number): Promise<{
         );
     }
 
-    // Mail entry for the limpet's owner (or each clan member if clan-owned)
-    // so the activation persists even for offline owners.
+    // Mail persists the activation for offline owners.
     const { insertSystemMemo } = await import('../db/queries/message.js');
     const activationBody = `Limpet mine in ${player.sector} activated.`;
     if (outcome.newOwnerPlayerId !== null) {

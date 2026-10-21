@@ -5,14 +5,9 @@ import { listUniverseShipTypes } from '../db/queries/ship.js';
 import { listUniversePlanetTypes } from '../db/queries/planet.js';
 import { listHardwareCatalog, listShipTypeHardwareMaxForUniverse } from '../db/queries/hardware.js';
 
-/**
- * Universe catalogs: static reference data (ship types, planet types, hardware
- * items) the Computer and Shipyards menus browse. None of it depends on where
- * the player is, so there's no location gating — clients request each once per
- * session and cache it.
- */
+// Static reference data with no location gating — clients fetch each catalog
+// once per session and cache it.
 
-/** Every ship type in the player's universe, with per-type hardware maxima. */
 export async function serveShipCatalog(playerId: number): Promise<void> {
     const player = onlinePlayers[playerId];
     if (!player) return;
@@ -60,7 +55,6 @@ export async function serveShipCatalog(playerId: number): Promise<void> {
     });
 }
 
-/** Every planet type in the player's universe. */
 export async function servePlanetCatalog(playerId: number): Promise<void> {
     const player = onlinePlayers[playerId];
     if (!player) return;

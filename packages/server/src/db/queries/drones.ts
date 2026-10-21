@@ -23,10 +23,6 @@ export async function getDeployedDronesByOwner(
     return res.rows;
 }
 
-/** Total drone count in a sector belonging to the player personally OR
- *  to their clan. Used by the hyperspace-jump homing check, which wants
- *  to confirm the player has *any* friendly drones in the target sector
- *  to home in on. */
 export async function getDeployedDronesByOwnerBySector(
     sectorNumber: number,
     playerId: number,
@@ -74,9 +70,7 @@ export async function updateSectorDroneQuantity(
     ]);
 }
 
-/** Update both quantity AND owner in one go. Used when a deploy converts
- *  friendly drones in a sector from personal → clan (or vice versa).
- *  Exactly one of `ownerPlayerId` / `ownerClanId` must be non-null. */
+/** Exactly one of ownerPlayerId/ownerClanId must be non-null. */
 export async function updateSectorDroneOwnerAndQuantity(
     sectorDbId: number,
     ownerPlayerId: number | null,
@@ -92,8 +86,7 @@ export async function updateSectorDroneOwnerAndQuantity(
     );
 }
 
-/** Insert a new sector_drones row. Exactly one of `ownerPlayerId` /
- *  `ownerClanId` must be non-null. */
+/** Exactly one of ownerPlayerId/ownerClanId must be non-null. */
 export async function insertSectorDrones(
     sectorDbId: number,
     ownerPlayerId: number | null,
@@ -111,8 +104,7 @@ export async function deleteSectorDrones(sectorDbId: number, db: Queryable = poo
     await db.query('DELETE FROM sector_drones WHERE sector_id = $1', [sectorDbId]);
 }
 
-/** True iff the sector contains drones not owned by the given player or
- *  their clan. Rogue drones (both owner cols NULL) count as enemy. */
+/** Rogue drones (both owner cols NULL) count as enemy. */
 export async function hasEnemyDronesInSector(
     sectorNumber: number,
     universeId: number,
@@ -137,7 +129,6 @@ export async function hasEnemyDronesInSector(
     return res.rows.length > 0;
 }
 
-/** Sector-drones display info: quantity + structured ownership. */
 export async function getSectorDroneDisplayInfo(
     sectorNumber: number,
     universeId: number,
@@ -176,7 +167,6 @@ export async function getSectorDroneDisplayInfo(
     };
 }
 
-/** Owners + quantities of all live drone stacks in a sector. */
 export async function getSectorDroneOwners(
     sectorDbId: number,
     db: Queryable = pool,

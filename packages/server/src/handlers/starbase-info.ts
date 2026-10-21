@@ -14,13 +14,11 @@ export async function serveStarbaseInfo(playerId: number): Promise<void> {
     const stats = await getUniverseStats(universeId);
     const degDist = await getOutWarpDegreeDistribution(universeId);
 
-    // Build degree distribution array indexed 0..6.
     const outWarpDistribution: number[] = new Array(7).fill(0);
     for (const [deg, count] of degDist) {
         if (deg >= 0 && deg <= 6) outWarpDistribution[deg] = count;
     }
 
-    // Starting holds comes from the universe's starting ship type.
     let startingHolds = 0;
     const startingShipName = stats?.starter_ship_slug;
     if (startingShipName) {

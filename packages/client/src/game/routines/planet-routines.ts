@@ -415,7 +415,6 @@ registerRoutine('base_transporter', async (ctx) => {
     let currentRange = info.range;
     const upgradeCost = info.upgradeCost;
 
-    // Beam/upgrade loop until the user beams, quits, or hits an error.
     while (true) {
         term.writeln(render(PLANET.bwarpRangeLine, { range: currentRange }));
         const reply = await askLineWithShortcuts(ctx, render(PLANET.bwarpBeamPrompt), ['u']);
@@ -521,7 +520,6 @@ registerRoutine('base_transporter', async (ctx) => {
                 fuelUsed: fmt(beam.fuelUsed),
             }),
         );
-        // Transition out of the base/planet: we're now in the destination sector.
         ctx.world.mode = Menu.Sector;
         ctx.world.currentSector = beam.targetSector;
         ctx.io.sendMsg({ type: ClientTag.SectorDisplay });

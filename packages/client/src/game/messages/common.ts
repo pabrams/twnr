@@ -1,8 +1,3 @@
-/**
- * Shared template fragments reused across multiple domains.
- * Tag cheat sheet in /game/messages/README or /game/renderer.ts.
- */
-
 import { makeDomain } from './_domain.js';
 
 export const COMMON = makeDomain('COMMON', {

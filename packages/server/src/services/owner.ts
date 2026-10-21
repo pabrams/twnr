@@ -1,14 +1,5 @@
-/**
- * Canonical owner reference used by every asset that can be player-owned
- * OR clan-owned OR rogue (abandoned). Display code consumes OwnerRef so
- * the dual-column storage (`owner_player_id` + `owner_clan_id`) stays out
- * of UI layers.
- *
- * Resolution is intentionally NOT a query: callers should LEFT JOIN the
- * player and clan rows when fetching the asset so `resolveOwner` can run
- * against the already-fetched row. This avoids per-row N+1 lookups for
- * list displays (sector ship listing, planet listing, mine list, etc.).
- */
+// Resolution is deliberately not a query: fetchers LEFT JOIN the player/clan
+// rows so resolveOwner runs on the already-fetched row (no per-row N+1).
 
 export type OwnerRef =
     | { kind: 'player'; playerId: number; name: string }
@@ -23,9 +14,6 @@ export type OwnerJoinCols = {
     owner_clan_number?: number | null;
 };
 
-/** True iff the owned row belongs to the given player personally or to
- *  their clan. Used to gate friendly-vs-enemy checks (mine encounters,
- *  drone encounters, deploy-onto-friendly, etc.). */
 export function isFriendlyOwner(
     row: Pick<OwnerJoinCols, 'owner_player_id' | 'owner_clan_id'>,
     playerId: number,

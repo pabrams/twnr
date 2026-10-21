@@ -7,11 +7,6 @@ import {
     deletePlayerById,
 } from '../db/queries/player.js';
 
-/**
- * Hard-delete a single guest user and all rows tied to them: visited sectors,
- * ships, the player row, and finally the user row. Mirrors the cleanup the
- * WS-close handler used to do inline before guests became persistent.
- */
 async function deleteGuestUserById(userId: number, playerId: number): Promise<void> {
     await deleteVisitedSectorsForPlayers([playerId]);
     await clearShipIdsForPlayers([playerId]);
@@ -20,14 +15,7 @@ async function deleteGuestUserById(userId: number, playerId: number): Promise<vo
     await deleteUserById(userId);
 }
 
-/**
- * Reaps guest users who haven't been online for `maxIdleDays` (default 7,
- * matching the JWT cookie TTL — past that point the recruiter's browser
- * can't transparently resume them anyway, so the row is dead weight). Skips
- * any guest whose player is currently in the in-memory `players` map, so
- * we never delete someone mid-session.
- *
- */
+/** Default matches the 7-day JWT cookie TTL — past it the guest's browser can't resume anyway. */
 export async function cleanupExpiredGuests(maxIdleDays = 7): Promise<{ deleted: number }> {
     const onlinePlayerIds = new Set(Object.keys(onlinePlayers).map(Number));
 

@@ -1,23 +1,11 @@
 /**
- * Dynamic port pricing — legacy-derived linear model, physical-stock variant.
- *
- * Each port stores per-commodity *physical stock* in the `fuel`/`organics`/
- * `equipment` columns. For an S-action commodity that stock is the
- * inventory the port has available to sell; for a B-action commodity it is
- * the stock the port has accumulated by buying (or by being upgraded), which
- * regenerates back down to zero over time. The asking/offering price per
- * unit is computed at trade time from stock + max + MCIC; static price
- * columns no longer exist.
- *
- * Forward formula:
+ * Dynamic port pricing (legacy-derived linear model). A port's commodity
+ * columns hold physical stock: an S commodity's stock is inventory for sale;
+ * a B commodity's stock is what it has bought, regenerating down to zero.
  *   price(tp) = base + (priceAt100 − base) × (tp − floorTp) / (100 − floorTp)
- * where
- *   tp          = action === 'S' ? stock/max : (max − stock)/max, ×100
- *   priceAt100  = base + slope × |MCIC|
- *   floorTp     = below this trading %, price clamps to base
- *
- * Display semantics: legacy floors percentages and derived "Trading" amounts
- * rather than rounding. Match that here so the client renders identically.
+ *   tp = (action === 'S' ? stock : max − stock) / max × 100
+ *   priceAt100 = base + slope × |MCIC|; tp ≤ floorTp clamps price to base.
+ * Legacy floors (never rounds) displayed percentages and amounts — match it.
  */
 
 import type { PortAction } from './port-classes.js';
@@ -39,24 +27,17 @@ export const COMMODITY_PRICING: Record<PriceCommodity, CommodityPricing> = {
     equipment: { base: 90, floorTp: 12, slope: 0.7 },
 };
 
-/** legacy bigbang MCIC ranges per commodity. Sign is set by class action
- *  (B → negative, S → positive); the absolute value lives within these
- *  ranges. Player-built ports always lock at ±60 (B) / ±50 (S). */
+/** Bigbang MCIC magnitude ranges; sign comes from the class action (B → negative, S → positive). */
 export const MCIC_BIGBANG_RANGE: Record<PriceCommodity, { min: number; max: number }> = {
     fuel: { min: 40, max: 90 },
     organics: { min: 30, max: 75 },
     equipment: { min: 20, max: 65 },
 };
 
-/** Productivity bigbang range. Max stock for the commodity at any port is
- *  `prod * 10`. Range chosen to match observed legacy starting
- *  max amounts of ~600..2800. Upgrades (future) grow `prod` per invested
- *  unit. */
+/** Max stock per commodity = prod × 10; range matches observed legacy starting maxes ~600..2800. */
 export const PRODUCTIVITY_BIGBANG_RANGE = { min: 60, max: 280 } as const;
 
-/** Per-unit cost of an upgrade is 10× the commodity's base price (legacy).
- *  Investing 1 unit grows prod by 1 → max grows by 10 → stock also grows by
- *  10 (the physical commodity lands on the port). */
+/** Legacy: 10× base per unit; each unit grows prod by 1, max and stock by 10. */
 export function upgradeUnitCost(commodity: PriceCommodity): number {
     return COMMODITY_PRICING[commodity].base * 10;
 }
@@ -66,32 +47,21 @@ export function priceAt100FromMcic(commodity: PriceCommodity, mcic: number): num
     return base + slope * Math.abs(mcic);
 }
 
-/** Trading % for a given commodity stock, max, and direction. Mirrors the
- *  number shown after the port name in the commerce report. */
 export function tradingPercent(action: PortAction, stock: number, max: number): number {
     if (max <= 0) return 0;
     const capacity = action === 'S' ? stock : max - stock;
     return (capacity / max) * 100;
 }
 
-/** "Trading" amount as displayed in the commerce report:
- *  - Selling port: current stock available for sale
- *  - Buying port: room remaining to buy (max − stock)
- */
 export function tradingDisplayed(action: PortAction, stock: number, max: number): number {
     const value = action === 'S' ? stock : max - stock;
     return Math.max(0, Math.floor(value));
 }
 
-/** Floored "% of max" integer (0..100) shown in the commerce report. */
 export function tradingPercentDisplay(action: PortAction, stock: number, max: number): number {
     return Math.max(0, Math.min(100, Math.floor(tradingPercent(action, stock, max))));
 }
 
-/** Compute the per-unit price the port quotes for a commodity given its
- *  current physical stock, max, MCIC, and class-direction. Returns a
- *  non-negative integer (floored). Below the floor trading %, the price
- *  clamps to the commodity base. */
 export function computeUnitPrice(
     commodity: PriceCommodity,
     stock: number,
@@ -108,15 +78,9 @@ export function computeUnitPrice(
     return Math.max(0, Math.floor(price));
 }
 
-/**
- * Experience modulation. legacy: at ~0 xp the sell-port asking price is at
- * its quoted maximum; by 1000 xp it drops ~28% (player buys cheap). The
- * buy-port offered price grows ~7% over the same range. Above 1000 xp the
- * effect plateaus (and the player crosses the fed-safe threshold).
- *
- * `action` is the *port*'s side, not the player's: 'S' = port sells = player
- * buys, 'B' = port buys = player sells.
- */
+/** XP price curve (legacy): sell-port ask drops ~28% and buy-port offer grows
+ *  ~7% linearly up to 1000 xp, then plateaus. `portAction` is the port's side,
+ *  not the player's: 'S' = player buys, 'B' = player sells. */
 export const XP_EFFECT = {
     plateauXp: 1000,
     sellSideMaxDiscount: 0.28,
@@ -130,7 +94,6 @@ export function xpPriceMultiplier(xp: number, portAction: PortAction): number {
     return 1 + buySideMaxBonus * t;
 }
 
-/** Final per-unit price after the experience modifier (floored). */
 export function computeUnitPriceWithXp(
     commodity: PriceCommodity,
     stock: number,

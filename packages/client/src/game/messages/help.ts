@@ -1,7 +1,3 @@
-/**
- * Main command-help screen.
- */
-
 import { makeDomain } from './_domain.js';
 
 export const HELP = makeDomain('HELP', {

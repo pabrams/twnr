@@ -1,13 +1,5 @@
-/**
- * Canonical owner-text formatting used everywhere clan-or-player ownership
- * is rendered. Consumes the LEFT-JOINed clan/player names so callers don't
- * incur extra queries per row.
- *
- * Format:
- *   - player-owned: `Bob`            (bare name, no brackets)
- *   - clan-owned:   `(#2 Crimson Tide)`
- *   - rogue:        `(Rogue)`
- */
+// Display format: player-owned `Bob` (bare name), clan-owned `(#2 Crimson Tide)`,
+// rogue `(Rogue)`. Reads LEFT-JOINed names off the fetched row — no extra queries.
 
 import type { OwnershipInfo } from '@twnr/shared';
 

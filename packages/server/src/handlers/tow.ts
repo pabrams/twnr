@@ -24,7 +24,6 @@ export async function serveTowSpacecraft(playerId: number): Promise<void> {
     const player = onlinePlayers[playerId];
     if (!player) return;
 
-    // Already towing? Detach.
     const state = await getTowState(playerId);
     if (state) {
         await clearTowedShip(playerId);
@@ -116,8 +115,7 @@ export async function serveTowAttach(playerId: number, data: TowAttachCommand): 
                 throw new AbortTransaction();
             }
 
-            // Re-verify same sector after acquiring the lock — a concurrent
-            // move could have warped the target away.
+            // Re-verify under lock — a concurrent move could have warped the target away.
             if (target.ship_sector_id !== player.sectorId) {
                 sendEnvelope(playerId, {
                     type: ServerTag.TowAttachResult,
@@ -180,7 +178,6 @@ export async function serveTowAttach(playerId: number, data: TowAttachCommand): 
                 turnsPerWarp: result.tpw,
             });
 
-            // Manned target: alert the pilot that they're being towed.
             if (result.pilotPlayerId !== null && onlinePlayers[result.pilotPlayerId]) {
                 sendEnvelope(result.pilotPlayerId, {
                     type: ServerTag.TowAttachedAlert,

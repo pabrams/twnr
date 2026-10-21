@@ -3,11 +3,8 @@ import { resolve } from 'node:path';
 import { render } from '../packages/client/src/game/renderer.js';
 import * as MESSAGES from '../packages/client/src/game/messages/index.js';
 
-/**
- * Sample data for templates that use {placeholders}. Keyed by
- * `DOMAIN.templateKey`. If a template isn't listed here, it renders
- * with empty vars (literal placeholders remain for your inspection).
- */
+/** Sample vars keyed by `DOMAIN.templateKey` — manually maintained. Unlisted
+ *  templates render with empty vars, leaving literal placeholders visible. */
 const SAMPLES: Record<string, Record<string, unknown>> = {
     'SECTOR.header': { sector: 42 },
     'SECTOR.port': { name: 'Terra', class: 1, label: 'BBS' },
@@ -183,9 +180,7 @@ const SAMPLES: Record<string, Record<string, unknown>> = {
 
 const SKIP_EXPORTS = new Set(['HELP_LINES']);
 
-/** Domain → output file path. The path for a filtered preview sits next to
- *  the source file that defines the domain so you can open source + preview
- *  side-by-side in VS Code. */
+/** Each preview deliberately sits next to the source file defining its domain. */
 const DOMAIN_OUTPUT: Record<string, string> = {
     MSG: '../packages/client/src/game/messages.preview.ansi',
     COMMON: '../packages/client/src/game/messages/common.preview.ansi',
@@ -232,8 +227,6 @@ for (const [domain, group] of Object.entries(MESSAGES)) {
 const output = lines.join('\n');
 process.stdout.write(output);
 
-// Write target: if filtering to a single domain, use that domain's file; else
-// write the full combined preview.
 const targetRel =
     filter && filter.size === 1
         ? DOMAIN_OUTPUT[[...filter][0]]

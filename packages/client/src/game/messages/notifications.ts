@@ -1,8 +1,3 @@
-/**
- * Short user-facing notifications — connect/disconnect, welcomes,
- * simple "invalid input" messages.
- */
-
 import { makeDomain } from './_domain.js';
 
 export const NOTIFY = makeDomain('NOTIFY', {

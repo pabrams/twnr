@@ -8,10 +8,6 @@ import { ensureServer, createPool as _gsCreatePool, BASE } from './global-setup.
 const { Pool } = pg;
 const JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret';
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
-// ─── Setup ──────────────────────────────────────────────────────────────────
-
 let pool;
 
 before(async () => {
@@ -22,8 +18,6 @@ before(async () => {
 after(async () => {
   if (pool) await pool.end();
 });
-
-// ─── 1. Users table ─────────────────────────────────────────────────────────
 
 describe('Users table schema', () => {
   it('users table exists with required columns', async () => {
@@ -50,8 +44,6 @@ describe('Users table schema', () => {
   });
 });
 
-// ─── 2. Universes table ─────────────────────────────────────────────────────
-
 describe('Universes table schema', () => {
   it('universes table exists with required columns', async () => {
     const res = await pool.query(`
@@ -66,8 +58,6 @@ describe('Universes table schema', () => {
     assert.ok(cols.includes('created_at'), 'universes table should have created_at column');
   });
 });
-
-// ─── 3. Players table modifications ─────────────────────────────────────────
 
 describe('Players table modifications', () => {
   it('players table has user_id column', async () => {
@@ -130,8 +120,6 @@ describe('Players table modifications', () => {
     assert.ok(res.rows.length > 0, 'players should have unique constraint on (user_id, universe_id)');
   });
 });
-
-// ─── 4. Universe-scoped tables ──────────────────────────────────────────────
 
 describe('Universe-scoped tables', () => {
   it('sectors table has universe_id column', async () => {

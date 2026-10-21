@@ -1,8 +1,3 @@
-/**
- * Planet domain: landing, Earth, take/leave colonists, commodity selection,
- * planet-detail display, owned-planet list.
- */
-
 import { makeDomain } from './_domain.js';
 
 export const PLANET = makeDomain('PLANET', {

@@ -806,8 +806,6 @@ export const connectDB = async (): Promise<void> => {
             ],
         );
 
-        // Seed ship_types from config files (idempotent)
-        // Hardware config field -> hardware_item name mapping
         const HW_CONFIG_MAP: Record<string, { configKey: string; isToggle?: boolean }> = {
             planet_buster: { configKey: 'maxPlanetBusters' },
             terraform_device: { configKey: 'maxTerraformDevices' },
@@ -825,7 +823,6 @@ export const connectDB = async (): Promise<void> => {
             hyperspace_2: { configKey: 'canHaveHyperspace2', isToggle: true },
         };
 
-        // Resolve stock template_id once for the seed loop below.
         const stockTemplateIdRes = await client.query<{ id: number }>(
             `SELECT id FROM universe_template WHERE name = 'stock'`,
         );
@@ -912,7 +909,6 @@ export const connectDB = async (): Promise<void> => {
                 ],
             );
 
-            // Seed template_ship_type_hardware from ship config
             for (const [hwName, mapping] of Object.entries(HW_CONFIG_MAP)) {
                 const val = ship[mapping.configKey as keyof ShipConfig] as
                     | number
@@ -988,9 +984,8 @@ export const connectDB = async (): Promise<void> => {
             );
         }
 
-        // FK: each template's starter_ship_slug must reference a real ship.
-        // Added here (not at CREATE TABLE) because universe_template is
-        // declared before ship_types.
+        // starter_ship_slug FK is added here rather than at CREATE TABLE because
+        // universe_template is declared before template_ship_types.
         await client.query(`
             DO $$ BEGIN
                 IF NOT EXISTS (
@@ -1004,9 +999,8 @@ export const connectDB = async (): Promise<void> => {
             END $$;
         `);
 
-        // Audit log is per-session: previous-session entries were signed
-        // with a key that no longer exists, so they can never verify.
-        // Drop them at boot so the verifier sees a clean slate.
+        // Previous-session audit entries were signed with a key that no longer
+        // exists and can never verify — drop them at boot.
         await client.query('TRUNCATE TABLE audit_log RESTART IDENTITY');
 
         client.release();

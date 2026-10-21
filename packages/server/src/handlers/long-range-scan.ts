@@ -16,10 +16,7 @@ const W_PROXIMITY = 10;
 const W_LIMPET = 2;
 const W_BEACON = 1;
 
-/** Density scan — passive (no turn cost). Returns one entry per out-warp
- *  sector with aggregate weighted density, anomaly flag, and the warp
- *  count, plus a flag telling the client whether to offer the visual
- *  follow-up. */
+/** Passive — no turn cost. */
 export async function serveDensityScan(playerId: number): Promise<void> {
     const player = onlinePlayers[playerId];
     if (!player) return;
@@ -56,9 +53,7 @@ export async function serveDensityScan(playerId: number): Promise<void> {
     });
 }
 
-/** Visual scan — costs one turn, returns a full sector display payload
- *  for each adjacent (out-warp) sector. Server rejects if the player
- *  doesn't actually have a visual scanner. */
+/** Costs one turn; requires a visual scanner. */
 export async function serveVisualScan(playerId: number): Promise<void> {
     const player = onlinePlayers[playerId];
     if (!player) return;

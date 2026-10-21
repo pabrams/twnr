@@ -1,14 +1,7 @@
 import { getTemplate } from '../renderer.js';
 
-/**
- * Wraps a domain's template object in a Proxy so every property access goes
- * through the live registry. After an HMR update rebuilds the registry,
- * consumers holding references to the domain (e.g. `const tpl = PANEL.foo;`)
- * still see the new template because the proxy re-reads on each `.get`.
- *
- * Falls back to the static object when the registry is empty (during initial
- * module load, before `registerTemplates` runs).
- */
+/** Proxy re-reads the live registry on each access so held references survive HMR
+ *  registry rebuilds; falls back to the static object before registerTemplates runs. */
 export function makeDomain<T extends Record<string, string>>(
     domain: string,
     staticTemplates: T,

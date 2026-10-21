@@ -13,7 +13,6 @@ export async function getVisitedSectors(playerId: number): Promise<number[]> {
     return getVisitedSectorNumbers(playerId);
 }
 
-/** Adjacent sectors of `sectorNumber` from the player's POV. */
 export async function getWarpRefs(
     playerId: number,
     sectorNumber: number,

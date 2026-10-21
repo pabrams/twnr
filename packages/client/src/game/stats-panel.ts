@@ -39,8 +39,7 @@ function clearSection(el: HTMLElement): void {
     if (h3) el.appendChild(h3);
 }
 
-/** Hardware key → short label shown in the Ship section. Order matches the
- *  on-screen order requested for the panel. */
+/** Order here is the panel's on-screen order. */
 const SHIP_HARDWARE_ROWS: { key: string; label: string; title: string }[] = [
     { key: 'proximity_mine', label: 'Mines', title: 'Proximity Mines' },
     { key: 'seeker_mine', label: 'Lmpts', title: 'Limpet Mines' },

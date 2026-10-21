@@ -35,15 +35,16 @@ function showScreen(screen: 'auth' | 'universes' | 'playerName' | 'game' | 'admi
     adminDiv.style.display = screen === 'admin' ? 'flex' : 'none';
 }
 
-async function onUnauthorized() {
-    // Best-effort: clear the server-side session cookie. This is a no-op for
-    // tokens whose user has already been deleted (guest cleanup), but tidies
-    // the cookie when the token was simply revoked.
+async function askServerToClearSessionCookie() {
     try {
         await fetch('/api/auth/logout', { method: 'POST' });
     } catch {
-        /* ignore — we're routing to auth either way */
+        // routing to login regardless
     }
+}
+
+async function showSessionExpired() {
+    await askServerToClearSessionCookie();
     errorDiv.textContent = 'Session expired. Please log in.';
     adminBtn.style.display = 'none';
     showScreen('auth');
@@ -65,7 +66,7 @@ const { showUniverseSelect } = setupUniverseScreen({
             showUniverseSelect();
         });
     },
-    onUnauthorized,
+    onUnauthorized: showSessionExpired,
 });
 
 let adminInitialized = false;

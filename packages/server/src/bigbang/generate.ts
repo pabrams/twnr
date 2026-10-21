@@ -42,9 +42,7 @@ export function generateUniverse(options: BigBangOptions): BigBangResult {
     const starbaseId = randomInt(2, N);
     sectorNames[starbaseId] = 'Starbase';
 
-    // Pick additional class-0 sector IDs (random, distinct from sector 1 and
-    // starbase). Capped at N-2 so we never run out of distinct IDs on small
-    // universes; the requested count is honoured up to that ceiling.
+    // Extra class-0 count is capped at N-2 so distinct IDs never run out on small universes.
     const extraClassZeroSectorIds: number[] = [];
     const desiredExtras = Math.max(0, Math.min(additionalClassZeroPorts, N - 2));
     const usedIds = new Set<number>([1, starbaseId]);
@@ -56,15 +54,12 @@ export function generateUniverse(options: BigBangOptions): BigBangResult {
         sectorNames[candidate] = 'Federation Outpost';
     }
 
-    // Anchor list: sector 1 first (so it lands on the centroid-closest cell —
-    // Federation Space is "the heart"), then starbase, then extras. Order
-    // matters because arrangeAnchors does farthest-first traversal after the
-    // central pick, and graph-proximal honours the same order for its
-    // guaranteed/target hub fixup.
+    // Order matters: arrangeAnchors centers the first anchor (sector 1) and
+    // places the rest farthest-first; graph-proximal honours the same order.
     const anchorSectorIds: number[] = [1, starbaseId, ...extraClassZeroSectorIds];
 
-    // Hex layout (proximal only) must happen before graph generation so the
-    // RNG stream is seed-determined across topology modes.
+    // Layout must precede graph generation so the RNG stream stays seed-determined
+    // across topology modes.
     const rawLayout = topology === 'proximal' ? packHexCells(N, rng) : null;
     const layout =
         rawLayout && topology === 'proximal'
@@ -86,8 +81,7 @@ export function generateUniverse(options: BigBangOptions): BigBangResult {
               )
             : generateGraph(N, twoWayPct, rng, warpDist, forcedHubSectors);
 
-    // Generate sectors. Hex centers are authoritative; no client-side or
-    // post-hoc relaxation moves them.
+    // Hex centers are authoritative; nothing relaxes them post-hoc.
     const sectors: GeneratedSector[] = [];
     for (let i = 1; i <= N; i++) {
         sectors.push({
@@ -108,13 +102,10 @@ export function generateUniverse(options: BigBangOptions): BigBangResult {
             const max = prod * 10;
             const range = MCIC_BIGBANG_RANGE[commodity];
             const mag = randomInt(range.min, range.max);
-            // B-action commodities use negative MCIC (port pays more, magnitude
-            // matches the absolute value rolled); S-action commodities use
-            // positive MCIC (port charges more). Sign convention matches legacy.
+            // Legacy sign convention: B-action → negative MCIC (port pays more),
+            // S-action → positive (port charges more).
             const mcic = action === 'B' ? -mag : mag;
-            // Physical-stock model: selling ports spawn full of sellable
-            // inventory; buying ports spawn empty (no accumulated stock yet,
-            // so trading % = (max-0)/max = 100% — maximum buying interest).
+            // Selling ports spawn full; buying ports spawn empty (trading % = 100%).
             const qty = action === 'S' ? max : 0;
             return { qty, max, prod, mcic };
         };
@@ -139,11 +130,10 @@ export function generateUniverse(options: BigBangOptions): BigBangResult {
         };
     }
 
-    // Starbase always gets a port (class 8 in generation, will be overridden to 9 later)
+    // Starbase generates as class 8; overridden to 9 at insert time.
     ports.push(generatePort(starbaseId, 8));
 
-    // totalPortsTarget covers all ports (incl. starbase + class-0 hubs).
-    // Subtract the specials so the "other" pool fills the rest.
+    // totalPortsTarget includes the starbase and the class-0 hubs.
     let numOtherPorts = totalPortsTarget - 1 - extraClassZeroSectorIds.length;
     const maxOtherPorts = N - 2 - extraClassZeroSectorIds.length;
     if (numOtherPorts > maxOtherPorts) numOtherPorts = maxOtherPorts;
@@ -156,7 +146,6 @@ export function generateUniverse(options: BigBangOptions): BigBangResult {
         if (extraClassZeroSet.has(i)) continue;
         availableSectorsForPorts.push(i);
     }
-    // Shuffle
     for (let i = availableSectorsForPorts.length - 1; i > 0; i--) {
         const j = Math.floor(rng() * (i + 1));
         [availableSectorsForPorts[i], availableSectorsForPorts[j]] = [
@@ -165,10 +154,8 @@ export function generateUniverse(options: BigBangOptions): BigBangResult {
         ];
     }
 
-    // Weighted-random class picker from port-classes.json. Class codes
-    // (BBS/BSB/...) live in @twnr/shared's PORT_CLASS_ACTIONS; only the
-    // per-class population shares are tunable here. Falls back to class 1
-    // if all weights are zero (shouldn't happen with the shipped config).
+    // Per-class population shares are tunable in port-classes.json; the class
+    // codes themselves live in @twnr/shared's PORT_CLASS_ACTIONS.
     const portClassWeights = portClassesConfig.generationShares;
     const portClassKeys = Object.keys(portClassWeights)
         .map(Number)

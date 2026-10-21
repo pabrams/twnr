@@ -8,19 +8,7 @@ export type RespawnOutcome =
     | { kind: 'wait'; remainingSeconds: number }
     | { kind: 'respawned' };
 
-/**
- * Single source of truth for ship-destroyed respawn handling. Reads the
- * player's `ship_destroyed_date` and the universe's `respawn_delay_seconds`
- * and returns one of:
- *
- *   - 'no-respawn': player isn't flagged as destroyed; carry on.
- *   - 'wait': delay hasn't elapsed; caller should reject the session.
- *   - 'respawned': delay elapsed; this call cleared the destroyed flag and
- *     issued a fresh starting ship + sector + credits.
- *
- * Both the HTTP login route and the WebSocket connect path call this so the
- * destruction → respawn transition lives in one place.
- */
+/** 'respawned' means this call already issued the fresh ship, sector, and credits. */
 export async function tryRespawnPlayer(playerId: number): Promise<RespawnOutcome> {
     const row = await getRespawnInfo(playerId);
     if (!row || !row.ship_destroyed_date) return { kind: 'no-respawn' };

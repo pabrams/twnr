@@ -36,9 +36,7 @@ export async function deletePlanet(planetId: number, db: Queryable = pool): Prom
     await db.query('DELETE FROM planets WHERE id = $1', [planetId]);
 }
 
-/** Set a planet's owner. Exactly one of `ownerPlayerId` / `ownerClanId`
- *  must be non-null (XOR enforced by the table's check constraint).
- *  Both null = rogue/unowned. */
+/** At most one of ownerPlayerId/ownerClanId may be non-null (table check constraint); both null = unowned. */
 export async function setPlanetOwnership(
     planetId: number,
     ownerPlayerId: number | null,
@@ -83,7 +81,6 @@ export async function getSectorByNumber(
     return res.rows[0];
 }
 
-/** Terraform/collision configuration resolved from a universe's edit. */
 export type TerraformConfigRow = {
     max_planets_per_sector: number;
     planet_collision_likelihood: number;
@@ -207,9 +204,6 @@ const COLONIST_MAX_COLUMN: Record<ColonistCommodity, string> = {
     equipment: 'max_equ_colos',
 };
 
-/** Per-commodity colonist cap from planet_types, plus the planet's current
- *  count for that commodity. Used to clamp leave_colonists requests to
- *  what the planet can still hold. */
 export async function getPlanetColonistsCapacity(
     planetId: number,
     commodity: ColonistCommodity,
@@ -278,8 +272,6 @@ export async function getPlanetCommodityRemaining(
     return res.rows[0]?.remaining;
 }
 
-/** Per-commodity quantity cap from planet_types, plus the planet's current
- *  stockpile. Used to clamp leave_commodity to the room remaining. */
 export async function getPlanetCommodityCapacity(
     planetId: number,
     commodity: PlanetCommodity,
@@ -384,8 +376,7 @@ export async function getPlanetDisplayData(playerId: number): Promise<{
     const onPlanetId = playerRes.rows[0]?.on_planet_id;
     if (!onPlanetId) return null;
 
-    // Lazy-promote any base whose construction has elapsed so display reflects
-    // the freshly active level rather than the stale "constructing" state.
+    // Lazy-promote any due base construction before reading.
     await getPlanetBase(onPlanetId);
 
     const planetRes = await pool.query(
@@ -450,7 +441,6 @@ export type PlanetOwnershipRow = {
     owner_clan_id: number | null;
 };
 
-/** Owner info + name + sector number, used by destroy/claim event mail. */
 export async function getPlanetOwnership(planetId: number): Promise<PlanetOwnershipRow | null> {
     const res = await pool.query<PlanetOwnershipRow>(
         `SELECT pl.name, s.sector_number, pl.owner_player_id, pl.owner_clan_id
@@ -462,24 +452,7 @@ export async function getPlanetOwnership(planetId: number): Promise<PlanetOwners
     return res.rows[0] ?? null;
 }
 
-/** Settle accrued production on a single planet using the same fractional-
- *  accumulator pattern as `settlePlanetColonistGrowth`. Per commodity
- *  (fuel/org/equ):
- *    1. add `colos * production_rate * elapsed_hours / colos_per_unit` to
- *       the production accrual
- *    2. peel off `floor(accrual)` whole units
- *    3. add to the planet's stockpile (clamped to the type's max)
- *    4. subtract the peeled integer from the accrual — fractional
- *       remainder rolls forward to the next settle
- *
- *  Always writes (the accruals always change when elapsed > 0) and
- *  stamps `last_production_at = NOW()`, so take/leave-colonists handlers
- *  can call this freely without losing sub-unit fractions at segment
- *  boundaries. Whatever clamps off at the max stockpile is discarded
- *  (no shadow units bank up while the stockpile is full).
- *
- *  Locks the planet row FOR UPDATE; safe to call from a transaction that
- *  later re-locks the same row. */
+/** Fractional-accumulator settle: banks floor(accrual) whole units into the stockpile (clamped to max; overflow discarded, never banked), rolls the remainder forward, and stamps last_production_at. Locks the planet row FOR UPDATE. */
 const ONE_HOUR_MS = 60 * 60 * 1000;
 export async function settlePlanetProduction(
     planetId: number,
@@ -572,8 +545,7 @@ export async function settlePlanetProduction(
         row.equ_production_accrual,
     );
 
-    // Drones: derived from colonists × per-group fig factor. A 0 fig factor
-    // means that group can't contribute drones (e.g. Volcanic has no organics).
+    // A 0 fig factor means that colonist group contributes no drones.
     const dronesPerHour =
         (row.fig_factor_fuel > 0 ? row.colonists_fuel / row.fig_factor_fuel : 0) +
         (row.fig_factor_org > 0 ? row.colonists_organics / row.fig_factor_org : 0) +
@@ -615,27 +587,7 @@ export async function settlePlanetProduction(
     return { produced };
 }
 
-/** Settle births/deaths on a single planet's colonist buckets using a
- *  fractional-accumulator pattern. Per commodity (fuel/org/equ) we keep
- *  two `DOUBLE PRECISION` columns — one each for births and deaths — that
- *  hold the un-applied fractional units. Each call:
- *    1. adds `colos * rate    * elapsed_days / 1000` to the birth accrual
- *    2. adds `colos * danger  * elapsed_days / 1000` to the death accrual
- *    3. peels off `floor(birth_accrual)` whole births and the same for deaths
- *    4. applies the net change to colos (clamped to [0, max])
- *    5. subtracts the peeled integers from the accrual columns (the
- *       fractional remainder rolls forward to the next settle)
- *
- *  No `force` flag is needed — every settle persists the updated
- *  accruals and stamps `last_colonist_event_at = NOW()`, so take/leave-
- *  colonists handlers and the hourly job can both call this without
- *  worrying about losing sub-unit fractions at segment boundaries.
- *
- *  Birth/death are tracked separately so a high-rate, high-danger planet
- *  doesn't lose accuracy from internal cancellation in a single net
- *  accumulator. Whatever clamps off at the [0, max] cap is discarded
- *  (the accrual stays drained, so a planet pinned at max doesn't bank
- *  unbounded "shadow births" that would flood in if colos later drop). */
+/** Fractional-accumulator settle of colonist births/deaths; tracked in separate accruals to avoid cancellation loss, net change clamped to [0, max] with overflow discarded (never banked). Locks the planet row FOR UPDATE. */
 export async function settlePlanetColonistGrowth(
     planetId: number,
     db: Queryable = pool,
@@ -746,10 +698,6 @@ export async function settlePlanetColonistGrowth(
     return { changed };
 }
 
-/** IDs of every planet that currently has any colonists assigned to a
- *  commodity. The hourly job iterates these and calls settle per-planet —
- *  planets with all-zero colos can't produce anything so they're skipped
- *  at the list level instead of being locked for nothing. */
 export async function listPlanetIdsWithColonists(db: Queryable = pool): Promise<number[]> {
     const res = await db.query<{ id: number }>(
         `SELECT id FROM planets
@@ -760,9 +708,6 @@ export async function listPlanetIdsWithColonists(db: Queryable = pool): Promise<
     return res.rows.map((r) => r.id);
 }
 
-/** Planet base row — null if the planet has neither an active base nor an
- *  in-progress construction. Lazily promotes the level when a construction's
- *  completes_at has passed, so callers always see a fresh picture. */
 export type PlanetBaseRow = {
     level: number;
     treasury: number;
@@ -772,11 +717,7 @@ export type PlanetBaseRow = {
     construction_completes_at: Date | null;
 };
 
-/** Read a planet's base row, first completing any construction whose
- *  completion time has passed (level := target, construction fields
- *  cleared). Returns null if the planet has no base row. The hourly job
- *  also completes due constructions in bulk (`promoteDuePlanetBases`);
- *  settling here too keeps interactive reads exact between ticks. */
+/** Side effect: completes any due construction (level := target, construction fields cleared) before reading. */
 export async function getPlanetBase(
     planetId: number,
     db: Queryable = pool,
@@ -806,8 +747,7 @@ export async function getPlanetBase(
     return res.rows[0] ?? null;
 }
 
-/** Hourly job: complete every due base construction across all planets.
- *  Returns the number of bases levelled up. */
+/** Returns the count of bases levelled up. */
 export async function promoteDuePlanetBases(db: Queryable = pool): Promise<number> {
     const res = await db.query<{ planet_id: number }>(
         `UPDATE planet_bases
@@ -823,8 +763,6 @@ export async function promoteDuePlanetBases(db: Queryable = pool): Promise<numbe
     return res.rows.length;
 }
 
-/** Lock and read the treasury balance + level for a planet base. Returns null
- *  if the planet has no base row at all. */
 export async function getPlanetBaseTreasuryForUpdate(
     planetId: number,
     db: Queryable = pool,
@@ -848,7 +786,6 @@ export async function adjustPlanetBaseTreasury(
     ]);
 }
 
-/** Lock and read base level + transporter range + treasury. Returns null if no base row. */
 export async function getPlanetBaseTransporterForUpdate(
     planetId: number,
     db: Queryable = pool,
@@ -872,8 +809,6 @@ export async function setPlanetBaseTransporterRange(
     ]);
 }
 
-/** Lock + read the planet's fuel stockpile. Used by bwarp beam (planet pays
- *  for the jump, not the ship). */
 export async function getPlanetFuelForUpdate(
     planetId: number,
     db: Queryable = pool,
@@ -885,8 +820,7 @@ export async function getPlanetFuelForUpdate(
     return res.rows[0]?.fuel;
 }
 
-/** Fails (returns false) if a row already
- *  exists for this planet (caller must check first). */
+/** Throws if the planet already has a base row (planet_id is the PK) — caller must check first. */
 export async function insertPlanetBaseConstruction(
     planetId: number,
     targetLevel: number,
@@ -917,7 +851,6 @@ export async function getPlanetTotalColonists(
     return res.rows[0]?.total ?? 0;
 }
 
-/** Planet's class letter + base requirements (read from universe_planet_types). */
 export type PlanetClassInfo = {
     class: string;
     base_requirements: unknown[];
@@ -940,8 +873,6 @@ export async function getPlanetClassInfo(
     return res.rows[0] ?? null;
 }
 
-/** Planet's current commodity stockpile (fuel/org/equ). Locked for update so
- *  base construction can atomically drain it. */
 export async function getPlanetCommodityStockForUpdate(
     planetId: number,
     db: Queryable = pool,
@@ -971,8 +902,6 @@ export async function getPlanetFuel(planetId: number, db: Queryable = pool): Pro
     return res.rows[0]?.fuel ?? 0;
 }
 
-/** All planet-type rows for a universe, for the admin/catalog API. */
-/** Planet-type spec row, for the planet catalog (Computer → Planet specs). */
 export type PlanetCatalogRow = {
     slug: string;
     display_name: string | null;
@@ -995,7 +924,6 @@ export type PlanetCatalogRow = {
     fig_factor_equ: number;
 };
 
-/** Every planet type in a universe, ordered by slug. */
 export async function listUniversePlanetTypes(
     universeId: number,
     db: Queryable = pool,

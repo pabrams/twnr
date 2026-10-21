@@ -11,7 +11,6 @@ export type SectorMineRow = {
     owner_clan_id: number | null;
 };
 
-/** Fetch the mine row for a sector + type, locked for update (caller in tx). */
 export async function getSectorMineForUpdate(
     sectorDbId: number,
     mineType: MineType,
@@ -27,7 +26,6 @@ export async function getSectorMineForUpdate(
     return res.rows[0];
 }
 
-/** Fetch the mine row for a sector. */
 export async function getSectorMine(
     sectorDbId: number,
     mineType: MineType,
@@ -48,8 +46,6 @@ export type SectorMineDisplayRow = SectorMineRow & {
     owner_clan_number: number | null;
 };
 
-/** Fetch every mine row in a sector (both types) with owner JOIN cols for
- *  display. Read-only. */
 export async function getSectorMines(
     sectorDbId: number,
     db: Queryable = pool,
@@ -69,13 +65,8 @@ export async function getSectorMines(
     return res.rows;
 }
 
-/** Insert or add to existing mine count. Exactly one of `ownerPlayerId` /
- *  `ownerClanId` must be non-null. On conflict, the deploying player's
- *  ownership wins — caller is expected to have verified that any
- *  pre-existing row in this (sector, type) is friendly (personal-mine
- *  deployer is the owner, or clan-mine deployer's clan is the owner),
- *  which makes an ownership flip from personal→clan (or vice versa) a
- *  valid redesignation, not a hostile takeover. */
+/** On conflict ownership flips to the deployer — caller must have verified the
+ *  existing stack is friendly, making the flip a redesignation, not a takeover. */
 export async function upsertSectorMines(
     sectorDbId: number,
     mineType: MineType,
@@ -96,10 +87,7 @@ export async function upsertSectorMines(
     );
 }
 
-/** Set the mine row to an exact quantity + ownership (insert if absent,
- *  delete if quantity <= 0). Used by `serveDeployMine` after computing
- *  the target total. Exactly one of `ownerPlayerId` / `ownerClanId` must
- *  be non-null when quantity > 0. */
+/** Exactly one of ownerPlayerId/ownerClanId must be non-null when quantity > 0. */
 export async function setSectorMineTo(
     sectorDbId: number,
     mineType: MineType,
@@ -159,7 +147,6 @@ export type DeployedMineByOwnerRow = {
     owner_clan_number: number | null;
 };
 
-/** All mine deployments accessible to playerId (player's and clan's). */
 export async function getDeployedMinesByOwner(
     playerId: number,
     db: Queryable = pool,
@@ -188,7 +175,7 @@ export type SeekerAttachmentTargetRow = {
     target_ship_type_name: string;
     target_player_name: string | null;
     sector_number: number;
-    /** Limpet's ownership — for OwnerJoinCols / ownershipFrom. */
+    /** The seeker's owner, not the target ship's. */
     owner_player_id: number | null;
     owner_clan_id: number | null;
     owner_player_name: string | null;
@@ -196,8 +183,6 @@ export type SeekerAttachmentTargetRow = {
     owner_clan_number: number | null;
 };
 
-/** Seeker mines attached to other ships that belong to the given player or their clan.
- */
 export async function getSeekerAttachmentsByOwner(
     ownerPlayerId: number,
     db: Queryable = pool,
@@ -233,7 +218,6 @@ export type SeekerAttachmentRow = {
     owner_clan_id: number | null;
 };
 
-/** Find any existing seeker attachment for a ship (for drop-off logic). */
 export async function getSeekerAttachmentForUpdate(
     shipId: number,
     db: Queryable = pool,
@@ -248,9 +232,7 @@ export async function getSeekerAttachmentForUpdate(
     return res.rows[0];
 }
 
-/** Insert or replace the seeker attachment on a ship. Exactly one of
- *  `ownerPlayerId` / `ownerClanId` must be non-null (XOR enforced by the
- *  table's check constraint). */
+/** Exactly one of ownerPlayerId/ownerClanId must be non-null (table check constraint). */
 export async function upsertSeekerAttachment(
     shipId: number,
     ownerPlayerId: number | null,
@@ -302,7 +284,6 @@ export async function getMineUniverseSettings(
     );
 }
 
-/** Owners + quantities of all live mine stacks in a sector. */
 export async function getSectorMineOwners(
     sectorDbId: number,
     db: Queryable = pool,

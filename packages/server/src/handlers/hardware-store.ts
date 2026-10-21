@@ -16,10 +16,6 @@ import {
 } from '../db/queries/hardware.js';
 import { recordCreditChange } from '../services/audit.js';
 
-/**
- * Pre-fetch for the hardware store UI: current credits and every hardware item
- * with per-universe price, ship's current quantity, and ship-type maximum.
- */
 export async function serveHardwareStoreInfo(playerId: number): Promise<void> {
     const player = onlinePlayers[playerId];
     if (!player?.at_starbase) {
@@ -45,7 +41,6 @@ export async function serveHardwareStoreInfo(playerId: number): Promise<void> {
     });
 }
 
-/** Unified handler for buying any hardware item. */
 export async function serveBuyHardware(playerId: number, data: BuyHardwareCommand): Promise<void> {
     const { itemName, quantity } = data;
     const player = onlinePlayers[playerId];

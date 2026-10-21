@@ -1,7 +1,3 @@
-/**
- * Multi-line info panels: ship info, players online.
- */
-
 import { makeDomain } from './_domain.js';
 
 export const PANEL = makeDomain('PANEL', {
@@ -9,9 +5,7 @@ export const PANEL = makeDomain('PANEL', {
     playerInfoSector: '{{MSG.playerInfoSector}}',
     shipName: '[mg]Ship Type[/mg]          [by]:[/by] [bc]{name}[/bc]',
     shipClan: '[mg]Clan[/mg]               [by]:[/by] [bc]#{num}[/bc] [bc]{name}[/bc]',
-    // X / Y values are right-padded into a fixed column so digit-length
-    // variation doesn't desync the layout. `{cur}` and `{max}` arrive
-    // pre-padded by ship-exchange.ts to widths of CUR_W and MAX_W.
+    // The X / Y values arrive pre-padded by ship-exchange.ts so columns align across rows.
     shipDronesShields:
         '[mg]Drones[/mg]             [by]:[/by] [bc]{drones}[/bc] [g]/[/g] [c]{maxDrones}[/c]\r\n' +
         '[mg]Shields[/mg]            [by]:[/by] [bc]{shields}[/bc] [g]/[/g] [c]{maxShields}[/c]',

@@ -10,7 +10,6 @@ const COMMODITY_COLUMN: Record<'fuel' | 'organics' | 'equipment', string> = {
 };
 export type Commodity = keyof typeof COMMODITY_COLUMN;
 
-/** Fetch the port class at a given sector, or undefined if no port there. */
 export async function getPortClassAtSector(
     sectorNumber: number,
     universeId: number,
@@ -24,9 +23,7 @@ export async function getPortClassAtSector(
     return res.rows[0]?.class;
 }
 
-/** Full port row keyed by sector number (returns undefined if no port).
- *  Prices are not stored — callers compute via shared/port-pricing.ts using
- *  current quantity, max, and MCIC. */
+/** Prices are not stored — compute via shared/port-pricing.ts from quantity, max, and MCIC. */
 export type PortFullRow = {
     sector_id: number;
     name: string;
@@ -58,7 +55,6 @@ export async function getPortAtSector(
     return res.rows[0];
 }
 
-/** Current tradable quantities at a port (fuel/organics/equipment only). */
 export type PortInventoryRow = {
     fuel: number;
     organics: number;
@@ -77,8 +73,6 @@ export async function getPortInventoryAtSector(
     return res.rows[0];
 }
 
-/** Port id + class + inventory + MCIC + max, locked for trade execution.
- *  Price is computed at trade time from these fields. */
 export type PortTradeRow = {
     port_id: number;
     class: number;
@@ -109,11 +103,7 @@ export async function getPortTradeInfoForUpdate(
     return res.rows[0];
 }
 
-/** Adjust a port's physical stock for a commodity by `delta` (signed).
- *  Buy from a selling port → delta = -qty (port loses stock). Sell to a
- *  buying port → delta = +qty (port accumulates stock that will regen back
- *  toward 0). Caller is responsible for ensuring the result stays within
- *  [0, max]; the trade handler prechecks both directions. */
+/** Signed delta; caller must keep the result within [0, max]. */
 export async function adjustPortCommodity(
     portId: number,
     commodity: Commodity,
@@ -124,7 +114,6 @@ export async function adjustPortCommodity(
     await db.query(`UPDATE ports SET ${col} = ${col} + $1 WHERE id = $2`, [delta, portId]);
 }
 
-/** Generate-time port insert (uses bigbang-derived max + productivity + MCIC). */
 export async function insertGeneratedPort(
     sectorId: number,
     portClass: number,
@@ -170,7 +159,6 @@ export async function insertGeneratedPort(
     );
 }
 
-/** Upsert a "special" port (class 0 or 9) at a sector with zeroed quantities. */
 export async function upsertSpecialPort(
     sectorId: number,
     portClass: 0 | 9,
@@ -192,10 +180,7 @@ export async function upsertSpecialPort(
     );
 }
 
-/** Insert a fresh player-built port at completion of construction. Owner
- *  may be a single player or a clan (XOR). Stock follows the physical-stock
- *  model: S-action commodities spawn full, B-action spawn at 0. MCIC values
- *  are caller-supplied (typically `playerBuiltMcicFor`). */
+/** Exactly one of owner.playerId/clanId must be non-null (table check constraint). */
 export async function insertPlayerBuiltPort(
     sectorDbId: number,
     portClass: number,
@@ -249,9 +234,7 @@ export async function insertPlayerBuiltPort(
     );
 }
 
-/** Apply an upgrade to an existing port: `prod += units`, `max += units*10`,
- *  `stock += units*10`. Atomic. Single SQL statement so the trade tx can rely
- *  on FOR UPDATE locking elsewhere. */
+/** Must stay a single statement so it is atomic under the trade transaction's FOR UPDATE. */
 export async function applyPortUpgrade(
     portId: number,
     commodity: Commodity,
@@ -271,7 +254,6 @@ export async function applyPortUpgrade(
     );
 }
 
-/** Construction row + builder/owner info needed by the hourly advance job. */
 export type PortConstructionRow = {
     sector_id: number;
     sector_number: number;
@@ -287,8 +269,7 @@ export type PortConstructionRow = {
     last_advance_attempt_at: Date;
 };
 
-/** Insert a construction row. Caller has already verified credits, planet
- *  presence, and that no port/construction exists in the sector. */
+/** Precondition: caller has verified credits, planet presence, and no existing port/construction. */
 export async function insertPortConstruction(
     sectorDbId: number,
     data: {
@@ -317,8 +298,6 @@ export async function insertPortConstruction(
     );
 }
 
-/** Construction row at a sector (by sector number + universe). Locked
- *  FOR UPDATE so trade/build handlers can serialize against it. */
 export async function getPortConstructionAtSectorForUpdate(
     sectorNumber: number,
     universeId: number,
@@ -338,8 +317,6 @@ export async function getPortConstructionAtSectorForUpdate(
     return res.rows[0];
 }
 
-/** Find all constructions whose next 24h advance window has elapsed. The
- *  hourly job iterates these and attempts an advance for each. */
 export async function listConstructionsDueForAdvance(
     db: Queryable = pool,
 ): Promise<PortConstructionRow[]> {
@@ -355,9 +332,7 @@ export async function listConstructionsDueForAdvance(
     return res.rows;
 }
 
-/** Mark an advance attempt against a construction. `progressed` indicates
- *  whether the day actually advanced (commodities were drained). The
- *  attempt timestamp moves either way so the next try waits another 24h. */
+/** The attempt timestamp advances even when progressed=false, so the next try waits another 24h. */
 export async function recordConstructionAdvanceAttempt(
     sectorDbId: number,
     progressed: boolean,
@@ -378,7 +353,6 @@ export async function recordConstructionAdvanceAttempt(
     }
 }
 
-/** Drop a construction row. Called after promotion to an actual ports row. */
 export async function deletePortConstruction(
     sectorDbId: number,
     db: Queryable = pool,
@@ -386,7 +360,6 @@ export async function deletePortConstruction(
     await db.query(`DELETE FROM port_construction WHERE sector_id = $1`, [sectorDbId]);
 }
 
-/** Count ports in a universe (joined through sectors). */
 export async function countPortsInUniverse(
     universeId: number,
     db: Queryable = pool,
@@ -400,7 +373,6 @@ export async function countPortsInUniverse(
     return res.rows[0]?.count ?? 0;
 }
 
-/** Lightweight port descriptor for sector display (class only). */
 export async function getPortForSectorDisplay(
     sectorNumber: number,
     universeId: number,
@@ -415,7 +387,6 @@ export async function getPortForSectorDisplay(
     return res.rows[0] ?? null;
 }
 
-/** Construction descriptor for sector display (name, class, days remaining). */
 export async function getPortConstructionForSectorDisplay(
     sectorNumber: number,
     universeId: number,
@@ -443,8 +414,6 @@ export async function getPortConstructionForSectorDisplay(
     };
 }
 
-/** IDs of every trading port (classes 1-8). Class 0/9 ports have zero
- *  productivity so the hourly job skips them at the list level. */
 export async function listProducingPortIds(db: Queryable = pool): Promise<number[]> {
     const res = await db.query<{ id: number }>(
         `SELECT id FROM ports
@@ -454,15 +423,7 @@ export async function listProducingPortIds(db: Queryable = pool): Promise<number
     return res.rows.map((r) => r.id);
 }
 
-/** Direction-aware fractional-accumulator regen, mirroring
- *  `settlePlanetProduction`. Per commodity:
- *    - Selling port (S-action): stock += prod * elapsed_hours, clamped to max.
- *    - Buying port (B-action):  stock -= prod * elapsed_hours, floored at 0.
- *      The port "consumes" or "resells" what it accumulated by buying, so
- *      its trading % climbs back toward 100% (= empty / ready to buy).
- *  Fractional remainder rolls into *_prod_accrual so trade handlers can run
- *  alongside this without losing sub-unit fractions. Stamps
- *  last_production_at every call. */
+/** Fractional-accumulator regen: a selling (S) commodity climbs toward max; a buying (B) one drains toward 0, which means ready-to-buy. Remainders roll into *_prod_accrual; stamps last_production_at. */
 const ONE_HOUR_MS = 60 * 60 * 1000;
 export async function settlePortProduction(
     portId: number,
@@ -548,7 +509,6 @@ export async function settlePortProduction(
     return { produced };
 }
 
-/** All hardware items with universe-specific price override (or item default). */
 export async function getHardwarePricesForUniverse(
     universeId: number,
     db: Queryable = pool,

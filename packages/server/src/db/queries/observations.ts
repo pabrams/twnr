@@ -4,15 +4,9 @@ import type { Queryable } from '../types.js';
 export type RecordedPort = { class: number } | null;
 export type RecordedPlanet = { name: string; type: string | null };
 
-/**
- * Upsert the player-visited-sector row and re-write the snapshot of the
- * sector's port and planets. Called whenever the server sends the sector's
- * contents to the player. Port/planet observation rows are snapshots that
- * persist through later destruction of the live records until re-visit.
- *
- * Uses ON CONFLICT / set-difference queries instead of delete-then-insert so
- * concurrent calls for the same (player, sector) don't collide.
- */
+/** Observation rows are snapshots that survive destruction of the live records
+ *  until re-visit. Upsert + set-difference (not delete-then-insert) so concurrent
+ *  calls for the same (player, sector) don't collide. */
 export async function recordSectorObservation(
     playerId: number,
     sectorId: number,
@@ -43,8 +37,6 @@ export async function recordSectorObservation(
         );
     }
 
-    // Planets: upsert the current set, then delete any observations for this
-    // (player, sector) that weren't in the current set.
     const planetNames = planets.map((p) => p.name);
     for (const pl of planets) {
         await db.query(
@@ -80,10 +72,6 @@ export type NeighborhoodSectorRow = {
     port_observed_at: Date | null;
 };
 
-/**
- * Return every sector the player has visited in the universe, with its observed
- * port (if any). Used as the seed set for neighborhood visibility.
- */
 export async function listVisitedSectorsForUniverse(
     playerId: number,
     universeId: number,
@@ -132,7 +120,6 @@ export type SectorObservationRow = {
     friendly_seeker_mines: boolean;
 };
 
-/** Upsert a player's drone/mine observation flags for one sector. */
 export async function upsertSectorObservation(
     playerId: number,
     sectorDbId: number,

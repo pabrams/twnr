@@ -16,16 +16,7 @@ import { cleanupExpiredGuests } from './guest-cleanup.js';
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
 
-/**
- * Hourly turn grant: every player in a universe with turns_per_day > 0
- * gets `floor(elapsed_hours * turns_per_day / 24)` turns added since
- * their last grant, capped at the universe's max_turns. Skips players
- * who haven't had a full hour elapse — the standalone
- * `scripts/grant-turns.js` follows the same rule, and tests assert
- * idempotency.
- *
- * Returns the number of player rows updated.
- */
+/** Grant rule must stay in sync with packages/server/scripts/grant-turns.js; tests assert idempotency. */
 export async function runGrantTurns(): Promise<number> {
     const result = await withTransaction(async (client) => {
         const universes = await listTurnEnabledUniverses(client);
@@ -48,12 +39,6 @@ export async function runGrantTurns(): Promise<number> {
     return result ?? 0;
 }
 
-/**
- * Hourly planet production: settles every planet that has any colonists
- * assigned. The same per-planet `settlePlanetProduction` helper is invoked
- * by take/leave-colonists handlers so a colos change inside the hour
- * doesn't get billed against the wrong segment.
- */
 export async function runProduceCommodities(): Promise<number> {
     const result = await withTransaction(async (client) => {
         const ids = await listPlanetIdsWithColonists(client);
@@ -67,15 +52,7 @@ export async function runProduceCommodities(): Promise<number> {
     return result ?? 0;
 }
 
-/**
- * Daily colonist growth: settles births (universe rate) and deaths
- * (planet-type `danger`) on every planet that has colonists assigned.
- * The scheduler fires every hour, but settle only stamps when at least
- * one whole birth or death accrued — so a planet ticks naturally on its
- * own daily cadence regardless of how often this runs. Take/leave-
- * colonists handlers call the same helper with `force=true` to close
- * the current segment before mutating colos.
- */
+/** Runs hourly but the mechanic is daily: settle only stamps when a whole birth/death accrued, so run frequency doesn't matter. */
 export async function runColonistGrowth(): Promise<number> {
     const result = await withTransaction(async (client) => {
         const ids = await listPlanetIdsWithColonists(client);
@@ -89,12 +66,6 @@ export async function runColonistGrowth(): Promise<number> {
     return result ?? 0;
 }
 
-/**
- * Hourly port regen: per port, accrue `*_prod * elapsed_hours` into each
- * commodity's trading capacity (clamped to `*_max`). Mirrors the
- * fractional-accumulator pattern used by planet production so the trade
- * handler can call `settlePortProduction` mid-hour without losing fractions.
- */
 export async function runRegeneratePorts(): Promise<number> {
     const result = await withTransaction(async (client) => {
         const ids = await listProducingPortIds(client);
@@ -108,11 +79,6 @@ export async function runRegeneratePorts(): Promise<number> {
     return result ?? 0;
 }
 
-/**
- * Single iteration of the hourly job loop. Add new tasks here as they
- * land. Errors from any one task are logged but don't crash the
- * scheduler.
- */
 export async function runHourlyJobs(): Promise<void> {
     try {
         const granted = await runGrantTurns();
@@ -160,11 +126,7 @@ export async function runHourlyJobs(): Promise<void> {
 
 let intervalHandle: NodeJS.Timeout | null = null;
 
-/**
- * Start the in-process hourly scheduler. Runs once on boot so any
- * accumulated turns from server downtime are applied immediately, then
- * fires every hour. Idempotent — extra calls are ignored.
- */
+/** Runs once immediately so turns accumulated during server downtime apply on boot. */
 export function startHourlyScheduler(): void {
     if (intervalHandle) return;
     void runHourlyJobs();

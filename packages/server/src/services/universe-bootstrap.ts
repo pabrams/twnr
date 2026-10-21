@@ -12,13 +12,6 @@ import { insertGeneratedPort, upsertSpecialPort } from '../db/queries/port.js';
 import { insertUnownedPlanet, setEarthColonists } from '../db/queries/planet.js';
 import { invalidateGraphCache } from '../state/graph-cache.js';
 
-/**
- * Generate a universe from defaults and persist all the rows (sectors, warps,
- * ports, Earth, starbase). Used by the admin "generate" endpoint and also by
- * the guest endpoint when no universe exists yet.
- *
- * Returns the new universe id. Defaults are tuned for a quick demo.
- */
 export async function bootstrapUniverse(name: string): Promise<number> {
     const result = generateUniverse(defaultBigBangOptions({ sectors: universeConfig.sectorCount }));
 

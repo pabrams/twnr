@@ -3,10 +3,7 @@ import { getSectorDroneOwners } from '../db/queries/drones.js';
 import { getSectorMineOwners } from '../db/queries/mines.js';
 import { upsertSectorObservation, listSectorObservationRows } from '../db/queries/observations.js';
 
-/**
- * Per-player snapshot of what's in a sector — what the player has *seen*,
- * not what's currently there.
- */
+/** What the player has seen in a sector — not what's currently there. */
 export type SectorObservationFlags = {
     friendlyDrones: boolean;
     enemyDrones: boolean;
@@ -15,7 +12,6 @@ export type SectorObservationFlags = {
     friendlySeekerMines: boolean;
 };
 
-/** Build the flag set for a sector from live state, from this player's POV. */
 export async function snapshotSectorForPlayer(
     playerId: number,
     sectorId: number,
@@ -56,7 +52,6 @@ export async function snapshotSectorForPlayer(
     };
 }
 
-/** Upsert the player's observation row with the given flags. */
 export async function writeSectorObservation(
     playerId: number,
     sectorId: number,
@@ -71,14 +66,11 @@ export async function writeSectorObservation(
     });
 }
 
-/** Snapshot + write. Use this from sector-entry / deploy / destruction sites. */
 export async function refreshSectorObservation(playerId: number, sectorId: number): Promise<void> {
     const flags = await snapshotSectorForPlayer(playerId, sectorId);
     await writeSectorObservation(playerId, sectorId, flags);
 }
 
-/** Bulk-load observations for a list of sectors (used by the neighborhood
- *  query so a single round trip covers the whole viewport). */
 export async function listSectorObservations(
     playerId: number,
     sectorIds: number[],

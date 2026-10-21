@@ -19,9 +19,6 @@ export function getPlayerUniverseId(playerId: number): number | undefined {
     return onlinePlayers[playerId]?.universeId;
 }
 
-/**
- * Visible-in-sector predicate. Hidden if on a planet, or online-and-docked.
- */
 export function isVisibleInSector(
     playerId: number,
     docked: boolean,

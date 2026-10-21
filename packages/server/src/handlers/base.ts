@@ -91,7 +91,6 @@ export async function serveBaseInfo(playerId: number): Promise<void> {
         return;
     }
 
-    // No base + not constructing → return level-1 requirements + current stock.
     const classInfo = await getPlanetClassInfo(onPlanetId);
     if (!classInfo) {
         sendEnvelope(playerId, {
@@ -155,7 +154,6 @@ export async function serveBuildBase(playerId: number): Promise<void> {
         playerId,
         'Build base',
         async (client) => {
-            // Refuse if a base or in-progress construction already exists.
             const existing = await getPlanetBase(onPlanetId, client);
             if (existing) {
                 sendEnvelope(playerId, {
@@ -207,7 +205,7 @@ export async function serveBuildBase(playerId: number): Promise<void> {
                 throw new AbortTransaction();
             }
 
-            // Drain commodity stocks (colos stay untouched).
+            // Colonists are required but not consumed.
             await updatePlanetCommodity(onPlanetId, 'fuel', -level1.fuel, client);
             await updatePlanetCommodity(onPlanetId, 'organics', -level1.org, client);
             await updatePlanetCommodity(onPlanetId, 'equipment', -level1.equ, client);
@@ -217,7 +215,6 @@ export async function serveBuildBase(playerId: number): Promise<void> {
             return { targetLevel: 1, daysRequired: level1.days };
         },
         async (result) => {
-            // Fetch completion time for the reply.
             const base = await getPlanetBase(onPlanetId);
             sendEnvelope(playerId, {
                 type: ServerTag.BuildBaseResult,
@@ -337,7 +334,6 @@ export async function serveTreasuryTransfer(
                 await adjustPlanetBaseTreasury(onPlanetId, amount, client);
                 return { credits: credits - amount, treasury: base.treasury + amount };
             }
-            // direction === 'from'
             if (base.treasury < amount) {
                 sendEnvelope(playerId, {
                     type: ServerTag.TreasuryTransferResult,

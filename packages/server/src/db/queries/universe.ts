@@ -2,7 +2,6 @@ import { universeConfig } from '@twnr/shared';
 import { pool } from '../index.js';
 import type { Queryable } from '../types.js';
 
-/** Create a new universe row. Returns the id + canonical name. */
 export async function createUniverse(
     name: string,
     db: Queryable = pool,
@@ -14,7 +13,6 @@ export async function createUniverse(
     return res.rows[0];
 }
 
-/** All universes + (if present) the user's player in each. */
 export type UserUniverseRow = {
     id: number;
     name: string;
@@ -36,19 +34,16 @@ export async function listUniversesForUser(
     return res.rows;
 }
 
-/** Does a universe with the given id exist? */
 export async function universeExists(universeId: number, db: Queryable = pool): Promise<boolean> {
     const res = await db.query('SELECT id FROM universes WHERE id = $1', [universeId]);
     return res.rows.length > 0;
 }
 
-/** Lowest-id universe (the "first" one). null if none exist. */
 export async function getFirstUniverseId(db: Queryable = pool): Promise<number | null> {
     const res = await db.query<{ id: number }>('SELECT id FROM universes ORDER BY id ASC LIMIT 1');
     return res.rows[0]?.id ?? null;
 }
 
-/** Basic universe metadata for a stats display. */
 export type UniverseBasicInfoRow = {
     id: number;
     name: string;
@@ -66,7 +61,6 @@ export async function getUniverseBasicInfo(
     return res.rows[0];
 }
 
-/** Create a universe at generation time (with seed + content template). Returns id. */
 export async function insertUniverseFull(
     name: string,
     seed: number,
@@ -81,7 +75,6 @@ export async function insertUniverseFull(
     return res.rows[0].id;
 }
 
-/** Fetch a universe's topology (defaults to 'random' for legacy rows). */
 export async function getUniverseTopology(
     universeId: number,
     db: Queryable = pool,
@@ -94,7 +87,6 @@ export async function getUniverseTopology(
     return t === 'proximal' ? 'proximal' : 'random';
 }
 
-/** Rename an existing universe; returns undefined if not found. */
 export async function renameUniverse(
     universeId: number,
     name: string,
@@ -112,7 +104,6 @@ export async function deleteUniverse(universeId: number, db: Queryable = pool): 
     await db.query('DELETE FROM universes WHERE id = $1', [universeId]);
 }
 
-/** Look up a universe template by name; returns id (or null if not found). */
 export async function getTemplateIdByName(
     name: string,
     db: Queryable = pool,
@@ -123,12 +114,7 @@ export async function getTemplateIdByName(
     return res.rows[0]?.id ?? null;
 }
 
-/**
- * Snapshot the given template's column values into universe_settings for the
- * specified universe. Run exactly once at universe creation; the resulting
- * row is the universe's frozen settings and is never mutated by subsequent
- * template edits.
- */
+/** Run once at universe creation; the snapshot is frozen — later template edits never propagate. */
 export async function snapshotTemplateForUniverse(
     universeId: number,
     templateName: string,
@@ -176,7 +162,6 @@ export async function snapshotTemplateForUniverse(
         [universeId, templateName],
     );
 
-    // Freeze hardware prices.
     await db.query(
         `INSERT INTO universe_hardware_price (universe_id, hardware_item_id, price)
          SELECT $1, hp.hardware_item_id, hp.price
@@ -187,7 +172,6 @@ export async function snapshotTemplateForUniverse(
         [universeId, templateName],
     );
 
-    // Freeze ship types.
     await db.query(
         `INSERT INTO universe_ship_types (
             universe_id, slug, display_name, make, sort_order,
@@ -216,7 +200,6 @@ export async function snapshotTemplateForUniverse(
         [universeId, templateName],
     );
 
-    // Freeze per-ship hardware caps.
     await db.query(
         `INSERT INTO universe_ship_type_hardware (universe_id, ship_type_slug, hardware_item_id, max_quantity)
          SELECT $1, tsh.ship_type_slug, tsh.hardware_item_id, tsh.max_quantity
@@ -227,7 +210,6 @@ export async function snapshotTemplateForUniverse(
         [universeId, templateName],
     );
 
-    // Freeze planet types.
     await db.query(
         `INSERT INTO universe_planet_types (
             universe_id, slug, display_name, description,
@@ -251,7 +233,6 @@ export async function snapshotTemplateForUniverse(
     );
 }
 
-/** Earth starting colonists for a universe (falls back to 1,000,000 if no row). */
 export async function getEarthStartingColonistsForUniverse(
     universeId: number,
     db: Queryable = pool,
@@ -264,7 +245,6 @@ export async function getEarthStartingColonistsForUniverse(
     return res.rows[0]?.col ?? 1_000_000;
 }
 
-/** Stats bundle for the in-game V (Starbase Info) screen. */
 export type UniverseStatsRow = {
     name: string;
     created_at: Date;
@@ -298,10 +278,6 @@ export async function getUniverseStats(
     return res.rows[0];
 }
 
-/**
- * Out-warp degree distribution for a universe: how many sectors have
- * exactly N outgoing warps. Returned as a Map<degree, count>.
- */
 export async function getOutWarpDegreeDistribution(
     universeId: number,
     db: Queryable = pool,
@@ -321,7 +297,6 @@ export async function getOutWarpDegreeDistribution(
     return out;
 }
 
-/** New-player defaults for a universe (falls back to NULL if no settings row). */
 export type UniverseTemplateDefaults = {
     id: number;
     starting_turns: number | null;
@@ -354,7 +329,6 @@ export async function getUniverseStartingCredits(
     return res.rows[0]?.starting_credits ?? 0;
 }
 
-/** Record the resolved bigbang knobs on a freshly created universe. */
 export async function updateUniverseBigbangSettings(
     universeId: number,
     settings: {

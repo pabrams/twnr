@@ -1,15 +1,6 @@
-/**
- * Port haggle session handlers.
- *
- * In-memory session is keyed by playerId — only one haggle in flight per
- * player. The session is replaced if the player opens a new one and cleared
- * on undock / WS disconnect / timeout. The trade only commits on `accept`,
- * so quitting mid-haggle is free (no credits move, no cargo moves).
- *
- * Rejection ("This conversation is terminated!") deducts one turn — same
- * cost as a successful buy under the legacy reference — so spamming
- * aggressive counters has a price.
- */
+// One in-memory haggle session per player; cleared on undock / disconnect /
+// timeout. Trade commits only on accept (quitting is free); rejection costs
+// one turn so spamming aggressive counters has a price.
 
 import {
     ServerTag,
@@ -129,7 +120,6 @@ export async function serveHaggleOpen(playerId: number, data: HaggleOpenCommand)
 
     const col = data.commodity as Commodity;
 
-    // Lock the port + read current state + player xp for the initial price.
     const port = await getPortTradeInfoForUpdate(player.sector, player.universeId);
     if (!port) {
         sendEnvelope(playerId, {
@@ -153,8 +143,6 @@ export async function serveHaggleOpen(playerId: number, data: HaggleOpenCommand)
         return;
     }
 
-    // Quantity must fit the port side: buying caps to current stock, selling
-    // caps to remaining buying capacity (max - stock).
     const stock = port[col];
     const max = port[MAX_COL[col]];
     const mcic = port[MCIC_COL[col]];
@@ -175,8 +163,7 @@ export async function serveHaggleOpen(playerId: number, data: HaggleOpenCommand)
         return;
     }
 
-    // Snapshot xp for the initial unit price (no further xp reads until
-    // accept, so pricing stays stable across rounds).
+    // xp is read once here so pricing stays stable across haggle rounds.
     const player_ = onlinePlayers[playerId];
     if (!player_) return;
     const xp = await getPlayerExperience(playerId);
@@ -258,7 +245,6 @@ export async function serveHaggleCounter(
     });
 
     if (step.outcome === 'reject') {
-        // Conversation terminated → deduct 1 turn, clear session.
         clearHaggleSession(playerId);
         let turnsUsed: number | undefined;
         try {
@@ -301,7 +287,6 @@ export async function serveHaggleCounter(
         return;
     }
 
-    // accept — settle the trade at `step.finalTotal`.
     await settleTrade(playerId, session, step.finalTotal);
 }
 
@@ -331,7 +316,7 @@ async function settleTrade(
         playerId,
         'Haggle settle',
         async (client) => {
-            // Re-fetch current sector / port under lock (avoid stale).
+            // Session state may be stale — re-verify everything under lock.
             const currentSector = await getCurrentSector(playerId, client);
             if (currentSector !== session.sectorNumber) {
                 sendEnvelope(playerId, {
@@ -431,7 +416,6 @@ async function settleTrade(
                 cargo[col] += session.quantity;
                 cargo.credits -= agreedTotal;
             } else {
-                // sell
                 if (cargo[col] < session.quantity) {
                     sendEnvelope(playerId, {
                         type: ServerTag.HaggleResponseResult,

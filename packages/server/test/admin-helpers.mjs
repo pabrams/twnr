@@ -87,7 +87,6 @@ export async function adminKeyPut(path, body) {
   return { status: res.status, body: json };
 }
 
-// BFS connectivity check
 export function isConnected(sectorCount, warps) {
   const adj = new Map();
   for (let i = 1; i <= sectorCount; i++) adj.set(i, []);

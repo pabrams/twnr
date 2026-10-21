@@ -26,8 +26,7 @@ export const shipInfo: Handler<'shipInfoResult', ShipExchangeContext> = (ctx, ms
             render(PANEL.shipClan, { num: msg.clanNumber, name: msg.clanName ?? '' }),
         );
     }
-    // Pad the X side and Y side independently so all "X / Y" pairs line
-    // up vertically across rows.
+    // Pad to a common width so all "X / Y" pairs line up vertically across rows.
     const vals = [
         msg.drones,
         msg.maxDrones,
@@ -65,10 +64,8 @@ export const shipInfo: Handler<'shipInfoResult', ShipExchangeContext> = (ctx, ms
     if (ctx.catalogs.hardware && ctx.catalogs.hardware.length > 0) {
         for (const item of ctx.catalogs.hardware) {
             const max = msg.hardwareMax[item.name];
-            if (max === undefined || max === 0) {
-                // Ship type can't carry this item
-                continue;
-            }
+            // undefined/0 max = ship type can't carry this item
+            if (max === undefined || max === 0) continue;
             const qty = msg.hardware[item.name] ?? 0;
             if (item.kind === 'toggle') {
                 ctx.io.term.writeln(
@@ -111,7 +108,6 @@ function applyBuyShipResult(
             : TRANSACTION.shipPurchased;
     ctx.io.term.writeln(render(tpl, { name: msg.coloredShipName ?? msg.shipName }));
     ctx.io.term.writeln(render(TRANSACTION.shipCreditsLine, { credits: fmt(msg.credits) }));
-    // Refresh class0ShipState
     if (ctx.starbase.class0ShipState) {
         const cfg = ctx.catalogs.ships?.find((s) => s.name === msg.shipName);
         ctx.starbase.class0ShipState = {

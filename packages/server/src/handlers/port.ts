@@ -143,9 +143,7 @@ export async function serveDock(playerId: number): Promise<void> {
     player.docked = true;
     await setDocked(playerId, true);
 
-    // Docking breaks any tow this player is currently a target of. The
-    // towing player keeps their tow when *they* dock — that's symmetric with
-    // moves, where only the towed player's action breaks the beam.
+    // Docking breaks a tow targeting this player; a towing player keeps their tow when they dock.
     let freedFromTow = false;
     const shipId = await getPlayerShipId(playerId);
     if (shipId !== null) {
@@ -300,14 +298,11 @@ export async function servePortTransaction(
                 throw new AbortTransaction();
             }
 
-            // Read xp inside the trade tx so the awarded-on-success xp from a
-            // prior commodity in the same dock visit is reflected in pricing
-            // for subsequent commodities.
+            // Read xp inside the tx so an earlier trade's xp award affects this trade's pricing.
             const xp = await getPlayerExperience(playerId, client);
 
-            // Physical-stock model: `stock` is the port's actual commodity
-            // inventory. Buying ports have available *capacity* = max−stock;
-            // selling ports have available *inventory* = stock.
+            // `stock` is physical inventory: a buying port's capacity is
+            // max−stock, a selling port's inventory is stock.
             const stock = port[col];
             const max = port[MAX_COL[col]];
             const mcic = port[MCIC_COL[col]];
@@ -340,7 +335,6 @@ export async function servePortTransaction(
                     throw new AbortTransaction();
                 }
 
-                // Buying from a selling port: stock decreases.
                 await adjustPortCommodity(port.port_id, col, -qty, client);
                 await incrementShipCommodity(playerId, col, qty, client);
                 await deductCredits(playerId, cost, client);
@@ -375,7 +369,6 @@ export async function servePortTransaction(
                 };
             }
 
-            // sell — port absorbs commodity, its stock grows toward max.
             if (cargo[col] < qty) {
                 sendError(playerId, 'Insufficient cargo');
                 throw new AbortTransaction();

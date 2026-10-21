@@ -8,8 +8,6 @@ export type DisplayPortCtx = Pick<
     'autopilot' | 'catalogs' | 'io' | 'ship' | 'starbase'
 >;
 
-/** Max units of a given item the player can buy right now. Holds use the
- *  cumulative formula `Σ (B + k·I). */
 export function class0MaxBuy(kind: 'drones' | 'shields' | 'holds', ctx: DisplayPortCtx): number {
     const s = ctx.starbase.class0ShipState;
     const p = ctx.catalogs.class0Prices;
@@ -36,11 +34,9 @@ function formatTimestamp(): string {
     return `${time} ${date}`;
 }
 
-/** Class-0 equipment menu. Prices arrive with DockResult (class-0 port) /
- *  DockStarbaseResult (shipyards), so there's nothing to render until one of
- *  those has landed. */
 export function showClass0Menu(ctx: DisplayPortCtx) {
     const p = ctx.catalogs.class0Prices;
+    // absent means not docked yet (prices land with the dock reply) — unreachable here
     if (!p) return;
     const { term } = ctx.io;
     const canBuyHolds = class0MaxBuy('holds', ctx);
@@ -70,11 +66,7 @@ export function showClass0Menu(ctx: DisplayPortCtx) {
     term.write(render(PORT.class0BuyPrompt));
 }
 
-/** Print the "you have N <thing>" preamble line for a class-0 buy and
- * return the corresponding prompt-text string + the max the player can
- * buy. The routine then passes the text to askNumber. (Old version
- * wrote the prompt itself; with askNumber owning the prompt write, we
- * split.) */
+
 export function class0QtyPreamble(
     ctx: DisplayPortCtx,
     buyType: 'drones' | 'shields' | 'holds',

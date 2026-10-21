@@ -2,11 +2,6 @@ import jwt from 'jsonwebtoken';
 import type { AuthTokenPayload } from '@twnr/shared';
 import { JWT_SECRET } from './env.js';
 
-/**
- * Signs a JWT for a player with HS256 and a 7-day expiry.
- * @param payload - The token payload containing player identity and role
- * @returns The signed JWT string
- */
 export function signPlayerToken(payload: AuthTokenPayload): string {
     return jwt.sign(payload, JWT_SECRET, {
         algorithm: 'HS256',
@@ -14,12 +9,7 @@ export function signPlayerToken(payload: AuthTokenPayload): string {
     });
 }
 
-/**
- * Verifies and decodes a JWT, validating its structure and payload fields.
- * @param token - The JWT string to verify
- * @returns The decoded auth payload
- * @throws {Error} If the token is invalid, expired, or has malformed payload
- */
+/** Throws on an invalid, expired, or malformed token. */
 export function verifyToken(token: string): AuthTokenPayload {
     const payload = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
 

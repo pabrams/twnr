@@ -5,11 +5,7 @@ export interface Position {
     y: number;
 }
 
-/**
- * Hex cell axial coordinate. q = column, r = row in flat-top axial layout.
- * Used by graph-proximal.ts to compute hex adjacency without re-deriving from
- * cartesian positions.
- */
+/** Axial coordinate in a flat-top hex layout: q = column, r = row. */
 export interface HexCell {
     q: number;
     r: number;
@@ -22,11 +18,7 @@ export interface HexLayout {
 
 const SQRT3 = Math.sqrt(3);
 
-/**
- * Convert flat-top axial (q, r) to cartesian center coordinates. Spacing is
- * scaled by HEX_SPACING_MULTIPLIER so adjacent pills have visible warp
- * segments between them even with multi-digit sector labels.
- */
+/** Spacing is scaled by HEX_SPACING_MULTIPLIER so adjacent pills leave visible warp segments even with multi-digit labels. */
 export function hexToCartesian(q: number, r: number): Position {
     return {
         x: HEX_CELL_SIZE * HEX_SPACING_MULTIPLIER * 1.5 * q,
@@ -44,31 +36,19 @@ export const HEX_NEIGHBOR_DIRS: ReadonlyArray<HexCell> = [
     { q: 0, r: +1 },
 ];
 
-/** Axial hex distance: `(|Δq| + |Δq+Δr| + |Δr|) / 2`. */
 export function hexDistance(a: HexCell, b: HexCell): number {
     const dq = a.q - b.q;
     const dr = a.r - b.r;
     return (Math.abs(dq) + Math.abs(dq + dr) + Math.abs(dr)) / 2;
 }
 
-/**
- * Remap a hex layout so the given anchor sector IDs land on well-separated
- * cells. The first anchor goes to the most-central cell (closest to the
- * centroid); subsequent anchors are chosen by farthest-first traversal —
- * each one maximises the minimum hex distance to already-chosen anchors.
- *
- * The cells/positions arrays are reindexed so `cells[i-1]` is the cell for
- * sector `i`, with anchor IDs displaced into their chosen cells and the
- * sectors they displaced filling the vacancies.
- */
+/** Reindexes so cells[i-1] stays sector i's cell: the first anchor takes the most-central cell, the rest are placed farthest-first, and displaced sectors fill the vacancies. */
 export function arrangeAnchors(layout: HexLayout, anchorSectorIds: readonly number[]): HexLayout {
     const N = layout.cells.length;
     if (N === 0 || anchorSectorIds.length === 0) return layout;
 
-    // Restrict anchor candidates to interior cells (all 6 hex neighbors
-    // occupied), so each anchor starts Phase 0 with 6 local bidi edges and
-    // hits its forced target of 6 out-degree without needing wormholes.
-    // Fall back to all cells if too few interior cells exist (small N).
+    // Anchors prefer interior cells (all 6 neighbors occupied) so each hits its
+    // forced out-degree of 6 without wormholes; falls back to all cells at small N.
     const cellKey = (q: number, r: number) => `${q},${r}`;
     const occupied = new Set<string>();
     for (const c of layout.cells) occupied.add(cellKey(c.q, c.r));
@@ -92,7 +72,6 @@ export function arrangeAnchors(layout: HexLayout, anchorSectorIds: readonly numb
     const candidates = interiorIdx.length >= anchorSectorIds.length ? interiorIdx : null;
     const candidateSet = candidates ? new Set(candidates) : null;
 
-    // Pick anchor cell indices: centroid-closest, then farthest-first.
     const centroidQ = layout.cells.reduce((s, c) => s + c.q, 0) / N;
     const centroidR = layout.cells.reduce((s, c) => s + c.r, 0) / N;
     const centroidCell: HexCell = { q: centroidQ, r: centroidR };
@@ -130,7 +109,7 @@ export function arrangeAnchors(layout: HexLayout, anchorSectorIds: readonly numb
         chosen[bestIdx] = 1;
     }
 
-    // Build new cell ordering: sector ID `s` reads from cellIdxForSector[s].
+    // cellIdxForSector[s] = index into the old arrays for sector s.
     const cellIdxForSector = new Int32Array(N + 1).fill(-1);
     for (let i = 0; i < anchorCellIndices.length; i++) {
         cellIdxForSector[anchorSectorIds[i]] = anchorCellIndices[i];
@@ -154,9 +133,6 @@ export function arrangeAnchors(layout: HexLayout, anchorSectorIds: readonly numb
     return { cells: newCells, positions: newPositions };
 }
 
-/**
- *
- */
 export function packHexCells(N: number, rng: () => number): HexLayout {
     if (N < 1) return { positions: [], cells: [] };
     const side = Math.max(1, Math.ceil(Math.sqrt(N)));
@@ -166,7 +142,6 @@ export function packHexCells(N: number, rng: () => number): HexLayout {
             allCells.push({ q, r });
         }
     }
-    // Fisher–Yates partial shuffle: pick the first N cells from a permutation.
     for (let i = allCells.length - 1; i > 0; i--) {
         const j = Math.floor(rng() * (i + 1));
         [allCells[i], allCells[j]] = [allCells[j], allCells[i]];

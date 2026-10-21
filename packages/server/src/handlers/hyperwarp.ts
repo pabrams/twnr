@@ -46,14 +46,12 @@ export async function serveHyperspaceJump(
 
     const universeId = player.universeId;
 
-    // Check drones in target sector
     const targetDrones = await getDeployedDronesByOwnerBySector(targetSector, playerId);
     if (targetDrones === 0) {
         sendError(playerId, 'No signal from drones in target sector');
         return;
     }
 
-    // BFS shortest path
     const warps = await getGraph(universeId);
     const currentSector = player.sector;
 

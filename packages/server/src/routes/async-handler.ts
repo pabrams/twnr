@@ -19,12 +19,7 @@ export function parseIntParam(val: unknown, name: string): number {
     return n;
 }
 
-/**
- * Validate `req.body` against a zod schema. Returns the parsed value on
- * success; throws HttpError(400) with the first issue path + message on
- * failure. Keeps the handler body terse and consistent with structured
- * 400s across the API.
- */
+/** Throws HttpError(400) with the first zod issue's path + message. */
 export function parseBody<S extends z.ZodType>(req: Request, schema: S): z.infer<S> {
     const result = schema.safeParse(req.body);
     if (!result.success) {

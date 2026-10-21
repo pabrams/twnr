@@ -58,23 +58,14 @@ export type ConnectOpts = {
 };
 
 /**
- * Open a WS, pipe stdin → server and server → stdout (one JSON frame per line
- * each direction). When stdin is a TTY, runs in REPL mode with a prompt and
- * a clear-line dance so async server frames don't garble the user's input.
- *
- * Two protocol-level workarounds for server lifecycle quirks:
- *
- *  1. Server attaches its `ws.on('message', ...)` only after its async connect
- *     setup completes (auth/DB queries + Welcome send). Frames sent during
- *     that window are dropped because the `ws` library doesn't buffer
- *     received frames for late listeners. We queue stdin lines until the
- *     first server frame arrives, then drain.
- *
- *  2. Server's `sendEnvelope` no-ops when `ws.readyState !== OPEN`, so closing
- *     immediately on stdin EOF races the server's async handler and eats the
- *     reply. After stdin EOF we wait `drainMs` of silence on the WS before
- *     closing; the timer resets on every incoming frame so multi-message
- *     replies fully drain.
+ * Pipe stdin ↔ WS, one JSON frame per line each way (REPL prompt on a TTY).
+ * Two workarounds for server lifecycle quirks:
+ *  - the server attaches its message listener only after async connect setup,
+ *    and `ws` doesn't buffer frames for late listeners, so stdin lines queue
+ *    until the first server frame arrives;
+ *  - the server's sendEnvelope no-ops on a non-OPEN socket, so closing right
+ *    at stdin EOF would eat in-flight replies — instead wait for `drainMs` of
+ *    WS silence, the timer resetting on every incoming frame.
  */
 export async function connect(
     session: Session,
@@ -90,9 +81,8 @@ export async function connect(
     const isTTY = !!process.stdin.isTTY;
     let rl: ReadlineInterface | null = null;
 
-    /** Write text that the user should see, taking care to clear the
-     * current prompt line first (TTY) and re-render the prompt + cursor
-     * after, so async frames don't garble in-progress input. */
+    /** On a TTY, clears the prompt line first and re-renders prompt + input after,
+     *  so async frames don't garble in-progress input. */
     const writeOut = (text: string): void => {
         if (isTTY && rl) {
             process.stdout.write('\r\x1b[K');
@@ -189,9 +179,7 @@ export async function connect(
                 if (ws.readyState !== WebSocket.OPEN) return;
                 if (opts.debug) process.stderr.write(`[send] ${trimmed}\n`);
                 ws.send(trimmed);
-                // No prompt here: the server's response will fire writeOut
-                // which redraws the prompt. Showing it now would just paint
-                // it twice with the response landing in between.
+                // No prompt here — the response's writeOut redraws it.
             });
             rl.on('close', () => {
                 if (opts.debug) process.stderr.write(`[stdin EOF; draining ${drainMs}ms]\n`);

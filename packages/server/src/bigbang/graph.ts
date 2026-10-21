@@ -10,7 +10,6 @@ export function generateGraph(
     const MAX_OUT = 6;
     const MAX_IN = 6;
 
-    // Assign target out-degrees from distribution
     const targetOut = new Int32Array(N + 1);
     const cumDist = new Float64Array(MAX_OUT + 1);
     let pctSum = 0;
@@ -29,8 +28,6 @@ export function generateGraph(
         if (targetOut[i] === 0) targetOut[i] = MAX_OUT;
     }
 
-    // Hard-override landmark sectors (e.g. Federation HQ + Starbase) so they
-    // always emit MAX_OUT warps regardless of the configured distribution.
     for (const sid of forcedMaxOutSectors) {
         if (sid >= 1 && sid <= N) targetOut[sid] = MAX_OUT;
     }
@@ -56,8 +53,8 @@ export function generateGraph(
         }
     }
 
-    // Find biPairsTarget that gives pct within TOLERANCE of T. Small graphs need
-    // slack because integer bp values can't hit arbitrary percentages cleanly.
+    // Small graphs need TOLERANCE slack: integer bi-pair counts can't hit
+    // arbitrary percentages cleanly.
     const TOLERANCE = 5.0;
     function findBiPairs(total: number): number {
         const base = Math.round((total * T) / 200);
@@ -81,10 +78,9 @@ export function generateGraph(
         biPairsTarget = findBiPairs(totalEdges);
     }
 
-    // Budget feasibility: Phase B can make at most (N - degree1count) bi pairs
-    // costing 1 unit each; fill phase costs 2 per expensive bi pair.
-    // When tight, bump lowest-degree nodes to increase budget.
-    // Skip for T >= 99 — the earlier T>=99 bump already ensures feasibility.
+    // Budget feasibility: Phase B yields at most (N - degree1count) 1-unit bi
+    // pairs; the fill phase pays 2 per bi pair. Bump lowest-degree nodes when
+    // tight. T >= 99 is already feasible from the earlier bump.
     if (T < 99) {
         const minMargin = Math.max(5, Math.ceil(N * 0.02));
 
@@ -96,7 +92,6 @@ export function generateGraph(
             return Math.floor((remaining + maxPhaseB) / 2) - biPairsTarget;
         }
 
-        // Bump degree-1 nodes first, then degree-2, etc.
         for (let targetDeg = 1; targetDeg < MAX_OUT && getMargin() < minMargin; targetDeg++) {
             for (let i = 1; i <= N && getMargin() < minMargin; i++) {
                 if (targetOut[i] === targetDeg) {
@@ -107,9 +102,8 @@ export function generateGraph(
                 }
             }
         }
-    } // end T < 99 budget check
+    }
 
-    // Retry loop
     for (let attempt = 0; ; attempt++) {
         if (attempt > 2000) {
             throw new Error('Failed to generate graph after 2000 attempts.');
@@ -125,7 +119,7 @@ export function generateGraph(
             inDeg[v]++;
         }
 
-        // Phase A: Hamiltonian cycle for connectivity
+        // Phase A: Hamiltonian cycle guarantees strong connectivity.
         const perm = Array.from({ length: N }, (_, i) => i + 1);
         for (let k = perm.length - 1; k > 0; k--) {
             const j = Math.floor(rng() * (k + 1));
@@ -177,13 +171,11 @@ export function generateGraph(
 
                     const reverseExists = edges.has(`${v},${u}`);
                     if (reverseExists) {
-                        // Cheap bi: just add u→v
                         addEdge(u, v);
                         biPairsNeeded--;
                         placed = true;
                         break;
                     } else if (outDeg[v] < targetOut[v] && inDeg[u] < MAX_IN) {
-                        // Expensive bi: add both directions
                         addEdge(u, v);
                         addEdge(v, u);
                         biPairsNeeded--;
@@ -194,7 +186,6 @@ export function generateGraph(
                 if (!placed) stalled++;
                 else stalled = 0;
 
-                // Rebuild pool periodically
                 if (biPairsNeeded > 0 && biPairsNeeded % 200 === 0) {
                     pool = [];
                     for (let i = 1; i <= N; i++) {
@@ -226,7 +217,6 @@ export function generateGraph(
         }
         if (!allFilled) continue;
 
-        // Validate
         let valid = true;
         for (let i = 1; i <= N; i++) {
             if (outDeg[i] !== targetOut[i] || inDeg[i] < 1 || inDeg[i] > MAX_IN) {

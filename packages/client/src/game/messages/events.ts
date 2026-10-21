@@ -1,7 +1,3 @@
-/**
- * Gameplay events: combat, drones, terraforming, hyperspace, alerts.
- */
-
 import { makeDomain } from './_domain.js';
 
 export const EVENT = makeDomain('EVENT', {

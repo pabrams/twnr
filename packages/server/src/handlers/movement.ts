@@ -46,7 +46,7 @@ export async function serveMove(playerId: number, data: MoveCommand): Promise<vo
     const player = onlinePlayers[playerId];
     if (!player) return;
 
-    // Block movement during pending drone encounter (derived: enemy drones in current sector)
+    // Encounter state is derived: enemy drones in the current sector block movement.
     if (await isInEncounter(playerId)) {
         sendEnvelope(playerId, {
             type: ServerTag.MoveResult,
@@ -67,9 +67,7 @@ export async function serveMove(playerId: number, data: MoveCommand): Promise<vo
         return;
     }
 
-    // If this player's ship is currently being towed by another player,
-    // their move breaks them free of the tractor beam. Resolve who owns
-    // the beam so we can notify them after the move completes.
+    // Moving under another player's tractor beam breaks the player free of it.
     const towerId = await getTowingPlayerForShip(ctx.shipId);
     const freedFromTow = towerId !== null && towerId !== playerId;
 
@@ -97,7 +95,6 @@ export async function serveMove(playerId: number, data: MoveCommand): Promise<vo
         return;
     }
 
-    // Undock if docked
     if (player.docked) {
         player.docked = false;
         await setDocked(playerId, false);
@@ -115,9 +112,7 @@ export async function serveMove(playerId: number, data: MoveCommand): Promise<vo
     let towedAlong: TowedAlong | undefined;
     if (towState) {
         await moveTowedShip(towState.towed_ship_id, targetSectorId);
-        // Mirror sector in the in-memory player record if the towed ship has
-        // an online owner. They get a passive sector update; their next
-        // re-display will reflect it.
+        // Keep an online towed owner's in-memory sector in sync; their next re-display reflects it.
         if (towState.towed_owner_player_id !== null) {
             const owner = onlinePlayers[towState.towed_owner_player_id];
             if (owner) {
@@ -139,7 +134,6 @@ export async function serveMove(playerId: number, data: MoveCommand): Promise<vo
                       shipTypeDisplayName: towState.towed_ship_type_display_name,
                       shipTypeName: towState.towed_ship_name,
                   };
-        // Player-piloted tow target gets a mail+notification of the move.
         if (towState.towed_owner_player_id !== null) {
             const { notifyAndMail } = await import('../services/notify.js');
             await notifyAndMail({
@@ -183,9 +177,6 @@ export async function serveMove(playerId: number, data: MoveCommand): Promise<vo
         newSectorClients,
     );
 
-    // The towed player broke free by moving on their own — clear the tower's
-    // pointer and alert them. Towed player itself gets `freedFromTow: true`
-    // on their MoveResult below.
     if (freedFromTow && towerId !== null) {
         await clearTowedShip(towerId);
         const towerOnline = onlinePlayers[towerId];
@@ -197,7 +188,6 @@ export async function serveMove(playerId: number, data: MoveCommand): Promise<vo
         }
     }
 
-    // Resolve any enemy mines in the destination sector.
     const mineOutcome = await resolveMinesOnEntry(playerId);
     await refreshSectorObservation(playerId, targetSectorId);
     if (mineOutcome.destroyed) {
@@ -239,7 +229,7 @@ export async function serveMove(playerId: number, data: MoveCommand): Promise<vo
             ...(freedFromTow ? ({ freedFromTow: true } as const) : {}),
         });
 
-        // Alert the owner about the intrusion (skip for rogue drones)
+        // ownerId null means rogue drones — no one to alert.
         const ownerId = sectorData.sectorDrones.ownerId;
         if (ownerId != null) {
             const owner = onlinePlayers[ownerId];

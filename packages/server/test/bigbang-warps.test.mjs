@@ -7,7 +7,6 @@ import { universeConfig } from '@twnr/shared';
 const DEFAULT_TWO_WAY_PCT = universeConfig.twoWayPct;
 
 
-/** Returns a Map of value -> count. */
 function counter(arr) {
   const map = new Map();
   for (const x of arr) map.set(x, (map.get(x) || 0) + 1);
@@ -39,7 +38,6 @@ function checkStrongConnectivity(warpRows, numSectors, label = '') {
     revAdj.get(to).add(from);
   }
 
-  // Forward BFS
   const visited = new Set([1]);
   const queue = [1];
   while (queue.length > 0) {
@@ -51,7 +49,6 @@ function checkStrongConnectivity(warpRows, numSectors, label = '') {
   assert.equal(visited.size, numSectors,
     `${label}Forward BFS reached ${visited.size}/${numSectors} sectors`);
 
-  // Reverse BFS
   const visitedRev = new Set([1]);
   const qRev = [1];
   while (qRev.length > 0) {
@@ -63,10 +60,6 @@ function checkStrongConnectivity(warpRows, numSectors, label = '') {
   assert.equal(visitedRev.size, numSectors,
     `${label}Reverse BFS reached ${visitedRev.size}/${numSectors} sectors`);
 }
-
-// ---------------------------------------------------------------------------
-// Warp Generation
-// ---------------------------------------------------------------------------
 
 describe('Warp Generation', () => {
   const NUM_SECTORS = 100;
@@ -187,16 +180,9 @@ describe('Warp Generation', () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Bidirectional Warp Percentage
-// ---------------------------------------------------------------------------
-
 describe('Bidirectional Warp Percentage', () => {
-  // Subtractive proximal generation can't always hit twp exactly at low/mid
-  // targets — DEGRADE around hubs creates 1-ways the rebalance pass can only
-  // partially undo (demotion is in-degree-safe; promotion is capped by edge
-  // availability). High targets (95-100) land within ±1%; low/mid targets
-  // can drift up to ~5%.
+  // Proximal generation can't hit twp exactly: hub DEGRADE makes 1-ways the rebalance
+  // pass only partially undoes. High targets land within ±1%; low/mid drift up to ~5%.
   function bidiTolerance(target) {
     return target >= 90 ? 1 : 5;
   }

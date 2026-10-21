@@ -1,11 +1,6 @@
 import { listSectorNumbers, listWarpEdges } from '../db/queries/sector.js';
 
-/**
- * In-memory adjacency list per universe. Built lazily on first access and
- * invalidated only on universe create/delete (via invalidateGraphCache).
- * Warps don't change at runtime so this cache never goes stale during
- * normal play.
- */
+// Warps never change at runtime, so entries only invalidate on universe create/delete.
 const graphCache = new Map<number, number[][]>();
 
 export async function getGraph(universeId: number): Promise<number[][]> {

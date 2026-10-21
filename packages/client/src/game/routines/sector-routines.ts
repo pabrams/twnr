@@ -4,7 +4,7 @@ import { COMPUTER, EVENT, NOTIFY, PANEL, PLANET, PORT, SECTOR } from '../message
 import {
     echoCommand,
     echoMenuCommand,
-    hideMoveMenuOverlay,
+    closeMoveMenu,
     showMoveMenu,
     showPortMenu,
 } from '../display.js';
@@ -54,7 +54,7 @@ registerRoutine('move_menu', async (ctx) => {
     showMoveMenu(ctx);
     const allowed = warps.map((_, i) => String(i + 1));
     const ch = await askChar(ctx, render(SECTOR.moveMenuPrompt, { max: warps.length }), allowed);
-    hideMoveMenuOverlay(ctx);
+    closeMoveMenu(ctx);
     if (ch === null) return;
     const idx = parseInt(ch, 10) - 1;
     const target = warps[idx];

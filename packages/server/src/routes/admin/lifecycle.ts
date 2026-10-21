@@ -119,9 +119,8 @@ export function createAdminLifecycleRoutes(
                 );
                 await snapshotTemplateForUniverse(newUniverseId, template_name, client);
 
-                // record the resolved bigbang knobs so the per-universe
-                // settings reflect what was actually used, not the template defaults.
-                // warpDist is stored without the leading-0 sentinel.
+                // Store the resolved knobs, not template defaults; warpDist
+                // drops the leading-0 sentinel.
                 await updateUniverseBigbangSettings(
                     newUniverseId,
                     {
@@ -183,9 +182,7 @@ export function createAdminLifecycleRoutes(
                     }
                 }
 
-                // Persist all planets the generator emitted (always includes
-                // Earth at sector 1; may include scattered planets if
-                // planetDensity > 0).
+                // result.planets always includes Earth at sector 1.
                 for (const p of result.planets) {
                     const sectorDbId = sectorIdMap.get(p.sector);
                     if (sectorDbId === undefined) continue;

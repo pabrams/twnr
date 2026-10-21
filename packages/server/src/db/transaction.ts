@@ -1,11 +1,7 @@
 import type { PoolClient } from 'pg';
 import { pool } from './pool.js';
 
-/**
- * Thrown inside a `withTransaction` callback to roll back and exit cleanly
- * without propagating an error. Any other thrown value is treated as an
- * unexpected failure, rolled back, and rethrown.
- */
+/** Throw inside a withTransaction callback to roll back and resolve undefined instead of rethrowing. */
 export class AbortTransaction extends Error {
     constructor() {
         super('AbortTransaction');
@@ -13,10 +9,7 @@ export class AbortTransaction extends Error {
     }
 }
 
-/**
- * Run `fn` inside a BEGIN/COMMIT block. Rolls back and rethrows on any error.
- * Throwing `AbortTransaction` rolls back and resolves to `undefined` instead.
- */
+/** Any error rolls back and rethrows; AbortTransaction rolls back and resolves undefined. */
 export async function withTransaction<T>(
     fn: (client: PoolClient) => Promise<T>,
 ): Promise<T | undefined> {
