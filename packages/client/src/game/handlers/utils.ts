@@ -9,7 +9,6 @@ export function fmt(n: number): string {
     return n.toLocaleString();
 }
 
-/** Use M for millions */
 export function fmtCompact(n: number): string {
     if (n >= 10_000_000) {
         return `${(n / 1_000_000).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}M`;

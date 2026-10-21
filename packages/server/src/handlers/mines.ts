@@ -280,7 +280,6 @@ export async function serveMineDisruptor(
     }
 
     const settings = await getMineUniverseSettings(player.universeId);
-    // Inclusive uniform random in [min, max].
     const lo = Math.max(0, settings.mine_disruptor_min);
     const hi = Math.max(lo, settings.mine_disruptor_max);
     const removeTarget = lo + Math.floor(Math.random() * (hi - lo + 1));
@@ -302,7 +301,6 @@ export async function serveMineDisruptor(
                 }
             }
 
-            // Disruptor itself is consumed regardless of outcome.
             await decrementShipHardwareByName(playerId, 'mine_disruptor', client);
 
             return { removed, remaining };

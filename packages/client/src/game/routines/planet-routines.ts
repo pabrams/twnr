@@ -240,7 +240,6 @@ registerRoutine('planetary_defense_bastion', async (ctx) => {
         return;
     }
 
-    // mode === 'noBase'
     term.writeln('');
     term.writeln(render(PLANET.baseIntro1));
     term.writeln(render(PLANET.baseIntro2));
@@ -410,7 +409,6 @@ registerRoutine('base_transporter', async (ctx) => {
         return;
     }
 
-    // installed
     term.writeln(render(PLANET.bwarpInstalledIntro));
     let currentRange = info.range;
     const upgradeCost = info.upgradeCost;

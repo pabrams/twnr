@@ -1,22 +1,13 @@
-/**
- * Port construction + upgrade — legacy-derived constants. Construction is
- * real-time gated: one advance attempt per 24h, each draining the daily
- * commodity quantities from a planet in the sector; if no planet has enough,
- * that day does not advance.
- */
-
 import type { PriceCommodity, PortAction } from './index.js';
 
 export type PortClass = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 
 export type ConstructionCost = {
-    /** One-time up-front deduction. */
     credits: number;
-    /** Commodity totals consumed over the whole construction. */
     ore: number;
     org: number;
     equ: number;
-    /** Real-time days the construction takes. */
+    /** Real-time days. */
     days: number;
 };
 
@@ -31,7 +22,7 @@ export const PORT_CONSTRUCTION_COSTS: Record<PortClass, ConstructionCost> = {
     8: { credits: 50000, ore: 200, org: 200, equ: 200, days: 10 },
 };
 
-/** Every legacy-table total divides cleanly by its days — no fractional drains. */
+/** Every table total divides cleanly by its days. */
 export function dailyDrainFor(portClass: PortClass): {
     ore: number;
     org: number;
@@ -45,7 +36,7 @@ export function dailyDrainFor(portClass: PortClass): {
     };
 }
 
-/** Fixed MCICs (no bigbang roll) — stronger than typical NPC ports by design. */
+/** Stronger than typical NPC-port rolls by design. */
 export const PLAYER_BUILT_PORT_MCIC: Record<PriceCommodity, { B: number; S: number }> = {
     fuel: { B: -80, S: 70 },
     organics: { B: -70, S: 60 },
@@ -56,5 +47,5 @@ export function playerBuiltMcicFor(commodity: PriceCommodity, action: PortAction
     return PLAYER_BUILT_PORT_MCIC[commodity][action];
 }
 
-/** Per commodity; max stock = prod × 10 = 1000 at start. */
+/** Per commodity. */
 export const INITIAL_PLAYER_PORT_PRODUCTIVITY = 100;

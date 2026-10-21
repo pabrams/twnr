@@ -1,7 +1,6 @@
 import { HOLD_COST_INCREMENT, holdBaseCostNow, type Class0PriceList } from '@twnr/shared';
 import { class0Prices } from '../game-config.js';
 
-/** Hold base cost is resolved from its daily cycle here so the menu display and BuyHolds charge the same number. */
 export function currentClass0Prices(): Class0PriceList {
     return {
         dronePrice: class0Prices.dronePrice,

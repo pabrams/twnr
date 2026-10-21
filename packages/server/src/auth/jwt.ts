@@ -9,7 +9,6 @@ export function signPlayerToken(payload: AuthTokenPayload): string {
     });
 }
 
-/** Throws on an invalid, expired, or malformed token. */
 export function verifyToken(token: string): AuthTokenPayload {
     const payload = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
 

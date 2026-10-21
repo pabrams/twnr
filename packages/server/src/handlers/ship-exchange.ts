@@ -76,7 +76,6 @@ export async function serveBuyShipTradein(
     });
 }
 
-/** Deferred commit — runs only after SetShipName supplies the name. */
 export async function executeBuyShipNew(
     playerId: number,
     targetShipName: string,
@@ -158,7 +157,6 @@ export async function executeBuyShipNew(
     );
 }
 
-/** Deferred commit — runs only after SetShipName supplies the name. */
 export async function executeBuyShipTradein(
     playerId: number,
     targetShipName: string,

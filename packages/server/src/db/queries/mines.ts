@@ -65,8 +65,7 @@ export async function getSectorMines(
     return res.rows;
 }
 
-/** On conflict ownership flips to the deployer — caller must have verified the
- *  existing stack is friendly, making the flip a redesignation, not a takeover. */
+/** Precondition: any existing stack is friendly — the on-conflict owner flip is a redesignation, not a takeover. */
 export async function upsertSectorMines(
     sectorDbId: number,
     mineType: MineType,
@@ -87,7 +86,6 @@ export async function upsertSectorMines(
     );
 }
 
-/** Exactly one of ownerPlayerId/ownerClanId must be non-null when quantity > 0. */
 export async function setSectorMineTo(
     sectorDbId: number,
     mineType: MineType,
@@ -232,7 +230,6 @@ export async function getSeekerAttachmentForUpdate(
     return res.rows[0];
 }
 
-/** Exactly one of ownerPlayerId/ownerClanId must be non-null (table check constraint). */
 export async function upsertSeekerAttachment(
     shipId: number,
     ownerPlayerId: number | null,

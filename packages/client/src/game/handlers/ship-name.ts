@@ -10,7 +10,6 @@ type ShipNamePromptCtx = Pick<GameContext, 'io' | 'input' | 'player'>;
 const MAX_SHIP_NAME_LENGTH = 20;
 const DEFAULT_NAME_SUFFIX = "'s ship";
 
-/** `<player>'s ship`, truncated so it fits the name limit. */
 function defaultShipName(playerName: string): string {
     const stem = playerName
         .trim()
@@ -19,9 +18,7 @@ function defaultShipName(playerName: string): string {
     return stem === '' ? 'Unnamed ship' : `${stem}${DEFAULT_NAME_SUFFIX}`;
 }
 
-/** Re-prompts until the server accepts; cancellation is intentionally unsupported — the
- *  server gates all other commands until naming completes. Blank input takes the default;
- *  promptTemplate renders with { type, default }. */
+/** No cancel path, intentionally: the server gates all other commands until naming completes. */
 export async function promptShipName(
     ctx: ShipNamePromptCtx,
     promptTemplate: string,
@@ -33,7 +30,7 @@ export async function promptShipName(
             ctx,
             render(promptTemplate, { type: shipTypeDisplayName, default: fallback }),
         );
-        if (raw === null) continue; // no cancel — keep asking
+        if (raw === null) continue;
         const name = raw.trim() === '' ? fallback : raw.trim();
         if (name.length > MAX_SHIP_NAME_LENGTH) {
             ctx.io.term.writeln(

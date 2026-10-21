@@ -372,8 +372,7 @@ export const AttackShipReplySchema = z.object({
 });
 export type AttackShipReply = z.infer<typeof AttackShipReplySchema>;
 
-/** Drones/shields are flat per-unit prices; holds follow hold-pricing.ts, so
- *  the server sends today's base cost + increment, not a unit price. */
+/** holdBaseCost/holdCostIncrement are hold-pricing.ts inputs, not a unit price. */
 export const Class0PriceListSchema = z.object({
     dronePrice: Num,
     shieldPrice: Num,
@@ -391,7 +390,6 @@ export const DockReplySchema = z.object({
     emptyHolds: Num.optional(),
     freedFromTow: z.literal(true).optional(),
     shipInfo: ShipInfoEmbedSchema.optional(),
-    /** Present when docked at a class-0 port. */
     class0Prices: Class0PriceListSchema.optional(),
 });
 export type DockReply = z.infer<typeof DockReplySchema>;
@@ -1645,8 +1643,7 @@ export const HaggleResponseReplySchema = z.discriminatedUnion('outcome', [
 ]);
 export type HaggleResponseReply = z.infer<typeof HaggleResponseReplySchema>;
 
-/** `name` is the ship-type slug — the value BuyShipNew / BuyShipTradein take
- *  as `targetShipName`. */
+/** `name` is the ship-type slug BuyShipNew / BuyShipTradein take as `targetShipName`. */
 export const ShipCatalogEntrySchema = z.object({
     name: Str,
     displayName: StrOrNull,
@@ -1665,7 +1662,7 @@ export const ShipCatalogEntrySchema = z.object({
     costComputer: Num,
     costHull: Num,
     holdCost: Num,
-    /** costDrive + costComputer + costHull + startingHolds·holdCost; also the trade-in credit. */
+    /** Also the trade-in credit. */
     baseCost: Num,
     hasPod: Bool,
     canLand: Bool,
@@ -1675,7 +1672,7 @@ export const ShipCatalogEntrySchema = z.object({
     planetaryDefenseOdds: NumOrNull,
     pilotingRestriction: StrOrNull,
     notes: StrOrNull,
-    /** Max installable quantity per hardware item name (toggles are 0/1). */
+    /** Values are max installable per item (toggles 0/1), not installed counts. */
     hardware: HardwareMap,
 });
 export type ShipCatalogEntry = z.infer<typeof ShipCatalogEntrySchema>;

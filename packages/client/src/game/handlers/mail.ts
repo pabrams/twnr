@@ -28,8 +28,7 @@ export const hailIncoming: Handler<'hailIncoming', MailContext> = (ctx, msg) => 
     }
 };
 
-/** Only unprompted `incoming` pushes render here; `connect` and `read` replies are
- *  consumed via awaitResponse by their routines, which own the rendering. */
+/** Only unprompted `incoming` pushes render here — connect/read replies are rendered by the routine awaiting them. */
 export const memoDelivery: Handler<'memoDelivery', MailContext> = (ctx, msg) => {
     if (msg.reason === 'incoming') {
         renderMailEntries(ctx, msg.memos);

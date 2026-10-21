@@ -49,9 +49,6 @@ app.use(express.json());
 const server: Server = createServer(app);
 const wss = new WebSocketServer({ server });
 
-// Heartbeat: without it, hard disconnects don't surface until TCP keepalive
-// (~2h on Linux defaults), during which the docked-while-online visibility
-// predicate would keep the player hidden in their sector.
 const aliveSockets = new WeakSet<WebSocket>();
 const HEARTBEAT_INTERVAL_MS = 30_000;
 const heartbeatInterval = setInterval(() => {
@@ -163,16 +160,12 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             return;
         }
 
-        // Destruction cooldown is per-universe: a destroyed player stays
-        // authenticated (and online elsewhere), but this universe gates
-        // the connect until the respawn delay elapses.
         const respawn = await tryRespawnPlayer(playerRow.id);
         if (respawn.kind === 'wait') {
             ws.close(1008, `Ship destroyed; respawn in ${respawn.remainingSeconds}s`);
             return;
         }
         if (respawn.kind === 'respawned') {
-            // Respawn changed ship/sector/credits — reload the row.
             playerRow = await getPlayerConnectInfo(userId, universeId);
             if (!playerRow) {
                 ws.close(1008, 'No player in this universe');

@@ -120,7 +120,6 @@ export const shortestPath: Handler<'shortestPathResult', MovementContext> = (ctx
     return promptAutopilot(ctx, msg);
 };
 
-/** Minimap buttons derive from the DroneEncounter menu registry so they stay in sync with the xterm menu. */
 function openEncounterMenu(ctx: MovementContext): void {
     const menu = ctx.catalogs.menus.get(Menu.DroneEncounter);
     if (!menu) return;

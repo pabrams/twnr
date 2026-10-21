@@ -1,12 +1,3 @@
-/**
- * Cargo-hold pricing — legacy formula.
- *   Cost(H_from→H_to) = Σ_{k=H_from}^{H_to-1} (B + k·I)
- *                     = B·(H_to − H_from) + I·(H_to·(H_to−1) − H_from·(H_from−1))/2
- * B = daily base cost, a deterministic triangular wave between `min` and `max`
- * over `periodDays`, keyed off the UTC day so every player sees the same B.
- * I = increment per hold (HOLD_COST_INCREMENT).
- */
-
 export const HOLD_COST_INCREMENT = 20;
 
 export function utcDaysSinceEpoch(now: Date = new Date()): number {
@@ -38,6 +29,7 @@ export function holdBaseCostNow(
     return holdBaseCostForDay(utcDaysSinceEpoch(now), min, max, periodDays);
 }
 
+/** Closed form of Σ_{k=0}^{H−1} (B + k·increment). */
 export function holdCostFromZero(
     H: number,
     B: number,
@@ -66,7 +58,6 @@ export function nextHoldCost(
     return B + currentHolds * increment;
 }
 
-/** Max additional holds affordable with `credits`; closed-form, no iteration. */
 export function maxAffordableHolds(
     currentHolds: number,
     credits: number,
@@ -74,7 +65,7 @@ export function maxAffordableHolds(
     increment: number = HOLD_COST_INCREMENT,
 ): number {
     if (credits <= 0) return 0;
-    // Solve increment/2 · N² + (B + increment·(2c−1)/2) · N − credits ≤ 0
+    // Largest N with increment/2 · N² + (B + increment·(2·currentHolds−1)/2) · N ≤ credits
     const a = increment / 2;
     const b = B + (increment * (2 * currentHolds - 1)) / 2;
     const c = -credits;

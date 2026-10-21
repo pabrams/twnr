@@ -1,6 +1,5 @@
 import crypto from 'crypto';
 
-/** Stored format: `scrypt$<base64url-salt>$<base64url-derived-key>`. */
 export function hashPassword(password: string): string {
     const salt = crypto.randomBytes(16);
     const derivedKey = crypto.scryptSync(password, salt, 64);

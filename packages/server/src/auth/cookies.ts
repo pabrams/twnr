@@ -34,7 +34,6 @@ function getCookie(req: Request | IncomingMessage, name: string): string | null 
     return parseCookies(cookieHeader)[name] || null;
 }
 
-/** Secure flag only in production — dev runs over plain HTTP. */
 export function setAuthCookie(res: Response, token: string): void {
     res.cookie(AUTH_COOKIE_NAME, token, {
         httpOnly: true,
@@ -58,7 +57,6 @@ export function getJwtToken(req: Request): string | null {
     return getBearerToken(req) || getCookie(req, AUTH_COOKIE_NAME);
 }
 
-/** Only valid after authenticateToken middleware has set req.player. */
 export function getAuthenticatedPlayer(req: Request): AuthTokenPayload {
     return req.player as AuthTokenPayload;
 }

@@ -105,7 +105,6 @@ export const PLANET = makeDomain('PLANET', {
     claimSuccessPersonal: '\r\n[bg]Planet [/bg][bc]{name}[/bc] [bg]is now yours.[/bg]',
     claimSuccessClan: '\r\n[bg]Planet [/bg][bc]{name}[/bc] [bg]is now clan-owned.[/bg]',
 
-    // Planetary Defense Bastion ("base") prompts.
     baseIntro1:
         '[g]This planet does not have a planetary defense bastion (base). You may construct one,[/g]',
     baseIntro2: '[g]if you have the necessary resources.[/g]',
@@ -152,7 +151,6 @@ export const PLANET = makeDomain('PLANET', {
         '[bc]Credits on hand[/bc]: [by]{credits}[/by]\r\n[bc]Treasury balance[/bc]: [by]{treasury}[/by]',
     treasuryError: '[br]{message}[/br]',
 
-    // Planetary Transporter ("bwarp") flow.
     bwarpNotInstalledIntro:
         '\r\n[g]This Planetary Bastion does not have a transporter installed. You can order one[/g]\r\n' +
         '[g]for [/g][by]{cost}[/by][g] credits and have it installed immediately.[/g]',
@@ -200,6 +198,5 @@ export const PLANET = makeDomain('PLANET', {
         '[bc]All Systems Ready, shall we engage?[/bc] [mg]([/mg][by]Y[/by]/[by]N[/by][mg]) [[/mg][by]Y[/by][mg]] [/mg]',
     bwarpBeamedFlavor:
         '\r\n[bg]Beamed to sector [/bg][bc]{sector}[/bc][bg] ([/bg][bc]{hops}[/bc][bg] hop(s)).[/bg]',
-    // '\r\n[by]{fuelUsed}[/by][bg] fuel ore consumed from planet stock.[/bg]',
     bwarpError: '[br]Transporter error[/br]: [g]{message}[/g]',
 });

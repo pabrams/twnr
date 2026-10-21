@@ -22,15 +22,12 @@ describe('Hold pricing — cumulative cost formula', () => {
     });
 
     it('51st hold (going from 50 → 51) at B=164 costs 1164 (worked example)', () => {
-        // Spec: "you have 50 holds, and to get to 51 holds, it costs 1164"
         assert.equal(holdCostRange(50, 51, 164), 1164);
         assert.equal(nextHoldCost(50, 164), 1164);
     });
 
     it('50 → 250 with B=164 costs 630,800 (worked example, spec arithmetic was off by 10k)', () => {
-        // Spec claims 250 from 0 = 663,500 and 50 from 0 = 32,700 (both
-        // correct), then says the diff is 620,800 — but 663,500 − 32,700
-        // = 630,800. We honor the per-hold formula, not the typo.
+        // Spec claims the diff is 620,800, but 663,500 − 32,700 = 630,800 — honor the formula, not the typo.
         assert.equal(holdCostFromZero(250, 164), 663500);
         assert.equal(holdCostFromZero(50, 164), 32700);
         assert.equal(holdCostRange(50, 250, 164), 630800);
@@ -44,7 +41,6 @@ describe('Hold pricing — cumulative cost formula', () => {
 });
 
 describe('Hold pricing — daily base cost triangular wave', () => {
-    // Default cycle: min=151, max=249, period=18, half=9.
     it('day 0 is min', () => {
         assert.equal(holdBaseCostForDay(0, 151, 249, 18), 151);
     });
@@ -59,7 +55,7 @@ describe('Hold pricing — daily base cost triangular wave', () => {
         assert.equal(holdBaseCostForDay(4, 151, 249, 18), 195);
     });
     it('day 13 is mid-way down the falling half', () => {
-        // phase=13, second branch: max - round(98 * (13-9)/9) = 249 - 44 = 205
+        // 249 - round(98 * (13-9)/9) = 249 - 44 = 205
         assert.equal(holdBaseCostForDay(13, 151, 249, 18), 205);
     });
     it('handles negative days via modular wrap', () => {

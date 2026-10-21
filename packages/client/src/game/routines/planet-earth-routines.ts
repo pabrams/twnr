@@ -28,7 +28,6 @@ registerRoutine('leave_on_earth', async (ctx) => {
     ctx.io.sendMsg({ type: ClientTag.LeaveColonists, quantity: qty, commodity: 'fuel' });
 });
 
-// Earth's `?` is a fancier visual than the generic help_menu listing.
 registerMenuRoutine(Menu.PlanetEarth, 'help_menu', (ctx) => {
     showEarthMenu(ctx, ctx.world.earthColonists);
 });

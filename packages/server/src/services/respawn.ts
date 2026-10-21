@@ -8,7 +8,6 @@ export type RespawnOutcome =
     | { kind: 'wait'; remainingSeconds: number }
     | { kind: 'respawned' };
 
-/** 'respawned' means this call already issued the fresh ship, sector, and credits. */
 export async function tryRespawnPlayer(playerId: number): Promise<RespawnOutcome> {
     const row = await getRespawnInfo(playerId);
     if (!row || !row.ship_destroyed_date) return { kind: 'no-respawn' };

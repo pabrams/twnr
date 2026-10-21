@@ -1,4 +1,4 @@
-/** Command echoes. Key is the ClientTag string; template vars are the message's own fields; no entry = no echo. */
+/** Keyed by ClientTag, rendered with the message's own fields; no entry = no echo for that command. */
 
 import { makeDomain } from './_domain.js';
 

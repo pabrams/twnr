@@ -67,7 +67,6 @@ describe('Topology flag (proximal)', () => {
   });
 
   it('minimum pairwise distance satisfies the spec', () => {
-    // O(N²) but N=500 is fine.
     let minObserved = Infinity;
     for (let i = 0; i < positions.length; i++) {
       for (let j = i + 1; j < positions.length; j++) {
@@ -121,8 +120,7 @@ describe('Topology flag (proximal)', () => {
   });
 
   it('out-degree distribution has expected overall shape', () => {
-    // N=500 is below the 1000-sector ±5pp threshold, and the feasibility budget-bump
-    // shifts low degrees upward — so assert a looser shape, not exact percentages.
+    // The generator's feasibility budget-bump shifts low degrees upward at N=500, so assert shape, not exact percentages.
     const { rows: warpRows } = readCSV(join(outdir, 'warps.csv'));
     const outDeg = new Map();
     for (const r of warpRows) {
@@ -132,9 +130,7 @@ describe('Topology flag (proximal)', () => {
     const counts = new Array(7).fill(0);
     for (const [, c] of outDeg) if (c >= 1 && c <= 6) counts[c]++;
     assert.equal(counts.slice(1).reduce((a, b) => a + b, 0), N);
-    // Degree 2 is the mode in the default distribution; allow headroom.
     assert.ok(counts[2] >= N * 0.15, `Expected degree 2 to be common, got ${counts[2]}`);
-    // Degrees 5 and 6 are rare.
     assert.ok(counts[6] <= N * 0.1, `Degree 6 should be rare, got ${counts[6]}`);
   });
 });

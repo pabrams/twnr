@@ -5,9 +5,6 @@ import { getPlayerCreditsAndUniverse } from '../db/queries/player.js';
 import { getUniverseStartingCredits } from '../db/queries/universe.js';
 import { listAuditLogForPlayer } from '../db/queries/audit.js';
 
-// consistent:false signals tampering: entries failing HMAC verification, or
-// players.credits != starting_credits + sum(valid deltas) — catching both a
-// direct credits UPDATE and audit_log rows changed without the HMAC secret.
 export function createCreditAuditRoutes(router: Router): void {
     router.get(
         '/api/players/:id/credit-audit',

@@ -65,8 +65,7 @@ function buildAndRegister() {
 
 buildAndRegister();
 
-// Vite HMR rebuilds the registry in place (preserving the WebSocket session): `{{ref}}`
-// lookups update live, but direct imports of SECTOR.x etc. stay stale until page refresh.
+// Self-accept HMR so template edits don't drop the WebSocket session.
 if (import.meta.hot) {
     import.meta.hot.accept();
 }

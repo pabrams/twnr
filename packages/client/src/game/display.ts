@@ -42,7 +42,6 @@ function renderShipOwnership(
     return renderOwnership(ownership, viewerPlayerId, viewerClanId);
 }
 
-/** True iff this row's ownership belongs to the viewer's clan (not them personally). */
 function isOwnClan(ownership: OwnershipInfo, viewerClanId: number | null): boolean {
     return ownership.kind === 'clan' && viewerClanId !== null && ownership.clanId === viewerClanId;
 }

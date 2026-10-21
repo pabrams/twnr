@@ -3,7 +3,6 @@ import { sendEnvelope } from '../state/messaging.js';
 import { getStatsSnapshotRow } from '../db/queries/player.js';
 import { getPlayerShipHardware } from '../db/queries/hardware.js';
 
-/** Null when the player has no ship (between destruction and respawn). */
 export async function buildStatsSnapshot(playerId: number): Promise<StatsSnapshot | null> {
     const row = await getStatsSnapshotRow(playerId);
     if (!row || row.ship_type_slug === null) return null;

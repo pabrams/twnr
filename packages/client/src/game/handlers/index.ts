@@ -21,7 +21,6 @@ type ServerResultByType = {
     [R in ServerEnvelope as R['type']]: R;
 };
 
-/** `Context` is the slice of GameContext the handler actually touches. */
 export type Handler<K extends ServerEnvelope['type'], Context = GameContext> = (
     ctx: Context,
     msg: ServerResultByType[K],
@@ -109,8 +108,6 @@ const handlers: HandlerMap = {
     },
 };
 
-/** Returns undefined for sync handlers, a Promise for async ones, so the
- *  caller can defer the prompt paint until the async chain settles. */
 export function dispatch(ctx: GameContext, msg: ServerEnvelope): void | Promise<void> {
     const handler = handlers[msg.type] as
         | ((ctx: GameContext, msg: ServerEnvelope) => void | Promise<void>)

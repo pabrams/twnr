@@ -1,15 +1,3 @@
-/**
- * Centralized message templates using BBCode-style tags.
- *
- *   [mg]...[/mg]  magenta        [bg]...[/bg]  bold green
- *   [by]...[/by]  bold yellow    [bc]...[/bc]  bold cyan
- *   [br]...[/br]  bold red       [bw]...[/bw]  bold white
- *   [w]...[/w]    dim white      [c]...[/c]    cyan
- *   [g]...[/g]    green
- *
- * {name} placeholders are replaced via render(template, vars).
- */
-
 import { makeDomain } from './messages/_domain.js';
 
 export const MSG = makeDomain('MSG', {

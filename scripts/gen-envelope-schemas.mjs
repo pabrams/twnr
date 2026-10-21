@@ -1,5 +1,4 @@
-// Generate JSON Schema files for the WS envelopes from the zod schemas (the
-// source of truth). Imports the built shared dist — build @twnr/shared first.
+// Imports the built shared dist — build @twnr/shared first.
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { z } from 'zod';

@@ -103,7 +103,6 @@ export async function getPortTradeInfoForUpdate(
     return res.rows[0];
 }
 
-/** Signed delta; caller must keep the result within [0, max]. */
 export async function adjustPortCommodity(
     portId: number,
     commodity: Commodity,
@@ -180,7 +179,6 @@ export async function upsertSpecialPort(
     );
 }
 
-/** Exactly one of owner.playerId/clanId must be non-null (table check constraint). */
 export async function insertPlayerBuiltPort(
     sectorDbId: number,
     portClass: number,
@@ -269,7 +267,6 @@ export type PortConstructionRow = {
     last_advance_attempt_at: Date;
 };
 
-/** Precondition: caller has verified credits, planet presence, and no existing port/construction. */
 export async function insertPortConstruction(
     sectorDbId: number,
     data: {
@@ -332,7 +329,6 @@ export async function listConstructionsDueForAdvance(
     return res.rows;
 }
 
-/** The attempt timestamp advances even when progressed=false, so the next try waits another 24h. */
 export async function recordConstructionAdvanceAttempt(
     sectorDbId: number,
     progressed: boolean,
@@ -423,8 +419,9 @@ export async function listProducingPortIds(db: Queryable = pool): Promise<number
     return res.rows.map((r) => r.id);
 }
 
-/** Fractional-accumulator regen: a selling (S) commodity climbs toward max; a buying (B) one drains toward 0, which means ready-to-buy. Remainders roll into *_prod_accrual; stamps last_production_at. */
 const ONE_HOUR_MS = 60 * 60 * 1000;
+
+/** Regen invariant: a selling (S) commodity climbs toward max; a buying (B) one drains toward 0 (empty = ready to buy). */
 export async function settlePortProduction(
     portId: number,
     db: Queryable = pool,

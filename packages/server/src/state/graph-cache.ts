@@ -1,6 +1,6 @@
 import { listSectorNumbers, listWarpEdges } from '../db/queries/sector.js';
 
-// Warps never change at runtime, so entries only invalidate on universe create/delete.
+// Warps never change at runtime, so entries never expire.
 const graphCache = new Map<number, number[][]>();
 
 export async function getGraph(universeId: number): Promise<number[][]> {

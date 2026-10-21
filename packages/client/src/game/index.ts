@@ -60,9 +60,7 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
         let rows = Math.max(10, Math.floor(h / cell.cellHeight(fontSize)));
         term.options.fontSize = fontSize;
         term.resize(globalConstants.terminalCols, rows);
-        // At fractional devicePixelRatios the predicted cell height can run short of
-        // xterm's real per-row height, clipping the bottom row. resize() sets
-        // .xterm-screen's height synchronously, so measure it and shed rows until it fits.
+        // Fractional devicePixelRatios can make real rows taller than predicted, clipping the bottom row; shed rows until .xterm-screen fits.
         const screen = termDiv.querySelector<HTMLElement>('.xterm-screen');
         if (screen) {
             for (
@@ -78,7 +76,7 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
     refit();
     window.addEventListener('resize', refit);
 
-    // Stop Ctrl+wheel at capture phase so xterm never sees it and the browser page-zooms.
+    // Hide Ctrl+wheel from xterm so the browser's page-zoom still works.
     termDiv.addEventListener(
         'wheel',
         (e) => {
@@ -108,7 +106,6 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
     const ctx: GameContext = {
         io: {
             term,
-            // Placeholder — replaced by openSocket() before any handler runs.
             ws: null as unknown as WebSocket,
             sendMsg,
             setDebug: (on) => {
@@ -116,12 +113,8 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
                 term.writeln(`\r\n\x1b[38;5;243m[debug ${on ? 'ON' : 'OFF'}]\x1b[0m`);
             },
             debug: false,
-            submitLineFromMap: () => {
-                /* populated by setupInput */
-            },
-            submitKeyFromMap: () => {
-                /* populated by setupInput */
-            },
+            submitLineFromMap: () => {},
+            submitKeyFromMap: () => {},
         },
         input: {
             userInputBuffer: [],
@@ -202,18 +195,13 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
         pendingMenuArgs: null,
         connection: {
             disconnected: false,
-            reconnect: () => {
-                /* populated below */
-            },
-            leave: () => {
-                /* populated below */
-            },
+            reconnect: () => {},
+            exitToUniverseSelect: () => {},
         },
     };
 
     function onClose(info: { code: number; reason: string }): void {
         ctx.connection.disconnected = true;
-        // Cancel in-flight prompts and buffered input so reconnect starts clean.
         if (ctx.input.pendingResolver) {
             const r = ctx.input.pendingResolver;
             ctx.input.pendingResolver = null;
@@ -250,7 +238,7 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
         term.writeln(render(NOTIFY.reconnecting));
         openSocket();
     };
-    ctx.connection.leave = () => {
+    ctx.connection.exitToUniverseSelect = () => {
         term.dispose();
         termDiv.innerHTML = '';
         onDisconnect();
@@ -298,7 +286,6 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
                 { silent: true },
             );
         });
-        // The minimap needs no keyboard focus; push it back to the terminal after any click.
         minimapEl.addEventListener('click', () => {
             term.focus();
         });

@@ -38,9 +38,7 @@ function showScreen(screen: 'auth' | 'universes' | 'playerName' | 'game' | 'admi
 async function askServerToClearSessionCookie() {
     try {
         await fetch('/api/auth/logout', { method: 'POST' });
-    } catch {
-        // routing to login regardless
-    }
+    } catch {}
 }
 
 async function showSessionExpired() {
@@ -66,7 +64,7 @@ const { showUniverseSelect } = setupUniverseScreen({
             showUniverseSelect();
         });
     },
-    onUnauthorized: showSessionExpired,
+    onSessionExpired: showSessionExpired,
 });
 
 let adminInitialized = false;

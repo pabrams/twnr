@@ -91,7 +91,6 @@ export function createAuthRoutes(router: Router, deps: RouteDeps, middleware: Mi
         }),
     );
 
-    // Guest users are deleted on disconnect (server.ts close handler).
     router.post(
         '/api/auth/guest',
         registerLimiter,

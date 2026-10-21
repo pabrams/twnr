@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# Run all tests with a single shared server instance.
-# Usage: bash test/run-tests.sh [extra node --test flags...]
-
 set -e
 cd "$(dirname "$0")/.."
 
@@ -74,7 +71,6 @@ done
 echo "==> Running tests..."
 node --test --test-concurrency=1 "$@" $(ls test/*.test.mjs | grep -v ratelimit)
 
-# Second pass with rate limiting enabled
 if [ -f test/ratelimit.test.mjs ]; then
   echo "==> Restarting server with rate limiting enabled..."
   kill -9 "$SERVER_PID" 2>/dev/null || true

@@ -36,7 +36,6 @@ export async function deletePlanet(planetId: number, db: Queryable = pool): Prom
     await db.query('DELETE FROM planets WHERE id = $1', [planetId]);
 }
 
-/** At most one of ownerPlayerId/ownerClanId may be non-null (table check constraint); both null = unowned. */
 export async function setPlanetOwnership(
     planetId: number,
     ownerPlayerId: number | null,
@@ -376,7 +375,6 @@ export async function getPlanetDisplayData(playerId: number): Promise<{
     const onPlanetId = playerRes.rows[0]?.on_planet_id;
     if (!onPlanetId) return null;
 
-    // Lazy-promote any due base construction before reading.
     await getPlanetBase(onPlanetId);
 
     const planetRes = await pool.query(
@@ -452,8 +450,9 @@ export async function getPlanetOwnership(planetId: number): Promise<PlanetOwners
     return res.rows[0] ?? null;
 }
 
-/** Fractional-accumulator settle: banks floor(accrual) whole units into the stockpile (clamped to max; overflow discarded, never banked), rolls the remainder forward, and stamps last_production_at. Locks the planet row FOR UPDATE. */
 const ONE_HOUR_MS = 60 * 60 * 1000;
+
+/** Production above max is discarded, never banked in the accrual. */
 export async function settlePlanetProduction(
     planetId: number,
     db: Queryable = pool,
@@ -545,7 +544,6 @@ export async function settlePlanetProduction(
         row.equ_production_accrual,
     );
 
-    // A 0 fig factor means that colonist group contributes no drones.
     const dronesPerHour =
         (row.fig_factor_fuel > 0 ? row.colonists_fuel / row.fig_factor_fuel : 0) +
         (row.fig_factor_org > 0 ? row.colonists_organics / row.fig_factor_org : 0) +
@@ -587,7 +585,7 @@ export async function settlePlanetProduction(
     return { produced };
 }
 
-/** Fractional-accumulator settle of colonist births/deaths; tracked in separate accruals to avoid cancellation loss, net change clamped to [0, max] with overflow discarded (never banked). Locks the planet row FOR UPDATE. */
+/** Births and deaths accrue separately to avoid cancellation loss; growth above max is discarded, never banked. */
 export async function settlePlanetColonistGrowth(
     planetId: number,
     db: Queryable = pool,
@@ -747,7 +745,6 @@ export async function getPlanetBase(
     return res.rows[0] ?? null;
 }
 
-/** Returns the count of bases levelled up. */
 export async function promoteDuePlanetBases(db: Queryable = pool): Promise<number> {
     const res = await db.query<{ planet_id: number }>(
         `UPDATE planet_bases
@@ -820,7 +817,6 @@ export async function getPlanetFuelForUpdate(
     return res.rows[0]?.fuel;
 }
 
-/** Throws if the planet already has a base row (planet_id is the PK) — caller must check first. */
 export async function insertPlanetBaseConstruction(
     planetId: number,
     targetLevel: number,

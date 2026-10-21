@@ -11,7 +11,6 @@ export function servePlayersOnline(playerId: number): void {
     sendEnvelope(playerId, { type: ServerTag.PlayersOnlineResult, players: online });
 }
 
-/** Includes offline players, ranked by experience. */
 export async function serveTraderList(playerId: number): Promise<void> {
     const player = onlinePlayers[playerId];
     if (!player) return;

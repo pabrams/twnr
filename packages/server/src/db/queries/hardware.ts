@@ -149,7 +149,6 @@ export async function getShipHardwareQuantityByName(
     return res.rows[0]?.quantity ?? 0;
 }
 
-/** No underflow guard — caller must have verified the ship holds at least this many. */
 export async function decrementShipHardwareQuantity(
     shipId: number,
     hardwareItemId: number,

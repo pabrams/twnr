@@ -143,7 +143,6 @@ export async function serveDock(playerId: number): Promise<void> {
     player.docked = true;
     await setDocked(playerId, true);
 
-    // Docking breaks a tow targeting this player; a towing player keeps their tow when they dock.
     let freedFromTow = false;
     const shipId = await getPlayerShipId(playerId);
     if (shipId !== null) {
@@ -301,8 +300,7 @@ export async function servePortTransaction(
             // Read xp inside the tx so an earlier trade's xp award affects this trade's pricing.
             const xp = await getPlayerExperience(playerId, client);
 
-            // `stock` is physical inventory: a buying port's capacity is
-            // max−stock, a selling port's inventory is stock.
+            // `stock` is physical inventory: a buying port's capacity is max−stock, a selling port's is stock.
             const stock = port[col];
             const max = port[MAX_COL[col]];
             const mcic = port[MCIC_COL[col]];

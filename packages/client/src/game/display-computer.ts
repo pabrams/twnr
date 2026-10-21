@@ -135,7 +135,7 @@ export function showShipDetail(ctx: DisplayComputerCtx, ship: ShipCatalogEntry) 
 
     const hwItems: { label: string; value: string }[] = [];
     for (const h of HW_DISPLAY) {
-        if (h.name === 'visual_scanner' || h.name === 'planet_scanner') continue; // shown above
+        if (h.name === 'visual_scanner' || h.name === 'planet_scanner') continue;
         const val = hw[h.name] ?? 0;
         hwItems.push({
             label: h.label,
@@ -261,7 +261,6 @@ export type OwnedShipRowDisplay = {
 
 type RenderActiveShipScanOpts = {
     sortByHops?: boolean;
-    /** When set, color hops green if `hops <= rangeFromCurrentShip`, red otherwise. */
     rangeFromCurrentShip?: number | null;
 };
 

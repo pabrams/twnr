@@ -181,8 +181,7 @@ describe('Warp Generation', () => {
 });
 
 describe('Bidirectional Warp Percentage', () => {
-  // Proximal generation can't hit twp exactly: hub DEGRADE makes 1-ways the rebalance
-  // pass only partially undoes. High targets land within ±1%; low/mid drift up to ~5%.
+  // Hub DEGRADE leaves 1-ways the rebalance pass only partly undoes: high twp targets land within ±1%, low/mid drift up to ~5%.
   function bidiTolerance(target) {
     return target >= 90 ? 1 : 5;
   }

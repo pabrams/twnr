@@ -22,7 +22,6 @@ export interface ColorPalette {
     boldWhite: ColorConfig;
 }
 
-// Non-bold colors use 153 (0x99), bold colors use 255 (0xFF)
 export const colorPalette: ColorPalette = {
     black: { r: 0, g: 0, b: 0 },
     red: { r: 153, g: 0, b: 0 },

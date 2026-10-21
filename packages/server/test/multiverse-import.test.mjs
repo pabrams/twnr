@@ -42,7 +42,6 @@ describe('importUniverse.js --universe-id flag', () => {
 
     writeFileSync(join(tmpDir, 'sectors.csv'), 'id,name\n1,Federation Space\n2,Sector 2\n');
     writeFileSync(join(tmpDir, 'warps.csv'), 'from,to\n1,2\n2,1\n');
-    // Class 1 (BBS): B-action MCIC negative for fuel/organics, S-action positive for equipment.
     writeFileSync(join(tmpDir, 'ports.csv'),
       'sector,class,fuel_qty,fuel_max,fuel_prod,fuel_mcic,'
       + 'org_qty,org_max,org_prod,org_mcic,'

@@ -28,7 +28,6 @@ export function pvfigsMatchup(playerRep: number, ownerRep: number): PvfigsMatchu
     return p === o ? 'sameColor' : 'mixedColor';
 }
 
-/** Returns 0 on zero divisor — config divisors may be unset. */
 function safeDiv(num: number, denom: number): number {
     if (!denom) return 0;
     return num / denom;
@@ -39,11 +38,6 @@ export interface CombatDeltas {
     experienceDelta: number;
 }
 
-/**
- * Attacker-only: the defender accrues nothing from the fig exchange itself.
- * Sign convention: enemy align is negated (attacking red = +rep, blue = −rep)
- * so a positive `enemyAlignMultiplier` in config is a pure magnitude.
- */
 export function pvpAttackerDeltas(args: {
     attackerDronesLost: number;
     defenderRep: number;
@@ -57,6 +51,7 @@ export function pvpAttackerDeltas(args: {
 
     const figsLostDivisor = reputationDeltas.factorsFor.pvpCombat_yourFigsLostDivisor ?? 0;
     const enemyAlignMultiplier = reputationDeltas.factorsFor.pvpCombat_enemyAlignMultiplier ?? 0;
+    // Enemy align is negated (attacking red = +rep) so the config multiplier is a pure magnitude.
     const reputationDelta = Math.round(
         safeDiv(attackerDronesLost, figsLostDivisor) * (-defenderRep * enemyAlignMultiplier),
     );
@@ -64,7 +59,6 @@ export function pvpAttackerDeltas(args: {
     return { reputationDelta, experienceDelta };
 }
 
-/** Pass the defender's exp/rep snapshotted BEFORE the SD penalty, or the bonus sees diminished values. */
 export function shipDestroyAttackerBonus(args: {
     defenderRepBefore: number;
     defenderExpBefore: number;
@@ -74,12 +68,10 @@ export function shipDestroyAttackerBonus(args: {
     const repFraction = reputationDeltas.factorsFor.shipDestroyBonus_fractionOfEnemyAlign ?? 0;
     return {
         experienceDelta: Math.floor(defenderExpBefore * expFraction),
-        // Same sign convention: destroying red = +rep, blue = −rep.
         reputationDelta: Math.round(-defenderRepBefore * repFraction),
     };
 }
 
-/** Align loss pulls toward 0: a fraction of the current signed value, so blue and red both drift neutral. */
 export function shipDestroyDefenderPenalty(args: {
     defenderRepBefore: number;
     defenderExpBefore: number;
@@ -93,7 +85,6 @@ export function shipDestroyDefenderPenalty(args: {
     };
 }
 
-/** Attacker-only (the fig owner accrues nothing); owner align negated, same sign convention as PvP. */
 export function pvfigsAttackerDeltas(args: {
     playerDronesLost: number;
     ownerAlign: number;

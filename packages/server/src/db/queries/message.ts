@@ -26,7 +26,6 @@ export async function insertMemo(
     );
 }
 
-/** The sender is a label (e.g. "Deployed Drones"), not a player. */
 export async function insertSystemMemo(
     recipientPlayerId: number,
     senderLabel: string,

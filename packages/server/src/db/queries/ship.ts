@@ -3,7 +3,6 @@ import type { Queryable } from '../types.js';
 
 const SHIP_ID_SUBSELECT = '(SELECT ship_id FROM players WHERE id = $1)';
 
-/** Exactly one of ownerPlayerId/ownerClanId must be non-null (table check constraint). */
 export async function setShipOwnership(
     shipId: number,
     ownerPlayerId: number | null,
@@ -123,7 +122,6 @@ export async function markPlayerShipDestroyed(
     ]);
 }
 
-/** The single destruction path — destruction sites call this, never the two helpers separately. */
 export async function destroyShipRecord(playerId: number, db: Queryable = pool): Promise<void> {
     await deleteShipByOwner(playerId, db);
     await markPlayerShipDestroyed(playerId, db);
@@ -528,7 +526,7 @@ export async function getShipCargoWithCreditsForUpdate(
     return res.rows[0];
 }
 
-/** Column whitelist (dynamic-SQL injection guard). drones is not cargo: clamp by ship_type.max_drones, not free holds. */
+/** Column whitelist (dynamic-SQL injection guard). */
 const SHIP_COMMODITY_COLUMN: Record<
     'fuel' | 'organics' | 'equipment' | 'colonists' | 'drones',
     string
@@ -662,7 +660,6 @@ export async function getPlayerOwnedShips(
     return res.rows;
 }
 
-/** "Abandoned" = no player piloting it; the ship may still have an owner. */
 export async function getAbandonedShipsInSector(
     sectorNumber: number,
     universeId: number,

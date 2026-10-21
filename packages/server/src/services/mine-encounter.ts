@@ -21,7 +21,6 @@ import { getPlayerClanId } from '../db/queries/clan.js';
 import { getPlayerShipId } from '../db/queries/player.js';
 import { isFriendlyOwner } from './owner.js';
 
-/** Tests monkey-patch Math.random for determinism — route all rolls through here. */
 function rollPercent(pct: number): boolean {
     if (pct <= 0) return false;
     if (pct >= 100) return true;
@@ -151,7 +150,6 @@ export async function resolveSeekerMines(playerId: number): Promise<{
 
     if (!outcome) return null;
 
-    // Victim notice is probabilistic; on a failed roll the limpet attaches silently.
     if (rollPercent(settings.seeker_victim_notice_pct)) {
         sendEnvelope(playerId, {
             type: ServerTag.SeekerMineAttached,
@@ -176,7 +174,6 @@ export async function resolveSeekerMines(playerId: number): Promise<{
         );
     }
 
-    // Mail persists the activation for offline owners.
     const { insertSystemMemo } = await import('../db/queries/message.js');
     const activationBody = `Limpet mine in ${player.sector} activated.`;
     if (outcome.newOwnerPlayerId !== null) {

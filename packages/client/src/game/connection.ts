@@ -8,10 +8,7 @@ import { getMenuHandler } from './routines/index.js';
 import { dispatch } from './handlers/index.js';
 import { drainInputQueue } from './input.js';
 
-/** Envelopes that must not trigger a prompt re-render: panel-only updates with no
- *  terminal output (the prompt would duplicate on every refresh), and interim events
- *  arriving before their concluding result — mine events fire mid-move while
- *  currentSector still points at the previous sector; MoveResult is the paint point. */
+/** Panel-only refreshes plus interim mid-move events whose concluding result (MoveResult) is the paint point. */
 const PROMPT_SUPPRESSING = new Set<string>([
     ServerTag.NeighborhoodResult,
     ServerTag.ProximityMineHit,
@@ -46,6 +43,7 @@ export function setupConnection(
         if (parsed.success) {
             msg = parsed.data;
         } else {
+            // server is the trust root: a mismatch is client/server drift — play on with the raw envelope
             console.error('ServerEnvelope failed schema validation', parsed.error.issues, raw);
             msg = raw as ServerEnvelope;
         }
@@ -78,15 +76,12 @@ export function setupConnection(
                 getMenuHandler(ctx.world.mode)?.renderPrompt?.(ctx);
             }
         };
-        if (resolvedResponse) {
-            // routine owns the paint
-        } else if (
-            handlerResult &&
-            typeof (handlerResult as Promise<unknown>).then === 'function'
-        ) {
-            void (handlerResult as Promise<unknown>).then(repaint);
-        } else {
-            repaint();
+        if (!resolvedResponse) {
+            if (handlerResult && typeof (handlerResult as Promise<unknown>).then === 'function') {
+                void (handlerResult as Promise<unknown>).then(repaint);
+            } else {
+                repaint();
+            }
         }
         drainInputQueue(ctx);
     });

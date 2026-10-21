@@ -4,7 +4,6 @@ import { fmt, fmtCompact } from './handlers/utils.js';
 
 type RowOpts = {
     valueClass?: string;
-    /** Render the value as colored markup (parses [tag]…[/tag]). */
     colored?: boolean;
     title?: string;
 };
@@ -39,7 +38,6 @@ function clearSection(el: HTMLElement): void {
     if (h3) el.appendChild(h3);
 }
 
-/** Order here is the panel's on-screen order. */
 const SHIP_HARDWARE_ROWS: { key: string; label: string; title: string }[] = [
     { key: 'proximity_mine', label: 'Mines', title: 'Proximity Mines' },
     { key: 'seeker_mine', label: 'Lmpts', title: 'Limpet Mines' },

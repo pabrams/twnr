@@ -7,7 +7,6 @@ import { refreshMinimap, type RefreshMinimapCtx } from './utils.js';
 
 type DensityCtx = Pick<GameContext, 'io'>;
 
-/** msg.hasVisualScanner is consumed by the long_range_scan routine, not here. */
 export const densityScan: Handler<'densityScanResult', DensityCtx> = (ctx, msg) => {
     const { term } = ctx.io;
     term.writeln('');
@@ -33,7 +32,6 @@ type VisualCtx = Pick<GameContext, 'catalogs' | 'io' | 'minimap' | 'player' | 'w
     DisplayCtx &
     RefreshMinimapCtx;
 
-/** Shows each adjacent sector as a full sector display without moving the player. */
 export const visualScan: Handler<'visualScanResult', VisualCtx> = (ctx, msg) => {
     const savedSector = ctx.world.currentSector;
     const savedPort = ctx.world.currentPort;
@@ -42,11 +40,9 @@ export const visualScan: Handler<'visualScanResult', VisualCtx> = (ctx, msg) => 
     for (const data of msg.sectors) {
         showSectorDisplay(ctx, data);
     }
-    // Restore so subsequent commands don't think they're in the last-scanned sector.
     ctx.world.currentSector = savedSector;
     ctx.world.currentPort = savedPort;
     ctx.world.currentPortConstruction = savedPortConstruction;
     ctx.world.currentWarps = savedWarps;
-    // Scanned sectors just joined the visited set; refresh the minimap immediately.
     refreshMinimap(ctx);
 };

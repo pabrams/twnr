@@ -15,9 +15,7 @@ import {
 import { listSectorObservations } from '../services/sector-observations.js';
 import { listSectorPositions, listWarpEdgesByIds } from '../db/queries/sector.js';
 
-/** Smallest viewport extent the client may request (world units). */
 const MIN_HALF_EXTENT = 50;
-/** Upper bound keeps payloads bounded on zoomed-out admin views. */
 const MAX_HALF_EXTENT = 1_000_000;
 const DEFAULT_HALF_EXTENT = 600;
 
@@ -28,7 +26,6 @@ function clampHalfExtent(raw: number): number {
     return raw;
 }
 
-/** Non-admins see only visited sectors plus warp-glimpsed targets; admins see the whole bbox. */
 export async function serveGetNeighborhood(
     playerId: number,
     data: GetNeighborhoodCommand,
@@ -109,8 +106,6 @@ export async function serveGetNeighborhood(
         inBbox.add(meta.id);
     }
 
-    // Fringe sectors: warp targets included position-only (even outside the
-    // bbox) so the client can draw stub lines toward off-screen warp ends.
     const includedSectors = new Set<number>();
     const fringeIds = new Set<number>();
     const sourceKnowable = (sid: number): boolean =>
@@ -131,7 +126,6 @@ export async function serveGetNeighborhood(
             fringeIds.add(w.to_id);
         }
     }
-    // Source must be knowable — never leak warps from sectors the player can't see.
     for (const w of warpRows) {
         if (!includedSectors.has(w.from_id)) continue;
         if (!sourceKnowable(w.from_id)) continue;

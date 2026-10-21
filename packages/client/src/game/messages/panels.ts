@@ -5,7 +5,6 @@ export const PANEL = makeDomain('PANEL', {
     playerInfoSector: '{{MSG.playerInfoSector}}',
     shipName: '[mg]Ship Type[/mg]          [by]:[/by] [bc]{name}[/bc]',
     shipClan: '[mg]Clan[/mg]               [by]:[/by] [bc]#{num}[/bc] [bc]{name}[/bc]',
-    // The X / Y values arrive pre-padded by ship-exchange.ts so columns align across rows.
     shipDronesShields:
         '[mg]Drones[/mg]             [by]:[/by] [bc]{drones}[/bc] [g]/[/g] [c]{maxDrones}[/c]\r\n' +
         '[mg]Shields[/mg]            [by]:[/by] [bc]{shields}[/bc] [g]/[/g] [c]{maxShields}[/c]',

@@ -1,5 +1,4 @@
-// Class N's row: whether the port buys (B) or sells (S) each commodity.
-
+/** The port's side: it buys (B) or sells (S) the commodity. */
 export type PortAction = 'B' | 'S';
 export type PortClassActions = Record<'fuel' | 'organics' | 'equipment', PortAction>;
 

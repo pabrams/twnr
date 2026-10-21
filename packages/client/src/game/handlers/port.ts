@@ -121,8 +121,7 @@ async function runTradeRoutine(
     initialEmptyHolds: number,
 ): Promise<void> {
     const { term } = ctx.io;
-    // Cargo/credits/emptyHolds re-sync from each trade result; port inventory is
-    // decremented locally — only this player trades during their dock session.
+    // Port inventory is decremented locally: only this player trades during their dock session.
     const portInv: Record<CommodityKey, number> = {
         fuel: commodities[0].trading,
         organics: commodities[1].trading,
@@ -135,8 +134,8 @@ async function runTradeRoutine(
     let prompted = false;
 
     const ordered = [
-        ...commodities.filter((c) => actions[c.key] === 'B'), // player sells
-        ...commodities.filter((c) => actions[c.key] === 'S'), // player buys
+        ...commodities.filter((c) => actions[c.key] === 'B'),
+        ...commodities.filter((c) => actions[c.key] === 'S'),
     ];
 
     for (const c of ordered) {
@@ -200,7 +199,6 @@ async function runTradeRoutine(
                 term.writeln('You walk away from the deal.');
                 break;
             }
-            // Player accepts the port's current offer (default = press enter).
             if (
                 counter === portCurrent ||
                 (isFinal && counter >= portCurrent && action === 'buy') ||
@@ -208,7 +206,6 @@ async function runTradeRoutine(
             ) {
                 ctx.io.sendMsg({ type: ClientTag.HaggleAccept });
             } else if (isFinal) {
-                // After final offer the only valid input is accept or quit.
                 ctx.io.sendMsg({ type: ClientTag.HaggleQuit });
                 term.writeln('');
                 term.writeln('You walk away from the deal.');

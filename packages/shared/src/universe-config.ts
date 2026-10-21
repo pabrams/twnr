@@ -26,7 +26,6 @@ export const universeConfig = {
     bwarpInitRange: 1,
     bwarpFuelPerHop: 10,
 
-    // bigbang generation knobs
     sectorCount: 500,
     warpDist: [20, 20, 23, 22, 10, 5] as readonly number[],
     twoWayPct: 95,

@@ -4,10 +4,9 @@ export { HEX_CELL_SIZE, HEX_SPACING_MULTIPLIER };
 
 export type Topology = 'random' | 'proximal';
 
-/** Universe shape knob: smaller = tighter (more wormholes swapped in); the actual diameter cap comes from maxShortestPathTable per N. */
 export type MaxShortestPath = 'packed' | 'narrow' | 'medium' | 'wide' | 'vast';
 
-/** Hand-tuned diameter targets; the runtime cap lerps in log(N) between rows and clamps outside [100, 30000]. */
+/** Rows are [sector count, diameter cap]; the runtime cap interpolates in log(N) between them. */
 export const maxShortestPathTable: Record<MaxShortestPath, ReadonlyArray<[number, number]>> = {
     packed: [
         [100, 10],
@@ -127,6 +126,5 @@ export interface BigBangResult {
     warps: GeneratedWarp[];
     ports: GeneratedPort[];
     planets: GeneratedPlanet[];
-    /** Sector IDs that should be persisted as class-0 ports beyond the mandatory sector-1 hub. */
     extraClassZeroSectorIds: number[];
 }

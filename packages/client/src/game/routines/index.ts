@@ -1,5 +1,3 @@
-/** Importing this file registers every routine — each module calls registerRoutine / registerMenuRoutine at import time. */
-
 export {
     registerMenu,
     getMenuHandler,

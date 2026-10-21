@@ -27,9 +27,7 @@ describe('Port pricing — priceAt100', () => {
 
 describe('Port pricing — computeUnitPrice (selling port)', () => {
     it('returns base when tp <= floorTp', () => {
-        // selling port: tp = stock/max. stock=5, max=100 → 5% < floor 10%
         assert.equal(computeUnitPrice('fuel', 5, 100, 50, 'S'), COMMODITY_PRICING.fuel.base);
-        // edge: tp = floorTp → base
         assert.equal(computeUnitPrice('fuel', 10, 100, 50, 'S'), COMMODITY_PRICING.fuel.base);
     });
 
@@ -40,23 +38,20 @@ describe('Port pricing — computeUnitPrice (selling port)', () => {
     });
 
     it('floors interpolated values', () => {
-        // fuel S-port at tp=55%, MCIC=50: 25 + 10*(55-10)/90 = 30. Floored = 30.
+        // tp=55%: 25 + 10*(55-10)/90 = 30
         assert.equal(computeUnitPrice('fuel', 55, 100, 50, 'S'), 30);
-        // tp=54%: 25 + 10*(54-10)/90 = 29.888... Floored = 29.
+        // tp=54%: 25 + 10*(54-10)/90 = 29.888... → 29
         assert.equal(computeUnitPrice('fuel', 54, 100, 50, 'S'), 29);
     });
 });
 
 describe('Port pricing — computeUnitPrice (buying port)', () => {
     it('tp uses (max-stock)/max for buying ports', () => {
-        // buying port at stock=0, max=1000 → tp=100% → priceAt100
         assert.equal(computeUnitPrice('fuel', 0, 1000, -50, 'B'), 35);
-        // buying port at stock=max → tp=0% < floor → base
         assert.equal(computeUnitPrice('fuel', 1000, 1000, -50, 'B'), 25);
     });
 
     it('drops below 100% as the port fills from selling', () => {
-        // tp=55% buying = stock at 45% of max
         assert.equal(computeUnitPrice('fuel', 45, 100, -50, 'B'), 30);
     });
 });
@@ -67,9 +62,8 @@ describe('Port pricing — tradingDisplayed (legacy-style)', () => {
         assert.equal(tradingDisplayed('S', 800, 1000), 800);
     });
     it('buying: shows max - stock', () => {
-        // Real sample: max=1240, stock=285 → trading shown = 955
         assert.equal(tradingDisplayed('B', 285, 1240), 955);
-        assert.equal(tradingDisplayed('B', 0, 1240), 1240); // freshly spawned
+        assert.equal(tradingDisplayed('B', 0, 1240), 1240);
     });
     it('floors fractional stock', () => {
         assert.equal(tradingDisplayed('B', 285.7, 1240), 954);
@@ -79,11 +73,8 @@ describe('Port pricing — tradingDisplayed (legacy-style)', () => {
 
 describe('Port pricing — tradingPercentDisplay', () => {
     it('matches legacy floor convention', () => {
-        // Real sample: max=1240, stock=285 → trading%=77 (floor of 77.02%)
         assert.equal(tradingPercentDisplay('B', 285, 1240), 77);
-        // After upgrade: max=1320, stock=365 → 72% (floor of 72.35%)
         assert.equal(tradingPercentDisplay('B', 365, 1320), 72);
-        // Selling at 100%
         assert.equal(tradingPercentDisplay('S', 1640, 1640), 100);
     });
 });
@@ -116,7 +107,7 @@ describe('Port pricing — xpPriceMultiplier', () => {
 
 describe('Port pricing — computeUnitPriceWithXp', () => {
     it('applies xp multiplier and floors', () => {
-        const raw = computeUnitPrice('fuel', 1000, 1000, 50, 'S'); // 35
+        const raw = computeUnitPrice('fuel', 1000, 1000, 50, 'S');
         const withXp = computeUnitPriceWithXp('fuel', 1000, 1000, 50, 1000, 'S');
         assert.equal(withXp, Math.floor(raw * 0.72));
     });

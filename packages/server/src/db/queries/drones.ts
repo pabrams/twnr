@@ -70,7 +70,6 @@ export async function updateSectorDroneQuantity(
     ]);
 }
 
-/** Exactly one of ownerPlayerId/ownerClanId must be non-null. */
 export async function updateSectorDroneOwnerAndQuantity(
     sectorDbId: number,
     ownerPlayerId: number | null,
@@ -86,7 +85,6 @@ export async function updateSectorDroneOwnerAndQuantity(
     );
 }
 
-/** Exactly one of ownerPlayerId/ownerClanId must be non-null. */
 export async function insertSectorDrones(
     sectorDbId: number,
     ownerPlayerId: number | null,

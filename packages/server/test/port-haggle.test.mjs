@@ -11,20 +11,17 @@ import {
 
 describe('Haggle — maxAcceptablePlayerFavorablePct', () => {
     it('matches gap-analysis reference points', () => {
-        // Fuel: 1.494 at |MCIC|=90, 1.15 at 20
         assert.ok(Math.abs(maxAcceptablePlayerFavorablePct('fuel', -90) - 1.494) < 0.001);
         assert.ok(Math.abs(maxAcceptablePlayerFavorablePct('fuel', 20) - 1.15) < 0.001);
-        // Organics: 1.405 at 75, 1.15 at 30
         assert.ok(Math.abs(maxAcceptablePlayerFavorablePct('organics', -75) - 1.405) < 0.001);
         assert.ok(Math.abs(maxAcceptablePlayerFavorablePct('organics', 30) - 1.15) < 0.001);
-        // Equipment: 1.347 at 65, 1.102 at 20
         assert.ok(Math.abs(maxAcceptablePlayerFavorablePct('equipment', -65) - 1.347) < 0.001);
         assert.ok(Math.abs(maxAcceptablePlayerFavorablePct('equipment', 20) - 1.102) < 0.001);
     });
 
     it('clamps below low / above high reference', () => {
-        assert.equal(maxAcceptablePlayerFavorablePct('fuel', 10), 1.15); // below 20
-        assert.equal(maxAcceptablePlayerFavorablePct('fuel', 100), 1.494); // above 90
+        assert.equal(maxAcceptablePlayerFavorablePct('fuel', 10), 1.15);
+        assert.equal(maxAcceptablePlayerFavorablePct('fuel', 100), 1.494);
     });
 
     it('is symmetric in sign of MCIC', () => {
@@ -69,14 +66,13 @@ describe('Haggle — processHaggleCounter (S-port, player buys)', () => {
     const base = {
         action: 'S',
         commodity: 'fuel',
-        mcic: 50, // S-port has positive MCIC
+        mcic: 50,
         initialOffer: 1000,
         portCurrent: 1000,
         midRoundsLeft: 2,
     };
 
     it('rejects an absurdly low counter (player asks for too much)', () => {
-        // Fuel @ MCIC=50 → maxPct ≈ 1.297 → min counter ≈ 1000/1.297 ≈ 771; 700 is below
         const step = processHaggleCounter({ ...base, playerCounter: 700 });
         assert.equal(step.outcome, 'reject');
     });
@@ -85,7 +81,7 @@ describe('Haggle — processHaggleCounter (S-port, player buys)', () => {
         const step = processHaggleCounter({ ...base, playerCounter: 800 });
         assert.equal(step.outcome, 'counter');
         if (step.outcome === 'counter') {
-            // Port concedes 65% of gap (200) → port new = 1000 - 130 = 870
+            // 65% concession of gap 200 → 1000 - 130 = 870
             assert.equal(step.newPortOffer, 870);
             assert.equal(step.midRoundsLeft, 1);
         }
@@ -112,14 +108,13 @@ describe('Haggle — processHaggleCounter (S-port, player buys)', () => {
         const step = processHaggleCounter({
             ...base,
             portCurrent: 1000,
-            playerCounter: 995, // gap = 5 ≤ tolerance
+            playerCounter: 995,
         });
         assert.equal(step.outcome, 'accept');
         if (step.outcome === 'accept') assert.equal(step.finalTotal, 995);
     });
 
     it('accepts when player counter is worse than port current', () => {
-        // S-port: counter > portCurrent means player paid MORE than port asked
         const step = processHaggleCounter({
             ...base,
             portCurrent: 900,
@@ -141,7 +136,6 @@ describe('Haggle — processHaggleCounter (B-port, player sells)', () => {
     };
 
     it('rejects an absurdly high counter', () => {
-        // maxPct ≈ 1.297, so max acceptable counter ≈ 1297
         const step = processHaggleCounter({ ...base, playerCounter: 1500 });
         assert.equal(step.outcome, 'reject');
     });
@@ -150,16 +144,15 @@ describe('Haggle — processHaggleCounter (B-port, player sells)', () => {
         const step = processHaggleCounter({ ...base, playerCounter: 1200 });
         assert.equal(step.outcome, 'counter');
         if (step.outcome === 'counter') {
-            // Port concedes 65% of gap (200) → port new = 1000 + 130 = 1130
+            // 65% concession of gap 200 → 1000 + 130 = 1130
             assert.equal(step.newPortOffer, 1130);
         }
     });
 });
 
 describe('Haggle — gap-analysis sample (Org sell port)', () => {
-    it('reproduces the example: initial 973, player 895, port 966', () => {
-        // The real-game sample (973 → 966) implies fraction ≈ 0.09, not reproducible
-        // under our band model — assert model consistency, not the exact numbers.
+    it('sample inputs (initial 973, player 895) yield a model-consistent counter', () => {
+        // The real-game sample countered 966 (fraction ≈ 0.09), unreachable in the band model — assert model consistency instead.
         const step = processHaggleCounter({
             action: 'S',
             commodity: 'equipment',

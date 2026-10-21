@@ -15,7 +15,7 @@ async function deleteGuestUserById(userId: number, playerId: number): Promise<vo
     await deleteUserById(userId);
 }
 
-/** Default matches the 7-day JWT cookie TTL — past it the guest's browser can't resume anyway. */
+/** Default must match the 7-day JWT TTL in auth/jwt.ts and auth/cookies.ts. */
 export async function cleanupExpiredGuests(maxIdleDays = 7): Promise<{ deleted: number }> {
     const onlinePlayerIds = new Set(Object.keys(onlinePlayers).map(Number));
 

@@ -182,7 +182,6 @@ export async function serveBuyHolds(playerId: number, data: BuyHoldsCommand): Pr
                 throw new AbortTransaction();
             }
 
-            // each successive hold costs B + I more than the last.
             const { holdBaseCost: baseCost } = currentClass0Prices();
             const cost = holdCostRange(data.holds, data.holds + qty, baseCost);
             if (data.credits < cost) {

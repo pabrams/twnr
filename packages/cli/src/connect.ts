@@ -57,16 +57,6 @@ export type ConnectOpts = {
     pretty?: boolean;
 };
 
-/**
- * Pipe stdin ↔ WS, one JSON frame per line each way (REPL prompt on a TTY).
- * Two workarounds for server lifecycle quirks:
- *  - the server attaches its message listener only after async connect setup,
- *    and `ws` doesn't buffer frames for late listeners, so stdin lines queue
- *    until the first server frame arrives;
- *  - the server's sendEnvelope no-ops on a non-OPEN socket, so closing right
- *    at stdin EOF would eat in-flight replies — instead wait for `drainMs` of
- *    WS silence, the timer resetting on every incoming frame.
- */
 export async function connect(
     session: Session,
     universeId: number,
@@ -81,8 +71,6 @@ export async function connect(
     const isTTY = !!process.stdin.isTTY;
     let rl: ReadlineInterface | null = null;
 
-    /** On a TTY, clears the prompt line first and re-renders prompt + input after,
-     *  so async frames don't garble in-progress input. */
     const writeOut = (text: string): void => {
         if (isTTY && rl) {
             process.stdout.write('\r\x1b[K');
@@ -97,8 +85,10 @@ export async function connect(
         let stdinClosed = false;
         let serverReady = false;
         let drainTimer: NodeJS.Timeout | null = null;
+        // The server attaches its message listener only after async setup and `ws` doesn't buffer — hold sends until the first server frame.
         const pendingSends: string[] = [];
 
+        // The server's sendEnvelope no-ops on a non-OPEN socket — closing right at stdin EOF would eat in-flight replies.
         const armDrainTimer = (): void => {
             if (drainTimer) clearTimeout(drainTimer);
             drainTimer = setTimeout(() => {

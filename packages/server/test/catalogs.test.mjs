@@ -12,7 +12,6 @@ const PROJECT_ROOT = join(dirname(__filename), '..');
 const STOCK_DIR = join(PROJECT_ROOT, 'config', 'templates', 'stock');
 
 const UNIVERSE_ID = 1;
-// Test players are created flying this ship type (see helpers.createTestPlayer).
 const STARTER_SLUG = JSON.parse(
   readFileSync(join(STOCK_DIR, 'ships', '01-vulpeculan-cruiser.json'), 'utf8'),
 ).slug;
@@ -69,7 +68,6 @@ describe('ShipCatalog', () => {
         cruiser.baseCost,
         cfg.costDrive + cfg.costComputer + cfg.costHull + cfg.startingHolds * cfg.holdCost,
       );
-      // Items a type can't carry are simply absent from the map.
       assert.equal(cruiser.hardware.buoy, cfg.maxBuoy);
       assert.equal(cruiser.hardware.hyperspace_1 ?? 0, cfg.canHaveHyperspace1 ? 1 : 0);
     } finally {
@@ -83,8 +81,6 @@ describe('ShipCatalog', () => {
     try {
       const res = await wsRequest(ws, { type: ClientTag.ShipCatalog }, ServerTag.ShipCatalogResult);
       const target = res.ships.find((s) => s.name !== STARTER_SLUG && s.baseCost > 0);
-      // Not at a starbase, so the purchase is refused — but it must be refused
-      // for location, not because the slug was unknown.
       const buy = await wsRequest(
         ws,
         { type: ClientTag.BuyShipNew, targetShipName: target.name },
@@ -154,7 +150,7 @@ describe('HardwareCatalog', () => {
 describe('TraderList', () => {
   it('lists every player in the universe, including offline ones, by experience', async () => {
     const online = await createPlayer('trader_online');
-    await createPlayer('trader_offline'); // never connected
+    await createPlayer('trader_offline');
     const { ws } = await connectPlayer(online.token);
     try {
       const res = await wsRequest(ws, { type: ClientTag.TraderList }, ServerTag.TraderListResult);

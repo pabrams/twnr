@@ -1,7 +1,6 @@
 import { getPlayerShipFull } from '../db/queries/ship.js';
 import { getShipHardwareQuantities, getShipTypeHardwareMax } from '../db/queries/hardware.js';
 
-/** Return shape is untyped: attaches `hardware` {name → installed qty} and `hardware_max` {name → ship-type cap}. */
 export async function getPlayerShip(playerId: number) {
     const ship = await getPlayerShipFull(playerId);
     if (!ship) return null;

@@ -291,7 +291,6 @@ export async function serveDestroyPlanet(playerId: number): Promise<void> {
     );
 }
 
-/** Pre-check for the sector-menu 'U' command. */
 export async function serveTerraformInfo(playerId: number): Promise<void> {
     const player = onlinePlayers[playerId];
     if (!player) return;
@@ -512,7 +511,6 @@ export async function serveSetTerraformedPlanet(
     });
 }
 
-/** Sends the error itself; returns null on bad input. */
 function parseColonistCommodity(playerId: number, commodity: string): ColonistCommodity | null {
     if (commodity !== 'fuel' && commodity !== 'organics' && commodity !== 'equipment') {
         sendError(playerId, 'Invalid commodity');
@@ -521,7 +519,6 @@ function parseColonistCommodity(playerId: number, commodity: string): ColonistCo
     return commodity as ColonistCommodity;
 }
 
-/** Sends the error itself; returns null on bad input. */
 function parsePlanetCommodity(playerId: number, commodity: string): PlanetCommodity | null {
     if (
         commodity !== 'fuel' &&
@@ -535,7 +532,6 @@ function parsePlanetCommodity(playerId: number, commodity: string): PlanetCommod
     return commodity as PlanetCommodity;
 }
 
-/** TODO: only used for Earth, for some reason — smells bad. */
 async function liftoffWithResult<T extends { type: (typeof ServerTag)[keyof typeof ServerTag] }>(
     playerId: number,
     result: T,

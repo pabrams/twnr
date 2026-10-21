@@ -52,8 +52,7 @@ export const ShipConfigSchema = z.object({
 });
 export type ShipConfig = z.infer<typeof ShipConfigSchema>;
 
-/** One base ("citadel") level: fuel/org/equ are one-time stock drains, colos
- *  is checked against planet colonist totals, days is real-time days. */
+/** fuel/org/equ drain once; colos is a threshold, not a drain; days is real-time. */
 export const BaseLevelRequirementSchema = z.object({
     fuel: z.number(),
     org: z.number(),

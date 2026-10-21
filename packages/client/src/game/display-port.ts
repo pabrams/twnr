@@ -36,14 +36,12 @@ function formatTimestamp(): string {
 
 export function showClass0Menu(ctx: DisplayPortCtx) {
     const p = ctx.catalogs.class0Prices;
-    // absent means not docked yet (prices land with the dock reply) — unreachable here
     if (!p) return;
     const { term } = ctx.io;
     const canBuyHolds = class0MaxBuy('holds', ctx);
     const canBuyDrones = class0MaxBuy('drones', ctx);
     const canBuyShields = class0MaxBuy('shields', ctx);
     const pad = (n: number) => String(n).padStart(6);
-    // Cost shown is for the *next* hold (B + currentHolds·I).
     const currentHolds = ctx.starbase.class0ShipState?.holds ?? 0;
     const nextHold = nextHoldCost(currentHolds, p.holdBaseCost, p.holdCostIncrement);
 

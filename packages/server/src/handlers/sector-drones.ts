@@ -377,7 +377,6 @@ export async function serveAttackSectorDrones(
                 if (k > 0) {
                     await insertSystemMemo(rid, 'Deployed Drones', 'drones_destroyed', destroyBody);
                 }
-                // Owners' observations reflect the loss without revisiting the sector.
                 if (sectorDbId !== undefined && sectorDbId !== null) {
                     await refreshSectorObservation(rid, sectorDbId);
                 }

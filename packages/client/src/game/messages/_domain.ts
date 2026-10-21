@@ -1,7 +1,6 @@
 import { getTemplate } from '../renderer.js';
 
-/** Proxy re-reads the live registry on each access so held references survive HMR
- *  registry rebuilds; falls back to the static object before registerTemplates runs. */
+/** Proxy re-reads the live registry per access so held references survive HMR rebuilds. */
 export function makeDomain<T extends Record<string, string>>(
     domain: string,
     staticTemplates: T,

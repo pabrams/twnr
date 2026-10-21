@@ -7,9 +7,6 @@ import { request, type IOCtx } from './io.js';
 
 export type CatalogCtx = IOCtx & Pick<GameContext, 'catalogs'>;
 
-/** Lazy catalog loaders: request on first use, memoize on ctx.catalogs. Null means
- *  server error or socket drop — the Error handler has already printed the reason. */
-
 export async function loadShipCatalog(ctx: CatalogCtx): Promise<ShipCatalogEntry[] | null> {
     if (ctx.catalogs.ships) return ctx.catalogs.ships;
     ctx.io.term.writeln(render(STARBASE.loadingShipCatalog));

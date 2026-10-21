@@ -19,9 +19,6 @@ export type Class0Prices = z.infer<typeof Class0PricesSchema>;
 
 export const class0Prices: Class0Prices = loadConfig('class0-prices.json', Class0PricesSchema);
 
-// JSON format: `amountChangeFor` values are a fixed delta or a nested map
-// keyed by a caller-chosen discriminator (e.g. buildPortByClass keyed by port
-// class); `factorsFor` is flat string → number for formula-driven features.
 const AmountChangeValue = z.union([z.number(), z.record(z.string(), z.number())]);
 const AttributeDeltasSchema = z.object({
     amountChangeFor: z.record(z.string(), AmountChangeValue),
@@ -38,14 +35,11 @@ export const experienceDeltas: AttributeDeltas = loadConfig(
     AttributeDeltasSchema,
 );
 
-/** Scalar entries only: missing keys and nested-map entries both return 0. */
 export function scalarDelta(deltas: AttributeDeltas, key: string): number {
     const v = deltas.amountChangeFor[key];
     return typeof v === 'number' ? v : 0;
 }
 
-// Keys are class numbers as strings ("1".."8"); weights are sampled
-// proportionally and need not sum to 100.
 const PortClassesSchema = z.object({
     generationShares: z.record(z.string(), z.number()),
 });

@@ -58,7 +58,6 @@ registerRoutine('buy_mines_menu', async (ctx) => {
     await buyStackable(ctx, itemName, label);
 });
 
-// Hardware store's `?` is a fancier visual than the generic help_menu listing.
 registerMenuRoutine(Menu.StarbaseHardware, 'help_menu', (ctx) => {
     showHardwareMenu(ctx);
 });

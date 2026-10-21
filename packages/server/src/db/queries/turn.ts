@@ -73,7 +73,6 @@ export type TurnGrantPlayerRow = {
     last_turns_granted_at: Date;
 };
 
-/** FOR UPDATE so the hourly grant doesn't race a player's in-flight turn deduction. */
 export async function lockPlayersForTurnGrant(
     universeId: number,
     db: Queryable = pool,

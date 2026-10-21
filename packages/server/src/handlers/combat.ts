@@ -133,8 +133,7 @@ export async function serveAttackShip(attackerId: number, data: AttackShipComman
                 await setShipDronesAndShields(targetPlayerId, targetDrones, targetShields, client);
             }
 
-            // Rewards use the defender's PRE-penalty rep/exp snapshot; the
-            // defender accrues nothing unless destroyed.
+            // Rewards use the defender's pre-penalty rep/exp snapshot.
             const attackerSnap = await getPlayerRepExpForUpdate(attackerId, client);
             const defenderSnap = await getPlayerRepExpForUpdate(targetPlayerId, client);
             const matchup = pvpMatchup(attackerSnap.reputation, defenderSnap.reputation);

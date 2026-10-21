@@ -64,7 +64,6 @@ export function setupAuthScreen(opts: {
                 elements.errorDiv.textContent = data.error || 'Could not create guest session.';
                 return;
             }
-            // Guests bypass universe-select; the server picked the universe.
             onGuestSuccess(data.universeId);
         } catch {
             elements.errorDiv.textContent = 'Could not reach server.';

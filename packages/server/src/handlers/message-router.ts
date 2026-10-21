@@ -224,7 +224,6 @@ const handlers: HandlerMap = {
 };
 
 export async function routeMessage(playerId: number, data: ClientEnvelope): Promise<void> {
-    // Naming gate: with no ship or a pending purchase, only SetShipName is accepted.
     if (data.type !== ClientTag.SetShipName) {
         const player = onlinePlayers[playerId];
         const needsName =

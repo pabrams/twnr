@@ -608,7 +608,6 @@ registerRoutine('transporter_pad', async (ctx) => {
         ctx.io.term.writeln(
             render(COMPUTER.transporterTurnsLeft, { turns: result.turnsRemaining }),
         );
-        // Refresh the scan since the player's ship + position changed.
         const refreshed = await fetchScan();
         if (!refreshed) return;
         scan = refreshed;
@@ -740,6 +739,5 @@ registerRoutine('tow_spacecraft', async (ctx) => {
         return;
     }
 
-    // Manned existed but answered No, and no unmanned available: silent end.
     void viewerId;
 });

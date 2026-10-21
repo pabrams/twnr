@@ -14,6 +14,7 @@ export function worktreeRoot(): string {
     }
 }
 
+/** Result is interpolated into a quoted CREATE DATABASE — must stay a safe identifier. */
 function deriveDatabaseName(): string {
     if (process.env.PGDATABASE) return process.env.PGDATABASE;
     const root = worktreeRoot();
@@ -36,7 +37,6 @@ export const pool = new Pool({
     password: process.env.PGPASSWORD,
 });
 
-/** Idempotent. The identifier is sanitized in deriveDatabaseName, so the quoted interpolation below cannot inject SQL. */
 export async function ensureDatabase(): Promise<void> {
     const admin = new Client({
         host: process.env.PGHOST || 'localhost',

@@ -108,13 +108,12 @@ export function showShipyardsMenu(ctx: DisplayStarbaseCtx) {
     showShipyardsPrompt(ctx);
 }
 
-/** Map index to letter, skipping Q (reserved for quit). */
+/** Skips Q — reserved for quit. */
 export function indexToLetter(i: number): string {
     const code = 65 + i + (i >= 16 ? 1 : 0);
     return String.fromCharCode(code);
 }
 
-/** Reverse: letter back to index, accounting for skipped Q. */
 export function letterToIndex(letter: string): number {
     const code = letter.toUpperCase().charCodeAt(0) - 65;
     if (code > 16) return code - 1;

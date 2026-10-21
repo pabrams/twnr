@@ -56,9 +56,7 @@ export function setupAdminScreen(container: HTMLElement, onBack: () => void): vo
                 renderUniverseListView();
                 break;
             case 'generate':
-                renderUniverseGenerator(content, () => {
-                    // After generating, switch to universes tab
-                });
+                renderUniverseGenerator(content, () => {});
                 break;
         }
     }

@@ -15,7 +15,6 @@ import {
 import { getShipTurnsPerWarp } from '../db/queries/ship.js';
 import { getPlayerClanId } from '../db/queries/clan.js';
 
-/** Total turns-per-warp for the tower when towing another ship. */
 export function combinedTurnsPerWarp(selfTpw: number, towedTpw: number): number {
     return selfTpw + 2 * towedTpw;
 }

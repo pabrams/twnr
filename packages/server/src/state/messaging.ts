@@ -19,7 +19,7 @@ export function sendError(playerId: number, message: string): void {
     player.ws.send(frame({ type: ServerTag.Error, message }));
 }
 
-/** Call only after the destruction payload has been sent — the 1008 close is the client's terminal step. */
+/** Call only after the destruction payload has been sent. */
 export function closeDestroyedSession(playerId: number, reason: string): void {
     const player = onlinePlayers[playerId];
     if (!player || player.ws.readyState !== 1) return;

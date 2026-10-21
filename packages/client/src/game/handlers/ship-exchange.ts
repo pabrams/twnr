@@ -26,7 +26,7 @@ export const shipInfo: Handler<'shipInfoResult', ShipExchangeContext> = (ctx, ms
             render(PANEL.shipClan, { num: msg.clanNumber, name: msg.clanName ?? '' }),
         );
     }
-    // Pad to a common width so all "X / Y" pairs line up vertically across rows.
+    // Pad to a common width so the "X / Y" pairs align vertically across rows.
     const vals = [
         msg.drones,
         msg.maxDrones,
@@ -64,7 +64,6 @@ export const shipInfo: Handler<'shipInfoResult', ShipExchangeContext> = (ctx, ms
     if (ctx.catalogs.hardware && ctx.catalogs.hardware.length > 0) {
         for (const item of ctx.catalogs.hardware) {
             const max = msg.hardwareMax[item.name];
-            // undefined/0 max = ship type can't carry this item
             if (max === undefined || max === 0) continue;
             const qty = msg.hardware[item.name] ?? 0;
             if (item.kind === 'toggle') {

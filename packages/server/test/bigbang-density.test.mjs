@@ -10,7 +10,6 @@ describe('Density Boundaries', () => {
     const dir = generateUniverse({ sectors: 50, seed: 99, portDensity: 50, planetDensity: 0 });
     try {
       const { rows } = readCSV(join(dir, 'planets.csv'));
-      // Earth is always seeded at sector 1 regardless of planet density.
       assert.equal(rows.length, 1, `Expected 1 planet (Earth), got ${rows.length}`);
       assert.equal(parseInt(rows[0][0], 10), 1, 'Sole planet should be in sector 1');
       assert.equal(rows[0][1], 'Earth', 'Sole planet should be named Earth');
@@ -37,9 +36,7 @@ describe('Density Boundaries', () => {
     try {
       const { rows } = readCSV(join(dir, 'ports.csv'));
       const { rows: sRows } = readCSV(join(dir, 'sectors.csv'));
-      // Federation Outposts are class-0 hubs the generator names but doesn't
-      // emit into ports.csv (bootstrap inserts them via upsertSpecialPort).
-      // Exclude them from the "every sector has a port" check.
+      // Class-0 Federation Outposts aren't in ports.csv — bootstrap inserts them via upsertSpecialPort.
       const classZeroSectors = new Set(
         sRows.filter(r => r[1] === 'Federation Outpost').map(r => parseInt(r[0], 10)),
       );

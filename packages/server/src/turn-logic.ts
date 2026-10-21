@@ -34,7 +34,6 @@ export async function fetchMoveTurnContext(
     };
 }
 
-/** turn_delay is enforced even in unlimited-turn (turnsPerDay = 0) games. */
 export async function deductTurns(
     playerId: number,
     cost: number,
@@ -53,7 +52,6 @@ export async function deductTurns(
     return { allowed: true, turnsUsed: cost };
 }
 
-/** Sleeps cost * turn_delay ms before returning, even in unlimited-turn games. */
 export async function checkAndDeductTurns(
     playerId: number,
     universeId: number,

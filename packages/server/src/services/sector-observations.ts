@@ -3,7 +3,6 @@ import { getSectorDroneOwners } from '../db/queries/drones.js';
 import { getSectorMineOwners } from '../db/queries/mines.js';
 import { upsertSectorObservation, listSectorObservationRows } from '../db/queries/observations.js';
 
-/** What the player has seen in a sector — not what's currently there. */
 export type SectorObservationFlags = {
     friendlyDrones: boolean;
     enemyDrones: boolean;

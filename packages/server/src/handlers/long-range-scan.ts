@@ -7,7 +7,6 @@ import { buildSectorDisplayData } from '../services/sector-display.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 import { notifyTurnChange } from '../services/notify.js';
 
-// Density-score weights — see `Long Range Scan` spec.
 const W_PORT = 100;
 const W_SHIP = 40;
 const W_PLANET = 600;
@@ -53,7 +52,6 @@ export async function serveDensityScan(playerId: number): Promise<void> {
     });
 }
 
-/** Costs one turn; requires a visual scanner. */
 export async function serveVisualScan(playerId: number): Promise<void> {
     const player = onlinePlayers[playerId];
     if (!player) return;

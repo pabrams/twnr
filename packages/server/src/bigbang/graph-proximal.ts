@@ -6,7 +6,6 @@ import type { HexCell } from './positions.js';
 const MAX_OUT = 6;
 const MAX_IN = 6;
 
-/** warpDist is 1-indexed (warpDist[1..6]); forced-hub sectors get MAX_OUT regardless. */
 function assignTargetOutDegrees(
     N: number,
     rng: () => number,
@@ -40,7 +39,6 @@ function assignTargetOutDegrees(
     return targetOut;
 }
 
-/** Subtractive warp generator: seed every hex-adjacent pair as bidi, prune to sampled out-degrees, rebalance the bidi ratio, stitch SCCs, then swap in wormholes until diameter ≤ cap. */
 export function generateProximalGraph(
     N: number,
     twoWayPercentage: number,
@@ -98,8 +96,7 @@ export function generateProximalGraph(
         }
     }
 
-    // Phase 2: prune overfull sectors in descending-surplus order, re-ranked per
-    // removal since each removal changes both endpoints' surplus.
+    // Phase 2: prune overfull sectors, highest surplus first.
     function surplus(s: number): number {
         return adj[s].size - targetOut[s];
     }
@@ -121,8 +118,6 @@ export function generateProximalGraph(
             overfullQueue.splice(bestIdx, 1);
             continue;
         }
-        // Prefer mutually-overfull neighbors (delete the bidi pair), else degrade
-        // to 1-way; shuffled for spatial uniformity.
         const candidates = [...adj[u]];
         for (let i = candidates.length - 1; i > 0; i--) {
             const j = Math.floor(rng() * (i + 1));
@@ -145,13 +140,11 @@ export function generateProximalGraph(
             }
         }
         if (!removed) {
-            // Defensive: unreachable while every targetOut ≥ 1.
             overfullQueue.splice(bestIdx, 1);
         }
     }
 
-    // Phase 3: nudge the bidi/one-way ratio toward twoWayPct. Demotion skips an
-    // edge whose removal would leave an endpoint at in-degree 0.
+    // Phase 3: nudge the bidi/one-way ratio toward twoWayPct.
     {
         const X = twoWayPct / 100;
         let bidiPairCount = 0;
@@ -175,7 +168,6 @@ export function generateProximalGraph(
                 const j = Math.floor(rng() * (i + 1));
                 [oneWayList[i], oneWayList[j]] = [oneWayList[j], oneWayList[i]];
             }
-            // Promotion may push a sector past its warpDist target, capped only at MAX_OUT.
             let promoted = 0;
             for (const [a, b] of oneWayList) {
                 if (promoted >= K) break;
@@ -209,8 +201,7 @@ export function generateProximalGraph(
         }
     }
 
-    // Phase 4: pruning can disconnect the graph — stitch the SCCs into a single
-    // ring to restore strong connectivity.
+    // Phase 4: stitch the SCCs into a ring to restore strong connectivity after pruning.
     {
         const adjArr: number[][] = adj.map((s) => [...s]);
         const { compId, numComps } = findStronglyConnectedComponents(N, adjArr);
@@ -233,9 +224,7 @@ export function generateProximalGraph(
         }
     }
 
-    // Phase 5: swap hex-adjacent bidi pairs for long-range wormholes until
-    // diameter ≤ cap; each swap preserves total edge count, so warpDist holds
-    // in aggregate (individual degrees shift ±1).
+    // Phase 5: swap hex-adjacent bidi pairs for long-range wormholes until diameter ≤ cap.
     {
         const diameterCap = Math.max(2, maxShortestPathFor(maxShortestPath, N));
         const hexDist = (a: HexCell, b: HexCell): number => {
@@ -251,7 +240,6 @@ export function generateProximalGraph(
         const MAX_STALL = 200;
         const MAX_ITERS = Math.max(1000, N * 2);
         for (let iter = 0; iter < MAX_ITERS && stalled < MAX_STALL; iter++) {
-            // Multi-sample double-sweep: a single probe underestimates the diameter.
             const adjArr = adj.map((s) => [...s]);
             const SAMPLES = N >= 5000 ? 8 : 4;
             let bestU = -1;
@@ -275,7 +263,6 @@ export function generateProximalGraph(
                 continue;
             }
 
-            // wormholesAlwaysTwoWay: skip the candidate rather than ship a one-way wormhole.
             const canPQ = adj[p].size < MAX_OUT && inDeg[q] < MAX_IN;
             const canQP = adj[q].size < MAX_OUT && inDeg[p] < MAX_IN;
             if (!canPQ && !canQP) {
@@ -287,8 +274,6 @@ export function generateProximalGraph(
                 continue;
             }
 
-            // Removal candidates must avoid p, q, and forced hubs, and both
-            // endpoints need in- AND out-degree ≥ 2 so neither side is orphaned.
             const forcedSet = new Set(forcedHubSectors);
             let swapA = -1;
             let swapB = -1;
@@ -312,8 +297,7 @@ export function generateProximalGraph(
                 continue;
             }
 
-            // Degree checks don't guarantee strong connectivity — verify SCC
-            // after the swap and roll back on failure.
+            // Degree checks don't guarantee strong connectivity — verify SCC and roll back on failure.
             removeEdge(swapA, swapB);
             removeEdge(swapB, swapA);
             let added = 0;
@@ -351,7 +335,7 @@ export function generateProximalGraph(
     return result;
 }
 
-/** Iterative Kosaraju (no stack overflow at N=1000+); compId is 1-indexed and SCCs are numbered in condensation topological order. */
+/** Iterative on purpose — recursion overflows the stack at N=1000+. */
 function findStronglyConnectedComponents(
     N: number,
     adj: number[][],
@@ -406,7 +390,6 @@ function findStronglyConnectedComponents(
     return { compId, numComps: nextComp };
 }
 
-/** Farthest node from src by BFS; unreachable nodes count as infinitely far so disconnected fragments get bridged first. */
 function bfsFarthest(N: number, adj: number[][], src: number): { node: number; dist: number } {
     const dist = new Int32Array(N + 1).fill(-1);
     dist[src] = 0;

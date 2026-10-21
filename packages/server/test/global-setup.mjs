@@ -1,5 +1,4 @@
-// Shared test infra. run-tests.sh pre-starts the server; `ensureServer()` (call it
-// in your top-level before()) starts one when a test file runs standalone.
+// run-tests.sh pre-starts the server; `ensureServer()` (in a top-level before()) covers standalone runs.
 
 import pg from 'pg';
 import crypto from 'crypto';
@@ -160,7 +159,6 @@ async function doSetup() {
   await pool.end();
 }
 
-// Idempotent: only the first call does real work.
 export async function ensureServer() {
   if (!setupPromise) {
     setupPromise = doSetup();

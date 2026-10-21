@@ -1,7 +1,3 @@
-// One in-memory haggle session per player; cleared on undock / disconnect /
-// timeout. Trade commits only on accept (quitting is free); rejection costs
-// one turn so spamming aggressive counters has a price.
-
 import {
     ServerTag,
     PORT_CLASS_ACTIONS,
@@ -41,7 +37,6 @@ type HaggleSession = {
     universeId: number;
     commodity: PriceCommodity;
     action: 'buy' | 'sell';
-    /** Port-side action for math (B if player sells, S if player buys). */
     portAction: PortAction;
     quantity: number;
     mcic: number;

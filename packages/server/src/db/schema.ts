@@ -760,7 +760,6 @@ export const connectDB = async (): Promise<void> => {
             `INSERT INTO universe_template (name) VALUES ('stock') ON CONFLICT (name) DO NOTHING`,
         );
 
-        // sync 'stock' fields from universeConfig
         await client.query(
             `UPDATE universe_template
              SET starting_credits = $1,
@@ -984,8 +983,7 @@ export const connectDB = async (): Promise<void> => {
             );
         }
 
-        // starter_ship_slug FK is added here rather than at CREATE TABLE because
-        // universe_template is declared before template_ship_types.
+        // Added here, not at CREATE TABLE: universe_template is declared before template_ship_types.
         await client.query(`
             DO $$ BEGIN
                 IF NOT EXISTS (
@@ -999,8 +997,7 @@ export const connectDB = async (): Promise<void> => {
             END $$;
         `);
 
-        // Previous-session audit entries were signed with a key that no longer
-        // exists and can never verify — drop them at boot.
+        // Old audit entries were signed with a key that no longer exists and can never verify.
         await client.query('TRUNCATE TABLE audit_log RESTART IDENTITY');
 
         client.release();

@@ -78,9 +78,7 @@ export async function connectWS(options = {}) {
     const timer = setTimeout(() => { ws.terminate(); reject(new Error('WS connect timeout')); }, 2000);
     let cookies = [];
 
-    // Server attaches its message listener only after the post-welcome statsSnapshot,
-    // so a command sent right after welcome can be dropped — `await ready` first.
-    // (Shipless players never get a snapshot, so it's opt-in.)
+    // Server attaches its message listener only after the post-welcome statsSnapshot (shipless players never get one), so `await ready` before sending.
     let markReady;
     const ready = new Promise((r) => { markReady = r; });
 
@@ -125,7 +123,6 @@ export function wsRequest(ws, msg, responseType, timeout = 2000) {
       const raw = JSON.parse(data.toString());
       const parsed = raw.payload ?? raw;
       if (parsed.type === 'rateLimited') {
-        // Wait for token bucket to refill, then resend
         setTimeout(() => ws.send(JSON.stringify(msg)), 200);
         return;
       }

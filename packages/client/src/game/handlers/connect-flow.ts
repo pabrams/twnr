@@ -10,9 +10,6 @@ import { promptShipName } from './ship-name.js';
 
 type ConnectFlowCtx = Pick<GameContext, 'io' | 'input' | 'player'>;
 
-/** Runs on every Welcome envelope. Ship naming must come first — the server's
- *  routeMessage gate rejects all other commands until SetShipName lands; then
- *  connect mail, then a location-aware re-display through the input pipeline. */
 export async function runConnectFlow(ctx: ConnectFlowCtx, msg: WelcomeEvent): Promise<void> {
     if (msg.shipName === '' && msg.startingShip) {
         const typeLabel = msg.startingShip.typeDisplayName ?? msg.startingShip.typeName;

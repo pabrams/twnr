@@ -4,8 +4,7 @@ import { insertAuditLogEntry, type AuditLogRow } from '../db/queries/audit.js';
 
 export type { AuditLogRow } from '../db/queries/audit.js';
 
-// Per-session HMAC key, memory-only by design. A restart mints a fresh key,
-// which is why audit_log is truncated at boot: old-key rows can never verify.
+// Memory-only by design: a restart mints a fresh key, invalidating all prior audit rows.
 const auditSecret: Buffer = crypto.randomBytes(32);
 
 export type AuditActionType =
@@ -42,11 +41,7 @@ export function signEntry(entry: AuditEntryForSign): string {
     return crypto.createHmac('sha256', auditSecret).update(payload).digest('hex');
 }
 
-/**
- * Must run inside the same transaction that mutated `players.credits` so the
- * audit row commits atomically with the balance. `delta` is signed (negative = spend);
- * the verifier sums deltas over HMAC-valid rows against the live balance.
- */
+/** Must run inside the same transaction that mutated `players.credits`. */
 export async function recordCreditChange(
     client: Queryable,
     params: {

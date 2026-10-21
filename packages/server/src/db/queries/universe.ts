@@ -99,7 +99,6 @@ export async function renameUniverse(
     return res.rows[0];
 }
 
-/** Delete a universe row (CASCADE clears dependent tables). */
 export async function deleteUniverse(universeId: number, db: Queryable = pool): Promise<void> {
     await db.query('DELETE FROM universes WHERE id = $1', [universeId]);
 }
@@ -114,7 +113,6 @@ export async function getTemplateIdByName(
     return res.rows[0]?.id ?? null;
 }
 
-/** Run once at universe creation; the snapshot is frozen — later template edits never propagate. */
 export async function snapshotTemplateForUniverse(
     universeId: number,
     templateName: string,

@@ -18,7 +18,6 @@ export interface HexLayout {
 
 const SQRT3 = Math.sqrt(3);
 
-/** Spacing is scaled by HEX_SPACING_MULTIPLIER so adjacent pills leave visible warp segments even with multi-digit labels. */
 export function hexToCartesian(q: number, r: number): Position {
     return {
         x: HEX_CELL_SIZE * HEX_SPACING_MULTIPLIER * 1.5 * q,
@@ -26,7 +25,6 @@ export function hexToCartesian(q: number, r: number): Position {
     };
 }
 
-/** The six neighbor directions in axial coordinates (flat-top). */
 export const HEX_NEIGHBOR_DIRS: ReadonlyArray<HexCell> = [
     { q: +1, r: 0 },
     { q: +1, r: -1 },
@@ -47,8 +45,7 @@ export function arrangeAnchors(layout: HexLayout, anchorSectorIds: readonly numb
     const N = layout.cells.length;
     if (N === 0 || anchorSectorIds.length === 0) return layout;
 
-    // Anchors prefer interior cells (all 6 neighbors occupied) so each hits its
-    // forced out-degree of 6 without wormholes; falls back to all cells at small N.
+    // Interior cells (all 6 neighbors occupied) let each anchor hit its forced out-degree of 6 without wormholes.
     const cellKey = (q: number, r: number) => `${q},${r}`;
     const occupied = new Set<string>();
     for (const c of layout.cells) occupied.add(cellKey(c.q, c.r));
@@ -109,7 +106,6 @@ export function arrangeAnchors(layout: HexLayout, anchorSectorIds: readonly numb
         chosen[bestIdx] = 1;
     }
 
-    // cellIdxForSector[s] = index into the old arrays for sector s.
     const cellIdxForSector = new Int32Array(N + 1).fill(-1);
     for (let i = 0; i < anchorCellIndices.length; i++) {
         cellIdxForSector[anchorSectorIds[i]] = anchorCellIndices[i];

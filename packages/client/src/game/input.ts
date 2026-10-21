@@ -2,7 +2,6 @@ import type { Terminal } from '@xterm/xterm';
 import type { GameContext, KeystrokeEvent } from './types.js';
 import { getMenuHandler, getRoutine, showPrompt } from './routines/index.js';
 
-/** 'single' = immediate single-char command, 'buffered' = begins/continues multi-char input, false = reject. */
 function isValidKeyForMenu(ctx: GameContext, key: string): 'single' | 'buffered' | false {
     const menu = ctx.catalogs.menus.get(ctx.world.mode);
     if (!menu) return 'single';
@@ -26,7 +25,6 @@ function isValidKeyForMenu(ctx: GameContext, key: string): 'single' | 'buffered'
 }
 
 function processKeystroke(ctx: GameContext, ev: KeystrokeEvent) {
-    // Char-mode sub-prompt (askChar/askConfirm): resolves on the next keystroke, no Enter, no menu validation.
     if (ctx.input.pendingResolver?.mode === 'char') {
         if (ev.isEnter) {
             const r = ctx.input.pendingResolver;
@@ -53,7 +51,6 @@ function processKeystroke(ctx: GameContext, ev: KeystrokeEvent) {
         }
         return;
     }
-    // Line-mode sub-prompt (askLine/askNumber): assemble until Enter; menu-key validation does not apply.
     if (ctx.input.pendingResolver?.mode === 'line') {
         ctx.input.inputAssembly += ev.key;
         ctx.io.term.write(ev.key);
@@ -88,7 +85,6 @@ export function drainInputQueue(ctx: GameContext) {
 
 export function setupInput(term: Terminal, ctx: GameContext) {
     term.onKey(({ key, domEvent }) => {
-        // Typing dismisses the minimap floating menu — intent switched from clicking.
         ctx.minimap.handle?.closeMenu();
         if (key === '~') {
             ctx.io.setDebug(!ctx.io.debug);
@@ -98,7 +94,7 @@ export function setupInput(term: Terminal, ctx: GameContext) {
             if (domEvent.key === 'Enter' && !ctx.player.isGuest) {
                 ctx.connection.reconnect();
             } else if (domEvent.key === 'Escape') {
-                ctx.connection.leave();
+                ctx.connection.exitToUniverseSelect();
             }
             return;
         }
@@ -107,7 +103,6 @@ export function setupInput(term: Terminal, ctx: GameContext) {
             isEnter: domEvent.key === 'Enter',
             isBackspace: domEvent.key === 'Backspace',
         };
-        // Queue keystrokes while a roundtrip is in flight so fast typing isn't dropped by the stale ctx.world.mode.
         if (ctx.input.inFlight) {
             ctx.input.userInputBuffer.push(ev);
             return;
@@ -115,15 +110,12 @@ export function setupInput(term: Terminal, ctx: GameContext) {
         processKeystroke(ctx, ev);
     });
 
-    // Minimap clicks route through the same input handler as Enter, so they behave exactly like typed commands.
     ctx.io.submitLineFromMap = (line: string) => {
         const trimmed = line.trim();
         if (trimmed.length > 0) term.writeln(trimmed);
         else term.writeln('');
         onInput(ctx, trimmed);
     };
-    // Minimap menu buttons go through processKeystroke like a real key event, so
-    // they work for char-mode sub-prompts and single-key menu commands alike.
     ctx.io.submitKeyFromMap = (key: string) => {
         const ev: KeystrokeEvent = { key, isEnter: false, isBackspace: false };
         if (ctx.input.inFlight) {
@@ -135,10 +127,7 @@ export function setupInput(term: Terminal, ctx: GameContext) {
 }
 
 function onInput(ctx: GameContext, line: string) {
-    // Ignore input during autopilot (but allow when paused for encounters).
     if (ctx.autopilot.path.length > 0 && ctx.autopilot.step > 0 && !ctx.autopilot.paused) return;
-    // Line-mode sub-prompts resolve here on Enter (char-mode resolves in
-    // processKeystroke); the routine awaiting the ask owns the next paint.
     if (ctx.input.pendingResolver?.mode === 'line') {
         const r = ctx.input.pendingResolver;
         ctx.input.pendingResolver = null;
@@ -147,8 +136,6 @@ function onInput(ctx: GameContext, line: string) {
     }
     const result = dispatchByRegistry(ctx, line);
 
-    // Re-render the prompt after a fully client-side action; a roundtrip
-    // (inFlight) or open sub-prompt (pendingResolver) paints next instead.
     const finishUp = () => {
         if (!ctx.input.inFlight && !ctx.input.pendingResolver) {
             showPrompt(ctx);
@@ -167,7 +154,6 @@ function dispatchByRegistry(ctx: GameContext, line: string): void | Promise<void
     const lower = line.toLowerCase();
     let cmd = menu.commands.find((c) => c.keyPattern === lower);
     if (!cmd && line === '') {
-        // Empty Enter uses the menu's `<enter>` row; without one, onInput's auto-prompt-render repaints.
         cmd = menu.commands.find((c) => c.keyPattern === '<enter>');
         if (!cmd) return;
     }

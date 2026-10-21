@@ -173,7 +173,6 @@ export async function serveClanLeave(playerId: number, data: ClanLeaveCommand): 
     const memberCount = await getClanMemberCount(clanId);
     const isLastMember = memberCount <= 1;
 
-    // Dissolution wipes clan-owned assets, so explicit confirmation is required.
     if (isLastMember) {
         if (!confirmDissolve) {
             sendError(
@@ -331,7 +330,6 @@ export async function serveClanmateLocations(playerId: number): Promise<void> {
     });
 }
 
-/** Sends the error itself; returns the shared clan id, or null on failure. */
 async function requireSameClan(senderId: number, targetId: number): Promise<number | null> {
     if (senderId === targetId) {
         sendError(senderId, 'Cannot transfer to yourself.');
@@ -485,7 +483,6 @@ export async function serveClanTransfer(
     }
 
     if (result.delivered === 0 && kind !== 'credits') {
-        // Transfer helpers already sent the error (credits never clamps to zero).
         return;
     }
 
@@ -545,7 +542,6 @@ export async function serveClanMemo(senderId: number, data: ClanMemoCommand): Pr
     const senderName = recipients.length > 0 ? await getPlayerDisplayName(senderId) : '';
     for (const m of recipients) {
         await insertMemo(m.id, senderId, clanId, 'memo', trimmed);
-        // Notification only — the memo body stays in the inbox.
         if (onlinePlayers[m.id]) {
             sendEnvelope(m.id, {
                 type: ServerTag.ClanMemoNotification,
@@ -627,7 +623,6 @@ export async function serveClanDropMember(
     );
     const online = onlinePlayers[targetPlayerId];
     if (online) {
-        // The client caches clanId; this envelope invalidates it.
         sendEnvelope(targetPlayerId, {
             type: ServerTag.ClanMembershipChanged,
             clanId: null,

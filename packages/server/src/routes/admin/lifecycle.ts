@@ -108,7 +108,6 @@ export function createAdminLifecycleRoutes(
             const result = generateUniverse(options);
 
             const universeId = await withTransaction(async (client) => {
-                // pointer for content lookups + snapshot for frozen settings
                 const templateId = await getTemplateIdByName(template_name, client);
                 const newUniverseId = await insertUniverseFull(
                     name,
@@ -119,8 +118,6 @@ export function createAdminLifecycleRoutes(
                 );
                 await snapshotTemplateForUniverse(newUniverseId, template_name, client);
 
-                // Store the resolved knobs, not template defaults; warpDist
-                // drops the leading-0 sentinel.
                 await updateUniverseBigbangSettings(
                     newUniverseId,
                     {

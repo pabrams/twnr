@@ -16,7 +16,6 @@ function pad(n: number): string {
     return String(n).padStart(2, '0');
 }
 
-/** "11:37:09 AM S.D. 05/13/54" — stardate-flavored locale time. */
 export function formatMailTime(iso: string): string {
     const d = new Date(iso);
     const h = d.getHours();

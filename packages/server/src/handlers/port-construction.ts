@@ -34,7 +34,6 @@ import { getSectorDbId } from '../db/queries/sector.js';
 import { recordCreditChange } from '../services/audit.js';
 import { experienceDeltas, reputationDeltas, scalarDelta } from '../game-config.js';
 
-/** "O" command: build table (planet, no port), upgrade table (port exists), or reject. */
 export async function serveConstructPortInfo(playerId: number): Promise<void> {
     const player = onlinePlayers[playerId];
     if (!player) return;
@@ -210,7 +209,6 @@ export async function serveBuildPort(playerId: number, data: BuildPortCommand): 
                 context: { sector: player.sector, portClass, portName },
             });
 
-            // Ownership snapshots at build time: clan if the builder has one, else personal.
             const ownerClanId = playerRow.clan_id;
             const ownerPlayerId = ownerClanId === null ? playerId : null;
             await insertPortConstruction(
@@ -296,7 +294,6 @@ export async function serveUpgradePortInfo(playerId: number): Promise<void> {
         };
     });
 
-    // getPortAtSector doesn't include prod columns; patch them from a focused query.
     const prod = await getPortProductionAtSector(player.sector, player.universeId);
     if (prod) {
         commodities[0].currentProd = prod.fuel_prod;

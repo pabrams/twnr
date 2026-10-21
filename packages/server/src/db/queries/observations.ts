@@ -4,9 +4,7 @@ import type { Queryable } from '../types.js';
 export type RecordedPort = { class: number } | null;
 export type RecordedPlanet = { name: string; type: string | null };
 
-/** Observation rows are snapshots that survive destruction of the live records
- *  until re-visit. Upsert + set-difference (not delete-then-insert) so concurrent
- *  calls for the same (player, sector) don't collide. */
+/** Upsert + set-difference, never delete-then-insert, so concurrent calls for one (player, sector) don't collide. */
 export async function recordSectorObservation(
     playerId: number,
     sectorId: number,

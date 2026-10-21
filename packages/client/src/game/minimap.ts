@@ -5,9 +5,7 @@ import './minimap.css';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
-/** Hex cells visible across the panel width at zoom = 1. */
 const BASE_CELLS_ACROSS = 12;
-/** Pill height as a fraction of one hex cell, in world units. */
 const LABEL_FRACTION_OF_CELL = 0.45;
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 8.0;
@@ -40,7 +38,6 @@ function svgEl<K extends keyof SVGElementTagNameMap>(
     return el;
 }
 
-/** SVG <text>, centred on its anchor point unless the caller overrides. */
 function svgText(classes: ClassSpec, attrs: Attrs, text: string): SVGTextElement {
     const t = svgEl('text', classes, {
         'text-anchor': 'middle',
@@ -106,7 +103,6 @@ function readViewBox(svg: SVGSVGElement): { x: number; y: number; w: number; h: 
     return { x, y, w, h };
 }
 
-/** Ends the line exactly `pad` world units outside the pill's axis-aligned bbox. */
 function trimToPill(fromPt: Pt, centerPt: Pt, rw: number, rh: number, pad: number): Pt {
     const dx = fromPt.x - centerPt.x;
     const dy = fromPt.y - centerPt.y;
@@ -119,7 +115,7 @@ function trimToPill(fromPt: Pt, centerPt: Pt, rw: number, rh: number, pad: numbe
     return { x: centerPt.x + dx * t, y: centerPt.y + dy * t };
 }
 
-/** Clip a ray to the viewBox, inset slightly so arrowheads stay on-panel. */
+/** Inset slightly so arrowheads stay on-panel. */
 function clipToViewBox(view: ViewBox, startPt: Pt, dir: Pt): Pt {
     let tMax = Infinity;
     if (dir.x > 1e-9) tMax = Math.min(tMax, (view.right - startPt.x) / dir.x);
@@ -257,7 +253,6 @@ export interface Minimap {
     onRequestRefresh(handler: () => void): void;
     setQuickMove(targets: number[] | null): void;
     setAdminMode(adminMode: boolean): void;
-    /** Clicking a button injects its key and dismisses the panel. */
     openMenu(opts: { title?: string; buttons: MinimapMenuButton[] }): void;
     closeMenu(): void;
 }
@@ -269,7 +264,7 @@ type MinimapState = {
     currentSectorId: number;
     quickMoveTargets: number[] | null;
     adminMode: boolean;
-    /** World units; null = follow the current sector. Set on zoom/pan away, cleared when the player moves. */
+    /** null = follow the current sector; set on zoom/pan away, cleared when the player moves. */
     viewportCenter: Pt | null;
     extrasEnabled: boolean;
 };
@@ -321,7 +316,6 @@ export function createMinimap(
     const infoPanel = container.querySelector<HTMLElement>('.minimap-info-panel')!;
     const header = container.querySelector<HTMLElement>('.minimap-header')!;
 
-    // Expose the terminal palette to CSS so info-panel colours track colors.ts without inline styles.
     for (const [name, c] of Object.entries(colorPalette)) {
         container.style.setProperty(`--pal-${name}`, rgb(c));
     }
@@ -377,7 +371,6 @@ export function createMinimap(
     updateExtrasBtn();
     header.appendChild(extrasBtn);
 
-    /** Half-extents in world units; an undefined centre tells the server to centre on the current sector. */
     function computeViewport(): {
         halfWidthWorld: number;
         halfHeightWorld: number;
@@ -414,7 +407,7 @@ export function createMinimap(
         return { x: vb.x + sx * vb.w, y: vb.y + sy * vb.h };
     }
 
-    // Alt+wheel zooms toward the cursor's world point: that pixel stays put.
+    // Alt+wheel zooms toward the cursor: the world point under it stays put.
     container.addEventListener(
         'wheel',
         (e: WheelEvent) => {
@@ -444,8 +437,7 @@ export function createMinimap(
         { passive: false },
     );
 
-    // Middle-mouse drag pans. Move/up listen on the document so drags outside the panel
-    // still track; the throttled refresh streams sectors into the new bbox mid-drag.
+    // Pan move/up listeners live on the document so drags that leave the panel still track.
     let panState: { lastX: number; lastY: number } | null = null;
     let panRefreshTimer: ReturnType<typeof setTimeout> | null = null;
     function schedulePanRefresh(): void {
@@ -458,7 +450,6 @@ export function createMinimap(
     panel.addEventListener('mousedown', (e: MouseEvent) => {
         if (e.button !== 1) return;
         e.preventDefault();
-        // Seed the centre when still following the player, or the first pan tick has nothing to shift.
         if (state.viewportCenter === null) {
             const cur = currentSectorWorld();
             if (!cur) return;
@@ -640,8 +631,6 @@ export function createMinimap(
             viewport.halfHeightWorld,
         );
 
-        // In-view sectors (fringe included) get a real pill; out-of-view fringe
-        // becomes a direction vector for a clipped-to-edge stub.
         const pillPos = new Map<number, Pt>();
         const fringePos = new Map<number, Pt>();
         for (const s of sectors) {
@@ -681,7 +670,7 @@ export function createMinimap(
             view,
             labelSize,
             strokeW: HEX_CELL_SIZE * 0.04,
-            // viewBox matches the panel's aspect ratio, so `meet` scales uniformly by panelWidth / viewBoxWidth.
+            // The viewBox matches the panel's aspect ratio, so `meet` scales uniformly by panelWidth / viewBoxWidth.
             worldPerPx: (view.halfW * 2) / (panel.clientWidth || 320),
             warpGroup,
             nodeGroup,
@@ -695,7 +684,6 @@ export function createMinimap(
         renderWarps(rc);
 
         svg.appendChild(nodeGroup);
-        // Off-screen nodes and hover labels sit above everything else.
         svg.appendChild(overlayGroup);
 
         renderPills(rc);
@@ -714,7 +702,7 @@ export function createMinimap(
             if (!srcP || !dstP) continue;
             const srcPill = rc.dims.get(w.from_sector_id);
             if (!srcPill) continue;
-            // Off-screen sources would draw ghost lines across the panel — very visible mid-pan.
+            // An off-screen source would draw a ghost line across the panel — very visible mid-pan.
             if (!contains(view, srcP)) continue;
 
             const dstPill = rc.dims.get(w.to_sector_id);
@@ -736,7 +724,6 @@ export function createMinimap(
             const start = trimToPill(dstP, srcP, srcPill.rw, srcPill.totalRh, strokeW * 0.5);
             let end: Pt;
             if (!dstOnscreen) {
-                // Extend to the panel edge so the outgoing warp's direction stays visible.
                 end = clipToViewBox(view, start, { x: dxFull, y: dyFull });
             } else if (dstPill) {
                 const pad = isTwoWay ? strokeW * 0.5 : strokeW * 3;
@@ -745,8 +732,7 @@ export function createMinimap(
                 continue;
             }
 
-            // Nudge directed warps right of travel so opposite one-ways separate visually.
-            // TODO: unclear whether still needed.
+            // TODO: the right-of-travel nudge separates opposite one-ways visually; unclear whether still needed.
             if (!isTwoWay) {
                 const len = Math.sqrt(dxFull * dxFull + dyFull * dyFull);
                 if (len > 1e-6) {
@@ -763,8 +749,7 @@ export function createMinimap(
 
             const coords = { x1: start.x, y1: start.y, x2: end.x, y2: end.y };
 
-            // Halo behind two-way lines: at crossings a later halo punches a gap
-            // through earlier warps, reading as one segment tunnelling under another.
+            // At crossings a later halo punches a gap through earlier warps, reading as one segment tunnelling under another.
             if (isTwoWay) {
                 rc.warpGroup.appendChild(
                     svgEl('line', 'minimap-warp-halo', {
@@ -797,8 +782,7 @@ export function createMinimap(
             rc.warpLines.push(line);
             rc.warpGroup.appendChild(line);
 
-            // Only wormholes get an off-screen node: a regular warp's far end sits
-            // just past the edge and would cover its on-screen counterpart.
+            // A regular warp's far end sits just past the edge and its node would cover the on-screen counterpart.
             if (!dstOnscreen && isWormhole) {
                 const node = buildOffscreenNode(rc, {
                     dst,
@@ -854,7 +838,6 @@ export function createMinimap(
         }
     }
 
-    /** Clickable node pinned inside the panel edge for an off-panel wormhole target; a click behaves like a pill click. */
     function buildOffscreenNode(
         rc: RenderContext,
         o: {
@@ -906,8 +889,7 @@ export function createMinimap(
             drawQuickMoveBadge(group, quickMoveIndex, rh / 2, fontPx, rc.strokeW);
         }
 
-        // The hovered node is already topmost; re-appending the element under
-        // the cursor would fire spurious leave/enter events.
+        // The hovered node is never raised — re-appending the element under the cursor fires spurious leave/enter events.
         const raiseRestores: Array<() => void> = [];
         group.addEventListener('mouseenter', () => {
             setHoveredInfo(dst);
@@ -936,7 +918,6 @@ export function createMinimap(
     function renderPills(rc: RenderContext): void {
         const { strokeW } = rc;
 
-        // Overlap priority: background sectors, then the current sector's out-warp targets, then the current sector on top.
         const adjacent = new Set<number>();
         for (const w of rc.warps) {
             if (w.from_sector_id === rc.currentId) adjacent.add(w.to_sector_id);
@@ -981,7 +962,7 @@ export function createMinimap(
                 rect.setAttribute('stroke-width', String(strokeW * 0.8));
                 rect.setAttribute('stroke-dasharray', `${strokeW} ${strokeW}`);
             }
-            // Thickened border wins over the visibility width; a glimpsed quick-move target keeps its dashes.
+            // Overrides the visibility stroke-width but not the dashes — a glimpsed quick-move target keeps them.
             if (quickMoveIndex !== undefined) {
                 rect.setAttribute('stroke-width', String(strokeW * 1.8));
             }
@@ -1150,7 +1131,6 @@ export function createMinimap(
         group: SVGGElement,
         rect: SVGRectElement,
     ): void {
-        // Popped in reverse on clear so the base draw order is left untouched.
         const raiseRestores: Array<() => void> = [];
 
         const apply = (): void => {
@@ -1174,8 +1154,6 @@ export function createMinimap(
                 l.classList.add('is-highlighted');
                 raiseRestores.push(raiseToFront(l));
             }
-            // The hovered pill is already topmost — re-appending the element under
-            // the cursor would fire spurious leave/enter events.
         };
 
         const clear = (): void => {
@@ -1246,8 +1224,7 @@ export function createMinimap(
         return el;
     }
 
-    /** Must run after the element is in the DOM so it can be measured. */
-    function positionMenu(el: HTMLElement): void {
+    function positionMountedMenu(el: HTMLElement): void {
         const rect = container.getBoundingClientRect();
         const margin = 4;
         const w = el.offsetWidth;
@@ -1296,7 +1273,7 @@ export function createMinimap(
             destroyMenu();
             menuEl = buildMenu(opts.title, opts.buttons);
             container.appendChild(menuEl);
-            positionMenu(menuEl);
+            positionMountedMenu(menuEl);
         },
         closeMenu() {
             destroyMenu();

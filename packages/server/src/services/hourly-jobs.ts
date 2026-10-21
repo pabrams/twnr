@@ -16,7 +16,7 @@ import { cleanupExpiredGuests } from './guest-cleanup.js';
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
 
-/** Grant rule must stay in sync with packages/server/scripts/grant-turns.js; tests assert idempotency. */
+/** Grant rule must stay in sync with packages/server/scripts/grant-turns.js. */
 export async function runGrantTurns(): Promise<number> {
     const result = await withTransaction(async (client) => {
         const universes = await listTurnEnabledUniverses(client);
@@ -52,7 +52,6 @@ export async function runProduceCommodities(): Promise<number> {
     return result ?? 0;
 }
 
-/** Runs hourly but the mechanic is daily: settle only stamps when a whole birth/death accrued, so run frequency doesn't matter. */
 export async function runColonistGrowth(): Promise<number> {
     const result = await withTransaction(async (client) => {
         const ids = await listPlanetIdsWithColonists(client);
@@ -126,7 +125,6 @@ export async function runHourlyJobs(): Promise<void> {
 
 let intervalHandle: NodeJS.Timeout | null = null;
 
-/** Runs once immediately so turns accumulated during server downtime apply on boot. */
 export function startHourlyScheduler(): void {
     if (intervalHandle) return;
     void runHourlyJobs();

@@ -2,11 +2,7 @@ import type { PoolClient } from 'pg';
 import { withTransaction } from '../db/index.js';
 import { sendError } from '../state/messaging.js';
 
-/**
- * Throw AbortTransaction inside `tx` to roll back and skip `onSuccess` —
- * validation failures must send their own reply before aborting. `undefined`
- * from `tx` is treated as an abort.
- */
+/** Aborting (throw AbortTransaction, or return undefined from `tx`) skips `onSuccess` and sends no reply — abort sites reply first. */
 export async function runMutation<T>(
     playerId: number,
     label: string,

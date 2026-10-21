@@ -5,9 +5,6 @@ import { listUniverseShipTypes } from '../db/queries/ship.js';
 import { listUniversePlanetTypes } from '../db/queries/planet.js';
 import { listHardwareCatalog, listShipTypeHardwareMaxForUniverse } from '../db/queries/hardware.js';
 
-// Static reference data with no location gating — clients fetch each catalog
-// once per session and cache it.
-
 export async function serveShipCatalog(playerId: number): Promise<void> {
     const player = onlinePlayers[playerId];
     if (!player) return;
@@ -86,7 +83,6 @@ export async function servePlanetCatalog(playerId: number): Promise<void> {
     });
 }
 
-/** Hardware item identities (global, not per-universe). */
 export async function serveHardwareCatalog(playerId: number): Promise<void> {
     const items = await listHardwareCatalog();
     sendEnvelope(playerId, {

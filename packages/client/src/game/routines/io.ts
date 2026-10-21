@@ -3,16 +3,14 @@ import type { GameContext } from '../types.js';
 
 export type IOCtx = Pick<GameContext, 'io' | 'input'>;
 
-/** Parks until the server sends one of `types`; a dropped connection resolves null.
- *  Single-reply flows should prefer `request`. */
+/** Resolves null on connection drop or server menu change. */
 export function awaitResponse(ctx: IOCtx, types: string[]): Promise<ServerEnvelope | null> {
     return new Promise((resolve) => {
         ctx.input.pendingResponse = { types: new Set(types), resolve };
     });
 }
 
-/** Returns the reply narrowed to `okType`, or null on server error or socket drop.
- *  Flows that accept more than one success tag use awaitResponse directly. */
+/** Null on server Error (already rendered by the error handler) or socket drop. */
 export async function request<K extends ServerEnvelope['type']>(
     ctx: IOCtx,
     command: ClientEnvelope,

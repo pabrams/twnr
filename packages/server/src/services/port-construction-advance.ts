@@ -31,7 +31,6 @@ const KIND_COMPLETED = 'port_completed';
 
 type DrainReq = { ore: number; org: number; equ: number };
 
-/** The whole drain must come from one planet holding all three commodities. */
 async function tryDrainFromPlanets(
     sectorDbId: number,
     drain: DrainReq,
@@ -107,7 +106,6 @@ async function promoteToPort(row: PortConstructionRow, client: Queryable): Promi
     await deletePortConstruction(row.sector_id, client);
 }
 
-/** Returned count includes halted attempts, not just successful advances. */
 export async function runAdvancePortConstructions(): Promise<number> {
     const due = await listConstructionsDueForAdvance();
     let acted = 0;

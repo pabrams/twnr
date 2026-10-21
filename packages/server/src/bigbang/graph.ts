@@ -53,8 +53,7 @@ export function generateGraph(
         }
     }
 
-    // Small graphs need TOLERANCE slack: integer bi-pair counts can't hit
-    // arbitrary percentages cleanly.
+    // TOLERANCE slack: integer bi-pair counts can't hit arbitrary percentages cleanly.
     const TOLERANCE = 5.0;
     function findBiPairs(total: number): number {
         const base = Math.round((total * T) / 200);
@@ -78,9 +77,7 @@ export function generateGraph(
         biPairsTarget = findBiPairs(totalEdges);
     }
 
-    // Budget feasibility: Phase B yields at most (N - degree1count) 1-unit bi
-    // pairs; the fill phase pays 2 per bi pair. Bump lowest-degree nodes when
-    // tight. T >= 99 is already feasible from the earlier bump.
+    // Keep enough degree budget for biPairsTarget — bump lowest-degree nodes when tight.
     if (T < 99) {
         const minMargin = Math.max(5, Math.ceil(N * 0.02));
 
@@ -146,10 +143,10 @@ export function generateGraph(
             }
         }
 
-        // Fill phase: two passes to ensure bi pairs get first claim on budget
+        // Fill phase: two passes so bi pairs get first claim on budget
         let biPairsNeeded = biPairsTarget - biPairsPlaced;
 
-        // Pass 1: Add bidirectional pairs only (expensive: both new, or cheap: reverse exists)
+        // Pass 1: bidirectional pairs only
         if (biPairsNeeded > 0) {
             let pool: number[] = [];
             for (let i = 1; i <= N; i++) {

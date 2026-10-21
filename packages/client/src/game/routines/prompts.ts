@@ -23,9 +23,7 @@ export async function askLine(ctx: PromptCtx, prompt: string): Promise<string | 
     return trimmed;
 }
 
-/** Like askLine, but doesn't treat 'q' or empty input as cancel — use for
- *  free-text fields (names, messages) where 'q' is a legitimate value. Returns
- *  the trimmed string (possibly ''); only returns null on connection drop. */
+/** Unlike askLine, 'q' and '' are legitimate values, not cancel; null only on connection drop. */
 export async function askLineRaw(ctx: PromptCtx, prompt: string): Promise<string | null> {
     ctx.io.term.write(prompt);
     const line = await parkLine(ctx);
@@ -51,7 +49,6 @@ export async function askLineWithShortcuts(
 ): Promise<string | null> {
     const instantLower = new Set(instantChars.map((c) => c.toLowerCase()));
     ctx.io.term.write(prompt);
-    // A non-shortcut first char is echoed, seeds inputAssembly, and switches to line mode.
     const first = await parkChar(ctx);
     if (first === null) return null;
     const firstLower = first.toLowerCase();

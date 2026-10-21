@@ -1,6 +1,3 @@
-// Resolution is deliberately not a query: fetchers LEFT JOIN the player/clan
-// rows so resolveOwner runs on the already-fetched row (no per-row N+1).
-
 export type OwnerRef =
     | { kind: 'player'; playerId: number; name: string }
     | { kind: 'clan'; clanId: number; clanNumber: number; name: string }

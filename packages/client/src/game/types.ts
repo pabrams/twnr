@@ -23,48 +23,34 @@ export type KeystrokeEvent = {
 };
 
 export interface ConnectionState {
-    /** True between WS close and reconnect; input intercepts Enter (reconnect) / Esc (leave) while set. */
     disconnected: boolean;
-    /** Open a fresh WS to the same universe and rebind it onto this ctx. */
     reconnect: () => void;
-    /** Dispose terminal and exit back to the universe-select screen. */
-    leave: () => void;
+    exitToUniverseSelect: () => void;
 }
 
 export interface IO {
     term: Terminal;
     ws: WebSocket;
-    /** `silent: true` skips setting inFlight — for fire-and-forget panel refreshes. */
     sendMsg: (msg: ClientEnvelope, opts?: { silent?: boolean }) => void;
     setDebug: (on: boolean) => void;
     debug: boolean;
-    /** Submit a text line as if the user had typed it into the xterm. */
     submitLineFromMap: (line: string) => void;
-    /** Inject a single key as if typed into the xterm. */
     submitKeyFromMap: (key: string) => void;
 }
 
 export interface InputLayer {
-    /** Layer 1 — user keystrokes that arrived mid-roundtrip (only while inFlight).
-     *  Drains before the burst queue; swallow-on-invalid: a stale key was a typo. */
+    /** User keystrokes that arrived mid-roundtrip; drains before inputQueue, invalid keys swallowed (a stale key was a typo). */
     userInputBuffer: KeystrokeEvent[];
-    /** Layer 2 — programmatic burst/script keys only (user keys bypass it).
-     *  Drains after Layer 1; park-on-invalid so a burst stays coherent if the menu diverged. */
+    /** Programmatic burst keys only; drains after userInputBuffer, invalid keys parked so a burst stays coherent. */
     inputQueue: KeystrokeEvent[];
-    /** True while a server roundtrip is in flight; drain waits for it to clear. */
     inFlight: boolean;
-    /** Layer 1 digit-assembly buffer, shared between direct keystrokes and queue drain. */
     inputAssembly: string;
-    /** Set by ask* while a routine awaits input: the next input resolves here instead of
-     *  menu dispatch ('line' assembles until Enter; 'char' resolves on the next keystroke).
-     *  Cleared on resolve, cancel, and server menu changes. Single-slot — await prompts sequentially. */
+    /** Single-slot ask* resolver — the next input resolves here instead of menu dispatch; cleared on resolve, cancel, and server menu changes. */
     pendingResolver: {
         mode: 'line' | 'char';
         resolve: (input: string | null) => void;
     } | null;
-    /** Set by awaitResponse: connection.ts resolves it on a matching envelope and suppresses
-     *  that envelope's auto renderPrompt. Cleared on resolve, cancel, and server menu
-     *  changes — routines must check for null after the await. */
+    /** Resolved on a matching envelope, suppressing that envelope's auto renderPrompt; nulled on cancel and server menu changes — check after awaiting. */
     pendingResponse: {
         types: Set<string>;
         resolve: (msg: ServerEnvelope | null) => void;
@@ -92,7 +78,6 @@ export interface WorldState {
     currentWarps: { sector: number; visited: boolean }[];
     starbaseSector: number | null;
     earthColonists: number;
-    /** Which mine type the pending ListDeployedMines reply filters to; null = no scan in progress. */
     mineScanFilter: 'proximity' | 'seeker' | null;
 }
 
@@ -131,7 +116,7 @@ export interface EncounterState {
     ownerName: string;
 }
 
-/** Session caches: the universe catalogs are fetched lazily on first use; class0Prices arrives with DockResult / DockStarbaseResult. */
+/** Lazily fetched session caches; class0Prices instead arrives with DockResult / DockStarbaseResult. */
 export interface Catalogs {
     hardware: HardwareCatalogItem[] | null;
     ships: ShipCatalogEntry[] | null;
@@ -164,7 +149,7 @@ export interface StatsView {
     handle?: StatsPanel;
 }
 
-/** Args carried across a server-roundtripped ChangeMenu (setMenuArgs → consumeMenuArgs), discriminated by destination menu. */
+/** Args carried across a server ChangeMenu roundtrip. */
 export type MenuArgs = {
     menu: typeof Menu.AutopilotPrompt;
     path: { sector: number; visited: boolean }[];

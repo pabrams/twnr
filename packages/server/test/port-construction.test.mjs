@@ -25,11 +25,8 @@ describe('Port construction — cost table', () => {
 
 describe('Port construction — dailyDrainFor', () => {
     it('divides total cost evenly across days', () => {
-        // Class 8: 200/10 = 20 each per day
         assert.deepEqual(dailyDrainFor(8), { ore: 20, org: 20, equ: 20 });
-        // Class 1: 120/6=20, 120/6=20, 60/6=10
         assert.deepEqual(dailyDrainFor(1), { ore: 20, org: 20, equ: 10 });
-        // Class 4: 50/5=10, 50/5=10, 100/5=20
         assert.deepEqual(dailyDrainFor(4), { ore: 10, org: 10, equ: 20 });
     });
 
@@ -51,7 +48,6 @@ describe('Port construction — upgradeUnitCost / playerBuiltMcicFor', () => {
     });
 
     it('player-built MCIC signs match the port-action direction', () => {
-        // From legacy sample: fuel ±80/70, org ±70/60, equ ±60/50
         assert.equal(playerBuiltMcicFor('fuel', 'B'), -80);
         assert.equal(playerBuiltMcicFor('fuel', 'S'), 70);
         assert.equal(playerBuiltMcicFor('organics', 'B'), -70);
@@ -67,8 +63,7 @@ describe('Port construction — upgradeUnitCost / playerBuiltMcicFor', () => {
 
 describe('Port construction — MCIC constants are consistent with bigbang ranges', () => {
     it('|MCIC| for player-built ports exceeds the bigbang max (so they\'re strictly better)', () => {
-        // Bigbang ranges: fuel 40-90, org 30-75, equ 20-65; player-built magnitudes
-        // sit at the high end — profitable but not absurd.
+        // Bigbang MCIC ranges: fuel 40-90, org 30-75, equ 20-65.
         assert.ok(Math.abs(PLAYER_BUILT_PORT_MCIC.fuel.S) <= 90);
         assert.ok(Math.abs(PLAYER_BUILT_PORT_MCIC.fuel.B) <= 90);
         assert.ok(Math.abs(PLAYER_BUILT_PORT_MCIC.equipment.S) <= 65);
@@ -93,8 +88,6 @@ describe('Port upgrade math', () => {
     });
 
     it('matches legacy sample: 18 units invested in Organics on a selling port', () => {
-        // Before: Trading=1640 (selling, stock=1640, max=1640), tp=100%
-        // After +18: trading=1820, tp still 100%, max=1820, stock=1820
         const before = { prod: 164, max: 1640, stock: 1640 };
         const after = {
             prod: before.prod + 18,
@@ -104,7 +97,6 @@ describe('Port upgrade math', () => {
         assert.equal(after.prod, 182);
         assert.equal(after.max, 1820);
         assert.equal(after.stock, 1820);
-        // tp = stock/max for selling = 100%
         assert.equal((after.stock / after.max) * 100, 100);
     });
 });

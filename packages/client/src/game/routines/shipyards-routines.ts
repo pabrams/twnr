@@ -18,8 +18,7 @@ import { awaitResponse } from './io.js';
 import { loadShipCatalog } from './catalogs.js';
 import { promptShipName } from '../handlers/ship-name.js';
 
-/** Trade-in credit for the ship currently flown: its catalog base cost. */
-function getCurrentShipPrice(ctx: GameContext, ships: ShipCatalogEntry[]): number {
+function currentShipTradeInCredit(ctx: GameContext, ships: ShipCatalogEntry[]): number {
     if (!ctx.ship.currentShipName) return 0;
     const ship = ships.find((s) => s.name === ctx.ship.currentShipName);
     return ship?.baseCost ?? 0;
@@ -50,7 +49,7 @@ registerRoutine('buy_ship', async (ctx) => {
             continue;
         }
         const price = ship.baseCost;
-        const tradein = getCurrentShipPrice(ctx, ships);
+        const tradein = currentShipTradeInCredit(ctx, ships);
         showTradeinInfo(ctx, ship.displayName ?? ship.name, price, tradein);
         const yes = await askConfirm(ctx, render(STARBASE.tradeinConfirm));
         if (yes === null) continue;
@@ -60,15 +59,14 @@ registerRoutine('buy_ship', async (ctx) => {
                 ? { type: ClientTag.BuyShipTradein, targetShipName: ship.name }
                 : { type: ClientTag.BuyShipNew, targetShipName: ship.name },
         );
-        // Server validates the buy, pushes ShipNameRequired, and only commits
-        // (BuyShipNew/TradeinResult) after SetShipName completes.
+        // The server only commits the buy after SetShipName completes.
         const nameReq = await awaitResponse(ctx, [ServerTag.ShipNameRequired, ServerTag.Error]);
         if (nameReq === null) return;
         if (nameReq.type !== ServerTag.ShipNameRequired) return;
         const typeLabel = nameReq.shipTypeDisplayName ?? nameReq.shipTypeName;
         const promptTpl = isTradein ? EVENT.shipNamePromptTradein : EVENT.shipNamePromptBuyNew;
         await promptShipName(ctx, promptTpl, typeLabel);
-        // The buy-result handler renders the outcome; wait only so the routine owns the paint.
+        // The buy-result handler renders the outcome; await only so the routine owns the paint.
         await awaitResponse(ctx, [
             isTradein ? ServerTag.BuyShipTradeinResult : ServerTag.BuyShipNewResult,
             ServerTag.Error,

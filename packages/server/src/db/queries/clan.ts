@@ -215,7 +215,6 @@ export async function isPlayerOnClanShip(
     return res.rows[0]?.ok === true;
 }
 
-/** Caller must still delete the clan row and clear the leaver's clan_id. */
 export async function dissolveClanAssets(
     clanId: number,
     leavingPlayerId: number,
@@ -255,8 +254,7 @@ export async function dissolveClanAssets(
         [leavingPlayerId, clanId, currentSectorId],
     );
 
-    // Planets intentionally never convert to personal — even in the current
-    // sector they go rogue.
+    // Intentional: planets never convert to personal — even in the current sector they go rogue.
     const r5 = await db.query<{ n: number }>(
         `WITH r AS (
             UPDATE ships SET owner_clan_id = NULL WHERE owner_clan_id = $1 RETURNING 1

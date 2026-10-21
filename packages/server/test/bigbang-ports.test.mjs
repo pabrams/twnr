@@ -83,10 +83,6 @@ describe('Port Generation', () => {
     }
   });
 
-  // Column layout: 0=sector, 1=class,
-  // 2=fuel_qty, 3=fuel_max, 4=fuel_prod, 5=fuel_mcic,
-  // 6=org_qty,  7=org_max,  8=org_prod,  9=org_mcic,
-  // 10=equ_qty, 11=equ_max, 12=equ_prod, 13=equ_mcic
   const COMMODITY_OFFSETS = [
     { qty: 2,  max: 3,  prod: 4,  mcic: 5,  name: 'fuel',      mcicRange: [40, 90] },
     { qty: 6,  max: 7,  prod: 8,  mcic: 9,  name: 'organics',  mcicRange: [30, 75] },

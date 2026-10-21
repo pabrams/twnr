@@ -1,6 +1,3 @@
-// Display format: player-owned `Bob` (bare name), clan-owned `(#2 Crimson Tide)`,
-// rogue `(Rogue)`. Reads LEFT-JOINed names off the fetched row — no extra queries.
-
 import type { OwnershipInfo } from '@twnr/shared';
 
 export type OwnerJoinCols = {

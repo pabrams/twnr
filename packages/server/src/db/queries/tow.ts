@@ -103,8 +103,6 @@ export type LockedTowTargetRow = {
     pilot_player_name: string | null;
 };
 
-/** The row lock blocks concurrent moves of this ship, letting callers re-verify
- *  sector/drone/ownership invariants before committing the tow. */
 export async function lockTowTarget(
     shipId: number,
     db: Queryable,

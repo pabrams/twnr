@@ -12,7 +12,6 @@ export interface Player {
     at_starbase?: boolean;
 }
 
-/** Online-player registry. Populated on WebSocket connect, deleted on close. */
 export const onlinePlayers: Record<number, Player> = {};
 
 export function getPlayerUniverseId(playerId: number): number | undefined {

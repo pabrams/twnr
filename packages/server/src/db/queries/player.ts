@@ -35,7 +35,7 @@ export async function getPlayerRepExpForUpdate(
     return res.rows[0] ?? { reputation: 0, experience: 0 };
 }
 
-/** True only on the first call per UTC day; update+check is one statement so concurrent jettisons can't both win. */
+/** Single statement so concurrent jettisons can't both win the day. */
 export async function markFirstColosJettisonOfDay(
     playerId: number,
     db: Queryable = pool,
@@ -95,7 +95,6 @@ export type SectorPlayerRow = {
     ship_drones: number;
 };
 
-/** Unfiltered — caller applies the visibility predicate (planet/cloak/online-and-docked). */
 export async function listPlayersInSector(
     sectorNumber: number,
     universeId: number,

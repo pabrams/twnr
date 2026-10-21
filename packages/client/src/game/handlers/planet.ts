@@ -64,8 +64,6 @@ function hourlyOutput(colos: number, prodRate: number, cpu: number): string {
     return fmtCompact(Math.floor((colos * prodRate) / cpu));
 }
 
-/** Drones per hour produced from the current colonist distribution and the
- *  planet's per-group fig factors.*/
 function dronesPerHourFrom(msg: PlanetDisplayMsg): number {
     const fromFuel = msg.fig_factor_fuel > 0 ? msg.colonists_fuel / msg.fig_factor_fuel : 0;
     const fromOrg = msg.fig_factor_org > 0 ? msg.colonists_organics / msg.fig_factor_org : 0;
@@ -73,7 +71,6 @@ function dronesPerHourFrom(msg: PlanetDisplayMsg): number {
     return fromFuel + fromOrg + fromEqu;
 }
 
-/** Effective colonists-per-drone-per-hour given the current distribution. */
 function effectiveColosPerDrone(msg: PlanetDisplayMsg): string {
     const totalAssigned =
         (msg.fig_factor_fuel > 0 ? msg.colonists_fuel : 0) +

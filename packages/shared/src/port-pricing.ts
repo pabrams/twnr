@@ -1,23 +1,12 @@
-/**
- * Dynamic port pricing (legacy-derived linear model). A port's commodity
- * columns hold physical stock: an S commodity's stock is inventory for sale;
- * a B commodity's stock is what it has bought, regenerating down to zero.
- *   price(tp) = base + (priceAt100 − base) × (tp − floorTp) / (100 − floorTp)
- *   tp = (action === 'S' ? stock : max − stock) / max × 100
- *   priceAt100 = base + slope × |MCIC|; tp ≤ floorTp clamps price to base.
- * Legacy floors (never rounds) displayed percentages and amounts — match it.
- */
+/** An S commodity's stock is inventory for sale; a B commodity's stock is what it has bought, regenerating toward zero. */
 
 import type { PortAction } from './port-classes.js';
 
 export type PriceCommodity = 'fuel' | 'organics' | 'equipment';
 
 export type CommodityPricing = {
-    /** Floor price asymptote (paid when the port has nothing to trade with). */
     base: number;
-    /** Trading % below which price clamps to base. */
     floorTp: number;
-    /** Price-at-100 change per MCIC unit (legacy reverse-engineered). */
     slope: number;
 };
 
@@ -27,17 +16,16 @@ export const COMMODITY_PRICING: Record<PriceCommodity, CommodityPricing> = {
     equipment: { base: 90, floorTp: 12, slope: 0.7 },
 };
 
-/** Bigbang MCIC magnitude ranges; sign comes from the class action (B → negative, S → positive). */
+/** Magnitudes only; MCIC sign comes from the class action (B negative, S positive). */
 export const MCIC_BIGBANG_RANGE: Record<PriceCommodity, { min: number; max: number }> = {
     fuel: { min: 40, max: 90 },
     organics: { min: 30, max: 75 },
     equipment: { min: 20, max: 65 },
 };
 
-/** Max stock per commodity = prod × 10; range matches observed legacy starting maxes ~600..2800. */
+/** Max stock per commodity = prod × 10. */
 export const PRODUCTIVITY_BIGBANG_RANGE = { min: 60, max: 280 } as const;
 
-/** Legacy: 10× base per unit; each unit grows prod by 1, max and stock by 10. */
 export function upgradeUnitCost(commodity: PriceCommodity): number {
     return COMMODITY_PRICING[commodity].base * 10;
 }
@@ -78,9 +66,6 @@ export function computeUnitPrice(
     return Math.max(0, Math.floor(price));
 }
 
-/** XP price curve (legacy): sell-port ask drops ~28% and buy-port offer grows
- *  ~7% linearly up to 1000 xp, then plateaus. `portAction` is the port's side,
- *  not the player's: 'S' = player buys, 'B' = player sells. */
 export const XP_EFFECT = {
     plateauXp: 1000,
     sellSideMaxDiscount: 0.28,
