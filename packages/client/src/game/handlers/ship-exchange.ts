@@ -96,8 +96,7 @@ export const shipInfo: Handler<'shipInfoResult', ShipExchangeContext> = (ctx, ms
 function applyBuyShipResult(
     ctx: ShipExchangeContext,
     msg:
-        | Parameters<Handler<'buyShipTradeinResult'>>[1]
-        | Parameters<Handler<'buyShipNewResult'>>[1],
+        Parameters<Handler<'buyShipTradeinResult'>>[1] | Parameters<Handler<'buyShipNewResult'>>[1],
 ): void {
     ctx.ship.currentShipName = msg.shipName;
     ctx.ship.currentColoredShipName = msg.coloredShipName;

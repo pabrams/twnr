@@ -4,9 +4,7 @@ import { deleteShipByOwner } from '../db/queries/ship.js';
 import { universeConfig } from '@twnr/shared';
 
 export type RespawnOutcome =
-    | { kind: 'no-respawn' }
-    | { kind: 'wait'; remainingSeconds: number }
-    | { kind: 'respawned' };
+    { kind: 'no-respawn' } | { kind: 'wait'; remainingSeconds: number } | { kind: 'respawned' };
 
 export async function tryRespawnPlayer(playerId: number): Promise<RespawnOutcome> {
     const row = await getRespawnInfo(playerId);

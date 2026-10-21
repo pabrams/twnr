@@ -110,7 +110,6 @@ const handlers: HandlerMap = {
 
 export function dispatch(ctx: GameContext, msg: ServerEnvelope): void | Promise<void> {
     const handler = handlers[msg.type] as
-        | ((ctx: GameContext, msg: ServerEnvelope) => void | Promise<void>)
-        | undefined;
+        ((ctx: GameContext, msg: ServerEnvelope) => void | Promise<void>) | undefined;
     return handler?.(ctx, msg);
 }

@@ -64,7 +64,6 @@ export function showClass0Menu(ctx: DisplayPortCtx) {
     term.write(render(PORT.class0BuyPrompt));
 }
 
-
 export function class0QtyPreamble(
     ctx: DisplayPortCtx,
     buyType: 'drones' | 'shields' | 'holds',

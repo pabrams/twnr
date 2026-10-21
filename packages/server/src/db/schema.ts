@@ -910,9 +910,7 @@ export const connectDB = async (): Promise<void> => {
 
             for (const [hwName, mapping] of Object.entries(HW_CONFIG_MAP)) {
                 const val = ship[mapping.configKey as keyof ShipConfig] as
-                    | number
-                    | boolean
-                    | undefined;
+                    number | boolean | undefined;
                 const maxQty = mapping.isToggle ? (val ? 1 : 0) : ((val as number) ?? 0);
                 if (maxQty > 0) {
                     await client.query(

@@ -4,8 +4,7 @@ import { sendEnvelope } from '../state/messaging.js';
 import { insertMemo, insertSystemMemo } from '../db/queries/message.js';
 
 export type NotifySender =
-    | { kind: 'player'; playerId: number; displayName: string }
-    | { kind: 'system'; label: string };
+    { kind: 'player'; playerId: number; displayName: string } | { kind: 'system'; label: string };
 
 export function notifyTurnChange(playerId: number, turnsDelta: number, reason: string): void {
     if (!onlinePlayers[playerId]) return;

@@ -1,6 +1,5 @@
 export type PendingShipPurchase =
-    | { kind: 'new'; targetShipName: string }
-    | { kind: 'tradein'; targetShipName: string };
+    { kind: 'new'; targetShipName: string } | { kind: 'tradein'; targetShipName: string };
 
 const pending = new Map<number, PendingShipPurchase>();
 

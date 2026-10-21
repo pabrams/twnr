@@ -235,8 +235,7 @@ export async function routeMessage(playerId: number, data: ClientEnvelope): Prom
         }
     }
     const handler = handlers[data.type] as
-        | ((pid: number, d: ClientEnvelope) => void | Promise<void>)
-        | undefined;
+        ((pid: number, d: ClientEnvelope) => void | Promise<void>) | undefined;
     if (!handler) {
         sendError(playerId, 'Unknown message type');
         return;
