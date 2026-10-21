@@ -33,6 +33,7 @@ type HandlerMap = {
 const handlers: HandlerMap = {
     [ServerTag.Welcome]: lifecycle.welcome,
     [ServerTag.PlayerMoved]: lifecycle.playerMoved,
+    [ServerTag.SectorActivity]: lifecycle.sectorActivity,
     [ServerTag.RateLimited]: lifecycle.rateLimited,
     [ServerTag.PlayersOnlineResult]: lifecycle.playersOnline,
     [ServerTag.NeighborhoodResult]: lifecycle.neighborhood,

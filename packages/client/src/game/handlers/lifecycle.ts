@@ -64,6 +64,37 @@ export const playerMoved: Handler<'playerMoved', LifecycleContext> = (ctx, msg) 
     }
 };
 
+export const sectorActivity: Handler<'sectorActivity', LifecycleContext> = (ctx, msg) => {
+    const name = msg.playerName;
+    const target = msg.targetName;
+    switch (msg.activity) {
+        case 'land':
+            ctx.io.term.writeln(
+                target !== null
+                    ? render(NOTIFY.playerLandsPlanet, { name, planet: target })
+                    : render(NOTIFY.playerLandsPlanetUnknown, { name }),
+            );
+            break;
+        case 'liftoff':
+            ctx.io.term.writeln(
+                target !== null
+                    ? render(NOTIFY.playerLiftsOff, { name, planet: target })
+                    : render(NOTIFY.playerLiftsOffUnknown, { name }),
+            );
+            break;
+        case 'dock':
+            ctx.io.term.writeln(
+                target !== null
+                    ? render(NOTIFY.playerDocks, { name, port: target })
+                    : render(NOTIFY.playerDocksUnknown, { name }),
+            );
+            break;
+        case 'undock':
+            ctx.io.term.writeln(render(NOTIFY.playerUndocks, { name }));
+            break;
+    }
+};
+
 export const rateLimited: Handler<'rateLimited', LifecycleContext> = (ctx) => {
     if (ctx.autopilot.path.length > 0) {
         const retrySector = ctx.autopilot.path[ctx.autopilot.step - 1];

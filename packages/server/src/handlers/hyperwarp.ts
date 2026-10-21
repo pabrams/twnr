@@ -13,6 +13,7 @@ import {
 import { getDeployedDronesByOwnerBySector } from '../db/queries/drones.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 import { notifyTurnChange } from '../services/notify.js';
+import { broadcastPlayerMoved } from '../services/sector-activity.js';
 import { resolveMinesOnEntry } from '../services/mine-encounter.js';
 
 export async function serveHyperspaceJump(
@@ -113,6 +114,8 @@ export async function serveHyperspaceJump(
         moveToSector(playerId, targetSectorId),
         markSectorVisited(playerId, targetSectorId),
     ]);
+
+    broadcastPlayerMoved(playerId, currentSector, targetSector);
 
     if (turnResult.turnsUsed) {
         notifyTurnChange(playerId, turnResult.turnsUsed, 'hyperspace jump');

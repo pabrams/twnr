@@ -26,6 +26,7 @@ import { getPlayerTurns } from '../db/queries/turn.js';
 import { getGraph } from '../state/graph-cache.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 import { notifyTurnChange } from '../services/notify.js';
+import { broadcastPlayerMoved } from '../services/sector-activity.js';
 import { cargoUsed } from './cargo-utils.js';
 import { formatOwner, ownershipFrom } from '../services/owner-format.js';
 
@@ -229,6 +230,7 @@ export async function serveTransportToShip(
         notifyTurnChange(playerId, turnResult.turnsUsed, 'transporter pad');
     }
 
+    const currentSector = player.sector;
     await Promise.all([
         setPlayerShipId(playerId, shipId),
         moveToSector(playerId, row.target_sector_id),
@@ -237,6 +239,7 @@ export async function serveTransportToShip(
     player.shipId = shipId;
     player.sector = row.target_sector_number;
     player.sectorId = row.target_sector_id;
+    broadcastPlayerMoved(playerId, currentSector, row.target_sector_number);
 
     const turnsRemaining = (await getPlayerTurns(playerId)) ?? 0;
     sendEnvelope(playerId, {

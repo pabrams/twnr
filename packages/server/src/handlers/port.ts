@@ -6,6 +6,7 @@ import {
     type PriceCommodity,
 } from '@twnr/shared';
 import type { PortInfoCommand, PortTransactionCommand } from '@twnr/shared';
+import { broadcastSectorActivity } from '../services/sector-activity.js';
 import { onlinePlayers, getPlayerUniverseId } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
@@ -142,6 +143,7 @@ export async function serveDock(playerId: number): Promise<void> {
 
     player.docked = true;
     await setDocked(playerId, true);
+    broadcastSectorActivity(playerId, 'dock', p.name ?? null);
 
     let freedFromTow = false;
     const shipId = await getPlayerShipId(playerId);
@@ -207,6 +209,7 @@ async function undockPlayer(playerId: number): Promise<void> {
     if (!player) return;
     player.docked = false;
     await setDocked(playerId, false);
+    broadcastSectorActivity(playerId, 'undock', null);
     const { clearHaggleSession } = await import('./port-haggle.js');
     clearHaggleSession(playerId);
     const sectorData = await buildSectorDisplayData(playerId);

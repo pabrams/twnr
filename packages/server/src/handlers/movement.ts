@@ -1,8 +1,8 @@
-import { WebSocket } from 'ws';
 import { ServerTag } from '@twnr/shared';
 import type { MoveCommand, WarpsOutCommand, ShortestPathCommand } from '@twnr/shared';
 import { onlinePlayers, getPlayerUniverseId } from '../state/players.js';
-import { sendEnvelope, sendError, broadcastTo, closeDestroyedSession } from '../state/messaging.js';
+import { sendEnvelope, sendError, closeDestroyedSession } from '../state/messaging.js';
+import { broadcastPlayerMoved } from '../services/sector-activity.js';
 import { getGraph } from '../state/graph-cache.js';
 import { getWarpRefs, resolveSectorId } from '../services/sector-lookup.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
@@ -142,37 +142,7 @@ export async function serveMove(playerId: number, data: MoveCommand): Promise<vo
         }
     }
 
-    const oldSectorClients = new Set<WebSocket>();
-    const newSectorClients = new Set<WebSocket>();
-    for (const [idStr, p] of Object.entries(onlinePlayers)) {
-        if (Number(idStr) === playerId) continue;
-        if (p.universeId !== universeId) continue;
-        if (p.docked) continue;
-        if (p.sector === currentSector) oldSectorClients.add(p.ws);
-        else if (p.sector === targetSector) newSectorClients.add(p.ws);
-    }
-    broadcastTo(
-        {
-            type: ServerTag.PlayerMoved,
-            playerId,
-            playerName: player.name,
-            sector: targetSector,
-            direction: 'out',
-            towedAlong,
-        },
-        oldSectorClients,
-    );
-    broadcastTo(
-        {
-            type: ServerTag.PlayerMoved,
-            playerId,
-            playerName: player.name,
-            sector: targetSector,
-            direction: 'in',
-            towedAlong,
-        },
-        newSectorClients,
-    );
+    broadcastPlayerMoved(playerId, currentSector, targetSector, towedAlong);
 
     if (freedFromTow && towerId !== null) {
         await clearTowedShip(towerId);

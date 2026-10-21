@@ -1,8 +1,8 @@
-import { WebSocket } from 'ws';
 import { ServerTag } from '@twnr/shared';
 import type { DeployDronesCommand, AttackSectorDronesCommand } from '@twnr/shared';
 import { onlinePlayers } from '../state/players.js';
-import { sendEnvelope, sendError, broadcastTo } from '../state/messaging.js';
+import { sendEnvelope, sendError } from '../state/messaging.js';
+import { broadcastPlayerMoved } from '../services/sector-activity.js';
 import { getSectorDrones, resolveSectorId } from '../services/sector-lookup.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
 import { isInEncounter } from '../services/encounter.js';
@@ -413,35 +413,7 @@ export async function serveRetreatFromDrones(playerId: number): Promise<void> {
         moveShipToSector(playerId, retreatSectorId),
     ]);
 
-    const oldSectorClients = new Set<WebSocket>();
-    const newSectorClients = new Set<WebSocket>();
-    for (const [idStr, p] of Object.entries(onlinePlayers)) {
-        if (Number(idStr) === playerId) continue;
-        if (p.universeId !== universeId) continue;
-        if (p.docked) continue;
-        if (p.sector === currentSector) oldSectorClients.add(p.ws);
-        else if (p.sector === retreatSector) newSectorClients.add(p.ws);
-    }
-    broadcastTo(
-        {
-            type: ServerTag.PlayerMoved,
-            playerId,
-            playerName: player.name,
-            sector: retreatSector,
-            direction: 'out',
-        },
-        oldSectorClients,
-    );
-    broadcastTo(
-        {
-            type: ServerTag.PlayerMoved,
-            playerId,
-            playerName: player.name,
-            sector: retreatSector,
-            direction: 'in',
-        },
-        newSectorClients,
-    );
+    broadcastPlayerMoved(playerId, currentSector, retreatSector);
 
     const mineOutcome = await resolveMinesOnEntry(playerId);
     if (mineOutcome.destroyed) return;

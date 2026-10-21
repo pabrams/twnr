@@ -183,6 +183,15 @@ export const PlayerMovedEventSchema = z.object({
 });
 export type PlayerMovedEvent = z.infer<typeof PlayerMovedEventSchema>;
 
+export const SectorActivityEventSchema = z.object({
+    type: z.literal(ServerTag.SectorActivity),
+    playerId: Int,
+    playerName: Str,
+    activity: z.enum(['land', 'liftoff', 'dock', 'undock']),
+    targetName: Str.nullable(),
+});
+export type SectorActivityEvent = z.infer<typeof SectorActivityEventSchema>;
+
 export const SectorDisplayReplySchema = SectorDisplayDataSchema.extend({
     type: z.literal(ServerTag.SectorDisplayResult),
 });
@@ -1773,6 +1782,7 @@ export type StatsSnapshot = z.infer<typeof StatsSnapshotSchema>;
 export const ServerEnvelopeSchema = z.discriminatedUnion('type', [
     WelcomeEventSchema,
     PlayerMovedEventSchema,
+    SectorActivityEventSchema,
     SectorDisplayReplySchema,
     MoveReplySchema,
     UndockReplySchema,
