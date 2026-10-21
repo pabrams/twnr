@@ -67,7 +67,7 @@ export function clearHaggleSession(playerId: number): void {
     sessions.delete(playerId);
 }
 
-function getActiveSession(playerId: number): HaggleSession | null {
+function getActiveHaggleSession(playerId: number): HaggleSession | null {
     const s = sessions.get(playerId);
     if (!s) return null;
     if (Date.now() - s.openedAt > SESSION_TIMEOUT_MS) {
@@ -200,7 +200,7 @@ export async function serveHaggleCounter(
 ): Promise<void> {
     const player = onlinePlayers[playerId];
     if (!player) return;
-    const session = getActiveSession(playerId);
+    const session = getActiveHaggleSession(playerId);
     if (!session) {
         sendEnvelope(playerId, {
             type: ServerTag.HaggleResponseResult,
@@ -286,7 +286,7 @@ export async function serveHaggleCounter(
 }
 
 export async function serveHaggleAccept(playerId: number): Promise<void> {
-    const session = getActiveSession(playerId);
+    const session = getActiveHaggleSession(playerId);
     if (!session) {
         sendEnvelope(playerId, {
             type: ServerTag.HaggleResponseResult,
