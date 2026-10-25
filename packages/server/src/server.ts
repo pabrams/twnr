@@ -187,6 +187,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             sector,
             sectorId,
             shipId: playerRow.ship_id,
+            shipName: playerRow.ship_custom_name,
             name: playerRow.name,
             universeId,
             docked: false,

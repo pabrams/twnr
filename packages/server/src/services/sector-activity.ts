@@ -3,7 +3,6 @@ import { ServerTag } from '@twnr/shared';
 import type { TowedAlong } from '@twnr/shared';
 import { onlinePlayers } from '../state/players.js';
 import { broadcastTo } from '../state/messaging.js';
-import { getShipNameByPlayer } from '../db/queries/ship.js';
 
 /**
  * Collect the sockets of online players in a given sector who can "see"
@@ -30,27 +29,30 @@ export function sectorObserverClients(
  * Notify online players in the actor's sector of local activity:
  * landing on / lifting off a planet, docking at / undocking from a port.
  */
-export async function broadcastSectorActivity(
+export function broadcastSectorActivity(
     playerId: number,
     activity: 'land' | 'liftoff' | 'dock' | 'undock',
     targetName: string | null = null,
-): Promise<void> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
-    const clients = sectorObserverClients(player.universeId, player.sector, playerId);
-    if (clients.size === 0) return;
-    const shipName = await getShipNameByPlayer(playerId);
-    broadcastTo(
-        {
-            type: ServerTag.SectorActivity,
-            playerId,
-            playerName: player.name,
-            activity,
-            targetName,
-            shipName,
-        },
-        clients,
-    );
+): void {
+    try {
+        const player = onlinePlayers[playerId];
+        if (!player) return;
+        const clients = sectorObserverClients(player.universeId, player.sector, playerId);
+        if (clients.size === 0) return;
+        broadcastTo(
+            {
+                type: ServerTag.SectorActivity,
+                playerId,
+                playerName: player.name,
+                activity,
+                targetName,
+                shipName: player.shipName,
+            },
+            clients,
+        );
+    } catch (err) {
+        console.error('broadcastSectorActivity error:', err);
+    }
 }
 
 /**

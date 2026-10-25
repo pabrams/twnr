@@ -137,6 +137,7 @@ export async function executeBuyShipNew(
             });
 
             return {
+                newShipId,
                 credits: data.credits - price,
                 maxDrones: targetType.max_drones,
                 maxShields: targetType.max_shields,
@@ -144,8 +145,13 @@ export async function executeBuyShipNew(
                 coloredName: targetType.display_name,
             };
         },
-        (result) =>
-            sendEnvelope(playerId, {
+        (result) => {
+            const player = onlinePlayers[playerId];
+            if (player) {
+                player.shipId = result.newShipId;
+                player.shipName = shipName;
+            }
+            return sendEnvelope(playerId, {
                 type: ServerTag.BuyShipNewResult,
                 shipName: targetShipName,
                 coloredShipName: result.coloredName,
@@ -153,7 +159,8 @@ export async function executeBuyShipNew(
                 maxDrones: result.maxDrones,
                 maxShields: result.maxShields,
                 cargoLimit: result.cargoLimit,
-            }),
+            });
+        },
     );
 }
 
@@ -233,6 +240,7 @@ export async function executeBuyShipTradein(
             });
 
             return {
+                newShipId,
                 credits: data.credits - cost,
                 maxDrones: targetType.max_drones,
                 maxShields: targetType.max_shields,
@@ -240,8 +248,13 @@ export async function executeBuyShipTradein(
                 coloredName: targetType.display_name,
             };
         },
-        (result) =>
-            sendEnvelope(playerId, {
+        (result) => {
+            const player = onlinePlayers[playerId];
+            if (player) {
+                player.shipId = result.newShipId;
+                player.shipName = shipName;
+            }
+            return sendEnvelope(playerId, {
                 type: ServerTag.BuyShipTradeinResult,
                 shipName: targetShipName,
                 coloredShipName: result.coloredName,
@@ -249,6 +262,7 @@ export async function executeBuyShipTradein(
                 maxDrones: result.maxDrones,
                 maxShields: result.maxShields,
                 cargoLimit: result.cargoLimit,
-            }),
+            });
+        },
     );
 }

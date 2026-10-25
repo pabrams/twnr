@@ -5,6 +5,7 @@ export interface Player {
     sector: number;
     sectorId: number;
     shipId: number | null;
+    shipName: string | null;
     name: string;
     universeId: number;
     docked: boolean;

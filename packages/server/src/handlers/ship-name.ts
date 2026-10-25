@@ -81,6 +81,7 @@ export async function serveSetShipName(playerId: number, data: SetShipNameComman
     );
     await setPlayerShipId(playerId, newShipId);
     player.shipId = newShipId;
+    player.shipName = v.name;
 
     sendEnvelope(playerId, { type: ServerTag.SetShipNameResult, outcome: 'ok' });
 }

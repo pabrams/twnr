@@ -28,6 +28,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "pretest": "tsc -b --force",
     "generate-env": "node scripts/generate-env.mjs",
     "dev": "node --env-file=.env --watch ./dist/server.js",
     "start": "node --env-file=.env ./dist/server.js",

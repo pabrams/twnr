@@ -142,7 +142,7 @@ export async function serveDock(playerId: number): Promise<void> {
 
     player.docked = true;
     await setDocked(playerId, true);
-    void broadcastSectorActivity(playerId, 'dock', p.name ?? null);
+    broadcastSectorActivity(playerId, 'dock', p.name ?? null);
 
     let freedFromTow = false;
     const shipId = await getPlayerShipId(playerId);
@@ -210,7 +210,7 @@ async function undockPlayer(playerId: number): Promise<void> {
     player.at_starbase = false;
     await setDocked(playerId, false);
     const undockedPort = await getPortAtSector(player.sector, player.universeId);
-    void broadcastSectorActivity(playerId, 'undock', undockedPort?.name ?? null);
+    broadcastSectorActivity(playerId, 'undock', undockedPort?.name ?? null);
     const { clearHaggleSession } = await import('./port-haggle.js');
     clearHaggleSession(playerId);
     const sectorData = await buildSectorDisplayData(playerId);
@@ -456,7 +456,7 @@ export async function serveDockStarbase(playerId: number): Promise<void> {
     if (!wasDocked) {
         player.docked = true;
         await setDocked(playerId, true);
-        void broadcastSectorActivity(playerId, 'dock', starbasePort.name ?? null);
+        broadcastSectorActivity(playerId, 'dock', starbasePort.name ?? null);
     }
 
     const [priceRows, ship] = await Promise.all([
@@ -496,7 +496,7 @@ export async function serveLeaveStarbase(playerId: number): Promise<void> {
         player.docked = false;
         await setDocked(playerId, false);
         const starbasePort = await getPortAtSector(player.sector, player.universeId);
-        void broadcastSectorActivity(playerId, 'undock', starbasePort?.name ?? null);
+        broadcastSectorActivity(playerId, 'undock', starbasePort?.name ?? null);
     }
 
     const sectorData = await buildSectorDisplayData(playerId);

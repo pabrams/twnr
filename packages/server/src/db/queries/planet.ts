@@ -33,7 +33,12 @@ export async function setEarthColonists(
 }
 
 export async function deletePlanet(planetId: number, db: Queryable = pool): Promise<void> {
+    await clearPlayersOnPlanet(planetId, db);
     await db.query('DELETE FROM planets WHERE id = $1', [planetId]);
+}
+
+export async function clearPlayersOnPlanet(planetId: number, db: Queryable = pool): Promise<void> {
+    await db.query('UPDATE players SET on_planet_id = NULL WHERE on_planet_id = $1', [planetId]);
 }
 
 export async function setPlanetOwnership(

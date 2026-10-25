@@ -235,6 +235,7 @@ export async function serveTransportToShip(
         markSectorVisited(playerId, row.target_sector_id),
     ]);
     player.shipId = shipId;
+    player.shipName = row.target_ship_name;
     player.sector = row.target_sector_number;
     player.sectorId = row.target_sector_id;
 

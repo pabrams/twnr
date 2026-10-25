@@ -174,6 +174,74 @@ describe('Sector activity notifications', () => {
     }
   });
 
+  it('clears on_planet_id for everyone when a planet is destroyed', async () => {
+    const sector = 5;
+    const sectorRow = await pool.query(
+      'SELECT id FROM sectors WHERE sector_number = $1 AND universe_id = $2',
+      [sector, UNIVERSE_ID],
+    );
+    const planetRow = await pool.query(
+      `INSERT INTO planets (sector_id, universe_id, universe_planet_number, name)
+       VALUES ($1, $2, (SELECT COALESCE(MAX(universe_planet_number), 0) + 1 FROM planets WHERE universe_id = $2), $3)
+       RETURNING id`,
+      [sectorRow.rows[0].id, UNIVERSE_ID, `Doomed_${Date.now()}`],
+    );
+    const planetId = planetRow.rows[0].id;
+
+    const buster = await createPlayer(`act_sa7_${Date.now()}`, sector);
+    const bystander = await createPlayer(`obs_sa7_${Date.now()}`, sector);
+    const watcher = await createPlayer(`wat_sa7_${Date.now()}`, sector);
+    // Give the destroyer a planet buster.
+    await pool.query(
+      `INSERT INTO ship_hardware (ship_id, hardware_item_id, quantity)
+       SELECT p.ship_id, hi.id, 1 FROM players p, hardware_item hi
+       WHERE p.id = $1 AND hi.name = 'planet_buster'`,
+      [buster.id],
+    );
+
+    const { ws: wsB, ready: rB } = await connectWS({ token: buster.token, universeId: UNIVERSE_ID });
+    const { ws: wsO, ready: rO } = await connectWS({ token: bystander.token, universeId: UNIVERSE_ID });
+    const { ws: wsW, ready: rW } = await connectWS({ token: watcher.token, universeId: UNIVERSE_ID });
+    await rB; await rO; await rW;
+    try {
+      // Both land on the doomed planet.
+      await wsRequest(wsB, { type: ClientTag.LandOnPlanet, planetId }, ServerTag.LandOnPlanetResult);
+      await wsRequest(wsO, { type: ClientTag.LandOnPlanet, planetId }, ServerTag.LandOnPlanetResult);
+
+      const res = await wsRequest(wsB, { type: ClientTag.DestroyPlanet }, ServerTag.DestroyPlanetResult);
+      assert.equal(res.destroyed, true);
+
+      // DB cleared for everyone who was on the planet.
+      const rows = await pool.query(
+        'SELECT id, on_planet_id FROM players WHERE id = ANY($1)',
+        [[buster.id, bystander.id]],
+      );
+      for (const r of rows.rows) {
+        assert.equal(r.on_planet_id, null, `player ${r.id} should be off the destroyed planet`);
+      }
+
+      // In-memory state cleared too: the bystander observes sector activity again.
+      const evt = waitForMsg(wsO, ServerTag.SectorActivity);
+      await wsRequest(wsW, { type: ClientTag.GetSectorPlanets }, ServerTag.GetSectorPlanetsResult);
+      // (no planets left in sector 5 for the watcher to land on; dock instead is not
+      // possible here, so have the watcher land/liftoff via a fresh planet)
+      const planet2 = await pool.query(
+        `INSERT INTO planets (sector_id, universe_id, universe_planet_number, name)
+         VALUES ($1, $2, (SELECT COALESCE(MAX(universe_planet_number), 0) + 1 FROM planets WHERE universe_id = $2), $3)
+         RETURNING id`,
+        [sectorRow.rows[0].id, UNIVERSE_ID, `Fresh_${Date.now()}`],
+      );
+      await wsRequest(wsW, { type: ClientTag.LandOnPlanet, planetId: planet2.rows[0].id }, ServerTag.LandOnPlanetResult);
+      const msg = await evt;
+      assert.equal(msg.activity, 'land');
+      assert.equal(msg.playerId, watcher.id);
+    } finally {
+      await closeWS(wsB);
+      await closeWS(wsO);
+      await closeWS(wsW);
+    }
+  });
+
   it('does not notify players in other sectors', async () => {
     const actor = await createPlayer(`act_sa2_${Date.now()}`, 1);
     const farObserver = await createPlayer(`obs_sa2_${Date.now()}`, 3);

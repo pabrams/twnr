@@ -221,6 +221,7 @@ export type PlayerConnectRow = {
     ship_id: number | null;
     sector_number: number;
     ship_name: string | null;
+    ship_custom_name: string | null;
     ship_display_name: string | null;
     clan_id: number | null;
 };
@@ -233,6 +234,7 @@ export async function getPlayerConnectInfo(
     const res = await db.query<PlayerConnectRow>(
         `SELECT p.id, p.name, p.current_sector_id, p.ship_id, s.sector_number,
                 st.slug AS ship_name, st.display_name AS ship_display_name,
+                sh.name AS ship_custom_name,
                 p.clan_id
          FROM players p
          JOIN sectors s ON p.current_sector_id = s.id

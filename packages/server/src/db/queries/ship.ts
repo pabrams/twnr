@@ -3,16 +3,6 @@ import type { Queryable } from '../types.js';
 
 const SHIP_ID_SUBSELECT = '(SELECT ship_id FROM players WHERE id = $1)';
 
-export async function getShipNameByPlayer(
-    playerId: number,
-    db: Queryable = pool,
-): Promise<string | null> {
-    const res = await db.query(`SELECT name FROM ships WHERE id = ${SHIP_ID_SUBSELECT}`, [
-        playerId,
-    ]);
-    return (res.rows[0]?.name as string | undefined) ?? null;
-}
-
 export async function setShipOwnership(
     shipId: number,
     ownerPlayerId: number | null,
@@ -838,6 +828,7 @@ export async function getOwnedShipDetail(
 export type TransportTargetRow = {
     current_range: number | null;
     target_sector_id: number | null;
+    target_ship_name: string | null;
     target_sector_number: number | null;
 };
 
@@ -849,6 +840,7 @@ export async function getTransportTargetInfo(
     const res = await db.query<TransportTargetRow>(
         `SELECT cur_st.transporter_range AS current_range,
                 tgt.sector_id AS target_sector_id,
+                tgt.name AS target_ship_name,
                 tgt_sec.sector_number AS target_sector_number
          FROM ships tgt
          LEFT JOIN sectors tgt_sec ON tgt.sector_id = tgt_sec.id
