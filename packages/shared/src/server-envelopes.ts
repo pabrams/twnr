@@ -189,6 +189,7 @@ export const SectorActivityEventSchema = z.object({
     playerName: Str,
     activity: z.enum(['land', 'liftoff', 'dock', 'undock']),
     targetName: Str.nullable(),
+    shipName: Str.nullable(),
 });
 export type SectorActivityEvent = z.infer<typeof SectorActivityEventSchema>;
 

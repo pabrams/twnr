@@ -23,7 +23,6 @@ import {
 } from '../db/queries/player.js';
 import {
     getPortAtSector,
-    getPortClassAtSector,
     getPortTradeInfoForUpdate,
     adjustPortCommodity,
     getHardwarePricesForUniverse,
@@ -143,7 +142,7 @@ export async function serveDock(playerId: number): Promise<void> {
 
     player.docked = true;
     await setDocked(playerId, true);
-    broadcastSectorActivity(playerId, 'dock', p.name ?? null);
+    void broadcastSectorActivity(playerId, 'dock', p.name ?? null);
 
     let freedFromTow = false;
     const shipId = await getPlayerShipId(playerId);
@@ -208,8 +207,10 @@ async function undockPlayer(playerId: number): Promise<void> {
     const player = onlinePlayers[playerId];
     if (!player) return;
     player.docked = false;
+    player.at_starbase = false;
     await setDocked(playerId, false);
-    broadcastSectorActivity(playerId, 'undock', null);
+    const undockedPort = await getPortAtSector(player.sector, player.universeId);
+    void broadcastSectorActivity(playerId, 'undock', undockedPort?.name ?? null);
     const { clearHaggleSession } = await import('./port-haggle.js');
     clearHaggleSession(playerId);
     const sectorData = await buildSectorDisplayData(playerId);
@@ -272,6 +273,10 @@ export async function servePortTransaction(
 
     const player = onlinePlayers[playerId];
     if (!player) return;
+    if (!player.docked) {
+        sendError(playerId, 'You must dock at the port to trade');
+        return;
+    }
     const universeId = player.universeId;
 
     await runMutation(
@@ -440,13 +445,19 @@ export async function serveDockStarbase(playerId: number): Promise<void> {
         return;
     }
 
-    const portClass = await getPortClassAtSector(player.sector, player.universeId);
-    if (portClass !== 9) {
+    const starbasePort = await getPortAtSector(player.sector, player.universeId);
+    if (starbasePort?.class !== 9) {
         sendError(playerId, 'Starbase not found in this sector');
         return;
     }
 
+    const wasDocked = player.docked;
     player.at_starbase = true;
+    if (!wasDocked) {
+        player.docked = true;
+        await setDocked(playerId, true);
+        void broadcastSectorActivity(playerId, 'dock', starbasePort.name ?? null);
+    }
 
     const [priceRows, ship] = await Promise.all([
         getHardwarePricesForUniverse(player.universeId),
@@ -481,6 +492,12 @@ export async function serveLeaveStarbase(playerId: number): Promise<void> {
     }
 
     player.at_starbase = false;
+    if (player.docked) {
+        player.docked = false;
+        await setDocked(playerId, false);
+        const starbasePort = await getPortAtSector(player.sector, player.universeId);
+        void broadcastSectorActivity(playerId, 'undock', starbasePort?.name ?? null);
+    }
 
     const sectorData = await buildSectorDisplayData(playerId);
     if (!sectorData) return;

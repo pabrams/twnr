@@ -81,6 +81,15 @@ export async function serveHaggleOpen(playerId: number, data: HaggleOpenCommand)
     const player = onlinePlayers[playerId];
     if (!player) return;
 
+    if (!player.docked) {
+        sendEnvelope(playerId, {
+            type: ServerTag.HaggleOpenResult,
+            outcome: 'error',
+            message: 'You must dock at the port to trade',
+        });
+        return;
+    }
+
     if (
         data.commodity !== 'fuel' &&
         data.commodity !== 'organics' &&

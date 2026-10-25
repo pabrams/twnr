@@ -190,6 +190,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             name: playerRow.name,
             universeId,
             docked: false,
+            onPlanetId: null,
             isAdmin,
         };
         const [totalSectors, starbaseSector, guestFlag, onPlanetId] = await Promise.all([
@@ -198,6 +199,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             isGuestUser(userId),
             getOnPlanetId(playerId),
         ]);
+        onlinePlayers[playerId].onPlanetId = onPlanetId;
 
         let startingShipForWelcome:
             { typeName: string; typeDisplayName: string | null } | undefined;

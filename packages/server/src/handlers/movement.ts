@@ -9,12 +9,7 @@ import { buildSectorDisplayData } from '../services/sector-display.js';
 import { isInEncounter } from '../services/encounter.js';
 import { notifyTurnChange } from '../services/notify.js';
 import { refreshSectorObservation } from '../services/sector-observations.js';
-import {
-    setDocked,
-    moveToSector,
-    markSectorVisited,
-    getPreviousSectorNumber,
-} from '../db/queries/player.js';
+import { moveToSector, markSectorVisited, getPreviousSectorNumber } from '../db/queries/player.js';
 import { getShipDrones, getShipTurnsPerWarp, moveShipToSector } from '../db/queries/ship.js';
 import {
     getSectorDbId,
@@ -69,6 +64,15 @@ export async function serveMove(playerId: number, data: MoveCommand): Promise<vo
     const towerId = await getTowingPlayerForShip(ctx.shipId);
     const freedFromTow = towerId !== null && towerId !== playerId;
 
+    if (player.docked || player.at_starbase) {
+        sendEnvelope(playerId, {
+            type: ServerTag.MoveResult,
+            outcome: 'error',
+            message: 'You must undock before warping',
+        });
+        return;
+    }
+
     const currentSector = player.sector;
     if (!warps[currentSector]?.includes(targetSector)) {
         sendEnvelope(playerId, {
@@ -91,11 +95,6 @@ export async function serveMove(playerId: number, data: MoveCommand): Promise<vo
             message: 'Insufficient turns',
         });
         return;
-    }
-
-    if (player.docked) {
-        player.docked = false;
-        await setDocked(playerId, false);
     }
 
     const targetSectorId = await resolveSectorId(targetSector, universeId);

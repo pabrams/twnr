@@ -3,6 +3,16 @@ import type { Queryable } from '../types.js';
 
 const SHIP_ID_SUBSELECT = '(SELECT ship_id FROM players WHERE id = $1)';
 
+export async function getShipNameByPlayer(
+    playerId: number,
+    db: Queryable = pool,
+): Promise<string | null> {
+    const res = await db.query(`SELECT name FROM ships WHERE id = ${SHIP_ID_SUBSELECT}`, [
+        playerId,
+    ]);
+    return (res.rows[0]?.name as string | undefined) ?? null;
+}
+
 export async function setShipOwnership(
     shipId: number,
     ownerPlayerId: number | null,

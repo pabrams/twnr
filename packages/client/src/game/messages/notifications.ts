@@ -28,7 +28,9 @@ export const NOTIFY = makeDomain('NOTIFY', {
     playerLiftsOffUnknown: '\r\n[by][bm]{name}[/bm] lifts off a planet.[/by]',
     playerDocks: '\r\n[y][bm]{name}[/bm] docks at {port}.[/y]',
     playerDocksUnknown: '\r\n[y][bm]{name}[/bm] docks at the port.[/y]',
-    playerUndocks: '\r\n[by][bm]{name}[/bm] undocks from the port.[/by]',
+    playerUndocks: '\r\n[by]The [bm]{ship}[/bm] undocks from {port}.[/by]',
+    playerUndocksUnknownPort: '\r\n[by]The [bm]{ship}[/bm] undocks from the port.[/by]',
+    playerUndocksUnknownShip: '\r\n[by][bm]{name}[/bm] undocks from the port.[/by]',
 
     starbaseLocation:
         '\r\n[br]***[/br] [bc]Starbase[/bc] [g]is in sector[/g] [by]{sector}[/by] [br]***[/br] ',

@@ -3,11 +3,12 @@ import { ServerTag } from '@twnr/shared';
 import type { TowedAlong } from '@twnr/shared';
 import { onlinePlayers } from '../state/players.js';
 import { broadcastTo } from '../state/messaging.js';
+import { getShipNameByPlayer } from '../db/queries/ship.js';
 
 /**
- * Collect the sockets of online, undocked players in a given sector
- * (excluding the acting player). These are the players who can "see"
- * activity happening in the sector.
+ * Collect the sockets of online players in a given sector who can "see"
+ * activity happening there (excluding the acting player). Players who are
+ * docked (port or starbase) or on a planet do not observe sector activity.
  */
 export function sectorObserverClients(
     universeId: number,
@@ -18,7 +19,8 @@ export function sectorObserverClients(
     for (const [idStr, p] of Object.entries(onlinePlayers)) {
         if (Number(idStr) === excludePlayerId) continue;
         if (p.universeId !== universeId) continue;
-        if (p.docked) continue;
+        if (p.docked || p.at_starbase) continue;
+        if (p.onPlanetId !== null) continue;
         if (p.sector === sector) clients.add(p.ws);
     }
     return clients;
@@ -28,13 +30,16 @@ export function sectorObserverClients(
  * Notify online players in the actor's sector of local activity:
  * landing on / lifting off a planet, docking at / undocking from a port.
  */
-export function broadcastSectorActivity(
+export async function broadcastSectorActivity(
     playerId: number,
     activity: 'land' | 'liftoff' | 'dock' | 'undock',
     targetName: string | null = null,
-): void {
+): Promise<void> {
     const player = onlinePlayers[playerId];
     if (!player) return;
+    const clients = sectorObserverClients(player.universeId, player.sector, playerId);
+    if (clients.size === 0) return;
+    const shipName = await getShipNameByPlayer(playerId);
     broadcastTo(
         {
             type: ServerTag.SectorActivity,
@@ -42,8 +47,9 @@ export function broadcastSectorActivity(
             playerName: player.name,
             activity,
             targetName,
+            shipName,
         },
-        sectorObserverClients(player.universeId, player.sector, playerId),
+        clients,
     );
 }
 

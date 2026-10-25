@@ -90,7 +90,17 @@ export const sectorActivity: Handler<'sectorActivity', LifecycleContext> = (ctx,
             );
             break;
         case 'undock':
-            ctx.io.term.writeln(render(NOTIFY.playerUndocks, { name }));
+            if (msg.shipName === null) {
+                ctx.io.term.writeln(render(NOTIFY.playerUndocksUnknownShip, { name }));
+            } else if (target === null) {
+                ctx.io.term.writeln(
+                    render(NOTIFY.playerUndocksUnknownPort, { ship: msg.shipName }),
+                );
+            } else {
+                ctx.io.term.writeln(
+                    render(NOTIFY.playerUndocks, { ship: msg.shipName, port: target }),
+                );
+            }
             break;
     }
 };
