@@ -40,7 +40,7 @@ export async function runDockFlow(
         if (msg.class0Prices) ctx.catalogs.class0Prices = msg.class0Prices;
         if (msg.shipInfo) {
             ctx.starbase.class0ShipState = {
-                shipName: msg.shipInfo.shipName,
+                shipTypeName: msg.shipInfo.shipTypeName,
                 credits: msg.credits ?? 0,
                 drones: msg.shipInfo.drones,
                 maxDrones: msg.shipInfo.maxDrones,
@@ -299,7 +299,7 @@ export const dockStarbase: Handler<'dockStarbaseResult', PortContext> = (ctx, ms
     ctx.catalogs.class0Prices = msg.class0Prices;
     if (msg.shipInfo) {
         ctx.starbase.class0ShipState = {
-            shipName: msg.shipInfo.shipName,
+            shipTypeName: msg.shipInfo.shipTypeName,
             credits: msg.credits ?? 0,
             drones: msg.shipInfo.drones,
             maxDrones: msg.shipInfo.maxDrones,

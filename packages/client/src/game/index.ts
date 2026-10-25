@@ -147,7 +147,7 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
             mineScanFilter: null,
         },
         ship: {
-            currentShipName: '',
+            currentShipTypeName: '',
             currentColoredShipName: null,
             shipColonists: 0,
             planetEmptyHolds: 0,

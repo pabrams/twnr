@@ -71,7 +71,7 @@ export function class0QtyPreamble(
     const s = ctx.starbase.class0ShipState;
     const max = class0MaxBuy(buyType, ctx);
     const shipName =
-        ctx.ship.currentColoredShipName ?? s?.shipName ?? ctx.ship.currentShipName ?? '';
+        ctx.ship.currentColoredShipName ?? s?.shipTypeName ?? ctx.ship.currentShipTypeName ?? '';
 
     const { term } = ctx.io;
     if (buyType === 'drones') {

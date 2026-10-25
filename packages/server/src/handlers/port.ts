@@ -178,7 +178,7 @@ export async function serveDock(playerId: number): Promise<void> {
             ...(freedFromTow ? ({ freedFromTow: true } as const) : {}),
             shipInfo: ship
                 ? {
-                      shipName: ship.ship_name,
+                      shipTypeName: ship.ship_type_name,
                       drones: ship.drones,
                       maxDrones: ship.max_drones,
                       shields: ship.shields,
@@ -470,7 +470,7 @@ export async function serveDockStarbase(playerId: number): Promise<void> {
         credits: ship?.credits,
         shipInfo: ship
             ? {
-                  shipName: ship.ship_name,
+                  shipTypeName: ship.ship_type_name,
                   drones: ship.drones,
                   maxDrones: ship.max_drones,
                   shields: ship.shields,

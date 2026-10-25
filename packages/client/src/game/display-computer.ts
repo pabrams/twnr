@@ -228,15 +228,15 @@ export function showPlanetDetail(ctx: DisplayComputerCtx, planet: PlanetCatalogE
 }
 
 export function showCurrentShipSpecs(ctx: DisplayComputerCtx, ships: ShipCatalogEntry[]) {
-    if (!ctx.ship.currentShipName) {
+    if (!ctx.ship.currentShipTypeName) {
         ctx.io.term.writeln(render(COMPUTER.shipDataRequesting));
         ctx.io.sendMsg({ type: ClientTag.ShipInfo });
         return;
     }
-    const ship = ships.find((s) => s.name === ctx.ship.currentShipName);
+    const ship = ships.find((s) => s.name === ctx.ship.currentShipTypeName);
     if (!ship) {
         ctx.io.term.writeln(
-            render(COMPUTER.shipConfigNotFound, { name: ctx.ship.currentShipName }),
+            render(COMPUTER.shipConfigNotFound, { name: ctx.ship.currentShipTypeName }),
         );
         return;
     }
@@ -434,9 +434,9 @@ export function showTraderList(ctx: DisplayComputerCtx, traders: TraderListEntry
     );
     for (const t of traders) {
         const ship =
-            t.shipName === null
+            t.shipTypeName === null
                 ? render(COMPUTER.traderListShipDestroyed)
-                : (t.coloredShipName ?? t.shipName);
+                : (t.coloredShipName ?? t.shipTypeName);
         const clanCell =
             t.clanNumber === null
                 ? render(COMPUTER.traderListClanNA, {}) + '   '

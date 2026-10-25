@@ -292,7 +292,7 @@ export async function setPlayerShipId(
 
 export type UniversePlayerRosterRow = {
     name: string;
-    ship_name: string | null;
+    ship_type_name: string | null;
     ship_display_name: string | null;
     clan_number: number | null;
     clan_name: string | null;
@@ -305,7 +305,7 @@ export async function listPlayersInUniverse(
 ): Promise<UniversePlayerRosterRow[]> {
     const res = await db.query<UniversePlayerRosterRow>(
         `SELECT p.name,
-                st.slug AS ship_name, st.display_name AS ship_display_name,
+                st.slug AS ship_type_name, st.display_name AS ship_display_name,
                 c.universe_clan_number AS clan_number,
                 c.name AS clan_name,
                 p.reputation, p.experience

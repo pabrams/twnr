@@ -24,7 +24,7 @@ export const welcome: Handler<'welcome', LifecycleContext> = async (ctx, msg) =>
     ctx.player.name = msg.name;
     ctx.player.id = msg.playerId;
     ctx.world.totalSectors = msg.totalSectors;
-    ctx.ship.currentShipName = msg.shipName;
+    ctx.ship.currentShipTypeName = msg.shipTypeName ?? '';
     ctx.ship.currentColoredShipName = msg.coloredShipName;
     ctx.world.starbaseSector = msg.starbaseSector;
     ctx.player.isAdmin = msg.isAdmin;
@@ -37,9 +37,8 @@ export const welcome: Handler<'welcome', LifecycleContext> = async (ctx, msg) =>
         ctx.io.term.writeln(render(NOTIFY.welcomeGuest));
     }
 
-    const needsShipName = msg.shipName === '' && !!msg.startingShip;
-    if (!needsShipName) refreshMinimap(ctx);
-    await runConnectFlow(ctx, msg);
+    refreshMinimap(ctx);
+    await runConnectFlow(ctx);
 };
 
 export const playerMoved: Handler<'playerMoved', LifecycleContext> = (ctx, msg) => {

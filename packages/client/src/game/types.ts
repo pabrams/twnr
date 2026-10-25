@@ -82,7 +82,7 @@ export interface WorldState {
 }
 
 export interface ShipState {
-    currentShipName: string;
+    currentShipTypeName: string;
     currentColoredShipName: string | null;
     shipColonists: number;
     planetEmptyHolds: number;
@@ -128,7 +128,7 @@ export interface Catalogs {
 
 export interface StarbaseSession {
     class0ShipState: {
-        shipName: string;
+        shipTypeName: string;
         credits: number;
         drones: number;
         maxDrones: number;

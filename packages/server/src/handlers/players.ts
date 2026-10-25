@@ -20,7 +20,7 @@ export async function serveTraderList(playerId: number): Promise<void> {
         type: ServerTag.TraderListResult,
         traders: rows.map((r) => ({
             name: r.name,
-            shipName: r.ship_name,
+            shipTypeName: r.ship_type_name,
             coloredShipName: r.ship_display_name,
             clanNumber: r.clan_number,
             clanName: r.clan_name,

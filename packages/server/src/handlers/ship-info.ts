@@ -59,7 +59,7 @@ export async function serveShipInfo(playerId: number): Promise<void> {
     sendEnvelope(playerId, {
         type: ServerTag.ShipInfoResult,
         playerId,
-        shipName: row.ship_name,
+        shipTypeName: row.ship_type_name,
         coloredShipName: row.ship_display_name,
         drones: row.drones,
         shields: row.shields,

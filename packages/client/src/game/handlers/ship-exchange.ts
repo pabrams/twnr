@@ -15,12 +15,12 @@ type ShipExchangeContext = Pick<
     DisplayStarbaseCtx;
 
 export const shipInfo: Handler<'shipInfoResult', ShipExchangeContext> = (ctx, msg) => {
-    ctx.ship.currentShipName = msg.shipName;
+    ctx.ship.currentShipTypeName = msg.shipTypeName;
     ctx.ship.currentColoredShipName = msg.coloredShipName;
     ctx.io.term.writeln('');
     ctx.io.term.writeln(render(SECTOR.playerInfoName, { name: ctx.player.name }));
     ctx.io.term.writeln(render(SECTOR.playerInfoSector, { sector: ctx.world.currentSector }));
-    ctx.io.term.writeln(render(PANEL.shipName, { name: msg.coloredShipName ?? msg.shipName }));
+    ctx.io.term.writeln(render(PANEL.shipName, { name: msg.coloredShipName ?? msg.shipTypeName }));
     if (msg.clanNumber !== null) {
         ctx.io.term.writeln(
             render(PANEL.shipClan, { num: msg.clanNumber, name: msg.clanName ?? '' }),
@@ -98,18 +98,18 @@ function applyBuyShipResult(
     msg:
         Parameters<Handler<'buyShipTradeinResult'>>[1] | Parameters<Handler<'buyShipNewResult'>>[1],
 ): void {
-    ctx.ship.currentShipName = msg.shipName;
+    ctx.ship.currentShipTypeName = msg.shipTypeName;
     ctx.ship.currentColoredShipName = msg.coloredShipName;
     const tpl =
         msg.type === ServerTag.BuyShipTradeinResult
             ? TRANSACTION.shipExchanged
             : TRANSACTION.shipPurchased;
-    ctx.io.term.writeln(render(tpl, { name: msg.coloredShipName ?? msg.shipName }));
+    ctx.io.term.writeln(render(tpl, { name: msg.coloredShipName ?? msg.shipTypeName }));
     ctx.io.term.writeln(render(TRANSACTION.shipCreditsLine, { credits: fmt(msg.credits) }));
     if (ctx.starbase.class0ShipState) {
-        const cfg = ctx.catalogs.ships?.find((s) => s.name === msg.shipName);
+        const cfg = ctx.catalogs.ships?.find((s) => s.name === msg.shipTypeName);
         ctx.starbase.class0ShipState = {
-            shipName: msg.shipName,
+            shipTypeName: msg.shipTypeName,
             credits: msg.credits,
             drones: 0,
             maxDrones: msg.maxDrones,

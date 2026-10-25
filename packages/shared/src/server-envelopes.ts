@@ -46,7 +46,7 @@ const CargoSchema = z.object({
 });
 
 const ShipInfoEmbedSchema = z.object({
-    shipName: Str,
+    shipTypeName: Str,
     drones: Num,
     maxDrones: Num,
     shields: Num,
@@ -157,14 +157,8 @@ export const WelcomeEventSchema = z.object({
     sector: Int,
     token: Str,
     totalSectors: Int,
-    shipName: Str,
+    shipTypeName: StrOrNull,
     coloredShipName: StrOrNull,
-    startingShip: z
-        .object({
-            typeName: Str,
-            typeDisplayName: StrOrNull,
-        })
-        .optional(),
     starbaseSector: IntOrNull,
     location: MenuNameSchema,
     isGuest: Bool,
@@ -302,7 +296,7 @@ export type PortInfoReply = z.infer<typeof PortInfoReplySchema>;
 export const ShipInfoReplySchema = z.object({
     type: z.literal(ServerTag.ShipInfoResult),
     playerId: Int,
-    shipName: Str,
+    shipTypeName: Str,
     coloredShipName: StrOrNull,
     drones: Num,
     shields: Num,
@@ -361,7 +355,7 @@ export type BuyHoldsReply = z.infer<typeof BuyHoldsReplySchema>;
 
 export const BuyShipTradeinReplySchema = z.object({
     type: z.literal(ServerTag.BuyShipTradeinResult),
-    shipName: Str,
+    shipTypeName: Str,
     coloredShipName: StrOrNull,
     credits: Num,
     maxDrones: Num,
@@ -687,7 +681,7 @@ export type LeaveStarbaseReply = z.infer<typeof LeaveStarbaseReplySchema>;
 
 export const BuyShipNewReplySchema = z.object({
     type: z.literal(ServerTag.BuyShipNewResult),
-    shipName: Str,
+    shipTypeName: Str,
     coloredShipName: StrOrNull,
     credits: Num,
     maxDrones: Num,
@@ -1736,10 +1730,10 @@ export const HardwareCatalogReplySchema = z.object({
 });
 export type HardwareCatalogReply = z.infer<typeof HardwareCatalogReplySchema>;
 
-/** Every player in the universe, online or not; `shipName` null while the ship is destroyed. */
+/** Every player in the universe, online or not; `shipTypeName` null while the ship is destroyed. */
 export const TraderListEntrySchema = z.object({
     name: Str,
-    shipName: StrOrNull,
+    shipTypeName: StrOrNull,
     coloredShipName: StrOrNull,
     clanNumber: IntOrNull,
     clanName: StrOrNull,
