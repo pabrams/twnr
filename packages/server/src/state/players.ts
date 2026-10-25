@@ -9,7 +9,6 @@ export interface Player {
     name: string;
     universeId: number;
     docked: boolean;
-    onPlanetId: number | null;
     isAdmin: boolean;
     at_starbase?: boolean;
 }

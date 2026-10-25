@@ -115,7 +115,7 @@ export async function serveHyperspaceJump(
         markSectorVisited(playerId, targetSectorId),
     ]);
 
-    broadcastPlayerMoved(playerId, currentSector, targetSector);
+    void broadcastPlayerMoved(playerId, currentSector, targetSector);
 
     if (turnResult.turnsUsed) {
         notifyTurnChange(playerId, turnResult.turnsUsed, 'hyperspace jump');

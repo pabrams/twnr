@@ -121,8 +121,7 @@ export async function serveLandOnPlanet(
     }
 
     await setOnPlanet(playerId, planetId);
-    broadcastSectorActivity(playerId, 'land', planet.name);
-    player.onPlanetId = planetId;
+    void broadcastSectorActivity(playerId, 'land', planet.name);
 
     const display = await getPlanetDisplayData(playerId);
     if (!display) {
@@ -218,9 +217,8 @@ export async function serveLeavePlanet(playerId: number): Promise<void> {
             : null;
 
     await setOnPlanet(playerId, null);
-    player.onPlanetId = null;
     if (leavingPlanetId !== null) {
-        broadcastSectorActivity(playerId, 'liftoff', leavingPlanetName);
+        void broadcastSectorActivity(playerId, 'liftoff', leavingPlanetName);
     }
 
     await sendEnvelope(playerId, {
@@ -265,9 +263,6 @@ export async function serveDestroyPlanet(playerId: number): Promise<void> {
             return true;
         },
         async () => {
-            for (const p of Object.values(onlinePlayers)) {
-                if (p.onPlanetId === onPlanetId) p.onPlanetId = null;
-            }
             await sendEnvelope(playerId, {
                 type: ServerTag.DestroyPlanetResult,
                 destroyed: true,
@@ -558,10 +553,8 @@ async function liftoffWithResult<T extends { type: (typeof ServerTag)[keyof type
             ? ((await getPlanetOwnership(leavingPlanetId))?.name ?? null)
             : null;
     await setOnPlanet(playerId, null);
-    const liftingPlayer = onlinePlayers[playerId];
-    if (liftingPlayer) liftingPlayer.onPlanetId = null;
     if (leavingPlanetId !== null) {
-        broadcastSectorActivity(playerId, 'liftoff', leavingPlanetName);
+        void broadcastSectorActivity(playerId, 'liftoff', leavingPlanetName);
     }
     const sectorData = await buildSectorDisplayData(playerId);
     if (!sectorData) return;

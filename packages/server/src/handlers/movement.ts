@@ -141,7 +141,7 @@ export async function serveMove(playerId: number, data: MoveCommand): Promise<vo
         }
     }
 
-    broadcastPlayerMoved(playerId, currentSector, targetSector, towedAlong);
+    void broadcastPlayerMoved(playerId, currentSector, targetSector, towedAlong);
 
     if (freedFromTow && towerId !== null) {
         await clearTowedShip(towerId);

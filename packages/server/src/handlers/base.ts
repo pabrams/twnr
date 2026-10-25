@@ -663,7 +663,6 @@ export async function serveBwarpBeam(
         async (result) => {
             player.sector = targetSector;
             player.sectorId = result.targetSectorId;
-            player.onPlanetId = null;
             // The player was on a planet (invisible to the old sector), so
             // only the arrival sector gets a notification.
             broadcastTo(
@@ -674,7 +673,7 @@ export async function serveBwarpBeam(
                     sector: targetSector,
                     direction: 'in',
                 },
-                sectorObserverClients(player.universeId, targetSector, playerId),
+                await sectorObserverClients(player.universeId, targetSector, playerId),
             );
             if (result.turnsUsed) {
                 notifyTurnChange(playerId, result.turnsUsed, 'planetary transporter');

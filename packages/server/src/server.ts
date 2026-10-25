@@ -187,11 +187,10 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             sector,
             sectorId,
             shipId: playerRow.ship_id,
-            shipName: playerRow.ship_custom_name,
+            shipName: playerRow.ship_name,
             name: playerRow.name,
             universeId,
             docked: false,
-            onPlanetId: null,
             isAdmin,
         };
         const [totalSectors, starbaseSector, guestFlag, onPlanetId] = await Promise.all([
@@ -200,7 +199,6 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             isGuestUser(userId),
             getOnPlanetId(playerId),
         ]);
-        onlinePlayers[playerId].onPlanetId = onPlanetId;
 
         let startingShipForWelcome:
             { typeName: string; typeDisplayName: string | null } | undefined;
@@ -224,7 +222,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             name: playerRow.name,
             sector,
             totalSectors,
-            shipName: playerRow.ship_name ?? '',
+            shipName: playerRow.ship_type_slug ?? '',
             coloredShipName: playerRow.ship_display_name ?? null,
             ...(startingShipForWelcome ? { startingShip: startingShipForWelcome } : {}),
             starbaseSector,

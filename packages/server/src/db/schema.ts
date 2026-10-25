@@ -558,6 +558,19 @@ export const connectDB = async (): Promise<void> => {
       FOR EACH ROW
       EXECUTE FUNCTION trigger_set_timestamp();
 
+      -- Deferred like players_ship_id_fkey above: players is created before
+      -- planets, so the FK is added here. Destroying a planet automatically
+      -- lifts everyone off it.
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.table_constraints
+          WHERE constraint_name = 'players_on_planet_id_fkey' AND table_name = 'players'
+        ) THEN
+          ALTER TABLE players ADD CONSTRAINT players_on_planet_id_fkey
+            FOREIGN KEY (on_planet_id) REFERENCES planets(id) ON DELETE SET NULL;
+        END IF;
+      END $$;
+
       CREATE TABLE IF NOT EXISTS planet_collisions (
         collision_planet INTEGER NOT NULL REFERENCES planets(id) ON DELETE CASCADE,
         colliding_with INTEGER NOT NULL REFERENCES planets(id) ON DELETE CASCADE,

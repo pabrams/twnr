@@ -413,7 +413,7 @@ export async function serveRetreatFromDrones(playerId: number): Promise<void> {
         moveShipToSector(playerId, retreatSectorId),
     ]);
 
-    broadcastPlayerMoved(playerId, currentSector, retreatSector);
+    void broadcastPlayerMoved(playerId, currentSector, retreatSector);
 
     const mineOutcome = await resolveMinesOnEntry(playerId);
     if (mineOutcome.destroyed) return;

@@ -220,8 +220,8 @@ export type PlayerConnectRow = {
     current_sector_id: number;
     ship_id: number | null;
     sector_number: number;
+    ship_type_slug: string | null;
     ship_name: string | null;
-    ship_custom_name: string | null;
     ship_display_name: string | null;
     clan_id: number | null;
 };
@@ -233,8 +233,8 @@ export async function getPlayerConnectInfo(
 ): Promise<PlayerConnectRow | undefined> {
     const res = await db.query<PlayerConnectRow>(
         `SELECT p.id, p.name, p.current_sector_id, p.ship_id, s.sector_number,
-                st.slug AS ship_name, st.display_name AS ship_display_name,
-                sh.name AS ship_custom_name,
+                st.slug AS ship_type_slug, st.display_name AS ship_display_name,
+                sh.name AS ship_name,
                 p.clan_id
          FROM players p
          JOIN sectors s ON p.current_sector_id = s.id
@@ -244,6 +244,19 @@ export async function getPlayerConnectInfo(
         [userId, universeId],
     );
     return res.rows[0];
+}
+
+/** Of the given player ids, return those who are not on a planet. */
+export async function filterPlayersNotOnPlanet(
+    playerIds: number[],
+    db: Queryable = pool,
+): Promise<number[]> {
+    if (playerIds.length === 0) return [];
+    const res = await db.query<{ id: number }>(
+        'SELECT id FROM players WHERE id = ANY($1) AND on_planet_id IS NULL',
+        [playerIds],
+    );
+    return res.rows.map((r) => r.id);
 }
 
 export async function markPlayerLoggedIn(playerId: number, db: Queryable = pool): Promise<void> {
