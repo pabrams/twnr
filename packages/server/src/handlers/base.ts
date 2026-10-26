@@ -1,6 +1,7 @@
 import { ServerTag, universeConfig, type BaseLevelRequirement } from '@twnr/shared';
 import { onlinePlayers } from '../state/players.js';
-import { sendEnvelope } from '../state/messaging.js';
+import { sendEnvelope, broadcastTo } from '../state/messaging.js';
+import { sectorObserverClients } from '../services/sector-activity.js';
 import { AbortTransaction } from '../db/index.js';
 import { runMutation } from './run-mutation.js';
 import {
@@ -662,6 +663,17 @@ export async function serveBwarpBeam(
         async (result) => {
             player.sector = targetSector;
             player.sectorId = result.targetSectorId;
+            // Was hidden on a planet, so only the arrival sector is notified.
+            broadcastTo(
+                {
+                    type: ServerTag.PlayerMoved,
+                    playerId,
+                    playerName: player.name,
+                    sector: targetSector,
+                    direction: 'in',
+                },
+                await sectorObserverClients(player.universeId, targetSector, playerId),
+            );
             if (result.turnsUsed) {
                 notifyTurnChange(playerId, result.turnsUsed, 'planetary transporter');
             }

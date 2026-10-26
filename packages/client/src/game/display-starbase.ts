@@ -125,7 +125,7 @@ export function showShipBuyList(ctx: DisplayStarbaseCtx, ships: ShipCatalogEntry
     ctx.io.term.writeln(render(STARBASE.shipyardsBuyHeader));
     ships.forEach((ship, i) => {
         const current =
-            ship.name === ctx.ship.currentShipName ? render(STARBASE.shipyardsBuyCurrent) : '';
+            ship.name === ctx.ship.currentShipTypeName ? render(STARBASE.shipyardsBuyCurrent) : '';
         ctx.io.term.writeln(
             render(STARBASE.shipyardsBuyRow, {
                 letter: indexToLetter(i),

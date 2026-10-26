@@ -19,8 +19,8 @@ import { loadShipCatalog } from './catalogs.js';
 import { promptShipName } from '../handlers/ship-name.js';
 
 function currentShipTradeInCredit(ctx: GameContext, ships: ShipCatalogEntry[]): number {
-    if (!ctx.ship.currentShipName) return 0;
-    const ship = ships.find((s) => s.name === ctx.ship.currentShipName);
+    if (!ctx.ship.currentShipTypeName) return 0;
+    const ship = ships.find((s) => s.name === ctx.ship.currentShipTypeName);
     return ship?.baseCost ?? 0;
 }
 
@@ -44,7 +44,7 @@ registerRoutine('buy_ship', async (ctx) => {
             continue;
         }
         const ship = ships[idx];
-        if (ship.name === ctx.ship.currentShipName) {
+        if (ship.name === ctx.ship.currentShipTypeName) {
             ctx.io.term.writeln(render(COMMON.errorLine, { text: 'Already flying that ship.' }));
             continue;
         }

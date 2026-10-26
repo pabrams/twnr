@@ -16,8 +16,6 @@ import { onlinePlayers } from './state/players.js';
 import { sendEnvelope, sendError, broadcastTo } from './state/messaging.js';
 import { routeMessage } from './handlers/message-router.js';
 import { clearPendingShipPurchase } from './state/pending-ship-purchases.js';
-import { getStartingShipTypeBySlug } from './db/queries/ship.js';
-import { getUniverseTemplateDefaults } from './db/queries/universe.js';
 import { getUserTokenVersion, markUserConnected, isGuestUser } from './db/queries/user.js';
 import {
     getPlayerConnectInfo,
@@ -29,6 +27,7 @@ import {
 } from './db/queries/player.js';
 import { countSectorsInUniverse, getStarbaseSectorNumber } from './db/queries/sector.js';
 import { tryRespawnPlayer } from './services/respawn.js';
+import { grantStartingShip } from './services/starting-ship.js';
 import { startHourlyScheduler } from './services/hourly-jobs.js';
 import { sendStatsSnapshot } from './services/stats-snapshot.js';
 
@@ -177,6 +176,17 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
         const sectorId: number = playerRow.current_sector_id;
         const sector: number = playerRow.sector_number;
 
+        if (playerRow.ship_id === null) {
+            const granted = await grantStartingShip(playerId, universeId, sectorId, playerRow.name);
+            if (granted !== null) {
+                playerRow = await getPlayerConnectInfo(userId, universeId);
+                if (!playerRow) {
+                    ws.close(1008, 'No player in this universe');
+                    return;
+                }
+            }
+        }
+
         await markPlayerLoggedIn(playerId);
         await markUserConnected(userId);
         await markSectorVisited(playerId, sectorId);
@@ -187,6 +197,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             sector,
             sectorId,
             shipId: playerRow.ship_id,
+            shipName: playerRow.ship_name,
             name: playerRow.name,
             universeId,
             docked: false,
@@ -199,21 +210,6 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             getOnPlanetId(playerId),
         ]);
 
-        let startingShipForWelcome:
-            { typeName: string; typeDisplayName: string | null } | undefined;
-        if (playerRow.ship_id === null) {
-            const templateDefaults = await getUniverseTemplateDefaults(universeId);
-            const startShipType = templateDefaults?.starter_ship_slug
-                ? await getStartingShipTypeBySlug(universeId, templateDefaults.starter_ship_slug)
-                : undefined;
-            if (startShipType) {
-                startingShipForWelcome = {
-                    typeName: startShipType.slug,
-                    typeDisplayName: startShipType.display_name,
-                };
-            }
-        }
-
         const welcomeLocation = onPlanetId !== null ? 'planet' : 'sector';
         const welcomeMsg: ServerEnvelope = {
             type: ServerTag.Welcome,
@@ -221,9 +217,8 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             name: playerRow.name,
             sector,
             totalSectors,
-            shipName: playerRow.ship_name ?? '',
+            shipTypeName: playerRow.ship_type_slug ?? null,
             coloredShipName: playerRow.ship_display_name ?? null,
-            ...(startingShipForWelcome ? { startingShip: startingShipForWelcome } : {}),
             starbaseSector,
             location: welcomeLocation,
             isGuest: guestFlag,

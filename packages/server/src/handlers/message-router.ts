@@ -225,10 +225,8 @@ const handlers: HandlerMap = {
 
 export async function routeMessage(playerId: number, data: ClientEnvelope): Promise<void> {
     if (data.type !== ClientTag.SetShipName) {
-        const player = onlinePlayers[playerId];
         const needsName =
-            player !== undefined &&
-            (player.shipId === null || getPendingShipPurchase(playerId) !== undefined);
+            onlinePlayers[playerId] !== undefined && getPendingShipPurchase(playerId) !== undefined;
         if (needsName) {
             sendError(playerId, 'Name your ship first.');
             return;

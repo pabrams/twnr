@@ -220,6 +220,7 @@ export type PlayerConnectRow = {
     current_sector_id: number;
     ship_id: number | null;
     sector_number: number;
+    ship_type_slug: string | null;
     ship_name: string | null;
     ship_display_name: string | null;
     clan_id: number | null;
@@ -232,7 +233,8 @@ export async function getPlayerConnectInfo(
 ): Promise<PlayerConnectRow | undefined> {
     const res = await db.query<PlayerConnectRow>(
         `SELECT p.id, p.name, p.current_sector_id, p.ship_id, s.sector_number,
-                st.slug AS ship_name, st.display_name AS ship_display_name,
+                st.slug AS ship_type_slug, st.display_name AS ship_display_name,
+                sh.name AS ship_name,
                 p.clan_id
          FROM players p
          JOIN sectors s ON p.current_sector_id = s.id
@@ -242,6 +244,18 @@ export async function getPlayerConnectInfo(
         [userId, universeId],
     );
     return res.rows[0];
+}
+
+export async function filterPlayersNotOnPlanet(
+    playerIds: number[],
+    db: Queryable = pool,
+): Promise<number[]> {
+    if (playerIds.length === 0) return [];
+    const res = await db.query<{ id: number }>(
+        'SELECT id FROM players WHERE id = ANY($1) AND on_planet_id IS NULL',
+        [playerIds],
+    );
+    return res.rows.map((r) => r.id);
 }
 
 export async function markPlayerLoggedIn(playerId: number, db: Queryable = pool): Promise<void> {
@@ -277,7 +291,7 @@ export async function setPlayerShipId(
 
 export type UniversePlayerRosterRow = {
     name: string;
-    ship_name: string | null;
+    ship_type_name: string | null;
     ship_display_name: string | null;
     clan_number: number | null;
     clan_name: string | null;
@@ -290,7 +304,7 @@ export async function listPlayersInUniverse(
 ): Promise<UniversePlayerRosterRow[]> {
     const res = await db.query<UniversePlayerRosterRow>(
         `SELECT p.name,
-                st.slug AS ship_name, st.display_name AS ship_display_name,
+                st.slug AS ship_type_name, st.display_name AS ship_display_name,
                 c.universe_clan_number AS clan_number,
                 c.name AS clan_name,
                 p.reputation, p.experience

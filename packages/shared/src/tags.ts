@@ -24,6 +24,7 @@ export type MenuName = (typeof Menu)[keyof typeof Menu];
 export const ServerTag = {
     Welcome: 'welcome',
     PlayerMoved: 'playerMoved',
+    SectorActivity: 'sectorActivity',
     SectorDisplayResult: 'sectorDisplayResult',
     PlayerLeft: 'playerLeft',
     PlayersOnlineResult: 'playersOnlineResult',

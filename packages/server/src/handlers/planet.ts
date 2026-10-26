@@ -12,6 +12,7 @@ import type {
 import { onlinePlayers } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
+import { broadcastSectorActivity } from '../services/sector-activity.js';
 import { isInEncounter } from '../services/encounter.js';
 import { AbortTransaction } from '../db/index.js';
 import { runMutation } from './run-mutation.js';
@@ -120,6 +121,7 @@ export async function serveLandOnPlanet(
     }
 
     await setOnPlanet(playerId, planetId);
+    void broadcastSectorActivity(playerId, 'land', planet.name);
 
     const display = await getPlanetDisplayData(playerId);
     if (!display) {
@@ -208,7 +210,16 @@ export async function serveLeavePlanet(playerId: number): Promise<void> {
         notifyTurnChange(playerId, turnResult.turnsUsed, 'leaving planet');
     }
 
+    const leavingPlanetId = await getOnPlanetId(playerId);
+    const leavingPlanetName =
+        leavingPlanetId !== null
+            ? ((await getPlanetOwnership(leavingPlanetId))?.name ?? null)
+            : null;
+
     await setOnPlanet(playerId, null);
+    if (leavingPlanetId !== null) {
+        void broadcastSectorActivity(playerId, 'liftoff', leavingPlanetName);
+    }
 
     await sendEnvelope(playerId, {
         type: ServerTag.LeavePlanetResult,
@@ -536,7 +547,15 @@ async function liftoffWithResult<T extends { type: (typeof ServerTag)[keyof type
     playerId: number,
     result: T,
 ): Promise<void> {
+    const leavingPlanetId = await getOnPlanetId(playerId);
+    const leavingPlanetName =
+        leavingPlanetId !== null
+            ? ((await getPlanetOwnership(leavingPlanetId))?.name ?? null)
+            : null;
     await setOnPlanet(playerId, null);
+    if (leavingPlanetId !== null) {
+        void broadcastSectorActivity(playerId, 'liftoff', leavingPlanetName);
+    }
     const sectorData = await buildSectorDisplayData(playerId);
     if (!sectorData) return;
 

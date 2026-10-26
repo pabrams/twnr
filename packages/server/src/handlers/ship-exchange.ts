@@ -101,7 +101,7 @@ export async function executeBuyShipNew(
                 throw new AbortTransaction();
             }
 
-            if (data.ship_name === targetShipName) {
+            if (data.ship_type_slug === targetShipName) {
                 sendError(playerId, 'Already on that ship');
                 throw new AbortTransaction();
             }
@@ -137,6 +137,7 @@ export async function executeBuyShipNew(
             });
 
             return {
+                newShipId,
                 credits: data.credits - price,
                 maxDrones: targetType.max_drones,
                 maxShields: targetType.max_shields,
@@ -144,16 +145,22 @@ export async function executeBuyShipNew(
                 coloredName: targetType.display_name,
             };
         },
-        (result) =>
-            sendEnvelope(playerId, {
+        (result) => {
+            const player = onlinePlayers[playerId];
+            if (player) {
+                player.shipId = result.newShipId;
+                player.shipName = shipName;
+            }
+            return sendEnvelope(playerId, {
                 type: ServerTag.BuyShipNewResult,
-                shipName: targetShipName,
+                shipTypeName: targetShipName,
                 coloredShipName: result.coloredName,
                 credits: result.credits,
                 maxDrones: result.maxDrones,
                 maxShields: result.maxShields,
                 cargoLimit: result.cargoLimit,
-            }),
+            });
+        },
     );
 }
 
@@ -185,7 +192,7 @@ export async function executeBuyShipTradein(
                 throw new AbortTransaction();
             }
 
-            if (data.ship_name === targetShipName) {
+            if (data.ship_type_slug === targetShipName) {
                 sendError(playerId, 'Already on that ship');
                 throw new AbortTransaction();
             }
@@ -225,7 +232,7 @@ export async function executeBuyShipTradein(
                 newCredits: data.credits - cost,
                 context: {
                     mode: 'tradein',
-                    fromShip: data.ship_name,
+                    fromShip: data.ship_type_slug,
                     toShip: targetShipName,
                     targetPrice,
                     currentPrice,
@@ -233,6 +240,7 @@ export async function executeBuyShipTradein(
             });
 
             return {
+                newShipId,
                 credits: data.credits - cost,
                 maxDrones: targetType.max_drones,
                 maxShields: targetType.max_shields,
@@ -240,15 +248,21 @@ export async function executeBuyShipTradein(
                 coloredName: targetType.display_name,
             };
         },
-        (result) =>
-            sendEnvelope(playerId, {
+        (result) => {
+            const player = onlinePlayers[playerId];
+            if (player) {
+                player.shipId = result.newShipId;
+                player.shipName = shipName;
+            }
+            return sendEnvelope(playerId, {
                 type: ServerTag.BuyShipTradeinResult,
-                shipName: targetShipName,
+                shipTypeName: targetShipName,
                 coloredShipName: result.coloredName,
                 credits: result.credits,
                 maxDrones: result.maxDrones,
                 maxShields: result.maxShields,
                 cargoLimit: result.cargoLimit,
-            }),
+            });
+        },
     );
 }

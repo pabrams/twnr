@@ -149,10 +149,6 @@ export const EVENT = makeDomain('EVENT', {
     playerMovedTowedUnmanned:
         '[bc] The {towedName} (ship in tow) {verb} the sector with {moverName}.[/bc]',
 
-    shipNamePromptInitial:
-        '\r\n[bc]You have been issued a {type}.[/bc]\r\n[by]Name your ship[/by] [mg][[/mg][by]{default}[/by][mg]][/mg][by]: [/by]',
-    shipNamePromptRespawn:
-        '\r\n[bc]You have been issued a fresh {type}.[/bc]\r\n[by]Name your ship[/by] [mg][[/mg][by]{default}[/by][mg]][/mg][by]: [/by]',
     shipNamePromptBuyNew:
         '\r\n[by]Name your new {type}[/by] [mg][[/mg][by]{default}[/by][mg]][/mg][by]: [/by]',
     shipNamePromptTradein:

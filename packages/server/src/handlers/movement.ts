@@ -1,20 +1,15 @@
-import { WebSocket } from 'ws';
 import { ServerTag } from '@twnr/shared';
 import type { MoveCommand, WarpsOutCommand, ShortestPathCommand } from '@twnr/shared';
 import { onlinePlayers, getPlayerUniverseId } from '../state/players.js';
-import { sendEnvelope, sendError, broadcastTo, closeDestroyedSession } from '../state/messaging.js';
+import { sendEnvelope, sendError, closeDestroyedSession } from '../state/messaging.js';
+import { broadcastPlayerMoved } from '../services/sector-activity.js';
 import { getGraph } from '../state/graph-cache.js';
 import { getWarpRefs, resolveSectorId } from '../services/sector-lookup.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
 import { isInEncounter } from '../services/encounter.js';
 import { notifyTurnChange } from '../services/notify.js';
 import { refreshSectorObservation } from '../services/sector-observations.js';
-import {
-    setDocked,
-    moveToSector,
-    markSectorVisited,
-    getPreviousSectorNumber,
-} from '../db/queries/player.js';
+import { moveToSector, markSectorVisited, getPreviousSectorNumber } from '../db/queries/player.js';
 import { getShipDrones, getShipTurnsPerWarp, moveShipToSector } from '../db/queries/ship.js';
 import {
     getSectorDbId,
@@ -69,6 +64,15 @@ export async function serveMove(playerId: number, data: MoveCommand): Promise<vo
     const towerId = await getTowingPlayerForShip(ctx.shipId);
     const freedFromTow = towerId !== null && towerId !== playerId;
 
+    if (player.docked || player.at_starbase) {
+        sendEnvelope(playerId, {
+            type: ServerTag.MoveResult,
+            outcome: 'error',
+            message: 'You must undock before warping',
+        });
+        return;
+    }
+
     const currentSector = player.sector;
     if (!warps[currentSector]?.includes(targetSector)) {
         sendEnvelope(playerId, {
@@ -91,11 +95,6 @@ export async function serveMove(playerId: number, data: MoveCommand): Promise<vo
             message: 'Insufficient turns',
         });
         return;
-    }
-
-    if (player.docked) {
-        player.docked = false;
-        await setDocked(playerId, false);
     }
 
     const targetSectorId = await resolveSectorId(targetSector, universeId);
@@ -142,37 +141,7 @@ export async function serveMove(playerId: number, data: MoveCommand): Promise<vo
         }
     }
 
-    const oldSectorClients = new Set<WebSocket>();
-    const newSectorClients = new Set<WebSocket>();
-    for (const [idStr, p] of Object.entries(onlinePlayers)) {
-        if (Number(idStr) === playerId) continue;
-        if (p.universeId !== universeId) continue;
-        if (p.docked) continue;
-        if (p.sector === currentSector) oldSectorClients.add(p.ws);
-        else if (p.sector === targetSector) newSectorClients.add(p.ws);
-    }
-    broadcastTo(
-        {
-            type: ServerTag.PlayerMoved,
-            playerId,
-            playerName: player.name,
-            sector: targetSector,
-            direction: 'out',
-            towedAlong,
-        },
-        oldSectorClients,
-    );
-    broadcastTo(
-        {
-            type: ServerTag.PlayerMoved,
-            playerId,
-            playerName: player.name,
-            sector: targetSector,
-            direction: 'in',
-            towedAlong,
-        },
-        newSectorClients,
-    );
+    void broadcastPlayerMoved(playerId, currentSector, targetSector, towedAlong);
 
     if (freedFromTow && towerId !== null) {
         await clearTowedShip(towerId);

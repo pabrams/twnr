@@ -33,6 +33,7 @@ export async function setEarthColonists(
 }
 
 export async function deletePlanet(planetId: number, db: Queryable = pool): Promise<void> {
+    // on_planet_id FK (ON DELETE SET NULL) lifts everyone off automatically.
     await db.query('DELETE FROM planets WHERE id = $1', [planetId]);
 }
 

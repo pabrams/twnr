@@ -151,7 +151,7 @@ export async function zeroShipCargo(playerId: number, db: Queryable = pool): Pro
 }
 
 export type ShipInfoRow = {
-    ship_name: string;
+    ship_type_name: string;
     ship_display_name: string | null;
     ship_id: number;
     ship_type_slug: string;
@@ -176,7 +176,7 @@ export async function getShipInfo(
     db: Queryable = pool,
 ): Promise<ShipInfoRow | undefined> {
     const res = await db.query<ShipInfoRow>(
-        `SELECT st.slug AS ship_name, st.display_name AS ship_display_name,
+        `SELECT st.slug AS ship_type_name, st.display_name AS ship_display_name,
                 s.id AS ship_id, s.ship_type_slug,
                 s.drones, s.shields, s.holds,
                 s.turns_per_warp, s.has_density_scanner,
@@ -291,7 +291,7 @@ export async function incrementShipHolds(
 
 export type ShipDronesInfoRow = {
     drones: number;
-    ship_name: string;
+    ship_type_name: string;
     max_drones: number;
 };
 export async function getShipDronesAndMaxInfo(
@@ -299,7 +299,7 @@ export async function getShipDronesAndMaxInfo(
     db: Queryable = pool,
 ): Promise<ShipDronesInfoRow | undefined> {
     const res = await db.query<ShipDronesInfoRow>(
-        `SELECT s.drones, st.slug as ship_name, st.max_drones
+        `SELECT s.drones, st.slug as ship_type_name, st.max_drones
          FROM ships s JOIN universe_ship_types st ON st.universe_id = s.universe_id AND st.slug = s.ship_type_slug
          WHERE s.id = ${SHIP_ID_SUBSELECT}`,
         [playerId],
@@ -351,7 +351,7 @@ export async function getShipTypeBySlug(
 export type PlayerShipTradeInfoRow = {
     credits: number;
     current_sector_id: number;
-    ship_name: string;
+    ship_type_slug: string;
     current_cost_drive: number;
     current_cost_computer: number;
     current_cost_hull: number;
@@ -365,7 +365,7 @@ export async function getPlayerShipTradeInfoForUpdate(
 ): Promise<PlayerShipTradeInfoRow | undefined> {
     const res = await db.query<PlayerShipTradeInfoRow>(
         `SELECT p.credits, p.current_sector_id,
-                st.slug AS ship_name,
+                st.slug AS ship_type_slug,
                 st.cost_drive AS current_cost_drive, st.cost_computer AS current_cost_computer,
                 st.cost_hull AS current_cost_hull, st.hold_cost AS current_hold_cost,
                 st.starting_holds AS current_starting_holds,
@@ -383,7 +383,7 @@ export type PlayerShipBuyInfoRow = {
     credits: number;
     current_sector_id: number;
     ship_id: number;
-    ship_name: string;
+    ship_type_slug: string;
 };
 export async function getPlayerShipBuyInfoForUpdate(
     playerId: number,
@@ -391,7 +391,7 @@ export async function getPlayerShipBuyInfoForUpdate(
 ): Promise<PlayerShipBuyInfoRow | undefined> {
     const res = await db.query<PlayerShipBuyInfoRow>(
         `SELECT p.credits, p.current_sector_id, sh.id AS ship_id,
-                st.slug AS ship_name
+                st.slug AS ship_type_slug
          FROM players p
          JOIN ships sh ON p.ship_id = sh.id
          JOIN universe_ship_types st ON st.universe_id = sh.universe_id AND st.slug = sh.ship_type_slug
@@ -561,7 +561,7 @@ export async function getPlayerShipFull(
                 s.turns_per_warp, s.has_density_scanner,
                 s.fuel, s.organics, s.equipment, s.colonists,
                 s.sector_id, s.ship_type_slug,
-                st.slug as ship_name, st.max_drones, st.max_shields, st.max_holds,
+                st.slug as ship_type_name, st.max_drones, st.max_shields, st.max_holds,
                 st.starting_holds, st.turns_per_warp as type_turns_per_warp,
                 st.cost_drive, st.cost_computer, st.cost_hull, st.hold_cost,
                 st.odds_offensive, st.odds_defensive, st.speed,
@@ -828,6 +828,7 @@ export async function getOwnedShipDetail(
 export type TransportTargetRow = {
     current_range: number | null;
     target_sector_id: number | null;
+    target_ship_name: string | null;
     target_sector_number: number | null;
 };
 
@@ -839,6 +840,7 @@ export async function getTransportTargetInfo(
     const res = await db.query<TransportTargetRow>(
         `SELECT cur_st.transporter_range AS current_range,
                 tgt.sector_id AS target_sector_id,
+                tgt.name AS target_ship_name,
                 tgt_sec.sector_number AS target_sector_number
          FROM ships tgt
          LEFT JOIN sectors tgt_sec ON tgt.sector_id = tgt_sec.id

@@ -161,7 +161,7 @@ describe('TraderList', () => {
       assert.ok(names.includes('trader_offline'));
 
       const me = res.traders.find((t) => t.name === 'trader_online');
-      assert.equal(me.shipName, STARTER_SLUG);
+      assert.equal(me.shipTypeName, STARTER_SLUG);
       assert.equal(me.clanNumber, null);
       assert.equal(typeof me.reputation, 'number');
 
