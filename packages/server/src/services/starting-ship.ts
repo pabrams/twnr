@@ -14,11 +14,7 @@ export function defaultShipName(playerName: string): string {
     return stem === '' ? 'Unnamed ship' : `${stem}${DEFAULT_NAME_SUFFIX}`;
 }
 
-/**
- * Issue the universe's starter ship to a shipless player (fresh account or
- * post-respawn), named with the default ship name. Returns the new ship id,
- * or null when the universe has no starter ship configured.
- */
+/** Grant the default-named starter ship; returns the new ship id, or null if the universe has no starter configured. */
 export async function grantStartingShip(
     playerId: number,
     universeId: number,

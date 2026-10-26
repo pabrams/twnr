@@ -5,11 +5,7 @@ import { onlinePlayers } from '../state/players.js';
 import { broadcastTo } from '../state/messaging.js';
 import { filterPlayersNotOnPlanet } from '../db/queries/player.js';
 
-/**
- * Collect the sockets of online players in a given sector who can "see"
- * activity happening there (excluding the acting player). Players who are
- * docked (port or starbase) or on a planet do not observe sector activity.
- */
+/** Sockets of players who can see activity in the sector: online, not the actor, not docked or on a planet. */
 export async function sectorObserverClients(
     universeId: number,
     sector: number,
@@ -33,11 +29,7 @@ export async function sectorObserverClients(
     return clients;
 }
 
-/**
- * Notify online players in the actor's sector of local activity:
- * landing on / lifting off a planet, docking at / undocking from a port.
- * Errors are logged, never thrown.
- */
+/** Notify the actor's sector of dock/undock/land/liftoff. Errors are logged, never thrown. */
 export async function broadcastSectorActivity(
     playerId: number,
     activity: 'land' | 'liftoff' | 'dock' | 'undock',
@@ -64,12 +56,7 @@ export async function broadcastSectorActivity(
     }
 }
 
-/**
- * Notify online players in both the departure and arrival sectors that a
- * player's ship moved between sectors. Call after the mover's in-memory
- * sector has been updated to the target sector. Errors are logged, never
- * thrown.
- */
+/** Notify both sectors of a ship move; call after player.sector is set to the target. Errors are logged, never thrown. */
 export async function broadcastPlayerMoved(
     playerId: number,
     fromSector: number,

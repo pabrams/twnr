@@ -246,7 +246,6 @@ export async function getPlayerConnectInfo(
     return res.rows[0];
 }
 
-/** Of the given player ids, return those who are not on a planet. */
 export async function filterPlayersNotOnPlanet(
     playerIds: number[],
     db: Queryable = pool,
