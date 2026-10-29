@@ -1,4 +1,4 @@
-import { ServerTag, ClientTag } from '@twnr/shared';
+import { ServerTag, ClientTag, type GameEventOwnedRef } from '@twnr/shared';
 import type {
     LandOnPlanetCommand,
     TakeColonistsCommand,
@@ -72,7 +72,6 @@ import { checkAndDeductTurns } from '../turn-logic.js';
 import { cargoUsed } from './cargo-utils.js';
 import { notifyTurnChange } from '../services/notify.js';
 import { recordGameEvent } from '../services/game-events.js';
-import type { OwnerRef } from '../services/owner.js';
 
 export async function serveGetSectorPlanets(playerId: number): Promise<void> {
     const player = onlinePlayers[playerId];
@@ -1003,7 +1002,7 @@ export async function serveClaimPlanet(playerId: number, data: ClaimPlanetComman
         sendError(playerId, 'Clan not found.');
         return;
     }
-    const newOwner: Exclude<OwnerRef, { kind: 'rogue' }> = claimingClan
+    const newOwner: GameEventOwnedRef = claimingClan
         ? {
               kind: 'clan',
               clanId: claimingClan.id,

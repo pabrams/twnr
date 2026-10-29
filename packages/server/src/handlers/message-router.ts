@@ -6,6 +6,7 @@ import { serveSetShipName } from './ship-name.js';
 import { serveTowSpacecraft, serveTowAttach } from './tow.js';
 import { serveReadMail, serveDeleteAllMail, serveCheckMailSinceLastLogout } from './mail.js';
 import { serveHailResolve, serveHailSend } from './hail.js';
+import { serveGalacticNewsRange, serveReadGalacticNews } from './galactic-news.js';
 import { serveVisitedSectors } from './visited.js';
 import { servePlayersOnline, serveTraderList } from './players.js';
 import { serveShipCatalog, servePlanetCatalog, serveHardwareCatalog } from './catalog.js';
@@ -221,6 +222,8 @@ const handlers: HandlerMap = {
     [ClientTag.PlanetCatalog]: servePlanetCatalog,
     [ClientTag.HardwareCatalog]: serveHardwareCatalog,
     [ClientTag.TraderList]: serveTraderList,
+    [ClientTag.GalacticNewsRange]: serveGalacticNewsRange,
+    [ClientTag.ReadGalacticNews]: serveReadGalacticNews,
 };
 
 export async function routeMessage(playerId: number, data: ClientEnvelope): Promise<void> {

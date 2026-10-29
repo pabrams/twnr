@@ -174,6 +174,35 @@ const SAMPLES: Record<string, Record<string, unknown>> = {
     'PANEL.playersOnlineHeader': { count: 5 },
     'PANEL.playersOnlineRow': { name: 'Alice', suffix: '' },
     'PANEL.deployedDronesRow': { sector: 42, qty: 25 },
+
+    'NEWS.dateIntro': { today: '2026/10/31', earliest: '2026/10/01' },
+    'NEWS.datePrompt': { today: '2026/10/31' },
+    'NEWS.dateInvalid': { today: '2026/10/31', earliest: '2026/10/01' },
+    'NEWS.dayHeader': { date: '2026/10/31' },
+    'NEWS.clanLabel': { clanNumber: 3, name: 'Raiders' },
+    'NEWS_EVENT.player_ship_destroyed_by_ship_combat': {
+        attacker: 'Alice',
+        victim: 'Bob',
+        shipType: 'Cargo Freighter',
+    },
+    'NEWS_EVENT.player_ship_destroyed_by_sector_defenses': {
+        victim: 'Bob',
+        shipType: 'Cargo Freighter',
+        defense: 'mines',
+        owner: '#3 Raiders',
+    },
+    'NEWS_EVENT.planet_collision': { planet: 'Mars', collidingWith: 'Venus', sector: 42 },
+    'NEWS_EVENT.planet_destroyed': { destroyer: 'Alice', planet: 'Mars' },
+    'NEWS_EVENT.player_joined_universe': { player: 'Alice' },
+    'NEWS_EVENT.player_issued_ship': { player: 'Alice', shipType: 'Cargo Freighter' },
+    'NEWS_EVENT.clan_created': { founder: 'Alice', clan: '#3 Raiders' },
+    'NEWS_EVENT.player_joined_clan': { player: 'Bob', clan: '#3 Raiders' },
+    'NEWS_EVENT.player_left_clan': { player: 'Bob', clan: '#3 Raiders' },
+    'NEWS_EVENT.player_kicked_from_clan': { player: 'Bob', clan: '#3 Raiders' },
+    'NEWS_EVENT.clan_disbanded': { clan: '#3 Raiders' },
+    'NEWS_EVENT.planet_claimed': { planet: 'Mars', owner: 'Alice' },
+    'NEWS_EVENT.port_built': { sector: 42 },
+    'NEWS_EVENT.base_upgraded': { planet: 'Mars', level: 2 },
 };
 
 const SKIP_EXPORTS = new Set(['HELP_LINES']);
@@ -192,6 +221,8 @@ const DOMAIN_OUTPUT: Record<string, string> = {
     TRANSACTION: '../packages/client/src/game/messages/transactions.preview.ansi',
     EVENT: '../packages/client/src/game/messages/events.preview.ansi',
     PANEL: '../packages/client/src/game/messages/panels.preview.ansi',
+    NEWS: '../packages/client/src/game/messages/news.preview.ansi',
+    NEWS_EVENT: '../packages/client/src/game/messages/news.preview.ansi',
 };
 
 const args = process.argv.slice(2).map((a) => a.toUpperCase());

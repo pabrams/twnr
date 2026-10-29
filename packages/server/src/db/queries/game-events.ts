@@ -39,3 +39,38 @@ export async function listGameEvents(
     );
     return res.rows;
 }
+
+export type GalacticNewsRow = {
+    id: number;
+    created_at: Date;
+    kind: string;
+    payload: unknown;
+};
+
+export async function getEarliestGalacticNewsAt(
+    universeId: number,
+    db: Queryable = pool,
+): Promise<Date | null> {
+    const res = await db.query<{ created_at: Date }>(
+        `SELECT created_at FROM game_events
+         WHERE universe_id = $1 AND visibility = 'galactic'
+         ORDER BY id ASC LIMIT 1`,
+        [universeId],
+    );
+    return res.rows[0]?.created_at ?? null;
+}
+
+export async function listGalacticNewsSince(
+    universeId: number,
+    since: Date,
+    db: Queryable = pool,
+): Promise<GalacticNewsRow[]> {
+    const res = await db.query<GalacticNewsRow>(
+        `SELECT id::int AS id, created_at, kind, payload
+         FROM game_events
+         WHERE universe_id = $1 AND visibility = 'galactic' AND created_at >= $2
+         ORDER BY id ASC`,
+        [universeId, since],
+    );
+    return res.rows;
+}

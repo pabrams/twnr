@@ -1,16 +1,23 @@
 import { ClientTag, ServerTag } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
-import { EVENT } from '../messages/index.js';
+import { EVENT, NEWS } from '../messages/index.js';
 import { askConfirm } from '../routines/prompts.js';
 import { awaitResponse } from '../routines/io.js';
 import { renderMailEntries } from '../display-mail.js';
+import { showGalacticNews } from '../routines/news.js';
 
 type ConnectFlowCtx = Pick<GameContext, 'io' | 'input' | 'player'>;
 
 export async function runConnectFlow(ctx: ConnectFlowCtx): Promise<void> {
+    await offerTodaysNews(ctx);
     await checkConnectMail(ctx);
     ctx.io.submitLineFromMap('');
+}
+
+async function offerTodaysNews(ctx: ConnectFlowCtx): Promise<void> {
+    const wantsNews = await askConfirm(ctx, render(NEWS.connectPrompt), { defaultValue: false });
+    if (wantsNews) await showGalacticNews(ctx, new Date());
 }
 
 async function checkConnectMail(ctx: ConnectFlowCtx): Promise<void> {

@@ -2,6 +2,7 @@
 
 import { z } from 'zod';
 import { ServerTag } from './tags.js';
+import { GameEventSchema } from './game-events.js';
 
 // Must stay in sync with the Menu const in ./tags.ts.
 const MenuNameSchema = z.enum([
@@ -1748,6 +1749,25 @@ export const TraderListReplySchema = z.object({
 });
 export type TraderListReply = z.infer<typeof TraderListReplySchema>;
 
+export const GalacticNewsRangeReplySchema = z.object({
+    type: z.literal(ServerTag.GalacticNewsRangeResult),
+    earliestCreatedAt: DateString.nullable(),
+});
+export type GalacticNewsRangeReply = z.infer<typeof GalacticNewsRangeReplySchema>;
+
+export const GalacticNewsEntrySchema = z.object({
+    id: Int,
+    createdAt: DateString,
+    event: GameEventSchema,
+});
+export type GalacticNewsEntry = z.infer<typeof GalacticNewsEntrySchema>;
+
+export const GalacticNewsReplySchema = z.object({
+    type: z.literal(ServerTag.GalacticNewsResult),
+    entries: z.array(GalacticNewsEntrySchema),
+});
+export type GalacticNewsReply = z.infer<typeof GalacticNewsReplySchema>;
+
 export const StatsSnapshotSchema = z.object({
     type: z.literal(ServerTag.StatsSnapshot),
     sector: Int,
@@ -1890,6 +1910,8 @@ export const ServerEnvelopeSchema = z.discriminatedUnion('type', [
     PlanetCatalogReplySchema,
     HardwareCatalogReplySchema,
     TraderListReplySchema,
+    GalacticNewsRangeReplySchema,
+    GalacticNewsReplySchema,
     ErrorReplySchema,
 ]);
 export type ServerEnvelope = z.infer<typeof ServerEnvelopeSchema>;

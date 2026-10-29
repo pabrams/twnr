@@ -138,6 +138,8 @@ export const ServerTag = {
     PlanetCatalogResult: 'planetCatalogResult',
     HardwareCatalogResult: 'hardwareCatalogResult',
     TraderListResult: 'traderListResult',
+    GalacticNewsRangeResult: 'galacticNewsRangeResult',
+    GalacticNewsResult: 'galacticNewsResult',
 } as const;
 type ServerTag = typeof ServerTag;
 
@@ -241,5 +243,7 @@ export const ClientTag = {
     PlanetCatalog: 'planetCatalog',
     HardwareCatalog: 'hardwareCatalog',
     TraderList: 'traderList',
+    GalacticNewsRange: 'galacticNewsRange',
+    ReadGalacticNews: 'readGalacticNews',
 } as const;
 type ClientTag = typeof ClientTag;

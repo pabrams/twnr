@@ -1,8 +1,9 @@
 import { ClientTag, ServerTag } from '@twnr/shared';
 import { render } from '../renderer.js';
-import { COMPUTER, EVENT, NOTIFY } from '../messages/index.js';
+import { COMPUTER, EVENT, NEWS, NOTIFY } from '../messages/index.js';
 import { echoCommand } from '../display.js';
 import { renderMailEntries } from '../display-mail.js';
+import { formatStardate, parseStardate, startOfLocalDay } from '../display-news.js';
 import {
     showCurrentShipSpecs,
     showShipCatalog,
@@ -15,9 +16,10 @@ import {
 } from '../display-computer.js';
 import { indexToLetter, letterToIndex } from '../display-starbase.js';
 import { registerRoutine } from './types.js';
-import { askChar, askConfirm, askLine, askMultiLine, askNumber } from './prompts.js';
+import { askChar, askConfirm, askLine, askLineRaw, askMultiLine, askNumber } from './prompts.js';
 import { request } from './io.js';
 import { loadPlanetCatalog, loadShipCatalog } from './catalogs.js';
+import { showGalacticNews } from './news.js';
 
 registerRoutine('known_universe', async (ctx) => {
     while (true) {
@@ -164,6 +166,38 @@ registerRoutine('read_mail', async (ctx) => {
     renderMailEntries(ctx, reply.memos);
     const del = await askConfirm(ctx, render(EVENT.mailDeletePrompt), { defaultValue: false });
     if (del) ctx.io.sendMsg({ type: ClientTag.DeleteAllMail });
+});
+
+registerRoutine('galactic_news', async (ctx) => {
+    echoCommand(ctx, 'galacticNews');
+    const range = await request(
+        ctx,
+        { type: ClientTag.GalacticNewsRange },
+        ServerTag.GalacticNewsRangeResult,
+    );
+    if (!range) return;
+    if (range.earliestCreatedAt === null) {
+        ctx.io.term.writeln(render(NEWS.noNewsYet));
+        return;
+    }
+    const today = startOfLocalDay(new Date());
+    const earliest = startOfLocalDay(new Date(range.earliestCreatedAt));
+    const dateVars = { today: formatStardate(today), earliest: formatStardate(earliest) };
+    ctx.io.term.writeln(render(NEWS.dateIntro, dateVars));
+    while (true) {
+        const line = await askLineRaw(ctx, render(NEWS.datePrompt, dateVars));
+        if (line === null || line.toLowerCase() === 'q') return;
+        if (line === '') {
+            await showGalacticNews(ctx, today);
+            return;
+        }
+        const from = parseStardate(line);
+        if (from !== null && from >= earliest && from <= today) {
+            await showGalacticNews(ctx, from);
+            return;
+        }
+        ctx.io.term.writeln(render(NEWS.dateInvalid, dateVars));
+    }
 });
 
 registerRoutine('hail', async (ctx) => {

@@ -589,6 +589,18 @@ export const TraderListCommandSchema = z.object({
 });
 export type TraderListCommand = z.infer<typeof TraderListCommandSchema>;
 
+export const GalacticNewsRangeCommandSchema = z.object({
+    type: z.literal(ClientTag.GalacticNewsRange),
+});
+export type GalacticNewsRangeCommand = z.infer<typeof GalacticNewsRangeCommandSchema>;
+
+/** `since` is an ISO timestamp; the client picks the day boundary in its own timezone. */
+export const ReadGalacticNewsCommandSchema = z.object({
+    type: z.literal(ClientTag.ReadGalacticNews),
+    since: z.string(),
+});
+export type ReadGalacticNewsCommand = z.infer<typeof ReadGalacticNewsCommandSchema>;
+
 export const ClientEnvelopeSchema = z.discriminatedUnion('type', [
     MoveCommandSchema,
     MoveToPreviousCommandSchema,
@@ -689,5 +701,7 @@ export const ClientEnvelopeSchema = z.discriminatedUnion('type', [
     PlanetCatalogCommandSchema,
     HardwareCatalogCommandSchema,
     TraderListCommandSchema,
+    GalacticNewsRangeCommandSchema,
+    ReadGalacticNewsCommandSchema,
 ]);
 export type ClientEnvelope = z.infer<typeof ClientEnvelopeSchema>;

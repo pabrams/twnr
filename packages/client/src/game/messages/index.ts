@@ -14,6 +14,7 @@ import { EVENT } from './events.js';
 import { PANEL } from './panels.js';
 import { COMMAND } from './commands.js';
 import { CLAN } from './clan.js';
+import { NEWS, NEWS_EVENT } from './news.js';
 
 export {
     MSG,
@@ -32,6 +33,8 @@ export {
     PANEL,
     COMMAND,
     CLAN,
+    NEWS,
+    NEWS_EVENT,
 };
 
 /** Registration order matters for bare-key collisions (first wins); MSG registers first as the default. */
@@ -53,6 +56,8 @@ function buildAndRegister() {
         PANEL,
         COMMAND,
         CLAN,
+        NEWS,
+        NEWS_EVENT,
     };
     const flat: Record<string, string> = {};
     for (const [domain, group] of Object.entries(DOMAINS)) {

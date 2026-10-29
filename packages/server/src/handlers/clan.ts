@@ -1,4 +1,4 @@
-import { ServerTag } from '@twnr/shared';
+import { ServerTag, type GameEvent, type GameEventClanRef } from '@twnr/shared';
 import type {
     ClanCreateCommand,
     ClanJoinCommand,
@@ -33,7 +33,7 @@ import {
     type ClanRow,
 } from '../db/queries/clan.js';
 import { insertMemo } from '../db/queries/message.js';
-import { recordGameEvent, type ClanRef, type GameEvent } from '../services/game-events.js';
+import { recordGameEvent } from '../services/game-events.js';
 import {
     getPlayerName,
     getCreditsForUpdate,
@@ -61,7 +61,7 @@ function isValidPassword(password: string): boolean {
     return password.length >= 4 && password.length <= 64;
 }
 
-function clanRefOf(clan: Pick<ClanRow, 'id' | 'universe_clan_number' | 'name'>): ClanRef {
+function clanRefOf(clan: Pick<ClanRow, 'id' | 'universe_clan_number' | 'name'>): GameEventClanRef {
     return { clanId: clan.id, clanNumber: clan.universe_clan_number, name: clan.name };
 }
 

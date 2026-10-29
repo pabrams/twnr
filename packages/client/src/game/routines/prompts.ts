@@ -31,6 +31,12 @@ export async function askLineRaw(ctx: PromptCtx, prompt: string): Promise<string
     return line.trim();
 }
 
+/** Any single key, as typed (Enter as '\r'); null only on connection drop. */
+export async function askKey(ctx: PromptCtx, prompt: string): Promise<string | null> {
+    ctx.io.term.write(prompt);
+    return parkChar(ctx);
+}
+
 export async function askMultiLine(ctx: PromptCtx, linePrompt: string): Promise<string | null> {
     const lines: string[] = [];
     while (true) {

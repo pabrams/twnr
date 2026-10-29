@@ -320,6 +320,45 @@ describe('Game events — ports', () => {
   });
 });
 
+describe('Game events — Galactic News reading', () => {
+  it('reports the earliest date and returns events since a timestamp, newest last', async () => {
+    const reader = await createPlayer(`ge_reader_${Date.now()}`);
+    const { ws } = await connectPlayer(reader.token);
+    try {
+      const range = await wsRequest(ws, { type: ClientTag.GalacticNewsRange }, ServerTag.GalacticNewsRangeResult);
+      const earliest = await pool.query(
+        `SELECT created_at FROM game_events WHERE universe_id = $1 AND visibility = 'galactic' ORDER BY id LIMIT 1`,
+        [UNIVERSE_ID],
+      );
+      assert.equal(range.earliestCreatedAt, earliest.rows[0].created_at.toISOString());
+
+      const clanName = `News Clan ${Date.now()}`;
+      await wsRequest(ws, { type: ClientTag.ClanCreate, name: clanName, password: 'secret' }, ServerTag.ClanCreateResult);
+      const created = await pool.query(
+        `SELECT id, created_at FROM game_events WHERE universe_id = $1 AND kind = 'clan_created'
+         AND payload->'clan'->>'name' = $2`,
+        [UNIVERSE_ID, clanName],
+      );
+      const createdId = Number(created.rows[0].id);
+      const since = new Date(created.rows[0].created_at.getTime() - 1000).toISOString();
+      const news = await wsRequest(ws, { type: ClientTag.ReadGalacticNews, since }, ServerTag.GalacticNewsResult);
+      const ids = news.entries.map((e) => e.id);
+      assert.ok(ids.includes(createdId));
+      assert.deepEqual(ids, [...ids].sort((a, b) => a - b));
+      const mine = news.entries.find((e) => e.id === createdId);
+      assert.equal(mine.event.kind, 'clan_created');
+      assert.equal(mine.event.founder.name, await playerName(reader.id));
+      assert.ok(news.entries.every((e) => e.createdAt >= since));
+
+      const future = new Date(Date.now() + 60_000).toISOString();
+      const none = await wsRequest(ws, { type: ClientTag.ReadGalacticNews, since: future }, ServerTag.GalacticNewsResult);
+      assert.deepEqual(none.entries, []);
+    } finally {
+      await closeWS(ws);
+    }
+  });
+});
+
 async function playerName(playerId) {
   const res = await pool.query('SELECT name FROM players WHERE id = $1', [playerId]);
   return res.rows[0].name;

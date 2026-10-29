@@ -33,6 +33,7 @@ export const COMMAND = makeDomain('COMMAND', {
     deployDronesInfo: '[bg:b]<Deploy Drones>[/bg:b]',
     towSpacecraft: '[bg:b]<Tow Spacecraft>[/bg:b]',
     readMail: '[bg:b]<Read messages>[/bg:b]',
+    galacticNews: '[bg:b]<Galactic News>[/bg:b]',
     hail: '[bg:b]<Hailing frequencies>[/bg:b]',
     attack: '[bg:b]<Attack>[/bg:b]',
     starbaseInfo: '[bg:b]<Universe Information>[/bg:b]',
