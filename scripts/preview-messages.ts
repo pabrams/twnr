@@ -179,6 +179,7 @@ const SAMPLES: Record<string, Record<string, unknown>> = {
     'NEWS.datePrompt': { today: '2026/10/31' },
     'NEWS.dateInvalid': { today: '2026/10/31', earliest: '2026/10/01' },
     'NEWS.dayHeader': { date: '2026/10/31' },
+    'NEWS.entryLine': { time: '14:05:09', text: 'Alice has entered the galaxy.' },
     'NEWS.clanLabel': { clanNumber: 3, name: 'Raiders' },
     'NEWS_EVENT.player_ship_destroyed_by_ship_combat': {
         attacker: 'Alice',

@@ -14,6 +14,8 @@ export const NEWS = makeDomain('NEWS', {
     dayHeader:
         '   [mg]-=-=-=-=-=-=-=-[/mg] [by]Galactic News, Stardate {date}[/by] [mg]-=-=-=-=-=-=-=-[/mg]',
     pausePrompt: '[mg](Paused - <[/mg][by]C[/by][mg]> to cancel, any other key to continue)[/mg]',
+    endPrompt: '[mg](Paused - any key to continue)[/mg]',
+    entryLine: '[g]{time}[/g] {text}',
 
     clanLabel: '[mg]#[/mg][bc]{clanNumber}[/bc] [by]{name}[/by]',
     ownerRogue: '[g]no one[/g]',

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { GalacticNewsEntry } from '@twnr/shared';
 import {
     buildNewsLines,
+    formatNewsTime,
     formatStardate,
     parseStardate,
     renderNewsEvent,
@@ -19,11 +20,14 @@ function entryOn(id: number, when: Date, name: string): GalacticNewsEntry {
 }
 
 describe('stardate parsing and formatting', () => {
-    it('round-trips YYYY/MM/DD at local midnight', () => {
+    it('round-trips YYYY/MM/DD at UTC midnight', () => {
         const d = parseStardate('2026/10/31');
-        expect(d).not.toBeNull();
-        expect(d!.getHours()).toBe(0);
+        expect(d?.toISOString()).toBe('2026-10-31T00:00:00.000Z');
         expect(formatStardate(d!)).toBe('2026/10/31');
+    });
+
+    it('formats entry times in UTC', () => {
+        expect(formatNewsTime(new Date('2026-10-31T14:05:09Z'))).toBe('14:05:09');
     });
 
     it('rejects malformed and impossible dates', () => {
@@ -36,24 +40,24 @@ describe('stardate parsing and formatting', () => {
 
 describe('buildNewsLines', () => {
     it('heads every day from the start date through today, including empty days', () => {
-        const today = new Date(2026, 9, 31);
-        const from = new Date(2026, 9, 29);
+        const today = new Date('2026-10-31T00:00:00Z');
+        const from = new Date('2026-10-29T00:00:00Z');
         const entries = [
-            entryOn(1, new Date(2026, 9, 29, 8), 'Alice'),
-            entryOn(2, new Date(2026, 9, 31, 23, 59), 'Bob'),
+            entryOn(1, new Date('2026-10-29T08:00:00Z'), 'Alice'),
+            entryOn(2, new Date('2026-10-31T23:59:30Z'), 'Bob'),
         ];
         const lines = buildNewsLines(entries, from, today).map(plain);
         expect(lines).toEqual([
             '   -=-=-=-=-=-=-=- Galactic News, Stardate 2026/10/29 -=-=-=-=-=-=-=-',
-            'Alice has entered the galaxy.',
+            '08:00:00 Alice has entered the galaxy.',
             '   -=-=-=-=-=-=-=- Galactic News, Stardate 2026/10/30 -=-=-=-=-=-=-=-',
             '   -=-=-=-=-=-=-=- Galactic News, Stardate 2026/10/31 -=-=-=-=-=-=-=-',
-            'Bob has entered the galaxy.',
+            '23:59:30 Bob has entered the galaxy.',
         ]);
     });
 
     it('shows a single header when reading only today', () => {
-        const today = new Date(2026, 9, 31);
+        const today = new Date('2026-10-31T00:00:00Z');
         const lines = buildNewsLines([], today, today).map(plain);
         expect(lines).toEqual([
             '   -=-=-=-=-=-=-=- Galactic News, Stardate 2026/10/31 -=-=-=-=-=-=-=-',

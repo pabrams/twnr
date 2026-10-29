@@ -3,7 +3,7 @@ import { render } from '../renderer.js';
 import { COMPUTER, EVENT, NEWS, NOTIFY } from '../messages/index.js';
 import { echoCommand } from '../display.js';
 import { renderMailEntries } from '../display-mail.js';
-import { formatStardate, parseStardate, startOfLocalDay } from '../display-news.js';
+import { formatStardate, parseStardate, startOfUtcDay } from '../display-news.js';
 import {
     showCurrentShipSpecs,
     showShipCatalog,
@@ -180,8 +180,8 @@ registerRoutine('galactic_news', async (ctx) => {
         ctx.io.term.writeln(render(NEWS.noNewsYet));
         return;
     }
-    const today = startOfLocalDay(new Date());
-    const earliest = startOfLocalDay(new Date(range.earliestCreatedAt));
+    const today = startOfUtcDay(new Date());
+    const earliest = startOfUtcDay(new Date(range.earliestCreatedAt));
     const dateVars = { today: formatStardate(today), earliest: formatStardate(earliest) };
     ctx.io.term.writeln(render(NEWS.dateIntro, dateVars));
     while (true) {

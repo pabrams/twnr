@@ -13,26 +13,29 @@ function pad(n: number): string {
 }
 
 export function formatStardate(d: Date): string {
-    return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())}`;
+    return `${d.getUTCFullYear()}/${pad(d.getUTCMonth() + 1)}/${pad(d.getUTCDate())}`;
 }
 
-/** Local midnight of a YYYY/MM/DD string; null unless it is a real calendar date. */
+export function formatNewsTime(d: Date): string {
+    return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
+}
+
 export function parseStardate(text: string): Date | null {
     const match = /^(\d{4})\/(\d{1,2})\/(\d{1,2})$/.exec(text.trim());
     if (!match) return null;
     const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])];
-    const d = new Date(year, month - 1, day);
+    const d = new Date(Date.UTC(year, month - 1, day));
     const isRealDate =
-        d.getFullYear() === year && d.getMonth() === month - 1 && d.getDate() === day;
+        d.getUTCFullYear() === year && d.getUTCMonth() === month - 1 && d.getUTCDate() === day;
     return isRealDate ? d : null;
 }
 
-export function startOfLocalDay(d: Date): Date {
-    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+export function startOfUtcDay(d: Date): Date {
+    return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 }
 
-function nextLocalDay(d: Date): Date {
-    return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+function nextUtcDay(d: Date): Date {
+    return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1));
 }
 
 function formatClan(clan: GameEventClanRef): string {
@@ -128,19 +131,25 @@ export function renderNewsEvent(event: GameEvent): string {
     }
 }
 
-/** One headed block per local day from `from` through `today`, days without news included. */
+function renderNewsLine(entry: GalacticNewsEntry): string {
+    return render(NEWS.entryLine, {
+        time: formatNewsTime(new Date(entry.createdAt)),
+        text: renderNewsEvent(entry.event),
+    });
+}
+
 export function buildNewsLines(entries: GalacticNewsEntry[], from: Date, today: Date): string[] {
     const lines: string[] = [];
     let entryIdx = 0;
-    for (let day = startOfLocalDay(from); day <= today; day = nextLocalDay(day)) {
-        const dayEnd = nextLocalDay(day);
+    for (let day = startOfUtcDay(from); day <= today; day = nextUtcDay(day)) {
+        const dayEnd = nextUtcDay(day);
         const isLastDay = dayEnd > today;
         lines.push(render(NEWS.dayHeader, { date: formatStardate(day) }));
         while (
             entryIdx < entries.length &&
             (isLastDay || new Date(entries[entryIdx].createdAt) < dayEnd)
         ) {
-            lines.push(renderNewsEvent(entries[entryIdx].event));
+            lines.push(renderNewsLine(entries[entryIdx]));
             entryIdx++;
         }
     }
