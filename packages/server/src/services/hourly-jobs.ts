@@ -10,6 +10,7 @@ import {
     settlePlanetColonistGrowth,
 } from '../db/queries/planet.js';
 import { completeDueBaseConstructions } from './planet-base-construction.js';
+import { resolveDuePlanetCollisions } from './planet-collisions.js';
 import { listProducingPortIds, settlePortProduction } from '../db/queries/port.js';
 import { runAdvancePortConstructions } from './port-construction-advance.js';
 import { cleanupExpiredGuests } from './guest-cleanup.js';
@@ -108,6 +109,12 @@ export async function runHourlyJobs(): Promise<void> {
         if (grown > 0) console.log(`[hourly] colonist growth applied on ${grown} planets`);
     } catch (err) {
         console.error('[hourly] colonist-growth failed:', err);
+    }
+    try {
+        const collided = await resolveDuePlanetCollisions();
+        if (collided > 0) console.log(`[hourly] resolved ${collided} planet collisions`);
+    } catch (err) {
+        console.error('[hourly] planet-collisions failed:', err);
     }
     try {
         const completed = await completeDueBaseConstructions();

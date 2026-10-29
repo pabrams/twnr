@@ -587,6 +587,7 @@ export const connectDB = async (): Promise<void> => {
       -- promotion on read.
       CREATE TABLE IF NOT EXISTS planet_bases (
         planet_id INTEGER PRIMARY KEY REFERENCES planets(id) ON DELETE CASCADE,
+        universe_id INTEGER NOT NULL REFERENCES universes(id) ON DELETE CASCADE,
         level SMALLINT NOT NULL DEFAULT 0,
         treasury BIGINT NOT NULL DEFAULT 0,
         transporter_range SMALLINT NOT NULL DEFAULT 0,
@@ -594,6 +595,14 @@ export const connectDB = async (): Promise<void> => {
         construction_started_at TIMESTAMPTZ,
         construction_completes_at TIMESTAMPTZ
       );
+
+      -- universe_id was added after planet_bases shipped; denormalized so row_history
+      -- can attribute base changes without a lookup.
+      ALTER TABLE planet_bases
+        ADD COLUMN IF NOT EXISTS universe_id INTEGER REFERENCES universes(id) ON DELETE CASCADE;
+      UPDATE planet_bases pb SET universe_id = p.universe_id
+        FROM planets p WHERE p.id = pb.planet_id AND pb.universe_id IS NULL;
+      ALTER TABLE planet_bases ALTER COLUMN universe_id SET NOT NULL;
 
       CREATE TABLE IF NOT EXISTS sector_drones (
         sector_id INTEGER NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
@@ -709,10 +718,13 @@ export const connectDB = async (): Promise<void> => {
       -- Forensic before/after snapshots written by record_row_history() triggers.
       -- Each trigger names the row's primary-key column and, optionally, the
       -- columns whose change is worth recording; updates touching none of
-      -- them are skipped. Rows outlive what they describe (no FKs).
+      -- them are skipped. Rows outlive what they describe (no FKs). Every
+      -- tracked table carries universe_id, copied here. A transaction can
+      -- opt out with SET LOCAL app.row_history_skip = 'on' (universe deletion).
       CREATE TABLE IF NOT EXISTS row_history (
         id BIGSERIAL PRIMARY KEY,
         changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        universe_id INTEGER NOT NULL,
         table_name TEXT NOT NULL,
         row_id INTEGER NOT NULL,
         operation TEXT NOT NULL CHECK (operation IN ('INSERT', 'UPDATE', 'DELETE')),
@@ -722,6 +734,8 @@ export const connectDB = async (): Promise<void> => {
       );
       CREATE INDEX IF NOT EXISTS idx_row_history_table_row
         ON row_history (table_name, row_id, id);
+      CREATE INDEX IF NOT EXISTS idx_row_history_universe
+        ON row_history (universe_id, id);
 
       -- TG_ARGV[0]: primary-key column. TG_ARGV[1]: comma-separated tracked
       -- columns for UPDATE (omitted or empty = any column).
@@ -735,6 +749,7 @@ export const connectDB = async (): Promise<void> => {
         new_json JSONB;
         changed TEXT[];
       BEGIN
+        IF current_setting('app.row_history_skip', true) = 'on' THEN RETURN NULL; END IF;
         IF TG_OP IN ('UPDATE', 'DELETE') THEN old_json := to_jsonb(OLD); END IF;
         IF TG_OP IN ('UPDATE', 'INSERT') THEN new_json := to_jsonb(NEW); END IF;
         IF TG_OP = 'UPDATE' THEN
@@ -744,8 +759,9 @@ export const connectDB = async (): Promise<void> => {
             AND old_json -> key IS DISTINCT FROM value;
           IF changed IS NULL THEN RETURN NULL; END IF;
         END IF;
-        INSERT INTO row_history (table_name, row_id, operation, changed_columns, old_row, new_row)
+        INSERT INTO row_history (universe_id, table_name, row_id, operation, changed_columns, old_row, new_row)
         VALUES (
+          (COALESCE(new_json, old_json) ->> 'universe_id')::int,
           TG_TABLE_NAME,
           (COALESCE(new_json, old_json) ->> pk_column)::int,
           TG_OP,
@@ -769,7 +785,7 @@ export const connectDB = async (): Promise<void> => {
 
       DROP TRIGGER IF EXISTS row_history_planet_bases ON planet_bases;
       CREATE TRIGGER row_history_planet_bases
-      AFTER UPDATE ON planet_bases
+      AFTER UPDATE OR DELETE ON planet_bases
       FOR EACH ROW EXECUTE FUNCTION record_row_history('planet_id', 'treasury,transporter_range,level');
 
       DROP TRIGGER IF EXISTS row_history_planets ON planets;

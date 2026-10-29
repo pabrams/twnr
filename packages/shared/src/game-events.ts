@@ -1,3 +1,5 @@
+// Payloads of the game_events table. The server records them; the client renders Galactic News from them.
+
 import { z } from 'zod';
 
 const Int = z.number().int();

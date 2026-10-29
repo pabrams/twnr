@@ -1749,6 +1749,7 @@ export const TraderListReplySchema = z.object({
 });
 export type TraderListReply = z.infer<typeof TraderListReplySchema>;
 
+/** `earliestCreatedAt` null when the universe has no galactic news yet. */
 export const GalacticNewsRangeReplySchema = z.object({
     type: z.literal(ServerTag.GalacticNewsRangeResult),
     earliestCreatedAt: DateString.nullable(),
@@ -1762,9 +1763,11 @@ export const GalacticNewsEntrySchema = z.object({
 });
 export type GalacticNewsEntry = z.infer<typeof GalacticNewsEntrySchema>;
 
+/** One chunk, oldest first; when `hasMore`, request again with `afterId` = last entry id. */
 export const GalacticNewsReplySchema = z.object({
     type: z.literal(ServerTag.GalacticNewsResult),
     entries: z.array(GalacticNewsEntrySchema),
+    hasMore: Bool,
 });
 export type GalacticNewsReply = z.infer<typeof GalacticNewsReplySchema>;
 

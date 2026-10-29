@@ -162,6 +162,39 @@ export async function insertPlanetCollision(
     );
 }
 
+export type DueCollisionRow = {
+    universe_id: number;
+    sector_number: number;
+    planet_id: number;
+    planet_name: string;
+    planet_owner_player_id: number | null;
+    planet_owner_clan_id: number | null;
+    colliding_with_id: number;
+    colliding_with_name: string;
+    colliding_with_owner_player_id: number | null;
+    colliding_with_owner_clan_id: number | null;
+};
+
+export async function listDueCollisionsForUpdate(db: Queryable = pool): Promise<DueCollisionRow[]> {
+    const res = await db.query<DueCollisionRow>(
+        `SELECT p1.universe_id, s.sector_number,
+                p1.id AS planet_id, p1.name AS planet_name,
+                p1.owner_player_id AS planet_owner_player_id,
+                p1.owner_clan_id AS planet_owner_clan_id,
+                p2.id AS colliding_with_id, p2.name AS colliding_with_name,
+                p2.owner_player_id AS colliding_with_owner_player_id,
+                p2.owner_clan_id AS colliding_with_owner_clan_id
+         FROM planet_collisions pc
+         JOIN planets p1 ON p1.id = pc.collision_planet
+         JOIN planets p2 ON p2.id = pc.colliding_with
+         JOIN sectors s ON s.id = p1.sector_id
+         WHERE pc.collision_at <= NOW()
+         ORDER BY pc.collision_at
+         FOR UPDATE OF p1, p2`,
+    );
+    return res.rows;
+}
+
 export async function getPlanetColonistsForUpdate(
     planetId: number,
     commodity: ColonistCommodity,
@@ -841,12 +874,12 @@ export async function insertPlanetBaseConstruction(
 ): Promise<void> {
     await db.query(
         `INSERT INTO planet_bases (
-            planet_id, level, construction_target_level,
+            planet_id, universe_id, level, construction_target_level,
             construction_started_at, construction_completes_at
-         ) VALUES (
-            $1, 0, $2,
+         ) SELECT
+            $1, universe_id, 0, $2,
             NOW(), NOW() + ($3::int * INTERVAL '1 day')
-         )`,
+         FROM planets WHERE id = $1`,
         [planetId, targetLevel, daysRequired],
     );
 }

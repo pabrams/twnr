@@ -63,14 +63,17 @@ export async function getEarliestGalacticNewsAt(
 export async function listGalacticNewsSince(
     universeId: number,
     since: Date,
+    afterId: number,
+    limit: number,
     db: Queryable = pool,
 ): Promise<GalacticNewsRow[]> {
     const res = await db.query<GalacticNewsRow>(
         `SELECT id::int AS id, created_at, kind, payload
          FROM game_events
-         WHERE universe_id = $1 AND visibility = 'galactic' AND created_at >= $2
-         ORDER BY id ASC`,
-        [universeId, since],
+         WHERE universe_id = $1 AND visibility = 'galactic' AND created_at >= $2 AND id > $3
+         ORDER BY id ASC
+         LIMIT $4`,
+        [universeId, since, afterId, limit],
     );
     return res.rows;
 }

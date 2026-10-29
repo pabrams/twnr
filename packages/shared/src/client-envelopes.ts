@@ -594,10 +594,11 @@ export const GalacticNewsRangeCommandSchema = z.object({
 });
 export type GalacticNewsRangeCommand = z.infer<typeof GalacticNewsRangeCommandSchema>;
 
-/** `since` is an ISO timestamp; the client picks the day boundary in its own timezone. */
+/** `since` is an ISO timestamp (UTC day boundary). Pass the last received id as `afterId` to fetch the next chunk. */
 export const ReadGalacticNewsCommandSchema = z.object({
     type: z.literal(ClientTag.ReadGalacticNews),
     since: z.string(),
+    afterId: Int.optional(),
 });
 export type ReadGalacticNewsCommand = z.infer<typeof ReadGalacticNewsCommandSchema>;
 

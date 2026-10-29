@@ -251,7 +251,8 @@ async function main() {
             );
             const planetId = planetRes.rows[0].id;
             await client.query(
-                `INSERT INTO planet_bases (planet_id, level) VALUES ($1, 1)`,
+                `INSERT INTO planet_bases (planet_id, universe_id, level)
+                 SELECT id, universe_id, 1 FROM planets WHERE id = $1`,
                 [planetId],
             );
 

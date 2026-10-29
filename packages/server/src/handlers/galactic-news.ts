@@ -8,6 +8,8 @@ import {
     type GalacticNewsRow,
 } from '../db/queries/game-events.js';
 
+const NEWS_CHUNK_SIZE = 200;
+
 function toNewsEntry(row: GalacticNewsRow): GalacticNewsEntry | null {
     const parsed = GameEventSchema.safeParse({ kind: row.kind, ...(row.payload as object) });
     if (!parsed.success) {
@@ -38,9 +40,17 @@ export async function serveReadGalacticNews(
         sendError(playerId, 'Invalid news date');
         return;
     }
-    const rows = await listGalacticNewsSince(player.universeId, since);
+    const rows = await listGalacticNewsSince(
+        player.universeId,
+        since,
+        data.afterId ?? 0,
+        NEWS_CHUNK_SIZE + 1,
+    );
+    const hasMore = rows.length > NEWS_CHUNK_SIZE;
+    const chunk = hasMore ? rows.slice(0, NEWS_CHUNK_SIZE) : rows;
     sendEnvelope(playerId, {
         type: ServerTag.GalacticNewsResult,
-        entries: rows.map(toNewsEntry).filter((entry) => entry !== null),
+        entries: chunk.map(toNewsEntry).filter((entry) => entry !== null),
+        hasMore,
     });
 }

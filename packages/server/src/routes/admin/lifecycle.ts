@@ -39,6 +39,7 @@ import {
     deleteShipsByOwners,
     deletePlayersInUniverse,
 } from '../../db/queries/player.js';
+import { suppressRowHistoryInTransaction } from '../../db/queries/row-history.js';
 
 const GenerateBodySchema = z.object({
     name: z
@@ -252,6 +253,7 @@ export function createAdminLifecycleRoutes(
             }
 
             await withTransaction(async (client) => {
+                await suppressRowHistoryInTransaction(client);
                 const playerIds = await listPlayerIdsInUniverse(universeId, client);
                 if (playerIds.length > 0) {
                     await deleteVisitedSectorsForPlayers(playerIds, client);

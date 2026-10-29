@@ -262,8 +262,8 @@ describe('Game events — planets', () => {
     const lazyPlanetId = await insertPlanet(sector, `LazyBastion_${Date.now()}`, owner.id);
     for (const planetId of [hourlyPlanetId, lazyPlanetId]) {
       await pool.query(
-        `INSERT INTO planet_bases (planet_id, level, construction_target_level, construction_started_at, construction_completes_at)
-         VALUES ($1, 0, 1, NOW() - INTERVAL '2 days', NOW() - INTERVAL '1 minute')`,
+        `INSERT INTO planet_bases (planet_id, universe_id, level, construction_target_level, construction_started_at, construction_completes_at)
+         VALUES ($1, ${UNIVERSE_ID}, 0, 1, NOW() - INTERVAL '2 days', NOW() - INTERVAL '1 minute')`,
         [planetId],
       );
     }
@@ -281,6 +281,37 @@ describe('Game events — planets', () => {
     }
     assert.equal((await getCurrentPlanetBase(hourlyPlanetId)).level, 1);
     assert.equal((await eventsOfKind('base_upgraded', (p) => p.planet.planetId === hourlyPlanetId)).length, 1);
+  });
+});
+
+describe('Game events — planet collisions', () => {
+  it('destroys both planets, mails the owners and records planet_collision', async () => {
+    const { resolveDuePlanetCollisions } = await import('../dist/services/planet-collisions.js');
+    const sector = 8;
+    const owner = await createPlayer(`ge_collide_${Date.now()}`, sector);
+    const planetId = await insertPlanet(sector, `Rock_${Date.now()}`, owner.id);
+    const otherId = await insertPlanet(sector, `Pebble_${Date.now()}`);
+    const futureId = await insertPlanet(sector, `Later_${Date.now()}`);
+    await pool.query(
+      `INSERT INTO planet_collisions (collision_planet, colliding_with, collision_at)
+       VALUES ($1, $2, NOW() - INTERVAL '1 minute'), ($3, $2, NOW() + INTERVAL '1 day')`,
+      [planetId, otherId, futureId],
+    );
+
+    await resolveDuePlanetCollisions();
+
+    const remaining = await pool.query('SELECT id FROM planets WHERE id = ANY($1) ORDER BY id', [[planetId, otherId, futureId]]);
+    assert.deepEqual(remaining.rows.map((r) => r.id), [futureId]);
+    const events = await eventsOfKind('planet_collision', (p) => p.planet.planetId === planetId);
+    assert.equal(events.length, 1);
+    assert.equal(events[0].payload.collidingWith.planetId, otherId);
+    assert.equal(events[0].payload.sectorNumber, sector);
+    const mail = await pool.query(
+      `SELECT body FROM messages WHERE recipient_player_id = $1 AND kind = 'planet_collision'`,
+      [owner.id],
+    );
+    assert.equal(mail.rows.length, 1);
+    assert.match(mail.rows[0].body, /Both planets were destroyed/);
   });
 });
 
@@ -349,6 +380,22 @@ describe('Game events — Galactic News reading', () => {
       assert.equal(mine.event.kind, 'clan_created');
       assert.equal(mine.event.founder.name, await playerName(reader.id));
       assert.ok(news.entries.every((e) => e.createdAt >= since));
+
+      const sinceChunks = new Date().toISOString();
+      const chunkPayload = JSON.stringify({ player: { playerId: reader.id, name: 'Chunky' } });
+      await pool.query(
+        `INSERT INTO game_events (universe_id, kind, visibility, payload)
+         SELECT $1, 'player_joined_universe', 'galactic', $2::jsonb FROM generate_series(1, 205)`,
+        [UNIVERSE_ID, chunkPayload],
+      );
+      const first = await wsRequest(ws, { type: ClientTag.ReadGalacticNews, since: sinceChunks }, ServerTag.GalacticNewsResult);
+      assert.equal(first.hasMore, true);
+      assert.equal(first.entries.length, 200);
+      const lastId = first.entries[first.entries.length - 1].id;
+      const second = await wsRequest(ws, { type: ClientTag.ReadGalacticNews, since: sinceChunks, afterId: lastId }, ServerTag.GalacticNewsResult);
+      assert.equal(second.hasMore, false);
+      assert.equal(second.entries.length, 5);
+      assert.ok(second.entries.every((e) => e.id > lastId));
 
       const future = new Date(Date.now() + 60_000).toISOString();
       const none = await wsRequest(ws, { type: ClientTag.ReadGalacticNews, since: future }, ServerTag.GalacticNewsResult);

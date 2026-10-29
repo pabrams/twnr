@@ -2,6 +2,7 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createTestUser, createTestPlayer } from './helpers.mjs';
 import { ensureServer, createPool } from './global-setup.mjs';
+import { adminKeyPost, adminKeyDelete } from './admin-helpers.mjs';
 
 const UNIVERSE_ID = 1;
 
@@ -18,7 +19,7 @@ after(async () => {
 
 async function historyFor(table, rowId) {
   const res = await pool.query(
-    `SELECT operation, changed_columns, old_row, new_row FROM row_history
+    `SELECT universe_id, operation, changed_columns, old_row, new_row FROM row_history
      WHERE table_name = $1 AND row_id = $2 ORDER BY id ASC`,
     [table, rowId],
   );
@@ -43,6 +44,7 @@ describe('row_history triggers', () => {
     assert.equal(rows.length, 1);
     assert.equal(rows[0].operation, 'UPDATE');
     assert.deepEqual(rows[0].changed_columns, ['credits']);
+    assert.equal(rows[0].universe_id, UNIVERSE_ID);
     assert.equal(rows[0].old_row.credits, 10000);
     assert.equal(rows[0].new_row.credits, 9750);
   });
@@ -65,7 +67,7 @@ describe('row_history triggers', () => {
     assert.equal(rows[2].old_row.id, shipId);
   });
 
-  it('records planet_bases on treasury, transporter range and level', async () => {
+  it('records planet_bases on treasury, transporter range, level and delete', async () => {
     const { id: ownerId } = await createPlayer(`rh_base_${Date.now()}`);
     const planet = await pool.query(
       `INSERT INTO planets (sector_id, universe_id, universe_planet_number, name, owner_player_id)
@@ -75,8 +77,8 @@ describe('row_history triggers', () => {
     );
     const planetId = planet.rows[0].id;
     await pool.query(
-      `INSERT INTO planet_bases (planet_id, level, construction_target_level, construction_started_at, construction_completes_at)
-       VALUES ($1, 0, 1, NOW(), NOW() + INTERVAL '1 day')`,
+      `INSERT INTO planet_bases (planet_id, universe_id, level, construction_target_level, construction_started_at, construction_completes_at)
+       VALUES ($1, ${UNIVERSE_ID}, 0, 1, NOW(), NOW() + INTERVAL '1 day')`,
       [planetId],
     );
     await pool.query('UPDATE planet_bases SET construction_completes_at = NOW() WHERE planet_id = $1', [planetId]);
@@ -84,9 +86,38 @@ describe('row_history triggers', () => {
 
     await pool.query('UPDATE planet_bases SET level = 1, treasury = 500 WHERE planet_id = $1', [planetId]);
     await pool.query('UPDATE planet_bases SET transporter_range = 3 WHERE planet_id = $1', [planetId]);
+    await pool.query('DELETE FROM planets WHERE id = $1', [planetId]);
     const rows = await historyFor('planet_bases', planetId);
-    assert.deepEqual(rows.map((r) => r.changed_columns), [['level', 'treasury'], ['transporter_range']]);
+    assert.deepEqual(rows.map((r) => r.operation), ['UPDATE', 'UPDATE', 'DELETE']);
+    assert.deepEqual(rows.map((r) => r.changed_columns), [['level', 'treasury'], ['transporter_range'], null]);
     assert.equal(rows[0].new_row.treasury, 500);
+    assert.equal(rows[2].universe_id, UNIVERSE_ID);
+    assert.equal(rows[2].old_row.transporter_range, 3);
+  });
+
+  it('does not record the cascade when a universe is deleted', async () => {
+    const generated = await adminKeyPost('/api/admin/universes/generate', {
+      name: `rh_doomed_${Date.now()}`,
+      sectors: 20,
+      seed: 7,
+    });
+    assert.equal(generated.status, 201);
+    const universeId = generated.body.id;
+    const { userId } = await createTestUser(pool);
+    const playerId = await createTestPlayer(pool, userId, universeId, `rh_doomed_p_${Date.now()}`, 1, 0, 0);
+    const clan = await pool.query(
+      `INSERT INTO clans (universe_id, universe_clan_number, name, password_hash, leader_id)
+       VALUES ($1, 1, 'Doomed', 'hash', $2) RETURNING id`,
+      [universeId, playerId],
+    );
+    const before = await pool.query('SELECT COUNT(*)::int AS n FROM row_history WHERE universe_id = $1', [universeId]);
+    assert.equal(before.rows[0].n, 1, 'only the clan insert should be recorded so far');
+
+    const deleted = await adminKeyDelete(`/api/admin/universes/${universeId}`);
+    assert.equal(deleted.status, 200);
+    const after = await pool.query('SELECT COUNT(*)::int AS n FROM row_history WHERE universe_id = $1', [universeId]);
+    assert.equal(after.rows[0].n, 1, 'cascading deletes must not be recorded');
+    assert.deepEqual((await historyFor('clans', clan.rows[0].id)).map((r) => r.operation), ['INSERT']);
   });
 
   it('records planets on ownership change and delete, not on production', async () => {
