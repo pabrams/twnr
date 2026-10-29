@@ -2,6 +2,8 @@ import { universeConfig } from '@twnr/shared';
 import { getStartingShipTypeBySlug, insertStartingShip } from '../db/queries/ship.js';
 import { setPlayerShipId } from '../db/queries/player.js';
 import { getUniverseTemplateDefaults } from '../db/queries/universe.js';
+import { withTransaction } from '../db/index.js';
+import { recordGameEvent } from './game-events.js';
 
 export const MAX_SHIP_NAME_LENGTH = 20;
 const DEFAULT_NAME_SUFFIX = "'s ship";
@@ -31,17 +33,31 @@ export async function grantStartingShip(
     if (!startShipType) return null;
 
     const startingDrones = templateDefaults.starting_drones ?? universeConfig.startingDrones;
-    const newShipId = await insertStartingShip(
-        playerId,
-        universeId,
-        startShipType.slug,
-        sectorId,
-        startingDrones,
-        universeConfig.startingShields,
-        startShipType.starting_holds,
-        startShipType.turns_per_warp,
-        defaultShipName(playerName),
-    );
-    await setPlayerShipId(playerId, newShipId);
-    return newShipId;
+    const newShipId = await withTransaction(async (client) => {
+        const shipId = await insertStartingShip(
+            playerId,
+            universeId,
+            startShipType.slug,
+            sectorId,
+            startingDrones,
+            universeConfig.startingShields,
+            startShipType.starting_holds,
+            startShipType.turns_per_warp,
+            defaultShipName(playerName),
+            client,
+        );
+        await setPlayerShipId(playerId, shipId, client);
+        await recordGameEvent(
+            universeId,
+            {
+                kind: 'player_issued_ship',
+                player: { playerId, name: playerName },
+                shipId,
+                shipType: { slug: startShipType.slug, displayName: startShipType.display_name },
+            },
+            client,
+        );
+        return shipId;
+    });
+    return newShipId ?? null;
 }

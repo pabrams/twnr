@@ -30,8 +30,10 @@ import {
     isPlayerOnClanShip,
     getPlayerClanId,
     getPlayersClanIds,
+    type ClanRow,
 } from '../db/queries/clan.js';
 import { insertMemo } from '../db/queries/message.js';
+import { recordGameEvent, type ClanRef, type GameEvent } from '../services/game-events.js';
 import {
     getPlayerName,
     getCreditsForUpdate,
@@ -57,6 +59,10 @@ function isValidClanName(name: string): boolean {
 
 function isValidPassword(password: string): boolean {
     return password.length >= 4 && password.length <= 64;
+}
+
+function clanRefOf(clan: Pick<ClanRow, 'id' | 'universe_clan_number' | 'name'>): ClanRef {
+    return { clanId: clan.id, clanNumber: clan.universe_clan_number, name: clan.name };
 }
 
 export async function serveClanCreate(playerId: number, data: ClanCreateCommand): Promise<void> {
@@ -100,6 +106,19 @@ export async function serveClanCreate(playerId: number, data: ClanCreateCommand)
                 client,
             );
             await setPlayerClanId(playerId, inserted.id, client);
+            await recordGameEvent(
+                player.universeId,
+                {
+                    kind: 'clan_created',
+                    founder: { playerId, name: player.name },
+                    clan: {
+                        clanId: inserted.id,
+                        clanNumber: inserted.universeClanNumber,
+                        name: trimmedName,
+                    },
+                },
+                client,
+            );
             return inserted;
         },
         (created) =>
@@ -143,13 +162,31 @@ export async function serveClanJoin(playerId: number, data: ClanJoinCommand): Pr
         return;
     }
 
-    await setPlayerClanId(playerId, clan.id);
-    sendEnvelope(playerId, {
-        type: ServerTag.ClanJoinResult,
-        clanId: clan.id,
-        clanNumber: clan.universe_clan_number,
-        name: clan.name,
-    });
+    await runMutation(
+        playerId,
+        'clan join',
+        async (client) => {
+            await setPlayerClanId(playerId, clan.id, client);
+            await recordGameEvent(
+                player.universeId,
+                {
+                    kind: 'player_joined_clan',
+                    player: { playerId, name: player.name },
+                    clan: clanRefOf(clan),
+                },
+                client,
+            );
+            return true;
+        },
+        () =>
+            sendEnvelope(playerId, {
+                type: ServerTag.ClanJoinResult,
+                clanId: clan.id,
+                clanNumber: clan.universe_clan_number,
+                name: clan.name,
+            }),
+        'Failed to join clan.',
+    );
 }
 
 export async function serveClanLeave(playerId: number, data: ClanLeaveCommand): Promise<void> {
@@ -173,6 +210,12 @@ export async function serveClanLeave(playerId: number, data: ClanLeaveCommand): 
     const memberCount = await getClanMemberCount(clanId);
     const isLastMember = memberCount <= 1;
 
+    const leftClanEvent: GameEvent = {
+        kind: 'player_left_clan',
+        player: { playerId, name: player.name },
+        clan: clanRefOf(clan),
+    };
+
     if (isLastMember) {
         if (!confirmDissolve) {
             sendError(
@@ -188,6 +231,16 @@ export async function serveClanLeave(playerId: number, data: ClanLeaveCommand): 
                 const stats = await dissolveClanAssets(clanId, playerId, player.sectorId, client);
                 await setPlayerClanId(playerId, null, client);
                 await deleteClan(clanId, client);
+                await recordGameEvent(player.universeId, leftClanEvent, client);
+                await recordGameEvent(
+                    player.universeId,
+                    {
+                        kind: 'clan_disbanded',
+                        clan: clanRefOf(clan),
+                        lastMember: { playerId, name: player.name },
+                    },
+                    client,
+                );
                 return stats;
             },
             (result) =>
@@ -229,6 +282,7 @@ export async function serveClanLeave(playerId: number, data: ClanLeaveCommand): 
             async (client) => {
                 await setClanLeader(clanId, successor.id, client);
                 await setPlayerClanId(playerId, null, client);
+                await recordGameEvent(player.universeId, leftClanEvent, client);
                 return true;
             },
             () =>
@@ -243,13 +297,23 @@ export async function serveClanLeave(playerId: number, data: ClanLeaveCommand): 
         return;
     }
 
-    await setPlayerClanId(playerId, null);
-    sendEnvelope(playerId, {
-        type: ServerTag.ClanLeaveResult,
-        outcome: 'left',
-        convertedToPersonal: 0,
-        convertedToRogue: 0,
-    });
+    await runMutation(
+        playerId,
+        'clan leave',
+        async (client) => {
+            await setPlayerClanId(playerId, null, client);
+            await recordGameEvent(player.universeId, leftClanEvent, client);
+            return true;
+        },
+        () =>
+            sendEnvelope(playerId, {
+                type: ServerTag.ClanLeaveResult,
+                outcome: 'left',
+                convertedToPersonal: 0,
+                convertedToRogue: 0,
+            }),
+        'Failed to leave clan.',
+    );
 }
 
 export async function serveClanList(playerId: number): Promise<void> {
@@ -610,10 +674,23 @@ export async function serveClanDropMember(
         return;
     }
 
-    await setPlayerClanId(targetPlayerId, null);
-
     const leaderName = await getPlayerDisplayName(leaderPlayerId);
     const targetName = await getPlayerDisplayName(targetPlayerId);
+
+    await withTransaction(async (client) => {
+        await setPlayerClanId(targetPlayerId, null, client);
+        await recordGameEvent(
+            player.universeId,
+            {
+                kind: 'player_kicked_from_clan',
+                player: { playerId: targetPlayerId, name: targetName },
+                kickedBy: { playerId: leaderPlayerId, name: leaderName },
+                clan: clanRefOf(clan),
+            },
+            client,
+        );
+    });
+
     await insertMemo(
         targetPlayerId,
         leaderPlayerId,

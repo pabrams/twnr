@@ -13,13 +13,14 @@ import {
     getMineUniverseSettings,
 } from '../db/queries/mines.js';
 import {
-    getShipDronesAndShieldsForUpdate,
+    getShipDefensesForUpdate,
     setShipDronesAndShields,
     destroyShipRecord,
 } from '../db/queries/ship.js';
 import { getPlayerClanId } from '../db/queries/clan.js';
 import { getPlayerShipId } from '../db/queries/player.js';
-import { isFriendlyOwner } from './owner.js';
+import { isFriendlyOwner, resolveOwner } from './owner.js';
+import { recordGameEvent } from './game-events.js';
 
 function rollPercent(pct: number): boolean {
     if (pct <= 0) return false;
@@ -64,7 +65,7 @@ export async function resolveProximityMines(playerId: number): Promise<Proximity
             await setSectorMineQuantity(sectorDbId, 'proximity', remaining, client);
         }
 
-        const shipState = await getShipDronesAndShieldsForUpdate(playerId, client);
+        const shipState = await getShipDefensesForUpdate(playerId, client);
         if (!shipState) {
             return { detonations, damage: 0, shieldsLost: 0, dronesLost: 0, destroyed: false };
         }
@@ -80,6 +81,21 @@ export async function resolveProximityMines(playerId: number): Promise<Proximity
 
         if (destroyed) {
             await destroyShipRecord(playerId, client);
+            await recordGameEvent(
+                player.universeId,
+                {
+                    kind: 'player_ship_destroyed_by_sector_defenses',
+                    victim: { playerId, name: player.name },
+                    destroyedShipType: {
+                        slug: shipState.ship_type_slug,
+                        displayName: shipState.ship_display_name,
+                    },
+                    defenseType: 'mines',
+                    defenseOwner: resolveOwner(mineRow),
+                    sectorNumber: player.sector,
+                },
+                client,
+            );
         } else {
             await setShipDronesAndShields(playerId, newDrones, newShields, client);
         }

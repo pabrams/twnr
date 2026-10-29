@@ -86,12 +86,23 @@ export async function getShipFuel(playerId: number): Promise<number | undefined>
     return res.rows[0]?.fuel;
 }
 
-export async function getShipDronesAndShieldsForUpdate(
+export type ShipDefenseRow = {
+    drones: number;
+    shields: number;
+    ship_type_slug: string;
+    ship_display_name: string | null;
+};
+
+export async function getShipDefensesForUpdate(
     playerId: number,
     db: Queryable = pool,
-): Promise<{ drones: number; shields: number } | undefined> {
-    const res = await db.query<{ drones: number; shields: number }>(
-        `SELECT drones, shields FROM ships WHERE id = ${SHIP_ID_SUBSELECT} FOR UPDATE`,
+): Promise<ShipDefenseRow | undefined> {
+    const res = await db.query<ShipDefenseRow>(
+        `SELECT s.drones, s.shields, s.ship_type_slug, st.display_name AS ship_display_name
+         FROM ships s
+         JOIN universe_ship_types st ON st.universe_id = s.universe_id AND st.slug = s.ship_type_slug
+         WHERE s.id = ${SHIP_ID_SUBSELECT}
+         FOR UPDATE OF s`,
         [playerId],
     );
     return res.rows[0];

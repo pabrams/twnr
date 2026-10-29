@@ -199,8 +199,8 @@ export async function insertPlayerBuiltPort(
         equStock: number;
     },
     db: Queryable = pool,
-): Promise<void> {
-    await db.query(
+): Promise<number> {
+    const res = await db.query<{ id: number }>(
         `INSERT INTO ports (sector_id, name, class,
                             owner_player_id, owner_clan_id,
                             fuel, fuel_max, fuel_prod, fuel_mcic,
@@ -209,7 +209,8 @@ export async function insertPlayerBuiltPort(
          VALUES ($1, $2, $3, $4, $5,
                  $6, $7, $8, $9,
                  $10, $11, $12, $13,
-                 $14, $15, $16, $17)`,
+                 $14, $15, $16, $17)
+         RETURNING id`,
         [
             sectorDbId,
             portName,
@@ -230,6 +231,7 @@ export async function insertPlayerBuiltPort(
             data.equMcic,
         ],
     );
+    return res.rows[0].id;
 }
 
 /** Must stay a single statement so it is atomic under the trade transaction's FOR UPDATE. */

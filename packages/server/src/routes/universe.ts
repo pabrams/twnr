@@ -17,6 +17,8 @@ import {
 } from '../db/queries/universe.js';
 import { insertPlayer, markSectorVisited } from '../db/queries/player.js';
 import { getSectorDbId } from '../db/queries/sector.js';
+import { withTransaction } from '../db/index.js';
+import { recordGameEvent } from '../services/game-events.js';
 
 export function createUniverseRoutes(
     router: Router,
@@ -77,21 +79,36 @@ export function createUniverseRoutes(
                 throw new HttpError(500, 'Starting sector not found');
             }
 
-            let playerId: number;
+            let playerId: number | undefined;
             try {
-                playerId = await insertPlayer(
-                    name,
-                    userId,
-                    universeId,
-                    startSectorId,
-                    startingCredits,
-                    startingTurns,
-                );
+                playerId = await withTransaction(async (client) => {
+                    const newPlayerId = await insertPlayer(
+                        name,
+                        userId,
+                        universeId,
+                        startSectorId,
+                        startingCredits,
+                        startingTurns,
+                        client,
+                    );
+                    await recordGameEvent(
+                        universeId,
+                        {
+                            kind: 'player_joined_universe',
+                            player: { playerId: newPlayerId, name },
+                        },
+                        client,
+                    );
+                    return newPlayerId;
+                });
             } catch (err) {
                 if ((err as { code?: string }).code === '23505') {
                     throw new HttpError(409, 'Already joined this universe');
                 }
                 throw err;
+            }
+            if (playerId === undefined) {
+                throw new HttpError(500, 'Failed to join universe');
             }
 
             await markSectorVisited(playerId, startSectorId);

@@ -11,16 +11,27 @@ export type SectorMineRow = {
     owner_clan_id: number | null;
 };
 
+export type SectorMineWithOwnerRow = SectorMineRow & {
+    owner_player_name: string | null;
+    owner_clan_name: string | null;
+    owner_clan_number: number | null;
+};
+
 export async function getSectorMineForUpdate(
     sectorDbId: number,
     mineType: MineType,
     db: Queryable = pool,
-): Promise<SectorMineRow | undefined> {
-    const res = await db.query<SectorMineRow>(
-        `SELECT sector_id, mine_type, quantity, owner_player_id, owner_clan_id
-         FROM sector_mines
-         WHERE sector_id = $1 AND mine_type = $2
-         FOR UPDATE`,
+): Promise<SectorMineWithOwnerRow | undefined> {
+    const res = await db.query<SectorMineWithOwnerRow>(
+        `SELECT sm.sector_id, sm.mine_type, sm.quantity, sm.owner_player_id, sm.owner_clan_id,
+                p.name AS owner_player_name,
+                c.name AS owner_clan_name,
+                c.universe_clan_number AS owner_clan_number
+         FROM sector_mines sm
+         LEFT JOIN players p ON p.id = sm.owner_player_id
+         LEFT JOIN clans c ON c.id = sm.owner_clan_id
+         WHERE sm.sector_id = $1 AND sm.mine_type = $2
+         FOR UPDATE OF sm`,
         [sectorDbId, mineType],
     );
     return res.rows[0];

@@ -21,8 +21,11 @@ import {
     updatePlanetCommodity,
 } from '../db/queries/planet.js';
 import { insertSystemMemo } from '../db/queries/message.js';
-import { getClanMembers } from '../db/queries/clan.js';
+import { getClanMembers, getClanById } from '../db/queries/clan.js';
+import { getPlayerName } from '../db/queries/player.js';
 import type { Queryable } from '../db/types.js';
+import { resolveOwner, type OwnerRef } from './owner.js';
+import { recordGameEvent } from './game-events.js';
 
 const SENDER_LABEL = 'StarPort Construction';
 const KIND_ADVANCED = 'port_advanced';
@@ -72,6 +75,20 @@ async function mailAll(
     }
 }
 
+async function resolvePortOwner(row: PortConstructionRow, client: Queryable): Promise<OwnerRef> {
+    const ownerClan =
+        row.owner_clan_id !== null ? await getClanById(row.owner_clan_id, client) : undefined;
+    const ownerPlayerName =
+        row.owner_player_id !== null ? await getPlayerName(row.owner_player_id, client) : undefined;
+    return resolveOwner({
+        owner_player_id: row.owner_player_id,
+        owner_clan_id: row.owner_clan_id,
+        owner_player_name: ownerPlayerName ?? null,
+        owner_clan_name: ownerClan?.name ?? null,
+        owner_clan_number: ownerClan?.universe_clan_number ?? null,
+    });
+}
+
 async function promoteToPort(row: PortConstructionRow, client: Queryable): Promise<void> {
     const portClass = row.port_class;
     const actions = PORT_CLASS_ACTIONS[portClass];
@@ -82,7 +99,7 @@ async function promoteToPort(row: PortConstructionRow, client: Queryable): Promi
         actions[c] === 'B' ? PLAYER_BUILT_PORT_MCIC[c].B : PLAYER_BUILT_PORT_MCIC[c].S;
     const stockFor = (c: PriceCommodity) => (actions[c] === 'S' ? max : 0);
 
-    await insertPlayerBuiltPort(
+    const portId = await insertPlayerBuiltPort(
         row.sector_id,
         portClass,
         row.port_name,
@@ -104,6 +121,17 @@ async function promoteToPort(row: PortConstructionRow, client: Queryable): Promi
         client,
     );
     await deletePortConstruction(row.sector_id, client);
+    await recordGameEvent(
+        row.universe_id,
+        {
+            kind: 'port_built',
+            portId,
+            portName: row.port_name,
+            sectorNumber: row.sector_number,
+            owner: await resolvePortOwner(row, client),
+        },
+        client,
+    );
 }
 
 export async function runAdvancePortConstructions(): Promise<number> {

@@ -20,7 +20,6 @@ import {
     getEarthId,
     getPlanetInSector,
     getPlanetDisplayData,
-    getPlanetName,
     getPlanetOwnership,
     deletePlanet,
     getSectorByNumber,
@@ -45,7 +44,7 @@ import {
     type ColonistCommodity,
     type PlanetCommodity,
 } from '../db/queries/planet.js';
-import { getPlayerClanId } from '../db/queries/clan.js';
+import { getPlayerClanId, getClanById } from '../db/queries/clan.js';
 import { getPlanetsInSector } from '../db/queries/sector.js';
 import {
     adjustReputationAndExperience,
@@ -72,6 +71,8 @@ import { reputationDeltas, experienceDeltas, scalarDelta } from '../game-config.
 import { checkAndDeductTurns } from '../turn-logic.js';
 import { cargoUsed } from './cargo-utils.js';
 import { notifyTurnChange } from '../services/notify.js';
+import { recordGameEvent } from '../services/game-events.js';
+import type { OwnerRef } from '../services/owner.js';
 
 export async function serveGetSectorPlanets(playerId: number): Promise<void> {
     const player = onlinePlayers[playerId];
@@ -260,6 +261,16 @@ export async function serveDestroyPlanet(playerId: number): Promise<void> {
             await setOnPlanet(playerId, null, client);
             await deletePlanet(onPlanetId, client);
             await adjustReputationAndExperience(playerId, destroyRep, destroyExp, client);
+            await recordGameEvent(
+                player.universeId,
+                {
+                    kind: 'planet_destroyed',
+                    destroyer: { playerId, name: player.name },
+                    planet: { planetId: onPlanetId, name: planetName },
+                    sectorNumber: ownership.sector_number,
+                },
+                client,
+            );
             return true;
         },
         async () => {
@@ -980,48 +991,93 @@ export async function serveClaimPlanet(playerId: number, data: ClaimPlanetComman
     }
 
     const previousOwner = await getPlanetOwnership(onPlanetId);
-
-    if (ownership === 'clan') {
-        await setPlanetOwnership(onPlanetId, null, playerClanId);
-    } else {
-        await setPlanetOwnership(onPlanetId, playerId, null);
+    if (!previousOwner) {
+        sendError(playerId, 'Planet not found.');
+        return;
     }
+    const planetName = previousOwner.name;
 
-    const planetName = previousOwner?.name ?? (await getPlanetName(onPlanetId)) ?? 'Planet';
-    sendEnvelope(playerId, {
-        type: ServerTag.ClaimPlanetResult,
-        planetId: onPlanetId,
-        planetName,
-        ownership,
-    });
+    const claimingClan =
+        playerClanId !== null && ownership === 'clan' ? await getClanById(playerClanId) : null;
+    if (ownership === 'clan' && !claimingClan) {
+        sendError(playerId, 'Clan not found.');
+        return;
+    }
+    const newOwner: Exclude<OwnerRef, { kind: 'rogue' }> = claimingClan
+        ? {
+              kind: 'clan',
+              clanId: claimingClan.id,
+              clanNumber: claimingClan.universe_clan_number,
+              name: claimingClan.name,
+          }
+        : { kind: 'player', playerId, name: player.name };
+    const ownerChanged = claimingClan
+        ? previousOwner.owner_clan_id !== claimingClan.id
+        : previousOwner.owner_player_id !== playerId;
 
-    if (previousOwner) {
-        const { notifyAndMail } = await import('../services/notify.js');
-        const body = `${player.name} claimed planet ${planetName} in sector ${previousOwner.sector_number}.`;
-        if (previousOwner.owner_player_id !== null && previousOwner.owner_player_id !== playerId) {
-            await notifyAndMail({
-                recipientId: previousOwner.owner_player_id,
-                sender: { kind: 'player', playerId, displayName: player.name },
-                kind: 'planet_claimed',
-                body,
+    await runMutation(
+        playerId,
+        'Claim planet',
+        async (client) => {
+            if (claimingClan) {
+                await setPlanetOwnership(onPlanetId, null, claimingClan.id, client);
+            } else {
+                await setPlanetOwnership(onPlanetId, playerId, null, client);
+            }
+            if (ownerChanged) {
+                await recordGameEvent(
+                    player.universeId,
+                    {
+                        kind: 'planet_claimed',
+                        planet: { planetId: onPlanetId, name: planetName },
+                        sectorNumber: previousOwner.sector_number,
+                        claimedBy: { playerId, name: player.name },
+                        owner: newOwner,
+                    },
+                    client,
+                );
+            }
+            return true;
+        },
+        async () => {
+            sendEnvelope(playerId, {
+                type: ServerTag.ClaimPlanetResult,
+                planetId: onPlanetId,
+                planetName,
+                ownership,
             });
-        } else if (
-            previousOwner.owner_clan_id !== null &&
-            previousOwner.owner_clan_id !== playerClanId
-        ) {
-            const { getClanMembers } = await import('../db/queries/clan.js');
-            const members = await getClanMembers(previousOwner.owner_clan_id);
-            for (const m of members) {
-                if (m.id === playerId) continue;
+
+            const { notifyAndMail } = await import('../services/notify.js');
+            const body = `${player.name} claimed planet ${planetName} in sector ${previousOwner.sector_number}.`;
+            if (
+                previousOwner.owner_player_id !== null &&
+                previousOwner.owner_player_id !== playerId
+            ) {
                 await notifyAndMail({
-                    recipientId: m.id,
+                    recipientId: previousOwner.owner_player_id,
                     sender: { kind: 'player', playerId, displayName: player.name },
                     kind: 'planet_claimed',
                     body,
                 });
+            } else if (
+                previousOwner.owner_clan_id !== null &&
+                previousOwner.owner_clan_id !== playerClanId
+            ) {
+                const { getClanMembers } = await import('../db/queries/clan.js');
+                const members = await getClanMembers(previousOwner.owner_clan_id);
+                for (const m of members) {
+                    if (m.id === playerId) continue;
+                    await notifyAndMail({
+                        recipientId: m.id,
+                        sender: { kind: 'player', playerId, displayName: player.name },
+                        kind: 'planet_claimed',
+                        body,
+                    });
+                }
             }
-        }
-    }
+        },
+        'Failed to claim planet.',
+    );
 }
 
 export async function serveListPlanets(playerId: number): Promise<void> {

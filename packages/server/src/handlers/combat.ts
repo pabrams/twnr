@@ -12,7 +12,7 @@ import { AbortTransaction } from '../db/index.js';
 import { runMutation } from './run-mutation.js';
 import {
     getShipDronesForUpdate,
-    getShipDronesAndShieldsForUpdate,
+    getShipDefensesForUpdate,
     setShipDrones,
     setShipDronesAndShields,
     destroyShipRecord,
@@ -30,6 +30,7 @@ import {
     shipDestroyAttackerBonus,
     shipDestroyDefenderPenalty,
 } from '../services/combat-rewards.js';
+import { recordGameEvent } from '../services/game-events.js';
 
 export async function serveGetAttackTargets(playerId: number): Promise<void> {
     const player = onlinePlayers[playerId];
@@ -95,7 +96,7 @@ export async function serveAttackShip(attackerId: number, data: AttackShipComman
         'Attack',
         async (client) => {
             const attackerDrones = await getShipDronesForUpdate(attackerId, client);
-            const targetShip = await getShipDronesAndShieldsForUpdate(targetPlayerId, client);
+            const targetShip = await getShipDefensesForUpdate(targetPlayerId, client);
 
             if (attackerDrones === undefined || targetShip === undefined) {
                 sendError(attackerId, 'Ship not found');
@@ -129,6 +130,20 @@ export async function serveAttackShip(attackerId: number, data: AttackShipComman
 
             if (destroyed) {
                 await destroyShipRecord(targetPlayerId, client);
+                await recordGameEvent(
+                    attacker.universeId,
+                    {
+                        kind: 'player_ship_destroyed_by_ship_combat',
+                        attacker: { playerId: attackerId, name: attacker.name },
+                        victim: { playerId: targetPlayerId, name: targetInfo.name },
+                        destroyedShipType: {
+                            slug: targetShip.ship_type_slug,
+                            displayName: targetShip.ship_display_name,
+                        },
+                        sectorNumber: attacker.sector,
+                    },
+                    client,
+                );
             } else {
                 await setShipDronesAndShields(targetPlayerId, targetDrones, targetShields, client);
             }

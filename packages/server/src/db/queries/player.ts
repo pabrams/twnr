@@ -120,6 +120,7 @@ export async function listPlayersInSector(
 }
 
 export type AttackTargetRow = {
+    name: string;
     universe_id: number;
     sector_number: number;
     docked: boolean;
@@ -131,7 +132,7 @@ export async function getAttackTargetInfo(
     db: Queryable = pool,
 ): Promise<AttackTargetRow | undefined> {
     const res = await db.query<AttackTargetRow>(
-        `SELECT p.universe_id, s.sector_number, p.docked, p.on_planet_id
+        `SELECT p.name, p.universe_id, s.sector_number, p.docked, p.on_planet_id
          FROM players p
          JOIN sectors s ON p.current_sector_id = s.id
          WHERE p.id = $1`,

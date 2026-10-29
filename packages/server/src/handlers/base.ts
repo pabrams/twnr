@@ -5,7 +5,6 @@ import { sectorObserverClients } from '../services/sector-activity.js';
 import { AbortTransaction } from '../db/index.js';
 import { runMutation } from './run-mutation.js';
 import {
-    getPlanetBase,
     insertPlanetBaseConstruction,
     getPlanetTotalColonists,
     getPlanetClassInfo,
@@ -35,6 +34,7 @@ import { moveShipToSector } from '../db/queries/ship.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 import { notifyTurnChange } from '../services/notify.js';
 import { resolveMinesOnEntry } from '../services/mine-encounter.js';
+import { getCurrentPlanetBase } from '../services/planet-base-construction.js';
 
 function level1Of(reqs: unknown): BaseLevelRequirement | null {
     if (!Array.isArray(reqs) || reqs.length === 0) return null;
@@ -71,7 +71,7 @@ export async function serveBaseInfo(playerId: number): Promise<void> {
         return;
     }
 
-    const base = await getPlanetBase(onPlanetId);
+    const base = await getCurrentPlanetBase(onPlanetId);
 
     if (base && base.level >= 1) {
         sendEnvelope(playerId, {
@@ -155,7 +155,7 @@ export async function serveBuildBase(playerId: number): Promise<void> {
         playerId,
         'Build base',
         async (client) => {
-            const existing = await getPlanetBase(onPlanetId, client);
+            const existing = await getCurrentPlanetBase(onPlanetId, client);
             if (existing) {
                 sendEnvelope(playerId, {
                     type: ServerTag.BuildBaseResult,
@@ -216,7 +216,7 @@ export async function serveBuildBase(playerId: number): Promise<void> {
             return { targetLevel: 1, daysRequired: level1.days };
         },
         async (result) => {
-            const base = await getPlanetBase(onPlanetId);
+            const base = await getCurrentPlanetBase(onPlanetId);
             sendEnvelope(playerId, {
                 type: ServerTag.BuildBaseResult,
                 outcome: 'started',
@@ -245,7 +245,7 @@ export async function serveTreasuryInfo(playerId: number): Promise<void> {
         });
         return;
     }
-    const base = await getPlanetBase(onPlanetId);
+    const base = await getCurrentPlanetBase(onPlanetId);
     if (!base || base.level < 1) {
         sendEnvelope(playerId, {
             type: ServerTag.TreasuryInfoResult,
@@ -389,7 +389,7 @@ export async function serveBwarpInfo(playerId: number): Promise<void> {
         });
         return;
     }
-    const base = await getPlanetBase(onPlanetId);
+    const base = await getCurrentPlanetBase(onPlanetId);
     if (!base || base.level < 1) {
         sendEnvelope(playerId, {
             type: ServerTag.BwarpInfoResult,
@@ -569,7 +569,7 @@ export async function serveBwarpBeam(
     }
 
     if (!commit) {
-        const base = await getPlanetBase(onPlanetId);
+        const base = await getCurrentPlanetBase(onPlanetId);
         const range = base?.transporter_range ?? 0;
         if (!base || base.level < 1 || range < 1) {
             sendEnvelope(playerId, {

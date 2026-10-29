@@ -716,26 +716,11 @@ export type PlanetBaseRow = {
     construction_completes_at: Date | null;
 };
 
-/** Side effect: completes any due construction (level := target, construction fields cleared) before reading. */
+/** Does not complete due construction; use services/planet-base-construction getCurrentPlanetBase for that. */
 export async function getPlanetBase(
     planetId: number,
     db: Queryable = pool,
 ): Promise<PlanetBaseRow | null> {
-    const promoted = await db.query<PlanetBaseRow>(
-        `UPDATE planet_bases
-         SET level = construction_target_level,
-             construction_target_level = NULL,
-             construction_started_at = NULL,
-             construction_completes_at = NULL
-         WHERE planet_id = $1
-           AND construction_target_level IS NOT NULL
-           AND construction_completes_at <= NOW()
-         RETURNING level, treasury::int AS treasury, transporter_range,
-                   construction_target_level, construction_started_at,
-                   construction_completes_at`,
-        [planetId],
-    );
-    if (promoted.rows[0]) return promoted.rows[0];
     const res = await db.query<PlanetBaseRow>(
         `SELECT level, treasury::int AS treasury, transporter_range,
                 construction_target_level, construction_started_at,
@@ -746,19 +731,49 @@ export async function getPlanetBase(
     return res.rows[0] ?? null;
 }
 
-export async function promoteDuePlanetBases(db: Queryable = pool): Promise<number> {
-    const res = await db.query<{ planet_id: number }>(
-        `UPDATE planet_bases
-         SET level = construction_target_level,
-             construction_target_level = NULL,
-             construction_started_at = NULL,
-             construction_completes_at = NULL
-         WHERE construction_target_level IS NOT NULL
-           AND construction_completes_at <= NOW()
-         RETURNING planet_id`,
-        [],
-    );
-    return res.rows.length;
+export type CompletedBaseConstructionRow = {
+    planet_id: number;
+    level: number;
+    planet_name: string;
+    sector_number: number;
+    universe_id: number;
+};
+
+const COMPLETE_DUE_BASE_CONSTRUCTION_SQL = `
+    WITH completed AS (
+        UPDATE planet_bases
+        SET level = construction_target_level,
+            construction_target_level = NULL,
+            construction_started_at = NULL,
+            construction_completes_at = NULL
+        WHERE construction_target_level IS NOT NULL
+          AND construction_completes_at <= NOW()
+          AND ($1::int IS NULL OR planet_id = $1)
+        RETURNING planet_id, level
+    )
+    SELECT c.planet_id, c.level, pl.name AS planet_name, s.sector_number, pl.universe_id
+    FROM completed c
+    JOIN planets pl ON pl.id = c.planet_id
+    JOIN sectors s ON s.id = pl.sector_id
+    ORDER BY c.planet_id`;
+
+export async function completeDueBaseConstruction(
+    planetId: number,
+    db: Queryable = pool,
+): Promise<CompletedBaseConstructionRow | null> {
+    const res = await db.query<CompletedBaseConstructionRow>(COMPLETE_DUE_BASE_CONSTRUCTION_SQL, [
+        planetId,
+    ]);
+    return res.rows[0] ?? null;
+}
+
+export async function completeAllDueBaseConstructions(
+    db: Queryable = pool,
+): Promise<CompletedBaseConstructionRow[]> {
+    const res = await db.query<CompletedBaseConstructionRow>(COMPLETE_DUE_BASE_CONSTRUCTION_SQL, [
+        null,
+    ]);
+    return res.rows;
 }
 
 export async function getPlanetBaseTreasuryForUpdate(

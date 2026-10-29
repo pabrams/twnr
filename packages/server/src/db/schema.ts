@@ -704,6 +704,21 @@ export const connectDB = async (): Promise<void> => {
       );
       CREATE INDEX IF NOT EXISTS idx_news_universe ON news (universe_id, created_at);
 
+      -- Append-only record of notable happenings. 'galactic' rows feed the
+      -- Galactic News; 'admin' rows are forensic-only. payload carries every
+      -- id and name needed to render the event so rows stay readable after
+      -- the players/clans/planets they mention are gone.
+      CREATE TABLE IF NOT EXISTS game_events (
+        id BIGSERIAL PRIMARY KEY,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        universe_id INTEGER NOT NULL REFERENCES universes(id) ON DELETE CASCADE,
+        kind VARCHAR(64) NOT NULL,
+        visibility VARCHAR(16) NOT NULL CHECK (visibility IN ('galactic', 'admin')),
+        payload JSONB NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_game_events_universe_visibility
+        ON game_events (universe_id, visibility, id);
+
       CREATE TABLE IF NOT EXISTS player_visited_sectors (
         player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
         sector_id INTEGER NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
