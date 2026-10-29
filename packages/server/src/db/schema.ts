@@ -617,20 +617,7 @@ export const connectDB = async (): Promise<void> => {
       CREATE INDEX IF NOT EXISTS idx_command_log_player_created
         ON command_log (player_id, created_at);
 
-      CREATE TABLE IF NOT EXISTS audit_log (
-        id           SERIAL PRIMARY KEY,
-        player_id    INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
-        action_type  TEXT NOT NULL,
-        delta        INTEGER NOT NULL,
-        prev_credits INTEGER NOT NULL,
-        new_credits  INTEGER NOT NULL,
-        context      JSONB,
-        created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        hmac         TEXT NOT NULL
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_audit_log_player
-        ON audit_log (player_id, id);
+      DROP TABLE IF EXISTS audit_log;
 
       CREATE TABLE IF NOT EXISTS sector_mines (
         sector_id INTEGER NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
@@ -718,6 +705,82 @@ export const connectDB = async (): Promise<void> => {
       );
       CREATE INDEX IF NOT EXISTS idx_game_events_universe_visibility
         ON game_events (universe_id, visibility, id);
+
+      -- Forensic before/after snapshots written by record_row_history() triggers.
+      -- Each trigger names the row's primary-key column and, optionally, the
+      -- columns whose change is worth recording; updates touching none of
+      -- them are skipped. Rows outlive what they describe (no FKs).
+      CREATE TABLE IF NOT EXISTS row_history (
+        id BIGSERIAL PRIMARY KEY,
+        changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        table_name TEXT NOT NULL,
+        row_id INTEGER NOT NULL,
+        operation TEXT NOT NULL CHECK (operation IN ('INSERT', 'UPDATE', 'DELETE')),
+        changed_columns TEXT[],
+        old_row JSONB,
+        new_row JSONB
+      );
+      CREATE INDEX IF NOT EXISTS idx_row_history_table_row
+        ON row_history (table_name, row_id, id);
+
+      -- TG_ARGV[0]: primary-key column. TG_ARGV[1]: comma-separated tracked
+      -- columns for UPDATE (omitted or empty = any column).
+      CREATE OR REPLACE FUNCTION record_row_history()
+      RETURNS TRIGGER AS $$
+      DECLARE
+        pk_column TEXT := TG_ARGV[0];
+        tracked_columns TEXT[] :=
+          CASE WHEN TG_NARGS > 1 AND TG_ARGV[1] <> '' THEN string_to_array(TG_ARGV[1], ',') END;
+        old_json JSONB;
+        new_json JSONB;
+        changed TEXT[];
+      BEGIN
+        IF TG_OP IN ('UPDATE', 'DELETE') THEN old_json := to_jsonb(OLD); END IF;
+        IF TG_OP IN ('UPDATE', 'INSERT') THEN new_json := to_jsonb(NEW); END IF;
+        IF TG_OP = 'UPDATE' THEN
+          SELECT array_agg(key ORDER BY key) INTO changed
+          FROM jsonb_each(new_json)
+          WHERE (tracked_columns IS NULL OR key = ANY (tracked_columns))
+            AND old_json -> key IS DISTINCT FROM value;
+          IF changed IS NULL THEN RETURN NULL; END IF;
+        END IF;
+        INSERT INTO row_history (table_name, row_id, operation, changed_columns, old_row, new_row)
+        VALUES (
+          TG_TABLE_NAME,
+          (COALESCE(new_json, old_json) ->> pk_column)::int,
+          TG_OP,
+          changed,
+          old_json,
+          new_json
+        );
+        RETURN NULL;
+      END;
+      $$ LANGUAGE plpgsql;
+
+      DROP TRIGGER IF EXISTS row_history_players ON players;
+      CREATE TRIGGER row_history_players
+      AFTER UPDATE ON players
+      FOR EACH ROW EXECUTE FUNCTION record_row_history('id', 'credits');
+
+      DROP TRIGGER IF EXISTS row_history_ships ON ships;
+      CREATE TRIGGER row_history_ships
+      AFTER UPDATE OR DELETE ON ships
+      FOR EACH ROW EXECUTE FUNCTION record_row_history('id', 'holds,shields,owner_player_id,owner_clan_id');
+
+      DROP TRIGGER IF EXISTS row_history_planet_bases ON planet_bases;
+      CREATE TRIGGER row_history_planet_bases
+      AFTER UPDATE ON planet_bases
+      FOR EACH ROW EXECUTE FUNCTION record_row_history('planet_id', 'treasury,transporter_range,level');
+
+      DROP TRIGGER IF EXISTS row_history_planets ON planets;
+      CREATE TRIGGER row_history_planets
+      AFTER UPDATE OR DELETE ON planets
+      FOR EACH ROW EXECUTE FUNCTION record_row_history('id', 'owner_player_id,owner_clan_id');
+
+      DROP TRIGGER IF EXISTS row_history_clans ON clans;
+      CREATE TRIGGER row_history_clans
+      AFTER INSERT OR UPDATE OR DELETE ON clans
+      FOR EACH ROW EXECUTE FUNCTION record_row_history('id');
 
       CREATE TABLE IF NOT EXISTS player_visited_sectors (
         player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
@@ -1022,9 +1085,6 @@ export const connectDB = async (): Promise<void> => {
                 END IF;
             END $$;
         `);
-
-        // Old audit entries were signed with a key that no longer exists and can never verify.
-        await client.query('TRUNCATE TABLE audit_log RESTART IDENTITY');
 
         client.release();
         isConnected = true;

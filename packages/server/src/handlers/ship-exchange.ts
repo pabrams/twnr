@@ -13,7 +13,6 @@ import {
     deleteShipById,
     type ShipTypeRow,
 } from '../db/queries/ship.js';
-import { recordCreditChange } from '../services/audit.js';
 import { setPendingShipPurchase } from '../state/pending-ship-purchases.js';
 
 function calculateShipPrice(shipType: {
@@ -123,18 +122,6 @@ export async function executeBuyShipNew(
                 client,
             );
             await setPlayerShipAndDeductCredits(playerId, newShipId, price, client);
-            await recordCreditChange(client, {
-                playerId,
-                actionType: 'ship_exchange',
-                delta: -price,
-                prevCredits: data.credits,
-                newCredits: data.credits - price,
-                context: {
-                    mode: 'new',
-                    toShip: targetShipName,
-                    price,
-                },
-            });
 
             return {
                 newShipId,
@@ -224,20 +211,6 @@ export async function executeBuyShipTradein(
             );
             await setPlayerShipAndDeductCredits(playerId, newShipId, cost, client);
             await deleteShipById(data.ship_id, client);
-            await recordCreditChange(client, {
-                playerId,
-                actionType: 'ship_exchange',
-                delta: -cost,
-                prevCredits: data.credits,
-                newCredits: data.credits - cost,
-                context: {
-                    mode: 'tradein',
-                    fromShip: data.ship_type_slug,
-                    toShip: targetShipName,
-                    targetPrice,
-                    currentPrice,
-                },
-            });
 
             return {
                 newShipId,

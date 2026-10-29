@@ -27,7 +27,6 @@ import {
 import { getShipCargoWithCreditsForUpdate, incrementShipCommodity } from '../db/queries/ship.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 import { cargoUsed, formatCargo } from './cargo-utils.js';
-import { recordCreditChange } from '../services/audit.js';
 import { notifyTurnChange } from '../services/notify.js';
 import { experienceDeltas, scalarDelta } from '../game-config.js';
 
@@ -402,21 +401,6 @@ async function settleTrade(
                 await adjustPortCommodity(port.port_id, col, -session.quantity, client);
                 await incrementShipCommodity(playerId, col, session.quantity, client);
                 await deductCredits(playerId, agreedTotal, client);
-                await recordCreditChange(client, {
-                    playerId,
-                    actionType: 'port_buy',
-                    delta: -agreedTotal,
-                    prevCredits: cargo.credits,
-                    newCredits: cargo.credits - agreedTotal,
-                    context: {
-                        sector: session.sectorNumber,
-                        commodity: col,
-                        qty: session.quantity,
-                        agreedTotal,
-                        portClass: session.portClass,
-                        haggle: true,
-                    },
-                });
                 cargo[col] += session.quantity;
                 cargo.credits -= agreedTotal;
             } else {
@@ -441,21 +425,6 @@ async function settleTrade(
                 await adjustPortCommodity(port.port_id, col, session.quantity, client);
                 await incrementShipCommodity(playerId, col, -session.quantity, client);
                 await addCredits(playerId, agreedTotal, client);
-                await recordCreditChange(client, {
-                    playerId,
-                    actionType: 'port_sell',
-                    delta: agreedTotal,
-                    prevCredits: cargo.credits,
-                    newCredits: cargo.credits + agreedTotal,
-                    context: {
-                        sector: session.sectorNumber,
-                        commodity: col,
-                        qty: session.quantity,
-                        agreedTotal,
-                        portClass: session.portClass,
-                        haggle: true,
-                    },
-                });
                 cargo[col] -= session.quantity;
                 cargo.credits += agreedTotal;
             }

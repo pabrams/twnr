@@ -16,7 +16,6 @@ import { class0Prices } from '../game-config.js';
 import { currentClass0Prices } from '../services/class0-prices.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 import { notifyTurnChange } from '../services/notify.js';
-import { recordCreditChange } from '../services/audit.js';
 
 async function isAtClass0OrStarbase(
     playerId: number,
@@ -68,14 +67,6 @@ export async function serveBuyDrones(playerId: number, data: BuyDronesCommand): 
 
             await incrementShipDrones(playerId, qty, client);
             await deductCredits(playerId, cost, client);
-            await recordCreditChange(client, {
-                playerId,
-                actionType: 'buy_drones',
-                delta: -cost,
-                prevCredits: data.credits,
-                newCredits: data.credits - cost,
-                context: { qty, unitPrice: class0Prices.dronePrice },
-            });
             return { credits: data.credits - cost, drones: data.drones + qty };
         },
         (result) =>
@@ -126,14 +117,6 @@ export async function serveBuyShields(playerId: number, data: BuyShieldsCommand)
 
             await incrementShipShields(playerId, qty, client);
             await deductCredits(playerId, cost, client);
-            await recordCreditChange(client, {
-                playerId,
-                actionType: 'buy_shields',
-                delta: -cost,
-                prevCredits: data.credits,
-                newCredits: data.credits - cost,
-                context: { qty, unitPrice: class0Prices.shieldPrice },
-            });
             return { credits: data.credits - cost, shields: data.shields + qty };
         },
         (result) =>
@@ -191,20 +174,6 @@ export async function serveBuyHolds(playerId: number, data: BuyHoldsCommand): Pr
 
             await incrementShipHolds(playerId, qty, client);
             await deductCredits(playerId, cost, client);
-            await recordCreditChange(client, {
-                playerId,
-                actionType: 'buy_holds',
-                delta: -cost,
-                prevCredits: data.credits,
-                newCredits: data.credits - cost,
-                context: {
-                    qty,
-                    fromHolds: data.holds,
-                    toHolds: data.holds + qty,
-                    baseCost,
-                    totalCost: cost,
-                },
-            });
             return {
                 credits: data.credits - cost,
                 cargoLimit: data.holds + qty,

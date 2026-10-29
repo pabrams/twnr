@@ -8,7 +8,6 @@ async function pause(ctx: PromptCtx, prompt: string): Promise<string | null> {
     return key;
 }
 
-
 export async function writePaged(
     ctx: PromptCtx,
     lines: string[],

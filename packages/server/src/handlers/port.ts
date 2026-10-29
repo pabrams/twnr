@@ -36,7 +36,6 @@ import {
 } from '../db/queries/ship.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 import { cargoUsed, formatCargo } from './cargo-utils.js';
-import { recordCreditChange } from '../services/audit.js';
 import { currentClass0Prices } from '../services/class0-prices.js';
 import { getTowingPlayerForShip, clearTowedShip } from '../db/queries/tow.js';
 import { getPlayerShipId } from '../db/queries/player.js';
@@ -344,20 +343,6 @@ export async function servePortTransaction(
                 await adjustPortCommodity(port.port_id, col, -qty, client);
                 await incrementShipCommodity(playerId, col, qty, client);
                 await deductCredits(playerId, cost, client);
-                await recordCreditChange(client, {
-                    playerId,
-                    actionType: 'port_buy',
-                    delta: -cost,
-                    prevCredits: cargo.credits,
-                    newCredits: cargo.credits - cost,
-                    context: {
-                        sector: currentSector,
-                        commodity: col,
-                        qty,
-                        unitPrice: price,
-                        portClass: port.class,
-                    },
-                });
 
                 const xpDelta = scalarDelta(experienceDeltas, 'portTrade');
                 if (xpDelta !== 0) {
@@ -388,20 +373,6 @@ export async function servePortTransaction(
             await adjustPortCommodity(port.port_id, col, qty, client);
             await incrementShipCommodity(playerId, col, -qty, client);
             await addCredits(playerId, revenue, client);
-            await recordCreditChange(client, {
-                playerId,
-                actionType: 'port_sell',
-                delta: revenue,
-                prevCredits: cargo.credits,
-                newCredits: cargo.credits + revenue,
-                context: {
-                    sector: currentSector,
-                    commodity: col,
-                    qty,
-                    unitPrice: price,
-                    portClass: port.class,
-                },
-            });
 
             const xpDelta = scalarDelta(experienceDeltas, 'portTrade');
             if (xpDelta !== 0) {

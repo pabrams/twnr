@@ -31,7 +31,6 @@ import {
 } from '../db/queries/port.js';
 import { getPlanetIdsInSectorForUpdate } from '../db/queries/planet.js';
 import { getSectorDbId } from '../db/queries/sector.js';
-import { recordCreditChange } from '../services/audit.js';
 import { experienceDeltas, reputationDeltas, scalarDelta } from '../game-config.js';
 
 export async function serveConstructPortInfo(playerId: number): Promise<void> {
@@ -200,14 +199,6 @@ export async function serveBuildPort(playerId: number, data: BuildPortCommand): 
             }
 
             await deductCredits(playerId, cost.credits, client);
-            await recordCreditChange(client, {
-                playerId,
-                actionType: 'build_port',
-                delta: -cost.credits,
-                prevCredits: playerRow.credits,
-                newCredits: playerRow.credits - cost.credits,
-                context: { sector: player.sector, portClass, portName },
-            });
 
             const ownerClanId = playerRow.clan_id;
             const ownerPlayerId = ownerClanId === null ? playerId : null;
@@ -377,19 +368,6 @@ export async function serveUpgradePort(playerId: number, data: UpgradePortComman
             }
 
             await deductCredits(playerId, totalCost, client);
-            await recordCreditChange(client, {
-                playerId,
-                actionType: 'upgrade_port',
-                delta: -totalCost,
-                prevCredits: credits,
-                newCredits: credits - totalCost,
-                context: {
-                    sector: player.sector,
-                    commodity: data.commodity,
-                    units,
-                    unitCost,
-                },
-            });
 
             await applyPortUpgrade(port.id, data.commodity, units, client);
 
