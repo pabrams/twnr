@@ -11,7 +11,7 @@ export type SectorMineRow = {
     owner_clan_id: number | null;
 };
 
-export type SectorMineWithOwnerRow = SectorMineRow & {
+export type SectorMineDisplayRow = SectorMineRow & {
     owner_player_name: string | null;
     owner_clan_name: string | null;
     owner_clan_number: number | null;
@@ -21,8 +21,8 @@ export async function getSectorMineForUpdate(
     sectorDbId: number,
     mineType: MineType,
     db: Queryable = pool,
-): Promise<SectorMineWithOwnerRow | undefined> {
-    const res = await db.query<SectorMineWithOwnerRow>(
+): Promise<SectorMineDisplayRow | undefined> {
+    const res = await db.query<SectorMineDisplayRow>(
         `SELECT sm.sector_id, sm.mine_type, sm.quantity, sm.owner_player_id, sm.owner_clan_id,
                 p.name AS owner_player_name,
                 c.name AS owner_clan_name,
@@ -51,12 +51,6 @@ export async function getSectorMine(
     return res.rows[0];
 }
 
-export type SectorMineDisplayRow = SectorMineRow & {
-    owner_player_name: string | null;
-    owner_clan_name: string | null;
-    owner_clan_number: number | null;
-};
-
 export async function getSectorMines(
     sectorDbId: number,
     db: Queryable = pool,
@@ -74,27 +68,6 @@ export async function getSectorMines(
         [sectorDbId],
     );
     return res.rows;
-}
-
-/** Precondition: any existing stack is friendly — the on-conflict owner flip is a redesignation, not a takeover. */
-export async function upsertSectorMines(
-    sectorDbId: number,
-    mineType: MineType,
-    ownerPlayerId: number | null,
-    ownerClanId: number | null,
-    addQty: number,
-    db: Queryable = pool,
-): Promise<void> {
-    await db.query(
-        `INSERT INTO sector_mines (sector_id, mine_type, quantity, owner_player_id, owner_clan_id)
-         VALUES ($1, $2, $3, $4, $5)
-         ON CONFLICT (sector_id, mine_type)
-         DO UPDATE SET
-             quantity = sector_mines.quantity + $3,
-             owner_player_id = EXCLUDED.owner_player_id,
-             owner_clan_id = EXCLUDED.owner_clan_id`,
-        [sectorDbId, mineType, addQty, ownerPlayerId, ownerClanId],
-    );
 }
 
 export async function setSectorMineTo(

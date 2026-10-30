@@ -47,6 +47,11 @@ export const EVENT = makeDomain('EVENT', {
         '[br]Alert:[/br] [bm]{intruder}[/bm] destroyed all your drones in sector [bc]{sector}[/bc]!',
 
     planetDestroyed: '\r\n[br]Planet {name} destroyed![/br]',
+    planetDestroyedBeneathYou:
+        '\r\n[br]*** Planet {name} is {fate} beneath you! You scramble back to your ship. ***[/br]',
+    planetDestroyedInSector: '\r\n[br]Planet {name} in this sector is {fate}![/br]',
+    planetFateBuster: 'blown apart',
+    planetFateCollision: 'destroyed in a collision',
 
     terraformDevicesAvailable: '\r\n[g]You have[/g] [bc]{count}[/bc] [g]Terraform Devices.[/g]',
     terraformNoDevices: '\r\n[bg]You have no Terraform Devices.[/bg]',

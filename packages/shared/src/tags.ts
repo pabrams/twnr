@@ -140,6 +140,7 @@ export const ServerTag = {
     TraderListResult: 'traderListResult',
     GalacticNewsRangeResult: 'galacticNewsRangeResult',
     GalacticNewsResult: 'galacticNewsResult',
+    PlanetDestroyedAlert: 'planetDestroyedAlert',
 } as const;
 type ServerTag = typeof ServerTag;
 

@@ -337,6 +337,19 @@ export const destroyPlanet: Handler<'destroyPlanetResult', PlanetContext> = (ctx
     }
 };
 
+export const planetDestroyedAlert: Handler<'planetDestroyedAlert', PlanetContext> = (ctx, msg) => {
+    const fate = render(
+        msg.cause === 'buster' ? EVENT.planetFateBuster : EVENT.planetFateCollision,
+    );
+    if (msg.wasOnPlanet) ctx.world.mode = Menu.Sector;
+    ctx.io.term.writeln(
+        render(msg.wasOnPlanet ? EVENT.planetDestroyedBeneathYou : EVENT.planetDestroyedInSector, {
+            name: msg.planetName,
+            fate,
+        }),
+    );
+};
+
 export const leavePlanet: Handler<'leavePlanetResult', PlanetContext> = (ctx) => {
     ctx.world.mode = Menu.Sector;
     ctx.io.term.writeln(render(EVENT.leftPlanet));

@@ -52,6 +52,7 @@ import {
     getPlayerReputationForUpdate,
     setDocked,
     setOnPlanet,
+    listPlayersOnPlanet,
 } from '../db/queries/player.js';
 import {
     getShipHardwareQuantityByName,
@@ -72,6 +73,7 @@ import { checkAndDeductTurns } from '../turn-logic.js';
 import { cargoUsed } from './cargo-utils.js';
 import { notifyTurnChange } from '../services/notify.js';
 import { recordGameEvent } from '../services/game-events.js';
+import { notifyPlanetDestroyed } from '../services/planet-destruction.js';
 
 export async function serveGetSectorPlanets(playerId: number): Promise<void> {
     const player = onlinePlayers[playerId];
@@ -256,6 +258,7 @@ export async function serveDestroyPlanet(playerId: number): Promise<void> {
         playerId,
         'Destroy planet',
         async (client) => {
+            const occupants = await listPlayersOnPlanet(onPlanetId, client);
             await decrementShipHardwareByName(playerId, 'planet_buster', client);
             await setOnPlanet(playerId, null, client);
             await deletePlanet(onPlanetId, client);
@@ -270,9 +273,9 @@ export async function serveDestroyPlanet(playerId: number): Promise<void> {
                 },
                 client,
             );
-            return true;
+            return occupants.map((occupant) => occupant.id);
         },
-        async () => {
+        async (occupantIds) => {
             await sendEnvelope(playerId, {
                 type: ServerTag.DestroyPlanetResult,
                 destroyed: true,
@@ -280,6 +283,19 @@ export async function serveDestroyPlanet(playerId: number): Promise<void> {
                 planetName,
                 expDelta: destroyExp,
                 repDelta: destroyRep,
+            });
+
+            await notifyPlanetDestroyed({
+                universeId: player.universeId,
+                sectorNumber: ownership.sector_number,
+                planetName,
+                cause: 'buster',
+                occupantIds,
+                occupantMailBody:
+                    `${player.name} destroyed planet ${planetName} in sector ${ownership.sector_number} ` +
+                    `while you were on the surface. You escaped to your ship.`,
+                sender: { kind: 'player', playerId, displayName: player.name },
+                excludePlayerId: playerId,
             });
 
             const { notifyAndMail } = await import('../services/notify.js');

@@ -208,8 +208,22 @@ describe('Sector activity notifications', () => {
       await wsRequest(wsB, { type: ClientTag.LandOnPlanet, planetId }, ServerTag.LandOnPlanetResult);
       await wsRequest(wsO, { type: ClientTag.LandOnPlanet, planetId }, ServerTag.LandOnPlanetResult);
 
+      const occupantAlert = waitForMsg(wsO, ServerTag.PlanetDestroyedAlert);
+      const watcherAlert = waitForMsg(wsW, ServerTag.PlanetDestroyedAlert);
       const res = await wsRequest(wsB, { type: ClientTag.DestroyPlanet }, ServerTag.DestroyPlanetResult);
       assert.equal(res.destroyed, true);
+
+      // The bystander on the surface is told they were lifted off; the watcher in space just sees it happen.
+      const lifted = await occupantAlert;
+      assert.equal(lifted.wasOnPlanet, true);
+      assert.equal(lifted.cause, 'buster');
+      assert.equal((await watcherAlert).wasOnPlanet, false);
+      const occupantMail = await pool.query(
+        `SELECT body FROM messages WHERE recipient_player_id = $1 AND kind = 'planet_destroyed'`,
+        [bystander.id],
+      );
+      assert.equal(occupantMail.rows.length, 1);
+      assert.match(occupantMail.rows[0].body, /while you were on the surface/);
 
       // DB cleared for everyone who was on the planet.
       const rows = await pool.query(

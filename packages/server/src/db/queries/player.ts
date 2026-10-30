@@ -247,6 +247,17 @@ export async function getPlayerConnectInfo(
     return res.rows[0];
 }
 
+export async function listPlayersOnPlanet(
+    planetId: number,
+    db: Queryable = pool,
+): Promise<{ id: number; name: string }[]> {
+    const res = await db.query<{ id: number; name: string }>(
+        'SELECT id, name FROM players WHERE on_planet_id = $1',
+        [planetId],
+    );
+    return res.rows;
+}
+
 export async function filterPlayersNotOnPlanet(
     playerIds: number[],
     db: Queryable = pool,

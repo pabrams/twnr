@@ -298,7 +298,18 @@ describe('Game events — planet collisions', () => {
       [planetId, otherId, futureId],
     );
 
+    // Resolution runs in this process (no sockets), so only the mail side of the occupant notice is observable here.
+    const occupant = await createPlayer(`ge_occupant_${Date.now()}`, sector);
+    await pool.query('UPDATE players SET on_planet_id = $1 WHERE id = $2', [otherId, occupant.id]);
     await resolveDuePlanetCollisions();
+    const liftedOff = await pool.query('SELECT on_planet_id FROM players WHERE id = $1', [occupant.id]);
+    assert.equal(liftedOff.rows[0].on_planet_id, null);
+    const occupantMail = await pool.query(
+      `SELECT body FROM messages WHERE recipient_player_id = $1 AND kind = 'planet_destroyed'`,
+      [occupant.id],
+    );
+    assert.equal(occupantMail.rows.length, 1);
+    assert.match(occupantMail.rows[0].body, /destroyed in a collision/);
 
     const remaining = await pool.query('SELECT id FROM planets WHERE id = ANY($1) ORDER BY id', [[planetId, otherId, futureId]]);
     assert.deepEqual(remaining.rows.map((r) => r.id), [futureId]);

@@ -75,6 +75,7 @@ const handlers: HandlerMap = {
     [ServerTag.LandOnPlanetResult]: planet.landOnPlanet,
     [ServerTag.PlanetDisplayResult]: planet.planetDisplay,
     [ServerTag.DestroyPlanetResult]: planet.destroyPlanet,
+    [ServerTag.PlanetDestroyedAlert]: planet.planetDestroyedAlert,
     [ServerTag.LeavePlanetResult]: planet.leavePlanet,
     [ServerTag.ListPlanetsResult]: planet.listPlanets,
 

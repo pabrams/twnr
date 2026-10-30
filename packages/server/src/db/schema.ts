@@ -596,14 +596,6 @@ export const connectDB = async (): Promise<void> => {
         construction_completes_at TIMESTAMPTZ
       );
 
-      -- universe_id was added after planet_bases shipped; denormalized so row_history
-      -- can attribute base changes without a lookup.
-      ALTER TABLE planet_bases
-        ADD COLUMN IF NOT EXISTS universe_id INTEGER REFERENCES universes(id) ON DELETE CASCADE;
-      UPDATE planet_bases pb SET universe_id = p.universe_id
-        FROM planets p WHERE p.id = pb.planet_id AND pb.universe_id IS NULL;
-      ALTER TABLE planet_bases ALTER COLUMN universe_id SET NOT NULL;
-
       CREATE TABLE IF NOT EXISTS sector_drones (
         sector_id INTEGER NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
         owner_player_id INTEGER REFERENCES players(id) ON DELETE SET NULL,

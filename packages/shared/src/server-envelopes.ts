@@ -1771,6 +1771,16 @@ export const GalacticNewsReplySchema = z.object({
 });
 export type GalacticNewsReply = z.infer<typeof GalacticNewsReplySchema>;
 
+/** Sent to everyone affected by a planet's destruction; `wasOnPlanet` recipients have been lifted back to their ship. */
+export const PlanetDestroyedAlertEventSchema = z.object({
+    type: z.literal(ServerTag.PlanetDestroyedAlert),
+    planetName: Str,
+    sector: Int,
+    cause: z.enum(['buster', 'collision']),
+    wasOnPlanet: Bool,
+});
+export type PlanetDestroyedAlertEvent = z.infer<typeof PlanetDestroyedAlertEventSchema>;
+
 export const StatsSnapshotSchema = z.object({
     type: z.literal(ServerTag.StatsSnapshot),
     sector: Int,
@@ -1915,6 +1925,7 @@ export const ServerEnvelopeSchema = z.discriminatedUnion('type', [
     TraderListReplySchema,
     GalacticNewsRangeReplySchema,
     GalacticNewsReplySchema,
+    PlanetDestroyedAlertEventSchema,
     ErrorReplySchema,
 ]);
 export type ServerEnvelope = z.infer<typeof ServerEnvelopeSchema>;
