@@ -25,7 +25,6 @@ async function recordBaseUpgraded(
     );
 }
 
-/** Reads the base after completing any construction that has come due on this planet. */
 export async function getCurrentPlanetBase(
     planetId: number,
     db: Queryable = pool,
@@ -36,12 +35,11 @@ export async function getCurrentPlanetBase(
 }
 
 export async function completeDueBaseConstructions(): Promise<number> {
-    const count = await withTransaction(async (client) => {
+    return withTransaction(async (client) => {
         const completedRows = await completeAllDueBaseConstructions(client);
         for (const completed of completedRows) {
             await recordBaseUpgraded(completed, client);
         }
         return completedRows.length;
     });
-    return count ?? 0;
 }

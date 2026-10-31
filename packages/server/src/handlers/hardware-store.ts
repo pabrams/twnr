@@ -1,9 +1,7 @@
-import { ServerTag, type CommandReply } from '@twnr/shared';
+import { type CommandReply } from '@twnr/shared';
 import type { CommandRequest } from '@twnr/shared';
 import { onlinePlayers } from '../state/players.js';
-import { sendEnvelope, sendError } from '../state/messaging.js';
-import { AbortTransaction } from '../db/index.js';
-import { runMutation } from './run-mutation.js';
+
 import { getCreditsForUpdate, deductCredits } from '../db/queries/player.js';
 import {
     getHardwareItemByName,
@@ -14,12 +12,14 @@ import {
     getHardwareStoreRows,
     type HardwareItemRow,
 } from '../db/queries/hardware.js';
+import { type CommandResult, commandError, abort, runMutation } from './command.js';
 
-export async function serveHardwareStoreInfo(playerId: number): Promise<void> {
+export async function serveHardwareStoreInfo(
+    playerId: number,
+): Promise<CommandResult<'HardwareStoreInfo'>> {
     const player = onlinePlayers[playerId];
     if (!player?.at_starbase) {
-        sendError(playerId, 'Not at Starbase');
-        return;
+        return commandError('Not at Starbase');
     }
 
     const rows = await getHardwareStoreRows(playerId, player.universeId);
@@ -33,38 +33,34 @@ export async function serveHardwareStoreInfo(playerId: number): Promise<void> {
         maxQty: r.max_qty,
     }));
 
-    await sendEnvelope(playerId, {
-        type: ServerTag.HardwareStoreInfoResult,
+    return {
         credits,
         items,
-    });
+    };
 }
 
 export async function serveBuyHardware(
     playerId: number,
     data: CommandRequest<'BuyHardware'>,
-): Promise<void> {
+): Promise<CommandResult<'BuyHardware'>> {
     const { itemName, quantity } = data;
     const player = onlinePlayers[playerId];
     if (!player?.at_starbase) {
-        sendError(playerId, 'Not at Starbase');
-        return;
+        return commandError('Not at Starbase');
     }
 
     const hw = await getHardwareItemByName(itemName);
     if (!hw) {
-        sendError(playerId, 'Unknown hardware item');
-        return;
+        return commandError('Unknown hardware item');
     }
 
     const priceOverride = await getHardwarePriceForUniverse(player.universeId, hw.id);
     const unitPrice = priceOverride ?? hw.default_price;
 
     if (hw.kind === 'stackable') {
-        await buyStackable(playerId, hw, unitPrice, quantity ?? 0);
-    } else {
-        await buyToggle(playerId, hw, unitPrice);
+        return buyStackable(playerId, hw, unitPrice, quantity ?? 0);
     }
+    return buyToggle(playerId, hw, unitPrice);
 }
 
 async function buyStackable(
@@ -72,40 +68,34 @@ async function buyStackable(
     hw: HardwareItemRow,
     unitPrice: number,
     quantity: number,
-): Promise<void> {
+): Promise<CommandResult<'BuyHardware'>> {
     const qty = Number.isInteger(quantity) ? quantity : 0;
     if (qty <= 0) {
-        sendError(playerId, 'Invalid quantity');
-        return;
+        return commandError('Invalid quantity');
     }
 
     const cost = qty * unitPrice;
-    await runMutation(
-        playerId,
+    return runMutation(
         'Buy hardware',
         async (client) => {
             const capacity = await getShipHardwareCapacityForUpdate(playerId, hw.id, client);
             if (!capacity) {
-                sendError(playerId, 'Ship not found');
-                throw new AbortTransaction();
+                throw abort(commandError('Ship not found'));
             }
 
             const { ship_id, current_qty, max_qty } = capacity;
 
             if (max_qty <= 0) {
-                sendError(playerId, `Your ship cannot carry ${hw.label}`);
-                throw new AbortTransaction();
+                throw abort(commandError(`Your ship cannot carry ${hw.label}`));
             }
 
             if (current_qty + qty > max_qty) {
-                sendError(playerId, `Cannot hold that many ${hw.label} (max ${max_qty})`);
-                throw new AbortTransaction();
+                throw abort(commandError(`Cannot hold that many ${hw.label} (max ${max_qty})`));
             }
 
             const credits = await getCreditsForUpdate(playerId, client);
             if (credits === undefined || credits < cost) {
-                sendError(playerId, 'Insufficient credits');
-                throw new AbortTransaction();
+                throw abort(commandError('Insufficient credits'));
             }
 
             await deductCredits(playerId, cost, client);
@@ -113,8 +103,7 @@ async function buyStackable(
             return { credits, current_qty };
         },
         (result) =>
-            sendEnvelope(playerId, {
-                type: ServerTag.BuyHardwareResult,
+            ({
                 itemName: hw.name,
                 label: hw.label,
                 kind: 'stackable',
@@ -123,35 +112,34 @@ async function buyStackable(
                 credits: result.credits - cost,
                 cost,
                 ...(hw.result_extra ?? {}),
-            } as CommandReply<'BuyHardware'>),
+            }) as CommandReply<'BuyHardware'>,
     );
 }
 
-async function buyToggle(playerId: number, hw: HardwareItemRow, unitPrice: number): Promise<void> {
-    await runMutation(
-        playerId,
+async function buyToggle(
+    playerId: number,
+    hw: HardwareItemRow,
+    unitPrice: number,
+): Promise<CommandResult<'BuyHardware'>> {
+    return runMutation(
         'Buy hardware',
         async (client) => {
             const capacity = await getShipHardwareCapacityForUpdate(playerId, hw.id, client);
             if (!capacity) {
-                sendError(playerId, 'Ship not found');
-                throw new AbortTransaction();
+                throw abort(commandError('Ship not found'));
             }
 
             if (capacity.max_qty <= 0) {
-                sendError(playerId, `Ship cannot equip ${hw.label}`);
-                throw new AbortTransaction();
+                throw abort(commandError(`Ship cannot equip ${hw.label}`));
             }
 
             if (capacity.current_qty > 0) {
-                sendError(playerId, `Ship already has ${hw.label}`);
-                throw new AbortTransaction();
+                throw abort(commandError(`Ship already has ${hw.label}`));
             }
 
             const credits = await getCreditsForUpdate(playerId, client);
             if (credits === undefined || credits < unitPrice) {
-                sendError(playerId, 'Insufficient credits');
-                throw new AbortTransaction();
+                throw abort(commandError('Insufficient credits'));
             }
 
             await setShipHardwareInstalled(capacity.ship_id, hw.id, client);
@@ -159,14 +147,13 @@ async function buyToggle(playerId: number, hw: HardwareItemRow, unitPrice: numbe
             return { credits };
         },
         (result) =>
-            sendEnvelope(playerId, {
-                type: ServerTag.BuyHardwareResult,
+            ({
                 itemName: hw.name,
                 label: hw.label,
                 kind: 'toggle',
                 credits: result.credits - unitPrice,
                 cost: unitPrice,
                 ...(hw.result_extra ?? {}),
-            } as CommandReply<'BuyHardware'>),
+            }) as CommandReply<'BuyHardware'>,
     );
 }

@@ -1,9 +1,6 @@
-import { ServerTag } from '@twnr/shared';
 import type { CommandRequest } from '@twnr/shared';
 import { onlinePlayers } from '../state/players.js';
-import { sendEnvelope, sendError } from '../state/messaging.js';
-import { AbortTransaction } from '../db/index.js';
-import { runMutation } from './run-mutation.js';
+
 import {
     getHardwareItemByName,
     getShipHardwareCapacityForUpdate,
@@ -16,6 +13,7 @@ import {
 } from '../db/queries/beacons.js';
 import { getShipDronesForUpdate, setShipDrones } from '../db/queries/ship.js';
 import { isInEncounter } from '../services/encounter.js';
+import { type CommandResult, commandError, abort, runMutation } from './command.js';
 
 const BEACON_HW_NAME = 'buoy';
 const BEACON_MSG_MAX = 41;
@@ -23,17 +21,15 @@ const BEACON_MSG_MAX = 41;
 export async function serveReleaseBeacon(
     playerId: number,
     data: CommandRequest<'ReleaseBeacon'>,
-): Promise<void> {
+): Promise<CommandResult<'ReleaseBeacon'>> {
     const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (player.docked || player.at_starbase) {
-        sendError(playerId, 'Cannot deploy a beacon while docked');
-        return;
+        return commandError('Cannot deploy a beacon while docked');
     }
     if (await isInEncounter(playerId)) {
-        sendError(playerId, 'Resolve drone encounter first');
-        return;
+        return commandError('Resolve drone encounter first');
     }
 
     const message = String(data.message ?? '').slice(0, BEACON_MSG_MAX);
@@ -41,23 +37,19 @@ export async function serveReleaseBeacon(
 
     const hw = await getHardwareItemByName(BEACON_HW_NAME);
     if (!hw) {
-        sendError(playerId, 'Marker beacon hardware not configured');
-        return;
+        return commandError('Marker beacon hardware not configured');
     }
 
-    await runMutation(
-        playerId,
+    return runMutation(
         'Release beacon',
         async (client) => {
             const cap = await getShipHardwareCapacityForUpdate(playerId, hw.id, client);
             if (!cap || cap.current_qty <= 0) {
-                sendEnvelope(playerId, {
-                    type: ServerTag.ReleaseBeaconResult,
+                throw abort({
                     outcome: 'noBeacons',
                     sector: player.sector,
                     beaconsRemaining: cap?.current_qty ?? 0,
                 });
-                throw new AbortTransaction();
             }
             await decrementShipHardwareQuantity(cap.ship_id, hw.id, 1, client);
 
@@ -69,55 +61,46 @@ export async function serveReleaseBeacon(
             await insertSectorBeacon(sectorDbId, message, playerId, null, client);
             return { outcome: 'launched' as const, remaining: cap.current_qty - 1 };
         },
-        (result) =>
-            sendEnvelope(playerId, {
-                type: ServerTag.ReleaseBeaconResult,
-                outcome: result.outcome,
-                sector: player.sector,
-                beaconsRemaining: result.remaining,
-            }),
+        (result) => ({
+            outcome: result.outcome,
+            sector: player.sector,
+            beaconsRemaining: result.remaining,
+        }),
     );
 }
 
-export async function serveAttackBeacon(playerId: number): Promise<void> {
+export async function serveAttackBeacon(playerId: number): Promise<CommandResult<'AttackBeacon'>> {
     const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (player.docked || player.at_starbase) {
-        sendError(playerId, 'Cannot attack while docked');
-        return;
+        return commandError('Cannot attack while docked');
     }
     if (await isInEncounter(playerId)) {
-        sendError(playerId, 'Resolve drone encounter first');
-        return;
+        return commandError('Resolve drone encounter first');
     }
 
     const sectorDbId = player.sectorId;
 
-    await runMutation(
-        playerId,
+    return runMutation(
         'Attack beacon',
         async (client) => {
             const existing = await getSectorBeaconForUpdate(sectorDbId, client);
             if (!existing) {
-                sendError(playerId, 'No beacon to attack');
-                throw new AbortTransaction();
+                throw abort(commandError('No beacon to attack'));
             }
             const drones = await getShipDronesForUpdate(playerId, client);
             if (drones === undefined || drones <= 0) {
-                sendError(playerId, 'No drones to launch');
-                throw new AbortTransaction();
+                throw abort(commandError('No drones to launch'));
             }
             await deleteSectorBeacon(sectorDbId, client);
             const newDrones = drones - 1;
             await setShipDrones(playerId, newDrones, client);
             return { destroyed: true as const, shipDrones: newDrones };
         },
-        (result) =>
-            sendEnvelope(playerId, {
-                type: ServerTag.AttackBeaconResult,
-                destroyed: result.destroyed,
-                shipDrones: result.shipDrones,
-            }),
+        (result) => ({
+            destroyed: result.destroyed,
+            shipDrones: result.shipDrones,
+        }),
     );
 }

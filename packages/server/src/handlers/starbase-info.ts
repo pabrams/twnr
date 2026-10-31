@@ -1,11 +1,11 @@
-import { ServerTag, universeConfig } from '@twnr/shared';
+import { universeConfig } from '@twnr/shared';
 import { onlinePlayers } from '../state/players.js';
-import { sendEnvelope } from '../state/messaging.js';
 import { getStarbaseSectorNumber } from '../db/queries/sector.js';
 import { getUniverseStats, getOutWarpDegreeDistribution } from '../db/queries/universe.js';
 import { getStartingShipTypeBySlug } from '../db/queries/ship.js';
+import { type CommandResult } from './command.js';
 
-export async function serveStarbaseInfo(playerId: number): Promise<void> {
+export async function serveStarbaseInfo(playerId: number): Promise<CommandResult<'StarbaseInfo'>> {
     const player = onlinePlayers[playerId];
     if (!player) return;
 
@@ -31,8 +31,7 @@ export async function serveStarbaseInfo(playerId: number): Promise<void> {
 
     const respawnDelaySeconds = stats?.respawn_delay_seconds ?? universeConfig.respawnDelaySeconds;
 
-    sendEnvelope(playerId, {
-        type: ServerTag.StarbaseInfoResult,
+    return {
         sector,
         universeName: stats?.name ?? '',
         sectorCount: stats?.sector_count ?? 0,
@@ -46,5 +45,5 @@ export async function serveStarbaseInfo(playerId: number): Promise<void> {
         startingDrones: stats?.starting_drones ?? 0,
         startingHolds,
         respawnDelaySeconds,
-    });
+    };
 }

@@ -1,23 +1,21 @@
-import { ServerTag } from '@twnr/shared';
 import { onlinePlayers } from '../state/players.js';
-import { sendEnvelope } from '../state/messaging.js';
 import { listPlayersInUniverse } from '../db/queries/player.js';
+import { type CommandResult } from './command.js';
 
-export function servePlayersOnline(playerId: number): void {
+export function servePlayersOnline(playerId: number): CommandResult<'PlayersOnline'> {
     const callerUniverse = onlinePlayers[playerId]?.universeId;
     const online = Object.entries(onlinePlayers)
         .filter(([, p]) => p.universeId === callerUniverse)
         .map(([id, p]) => ({ id: Number(id), name: p.name }));
-    sendEnvelope(playerId, { type: ServerTag.PlayersOnlineResult, players: online });
+    return { players: online };
 }
 
-export async function serveTraderList(playerId: number): Promise<void> {
+export async function serveTraderList(playerId: number): Promise<CommandResult<'TraderList'>> {
     const player = onlinePlayers[playerId];
     if (!player) return;
 
     const rows = await listPlayersInUniverse(player.universeId);
-    sendEnvelope(playerId, {
-        type: ServerTag.TraderListResult,
+    return {
         traders: rows.map((r) => ({
             name: r.name,
             shipTypeName: r.ship_type_name,
@@ -27,5 +25,5 @@ export async function serveTraderList(playerId: number): Promise<void> {
             reputation: r.reputation,
             experience: r.experience,
         })),
-    });
+    };
 }

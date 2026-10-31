@@ -274,16 +274,18 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             }
             const data: ClientEnvelope = parsed.data;
 
+            let outcome: string;
             try {
-                await routeMessage(playerId, data);
+                outcome = await routeMessage(playerId, data);
             } catch (err) {
                 console.error('Message handler error:', err);
                 sendError(playerId, 'Internal server error');
+                outcome = 'exception';
             }
 
             sendStatsSnapshot(playerId).catch((err) => console.error('Stats snapshot error:', err));
 
-            logPlayerCommand(playerId, universeId, data.type, data).catch((err) =>
+            logPlayerCommand(playerId, universeId, data, outcome).catch((err) =>
                 console.error('Command log error:', err),
             );
         });

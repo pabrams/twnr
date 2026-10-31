@@ -1,5 +1,3 @@
-import { ServerTag } from '@twnr/shared';
-import { sendEnvelope } from '../state/messaging.js';
 import { withTransaction } from '../db/index.js';
 import { getShipCargo, zeroShipCargo } from '../db/queries/ship.js';
 import {
@@ -8,16 +6,15 @@ import {
     markFirstColosJettisonOfDay,
 } from '../db/queries/player.js';
 import { reputationDeltas, experienceDeltas, scalarDelta } from '../game-config.js';
+import { type CommandResult } from './command.js';
 
-export async function serveJettison(playerId: number): Promise<void> {
+export async function serveJettison(playerId: number): Promise<CommandResult<'Jettison'>> {
     const cargo = await getShipCargo(playerId);
     if (!cargo) {
-        await sendEnvelope(playerId, {
-            type: ServerTag.JettisonResult,
+        return {
             outcome: 'error',
             message: 'Player not found',
-        });
-        return;
+        };
     }
 
     let appliedRep = 0;
@@ -39,11 +36,10 @@ export async function serveJettison(playerId: number): Promise<void> {
         }
     });
 
-    await sendEnvelope(playerId, {
-        type: ServerTag.JettisonResult,
+    return {
         outcome: 'success',
         jettisoned: cargo,
         expDelta: appliedExp,
         repDelta: appliedRep,
-    });
+    };
 }

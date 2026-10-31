@@ -612,6 +612,7 @@ export const connectDB = async (): Promise<void> => {
         universe_id INTEGER NOT NULL REFERENCES universes(id) ON DELETE CASCADE,
         command_type VARCHAR(100) NOT NULL,
         payload JSONB,
+        outcome VARCHAR(32) NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
 

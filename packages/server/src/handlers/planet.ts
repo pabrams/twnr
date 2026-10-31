@@ -1,12 +1,11 @@
 import { ServerTag, ClientTag, type GameEventOwnedRef } from '@twnr/shared';
 import type { CommandRequest } from '@twnr/shared';
 import { onlinePlayers } from '../state/players.js';
-import { sendEnvelope, sendError } from '../state/messaging.js';
+import { sendEnvelope } from '../state/messaging.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
 import { broadcastSectorActivity } from '../services/sector-activity.js';
 import { isInEncounter } from '../services/encounter.js';
-import { AbortTransaction } from '../db/index.js';
-import { runMutation } from './run-mutation.js';
+
 import {
     getEarthId,
     getPlanetInSector,
@@ -65,47 +64,58 @@ import { cargoUsed } from './cargo-utils.js';
 import { notifyTurnChange } from '../services/notify.js';
 import { recordGameEvent } from '../services/game-events.js';
 import { notifyPlanetDestroyed } from '../services/planet-destruction.js';
+import {
+    type CommandError,
+    type CommandResult,
+    commandError,
+    abort,
+    isCommandError,
+    runMutation,
+} from './command.js';
 
-export async function serveGetSectorPlanets(playerId: number): Promise<void> {
+export async function serveGetSectorPlanets(
+    playerId: number,
+): Promise<CommandResult<'GetSectorPlanets'>> {
     const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (await isInEncounter(playerId)) {
-        sendError(playerId, 'Resolve drone encounter first');
-        return;
+        return commandError('Resolve drone encounter first');
     }
 
     if (player.sector === 1) {
         const earthId = await getEarthId(player.universeId);
         if (earthId) {
-            return serveLandOnPlanet(playerId, {
+            // Earth is the only planet here: land directly. The client's land routine accepts either reply.
+            const landed = await serveLandOnPlanet(playerId, {
                 type: ClientTag.LandOnPlanet,
                 planetId: earthId,
             });
+            if (isCommandError(landed)) return landed;
+            if (landed) sendEnvelope(playerId, { type: ServerTag.LandOnPlanetResult, ...landed });
+            return;
         }
     }
 
     const planets = await getPlanetsInSector(player.sector, player.universeId);
-    await sendEnvelope(playerId, { type: ServerTag.GetSectorPlanetsResult, planets });
+    return { planets };
 }
 
 export async function serveLandOnPlanet(
     playerId: number,
     data: CommandRequest<'LandOnPlanet'>,
-): Promise<void> {
+): Promise<CommandResult<'LandOnPlanet'>> {
     const { planetId } = data;
     const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (await isInEncounter(playerId)) {
-        sendError(playerId, 'Resolve drone encounter first');
-        return;
+        return commandError('Resolve drone encounter first');
     }
 
     const planet = await getPlanetInSector(planetId, player.sector, player.universeId);
     if (!planet) {
-        sendError(playerId, 'Planet not found in this sector');
-        return;
+        return commandError('Planet not found in this sector');
     }
 
     if (player.docked) {
@@ -118,12 +128,10 @@ export async function serveLandOnPlanet(
 
     const display = await getPlanetDisplayData(playerId);
     if (!display) {
-        sendError(playerId, 'Planet no longer exists');
-        return;
+        return commandError('Planet no longer exists');
     }
     const ctx = await getShipPlanetContext(playerId);
-    await sendEnvelope(playerId, {
-        type: ServerTag.LandOnPlanetResult,
+    return {
         ...display,
         empty_holds: ctx.emptyHolds,
         ship_colonists: ctx.shipColonists,
@@ -132,7 +140,7 @@ export async function serveLandOnPlanet(
         ship_fuel: ctx.shipFuel,
         ship_organics: ctx.shipOrganics,
         ship_equipment: ctx.shipEquipment,
-    });
+    };
 }
 
 async function getShipPlanetContext(playerId: number): Promise<{
@@ -161,24 +169,23 @@ async function getShipPlanetContext(playerId: number): Promise<{
     };
 }
 
-export async function servePlanetDisplay(playerId: number): Promise<void> {
+export async function servePlanetDisplay(
+    playerId: number,
+): Promise<CommandResult<'PlanetDisplay'>> {
     const player = onlinePlayers[playerId];
     if (!player) return;
 
     const onPlanetId = await getOnPlanetId(playerId);
     if (!onPlanetId) {
-        sendError(playerId, 'Not on a planet');
-        return;
+        return commandError('Not on a planet');
     }
 
     const data = await getPlanetDisplayData(playerId);
     if (!data) {
-        sendError(playerId, 'Planet no longer exists');
-        return;
+        return commandError('Planet no longer exists');
     }
     const ctx = await getShipPlanetContext(playerId);
-    sendEnvelope(playerId, {
-        type: ServerTag.PlanetDisplayResult,
+    return {
         ...data,
         empty_holds: ctx.emptyHolds,
         ship_colonists: ctx.shipColonists,
@@ -187,17 +194,16 @@ export async function servePlanetDisplay(playerId: number): Promise<void> {
         ship_fuel: ctx.shipFuel,
         ship_organics: ctx.shipOrganics,
         ship_equipment: ctx.shipEquipment,
-    });
+    };
 }
 
-export async function serveLeavePlanet(playerId: number): Promise<void> {
+export async function serveLeavePlanet(playerId: number): Promise<CommandResult<'LeavePlanet'>> {
     const player = onlinePlayers[playerId];
     if (!player) return;
 
     const turnResult = await checkAndDeductTurns(playerId, player.universeId, 1);
     if (!turnResult.allowed) {
-        sendError(playerId, 'Insufficient turns');
-        return;
+        return commandError('Insufficient turns');
     }
     if (turnResult.turnsUsed) {
         notifyTurnChange(playerId, turnResult.turnsUsed, 'leaving planet');
@@ -214,39 +220,36 @@ export async function serveLeavePlanet(playerId: number): Promise<void> {
         void broadcastSectorActivity(playerId, 'liftoff', leavingPlanetName);
     }
 
-    await sendEnvelope(playerId, {
-        type: ServerTag.LeavePlanetResult,
+    return {
         turnsUsed: turnResult.turnsUsed,
-    });
+    };
 }
 
-export async function serveDestroyPlanet(playerId: number): Promise<void> {
+export async function serveDestroyPlanet(
+    playerId: number,
+): Promise<CommandResult<'DestroyPlanet'>> {
     const player = onlinePlayers[playerId];
     if (!player) return;
 
     const onPlanetId = await getOnPlanetId(playerId);
     if (!onPlanetId) {
-        sendError(playerId, 'Not on a planet');
-        return;
+        return commandError('Not on a planet');
     }
 
     const busters = await getShipHardwareQuantityByName(playerId, 'planet_buster');
     if (busters < 1) {
-        sendError(playerId, 'You do not have a planet buster.');
-        return;
+        return commandError('You do not have a planet buster.');
     }
 
     const ownership = await getPlanetOwnership(onPlanetId);
     if (!ownership) {
-        sendError(playerId, 'Planet not found.');
-        return;
+        return commandError('Planet not found.');
     }
     const planetName = ownership.name;
 
     const destroyRep = scalarDelta(reputationDeltas, 'destroyPlanet');
     const destroyExp = scalarDelta(experienceDeltas, 'destroyPlanet');
-    await runMutation(
-        playerId,
+    return runMutation(
         'Destroy planet',
         async (client) => {
             const occupants = await listPlayersOnPlanet(onPlanetId, client);
@@ -267,15 +270,6 @@ export async function serveDestroyPlanet(playerId: number): Promise<void> {
             return occupants.map((occupant) => occupant.id);
         },
         async (occupantIds) => {
-            await sendEnvelope(playerId, {
-                type: ServerTag.DestroyPlanetResult,
-                destroyed: true,
-                planetId: onPlanetId,
-                planetName,
-                expDelta: destroyExp,
-                repDelta: destroyRep,
-            });
-
             await notifyPlanetDestroyed({
                 universeId: player.universeId,
                 sectorNumber: ownership.sector_number,
@@ -312,20 +306,29 @@ export async function serveDestroyPlanet(playerId: number): Promise<void> {
                 }
             }
 
-            const data = await buildSectorDisplayData(playerId);
-            if (data) sendEnvelope(playerId, { type: ServerTag.SectorDisplayResult, ...data });
+            const sectorData = await buildSectorDisplayData(playerId);
+            if (!sectorData) return undefined;
+            return {
+                ...sectorData,
+                destroyed: true,
+                planetId: onPlanetId,
+                planetName,
+                expDelta: destroyExp,
+                repDelta: destroyRep,
+            };
         },
         'Failed to destroy planet.',
     );
 }
 
-export async function serveTerraformInfo(playerId: number): Promise<void> {
+export async function serveTerraformInfo(
+    playerId: number,
+): Promise<CommandResult<'TerraformInfo'>> {
     const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (await isInEncounter(playerId)) {
-        sendError(playerId, 'Resolve drone encounter first');
-        return;
+        return commandError('Resolve drone encounter first');
     }
 
     const sectorId = player.sector;
@@ -334,34 +337,31 @@ export async function serveTerraformInfo(playerId: number): Promise<void> {
     const restricted = sectorId === 1 || sector?.name === 'Starbase';
 
     if (restricted) {
-        sendEnvelope(playerId, {
-            type: ServerTag.TerraformInfoResult,
+        return {
             canTerraform: false,
             devices: 0,
             reason: 'restricted_sector',
-        });
-        return;
+        };
     }
 
     const devices = await getShipHardwareQuantityByName(playerId, 'terraform_device');
     if (devices < 1) {
-        sendEnvelope(playerId, {
-            type: ServerTag.TerraformInfoResult,
+        return {
             canTerraform: false,
             devices: 0,
             reason: 'no_devices',
-        });
-        return;
+        };
     }
 
-    sendEnvelope(playerId, {
-        type: ServerTag.TerraformInfoResult,
+    return {
         canTerraform: true,
         devices,
-    });
+    };
 }
 
-export async function serveUseTerraformDevice(playerId: number): Promise<void> {
+export async function serveUseTerraformDevice(
+    playerId: number,
+): Promise<CommandResult<'UseTerraformDevice'>> {
     const player = onlinePlayers[playerId];
     if (!player) return;
 
@@ -369,8 +369,7 @@ export async function serveUseTerraformDevice(playerId: number): Promise<void> {
     const universeId = player.universeId;
 
     if (await isInEncounter(playerId)) {
-        sendError(playerId, 'Resolve drone encounter first');
-        return;
+        return commandError('Resolve drone encounter first');
     }
 
     const sector = await getSectorByNumber(sectorId, universeId);
@@ -378,38 +377,31 @@ export async function serveUseTerraformDevice(playerId: number): Promise<void> {
     const sectorDbId = sector?.id;
 
     if (sectorId === 1 || sectorName === 'Starbase') {
-        sendEnvelope(playerId, {
-            type: ServerTag.UseTerraformDeviceResult,
+        return {
             success: false,
             reason: 'restricted_sector',
-        });
-        return;
+        };
     }
 
     const terraformQty = await getShipHardwareQuantityByName(playerId, 'terraform_device');
     if (terraformQty < 1) {
-        sendEnvelope(playerId, {
-            type: ServerTag.UseTerraformDeviceResult,
+        return {
             success: false,
             reason: 'no_devices',
             terraformDevices: 0,
-        });
-        return;
+        };
     }
 
     if (!sectorDbId) {
-        sendError(playerId, 'Sector not found');
-        return;
+        return commandError('Sector not found');
     }
 
-    await runMutation(
-        playerId,
+    return runMutation(
         'Use terraform device',
         async (client) => {
             const universeInfo = await getTerraformConfigForUniverse(universeId, client);
             if (!universeInfo) {
-                sendError(playerId, 'Universe not found');
-                throw new AbortTransaction();
+                throw abort(commandError('Universe not found'));
             }
 
             const existingPlanetIds = await getPlanetIdsInSectorForUpdate(sectorDbId, client);
@@ -466,22 +458,20 @@ export async function serveUseTerraformDevice(playerId: number): Promise<void> {
                 expDelta,
             };
         },
-        (result) =>
-            sendEnvelope(playerId, {
-                type: ServerTag.UseTerraformDeviceResult,
-                success: true,
-                planet: {
-                    id: result.newPlanetId,
-                    name: result.randomName,
-                    type: result.randomType,
-                    displayType: result.randomDisplayType,
-                    sectorId,
-                },
-                collision: result.collision,
-                terraformDevices: terraformQty - 1,
-                expDelta: result.expDelta,
-                repDelta: result.repDelta,
-            }),
+        (result) => ({
+            success: true,
+            planet: {
+                id: result.newPlanetId,
+                name: result.randomName,
+                type: result.randomType,
+                displayType: result.randomDisplayType,
+                sectorId,
+            },
+            collision: result.collision,
+            terraformDevices: terraformQty - 1,
+            expDelta: result.expDelta,
+            repDelta: result.repDelta,
+        }),
         'Failed to use terraform device.',
     );
 }
@@ -489,81 +479,68 @@ export async function serveUseTerraformDevice(playerId: number): Promise<void> {
 export async function serveSetTerraformedPlanet(
     playerId: number,
     data: CommandRequest<'SetTerraformedPlanet'>,
-): Promise<void> {
+): Promise<CommandResult<'SetTerraformedPlanet'>> {
     const { planetId, name, ownership } = data;
     const trimmedName = name.trim();
     if (trimmedName.length === 0 || trimmedName.length > 64) {
-        sendEnvelope(playerId, {
-            type: ServerTag.SetTerraformedPlanetResult,
+        return {
             outcome: 'error',
             message: 'Name must be 1-64 characters.',
-        });
-        return;
+        };
     }
     const owner = await getPlanetOwnerPlayerId(planetId);
     if (owner === undefined) {
-        sendEnvelope(playerId, {
-            type: ServerTag.SetTerraformedPlanetResult,
+        return {
             outcome: 'error',
             message: 'Planet not found.',
-        });
-        return;
+        };
     }
     if (owner !== playerId) {
-        sendEnvelope(playerId, {
-            type: ServerTag.SetTerraformedPlanetResult,
+        return {
             outcome: 'error',
             message: 'You do not own that planet.',
-        });
-        return;
+        };
     }
     const clanId = ownership === 'clan' ? await getPlayerClanId(playerId) : null;
     if (ownership === 'clan' && clanId === null) {
-        sendEnvelope(playerId, {
-            type: ServerTag.SetTerraformedPlanetResult,
+        return {
             outcome: 'error',
             message: 'You are not in a clan.',
-        });
-        return;
+        };
     }
     await setPlanetName(planetId, trimmedName);
     if (ownership === 'clan') {
         await setPlanetOwnership(planetId, null, clanId);
     }
-    sendEnvelope(playerId, {
-        type: ServerTag.SetTerraformedPlanetResult,
+    return {
         outcome: 'success',
         planetId,
         name: trimmedName,
         ownership,
-    });
+    };
 }
 
-function parseColonistCommodity(playerId: number, commodity: string): ColonistCommodity | null {
+function parseColonistCommodity(commodity: string): ColonistCommodity | CommandError {
     if (commodity !== 'fuel' && commodity !== 'organics' && commodity !== 'equipment') {
-        sendError(playerId, 'Invalid commodity');
-        return null;
+        return commandError('Invalid commodity');
     }
     return commodity as ColonistCommodity;
 }
 
-function parsePlanetCommodity(playerId: number, commodity: string): PlanetCommodity | null {
+function parsePlanetCommodity(commodity: string): PlanetCommodity | CommandError {
     if (
         commodity !== 'fuel' &&
         commodity !== 'organics' &&
         commodity !== 'equipment' &&
         commodity !== 'drones'
     ) {
-        sendError(playerId, 'Invalid commodity');
-        return null;
+        return commandError('Invalid commodity');
     }
     return commodity as PlanetCommodity;
 }
 
-async function liftoffWithResult<T extends { type: (typeof ServerTag)[keyof typeof ServerTag] }>(
-    playerId: number,
-    result: T,
-): Promise<void> {
+/** Lifts the player off Earth; the returned sector display is merged into the colonist reply. */
+async function liftoffSectorData(playerId: number) {
     const leavingPlanetId = await getOnPlanetId(playerId);
     const leavingPlanetName =
         leavingPlanetId !== null
@@ -573,35 +550,28 @@ async function liftoffWithResult<T extends { type: (typeof ServerTag)[keyof type
     if (leavingPlanetId !== null) {
         void broadcastSectorActivity(playerId, 'liftoff', leavingPlanetName);
     }
-    const sectorData = await buildSectorDisplayData(playerId);
-    if (!sectorData) return;
-
-    await sendEnvelope(playerId, { ...result, ...sectorData } as Parameters<
-        typeof sendEnvelope
-    >[1]);
+    return buildSectorDisplayData(playerId);
 }
 
 export async function serveTakeColonists(
     playerId: number,
     data: CommandRequest<'TakeColonists'>,
-): Promise<void> {
+): Promise<CommandResult<'TakeColonists'>> {
     const { quantity, commodity } = data;
     const player = onlinePlayers[playerId];
     if (!player) return;
 
-    const col = parseColonistCommodity(playerId, commodity);
-    if (!col) return;
+    const col = parseColonistCommodity(commodity);
+    if (isCommandError(col)) return col;
 
     const onPlanetId = await getOnPlanetId(playerId);
     if (!onPlanetId) {
-        sendError(playerId, 'Not on a planet');
-        return;
+        return commandError('Not on a planet');
     }
 
     const onEarth = player.sector === 1;
 
-    await runMutation(
-        playerId,
+    return runMutation(
         'Take colonists',
         async (client) => {
             await settlePlanetProduction(onPlanetId, client);
@@ -609,28 +579,24 @@ export async function serveTakeColonists(
 
             const available = await getPlanetColonistsForUpdate(onPlanetId, col, client);
             if (available === undefined) {
-                sendError(playerId, 'Planet not found');
-                throw new AbortTransaction();
+                throw abort(commandError('Planet not found'));
             }
 
             const requested = quantity === -1 ? available : quantity;
             const actual = Math.min(requested, available);
             if (actual <= 0) {
-                sendError(playerId, 'No colonists available to take');
-                throw new AbortTransaction();
+                throw abort(commandError('No colonists available to take'));
             }
 
             const ship = await getShipHoldsAndCargoForUpdate(playerId, client);
             if (!ship) {
-                sendError(playerId, 'No ship');
-                throw new AbortTransaction();
+                throw abort(commandError('No ship'));
             }
             const used = cargoUsed(ship);
             const free = ship.holds - used;
             const take = Math.min(actual, free);
             if (take <= 0) {
-                sendError(playerId, 'No free holds');
-                throw new AbortTransaction();
+                throw abort(commandError('No free holds'));
             }
 
             await updatePlanetColonists(onPlanetId, col, -take, client);
@@ -641,7 +607,6 @@ export async function serveTakeColonists(
             const planetRemaining = await getPlanetColonistsRemaining(onPlanetId, col);
             const shipColonists = await getShipColonists(playerId);
             const result = {
-                type: ServerTag.TakeColonistsResult,
                 quantity: toTake,
                 commodity: col,
                 planetColonists: planetRemaining ?? 0,
@@ -649,10 +614,10 @@ export async function serveTakeColonists(
             };
 
             if (onEarth) {
-                await liftoffWithResult(playerId, result);
-                return;
+                const sectorData = await liftoffSectorData(playerId);
+                return sectorData ? { ...result, ...sectorData } : result;
             }
-            sendEnvelope(playerId, result);
+            return result;
         },
         'Failed to take colonists',
     );
@@ -661,23 +626,21 @@ export async function serveTakeColonists(
 export async function serveLeaveColonists(
     playerId: number,
     data: CommandRequest<'LeaveColonists'>,
-): Promise<void> {
+): Promise<CommandResult<'LeaveColonists'>> {
     const { quantity, commodity } = data;
     const player = onlinePlayers[playerId];
     if (!player) return;
 
-    const col = parseColonistCommodity(playerId, commodity);
-    if (!col) return;
+    const col = parseColonistCommodity(commodity);
+    if (isCommandError(col)) return col;
 
     const onPlanetId = await getOnPlanetId(playerId);
     if (!onPlanetId) {
-        sendError(playerId, 'Not on a planet');
-        return;
+        return commandError('Not on a planet');
     }
     const onEarth = player.sector === 1;
 
-    await runMutation(
-        playerId,
+    return runMutation(
         'Leave colonists',
         async (client) => {
             await settlePlanetProduction(onPlanetId, client);
@@ -685,19 +648,16 @@ export async function serveLeaveColonists(
 
             const shipColonists = await getShipColonistsForUpdate(playerId, client);
             if (shipColonists === undefined || shipColonists <= 0) {
-                sendError(playerId, 'No colonists on ship');
-                throw new AbortTransaction();
+                throw abort(commandError('No colonists on ship'));
             }
 
             const capacity = await getPlanetColonistsCapacity(onPlanetId, col, client);
             if (!capacity) {
-                sendError(playerId, 'Planet not found');
-                throw new AbortTransaction();
+                throw abort(commandError('Planet not found'));
             }
             const room = Math.max(0, capacity.max - capacity.current);
             if (room <= 0) {
-                sendError(playerId, `Planet is at max ${col} colonists`);
-                throw new AbortTransaction();
+                throw abort(commandError(`Planet is at max ${col} colonists`));
             }
 
             const requested = quantity === -1 ? shipColonists : quantity;
@@ -711,7 +671,6 @@ export async function serveLeaveColonists(
             const planetRemaining = await getPlanetColonistsRemaining(onPlanetId, col);
             const shipColonistsNow = await getShipColonists(playerId);
             const result = {
-                type: ServerTag.LeaveColonistsResult,
                 quantity: actual,
                 commodity: col,
                 planetColonists: planetRemaining ?? 0,
@@ -719,10 +678,10 @@ export async function serveLeaveColonists(
             };
 
             if (onEarth) {
-                await liftoffWithResult(playerId, result);
-                return;
+                const sectorData = await liftoffSectorData(playerId);
+                return sectorData ? { ...result, ...sectorData } : result;
             }
-            sendEnvelope(playerId, result);
+            return result;
         },
         'Failed to leave colonists',
     );
@@ -731,61 +690,53 @@ export async function serveLeaveColonists(
 export async function serveTakeCommodity(
     playerId: number,
     data: CommandRequest<'TakeCommodity'>,
-): Promise<void> {
+): Promise<CommandResult<'TakeCommodity'>> {
     const { quantity, commodity } = data;
     const player = onlinePlayers[playerId];
     if (!player) return;
 
-    const col = parsePlanetCommodity(playerId, commodity);
-    if (!col) return;
+    const col = parsePlanetCommodity(commodity);
+    if (isCommandError(col)) return col;
 
     const onPlanetId = await getOnPlanetId(playerId);
     if (!onPlanetId) {
-        sendError(playerId, 'Not on a planet');
-        return;
+        return commandError('Not on a planet');
     }
 
-    await runMutation(
-        playerId,
+    return runMutation(
         'Take commodity',
         async (client) => {
             const available = await getPlanetCommodityForUpdate(onPlanetId, col, client);
             if (available === undefined) {
-                sendError(playerId, 'Planet not found');
-                throw new AbortTransaction();
+                throw abort(commandError('Planet not found'));
             }
             const requested = quantity === -1 ? available : quantity;
             const actual = Math.min(requested, available);
             if (actual <= 0) {
-                sendError(playerId, `No ${col} available to take`);
-                throw new AbortTransaction();
+                throw abort(commandError(`No ${col} available to take`));
             }
 
             let take: number;
             if (col === 'drones') {
                 const droneState = await getShipDronesAndMaxForUpdate(playerId, client);
                 if (!droneState) {
-                    sendError(playerId, 'No ship');
-                    throw new AbortTransaction();
+                    throw abort(commandError('No ship'));
                 }
                 const room = Math.max(0, droneState.max_drones - droneState.drones);
                 take = Math.min(actual, room);
                 if (take <= 0) {
-                    sendError(playerId, 'Ship drones at max capacity');
-                    throw new AbortTransaction();
+                    throw abort(commandError('Ship drones at max capacity'));
                 }
             } else {
                 const ship = await getShipHoldsAndCargoForUpdate(playerId, client);
                 if (!ship) {
-                    sendError(playerId, 'No ship');
-                    throw new AbortTransaction();
+                    throw abort(commandError('No ship'));
                 }
                 const used = cargoUsed(ship);
                 const free = ship.holds - used;
                 take = Math.min(actual, free);
                 if (take <= 0) {
-                    sendError(playerId, 'No free holds');
-                    throw new AbortTransaction();
+                    throw abort(commandError('No free holds'));
                 }
             }
 
@@ -797,13 +748,12 @@ export async function serveTakeCommodity(
             const planetRemaining = await getPlanetCommodityRemaining(onPlanetId, col);
             const shipCommodity = await readShipCommodity(playerId, col);
 
-            sendEnvelope(playerId, {
-                type: ServerTag.TakeCommodityResult,
+            return {
                 quantity: toTake,
                 commodity: col,
                 planetCommodity: planetRemaining ?? 0,
                 shipCommodity,
-            });
+            };
         },
         'Failed to take commodity',
     );
@@ -812,37 +762,33 @@ export async function serveTakeCommodity(
 export async function serveLeaveCommodity(
     playerId: number,
     data: CommandRequest<'LeaveCommodity'>,
-): Promise<void> {
+): Promise<CommandResult<'LeaveCommodity'>> {
     const { quantity, commodity } = data;
     const player = onlinePlayers[playerId];
     if (!player) return;
 
-    const col = parsePlanetCommodity(playerId, commodity);
-    if (!col) return;
+    const col = parsePlanetCommodity(commodity);
+    if (isCommandError(col)) return col;
 
     const onPlanetId = await getOnPlanetId(playerId);
     if (!onPlanetId) {
-        sendError(playerId, 'Not on a planet');
-        return;
+        return commandError('Not on a planet');
     }
 
-    await runMutation(
-        playerId,
+    return runMutation(
         'Leave commodity',
         async (client) => {
             let onShip: number;
             if (col === 'drones') {
                 const droneState = await getShipDronesAndMaxForUpdate(playerId, client);
                 if (!droneState) {
-                    sendError(playerId, 'No ship');
-                    throw new AbortTransaction();
+                    throw abort(commandError('No ship'));
                 }
                 onShip = droneState.drones;
             } else {
                 const ship = await getShipHoldsAndCargoForUpdate(playerId, client);
                 if (!ship) {
-                    sendError(playerId, 'No ship');
-                    throw new AbortTransaction();
+                    throw abort(commandError('No ship'));
                 }
                 onShip =
                     col === 'fuel'
@@ -852,19 +798,16 @@ export async function serveLeaveCommodity(
                           : ship.equipment;
             }
             if (onShip <= 0) {
-                sendError(playerId, `No ${col} on ship`);
-                throw new AbortTransaction();
+                throw abort(commandError(`No ${col} on ship`));
             }
 
             const capacity = await getPlanetCommodityCapacity(onPlanetId, col, client);
             if (!capacity) {
-                sendError(playerId, 'Planet not found');
-                throw new AbortTransaction();
+                throw abort(commandError('Planet not found'));
             }
             const room = Math.max(0, capacity.max - capacity.current);
             if (room <= 0) {
-                sendError(playerId, `Planet is at max ${col}`);
-                throw new AbortTransaction();
+                throw abort(commandError(`Planet is at max ${col}`));
             }
             const requested = quantity === -1 ? onShip : quantity;
             const leave = Math.min(requested, onShip, room);
@@ -877,13 +820,12 @@ export async function serveLeaveCommodity(
             const planetRemaining = await getPlanetCommodityRemaining(onPlanetId, col);
             const shipCommodity = await readShipCommodity(playerId, col);
 
-            sendEnvelope(playerId, {
-                type: ServerTag.LeaveCommodityResult,
+            return {
                 quantity: actual,
                 commodity: col,
                 planetCommodity: planetRemaining ?? 0,
                 shipCommodity,
-            });
+            };
         },
         'Failed to leave commodity',
     );
@@ -892,36 +834,30 @@ export async function serveLeaveCommodity(
 export async function serveChangePopulation(
     playerId: number,
     data: CommandRequest<'ChangePopulation'>,
-): Promise<void> {
+): Promise<CommandResult<'ChangePopulation'>> {
     const { quantity, from, to } = data;
     const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (from !== 'fuel' && from !== 'organics' && from !== 'equipment') {
-        sendError(playerId, 'Invalid source production group');
-        return;
+        return commandError('Invalid source production group');
     }
     if (to !== 'fuel' && to !== 'organics' && to !== 'equipment') {
-        sendError(playerId, 'Invalid target production group');
-        return;
+        return commandError('Invalid target production group');
     }
     if (from === to) {
-        sendError(playerId, 'Source and target groups are the same');
-        return;
+        return commandError('Source and target groups are the same');
     }
     if (!Number.isFinite(quantity) || quantity <= 0) {
-        sendError(playerId, 'Invalid quantity');
-        return;
+        return commandError('Invalid quantity');
     }
 
     const onPlanetId = await getOnPlanetId(playerId);
     if (!onPlanetId) {
-        sendError(playerId, 'Not on a planet');
-        return;
+        return commandError('Not on a planet');
     }
 
-    await runMutation(
-        playerId,
+    return runMutation(
         'Change population',
         async (client) => {
             await settlePlanetProduction(onPlanetId, client);
@@ -929,23 +865,19 @@ export async function serveChangePopulation(
 
             const sourceAvail = await getPlanetColonistsForUpdate(onPlanetId, from, client);
             if (sourceAvail === undefined) {
-                sendError(playerId, 'Planet not found');
-                throw new AbortTransaction();
+                throw abort(commandError('Planet not found'));
             }
             if (sourceAvail <= 0) {
-                sendError(playerId, `No colonists in ${from} group`);
-                throw new AbortTransaction();
+                throw abort(commandError(`No colonists in ${from} group`));
             }
 
             const targetCap = await getPlanetColonistsCapacity(onPlanetId, to, client);
             if (!targetCap) {
-                sendError(playerId, 'Planet not found');
-                throw new AbortTransaction();
+                throw abort(commandError('Planet not found'));
             }
             const room = Math.max(0, targetCap.max - targetCap.current);
             if (room <= 0) {
-                sendError(playerId, `Target ${to} group is at max`);
-                throw new AbortTransaction();
+                throw abort(commandError(`Target ${to} group is at max`));
             }
 
             const actual = Math.min(quantity, sourceAvail, room);
@@ -956,14 +888,13 @@ export async function serveChangePopulation(
         async (moved) => {
             const fromCount = (await getPlanetColonistsRemaining(onPlanetId, from)) ?? 0;
             const toCount = (await getPlanetColonistsRemaining(onPlanetId, to)) ?? 0;
-            sendEnvelope(playerId, {
-                type: ServerTag.ChangePopulationResult,
+            return {
                 quantity: moved,
                 from,
                 to,
                 fromCount,
                 toCount,
-            });
+            };
         },
         'Failed to change population',
     );
@@ -982,35 +913,31 @@ async function readShipCommodity(playerId: number, col: PlanetCommodity): Promis
 export async function serveClaimPlanet(
     playerId: number,
     data: CommandRequest<'ClaimPlanet'>,
-): Promise<void> {
+): Promise<CommandResult<'ClaimPlanet'>> {
     const { ownership } = data;
     const player = onlinePlayers[playerId];
     if (!player) return;
 
     const onPlanetId = await getOnPlanetId(playerId);
     if (!onPlanetId) {
-        sendError(playerId, 'Not on a planet.');
-        return;
+        return commandError('Not on a planet.');
     }
 
     const playerClanId = await getPlayerClanId(playerId);
     if (ownership === 'clan' && playerClanId === null) {
-        sendError(playerId, 'You are not in a clan.');
-        return;
+        return commandError('You are not in a clan.');
     }
 
     const previousOwner = await getPlanetOwnership(onPlanetId);
     if (!previousOwner) {
-        sendError(playerId, 'Planet not found.');
-        return;
+        return commandError('Planet not found.');
     }
     const planetName = previousOwner.name;
 
     const claimingClan =
         playerClanId !== null && ownership === 'clan' ? await getClanById(playerClanId) : null;
     if (ownership === 'clan' && !claimingClan) {
-        sendError(playerId, 'Clan not found.');
-        return;
+        return commandError('Clan not found.');
     }
     const newOwner: GameEventOwnedRef = claimingClan
         ? {
@@ -1024,8 +951,7 @@ export async function serveClaimPlanet(
         ? previousOwner.owner_clan_id !== claimingClan.id
         : previousOwner.owner_player_id !== playerId;
 
-    await runMutation(
-        playerId,
+    return runMutation(
         'Claim planet',
         async (client) => {
             if (claimingClan) {
@@ -1049,13 +975,6 @@ export async function serveClaimPlanet(
             return true;
         },
         async () => {
-            sendEnvelope(playerId, {
-                type: ServerTag.ClaimPlanetResult,
-                planetId: onPlanetId,
-                planetName,
-                ownership,
-            });
-
             const { notifyAndMail } = await import('../services/notify.js');
             const body = `${player.name} claimed planet ${planetName} in sector ${previousOwner.sector_number}.`;
             if (
@@ -1084,19 +1003,19 @@ export async function serveClaimPlanet(
                     });
                 }
             }
+            return { planetId: onPlanetId, planetName, ownership };
         },
         'Failed to claim planet.',
     );
 }
 
-export async function serveListPlanets(playerId: number): Promise<void> {
+export async function serveListPlanets(playerId: number): Promise<CommandResult<'ListPlanets'>> {
     const player = onlinePlayers[playerId];
     if (!player) return;
 
     const rows = await listPlayerPlanets(playerId, player.universeId);
 
-    sendEnvelope(playerId, {
-        type: ServerTag.ListPlanetsResult,
+    return {
         planets: rows.map((r) => ({
             id: r.id,
             sectorNumber: r.sector_number,
@@ -1111,5 +1030,5 @@ export async function serveListPlanets(playerId: number): Promise<void> {
             colonists_organics: r.colonists_organics,
             colonists_equipment: r.colonists_equipment,
         })),
-    });
+    };
 }

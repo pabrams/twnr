@@ -19,7 +19,7 @@ const ONE_HOUR_MS = 60 * 60 * 1000;
 
 /** Grant rule must stay in sync with packages/server/scripts/grant-turns.js. */
 export async function runGrantTurns(): Promise<number> {
-    const result = await withTransaction(async (client) => {
+    return withTransaction(async (client) => {
         const universes = await listTurnEnabledUniverses(client);
         let updated = 0;
         for (const u of universes) {
@@ -37,11 +37,10 @@ export async function runGrantTurns(): Promise<number> {
         }
         return updated;
     });
-    return result ?? 0;
 }
 
 export async function runProduceCommodities(): Promise<number> {
-    const result = await withTransaction(async (client) => {
+    return withTransaction(async (client) => {
         const ids = await listPlanetIdsWithColonists(client);
         let updated = 0;
         for (const id of ids) {
@@ -50,11 +49,10 @@ export async function runProduceCommodities(): Promise<number> {
         }
         return updated;
     });
-    return result ?? 0;
 }
 
 export async function runColonistGrowth(): Promise<number> {
-    const result = await withTransaction(async (client) => {
+    return withTransaction(async (client) => {
         const ids = await listPlanetIdsWithColonists(client);
         let updated = 0;
         for (const id of ids) {
@@ -63,11 +61,10 @@ export async function runColonistGrowth(): Promise<number> {
         }
         return updated;
     });
-    return result ?? 0;
 }
 
 export async function runRegeneratePorts(): Promise<number> {
-    const result = await withTransaction(async (client) => {
+    return withTransaction(async (client) => {
         const ids = await listProducingPortIds(client);
         let updated = 0;
         for (const id of ids) {
@@ -76,7 +73,6 @@ export async function runRegeneratePorts(): Promise<number> {
         }
         return updated;
     });
-    return result ?? 0;
 }
 
 export async function runHourlyJobs(): Promise<void> {

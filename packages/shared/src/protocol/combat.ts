@@ -2,9 +2,18 @@
 
 import { z } from 'zod';
 
-import { defineCommand, defineEvent } from './define.js';
+import { defineCommand, defineEvent, outcomes } from './define.js';
 
-import { Ownership, MineTypeSchema, Int, Num, Bool, Str, OwnershipInfoSchema } from './common.js';
+import {
+    Ownership,
+    MineTypeSchema,
+    Int,
+    Num,
+    Bool,
+    Str,
+    OwnershipInfoSchema,
+    SectorDisplayDataSchema,
+} from './common.js';
 
 export const DeployedMineEntrySchema = z.object({
     sectorNumber: Int,
@@ -34,8 +43,6 @@ export const SectorDronesAlert = defineEvent('sectorDronesAlert', {
     intruderName: Str,
 });
 
-export const NoShip = defineEvent('noShip', {});
-
 export const GetAttackTargets = defineCommand('getAttackTargets', {
     request: {},
     reply: {
@@ -62,11 +69,14 @@ export const AttackShip = defineCommand('attackShip', {
 
 export const DeployDronesInfo = defineCommand('deployDronesInfo', {
     request: {},
-    reply: {
-        sectorDrones: Num,
-        shipDrones: Num,
-        shipMaxDrones: Num,
-    },
+    reply: outcomes({
+        ok: {
+            sectorDrones: Num,
+            shipDrones: Num,
+            shipMaxDrones: Num,
+        },
+        noShip: {},
+    }),
 });
 
 export const DeployDrones = defineCommand('deployDrones', {
@@ -74,31 +84,36 @@ export const DeployDrones = defineCommand('deployDrones', {
         quantity: Int,
         ownership: Ownership.optional(),
     },
-    reply: {
-        sectorDrones: Num,
-        shipDrones: Num,
-    },
+    reply: outcomes({
+        ok: {
+            sectorDrones: Num,
+            shipDrones: Num,
+        },
+        noShip: {},
+    }),
 });
 
 export const AttackSectorDrones = defineCommand('attackSectorDrones', {
     request: {
         drones: Int,
     },
-    reply: {
-        victory: Bool,
-        dronesLost: Num,
-        sectorDronesRemaining: Num,
-        shipDrones: Num,
-        expDelta: Num.optional(),
-        repDelta: Num.optional(),
-    },
+    reply: outcomes({
+        ok: {
+            victory: Bool,
+            dronesLost: Num,
+            sectorDronesRemaining: Num,
+            shipDrones: Num,
+            expDelta: Num.optional(),
+            repDelta: Num.optional(),
+        },
+        noShip: {},
+    }),
 });
 
+/** The sector the player retreated into, as a full sector display. */
 export const RetreatFromDrones = defineCommand('retreatFromDrones', {
     request: {},
-    reply: {
-        sector: Int,
-    },
+    reply: SectorDisplayDataSchema,
 });
 
 export const ListDeployedDrones = defineCommand('listDeployedDrones', {

@@ -1,5 +1,4 @@
 import {
-    ServerTag,
     PORT_CLASS_ACTIONS,
     PORT_CONSTRUCTION_COSTS,
     dailyDrainFor,
@@ -11,9 +10,7 @@ import {
 } from '@twnr/shared';
 import type { CommandRequest } from '@twnr/shared';
 import { onlinePlayers } from '../state/players.js';
-import { sendEnvelope, sendError } from '../state/messaging.js';
-import { AbortTransaction } from '../db/index.js';
-import { runMutation } from './run-mutation.js';
+
 import {
     deductCredits,
     adjustReputationAndExperience,
@@ -32,8 +29,11 @@ import {
 import { getPlanetIdsInSectorForUpdate } from '../db/queries/planet.js';
 import { getSectorDbId } from '../db/queries/sector.js';
 import { experienceDeltas, reputationDeltas, scalarDelta } from '../game-config.js';
+import { type CommandResult, commandError, abort, runMutation } from './command.js';
 
-export async function serveConstructPortInfo(playerId: number): Promise<void> {
+export async function serveConstructPortInfo(
+    playerId: number,
+): Promise<CommandResult<'ConstructPortInfo'>> {
     const player = onlinePlayers[playerId];
     if (!player) return;
 
@@ -43,25 +43,20 @@ export async function serveConstructPortInfo(playerId: number): Promise<void> {
         return;
     }
     if (port && (port.class === 0 || port.class === 9)) {
-        sendEnvelope(playerId, {
-            type: ServerTag.ConstructPortInfoResult,
+        return {
             mode: 'hasPort',
-        });
-        return;
+        };
     }
 
     const sectorDbId = await getSectorDbId(player.sector, player.universeId);
     if (sectorDbId === undefined) {
-        sendError(playerId, 'Sector not found');
-        return;
+        return commandError('Sector not found');
     }
     const planetIds = await getPlanetIdsInSectorForUpdate(sectorDbId);
     if (planetIds.length === 0) {
-        sendEnvelope(playerId, {
-            type: ServerTag.ConstructPortInfoResult,
+        return {
             mode: 'noPlanet',
-        });
-        return;
+        };
     }
 
     const existing = await getPortConstructionAtSectorForUpdate(player.sector, player.universeId);
@@ -88,8 +83,7 @@ export async function serveConstructPortInfo(playerId: number): Promise<void> {
             };
         });
 
-    sendEnvelope(playerId, {
-        type: ServerTag.ConstructPortInfoResult,
+    return {
         mode: 'build',
         classes,
         initialProductivity: 100,
@@ -104,7 +98,7 @@ export async function serveConstructPortInfo(playerId: number): Promise<void> {
                   },
               }
             : {}),
-    });
+    };
 }
 
 const MAX_PORT_NAME_LEN = 39;
@@ -112,71 +106,58 @@ const MAX_PORT_NAME_LEN = 39;
 export async function serveBuildPort(
     playerId: number,
     data: CommandRequest<'BuildPort'>,
-): Promise<void> {
+): Promise<CommandResult<'BuildPort'>> {
     const player = onlinePlayers[playerId];
     if (!player) return;
 
     const portClass = data.portClass;
     if (!Number.isInteger(portClass) || portClass < 1 || portClass > 8) {
-        sendEnvelope(playerId, {
-            type: ServerTag.BuildPortResult,
+        return {
             outcome: 'error',
             message: 'Class must be 1-8',
-        });
-        return;
+        };
     }
     const portName = (data.portName ?? '').trim();
     if (portName.length === 0 || portName.length > MAX_PORT_NAME_LEN) {
-        sendEnvelope(playerId, {
-            type: ServerTag.BuildPortResult,
+        return {
             outcome: 'error',
             message: `Port name must be 1-${MAX_PORT_NAME_LEN} characters`,
-        });
-        return;
+        };
     }
 
     const cost = PORT_CONSTRUCTION_COSTS[portClass as PortClass];
 
-    await runMutation(
-        playerId,
+    return runMutation(
         'Build port',
         async (client) => {
             const sectorDbId = await getSectorDbId(player.sector, player.universeId);
             if (sectorDbId === undefined) {
-                sendEnvelope(playerId, {
-                    type: ServerTag.BuildPortResult,
+                throw abort({
                     outcome: 'error',
                     message: 'Sector not found',
                 });
-                throw new AbortTransaction();
             }
 
             const playerRow = await getCreditsAndClanForUpdate(playerId, client);
             if (!playerRow) {
-                sendEnvelope(playerId, {
-                    type: ServerTag.BuildPortResult,
+                throw abort({
                     outcome: 'error',
                     message: 'Player not found',
                 });
-                throw new AbortTransaction();
             }
             if (playerRow.credits < cost.credits) {
-                sendEnvelope(playerId, {
-                    type: ServerTag.BuildPortResult,
+                throw abort({
                     outcome: 'error',
                     message: 'Insufficient credits',
                 });
-                throw new AbortTransaction();
             }
 
             const existingPort = await getPortAtSector(player.sector, player.universeId, client);
             if (existingPort) {
-                sendEnvelope(playerId, {
-                    type: ServerTag.BuildPortResult,
+                throw abort({
                     outcome: 'error',
                     message: 'A port already exists in this sector',
                 });
-                throw new AbortTransaction();
             }
             const existingBuild = await getPortConstructionAtSectorForUpdate(
                 player.sector,
@@ -184,21 +165,17 @@ export async function serveBuildPort(
                 client,
             );
             if (existingBuild) {
-                sendEnvelope(playerId, {
-                    type: ServerTag.BuildPortResult,
+                throw abort({
                     outcome: 'error',
                     message: 'Construction already in progress here',
                 });
-                throw new AbortTransaction();
             }
             const planetIds = await getPlanetIdsInSectorForUpdate(sectorDbId, client);
             if (planetIds.length === 0) {
-                sendEnvelope(playerId, {
-                    type: ServerTag.BuildPortResult,
+                throw abort({
                     outcome: 'error',
                     message: 'A planet is required in this sector to construct a port',
                 });
-                throw new AbortTransaction();
             }
 
             await deductCredits(playerId, cost.credits, client);
@@ -237,26 +214,24 @@ export async function serveBuildPort(
                 reputationGained: rep,
             };
         },
-        (result) =>
-            sendEnvelope(playerId, {
-                type: ServerTag.BuildPortResult,
-                outcome: 'started',
-                ...result,
-            }),
+        (result) => ({
+            outcome: 'started',
+            ...result,
+        }),
     );
 }
 
-export async function serveUpgradePortInfo(playerId: number): Promise<void> {
+export async function serveUpgradePortInfo(
+    playerId: number,
+): Promise<CommandResult<'UpgradePortInfo'>> {
     const player = onlinePlayers[playerId];
     if (!player) return;
 
     const port = await getPortAtSector(player.sector, player.universeId);
     if (!port || port.class === 0 || port.class === 9) {
-        sendEnvelope(playerId, {
-            type: ServerTag.UpgradePortInfoResult,
+        return {
             mode: 'noPort',
-        });
-        return;
+        };
     }
 
     const credits = await getPlayerCredits(playerId);
@@ -295,20 +270,19 @@ export async function serveUpgradePortInfo(playerId: number): Promise<void> {
         commodities[2].currentProd = prod.equ_prod;
     }
 
-    sendEnvelope(playerId, {
-        type: ServerTag.UpgradePortInfoResult,
+    return {
         mode: 'upgrade',
         portName: port.name,
         portClass: port.class,
         credits,
         commodities,
-    });
+    };
 }
 
 export async function serveUpgradePort(
     playerId: number,
     data: CommandRequest<'UpgradePort'>,
-): Promise<void> {
+): Promise<CommandResult<'UpgradePort'>> {
     const player = onlinePlayers[playerId];
     if (!player) return;
 
@@ -317,28 +291,23 @@ export async function serveUpgradePort(
         data.commodity !== 'organics' &&
         data.commodity !== 'equipment'
     ) {
-        sendEnvelope(playerId, {
-            type: ServerTag.UpgradePortResult,
+        return {
             outcome: 'error',
             message: 'Invalid commodity',
-        });
-        return;
+        };
     }
     const units = Number.isInteger(data.units) ? data.units : parseInt(String(data.units), 10);
     if (isNaN(units) || units <= 0) {
-        sendEnvelope(playerId, {
-            type: ServerTag.UpgradePortResult,
+        return {
             outcome: 'error',
             message: 'Units must be > 0',
-        });
-        return;
+        };
     }
 
     const unitCost = upgradeUnitCost(data.commodity);
     const totalCost = units * unitCost;
 
-    await runMutation(
-        playerId,
+    return runMutation(
         'Upgrade port',
         async (client) => {
             const port = await getPortUpgradeInfoForUpdate(
@@ -347,30 +316,24 @@ export async function serveUpgradePort(
                 client,
             );
             if (!port) {
-                sendEnvelope(playerId, {
-                    type: ServerTag.UpgradePortResult,
+                throw abort({
                     outcome: 'error',
                     message: 'No port to upgrade in this sector',
                 });
-                throw new AbortTransaction();
             }
             if (port.class === 0 || port.class === 9) {
-                sendEnvelope(playerId, {
-                    type: ServerTag.UpgradePortResult,
+                throw abort({
                     outcome: 'error',
                     message: 'Cannot upgrade special ports',
                 });
-                throw new AbortTransaction();
             }
 
             const credits = (await getCreditsForUpdate(playerId, client)) ?? 0;
             if (credits < totalCost) {
-                sendEnvelope(playerId, {
-                    type: ServerTag.UpgradePortResult,
+                throw abort({
                     outcome: 'error',
                     message: 'Insufficient credits',
                 });
-                throw new AbortTransaction();
             }
 
             await deductCredits(playerId, totalCost, client);
@@ -403,11 +366,9 @@ export async function serveUpgradePort(
                 newStock,
             };
         },
-        (result) =>
-            sendEnvelope(playerId, {
-                type: ServerTag.UpgradePortResult,
-                outcome: 'upgraded',
-                ...result,
-            }),
+        (result) => ({
+            outcome: 'upgraded',
+            ...result,
+        }),
     );
 }

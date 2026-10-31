@@ -1,17 +1,17 @@
-import { ServerTag } from '@twnr/shared';
 import { onlinePlayers } from '../state/players.js';
-import { sendEnvelope } from '../state/messaging.js';
 import { getVisitedSectors } from '../services/sector-lookup.js';
 import { countSectorsInUniverse } from '../db/queries/sector.js';
+import { type CommandResult } from './command.js';
 
-export async function serveVisitedSectors(playerId: number): Promise<void> {
+export async function serveVisitedSectors(
+    playerId: number,
+): Promise<CommandResult<'VisitedSectors'>> {
     const player = onlinePlayers[playerId];
     if (!player) return;
     const sectors = await getVisitedSectors(playerId);
     const totalSectors = await countSectorsInUniverse(player.universeId);
-    sendEnvelope(playerId, {
-        type: ServerTag.VisitedSectorsResult,
+    return {
         sectors,
         totalSectors,
-    });
+    };
 }

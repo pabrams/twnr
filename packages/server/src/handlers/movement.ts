@@ -1,7 +1,7 @@
 import { ServerTag } from '@twnr/shared';
 import type { CommandRequest } from '@twnr/shared';
 import { onlinePlayers, getPlayerUniverseId } from '../state/players.js';
-import { sendEnvelope, sendError, closeDestroyedSession } from '../state/messaging.js';
+import { sendEnvelope, closeDestroyedSession } from '../state/messaging.js';
 import { broadcastPlayerMoved } from '../services/sector-activity.js';
 import { getGraph } from '../state/graph-cache.js';
 import { getWarpRefs, resolveSectorId } from '../services/sector-lookup.js';
@@ -26,28 +26,28 @@ import {
 } from '../db/queries/tow.js';
 import { combinedTurnsPerWarp } from './tow.js';
 import type { TowedAlong } from '@twnr/shared';
+import { type CommandResult, commandError } from './command.js';
 
-export async function serveMove(playerId: number, data: CommandRequest<'Move'>): Promise<void> {
+export async function serveMove(
+    playerId: number,
+    data: CommandRequest<'Move'>,
+): Promise<CommandResult<'Move'>> {
     const targetSector = data.sector;
     if (!Number.isInteger(targetSector) || targetSector <= 0) {
-        sendEnvelope(playerId, {
-            type: ServerTag.MoveResult,
+        return {
             outcome: 'error',
             message: 'Invalid sector',
-        });
-        return;
+        };
     }
 
     const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (await isInEncounter(playerId)) {
-        sendEnvelope(playerId, {
-            type: ServerTag.MoveResult,
+        return {
             outcome: 'error',
             message: 'Resolve drone encounter first',
-        });
-        return;
+        };
     }
 
     const universeId = player.universeId;
@@ -57,7 +57,7 @@ export async function serveMove(playerId: number, data: CommandRequest<'Move'>):
     ]);
 
     if (!ctx || !ctx.shipId) {
-        sendEnvelope(playerId, { type: ServerTag.MoveResult, outcome: 'noShip' });
+        return { outcome: 'noShip' };
         return;
     }
 
@@ -65,22 +65,18 @@ export async function serveMove(playerId: number, data: CommandRequest<'Move'>):
     const freedFromTow = towerId !== null && towerId !== playerId;
 
     if (player.docked || player.at_starbase) {
-        sendEnvelope(playerId, {
-            type: ServerTag.MoveResult,
+        return {
             outcome: 'error',
             message: 'You must undock before warping',
-        });
-        return;
+        };
     }
 
     const currentSector = player.sector;
     if (!warps[currentSector]?.includes(targetSector)) {
-        sendEnvelope(playerId, {
-            type: ServerTag.MoveResult,
+        return {
             outcome: 'nonAdjacent',
             sector: targetSector,
-        });
-        return;
+        };
     }
 
     const towState = await getTowState(playerId);
@@ -89,12 +85,10 @@ export async function serveMove(playerId: number, data: CommandRequest<'Move'>):
         : ctx.turnsPerWarp;
     const turnResult = await deductTurns(playerId, effectiveTpw, ctx);
     if (!turnResult.allowed) {
-        sendEnvelope(playerId, {
-            type: ServerTag.MoveResult,
+        return {
             outcome: 'error',
             message: 'Insufficient turns',
-        });
-        return;
+        };
     }
 
     const targetSectorId = await resolveSectorId(targetSector, universeId);
@@ -157,13 +151,8 @@ export async function serveMove(playerId: number, data: CommandRequest<'Move'>):
     const mineOutcome = await resolveMinesOnEntry(playerId);
     await refreshSectorObservation(playerId, targetSectorId);
     if (mineOutcome.destroyed) {
-        await sendEnvelope(playerId, {
-            type: ServerTag.MoveResult,
-            outcome: 'destroyed',
-            reason: 'Destroyed by proximity mine',
-        });
         closeDestroyedSession(playerId, 'Ship destroyed');
-        return;
+        return { outcome: 'destroyed', reason: 'Destroyed by proximity mine' };
     }
 
     const sectorData = await buildSectorDisplayData(playerId, targetSector);
@@ -182,18 +171,6 @@ export async function serveMove(playerId: number, data: CommandRequest<'Move'>):
         if (turnResult.turnsUsed) {
             notifyTurnChange(playerId, turnResult.turnsUsed, 'warping');
         }
-        await sendEnvelope(playerId, {
-            type: ServerTag.MoveResult,
-            outcome: 'encounter',
-            ...sectorData,
-            ownerId: sectorData.sectorDrones.ownerId,
-            ownerName,
-            shipDrones,
-            retreatSector: currentSector,
-            turnsUsed: turnResult.turnsUsed,
-            towedAlong,
-            ...(freedFromTow ? ({ freedFromTow: true } as const) : {}),
-        });
 
         const ownerId = sectorData.sectorDrones.ownerId;
         if (ownerId != null) {
@@ -216,44 +193,56 @@ export async function serveMove(playerId: number, data: CommandRequest<'Move'>):
                 `Report Sector ${targetSector}: ${player.name} entered sector.`,
             );
         }
-        return;
+        return {
+            outcome: 'encounter',
+            ...sectorData,
+            ownerId: sectorData.sectorDrones.ownerId,
+            ownerName,
+            shipDrones,
+            retreatSector: currentSector,
+            turnsUsed: turnResult.turnsUsed,
+            towedAlong,
+            ...(freedFromTow ? ({ freedFromTow: true } as const) : {}),
+        };
     }
 
     if (turnResult.turnsUsed) {
         notifyTurnChange(playerId, turnResult.turnsUsed, 'warping');
     }
-    await sendEnvelope(playerId, {
-        type: ServerTag.MoveResult,
+    return {
         outcome: 'success',
         ...sectorData,
         turnsUsed: turnResult.turnsUsed,
         towedAlong,
         ...(freedFromTow ? ({ freedFromTow: true } as const) : {}),
-    });
+    };
 }
 
-export async function serveMoveToPrevious(playerId: number): Promise<void> {
+export async function serveMoveToPrevious(
+    playerId: number,
+): Promise<CommandResult<'MoveToPrevious'>> {
     const prev = await getPreviousSectorNumber(playerId);
-    sendEnvelope(playerId, { type: ServerTag.PreviousSectorResult, sector: prev });
+    return { sector: prev };
 }
 
-export async function serveSectorDisplay(playerId: number): Promise<void> {
+export async function serveSectorDisplay(
+    playerId: number,
+): Promise<CommandResult<'SectorDisplay'>> {
     const player = onlinePlayers[playerId];
     if (!player) return;
 
     const data = await buildSectorDisplayData(playerId);
     if (!data) return;
-    sendEnvelope(playerId, { type: ServerTag.SectorDisplayResult, ...data });
+    return { ...data };
 }
 
 export async function serveWarpsOut(
     playerId: number,
     data: CommandRequest<'WarpsOut'>,
-): Promise<void> {
+): Promise<CommandResult<'WarpsOut'>> {
     const { id } = data;
     if (!Number.isInteger(id) || id <= 0) {
-        sendError(playerId, 'Invalid sector ID');
-        return;
+        return commandError('Invalid sector ID');
     }
 
     const universeId = getPlayerUniverseId(playerId);
@@ -261,22 +250,20 @@ export async function serveWarpsOut(
 
     const sectorDbId = await getSectorDbId(id, universeId);
     if (!sectorDbId) {
-        sendError(playerId, 'Sector not found');
-        return;
+        return commandError('Sector not found');
     }
 
     const warpRefs = await getWarpRefs(playerId, id, universeId);
-    sendEnvelope(playerId, { type: ServerTag.WarpsOutResult, id, warps: warpRefs });
+    return { id, warps: warpRefs };
 }
 
 export async function serveShortestPath(
     playerId: number,
     data: CommandRequest<'ShortestPath'>,
-): Promise<void> {
+): Promise<CommandResult<'ShortestPath'>> {
     const { from, to } = data;
     if (!Number.isInteger(from) || from <= 0 || !Number.isInteger(to) || to <= 0) {
-        sendError(playerId, 'Invalid sector ID');
-        return;
+        return commandError('Invalid sector ID');
     }
 
     const universeId = getPlayerUniverseId(playerId);
@@ -284,18 +271,15 @@ export async function serveShortestPath(
 
     const foundSectors = await findSectorsByNumbers([from, to], universeId);
     if (!foundSectors.has(from) || !foundSectors.has(to)) {
-        sendError(playerId, 'Sector not found');
-        return;
+        return commandError('Sector not found');
     }
 
     if (from === to) {
-        sendEnvelope(playerId, {
-            type: ServerTag.ShortestPathResult,
+        return {
             path: [{ sector: from, visited: true }],
             hops: 0,
             turns: 0,
-        });
-        return;
+        };
     }
 
     const turnsPerWarp = await getShipTurnsPerWarp(playerId);
@@ -313,13 +297,11 @@ export async function serveShortestPath(
                 const finalPath = [...path, neighbor];
                 const visitedSet = await findVisitedSectorsInSet(playerId, universeId, finalPath);
                 const hops = finalPath.length - 1;
-                await sendEnvelope(playerId, {
-                    type: ServerTag.ShortestPathResult,
+                return {
                     path: finalPath.map((s) => ({ sector: s, visited: visitedSet.has(s) })),
                     hops,
                     turns: hops * turnsPerWarp,
-                });
-                return;
+                };
             }
             if (!visited.has(neighbor)) {
                 visited.add(neighbor);
@@ -328,5 +310,5 @@ export async function serveShortestPath(
         }
     }
 
-    sendError(playerId, 'No path found');
+    return commandError('No path found');
 }

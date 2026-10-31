@@ -1,12 +1,11 @@
-import { ServerTag } from '@twnr/shared';
 import type { CommandRequest } from '@twnr/shared';
-import { sendEnvelope, sendError } from '../state/messaging.js';
 import {
     getPendingShipPurchase,
     clearPendingShipPurchase,
 } from '../state/pending-ship-purchases.js';
 import { executeBuyShipNew, executeBuyShipTradein } from './ship-exchange.js';
 import { MAX_SHIP_NAME_LENGTH } from '../services/starting-ship.js';
+import { type CommandResult, commandError } from './command.js';
 
 function validateName(raw: string): { ok: true; name: string } | { ok: false; message: string } {
     const name = raw.trim();
@@ -20,27 +19,24 @@ function validateName(raw: string): { ok: true; name: string } | { ok: false; me
 export async function serveSetShipName(
     playerId: number,
     data: CommandRequest<'SetShipName'>,
-): Promise<void> {
+): Promise<CommandResult<'SetShipName'>> {
     const v = validateName(data.name);
     if (!v.ok) {
-        sendEnvelope(playerId, {
-            type: ServerTag.SetShipNameResult,
+        return {
             outcome: 'invalid',
             message: v.message,
-        });
-        return;
+        };
     }
 
     const pending = getPendingShipPurchase(playerId);
     if (!pending) {
-        sendError(playerId, 'No ship purchase awaiting a name.');
-        return;
+        return commandError('No ship purchase awaiting a name.');
     }
     clearPendingShipPurchase(playerId);
-    sendEnvelope(playerId, { type: ServerTag.SetShipNameResult, outcome: 'ok' });
     if (pending.kind === 'new') {
         await executeBuyShipNew(playerId, pending.targetShipName, v.name);
     } else {
         await executeBuyShipTradein(playerId, pending.targetShipName, v.name);
     }
+    return { outcome: 'ok' };
 }

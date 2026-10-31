@@ -1,12 +1,5 @@
-import { ServerTag } from '@twnr/shared';
-import type {
-    NeighborhoodSector,
-    NeighborhoodWarp,
-    CommandReply,
-    CommandRequest,
-} from '@twnr/shared';
+import type { NeighborhoodSector, NeighborhoodWarp, CommandRequest } from '@twnr/shared';
 import { onlinePlayers } from '../state/players.js';
-import { sendEnvelope } from '../state/messaging.js';
 import { getUniverseTopology } from '../db/queries/universe.js';
 import {
     listVisitedSectorsForUniverse,
@@ -14,6 +7,7 @@ import {
 } from '../db/queries/observations.js';
 import { listSectorObservations } from '../services/sector-observations.js';
 import { listSectorPositions, listWarpEdgesByIds } from '../db/queries/sector.js';
+import { type CommandResult } from './command.js';
 
 const MIN_HALF_EXTENT = 50;
 const MAX_HALF_EXTENT = 1_000_000;
@@ -29,7 +23,7 @@ function clampHalfExtent(raw: number): number {
 export async function serveGetNeighborhood(
     playerId: number,
     data: CommandRequest<'GetNeighborhood'>,
-): Promise<void> {
+): Promise<CommandResult<'GetNeighborhood'>> {
     const { halfWidthWorld, halfHeightWorld, centerXWorld, centerYWorld } = data;
     const player = onlinePlayers[playerId];
     if (!player) return;
@@ -43,15 +37,12 @@ export async function serveGetNeighborhood(
 
     // Random-topology universes have NULL positions — no map to render.
     if (topology === 'random') {
-        const payload: CommandReply<'GetNeighborhood'> = {
-            type: ServerTag.NeighborhoodResult,
+        return {
             topology: 'random',
             current_sector_id: currentSectorId,
             sectors: [],
             warps: [],
         };
-        sendEnvelope(playerId, payload);
-        return;
     }
 
     // TODO: DB-side bbox query would need an index we don't yet have.
@@ -74,15 +65,12 @@ export async function serveGetNeighborhood(
         cx = currentMeta.x;
         cy = currentMeta.y;
     } else {
-        const payload: CommandReply<'GetNeighborhood'> = {
-            type: ServerTag.NeighborhoodResult,
+        return {
             topology: 'proximal',
             current_sector_id: currentSectorId,
             sectors: [],
             warps: [],
         };
-        sendEnvelope(playerId, payload);
-        return;
     }
 
     const visited = await listVisitedSectorsForUniverse(playerId, universeId);
@@ -210,12 +198,10 @@ export async function serveGetNeighborhood(
         });
     }
 
-    const payload: CommandReply<'GetNeighborhood'> = {
-        type: ServerTag.NeighborhoodResult,
+    return {
         topology: 'proximal',
         current_sector_id: currentSectorId,
         sectors,
         warps,
     };
-    sendEnvelope(playerId, payload);
 }

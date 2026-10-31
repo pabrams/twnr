@@ -1,62 +1,58 @@
 import { ServerTag } from '@twnr/shared';
 import type { CommandRequest } from '@twnr/shared';
 import { onlinePlayers, getPlayerUniverseId } from '../state/players.js';
-import { sendEnvelope, sendError } from '../state/messaging.js';
+import { sendEnvelope } from '../state/messaging.js';
 import { findPlayersByNamePrefix } from '../db/queries/player.js';
 import { insertMemo } from '../db/queries/message.js';
+import { type CommandResult, commandError } from './command.js';
 
 const MAX_HAIL_BODY = 2000;
 
 export async function serveHailResolve(
     playerId: number,
     data: CommandRequest<'HailResolve'>,
-): Promise<void> {
+): Promise<CommandResult<'HailResolve'>> {
     const universeId = getPlayerUniverseId(playerId);
     if (universeId === undefined) return;
     const prefix = data.name.trim();
     if (prefix.length === 0) {
-        sendEnvelope(playerId, { type: ServerTag.HailResolveResult, outcome: 'notFound' });
+        return { outcome: 'notFound' };
         return;
     }
     const matches = await findPlayersByNamePrefix(universeId, prefix);
     if (matches.length === 0) {
-        sendEnvelope(playerId, { type: ServerTag.HailResolveResult, outcome: 'notFound' });
+        return { outcome: 'notFound' };
         return;
     }
     if (matches.length > 1) {
-        sendEnvelope(playerId, {
-            type: ServerTag.HailResolveResult,
+        return {
             outcome: 'ambiguous',
             matches: matches.map((m) => m.name),
-        });
-        return;
+        };
     }
     const target = matches[0];
     if (target.id === playerId) {
-        sendEnvelope(playerId, { type: ServerTag.HailResolveResult, outcome: 'self' });
+        return { outcome: 'self' };
         return;
     }
-    sendEnvelope(playerId, {
-        type: ServerTag.HailResolveResult,
+    return {
         outcome: 'found',
         recipientPlayerId: target.id,
         recipientName: target.name,
         online: onlinePlayers[target.id] !== undefined,
-    });
+    };
 }
 
 export async function serveHailSend(
     playerId: number,
     data: CommandRequest<'HailSend'>,
-): Promise<void> {
+): Promise<CommandResult<'HailSend'>> {
     const body = data.body;
     if (typeof body !== 'string' || body.trim().length === 0) {
-        sendError(playerId, 'Empty message.');
-        return;
+        return commandError('Empty message.');
     }
     if (body.length > MAX_HAIL_BODY) {
-        sendError(playerId, `Message too long (max ${MAX_HAIL_BODY}).`);
-        return;
+        return commandError(`Message too long (max ${MAX_HAIL_BODY}).`);
     }
     const sender = onlinePlayers[playerId];
     if (!sender) return;
@@ -67,9 +63,9 @@ export async function serveHailSend(
             senderName: sender.name,
             body,
         });
-        sendEnvelope(playerId, { type: ServerTag.HailSendResult, outcome: 'delivered' });
+        return { outcome: 'delivered' };
         return;
     }
     await insertMemo(data.recipientPlayerId, playerId, null, 'hail', body);
-    sendEnvelope(playerId, { type: ServerTag.HailSendResult, outcome: 'queued' });
+    return { outcome: 'queued' };
 }

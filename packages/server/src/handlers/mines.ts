@@ -1,12 +1,9 @@
-import { ServerTag } from '@twnr/shared';
 import type { CommandRequest } from '@twnr/shared';
 import { onlinePlayers } from '../state/players.js';
-import { sendEnvelope, sendError } from '../state/messaging.js';
 import { isInEncounter } from '../services/encounter.js';
 import { refreshSectorObservation } from '../services/sector-observations.js';
 import { ownershipFrom } from '../services/owner-format.js';
-import { AbortTransaction } from '../db/index.js';
-import { runMutation } from './run-mutation.js';
+
 import { getGraph } from '../state/graph-cache.js';
 import { getSectorDbId } from '../db/queries/sector.js';
 import {
@@ -30,6 +27,7 @@ import {
 } from '../db/queries/mines.js';
 import { getPlayerClanId } from '../db/queries/clan.js';
 import { isFriendlyOwner } from '../services/owner.js';
+import { type CommandResult, commandError, abort, runMutation } from './command.js';
 
 const MINE_TYPE_TO_HARDWARE: Record<MineType, string> = {
     proximity: 'proximity_mine',
@@ -44,21 +42,18 @@ const MINE_TYPE_LABEL: Record<MineType, string> = {
 export async function serveDeployMineInfo(
     playerId: number,
     data: CommandRequest<'DeployMineInfo'>,
-): Promise<void> {
+): Promise<CommandResult<'DeployMineInfo'>> {
     const { mineType } = data;
     if (mineType !== 'proximity' && mineType !== 'seeker') {
-        sendError(playerId, 'Invalid mine type');
-        return;
+        return commandError('Invalid mine type');
     }
     const player = onlinePlayers[playerId];
     if (!player) return;
     if (player.docked || player.at_starbase) {
-        sendError(playerId, 'Cannot deploy mines while docked');
-        return;
+        return commandError('Cannot deploy mines while docked');
     }
     if (await isInEncounter(playerId)) {
-        sendError(playerId, 'Resolve drone encounter first');
-        return;
+        return commandError('Resolve drone encounter first');
     }
 
     const sectorDbId = player.sectorId;
@@ -66,57 +61,49 @@ export async function serveDeployMineInfo(
     const itemName = MINE_TYPE_TO_HARDWARE[mineType];
     const hw = await getHardwareItemByName(itemName);
     if (!hw) {
-        sendError(playerId, 'Mine hardware not configured');
-        return;
+        return commandError('Mine hardware not configured');
     }
 
     const playerClanId = await getPlayerClanId(playerId);
     const existing = await getSectorMine(sectorDbId, mineType);
     if (existing && existing.quantity > 0 && !isFriendlyOwner(existing, playerId, playerClanId)) {
-        sendError(playerId, `Those ${MINE_TYPE_LABEL[mineType]} mines aren't yours`);
-        return;
+        return commandError(`Those ${MINE_TYPE_LABEL[mineType]} mines aren't yours`);
     }
 
     const cap = await getShipHardwareCapacityForUpdate(playerId, hw.id);
     if (!cap) {
-        sendError(playerId, 'Ship not found');
-        return;
+        return commandError('Ship not found');
     }
 
-    sendEnvelope(playerId, {
-        type: ServerTag.DeployMineInfoResult,
+    return {
         mineType,
         sectorMines: existing?.quantity ?? 0,
         shipMines: cap.current_qty,
         shipMaxMines: cap.max_qty,
-    });
+    };
 }
 
 export async function serveDeployMine(
     playerId: number,
     data: CommandRequest<'DeployMine'>,
-): Promise<void> {
+): Promise<CommandResult<'DeployMine'>> {
     const { mineType } = data;
     const target = data.quantity;
     const ownership: 'personal' | 'clan' = data.ownership ?? 'personal';
     if (mineType !== 'proximity' && mineType !== 'seeker') {
-        sendError(playerId, 'Invalid mine type');
-        return;
+        return commandError('Invalid mine type');
     }
     if (!Number.isInteger(target) || target < -1) {
-        sendError(playerId, 'Invalid quantity');
-        return;
+        return commandError('Invalid quantity');
     }
 
     const player = onlinePlayers[playerId];
     if (!player) return;
     if (player.docked || player.at_starbase) {
-        sendError(playerId, 'Cannot deploy mines while docked');
-        return;
+        return commandError('Cannot deploy mines while docked');
     }
     if (await isInEncounter(playerId)) {
-        sendError(playerId, 'Resolve drone encounter first');
-        return;
+        return commandError('Resolve drone encounter first');
     }
 
     const sectorDbId = player.sectorId;
@@ -124,18 +111,15 @@ export async function serveDeployMine(
     const itemName = MINE_TYPE_TO_HARDWARE[mineType];
     const hw = await getHardwareItemByName(itemName);
     if (!hw) {
-        sendError(playerId, 'Mine hardware not configured');
-        return;
+        return commandError('Mine hardware not configured');
     }
 
     const playerClanId = await getPlayerClanId(playerId);
     if (ownership === 'clan' && playerClanId === null) {
-        sendError(playerId, 'You are not in a clan.');
-        return;
+        return commandError('You are not in a clan.');
     }
 
-    await runMutation(
-        playerId,
+    return runMutation(
         'Deploy mine',
         async (client) => {
             const existing = await getSectorMineForUpdate(sectorDbId, mineType, client);
@@ -145,15 +129,15 @@ export async function serveDeployMine(
             if (existing && existing.quantity > 0) {
                 const friendly = isFriendlyOwner(existing, playerId, playerClanId);
                 if (!friendly) {
-                    sendError(playerId, `Those ${MINE_TYPE_LABEL[mineType]} mines aren't yours`);
-                    throw new AbortTransaction();
+                    throw abort(
+                        commandError(`Those ${MINE_TYPE_LABEL[mineType]} mines aren't yours`),
+                    );
                 }
             }
 
             const cap = await getShipHardwareCapacityForUpdate(playerId, hw.id, client);
             if (!cap) {
-                sendError(playerId, 'Ship not found');
-                throw new AbortTransaction();
+                throw abort(commandError('Ship not found'));
             }
 
             const totalAvailable = currentInSector + cap.current_qty;
@@ -164,21 +148,21 @@ export async function serveDeployMine(
 
             if (delta > 0) {
                 if (cap.current_qty < delta) {
-                    sendError(
-                        playerId,
-                        `Only ${cap.current_qty} ${MINE_TYPE_LABEL[mineType]} mines on ship`,
+                    throw abort(
+                        commandError(
+                            `Only ${cap.current_qty} ${MINE_TYPE_LABEL[mineType]} mines on ship`,
+                        ),
                     );
-                    throw new AbortTransaction();
                 }
                 await decrementShipHardwareQuantity(cap.ship_id, hw.id, delta, client);
             } else if (delta < 0) {
                 const pickup = -delta;
                 if (cap.current_qty + pickup > cap.max_qty) {
-                    sendError(
-                        playerId,
-                        `Ship can hold only ${cap.max_qty - cap.current_qty} more ${MINE_TYPE_LABEL[mineType]} mines`,
+                    throw abort(
+                        commandError(
+                            `Ship can hold only ${cap.max_qty - cap.current_qty} more ${MINE_TYPE_LABEL[mineType]} mines`,
+                        ),
                     );
-                    throw new AbortTransaction();
                 }
                 await upsertShipHardwareQuantity(cap.ship_id, hw.id, pickup, client);
             }
@@ -201,23 +185,23 @@ export async function serveDeployMine(
         },
         async (result) => {
             await refreshSectorObservation(playerId, sectorDbId);
-            sendEnvelope(playerId, {
-                type: ServerTag.DeployMineResult,
+            return {
                 mineType,
                 sectorMines: result.sectorMines,
                 shipMines: result.shipMines,
-            });
+            };
         },
     );
 }
 
-export async function serveListDeployedMines(playerId: number): Promise<void> {
+export async function serveListDeployedMines(
+    playerId: number,
+): Promise<CommandResult<'ListDeployedMines'>> {
     const player = onlinePlayers[playerId];
     if (!player) return;
     const rows = await getDeployedMinesByOwner(playerId);
     const { formatOwner, ownershipFrom } = await import('../services/owner-format.js');
-    sendEnvelope(playerId, {
-        type: ServerTag.ListDeployedMinesResult,
+    return {
         mines: rows.map((r) => ({
             sectorNumber: r.sector_number,
             mineType: r.mine_type,
@@ -225,15 +209,16 @@ export async function serveListDeployedMines(playerId: number): Promise<void> {
             ownerLabel: formatOwner(r),
             ownership: ownershipFrom(r),
         })),
-    });
+    };
 }
 
-export async function serveTrackSeekerMines(playerId: number): Promise<void> {
+export async function serveTrackSeekerMines(
+    playerId: number,
+): Promise<CommandResult<'TrackSeekerMines'>> {
     const player = onlinePlayers[playerId];
     if (!player) return;
     const rows = await getSeekerAttachmentsByOwner(playerId);
-    sendEnvelope(playerId, {
-        type: ServerTag.TrackSeekerMinesResult,
+    return {
         targets: rows.map((r) => ({
             targetShipId: r.target_ship_id,
             targetShipName: r.target_ship_type_name,
@@ -241,45 +226,39 @@ export async function serveTrackSeekerMines(playerId: number): Promise<void> {
             sectorNumber: r.sector_number,
             ownership: ownershipFrom(r),
         })),
-    });
+    };
 }
 
 export async function serveMineDisruptor(
     playerId: number,
     data: CommandRequest<'MineDisruptor'>,
-): Promise<void> {
+): Promise<CommandResult<'MineDisruptor'>> {
     const { targetSector } = data;
     if (!Number.isInteger(targetSector) || targetSector <= 0) {
-        sendError(playerId, 'Invalid target sector');
-        return;
+        return commandError('Invalid target sector');
     }
     const player = onlinePlayers[playerId];
     if (!player) return;
     if (player.docked || player.at_starbase) {
-        sendError(playerId, 'Cannot fire disruptor while docked');
-        return;
+        return commandError('Cannot fire disruptor while docked');
     }
     if (await isInEncounter(playerId)) {
-        sendError(playerId, 'Resolve drone encounter first');
-        return;
+        return commandError('Resolve drone encounter first');
     }
 
     const warps = await getGraph(player.universeId);
     if (!warps[player.sector]?.includes(targetSector)) {
-        sendError(playerId, 'Target sector is not adjacent');
-        return;
+        return commandError('Target sector is not adjacent');
     }
 
     const targetSectorDbId = await getSectorDbId(targetSector, player.universeId);
     if (!targetSectorDbId) {
-        sendError(playerId, 'Sector not found');
-        return;
+        return commandError('Sector not found');
     }
 
     const have = await getShipHardwareQuantityByName(playerId, 'mine_disruptor');
     if (have <= 0) {
-        sendError(playerId, 'No mine disruptors on ship');
-        return;
+        return commandError('No mine disruptors on ship');
     }
 
     const settings = await getMineUniverseSettings(player.universeId);
@@ -287,8 +266,7 @@ export async function serveMineDisruptor(
     const hi = Math.max(lo, settings.mine_disruptor_max);
     const removeTarget = lo + Math.floor(Math.random() * (hi - lo + 1));
 
-    await runMutation(
-        playerId,
+    return runMutation(
         'Mine disruptor',
         async (client) => {
             const mineRow = await getSectorMineForUpdate(targetSectorDbId, 'proximity', client);
@@ -310,12 +288,11 @@ export async function serveMineDisruptor(
         },
         async (result) => {
             await refreshSectorObservation(playerId, targetSectorDbId);
-            sendEnvelope(playerId, {
-                type: ServerTag.MineDisruptorResult,
+            return {
                 targetSector,
                 minesDisrupted: result.removed,
                 proximityMinesRemaining: result.remaining,
-            });
+            };
         },
     );
 }

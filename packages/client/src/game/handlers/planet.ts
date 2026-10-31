@@ -2,12 +2,18 @@ import { Menu } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { EVENT, PLANET } from '../messages/index.js';
-import { type DisplayCtx } from '../display.js';
+import { showSectorDisplay, type DisplayCtx } from '../display.js';
 import { showEarthMenu, type DisplayPlanetCtx } from '../display-planet.js';
 import { type DisplayStarbaseCtx } from '../display-starbase.js';
 import { type DisplayComputerCtx } from '../display-computer.js';
 import type { Handler } from './index.js';
-import { fmt, fmtCompact, renderAttributeChange, type RefreshMinimapCtx } from './utils.js';
+import {
+    fmt,
+    fmtCompact,
+    refreshMinimap,
+    renderAttributeChange,
+    type RefreshMinimapCtx,
+} from './utils.js';
 import { padStartVisible } from '../display-utils.js';
 
 type PlanetDisplayMsg = {
@@ -324,6 +330,9 @@ export const destroyPlanet: Handler<'destroyPlanetResult', PlanetContext> = (ctx
         ctx.world.mode = Menu.Sector;
         ctx.io.term.writeln(render(EVENT.planetDestroyed, { name: msg.planetName }));
         renderAttributeChange(ctx, msg.expDelta ?? 0, msg.repDelta ?? 0, 'destroying a planet');
+        ctx.world.sectorPlayers = msg.players;
+        showSectorDisplay(ctx, msg);
+        refreshMinimap(ctx);
     }
 };
 

@@ -2,8 +2,7 @@ import { ServerTag } from '@twnr/shared';
 import type { TowableMannedEntry, TowableUnmannedEntry, CommandRequest } from '@twnr/shared';
 import { onlinePlayers } from '../state/players.js';
 import { sendEnvelope } from '../state/messaging.js';
-import { AbortTransaction } from '../db/index.js';
-import { runMutation } from './run-mutation.js';
+
 import {
     getMannedTowables,
     getUnmannedTowables,
@@ -14,24 +13,25 @@ import {
 } from '../db/queries/tow.js';
 import { getShipTurnsPerWarp } from '../db/queries/ship.js';
 import { getPlayerClanId } from '../db/queries/clan.js';
+import { type CommandResult, abort, runMutation } from './command.js';
 
 export function combinedTurnsPerWarp(selfTpw: number, towedTpw: number): number {
     return selfTpw + 2 * towedTpw;
 }
 
-export async function serveTowSpacecraft(playerId: number): Promise<void> {
+export async function serveTowSpacecraft(
+    playerId: number,
+): Promise<CommandResult<'TowSpacecraft'>> {
     const player = onlinePlayers[playerId];
     if (!player) return;
 
     const state = await getTowState(playerId);
     if (state) {
         await clearTowedShip(playerId);
-        sendEnvelope(playerId, {
-            type: ServerTag.TowSpacecraftResult,
+        return {
             outcome: 'disengaged',
             message: 'You shut off your Tractor Beam.',
-        });
-        return;
+        };
     }
 
     const clanId = await getPlayerClanId(playerId);
@@ -81,62 +81,54 @@ export async function serveTowSpacecraft(playerId: number): Promise<void> {
     });
 
     if (mannedEntries.length === 0 && unmannedEntries.length === 0) {
-        sendEnvelope(playerId, { type: ServerTag.TowSpacecraftResult, outcome: 'none' });
+        return { outcome: 'none' };
         return;
     }
 
-    sendEnvelope(playerId, {
-        type: ServerTag.TowSpacecraftResult,
+    return {
         outcome: 'options',
         sector: player.sector,
         manned: mannedEntries,
         unmanned: unmannedEntries,
-    });
+    };
 }
 
 export async function serveTowAttach(
     playerId: number,
     data: CommandRequest<'TowAttach'>,
-): Promise<void> {
+): Promise<CommandResult<'TowAttach'>> {
     const player = onlinePlayers[playerId];
     if (!player) return;
 
     const clanId = await getPlayerClanId(playerId);
 
-    await runMutation(
-        playerId,
+    return runMutation(
         'tow attach',
         async (client) => {
             const target = await lockTowTarget(data.shipId, client);
             if (!target) {
-                sendEnvelope(playerId, {
-                    type: ServerTag.TowAttachResult,
+                throw abort({
                     outcome: 'error',
                     message: 'That ship is no longer here.',
                 });
-                throw new AbortTransaction();
             }
 
             // Re-verify under lock — a concurrent move could have warped the target away.
             if (target.ship_sector_id !== player.sectorId) {
-                sendEnvelope(playerId, {
-                    type: ServerTag.TowAttachResult,
+                throw abort({
                     outcome: 'error',
                     message: 'That ship is no longer here.',
                 });
-                throw new AbortTransaction();
             }
 
             const isManned = target.pilot_player_id !== null;
 
             if (isManned) {
                 if (target.ship_drones > 0) {
-                    sendEnvelope(playerId, {
-                        type: ServerTag.TowAttachResult,
+                    throw abort({
                         outcome: 'error',
                         message: 'You cannot tow a manned ship that has fighters on it.',
                     });
-                    throw new AbortTransaction();
                 }
             } else {
                 const ownedByPlayer = target.owner_player_id === playerId;
@@ -145,12 +137,10 @@ export async function serveTowAttach(
                     target.owner_clan_id !== null &&
                     target.owner_clan_id === clanId;
                 if (!ownedByPlayer && !ownedByClan) {
-                    sendEnvelope(playerId, {
-                        type: ServerTag.TowAttachResult,
+                    throw abort({
                         outcome: 'error',
                         message: 'You do not own that ship.',
                     });
-                    throw new AbortTransaction();
                 }
             }
 
@@ -173,25 +163,17 @@ export async function serveTowAttach(
             };
         },
         (result) => {
-            sendEnvelope(playerId, {
-                type: ServerTag.TowAttachResult,
-                outcome: 'ok',
-                message: `You lock your Tractor Beam on ${result.targetName}`,
-                turnsPerWarp: result.tpw,
-            });
-
             if (result.pilotPlayerId !== null && onlinePlayers[result.pilotPlayerId]) {
                 sendEnvelope(result.pilotPlayerId, {
                     type: ServerTag.TowAttachedAlert,
                     towingName: player.name,
                 });
             }
+            return {
+                outcome: 'ok' as const,
+                message: `You lock your Tractor Beam on ${result.targetName}`,
+                turnsPerWarp: result.tpw,
+            };
         },
-        () =>
-            sendEnvelope(playerId, {
-                type: ServerTag.TowAttachResult,
-                outcome: 'error',
-                message: 'Internal server error.',
-            }),
     );
 }

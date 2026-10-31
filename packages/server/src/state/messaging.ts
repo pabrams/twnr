@@ -19,11 +19,13 @@ export function sendError(playerId: number, message: string): void {
     player.ws.send(frame({ type: ServerTag.Error, message }));
 }
 
-/** Call only after the destruction payload has been sent. */
+/** Deferred a tick so a reply the current handler returns still reaches the player before the socket closes. */
 export function closeDestroyedSession(playerId: number, reason: string): void {
-    const player = onlinePlayers[playerId];
-    if (!player || player.ws.readyState !== 1) return;
-    player.ws.close(1008, reason);
+    setImmediate(() => {
+        const player = onlinePlayers[playerId];
+        if (!player || player.ws.readyState !== 1) return;
+        player.ws.close(1008, reason);
+    });
 }
 
 export function broadcastTo(

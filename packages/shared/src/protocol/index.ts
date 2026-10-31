@@ -193,7 +193,6 @@ export const Events = {
     SeekerMinePickupAlert: movement.SeekerMinePickupAlert,
     PlanetDestroyedAlert: planet.PlanetDestroyedAlert,
     SectorDronesAlert: combat.SectorDronesAlert,
-    NoShip: combat.NoShip,
     ShipNameRequired: ship.ShipNameRequired,
     TowReleasedAlert: ship.TowReleasedAlert,
     TowAttachedAlert: ship.TowAttachedAlert,
@@ -225,6 +224,14 @@ export type EventPayload<K extends EventName> = z.infer<E[K]['Schema']>;
 export const ClientTag = Object.fromEntries(
     Object.entries(Commands).map(([key, def]) => [key, def.name]),
 ) as { readonly [K in CommandName]: C[K]['name'] };
+
+/** Registry key of the command whose request carries this wire `type`. */
+export const commandNameByType = new Map<string, CommandName>(
+    (Object.entries(Commands) as [CommandName, C[CommandName]][]).map(([key, def]) => [
+        def.name,
+        key,
+    ]),
+);
 
 /** Wire `type` of each reply (keyed `Capitalize<replyTag>`) and event (keyed by event name). */
 export const ServerTag = {

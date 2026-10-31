@@ -1,16 +1,14 @@
-import { ServerTag } from '@twnr/shared';
-import { sendEnvelope } from '../state/messaging.js';
 import {
     getAllMailForPlayer,
     getMailSince,
     deleteAllMailForPlayer,
     getPlayerLastLogoutAt,
 } from '../db/queries/message.js';
+import { type CommandResult } from './command.js';
 
-export async function serveReadMail(playerId: number): Promise<void> {
+export async function serveReadMail(playerId: number): Promise<CommandResult<'ReadMail'>> {
     const rows = await getAllMailForPlayer(playerId);
-    sendEnvelope(playerId, {
-        type: ServerTag.MemoDelivery,
+    return {
         reason: 'read',
         memos: rows.map((m) => ({
             id: m.id,
@@ -19,18 +17,21 @@ export async function serveReadMail(playerId: number): Promise<void> {
             body: m.body,
             createdAt: m.created_at.toISOString(),
         })),
-    });
+    };
 }
 
-export async function serveDeleteAllMail(playerId: number): Promise<void> {
+export async function serveDeleteAllMail(
+    playerId: number,
+): Promise<CommandResult<'DeleteAllMail'>> {
     await deleteAllMailForPlayer(playerId);
 }
 
-export async function serveCheckMailSinceLastLogout(playerId: number): Promise<void> {
+export async function serveCheckMailSinceLastLogout(
+    playerId: number,
+): Promise<CommandResult<'CheckMailSinceLastLogout'>> {
     const lastLogout = await getPlayerLastLogoutAt(playerId);
     const rows = await getMailSince(playerId, lastLogout);
-    sendEnvelope(playerId, {
-        type: ServerTag.MemoDelivery,
+    return {
         reason: 'connect',
         memos: rows.map((m) => ({
             id: m.id,
@@ -39,5 +40,5 @@ export async function serveCheckMailSinceLastLogout(playerId: number): Promise<v
             body: m.body,
             createdAt: m.created_at.toISOString(),
         })),
-    });
+    };
 }

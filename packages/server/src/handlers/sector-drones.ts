@@ -1,13 +1,12 @@
 import { ServerTag } from '@twnr/shared';
 import type { CommandRequest } from '@twnr/shared';
 import { onlinePlayers } from '../state/players.js';
-import { sendEnvelope, sendError } from '../state/messaging.js';
+import { sendEnvelope } from '../state/messaging.js';
 import { broadcastPlayerMoved } from '../services/sector-activity.js';
 import { getSectorDrones, resolveSectorId } from '../services/sector-lookup.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
 import { isInEncounter } from '../services/encounter.js';
-import { AbortTransaction } from '../db/index.js';
-import { runMutation } from './run-mutation.js';
+
 import {
     adjustReputationAndExperience,
     getPlayerRepExpForUpdate,
@@ -36,84 +35,78 @@ import { refreshSectorObservation } from '../services/sector-observations.js';
 import { getPlayerClanId, getClanMembers, getClanTotalReputation } from '../db/queries/clan.js';
 import { pvfigsAttackerDeltas, pvfigsMatchup } from '../services/combat-rewards.js';
 import { formatOwner, ownershipFrom } from '../services/owner-format.js';
+import { type CommandResult, commandError, abort, runMutation } from './command.js';
 
-export async function serveListDeployedDrones(playerId: number): Promise<void> {
+export async function serveListDeployedDrones(
+    playerId: number,
+): Promise<CommandResult<'ListDeployedDrones'>> {
     const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (player.docked || player.at_starbase) {
-        sendError(playerId, 'Cannot use this command while docked');
-        return;
+        return commandError('Cannot use this command while docked');
     }
 
     const rows = await getDeployedDronesByOwner(playerId);
-    sendEnvelope(playerId, {
-        type: ServerTag.ListDeployedDronesResult,
+    return {
         drones: rows.map((r) => ({
             sectorId: r.sector_id,
             quantity: r.quantity,
             ownerLabel: formatOwner(r),
             ownership: ownershipFrom(r),
         })),
-    });
+    };
 }
 
-export async function serveDeployDronesInfo(playerId: number): Promise<void> {
+export async function serveDeployDronesInfo(
+    playerId: number,
+): Promise<CommandResult<'DeployDronesInfo'>> {
     const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (player.docked) {
-        sendError(playerId, 'Cannot deploy while docked');
-        return;
+        return commandError('Cannot deploy while docked');
     }
 
     if (await isInEncounter(playerId)) {
-        sendError(playerId, 'Resolve drone encounter first');
-        return;
+        return commandError('Resolve drone encounter first');
     }
 
     const shipInfo = await getShipDronesAndMaxInfo(playerId);
-    if (!shipInfo) {
-        sendEnvelope(playerId, { type: ServerTag.NoShip });
-        return;
-    }
+    if (!shipInfo) return { outcome: 'noShip' };
     const sectorDrones = await getSectorDrones(player.sector, player.universeId);
 
     if (sectorDrones && sectorDrones.ownerId !== playerId) {
-        sendError(playerId, 'Sector contains hostile drones');
-        return;
+        return commandError('Sector contains hostile drones');
     }
 
-    await sendEnvelope(playerId, {
-        type: ServerTag.DeployDronesInfoResult,
+    return {
+        outcome: 'ok',
         sectorDrones: sectorDrones?.quantity ?? 0,
         shipDrones: shipInfo.drones,
         shipMaxDrones: shipInfo.max_drones ?? 0,
-    });
+    };
 }
 
 export async function serveDeployDrones(
     playerId: number,
     data: CommandRequest<'DeployDrones'>,
-): Promise<void> {
+): Promise<CommandResult<'DeployDrones'>> {
     let target = data.quantity;
     const ownership: 'personal' | 'clan' = data.ownership ?? 'personal';
     if (!Number.isInteger(target) || target < -1) {
-        sendError(playerId, 'Invalid target quantity');
-        return;
+        return commandError('Invalid target quantity');
     }
 
     const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (player.docked) {
-        sendError(playerId, 'Cannot deploy while docked');
-        return;
+        return commandError('Cannot deploy while docked');
     }
 
     if (await isInEncounter(playerId)) {
-        sendError(playerId, 'Resolve drone encounter first');
-        return;
+        return commandError('Resolve drone encounter first');
     }
 
     const sectorId = player.sector;
@@ -121,25 +114,19 @@ export async function serveDeployDrones(
 
     const playerClanId = await getPlayerClanId(playerId);
     if (ownership === 'clan' && playerClanId === null) {
-        sendError(playerId, 'You are not in a clan.');
-        return;
+        return commandError('You are not in a clan.');
     }
 
     const deploySectorDbId = await getSectorDbId(sectorId, universeId);
     if (!deploySectorDbId) {
-        sendError(playerId, 'Sector not found');
-        return;
+        return commandError('Sector not found');
     }
 
-    await runMutation(
-        playerId,
+    return runMutation(
         'Deploy drones',
         async (client) => {
             const shipInfo = await getShipDronesAndMaxForUpdate(playerId, client);
-            if (!shipInfo) {
-                sendEnvelope(playerId, { type: ServerTag.NoShip });
-                throw new AbortTransaction();
-            }
+            if (!shipInfo) throw abort({ outcome: 'noShip' });
 
             const shipDrones = shipInfo.drones;
             const maxDrones = shipInfo.max_drones ?? 0;
@@ -155,8 +142,7 @@ export async function serveDeployDrones(
                     existing.owner_player_id === playerId ||
                     (playerClanId !== null && existing.owner_clan_id === playerClanId);
                 if (!friendly) {
-                    sendError(playerId, 'Sector contains hostile drones');
-                    throw new AbortTransaction();
+                    throw abort(commandError('Sector contains hostile drones'));
                 }
                 const matchesDeploy =
                     (ownership === 'personal' && existing.owner_player_id === playerId) ||
@@ -173,13 +159,15 @@ export async function serveDeployDrones(
             const delta = target - currentInSector;
 
             if (delta > 0 && delta > shipDrones) {
-                sendError(playerId, `Cannot deploy ${delta} drones; only ${shipDrones} on ship`);
-                throw new AbortTransaction();
+                throw abort(
+                    commandError(`Cannot deploy ${delta} drones; only ${shipDrones} on ship`),
+                );
             }
 
             if (delta < 0 && shipDrones - delta > maxDrones) {
-                sendError(playerId, `Ship can hold only ${maxDrones - shipDrones} more drones`);
-                throw new AbortTransaction();
+                throw abort(
+                    commandError(`Ship can hold only ${maxDrones - shipDrones} more drones`),
+                );
             }
 
             const updatedShipDrones = shipDrones - delta;
@@ -208,11 +196,11 @@ export async function serveDeployDrones(
         },
         async (newShipDrones) => {
             await refreshSectorObservation(playerId, deploySectorDbId);
-            sendEnvelope(playerId, {
-                type: ServerTag.DeployDronesResult,
+            return {
+                outcome: 'ok' as const,
                 sectorDrones: target,
                 shipDrones: newShipDrones,
-            });
+            };
         },
     );
 }
@@ -220,19 +208,17 @@ export async function serveDeployDrones(
 export async function serveAttackSectorDrones(
     playerId: number,
     data: CommandRequest<'AttackSectorDrones'>,
-): Promise<void> {
+): Promise<CommandResult<'AttackSectorDrones'>> {
     const dronesToAttack = data.drones;
     if (!Number.isInteger(dronesToAttack) || dronesToAttack <= 0) {
-        sendError(playerId, 'Invalid number of drones');
-        return;
+        return commandError('Invalid number of drones');
     }
 
     const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (!(await isInEncounter(playerId))) {
-        sendError(playerId, 'No drone encounter pending');
-        return;
+        return commandError('No drone encounter pending');
     }
 
     const sectorId = player.sector;
@@ -240,29 +226,22 @@ export async function serveAttackSectorDrones(
 
     const sectorDbId = await getSectorDbId(sectorId, universeId);
 
-    await runMutation(
-        playerId,
+    return runMutation(
         'Attack sector drones',
         async (client) => {
             const shipDrones = await getShipDronesForUpdate(playerId, client);
-            if (shipDrones === undefined) {
-                sendEnvelope(playerId, { type: ServerTag.NoShip });
-                throw new AbortTransaction();
-            }
+            if (shipDrones === undefined) throw abort({ outcome: 'noShip' });
 
             if (dronesToAttack > shipDrones) {
-                sendError(playerId, `Not enough drones on ship (have ${shipDrones})`);
-                throw new AbortTransaction();
+                throw abort(commandError(`Not enough drones on ship (have ${shipDrones})`));
             }
 
             if (!sectorDbId) {
-                sendError(playerId, 'Sector not found');
-                throw new AbortTransaction();
+                throw abort(commandError('Sector not found'));
             }
             const existing = await getSectorDronesRowForUpdate(sectorDbId, client);
             if (!existing || existing.quantity <= 0) {
-                sendError(playerId, 'No hostile drones in sector');
-                throw new AbortTransaction();
+                throw abort(commandError('No hostile drones in sector'));
             }
 
             const sectorDroneQty = existing.quantity;
@@ -323,16 +302,6 @@ export async function serveAttackSectorDrones(
         async (result) => {
             const { ownerId, k, newShipDrones, newSectorDrones, victory } = result;
 
-            sendEnvelope(playerId, {
-                type: ServerTag.AttackSectorDronesResult,
-                victory,
-                dronesLost: k,
-                sectorDronesRemaining: newSectorDrones,
-                shipDrones: newShipDrones,
-                expDelta: result.expApplied,
-                repDelta: result.repApplied,
-            });
-
             const { insertSystemMemo } = await import('../db/queries/message.js');
             const mailRecipients: number[] = [];
             if (ownerId !== null) {
@@ -384,23 +353,32 @@ export async function serveAttackSectorDrones(
             if (sectorDbId !== undefined && sectorDbId !== null) {
                 await refreshSectorObservation(playerId, sectorDbId);
             }
+            return {
+                outcome: 'ok' as const,
+                victory,
+                dronesLost: k,
+                sectorDronesRemaining: newSectorDrones,
+                shipDrones: newShipDrones,
+                expDelta: result.expApplied,
+                repDelta: result.repApplied,
+            };
         },
     );
 }
 
-export async function serveRetreatFromDrones(playerId: number): Promise<void> {
+export async function serveRetreatFromDrones(
+    playerId: number,
+): Promise<CommandResult<'RetreatFromDrones'>> {
     const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (!(await isInEncounter(playerId))) {
-        sendError(playerId, 'No drone encounter pending');
-        return;
+        return commandError('No drone encounter pending');
     }
 
     const retreatSector = await getPreviousSectorNumber(playerId);
     if (retreatSector === null) {
-        sendError(playerId, 'No previous sector to retreat to');
-        return;
+        return commandError('No previous sector to retreat to');
     }
     const universeId = player.universeId;
     const currentSector = player.sector;
@@ -418,13 +396,5 @@ export async function serveRetreatFromDrones(playerId: number): Promise<void> {
     const mineOutcome = await resolveMinesOnEntry(playerId);
     if (mineOutcome.destroyed) return;
 
-    await sendEnvelope(playerId, {
-        type: ServerTag.RetreatFromDronesResult,
-        sector: retreatSector,
-    });
-
-    const sectorData = await buildSectorDisplayData(playerId, retreatSector);
-    if (sectorData) {
-        sendEnvelope(playerId, { type: ServerTag.SectorDisplayResult, ...sectorData });
-    }
+    return (await buildSectorDisplayData(playerId, retreatSector)) ?? undefined;
 }

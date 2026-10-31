@@ -1,3 +1,4 @@
+import type { ClientEnvelope } from '@twnr/shared';
 import { pool } from '../index.js';
 import type { Queryable } from '../types.js';
 
@@ -35,7 +36,6 @@ export async function getPlayerRepExpForUpdate(
     return res.rows[0] ?? { reputation: 0, experience: 0 };
 }
 
-/** Single statement so concurrent jettisons can't both win the day. */
 export async function markFirstColosJettisonOfDay(
     playerId: number,
     db: Queryable = pool,
@@ -431,16 +431,27 @@ export async function markPlayerLoggedOut(playerId: number, db: Queryable = pool
     await db.query('UPDATE players SET last_logout_at = NOW() WHERE id = $1', [playerId]);
 }
 
+const REDACTED_COMMAND_FIELDS = ['password', 'newPassword'];
+
+function redactCommand(command: ClientEnvelope): Record<string, unknown> {
+    const payload: Record<string, unknown> = { ...command };
+    for (const field of REDACTED_COMMAND_FIELDS) {
+        if (field in payload) payload[field] = '[redacted]';
+    }
+    return payload;
+}
+
 export async function logPlayerCommand(
     playerId: number,
     universeId: number,
-    commandType: string,
-    payload: unknown,
+    command: ClientEnvelope,
+    outcome: string,
     db: Queryable = pool,
 ): Promise<void> {
     await db.query(
-        'INSERT INTO command_log (player_id, universe_id, command_type, payload) VALUES ($1, $2, $3, $4)',
-        [playerId, universeId, commandType, JSON.stringify(payload)],
+        `INSERT INTO command_log (player_id, universe_id, command_type, payload, outcome)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [playerId, universeId, command.type, JSON.stringify(redactCommand(command)), outcome],
     );
 }
 

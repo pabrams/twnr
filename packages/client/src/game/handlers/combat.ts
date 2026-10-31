@@ -79,6 +79,10 @@ export const getAttackTargets: Handler<'getAttackTargetsResult', CombatContext> 
 };
 
 export const deployDrones: Handler<'deployDronesResult', CombatContext> = (ctx, msg) => {
+    if (msg.outcome === 'noShip') {
+        ctx.io.term.writeln(render(EVENT.noShip));
+        return;
+    }
     ctx.io.term.writeln(
         render(EVENT.deployDronesResult, {
             sector: msg.sectorDrones,
@@ -92,6 +96,10 @@ export const attackSectorDrones: Handler<'attackSectorDronesResult', CombatConte
     ctx,
     msg,
 ) => {
+    if (msg.outcome === 'noShip') {
+        ctx.io.term.writeln(render(EVENT.noShip));
+        return;
+    }
     ctx.io.term.writeln('');
     ctx.io.term.writeln(
         render(EVENT.combatLost, {

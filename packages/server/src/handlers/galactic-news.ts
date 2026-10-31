@@ -1,12 +1,12 @@
-import { ServerTag, GameEventSchema, type CommandRequest } from '@twnr/shared';
+import { GameEventSchema, type CommandRequest } from '@twnr/shared';
 import type { GalacticNewsEntry } from '@twnr/shared';
 import { onlinePlayers } from '../state/players.js';
-import { sendEnvelope, sendError } from '../state/messaging.js';
 import {
     getEarliestGalacticNewsAt,
     listGalacticNewsSince,
     type GalacticNewsRow,
 } from '../db/queries/game-events.js';
+import { type CommandResult, commandError } from './command.js';
 
 const NEWS_CHUNK_SIZE = 200;
 
@@ -19,26 +19,26 @@ function toNewsEntry(row: GalacticNewsRow): GalacticNewsEntry | null {
     return { id: row.id, createdAt: row.created_at.toISOString(), event: parsed.data };
 }
 
-export async function serveGalacticNewsRange(playerId: number): Promise<void> {
+export async function serveGalacticNewsRange(
+    playerId: number,
+): Promise<CommandResult<'GalacticNewsRange'>> {
     const player = onlinePlayers[playerId];
     if (!player) return;
     const earliest = await getEarliestGalacticNewsAt(player.universeId);
-    sendEnvelope(playerId, {
-        type: ServerTag.GalacticNewsRangeResult,
+    return {
         earliestCreatedAt: earliest?.toISOString() ?? null,
-    });
+    };
 }
 
 export async function serveReadGalacticNews(
     playerId: number,
     data: CommandRequest<'ReadGalacticNews'>,
-): Promise<void> {
+): Promise<CommandResult<'ReadGalacticNews'>> {
     const player = onlinePlayers[playerId];
     if (!player) return;
     const since = new Date(data.since);
     if (Number.isNaN(since.getTime())) {
-        sendError(playerId, 'Invalid news date');
-        return;
+        return commandError('Invalid news date');
     }
     const rows = await listGalacticNewsSince(
         player.universeId,
@@ -48,9 +48,8 @@ export async function serveReadGalacticNews(
     );
     const hasMore = rows.length > NEWS_CHUNK_SIZE;
     const chunk = hasMore ? rows.slice(0, NEWS_CHUNK_SIZE) : rows;
-    sendEnvelope(playerId, {
-        type: ServerTag.GalacticNewsResult,
+    return {
         entries: chunk.map(toNewsEntry).filter((entry) => entry !== null),
         hasMore,
-    });
+    };
 }

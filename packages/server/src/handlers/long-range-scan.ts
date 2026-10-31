@@ -1,11 +1,11 @@
-import { ServerTag, type DensityScanEntry, type SectorDisplayData } from '@twnr/shared';
+import { type DensityScanEntry, type SectorDisplayData } from '@twnr/shared';
 import { onlinePlayers } from '../state/players.js';
-import { sendEnvelope, sendError } from '../state/messaging.js';
 import { getDensityScanRows, getOutWarpSectorNumbers } from '../db/queries/scan.js';
 import { getShipHardwareQuantityByName } from '../db/queries/hardware.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 import { notifyTurnChange } from '../services/notify.js';
+import { type CommandResult, commandError } from './command.js';
 
 const W_PORT = 100;
 const W_SHIP = 40;
@@ -16,12 +16,11 @@ const W_LIMPET = 2;
 const W_BEACON = 1;
 
 /** Passive — no turn cost. */
-export async function serveDensityScan(playerId: number): Promise<void> {
+export async function serveDensityScan(playerId: number): Promise<CommandResult<'DensityScan'>> {
     const player = onlinePlayers[playerId];
     if (!player) return;
     if (player.docked || player.at_starbase) {
-        sendError(playerId, 'Cannot scan while docked');
-        return;
+        return commandError('Cannot scan while docked');
     }
 
     const [rows, scannerQty] = await Promise.all([
@@ -45,31 +44,27 @@ export async function serveDensityScan(playerId: number): Promise<void> {
         anom: r.limpet_qty > 0,
     }));
 
-    sendEnvelope(playerId, {
-        type: ServerTag.DensityScanResult,
+    return {
         entries,
         hasVisualScanner: scannerQty > 0,
-    });
+    };
 }
 
-export async function serveVisualScan(playerId: number): Promise<void> {
+export async function serveVisualScan(playerId: number): Promise<CommandResult<'VisualScan'>> {
     const player = onlinePlayers[playerId];
     if (!player) return;
     if (player.docked || player.at_starbase) {
-        sendError(playerId, 'Cannot scan while docked');
-        return;
+        return commandError('Cannot scan while docked');
     }
 
     const scannerQty = await getShipHardwareQuantityByName(playerId, 'visual_scanner');
     if (scannerQty <= 0) {
-        sendError(playerId, 'You do not have a visual scanner.');
-        return;
+        return commandError('You do not have a visual scanner.');
     }
 
     const turnResult = await checkAndDeductTurns(playerId, player.universeId, 1);
     if (!turnResult.allowed) {
-        sendError(playerId, 'Insufficient turns');
-        return;
+        return commandError('Insufficient turns');
     }
     if (turnResult.turnsUsed) {
         notifyTurnChange(playerId, turnResult.turnsUsed, 'visual scan');
@@ -82,5 +77,5 @@ export async function serveVisualScan(playerId: number): Promise<void> {
         if (data) sectors.push(data);
     }
 
-    sendEnvelope(playerId, { type: ServerTag.VisualScanResult, sectors });
+    return { sectors };
 }

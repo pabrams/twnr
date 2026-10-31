@@ -2,15 +2,13 @@ import type { PoolClient } from 'pg';
 import { pool } from './pool.js';
 
 export class AbortTransaction extends Error {
-    constructor() {
+    constructor(readonly reply: unknown = undefined) {
         super('AbortTransaction');
         this.name = 'AbortTransaction';
     }
 }
 
-export async function withTransaction<T>(
-    fn: (client: PoolClient) => Promise<T>,
-): Promise<T | undefined> {
+export async function withTransaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
@@ -23,7 +21,6 @@ export async function withTransaction<T>(
         } catch {
             /* ignore */
         }
-        if (err instanceof AbortTransaction) return undefined;
         throw err;
     } finally {
         client.release();

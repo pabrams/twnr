@@ -1,5 +1,11 @@
-import { ClientTag, type ClientEnvelope } from '@twnr/shared';
-import { sendError } from '../state/messaging.js';
+import {
+    ClientTag,
+    Commands,
+    commandNameByType,
+    type ClientEnvelope,
+    type CommandName,
+} from '@twnr/shared';
+import { sendEnvelope, sendError } from '../state/messaging.js';
 import { onlinePlayers } from '../state/players.js';
 import { getPendingShipPurchase } from '../state/pending-ship-purchases.js';
 import { serveSetShipName } from './ship-name.js';
@@ -108,138 +114,138 @@ import {
 } from './clan.js';
 import { serveReleaseBeacon, serveAttackBeacon } from './beacon.js';
 import { serveDensityScan, serveVisualScan } from './long-range-scan.js';
+import { isCommandError, type Handler } from './command.js';
 
-type ClientCommandByType = { [C in ClientEnvelope as C['type']]: C };
-
-export type Handler<K extends ClientEnvelope['type']> = (
-    playerId: number,
-    data: ClientCommandByType[K],
-) => void | Promise<void>;
-
-type HandlerMap = { [K in ClientEnvelope['type']]: Handler<K> };
+type HandlerMap = { [K in CommandName]: Handler<K> };
 
 const handlers: HandlerMap = {
-    [ClientTag.Move]: serveMove,
-    [ClientTag.MoveToPrevious]: serveMoveToPrevious,
-    [ClientTag.SectorDisplay]: serveSectorDisplay,
-    [ClientTag.PlayersOnline]: servePlayersOnline,
-    [ClientTag.WarpsOut]: serveWarpsOut,
-    [ClientTag.ShortestPath]: serveShortestPath,
-    [ClientTag.PortInfo]: servePortInfo,
-    [ClientTag.ShipInfo]: serveShipInfo,
-    [ClientTag.PortTransaction]: servePortTransaction,
-    [ClientTag.BuyDrones]: serveBuyDrones,
-    [ClientTag.BuyShields]: serveBuyShields,
-    [ClientTag.BuyHolds]: serveBuyHolds,
-    [ClientTag.BuyShipTradein]: serveBuyShipTradein,
-    [ClientTag.GetAttackTargets]: serveGetAttackTargets,
-    [ClientTag.StarbaseInfo]: serveStarbaseInfo,
-    [ClientTag.TerraformInfo]: serveTerraformInfo,
-    [ClientTag.HardwareStoreInfo]: serveHardwareStoreInfo,
-    [ClientTag.AttackShip]: serveAttackShip,
-    [ClientTag.Dock]: serveDock,
-    [ClientTag.Undock]: serveUndock,
-    [ClientTag.Jettison]: serveJettison,
-    [ClientTag.GetSectorPlanets]: serveGetSectorPlanets,
-    [ClientTag.LandOnPlanet]: serveLandOnPlanet,
-    [ClientTag.PlanetDisplay]: servePlanetDisplay,
-    [ClientTag.LeavePlanet]: serveLeavePlanet,
-    [ClientTag.DestroyPlanet]: serveDestroyPlanet,
-    [ClientTag.UseTerraformDevice]: serveUseTerraformDevice,
-    [ClientTag.SetTerraformedPlanet]: serveSetTerraformedPlanet,
-    [ClientTag.DockStarbase]: serveDockStarbase,
-    [ClientTag.LeaveStarbase]: serveLeaveStarbase,
-    [ClientTag.BuyHardware]: serveBuyHardware,
-    [ClientTag.TakeColonists]: serveTakeColonists,
-    [ClientTag.LeaveColonists]: serveLeaveColonists,
-    [ClientTag.TakeCommodity]: serveTakeCommodity,
-    [ClientTag.LeaveCommodity]: serveLeaveCommodity,
-    [ClientTag.ChangePopulation]: serveChangePopulation,
-    [ClientTag.ListPlanets]: serveListPlanets,
-    [ClientTag.ListOwnedShips]: serveListOwnedShips,
-    [ClientTag.GetShipDetail]: serveGetShipDetail,
-    [ClientTag.TransportToShip]: serveTransportToShip,
-    [ClientTag.ClanCreate]: serveClanCreate,
-    [ClientTag.ClanJoin]: serveClanJoin,
-    [ClientTag.ClanLeave]: serveClanLeave,
-    [ClientTag.ClanList]: serveClanList,
-    [ClientTag.ClanInfo]: serveClanInfo,
-    [ClientTag.ChangeShipOwnership]: serveChangeShipOwnership,
-    [ClientTag.ClaimPlanet]: serveClaimPlanet,
-    [ClientTag.ClanTransfer]: serveClanTransfer,
-    [ClientTag.ClanMemo]: serveClanMemo,
-    [ClientTag.ClanSetPassword]: serveClanSetPassword,
-    [ClientTag.ClanDropMember]: serveClanDropMember,
-    [ClientTag.ClanmateLocations]: (pid) => serveClanmateLocations(pid),
-    [ClientTag.DeployDronesInfo]: serveDeployDronesInfo,
-    [ClientTag.DeployDrones]: serveDeployDrones,
-    [ClientTag.AttackSectorDrones]: serveAttackSectorDrones,
-    [ClientTag.RetreatFromDrones]: serveRetreatFromDrones,
-    [ClientTag.BuyShipNew]: serveBuyShipNew,
-    [ClientTag.ListDeployedDrones]: serveListDeployedDrones,
-    [ClientTag.HyperspaceJump]: serveHyperspaceJump,
-    [ClientTag.VisitedSectors]: serveVisitedSectors,
-    [ClientTag.DeployMineInfo]: serveDeployMineInfo,
-    [ClientTag.DeployMine]: serveDeployMine,
-    [ClientTag.ListDeployedMines]: serveListDeployedMines,
-    [ClientTag.TrackSeekerMines]: serveTrackSeekerMines,
-    [ClientTag.MineDisruptor]: serveMineDisruptor,
-    [ClientTag.GetNeighborhood]: serveGetNeighborhood,
-    [ClientTag.ReleaseBeacon]: serveReleaseBeacon,
-    [ClientTag.AttackBeacon]: serveAttackBeacon,
-    [ClientTag.DensityScan]: serveDensityScan,
-    [ClientTag.VisualScan]: serveVisualScan,
-    [ClientTag.SetShipName]: serveSetShipName,
-    [ClientTag.TowSpacecraft]: serveTowSpacecraft,
-    [ClientTag.TowAttach]: serveTowAttach,
-    [ClientTag.ReadMail]: serveReadMail,
-    [ClientTag.CheckMailSinceLastLogout]: serveCheckMailSinceLastLogout,
-    [ClientTag.DeleteAllMail]: serveDeleteAllMail,
-    [ClientTag.HailResolve]: serveHailResolve,
-    [ClientTag.HailSend]: serveHailSend,
-    [ClientTag.ConstructPortInfo]: (pid) => serveConstructPortInfo(pid),
-    [ClientTag.BuildPort]: serveBuildPort,
-    [ClientTag.UpgradePortInfo]: (pid) => serveUpgradePortInfo(pid),
-    [ClientTag.UpgradePort]: serveUpgradePort,
-    [ClientTag.HaggleOpen]: serveHaggleOpen,
-    [ClientTag.HaggleCounter]: serveHaggleCounter,
-    [ClientTag.HaggleAccept]: (pid) => serveHaggleAccept(pid),
-    [ClientTag.HaggleQuit]: (pid) => {
-        serveHaggleQuit(pid);
-    },
-    [ClientTag.BaseInfo]: (pid) => serveBaseInfo(pid),
-    [ClientTag.BuildBase]: (pid) => serveBuildBase(pid),
-    [ClientTag.ExitBase]: (pid) => serveExitBase(pid),
-    [ClientTag.TreasuryInfo]: (pid) => serveTreasuryInfo(pid),
-    [ClientTag.TreasuryTransfer]: (pid, data) =>
-        serveTreasuryTransfer(pid, { direction: data.direction, amount: data.amount }),
-    [ClientTag.BwarpInfo]: (pid) => serveBwarpInfo(pid),
-    [ClientTag.BwarpInstall]: (pid) => serveBwarpInstall(pid),
-    [ClientTag.BwarpUpgrade]: (pid) => serveBwarpUpgrade(pid),
-    [ClientTag.BwarpBeam]: (pid, data) =>
-        serveBwarpBeam(pid, { targetSector: data.targetSector, commit: data.commit }),
-    [ClientTag.ShipCatalog]: serveShipCatalog,
-    [ClientTag.PlanetCatalog]: servePlanetCatalog,
-    [ClientTag.HardwareCatalog]: serveHardwareCatalog,
-    [ClientTag.TraderList]: serveTraderList,
-    [ClientTag.GalacticNewsRange]: serveGalacticNewsRange,
-    [ClientTag.ReadGalacticNews]: serveReadGalacticNews,
+    Move: serveMove,
+    MoveToPrevious: serveMoveToPrevious,
+    SectorDisplay: serveSectorDisplay,
+    PlayersOnline: servePlayersOnline,
+    WarpsOut: serveWarpsOut,
+    ShortestPath: serveShortestPath,
+    PortInfo: servePortInfo,
+    ShipInfo: serveShipInfo,
+    PortTransaction: servePortTransaction,
+    BuyDrones: serveBuyDrones,
+    BuyShields: serveBuyShields,
+    BuyHolds: serveBuyHolds,
+    BuyShipTradein: serveBuyShipTradein,
+    GetAttackTargets: serveGetAttackTargets,
+    StarbaseInfo: serveStarbaseInfo,
+    TerraformInfo: serveTerraformInfo,
+    HardwareStoreInfo: serveHardwareStoreInfo,
+    AttackShip: serveAttackShip,
+    Dock: serveDock,
+    Undock: serveUndock,
+    Jettison: serveJettison,
+    GetSectorPlanets: serveGetSectorPlanets,
+    LandOnPlanet: serveLandOnPlanet,
+    PlanetDisplay: servePlanetDisplay,
+    LeavePlanet: serveLeavePlanet,
+    DestroyPlanet: serveDestroyPlanet,
+    UseTerraformDevice: serveUseTerraformDevice,
+    SetTerraformedPlanet: serveSetTerraformedPlanet,
+    DockStarbase: serveDockStarbase,
+    LeaveStarbase: serveLeaveStarbase,
+    BuyHardware: serveBuyHardware,
+    TakeColonists: serveTakeColonists,
+    LeaveColonists: serveLeaveColonists,
+    TakeCommodity: serveTakeCommodity,
+    LeaveCommodity: serveLeaveCommodity,
+    ChangePopulation: serveChangePopulation,
+    ListPlanets: serveListPlanets,
+    ListOwnedShips: serveListOwnedShips,
+    GetShipDetail: serveGetShipDetail,
+    TransportToShip: serveTransportToShip,
+    ClanCreate: serveClanCreate,
+    ClanJoin: serveClanJoin,
+    ClanLeave: serveClanLeave,
+    ClanList: serveClanList,
+    ClanInfo: serveClanInfo,
+    ChangeShipOwnership: serveChangeShipOwnership,
+    ClaimPlanet: serveClaimPlanet,
+    ClanTransfer: serveClanTransfer,
+    ClanMemo: serveClanMemo,
+    ClanSetPassword: serveClanSetPassword,
+    ClanDropMember: serveClanDropMember,
+    ClanmateLocations: serveClanmateLocations,
+    DeployDronesInfo: serveDeployDronesInfo,
+    DeployDrones: serveDeployDrones,
+    AttackSectorDrones: serveAttackSectorDrones,
+    RetreatFromDrones: serveRetreatFromDrones,
+    BuyShipNew: serveBuyShipNew,
+    ListDeployedDrones: serveListDeployedDrones,
+    HyperspaceJump: serveHyperspaceJump,
+    VisitedSectors: serveVisitedSectors,
+    DeployMineInfo: serveDeployMineInfo,
+    DeployMine: serveDeployMine,
+    ListDeployedMines: serveListDeployedMines,
+    TrackSeekerMines: serveTrackSeekerMines,
+    MineDisruptor: serveMineDisruptor,
+    GetNeighborhood: serveGetNeighborhood,
+    ReleaseBeacon: serveReleaseBeacon,
+    AttackBeacon: serveAttackBeacon,
+    DensityScan: serveDensityScan,
+    VisualScan: serveVisualScan,
+    SetShipName: serveSetShipName,
+    TowSpacecraft: serveTowSpacecraft,
+    TowAttach: serveTowAttach,
+    ReadMail: serveReadMail,
+    CheckMailSinceLastLogout: serveCheckMailSinceLastLogout,
+    DeleteAllMail: serveDeleteAllMail,
+    HailResolve: serveHailResolve,
+    HailSend: serveHailSend,
+    ConstructPortInfo: serveConstructPortInfo,
+    BuildPort: serveBuildPort,
+    UpgradePortInfo: serveUpgradePortInfo,
+    UpgradePort: serveUpgradePort,
+    HaggleOpen: serveHaggleOpen,
+    HaggleCounter: serveHaggleCounter,
+    HaggleAccept: serveHaggleAccept,
+    HaggleQuit: serveHaggleQuit,
+    BaseInfo: serveBaseInfo,
+    BuildBase: serveBuildBase,
+    ExitBase: serveExitBase,
+    TreasuryInfo: serveTreasuryInfo,
+    TreasuryTransfer: serveTreasuryTransfer,
+    BwarpInfo: serveBwarpInfo,
+    BwarpInstall: serveBwarpInstall,
+    BwarpUpgrade: serveBwarpUpgrade,
+    BwarpBeam: serveBwarpBeam,
+    ShipCatalog: serveShipCatalog,
+    PlanetCatalog: servePlanetCatalog,
+    HardwareCatalog: serveHardwareCatalog,
+    TraderList: serveTraderList,
+    GalacticNewsRange: serveGalacticNewsRange,
+    ReadGalacticNews: serveReadGalacticNews,
 };
 
-export async function routeMessage(playerId: number, data: ClientEnvelope): Promise<void> {
+/** Dispatches one client command, sends its reply, and returns the outcome recorded in command_log. */
+export async function routeMessage(playerId: number, data: ClientEnvelope): Promise<string> {
     if (data.type !== ClientTag.SetShipName) {
         const needsName =
             onlinePlayers[playerId] !== undefined && getPendingShipPurchase(playerId) !== undefined;
         if (needsName) {
             sendError(playerId, 'Name your ship first.');
-            return;
+            return 'error';
         }
     }
-    const handler = handlers[data.type] as
-        ((pid: number, d: ClientEnvelope) => void | Promise<void>) | undefined;
-    if (!handler) {
+    const name = commandNameByType.get(data.type);
+    if (name === undefined) {
         sendError(playerId, 'Unknown message type');
-        return;
+        return 'error';
     }
-    await handler(playerId, data);
+    const handler = handlers[name] as Handler<CommandName>;
+    const result = await handler(playerId, data as never);
+    if (isCommandError(result)) {
+        sendError(playerId, result.message);
+        return 'error';
+    }
+    const reply = Commands[name].reply;
+    if (reply === null) return 'ok';
+    if (result === undefined) return 'noReply';
+    sendEnvelope(playerId, { type: reply.name, ...result } as never);
+    return 'outcome' in result && typeof result.outcome === 'string' ? result.outcome : 'ok';
 }

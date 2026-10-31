@@ -16,7 +16,6 @@ export function defaultShipName(playerName: string): string {
     return stem === '' ? 'Unnamed ship' : `${stem}${DEFAULT_NAME_SUFFIX}`;
 }
 
-/** Grant the default-named starter ship; returns the new ship id, or null if the universe has no starter configured. */
 export async function grantStartingShip(
     playerId: number,
     universeId: number,
@@ -33,7 +32,7 @@ export async function grantStartingShip(
     if (!startShipType) return null;
 
     const startingDrones = templateDefaults.starting_drones ?? universeConfig.startingDrones;
-    const newShipId = await withTransaction(async (client) => {
+    return withTransaction(async (client) => {
         const shipId = await insertStartingShip(
             playerId,
             universeId,
@@ -59,5 +58,4 @@ export async function grantStartingShip(
         );
         return shipId;
     });
-    return newShipId ?? null;
 }

@@ -113,13 +113,13 @@ export const LeavePlanet = defineCommand('leavePlanet', {
 
 export const DestroyPlanet = defineCommand('destroyPlanet', {
     request: {},
-    reply: {
+    reply: SectorDisplayDataSchema.extend({
         destroyed: Bool,
         planetId: Int,
         planetName: Str,
         expDelta: Num.optional(),
         repDelta: Num.optional(),
-    },
+    }),
 });
 
 export const TerraformInfo = defineCommand('terraformInfo', {

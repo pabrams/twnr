@@ -79,7 +79,7 @@ export function createUniverseRoutes(
                 throw new HttpError(500, 'Starting sector not found');
             }
 
-            let playerId: number | undefined;
+            let playerId: number;
             try {
                 playerId = await withTransaction(async (client) => {
                     const newPlayerId = await insertPlayer(
@@ -107,10 +107,6 @@ export function createUniverseRoutes(
                 }
                 throw err;
             }
-            if (playerId === undefined) {
-                throw new HttpError(500, 'Failed to join universe');
-            }
-
             await markSectorVisited(playerId, startSectorId);
 
             res.status(201).json({ playerId, universeId });

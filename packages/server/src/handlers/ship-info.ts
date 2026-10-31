@@ -1,6 +1,4 @@
-import { ServerTag } from '@twnr/shared';
 import type { CommandRequest } from '@twnr/shared';
-import { sendEnvelope, sendError } from '../state/messaging.js';
 import { onlinePlayers, getPlayerUniverseId } from '../state/players.js';
 import {
     getShipInfo,
@@ -24,18 +22,17 @@ import { checkAndDeductTurns } from '../turn-logic.js';
 import { notifyTurnChange } from '../services/notify.js';
 import { cargoUsed } from './cargo-utils.js';
 import { formatOwner, ownershipFrom } from '../services/owner-format.js';
+import { type CommandResult, commandError } from './command.js';
 
-export async function serveShipInfo(playerId: number): Promise<void> {
+export async function serveShipInfo(playerId: number): Promise<CommandResult<'ShipInfo'>> {
     const row = await getShipInfo(playerId);
     if (!row) {
-        sendError(playerId, 'Ship not found');
-        return;
+        return commandError('Ship not found');
     }
 
     const universeId = getPlayerUniverseId(playerId);
     if (universeId === undefined) {
-        sendError(playerId, 'Player not in a universe.');
-        return;
+        return commandError('Player not in a universe.');
     }
 
     const hwRows = await getShipHardwareQuantities(row.ship_id);
@@ -52,8 +49,7 @@ export async function serveShipInfo(playerId: number): Promise<void> {
     const clan = clanId !== null ? await getClanById(clanId) : null;
 
     const holdsAvailable = row.holds - cargoUsed(row);
-    sendEnvelope(playerId, {
-        type: ServerTag.ShipInfoResult,
+    return {
         playerId,
         shipTypeName: row.ship_type_name,
         coloredShipName: row.ship_display_name,
@@ -76,18 +72,17 @@ export async function serveShipInfo(playerId: number): Promise<void> {
         credits: row.credits,
         clanNumber: clan?.universe_clan_number ?? null,
         clanName: clan?.name ?? null,
-    });
+    };
 }
 
 export async function serveGetShipDetail(
     playerId: number,
     data: CommandRequest<'GetShipDetail'>,
-): Promise<void> {
+): Promise<CommandResult<'GetShipDetail'>> {
     const { shipId } = data;
     const row = await getOwnedShipDetail(shipId, playerId);
     if (!row) {
-        sendError(playerId, 'Ship not found or not owned by you.');
-        return;
+        return commandError('Ship not found or not owned by you.');
     }
 
     const hwRows = await getShipHardwareQuantities(row.id);
@@ -96,16 +91,14 @@ export async function serveGetShipDetail(
     );
     const universeId = getPlayerUniverseId(playerId);
     if (universeId === undefined) {
-        sendError(playerId, 'Player not in a universe.');
-        return;
+        return commandError('Player not in a universe.');
     }
     const hwMaxRows = await getShipTypeHardwareMax(universeId, row.ship_type_slug);
     const hardwareMax: Record<string, number> = Object.fromEntries(
         hwMaxRows.map((r) => [r.name, r.max_quantity]),
     );
 
-    sendEnvelope(playerId, {
-        type: ServerTag.ShipDetailResult,
+    return {
         shipId: row.id,
         shipNumber: row.universe_ship_number,
         typeName: row.type_name,
@@ -125,10 +118,12 @@ export async function serveGetShipDetail(
         ownership: ownershipFrom(row),
         hardware,
         hardwareMax,
-    });
+    };
 }
 
-export async function serveListOwnedShips(playerId: number): Promise<void> {
+export async function serveListOwnedShips(
+    playerId: number,
+): Promise<CommandResult<'ListOwnedShips'>> {
     const player = onlinePlayers[playerId];
     if (!player) return;
 
@@ -151,8 +146,7 @@ export async function serveListOwnedShips(playerId: number): Promise<void> {
     const currentShip = rows.find((r) => r.id === player.shipId) ?? null;
     const viewerClanId = await getPlayerClanId(playerId);
 
-    sendEnvelope(playerId, {
-        type: ServerTag.ListOwnedShipsResult,
+    return {
         currentSector: player.sector,
         currentShipId: player.shipId,
         currentShipTypeName: currentShip?.type_name ?? null,
@@ -174,52 +168,45 @@ export async function serveListOwnedShips(playerId: number): Promise<void> {
             ownerClanId: r.owner_clan_id,
             ownerLabel: formatOwner(r),
         })),
-    });
+    };
 }
 
 export async function serveTransportToShip(
     playerId: number,
     data: CommandRequest<'TransportToShip'>,
-): Promise<void> {
+): Promise<CommandResult<'TransportToShip'>> {
     const { shipId } = data;
     const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (player.docked || player.at_starbase) {
-        sendError(playerId, 'Cannot use the transporter while docked');
-        return;
+        return commandError('Cannot use the transporter while docked');
     }
     if (await getOnPlanetId(playerId)) {
-        sendError(playerId, 'Cannot use the transporter while on a planet');
-        return;
+        return commandError('Cannot use the transporter while on a planet');
     }
 
     const row = await getTransportTargetInfo(playerId, shipId);
     if (!row || row.target_sector_id === null || row.target_sector_number === null) {
-        sendError(playerId, 'Target ship not found');
-        return;
+        return commandError('Target ship not found');
     }
     if (player.shipId === shipId) {
-        sendError(playerId, 'Already on that ship');
-        return;
+        return commandError('Already on that ship');
     }
     const range = row.current_range ?? 0;
 
     const warps = await getGraph(player.universeId);
     const hops = bfsHops(warps, player.sector, row.target_sector_number);
     if (hops === null) {
-        sendError(playerId, 'No path to target ship');
-        return;
+        return commandError('No path to target ship');
     }
     if (hops > range) {
-        sendError(playerId, 'Target ship is out of transporter range');
-        return;
+        return commandError('Target ship is out of transporter range');
     }
 
     const turnResult = await checkAndDeductTurns(playerId, player.universeId, 1);
     if (!turnResult.allowed) {
-        sendError(playerId, 'Insufficient turns');
-        return;
+        return commandError('Insufficient turns');
     }
     if (turnResult.turnsUsed) {
         notifyTurnChange(playerId, turnResult.turnsUsed, 'transporter pad');
@@ -236,25 +223,23 @@ export async function serveTransportToShip(
     player.sectorId = row.target_sector_id;
 
     const turnsRemaining = (await getPlayerTurns(playerId)) ?? 0;
-    sendEnvelope(playerId, {
-        type: ServerTag.TransportToShipResult,
+    return {
         targetShipId: shipId,
         targetSector: row.target_sector_number,
         turnsUsed: turnResult.turnsUsed,
         turnsRemaining,
-    });
+    };
 }
 
 export async function serveChangeShipOwnership(
     playerId: number,
     data: CommandRequest<'ChangeShipOwnership'>,
-): Promise<void> {
+): Promise<CommandResult<'ChangeShipOwnership'>> {
     const { ownership } = data;
     const player = onlinePlayers[playerId];
     if (!player) return;
     if (player.shipId === null) {
-        sendError(playerId, 'No ship.');
-        return;
+        return commandError('No ship.');
     }
 
     const current = await getShipOwnership(player.shipId);
@@ -264,36 +249,30 @@ export async function serveChangeShipOwnership(
 
     if (ownership === 'clan') {
         if (playerClanId === null) {
-            sendError(playerId, 'You are not in a clan.');
-            return;
+            return commandError('You are not in a clan.');
         }
         if (isClanOwned && current?.owner_clan_id === playerClanId) {
-            sendError(playerId, 'Ship is already clan-owned.');
-            return;
+            return commandError('Ship is already clan-owned.');
         }
         await setShipOwnership(player.shipId, null, playerClanId);
     } else {
         if (isPersonal) {
-            sendError(playerId, 'Ship is already personal.');
-            return;
+            return commandError('Ship is already personal.');
         }
         if (playerClanId === null) {
-            sendError(playerId, 'You are not in a clan; nothing to convert.');
-            return;
+            return commandError('You are not in a clan; nothing to convert.');
         }
         const clan = await getClanById(playerClanId);
         if (clan?.leader_id !== playerId) {
-            sendError(playerId, 'Only the clan leader can convert a clan ship to personal.');
-            return;
+            return commandError('Only the clan leader can convert a clan ship to personal.');
         }
         await setShipOwnership(player.shipId, playerId, null);
     }
 
-    sendEnvelope(playerId, {
-        type: ServerTag.ChangeShipOwnershipResult,
+    return {
         shipId: player.shipId,
         ownership,
-    });
+    };
 }
 
 function bfsHops(warps: Record<number, number[]>, from: number, to: number): number | null {

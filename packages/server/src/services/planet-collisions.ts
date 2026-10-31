@@ -47,7 +47,6 @@ function destructionNotice(
     };
 }
 
-/** Deletes both planets; returns the notices to send once the transaction commits. */
 async function resolveCollision(
     collision: DueCollisionRow,
     client: Queryable,
@@ -88,7 +87,6 @@ async function resolveCollision(
         ),
     ];
 
-    // Deleting the planets cascades to the planet_collisions row and lifts anyone off them.
     await deletePlanet(collision.planet_id, client);
     await deletePlanet(collision.colliding_with_id, client);
 
@@ -124,7 +122,6 @@ export async function resolveDuePlanetCollisions(): Promise<number> {
         }
         return pending;
     });
-    if (!notices) return 0;
     for (const notice of notices) {
         await notifyPlanetDestroyed(notice);
     }

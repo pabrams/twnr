@@ -105,6 +105,10 @@ registerRoutine('deploy_drones_info', async (ctx) => {
         ServerTag.DeployDronesInfoResult,
     );
     if (!reply) return;
+    if (reply.outcome === 'noShip') {
+        ctx.io.term.writeln(render(EVENT.noShip));
+        return;
+    }
     const total = reply.shipDrones + reply.sectorDrones;
     const minInSector = Math.max(0, total - reply.shipMaxDrones);
     ctx.io.term.writeln('');

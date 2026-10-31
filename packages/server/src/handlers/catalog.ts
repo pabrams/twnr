@@ -1,11 +1,10 @@
-import { ServerTag } from '@twnr/shared';
 import { onlinePlayers } from '../state/players.js';
-import { sendEnvelope } from '../state/messaging.js';
 import { listUniverseShipTypes } from '../db/queries/ship.js';
 import { listUniversePlanetTypes } from '../db/queries/planet.js';
 import { listHardwareCatalog, listShipTypeHardwareMaxForUniverse } from '../db/queries/hardware.js';
+import { type CommandResult } from './command.js';
 
-export async function serveShipCatalog(playerId: number): Promise<void> {
+export async function serveShipCatalog(playerId: number): Promise<CommandResult<'ShipCatalog'>> {
     const player = onlinePlayers[playerId];
     if (!player) return;
 
@@ -18,8 +17,7 @@ export async function serveShipCatalog(playerId: number): Promise<void> {
         (hwBySlug[h.ship_type_slug] ??= {})[h.name] = h.max_quantity;
     }
 
-    sendEnvelope(playerId, {
-        type: ServerTag.ShipCatalogResult,
+    return {
         ships: shipTypes.map((st) => ({
             name: st.slug,
             displayName: st.display_name,
@@ -49,16 +47,17 @@ export async function serveShipCatalog(playerId: number): Promise<void> {
             notes: st.notes,
             hardware: hwBySlug[st.slug] ?? {},
         })),
-    });
+    };
 }
 
-export async function servePlanetCatalog(playerId: number): Promise<void> {
+export async function servePlanetCatalog(
+    playerId: number,
+): Promise<CommandResult<'PlanetCatalog'>> {
     const player = onlinePlayers[playerId];
     if (!player) return;
 
     const planetTypes = await listUniversePlanetTypes(player.universeId);
-    sendEnvelope(playerId, {
-        type: ServerTag.PlanetCatalogResult,
+    return {
         planets: planetTypes.map((pt) => ({
             slug: pt.slug,
             displayName: pt.display_name,
@@ -80,13 +79,12 @@ export async function servePlanetCatalog(playerId: number): Promise<void> {
             figFactorOrg: pt.fig_factor_org,
             figFactorEqu: pt.fig_factor_equ,
         })),
-    });
+    };
 }
 
-export async function serveHardwareCatalog(playerId: number): Promise<void> {
+export async function serveHardwareCatalog(): Promise<CommandResult<'HardwareCatalog'>> {
     const items = await listHardwareCatalog();
-    sendEnvelope(playerId, {
-        type: ServerTag.HardwareCatalogResult,
+    return {
         items: items.map((i) => ({ name: i.name, label: i.label, kind: i.kind })),
-    });
+    };
 }

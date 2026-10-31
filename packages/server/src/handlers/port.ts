@@ -8,11 +8,10 @@ import {
 import type { CommandRequest } from '@twnr/shared';
 import { broadcastSectorActivity } from '../services/sector-activity.js';
 import { onlinePlayers, getPlayerUniverseId } from '../state/players.js';
-import { sendEnvelope, sendError } from '../state/messaging.js';
+import { sendEnvelope } from '../state/messaging.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
 import { isInEncounter } from '../services/encounter.js';
-import { AbortTransaction } from '../db/index.js';
-import { runMutation } from './run-mutation.js';
+
 import {
     setDocked,
     getCurrentSector,
@@ -41,6 +40,7 @@ import { getTowingPlayerForShip, clearTowedShip } from '../db/queries/tow.js';
 import { getPlayerShipId } from '../db/queries/player.js';
 import { experienceDeltas, scalarDelta } from '../game-config.js';
 import { notifyTurnChange } from '../services/notify.js';
+import { type CommandResult, commandError, abort, runMutation } from './command.js';
 
 const EMPTY_CARGO = { fuel: 0, organics: 0, equipment: 0, colonists: 0 };
 
@@ -96,11 +96,10 @@ function buildPortInfoPayload(
 export async function servePortInfo(
     playerId: number,
     data: CommandRequest<'PortInfo'>,
-): Promise<void> {
+): Promise<CommandResult<'PortInfo'>> {
     const { sectorId } = data;
     if (!Number.isInteger(sectorId) || sectorId <= 0) {
-        sendError(playerId, 'Invalid sector ID');
-        return;
+        return commandError('Invalid sector ID');
     }
 
     const universeId = getPlayerUniverseId(playerId);
@@ -111,25 +110,22 @@ export async function servePortInfo(
         getPlayerExperience(playerId),
     ]);
     if (!p) {
-        sendError(playerId, 'No port in this sector');
-        return;
+        return commandError('No port in this sector');
     }
 
-    sendEnvelope(playerId, buildPortInfoPayload(p, p.sector_id, xp));
+    return buildPortInfoPayload(p, p.sector_id, xp);
 }
 
-export async function serveDock(playerId: number): Promise<void> {
+export async function serveDock(playerId: number): Promise<CommandResult<'Dock'>> {
     const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (player.docked) {
-        sendError(playerId, 'Already docked');
-        return;
+        return commandError('Already docked');
     }
 
     if (await isInEncounter(playerId)) {
-        sendError(playerId, 'Resolve drone encounter first');
-        return;
+        return commandError('Resolve drone encounter first');
     }
 
     const [p, cargo, xp] = await Promise.all([
@@ -138,8 +134,7 @@ export async function serveDock(playerId: number): Promise<void> {
         getPlayerExperience(playerId),
     ]);
     if (!p) {
-        sendError(playerId, 'No port in this sector');
-        return;
+        return commandError('No port in this sector');
     }
 
     player.docked = true;
@@ -170,8 +165,7 @@ export async function serveDock(playerId: number): Promise<void> {
 
     if (p.class === 0) {
         const ship = await getShipInfo(playerId);
-        await sendEnvelope(playerId, {
-            type: ServerTag.DockResult,
+        return {
             docked: true,
             port: portInfoPayload,
             credits,
@@ -190,22 +184,21 @@ export async function serveDock(playerId: number): Promise<void> {
                   }
                 : undefined,
             class0Prices: currentClass0Prices(),
-        });
-        return;
+        };
     }
 
-    await sendEnvelope(playerId, {
-        type: ServerTag.DockResult,
+    return {
         docked: true,
         port: portInfoPayload,
         credits,
         cargo: cargoOut,
         emptyHolds,
         ...(freedFromTow ? ({ freedFromTow: true } as const) : {}),
-    });
+    };
 }
 
-async function undockPlayer(playerId: number): Promise<void> {
+/** Undocks and returns the sector as it looks from space; undefined if the player has gone. */
+async function undockPlayer(playerId: number): Promise<CommandResult<'Undock'>> {
     const player = onlinePlayers[playerId];
     if (!player) return;
     player.docked = false;
@@ -217,27 +210,21 @@ async function undockPlayer(playerId: number): Promise<void> {
     clearHaggleSession(playerId);
     const sectorData = await buildSectorDisplayData(playerId);
     if (!sectorData) return;
-    await sendEnvelope(playerId, {
-        type: ServerTag.UndockResult,
-        outcome: 'success',
-        ...sectorData,
-    });
+    return { outcome: 'success', ...sectorData };
 }
 
-export async function serveUndock(playerId: number): Promise<void> {
+export async function serveUndock(playerId: number): Promise<CommandResult<'Undock'>> {
     const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (!player.docked) {
-        sendEnvelope(playerId, {
-            type: ServerTag.UndockResult,
+        return {
             outcome: 'error',
             message: 'Not docked',
-        });
-        return;
+        };
     }
 
-    await undockPlayer(playerId);
+    return undockPlayer(playerId);
 }
 
 const MAX_COL: Record<Commodity, 'fuel_max' | 'org_max' | 'equ_max'> = {
@@ -254,47 +241,40 @@ const MCIC_COL: Record<Commodity, 'fuel_mcic' | 'org_mcic' | 'equ_mcic'> = {
 export async function servePortTransaction(
     playerId: number,
     data: CommandRequest<'PortTransaction'>,
-): Promise<void> {
+): Promise<CommandResult<'PortTransaction'>> {
     const { good, quantity, action } = data;
     if (good !== 'fuel' && good !== 'organics' && good !== 'equipment') {
-        sendError(playerId, 'Invalid good');
-        return;
+        return commandError('Invalid good');
     }
     const col = good as Commodity;
 
     if (action !== 'buy' && action !== 'sell') {
-        sendError(playerId, 'Invalid action');
-        return;
+        return commandError('Invalid action');
     }
 
     const qty = Number.isInteger(quantity) ? quantity : parseInt(String(quantity), 10);
     if (isNaN(qty) || qty <= 0) {
-        sendError(playerId, 'Invalid quantity');
-        return;
+        return commandError('Invalid quantity');
     }
 
     const player = onlinePlayers[playerId];
     if (!player) return;
     if (!player.docked) {
-        sendError(playerId, 'You must dock at the port to trade');
-        return;
+        return commandError('You must dock at the port to trade');
     }
     const universeId = player.universeId;
 
-    await runMutation(
-        playerId,
+    return runMutation(
         'Trade',
         async (client) => {
             const currentSector = await getCurrentSector(playerId, client);
             if (currentSector === undefined) {
-                sendError(playerId, 'Player not found');
-                throw new AbortTransaction();
+                throw abort(commandError('Player not found'));
             }
 
             const port = await getPortTradeInfoForUpdate(currentSector, universeId, client);
             if (!port) {
-                sendError(playerId, 'No port in this sector');
-                throw new AbortTransaction();
+                throw abort(commandError('No port in this sector'));
             }
 
             const portActions = PORT_CLASS_ACTIONS[port.class];
@@ -303,8 +283,7 @@ export async function servePortTransaction(
                 (action === 'buy' && portActions[col] !== 'S') ||
                 (action === 'sell' && portActions[col] !== 'B')
             ) {
-                sendError(playerId, 'Port does not trade this commodity');
-                throw new AbortTransaction();
+                throw abort(commandError('Port does not trade this commodity'));
             }
 
             // Read xp inside the tx so an earlier trade's xp award affects this trade's pricing.
@@ -318,29 +297,24 @@ export async function servePortTransaction(
 
             const cargo = await getShipCargoWithCreditsForUpdate(playerId, client);
             if (!cargo) {
-                sendError(playerId, 'Player not found');
-                throw new AbortTransaction();
+                throw abort(commandError('Player not found'));
             }
 
             if (action === 'buy') {
                 const turnResult = await checkAndDeductTurns(playerId, universeId, 1, client);
                 if (!turnResult.allowed) {
-                    sendError(playerId, 'Insufficient turns');
-                    throw new AbortTransaction();
+                    throw abort(commandError('Insufficient turns'));
                 }
 
                 const cost = qty * price;
                 if (cargo.credits < cost) {
-                    sendError(playerId, 'Insufficient credits');
-                    throw new AbortTransaction();
+                    throw abort(commandError('Insufficient credits'));
                 }
                 if (stock < qty) {
-                    sendError(playerId, 'Insufficient port inventory');
-                    throw new AbortTransaction();
+                    throw abort(commandError('Insufficient port inventory'));
                 }
                 if (cargoUsed(cargo) + qty > cargo.cargo_limit) {
-                    sendError(playerId, 'Insufficient cargo holds');
-                    throw new AbortTransaction();
+                    throw abort(commandError('Insufficient cargo holds'));
                 }
 
                 await adjustPortCommodity(port.port_id, col, -qty, client);
@@ -364,12 +338,10 @@ export async function servePortTransaction(
             }
 
             if (cargo[col] < qty) {
-                sendError(playerId, 'Insufficient cargo');
-                throw new AbortTransaction();
+                throw abort(commandError('Insufficient cargo'));
             }
             if (stock + qty > max) {
-                sendError(playerId, 'Port cannot buy that many');
-                throw new AbortTransaction();
+                throw abort(commandError('Port cannot buy that many'));
             }
 
             const revenue = qty * price;
@@ -397,32 +369,29 @@ export async function servePortTransaction(
                 notifyTurnChange(playerId, result.turnsUsed, 'trading');
             }
 
-            sendEnvelope(playerId, {
-                type: ServerTag.PortTransactionResult,
+            return {
                 credits: result.credits,
                 cargo: result.cargo,
                 emptyHolds: result.emptyHolds,
                 ...('turnsUsed' in result ? { turnsUsed: result.turnsUsed } : {}),
                 expDelta: xpDelta,
                 repDelta: 0,
-            });
+            };
         },
     );
 }
 
-export async function serveDockStarbase(playerId: number): Promise<void> {
+export async function serveDockStarbase(playerId: number): Promise<CommandResult<'DockStarbase'>> {
     const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (await isInEncounter(playerId)) {
-        sendError(playerId, 'Resolve drone encounter first');
-        return;
+        return commandError('Resolve drone encounter first');
     }
 
     const starbasePort = await getPortAtSector(player.sector, player.universeId);
     if (starbasePort?.class !== 9) {
-        sendError(playerId, 'Starbase not found in this sector');
-        return;
+        return commandError('Starbase not found in this sector');
     }
 
     const wasDocked = player.docked;
@@ -437,8 +406,7 @@ export async function serveDockStarbase(playerId: number): Promise<void> {
         getHardwarePricesForUniverse(player.universeId),
         getShipInfo(playerId),
     ]);
-    await sendEnvelope(playerId, {
-        type: ServerTag.DockStarbaseResult,
+    return {
         prices: priceRows.map((r) => ({ name: r.name, label: r.label, price: r.price })),
         class0Prices: currentClass0Prices(),
         credits: ship?.credits,
@@ -453,16 +421,17 @@ export async function serveDockStarbase(playerId: number): Promise<void> {
                   maxHolds: ship.max_holds,
               }
             : undefined,
-    });
+    };
 }
 
-export async function serveLeaveStarbase(playerId: number): Promise<void> {
+export async function serveLeaveStarbase(
+    playerId: number,
+): Promise<CommandResult<'LeaveStarbase'>> {
     const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (!player.at_starbase) {
-        sendError(playerId, 'Not at Starbase');
-        return;
+        return commandError('Not at Starbase');
     }
 
     player.at_starbase = false;
@@ -475,5 +444,5 @@ export async function serveLeaveStarbase(playerId: number): Promise<void> {
 
     const sectorData = await buildSectorDisplayData(playerId);
     if (!sectorData) return;
-    await sendEnvelope(playerId, { type: ServerTag.LeaveStarbaseResult, ...sectorData });
+    return { ...sectorData };
 }

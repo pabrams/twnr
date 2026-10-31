@@ -1,7 +1,5 @@
-import { ServerTag } from '@twnr/shared';
 import type { CommandRequest } from '@twnr/shared';
 import { onlinePlayers } from '../state/players.js';
-import { sendEnvelope, sendError } from '../state/messaging.js';
 import { getGraph } from '../state/graph-cache.js';
 import { resolveSectorId } from '../services/sector-lookup.js';
 import { getOnPlanetId, moveToSector, markSectorVisited } from '../db/queries/player.js';
@@ -15,55 +13,49 @@ import { checkAndDeductTurns } from '../turn-logic.js';
 import { notifyTurnChange } from '../services/notify.js';
 import { broadcastPlayerMoved } from '../services/sector-activity.js';
 import { resolveMinesOnEntry } from '../services/mine-encounter.js';
+import { type CommandResult, commandError } from './command.js';
 
 export async function serveHyperspaceJump(
     playerId: number,
     data: CommandRequest<'HyperspaceJump'>,
-): Promise<void> {
+): Promise<CommandResult<'HyperspaceJump'>> {
     const { targetSector } = data;
     const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (player.docked || player.at_starbase) {
-        sendError(playerId, 'Cannot use this command while docked');
-        return;
+        return commandError('Cannot use this command while docked');
     }
 
     const onPlanetId = await getOnPlanetId(playerId);
     if (onPlanetId) {
-        sendError(playerId, 'Cannot use this command while on a planet');
-        return;
+        return commandError('Cannot use this command while on a planet');
     }
 
     const shipRow = await getShipHyperspaceInfo(playerId);
     if (!shipRow) {
-        sendError(playerId, 'Ship not found');
-        return;
+        return commandError('Ship not found');
     }
     if (!shipRow.has_hyperspace_1 && !shipRow.has_hyperspace_2) {
-        sendError(playerId, 'Hyperspace drive not equipped');
-        return;
+        return commandError('Hyperspace drive not equipped');
     }
 
     const universeId = player.universeId;
 
     const targetDrones = await getDeployedDronesByOwnerBySector(targetSector, playerId);
     if (targetDrones === 0) {
-        sendError(playerId, 'No signal from drones in target sector');
-        return;
+        return commandError('No signal from drones in target sector');
     }
 
     const warps = await getGraph(universeId);
     const currentSector = player.sector;
 
     if (currentSector === targetSector) {
-        sendEnvelope(playerId, {
-            type: ServerTag.HyperspaceJumpResult,
+        return {
             targetSector,
             fuelUsed: 0,
             turnsUsed: 0,
-        });
-        return;
+        };
     }
 
     const queue: { sector: number; hops: number }[] = [{ sector: currentSector, hops: 0 }];
@@ -88,22 +80,19 @@ export async function serveHyperspaceJump(
     }
 
     if (pathHops < 0) {
-        sendError(playerId, 'No path to target sector');
-        return;
+        return commandError('No path to target sector');
     }
 
     const fuelCost = pathHops * 3;
 
     const shipFuel = await getShipFuel(playerId);
     if (shipFuel === undefined || shipFuel < fuelCost) {
-        sendError(playerId, 'Insufficient fuel for hyperspace jump');
-        return;
+        return commandError('Insufficient fuel for hyperspace jump');
     }
 
     const turnResult = await checkAndDeductTurns(playerId, universeId, shipRow.turns_per_warp);
     if (!turnResult.allowed) {
-        sendError(playerId, 'Insufficient turns');
-        return;
+        return commandError('Insufficient turns');
     }
 
     const targetSectorId = await resolveSectorId(targetSector, universeId);
@@ -120,12 +109,10 @@ export async function serveHyperspaceJump(
     if (turnResult.turnsUsed) {
         notifyTurnChange(playerId, turnResult.turnsUsed, 'hyperspace jump');
     }
-    sendEnvelope(playerId, {
-        type: ServerTag.HyperspaceJumpResult,
+    await resolveMinesOnEntry(playerId);
+    return {
         targetSector,
         fuelUsed: fuelCost,
         turnsUsed: turnResult.turnsUsed,
-    });
-
-    await resolveMinesOnEntry(playerId);
+    };
 }

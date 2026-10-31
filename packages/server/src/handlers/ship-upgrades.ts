@@ -1,9 +1,7 @@
-import { ServerTag, holdCostRange } from '@twnr/shared';
+import { holdCostRange } from '@twnr/shared';
 import type { CommandRequest } from '@twnr/shared';
 import { onlinePlayers, getPlayerUniverseId } from '../state/players.js';
-import { sendEnvelope, sendError } from '../state/messaging.js';
-import { AbortTransaction } from '../db/index.js';
-import { runMutation } from './run-mutation.js';
+
 import { getCurrentSector, deductCredits } from '../db/queries/player.js';
 import {
     getShipUpgradeInfoForUpdate,
@@ -16,6 +14,7 @@ import { class0Prices } from '../game-config.js';
 import { currentClass0Prices } from '../services/class0-prices.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 import { notifyTurnChange } from '../services/notify.js';
+import { type CommandResult, commandError, abort, runMutation } from './command.js';
 
 async function isAtClass0OrStarbase(
     playerId: number,
@@ -32,153 +31,130 @@ async function isAtClass0OrStarbase(
 export async function serveBuyDrones(
     playerId: number,
     data: CommandRequest<'BuyDrones'>,
-): Promise<void> {
+): Promise<CommandResult<'BuyDrones'>> {
     const qty = Number(data.quantity);
     if (!Number.isInteger(qty) || qty <= 0) {
-        sendError(playerId, 'Invalid quantity');
-        return;
+        return commandError('Invalid quantity');
     }
 
     const universeId = getPlayerUniverseId(playerId);
     if (universeId === undefined) return;
 
-    await runMutation(
-        playerId,
+    return runMutation(
         'Buy drones',
         async (client) => {
             if (!(await isAtClass0OrStarbase(playerId, universeId, client))) {
-                sendError(playerId, 'Not at a class 0 port or starbase');
-                throw new AbortTransaction();
+                throw abort(commandError('Not at a class 0 port or starbase'));
             }
 
             const data = await getShipUpgradeInfoForUpdate(playerId, client);
             if (!data) {
-                sendError(playerId, 'Player not found');
-                throw new AbortTransaction();
+                throw abort(commandError('Player not found'));
             }
 
             if (data.drones + qty > data.max_drones) {
-                sendError(playerId, 'Exceeds maximum');
-                throw new AbortTransaction();
+                throw abort(commandError('Exceeds maximum'));
             }
 
             const cost = qty * class0Prices.dronePrice;
             if (data.credits < cost) {
-                sendError(playerId, 'Insufficient credits');
-                throw new AbortTransaction();
+                throw abort(commandError('Insufficient credits'));
             }
 
             await incrementShipDrones(playerId, qty, client);
             await deductCredits(playerId, cost, client);
             return { credits: data.credits - cost, drones: data.drones + qty };
         },
-        (result) =>
-            sendEnvelope(playerId, {
-                type: ServerTag.BuyDronesResult,
-                credits: result.credits,
-                drones: result.drones,
-            }),
+        (result) => ({
+            credits: result.credits,
+            drones: result.drones,
+        }),
     );
 }
 
 export async function serveBuyShields(
     playerId: number,
     data: CommandRequest<'BuyShields'>,
-): Promise<void> {
+): Promise<CommandResult<'BuyShields'>> {
     const { quantity } = data;
     const qty = Number(quantity);
     if (!Number.isInteger(qty) || qty <= 0) {
-        sendError(playerId, 'Invalid quantity');
-        return;
+        return commandError('Invalid quantity');
     }
 
     const universeId = getPlayerUniverseId(playerId);
     if (universeId === undefined) return;
 
-    await runMutation(
-        playerId,
+    return runMutation(
         'Buy shields',
         async (client) => {
             if (!(await isAtClass0OrStarbase(playerId, universeId, client))) {
-                sendError(playerId, 'Not at a class 0 port or starbase');
-                throw new AbortTransaction();
+                throw abort(commandError('Not at a class 0 port or starbase'));
             }
 
             const data = await getShipUpgradeInfoForUpdate(playerId, client);
             if (!data) {
-                sendError(playerId, 'Player not found');
-                throw new AbortTransaction();
+                throw abort(commandError('Player not found'));
             }
 
             if (data.shields + qty > data.max_shields) {
-                sendError(playerId, 'Exceeds maximum');
-                throw new AbortTransaction();
+                throw abort(commandError('Exceeds maximum'));
             }
 
             const cost = qty * class0Prices.shieldPrice;
             if (data.credits < cost) {
-                sendError(playerId, 'Insufficient credits');
-                throw new AbortTransaction();
+                throw abort(commandError('Insufficient credits'));
             }
 
             await incrementShipShields(playerId, qty, client);
             await deductCredits(playerId, cost, client);
             return { credits: data.credits - cost, shields: data.shields + qty };
         },
-        (result) =>
-            sendEnvelope(playerId, {
-                type: ServerTag.BuyShieldsResult,
-                credits: result.credits,
-                shields: result.shields,
-            }),
+        (result) => ({
+            credits: result.credits,
+            shields: result.shields,
+        }),
     );
 }
 
 export async function serveBuyHolds(
     playerId: number,
     data: CommandRequest<'BuyHolds'>,
-): Promise<void> {
+): Promise<CommandResult<'BuyHolds'>> {
     const { quantity } = data;
     const qty = Number(quantity);
     if (!Number.isInteger(qty) || qty <= 0) {
-        sendError(playerId, 'Invalid quantity');
-        return;
+        return commandError('Invalid quantity');
     }
 
     const universeId = getPlayerUniverseId(playerId);
     if (universeId === undefined) return;
 
-    await runMutation(
-        playerId,
+    return runMutation(
         'Buy holds',
         async (client) => {
             if (!(await isAtClass0OrStarbase(playerId, universeId, client))) {
-                sendError(playerId, 'Not at a class 0 port or starbase');
-                throw new AbortTransaction();
+                throw abort(commandError('Not at a class 0 port or starbase'));
             }
 
             const turnResult = await checkAndDeductTurns(playerId, universeId, 1, client);
             if (!turnResult.allowed) {
-                sendError(playerId, 'Insufficient turns');
-                throw new AbortTransaction();
+                throw abort(commandError('Insufficient turns'));
             }
 
             const data = await getShipUpgradeInfoForUpdate(playerId, client);
             if (!data) {
-                sendError(playerId, 'Player not found');
-                throw new AbortTransaction();
+                throw abort(commandError('Player not found'));
             }
 
             if (data.holds + qty > data.max_holds) {
-                sendError(playerId, 'Exceeds maximum');
-                throw new AbortTransaction();
+                throw abort(commandError('Exceeds maximum'));
             }
 
             const { holdBaseCost: baseCost } = currentClass0Prices();
             const cost = holdCostRange(data.holds, data.holds + qty, baseCost);
             if (data.credits < cost) {
-                sendError(playerId, 'Insufficient credits');
-                throw new AbortTransaction();
+                throw abort(commandError('Insufficient credits'));
             }
 
             await incrementShipHolds(playerId, qty, client);
@@ -193,12 +169,11 @@ export async function serveBuyHolds(
             if (result.turnsUsed) {
                 notifyTurnChange(playerId, result.turnsUsed, 'buying cargo holds');
             }
-            sendEnvelope(playerId, {
-                type: ServerTag.BuyHoldsResult,
+            return {
                 credits: result.credits,
                 cargoLimit: result.cargoLimit,
                 turnsUsed: result.turnsUsed,
-            });
+            };
         },
     );
 }
