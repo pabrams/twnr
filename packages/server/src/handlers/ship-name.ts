@@ -1,5 +1,5 @@
 import { ServerTag } from '@twnr/shared';
-import type { SetShipNameCommand } from '@twnr/shared';
+import type { CommandRequest } from '@twnr/shared';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import {
     getPendingShipPurchase,
@@ -17,7 +17,10 @@ function validateName(raw: string): { ok: true; name: string } | { ok: false; me
     return { ok: true, name };
 }
 
-export async function serveSetShipName(playerId: number, data: SetShipNameCommand): Promise<void> {
+export async function serveSetShipName(
+    playerId: number,
+    data: CommandRequest<'SetShipName'>,
+): Promise<void> {
     const v = validateName(data.name);
     if (!v.ok) {
         sendEnvelope(playerId, {

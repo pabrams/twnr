@@ -1,9 +1,9 @@
 import { ServerTag } from '@twnr/shared';
 import type {
-    NeighborhoodReply,
     NeighborhoodSector,
     NeighborhoodWarp,
-    GetNeighborhoodCommand,
+    CommandReply,
+    CommandRequest,
 } from '@twnr/shared';
 import { onlinePlayers } from '../state/players.js';
 import { sendEnvelope } from '../state/messaging.js';
@@ -28,7 +28,7 @@ function clampHalfExtent(raw: number): number {
 
 export async function serveGetNeighborhood(
     playerId: number,
-    data: GetNeighborhoodCommand,
+    data: CommandRequest<'GetNeighborhood'>,
 ): Promise<void> {
     const { halfWidthWorld, halfHeightWorld, centerXWorld, centerYWorld } = data;
     const player = onlinePlayers[playerId];
@@ -43,7 +43,7 @@ export async function serveGetNeighborhood(
 
     // Random-topology universes have NULL positions — no map to render.
     if (topology === 'random') {
-        const payload: NeighborhoodReply = {
+        const payload: CommandReply<'GetNeighborhood'> = {
             type: ServerTag.NeighborhoodResult,
             topology: 'random',
             current_sector_id: currentSectorId,
@@ -74,7 +74,7 @@ export async function serveGetNeighborhood(
         cx = currentMeta.x;
         cy = currentMeta.y;
     } else {
-        const payload: NeighborhoodReply = {
+        const payload: CommandReply<'GetNeighborhood'> = {
             type: ServerTag.NeighborhoodResult,
             topology: 'proximal',
             current_sector_id: currentSectorId,
@@ -210,7 +210,7 @@ export async function serveGetNeighborhood(
         });
     }
 
-    const payload: NeighborhoodReply = {
+    const payload: CommandReply<'GetNeighborhood'> = {
         type: ServerTag.NeighborhoodResult,
         topology: 'proximal',
         current_sector_id: currentSectorId,

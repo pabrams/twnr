@@ -7,7 +7,7 @@ import {
     type PriceCommodity,
     type PortAction,
 } from '@twnr/shared';
-import type { HaggleOpenCommand, HaggleCounterCommand } from '@twnr/shared';
+import type { CommandRequest } from '@twnr/shared';
 import { onlinePlayers } from '../state/players.js';
 import { sendEnvelope } from '../state/messaging.js';
 import { withTransaction, AbortTransaction } from '../db/index.js';
@@ -76,7 +76,10 @@ function getActiveHaggleSession(playerId: number): HaggleSession | null {
     return s;
 }
 
-export async function serveHaggleOpen(playerId: number, data: HaggleOpenCommand): Promise<void> {
+export async function serveHaggleOpen(
+    playerId: number,
+    data: CommandRequest<'HaggleOpen'>,
+): Promise<void> {
     const player = onlinePlayers[playerId];
     if (!player) return;
 
@@ -204,7 +207,7 @@ export async function serveHaggleOpen(playerId: number, data: HaggleOpenCommand)
 
 export async function serveHaggleCounter(
     playerId: number,
-    data: HaggleCounterCommand,
+    data: CommandRequest<'HaggleCounter'>,
 ): Promise<void> {
     const player = onlinePlayers[playerId];
     if (!player) return;

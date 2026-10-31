@@ -1,14 +1,5 @@
 import { ServerTag, ClientTag, type GameEventOwnedRef } from '@twnr/shared';
-import type {
-    LandOnPlanetCommand,
-    TakeColonistsCommand,
-    LeaveColonistsCommand,
-    TakeCommodityCommand,
-    LeaveCommodityCommand,
-    ChangePopulationCommand,
-    ClaimPlanetCommand,
-    SetTerraformedPlanetCommand,
-} from '@twnr/shared';
+import type { CommandRequest } from '@twnr/shared';
 import { onlinePlayers } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
@@ -100,7 +91,7 @@ export async function serveGetSectorPlanets(playerId: number): Promise<void> {
 
 export async function serveLandOnPlanet(
     playerId: number,
-    data: LandOnPlanetCommand,
+    data: CommandRequest<'LandOnPlanet'>,
 ): Promise<void> {
     const { planetId } = data;
     const player = onlinePlayers[playerId];
@@ -497,7 +488,7 @@ export async function serveUseTerraformDevice(playerId: number): Promise<void> {
 
 export async function serveSetTerraformedPlanet(
     playerId: number,
-    data: SetTerraformedPlanetCommand,
+    data: CommandRequest<'SetTerraformedPlanet'>,
 ): Promise<void> {
     const { planetId, name, ownership } = data;
     const trimmedName = name.trim();
@@ -592,7 +583,7 @@ async function liftoffWithResult<T extends { type: (typeof ServerTag)[keyof type
 
 export async function serveTakeColonists(
     playerId: number,
-    data: TakeColonistsCommand,
+    data: CommandRequest<'TakeColonists'>,
 ): Promise<void> {
     const { quantity, commodity } = data;
     const player = onlinePlayers[playerId];
@@ -669,7 +660,7 @@ export async function serveTakeColonists(
 
 export async function serveLeaveColonists(
     playerId: number,
-    data: LeaveColonistsCommand,
+    data: CommandRequest<'LeaveColonists'>,
 ): Promise<void> {
     const { quantity, commodity } = data;
     const player = onlinePlayers[playerId];
@@ -739,7 +730,7 @@ export async function serveLeaveColonists(
 
 export async function serveTakeCommodity(
     playerId: number,
-    data: TakeCommodityCommand,
+    data: CommandRequest<'TakeCommodity'>,
 ): Promise<void> {
     const { quantity, commodity } = data;
     const player = onlinePlayers[playerId];
@@ -820,7 +811,7 @@ export async function serveTakeCommodity(
 
 export async function serveLeaveCommodity(
     playerId: number,
-    data: LeaveCommodityCommand,
+    data: CommandRequest<'LeaveCommodity'>,
 ): Promise<void> {
     const { quantity, commodity } = data;
     const player = onlinePlayers[playerId];
@@ -900,7 +891,7 @@ export async function serveLeaveCommodity(
 
 export async function serveChangePopulation(
     playerId: number,
-    data: ChangePopulationCommand,
+    data: CommandRequest<'ChangePopulation'>,
 ): Promise<void> {
     const { quantity, from, to } = data;
     const player = onlinePlayers[playerId];
@@ -988,7 +979,10 @@ async function readShipCommodity(playerId: number, col: PlanetCommodity): Promis
     return col === 'fuel' ? ship.fuel : col === 'organics' ? ship.organics : ship.equipment;
 }
 
-export async function serveClaimPlanet(playerId: number, data: ClaimPlanetCommand): Promise<void> {
+export async function serveClaimPlanet(
+    playerId: number,
+    data: CommandRequest<'ClaimPlanet'>,
+): Promise<void> {
     const { ownership } = data;
     const player = onlinePlayers[playerId];
     if (!player) return;

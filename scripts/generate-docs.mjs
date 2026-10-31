@@ -7,47 +7,25 @@ const serverSchema = JSON.parse(readFileSync('docs/server-envelopes.schema.json'
 
 const HANDLERS_DIR = 'packages/server/src/handlers';
 const routerSrc = readFileSync(join(HANDLERS_DIR, 'message-router.ts'), 'utf8');
-const messagesSrc = readFileSync('packages/shared/src/tags.ts', 'utf8');
-const serverMsgSrc = readFileSync('packages/shared/src/server-envelopes.ts', 'utf8');
-const clientMsgSrc = readFileSync('packages/shared/src/client-envelopes.ts', 'utf8');
+const pascal = (wire) => (wire ? wire.charAt(0).toUpperCase() + wire.slice(1) : '?');
 
-// key -> wire value for one `Tag = { Key: 'wire', ... }` block
-function parseTagEnum(block) {
-    const map = {};
-    for (const m of block.matchAll(/(\w+):\s*'([^']+)'/g)) map[m[1]] = m[2];
-    return map;
-}
+// Imports the built shared dist — build @twnr/shared first.
+const { Commands, Events, ClientTag, ServerTag } = await import('../packages/shared/dist/index.js');
 
-const serverKeyToWire = parseTagEnum(
-    messagesSrc.slice(messagesSrc.indexOf('ServerTag = {'), messagesSrc.indexOf('ClientTag = {')),
+const serverKeyToWire = { ...ServerTag };
+const clientKeyToWire = { ...ClientTag };
+
+const clientKeyToTypeName = Object.fromEntries(
+    Object.keys(Commands).map((key) => [key, `CommandRequest<'${key}'>`]),
 );
-const clientKeyToWire = parseTagEnum(messagesSrc.slice(messagesSrc.indexOf('ClientTag = {')));
-
-function buildTagKeyToTypeName(src, tagName) {
-    // Discriminated-union replies name their tag through a
-    // `const FooLit = z.literal(Tag.Foo)` indirection, so resolve those first.
-    const litToKey = {};
-    for (const m of src.matchAll(
-        new RegExp(`const\\s+(\\w+)\\s*=\\s*z\\.literal\\(${tagName}\\.(\\w+)\\)`, 'g'),
-    )) {
-        litToKey[m[1]] = m[2];
-    }
-    const map = {};
-    for (const m of src.matchAll(/export\s+type\s+(\w+)\s*=\s*z\.infer<typeof\s+(\w+)>/g)) {
-        const [, typeName, schemaName] = m;
-        const idx = src.indexOf(`export const ${schemaName}`);
-        if (idx < 0) continue;
-        const next = src.indexOf('\nexport ', idx + 1);
-        const block = src.slice(idx, next < 0 ? src.length : next);
-        let key = block.match(new RegExp(`${tagName}\\.(\\w+)`))?.[1];
-        if (!key) key = litToKey[block.match(/\b(\w+Lit)\b/)?.[1]];
-        if (key && !map[key]) map[key] = typeName;
-    }
-    return map;
+const serverKeyToTypeName = {};
+for (const [key, def] of Object.entries(Commands)) {
+    if (!def.reply) continue;
+    const replyKey = pascal(def.reply.name);
+    // Shared replies (e.g. HaggleResponseResult) keep the first command that names them.
+    serverKeyToTypeName[replyKey] ??= `CommandReply<'${key}'>`;
 }
-
-const serverKeyToTypeName = buildTagKeyToTypeName(serverMsgSrc, 'ServerTag');
-const clientKeyToTypeName = buildTagKeyToTypeName(clientMsgSrc, 'ClientTag');
+for (const key of Object.keys(Events)) serverKeyToTypeName[key] = `EventPayload<'${key}'>`;
 
 function mapWireToTypeName(keyToTypeName, keyToWire) {
     const map = {};
@@ -59,8 +37,6 @@ function mapWireToTypeName(keyToTypeName, keyToWire) {
 
 const serverWireToTypeName = mapWireToTypeName(serverKeyToTypeName, serverKeyToWire);
 const clientWireToTypeName = mapWireToTypeName(clientKeyToTypeName, clientKeyToWire);
-
-const pascal = (wire) => (wire ? wire.charAt(0).toUpperCase() + wire.slice(1) : '?');
 
 function unionMembers(schema) {
     return schema.oneOf ?? schema.anyOf ?? [];

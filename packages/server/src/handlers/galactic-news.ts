@@ -1,4 +1,4 @@
-import { ServerTag, GameEventSchema, type ReadGalacticNewsCommand } from '@twnr/shared';
+import { ServerTag, GameEventSchema, type CommandRequest } from '@twnr/shared';
 import type { GalacticNewsEntry } from '@twnr/shared';
 import { onlinePlayers } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
@@ -31,7 +31,7 @@ export async function serveGalacticNewsRange(playerId: number): Promise<void> {
 
 export async function serveReadGalacticNews(
     playerId: number,
-    data: ReadGalacticNewsCommand,
+    data: CommandRequest<'ReadGalacticNews'>,
 ): Promise<void> {
     const player = onlinePlayers[playerId];
     if (!player) return;

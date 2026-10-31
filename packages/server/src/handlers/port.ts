@@ -5,7 +5,7 @@ import {
     tradingDisplayed,
     type PriceCommodity,
 } from '@twnr/shared';
-import type { PortInfoCommand, PortTransactionCommand } from '@twnr/shared';
+import type { CommandRequest } from '@twnr/shared';
 import { broadcastSectorActivity } from '../services/sector-activity.js';
 import { onlinePlayers, getPlayerUniverseId } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
@@ -93,7 +93,10 @@ function buildPortInfoPayload(
     };
 }
 
-export async function servePortInfo(playerId: number, data: PortInfoCommand): Promise<void> {
+export async function servePortInfo(
+    playerId: number,
+    data: CommandRequest<'PortInfo'>,
+): Promise<void> {
     const { sectorId } = data;
     if (!Number.isInteger(sectorId) || sectorId <= 0) {
         sendError(playerId, 'Invalid sector ID');
@@ -250,7 +253,7 @@ const MCIC_COL: Record<Commodity, 'fuel_mcic' | 'org_mcic' | 'equ_mcic'> = {
 
 export async function servePortTransaction(
     playerId: number,
-    data: PortTransactionCommand,
+    data: CommandRequest<'PortTransaction'>,
 ): Promise<void> {
     const { good, quantity, action } = data;
     if (good !== 'fuel' && good !== 'organics' && good !== 'equipment') {

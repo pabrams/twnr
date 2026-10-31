@@ -1,5 +1,5 @@
 import { ServerTag } from '@twnr/shared';
-import type { DeployDronesCommand, AttackSectorDronesCommand } from '@twnr/shared';
+import type { CommandRequest } from '@twnr/shared';
 import { onlinePlayers } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { broadcastPlayerMoved } from '../services/sector-activity.js';
@@ -94,7 +94,7 @@ export async function serveDeployDronesInfo(playerId: number): Promise<void> {
 
 export async function serveDeployDrones(
     playerId: number,
-    data: DeployDronesCommand,
+    data: CommandRequest<'DeployDrones'>,
 ): Promise<void> {
     let target = data.quantity;
     const ownership: 'personal' | 'clan' = data.ownership ?? 'personal';
@@ -219,7 +219,7 @@ export async function serveDeployDrones(
 
 export async function serveAttackSectorDrones(
     playerId: number,
-    data: AttackSectorDronesCommand,
+    data: CommandRequest<'AttackSectorDrones'>,
 ): Promise<void> {
     const dronesToAttack = data.drones;
     if (!Number.isInteger(dronesToAttack) || dronesToAttack <= 0) {

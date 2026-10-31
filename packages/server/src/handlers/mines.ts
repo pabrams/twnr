@@ -1,5 +1,5 @@
 import { ServerTag } from '@twnr/shared';
-import type { DeployMineInfoCommand, DeployMineCommand, MineDisruptorCommand } from '@twnr/shared';
+import type { CommandRequest } from '@twnr/shared';
 import { onlinePlayers } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { isInEncounter } from '../services/encounter.js';
@@ -43,7 +43,7 @@ const MINE_TYPE_LABEL: Record<MineType, string> = {
 
 export async function serveDeployMineInfo(
     playerId: number,
-    data: DeployMineInfoCommand,
+    data: CommandRequest<'DeployMineInfo'>,
 ): Promise<void> {
     const { mineType } = data;
     if (mineType !== 'proximity' && mineType !== 'seeker') {
@@ -92,7 +92,10 @@ export async function serveDeployMineInfo(
     });
 }
 
-export async function serveDeployMine(playerId: number, data: DeployMineCommand): Promise<void> {
+export async function serveDeployMine(
+    playerId: number,
+    data: CommandRequest<'DeployMine'>,
+): Promise<void> {
     const { mineType } = data;
     const target = data.quantity;
     const ownership: 'personal' | 'clan' = data.ownership ?? 'personal';
@@ -243,7 +246,7 @@ export async function serveTrackSeekerMines(playerId: number): Promise<void> {
 
 export async function serveMineDisruptor(
     playerId: number,
-    data: MineDisruptorCommand,
+    data: CommandRequest<'MineDisruptor'>,
 ): Promise<void> {
     const { targetSector } = data;
     if (!Number.isInteger(targetSector) || targetSector <= 0) {

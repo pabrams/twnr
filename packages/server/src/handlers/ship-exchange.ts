@@ -1,5 +1,5 @@
 import { ServerTag } from '@twnr/shared';
-import type { BuyShipTradeinCommand, BuyShipNewCommand } from '@twnr/shared';
+import type { CommandRequest } from '@twnr/shared';
 import { onlinePlayers, getPlayerUniverseId } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { AbortTransaction } from '../db/index.js';
@@ -30,7 +30,10 @@ function calculateShipPrice(shipType: {
     );
 }
 
-export async function serveBuyShipNew(playerId: number, data: BuyShipNewCommand): Promise<void> {
+export async function serveBuyShipNew(
+    playerId: number,
+    data: CommandRequest<'BuyShipNew'>,
+): Promise<void> {
     if (!onlinePlayers[playerId]?.at_starbase) {
         sendError(playerId, 'Not at Starbase');
         return;
@@ -53,7 +56,7 @@ export async function serveBuyShipNew(playerId: number, data: BuyShipNewCommand)
 
 export async function serveBuyShipTradein(
     playerId: number,
-    data: BuyShipTradeinCommand,
+    data: CommandRequest<'BuyShipTradein'>,
 ): Promise<void> {
     if (!onlinePlayers[playerId]?.at_starbase) {
         sendError(playerId, 'Not at Starbase');

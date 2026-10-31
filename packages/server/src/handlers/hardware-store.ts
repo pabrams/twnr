@@ -1,5 +1,5 @@
-import { ServerTag, type BuyHardwareReply } from '@twnr/shared';
-import type { BuyHardwareCommand } from '@twnr/shared';
+import { ServerTag, type CommandReply } from '@twnr/shared';
+import type { CommandRequest } from '@twnr/shared';
 import { onlinePlayers } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { AbortTransaction } from '../db/index.js';
@@ -40,7 +40,10 @@ export async function serveHardwareStoreInfo(playerId: number): Promise<void> {
     });
 }
 
-export async function serveBuyHardware(playerId: number, data: BuyHardwareCommand): Promise<void> {
+export async function serveBuyHardware(
+    playerId: number,
+    data: CommandRequest<'BuyHardware'>,
+): Promise<void> {
     const { itemName, quantity } = data;
     const player = onlinePlayers[playerId];
     if (!player?.at_starbase) {
@@ -120,7 +123,7 @@ async function buyStackable(
                 credits: result.credits - cost,
                 cost,
                 ...(hw.result_extra ?? {}),
-            } as BuyHardwareReply),
+            } as CommandReply<'BuyHardware'>),
     );
 }
 
@@ -164,6 +167,6 @@ async function buyToggle(playerId: number, hw: HardwareItemRow, unitPrice: numbe
                 credits: result.credits - unitPrice,
                 cost: unitPrice,
                 ...(hw.result_extra ?? {}),
-            } as BuyHardwareReply),
+            } as CommandReply<'BuyHardware'>),
     );
 }

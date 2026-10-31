@@ -3,12 +3,7 @@ import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { EVENT, PLANET } from '../messages/index.js';
 import { type DisplayCtx } from '../display.js';
-import {
-    showPlanetMenu,
-    showEarthMenu,
-    showNoPlanet,
-    type DisplayPlanetCtx,
-} from '../display-planet.js';
+import { showEarthMenu, type DisplayPlanetCtx } from '../display-planet.js';
 import { type DisplayStarbaseCtx } from '../display-starbase.js';
 import { type DisplayComputerCtx } from '../display-computer.js';
 import type { Handler } from './index.js';
@@ -198,11 +193,6 @@ type PlanetContext = Pick<GameContext, 'io' | 'input' | 'ship' | 'planet' | 'wor
     DisplayStarbaseCtx &
     DisplayComputerCtx &
     RefreshMinimapCtx;
-
-export const planetInfo: Handler<'planetInfoResult', PlanetContext> = (ctx, msg) => {
-    if (msg.hasPlanet) showPlanetMenu(ctx, msg.name, msg.colonists);
-    else showNoPlanet(ctx);
-};
 
 export const takeColonists: Handler<'takeColonistsResult', PlanetContext> = (ctx, msg) => {
     ctx.ship.shipColonists = msg.shipColonists;

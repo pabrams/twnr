@@ -1,9 +1,11 @@
-import { ServerTag, type StatsSnapshot } from '@twnr/shared';
+import { ServerTag, type EventPayload } from '@twnr/shared';
 import { sendEnvelope } from '../state/messaging.js';
 import { getStatsSnapshotRow } from '../db/queries/player.js';
 import { getPlayerShipHardware } from '../db/queries/hardware.js';
 
-export async function buildStatsSnapshot(playerId: number): Promise<StatsSnapshot | null> {
+export async function buildStatsSnapshot(
+    playerId: number,
+): Promise<EventPayload<'StatsSnapshot'> | null> {
     const row = await getStatsSnapshotRow(playerId);
     if (!row || row.ship_type_slug === null) return null;
 

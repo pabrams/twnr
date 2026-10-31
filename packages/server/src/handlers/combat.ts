@@ -1,5 +1,5 @@
 import { ServerTag } from '@twnr/shared';
-import type { AttackShipCommand } from '@twnr/shared';
+import type { CommandRequest } from '@twnr/shared';
 
 import { onlinePlayers, isVisibleInSector } from '../state/players.js';
 import {
@@ -60,7 +60,10 @@ export async function serveGetAttackTargets(playerId: number): Promise<void> {
     }
 }
 
-export async function serveAttackShip(attackerId: number, data: AttackShipCommand): Promise<void> {
+export async function serveAttackShip(
+    attackerId: number,
+    data: CommandRequest<'AttackShip'>,
+): Promise<void> {
     const { targetPlayerId, drones } = data;
     if (!Number.isInteger(drones) || drones <= 0) {
         sendError(attackerId, 'Invalid number of drones');

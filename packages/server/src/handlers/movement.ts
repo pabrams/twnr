@@ -1,5 +1,5 @@
 import { ServerTag } from '@twnr/shared';
-import type { MoveCommand, WarpsOutCommand, ShortestPathCommand } from '@twnr/shared';
+import type { CommandRequest } from '@twnr/shared';
 import { onlinePlayers, getPlayerUniverseId } from '../state/players.js';
 import { sendEnvelope, sendError, closeDestroyedSession } from '../state/messaging.js';
 import { broadcastPlayerMoved } from '../services/sector-activity.js';
@@ -27,7 +27,7 @@ import {
 import { combinedTurnsPerWarp } from './tow.js';
 import type { TowedAlong } from '@twnr/shared';
 
-export async function serveMove(playerId: number, data: MoveCommand): Promise<void> {
+export async function serveMove(playerId: number, data: CommandRequest<'Move'>): Promise<void> {
     const targetSector = data.sector;
     if (!Number.isInteger(targetSector) || targetSector <= 0) {
         sendEnvelope(playerId, {
@@ -246,7 +246,10 @@ export async function serveSectorDisplay(playerId: number): Promise<void> {
     sendEnvelope(playerId, { type: ServerTag.SectorDisplayResult, ...data });
 }
 
-export async function serveWarpsOut(playerId: number, data: WarpsOutCommand): Promise<void> {
+export async function serveWarpsOut(
+    playerId: number,
+    data: CommandRequest<'WarpsOut'>,
+): Promise<void> {
     const { id } = data;
     if (!Number.isInteger(id) || id <= 0) {
         sendError(playerId, 'Invalid sector ID');
@@ -268,7 +271,7 @@ export async function serveWarpsOut(playerId: number, data: WarpsOutCommand): Pr
 
 export async function serveShortestPath(
     playerId: number,
-    data: ShortestPathCommand,
+    data: CommandRequest<'ShortestPath'>,
 ): Promise<void> {
     const { from, to } = data;
     if (!Number.isInteger(from) || from <= 0 || !Number.isInteger(to) || to <= 0) {

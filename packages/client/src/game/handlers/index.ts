@@ -42,7 +42,6 @@ const handlers: HandlerMap = {
 
     [ServerTag.SectorDisplayResult]: sector.sectorDisplay,
     [ServerTag.MoveResult]: movement.move,
-    [ServerTag.NonAdjacentMoveRequested]: movement.nonAdjacent,
     [ServerTag.ShortestPathResult]: movement.shortestPath,
     [ServerTag.HyperspaceJumpResult]: movement.hyperspaceJump,
     [ServerTag.PreviousSectorResult]: movement.previousSector,
@@ -66,7 +65,6 @@ const handlers: HandlerMap = {
     [ServerTag.RetreatFromDronesResult]: combat.retreatFromDrones,
     [ServerTag.SectorDronesAlert]: combat.sectorDronesAlert,
 
-    [ServerTag.PlanetInfoResult]: planet.planetInfo,
     [ServerTag.TakeColonistsResult]: planet.takeColonists,
     [ServerTag.LeaveColonistsResult]: planet.leaveColonists,
     [ServerTag.TakeCommodityResult]: planet.takeCommodity,

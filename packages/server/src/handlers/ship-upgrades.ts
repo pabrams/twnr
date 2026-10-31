@@ -1,5 +1,5 @@
 import { ServerTag, holdCostRange } from '@twnr/shared';
-import type { BuyDronesCommand, BuyShieldsCommand, BuyHoldsCommand } from '@twnr/shared';
+import type { CommandRequest } from '@twnr/shared';
 import { onlinePlayers, getPlayerUniverseId } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { AbortTransaction } from '../db/index.js';
@@ -29,7 +29,10 @@ async function isAtClass0OrStarbase(
     return portClass === 0;
 }
 
-export async function serveBuyDrones(playerId: number, data: BuyDronesCommand): Promise<void> {
+export async function serveBuyDrones(
+    playerId: number,
+    data: CommandRequest<'BuyDrones'>,
+): Promise<void> {
     const qty = Number(data.quantity);
     if (!Number.isInteger(qty) || qty <= 0) {
         sendError(playerId, 'Invalid quantity');
@@ -78,7 +81,10 @@ export async function serveBuyDrones(playerId: number, data: BuyDronesCommand): 
     );
 }
 
-export async function serveBuyShields(playerId: number, data: BuyShieldsCommand): Promise<void> {
+export async function serveBuyShields(
+    playerId: number,
+    data: CommandRequest<'BuyShields'>,
+): Promise<void> {
     const { quantity } = data;
     const qty = Number(quantity);
     if (!Number.isInteger(qty) || qty <= 0) {
@@ -128,7 +134,10 @@ export async function serveBuyShields(playerId: number, data: BuyShieldsCommand)
     );
 }
 
-export async function serveBuyHolds(playerId: number, data: BuyHoldsCommand): Promise<void> {
+export async function serveBuyHolds(
+    playerId: number,
+    data: CommandRequest<'BuyHolds'>,
+): Promise<void> {
     const { quantity } = data;
     const qty = Number(quantity);
     if (!Number.isInteger(qty) || qty <= 0) {

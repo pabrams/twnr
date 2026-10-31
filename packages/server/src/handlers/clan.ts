@@ -1,13 +1,5 @@
 import { ServerTag, type GameEvent, type GameEventClanRef } from '@twnr/shared';
-import type {
-    ClanCreateCommand,
-    ClanJoinCommand,
-    ClanLeaveCommand,
-    ClanTransferCommand,
-    ClanMemoCommand,
-    ClanSetPasswordCommand,
-    ClanDropMemberCommand,
-} from '@twnr/shared';
+import type { CommandRequest } from '@twnr/shared';
 import { withTransaction, AbortTransaction } from '../db/index.js';
 import { runMutation } from './run-mutation.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
@@ -65,7 +57,10 @@ function clanRefOf(clan: Pick<ClanRow, 'id' | 'universe_clan_number' | 'name'>):
     return { clanId: clan.id, clanNumber: clan.universe_clan_number, name: clan.name };
 }
 
-export async function serveClanCreate(playerId: number, data: ClanCreateCommand): Promise<void> {
+export async function serveClanCreate(
+    playerId: number,
+    data: CommandRequest<'ClanCreate'>,
+): Promise<void> {
     const { name, password } = data;
     const player = onlinePlayers[playerId];
     if (!player) return;
@@ -132,7 +127,10 @@ export async function serveClanCreate(playerId: number, data: ClanCreateCommand)
     );
 }
 
-export async function serveClanJoin(playerId: number, data: ClanJoinCommand): Promise<void> {
+export async function serveClanJoin(
+    playerId: number,
+    data: CommandRequest<'ClanJoin'>,
+): Promise<void> {
     const { name, password } = data;
     const player = onlinePlayers[playerId];
     if (!player) return;
@@ -189,7 +187,10 @@ export async function serveClanJoin(playerId: number, data: ClanJoinCommand): Pr
     );
 }
 
-export async function serveClanLeave(playerId: number, data: ClanLeaveCommand): Promise<void> {
+export async function serveClanLeave(
+    playerId: number,
+    data: CommandRequest<'ClanLeave'>,
+): Promise<void> {
     const successorPlayerId = data.successorPlayerId;
     const confirmDissolve = data.confirmDissolve === true;
     const player = onlinePlayers[playerId];
@@ -527,7 +528,7 @@ async function transferMines(
 
 export async function serveClanTransfer(
     senderId: number,
-    data: ClanTransferCommand,
+    data: CommandRequest<'ClanTransfer'>,
 ): Promise<void> {
     const { kind, targetPlayerId, quantity, mineType } = data;
     let result: { delivered: number };
@@ -586,7 +587,10 @@ export async function serveClanTransfer(
     });
 }
 
-export async function serveClanMemo(senderId: number, data: ClanMemoCommand): Promise<void> {
+export async function serveClanMemo(
+    senderId: number,
+    data: CommandRequest<'ClanMemo'>,
+): Promise<void> {
     const { body } = data;
     const player = onlinePlayers[senderId];
     if (!player) return;
@@ -622,7 +626,7 @@ export async function serveClanMemo(senderId: number, data: ClanMemoCommand): Pr
 
 export async function serveClanSetPassword(
     playerId: number,
-    data: ClanSetPasswordCommand,
+    data: CommandRequest<'ClanSetPassword'>,
 ): Promise<void> {
     const { newPassword } = data;
     if (!isValidPassword(newPassword)) {
@@ -649,7 +653,7 @@ export async function serveClanSetPassword(
 
 export async function serveClanDropMember(
     leaderPlayerId: number,
-    data: ClanDropMemberCommand,
+    data: CommandRequest<'ClanDropMember'>,
 ): Promise<void> {
     const { targetPlayerId } = data;
     const player = onlinePlayers[leaderPlayerId];

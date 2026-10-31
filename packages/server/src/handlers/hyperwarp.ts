@@ -1,5 +1,5 @@
 import { ServerTag } from '@twnr/shared';
-import type { HyperspaceJumpCommand } from '@twnr/shared';
+import type { CommandRequest } from '@twnr/shared';
 import { onlinePlayers } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { getGraph } from '../state/graph-cache.js';
@@ -18,7 +18,7 @@ import { resolveMinesOnEntry } from '../services/mine-encounter.js';
 
 export async function serveHyperspaceJump(
     playerId: number,
-    data: HyperspaceJumpCommand,
+    data: CommandRequest<'HyperspaceJump'>,
 ): Promise<void> {
     const { targetSector } = data;
     const player = onlinePlayers[playerId];

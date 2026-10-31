@@ -1,4 +1,4 @@
-import type { NeighborhoodReply, NeighborhoodSector, NeighborhoodWarp } from '@twnr/shared';
+import type { NeighborhoodSector, NeighborhoodWarp, CommandReply } from '@twnr/shared';
 import { HEX_CELL_SIZE, HEX_SPACING_MULTIPLIER, portClassTriplet } from '@twnr/shared';
 import { colorPalette, rgb } from '../config/colors.js';
 import './minimap.css';
@@ -242,7 +242,7 @@ export type MinimapKeyInjector = (key: string) => void;
 export type MinimapMenuButton = { label: string; key: string };
 
 export interface Minimap {
-    update(data: NeighborhoodReply, currentSectorNumber: number): void;
+    update(data: CommandReply<'GetNeighborhood'>, currentSectorNumber: number): void;
     /** centerXWorld/Y are undefined while the viewport follows the current sector. */
     getViewport(): {
         halfWidthWorld: number;
@@ -259,7 +259,7 @@ export interface Minimap {
 
 type MinimapState = {
     zoom: number;
-    data: NeighborhoodReply | null;
+    data: CommandReply<'GetNeighborhood'> | null;
     currentSectorNumber: number;
     currentSectorId: number;
     quickMoveTargets: number[] | null;

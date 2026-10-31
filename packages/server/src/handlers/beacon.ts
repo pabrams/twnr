@@ -1,5 +1,5 @@
 import { ServerTag } from '@twnr/shared';
-import type { ReleaseBeaconCommand } from '@twnr/shared';
+import type { CommandRequest } from '@twnr/shared';
 import { onlinePlayers } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { AbortTransaction } from '../db/index.js';
@@ -22,7 +22,7 @@ const BEACON_MSG_MAX = 41;
 
 export async function serveReleaseBeacon(
     playerId: number,
-    data: ReleaseBeaconCommand,
+    data: CommandRequest<'ReleaseBeacon'>,
 ): Promise<void> {
     const player = onlinePlayers[playerId];
     if (!player) return;

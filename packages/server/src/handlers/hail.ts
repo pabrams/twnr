@@ -1,5 +1,5 @@
 import { ServerTag } from '@twnr/shared';
-import type { HailResolveCommand, HailSendCommand } from '@twnr/shared';
+import type { CommandRequest } from '@twnr/shared';
 import { onlinePlayers, getPlayerUniverseId } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { findPlayersByNamePrefix } from '../db/queries/player.js';
@@ -7,7 +7,10 @@ import { insertMemo } from '../db/queries/message.js';
 
 const MAX_HAIL_BODY = 2000;
 
-export async function serveHailResolve(playerId: number, data: HailResolveCommand): Promise<void> {
+export async function serveHailResolve(
+    playerId: number,
+    data: CommandRequest<'HailResolve'>,
+): Promise<void> {
     const universeId = getPlayerUniverseId(playerId);
     if (universeId === undefined) return;
     const prefix = data.name.trim();
@@ -42,7 +45,10 @@ export async function serveHailResolve(playerId: number, data: HailResolveComman
     });
 }
 
-export async function serveHailSend(playerId: number, data: HailSendCommand): Promise<void> {
+export async function serveHailSend(
+    playerId: number,
+    data: CommandRequest<'HailSend'>,
+): Promise<void> {
     const body = data.body;
     if (typeof body !== 'string' || body.trim().length === 0) {
         sendError(playerId, 'Empty message.');

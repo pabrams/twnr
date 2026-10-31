@@ -100,14 +100,6 @@ export const move: Handler<'moveResult', MovementContext> = (ctx, msg) => {
     }
 };
 
-export const nonAdjacent: Handler<'nonAdjacentMoveRequested', MovementContext> = (ctx, msg) => {
-    ctx.io.sendMsg({
-        type: ClientTag.ShortestPath,
-        from: ctx.world.currentSector,
-        to: msg.sector,
-    });
-};
-
 export const shortestPath: Handler<'shortestPathResult', MovementContext> = (ctx, msg) => {
     if (msg.hops === 0) {
         ctx.io.term.writeln(render(EVENT.alreadyInSector));

@@ -1,4 +1,4 @@
-import { ServerTag, type PlanetDestroyedAlertEvent } from '@twnr/shared';
+import { ServerTag, type EventPayload } from '@twnr/shared';
 import { onlinePlayers } from '../state/players.js';
 import { sendEnvelope, broadcastTo } from '../state/messaging.js';
 import { insertMemo, insertSystemMemo } from '../db/queries/message.js';
@@ -11,7 +11,7 @@ export type PlanetDestructionNotice = {
     universeId: number;
     sectorNumber: number;
     planetName: string;
-    cause: PlanetDestroyedAlertEvent['cause'];
+    cause: EventPayload<'PlanetDestroyedAlert'>['cause'];
     /** Players who were on the surface and have been lifted back to their ships. */
     occupantIds: number[];
     occupantMailBody: string;

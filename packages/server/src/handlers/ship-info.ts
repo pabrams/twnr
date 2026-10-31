@@ -1,9 +1,5 @@
 import { ServerTag } from '@twnr/shared';
-import type {
-    GetShipDetailCommand,
-    TransportToShipCommand,
-    ChangeShipOwnershipCommand,
-} from '@twnr/shared';
+import type { CommandRequest } from '@twnr/shared';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { onlinePlayers, getPlayerUniverseId } from '../state/players.js';
 import {
@@ -85,7 +81,7 @@ export async function serveShipInfo(playerId: number): Promise<void> {
 
 export async function serveGetShipDetail(
     playerId: number,
-    data: GetShipDetailCommand,
+    data: CommandRequest<'GetShipDetail'>,
 ): Promise<void> {
     const { shipId } = data;
     const row = await getOwnedShipDetail(shipId, playerId);
@@ -183,7 +179,7 @@ export async function serveListOwnedShips(playerId: number): Promise<void> {
 
 export async function serveTransportToShip(
     playerId: number,
-    data: TransportToShipCommand,
+    data: CommandRequest<'TransportToShip'>,
 ): Promise<void> {
     const { shipId } = data;
     const player = onlinePlayers[playerId];
@@ -251,7 +247,7 @@ export async function serveTransportToShip(
 
 export async function serveChangeShipOwnership(
     playerId: number,
-    data: ChangeShipOwnershipCommand,
+    data: CommandRequest<'ChangeShipOwnership'>,
 ): Promise<void> {
     const { ownership } = data;
     const player = onlinePlayers[playerId];

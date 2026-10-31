@@ -1,4 +1,4 @@
-import type { StatsSnapshot } from '@twnr/shared';
+import type { EventPayload } from '@twnr/shared';
 import { renderTaggedHtml } from './renderer.js';
 import { fmt, fmtCompact } from './handlers/utils.js';
 
@@ -51,7 +51,7 @@ const SHIP_HARDWARE_ROWS: { key: string; label: string; title: string }[] = [
 ];
 
 export interface StatsPanel {
-    update(snap: StatsSnapshot): void;
+    update(snap: EventPayload<'StatsSnapshot'>): void;
     clear(): void;
 }
 
@@ -66,7 +66,7 @@ export function createStatsPanel(container: HTMLElement): StatsPanel {
     const cargo: HTMLElement = cargoEl;
     const ship: HTMLElement = shipEl;
 
-    function update(snap: StatsSnapshot): void {
+    function update(snap: EventPayload<'StatsSnapshot'>): void {
         clearSection(trader);
         row(trader, 'Sector', fmt(snap.sector));
         row(trader, 'Turns', fmt(snap.turns), {

@@ -9,7 +9,7 @@ import {
     type PortClass,
     type PriceCommodity,
 } from '@twnr/shared';
-import type { BuildPortCommand, UpgradePortCommand } from '@twnr/shared';
+import type { CommandRequest } from '@twnr/shared';
 import { onlinePlayers } from '../state/players.js';
 import { sendEnvelope, sendError } from '../state/messaging.js';
 import { AbortTransaction } from '../db/index.js';
@@ -109,7 +109,10 @@ export async function serveConstructPortInfo(playerId: number): Promise<void> {
 
 const MAX_PORT_NAME_LEN = 39;
 
-export async function serveBuildPort(playerId: number, data: BuildPortCommand): Promise<void> {
+export async function serveBuildPort(
+    playerId: number,
+    data: CommandRequest<'BuildPort'>,
+): Promise<void> {
     const player = onlinePlayers[playerId];
     if (!player) return;
 
@@ -302,7 +305,10 @@ export async function serveUpgradePortInfo(playerId: number): Promise<void> {
     });
 }
 
-export async function serveUpgradePort(playerId: number, data: UpgradePortCommand): Promise<void> {
+export async function serveUpgradePort(
+    playerId: number,
+    data: CommandRequest<'UpgradePort'>,
+): Promise<void> {
     const player = onlinePlayers[playerId];
     if (!player) return;
 
