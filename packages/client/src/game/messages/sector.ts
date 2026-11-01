@@ -29,7 +29,7 @@ export const SECTOR = makeDomain('SECTOR', {
     warpUnvisited: '[mg]([/mg][br]{sector}[/br][mg])[/mg]',
     warpSeparator: ' [g]-[/g] ',
 
-    tradersLine: '[bc]Traders[/bc] [by]:[/by] {item}',
+    tradersLine: '[y]Traders[/y] [by]:[/by] {item}',
     tradersContinuation: '          {item}',
     traderItemColored:
         '[by]{name}[/by]{clanSuffix}[by],[/by] [g]w/ [by]{drones}[/by] drones[by],[/by] in [c]{shipName}[/c] ({shipTypeColored})[/mg][/g]',
