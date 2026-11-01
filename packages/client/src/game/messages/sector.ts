@@ -9,9 +9,9 @@ export const SECTOR = makeDomain('SECTOR', {
 
     dronesYours: '[mg]Drones[/mg]  [by]:[/by] [bc]{qty}[/bc] [mg](yours)[/mg]',
     dronesYourClan: '[mg]Drones[/mg]  [by]:[/by] [bc]{qty}[/bc] [mg](belong to your clan)[/mg]',
-    dronesEnemy: '[mg]Drones[/mg]  [by]:[/by] [br]{qty}[/br] [mg]([/mg]{ownership}[mg])[/mg]',
+    dronesEnemy: '[mg]Drones[/mg]  [by]:[/by] [bc]{qty}[/bc] [by]({ownership})[/by]',
     ownershipClan: '[g]owned by clan[/g] [bc]#{num}[/bc][by]:[/by] [bc]{name}[/bc]',
-    ownershipPlayer: '[g]owned by[/g] [by]{name}[/by]',
+    ownershipPlayer: 'belong to {name}',
     ownershipYours: '[mg]yours[/mg]',
     ownershipYourClan: '[mg]belong to your clan[/mg]',
     ownershipRogue: '[br]Rogue[/br]',
@@ -29,12 +29,12 @@ export const SECTOR = makeDomain('SECTOR', {
     warpUnvisited: '[mg]([/mg][br]{sector}[/br][mg])[/mg]',
     warpSeparator: ' [g]-[/g] ',
 
-    tradersLine: '[mg]Traders[/mg] [by]:[/by] {item}',
+    tradersLine: '[bc]Traders[/bc] [by]:[/by] {item}',
     tradersContinuation: '          {item}',
     traderItemColored:
-        '[by]{name}[/by]{clanSuffix}[by],[/by] w/ [bc]{drones}[/bc] ftrs, in [by]{shipName}[/by] [mg]([/mg]{shipTypeColored}[mg])[/mg]',
+        '[by]{name}[/by]{clanSuffix}[by],[/by] [g]w/ [by]{drones}[/by] drones[by],[/by] in [c]{shipName}[/c] ({shipTypeColored})[/mg][/g]',
     traderItemPlain:
-        '[by]{name}[/by]{clanSuffix}[by],[/by] w/ [bc]{drones}[/bc] ftrs, in [by]{shipName}[/by] [mg]([/mg][bc]{shipType}[/bc][mg])[/mg]',
+        '[by]{name}[/by]{clanSuffix}[by],[/by] [g]w/ [by]{drones}[/by] drones[by],[/by] in [c]{shipName}[/c] ({shipType})[/g]',
     traderClanSuffix: ' [mg][[/mg][bc]{num}[/bc][mg]][/mg]',
 
     shipsLine: '[mg]Ships[/mg]   [by]:[/by] {item}',

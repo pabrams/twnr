@@ -10,7 +10,7 @@ export const COMBAT = makeDomain('COMBAT', {
     attackQtyPrompt: '\r\n[c]How many drones to attack with?[/c] ',
 
     droneEncounterHeader: '[br]=== HOSTILE DRONES DETECTED ===[/br]',
-    droneSectorCount: '  [by]Sector drones[/by]: [br]{count}[/br] (owned by [by]{owner}[/by])',
+    droneSectorCount: '  [by]Sector drones[/by]: [br]{count}[/br] [by](belong to {owner})[/by]',
     droneShipCount: '  [by]Your ship drones[/by]: [g]{count}[/g]',
     droneNoDrones: '[br]You have no drones! You must retreat.[/br]',
     droneEncounterPrompt:
