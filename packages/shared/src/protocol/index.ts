@@ -257,8 +257,6 @@ type ReplySchemas = ReplyDefOf<CommandName>['Schema'];
 type EventSchemas = E[EventName]['Schema'];
 
 const requestSchemas = Object.values(Commands).map((def) => def.Request);
-// A reply definition may be shared by several commands (HaggleResponseResult),
-// so the server union is deduplicated by wire type.
 const serverSchemasByType = new Map<string, ReplySchemas | EventSchemas>();
 for (const def of Object.values(Commands)) {
     if (def.reply) serverSchemasByType.set(def.reply.name, def.reply.Schema);
