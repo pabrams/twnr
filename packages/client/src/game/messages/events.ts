@@ -72,6 +72,19 @@ export const EVENT = makeDomain('EVENT', {
         '\r\n[by]Should this be a ([/by][bc]C[/bc][by])lan planet or ([/by][bc]P[/bc][by])ersonal planet?[/by] [mg][[/mg][by]P[/by][mg]][/mg] ',
     terraformConfirmed: '\r\n[bg]Planet[/bg] [bc]{name}[/bc] [bg]registered.[/bg]',
     seekerVictimNotice: '\r\n[y]You hear a faint metallic thud...[/y]',
+    mineTypePrompt:
+        '[mg]Handle ([/mg][by]P[/by][mg])roximity or ([/mg][by]L[/by][mg])impet mines?[/mg] ',
+    buyMineTypePrompt:
+        '[mg]Mines: ([/mg][by]P[/by][mg])roximity or ([/mg][by]L[/by][mg])impet?[/mg] ',
+    disruptorTargetPrompt: '[mg]Mine disruptor — adjacent target sector? (Q to cancel)[/mg] ',
+    disruptorPulse:
+        '[y]Disruptor pulse to sector[/y] [bc]{sector}[/bc][y]: removed[/y] [bc]{removed}[/bc] [y]proximity mine(s) ([/y][bc]{remaining}[/bc] [y]remaining).[/y]',
+    proximityHitDestroyed:
+        '[br]*** {detonations} proximity mine(s) detonated for {damage} damage — ship destroyed! ***[/br]',
+    proximityHit:
+        '[y]{detonations} proximity mine(s) detonated for {damage} damage (drones -{drones}, shields -{shields}).[/y]',
+    limpetLatched:
+        '[br]*** ALERT ***[/br] [y]One of your limpet mines latched onto[/y] [bc]{target}[/bc] [y]in sector[/y] [bc]{sector}[/bc][y].[/y]',
     terraformCollision: '[by:r]*** Warning ***: intersecting orbits detected![/by:r]',
     terraformDevicesRemaining: '  [by]Terraform devices remaining[/by]: [bc]{count}[/bc]',
 

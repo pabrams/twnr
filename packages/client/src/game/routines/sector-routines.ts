@@ -133,9 +133,7 @@ registerRoutine('orderStarport', async (ctx) => {
     switch (info.outcome) {
         case 'noPlanet':
             ctx.io.term.writeln('');
-            ctx.io.term.writeln(
-                'You need a planet in this sector before you can construct a port.',
-            );
+            ctx.io.term.writeln(render(PORT.constructNoPlanet));
             return;
         case 'build':
             await runBuildFlow(ctx, info);
@@ -152,40 +150,53 @@ async function runBuildFlow(
 ): Promise<void> {
     const { term } = ctx.io;
     term.writeln('');
-    term.writeln('   StarPort Construction          Initial Construction Costs');
-    term.writeln(' Port Class   Ore  Org  Equ    Credits  Ore  Org  Equ  Days');
-    term.writeln(' ---------- - --- --- ----   --------- ---- ---- ---- ----');
+    term.writeln(render(PORT.constructTitle));
+    term.writeln(render(PORT.constructColumns));
+    term.writeln(render(PORT.constructRule));
     for (const row of info.classes) {
         const credits = row.credits.toLocaleString();
         const code = row.code;
         const fmtCode = `${code[0]}    ${code[1]}    ${code[2]}`;
         term.writeln(
-            `     ${row.portClass}      ${fmtCode}   ` +
-                `${credits.padStart(7)} ${String(row.ore).padStart(4)} ` +
-                `${String(row.org).padStart(4)} ${String(row.equ).padStart(4)} ` +
-                `${String(row.days).padStart(4)}`,
+            render(PORT.constructRow, {
+                portClass: row.portClass,
+                code: fmtCode,
+                credits: credits.padStart(7),
+                ore: String(row.ore).padStart(4),
+                org: String(row.org).padStart(4),
+                equ: String(row.equ).padStart(4),
+                days: String(row.days).padStart(4),
+            }),
         );
     }
     term.writeln('');
-    term.writeln(
-        `Ports will initially produce ${info.initialProductivity} units/day in each category`,
-    );
-    term.writeln(`You have ${info.credits.toLocaleString()} credits.`);
+    term.writeln(render(PORT.constructProduces, { rate: info.initialProductivity }));
+    term.writeln(render(PORT.youHaveCredits, { credits: info.credits.toLocaleString() }));
     if (info.existingConstruction) {
         const ec = info.existingConstruction;
         term.writeln('');
         term.writeln(
-            `Note: construction of "${ec.portName}" (Class ${ec.portClass}) is already underway here — ` +
-                `${ec.daysCompleted}/${ec.daysRequired} days complete.`,
+            render(PORT.constructUnderway, {
+                name: ec.portName,
+                class: ec.portClass,
+                done: ec.daysCompleted,
+                total: ec.daysRequired,
+            }),
         );
         return;
     }
 
-    const classChoice = await askChar(
-        ctx,
-        'What Class of port do you want to build? (1-8, Q to quit) ',
-        ['1', '2', '3', '4', '5', '6', '7', '8', 'q'],
-    );
+    const classChoice = await askChar(ctx, render(PORT.constructClassPrompt), [
+        '1',
+        '2',
+        '3',
+        '4',
+        '5',
+        '6',
+        '7',
+        '8',
+        'q',
+    ]);
     if (classChoice === null || classChoice === 'q') return;
     const portClass = parseInt(classChoice, 10);
     const chosen = info.classes.find((c) => c.portClass === portClass);
@@ -193,18 +204,39 @@ async function runBuildFlow(
 
     term.writeln('');
     term.writeln(
-        `Port Class ${chosen.portClass} will require ${chosen.credits.toLocaleString()} credits.`,
+        render(PORT.constructClassCost, {
+            class: chosen.portClass,
+            credits: chosen.credits.toLocaleString(),
+        }),
     );
-    term.writeln('A Planet capable of producing the following per day:');
-    term.writeln(`${chosen.dailyOre} units of Ore/day for ${chosen.days} days`);
-    term.writeln(`${chosen.dailyOrg} units of Organics/day for ${chosen.days} days`);
-    term.writeln(`${chosen.dailyEqu} units of Equipment/day for ${chosen.days} days`);
-    const confirm = await askConfirm(ctx, 'Do you want to initiate construction on this port? ', {
+    term.writeln(render(PORT.constructPlanetProduces));
+    term.writeln(
+        render(PORT.constructDailyRow, {
+            qty: chosen.dailyOre,
+            commodity: 'Ore',
+            days: chosen.days,
+        }),
+    );
+    term.writeln(
+        render(PORT.constructDailyRow, {
+            qty: chosen.dailyOrg,
+            commodity: 'Organics',
+            days: chosen.days,
+        }),
+    );
+    term.writeln(
+        render(PORT.constructDailyRow, {
+            qty: chosen.dailyEqu,
+            commodity: 'Equipment',
+            days: chosen.days,
+        }),
+    );
+    const confirm = await askConfirm(ctx, render(PORT.constructConfirmPrompt), {
         defaultValue: false,
     });
     if (!confirm) return;
 
-    term.writeln('What do you want to name this StarPort?');
+    term.writeln(render(PORT.constructNamePrompt));
     const name = await askLine(ctx, '[---------------------------------------]\r\n');
     if (name === null) return;
     const trimmed = name.trim();
@@ -225,8 +257,8 @@ async function runUpgradeFlow(
 ): Promise<void> {
     const { term } = ctx.io;
     term.writeln('');
-    term.writeln('(Upgrade StarPort)');
-    term.writeln('   Upgrade Starport Production');
+    term.writeln(render(PORT.upgradeTag));
+    term.writeln(render(PORT.upgradeTitle));
     const fmtRow = (
         i: number,
         label: string,
@@ -237,8 +269,16 @@ async function runUpgradeFlow(
         stock: number,
         tradingPct: number,
     ) =>
-        ` ${i} ${label.padEnd(11)} costs $${unitCost}/unit   ` +
-        `(${action}, prod=${prod}, max=${max}, stock=${stock}, ${tradingPct}%)`;
+        render(PORT.upgradeRow, {
+            i,
+            label: label.padEnd(11),
+            cost: unitCost,
+            action,
+            prod,
+            max,
+            stock,
+            pct: tradingPct,
+        });
     const labels = ['Fuel Ore', 'Organics', 'Equipment'];
     for (let i = 0; i < info.commodities.length; i++) {
         const c = info.commodities[i];
@@ -255,8 +295,8 @@ async function runUpgradeFlow(
             ),
         );
     }
-    term.writeln(`You have ${info.credits.toLocaleString()} credits.`);
-    const choice = await askChar(ctx, 'Choose 1, 2, 3 or Q to quit ', ['1', '2', '3', 'q']);
+    term.writeln(render(PORT.youHaveCredits, { credits: info.credits.toLocaleString() }));
+    const choice = await askChar(ctx, render(PORT.upgradeChoosePrompt), ['1', '2', '3', 'q']);
     if (choice === null || choice === 'q') return;
     const idx = parseInt(choice, 10) - 1;
     const c = info.commodities[idx];
@@ -264,21 +304,15 @@ async function runUpgradeFlow(
 
     const affordable = Math.floor(info.credits / c.unitCost);
     if (affordable <= 0) {
-        term.writeln(
-            `Insufficient credits to upgrade ${labels[idx]} (need at least $${c.unitCost}).`,
-        );
+        term.writeln(render(PORT.upgradeInsufficient, { label: labels[idx], cost: c.unitCost }));
         return;
     }
     term.writeln('');
-    term.writeln(`That will cost ${c.unitCost} per unit to upgrade the ${labels[idx]}`);
-    const units = await askNumber(
-        ctx,
-        `How many units do you want to invest? (${affordable} max, 0 to quit) `,
-        {
-            min: 0,
-            defaultValue: 0,
-        },
-    );
+    term.writeln(render(PORT.upgradeCostPerUnit, { cost: c.unitCost, label: labels[idx] }));
+    const units = await askNumber(ctx, render(PORT.upgradeUnitsPrompt, { max: affordable }), {
+        min: 0,
+        defaultValue: 0,
+    });
     if (units === null || units <= 0) return;
     const clamped = Math.min(units, affordable);
 
@@ -303,7 +337,7 @@ registerRoutine('jettisonMenu', async (ctx) => {
 });
 
 registerRoutine('handleMinesMenu', async (ctx) => {
-    const typeChar = await askChar(ctx, 'Handle (P)roximity or (L)impet mines? ', ['p', 'l']);
+    const typeChar = await askChar(ctx, render(EVENT.mineTypePrompt), ['p', 'l']);
     if (typeChar === null) return;
     const mineType: 'proximity' | 'seeker' = typeChar === 'p' ? 'proximity' : 'seeker';
 
@@ -334,7 +368,7 @@ registerRoutine('handleMinesMenu', async (ctx) => {
 });
 
 registerRoutine('mineDisruptorMenu', async (ctx) => {
-    const target = await askNumber(ctx, 'Mine disruptor — adjacent target sector? (Q to cancel) ', {
+    const target = await askNumber(ctx, render(EVENT.disruptorTargetPrompt), {
         min: 1,
     });
     if (target === null) return;

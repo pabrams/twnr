@@ -163,10 +163,10 @@ async function runTradeRoutine(
         if (opened.type !== Commands.HaggleOpen.reply.name || opened.outcome !== 'opened') continue;
 
         term.writeln('');
-        term.writeln(`Agreed, ${qty} units.`);
+        term.writeln(render(PORT.haggleAgreed, { qty }));
         term.writeln('');
-        const verb = action === 'buy' ? "We'll sell them for" : "We'll buy them for";
-        term.writeln(`${verb} ${fmt(opened.initialOffer)} credits.`);
+        const offerTpl = action === 'buy' ? PORT.haggleOfferBuy : PORT.haggleOfferSell;
+        term.writeln(render(offerTpl, { offer: fmt(opened.initialOffer) }));
         let portCurrent = opened.initialOffer;
         let isFinal = false;
         let settled: typeof response | null = null;
@@ -174,15 +174,19 @@ async function runTradeRoutine(
         let response: HaggleResp | null = null;
 
         while (!settled) {
-            const counter = await askNumber(ctx, `Your offer [${portCurrent}] ? `, {
-                defaultValue: portCurrent,
-                min: 0,
-            });
+            const counter = await askNumber(
+                ctx,
+                render(PORT.haggleYourOffer, { current: portCurrent }),
+                {
+                    defaultValue: portCurrent,
+                    min: 0,
+                },
+            );
             if (ctx.world.mode !== Menu.Port) return;
             if (counter === null) {
                 ctx.io.sendMsg(command(Commands.HaggleQuit, {}));
                 term.writeln('');
-                term.writeln('You walk away from the deal.');
+                term.writeln(render(PORT.haggleWalkAway));
                 break;
             }
             if (
@@ -194,7 +198,7 @@ async function runTradeRoutine(
             } else if (isFinal) {
                 ctx.io.sendMsg(command(Commands.HaggleQuit, {}));
                 term.writeln('');
-                term.writeln('You walk away from the deal.');
+                term.writeln(render(PORT.haggleWalkAway));
                 break;
             } else {
                 ctx.io.sendMsg(command(Commands.HaggleCounter, { counter }));
@@ -203,25 +207,25 @@ async function runTradeRoutine(
             const r = await awaitResponse(ctx, [Commands.HaggleCounter.reply.name]);
             if (r === null) return;
             if (r.type !== Commands.HaggleCounter.reply.name) {
-                term.writeln('Haggle error');
+                term.writeln(render(PORT.haggleError));
                 break;
             }
             response = r as HaggleResp;
             if (response.outcome === 'accepted') {
                 settled = response;
-                term.writeln("You are a shrewd trader, they're all yours.");
+                term.writeln(render(PORT.haggleAccepted));
             } else if (response.outcome === 'counter') {
                 portCurrent = response.newPortOffer;
                 term.writeln('');
-                term.writeln(`${verb} ${fmt(portCurrent)} credits.`);
+                term.writeln(render(offerTpl, { offer: fmt(portCurrent) }));
             } else if (response.outcome === 'final') {
                 portCurrent = response.newPortOffer;
                 isFinal = true;
                 term.writeln('');
-                term.writeln(`Our final offer is ${fmt(portCurrent)} credits.`);
+                term.writeln(render(PORT.haggleFinalOffer, { offer: fmt(portCurrent) }));
             } else if (response.outcome === 'rejected') {
                 term.writeln('');
-                term.writeln('This conversation is terminated!');
+                term.writeln(render(PORT.haggleRejected));
                 break;
             } else {
                 break;

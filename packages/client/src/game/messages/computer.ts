@@ -90,6 +90,7 @@ export const COMPUTER = makeDomain('COMPUTER', {
     transporterDetailLine: '  [g]{label}[/g] [by]:[/by] [bc]{value}[/bc]',
 
     mineScanBanner: '[bc]<Mine Scanning>[/bc]',
+    hyperspaceTargetPrompt: '[mg]Hyperspace jump target sector? (Q to cancel)[/mg] ',
     mineScanPrompt:
         ' Scan which mine type, [mg]<[/mg][by]P[/by][mg]>[/mg] Proximity or [mg]<[/mg][by]L[/by][mg]>[/mg] Limpet ? :',
 });

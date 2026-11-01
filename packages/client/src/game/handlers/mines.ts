@@ -75,9 +75,11 @@ export const trackSeekerMines: ReplyHandler<'TrackSeekerMines', MinesContext> = 
 export const mineDisruptor: ReplyHandler<'MineDisruptor', MinesContext> = (ctx, msg) => {
     ctx.io.term.writeln('');
     ctx.io.term.writeln(
-        `Disruptor pulse to sector ${msg.targetSector}: ` +
-            `removed ${msg.minesDisrupted} proximity mine(s) ` +
-            `(${msg.proximityMinesRemaining} remaining).`,
+        render(EVENT.disruptorPulse, {
+            sector: msg.targetSector,
+            removed: msg.minesDisrupted,
+            remaining: msg.proximityMinesRemaining,
+        }),
     );
     refreshMinimap(ctx);
 };
@@ -86,12 +88,19 @@ export const proximityMineHit: EventHandler<'ProximityMineHit', MinesContext> = 
     ctx.io.term.writeln('');
     if (msg.destroyed) {
         ctx.io.term.writeln(
-            `*** ${msg.detonations} proximity mine(s) detonated for ${msg.damage} damage — ship destroyed! ***`,
+            render(EVENT.proximityHitDestroyed, {
+                detonations: msg.detonations,
+                damage: msg.damage,
+            }),
         );
     } else {
         ctx.io.term.writeln(
-            `${msg.detonations} proximity mine(s) detonated for ${msg.damage} damage ` +
-                `(drones -${msg.dronesLost}, shields -${msg.shieldsLost}).`,
+            render(EVENT.proximityHit, {
+                detonations: msg.detonations,
+                damage: msg.damage,
+                drones: msg.dronesLost,
+                shields: msg.shieldsLost,
+            }),
         );
     }
     refreshMinimap(ctx);
@@ -104,6 +113,6 @@ export const seekerMineAttached: EventHandler<'SeekerMineAttached', MinesContext
 export const seekerMinePickedUp: EventHandler<'SeekerMinePickedUp', MinesContext> = (ctx, msg) => {
     ctx.io.term.writeln('');
     ctx.io.term.writeln(
-        `[ALERT] One of your limpet mines latched onto ${msg.targetOwnerName} in sector ${msg.sector}.`,
+        render(EVENT.limpetLatched, { target: msg.targetOwnerName, sector: msg.sector }),
     );
 };

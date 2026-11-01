@@ -1,6 +1,8 @@
 import { Menu, Commands, command } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { echoCommand } from '../display.js';
+import { render } from '../renderer.js';
+import { EVENT } from '../messages/index.js';
 import { showHardwareItemDetail, showHardwareMenu } from '../display-starbase.js';
 import { registerRoutine, registerMenuRoutine } from './types.js';
 import { askChar, askNumber } from './prompts.js';
@@ -51,7 +53,7 @@ for (const [routineName, itemName] of Object.entries(TOGGLE)) {
 }
 
 registerRoutine('buyMinesMenu', async (ctx) => {
-    const choice = await askChar(ctx, 'Mines: (P)roximity or (L)impet? ', ['p', 'l']);
+    const choice = await askChar(ctx, render(EVENT.buyMineTypePrompt), ['p', 'l']);
     if (choice === null) return;
     const itemName = choice === 'p' ? 'proximity_mine' : 'seeker_mine';
     const label = choice === 'p' ? 'Proximity Mines' : 'Limpet Mines';

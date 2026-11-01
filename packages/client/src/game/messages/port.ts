@@ -71,6 +71,47 @@ export const PORT = makeDomain('PORT', {
     class0HelpHeader: '\r\n[bg]Class-0 Port Commands[/bg]',
     class0HelpRow: ' [bc]{key}[/bc] [mg]-[/mg] [by]{desc}[/by]',
 
+    haggleAgreed: '[g]Agreed,[/g] [by]{qty}[/by] [g]units.[/g]',
+    haggleOfferBuy: "[mg]We'll sell them for[/mg] [by]{offer}[/by] [mg]credits.[/mg]",
+    haggleOfferSell: "[mg]We'll buy them for[/mg] [by]{offer}[/by] [mg]credits.[/mg]",
+    haggleYourOffer: '[mg]Your offer [[/mg][by]{current}[/by][mg]] ?[/mg] ',
+    haggleWalkAway: '[y]You walk away from the deal.[/y]',
+    haggleAccepted: "[bg]You are a shrewd trader, they're all yours.[/bg]",
+    haggleFinalOffer: '[br]Our final offer is[/br] [by]{offer}[/by] [br]credits.[/br]',
+    haggleRejected: '[br]This conversation is terminated![/br]',
+    haggleError: '[br]Haggle error[/br]',
+
+    constructNoPlanet: '[y]You need a planet in this sector before you can construct a port.[/y]',
+    constructTitle: '   [bc]StarPort Construction          Initial Construction Costs[/bc]',
+    constructColumns: ' [bw]Port Class   Ore  Org  Equ    Credits  Ore  Org  Equ  Days[/bw]',
+    constructRule: ' [g]---------- - --- --- ----   --------- ---- ---- ---- ----[/g]',
+    constructRow:
+        '     [bc]{portClass}[/bc]      {code}   [by]{credits}[/by] {ore} {org} {equ} {days}',
+    constructProduces:
+        '[mg]Ports will initially produce[/mg] [by]{rate}[/by] [mg]units/day in each category[/mg]',
+    youHaveCredits: '[mg]You have[/mg] [by]{credits}[/by] [mg]credits.[/mg]',
+    constructUnderway:
+        '[y]Note: construction of "[/y][bc]{name}[/bc][y]" (Class [/y][bc]{class}[/bc][y]) is already underway here — [/y][bc]{done}[/bc][y]/[/y][bc]{total}[/bc][y] days complete.[/y]',
+    constructClassPrompt: '[mg]What Class of port do you want to build? (1-8, Q to quit)[/mg] ',
+    constructClassCost:
+        '[mg]Port Class[/mg] [bc]{class}[/bc] [mg]will require[/mg] [by]{credits}[/by] [mg]credits.[/mg]',
+    constructPlanetProduces: '[mg]A Planet capable of producing the following per day:[/mg]',
+    constructDailyRow:
+        '[by]{qty}[/by] [mg]units of {commodity}/day for[/mg] [by]{days}[/by] [mg]days[/mg]',
+    constructConfirmPrompt: '[mg]Do you want to initiate construction on this port?[/mg] ',
+    constructNamePrompt: '[by]What do you want to name this StarPort?[/by]',
+    upgradeTag: '[bg](Upgrade StarPort)[/bg]',
+    upgradeTitle: '   [bc]Upgrade Starport Production[/bc]',
+    upgradeRow:
+        ' [bc]{i}[/bc] {label} [mg]costs[/mg] [by]${cost}[/by][mg]/unit   ({action}, prod={prod}, max={max}, stock={stock}, {pct}%)[/mg]',
+    upgradeChoosePrompt: '[mg]Choose 1, 2, 3 or Q to quit[/mg] ',
+    upgradeInsufficient:
+        '[br]Insufficient credits to upgrade {label} (need at least ${cost}).[/br]',
+    upgradeCostPerUnit:
+        '[mg]That will cost[/mg] [by]{cost}[/by] [mg]per unit to upgrade the[/mg] [bc]{label}[/bc]',
+    upgradeUnitsPrompt:
+        '[mg]How many units do you want to invest? ([/mg][by]{max}[/by] [mg]max, 0 to quit)[/mg] ',
+
     buildExpGained: 'For building this Starport, you receive {exp} experience point(s).',
     buildAlignmentUp: 'and your alignment went up by {rep} point(s).',
     buildUnderway:

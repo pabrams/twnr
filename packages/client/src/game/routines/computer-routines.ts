@@ -90,7 +90,7 @@ registerRoutine('currentShipSpecs', async (ctx) => {
 });
 
 registerRoutine('hyperspaceJump', async (ctx) => {
-    const sector = await askNumber(ctx, 'Hyperspace jump target sector? (Q to cancel) ', {
+    const sector = await askNumber(ctx, render(COMPUTER.hyperspaceTargetPrompt), {
         min: 1,
     });
     if (sector === null) return;

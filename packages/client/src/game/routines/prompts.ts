@@ -1,4 +1,6 @@
 import type { GameContext } from '../types.js';
+import { render } from '../renderer.js';
+import { COMMON } from '../messages/index.js';
 
 export type PromptCtx = Pick<GameContext, 'io' | 'input'>;
 
@@ -96,7 +98,7 @@ export async function askChar(
             return lower;
         }
         ctx.io.term.writeln('');
-        ctx.io.term.writeln(`Invalid choice — ${allowed.join(', ')} (Q or Enter to cancel).`);
+        ctx.io.term.writeln(render(COMMON.promptInvalidChoice, { allowed: allowed.join(', ') }));
     }
 }
 
@@ -117,15 +119,15 @@ export async function askNumber(
         }
         const n = parseInt(trimmed, 10);
         if (isNaN(n) || !Number.isFinite(n)) {
-            ctx.io.term.writeln('Enter a number (Q to cancel).');
+            ctx.io.term.writeln(render(COMMON.promptEnterNumber));
             continue;
         }
         if (opts?.min !== undefined && n < opts.min) {
-            ctx.io.term.writeln(`Minimum is ${opts.min}.`);
+            ctx.io.term.writeln(render(COMMON.promptMinimum, { min: opts.min }));
             continue;
         }
         if (opts?.max !== undefined && n > opts.max) {
-            ctx.io.term.writeln(`Maximum is ${opts.max}.`);
+            ctx.io.term.writeln(render(COMMON.promptMaximum, { max: opts.max }));
             continue;
         }
         return n;
@@ -168,6 +170,6 @@ export async function askConfirm(
             }
         }
         ctx.io.term.writeln('');
-        ctx.io.term.writeln('Please answer Y or N (Q to cancel).');
+        ctx.io.term.writeln(render(COMMON.promptYesNo));
     }
 }
