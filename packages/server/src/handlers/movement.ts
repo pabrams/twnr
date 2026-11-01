@@ -6,10 +6,11 @@ import { broadcastPlayerMoved } from '../services/sector-activity.js';
 import { getGraph } from '../state/graph-cache.js';
 import { getWarpRefs, resolveSectorId } from '../services/sector-lookup.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
-import { isInEncounter } from '../services/encounter.js';
+import { isInEncounter, enterEncounter } from '../services/encounter.js';
 import { notifyTurnChange } from '../services/notify.js';
 import { refreshSectorObservation } from '../services/sector-observations.js';
 import { moveToSector, markSectorVisited, getPreviousSectorNumber } from '../db/queries/player.js';
+import { hasEnemyDronesInSector } from '../db/queries/drones.js';
 import { getShipDrones, getShipTurnsPerWarp, moveShipToSector } from '../db/queries/ship.js';
 import {
     getSectorDbId,
@@ -43,7 +44,7 @@ export async function serveMove(
     const player = onlinePlayers[playerId];
     if (!player) return;
 
-    if (await isInEncounter(playerId)) {
+    if (isInEncounter(playerId)) {
         return {
             outcome: 'error',
             message: 'Resolve drone encounter first',
@@ -158,7 +159,11 @@ export async function serveMove(
     const sectorData = await buildSectorDisplayData(playerId, targetSector);
     if (!sectorData) return;
 
-    if (sectorData.sectorDrones && sectorData.sectorDrones.ownerId !== playerId) {
+    const facingHostileDrones =
+        sectorData.sectorDrones != null &&
+        (await hasEnemyDronesInSector(targetSector, universeId, playerId));
+    if (facingHostileDrones && sectorData.sectorDrones) {
+        enterEncounter(playerId);
         const shipDrones = (await getShipDrones(playerId)) ?? 0;
         const ownership = sectorData.sectorDrones.ownership;
         const ownerName =

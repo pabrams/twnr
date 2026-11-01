@@ -9,6 +9,8 @@ export interface Player {
     name: string;
     universeId: number;
     docked: boolean;
+    /** Facing hostile drones after a warp; only AttackSectorDrones and RetreatFromDrones are allowed. */
+    inEncounter: boolean;
     isAdmin: boolean;
     at_starbase?: boolean;
 }

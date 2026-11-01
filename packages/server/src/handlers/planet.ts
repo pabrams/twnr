@@ -79,7 +79,7 @@ export async function serveGetSectorPlanets(
     const player = onlinePlayers[playerId];
     if (!player) return;
 
-    if (await isInEncounter(playerId)) {
+    if (isInEncounter(playerId)) {
         return commandError('Resolve drone encounter first');
     }
 
@@ -109,7 +109,7 @@ export async function serveLandOnPlanet(
     const player = onlinePlayers[playerId];
     if (!player) return;
 
-    if (await isInEncounter(playerId)) {
+    if (isInEncounter(playerId)) {
         return commandError('Resolve drone encounter first');
     }
 
@@ -327,7 +327,7 @@ export async function serveTerraformInfo(
     const player = onlinePlayers[playerId];
     if (!player) return;
 
-    if (await isInEncounter(playerId)) {
+    if (isInEncounter(playerId)) {
         return commandError('Resolve drone encounter first');
     }
 
@@ -368,7 +368,7 @@ export async function serveUseTerraformDevice(
     const sectorId = player.sector;
     const universeId = player.universeId;
 
-    if (await isInEncounter(playerId)) {
+    if (isInEncounter(playerId)) {
         return commandError('Resolve drone encounter first');
     }
 

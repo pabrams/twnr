@@ -201,6 +201,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             name: playerRow.name,
             universeId,
             docked: false,
+            inEncounter: false,
             isAdmin,
         };
         const [totalSectors, starbaseSector, guestFlag, onPlanetId] = await Promise.all([

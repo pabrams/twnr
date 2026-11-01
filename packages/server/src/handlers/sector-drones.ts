@@ -5,7 +5,8 @@ import { sendEnvelope } from '../state/messaging.js';
 import { broadcastPlayerMoved } from '../services/sector-activity.js';
 import { getSectorDrones, resolveSectorId } from '../services/sector-lookup.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
-import { isInEncounter } from '../services/encounter.js';
+import { isInEncounter, leaveEncounter } from '../services/encounter.js';
+import { hasEnemyDronesInSector } from '../db/queries/drones.js';
 
 import {
     adjustReputationAndExperience,
@@ -68,7 +69,7 @@ export async function serveDeployDronesInfo(
         return commandError('Cannot deploy while docked');
     }
 
-    if (await isInEncounter(playerId)) {
+    if (isInEncounter(playerId)) {
         return commandError('Resolve drone encounter first');
     }
 
@@ -76,7 +77,10 @@ export async function serveDeployDronesInfo(
     if (!shipInfo) return { outcome: 'noShip' };
     const sectorDrones = await getSectorDrones(player.sector, player.universeId);
 
-    if (sectorDrones && sectorDrones.ownerId !== playerId) {
+    if (
+        sectorDrones &&
+        (await hasEnemyDronesInSector(player.sector, player.universeId, playerId))
+    ) {
         return commandError('Sector contains hostile drones');
     }
 
@@ -105,7 +109,7 @@ export async function serveDeployDrones(
         return commandError('Cannot deploy while docked');
     }
 
-    if (await isInEncounter(playerId)) {
+    if (isInEncounter(playerId)) {
         return commandError('Resolve drone encounter first');
     }
 
@@ -217,7 +221,7 @@ export async function serveAttackSectorDrones(
     const player = onlinePlayers[playerId];
     if (!player) return;
 
-    if (!(await isInEncounter(playerId))) {
+    if (!isInEncounter(playerId)) {
         return commandError('No drone encounter pending');
     }
 
@@ -241,7 +245,15 @@ export async function serveAttackSectorDrones(
             }
             const existing = await getSectorDronesRowForUpdate(sectorDbId, client);
             if (!existing || existing.quantity <= 0) {
-                throw abort(commandError('No hostile drones in sector'));
+                // The drones went away while the player was deciding: the encounter is over.
+                leaveEncounter(playerId);
+                throw abort({
+                    outcome: 'ok',
+                    victory: true,
+                    dronesLost: 0,
+                    sectorDronesRemaining: 0,
+                    shipDrones,
+                });
             }
 
             const sectorDroneQty = existing.quantity;
@@ -301,6 +313,7 @@ export async function serveAttackSectorDrones(
         },
         async (result) => {
             const { ownerId, k, newShipDrones, newSectorDrones, victory } = result;
+            if (victory) leaveEncounter(playerId);
 
             const { insertSystemMemo } = await import('../db/queries/message.js');
             const mailRecipients: number[] = [];
@@ -372,7 +385,7 @@ export async function serveRetreatFromDrones(
     const player = onlinePlayers[playerId];
     if (!player) return;
 
-    if (!(await isInEncounter(playerId))) {
+    if (!isInEncounter(playerId)) {
         return commandError('No drone encounter pending');
     }
 
@@ -383,6 +396,7 @@ export async function serveRetreatFromDrones(
     const universeId = player.universeId;
     const currentSector = player.sector;
 
+    leaveEncounter(playerId);
     const retreatSectorId = await resolveSectorId(retreatSector, universeId);
     player.sector = retreatSector;
     player.sectorId = retreatSectorId;

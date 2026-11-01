@@ -52,7 +52,7 @@ export async function serveDeployMineInfo(
     if (player.docked || player.at_starbase) {
         return commandError('Cannot deploy mines while docked');
     }
-    if (await isInEncounter(playerId)) {
+    if (isInEncounter(playerId)) {
         return commandError('Resolve drone encounter first');
     }
 
@@ -102,7 +102,7 @@ export async function serveDeployMine(
     if (player.docked || player.at_starbase) {
         return commandError('Cannot deploy mines while docked');
     }
-    if (await isInEncounter(playerId)) {
+    if (isInEncounter(playerId)) {
         return commandError('Resolve drone encounter first');
     }
 
@@ -242,7 +242,7 @@ export async function serveMineDisruptor(
     if (player.docked || player.at_starbase) {
         return commandError('Cannot fire disruptor while docked');
     }
-    if (await isInEncounter(playerId)) {
+    if (isInEncounter(playerId)) {
         return commandError('Resolve drone encounter first');
     }
 

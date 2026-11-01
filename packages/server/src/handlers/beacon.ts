@@ -28,7 +28,7 @@ export async function serveReleaseBeacon(
     if (player.docked || player.at_starbase) {
         return commandError('Cannot deploy a beacon while docked');
     }
-    if (await isInEncounter(playerId)) {
+    if (isInEncounter(playerId)) {
         return commandError('Resolve drone encounter first');
     }
 
@@ -76,7 +76,7 @@ export async function serveAttackBeacon(playerId: number): Promise<CommandResult
     if (player.docked || player.at_starbase) {
         return commandError('Cannot attack while docked');
     }
-    if (await isInEncounter(playerId)) {
+    if (isInEncounter(playerId)) {
         return commandError('Resolve drone encounter first');
     }
 

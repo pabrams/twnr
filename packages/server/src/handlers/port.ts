@@ -124,7 +124,7 @@ export async function serveDock(playerId: number): Promise<CommandResult<'Dock'>
         return commandError('Already docked');
     }
 
-    if (await isInEncounter(playerId)) {
+    if (isInEncounter(playerId)) {
         return commandError('Resolve drone encounter first');
     }
 
@@ -385,7 +385,7 @@ export async function serveDockStarbase(playerId: number): Promise<CommandResult
     const player = onlinePlayers[playerId];
     if (!player) return;
 
-    if (await isInEncounter(playerId)) {
+    if (isInEncounter(playerId)) {
         return commandError('Resolve drone encounter first');
     }
 
