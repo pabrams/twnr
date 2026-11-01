@@ -1,4 +1,4 @@
-import { ClientTag, Menu } from '@twnr/shared';
+import { Menu, Commands, command } from '@twnr/shared';
 import type { TowedAlong } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
@@ -7,7 +7,7 @@ import { showSectorDisplay, type DisplayCtx } from '../display.js';
 import { type DisplayPortCtx } from '../display-port.js';
 import { showDroneEncounter, type DisplayCombatCtx } from '../display-combat.js';
 import { askConfirm } from '../routines/prompts.js';
-import type { Handler } from './index.js';
+import type { ReplyHandler, RefusalHandler } from './index.js';
 import { refreshMinimap, type RefreshMinimapCtx } from './utils.js';
 
 type MovementContext = Pick<
@@ -25,7 +25,7 @@ function renderTowedAlong(ctx: MovementContext, towed: TowedAlong | undefined): 
     ctx.io.term.writeln(render(tpl, { name: towed.name }));
 }
 
-export const move: Handler<'moveResult', MovementContext> = (ctx, msg) => {
+export const move: ReplyHandler<'Move', MovementContext> = (ctx, msg) => {
     switch (msg.outcome) {
         case 'success': {
             ctx.world.sectorPlayers = msg.players;
@@ -39,7 +39,7 @@ export const move: Handler<'moveResult', MovementContext> = (ctx, msg) => {
                 const nextSector = ctx.autopilot.path[ctx.autopilot.step];
                 ctx.autopilot.step = ctx.autopilot.step + 1;
                 ctx.io.term.writeln(render(EVENT.autopilotWarping, { sector: nextSector }));
-                ctx.io.sendMsg({ type: ClientTag.Move, sector: nextSector });
+                ctx.io.sendMsg(command(Commands.Move, { sector: nextSector }));
             } else if (inAutopilot) {
                 ctx.io.term.writeln(render(EVENT.autopilotArrived, { sector: msg.sector }));
                 ctx.autopilot.path = [];
@@ -65,11 +65,9 @@ export const move: Handler<'moveResult', MovementContext> = (ctx, msg) => {
             break;
         }
         case 'nonAdjacent':
-            ctx.io.sendMsg({
-                type: ClientTag.ShortestPath,
-                from: ctx.world.currentSector,
-                to: msg.sector,
-            });
+            ctx.io.sendMsg(
+                command(Commands.ShortestPath, { from: ctx.world.currentSector, to: msg.sector }),
+            );
             break;
         case 'noShip':
             if (ctx.autopilot.path.length > 0) {
@@ -88,19 +86,20 @@ export const move: Handler<'moveResult', MovementContext> = (ctx, msg) => {
             }
             ctx.io.term.writeln(render(EVENT.shipDestroyed, { reason: msg.reason }));
             break;
-        case 'error':
-            if (ctx.autopilot.path.length > 0) {
-                ctx.autopilot.path = [];
-                ctx.autopilot.step = 0;
-                ctx.autopilot.paused = false;
-                ctx.io.term.writeln(render(EVENT.autopilotCancelled));
-            }
-            ctx.io.term.writeln(render(NOTIFY.error, { message: msg.message }));
-            break;
     }
 };
 
-export const shortestPath: Handler<'shortestPathResult', MovementContext> = (ctx, msg) => {
+/** A refused warp ends any autopilot run; the refusal itself has already been rendered. */
+export const moveRefused: RefusalHandler<'Move', MovementContext> = (ctx) => {
+    if (ctx.autopilot.path.length > 0) {
+        ctx.autopilot.path = [];
+        ctx.autopilot.step = 0;
+        ctx.autopilot.paused = false;
+        ctx.io.term.writeln(render(EVENT.autopilotCancelled));
+    }
+};
+
+export const shortestPath: ReplyHandler<'ShortestPath', MovementContext> = (ctx, msg) => {
     if (msg.hops === 0) {
         ctx.io.term.writeln(render(EVENT.alreadyInSector));
         return;
@@ -165,10 +164,10 @@ async function promptAutopilot(
     const nextSector = ctx.autopilot.path[1];
     term.writeln(render(EVENT.autopilotEngaged));
     term.writeln(render(EVENT.autopilotWarping, { sector: nextSector }));
-    ctx.io.sendMsg({ type: ClientTag.Move, sector: nextSector });
+    ctx.io.sendMsg(command(Commands.Move, { sector: nextSector }));
 }
 
-export const hyperspaceJump: Handler<'hyperspaceJumpResult', MovementContext> = (ctx, msg) => {
+export const hyperspaceJump: ReplyHandler<'HyperspaceJump', MovementContext> = (ctx, msg) => {
     ctx.io.term.writeln(
         render(EVENT.hyperspaceJump, {
             sector: msg.targetSector,
@@ -176,13 +175,13 @@ export const hyperspaceJump: Handler<'hyperspaceJumpResult', MovementContext> = 
             turns: msg.turnsUsed,
         }),
     );
-    ctx.io.sendMsg({ type: ClientTag.SectorDisplay });
+    ctx.io.sendMsg(command(Commands.SectorDisplay, {}));
 };
 
-export const previousSector: Handler<'previousSectorResult', MovementContext> = (ctx, msg) => {
+export const previousSector: ReplyHandler<'MoveToPrevious', MovementContext> = (ctx, msg) => {
     if (msg.sector === null) {
         ctx.io.term.writeln(render(NOTIFY.noPreviousSector));
     } else {
-        ctx.io.sendMsg({ type: ClientTag.Move, sector: msg.sector });
+        ctx.io.sendMsg(command(Commands.Move, { sector: msg.sector }));
     }
 };

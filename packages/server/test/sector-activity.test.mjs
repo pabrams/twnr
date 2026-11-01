@@ -87,12 +87,12 @@ describe('Sector activity notifications', () => {
       const warps = await wsRequest(ws, { type: ClientTag.WarpsOut, id: 1 }, ServerTag.WarpsOutResult);
       const target = warps.warps[0].sector;
       const res = await wsRequest(ws, { type: ClientTag.Move, sector: target }, ServerTag.MoveResult);
-      assert.equal(res.outcome, 'error');
-      assert.match(res.message, /undock/i);
+      assert.equal(res.outcome, 'refused');
+      assert.equal(res.reason, 'docked');
       // After undocking the same warp succeeds.
       await wsRequest(ws, { type: ClientTag.Undock }, ServerTag.UndockResult);
       const res2 = await wsRequest(ws, { type: ClientTag.Move, sector: target }, ServerTag.MoveResult);
-      assert.notEqual(res2.outcome, 'error');
+      assert.notEqual(res2.outcome, 'refused');
     } finally {
       await closeWS(ws);
     }
@@ -108,8 +108,8 @@ describe('Sector activity notifications', () => {
         { type: ClientTag.PortTransaction, good: 'fuel', quantity: 1, action: 'buy' },
         ServerTag.PortTransactionResult,
       );
-      assert.equal(res.type, ServerTag.Error);
-      assert.match(res.message, /dock/i);
+      assert.equal(res.outcome, 'refused');
+      assert.equal(res.reason, 'notDocked');
     } finally {
       await closeWS(ws);
     }

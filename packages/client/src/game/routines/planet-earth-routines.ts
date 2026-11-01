@@ -1,4 +1,4 @@
-import { ClientTag, Menu } from '@twnr/shared';
+import { Menu, Commands, command } from '@twnr/shared';
 import { render } from '../renderer.js';
 import { PLANET } from '../messages/index.js';
 import { echoCommand } from '../display.js';
@@ -14,7 +14,7 @@ registerRoutine('take_from_earth', async (ctx) => {
         { defaultValue: -1 },
     );
     if (qty === null) return;
-    ctx.io.sendMsg({ type: ClientTag.TakeColonists, quantity: qty, commodity: 'fuel' });
+    ctx.io.sendMsg(command(Commands.TakeColonists, { quantity: qty, commodity: 'fuel' }));
 });
 
 registerRoutine('leave_on_earth', async (ctx) => {
@@ -25,7 +25,7 @@ registerRoutine('leave_on_earth', async (ctx) => {
         { defaultValue: -1 },
     );
     if (qty === null) return;
-    ctx.io.sendMsg({ type: ClientTag.LeaveColonists, quantity: qty, commodity: 'fuel' });
+    ctx.io.sendMsg(command(Commands.LeaveColonists, { quantity: qty, commodity: 'fuel' }));
 });
 
 registerMenuRoutine(Menu.PlanetEarth, 'help_menu', (ctx) => {

@@ -433,7 +433,10 @@ export async function markPlayerLoggedOut(playerId: number, db: Queryable = pool
 
 const REDACTED_COMMAND_FIELDS = ['password', 'newPassword'];
 
-function redactCommand(command: ClientEnvelope): Record<string, unknown> {
+/** A parsed command, or whatever the client sent when the schema rejected it (always given a `type`). */
+export type LoggedCommand = ClientEnvelope | ({ type: string } & Record<string, unknown>);
+
+function redactCommand(command: LoggedCommand): Record<string, unknown> {
     const payload: Record<string, unknown> = { ...command };
     for (const field of REDACTED_COMMAND_FIELDS) {
         if (field in payload) payload[field] = '[redacted]';
@@ -444,7 +447,7 @@ function redactCommand(command: ClientEnvelope): Record<string, unknown> {
 export async function logPlayerCommand(
     playerId: number,
     universeId: number,
-    command: ClientEnvelope,
+    command: LoggedCommand,
     outcome: string,
     db: Queryable = pool,
 ): Promise<void> {

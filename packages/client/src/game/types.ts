@@ -10,7 +10,7 @@ import type {
     ServerEnvelope,
     ShipCatalogEntry,
     PlanetCatalogEntry,
-    CommandReply,
+    PortInfo,
 } from '@twnr/shared';
 import { Menu } from '@twnr/shared';
 import type { Minimap } from './minimap.js';
@@ -71,7 +71,7 @@ export interface WorldState {
     currentSector: number;
     currentPort: { class: number; name: string } | null;
     currentPortConstruction: { class: number; name: string; daysLeft: number } | null;
-    dockedPortInfo: CommandReply<'PortInfo'> | null;
+    dockedPortInfo: PortInfo | null;
     visitedSet: Set<number>;
     totalSectors: number;
     sectorPlayers: { id: number; name: string }[];

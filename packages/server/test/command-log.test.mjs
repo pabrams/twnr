@@ -31,7 +31,7 @@ async function waitForLoggedCommand(playerId, commandType) {
 }
 
 describe('command_log outcomes', () => {
-  it('records the reply outcome, "ok" for plain replies, and "error" for Error envelopes', async () => {
+  it('records the reply outcome, plus refused / rejected for refusals and bad requests', async () => {
     const { userId, token } = await createTestUser(pool);
     const playerId = await createTestPlayer(pool, userId, UNIVERSE_ID, `cl_${Date.now()}`, 1);
     const { ws, ready } = await connectWS({ token, universeId: UNIVERSE_ID });
@@ -44,10 +44,16 @@ describe('command_log outcomes', () => {
       await wsRequest(ws, { type: ClientTag.SectorDisplay }, ServerTag.SectorDisplayResult);
       assert.equal((await waitForLoggedCommand(playerId, ClientTag.SectorDisplay)).outcome, 'ok');
 
-      const err = await wsRequest(ws, { type: ClientTag.ClanCreate, name: 'x', password: 'hunter22' }, ServerTag.ClanCreateResult);
-      assert.equal(err.type, ServerTag.Error);
+      const refused = await wsRequest(ws, { type: ClientTag.ClanLeave }, ServerTag.ClanLeaveResult);
+      assert.equal(refused.outcome, 'refused');
+      assert.equal((await waitForLoggedCommand(playerId, ClientTag.ClanLeave)).outcome, 'refused');
+
+      // A one-letter clan name fails the schema: the client's fault, logged as rejected with the password redacted.
+      const rejected = await wsRequest(ws, { type: ClientTag.ClanCreate, name: 'x', password: 'hunter22' }, ServerTag.ClanCreateResult);
+      assert.equal(rejected.type, ServerTag.ProtocolError);
+      assert.equal(rejected.reason, 'rejected');
       const logged = await waitForLoggedCommand(playerId, ClientTag.ClanCreate);
-      assert.equal(logged.outcome, 'error');
+      assert.equal(logged.outcome, 'rejected');
       assert.equal(logged.payload.password, '[redacted]');
       assert.equal(logged.payload.name, 'x');
 

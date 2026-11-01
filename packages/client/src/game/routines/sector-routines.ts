@@ -1,4 +1,4 @@
-import { ClientTag, Menu, ServerTag, type ServerEnvelope as ServerEnvelopeT } from '@twnr/shared';
+import { Menu, type AcceptedReply, Commands, command } from '@twnr/shared';
 import { render } from '../renderer.js';
 import { COMPUTER, EVENT, NOTIFY, PANEL, PLANET, PORT, SECTOR } from '../messages/index.js';
 import {
@@ -32,19 +32,19 @@ import { runDockFlow } from '../handlers/port.js';
 
 registerRoutine('display_sector', (ctx) => {
     echoCommand(ctx, 'sectorDisplay');
-    ctx.io.sendMsg({ type: ClientTag.SectorDisplay });
+    ctx.io.sendMsg(command(Commands.SectorDisplay, {}));
 });
 
 registerRoutine('move', (ctx, line) => {
     const sector = parseInt(line, 10);
     if (!Number.isFinite(sector)) return;
     echoCommand(ctx, 'move', { sector });
-    ctx.io.sendMsg({ type: ClientTag.Move, sector });
+    ctx.io.sendMsg(command(Commands.Move, { sector }));
 });
 
 registerRoutine('move_previous', (ctx) => {
     echoCommand(ctx, 'moveToPrevious');
-    ctx.io.sendMsg({ type: ClientTag.MoveToPrevious });
+    ctx.io.sendMsg(command(Commands.MoveToPrevious, {}));
 });
 
 registerRoutine('move_menu', async (ctx) => {
@@ -60,7 +60,7 @@ registerRoutine('move_menu', async (ctx) => {
     const target = warps[idx];
     if (!target) return;
     echoCommand(ctx, 'move', { sector: target.sector });
-    ctx.io.sendMsg({ type: ClientTag.Move, sector: target.sector });
+    ctx.io.sendMsg(command(Commands.Move, { sector: target.sector }));
 });
 
 registerRoutine('port_menu', async (ctx) => {
@@ -71,25 +71,25 @@ registerRoutine('port_menu', async (ctx) => {
     if (ch === null || ch === 'q') return;
     if (ch === 't') {
         if (ctx.world.currentPort.class === 9) return;
-        const res = await request(ctx, { type: ClientTag.Dock }, ServerTag.DockResult);
+        const res = await request(ctx, Commands.Dock, {});
         if (res) await runDockFlow(ctx, res);
         return;
     }
     if (ch === 's') {
         if (ctx.world.currentPort.class !== 9) return;
-        ctx.io.sendMsg({ type: ClientTag.DockStarbase });
+        ctx.io.sendMsg(command(Commands.DockStarbase, {}));
     }
 });
 
 registerRoutine('player_info', async (ctx) => {
     echoCommand(ctx, 'shipInfo');
     await ensureHardwareCatalog(ctx);
-    ctx.io.sendMsg({ type: ClientTag.ShipInfo });
+    ctx.io.sendMsg(command(Commands.ShipInfo, {}));
 });
 
 registerRoutine('attack_menu', (ctx) => {
     echoCommand(ctx, 'attack');
-    ctx.io.sendMsg({ type: ClientTag.GetAttackTargets });
+    ctx.io.sendMsg(command(Commands.GetAttackTargets, {}));
 });
 
 registerRoutine('computer_menu', (ctx) => {
@@ -99,11 +99,7 @@ registerRoutine('computer_menu', (ctx) => {
 
 registerRoutine('deploy_drones_info', async (ctx) => {
     echoCommand(ctx, 'deployDronesInfo');
-    const reply = await request(
-        ctx,
-        { type: ClientTag.DeployDronesInfo },
-        ServerTag.DeployDronesInfoResult,
-    );
+    const reply = await request(ctx, Commands.DeployDronesInfo, {});
     if (!reply) return;
     if (reply.outcome === 'noShip') {
         ctx.io.term.writeln(render(EVENT.noShip));
@@ -126,53 +122,49 @@ registerRoutine('deploy_drones_info', async (ctx) => {
     if (qty === null) return;
     const ownership = await askDeployOwnership(ctx, render(EVENT.deployOwnershipPrompt));
     if (ownership === null) return;
-    ctx.io.sendMsg({ type: ClientTag.DeployDrones, quantity: qty, ownership });
+    ctx.io.sendMsg(command(Commands.DeployDrones, { quantity: qty, ownership }));
 });
 
 registerRoutine('order_starport', async (ctx) => {
     echoCommand(ctx, 'orderStarport');
-    ctx.io.sendMsg({ type: ClientTag.ConstructPortInfo });
+    ctx.io.sendMsg(command(Commands.ConstructPortInfo, {}));
     const info = await awaitResponse(ctx, [
-        ServerTag.ConstructPortInfoResult,
-        ServerTag.UpgradePortInfoResult,
-        ServerTag.Error,
+        Commands.ConstructPortInfo.reply.name,
+        Commands.UpgradePortInfo.reply.name,
     ]);
     if (info === null) return;
 
-    if (info.type === ServerTag.ConstructPortInfoResult) {
-        if (info.mode === 'hasPort') {
+    if (info.type === Commands.ConstructPortInfo.reply.name) {
+        if (info.outcome === 'hasPort') {
             ctx.io.term.writeln('');
             ctx.io.term.writeln('There is already a port in this sector.');
             return;
         }
-        if (info.mode === 'noPlanet') {
+        if (info.outcome === 'noPlanet') {
             ctx.io.term.writeln('');
             ctx.io.term.writeln(
                 'You need a planet in this sector before you can construct a port.',
             );
             return;
         }
-        if (info.mode === 'build') {
+        if (info.outcome === 'build') {
             await runBuildFlow(ctx, info);
             return;
         }
     }
-    if (info.type === ServerTag.UpgradePortInfoResult) {
-        if (info.mode === 'noPort') {
+    if (info.type === Commands.UpgradePortInfo.reply.name) {
+        if (info.outcome === 'noPort') {
             ctx.io.term.writeln('');
             ctx.io.term.writeln('No port here to upgrade.');
             return;
         }
-        await runUpgradeFlow(ctx, info);
+        if (info.outcome === 'upgrade') await runUpgradeFlow(ctx, info);
     }
 });
 
 async function runBuildFlow(
     ctx: Parameters<Parameters<typeof registerRoutine>[1]>[0],
-    info: Extract<
-        ServerEnvelopeT,
-        { type: typeof ServerTag.ConstructPortInfoResult; mode: 'build' }
-    >,
+    info: Extract<AcceptedReply<'ConstructPortInfo'>, { outcome: 'build' }>,
 ): Promise<void> {
     const { term } = ctx.io;
     term.writeln('');
@@ -234,27 +226,18 @@ async function runBuildFlow(
     const trimmed = name.trim();
     if (trimmed.length === 0) return;
 
-    const result = await request(
-        ctx,
-        { type: ClientTag.BuildPort, portClass, portName: trimmed },
-        ServerTag.BuildPortResult,
-    );
+    const result = await request(ctx, Commands.BuildPort, { portClass, portName: trimmed });
     if (!result) return;
     if (result.outcome === 'started') {
         term.writeln(render(PORT.buildExpGained, { exp: result.experienceGained }));
         term.writeln(render(PORT.buildAlignmentUp, { rep: result.reputationGained }));
         term.writeln(render(PORT.buildUnderway, { days: result.daysRequired }));
-    } else {
-        term.writeln(render(PORT.buildFailed, { message: result.message }));
     }
 }
 
 async function runUpgradeFlow(
     ctx: Parameters<Parameters<typeof registerRoutine>[1]>[0],
-    info: Extract<
-        ServerEnvelopeT,
-        { type: typeof ServerTag.UpgradePortInfoResult; mode: 'upgrade' }
-    >,
+    info: Extract<AcceptedReply<'UpgradePortInfo'>, { outcome: 'upgrade' }>,
 ): Promise<void> {
     const { term } = ctx.io;
     term.writeln('');
@@ -315,18 +298,15 @@ async function runUpgradeFlow(
     if (units === null || units <= 0) return;
     const clamped = Math.min(units, affordable);
 
-    const result = await request(
-        ctx,
-        { type: ClientTag.UpgradePort, commodity: c.commodity, units: clamped },
-        ServerTag.UpgradePortResult,
-    );
+    const result = await request(ctx, Commands.UpgradePort, {
+        commodity: c.commodity,
+        units: clamped,
+    });
     if (!result) return;
     if (result.outcome === 'upgraded') {
         term.writeln(render(PORT.upgradeExpGained, { exp: result.experienceGained }));
         term.writeln(render(PORT.buildAlignmentUp, { rep: result.reputationGained }));
         term.writeln(render(PORT.upgradeComplete));
-    } else {
-        term.writeln(render(PORT.upgradeFailed, { message: result.message }));
     }
 }
 
@@ -334,7 +314,7 @@ registerRoutine('jettison_menu', async (ctx) => {
     echoCommand(ctx, 'jettison');
     const ok = await askConfirm(ctx, render(SECTOR.jettisonConfirm), { defaultValue: false });
     if (ok) {
-        ctx.io.sendMsg({ type: ClientTag.Jettison });
+        ctx.io.sendMsg(command(Commands.Jettison, {}));
     }
 });
 
@@ -343,11 +323,7 @@ registerRoutine('handle_mines_menu', async (ctx) => {
     if (typeChar === null) return;
     const mineType: 'proximity' | 'seeker' = typeChar === 'p' ? 'proximity' : 'seeker';
 
-    const info = await request(
-        ctx,
-        { type: ClientTag.DeployMineInfo, mineType },
-        ServerTag.DeployMineInfoResult,
-    );
+    const info = await request(ctx, Commands.DeployMineInfo, { mineType });
     if (!info) return;
 
     const label = mineType === 'seeker' ? 'Limpet' : 'Proximity';
@@ -370,7 +346,7 @@ registerRoutine('handle_mines_menu', async (ctx) => {
     if (qty === null) return;
     const ownership = await askDeployOwnership(ctx, '\r\nOwnership (P)ersonal, (C)lan, (Q)? ');
     if (ownership === null) return;
-    ctx.io.sendMsg({ type: ClientTag.DeployMine, mineType, quantity: qty, ownership });
+    ctx.io.sendMsg(command(Commands.DeployMine, { mineType, quantity: qty, ownership }));
 });
 
 registerRoutine('mine_disruptor_menu', async (ctx) => {
@@ -378,16 +354,16 @@ registerRoutine('mine_disruptor_menu', async (ctx) => {
         min: 1,
     });
     if (target === null) return;
-    ctx.io.sendMsg({ type: ClientTag.MineDisruptor, targetSector: target });
+    ctx.io.sendMsg(command(Commands.MineDisruptor, { targetSector: target }));
 });
 
 registerRoutine('long_range_scan', async (ctx) => {
-    const reply = await request(ctx, { type: ClientTag.DensityScan }, ServerTag.DensityScanResult);
+    const reply = await request(ctx, Commands.DensityScan, {});
     if (!reply) return;
     if (!reply.hasVisualScanner) return;
     const ok = await askConfirm(ctx, render(PANEL.visualScanPrompt), { defaultValue: false });
     if (!ok) return;
-    ctx.io.sendMsg({ type: ClientTag.VisualScan });
+    ctx.io.sendMsg(command(Commands.VisualScan, {}));
 });
 
 registerRoutine('release_beacon', async (ctx) => {
@@ -398,16 +374,8 @@ registerRoutine('release_beacon', async (ctx) => {
     ctx.io.term.write(render(SECTOR.beaconMessagePrompt));
     const message = await askLine(ctx, '');
     if (message === null) return;
-    const reply = await request(
-        ctx,
-        { type: ClientTag.ReleaseBeacon, message: message.slice(0, 41) },
-        ServerTag.ReleaseBeaconResult,
-    );
+    const reply = await request(ctx, Commands.ReleaseBeacon, { message: message.slice(0, 41) });
     if (!reply) return;
-    if (reply.outcome === 'noBeacons') {
-        ctx.io.term.writeln(render(SECTOR.beaconNoBeacons));
-        return;
-    }
     ctx.io.term.writeln(render(SECTOR.beaconLaunched));
     if (reply.outcome === 'collision') {
         ctx.io.term.writeln(render(SECTOR.beaconCollision));
@@ -416,14 +384,13 @@ registerRoutine('release_beacon', async (ctx) => {
 
 registerRoutine('land', async (ctx) => {
     echoCommand(ctx, 'land');
-    ctx.io.sendMsg({ type: ClientTag.GetSectorPlanets });
+    ctx.io.sendMsg(command(Commands.GetSectorPlanets, {}));
     const response = await awaitResponse(ctx, [
-        ServerTag.GetSectorPlanetsResult,
-        ServerTag.LandOnPlanetResult,
-        ServerTag.Error,
+        Commands.GetSectorPlanets.reply.name,
+        Commands.LandOnPlanet.reply.name,
     ]);
     if (response === null) return;
-    if (response.type !== ServerTag.GetSectorPlanetsResult) return;
+    if (response.type !== Commands.GetSectorPlanets.reply.name) return;
     const planets = response.planets;
     if (planets.length === 0) {
         ctx.io.term.writeln(render(EVENT.noPlanetsToLand));
@@ -442,45 +409,19 @@ registerRoutine('land', async (ctx) => {
         }
     }
     echoCommand(ctx, 'landOnPlanet');
-    ctx.io.sendMsg({ type: ClientTag.LandOnPlanet, planetId: chosen.id });
+    ctx.io.sendMsg(command(Commands.LandOnPlanet, { planetId: chosen.id }));
 });
 
 registerRoutine('use_terraform_device', async (ctx) => {
     echoCommand(ctx, 'terraformInfo');
-    const info = await request(
-        ctx,
-        { type: ClientTag.TerraformInfo },
-        ServerTag.TerraformInfoResult,
-    );
+    const info = await request(ctx, Commands.TerraformInfo, {});
     if (!info) return;
-    if (!info.canTerraform) {
-        if (info.reason === 'no_devices') {
-            ctx.io.term.writeln(render(EVENT.terraformNoDevices));
-        } else {
-            ctx.io.term.writeln(render(NOTIFY.error, { message: 'Cannot terraform here.' }));
-        }
-        return;
-    }
     ctx.io.term.writeln(render(EVENT.terraformDevicesAvailable, { count: info.devices }));
     const ok = await askConfirm(ctx, render(EVENT.terraformConfirm), { defaultValue: false });
     if (!ok) return;
 
-    const result = await request(
-        ctx,
-        { type: ClientTag.UseTerraformDevice },
-        ServerTag.UseTerraformDeviceResult,
-    );
+    const result = await request(ctx, Commands.UseTerraformDevice, {});
     if (!result) return;
-    if (!result.success || !result.planet) {
-        const reason =
-            result.reason === 'no_devices'
-                ? 'No terraform devices on ship.'
-                : result.reason === 'restricted_sector'
-                  ? 'Cannot terraform in this sector.'
-                  : 'Terraform failed.';
-        ctx.io.term.writeln(render(EVENT.terraformFailure, { reason }));
-        return;
-    }
     const planet = result.planet;
     ctx.io.term.writeln(render(EVENT.terraformNarrative));
     if (result.collision) ctx.io.term.writeln(render(EVENT.terraformCollision));
@@ -496,25 +437,21 @@ registerRoutine('use_terraform_device', async (ctx) => {
         });
         ownership = ch === 'c' ? 'clan' : 'personal';
     }
-    const setRes = await request(
-        ctx,
-        { type: ClientTag.SetTerraformedPlanet, planetId: planet.id, name, ownership },
-        ServerTag.SetTerraformedPlanetResult,
-    );
+    const setRes = await request(ctx, Commands.SetTerraformedPlanet, {
+        planetId: planet.id,
+        name,
+        ownership,
+    });
     if (!setRes) return;
-    if (setRes.outcome === 'success') {
-        ctx.io.term.writeln(render(EVENT.terraformConfirmed, { name: setRes.name }));
-        ctx.io.term.writeln(
-            render(EVENT.terraformDevicesRemaining, { count: result.terraformDevices }),
-        );
-    } else {
-        ctx.io.term.writeln(render(EVENT.terraformFailure, { reason: setRes.message }));
-    }
+    ctx.io.term.writeln(render(EVENT.terraformConfirmed, { name: setRes.name }));
+    ctx.io.term.writeln(
+        render(EVENT.terraformDevicesRemaining, { count: result.terraformDevices }),
+    );
 });
 
 registerRoutine('starbase_info', (ctx) => {
     echoCommand(ctx, 'starbaseInfo');
-    ctx.io.sendMsg({ type: ClientTag.StarbaseInfo });
+    ctx.io.sendMsg(command(Commands.StarbaseInfo, {}));
 });
 
 registerRoutine('quit_game', async (ctx) => {
@@ -528,7 +465,7 @@ registerRoutine('quit_game', async (ctx) => {
 
 registerRoutine('players_online', (ctx) => {
     echoCommand(ctx, 'playersOnline');
-    ctx.io.sendMsg({ type: ClientTag.PlayersOnline });
+    ctx.io.sendMsg(command(Commands.PlayersOnline, {}));
 });
 
 registerRoutine('clan_menu', (ctx) => {
@@ -539,8 +476,7 @@ registerRoutine('clan_menu', (ctx) => {
 registerRoutine('transporter_pad', async (ctx) => {
     echoCommand(ctx, 'transporterPad');
 
-    const fetchScan = () =>
-        request(ctx, { type: ClientTag.ListOwnedShips }, ServerTag.ListOwnedShipsResult);
+    const fetchScan = () => request(ctx, Commands.ListOwnedShips, {});
     const paintScan = (s: NonNullable<Awaited<ReturnType<typeof fetchScan>>>) => {
         renderTransporterPrelude(ctx, s);
         renderActiveShipScan(ctx, s, {
@@ -576,11 +512,7 @@ registerRoutine('transporter_pad', async (ctx) => {
                 ctx.io.term.writeln(render(COMPUTER.transporterUnknownShip));
                 continue;
             }
-            const detail = await request(
-                ctx,
-                { type: ClientTag.GetShipDetail, shipId: target.id },
-                ServerTag.ShipDetailResult,
-            );
+            const detail = await request(ctx, Commands.GetShipDetail, { shipId: target.id });
             if (!detail) continue;
             await ensureHardwareCatalog(ctx);
             renderShipDetail(ctx, detail);
@@ -600,10 +532,10 @@ registerRoutine('transporter_pad', async (ctx) => {
             continue;
         }
 
-        ctx.io.sendMsg({ type: ClientTag.TransportToShip, shipId: target.id });
-        const result = await awaitResponse(ctx, [ServerTag.TransportToShipResult, ServerTag.Error]);
+        ctx.io.sendMsg(command(Commands.TransportToShip, { shipId: target.id }));
+        const result = await awaitResponse(ctx, [Commands.TransportToShip.reply.name]);
         if (result === null) return;
-        if (result.type !== ServerTag.TransportToShipResult) continue;
+        if (result.type !== Commands.TransportToShip.reply.name) continue;
 
         ctx.world.currentSector = result.targetSector;
         ctx.io.term.writeln('');
@@ -621,11 +553,7 @@ registerRoutine('transporter_pad', async (ctx) => {
 
 registerRoutine('tow_spacecraft', async (ctx) => {
     echoCommand(ctx, 'towSpacecraft');
-    const reply = await request(
-        ctx,
-        { type: ClientTag.TowSpacecraft },
-        ServerTag.TowSpacecraftResult,
-    );
+    const reply = await request(ctx, Commands.TowSpacecraft, {});
     if (!reply) return;
 
     if (reply.outcome === 'disengaged') {
@@ -659,19 +587,11 @@ registerRoutine('tow_spacecraft', async (ctx) => {
     };
 
     const finalizeAttach = async (shipId: number) => {
-        const attach = await request(
-            ctx,
-            { type: ClientTag.TowAttach, shipId },
-            ServerTag.TowAttachResult,
-        );
+        const attach = await request(ctx, Commands.TowAttach, { shipId });
         if (!attach) return;
-        if (attach.outcome === 'ok') {
-            ctx.io.term.writeln(
-                render(EVENT.towEngaged, { message: attach.message, tpw: attach.turnsPerWarp }),
-            );
-        } else {
-            ctx.io.term.writeln(render(EVENT.towAttachError, { message: attach.message }));
-        }
+        ctx.io.term.writeln(
+            render(EVENT.towEngaged, { name: attach.targetName, tpw: attach.turnsPerWarp }),
+        );
     };
 
     if (manned.length > 0) {

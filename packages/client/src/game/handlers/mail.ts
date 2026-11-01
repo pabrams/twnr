@@ -2,15 +2,18 @@ import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { EVENT } from '../messages/index.js';
 import { renderMailEntries } from '../display-mail.js';
-import type { Handler } from './index.js';
+import type { EventHandler } from './index.js';
 
 type MailContext = Pick<GameContext, 'io' | 'input'>;
 
-export const clanMemoNotification: Handler<'clanMemoNotification', MailContext> = (ctx, msg) => {
+export const clanMemoNotification: EventHandler<'ClanMemoNotification', MailContext> = (
+    ctx,
+    msg,
+) => {
     ctx.io.term.writeln(render(EVENT.clanMemoNotification, { name: msg.senderName }));
 };
 
-export const notice: Handler<'notice', MailContext> = (ctx, msg) => {
+export const notice: EventHandler<'Notice', MailContext> = (ctx, msg) => {
     if (msg.senderLabel) {
         ctx.io.term.writeln(render(EVENT.noticeHeader, { name: msg.senderLabel }));
     } else {
@@ -21,7 +24,7 @@ export const notice: Handler<'notice', MailContext> = (ctx, msg) => {
     }
 };
 
-export const hailIncoming: Handler<'hailIncoming', MailContext> = (ctx, msg) => {
+export const hailIncoming: EventHandler<'HailIncoming', MailContext> = (ctx, msg) => {
     ctx.io.term.writeln(render(EVENT.hailIncomingHeader, { name: msg.senderName }));
     for (const line of msg.body.split(/\r?\n/)) {
         ctx.io.term.writeln(render(EVENT.hailIncomingBody, { line }));
@@ -29,7 +32,7 @@ export const hailIncoming: Handler<'hailIncoming', MailContext> = (ctx, msg) => 
 };
 
 /** Only unprompted `incoming` pushes render here — connect/read replies are rendered by the routine awaiting them. */
-export const memoDelivery: Handler<'memoDelivery', MailContext> = (ctx, msg) => {
+export const memoDelivery: EventHandler<'MemoDelivery', MailContext> = (ctx, msg) => {
     if (msg.reason === 'incoming') {
         renderMailEntries(ctx, msg.memos);
     }

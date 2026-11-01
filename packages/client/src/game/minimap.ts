@@ -1,4 +1,4 @@
-import type { NeighborhoodSector, NeighborhoodWarp, CommandReply } from '@twnr/shared';
+import type { NeighborhoodSector, NeighborhoodWarp, AcceptedReply } from '@twnr/shared';
 import { HEX_CELL_SIZE, HEX_SPACING_MULTIPLIER, portClassTriplet } from '@twnr/shared';
 import { colorPalette, rgb } from '../config/colors.js';
 import './minimap.css';
@@ -242,7 +242,7 @@ export type MinimapKeyInjector = (key: string) => void;
 export type MinimapMenuButton = { label: string; key: string };
 
 export interface Minimap {
-    update(data: CommandReply<'GetNeighborhood'>, currentSectorNumber: number): void;
+    update(data: AcceptedReply<'GetNeighborhood'>, currentSectorNumber: number): void;
     /** centerXWorld/Y are undefined while the viewport follows the current sector. */
     getViewport(): {
         halfWidthWorld: number;
@@ -259,7 +259,7 @@ export interface Minimap {
 
 type MinimapState = {
     zoom: number;
-    data: CommandReply<'GetNeighborhood'> | null;
+    data: AcceptedReply<'GetNeighborhood'> | null;
     currentSectorNumber: number;
     currentSectorId: number;
     quickMoveTargets: number[] | null;
@@ -391,7 +391,8 @@ export function createMinimap(
 
     function currentSectorWorld(): Pt | null {
         if (!state.data) return null;
-        const cur = state.data.sectors.find((s) => s.id === state.data!.current_sector_id);
+        const data = state.data;
+        const cur = data.sectors.find((s) => s.id === data.current_sector_id);
         if (!cur || cur.x == null || cur.y == null) return null;
         return { x: cur.x, y: cur.y };
     }

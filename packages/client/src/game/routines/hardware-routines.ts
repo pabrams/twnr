@@ -1,4 +1,4 @@
-import { ClientTag, Menu } from '@twnr/shared';
+import { Menu, Commands, command } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { echoCommand } from '../display.js';
 import { showHardwareItemDetail, showHardwareMenu } from '../display-starbase.js';
@@ -33,13 +33,13 @@ async function buyStackable(ctx: GameContext, itemName: string, label: string): 
         defaultValue: canBuy,
     });
     if (qty === null) return;
-    ctx.io.sendMsg({ type: ClientTag.BuyHardware, itemName, quantity: qty });
+    ctx.io.sendMsg(command(Commands.BuyHardware, { itemName, quantity: qty }));
 }
 
 function buyToggle(ctx: GameContext, itemName: string): void {
     echoCommand(ctx, 'buyHardware');
     showHardwareItemDetail(ctx, itemName);
-    ctx.io.sendMsg({ type: ClientTag.BuyHardware, itemName });
+    ctx.io.sendMsg(command(Commands.BuyHardware, { itemName }));
 }
 
 for (const [routineName, spec] of Object.entries(STACKABLE)) {

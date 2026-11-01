@@ -15,6 +15,9 @@ import {
     StrOrNull,
     HardwareMap,
     OwnershipInfoSchema,
+    PositiveInt,
+    Id,
+    ShipName,
 } from './common.js';
 
 export const HardwareStoreItemSchema = z.object({
@@ -96,7 +99,7 @@ export const ShipInfo = defineCommand('shipInfo', {
 
 export const BuyDrones = defineCommand('buyDrones', {
     request: {
-        quantity: Int,
+        quantity: PositiveInt,
     },
     reply: {
         credits: Num,
@@ -106,7 +109,7 @@ export const BuyDrones = defineCommand('buyDrones', {
 
 export const BuyShields = defineCommand('buyShields', {
     request: {
-        quantity: Int,
+        quantity: PositiveInt,
     },
     reply: {
         credits: Num,
@@ -116,7 +119,7 @@ export const BuyShields = defineCommand('buyShields', {
 
 export const BuyHolds = defineCommand('buyHolds', {
     request: {
-        quantity: Int,
+        quantity: PositiveInt,
     },
     reply: {
         credits: Num,
@@ -155,12 +158,9 @@ export const BuyShipTradein = defineCommand('buyShipTradein', {
 
 export const SetShipName = defineCommand('setShipName', {
     request: {
-        name: z.string(),
+        name: ShipName,
     },
-    reply: {
-        outcome: z.enum(['ok', 'invalid', 'error']),
-        message: Str.optional(),
-    },
+    reply: {},
 });
 
 export const HardwareStoreInfo = defineCommand('hardwareStoreInfo', {
@@ -174,7 +174,7 @@ export const HardwareStoreInfo = defineCommand('hardwareStoreInfo', {
 export const BuyHardware = defineCommand('buyHardware', {
     request: {
         itemName: z.string(),
-        quantity: Int.optional(),
+        quantity: PositiveInt.optional(),
     },
     reply: {
         itemName: Str,
@@ -241,14 +241,14 @@ const ShipDetailResult = defineReply('shipDetailResult', {
 
 export const GetShipDetail = defineCommand('getShipDetail', {
     request: {
-        shipId: Int,
+        shipId: Id,
     },
     reply: ShipDetailResult,
 });
 
 export const TransportToShip = defineCommand('transportToShip', {
     request: {
-        shipId: Int,
+        shipId: Id,
     },
     reply: {
         targetShipId: Int,
@@ -271,9 +271,7 @@ export const ChangeShipOwnership = defineCommand('changeShipOwnership', {
 export const TowSpacecraft = defineCommand('towSpacecraft', {
     request: {},
     reply: outcomes({
-        disengaged: {
-            message: Str,
-        },
+        disengaged: {},
         none: {},
         options: {
             sector: Int,
@@ -285,15 +283,12 @@ export const TowSpacecraft = defineCommand('towSpacecraft', {
 
 export const TowAttach = defineCommand('towAttach', {
     request: {
-        shipId: Int,
+        shipId: Id,
     },
     reply: outcomes({
         ok: {
-            message: Str,
+            targetName: Str,
             turnsPerWarp: Num,
-        },
-        error: {
-            message: Str,
         },
     }),
 });

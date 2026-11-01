@@ -25,7 +25,7 @@ import {
     shipDestroyDefenderPenalty,
 } from '../services/combat-rewards.js';
 import { recordGameEvent } from '../services/game-events.js';
-import { type CommandResult, commandError, abort, runMutation } from './command.js';
+import { type CommandResult, commandRefusal, mutateAndReply } from './command.js';
 
 export async function serveGetAttackTargets(
     playerId: number,
@@ -58,17 +58,14 @@ export async function serveAttackShip(
     data: CommandRequest<'AttackShip'>,
 ): Promise<CommandResult<'AttackShip'>> {
     const { targetPlayerId, drones } = data;
-    if (!Number.isInteger(drones) || drones <= 0) {
-        return commandError('Invalid number of drones');
-    }
 
     if (attackerId === targetPlayerId) {
-        return commandError('You cannot attack yourself');
+        return commandRefusal('cannotAttackSelf');
     }
 
     const attacker = onlinePlayers[attackerId];
     if (!attacker) {
-        return commandError('Target is not in this sector');
+        return commandRefusal('targetNotHere');
     }
 
     const targetInfo = await getAttackTargetInfo(targetPlayerId);
@@ -78,23 +75,21 @@ export async function serveAttackShip(
         targetInfo.sector_number !== attacker.sector ||
         !isVisibleInSector(targetPlayerId, targetInfo.docked, targetInfo.on_planet_id)
     ) {
-        return commandError('Target is not in this sector');
+        return commandRefusal('targetNotHere');
     }
 
     const onlineTarget = onlinePlayers[targetPlayerId];
 
-    return runMutation(
-        'Attack',
-        async (client) => {
+    return mutateAndReply(
+        async (client, abort) => {
             const attackerDrones = await getShipDronesForUpdate(attackerId, client);
             const targetShip = await getShipDefensesForUpdate(targetPlayerId, client);
 
-            if (attackerDrones === undefined || targetShip === undefined) {
-                throw abort(commandError('Ship not found'));
-            }
+            if (attackerDrones === undefined) throw abort(commandRefusal('noShip'));
+            if (targetShip === undefined) throw abort(commandRefusal('targetHasNoShip'));
 
             if (drones > attackerDrones) {
-                throw abort(commandError('Not enough drones'));
+                throw abort(commandRefusal('notEnoughDrones'));
             }
 
             let targetShields = targetShip.shields;
@@ -198,15 +193,14 @@ export async function serveAttackShip(
         (result) => {
             const { destroyed, attackerDronesLost, defenderDronesLost, shieldsLost } = result;
 
-            // The defender gets the same envelope shape from their side of the fight.
             if (onlineTarget?.ws && onlineTarget.ws.readyState === 1) {
                 sendEnvelope(targetPlayerId, {
-                    type: ServerTag.AttackShipResult,
+                    type: ServerTag.ShipAttacked,
+                    attackerName: attacker.name,
                     destroyed,
                     attackerDronesLost,
                     defenderDronesLost,
                     defenderShieldsLost: shieldsLost,
-                    message: destroyed ? 'Your ship was destroyed!' : 'You were attacked!',
                     expDelta: result.defenderExpDelta,
                     repDelta: result.defenderRepDelta,
                 });
@@ -220,7 +214,6 @@ export async function serveAttackShip(
                 attackerDronesLost,
                 defenderDronesLost,
                 defenderShieldsLost: shieldsLost,
-                message: destroyed ? 'Target destroyed!' : 'Attack completed.',
                 expDelta: result.attackerExpDelta,
                 repDelta: result.attackerRepDelta,
             };

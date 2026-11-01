@@ -1,4 +1,4 @@
-import { ClientTag, Menu } from '@twnr/shared';
+import { Menu, Commands, command } from '@twnr/shared';
 import { echoCommand } from '../display.js';
 import { render } from '../renderer.js';
 import { HELP } from '../messages/index.js';
@@ -13,7 +13,7 @@ registerRoutine('back', (ctx) => {
     const backRow = menu?.commands.find((c) => c.command === 'back');
     ctx.io.term.writeln(render(backEcho(backRow?.label), {}));
     if (ctx.world.mode === Menu.Starbase) {
-        ctx.io.sendMsg({ type: ClientTag.LeaveStarbase });
+        ctx.io.sendMsg(command(Commands.LeaveStarbase, {}));
     } else if (ctx.world.mode === Menu.Shipyards) {
         ctx.world.mode = Menu.Starbase;
     } else if (ctx.world.mode === Menu.ShipyardsClass0) {
@@ -24,11 +24,11 @@ registerRoutine('back', (ctx) => {
         ctx.world.mode = Menu.Sector;
     } else if (ctx.world.mode === Menu.Computer || ctx.world.mode === Menu.Attack) {
         ctx.world.mode = Menu.Sector;
-        ctx.io.sendMsg({ type: ClientTag.SectorDisplay });
+        ctx.io.sendMsg(command(Commands.SectorDisplay, {}));
     } else if (ctx.world.mode === Menu.BaseComputer) {
         ctx.world.mode = Menu.Base;
     } else if (ctx.world.mode === Menu.PlanetEarth) {
-        ctx.io.sendMsg({ type: ClientTag.LeavePlanet });
+        ctx.io.sendMsg(command(Commands.LeavePlanet, {}));
     }
 });
 
@@ -55,5 +55,5 @@ registerRoutine('help_menu', (ctx) => {
 
 registerRoutine('list_deployed_drones', (ctx) => {
     echoCommand(ctx, 'listDeployedDrones');
-    ctx.io.sendMsg({ type: ClientTag.ListDeployedDrones });
+    ctx.io.sendMsg(command(Commands.ListDeployedDrones, {}));
 });

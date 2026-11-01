@@ -22,17 +22,17 @@ import { checkAndDeductTurns } from '../turn-logic.js';
 import { notifyTurnChange } from '../services/notify.js';
 import { cargoUsed } from './cargo-utils.js';
 import { formatOwner, ownershipFrom } from '../services/owner-format.js';
-import { type CommandResult, commandError } from './command.js';
+import { type CommandResult, commandRefusal } from './command.js';
 
 export async function serveShipInfo(playerId: number): Promise<CommandResult<'ShipInfo'>> {
     const row = await getShipInfo(playerId);
     if (!row) {
-        return commandError('Ship not found');
+        return commandRefusal('noShip');
     }
 
     const universeId = getPlayerUniverseId(playerId);
     if (universeId === undefined) {
-        return commandError('Player not in a universe.');
+        throw new Error('Player not in a universe.');
     }
 
     const hwRows = await getShipHardwareQuantities(row.ship_id);
@@ -82,7 +82,7 @@ export async function serveGetShipDetail(
     const { shipId } = data;
     const row = await getOwnedShipDetail(shipId, playerId);
     if (!row) {
-        return commandError('Ship not found or not owned by you.');
+        return commandRefusal('shipNotOwned');
     }
 
     const hwRows = await getShipHardwareQuantities(row.id);
@@ -91,7 +91,7 @@ export async function serveGetShipDetail(
     );
     const universeId = getPlayerUniverseId(playerId);
     if (universeId === undefined) {
-        return commandError('Player not in a universe.');
+        throw new Error('Player not in a universe.');
     }
     const hwMaxRows = await getShipTypeHardwareMax(universeId, row.ship_type_slug);
     const hardwareMax: Record<string, number> = Object.fromEntries(
@@ -180,33 +180,33 @@ export async function serveTransportToShip(
     if (!player) return;
 
     if (player.docked || player.at_starbase) {
-        return commandError('Cannot use the transporter while docked');
+        return commandRefusal('docked');
     }
     if (await getOnPlanetId(playerId)) {
-        return commandError('Cannot use the transporter while on a planet');
+        return commandRefusal('onPlanet');
     }
 
     const row = await getTransportTargetInfo(playerId, shipId);
     if (!row || row.target_sector_id === null || row.target_sector_number === null) {
-        return commandError('Target ship not found');
+        return commandRefusal('targetShipNotFound');
     }
     if (player.shipId === shipId) {
-        return commandError('Already on that ship');
+        return commandRefusal('alreadyOnShip');
     }
     const range = row.current_range ?? 0;
 
     const warps = await getGraph(player.universeId);
     const hops = bfsHops(warps, player.sector, row.target_sector_number);
     if (hops === null) {
-        return commandError('No path to target ship');
+        return commandRefusal('noPath');
     }
     if (hops > range) {
-        return commandError('Target ship is out of transporter range');
+        return commandRefusal('outOfTransporterRange');
     }
 
     const turnResult = await checkAndDeductTurns(playerId, player.universeId, 1);
     if (!turnResult.allowed) {
-        return commandError('Insufficient turns');
+        return commandRefusal('insufficientTurns');
     }
     if (turnResult.turnsUsed) {
         notifyTurnChange(playerId, turnResult.turnsUsed, 'transporter pad');
@@ -239,7 +239,7 @@ export async function serveChangeShipOwnership(
     const player = onlinePlayers[playerId];
     if (!player) return;
     if (player.shipId === null) {
-        return commandError('No ship.');
+        return commandRefusal('noShip');
     }
 
     const current = await getShipOwnership(player.shipId);
@@ -249,22 +249,22 @@ export async function serveChangeShipOwnership(
 
     if (ownership === 'clan') {
         if (playerClanId === null) {
-            return commandError('You are not in a clan.');
+            return commandRefusal('notInClan');
         }
         if (isClanOwned && current?.owner_clan_id === playerClanId) {
-            return commandError('Ship is already clan-owned.');
+            return commandRefusal('shipAlreadyClan');
         }
         await setShipOwnership(player.shipId, null, playerClanId);
     } else {
         if (isPersonal) {
-            return commandError('Ship is already personal.');
+            return commandRefusal('shipAlreadyPersonal');
         }
         if (playerClanId === null) {
-            return commandError('You are not in a clan; nothing to convert.');
+            return commandRefusal('notInClan');
         }
         const clan = await getClanById(playerClanId);
         if (clan?.leader_id !== playerId) {
-            return commandError('Only the clan leader can convert a clan ship to personal.');
+            return commandRefusal('notClanLeader');
         }
         await setShipOwnership(player.shipId, playerId, null);
     }

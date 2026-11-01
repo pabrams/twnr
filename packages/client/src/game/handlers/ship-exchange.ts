@@ -1,10 +1,10 @@
-import { ServerTag } from '@twnr/shared';
+import { Commands } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { TRANSACTION, SECTOR, PANEL } from '../messages/index.js';
 import { type DisplayCtx } from '../display.js';
 import { type DisplayStarbaseCtx } from '../display-starbase.js';
-import type { Handler } from './index.js';
+import type { ReplyHandler } from './index.js';
 import { fmt } from './utils.js';
 
 type ShipExchangeContext = Pick<
@@ -14,7 +14,7 @@ type ShipExchangeContext = Pick<
     DisplayCtx &
     DisplayStarbaseCtx;
 
-export const shipInfo: Handler<'shipInfoResult', ShipExchangeContext> = (ctx, msg) => {
+export const shipInfo: ReplyHandler<'ShipInfo', ShipExchangeContext> = (ctx, msg) => {
     ctx.ship.currentShipTypeName = msg.shipTypeName;
     ctx.ship.currentColoredShipName = msg.coloredShipName;
     ctx.io.term.writeln('');
@@ -95,13 +95,12 @@ export const shipInfo: Handler<'shipInfoResult', ShipExchangeContext> = (ctx, ms
 
 function applyBuyShipResult(
     ctx: ShipExchangeContext,
-    msg:
-        Parameters<Handler<'buyShipTradeinResult'>>[1] | Parameters<Handler<'buyShipNewResult'>>[1],
+    msg: Parameters<ReplyHandler<'BuyShipTradein'>>[1] | Parameters<ReplyHandler<'BuyShipNew'>>[1],
 ): void {
     ctx.ship.currentShipTypeName = msg.shipTypeName;
     ctx.ship.currentColoredShipName = msg.coloredShipName;
     const tpl =
-        msg.type === ServerTag.BuyShipTradeinResult
+        msg.type === Commands.BuyShipTradein.reply.name
             ? TRANSACTION.shipExchanged
             : TRANSACTION.shipPurchased;
     ctx.io.term.writeln(render(tpl, { name: msg.coloredShipName ?? msg.shipTypeName }));
@@ -121,6 +120,6 @@ function applyBuyShipResult(
     }
 }
 
-export const buyShipTradein: Handler<'buyShipTradeinResult', ShipExchangeContext> =
+export const buyShipTradein: ReplyHandler<'BuyShipTradein', ShipExchangeContext> =
     applyBuyShipResult;
-export const buyShipNew: Handler<'buyShipNewResult', ShipExchangeContext> = applyBuyShipResult;
+export const buyShipNew: ReplyHandler<'BuyShipNew', ShipExchangeContext> = applyBuyShipResult;

@@ -204,6 +204,21 @@ const SAMPLES: Record<string, Record<string, unknown>> = {
     'NEWS_EVENT.planet_claimed': { planet: 'Mars', owner: 'Alice' },
     'NEWS_EVENT.port_built': { sector: 42 },
     'NEWS_EVENT.base_upgraded': { planet: 'Mars', level: 2 },
+
+    'REFUSAL.insufficientMaterials': { fuel: 100, org: 0, equ: 25, colos: 0 },
+    'REFUSAL.insufficientMines': { mineType: 'proximity' },
+    'REFUSAL.minesAtCapacity': { room: 3, mineType: 'seeker' },
+    'REFUSAL.dronesAtCapacity': { room: 40 },
+    'REFUSAL.planetAtMax': { commodity: 'fuel' },
+    'REFUSAL.planetAtMaxColonists': { group: 'organics' },
+    'REFUSAL.noCommodityOnPlanet': { commodity: 'equipment' },
+    'REFUSAL.noColonistsInGroup': { group: 'fuel' },
+    'REFUSAL.groupAtMax': { group: 'equipment' },
+    'REFUSAL.notYourMines': { mineType: 'proximity' },
+    'REFUSAL.cannotCarry': { item: 'Photon Torpedoes' },
+    'REFUSAL.hardwareAtMax': { item: 'Marker Beacons', max: 5 },
+    'REFUSAL.alreadyInstalled': { item: 'Cloaking Device' },
+    'REFUSAL.clanFull': { max: 4 },
 };
 
 const SKIP_EXPORTS = new Set(['HELP_LINES']);
@@ -224,6 +239,7 @@ const DOMAIN_OUTPUT: Record<string, string> = {
     PANEL: '../packages/client/src/game/messages/panels.preview.ansi',
     NEWS: '../packages/client/src/game/messages/news.preview.ansi',
     NEWS_EVENT: '../packages/client/src/game/messages/news.preview.ansi',
+    REFUSAL: '../packages/client/src/game/messages/refusals.preview.ansi',
 };
 
 const args = process.argv.slice(2).map((a) => a.toUpperCase());

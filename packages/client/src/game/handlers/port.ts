@@ -1,21 +1,21 @@
 import {
-    ClientTag,
     Menu,
     PORT_CLASS_ACTIONS,
-    ServerTag,
     type PortClassActions,
-    type ServerEnvelope as ServerEnvelopeT,
+    type AcceptedReply,
+    Commands,
+    command,
 } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
-import { EVENT, NOTIFY, TRANSACTION, PORT } from '../messages/index.js';
+import { EVENT, TRANSACTION, PORT } from '../messages/index.js';
 import { showCommerceReport, showSectorDisplay, type DisplayCtx } from '../display.js';
 import { type DisplayPortCtx } from '../display-port.js';
 import { type DisplayStarbaseCtx } from '../display-starbase.js';
 import { type MenuArgsSlot } from '../routines/types.js';
 import { askNumber } from '../routines/prompts.js';
 import { awaitResponse } from '../routines/io.js';
-import type { Handler } from './index.js';
+import type { ReplyHandler } from './index.js';
 import { fmt, refreshMinimap, renderAttributeChange, type RefreshMinimapCtx } from './utils.js';
 
 type PortContext = Pick<GameContext, 'catalogs' | 'input' | 'io' | 'starbase' | 'world'> &
@@ -28,10 +28,7 @@ type PortContext = Pick<GameContext, 'catalogs' | 'input' | 'io' | 'starbase' | 
 type Cargo = { fuel: number; organics: number; equipment: number; colonists: number };
 type CommodityKey = keyof PortClassActions;
 
-export async function runDockFlow(
-    ctx: PortContext,
-    msg: Extract<ServerEnvelopeT, { type: typeof ServerTag.DockResult }>,
-): Promise<void> {
+export async function runDockFlow(ctx: PortContext, msg: AcceptedReply<'Dock'>): Promise<void> {
     if (!msg.docked || !msg.port) return;
     ctx.world.dockedPortInfo = msg.port;
     if (msg.freedFromTow) ctx.io.term.writeln(render(EVENT.towFreedByDock));
@@ -159,22 +156,11 @@ async function runTradeRoutine(
         const qty = raw === null || raw < 0 ? maxQty : Math.min(raw, maxQty);
         if (qty <= 0) continue;
 
-        ctx.io.sendMsg({
-            type: ClientTag.HaggleOpen,
-            commodity: c.key,
-            quantity: qty,
-            action,
-        });
-        const opened = await awaitResponse(ctx, [ServerTag.HaggleOpenResult, ServerTag.Error]);
+        ctx.io.sendMsg(command(Commands.HaggleOpen, { commodity: c.key, quantity: qty, action }));
+        const opened = await awaitResponse(ctx, [Commands.HaggleOpen.reply.name]);
         if (opened === null) return;
-        if (opened.type !== ServerTag.HaggleOpenResult || opened.outcome !== 'opened') {
-            const msg =
-                opened.type === ServerTag.HaggleOpenResult && opened.outcome === 'error'
-                    ? opened.message
-                    : 'Haggle could not start';
-            term.writeln(msg);
-            continue;
-        }
+        // Refusals and protocol errors have already been rendered.
+        if (opened.type !== Commands.HaggleOpen.reply.name || opened.outcome !== 'opened') continue;
 
         term.writeln('');
         term.writeln(`Agreed, ${qty} units.`);
@@ -184,7 +170,7 @@ async function runTradeRoutine(
         let portCurrent = opened.initialOffer;
         let isFinal = false;
         let settled: typeof response | null = null;
-        type HaggleResp = Extract<ServerEnvelopeT, { type: typeof ServerTag.HaggleResponseResult }>;
+        type HaggleResp = AcceptedReply<'HaggleCounter'>;
         let response: HaggleResp | null = null;
 
         while (!settled) {
@@ -194,7 +180,7 @@ async function runTradeRoutine(
             });
             if (ctx.world.mode !== Menu.Port) return;
             if (counter === null) {
-                ctx.io.sendMsg({ type: ClientTag.HaggleQuit });
+                ctx.io.sendMsg(command(Commands.HaggleQuit, {}));
                 term.writeln('');
                 term.writeln('You walk away from the deal.');
                 break;
@@ -204,19 +190,19 @@ async function runTradeRoutine(
                 (isFinal && counter >= portCurrent && action === 'buy') ||
                 (isFinal && counter <= portCurrent && action === 'sell')
             ) {
-                ctx.io.sendMsg({ type: ClientTag.HaggleAccept });
+                ctx.io.sendMsg(command(Commands.HaggleAccept, {}));
             } else if (isFinal) {
-                ctx.io.sendMsg({ type: ClientTag.HaggleQuit });
+                ctx.io.sendMsg(command(Commands.HaggleQuit, {}));
                 term.writeln('');
                 term.writeln('You walk away from the deal.');
                 break;
             } else {
-                ctx.io.sendMsg({ type: ClientTag.HaggleCounter, counter });
+                ctx.io.sendMsg(command(Commands.HaggleCounter, { counter }));
             }
 
-            const r = await awaitResponse(ctx, [ServerTag.HaggleResponseResult, ServerTag.Error]);
+            const r = await awaitResponse(ctx, [Commands.HaggleCounter.reply.name]);
             if (r === null) return;
-            if (r.type !== ServerTag.HaggleResponseResult) {
+            if (r.type !== Commands.HaggleCounter.reply.name) {
                 term.writeln('Haggle error');
                 break;
             }
@@ -238,7 +224,6 @@ async function runTradeRoutine(
                 term.writeln('This conversation is terminated!');
                 break;
             } else {
-                term.writeln(response.message);
                 break;
             }
         }
@@ -260,40 +245,32 @@ async function runTradeRoutine(
         term.writeln('');
         term.writeln(render(PORT.noTrade));
     }
-    ctx.io.sendMsg({ type: ClientTag.Undock });
+    ctx.io.sendMsg(command(Commands.Undock, {}));
 }
 
-export const undock: Handler<'undockResult', PortContext> = (ctx, msg) => {
-    if (msg.outcome === 'success') ctx.world.mode = Menu.Sector;
-    if (msg.outcome === 'success') {
-        ctx.world.dockedPortInfo = null;
-        ctx.starbase.class0ShipState = null;
-        ctx.world.sectorPlayers = msg.players;
-        refreshMinimap(ctx);
-    } else {
-        ctx.io.term.writeln(render(NOTIFY.error, { message: msg.message }));
-    }
+export const undock: ReplyHandler<'Undock', PortContext> = (ctx, msg) => {
+    ctx.world.mode = Menu.Sector;
+    ctx.world.dockedPortInfo = null;
+    ctx.starbase.class0ShipState = null;
+    ctx.world.sectorPlayers = msg.players;
+    refreshMinimap(ctx);
 };
 
-export const jettison: Handler<'jettisonResult', PortContext> = (ctx, msg) => {
-    if (msg.outcome === 'success') {
-        const j = msg.jettisoned;
-        const items = [
-            j.fuel > 0 ? `${j.fuel} fuel` : '',
-            j.organics > 0 ? `${j.organics} organics` : '',
-            j.equipment > 0 ? `${j.equipment} equipment` : '',
-            j.colonists > 0 ? `${j.colonists} colonists` : '',
-        ]
-            .filter(Boolean)
-            .join(', ');
-        ctx.io.term.writeln(render(TRANSACTION.jettisoned, { items: items || 'nothing' }));
-        renderAttributeChange(ctx, msg.expDelta ?? 0, msg.repDelta ?? 0, 'jettisoning colonists');
-    } else {
-        ctx.io.term.writeln(render(NOTIFY.error, { message: msg.message }));
-    }
+export const jettison: ReplyHandler<'Jettison', PortContext> = (ctx, msg) => {
+    const j = msg.jettisoned;
+    const items = [
+        j.fuel > 0 ? `${j.fuel} fuel` : '',
+        j.organics > 0 ? `${j.organics} organics` : '',
+        j.equipment > 0 ? `${j.equipment} equipment` : '',
+        j.colonists > 0 ? `${j.colonists} colonists` : '',
+    ]
+        .filter(Boolean)
+        .join(', ');
+    ctx.io.term.writeln(render(TRANSACTION.jettisoned, { items: items || 'nothing' }));
+    renderAttributeChange(ctx, msg.expDelta ?? 0, msg.repDelta ?? 0, 'jettisoning colonists');
 };
 
-export const dockStarbase: Handler<'dockStarbaseResult', PortContext> = (ctx, msg) => {
+export const dockStarbase: ReplyHandler<'DockStarbase', PortContext> = (ctx, msg) => {
     ctx.world.mode = Menu.Starbase;
     ctx.catalogs.hardwarePrices = msg.prices;
     ctx.catalogs.class0Prices = msg.class0Prices;
@@ -311,7 +288,7 @@ export const dockStarbase: Handler<'dockStarbaseResult', PortContext> = (ctx, ms
     }
 };
 
-export const leaveStarbase: Handler<'leaveStarbaseResult', PortContext> = (ctx, msg) => {
+export const leaveStarbase: ReplyHandler<'LeaveStarbase', PortContext> = (ctx, msg) => {
     ctx.world.mode = Menu.Sector;
     ctx.starbase.class0ShipState = null;
     ctx.world.sectorPlayers = msg.players;

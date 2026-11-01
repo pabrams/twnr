@@ -84,10 +84,10 @@ describe('ShipCatalog', () => {
       const buy = await wsRequest(
         ws,
         { type: ClientTag.BuyShipNew, targetShipName: target.name },
-        ServerTag.ShipNameRequired,
+        ServerTag.BuyShipNewResult,
       );
-      assert.equal(buy.type, ServerTag.Error);
-      assert.equal(buy.message, 'Not at Starbase');
+      assert.equal(buy.outcome, 'refused');
+      assert.equal(buy.reason, 'notAtStarbase');
     } finally {
       await closeWS(ws);
     }

@@ -6,7 +6,7 @@ import {
     listGalacticNewsSince,
     type GalacticNewsRow,
 } from '../db/queries/game-events.js';
-import { type CommandResult, commandError } from './command.js';
+import { type CommandResult } from './command.js';
 
 const NEWS_CHUNK_SIZE = 200;
 
@@ -37,9 +37,6 @@ export async function serveReadGalacticNews(
     const player = onlinePlayers[playerId];
     if (!player) return;
     const since = new Date(data.since);
-    if (Number.isNaN(since.getTime())) {
-        return commandError('Invalid news date');
-    }
     const rows = await listGalacticNewsSince(
         player.universeId,
         since,

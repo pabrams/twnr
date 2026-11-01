@@ -13,10 +13,15 @@ export async function sendEnvelope(playerId: number, body: ServerEnvelope): Prom
     player.ws.send(frame(body));
 }
 
-export function sendError(playerId: number, message: string): void {
+/** Only for faults: a request the schema rejected, or a server failure. Game refusals are replies. */
+export function sendProtocolError(
+    playerId: number,
+    reason: 'rejected' | 'exception',
+    message: string,
+): void {
     const player = onlinePlayers[playerId];
     if (!player || player.ws.readyState !== 1) return;
-    player.ws.send(frame({ type: ServerTag.Error, message }));
+    player.ws.send(frame({ type: ServerTag.ProtocolError, reason, message }));
 }
 
 /** Deferred a tick so a reply the current handler returns still reaches the player before the socket closes. */

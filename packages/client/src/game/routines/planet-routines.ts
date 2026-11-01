@@ -1,4 +1,4 @@
-import { ClientTag, Menu, ServerTag } from '@twnr/shared';
+import { Menu, Commands, command } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { PLANET } from '../messages/index.js';
@@ -45,7 +45,7 @@ async function maybeShowPlanet(ctx: GameContext, defaultYes: boolean): Promise<b
     const show = await askDisplayPlanet(ctx, defaultYes);
     if (show === null) return false;
     if (show) {
-        await request(ctx, { type: ClientTag.PlanetDisplay }, ServerTag.PlanetDisplayResult);
+        await request(ctx, Commands.PlanetDisplay, {});
     }
     return true;
 }
@@ -70,7 +70,7 @@ registerRoutine('load_unload_colonists', async (ctx) => {
             { defaultValue: -1 },
         );
         if (qty === null) return;
-        ctx.io.sendMsg({ type: ClientTag.TakeColonists, quantity: qty, commodity });
+        ctx.io.sendMsg(command(Commands.TakeColonists, { quantity: qty, commodity }));
     } else {
         const qty = await askNumber(
             ctx,
@@ -78,7 +78,7 @@ registerRoutine('load_unload_colonists', async (ctx) => {
             { defaultValue: -1 },
         );
         if (qty === null) return;
-        ctx.io.sendMsg({ type: ClientTag.LeaveColonists, quantity: qty, commodity });
+        ctx.io.sendMsg(command(Commands.LeaveColonists, { quantity: qty, commodity }));
     }
 });
 
@@ -136,7 +136,7 @@ registerRoutine('take_leave_product', async (ctx) => {
             { defaultValue: def },
         );
         if (qty === null) return;
-        ctx.io.sendMsg({ type: ClientTag.TakeCommodity, quantity: qty, commodity });
+        ctx.io.sendMsg(command(Commands.TakeCommodity, { quantity: qty, commodity }));
     } else {
         const onBoard =
             commodity === 'fuel'
@@ -151,7 +151,7 @@ registerRoutine('take_leave_product', async (ctx) => {
             { defaultValue: def },
         );
         if (qty === null) return;
-        ctx.io.sendMsg({ type: ClientTag.LeaveCommodity, quantity: qty, commodity });
+        ctx.io.sendMsg(command(Commands.LeaveCommodity, { quantity: qty, commodity }));
     }
 });
 
@@ -169,12 +169,12 @@ registerRoutine('change_population', async (ctx) => {
         ctx.io.term.writeln(render(PLANET.sameGroup));
         return;
     }
-    ctx.io.sendMsg({ type: ClientTag.ChangePopulation, quantity: qty, from, to });
+    ctx.io.sendMsg(command(Commands.ChangePopulation, { quantity: qty, from, to }));
 });
 
 registerRoutine('planet_display', (ctx) => {
     echoCommand(ctx, 'planetDisplay');
-    ctx.io.sendMsg({ type: ClientTag.PlanetDisplay });
+    ctx.io.sendMsg(command(Commands.PlanetDisplay, {}));
 });
 
 registerRoutine('claim_planet', async (ctx) => {
@@ -182,11 +182,7 @@ registerRoutine('claim_planet', async (ctx) => {
     const ch = await askChar(ctx, render(PLANET.claimOwnershipPrompt), ['p', 'c']);
     if (ch === null) return;
     const ownership = ch === 'p' ? 'personal' : 'clan';
-    const result = await request(
-        ctx,
-        { type: ClientTag.ClaimPlanet, ownership },
-        ServerTag.ClaimPlanetResult,
-    );
+    const result = await request(ctx, Commands.ClaimPlanet, { ownership });
     if (!result) return;
     ctx.io.term.writeln(
         render(
@@ -198,32 +194,27 @@ registerRoutine('claim_planet', async (ctx) => {
 
 registerRoutine('destroy_planet', (ctx) => {
     echoCommand(ctx, 'destroyPlanet');
-    ctx.io.sendMsg({ type: ClientTag.DestroyPlanet });
+    ctx.io.sendMsg(command(Commands.DestroyPlanet, {}));
 });
 
 registerRoutine('leave_planet', (ctx) => {
     echoCommand(ctx, 'leavePlanet');
-    ctx.io.sendMsg({ type: ClientTag.LeavePlanet });
+    ctx.io.sendMsg(command(Commands.LeavePlanet, {}));
 });
 
 registerRoutine('planetary_defense_bastion', async (ctx) => {
     echoCommand(ctx, 'planetaryDefenseBastion');
-    const reply = await request(ctx, { type: ClientTag.BaseInfo }, ServerTag.BaseInfoResult);
+    const reply = await request(ctx, Commands.BaseInfo, {});
     if (!reply) return;
     const { term } = ctx.io;
 
-    if (reply.mode === 'error') {
-        term.writeln('');
-        term.writeln(render(PLANET.baseError, { message: reply.message }));
-        return;
-    }
-    if (reply.mode === 'exists') {
+    if (reply.outcome === 'exists') {
         ctx.world.mode = Menu.Base;
         term.writeln('');
         term.writeln(render(PLANET.baseEntered, { level: reply.level }));
         return;
     }
-    if (reply.mode === 'constructing') {
+    if (reply.outcome === 'constructing') {
         const completes = new Date(reply.completesAt);
         const started = reply.startedAt ? new Date(reply.startedAt) : null;
         const msLeft = completes.getTime() - Date.now();
@@ -272,7 +263,7 @@ registerRoutine('planetary_defense_bastion', async (ctx) => {
 
     const ok = await askConfirm(ctx, render(PLANET.baseConstructPrompt), { defaultValue: false });
     if (!ok) return;
-    const result = await request(ctx, { type: ClientTag.BuildBase }, ServerTag.BuildBaseResult);
+    const result = await request(ctx, Commands.BuildBase, {});
     if (!result) return;
     if (result.outcome === 'started') {
         term.writeln('');
@@ -283,19 +274,6 @@ registerRoutine('planetary_defense_bastion', async (ctx) => {
                 completes: new Date(result.completesAt).toLocaleString(),
             }),
         );
-    } else {
-        term.writeln('');
-        term.writeln(render(PLANET.baseError, { message: result.message }));
-        if (result.shortfall) {
-            const parts: string[] = [];
-            if (result.shortfall.fuel) parts.push(`Fuel Ore: ${result.shortfall.fuel}`);
-            if (result.shortfall.org) parts.push(`Organics: ${result.shortfall.org}`);
-            if (result.shortfall.equ) parts.push(`Equipment: ${result.shortfall.equ}`);
-            if (result.shortfall.colos) parts.push(`Colonists: ${result.shortfall.colos}`);
-            if (parts.length > 0) {
-                term.writeln(render(PLANET.baseShortfall, { items: parts.join(', ') }));
-            }
-        }
     }
 });
 
@@ -308,13 +286,8 @@ registerRoutine('treasury_transfer', async (ctx) => {
     echoCommand(ctx, 'treasuryTransfer');
     const { term } = ctx.io;
 
-    const info = await request(ctx, { type: ClientTag.TreasuryInfo }, ServerTag.TreasuryInfoResult);
+    const info = await request(ctx, Commands.TreasuryInfo, {});
     if (!info) return;
-    if (info.outcome !== 'ok') {
-        term.writeln('');
-        term.writeln(render(PLANET.treasuryError, { message: info.message }));
-        return;
-    }
 
     const dirCh = await askChar(ctx, render(PLANET.treasuryDirectionPrompt), ['t', 'f']);
     if (dirCh === null) return;
@@ -345,17 +318,8 @@ registerRoutine('treasury_transfer', async (ctx) => {
     });
     if (amount === null) return;
 
-    const result = await request(
-        ctx,
-        { type: ClientTag.TreasuryTransfer, direction, amount },
-        ServerTag.TreasuryTransferResult,
-    );
+    const result = await request(ctx, Commands.TreasuryTransfer, { direction, amount });
     if (!result) return;
-    if (result.outcome !== 'ok') {
-        term.writeln('');
-        term.writeln(render(PLANET.treasuryError, { message: result.message }));
-        return;
-    }
     term.writeln(
         render(PLANET.treasuryTransferOk, {
             amount: fmt(result.amount),
@@ -368,38 +332,23 @@ registerRoutine('treasury_transfer', async (ctx) => {
 
 registerRoutine('scan_sector', (ctx) => {
     echoCommand(ctx, 'sectorScan');
-    ctx.io.sendMsg({ type: ClientTag.SectorDisplay });
+    ctx.io.sendMsg(command(Commands.SectorDisplay, {}));
 });
 
 registerRoutine('base_transporter', async (ctx) => {
     echoCommand(ctx, 'baseTransporter');
     const { term } = ctx.io;
 
-    const info = await request(ctx, { type: ClientTag.BwarpInfo }, ServerTag.BwarpInfoResult);
+    const info = await request(ctx, Commands.BwarpInfo, {});
     if (!info) return;
-    if (info.outcome === 'error') {
-        term.writeln('');
-        term.writeln(render(PLANET.bwarpError, { message: info.message }));
-        return;
-    }
-
     if (info.outcome === 'notInstalled') {
         term.writeln(render(PLANET.bwarpNotInstalledIntro, { cost: fmt(info.installCost) }));
         const ok = await askConfirm(ctx, render(PLANET.bwarpInstallPrompt), {
             defaultValue: false,
         });
         if (!ok) return;
-        const result = await request(
-            ctx,
-            { type: ClientTag.BwarpInstall },
-            ServerTag.BwarpInstallResult,
-        );
+        const result = await request(ctx, Commands.BwarpInstall, {});
         if (!result) return;
-        if (result.outcome !== 'ok') {
-            term.writeln('');
-            term.writeln(render(PLANET.bwarpError, { message: result.message }));
-            return;
-        }
         term.writeln(
             render(PLANET.bwarpInstallFlavor, {
                 range: result.range,
@@ -423,17 +372,8 @@ registerRoutine('base_transporter', async (ctx) => {
                 defaultValue: false,
             });
             if (!ok) continue;
-            const upgrade = await request(
-                ctx,
-                { type: ClientTag.BwarpUpgrade },
-                ServerTag.BwarpUpgradeResult,
-            );
+            const upgrade = await request(ctx, Commands.BwarpUpgrade, {});
             if (!upgrade) return;
-            if (upgrade.outcome !== 'ok') {
-                term.writeln('');
-                term.writeln(render(PLANET.bwarpError, { message: upgrade.message }));
-                continue;
-            }
             currentRange = upgrade.range;
             term.writeln(
                 render(PLANET.bwarpUpgradeFlavor, {
@@ -452,17 +392,11 @@ registerRoutine('base_transporter', async (ctx) => {
             continue;
         }
 
-        const distance = await request(
-            ctx,
-            { type: ClientTag.BwarpBeam, targetSector: target, commit: false },
-            ServerTag.BwarpBeamResult,
-        );
+        const distance = await request(ctx, Commands.BwarpBeam, {
+            targetSector: target,
+            commit: false,
+        });
         if (!distance) return;
-        if (distance.outcome === 'error') {
-            term.writeln('');
-            term.writeln(render(PLANET.bwarpError, { message: distance.message }));
-            continue;
-        }
         if (distance.outcome !== 'distance') return;
 
         term.writeln(
@@ -496,21 +430,9 @@ registerRoutine('base_transporter', async (ctx) => {
         });
         if (!engage) continue;
 
-        const beam = await request(
-            ctx,
-            { type: ClientTag.BwarpBeam, targetSector: target, commit: true },
-            ServerTag.BwarpBeamResult,
-        );
+        const beam = await request(ctx, Commands.BwarpBeam, { targetSector: target, commit: true });
         if (!beam) return;
-        if (beam.outcome !== 'beamed') {
-            term.writeln('');
-            term.writeln(
-                render(PLANET.bwarpError, {
-                    message: beam.outcome === 'error' ? beam.message : 'Beam aborted.',
-                }),
-            );
-            continue;
-        }
+        if (beam.outcome !== 'beamed') continue;
         term.writeln(
             render(PLANET.bwarpBeamedFlavor, {
                 sector: beam.targetSector,
@@ -520,13 +442,13 @@ registerRoutine('base_transporter', async (ctx) => {
         );
         ctx.world.mode = Menu.Sector;
         ctx.world.currentSector = beam.targetSector;
-        ctx.io.sendMsg({ type: ClientTag.SectorDisplay });
+        ctx.io.sendMsg(command(Commands.SectorDisplay, {}));
         return;
     }
 });
 
 registerRoutine('exit_base', (ctx) => {
     echoCommand(ctx, 'exitBase');
-    ctx.io.sendMsg({ type: ClientTag.ExitBase });
+    ctx.io.sendMsg(command(Commands.ExitBase, {}));
     ctx.world.mode = Menu.Planet;
 });

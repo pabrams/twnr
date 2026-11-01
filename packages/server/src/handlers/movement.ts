@@ -27,7 +27,7 @@ import {
 } from '../db/queries/tow.js';
 import { combinedTurnsPerWarp } from './tow.js';
 import type { TowedAlong } from '@twnr/shared';
-import { type CommandResult, commandError } from './command.js';
+import { type CommandResult, commandRefusal } from './command.js';
 
 export async function serveMove(
     playerId: number,
@@ -35,20 +35,14 @@ export async function serveMove(
 ): Promise<CommandResult<'Move'>> {
     const targetSector = data.sector;
     if (!Number.isInteger(targetSector) || targetSector <= 0) {
-        return {
-            outcome: 'error',
-            message: 'Invalid sector',
-        };
+        return commandRefusal('noSuchSector');
     }
 
     const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (isInEncounter(playerId)) {
-        return {
-            outcome: 'error',
-            message: 'Resolve drone encounter first',
-        };
+        return commandRefusal('inEncounter');
     }
 
     const universeId = player.universeId;
@@ -66,10 +60,7 @@ export async function serveMove(
     const freedFromTow = towerId !== null && towerId !== playerId;
 
     if (player.docked || player.at_starbase) {
-        return {
-            outcome: 'error',
-            message: 'You must undock before warping',
-        };
+        return commandRefusal('docked');
     }
 
     const currentSector = player.sector;
@@ -86,10 +77,7 @@ export async function serveMove(
         : ctx.turnsPerWarp;
     const turnResult = await deductTurns(playerId, effectiveTpw, ctx);
     if (!turnResult.allowed) {
-        return {
-            outcome: 'error',
-            message: 'Insufficient turns',
-        };
+        return commandRefusal('insufficientTurns');
     }
 
     const targetSectorId = await resolveSectorId(targetSector, universeId);
@@ -246,16 +234,13 @@ export async function serveWarpsOut(
     data: CommandRequest<'WarpsOut'>,
 ): Promise<CommandResult<'WarpsOut'>> {
     const { id } = data;
-    if (!Number.isInteger(id) || id <= 0) {
-        return commandError('Invalid sector ID');
-    }
 
     const universeId = getPlayerUniverseId(playerId);
     if (universeId === undefined) return;
 
     const sectorDbId = await getSectorDbId(id, universeId);
     if (!sectorDbId) {
-        return commandError('Sector not found');
+        return commandRefusal('noSuchSector');
     }
 
     const warpRefs = await getWarpRefs(playerId, id, universeId);
@@ -267,16 +252,13 @@ export async function serveShortestPath(
     data: CommandRequest<'ShortestPath'>,
 ): Promise<CommandResult<'ShortestPath'>> {
     const { from, to } = data;
-    if (!Number.isInteger(from) || from <= 0 || !Number.isInteger(to) || to <= 0) {
-        return commandError('Invalid sector ID');
-    }
 
     const universeId = getPlayerUniverseId(playerId);
     if (universeId === undefined) return;
 
     const foundSectors = await findSectorsByNumbers([from, to], universeId);
     if (!foundSectors.has(from) || !foundSectors.has(to)) {
-        return commandError('Sector not found');
+        return commandRefusal('noSuchSector');
     }
 
     if (from === to) {
@@ -315,5 +297,5 @@ export async function serveShortestPath(
         }
     }
 
-    return commandError('No path found');
+    return commandRefusal('noPath');
 }

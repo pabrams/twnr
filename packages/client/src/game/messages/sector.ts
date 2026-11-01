@@ -78,7 +78,6 @@ export const SECTOR = makeDomain('SECTOR', {
     beaconLaunched: '[bg]Beacon Launched![/bg]',
     beaconCollision:
         '[br]Your beacon collides with the one that was already here and both detonate![/br]',
-    beaconNoBeacons: '[br]No beacons on board![/br]',
     beaconLine: '[mg]Beacon[/mg]  [by]:[/by] [r]{message}[/r]',
 
     attackBeaconPrompt:

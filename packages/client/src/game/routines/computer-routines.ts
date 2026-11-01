@@ -1,4 +1,4 @@
-import { ClientTag, ServerTag } from '@twnr/shared';
+import { Commands, command } from '@twnr/shared';
 import { render } from '../renderer.js';
 import { COMPUTER, EVENT, NEWS, NOTIFY } from '../messages/index.js';
 import { echoCommand } from '../display.js';
@@ -26,11 +26,7 @@ registerRoutine('known_universe', async (ctx) => {
         const ch = await askChar(ctx, render(COMPUTER.knownUniversePrompt), ['e', 'u']);
         if (ch === null) return;
         const mode = ch === 'e' ? 'explored' : 'unexplored';
-        const response = await request(
-            ctx,
-            { type: ClientTag.VisitedSectors },
-            ServerTag.VisitedSectorsResult,
-        );
+        const response = await request(ctx, Commands.VisitedSectors, {});
         if (!response) return;
         renderVisitedSectorsResult(ctx, response, mode);
     }
@@ -38,7 +34,7 @@ registerRoutine('known_universe', async (ctx) => {
 
 registerRoutine('trader_list', async (ctx) => {
     ctx.io.term.writeln(render(COMPUTER.traderListLoading));
-    const reply = await request(ctx, { type: ClientTag.TraderList }, ServerTag.TraderListResult);
+    const reply = await request(ctx, Commands.TraderList, {});
     if (!reply) return;
     showTraderList(ctx, reply.traders);
 });
@@ -99,16 +95,16 @@ registerRoutine('hyperspace_jump', async (ctx) => {
     });
     if (sector === null) return;
     echoCommand(ctx, 'hyperspaceJump');
-    ctx.io.sendMsg({ type: ClientTag.HyperspaceJump, targetSector: sector });
+    ctx.io.sendMsg(command(Commands.HyperspaceJump, { targetSector: sector }));
 });
 
 registerRoutine('list_planets', (ctx) => {
     echoCommand(ctx, 'listPlanets');
-    ctx.io.sendMsg({ type: ClientTag.ListPlanets });
+    ctx.io.sendMsg(command(Commands.ListPlanets, {}));
 });
 
 registerRoutine('track_seeker_mines', (ctx) => {
-    ctx.io.sendMsg({ type: ClientTag.TrackSeekerMines });
+    ctx.io.sendMsg(command(Commands.TrackSeekerMines, {}));
 });
 
 registerRoutine('list_deployed_mines', async (ctx) => {
@@ -121,16 +117,12 @@ registerRoutine('list_deployed_mines', async (ctx) => {
         return;
     }
     ctx.world.mineScanFilter = ch === 'p' ? 'proximity' : 'seeker';
-    ctx.io.sendMsg({ type: ClientTag.ListDeployedMines });
+    ctx.io.sendMsg(command(Commands.ListDeployedMines, {}));
 });
 
 registerRoutine('active_ship_scan', async (ctx) => {
     echoCommand(ctx, 'activeShipScan');
-    const response = await request(
-        ctx,
-        { type: ClientTag.ListOwnedShips },
-        ServerTag.ListOwnedShipsResult,
-    );
+    const response = await request(ctx, Commands.ListOwnedShips, {});
     if (!response) return;
     renderActiveShipScan(ctx, response);
 });
@@ -140,11 +132,7 @@ registerRoutine('change_ship_ownership', async (ctx) => {
     const ch = await askChar(ctx, render(COMPUTER.ownershipPrompt), ['p', 'c']);
     if (ch === null) return;
     const ownership = ch === 'p' ? 'personal' : 'clan';
-    const result = await request(
-        ctx,
-        { type: ClientTag.ChangeShipOwnership, ownership },
-        ServerTag.ChangeShipOwnershipResult,
-    );
+    const result = await request(ctx, Commands.ChangeShipOwnership, { ownership });
     if (!result) return;
     ctx.io.term.writeln(
         render(
@@ -157,7 +145,7 @@ registerRoutine('change_ship_ownership', async (ctx) => {
 
 registerRoutine('read_mail', async (ctx) => {
     echoCommand(ctx, 'readMail');
-    const reply = await request(ctx, { type: ClientTag.ReadMail }, ServerTag.MemoDelivery);
+    const reply = await request(ctx, Commands.ReadMail, {});
     if (!reply) return;
     if (reply.memos.length === 0) {
         ctx.io.term.writeln(render(EVENT.mailReadEmpty));
@@ -165,16 +153,12 @@ registerRoutine('read_mail', async (ctx) => {
     }
     renderMailEntries(ctx, reply.memos);
     const del = await askConfirm(ctx, render(EVENT.mailDeletePrompt), { defaultValue: false });
-    if (del) ctx.io.sendMsg({ type: ClientTag.DeleteAllMail });
+    if (del) ctx.io.sendMsg(command(Commands.DeleteAllMail, {}));
 });
 
 registerRoutine('galactic_news', async (ctx) => {
     echoCommand(ctx, 'galacticNews');
-    const range = await request(
-        ctx,
-        { type: ClientTag.GalacticNewsRange },
-        ServerTag.GalacticNewsRangeResult,
-    );
+    const range = await request(ctx, Commands.GalacticNewsRange, {});
     if (!range) return;
     if (range.earliestCreatedAt === null) {
         ctx.io.term.writeln(render(NEWS.noNewsYet));
@@ -206,11 +190,7 @@ registerRoutine('hail', async (ctx) => {
     const target = await askLine(ctx, render(EVENT.hailNamePrompt));
     if (target === null) return;
     ctx.io.term.writeln(render(EVENT.hailRequesting, { name: target }));
-    const resolved = await request(
-        ctx,
-        { type: ClientTag.HailResolve, name: target },
-        ServerTag.HailResolveResult,
-    );
+    const resolved = await request(ctx, Commands.HailResolve, { name: target });
     if (!resolved) return;
     if (resolved.outcome === 'notFound') {
         ctx.io.term.writeln(render(EVENT.hailNotFound));
@@ -241,11 +221,10 @@ registerRoutine('hail', async (ctx) => {
         ctx.io.term.writeln(render(EVENT.hailEmpty));
         return;
     }
-    const sendResult = await request(
-        ctx,
-        { type: ClientTag.HailSend, recipientPlayerId: resolved.recipientPlayerId, body },
-        ServerTag.HailSendResult,
-    );
+    const sendResult = await request(ctx, Commands.HailSend, {
+        recipientPlayerId: resolved.recipientPlayerId,
+        body,
+    });
     if (!sendResult) return;
     if (sendResult.outcome === 'delivered') {
         ctx.io.term.writeln(render(EVENT.hailTerminated));

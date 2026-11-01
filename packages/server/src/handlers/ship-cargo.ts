@@ -11,10 +11,7 @@ import { type CommandResult } from './command.js';
 export async function serveJettison(playerId: number): Promise<CommandResult<'Jettison'>> {
     const cargo = await getShipCargo(playerId);
     if (!cargo) {
-        return {
-            outcome: 'error',
-            message: 'Player not found',
-        };
+        throw new Error('Player not found');
     }
 
     let appliedRep = 0;

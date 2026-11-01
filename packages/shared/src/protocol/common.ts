@@ -8,6 +8,33 @@ export const MineTypeSchema = z.enum(['proximity', 'seeker']);
 
 export const Int = z.number().int();
 
+// Request-side constraints: anything the client can check before sending is
+// enforced here, so handlers only refuse on game state.
+export const PositiveInt = Int.min(1);
+export const Id = PositiveInt;
+export const SectorNumber = PositiveInt;
+/** A quantity where -1 means "all" / "the default". */
+export const QuantityOrAll = Int.min(-1);
+
+export const MAX_SHIP_NAME_LENGTH = 20;
+export const MAX_PLANET_NAME_LENGTH = 64;
+export const MAX_PORT_NAME_LENGTH = 39;
+export const MAX_BEACON_MESSAGE_LENGTH = 41;
+export const MAX_MEMO_LENGTH = 2000;
+export const MAX_HAIL_LENGTH = 2000;
+export const CLAN_NAME_LENGTH = { min: 2, max: 32 } as const;
+export const CLAN_PASSWORD_LENGTH = { min: 4, max: 64 } as const;
+
+const trimmed = (min: number, max: number) => z.string().trim().min(min).max(max);
+export const ShipName = trimmed(1, MAX_SHIP_NAME_LENGTH);
+export const PlanetName = trimmed(1, MAX_PLANET_NAME_LENGTH);
+export const PortName = trimmed(1, MAX_PORT_NAME_LENGTH);
+export const BeaconMessage = trimmed(1, MAX_BEACON_MESSAGE_LENGTH);
+export const MemoBody = trimmed(1, MAX_MEMO_LENGTH);
+export const HailBody = trimmed(1, MAX_HAIL_LENGTH);
+export const ClanName = trimmed(CLAN_NAME_LENGTH.min, CLAN_NAME_LENGTH.max);
+export const ClanPassword = z.string().min(CLAN_PASSWORD_LENGTH.min).max(CLAN_PASSWORD_LENGTH.max);
+
 export const Num = z.number();
 
 export const Bool = z.boolean();

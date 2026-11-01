@@ -40,7 +40,7 @@ import { getTowingPlayerForShip, clearTowedShip } from '../db/queries/tow.js';
 import { getPlayerShipId } from '../db/queries/player.js';
 import { experienceDeltas, scalarDelta } from '../game-config.js';
 import { notifyTurnChange } from '../services/notify.js';
-import { type CommandResult, commandError, abort, runMutation } from './command.js';
+import { type CommandResult, commandRefusal, mutateAndReply } from './command.js';
 
 const EMPTY_CARGO = { fuel: 0, organics: 0, equipment: 0, colonists: 0 };
 
@@ -77,7 +77,6 @@ function buildPortInfoPayload(
         return tradingDisplayed(actions[commodity], stock, max);
     };
     return {
-        type: ServerTag.PortInfoResult,
         sectorId,
         portName: p.name,
         class: p.class,
@@ -98,9 +97,6 @@ export async function servePortInfo(
     data: CommandRequest<'PortInfo'>,
 ): Promise<CommandResult<'PortInfo'>> {
     const { sectorId } = data;
-    if (!Number.isInteger(sectorId) || sectorId <= 0) {
-        return commandError('Invalid sector ID');
-    }
 
     const universeId = getPlayerUniverseId(playerId);
     if (universeId === undefined) return;
@@ -110,7 +106,7 @@ export async function servePortInfo(
         getPlayerExperience(playerId),
     ]);
     if (!p) {
-        return commandError('No port in this sector');
+        return commandRefusal('noPortHere');
     }
 
     return buildPortInfoPayload(p, p.sector_id, xp);
@@ -121,11 +117,11 @@ export async function serveDock(playerId: number): Promise<CommandResult<'Dock'>
     if (!player) return;
 
     if (player.docked) {
-        return commandError('Already docked');
+        return commandRefusal('alreadyDocked');
     }
 
     if (isInEncounter(playerId)) {
-        return commandError('Resolve drone encounter first');
+        return commandRefusal('inEncounter');
     }
 
     const [p, cargo, xp] = await Promise.all([
@@ -134,7 +130,7 @@ export async function serveDock(playerId: number): Promise<CommandResult<'Dock'>
         getPlayerExperience(playerId),
     ]);
     if (!p) {
-        return commandError('No port in this sector');
+        return commandRefusal('noPortHere');
     }
 
     player.docked = true;
@@ -218,10 +214,7 @@ export async function serveUndock(playerId: number): Promise<CommandResult<'Undo
     if (!player) return;
 
     if (!player.docked) {
-        return {
-            outcome: 'error',
-            message: 'Not docked',
-        };
+        return commandRefusal('notDocked');
     }
 
     return undockPlayer(playerId);
@@ -243,38 +236,27 @@ export async function servePortTransaction(
     data: CommandRequest<'PortTransaction'>,
 ): Promise<CommandResult<'PortTransaction'>> {
     const { good, quantity, action } = data;
-    if (good !== 'fuel' && good !== 'organics' && good !== 'equipment') {
-        return commandError('Invalid good');
-    }
     const col = good as Commodity;
 
-    if (action !== 'buy' && action !== 'sell') {
-        return commandError('Invalid action');
-    }
-
     const qty = Number.isInteger(quantity) ? quantity : parseInt(String(quantity), 10);
-    if (isNaN(qty) || qty <= 0) {
-        return commandError('Invalid quantity');
-    }
 
     const player = onlinePlayers[playerId];
     if (!player) return;
     if (!player.docked) {
-        return commandError('You must dock at the port to trade');
+        return commandRefusal('notDocked');
     }
     const universeId = player.universeId;
 
-    return runMutation(
-        'Trade',
-        async (client) => {
+    return mutateAndReply(
+        async (client, abort) => {
             const currentSector = await getCurrentSector(playerId, client);
             if (currentSector === undefined) {
-                throw abort(commandError('Player not found'));
+                throw new Error('Player not found');
             }
 
             const port = await getPortTradeInfoForUpdate(currentSector, universeId, client);
             if (!port) {
-                throw abort(commandError('No port in this sector'));
+                throw abort(commandRefusal('noPortHere'));
             }
 
             const portActions = PORT_CLASS_ACTIONS[port.class];
@@ -283,7 +265,7 @@ export async function servePortTransaction(
                 (action === 'buy' && portActions[col] !== 'S') ||
                 (action === 'sell' && portActions[col] !== 'B')
             ) {
-                throw abort(commandError('Port does not trade this commodity'));
+                throw abort(commandRefusal('portDoesNotTrade'));
             }
 
             // Read xp inside the tx so an earlier trade's xp award affects this trade's pricing.
@@ -297,24 +279,24 @@ export async function servePortTransaction(
 
             const cargo = await getShipCargoWithCreditsForUpdate(playerId, client);
             if (!cargo) {
-                throw abort(commandError('Player not found'));
+                throw new Error('Player not found');
             }
 
             if (action === 'buy') {
                 const turnResult = await checkAndDeductTurns(playerId, universeId, 1, client);
                 if (!turnResult.allowed) {
-                    throw abort(commandError('Insufficient turns'));
+                    throw abort(commandRefusal('insufficientTurns'));
                 }
 
                 const cost = qty * price;
                 if (cargo.credits < cost) {
-                    throw abort(commandError('Insufficient credits'));
+                    throw abort(commandRefusal('insufficientCredits'));
                 }
                 if (stock < qty) {
-                    throw abort(commandError('Insufficient port inventory'));
+                    throw abort(commandRefusal('insufficientPortStock'));
                 }
                 if (cargoUsed(cargo) + qty > cargo.cargo_limit) {
-                    throw abort(commandError('Insufficient cargo holds'));
+                    throw abort(commandRefusal('insufficientHolds'));
                 }
 
                 await adjustPortCommodity(port.port_id, col, -qty, client);
@@ -338,10 +320,10 @@ export async function servePortTransaction(
             }
 
             if (cargo[col] < qty) {
-                throw abort(commandError('Insufficient cargo'));
+                throw abort(commandRefusal('insufficientCargo'));
             }
             if (stock + qty > max) {
-                throw abort(commandError('Port cannot buy that many'));
+                throw abort(commandRefusal('portCannotBuyThatMany'));
             }
 
             const revenue = qty * price;
@@ -386,12 +368,12 @@ export async function serveDockStarbase(playerId: number): Promise<CommandResult
     if (!player) return;
 
     if (isInEncounter(playerId)) {
-        return commandError('Resolve drone encounter first');
+        return commandRefusal('inEncounter');
     }
 
     const starbasePort = await getPortAtSector(player.sector, player.universeId);
     if (starbasePort?.class !== 9) {
-        return commandError('Starbase not found in this sector');
+        return commandRefusal('noStarbaseHere');
     }
 
     const wasDocked = player.docked;
@@ -431,7 +413,7 @@ export async function serveLeaveStarbase(
     if (!player) return;
 
     if (!player.at_starbase) {
-        return commandError('Not at Starbase');
+        return commandRefusal('notAtStarbase');
     }
 
     player.at_starbase = false;

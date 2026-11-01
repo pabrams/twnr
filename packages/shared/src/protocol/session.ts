@@ -26,7 +26,9 @@ export const Welcome = defineEvent('welcome', {
 
 export const RateLimited = defineEvent('rateLimited', {});
 
-export const ProtocolError = defineEvent('error', {
+/** The request itself was bad (client fault) or the server failed (server fault). */
+export const ProtocolError = defineEvent('protocolError', {
+    reason: z.enum(['rejected', 'exception']),
     message: Str,
 });
 

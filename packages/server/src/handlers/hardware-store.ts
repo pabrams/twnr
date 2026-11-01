@@ -12,14 +12,14 @@ import {
     getHardwareStoreRows,
     type HardwareItemRow,
 } from '../db/queries/hardware.js';
-import { type CommandResult, commandError, abort, runMutation } from './command.js';
+import { type CommandResult, commandRefusal, mutateAndReply } from './command.js';
 
 export async function serveHardwareStoreInfo(
     playerId: number,
 ): Promise<CommandResult<'HardwareStoreInfo'>> {
     const player = onlinePlayers[playerId];
     if (!player?.at_starbase) {
-        return commandError('Not at Starbase');
+        return commandRefusal('notAtStarbase');
     }
 
     const rows = await getHardwareStoreRows(playerId, player.universeId);
@@ -46,12 +46,12 @@ export async function serveBuyHardware(
     const { itemName, quantity } = data;
     const player = onlinePlayers[playerId];
     if (!player?.at_starbase) {
-        return commandError('Not at Starbase');
+        return commandRefusal('notAtStarbase');
     }
 
     const hw = await getHardwareItemByName(itemName);
     if (!hw) {
-        return commandError('Unknown hardware item');
+        return commandRefusal('unknownHardware');
     }
 
     const priceOverride = await getHardwarePriceForUniverse(player.universeId, hw.id);
@@ -70,32 +70,28 @@ async function buyStackable(
     quantity: number,
 ): Promise<CommandResult<'BuyHardware'>> {
     const qty = Number.isInteger(quantity) ? quantity : 0;
-    if (qty <= 0) {
-        return commandError('Invalid quantity');
-    }
 
     const cost = qty * unitPrice;
-    return runMutation(
-        'Buy hardware',
-        async (client) => {
+    return mutateAndReply(
+        async (client, abort) => {
             const capacity = await getShipHardwareCapacityForUpdate(playerId, hw.id, client);
             if (!capacity) {
-                throw abort(commandError('Ship not found'));
+                throw abort(commandRefusal('noShip'));
             }
 
             const { ship_id, current_qty, max_qty } = capacity;
 
             if (max_qty <= 0) {
-                throw abort(commandError(`Your ship cannot carry ${hw.label}`));
+                throw abort(commandRefusal('cannotCarry', { item: hw.label }));
             }
 
             if (current_qty + qty > max_qty) {
-                throw abort(commandError(`Cannot hold that many ${hw.label} (max ${max_qty})`));
+                throw abort(commandRefusal('hardwareAtMax', { item: hw.label, max: max_qty }));
             }
 
             const credits = await getCreditsForUpdate(playerId, client);
             if (credits === undefined || credits < cost) {
-                throw abort(commandError('Insufficient credits'));
+                throw abort(commandRefusal('insufficientCredits'));
             }
 
             await deductCredits(playerId, cost, client);
@@ -121,25 +117,24 @@ async function buyToggle(
     hw: HardwareItemRow,
     unitPrice: number,
 ): Promise<CommandResult<'BuyHardware'>> {
-    return runMutation(
-        'Buy hardware',
-        async (client) => {
+    return mutateAndReply(
+        async (client, abort) => {
             const capacity = await getShipHardwareCapacityForUpdate(playerId, hw.id, client);
             if (!capacity) {
-                throw abort(commandError('Ship not found'));
+                throw abort(commandRefusal('noShip'));
             }
 
             if (capacity.max_qty <= 0) {
-                throw abort(commandError(`Ship cannot equip ${hw.label}`));
+                throw abort(commandRefusal('cannotCarry', { item: hw.label }));
             }
 
             if (capacity.current_qty > 0) {
-                throw abort(commandError(`Ship already has ${hw.label}`));
+                throw abort(commandRefusal('alreadyInstalled', { item: hw.label }));
             }
 
             const credits = await getCreditsForUpdate(playerId, client);
             if (credits === undefined || credits < unitPrice) {
-                throw abort(commandError('Insufficient credits'));
+                throw abort(commandRefusal('insufficientCredits'));
             }
 
             await setShipHardwareInstalled(capacity.ship_id, hw.id, client);

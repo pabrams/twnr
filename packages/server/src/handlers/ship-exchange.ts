@@ -1,7 +1,7 @@
 import { ServerTag } from '@twnr/shared';
 import type { CommandRequest } from '@twnr/shared';
 import { onlinePlayers, getPlayerUniverseId } from '../state/players.js';
-import { sendEnvelope, sendError } from '../state/messaging.js';
+import { sendEnvelope } from '../state/messaging.js';
 
 import {
     getShipTypeBySlug,
@@ -13,7 +13,7 @@ import {
     type ShipTypeRow,
 } from '../db/queries/ship.js';
 import { setPendingShipPurchase } from '../state/pending-ship-purchases.js';
-import { type CommandResult, commandError, abort, isCommandError, runMutation } from './command.js';
+import { type CommandResult, type ReplyBody, commandRefusal, mutateAndReply } from './command.js';
 
 function calculateShipPrice(shipType: {
     cost_drive: number;
@@ -35,13 +35,13 @@ export async function serveBuyShipNew(
     data: CommandRequest<'BuyShipNew'>,
 ): Promise<CommandResult<'BuyShipNew'>> {
     if (!onlinePlayers[playerId]?.at_starbase) {
-        return commandError('Not at Starbase');
+        return commandRefusal('notAtStarbase');
     }
     const universeId = getPlayerUniverseId(playerId);
     if (universeId === undefined) return;
     const targetType = await getShipTypeBySlug(universeId, data.targetShipName);
     if (!targetType) {
-        return commandError('Unknown ship');
+        return commandRefusal('unknownShipType');
     }
     setPendingShipPurchase(playerId, { kind: 'new', targetShipName: data.targetShipName });
     sendEnvelope(playerId, {
@@ -57,13 +57,13 @@ export async function serveBuyShipTradein(
     data: CommandRequest<'BuyShipTradein'>,
 ): Promise<CommandResult<'BuyShipTradein'>> {
     if (!onlinePlayers[playerId]?.at_starbase) {
-        return commandError('Not at Starbase');
+        return commandRefusal('notAtStarbase');
     }
     const universeId = getPlayerUniverseId(playerId);
     if (universeId === undefined) return;
     const targetType = await getShipTypeBySlug(universeId, data.targetShipName);
     if (!targetType) {
-        return commandError('Unknown ship');
+        return commandRefusal('unknownShipType');
     }
     setPendingShipPurchase(playerId, { kind: 'tradein', targetShipName: data.targetShipName });
     sendEnvelope(playerId, {
@@ -82,26 +82,25 @@ export async function executeBuyShipNew(
     const universeId = getPlayerUniverseId(playerId);
     if (universeId === undefined) return;
 
-    const result = await runMutation(
-        'Ship exchange new',
-        async (client) => {
+    const result: ReplyBody<'BuyShipNew'> = await mutateAndReply(
+        async (client, abort) => {
             const targetType = await getShipTypeBySlug(universeId, targetShipName, client);
             if (!targetType) {
-                throw abort(commandError('Unknown ship'));
+                throw abort(commandRefusal('unknownShipType'));
             }
             const price = calculateShipPrice(targetType);
 
             const data = await getPlayerShipBuyInfoForUpdate(playerId, client);
             if (!data) {
-                throw abort(commandError('Player not found'));
+                throw new Error('Player not found');
             }
 
             if (data.ship_type_slug === targetShipName) {
-                throw abort(commandError('Already on that ship'));
+                throw abort(commandRefusal('alreadyOnShip'));
             }
 
             if (data.credits < price) {
-                throw abort(commandError('Insufficient credits'));
+                throw abort(commandRefusal('insufficientCredits'));
             }
 
             const newCargoLimit = targetType.starting_holds;
@@ -142,11 +141,7 @@ export async function executeBuyShipNew(
             };
         },
     );
-    if (isCommandError(result)) {
-        sendError(playerId, result.message);
-        return;
-    }
-    sendEnvelope(playerId, { type: ServerTag.BuyShipNewResult, ...result });
+    sendEnvelope(playerId, { type: ServerTag.BuyShipNewResult, outcome: 'ok', ...result });
 }
 
 export async function executeBuyShipTradein(
@@ -157,25 +152,24 @@ export async function executeBuyShipTradein(
     const universeId = getPlayerUniverseId(playerId);
     if (universeId === undefined) return;
 
-    const result = await runMutation(
-        'Ship exchange tradein',
-        async (client) => {
+    const result: ReplyBody<'BuyShipTradein'> = await mutateAndReply(
+        async (client, abort) => {
             const targetType: ShipTypeRow | undefined = await getShipTypeBySlug(
                 universeId,
                 targetShipName,
                 client,
             );
             if (!targetType) {
-                throw abort(commandError('Unknown ship'));
+                throw abort(commandRefusal('unknownShipType'));
             }
 
             const data = await getPlayerShipTradeInfoForUpdate(playerId, client);
             if (!data) {
-                throw abort(commandError('Player not found'));
+                throw new Error('Player not found');
             }
 
             if (data.ship_type_slug === targetShipName) {
-                throw abort(commandError('Already on that ship'));
+                throw abort(commandRefusal('alreadyOnShip'));
             }
 
             const targetPrice = calculateShipPrice(targetType);
@@ -188,7 +182,7 @@ export async function executeBuyShipTradein(
             });
             const cost = targetPrice - currentPrice;
             if (cost > 0 && data.credits < cost) {
-                throw abort(commandError('Insufficient credits'));
+                throw abort(commandRefusal('insufficientCredits'));
             }
 
             const newCargoLimit = targetType.starting_holds;
@@ -230,9 +224,5 @@ export async function executeBuyShipTradein(
             };
         },
     );
-    if (isCommandError(result)) {
-        sendError(playerId, result.message);
-        return;
-    }
-    sendEnvelope(playerId, { type: ServerTag.BuyShipTradeinResult, ...result });
+    sendEnvelope(playerId, { type: ServerTag.BuyShipTradeinResult, outcome: 'ok', ...result });
 }

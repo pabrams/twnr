@@ -56,56 +56,60 @@ describe('Schema', () => {
 });
 
 describe('Attack validation', () => {
-  it('should reject attack with 0 drones', async () => {
+  it('rejects an attack with 0 drones at the schema', async () => {
     const atk = await createPlayer('atk_zero', 1, 5, 0);
     const def = await createPlayer('def_zero', 1, 5, 0);
     const { ws: ws1 } = await connectPlayer(atk.token);
     const { ws: ws2 } = await connectPlayer(def.token);
     try {
       const res = await wsRequest(ws1, { type: ClientTag.AttackShip, targetPlayerId: def.id, drones: 0 }, ServerTag.AttackShipResult);
-      assert.equal(res.type, ServerTag.Error);
+      assert.equal(res.type, ServerTag.ProtocolError);
+      assert.equal(res.reason, 'rejected');
     } finally {
       await closeWS(ws1);
       await closeWS(ws2);
     }
   });
 
-  it('should reject attack with negative drones', async () => {
+  it('rejects an attack with negative drones at the schema', async () => {
     const atk = await createPlayer('atk_neg', 1, 5, 0);
     const def = await createPlayer('def_neg', 1, 5, 0);
     const { ws: ws1 } = await connectPlayer(atk.token);
     const { ws: ws2 } = await connectPlayer(def.token);
     try {
       const res = await wsRequest(ws1, { type: ClientTag.AttackShip, targetPlayerId: def.id, drones: -1 }, ServerTag.AttackShipResult);
-      assert.equal(res.type, ServerTag.Error);
+      assert.equal(res.type, ServerTag.ProtocolError);
+      assert.equal(res.reason, 'rejected');
     } finally {
       await closeWS(ws1);
       await closeWS(ws2);
     }
   });
 
-  it('should reject attack when attacker lacks enough drones', async () => {
+  it('refuses an attack when the attacker lacks enough drones', async () => {
     const atk = await createPlayer('atk_few', 1, 3, 0);
     const def = await createPlayer('def_few', 1, 5, 0);
     const { ws: ws1 } = await connectPlayer(atk.token);
     const { ws: ws2 } = await connectPlayer(def.token);
     try {
       const res = await wsRequest(ws1, { type: ClientTag.AttackShip, targetPlayerId: def.id, drones: 5 }, ServerTag.AttackShipResult);
-      assert.equal(res.type, ServerTag.Error);
+      assert.equal(res.outcome, 'refused');
+      assert.equal(res.reason, 'notEnoughDrones');
     } finally {
       await closeWS(ws1);
       await closeWS(ws2);
     }
   });
 
-  it('should reject attack when players are in different sectors', async () => {
+  it('refuses an attack when the players are in different sectors', async () => {
     const atk = await createPlayer('atk_diff', 1, 5, 0);
     const def = await createPlayer('def_diff', 2, 5, 0);
     const { ws: ws1 } = await connectPlayer(atk.token);
     const { ws: ws2 } = await connectPlayer(def.token);
     try {
       const res = await wsRequest(ws1, { type: ClientTag.AttackShip, targetPlayerId: def.id, drones: 1 }, ServerTag.AttackShipResult);
-      assert.equal(res.type, ServerTag.Error);
+      assert.equal(res.outcome, 'refused');
+      assert.equal(res.reason, 'targetNotHere');
     } finally {
       await closeWS(ws1);
       await closeWS(ws2);

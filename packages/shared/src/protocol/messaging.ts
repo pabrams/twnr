@@ -5,7 +5,7 @@ import { GameEventSchema } from '../game-events.js';
 
 import { defineCommand, defineEvent, defineReply, outcomes } from './define.js';
 
-import { Int, Bool, Str, StrOrNull, DateString } from './common.js';
+import { Int, Bool, Str, StrOrNull, DateString, Id, HailBody } from './common.js';
 
 export const GalacticNewsEntrySchema = z.object({
     id: Int,
@@ -55,7 +55,7 @@ export const DeleteAllMail = defineCommand('deleteAllMail', {
 
 export const HailResolve = defineCommand('hailResolve', {
     request: {
-        name: z.string(),
+        name: z.string().trim().min(1),
     },
     reply: outcomes({
         found: {
@@ -73,15 +73,12 @@ export const HailResolve = defineCommand('hailResolve', {
 
 export const HailSend = defineCommand('hailSend', {
     request: {
-        recipientPlayerId: Int,
-        body: z.string(),
+        recipientPlayerId: Id,
+        body: HailBody,
     },
     reply: outcomes({
         delivered: {},
         queued: {},
-        error: {
-            message: Str,
-        },
     }),
 });
 
@@ -103,8 +100,8 @@ const GalacticNewsResult = defineReply('galacticNewsResult', {
 /** `since` is an ISO timestamp (UTC day boundary). Pass the last received id as `afterId` to fetch the next chunk. */
 export const ReadGalacticNews = defineCommand('readGalacticNews', {
     request: {
-        since: z.string(),
-        afterId: Int.optional(),
+        since: z.iso.datetime(),
+        afterId: Id.optional(),
     },
     reply: GalacticNewsResult,
 });

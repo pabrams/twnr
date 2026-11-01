@@ -27,16 +27,11 @@ import {
 } from '../db/queries/mines.js';
 import { getPlayerClanId } from '../db/queries/clan.js';
 import { isFriendlyOwner } from '../services/owner.js';
-import { type CommandResult, commandError, abort, runMutation } from './command.js';
+import { type CommandResult, commandRefusal, mutateAndReply } from './command.js';
 
 const MINE_TYPE_TO_HARDWARE: Record<MineType, string> = {
     proximity: 'proximity_mine',
     seeker: 'seeker_mine',
-};
-
-const MINE_TYPE_LABEL: Record<MineType, string> = {
-    proximity: 'Proximity',
-    seeker: 'Limpet',
 };
 
 export async function serveDeployMineInfo(
@@ -44,16 +39,13 @@ export async function serveDeployMineInfo(
     data: CommandRequest<'DeployMineInfo'>,
 ): Promise<CommandResult<'DeployMineInfo'>> {
     const { mineType } = data;
-    if (mineType !== 'proximity' && mineType !== 'seeker') {
-        return commandError('Invalid mine type');
-    }
     const player = onlinePlayers[playerId];
     if (!player) return;
     if (player.docked || player.at_starbase) {
-        return commandError('Cannot deploy mines while docked');
+        return commandRefusal('docked');
     }
     if (isInEncounter(playerId)) {
-        return commandError('Resolve drone encounter first');
+        return commandRefusal('inEncounter');
     }
 
     const sectorDbId = player.sectorId;
@@ -61,18 +53,18 @@ export async function serveDeployMineInfo(
     const itemName = MINE_TYPE_TO_HARDWARE[mineType];
     const hw = await getHardwareItemByName(itemName);
     if (!hw) {
-        return commandError('Mine hardware not configured');
+        throw new Error('Mine hardware not configured');
     }
 
     const playerClanId = await getPlayerClanId(playerId);
     const existing = await getSectorMine(sectorDbId, mineType);
     if (existing && existing.quantity > 0 && !isFriendlyOwner(existing, playerId, playerClanId)) {
-        return commandError(`Those ${MINE_TYPE_LABEL[mineType]} mines aren't yours`);
+        return commandRefusal('notYourMines', { mineType });
     }
 
     const cap = await getShipHardwareCapacityForUpdate(playerId, hw.id);
     if (!cap) {
-        return commandError('Ship not found');
+        return commandRefusal('noShip');
     }
 
     return {
@@ -90,20 +82,14 @@ export async function serveDeployMine(
     const { mineType } = data;
     const target = data.quantity;
     const ownership: 'personal' | 'clan' = data.ownership ?? 'personal';
-    if (mineType !== 'proximity' && mineType !== 'seeker') {
-        return commandError('Invalid mine type');
-    }
-    if (!Number.isInteger(target) || target < -1) {
-        return commandError('Invalid quantity');
-    }
 
     const player = onlinePlayers[playerId];
     if (!player) return;
     if (player.docked || player.at_starbase) {
-        return commandError('Cannot deploy mines while docked');
+        return commandRefusal('docked');
     }
     if (isInEncounter(playerId)) {
-        return commandError('Resolve drone encounter first');
+        return commandRefusal('inEncounter');
     }
 
     const sectorDbId = player.sectorId;
@@ -111,17 +97,16 @@ export async function serveDeployMine(
     const itemName = MINE_TYPE_TO_HARDWARE[mineType];
     const hw = await getHardwareItemByName(itemName);
     if (!hw) {
-        return commandError('Mine hardware not configured');
+        throw new Error('Mine hardware not configured');
     }
 
     const playerClanId = await getPlayerClanId(playerId);
     if (ownership === 'clan' && playerClanId === null) {
-        return commandError('You are not in a clan.');
+        return commandRefusal('notInClan');
     }
 
-    return runMutation(
-        'Deploy mine',
-        async (client) => {
+    return mutateAndReply(
+        async (client, abort) => {
             const existing = await getSectorMineForUpdate(sectorDbId, mineType, client);
             const currentInSector = existing?.quantity ?? 0;
 
@@ -129,15 +114,13 @@ export async function serveDeployMine(
             if (existing && existing.quantity > 0) {
                 const friendly = isFriendlyOwner(existing, playerId, playerClanId);
                 if (!friendly) {
-                    throw abort(
-                        commandError(`Those ${MINE_TYPE_LABEL[mineType]} mines aren't yours`),
-                    );
+                    throw abort(commandRefusal('notYourMines', { mineType }));
                 }
             }
 
             const cap = await getShipHardwareCapacityForUpdate(playerId, hw.id, client);
             if (!cap) {
-                throw abort(commandError('Ship not found'));
+                throw abort(commandRefusal('noShip'));
             }
 
             const totalAvailable = currentInSector + cap.current_qty;
@@ -149,9 +132,7 @@ export async function serveDeployMine(
             if (delta > 0) {
                 if (cap.current_qty < delta) {
                     throw abort(
-                        commandError(
-                            `Only ${cap.current_qty} ${MINE_TYPE_LABEL[mineType]} mines on ship`,
-                        ),
+                        commandRefusal('insufficientMines', { have: cap.current_qty, mineType }),
                     );
                 }
                 await decrementShipHardwareQuantity(cap.ship_id, hw.id, delta, client);
@@ -159,9 +140,10 @@ export async function serveDeployMine(
                 const pickup = -delta;
                 if (cap.current_qty + pickup > cap.max_qty) {
                     throw abort(
-                        commandError(
-                            `Ship can hold only ${cap.max_qty - cap.current_qty} more ${MINE_TYPE_LABEL[mineType]} mines`,
-                        ),
+                        commandRefusal('minesAtCapacity', {
+                            room: cap.max_qty - cap.current_qty,
+                            mineType,
+                        }),
                     );
                 }
                 await upsertShipHardwareQuantity(cap.ship_id, hw.id, pickup, client);
@@ -235,30 +217,30 @@ export async function serveMineDisruptor(
 ): Promise<CommandResult<'MineDisruptor'>> {
     const { targetSector } = data;
     if (!Number.isInteger(targetSector) || targetSector <= 0) {
-        return commandError('Invalid target sector');
+        return commandRefusal('noSuchSector');
     }
     const player = onlinePlayers[playerId];
     if (!player) return;
     if (player.docked || player.at_starbase) {
-        return commandError('Cannot fire disruptor while docked');
+        return commandRefusal('docked');
     }
     if (isInEncounter(playerId)) {
-        return commandError('Resolve drone encounter first');
+        return commandRefusal('inEncounter');
     }
 
     const warps = await getGraph(player.universeId);
     if (!warps[player.sector]?.includes(targetSector)) {
-        return commandError('Target sector is not adjacent');
+        return commandRefusal('targetNotAdjacent');
     }
 
     const targetSectorDbId = await getSectorDbId(targetSector, player.universeId);
     if (!targetSectorDbId) {
-        return commandError('Sector not found');
+        return commandRefusal('noSuchSector');
     }
 
     const have = await getShipHardwareQuantityByName(playerId, 'mine_disruptor');
     if (have <= 0) {
-        return commandError('No mine disruptors on ship');
+        return commandRefusal('noDisruptors');
     }
 
     const settings = await getMineUniverseSettings(player.universeId);
@@ -266,8 +248,7 @@ export async function serveMineDisruptor(
     const hi = Math.max(lo, settings.mine_disruptor_max);
     const removeTarget = lo + Math.floor(Math.random() * (hi - lo + 1));
 
-    return runMutation(
-        'Mine disruptor',
+    return mutateAndReply(
         async (client) => {
             const mineRow = await getSectorMineForUpdate(targetSectorDbId, 'proximity', client);
             const existing = mineRow?.quantity ?? 0;

@@ -1,4 +1,4 @@
-import { ClientTag, Menu } from '@twnr/shared';
+import { Menu, Commands, command } from '@twnr/shared';
 import { echoCommand } from '../display.js';
 import { registerRoutine } from './types.js';
 
@@ -9,5 +9,5 @@ registerRoutine('shipyards_menu', (ctx) => {
 
 registerRoutine('hardware_store', (ctx) => {
     echoCommand(ctx, 'hardwareStoreInfo');
-    ctx.io.sendMsg({ type: ClientTag.HardwareStoreInfo });
+    ctx.io.sendMsg(command(Commands.HardwareStoreInfo, {}));
 });

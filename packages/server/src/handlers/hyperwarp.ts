@@ -13,7 +13,7 @@ import { checkAndDeductTurns } from '../turn-logic.js';
 import { notifyTurnChange } from '../services/notify.js';
 import { broadcastPlayerMoved } from '../services/sector-activity.js';
 import { resolveMinesOnEntry } from '../services/mine-encounter.js';
-import { type CommandResult, commandError } from './command.js';
+import { type CommandResult, commandRefusal } from './command.js';
 
 export async function serveHyperspaceJump(
     playerId: number,
@@ -24,27 +24,27 @@ export async function serveHyperspaceJump(
     if (!player) return;
 
     if (player.docked || player.at_starbase) {
-        return commandError('Cannot use this command while docked');
+        return commandRefusal('docked');
     }
 
     const onPlanetId = await getOnPlanetId(playerId);
     if (onPlanetId) {
-        return commandError('Cannot use this command while on a planet');
+        return commandRefusal('onPlanet');
     }
 
     const shipRow = await getShipHyperspaceInfo(playerId);
     if (!shipRow) {
-        return commandError('Ship not found');
+        return commandRefusal('noShip');
     }
     if (!shipRow.has_hyperspace_1 && !shipRow.has_hyperspace_2) {
-        return commandError('Hyperspace drive not equipped');
+        return commandRefusal('noHyperspaceDrive');
     }
 
     const universeId = player.universeId;
 
     const targetDrones = await getDeployedDronesByOwnerBySector(targetSector, playerId);
     if (targetDrones === 0) {
-        return commandError('No signal from drones in target sector');
+        return commandRefusal('noDroneSignal');
     }
 
     const warps = await getGraph(universeId);
@@ -80,19 +80,19 @@ export async function serveHyperspaceJump(
     }
 
     if (pathHops < 0) {
-        return commandError('No path to target sector');
+        return commandRefusal('noPath');
     }
 
     const fuelCost = pathHops * 3;
 
     const shipFuel = await getShipFuel(playerId);
     if (shipFuel === undefined || shipFuel < fuelCost) {
-        return commandError('Insufficient fuel for hyperspace jump');
+        return commandRefusal('insufficientFuel');
     }
 
     const turnResult = await checkAndDeductTurns(playerId, universeId, shipRow.turns_per_warp);
     if (!turnResult.allowed) {
-        return commandError('Insufficient turns');
+        return commandRefusal('insufficientTurns');
     }
 
     const targetSectorId = await resolveSectorId(targetSector, universeId);

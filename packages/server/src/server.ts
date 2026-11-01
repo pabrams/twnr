@@ -13,7 +13,7 @@ import { worktreeRoot } from './db/pool.js';
 import type { AuthTokenPayload, ClientEnvelope, ServerEnvelope } from '@twnr/shared';
 import { shipConfigs } from './ship-config.js';
 import { onlinePlayers } from './state/players.js';
-import { sendEnvelope, sendError, broadcastTo } from './state/messaging.js';
+import { sendEnvelope, sendProtocolError, broadcastTo } from './state/messaging.js';
 import { routeMessage } from './handlers/message-router.js';
 import { clearPendingShipPurchase } from './state/pending-ship-purchases.js';
 import { getUserTokenVersion, markUserConnected, isGuestUser } from './db/queries/user.js';
@@ -257,7 +257,13 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             try {
                 raw = JSON.parse(message.toString());
             } catch {
-                sendError(playerId, 'Invalid JSON');
+                sendProtocolError(playerId, 'rejected', 'Invalid JSON');
+                logPlayerCommand(
+                    playerId,
+                    universeId,
+                    { type: '<invalid json>' },
+                    'rejected',
+                ).catch((err) => console.error('Command log error:', err));
                 return;
             }
 
@@ -270,7 +276,16 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
                 const tag = typeof tagRaw === 'string' ? tagRaw : '<unknown>';
                 const first = parsed.error.issues[0];
                 const where = first?.path.join('.') || '<root>';
-                sendError(playerId, `Invalid envelope (${tag}): ${where} — ${first?.message}`);
+                sendProtocolError(
+                    playerId,
+                    'rejected',
+                    `Invalid envelope (${tag}): ${where} — ${first?.message}`,
+                );
+                const rejected =
+                    raw && typeof raw === 'object' ? { ...raw, type: tag } : { type: tag };
+                logPlayerCommand(playerId, universeId, rejected, 'rejected').catch((err) =>
+                    console.error('Command log error:', err),
+                );
                 return;
             }
             const data: ClientEnvelope = parsed.data;
@@ -280,7 +295,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
                 outcome = await routeMessage(playerId, data);
             } catch (err) {
                 console.error('Message handler error:', err);
-                sendError(playerId, 'Internal server error');
+                sendProtocolError(playerId, 'exception', 'Internal server error');
                 outcome = 'exception';
             }
 

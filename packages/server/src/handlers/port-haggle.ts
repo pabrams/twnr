@@ -27,7 +27,7 @@ import { checkAndDeductTurns } from '../turn-logic.js';
 import { cargoUsed, formatCargo } from './cargo-utils.js';
 import { notifyTurnChange } from '../services/notify.js';
 import { experienceDeltas, scalarDelta } from '../game-config.js';
-import { type CommandResult, abort, runMutation } from './command.js';
+import { type CommandResult, commandRefusal, mutateAndReply } from './command.js';
 
 type HaggleSession = {
     playerId: number;
@@ -83,46 +83,18 @@ export async function serveHaggleOpen(
     if (!player) return;
 
     if (!player.docked) {
-        return {
-            outcome: 'error',
-            message: 'You must dock at the port to trade',
-        };
+        return commandRefusal('notDocked');
     }
 
-    if (
-        data.commodity !== 'fuel' &&
-        data.commodity !== 'organics' &&
-        data.commodity !== 'equipment'
-    ) {
-        return {
-            outcome: 'error',
-            message: 'Invalid commodity',
-        };
-    }
-    if (data.action !== 'buy' && data.action !== 'sell') {
-        return {
-            outcome: 'error',
-            message: 'Invalid action',
-        };
-    }
     const qty = Number.isInteger(data.quantity)
         ? data.quantity
         : parseInt(String(data.quantity), 10);
-    if (isNaN(qty) || qty <= 0) {
-        return {
-            outcome: 'error',
-            message: 'Invalid quantity',
-        };
-    }
 
     const col = data.commodity as Commodity;
 
     const port = await getPortTradeInfoForUpdate(player.sector, player.universeId);
     if (!port) {
-        return {
-            outcome: 'error',
-            message: 'No port in this sector',
-        };
+        return commandRefusal('noPortHere');
     }
     const actions = PORT_CLASS_ACTIONS[port.class];
     if (
@@ -130,26 +102,17 @@ export async function serveHaggleOpen(
         (data.action === 'buy' && actions[col] !== 'S') ||
         (data.action === 'sell' && actions[col] !== 'B')
     ) {
-        return {
-            outcome: 'error',
-            message: 'Port does not trade this commodity',
-        };
+        return commandRefusal('portDoesNotTrade');
     }
 
     const stock = port[col];
     const max = port[MAX_COL[col]];
     const mcic = port[MCIC_COL[col]];
     if (data.action === 'buy' && qty > stock) {
-        return {
-            outcome: 'error',
-            message: 'Port does not have that much to sell',
-        };
+        return commandRefusal('insufficientPortStock');
     }
     if (data.action === 'sell' && qty > max - stock) {
-        return {
-            outcome: 'error',
-            message: 'Port cannot buy that many',
-        };
+        return commandRefusal('portCannotBuyThatMany');
     }
 
     // xp is read once here so pricing stays stable across haggle rounds.
@@ -195,26 +158,14 @@ export async function serveHaggleCounter(
     if (!player) return;
     const session = getActiveHaggleSession(playerId);
     if (!session) {
-        return {
-            outcome: 'error',
-            message: 'No active haggle session',
-        };
+        return commandRefusal('noHaggle');
     }
     if (session.isFinalIssued) {
-        return {
-            outcome: 'error',
-            message: 'Final offer issued — accept or quit',
-        };
+        return commandRefusal('finalOfferIssued');
     }
     const counter = Number.isFinite(data.counter)
         ? Math.floor(data.counter)
         : parseInt(String(data.counter), 10);
-    if (!Number.isFinite(counter) || counter <= 0) {
-        return {
-            outcome: 'error',
-            message: 'Invalid counter',
-        };
-    }
 
     const step = processHaggleCounter({
         action: session.portAction,
@@ -240,7 +191,6 @@ export async function serveHaggleCounter(
         if (turnsUsed) notifyTurnChange(playerId, turnsUsed, 'rejected haggle');
         return {
             outcome: 'rejected',
-            message: 'This conversation is terminated!',
             ...(turnsUsed !== undefined ? { turnsUsed } : {}),
         };
     }
@@ -269,10 +219,7 @@ export async function serveHaggleCounter(
 export async function serveHaggleAccept(playerId: number): Promise<CommandResult<'HaggleAccept'>> {
     const session = getActiveHaggleSession(playerId);
     if (!session) {
-        return {
-            outcome: 'error',
-            message: 'No active haggle session',
-        };
+        return commandRefusal('noHaggle');
     }
     return settleTrade(playerId, session, session.portCurrent);
 }
@@ -286,17 +233,13 @@ async function settleTrade(
     session: HaggleSession,
     agreedTotal: number,
 ): Promise<CommandResult<'HaggleAccept'>> {
-    return runMutation(
-        'Haggle settle',
-        async (client) => {
+    return mutateAndReply(
+        async (client, abort) => {
             // Session state may be stale — re-verify everything under lock.
             const currentSector = await getCurrentSector(playerId, client);
             if (currentSector !== session.sectorNumber) {
                 clearHaggleSession(playerId);
-                throw abort({
-                    outcome: 'error',
-                    message: 'You moved — haggle cancelled',
-                });
+                throw abort(commandRefusal('haggleCancelledMoved'));
             }
             const port = await getPortTradeInfoForUpdate(
                 session.sectorNumber,
@@ -305,10 +248,7 @@ async function settleTrade(
             );
             if (!port) {
                 clearHaggleSession(playerId);
-                throw abort({
-                    outcome: 'error',
-                    message: 'No port in this sector',
-                });
+                throw abort(commandRefusal('noPortHere'));
             }
 
             const col = session.commodity as Commodity;
@@ -317,41 +257,26 @@ async function settleTrade(
             const cargo = await getShipCargoWithCreditsForUpdate(playerId, client);
             if (!cargo) {
                 clearHaggleSession(playerId);
-                throw abort({
-                    outcome: 'error',
-                    message: 'Player not found',
-                });
+                throw new Error('Player not found');
             }
 
             let turnsUsed: number | undefined;
             if (session.action === 'buy') {
                 const turn = await checkAndDeductTurns(playerId, session.universeId, 1, client);
                 if (!turn.allowed) {
-                    throw abort({
-                        outcome: 'error',
-                        message: 'Insufficient turns',
-                    });
+                    throw abort(commandRefusal('insufficientTurns'));
                 }
                 turnsUsed = turn.turnsUsed;
 
                 if (cargo.credits < agreedTotal) {
-                    throw abort({
-                        outcome: 'error',
-                        message: 'Insufficient credits',
-                    });
+                    throw abort(commandRefusal('insufficientCredits'));
                 }
                 if (stock < session.quantity) {
                     clearHaggleSession(playerId);
-                    throw abort({
-                        outcome: 'error',
-                        message: 'Port stock changed mid-haggle',
-                    });
+                    throw abort(commandRefusal('portChangedMidHaggle'));
                 }
                 if (cargoUsed(cargo) + session.quantity > cargo.cargo_limit) {
-                    throw abort({
-                        outcome: 'error',
-                        message: 'Insufficient cargo holds',
-                    });
+                    throw abort(commandRefusal('insufficientHolds'));
                 }
 
                 await adjustPortCommodity(port.port_id, col, -session.quantity, client);
@@ -361,17 +286,11 @@ async function settleTrade(
                 cargo.credits -= agreedTotal;
             } else {
                 if (cargo[col] < session.quantity) {
-                    throw abort({
-                        outcome: 'error',
-                        message: 'Insufficient cargo',
-                    });
+                    throw abort(commandRefusal('insufficientCargo'));
                 }
                 if (stock + session.quantity > max) {
                     clearHaggleSession(playerId);
-                    throw abort({
-                        outcome: 'error',
-                        message: 'Port capacity changed mid-haggle',
-                    });
+                    throw abort(commandRefusal('portChangedMidHaggle'));
                 }
 
                 await adjustPortCommodity(port.port_id, col, session.quantity, client);

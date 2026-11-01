@@ -1,4 +1,4 @@
-import { ClientTag } from '@twnr/shared';
+import { Commands, command } from '@twnr/shared';
 import { render } from '../renderer.js';
 import { COMBAT } from '../messages/index.js';
 import { echoCommand } from '../display.js';
@@ -13,10 +13,10 @@ registerRoutine('attack_sector_drones', async (ctx) => {
         defaultValue: defaultQty,
     });
     if (qty === null) return;
-    ctx.io.sendMsg({ type: ClientTag.AttackSectorDrones, drones: qty });
+    ctx.io.sendMsg(command(Commands.AttackSectorDrones, { drones: qty }));
 });
 
 registerRoutine('retreat_from_drones', (ctx) => {
     echoCommand(ctx, 'retreatFromDrones');
-    ctx.io.sendMsg({ type: ClientTag.RetreatFromDrones });
+    ctx.io.sendMsg(command(Commands.RetreatFromDrones, {}));
 });

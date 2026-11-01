@@ -54,7 +54,6 @@ export const EVENT = makeDomain('EVENT', {
     planetFateCollision: 'destroyed in a collision',
 
     terraformDevicesAvailable: '\r\n[g]You have[/g] [bc]{count}[/bc] [g]Terraform Devices.[/g]',
-    terraformNoDevices: '\r\n[bg]You have no Terraform Devices.[/bg]',
     terraformConfirm:
         '[by]Do you wish to launch one?[/by] [mg]([/mg][by]Y[/by]/[by]N[/by][mg])[/mg] [mg][[/mg][by]N[/by][mg]][/mg] ',
     terraformNarrative:
@@ -75,7 +74,6 @@ export const EVENT = makeDomain('EVENT', {
     seekerVictimNotice: '\r\n[y]You hear a faint metallic thud...[/y]',
     terraformCollision: '[by:r]*** Warning ***: intersecting orbits detected![/by:r]',
     terraformDevicesRemaining: '  [by]Terraform devices remaining[/by]: [bc]{count}[/bc]',
-    terraformFailure: '\r\n[br]{reason}[/br]',
 
     hyperspaceJump:
         '\r\n[bg]Hyperspace jump![/bg] Arrived in sector [bc]{sector}[/bc]. Fuel used: [by]{fuel}[/by], Turns: [by]{turns}[/by]',
@@ -106,8 +104,7 @@ export const EVENT = makeDomain('EVENT', {
     towSelectPrompt:
         '\r\n[by]Which ship do you want to tow?[/by] [mg]([/mg]1/.../[by]Q[/by][mg]) [Q][/mg] ',
     towEngaged:
-        '\r\n[bc]{message}[/bc]\r\n [g]It will now cost you[/g] [by]{tpw}[/by] [g]turns for every sector you move.[/g]',
-    towAttachError: '\r\n[br]{message}[/br]',
+        '\r\n[bc]You lock your Tractor Beam on {name}[/bc]\r\n [g]It will now cost you[/g] [by]{tpw}[/by] [g]turns for every sector you move.[/g]',
     towFreedFromTow: '[bc]You are released from the tractor beam as you leave the sector.[/bc]',
     towFreedByDock: '[bc]You are released from the tractor beam as you dock.[/bc]',
     towReleasedAlert: '\r\n[bc]{name} is no longer locked in tow.[/bc]',

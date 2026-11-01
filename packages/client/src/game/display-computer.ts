@@ -1,4 +1,4 @@
-import { ClientTag } from '@twnr/shared';
+import { Commands, command } from '@twnr/shared';
 import type { ShipCatalogEntry, PlanetCatalogEntry, TraderListEntry } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { render } from './renderer.js';
@@ -230,7 +230,7 @@ export function showPlanetDetail(ctx: DisplayComputerCtx, planet: PlanetCatalogE
 export function showCurrentShipSpecs(ctx: DisplayComputerCtx, ships: ShipCatalogEntry[]) {
     if (!ctx.ship.currentShipTypeName) {
         ctx.io.term.writeln(render(COMPUTER.shipDataRequesting));
-        ctx.io.sendMsg({ type: ClientTag.ShipInfo });
+        ctx.io.sendMsg(command(Commands.ShipInfo, {}));
         return;
     }
     const ship = ships.find((s) => s.name === ctx.ship.currentShipTypeName);

@@ -14,7 +14,7 @@ import { class0Prices } from '../game-config.js';
 import { currentClass0Prices } from '../services/class0-prices.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 import { notifyTurnChange } from '../services/notify.js';
-import { type CommandResult, commandError, abort, runMutation } from './command.js';
+import { type CommandResult, commandRefusal, mutateAndReply } from './command.js';
 
 async function isAtClass0OrStarbase(
     playerId: number,
@@ -33,32 +33,28 @@ export async function serveBuyDrones(
     data: CommandRequest<'BuyDrones'>,
 ): Promise<CommandResult<'BuyDrones'>> {
     const qty = Number(data.quantity);
-    if (!Number.isInteger(qty) || qty <= 0) {
-        return commandError('Invalid quantity');
-    }
 
     const universeId = getPlayerUniverseId(playerId);
     if (universeId === undefined) return;
 
-    return runMutation(
-        'Buy drones',
-        async (client) => {
+    return mutateAndReply(
+        async (client, abort) => {
             if (!(await isAtClass0OrStarbase(playerId, universeId, client))) {
-                throw abort(commandError('Not at a class 0 port or starbase'));
+                throw abort(commandRefusal('notAtClass0OrStarbase'));
             }
 
             const data = await getShipUpgradeInfoForUpdate(playerId, client);
             if (!data) {
-                throw abort(commandError('Player not found'));
+                throw new Error('Player not found');
             }
 
             if (data.drones + qty > data.max_drones) {
-                throw abort(commandError('Exceeds maximum'));
+                throw abort(commandRefusal('exceedsMaximum'));
             }
 
             const cost = qty * class0Prices.dronePrice;
             if (data.credits < cost) {
-                throw abort(commandError('Insufficient credits'));
+                throw abort(commandRefusal('insufficientCredits'));
             }
 
             await incrementShipDrones(playerId, qty, client);
@@ -78,32 +74,28 @@ export async function serveBuyShields(
 ): Promise<CommandResult<'BuyShields'>> {
     const { quantity } = data;
     const qty = Number(quantity);
-    if (!Number.isInteger(qty) || qty <= 0) {
-        return commandError('Invalid quantity');
-    }
 
     const universeId = getPlayerUniverseId(playerId);
     if (universeId === undefined) return;
 
-    return runMutation(
-        'Buy shields',
-        async (client) => {
+    return mutateAndReply(
+        async (client, abort) => {
             if (!(await isAtClass0OrStarbase(playerId, universeId, client))) {
-                throw abort(commandError('Not at a class 0 port or starbase'));
+                throw abort(commandRefusal('notAtClass0OrStarbase'));
             }
 
             const data = await getShipUpgradeInfoForUpdate(playerId, client);
             if (!data) {
-                throw abort(commandError('Player not found'));
+                throw new Error('Player not found');
             }
 
             if (data.shields + qty > data.max_shields) {
-                throw abort(commandError('Exceeds maximum'));
+                throw abort(commandRefusal('exceedsMaximum'));
             }
 
             const cost = qty * class0Prices.shieldPrice;
             if (data.credits < cost) {
-                throw abort(commandError('Insufficient credits'));
+                throw abort(commandRefusal('insufficientCredits'));
             }
 
             await incrementShipShields(playerId, qty, client);
@@ -123,38 +115,34 @@ export async function serveBuyHolds(
 ): Promise<CommandResult<'BuyHolds'>> {
     const { quantity } = data;
     const qty = Number(quantity);
-    if (!Number.isInteger(qty) || qty <= 0) {
-        return commandError('Invalid quantity');
-    }
 
     const universeId = getPlayerUniverseId(playerId);
     if (universeId === undefined) return;
 
-    return runMutation(
-        'Buy holds',
-        async (client) => {
+    return mutateAndReply(
+        async (client, abort) => {
             if (!(await isAtClass0OrStarbase(playerId, universeId, client))) {
-                throw abort(commandError('Not at a class 0 port or starbase'));
+                throw abort(commandRefusal('notAtClass0OrStarbase'));
             }
 
             const turnResult = await checkAndDeductTurns(playerId, universeId, 1, client);
             if (!turnResult.allowed) {
-                throw abort(commandError('Insufficient turns'));
+                throw abort(commandRefusal('insufficientTurns'));
             }
 
             const data = await getShipUpgradeInfoForUpdate(playerId, client);
             if (!data) {
-                throw abort(commandError('Player not found'));
+                throw new Error('Player not found');
             }
 
             if (data.holds + qty > data.max_holds) {
-                throw abort(commandError('Exceeds maximum'));
+                throw abort(commandRefusal('exceedsMaximum'));
             }
 
             const { holdBaseCost: baseCost } = currentClass0Prices();
             const cost = holdCostRange(data.holds, data.holds + qty, baseCost);
             if (data.credits < cost) {
-                throw abort(commandError('Insufficient credits'));
+                throw abort(commandRefusal('insufficientCredits'));
             }
 
             await incrementShipHolds(playerId, qty, client);

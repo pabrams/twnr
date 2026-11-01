@@ -26,6 +26,8 @@ export {
 } from './movement.js';
 export {
     CargoSchema,
+    PortInfoSchema,
+    type PortInfo,
     ShipInfoEmbedSchema,
     Class0PriceListSchema,
     HardwarePriceItemSchema,
@@ -73,8 +75,9 @@ export {
     type HardwareCatalogItem,
     type TraderListEntry,
 } from './catalog.js';
-export { defineCommand, defineEvent, defineReply, outcomes, variants } from './define.js';
-export type { CommandDef, MessageDef, Envelope } from './define.js';
+export { defineCommand, defineEvent, defineReply, outcomes } from './define.js';
+export * from './refusal.js';
+export type { CommandDef, MessageDef, ReplyEnvelope, EventEnvelope } from './define.js';
 
 export const Commands = {
     Move: movement.Move,
@@ -183,7 +186,7 @@ export const Commands = {
 export const Events = {
     Welcome: session.Welcome,
     RateLimited: session.RateLimited,
-    Error: session.ProtocolError,
+    ProtocolError: session.ProtocolError,
     StatsSnapshot: session.StatsSnapshot,
     PlayerMoved: movement.PlayerMoved,
     SectorActivity: movement.SectorActivity,
@@ -193,6 +196,7 @@ export const Events = {
     SeekerMinePickupAlert: movement.SeekerMinePickupAlert,
     PlanetDestroyedAlert: planet.PlanetDestroyedAlert,
     SectorDronesAlert: combat.SectorDronesAlert,
+    ShipAttacked: combat.ShipAttacked,
     ShipNameRequired: ship.ShipNameRequired,
     TowReleasedAlert: ship.TowReleasedAlert,
     TowAttachedAlert: ship.TowAttachedAlert,
@@ -216,9 +220,28 @@ type ReplyDefOf<K extends CommandName> = K extends CommandName
     : never;
 type ReplyTagOf<K extends CommandName> = ReplyDefOf<K>['name'];
 
+export type AnyCommandDef = C[CommandName];
+export type AnyEventDef = E[EventName];
+
 export type CommandRequest<K extends CommandName> = z.infer<C[K]['Request']>;
 export type CommandReply<K extends CommandName> = z.infer<ReplyDefOf<K>['Schema']>;
+/** A reply that actually answered the command — everything except `outcome: 'refused'`. */
+export type AcceptedReply<K extends CommandName> = Exclude<CommandReply<K>, { outcome: 'refused' }>;
 export type EventPayload<K extends EventName> = z.infer<E[K]['Schema']>;
+
+/** Request payload for a definition, minus the `type` the builder adds. */
+export type RequestBody<D extends AnyCommandDef> = Omit<z.infer<D['Request']>, 'type'>;
+/** The wire reply type for a definition with a reply. */
+export type ReplyOf<D extends AnyCommandDef> =
+    D['reply'] extends MessageDef<string, infer S> ? z.infer<S> : never;
+
+/** Builds the request envelope for a command. */
+export function command<D extends AnyCommandDef>(
+    def: D,
+    body: RequestBody<D>,
+): z.infer<D['Request']> {
+    return { type: def.name, ...body } as z.infer<D['Request']>;
+}
 
 /** Wire `type` of each command's request, keyed by command name. */
 export const ClientTag = Object.fromEntries(

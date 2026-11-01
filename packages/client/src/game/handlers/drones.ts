@@ -1,11 +1,11 @@
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { PANEL } from '../messages/index.js';
-import type { Handler } from './index.js';
+import type { ReplyHandler } from './index.js';
 
 type DronesCtx = Pick<GameContext, 'io'>;
 
-export const listDeployedDrones: Handler<'listDeployedDronesResult', DronesCtx> = (ctx, msg) => {
+export const listDeployedDrones: ReplyHandler<'ListDeployedDrones', DronesCtx> = (ctx, msg) => {
     const { term } = ctx.io;
     term.writeln('');
     if (msg.drones.length === 0) {

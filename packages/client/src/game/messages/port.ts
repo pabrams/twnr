@@ -75,8 +75,6 @@ export const PORT = makeDomain('PORT', {
     buildAlignmentUp: 'and your alignment went up by {rep} point(s).',
     buildUnderway:
         'Construction underway. Daily advances will be reported by mail ({days} days total).',
-    buildFailed: 'Construction failed: {message}',
     upgradeExpGained: 'For upgrading this StarPort, you receive {exp} experience point(s).',
     upgradeComplete: 'StarPort upgraded!',
-    upgradeFailed: 'Upgrade failed: {message}',
 });

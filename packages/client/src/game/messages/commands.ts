@@ -1,4 +1,4 @@
-/** Keyed by ClientTag, rendered with the message's own fields; no entry = no echo for that command. */
+/** Echo banners keyed by command wire name (or a client routine name); no entry = no echo. */
 
 import { makeDomain } from './_domain.js';
 

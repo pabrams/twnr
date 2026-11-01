@@ -1,11 +1,5 @@
-import {
-    ClientTag,
-    Commands,
-    commandNameByType,
-    type ClientEnvelope,
-    type CommandName,
-} from '@twnr/shared';
-import { sendEnvelope, sendError } from '../state/messaging.js';
+import { Commands, commandNameByType, type ClientEnvelope, type CommandName } from '@twnr/shared';
+import { sendEnvelope } from '../state/messaging.js';
 import { onlinePlayers } from '../state/players.js';
 import { getPendingShipPurchase } from '../state/pending-ship-purchases.js';
 import { serveSetShipName } from './ship-name.js';
@@ -114,7 +108,7 @@ import {
 } from './clan.js';
 import { serveReleaseBeacon, serveAttackBeacon } from './beacon.js';
 import { serveDensityScan, serveVisualScan } from './long-range-scan.js';
-import { isCommandError, type Handler } from './command.js';
+import { commandRefusal, type Handler } from './command.js';
 
 type HandlerMap = { [K in CommandName]: Handler<K> };
 
@@ -224,28 +218,24 @@ const handlers: HandlerMap = {
 
 /** Dispatches one client command, sends its reply, and returns the outcome recorded in command_log. */
 export async function routeMessage(playerId: number, data: ClientEnvelope): Promise<string> {
-    if (data.type !== ClientTag.SetShipName) {
+    const name = commandNameByType.get(data.type);
+    if (name === undefined) throw new Error(`No handler registered for ${data.type}`);
+    const reply = Commands[name].reply;
+
+    if (name !== 'SetShipName') {
         const needsName =
             onlinePlayers[playerId] !== undefined && getPendingShipPurchase(playerId) !== undefined;
         if (needsName) {
-            sendError(playerId, 'Name your ship first.');
-            return 'error';
+            const refusal = commandRefusal('shipNameRequired');
+            if (reply) sendEnvelope(playerId, { type: reply.name, ...refusal } as never);
+            return refusal.outcome;
         }
     }
-    const name = commandNameByType.get(data.type);
-    if (name === undefined) {
-        sendError(playerId, 'Unknown message type');
-        return 'error';
-    }
+
     const handler = handlers[name] as Handler<CommandName>;
     const result = await handler(playerId, data as never);
-    if (isCommandError(result)) {
-        sendError(playerId, result.message);
-        return 'error';
-    }
-    const reply = Commands[name].reply;
     if (reply === null) return 'ok';
     if (result === undefined) return 'noReply';
-    sendEnvelope(playerId, { type: reply.name, ...result } as never);
-    return 'outcome' in result && typeof result.outcome === 'string' ? result.outcome : 'ok';
+    sendEnvelope(playerId, { type: reply.name, outcome: 'ok', ...result } as never);
+    return (result as { outcome?: string }).outcome ?? 'ok';
 }

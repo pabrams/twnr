@@ -6,7 +6,7 @@ import { showSectorDisplay, type DisplayCtx } from '../display.js';
 import { showEarthMenu, type DisplayPlanetCtx } from '../display-planet.js';
 import { type DisplayStarbaseCtx } from '../display-starbase.js';
 import { type DisplayComputerCtx } from '../display-computer.js';
-import type { Handler } from './index.js';
+import type { ReplyHandler, EventHandler } from './index.js';
 import {
     fmt,
     fmtCompact,
@@ -200,7 +200,7 @@ type PlanetContext = Pick<GameContext, 'io' | 'input' | 'ship' | 'planet' | 'wor
     DisplayComputerCtx &
     RefreshMinimapCtx;
 
-export const takeColonists: Handler<'takeColonistsResult', PlanetContext> = (ctx, msg) => {
+export const takeColonists: ReplyHandler<'TakeColonists', PlanetContext> = (ctx, msg) => {
     ctx.ship.shipColonists = msg.shipColonists;
     if (msg.commodity === 'fuel') ctx.world.earthColonists = msg.planetColonists;
     ctx.io.term.writeln('');
@@ -238,7 +238,7 @@ function applyCommodityResult(
     }
 }
 
-export const takeCommodity: Handler<'takeCommodityResult', PlanetContext> = (ctx, msg) => {
+export const takeCommodity: ReplyHandler<'TakeCommodity', PlanetContext> = (ctx, msg) => {
     applyCommodityResult(ctx, msg.commodity, msg.planetCommodity, msg.shipCommodity);
     ctx.io.term.writeln('');
     ctx.io.term.writeln(
@@ -251,7 +251,7 @@ export const takeCommodity: Handler<'takeCommodityResult', PlanetContext> = (ctx
     );
 };
 
-export const leaveCommodity: Handler<'leaveCommodityResult', PlanetContext> = (ctx, msg) => {
+export const leaveCommodity: ReplyHandler<'LeaveCommodity', PlanetContext> = (ctx, msg) => {
     applyCommodityResult(ctx, msg.commodity, msg.planetCommodity, msg.shipCommodity);
     ctx.io.term.writeln('');
     ctx.io.term.writeln(
@@ -264,13 +264,13 @@ export const leaveCommodity: Handler<'leaveCommodityResult', PlanetContext> = (c
     );
 };
 
-export const changePopulation: Handler<'changePopulationResult', PlanetContext> = (ctx, msg) => {
+export const changePopulation: ReplyHandler<'ChangePopulation', PlanetContext> = (ctx, msg) => {
     ctx.io.term.writeln('');
     ctx.io.term.writeln(render(PLANET.populationMoved));
     void msg;
 };
 
-export const leaveColonists: Handler<'leaveColonistsResult', PlanetContext> = (ctx, msg) => {
+export const leaveColonists: ReplyHandler<'LeaveColonists', PlanetContext> = (ctx, msg) => {
     ctx.ship.shipColonists = msg.shipColonists;
     if (msg.commodity === 'fuel') ctx.world.earthColonists = msg.planetColonists;
     ctx.io.term.writeln('');
@@ -306,7 +306,7 @@ function cachePlanetInteractionState(ctx: PlanetContext, msg: PlanetDisplayMsg):
     ctx.planet.maxDrones = msg.max_drones;
 }
 
-export const landOnPlanet: Handler<'landOnPlanetResult', PlanetContext> = (ctx, msg) => {
+export const landOnPlanet: ReplyHandler<'LandOnPlanet', PlanetContext> = (ctx, msg) => {
     cachePlanetInteractionState(ctx, msg);
     const isEarth = msg.name === 'Earth';
     ctx.world.mode = isEarth ? Menu.PlanetEarth : Menu.Planet;
@@ -320,12 +320,12 @@ export const landOnPlanet: Handler<'landOnPlanetResult', PlanetContext> = (ctx, 
     }
 };
 
-export const planetDisplay: Handler<'planetDisplayResult', PlanetContext> = (ctx, msg) => {
+export const planetDisplay: ReplyHandler<'PlanetDisplay', PlanetContext> = (ctx, msg) => {
     cachePlanetInteractionState(ctx, msg);
     renderPlanetTable(ctx, msg);
 };
 
-export const destroyPlanet: Handler<'destroyPlanetResult', PlanetContext> = (ctx, msg) => {
+export const destroyPlanet: ReplyHandler<'DestroyPlanet', PlanetContext> = (ctx, msg) => {
     if (msg.destroyed) {
         ctx.world.mode = Menu.Sector;
         ctx.io.term.writeln(render(EVENT.planetDestroyed, { name: msg.planetName }));
@@ -336,7 +336,10 @@ export const destroyPlanet: Handler<'destroyPlanetResult', PlanetContext> = (ctx
     }
 };
 
-export const planetDestroyedAlert: Handler<'planetDestroyedAlert', PlanetContext> = (ctx, msg) => {
+export const planetDestroyedAlert: EventHandler<'PlanetDestroyedAlert', PlanetContext> = (
+    ctx,
+    msg,
+) => {
     const fate = render(
         msg.cause === 'buster' ? EVENT.planetFateBuster : EVENT.planetFateCollision,
     );
@@ -349,12 +352,12 @@ export const planetDestroyedAlert: Handler<'planetDestroyedAlert', PlanetContext
     );
 };
 
-export const leavePlanet: Handler<'leavePlanetResult', PlanetContext> = (ctx) => {
+export const leavePlanet: ReplyHandler<'LeavePlanet', PlanetContext> = (ctx) => {
     ctx.world.mode = Menu.Sector;
     ctx.io.term.writeln(render(EVENT.leftPlanet));
 };
 
-export const listPlanets: Handler<'listPlanetsResult', PlanetContext> = (ctx, msg) => {
+export const listPlanets: ReplyHandler<'ListPlanets', PlanetContext> = (ctx, msg) => {
     ctx.io.term.writeln('');
     if (msg.planets.length === 0) {
         ctx.io.term.writeln(render(PLANET.listEmpty));

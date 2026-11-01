@@ -1,4 +1,4 @@
-import { ClientTag, ServerTag } from '@twnr/shared';
+import { Commands, Events, command } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { EVENT, NEWS } from '../messages/index.js';
@@ -21,10 +21,10 @@ async function offerTodaysNews(ctx: ConnectFlowCtx): Promise<void> {
 }
 
 async function checkConnectMail(ctx: ConnectFlowCtx): Promise<void> {
-    ctx.io.sendMsg({ type: ClientTag.CheckMailSinceLastLogout });
-    const reply = await awaitResponse(ctx, [ServerTag.MemoDelivery, ServerTag.Error]);
+    ctx.io.sendMsg(command(Commands.CheckMailSinceLastLogout, {}));
+    const reply = await awaitResponse(ctx, [Events.MemoDelivery.name]);
     if (reply === null) return;
-    if (reply.type !== ServerTag.MemoDelivery) return;
+    if (reply.type !== Events.MemoDelivery.name) return;
     ctx.io.term.writeln(render(EVENT.mailConnectHeader));
     if (reply.memos.length === 0) {
         ctx.io.term.writeln(render(EVENT.mailNoneReceived));
@@ -32,5 +32,5 @@ async function checkConnectMail(ctx: ConnectFlowCtx): Promise<void> {
     }
     renderMailEntries(ctx, reply.memos);
     const del = await askConfirm(ctx, render(EVENT.mailDeletePrompt), { defaultValue: false });
-    if (del) ctx.io.sendMsg({ type: ClientTag.DeleteAllMail });
+    if (del) ctx.io.sendMsg(command(Commands.DeleteAllMail, {}));
 }

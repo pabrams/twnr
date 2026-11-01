@@ -126,7 +126,7 @@ export function wsRequest(ws, msg, responseType, timeout = 2000) {
         setTimeout(() => ws.send(JSON.stringify(msg)), 200);
         return;
       }
-      if (parsed.type === responseType || parsed.type === 'error') {
+      if (parsed.type === responseType || parsed.type === ServerTag.ProtocolError) {
         clearTimeout(timer);
         ws.removeListener('message', handler);
         resolve(parsed);
@@ -219,11 +219,11 @@ export async function movePlayerTo(ws, targetSector) {
   if (disp.sector === targetSector) return true;
 
   const pathRes = await wsRequest(ws, { type: ClientTag.ShortestPath, from: disp.sector, to: targetSector }, ServerTag.ShortestPathResult);
-  if (pathRes.type === ServerTag.Error) return false;
+  if (pathRes.type === ServerTag.ProtocolError || pathRes.outcome === 'refused') return false;
 
   for (let i = 1; i < pathRes.path.length; i++) {
     const moveMsg = await wsRequest(ws, { type: ClientTag.Move, sector: pathRes.path[i].sector }, ServerTag.MoveResult);
-    if (moveMsg.type === ServerTag.Error || moveMsg.outcome === 'error') return false;
+    if (moveMsg.type === ServerTag.ProtocolError || moveMsg.outcome === 'refused') return false;
   }
   return true;
 }

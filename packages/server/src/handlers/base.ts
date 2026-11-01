@@ -39,7 +39,7 @@ import { checkAndDeductTurns } from '../turn-logic.js';
 import { notifyTurnChange } from '../services/notify.js';
 import { resolveMinesOnEntry } from '../services/mine-encounter.js';
 import { getCurrentPlanetBase } from '../services/planet-base-construction.js';
-import { type CommandResult, abort, runMutation } from './command.js';
+import { type CommandResult, commandRefusal, mutateAndReply } from './command.js';
 
 function level1Of(reqs: unknown): BaseLevelRequirement | null {
     if (!Array.isArray(reqs) || reqs.length === 0) return null;
@@ -68,23 +68,20 @@ export async function serveBaseInfo(playerId: number): Promise<CommandResult<'Ba
 
     const onPlanetId = await getOnPlanetId(playerId);
     if (!onPlanetId) {
-        return {
-            mode: 'error',
-            message: 'Not on a planet',
-        };
+        return commandRefusal('notOnPlanet');
     }
 
     const base = await getCurrentPlanetBase(onPlanetId);
 
     if (base && base.level >= 1) {
         return {
-            mode: 'exists',
+            outcome: 'exists',
             level: base.level,
         };
     }
     if (base && base.construction_target_level !== null && base.construction_completes_at) {
         return {
-            mode: 'constructing',
+            outcome: 'constructing',
             targetLevel: base.construction_target_level,
             startedAt: base.construction_started_at?.toISOString() ?? '',
             completesAt: base.construction_completes_at.toISOString(),
@@ -93,17 +90,11 @@ export async function serveBaseInfo(playerId: number): Promise<CommandResult<'Ba
 
     const classInfo = await getPlanetClassInfo(onPlanetId);
     if (!classInfo) {
-        return {
-            mode: 'error',
-            message: 'Planet type not found',
-        };
+        throw new Error('Planet type not found');
     }
     const level1 = level1Of(classInfo.base_requirements);
     if (!level1) {
-        return {
-            mode: 'error',
-            message: 'No level-1 base requirements configured for this planet class',
-        };
+        throw new Error('No level-1 base requirements configured for this planet class');
     }
 
     const [stock, totalColos] = await Promise.all([
@@ -112,7 +103,7 @@ export async function serveBaseInfo(playerId: number): Promise<CommandResult<'Ba
     ]);
 
     return {
-        mode: 'noBase',
+        outcome: 'noBase',
         planetClass: classInfo.class,
         planetTypeDisplay: classInfo.display_name ?? classInfo.slug,
         level1: {
@@ -137,56 +128,39 @@ export async function serveBuildBase(playerId: number): Promise<CommandResult<'B
 
     const onPlanetId = await getOnPlanetId(playerId);
     if (!onPlanetId) {
-        return {
-            outcome: 'error',
-            message: 'Not on a planet',
-        };
+        return commandRefusal('notOnPlanet');
     }
 
-    return runMutation(
-        'Build base',
-        async (client) => {
+    return mutateAndReply(
+        async (client, abort) => {
             const existing = await getCurrentPlanetBase(onPlanetId, client);
             if (existing) {
-                throw abort({
-                    outcome: 'error',
-                    message:
-                        existing.level >= 1
-                            ? 'A base already exists on this planet'
-                            : 'Construction already in progress',
-                });
+                throw abort(
+                    commandRefusal(existing.level >= 1 ? 'baseExists' : 'baseUnderConstruction'),
+                );
             }
 
             const classInfo = await getPlanetClassInfo(onPlanetId, client);
             const level1 = level1Of(classInfo?.base_requirements);
             if (!classInfo || !level1) {
-                throw abort({
-                    outcome: 'error',
-                    message: 'Planet type missing base requirements',
-                });
+                throw new Error('Planet type missing base requirements');
             }
 
             const stock = await getPlanetCommodityStockForUpdate(onPlanetId, client);
             if (!stock) {
-                throw abort({
-                    outcome: 'error',
-                    message: 'Planet not found',
-                });
+                throw abort(commandRefusal('planetGone'));
             }
             const totalColos = await getPlanetTotalColonists(onPlanetId, client);
             const colosRequired = level1.colos;
 
-            const shortfall: { fuel?: number; org?: number; equ?: number; colos?: number } = {};
-            if (stock.fuel < level1.fuel) shortfall.fuel = level1.fuel - stock.fuel;
-            if (stock.organics < level1.org) shortfall.org = level1.org - stock.organics;
-            if (stock.equipment < level1.equ) shortfall.equ = level1.equ - stock.equipment;
-            if (totalColos < colosRequired) shortfall.colos = colosRequired - totalColos;
-            if (Object.keys(shortfall).length > 0) {
-                throw abort({
-                    outcome: 'error',
-                    message: 'Insufficient materials or manpower',
-                    shortfall,
-                });
+            const shortfall = {
+                fuel: Math.max(0, level1.fuel - stock.fuel),
+                org: Math.max(0, level1.org - stock.organics),
+                equ: Math.max(0, level1.equ - stock.equipment),
+                colos: Math.max(0, colosRequired - totalColos),
+            };
+            if (Object.values(shortfall).some((short) => short > 0)) {
+                throw abort(commandRefusal('insufficientMaterials', shortfall));
             }
 
             // Colonists are required but not consumed.
@@ -220,17 +194,11 @@ export async function serveTreasuryInfo(playerId: number): Promise<CommandResult
 
     const onPlanetId = await getOnPlanetId(playerId);
     if (!onPlanetId) {
-        return {
-            outcome: 'error',
-            message: 'Not on a planet',
-        };
+        return commandRefusal('notOnPlanet');
     }
     const base = await getCurrentPlanetBase(onPlanetId);
     if (!base || base.level < 1) {
-        return {
-            outcome: 'error',
-            message: 'No active base on this planet',
-        };
+        return commandRefusal('noBase');
     }
     const credits = await getPlayerCredits(playerId);
     return {
@@ -249,61 +217,33 @@ export async function serveTreasuryTransfer(
     if (!player) return;
 
     const { direction, amount } = data;
-    if (!Number.isInteger(amount) || amount <= 0) {
-        return {
-            outcome: 'error',
-            message: 'Amount must be a positive integer',
-        };
-    }
-    if (direction !== 'to' && direction !== 'from') {
-        return {
-            outcome: 'error',
-            message: 'Invalid direction',
-        };
-    }
 
     const onPlanetId = await getOnPlanetId(playerId);
     if (!onPlanetId) {
-        return {
-            outcome: 'error',
-            message: 'Not on a planet',
-        };
+        return commandRefusal('notOnPlanet');
     }
 
-    return runMutation(
-        'Treasury transfer',
-        async (client) => {
+    return mutateAndReply(
+        async (client, abort) => {
             const base = await getPlanetBaseTreasuryForUpdate(onPlanetId, client);
             if (!base || base.level < 1) {
-                throw abort({
-                    outcome: 'error',
-                    message: 'No active base on this planet',
-                });
+                throw abort(commandRefusal('noBase'));
             }
             const credits = await getCreditsForUpdate(playerId, client);
             if (credits === undefined) {
-                throw abort({
-                    outcome: 'error',
-                    message: 'Player not found',
-                });
+                throw new Error('Player not found');
             }
 
             if (direction === 'to') {
                 if (credits < amount) {
-                    throw abort({
-                        outcome: 'error',
-                        message: 'Insufficient credits on hand',
-                    });
+                    throw abort(commandRefusal('insufficientCredits'));
                 }
                 await deductCredits(playerId, amount, client);
                 await adjustPlanetBaseTreasury(onPlanetId, amount, client);
                 return { credits: credits - amount, treasury: base.treasury + amount };
             }
             if (base.treasury < amount) {
-                throw abort({
-                    outcome: 'error',
-                    message: 'Insufficient credits in treasury',
-                });
+                throw abort(commandRefusal('insufficientTreasury'));
             }
             await adjustPlanetBaseTreasury(onPlanetId, -amount, client);
             await addCredits(playerId, amount, client);
@@ -342,17 +282,11 @@ export async function serveBwarpInfo(playerId: number): Promise<CommandResult<'B
     if (!player) return;
     const onPlanetId = await getOnPlanetId(playerId);
     if (!onPlanetId) {
-        return {
-            outcome: 'error',
-            message: 'Not on a planet',
-        };
+        return commandRefusal('notOnPlanet');
     }
     const base = await getCurrentPlanetBase(onPlanetId);
     if (!base || base.level < 1) {
-        return {
-            outcome: 'error',
-            message: 'No active base on this planet',
-        };
+        return commandRefusal('noBase');
     }
     const range = base.transporter_range;
     if (range < 1) {
@@ -375,40 +309,24 @@ export async function serveBwarpInstall(playerId: number): Promise<CommandResult
     if (!player) return;
     const onPlanetId = await getOnPlanetId(playerId);
     if (!onPlanetId) {
-        return {
-            outcome: 'error',
-            message: 'Not on a planet',
-        };
+        return commandRefusal('notOnPlanet');
     }
-    return runMutation(
-        'Bwarp install',
-        async (client) => {
+    return mutateAndReply(
+        async (client, abort) => {
             const row = await getPlanetBaseTransporterForUpdate(onPlanetId, client);
             if (!row || row.level < 1) {
-                throw abort({
-                    outcome: 'error',
-                    message: 'No active base on this planet',
-                });
+                throw abort(commandRefusal('noBase'));
             }
             if (row.transporter_range >= 1) {
-                throw abort({
-                    outcome: 'error',
-                    message: 'Transporter already installed',
-                });
+                throw abort(commandRefusal('transporterInstalled'));
             }
             const credits = await getCreditsForUpdate(playerId, client);
             if (credits === undefined) {
-                throw abort({
-                    outcome: 'error',
-                    message: 'Player not found',
-                });
+                throw new Error('Player not found');
             }
             const cost = universeConfig.bwarpCost;
             if (credits < cost) {
-                throw abort({
-                    outcome: 'error',
-                    message: 'Insufficient credits on hand',
-                });
+                throw abort(commandRefusal('insufficientCredits'));
             }
             await deductCredits(playerId, cost, client);
             await setPlanetBaseTransporterRange(onPlanetId, universeConfig.bwarpInitRange, client);
@@ -427,34 +345,21 @@ export async function serveBwarpUpgrade(playerId: number): Promise<CommandResult
     if (!player) return;
     const onPlanetId = await getOnPlanetId(playerId);
     if (!onPlanetId) {
-        return {
-            outcome: 'error',
-            message: 'Not on a planet',
-        };
+        return commandRefusal('notOnPlanet');
     }
-    return runMutation(
-        'Bwarp upgrade',
-        async (client) => {
+    return mutateAndReply(
+        async (client, abort) => {
             const row = await getPlanetBaseTransporterForUpdate(onPlanetId, client);
             if (!row || row.level < 1 || row.transporter_range < 1) {
-                throw abort({
-                    outcome: 'error',
-                    message: 'No transporter to upgrade',
-                });
+                throw abort(commandRefusal('noTransporter'));
             }
             const credits = await getCreditsForUpdate(playerId, client);
             if (credits === undefined) {
-                throw abort({
-                    outcome: 'error',
-                    message: 'Player not found',
-                });
+                throw new Error('Player not found');
             }
             const cost = universeConfig.bwarpUpgradeCost;
             if (credits < cost) {
-                throw abort({
-                    outcome: 'error',
-                    message: 'Insufficient credits on hand',
-                });
+                throw abort(commandRefusal('insufficientCredits'));
             }
             await deductCredits(playerId, cost, client);
             const newRange = row.transporter_range + 1;
@@ -481,34 +386,22 @@ export async function serveBwarpBeam(
 
     const onPlanetId = await getOnPlanetId(playerId);
     if (!onPlanetId) {
-        return {
-            outcome: 'error',
-            message: 'Not on a planet',
-        };
+        return commandRefusal('notOnPlanet');
     }
     if (!Number.isInteger(targetSector) || targetSector <= 0) {
-        return {
-            outcome: 'error',
-            message: 'Invalid target sector',
-        };
+        return commandRefusal('noSuchSector');
     }
 
     if (!commit) {
         const base = await getCurrentPlanetBase(onPlanetId);
         const range = base?.transporter_range ?? 0;
         if (!base || base.level < 1 || range < 1) {
-            return {
-                outcome: 'error',
-                message: 'No active transporter',
-            };
+            return commandRefusal('noTransporter');
         }
         const warps = await getGraph(player.universeId);
         const hops = shortestHopCount(warps, player.sector, targetSector);
         if (hops < 0) {
-            return {
-                outcome: 'error',
-                message: 'No path to target sector',
-            };
+            return commandRefusal('noPath');
         }
         const planetFuel = await getPlanetFuel(onPlanetId);
         return {
@@ -521,44 +414,28 @@ export async function serveBwarpBeam(
         };
     }
 
-    return runMutation(
-        'Bwarp beam',
-        async (client) => {
+    return mutateAndReply(
+        async (client, abort) => {
             const row = await getPlanetBaseTransporterForUpdate(onPlanetId, client);
             if (!row || row.level < 1 || row.transporter_range < 1) {
-                throw abort({
-                    outcome: 'error',
-                    message: 'No active transporter',
-                });
+                throw abort(commandRefusal('noTransporter'));
             }
             const warps = await getGraph(player.universeId);
             const hops = shortestHopCount(warps, player.sector, targetSector);
             if (hops < 0) {
-                throw abort({
-                    outcome: 'error',
-                    message: 'No path to target sector',
-                });
+                throw abort(commandRefusal('noPath'));
             }
             if (hops > row.transporter_range) {
-                throw abort({
-                    outcome: 'error',
-                    message: 'Target sector out of transporter range',
-                });
+                throw abort(commandRefusal('outOfTransporterRange'));
             }
             const planetFuel = await getPlanetFuelForUpdate(onPlanetId, client);
             const fuelCost = hops * universeConfig.bwarpFuelPerHop;
             if (planetFuel === undefined || planetFuel < fuelCost) {
-                throw abort({
-                    outcome: 'error',
-                    message: 'Insufficient planet fuel for transport',
-                });
+                throw abort(commandRefusal('insufficientPlanetFuel'));
             }
             const turnResult = await checkAndDeductTurns(playerId, player.universeId, 1);
             if (!turnResult.allowed) {
-                throw abort({
-                    outcome: 'error',
-                    message: 'Insufficient turns',
-                });
+                throw abort(commandRefusal('insufficientTurns'));
             }
             await updatePlanetCommodity(onPlanetId, 'fuel', -fuelCost, client);
             const targetSectorId = await resolveSectorId(targetSector, player.universeId);

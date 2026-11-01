@@ -14,6 +14,7 @@ import {
     StrOrNull,
     SectorRefSchema,
     SectorDisplayDataSchema,
+    SectorNumber,
 } from './common.js';
 
 export const TowedAlongSchema = z.object({
@@ -109,7 +110,7 @@ export const SeekerMinePickupAlert = defineEvent('seekerMinePickupAlert', {
 
 export const Move = defineCommand('move', {
     request: {
-        sector: Int,
+        sector: SectorNumber,
     },
     reply: outcomes({
         success: SectorDisplayDataSchema.extend({
@@ -133,9 +134,6 @@ export const Move = defineCommand('move', {
         destroyed: {
             reason: Str,
         },
-        error: {
-            message: Str,
-        },
     }),
 });
 
@@ -156,7 +154,7 @@ export const SectorDisplay = defineCommand('sectorDisplay', {
 
 export const WarpsOut = defineCommand('warpsOut', {
     request: {
-        id: Int,
+        id: SectorNumber,
     },
     reply: {
         id: Int,
@@ -166,8 +164,8 @@ export const WarpsOut = defineCommand('warpsOut', {
 
 export const ShortestPath = defineCommand('shortestPath', {
     request: {
-        from: Int,
-        to: Int,
+        from: SectorNumber,
+        to: SectorNumber,
     },
     reply: {
         path: z.array(SectorRefSchema),
@@ -178,7 +176,7 @@ export const ShortestPath = defineCommand('shortestPath', {
 
 export const HyperspaceJump = defineCommand('hyperspaceJump', {
     request: {
-        targetSector: Int,
+        targetSector: SectorNumber,
     },
     reply: {
         targetSector: Int,

@@ -1,10 +1,10 @@
 // Builders for the client/server protocol. A command pairs a request with the
-// reply it produces; an event is a server push with no request. Wire `type`
-// tags, envelope unions and the ClientTag/ServerTag lookups are all derived
-// from these definitions in ./index.ts — nothing about a message is declared
-// twice.
+// reply it produces; an event is a server push with no request. 
+//
+
 
 import { z } from 'zod';
+import { RefusalDetailSchema, RefusalReasonSchema } from './refusal.js';
 
 type Shape = z.ZodRawShape;
 type Body = Shape | z.ZodObject<Shape>;
@@ -15,89 +15,89 @@ function asObject(body: Body): z.ZodObject<Shape> {
     return body instanceof z.ZodObject ? body : z.object(body);
 }
 
-/** Reply variants discriminated on one field (`outcome` by default), each stamped with the reply's `type`. */
-export class Variants<D extends string, V extends Record<string, Body>> {
-    constructor(
-        readonly discriminator: D,
-        readonly variants: V,
-    ) {}
+function stamp<N extends string, B extends Body>(name: N, body: B): EventEnvelope<N, B> {
+    return asObject(body).extend({ type: z.literal(name) }) as unknown as EventEnvelope<N, B>;
 }
 
-export function variants<D extends string, V extends Record<string, Body>>(
-    discriminator: D,
-    defs: V,
-): Variants<D, V> {
-    return new Variants(discriminator, defs);
+/** Reply variants keyed by `outcome` value, each stamped with the reply's `type`. */
+export class Outcomes<V extends Record<string, Body>> {
+    constructor(readonly variants: V) {}
 }
 
-export function outcomes<V extends Record<string, Body>>(defs: V): Variants<'outcome', V> {
-    return new Variants('outcome', defs);
+export function outcomes<V extends Record<string, Body>>(variants: V): Outcomes<V> {
+    return new Outcomes(variants);
 }
 
-type AnyVariants = Variants<string, Record<string, Body>>;
+type AnyOutcomes = Outcomes<Record<string, Body>>;
 
 type Stamped<N extends string, B extends Body> = z.ZodObject<
     ShapeOf<B> & { type: z.ZodLiteral<N> }
 >;
 
-type StampedVariant<
-    N extends string,
-    D extends string,
-    K extends string,
-    B extends Body,
-> = z.ZodObject<ShapeOf<B> & { type: z.ZodLiteral<N> } & { [P in D]: z.ZodLiteral<K> }>;
+type OutcomeVariant<N extends string, K extends string, B extends Body> = z.ZodObject<
+    ShapeOf<B> & { type: z.ZodLiteral<N>; outcome: z.ZodLiteral<K> }
+>;
 
-type VariantUnion<N extends string, D extends string, V extends Record<string, Body>> = {
-    [K in keyof V & string]: StampedVariant<N, D, K, V[K]>;
+type OutcomeUnion<N extends string, V extends Record<string, Body>> = {
+    [K in keyof V & string]: OutcomeVariant<N, K, V[K]>;
 }[keyof V & string];
 
-/** The zod schema of a message named N with body B: an object, or a discriminated union of objects. */
-export type Envelope<N extends string, B> =
-    B extends Variants<infer D, infer V>
-        ? z.ZodDiscriminatedUnion<VariantUnion<N, D, V>[], D>
+type RefusedVariant<N extends string> = z.ZodObject<{
+    type: z.ZodLiteral<N>;
+    outcome: z.ZodLiteral<'refused'>;
+    reason: typeof RefusalReasonSchema;
+    detail: z.ZodOptional<typeof RefusalDetailSchema>;
+}>;
+
+export type EventEnvelope<N extends string, B extends Body> = Stamped<N, B>;
+
+export type ReplyEnvelope<N extends string, B> =
+    B extends Outcomes<infer V>
+        ? z.ZodDiscriminatedUnion<(OutcomeUnion<N, V> | RefusedVariant<N>)[], 'outcome'>
         : B extends Body
-          ? Stamped<N, B>
+          ? z.ZodDiscriminatedUnion<(OutcomeVariant<N, 'ok', B> | RefusedVariant<N>)[], 'outcome'>
           : never;
 
-/** A named server→client message: an event, a standalone reply, or a command's reply. */
+/** A named server→client message. */
 export type MessageDef<N extends string, S extends z.ZodType> = {
     readonly name: N;
     readonly Schema: S;
 };
 
-function buildEnvelope<N extends string, B extends Body | AnyVariants>(
+function buildReplyEnvelope<N extends string, B extends Body | AnyOutcomes>(
     name: N,
     body: B,
-): Envelope<N, B> {
+): ReplyEnvelope<N, B> {
     const typeLiteral = z.literal(name);
-    if (body instanceof Variants) {
-        const members = Object.entries(body.variants).map(([value, variant]) =>
-            asObject(variant).extend({
-                type: typeLiteral,
-                [body.discriminator]: z.literal(value),
-            }),
-        );
-        return z.discriminatedUnion(
-            body.discriminator,
-            members as [(typeof members)[number], ...(typeof members)[number][]],
-        ) as unknown as Envelope<N, B>;
-    }
-    return asObject(body as Body).extend({ type: typeLiteral }) as unknown as Envelope<N, B>;
+    const variants = body instanceof Outcomes ? body.variants : { ok: body as Body };
+    const members = Object.entries(variants).map(([value, variant]) =>
+        asObject(variant).extend({ type: typeLiteral, outcome: z.literal(value) }),
+    );
+    const refused = z.object({
+        type: typeLiteral,
+        outcome: z.literal('refused'),
+        reason: RefusalReasonSchema,
+        detail: RefusalDetailSchema.optional(),
+    });
+    return z.discriminatedUnion('outcome', [...members, refused] as unknown as [
+        z.ZodObject<Shape>,
+        ...z.ZodObject<Shape>[],
+    ]) as unknown as ReplyEnvelope<N, B>;
 }
 
 export function defineEvent<N extends string, B extends Body>(
     name: N,
     body: B,
-): MessageDef<N, Envelope<N, B>> {
-    return { name, Schema: buildEnvelope(name, body) };
+): MessageDef<N, EventEnvelope<N, B>> {
+    return { name, Schema: stamp(name, body) };
 }
 
 /** A reply shared by several commands, or one whose name doesn't follow `${command}Result`. */
-export function defineReply<N extends string, B extends Body | AnyVariants>(
+export function defineReply<N extends string, B extends Body | AnyOutcomes>(
     name: N,
     body: B,
-): MessageDef<N, Envelope<N, B>> {
-    return { name, Schema: buildEnvelope(name, body) };
+): MessageDef<N, ReplyEnvelope<N, B>> {
+    return { name, Schema: buildReplyEnvelope(name, body) };
 }
 
 type AnyMessageDef = MessageDef<string, z.ZodType>;
@@ -108,28 +108,23 @@ export type CommandDef<N extends string, Req extends z.ZodType, R extends AnyMes
     readonly reply: R;
 };
 
-type ReplyInput = Body | AnyVariants | AnyMessageDef | null;
+type ReplyInput = Body | AnyOutcomes | AnyMessageDef | null;
 
 type ResolvedReply<N extends string, R extends ReplyInput> = R extends AnyMessageDef
     ? R
-    : R extends Body | AnyVariants
-      ? MessageDef<`${N}Result`, Envelope<`${N}Result`, R>>
+    : R extends Body | AnyOutcomes
+      ? MessageDef<`${N}Result`, ReplyEnvelope<`${N}Result`, R>>
       : null;
 
 function isMessageDef(x: unknown): x is AnyMessageDef {
     return typeof x === 'object' && x !== null && 'Schema' in x && 'name' in x;
 }
 
-/**
- * `reply` is a body shape (reply tag becomes `${name}Result`), `outcomes(...)`
- * variants, an existing reply/event definition to share, or null for commands
- * that produce no reply.
- */
 export function defineCommand<N extends string, Req extends Body, R extends ReplyInput>(
     name: N,
     def: { request: Req; reply: R },
-): CommandDef<N, Envelope<N, Req>, ResolvedReply<N, R>> {
-    const Request = buildEnvelope(name, def.request);
+): CommandDef<N, EventEnvelope<N, Req>, ResolvedReply<N, R>> {
+    const Request = stamp(name, def.request);
     let reply: AnyMessageDef | null;
     if (def.reply === null) reply = null;
     else if (isMessageDef(def.reply)) reply = def.reply;

@@ -5,8 +5,8 @@ import { type DisplayCtx } from '../display.js';
 import { type DisplayPortCtx } from '../display-port.js';
 import { type DisplayStarbaseCtx } from '../display-starbase.js';
 import { type DisplayComputerCtx } from '../display-computer.js';
-import type { Handler } from './index.js';
-import { ClientTag } from '@twnr/shared';
+import type { ReplyHandler, EventHandler } from './index.js';
+import { Commands, command } from '@twnr/shared';
 import { fmt, formatDuration, refreshMinimap, type RefreshMinimapCtx } from './utils.js';
 import { runConnectFlow } from './connect-flow.js';
 
@@ -20,7 +20,7 @@ type LifecycleContext = Pick<
     DisplayComputerCtx &
     RefreshMinimapCtx;
 
-export const welcome: Handler<'welcome', LifecycleContext> = async (ctx, msg) => {
+export const welcome: EventHandler<'Welcome', LifecycleContext> = async (ctx, msg) => {
     ctx.player.name = msg.name;
     ctx.player.id = msg.playerId;
     ctx.world.totalSectors = msg.totalSectors;
@@ -41,7 +41,7 @@ export const welcome: Handler<'welcome', LifecycleContext> = async (ctx, msg) =>
     await runConnectFlow(ctx);
 };
 
-export const playerMoved: Handler<'playerMoved', LifecycleContext> = (ctx, msg) => {
+export const playerMoved: EventHandler<'PlayerMoved', LifecycleContext> = (ctx, msg) => {
     ctx.io.term.writeln(
         render(msg.direction === 'in' ? NOTIFY.playerIn : NOTIFY.playerOut, {
             name: msg.playerName,
@@ -63,7 +63,7 @@ export const playerMoved: Handler<'playerMoved', LifecycleContext> = (ctx, msg) 
     }
 };
 
-export const sectorActivity: Handler<'sectorActivity', LifecycleContext> = (ctx, msg) => {
+export const sectorActivity: EventHandler<'SectorActivity', LifecycleContext> = (ctx, msg) => {
     const name = msg.playerName;
     const target = msg.targetName;
     switch (msg.activity) {
@@ -104,18 +104,18 @@ export const sectorActivity: Handler<'sectorActivity', LifecycleContext> = (ctx,
     }
 };
 
-export const rateLimited: Handler<'rateLimited', LifecycleContext> = (ctx) => {
+export const rateLimited: EventHandler<'RateLimited', LifecycleContext> = (ctx) => {
     if (ctx.autopilot.path.length > 0) {
         const retrySector = ctx.autopilot.path[ctx.autopilot.step - 1];
         if (retrySector !== undefined) {
             setTimeout(() => {
-                ctx.io.sendMsg({ type: ClientTag.Move, sector: retrySector });
+                ctx.io.sendMsg(command(Commands.Move, { sector: retrySector }));
             }, 200);
         }
     }
 };
 
-export const playersOnline: Handler<'playersOnlineResult', LifecycleContext> = (ctx, msg) => {
+export const playersOnline: ReplyHandler<'PlayersOnline', LifecycleContext> = (ctx, msg) => {
     ctx.io.term.writeln('');
     ctx.io.term.writeln(render(PANEL.playersOnlineHeader, { count: msg.players.length }));
     for (const p of msg.players) {
@@ -124,11 +124,11 @@ export const playersOnline: Handler<'playersOnlineResult', LifecycleContext> = (
     }
 };
 
-export const neighborhood: Handler<'neighborhoodResult', LifecycleContext> = (ctx, msg) => {
+export const neighborhood: ReplyHandler<'GetNeighborhood', LifecycleContext> = (ctx, msg) => {
     ctx.minimap.handle?.update(msg, ctx.world.currentSector);
 };
 
-export const starbaseInfo: Handler<'starbaseInfoResult', LifecycleContext> = (ctx, msg) => {
+export const starbaseInfo: ReplyHandler<'StarbaseInfo', LifecycleContext> = (ctx, msg) => {
     ctx.world.starbaseSector = msg.sector;
     if (msg.sector != null) {
         ctx.io.term.writeln(render(NOTIFY.starbaseLocation, { sector: msg.sector }));
@@ -212,6 +212,6 @@ export const starbaseInfo: Handler<'starbaseInfoResult', LifecycleContext> = (ct
     }
 };
 
-export const error: Handler<'error', LifecycleContext> = (ctx, msg) => {
+export const protocolError: EventHandler<'ProtocolError', LifecycleContext> = (ctx, msg) => {
     ctx.io.term.writeln(render(NOTIFY.error, { message: msg.message }));
 };

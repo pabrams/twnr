@@ -2,13 +2,13 @@
 
 import { z } from 'zod';
 
-import { defineCommand, outcomes, variants } from './define.js';
+import { defineCommand, outcomes } from './define.js';
 
-import { Int, Num, Str } from './common.js';
+import { Int, Num, Str, PositiveInt, SectorNumber } from './common.js';
 
 export const BaseInfo = defineCommand('baseInfo', {
     request: {},
-    reply: variants('mode', {
+    reply: outcomes({
         noBase: {
             planetClass: Str,
             planetTypeDisplay: Str,
@@ -34,9 +34,6 @@ export const BaseInfo = defineCommand('baseInfo', {
         exists: {
             level: Int,
         },
-        error: {
-            message: Str,
-        },
     }),
 });
 
@@ -47,17 +44,6 @@ export const BuildBase = defineCommand('buildBase', {
             targetLevel: Int,
             daysRequired: Num,
             completesAt: Str,
-        },
-        error: {
-            message: Str,
-            shortfall: z
-                .object({
-                    fuel: Num.optional(),
-                    org: Num.optional(),
-                    equ: Num.optional(),
-                    colos: Num.optional(),
-                })
-                .optional(),
         },
     }),
 });
@@ -75,16 +61,13 @@ export const TreasuryInfo = defineCommand('treasuryInfo', {
             treasury: Num,
             credits: Num,
         },
-        error: {
-            message: Str,
-        },
     }),
 });
 
 export const TreasuryTransfer = defineCommand('treasuryTransfer', {
     request: {
         direction: z.enum(['to', 'from']),
-        amount: Int,
+        amount: PositiveInt,
     },
     reply: outcomes({
         ok: {
@@ -92,9 +75,6 @@ export const TreasuryTransfer = defineCommand('treasuryTransfer', {
             amount: Num,
             credits: Num,
             treasury: Num,
-        },
-        error: {
-            message: Str,
         },
     }),
 });
@@ -111,9 +91,6 @@ export const BwarpInfo = defineCommand('bwarpInfo', {
             upgradeCost: Num,
             fuelPerHop: Num,
         },
-        error: {
-            message: Str,
-        },
     }),
 });
 
@@ -123,9 +100,6 @@ export const BwarpInstall = defineCommand('bwarpInstall', {
         ok: {
             range: Num,
             credits: Num,
-        },
-        error: {
-            message: Str,
         },
     }),
 });
@@ -139,15 +113,12 @@ export const BwarpUpgrade = defineCommand('bwarpUpgrade', {
             credits: Num,
             treasury: Num,
         },
-        error: {
-            message: Str,
-        },
     }),
 });
 
 export const BwarpBeam = defineCommand('bwarpBeam', {
     request: {
-        targetSector: Int,
+        targetSector: SectorNumber,
         commit: z.boolean(),
     },
     reply: outcomes({
@@ -163,9 +134,6 @@ export const BwarpBeam = defineCommand('bwarpBeam', {
             hops: Int,
             fuelUsed: Num,
             turnsUsed: Num,
-        },
-        error: {
-            message: Str,
         },
     }),
 });

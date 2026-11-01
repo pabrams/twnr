@@ -13,7 +13,7 @@ import {
 } from '../db/queries/tow.js';
 import { getShipTurnsPerWarp } from '../db/queries/ship.js';
 import { getPlayerClanId } from '../db/queries/clan.js';
-import { type CommandResult, abort, runMutation } from './command.js';
+import { type CommandResult, commandRefusal, mutateAndReply } from './command.js';
 
 export function combinedTurnsPerWarp(selfTpw: number, towedTpw: number): number {
     return selfTpw + 2 * towedTpw;
@@ -28,10 +28,7 @@ export async function serveTowSpacecraft(
     const state = await getTowState(playerId);
     if (state) {
         await clearTowedShip(playerId);
-        return {
-            outcome: 'disengaged',
-            message: 'You shut off your Tractor Beam.',
-        };
+        return { outcome: 'disengaged' };
     }
 
     const clanId = await getPlayerClanId(playerId);
@@ -102,33 +99,23 @@ export async function serveTowAttach(
 
     const clanId = await getPlayerClanId(playerId);
 
-    return runMutation(
-        'tow attach',
-        async (client) => {
+    return mutateAndReply(
+        async (client, abort) => {
             const target = await lockTowTarget(data.shipId, client);
             if (!target) {
-                throw abort({
-                    outcome: 'error',
-                    message: 'That ship is no longer here.',
-                });
+                throw abort(commandRefusal('shipGone'));
             }
 
             // Re-verify under lock — a concurrent move could have warped the target away.
             if (target.ship_sector_id !== player.sectorId) {
-                throw abort({
-                    outcome: 'error',
-                    message: 'That ship is no longer here.',
-                });
+                throw abort(commandRefusal('shipGone'));
             }
 
             const isManned = target.pilot_player_id !== null;
 
             if (isManned) {
                 if (target.ship_drones > 0) {
-                    throw abort({
-                        outcome: 'error',
-                        message: 'You cannot tow a manned ship that has fighters on it.',
-                    });
+                    throw abort(commandRefusal('mannedWithDrones'));
                 }
             } else {
                 const ownedByPlayer = target.owner_player_id === playerId;
@@ -137,10 +124,7 @@ export async function serveTowAttach(
                     target.owner_clan_id !== null &&
                     target.owner_clan_id === clanId;
                 if (!ownedByPlayer && !ownedByClan) {
-                    throw abort({
-                        outcome: 'error',
-                        message: 'You do not own that ship.',
-                    });
+                    throw abort(commandRefusal('notShipOwner'));
                 }
             }
 
@@ -171,7 +155,7 @@ export async function serveTowAttach(
             }
             return {
                 outcome: 'ok' as const,
-                message: `You lock your Tractor Beam on ${result.targetName}`,
+                targetName: result.targetName,
                 turnsPerWarp: result.tpw,
             };
         },

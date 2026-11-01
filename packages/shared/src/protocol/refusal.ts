@@ -1,0 +1,126 @@
+// A refusal is a command the server understood but would not carry out given
+// the game state — the player's problem, not a fault. Every command reply can be
+// `{ outcome: 'refused', reason, detail? }`; the client owns the wording.
+
+import { z } from 'zod';
+
+export const RefusalReasonSchema = z.enum([
+    // where the player is
+    'noShip',
+    'docked',
+    'notDocked',
+    'alreadyDocked',
+    'onPlanet',
+    'notOnPlanet',
+    'notAtStarbase',
+    'notAtClass0OrStarbase',
+    'noStarbaseHere',
+    'noPortHere',
+    'restrictedSector',
+    'inEncounter',
+    'noEncounter',
+    'noPreviousSector',
+    'shipNameRequired',
+    // resources
+    'insufficientTurns',
+    'insufficientCredits',
+    'insufficientFuel',
+    'insufficientHolds',
+    'insufficientCargo',
+    'insufficientMaterials',
+    'insufficientTreasury',
+    'insufficientPlanetFuel',
+    'notEnoughDrones',
+    'insufficientShields',
+    'insufficientMines',
+    'minesAtCapacity',
+    'noDronesToLaunch',
+    'noColonistsOnShip',
+    'dronesAtCapacity',
+    'shipDronesAtMax',
+    'exceedsMaximum',
+    // movement
+    'noSuchSector',
+    'noPath',
+    'targetNotAdjacent',
+    'hostileDronesPresent',
+    'noHyperspaceDrive',
+    'noDroneSignal',
+    // trading
+    'portDoesNotTrade',
+    'insufficientPortStock',
+    'portCannotBuyThatMany',
+    'noHaggle',
+    'finalOfferIssued',
+    'haggleCancelledMoved',
+    'portChangedMidHaggle',
+    'portExists',
+    'constructionInProgress',
+    'noPlanetForConstruction',
+    'noPortToUpgrade',
+    'cannotUpgradeSpecialPort',
+    // planets
+    'planetGone',
+    'notPlanetOwner',
+    'noPlanetBuster',
+    'noTerraformDevices',
+    'planetAtMax',
+    'planetAtMaxColonists',
+    'noCommodityOnPlanet',
+    'noColonistsAvailable',
+    'noColonistsInGroup',
+    'groupAtMax',
+    'sameGroup',
+    // bases
+    'noBase',
+    'baseExists',
+    'baseUnderConstruction',
+    'noTransporter',
+    'transporterInstalled',
+    'outOfTransporterRange',
+    // combat and deployables
+    'cannotAttackSelf',
+    'targetNotHere',
+    'targetHasNoShip',
+    'noBeacon',
+    'noBeacons',
+    'notYourMines',
+    'noDisruptors',
+    'noVisualScanner',
+    // hardware and ships
+    'unknownHardware',
+    'cannotCarry',
+    'hardwareAtMax',
+    'alreadyInstalled',
+    'unknownShipType',
+    'alreadyOnShip',
+    'shipNotOwned',
+    'targetShipNotFound',
+    'shipGone',
+    'mannedWithDrones',
+    'notShipOwner',
+    'shipAlreadyClan',
+    'shipAlreadyPersonal',
+    'noPurchasePending',
+    // clans
+    'notInClan',
+    'alreadyInClan',
+    'notClanLeader',
+    'clanNameTaken',
+    'clanNotFound',
+    'wrongClanPassword',
+    'clanFull',
+    'notClanMember',
+    'cannotTransferToSelf',
+    'cannotDropSelf',
+    'onClanShip',
+    'successorRequired',
+    'confirmDissolution',
+]);
+export type RefusalReason = z.infer<typeof RefusalReasonSchema>;
+
+/** Numbers and names the client may interpolate into the refusal's message. */
+export const RefusalDetailSchema = z.record(z.string(), z.union([z.string(), z.number()]));
+export type RefusalDetail = z.infer<typeof RefusalDetailSchema>;
+
+export type Refusal = { outcome: 'refused'; reason: RefusalReason; detail?: RefusalDetail };

@@ -2,9 +2,19 @@
 
 import { z } from 'zod';
 
-import { defineCommand, defineReply, outcomes, variants } from './define.js';
+import { defineCommand, defineReply, outcomes } from './define.js';
 
-import { Commodity3, Int, Num, Bool, Str, SectorDisplayDataSchema } from './common.js';
+import {
+    Commodity3,
+    Int,
+    Num,
+    Bool,
+    Str,
+    SectorDisplayDataSchema,
+    PositiveInt,
+    SectorNumber,
+    PortName,
+} from './common.js';
 
 export const CargoSchema = z.object({
     fuel: Num,
@@ -63,40 +73,40 @@ export const HaggleResponseResult = defineReply(
             newPortOffer: Num,
         },
         rejected: {
-            message: Str,
             turnsUsed: Num.optional(),
-        },
-        error: {
-            message: Str,
         },
     }),
 );
 
+/** Also embedded in DockResult.port. */
+export const PortInfoSchema = z.object({
+    sectorId: Int,
+    portName: Str,
+    class: Int,
+    fuel: Num,
+    fuelMax: Num,
+    fuelPrice: Num,
+    organics: Num,
+    orgMax: Num,
+    orgPrice: Num,
+    equipment: Num,
+    equMax: Num,
+    equPrice: Num,
+});
+export type PortInfo = z.infer<typeof PortInfoSchema>;
+
 export const PortInfo = defineCommand('portInfo', {
     request: {
-        sectorId: Int,
+        sectorId: SectorNumber,
     },
-    reply: {
-        sectorId: Int,
-        portName: Str,
-        class: Int,
-        fuel: Num,
-        fuelMax: Num,
-        fuelPrice: Num,
-        organics: Num,
-        orgMax: Num,
-        orgPrice: Num,
-        equipment: Num,
-        equMax: Num,
-        equPrice: Num,
-    },
+    reply: PortInfoSchema,
 });
 
 export const Dock = defineCommand('dock', {
     request: {},
     reply: {
         docked: Bool,
-        port: PortInfo.reply.Schema.optional(),
+        port: PortInfoSchema.optional(),
         credits: Num.optional(),
         cargo: CargoSchema.optional(),
         emptyHolds: Num.optional(),
@@ -110,9 +120,6 @@ export const Undock = defineCommand('undock', {
     request: {},
     reply: outcomes({
         success: SectorDisplayDataSchema,
-        error: {
-            message: Str,
-        },
     }),
 });
 
@@ -124,16 +131,13 @@ export const Jettison = defineCommand('jettison', {
             expDelta: Num.optional(),
             repDelta: Num.optional(),
         },
-        error: {
-            message: Str,
-        },
     }),
 });
 
 export const PortTransaction = defineCommand('portTransaction', {
     request: {
-        good: z.string(),
-        quantity: Int,
+        good: Commodity3,
+        quantity: PositiveInt,
         action: TradeAction,
     },
     reply: {
@@ -164,7 +168,7 @@ export const LeaveStarbase = defineCommand('leaveStarbase', {
 export const HaggleOpen = defineCommand('haggleOpen', {
     request: {
         commodity: Commodity3,
-        quantity: Int,
+        quantity: PositiveInt,
         action: TradeAction,
     },
     reply: outcomes({
@@ -174,15 +178,12 @@ export const HaggleOpen = defineCommand('haggleOpen', {
             quantity: Num,
             initialOffer: Num,
         },
-        error: {
-            message: Str,
-        },
     }),
 });
 
 export const HaggleCounter = defineCommand('haggleCounter', {
     request: {
-        counter: Int,
+        counter: PositiveInt,
     },
     reply: HaggleResponseResult,
 });
@@ -199,7 +200,7 @@ export const HaggleQuit = defineCommand('haggleQuit', {
 
 export const ConstructPortInfo = defineCommand('constructPortInfo', {
     request: {},
-    reply: variants('mode', {
+    reply: outcomes({
         build: {
             classes: z.array(
                 z.object({
@@ -233,8 +234,8 @@ export const ConstructPortInfo = defineCommand('constructPortInfo', {
 
 export const BuildPort = defineCommand('buildPort', {
     request: {
-        portClass: Int,
-        portName: z.string(),
+        portClass: Int.min(1).max(8),
+        portName: PortName,
     },
     reply: outcomes({
         started: {
@@ -245,15 +246,12 @@ export const BuildPort = defineCommand('buildPort', {
             experienceGained: Num,
             reputationGained: Num,
         },
-        error: {
-            message: Str,
-        },
     }),
 });
 
 export const UpgradePortInfo = defineCommand('upgradePortInfo', {
     request: {},
-    reply: variants('mode', {
+    reply: outcomes({
         upgrade: {
             portName: Str,
             portClass: Int,
@@ -277,7 +275,7 @@ export const UpgradePortInfo = defineCommand('upgradePortInfo', {
 export const UpgradePort = defineCommand('upgradePort', {
     request: {
         commodity: Commodity3,
-        units: Int,
+        units: PositiveInt,
     },
     reply: outcomes({
         upgraded: {
@@ -290,9 +288,6 @@ export const UpgradePort = defineCommand('upgradePort', {
             newProd: Num,
             newMax: Num,
             newStock: Num,
-        },
-        error: {
-            message: Str,
         },
     }),
 });

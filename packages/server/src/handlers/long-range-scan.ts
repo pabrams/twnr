@@ -5,7 +5,7 @@ import { getShipHardwareQuantityByName } from '../db/queries/hardware.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
 import { checkAndDeductTurns } from '../turn-logic.js';
 import { notifyTurnChange } from '../services/notify.js';
-import { type CommandResult, commandError } from './command.js';
+import { type CommandResult, commandRefusal } from './command.js';
 
 const W_PORT = 100;
 const W_SHIP = 40;
@@ -20,7 +20,7 @@ export async function serveDensityScan(playerId: number): Promise<CommandResult<
     const player = onlinePlayers[playerId];
     if (!player) return;
     if (player.docked || player.at_starbase) {
-        return commandError('Cannot scan while docked');
+        return commandRefusal('docked');
     }
 
     const [rows, scannerQty] = await Promise.all([
@@ -54,17 +54,17 @@ export async function serveVisualScan(playerId: number): Promise<CommandResult<'
     const player = onlinePlayers[playerId];
     if (!player) return;
     if (player.docked || player.at_starbase) {
-        return commandError('Cannot scan while docked');
+        return commandRefusal('docked');
     }
 
     const scannerQty = await getShipHardwareQuantityByName(playerId, 'visual_scanner');
     if (scannerQty <= 0) {
-        return commandError('You do not have a visual scanner.');
+        return commandRefusal('noVisualScanner');
     }
 
     const turnResult = await checkAndDeductTurns(playerId, player.universeId, 1);
     if (!turnResult.allowed) {
-        return commandError('Insufficient turns');
+        return commandRefusal('insufficientTurns');
     }
     if (turnResult.turnsUsed) {
         notifyTurnChange(playerId, turnResult.turnsUsed, 'visual scan');

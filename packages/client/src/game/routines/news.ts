@@ -1,4 +1,4 @@
-import { ClientTag, ServerTag, type GalacticNewsEntry } from '@twnr/shared';
+import { type GalacticNewsEntry, Commands } from '@twnr/shared';
 import { render } from '../renderer.js';
 import { NEWS } from '../messages/index.js';
 import { buildNewsLines, startOfUtcDay } from '../display-news.js';
@@ -9,11 +9,10 @@ async function fetchAllNews(ctx: IOCtx, since: Date): Promise<GalacticNewsEntry[
     const entries: GalacticNewsEntry[] = [];
     let afterId: number | undefined;
     while (true) {
-        const reply = await request(
-            ctx,
-            { type: ClientTag.ReadGalacticNews, since: since.toISOString(), afterId },
-            ServerTag.GalacticNewsResult,
-        );
+        const reply = await request(ctx, Commands.ReadGalacticNews, {
+            since: since.toISOString(),
+            afterId,
+        });
         if (!reply) return null;
         entries.push(...reply.entries);
         if (!reply.hasMore || reply.entries.length === 0) return entries;

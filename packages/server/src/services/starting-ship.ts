@@ -1,11 +1,10 @@
-import { universeConfig } from '@twnr/shared';
+import { universeConfig, MAX_SHIP_NAME_LENGTH } from '@twnr/shared';
 import { getStartingShipTypeBySlug, insertStartingShip } from '../db/queries/ship.js';
 import { setPlayerShipId } from '../db/queries/player.js';
 import { getUniverseTemplateDefaults } from '../db/queries/universe.js';
 import { withTransaction } from '../db/index.js';
 import { recordGameEvent } from './game-events.js';
 
-export const MAX_SHIP_NAME_LENGTH = 20;
 const DEFAULT_NAME_SUFFIX = "'s ship";
 
 export function defaultShipName(playerName: string): string {

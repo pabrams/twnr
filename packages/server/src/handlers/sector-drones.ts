@@ -36,7 +36,7 @@ import { refreshSectorObservation } from '../services/sector-observations.js';
 import { getPlayerClanId, getClanMembers, getClanTotalReputation } from '../db/queries/clan.js';
 import { pvfigsAttackerDeltas, pvfigsMatchup } from '../services/combat-rewards.js';
 import { formatOwner, ownershipFrom } from '../services/owner-format.js';
-import { type CommandResult, commandError, abort, runMutation } from './command.js';
+import { type CommandResult, commandRefusal, mutateAndReply } from './command.js';
 
 export async function serveListDeployedDrones(
     playerId: number,
@@ -45,7 +45,7 @@ export async function serveListDeployedDrones(
     if (!player) return;
 
     if (player.docked || player.at_starbase) {
-        return commandError('Cannot use this command while docked');
+        return commandRefusal('docked');
     }
 
     const rows = await getDeployedDronesByOwner(playerId);
@@ -66,11 +66,11 @@ export async function serveDeployDronesInfo(
     if (!player) return;
 
     if (player.docked) {
-        return commandError('Cannot deploy while docked');
+        return commandRefusal('docked');
     }
 
     if (isInEncounter(playerId)) {
-        return commandError('Resolve drone encounter first');
+        return commandRefusal('inEncounter');
     }
 
     const shipInfo = await getShipDronesAndMaxInfo(playerId);
@@ -81,7 +81,7 @@ export async function serveDeployDronesInfo(
         sectorDrones &&
         (await hasEnemyDronesInSector(player.sector, player.universeId, playerId))
     ) {
-        return commandError('Sector contains hostile drones');
+        return commandRefusal('hostileDronesPresent');
     }
 
     return {
@@ -98,19 +98,16 @@ export async function serveDeployDrones(
 ): Promise<CommandResult<'DeployDrones'>> {
     let target = data.quantity;
     const ownership: 'personal' | 'clan' = data.ownership ?? 'personal';
-    if (!Number.isInteger(target) || target < -1) {
-        return commandError('Invalid target quantity');
-    }
 
     const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (player.docked) {
-        return commandError('Cannot deploy while docked');
+        return commandRefusal('docked');
     }
 
     if (isInEncounter(playerId)) {
-        return commandError('Resolve drone encounter first');
+        return commandRefusal('inEncounter');
     }
 
     const sectorId = player.sector;
@@ -118,17 +115,16 @@ export async function serveDeployDrones(
 
     const playerClanId = await getPlayerClanId(playerId);
     if (ownership === 'clan' && playerClanId === null) {
-        return commandError('You are not in a clan.');
+        return commandRefusal('notInClan');
     }
 
     const deploySectorDbId = await getSectorDbId(sectorId, universeId);
     if (!deploySectorDbId) {
-        return commandError('Sector not found');
+        throw new Error('Sector not found');
     }
 
-    return runMutation(
-        'Deploy drones',
-        async (client) => {
+    return mutateAndReply(
+        async (client, abort) => {
             const shipInfo = await getShipDronesAndMaxForUpdate(playerId, client);
             if (!shipInfo) throw abort({ outcome: 'noShip' });
 
@@ -146,7 +142,7 @@ export async function serveDeployDrones(
                     existing.owner_player_id === playerId ||
                     (playerClanId !== null && existing.owner_clan_id === playerClanId);
                 if (!friendly) {
-                    throw abort(commandError('Sector contains hostile drones'));
+                    throw abort(commandRefusal('hostileDronesPresent'));
                 }
                 const matchesDeploy =
                     (ownership === 'personal' && existing.owner_player_id === playerId) ||
@@ -163,15 +159,11 @@ export async function serveDeployDrones(
             const delta = target - currentInSector;
 
             if (delta > 0 && delta > shipDrones) {
-                throw abort(
-                    commandError(`Cannot deploy ${delta} drones; only ${shipDrones} on ship`),
-                );
+                throw abort(commandRefusal('notEnoughDrones', { have: shipDrones, wanted: delta }));
             }
 
             if (delta < 0 && shipDrones - delta > maxDrones) {
-                throw abort(
-                    commandError(`Ship can hold only ${maxDrones - shipDrones} more drones`),
-                );
+                throw abort(commandRefusal('dronesAtCapacity', { room: maxDrones - shipDrones }));
             }
 
             const updatedShipDrones = shipDrones - delta;
@@ -214,15 +206,12 @@ export async function serveAttackSectorDrones(
     data: CommandRequest<'AttackSectorDrones'>,
 ): Promise<CommandResult<'AttackSectorDrones'>> {
     const dronesToAttack = data.drones;
-    if (!Number.isInteger(dronesToAttack) || dronesToAttack <= 0) {
-        return commandError('Invalid number of drones');
-    }
 
     const player = onlinePlayers[playerId];
     if (!player) return;
 
     if (!isInEncounter(playerId)) {
-        return commandError('No drone encounter pending');
+        return commandRefusal('noEncounter');
     }
 
     const sectorId = player.sector;
@@ -230,18 +219,17 @@ export async function serveAttackSectorDrones(
 
     const sectorDbId = await getSectorDbId(sectorId, universeId);
 
-    return runMutation(
-        'Attack sector drones',
-        async (client) => {
+    return mutateAndReply(
+        async (client, abort) => {
             const shipDrones = await getShipDronesForUpdate(playerId, client);
             if (shipDrones === undefined) throw abort({ outcome: 'noShip' });
 
             if (dronesToAttack > shipDrones) {
-                throw abort(commandError(`Not enough drones on ship (have ${shipDrones})`));
+                throw abort(commandRefusal('notEnoughDrones', { have: shipDrones }));
             }
 
             if (!sectorDbId) {
-                throw abort(commandError('Sector not found'));
+                throw new Error('Sector not found');
             }
             const existing = await getSectorDronesRowForUpdate(sectorDbId, client);
             if (!existing || existing.quantity <= 0) {
@@ -386,12 +374,12 @@ export async function serveRetreatFromDrones(
     if (!player) return;
 
     if (!isInEncounter(playerId)) {
-        return commandError('No drone encounter pending');
+        return commandRefusal('noEncounter');
     }
 
     const retreatSector = await getPreviousSectorNumber(playerId);
     if (retreatSector === null) {
-        return commandError('No previous sector to retreat to');
+        return commandRefusal('noPreviousSector');
     }
     const universeId = player.universeId;
     const currentSector = player.sector;

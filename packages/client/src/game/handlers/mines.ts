@@ -1,12 +1,12 @@
 import type { GameContext } from '../types.js';
-import type { Handler } from './index.js';
+import type { ReplyHandler, EventHandler } from './index.js';
 import { render } from '../renderer.js';
 import { EVENT, PANEL } from '../messages/index.js';
 import { refreshMinimap, type RefreshMinimapCtx } from './utils.js';
 
 type MinesContext = Pick<GameContext, 'io' | 'minimap' | 'world'> & RefreshMinimapCtx;
 
-export const deployMine: Handler<'deployMineResult', MinesContext> = (ctx, msg) => {
+export const deployMine: ReplyHandler<'DeployMine', MinesContext> = (ctx, msg) => {
     const label = msg.mineType === 'seeker' ? 'Limpet' : 'Proximity';
     ctx.io.term.writeln(
         render(EVENT.deployMineResult, {
@@ -19,7 +19,7 @@ export const deployMine: Handler<'deployMineResult', MinesContext> = (ctx, msg) 
     refreshMinimap(ctx);
 };
 
-export const listDeployedMines: Handler<'listDeployedMinesResult', MinesContext> = (ctx, msg) => {
+export const listDeployedMines: ReplyHandler<'ListDeployedMines', MinesContext> = (ctx, msg) => {
     ctx.io.term.writeln('');
     const filter = ctx.world.mineScanFilter ?? null;
     const rows = filter ? msg.mines.filter((m) => m.mineType === filter) : msg.mines;
@@ -52,7 +52,7 @@ export const listDeployedMines: Handler<'listDeployedMinesResult', MinesContext>
     ctx.io.term.writeln(render(PANEL.deployedMinesTotalsRow, { qty: String(total).padStart(4) }));
 };
 
-export const trackSeekerMines: Handler<'trackSeekerMinesResult', MinesContext> = (ctx, msg) => {
+export const trackSeekerMines: ReplyHandler<'TrackSeekerMines', MinesContext> = (ctx, msg) => {
     ctx.io.term.writeln('');
     ctx.io.term.writeln(render(PANEL.limpetScanTitle));
     ctx.io.term.writeln('');
@@ -72,7 +72,7 @@ export const trackSeekerMines: Handler<'trackSeekerMinesResult', MinesContext> =
     );
 };
 
-export const mineDisruptor: Handler<'mineDisruptorResult', MinesContext> = (ctx, msg) => {
+export const mineDisruptor: ReplyHandler<'MineDisruptor', MinesContext> = (ctx, msg) => {
     ctx.io.term.writeln('');
     ctx.io.term.writeln(
         `Disruptor pulse to sector ${msg.targetSector}: ` +
@@ -82,7 +82,7 @@ export const mineDisruptor: Handler<'mineDisruptorResult', MinesContext> = (ctx,
     refreshMinimap(ctx);
 };
 
-export const proximityMineHit: Handler<'proximityMineHit', MinesContext> = (ctx, msg) => {
+export const proximityMineHit: EventHandler<'ProximityMineHit', MinesContext> = (ctx, msg) => {
     ctx.io.term.writeln('');
     if (msg.destroyed) {
         ctx.io.term.writeln(
@@ -97,11 +97,14 @@ export const proximityMineHit: Handler<'proximityMineHit', MinesContext> = (ctx,
     refreshMinimap(ctx);
 };
 
-export const seekerMineAttached: Handler<'seekerMineAttached', MinesContext> = (ctx) => {
+export const seekerMineAttached: EventHandler<'SeekerMineAttached', MinesContext> = (ctx) => {
     ctx.io.term.writeln(render(EVENT.seekerVictimNotice));
 };
 
-export const seekerMinePickupAlert: Handler<'seekerMinePickupAlert', MinesContext> = (ctx, msg) => {
+export const seekerMinePickupAlert: EventHandler<'SeekerMinePickupAlert', MinesContext> = (
+    ctx,
+    msg,
+) => {
     ctx.io.term.writeln('');
     ctx.io.term.writeln(
         `[ALERT] One of your limpet mines latched onto ${msg.targetOwnerName} in sector ${msg.sector}.`,

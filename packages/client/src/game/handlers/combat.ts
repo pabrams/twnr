@@ -1,4 +1,4 @@
-import { ClientTag, Menu, ServerTag } from '@twnr/shared';
+import { Menu, Commands, command } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { EVENT, SECTOR } from '../messages/index.js';
@@ -7,7 +7,7 @@ import { showDroneEncounter, showAttackMenu, type DisplayCombatCtx } from '../di
 import { askConfirm } from '../routines/prompts.js';
 import { awaitResponse } from '../routines/io.js';
 import { refreshMinimap, renderAttributeChange, type RefreshMinimapCtx } from './utils.js';
-import type { Handler } from './index.js';
+import type { ReplyHandler, EventHandler } from './index.js';
 
 type CombatContext = Pick<
     GameContext,
@@ -28,14 +28,10 @@ function reopenEncounterMenu(ctx: CombatContext): void {
     ctx.minimap.handle?.openMenu({ title: 'Drone encounter', buttons });
 }
 
-export const attackShip: Handler<'attackShipResult', CombatContext> = (ctx, msg) => {
+export const attackShip: ReplyHandler<'AttackShip', CombatContext> = (ctx, msg) => {
     if (ctx.world.mode === Menu.Attack) ctx.world.mode = Menu.Sector;
     ctx.io.term.writeln('');
-    ctx.io.term.writeln(
-        render(msg.destroyed ? EVENT.attackDestroyed : EVENT.attackCompleted, {
-            message: msg.message || (msg.destroyed ? 'Target destroyed!' : 'Attack completed.'),
-        }),
-    );
+    ctx.io.term.writeln(render(msg.destroyed ? EVENT.attackDestroyed : EVENT.attackCompleted));
     ctx.io.term.writeln(
         render(EVENT.attackStat, {
             label: 'Your drones lost',
@@ -57,7 +53,7 @@ export const attackShip: Handler<'attackShipResult', CombatContext> = (ctx, msg)
     renderAttributeChange(ctx, msg.expDelta ?? 0, msg.repDelta ?? 0, 'combat');
 };
 
-export const getAttackTargets: Handler<'getAttackTargetsResult', CombatContext> = async (
+export const getAttackTargets: ReplyHandler<'GetAttackTargets', CombatContext> = async (
     ctx,
     msg,
 ) => {
@@ -67,9 +63,13 @@ export const getAttackTargets: Handler<'getAttackTargetsResult', CombatContext> 
             defaultValue: false,
         });
         if (ok) {
-            ctx.io.sendMsg({ type: ClientTag.AttackBeacon });
-            const reply = await awaitResponse(ctx, [ServerTag.AttackBeaconResult, ServerTag.Error]);
-            if (reply && reply.type === ServerTag.AttackBeaconResult && reply.destroyed) {
+            ctx.io.sendMsg(command(Commands.AttackBeacon, {}));
+            const reply = await awaitResponse(ctx, [Commands.AttackBeacon.reply.name]);
+            if (
+                reply?.type === Commands.AttackBeacon.reply.name &&
+                reply.outcome === 'ok' &&
+                reply.destroyed
+            ) {
                 ctx.io.term.writeln(render(SECTOR.attackBeaconDestroyed));
             }
         }
@@ -78,7 +78,7 @@ export const getAttackTargets: Handler<'getAttackTargetsResult', CombatContext> 
     showAttackMenu(ctx);
 };
 
-export const deployDrones: Handler<'deployDronesResult', CombatContext> = (ctx, msg) => {
+export const deployDrones: ReplyHandler<'DeployDrones', CombatContext> = (ctx, msg) => {
     if (msg.outcome === 'noShip') {
         ctx.io.term.writeln(render(EVENT.noShip));
         return;
@@ -92,10 +92,7 @@ export const deployDrones: Handler<'deployDronesResult', CombatContext> = (ctx, 
     refreshMinimap(ctx);
 };
 
-export const attackSectorDrones: Handler<'attackSectorDronesResult', CombatContext> = (
-    ctx,
-    msg,
-) => {
+export const attackSectorDrones: ReplyHandler<'AttackSectorDrones', CombatContext> = (ctx, msg) => {
     if (msg.outcome === 'noShip') {
         ctx.io.term.writeln(render(EVENT.noShip));
         return;
@@ -126,7 +123,7 @@ export const attackSectorDrones: Handler<'attackSectorDronesResult', CombatConte
                 ctx.autopilot.step = ctx.autopilot.step + 1;
                 ctx.io.term.writeln(render(EVENT.autopilotResuming));
                 ctx.io.term.writeln(render(EVENT.autopilotWarping, { sector: nextSector }));
-                ctx.io.sendMsg({ type: ClientTag.Move, sector: nextSector });
+                ctx.io.sendMsg(command(Commands.Move, { sector: nextSector }));
             }
         }
     } else {
@@ -135,7 +132,7 @@ export const attackSectorDrones: Handler<'attackSectorDronesResult', CombatConte
     }
 };
 
-export const retreatFromDrones: Handler<'retreatFromDronesResult', CombatContext> = (ctx, msg) => {
+export const retreatFromDrones: ReplyHandler<'RetreatFromDrones', CombatContext> = (ctx, msg) => {
     ctx.world.mode = Menu.Sector;
     ctx.io.term.writeln(render(EVENT.retreated, { sector: msg.sector }));
     if (ctx.autopilot.paused) {
@@ -146,7 +143,7 @@ export const retreatFromDrones: Handler<'retreatFromDronesResult', CombatContext
     }
 };
 
-export const sectorDronesAlert: Handler<'sectorDronesAlert', CombatContext> = (ctx, msg) => {
+export const sectorDronesAlert: EventHandler<'SectorDronesAlert', CombatContext> = (ctx, msg) => {
     ctx.io.term.writeln('');
     const tpl =
         msg.event === 'intrusion'

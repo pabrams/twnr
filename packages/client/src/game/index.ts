@@ -1,5 +1,5 @@
 import { Terminal } from '@xterm/xterm';
-import { ClientTag, Menu, globalConstants } from '@twnr/shared';
+import { Menu, globalConstants, Commands, command } from '@twnr/shared';
 import type { ClientEnvelope, MenuEntry } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { setupConnection } from './connection.js';
@@ -276,13 +276,12 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
         minimap.onRequestRefresh(() => {
             const vp = minimap.getViewport();
             ctx.io.sendMsg(
-                {
-                    type: ClientTag.GetNeighborhood,
+                command(Commands.GetNeighborhood, {
                     halfWidthWorld: vp.halfWidthWorld,
                     halfHeightWorld: vp.halfHeightWorld,
                     centerXWorld: vp.centerXWorld,
                     centerYWorld: vp.centerYWorld,
-                },
+                }),
                 { silent: true },
             );
         });

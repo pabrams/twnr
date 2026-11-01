@@ -2,9 +2,21 @@
 
 import { z } from 'zod';
 
-import { defineCommand, defineEvent } from './define.js';
+import { defineCommand, defineEvent, outcomes } from './define.js';
 
-import { Int, Num, Bool, Str, IntOrNull, MineTypeSchema } from './common.js';
+import {
+    Int,
+    Num,
+    Bool,
+    Str,
+    IntOrNull,
+    MineTypeSchema,
+    PositiveInt,
+    Id,
+    MemoBody,
+    ClanName,
+    ClanPassword,
+} from './common.js';
 
 export const ClanListEntrySchema = z.object({
     clanId: Int,
@@ -50,8 +62,8 @@ export const ClanMemoNotification = defineEvent('clanMemoNotification', {
 
 export const ClanCreate = defineCommand('clanCreate', {
     request: {
-        name: z.string(),
-        password: z.string(),
+        name: ClanName,
+        password: ClanPassword,
     },
     reply: {
         clanId: Int,
@@ -62,7 +74,7 @@ export const ClanCreate = defineCommand('clanCreate', {
 
 export const ClanJoin = defineCommand('clanJoin', {
     request: {
-        name: z.string(),
+        name: z.string().trim().min(1),
         password: z.string(),
     },
     reply: {
@@ -74,14 +86,16 @@ export const ClanJoin = defineCommand('clanJoin', {
 
 export const ClanLeave = defineCommand('clanLeave', {
     request: {
-        successorPlayerId: Int.optional(),
+        successorPlayerId: Id.optional(),
         confirmDissolve: z.boolean().optional(),
     },
-    reply: {
-        outcome: z.enum(['left', 'dissolved']),
-        convertedToPersonal: Num,
-        convertedToRogue: Num,
-    },
+    reply: outcomes({
+        left: {},
+        dissolved: {
+            convertedToPersonal: Num,
+            convertedToRogue: Num,
+        },
+    }),
 });
 
 export const ClanList = defineCommand('clanList', {
@@ -109,12 +123,17 @@ export const ClanInfo = defineCommand('clanInfo', {
 });
 
 export const ClanTransfer = defineCommand('clanTransfer', {
-    request: {
-        kind: ClanTransferKindSchema,
-        targetPlayerId: Int,
-        quantity: Int,
-        mineType: MineTypeSchema.optional(),
-    },
+    request: z
+        .object({
+            kind: ClanTransferKindSchema,
+            targetPlayerId: Id,
+            quantity: PositiveInt,
+            mineType: MineTypeSchema.optional(),
+        })
+        .refine((transfer) => transfer.kind !== 'mines' || transfer.mineType !== undefined, {
+            message: 'mineType is required when kind is mines',
+            path: ['mineType'],
+        }),
     reply: {
         kind: z.enum(['credits', 'drones', 'shields', 'mines']),
         targetPlayerId: Int,
@@ -126,7 +145,7 @@ export const ClanTransfer = defineCommand('clanTransfer', {
 
 export const ClanMemo = defineCommand('clanMemo', {
     request: {
-        body: z.string(),
+        body: MemoBody,
     },
     reply: {
         recipientCount: Num,
@@ -135,14 +154,14 @@ export const ClanMemo = defineCommand('clanMemo', {
 
 export const ClanSetPassword = defineCommand('clanSetPassword', {
     request: {
-        newPassword: z.string(),
+        newPassword: ClanPassword,
     },
     reply: {},
 });
 
 export const ClanDropMember = defineCommand('clanDropMember', {
     request: {
-        targetPlayerId: Int,
+        targetPlayerId: Id,
     },
     reply: {
         droppedPlayerId: Int,

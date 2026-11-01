@@ -6,14 +6,14 @@ import { type DisplayCtx } from '../display.js';
 import { type DisplayPortCtx } from '../display-port.js';
 import { showHardwareMenu, type DisplayStarbaseCtx } from '../display-starbase.js';
 import { fmt } from './utils.js';
-import type { Handler } from './index.js';
+import type { ReplyHandler } from './index.js';
 
 type HardwareStoreContext = Pick<GameContext, 'io' | 'starbase' | 'world'> &
     DisplayCtx &
     DisplayPortCtx &
     DisplayStarbaseCtx;
 
-export const buyDrones: Handler<'buyDronesResult', HardwareStoreContext> = (ctx, msg) => {
+export const buyDrones: ReplyHandler<'BuyDrones', HardwareStoreContext> = (ctx, msg) => {
     ctx.io.term.writeln(render(TRANSACTION.purchaseComplete));
     ctx.io.term.writeln(
         render(TRANSACTION.purchaseStatsDrones, {
@@ -27,7 +27,7 @@ export const buyDrones: Handler<'buyDronesResult', HardwareStoreContext> = (ctx,
     }
 };
 
-export const buyShields: Handler<'buyShieldsResult', HardwareStoreContext> = (ctx, msg) => {
+export const buyShields: ReplyHandler<'BuyShields', HardwareStoreContext> = (ctx, msg) => {
     ctx.io.term.writeln(render(TRANSACTION.purchaseComplete));
     ctx.io.term.writeln(
         render(TRANSACTION.purchaseStatsShields, {
@@ -41,7 +41,7 @@ export const buyShields: Handler<'buyShieldsResult', HardwareStoreContext> = (ct
     }
 };
 
-export const buyHolds: Handler<'buyHoldsResult', HardwareStoreContext> = (ctx, msg) => {
+export const buyHolds: ReplyHandler<'BuyHolds', HardwareStoreContext> = (ctx, msg) => {
     ctx.io.term.writeln(render(TRANSACTION.purchaseComplete));
     ctx.io.term.writeln(
         render(TRANSACTION.purchaseStatsHolds, {
@@ -55,7 +55,7 @@ export const buyHolds: Handler<'buyHoldsResult', HardwareStoreContext> = (ctx, m
     }
 };
 
-export const buyHardware: Handler<'buyHardwareResult', HardwareStoreContext> = (ctx, msg) => {
+export const buyHardware: ReplyHandler<'BuyHardware', HardwareStoreContext> = (ctx, msg) => {
     if (msg.kind === 'toggle') {
         ctx.io.term.writeln(
             render(TRANSACTION.hardwareInstalled, { label: msg.label, cost: fmt(msg.cost) }),
@@ -78,7 +78,7 @@ export const buyHardware: Handler<'buyHardwareResult', HardwareStoreContext> = (
     }
 };
 
-export const hardwareStoreInfo: Handler<'hardwareStoreInfoResult', HardwareStoreContext> = (
+export const hardwareStoreInfo: ReplyHandler<'HardwareStoreInfo', HardwareStoreContext> = (
     ctx,
     msg,
 ) => {

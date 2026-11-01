@@ -2,12 +2,12 @@ import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { PANEL } from '../messages/index.js';
 import { showSectorDisplay, type DisplayCtx } from '../display.js';
-import type { Handler } from './index.js';
+import type { ReplyHandler } from './index.js';
 import { refreshMinimap, type RefreshMinimapCtx } from './utils.js';
 
 type DensityCtx = Pick<GameContext, 'io'>;
 
-export const densityScan: Handler<'densityScanResult', DensityCtx> = (ctx, msg) => {
+export const densityScan: ReplyHandler<'DensityScan', DensityCtx> = (ctx, msg) => {
     const { term } = ctx.io;
     term.writeln('');
     term.writeln(render(PANEL.densityScanTitle));
@@ -32,7 +32,7 @@ type VisualCtx = Pick<GameContext, 'catalogs' | 'io' | 'minimap' | 'player' | 'w
     DisplayCtx &
     RefreshMinimapCtx;
 
-export const visualScan: Handler<'visualScanResult', VisualCtx> = (ctx, msg) => {
+export const visualScan: ReplyHandler<'VisualScan', VisualCtx> = (ctx, msg) => {
     const savedSector = ctx.world.currentSector;
     const savedPort = ctx.world.currentPort;
     const savedPortConstruction = ctx.world.currentPortConstruction;

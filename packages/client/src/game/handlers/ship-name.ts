@@ -1,4 +1,4 @@
-import { ClientTag, ServerTag } from '@twnr/shared';
+import { Commands, command } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { EVENT } from '../messages/index.js';
@@ -40,13 +40,10 @@ export async function promptShipName(
             );
             continue;
         }
-        ctx.io.sendMsg({ type: ClientTag.SetShipName, name });
-        const reply = await awaitResponse(ctx, [ServerTag.SetShipNameResult, ServerTag.Error]);
+        ctx.io.sendMsg(command(Commands.SetShipName, { name }));
+        const reply = await awaitResponse(ctx, [Commands.SetShipName.reply.name]);
         if (reply === null) return;
-        if (reply.type !== ServerTag.SetShipNameResult) return;
+        if (reply.type !== Commands.SetShipName.reply.name) return;
         if (reply.outcome === 'ok') return;
-        ctx.io.term.writeln(
-            render(EVENT.shipNameInvalid, { message: reply.message ?? 'Invalid ship name.' }),
-        );
     }
 }

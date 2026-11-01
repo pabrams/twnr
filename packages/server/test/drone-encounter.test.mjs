@@ -63,7 +63,7 @@ describe('Drone encounters', () => {
       assert.equal(shipInfo.type, ServerTag.ShipInfoResult, 'player who was already here must not be stuck');
       const warps = await wsRequest(ws, { type: ClientTag.WarpsOut, id: sector }, ServerTag.WarpsOutResult);
       const moved = await wsRequest(ws, { type: ClientTag.Move, sector: warps.warps[0].sector }, ServerTag.MoveResult);
-      assert.notEqual(moved.outcome, 'error');
+      assert.notEqual(moved.outcome, 'refused');
     } finally {
       await clearDrones(sector);
       await closeWS(ws);
@@ -84,8 +84,8 @@ describe('Drone encounters', () => {
       assert.equal(moved.outcome, 'encounter');
 
       const blocked = await wsRequest(ws, { type: ClientTag.DeployDronesInfo }, ServerTag.DeployDronesInfoResult);
-      assert.equal(blocked.type, ServerTag.Error);
-      assert.match(blocked.message, /encounter/);
+      assert.equal(blocked.outcome, 'refused');
+      assert.equal(blocked.reason, 'inEncounter');
 
       const fought = await wsRequest(ws, { type: ClientTag.AttackSectorDrones, drones: 5 }, ServerTag.AttackSectorDronesResult);
       assert.equal(fought.victory, true);

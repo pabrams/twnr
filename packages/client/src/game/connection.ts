@@ -1,21 +1,31 @@
-import type { ServerEnvelope } from '@twnr/shared';
-import { ServerEnvelopeSchema, ServerTag } from '@twnr/shared';
+import type { Refusal, ServerEnvelope } from '@twnr/shared';
+import { Commands, Events, ServerEnvelopeSchema } from '@twnr/shared';
 import type { GameContext } from './types.js';
 
 import { render } from './renderer.js';
-import { NOTIFY } from './messages/index.js';
+import { NOTIFY, REFUSAL } from './messages/index.js';
 import { getMenuHandler } from './routines/index.js';
-import { dispatch } from './handlers/index.js';
+import { dispatch, dispatchRefusal } from './handlers/index.js';
 import { drainInputQueue } from './input.js';
 
 /** Panel-only refreshes plus interim mid-move events whose concluding result (MoveResult) is the paint point. */
 const PROMPT_SUPPRESSING = new Set<string>([
-    ServerTag.NeighborhoodResult,
-    ServerTag.ProximityMineHit,
-    ServerTag.SeekerMineAttached,
-    ServerTag.SeekerMinePickupAlert,
-    ServerTag.StatsSnapshot,
+    Commands.GetNeighborhood.reply.name,
+    Events.ProximityMineHit.name,
+    Events.SeekerMineAttached.name,
+    Events.SeekerMinePickupAlert.name,
+    Events.StatsSnapshot.name,
 ]);
+
+function isRefusal(msg: ServerEnvelope): msg is ServerEnvelope & Refusal {
+    return 'outcome' in msg && msg.outcome === 'refused';
+}
+
+/** Every refusal is worded here, from the reason and the server's detail values. */
+function renderRefusal(ctx: GameContext, msg: ServerEnvelope & Refusal): void {
+    ctx.io.term.writeln(render(REFUSAL[msg.reason], msg.detail ?? {}));
+    dispatchRefusal(ctx, msg);
+}
 
 export function setupConnection(
     ws: WebSocket,
@@ -56,7 +66,7 @@ export function setupConnection(
         }
 
         ctx.input.inFlight = false;
-        const handlerResult = dispatch(ctx, msg);
+        const handlerResult = isRefusal(msg) ? renderRefusal(ctx, msg) : dispatch(ctx, msg);
 
         let resolvedResponse = false;
         if (ctx.input.pendingResponse?.types.has(msg.type)) {

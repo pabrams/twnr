@@ -1,4 +1,4 @@
-import { ClientTag } from '@twnr/shared';
+import { Commands, command } from '@twnr/shared';
 import { render } from '../renderer.js';
 import { EVENT } from '../messages/index.js';
 import type { GameContext } from '../types.js';
@@ -54,13 +54,12 @@ export function refreshMinimap(ctx: RefreshMinimapCtx): void {
     if (!ctx.minimap.handle) return;
     const vp = ctx.minimap.handle.getViewport();
     ctx.io.sendMsg(
-        {
-            type: ClientTag.GetNeighborhood,
+        command(Commands.GetNeighborhood, {
             halfWidthWorld: vp.halfWidthWorld,
             halfHeightWorld: vp.halfHeightWorld,
             centerXWorld: vp.centerXWorld,
             centerYWorld: vp.centerYWorld,
-        },
+        }),
         { silent: true },
     );
 }

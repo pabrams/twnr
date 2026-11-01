@@ -16,6 +16,10 @@ import {
     StrOrNull,
     DateString,
     SectorDisplayDataSchema,
+    PositiveInt,
+    Id,
+    QuantityOrAll,
+    PlanetName,
 } from './common.js';
 
 export const Commodity4 = z.enum(['fuel', 'organics', 'equipment', 'drones']);
@@ -94,7 +98,7 @@ export const GetSectorPlanets = defineCommand('getSectorPlanets', {
 
 export const LandOnPlanet = defineCommand('landOnPlanet', {
     request: {
-        planetId: Int,
+        planetId: Id,
     },
     reply: PlanetDisplayDataSchema,
 });
@@ -125,28 +129,22 @@ export const DestroyPlanet = defineCommand('destroyPlanet', {
 export const TerraformInfo = defineCommand('terraformInfo', {
     request: {},
     reply: {
-        canTerraform: Bool,
         devices: Num,
-        reason: z.enum(['restricted_sector', 'no_devices']).optional(),
     },
 });
 
 export const UseTerraformDevice = defineCommand('useTerraformDevice', {
     request: {},
     reply: {
-        success: Bool,
-        reason: Str.optional(),
-        planet: z
-            .object({
-                id: Int,
-                name: Str,
-                type: Str,
-                displayType: StrOrNull,
-                sectorId: Int,
-            })
-            .optional(),
-        collision: Bool.optional(),
-        terraformDevices: Num.optional(),
+        planet: z.object({
+            id: Int,
+            name: Str,
+            type: Str,
+            displayType: StrOrNull,
+            sectorId: Int,
+        }),
+        collision: Bool,
+        terraformDevices: Num,
         expDelta: Num.optional(),
         repDelta: Num.optional(),
     },
@@ -154,8 +152,8 @@ export const UseTerraformDevice = defineCommand('useTerraformDevice', {
 
 export const SetTerraformedPlanet = defineCommand('setTerraformedPlanet', {
     request: {
-        planetId: Int,
-        name: z.string(),
+        planetId: Id,
+        name: PlanetName,
         ownership: z.enum(['personal', 'clan']),
     },
     reply: outcomes({
@@ -164,15 +162,12 @@ export const SetTerraformedPlanet = defineCommand('setTerraformedPlanet', {
             name: Str,
             ownership: z.enum(['personal', 'clan']),
         },
-        error: {
-            message: Str,
-        },
     }),
 });
 
 export const TakeColonists = defineCommand('takeColonists', {
     request: {
-        quantity: Int,
+        quantity: QuantityOrAll,
         commodity: Commodity3,
     },
     reply: SectorDisplayPartial.extend({
@@ -185,7 +180,7 @@ export const TakeColonists = defineCommand('takeColonists', {
 
 export const LeaveColonists = defineCommand('leaveColonists', {
     request: {
-        quantity: Int,
+        quantity: QuantityOrAll,
         commodity: Commodity3,
     },
     reply: SectorDisplayPartial.extend({
@@ -198,7 +193,7 @@ export const LeaveColonists = defineCommand('leaveColonists', {
 
 export const TakeCommodity = defineCommand('takeCommodity', {
     request: {
-        quantity: Int,
+        quantity: QuantityOrAll,
         commodity: Commodity4,
     },
     reply: {
@@ -211,7 +206,7 @@ export const TakeCommodity = defineCommand('takeCommodity', {
 
 export const LeaveCommodity = defineCommand('leaveCommodity', {
     request: {
-        quantity: Int,
+        quantity: QuantityOrAll,
         commodity: Commodity4,
     },
     reply: {
@@ -224,7 +219,7 @@ export const LeaveCommodity = defineCommand('leaveCommodity', {
 
 export const ChangePopulation = defineCommand('changePopulation', {
     request: {
-        quantity: Int,
+        quantity: PositiveInt,
         from: Commodity3,
         to: Commodity3,
     },
