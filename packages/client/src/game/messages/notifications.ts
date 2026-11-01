@@ -19,8 +19,8 @@ export const NOTIFY = makeDomain('NOTIFY', {
         '\r\n[y]Register an email account to keep your progress.[/y]',
     goodbye: '\r\n[br]Disconnecting...[/br]',
 
-    playerIn: '\r\n[by][bm]{name}[/bm] warped into the sector.[/by]',
-    playerOut: '\r\n[y][bm]{name}[/bm] warped out of the sector.[/y]',
+    playerIn: '\r\n[by][bm]{name}[/bm] warps into the sector.[/by]',
+    playerOut: '\r\n[y][bm]{name}[/bm] warps out of the sector.[/y]',
 
     playerLandsPlanet: '\r\n[y][bm]{name}[/bm] lands on {planet}.[/y]',
     playerLandsPlanetUnknown: '\r\n[y][bm]{name}[/bm] lands on a planet.[/y]',
