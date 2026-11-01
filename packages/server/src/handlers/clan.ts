@@ -4,7 +4,7 @@ import type { CommandRequest } from '@twnr/shared';
 import { withTransaction } from '../db/index.js';
 
 import { sendEnvelope } from '../state/messaging.js';
-import { onlinePlayers } from '../state/players.js';
+import { onlinePlayers, requireOnlinePlayer } from '../state/players.js';
 import { hashPassword, verifyPassword } from '../auth/password.js';
 import {
     insertClan,
@@ -55,8 +55,7 @@ export async function serveClanCreate(
     data: CommandRequest<'ClanCreate'>,
 ): Promise<CommandResult<'ClanCreate'>> {
     const { name, password } = data;
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
 
     const trimmedName = name.trim();
     const existingClanId = await getPlayerClanId(playerId);
@@ -109,8 +108,7 @@ export async function serveClanJoin(
     data: CommandRequest<'ClanJoin'>,
 ): Promise<CommandResult<'ClanJoin'>> {
     const { name, password } = data;
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
 
     const existingClanId = await getPlayerClanId(playerId);
     if (existingClanId !== null) {
@@ -161,8 +159,7 @@ export async function serveClanLeave(
 ): Promise<CommandResult<'ClanLeave'>> {
     const successorPlayerId = data.successorPlayerId;
     const confirmDissolve = data.confirmDissolve === true;
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
 
     const clanId = await getPlayerClanId(playerId);
     if (clanId === null) {
@@ -210,7 +207,6 @@ export async function serveClanLeave(
                 convertedToRogue: result.convertedToRogue,
             }),
         );
-        return;
     }
 
     if (await isPlayerOnClanShip(playerId, clanId)) {
@@ -241,7 +237,6 @@ export async function serveClanLeave(
                 convertedToRogue: 0,
             }),
         );
-        return;
     }
 
     return mutateAndReply(
@@ -259,8 +254,7 @@ export async function serveClanLeave(
 }
 
 export async function serveClanList(playerId: number): Promise<CommandResult<'ClanList'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
 
     const rows = await listClansInUniverse(player.universeId);
     const viewerClanId = await getPlayerClanId(playerId);
@@ -278,13 +272,11 @@ export async function serveClanList(playerId: number): Promise<CommandResult<'Cl
 }
 
 export async function serveClanInfo(playerId: number): Promise<CommandResult<'ClanInfo'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
 
     const clanId = await getPlayerClanId(playerId);
     if (clanId === null) {
         return { clan: null };
-        return;
     }
     const [clan, members, maxSize] = await Promise.all([
         getClanById(clanId),
@@ -293,7 +285,6 @@ export async function serveClanInfo(playerId: number): Promise<CommandResult<'Cl
     ]);
     if (!clan) {
         return { clan: null };
-        return;
     }
     return {
         clan: {
@@ -314,8 +305,7 @@ export async function serveClanInfo(playerId: number): Promise<CommandResult<'Cl
 export async function serveClanmateLocations(
     playerId: number,
 ): Promise<CommandResult<'ClanmateLocations'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    requireOnlinePlayer(playerId);
     const clanId = await getPlayerClanId(playerId);
     if (clanId === null) {
         return commandRefusal('notInClan');
@@ -484,8 +474,7 @@ export async function serveClanMemo(
     data: CommandRequest<'ClanMemo'>,
 ): Promise<CommandResult<'ClanMemo'>> {
     const { body } = data;
-    const player = onlinePlayers[senderId];
-    if (!player) return;
+    requireOnlinePlayer(senderId);
     const clanId = await getPlayerClanId(senderId);
     if (clanId === null) {
         return commandRefusal('notInClan');
@@ -533,8 +522,7 @@ export async function serveClanDropMember(
     data: CommandRequest<'ClanDropMember'>,
 ): Promise<CommandResult<'ClanDropMember'>> {
     const { targetPlayerId } = data;
-    const player = onlinePlayers[leaderPlayerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(leaderPlayerId);
     if (leaderPlayerId === targetPlayerId) {
         return commandRefusal('cannotDropSelf');
     }

@@ -55,12 +55,6 @@ export const TowableUnmannedEntrySchema = z.object({
 
 export type TowableUnmannedEntry = z.infer<typeof TowableUnmannedEntrySchema>;
 
-export const ShipNameRequired = defineEvent('shipNameRequired', {
-    reason: z.enum(['initial', 'respawn', 'buyNew', 'tradein']),
-    shipTypeDisplayName: Str,
-    shipTypeName: Str,
-});
-
 export const TowReleasedAlert = defineEvent('towReleasedAlert', {
     towedName: Str,
 });
@@ -131,6 +125,7 @@ export const BuyHolds = defineCommand('buyHolds', {
 export const BuyShipNew = defineCommand('buyShipNew', {
     request: {
         targetShipName: z.string(),
+        name: ShipName,
     },
     reply: {
         shipTypeName: Str,
@@ -145,6 +140,7 @@ export const BuyShipNew = defineCommand('buyShipNew', {
 export const BuyShipTradein = defineCommand('buyShipTradein', {
     request: {
         targetShipName: z.string(),
+        name: ShipName,
     },
     reply: {
         shipTypeName: Str,
@@ -154,13 +150,6 @@ export const BuyShipTradein = defineCommand('buyShipTradein', {
         maxShields: Num,
         cargoLimit: Num,
     },
-});
-
-export const SetShipName = defineCommand('setShipName', {
-    request: {
-        name: ShipName,
-    },
-    reply: {},
 });
 
 export const HardwareStoreInfo = defineCommand('hardwareStoreInfo', {

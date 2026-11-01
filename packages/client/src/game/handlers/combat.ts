@@ -134,13 +134,17 @@ export const attackSectorDrones: ReplyHandler<'AttackSectorDrones', CombatContex
 
 export const retreatFromDrones: ReplyHandler<'RetreatFromDrones', CombatContext> = (ctx, msg) => {
     ctx.world.mode = Menu.Sector;
-    ctx.io.term.writeln(render(EVENT.retreated, { sector: msg.sector }));
     if (ctx.autopilot.paused) {
         ctx.autopilot.path = [];
         ctx.autopilot.step = 0;
         ctx.autopilot.paused = false;
         ctx.io.term.writeln(render(EVENT.autopilotCancelled));
     }
+    if (msg.outcome === 'destroyed') {
+        ctx.io.term.writeln(render(EVENT.shipDestroyed, { reason: msg.reason }));
+        return;
+    }
+    ctx.io.term.writeln(render(EVENT.retreated, { sector: msg.sector }));
 };
 
 export const sectorDronesAlert: EventHandler<'SectorDronesAlert', CombatContext> = (ctx, msg) => {

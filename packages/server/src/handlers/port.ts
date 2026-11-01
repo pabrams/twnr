@@ -7,7 +7,7 @@ import {
 } from '@twnr/shared';
 import type { CommandRequest } from '@twnr/shared';
 import { broadcastSectorActivity } from '../services/sector-activity.js';
-import { onlinePlayers, getPlayerUniverseId } from '../state/players.js';
+import { onlinePlayers, requireOnlinePlayer } from '../state/players.js';
 import { sendEnvelope } from '../state/messaging.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
 import { isInEncounter } from '../services/encounter.js';
@@ -98,8 +98,7 @@ export async function servePortInfo(
 ): Promise<CommandResult<'PortInfo'>> {
     const { sectorId } = data;
 
-    const universeId = getPlayerUniverseId(playerId);
-    if (universeId === undefined) return;
+    const { universeId } = requireOnlinePlayer(playerId);
 
     const [p, xp] = await Promise.all([
         getPortAtSector(sectorId, universeId),
@@ -113,8 +112,7 @@ export async function servePortInfo(
 }
 
 export async function serveDock(playerId: number): Promise<CommandResult<'Dock'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
 
     if (player.docked) {
         return commandRefusal('alreadyDocked');
@@ -195,8 +193,7 @@ export async function serveDock(playerId: number): Promise<CommandResult<'Dock'>
 
 /** Undocks and returns the sector as it looks from space; undefined if the player has gone. */
 async function undockPlayer(playerId: number): Promise<CommandResult<'Undock'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
     player.docked = false;
     player.at_starbase = false;
     await setDocked(playerId, false);
@@ -205,13 +202,11 @@ async function undockPlayer(playerId: number): Promise<CommandResult<'Undock'>> 
     const { clearHaggleSession } = await import('./port-haggle.js');
     clearHaggleSession(playerId);
     const sectorData = await buildSectorDisplayData(playerId);
-    if (!sectorData) return;
     return { outcome: 'success', ...sectorData };
 }
 
 export async function serveUndock(playerId: number): Promise<CommandResult<'Undock'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
 
     if (!player.docked) {
         return commandRefusal('notDocked');
@@ -240,8 +235,7 @@ export async function servePortTransaction(
 
     const qty = Number.isInteger(quantity) ? quantity : parseInt(String(quantity), 10);
 
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
     if (!player.docked) {
         return commandRefusal('notDocked');
     }
@@ -364,8 +358,7 @@ export async function servePortTransaction(
 }
 
 export async function serveDockStarbase(playerId: number): Promise<CommandResult<'DockStarbase'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
 
     if (isInEncounter(playerId)) {
         return commandRefusal('inEncounter');
@@ -409,8 +402,7 @@ export async function serveDockStarbase(playerId: number): Promise<CommandResult
 export async function serveLeaveStarbase(
     playerId: number,
 ): Promise<CommandResult<'LeaveStarbase'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
 
     if (!player.at_starbase) {
         return commandRefusal('notAtStarbase');
@@ -425,6 +417,5 @@ export async function serveLeaveStarbase(
     }
 
     const sectorData = await buildSectorDisplayData(playerId);
-    if (!sectorData) return;
     return { ...sectorData };
 }

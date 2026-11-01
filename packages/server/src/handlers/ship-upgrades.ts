@@ -1,6 +1,6 @@
 import { holdCostRange } from '@twnr/shared';
 import type { CommandRequest } from '@twnr/shared';
-import { onlinePlayers, getPlayerUniverseId } from '../state/players.js';
+import { onlinePlayers, requireOnlinePlayer } from '../state/players.js';
 
 import { getCurrentSector, deductCredits } from '../db/queries/player.js';
 import {
@@ -34,8 +34,7 @@ export async function serveBuyDrones(
 ): Promise<CommandResult<'BuyDrones'>> {
     const qty = Number(data.quantity);
 
-    const universeId = getPlayerUniverseId(playerId);
-    if (universeId === undefined) return;
+    const { universeId } = requireOnlinePlayer(playerId);
 
     return mutateAndReply(
         async (client, abort) => {
@@ -75,8 +74,7 @@ export async function serveBuyShields(
     const { quantity } = data;
     const qty = Number(quantity);
 
-    const universeId = getPlayerUniverseId(playerId);
-    if (universeId === undefined) return;
+    const { universeId } = requireOnlinePlayer(playerId);
 
     return mutateAndReply(
         async (client, abort) => {
@@ -116,8 +114,7 @@ export async function serveBuyHolds(
     const { quantity } = data;
     const qty = Number(quantity);
 
-    const universeId = getPlayerUniverseId(playerId);
-    if (universeId === undefined) return;
+    const { universeId } = requireOnlinePlayer(playerId);
 
     return mutateAndReply(
         async (client, abort) => {

@@ -29,6 +29,7 @@ import { awaitResponse, request } from './io.js';
 import { ensureHardwareCatalog } from './catalogs.js';
 import { renderAttributeChange } from '../handlers/utils.js';
 import { runDockFlow } from '../handlers/port.js';
+import { showLanded } from '../handlers/planet.js';
 
 registerRoutine('display_sector', (ctx) => {
     echoCommand(ctx, 'sectorDisplay');
@@ -127,38 +128,21 @@ registerRoutine('deploy_drones_info', async (ctx) => {
 
 registerRoutine('order_starport', async (ctx) => {
     echoCommand(ctx, 'orderStarport');
-    ctx.io.sendMsg(command(Commands.ConstructPortInfo, {}));
-    const info = await awaitResponse(ctx, [
-        Commands.ConstructPortInfo.reply.name,
-        Commands.UpgradePortInfo.reply.name,
-    ]);
+    const info = await request(ctx, Commands.ConstructPortInfo, {});
     if (info === null) return;
-
-    if (info.type === Commands.ConstructPortInfo.reply.name) {
-        if (info.outcome === 'hasPort') {
-            ctx.io.term.writeln('');
-            ctx.io.term.writeln('There is already a port in this sector.');
-            return;
-        }
-        if (info.outcome === 'noPlanet') {
+    switch (info.outcome) {
+        case 'noPlanet':
             ctx.io.term.writeln('');
             ctx.io.term.writeln(
                 'You need a planet in this sector before you can construct a port.',
             );
             return;
-        }
-        if (info.outcome === 'build') {
+        case 'build':
             await runBuildFlow(ctx, info);
             return;
-        }
-    }
-    if (info.type === Commands.UpgradePortInfo.reply.name) {
-        if (info.outcome === 'noPort') {
-            ctx.io.term.writeln('');
-            ctx.io.term.writeln('No port here to upgrade.');
+        case 'upgrade':
+            await runUpgradeFlow(ctx, info);
             return;
-        }
-        if (info.outcome === 'upgrade') await runUpgradeFlow(ctx, info);
     }
 });
 
@@ -237,7 +221,7 @@ async function runBuildFlow(
 
 async function runUpgradeFlow(
     ctx: Parameters<Parameters<typeof registerRoutine>[1]>[0],
-    info: Extract<AcceptedReply<'UpgradePortInfo'>, { outcome: 'upgrade' }>,
+    info: Extract<AcceptedReply<'ConstructPortInfo'>, { outcome: 'upgrade' }>,
 ): Promise<void> {
     const { term } = ctx.io;
     term.writeln('');
@@ -384,13 +368,12 @@ registerRoutine('release_beacon', async (ctx) => {
 
 registerRoutine('land', async (ctx) => {
     echoCommand(ctx, 'land');
-    ctx.io.sendMsg(command(Commands.GetSectorPlanets, {}));
-    const response = await awaitResponse(ctx, [
-        Commands.GetSectorPlanets.reply.name,
-        Commands.LandOnPlanet.reply.name,
-    ]);
+    const response = await request(ctx, Commands.GetSectorPlanets, {});
     if (response === null) return;
-    if (response.type !== Commands.GetSectorPlanets.reply.name) return;
+    if (response.outcome === 'landed') {
+        showLanded(ctx, response);
+        return;
+    }
     const planets = response.planets;
     if (planets.length === 0) {
         ctx.io.term.writeln(render(EVENT.noPlanetsToLand));

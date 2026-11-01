@@ -1,7 +1,6 @@
 // Builders for the client/server protocol. A command pairs a request with the
-// reply it produces; an event is a server push with no request. 
+// reply it produces; an event is a server push with no request.
 //
-
 
 import { z } from 'zod';
 import { RefusalDetailSchema, RefusalReasonSchema } from './refusal.js';

@@ -83,7 +83,7 @@ describe('ShipCatalog', () => {
       const target = res.ships.find((s) => s.name !== STARTER_SLUG && s.baseCost > 0);
       const buy = await wsRequest(
         ws,
-        { type: ClientTag.BuyShipNew, targetShipName: target.name },
+        { type: ClientTag.BuyShipNew, targetShipName: target.name, name: 'Test Ship' },
         ServerTag.BuyShipNewResult,
       );
       assert.equal(buy.outcome, 'refused');

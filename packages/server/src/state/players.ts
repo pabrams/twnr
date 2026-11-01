@@ -17,6 +17,20 @@ export interface Player {
 
 export const onlinePlayers: Record<number, Player> = {};
 
+/** The player's socket closed while a command of theirs was still being handled; there is nobody to answer. */
+export class PlayerOffline extends Error {
+    constructor(readonly playerId: number) {
+        super(`Player ${playerId} is no longer online`);
+        this.name = 'PlayerOffline';
+    }
+}
+
+export function requireOnlinePlayer(playerId: number): Player {
+    const player = onlinePlayers[playerId];
+    if (!player) throw new PlayerOffline(playerId);
+    return player;
+}
+
 export function getPlayerUniverseId(playerId: number): number | undefined {
     return onlinePlayers[playerId]?.universeId;
 }

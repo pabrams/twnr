@@ -15,7 +15,6 @@ import { shipConfigs } from './ship-config.js';
 import { onlinePlayers } from './state/players.js';
 import { sendEnvelope, sendProtocolError, broadcastTo } from './state/messaging.js';
 import { routeMessage } from './handlers/message-router.js';
-import { clearPendingShipPurchase } from './state/pending-ship-purchases.js';
 import { getUserTokenVersion, markUserConnected, isGuestUser } from './db/queries/user.js';
 import {
     getPlayerConnectInfo,
@@ -307,7 +306,6 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
         });
 
         ws.on('close', () => {
-            clearPendingShipPurchase(playerId);
             void import('./handlers/port-haggle.js').then((m) => m.clearHaggleSession(playerId));
             const lastSector = onlinePlayers[playerId]?.sector;
             const lastUniverse = onlinePlayers[playerId]?.universeId;

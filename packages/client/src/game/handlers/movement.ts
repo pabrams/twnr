@@ -168,6 +168,10 @@ async function promptAutopilot(
 }
 
 export const hyperspaceJump: ReplyHandler<'HyperspaceJump', MovementContext> = (ctx, msg) => {
+    if (msg.outcome === 'destroyed') {
+        ctx.io.term.writeln(render(EVENT.shipDestroyed, { reason: msg.reason }));
+        return;
+    }
     ctx.io.term.writeln(
         render(EVENT.hyperspaceJump, {
             sector: msg.targetSector,

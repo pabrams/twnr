@@ -198,6 +198,7 @@ export const HaggleQuit = defineCommand('haggleQuit', {
     reply: null,
 });
 
+/** What can be done about a port here: build one, or upgrade the existing one. */
 export const ConstructPortInfo = defineCommand('constructPortInfo', {
     request: {},
     reply: outcomes({
@@ -228,7 +229,22 @@ export const ConstructPortInfo = defineCommand('constructPortInfo', {
                 .optional(),
         },
         noPlanet: {},
-        hasPort: {},
+        upgrade: {
+            portName: Str,
+            portClass: Int,
+            credits: Num,
+            commodities: z.array(
+                z.object({
+                    commodity: Commodity3,
+                    action: z.enum(['B', 'S']),
+                    currentProd: Num,
+                    currentMax: Num,
+                    currentStock: Num,
+                    currentTradingPct: Num,
+                    unitCost: Num,
+                }),
+            ),
+        },
     }),
 });
 
@@ -246,29 +262,6 @@ export const BuildPort = defineCommand('buildPort', {
             experienceGained: Num,
             reputationGained: Num,
         },
-    }),
-});
-
-export const UpgradePortInfo = defineCommand('upgradePortInfo', {
-    request: {},
-    reply: outcomes({
-        upgrade: {
-            portName: Str,
-            portClass: Int,
-            credits: Num,
-            commodities: z.array(
-                z.object({
-                    commodity: Commodity3,
-                    action: z.enum(['B', 'S']),
-                    currentProd: Num,
-                    currentMax: Num,
-                    currentStock: Num,
-                    currentTradingPct: Num,
-                    unitCost: Num,
-                }),
-            ),
-        },
-        noPort: {},
     }),
 });
 

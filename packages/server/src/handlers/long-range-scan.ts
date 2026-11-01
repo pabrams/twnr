@@ -1,5 +1,5 @@
 import { type DensityScanEntry, type SectorDisplayData } from '@twnr/shared';
-import { onlinePlayers } from '../state/players.js';
+import { requireOnlinePlayer } from '../state/players.js';
 import { getDensityScanRows, getOutWarpSectorNumbers } from '../db/queries/scan.js';
 import { getShipHardwareQuantityByName } from '../db/queries/hardware.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
@@ -17,8 +17,7 @@ const W_BEACON = 1;
 
 /** Passive — no turn cost. */
 export async function serveDensityScan(playerId: number): Promise<CommandResult<'DensityScan'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
     if (player.docked || player.at_starbase) {
         return commandRefusal('docked');
     }
@@ -51,8 +50,7 @@ export async function serveDensityScan(playerId: number): Promise<CommandResult<
 }
 
 export async function serveVisualScan(playerId: number): Promise<CommandResult<'VisualScan'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
     if (player.docked || player.at_starbase) {
         return commandRefusal('docked');
     }

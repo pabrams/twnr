@@ -1,5 +1,5 @@
 import type { NeighborhoodSector, NeighborhoodWarp, CommandRequest } from '@twnr/shared';
-import { onlinePlayers } from '../state/players.js';
+import { requireOnlinePlayer } from '../state/players.js';
 import { getUniverseTopology } from '../db/queries/universe.js';
 import {
     listVisitedSectorsForUniverse,
@@ -25,8 +25,7 @@ export async function serveGetNeighborhood(
     data: CommandRequest<'GetNeighborhood'>,
 ): Promise<CommandResult<'GetNeighborhood'>> {
     const { halfWidthWorld, halfHeightWorld, centerXWorld, centerYWorld } = data;
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
     const universeId = player.universeId;
     const currentSectorId = player.sectorId;
     const isAdmin = player.isAdmin === true;

@@ -57,6 +57,11 @@ describe('command_log outcomes', () => {
       assert.equal(logged.payload.password, '[redacted]');
       assert.equal(logged.payload.name, 'x');
 
+      // 0 is not an amount to move: -1 means all, anything else must be positive.
+      const zero = await wsRequest(ws, { type: ClientTag.TakeColonists, quantity: 0, commodity: 'fuel' }, ServerTag.TakeColonistsResult);
+      assert.equal(zero.type, ServerTag.ProtocolError);
+      assert.equal((await waitForLoggedCommand(playerId, ClientTag.TakeColonists)).outcome, 'rejected');
+
       ws.send(JSON.stringify({ type: ClientTag.DeleteAllMail }));
       assert.equal((await waitForLoggedCommand(playerId, ClientTag.DeleteAllMail)).outcome, 'ok');
     } finally {

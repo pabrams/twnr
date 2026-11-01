@@ -1,7 +1,7 @@
 import { Menu, Commands, command } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
-import { PLANET } from '../messages/index.js';
+import { EVENT, PLANET } from '../messages/index.js';
 import { echoCommand } from '../display.js';
 import { registerRoutine } from './types.js';
 import { askChar, askConfirm, askLineWithShortcuts, askNumber } from './prompts.js';
@@ -69,7 +69,7 @@ registerRoutine('load_unload_colonists', async (ctx) => {
             render(PLANET.colonistQtyTakePrompt, { emptyHolds: ctx.ship.planetEmptyHolds }),
             { defaultValue: -1 },
         );
-        if (qty === null) return;
+        if (qty === null || qty === 0) return;
         ctx.io.sendMsg(command(Commands.TakeColonists, { quantity: qty, commodity }));
     } else {
         const qty = await askNumber(
@@ -77,7 +77,7 @@ registerRoutine('load_unload_colonists', async (ctx) => {
             render(PLANET.colonistQtyLeavePrompt, { shipColonists: ctx.ship.shipColonists }),
             { defaultValue: -1 },
         );
-        if (qty === null) return;
+        if (qty === null || qty === 0) return;
         ctx.io.sendMsg(command(Commands.LeaveColonists, { quantity: qty, commodity }));
     }
 });
@@ -135,7 +135,7 @@ registerRoutine('take_leave_product', async (ctx) => {
             }),
             { defaultValue: def },
         );
-        if (qty === null) return;
+        if (qty === null || qty === 0) return;
         ctx.io.sendMsg(command(Commands.TakeCommodity, { quantity: qty, commodity }));
     } else {
         const onBoard =
@@ -150,7 +150,7 @@ registerRoutine('take_leave_product', async (ctx) => {
             render(PLANET.productQtyLeavePrompt, { commodity: label, onBoard }),
             { defaultValue: def },
         );
-        if (qty === null) return;
+        if (qty === null || qty === 0) return;
         ctx.io.sendMsg(command(Commands.LeaveCommodity, { quantity: qty, commodity }));
     }
 });
@@ -432,6 +432,10 @@ registerRoutine('base_transporter', async (ctx) => {
 
         const beam = await request(ctx, Commands.BwarpBeam, { targetSector: target, commit: true });
         if (!beam) return;
+        if (beam.outcome === 'destroyed') {
+            term.writeln(render(EVENT.shipDestroyed, { reason: beam.reason }));
+            return;
+        }
         if (beam.outcome !== 'beamed') continue;
         term.writeln(
             render(PLANET.bwarpBeamedFlavor, {

@@ -59,7 +59,8 @@ describe('Sector activity notifications', () => {
 
       // Land on Earth (sector 1 auto-lands via GetSectorPlanets).
       evt = waitForMsg(wsO, ServerTag.SectorActivity);
-      await wsRequest(wsA, { type: ClientTag.GetSectorPlanets }, ServerTag.LandOnPlanetResult);
+      const landed = await wsRequest(wsA, { type: ClientTag.GetSectorPlanets }, ServerTag.GetSectorPlanetsResult);
+      assert.equal(landed.outcome, 'landed');
       msg = await evt;
       assert.equal(msg.activity, 'land');
       assert.equal(msg.playerId, actor.id);
@@ -161,7 +162,7 @@ describe('Sector activity notifications', () => {
     await rA; await rD; await rP;
     try {
       await wsRequest(wsD, { type: ClientTag.Dock }, ServerTag.DockResult);
-      await wsRequest(wsP, { type: ClientTag.GetSectorPlanets }, ServerTag.LandOnPlanetResult);
+      await wsRequest(wsP, { type: ClientTag.GetSectorPlanets }, ServerTag.GetSectorPlanetsResult);
 
       const silentD = expectNoMsg(wsD, ServerTag.SectorActivity, 600);
       const silentP = expectNoMsg(wsP, ServerTag.SectorActivity, 600);

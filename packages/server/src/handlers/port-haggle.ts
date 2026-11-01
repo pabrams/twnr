@@ -7,7 +7,7 @@ import {
     type PortAction,
 } from '@twnr/shared';
 import type { CommandRequest } from '@twnr/shared';
-import { onlinePlayers } from '../state/players.js';
+import { requireOnlinePlayer } from '../state/players.js';
 import { withTransaction } from '../db/index.js';
 
 import {
@@ -79,8 +79,7 @@ export async function serveHaggleOpen(
     playerId: number,
     data: CommandRequest<'HaggleOpen'>,
 ): Promise<CommandResult<'HaggleOpen'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
 
     if (!player.docked) {
         return commandRefusal('notDocked');
@@ -116,8 +115,6 @@ export async function serveHaggleOpen(
     }
 
     // xp is read once here so pricing stays stable across haggle rounds.
-    const player_ = onlinePlayers[playerId];
-    if (!player_) return;
     const xp = await getPlayerExperience(playerId);
 
     const portAction = actions[col];
@@ -154,8 +151,7 @@ export async function serveHaggleCounter(
     playerId: number,
     data: CommandRequest<'HaggleCounter'>,
 ): Promise<CommandResult<'HaggleCounter'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    requireOnlinePlayer(playerId);
     const session = getActiveHaggleSession(playerId);
     if (!session) {
         return commandRefusal('noHaggle');

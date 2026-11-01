@@ -1,8 +1,5 @@
 import { Commands, commandNameByType, type ClientEnvelope, type CommandName } from '@twnr/shared';
 import { sendEnvelope } from '../state/messaging.js';
-import { onlinePlayers } from '../state/players.js';
-import { getPendingShipPurchase } from '../state/pending-ship-purchases.js';
-import { serveSetShipName } from './ship-name.js';
 import { serveTowSpacecraft, serveTowAttach } from './tow.js';
 import { serveReadMail, serveDeleteAllMail, serveCheckMailSinceLastLogout } from './mail.js';
 import { serveHailResolve, serveHailSend } from './hail.js';
@@ -25,12 +22,7 @@ import {
     serveDockStarbase,
     serveLeaveStarbase,
 } from './port.js';
-import {
-    serveConstructPortInfo,
-    serveBuildPort,
-    serveUpgradePortInfo,
-    serveUpgradePort,
-} from './port-construction.js';
+import { serveConstructPortInfo, serveBuildPort, serveUpgradePort } from './port-construction.js';
 import {
     serveHaggleOpen,
     serveHaggleCounter,
@@ -108,7 +100,8 @@ import {
 } from './clan.js';
 import { serveReleaseBeacon, serveAttackBeacon } from './beacon.js';
 import { serveDensityScan, serveVisualScan } from './long-range-scan.js';
-import { commandRefusal, type Handler } from './command.js';
+import { PlayerOffline } from '../state/players.js';
+import type { CommandResult, Handler } from './command.js';
 
 type HandlerMap = { [K in CommandName]: Handler<K> };
 
@@ -183,7 +176,6 @@ const handlers: HandlerMap = {
     AttackBeacon: serveAttackBeacon,
     DensityScan: serveDensityScan,
     VisualScan: serveVisualScan,
-    SetShipName: serveSetShipName,
     TowSpacecraft: serveTowSpacecraft,
     TowAttach: serveTowAttach,
     ReadMail: serveReadMail,
@@ -193,7 +185,6 @@ const handlers: HandlerMap = {
     HailSend: serveHailSend,
     ConstructPortInfo: serveConstructPortInfo,
     BuildPort: serveBuildPort,
-    UpgradePortInfo: serveUpgradePortInfo,
     UpgradePort: serveUpgradePort,
     HaggleOpen: serveHaggleOpen,
     HaggleCounter: serveHaggleCounter,
@@ -222,20 +213,15 @@ export async function routeMessage(playerId: number, data: ClientEnvelope): Prom
     if (name === undefined) throw new Error(`No handler registered for ${data.type}`);
     const reply = Commands[name].reply;
 
-    if (name !== 'SetShipName') {
-        const needsName =
-            onlinePlayers[playerId] !== undefined && getPendingShipPurchase(playerId) !== undefined;
-        if (needsName) {
-            const refusal = commandRefusal('shipNameRequired');
-            if (reply) sendEnvelope(playerId, { type: reply.name, ...refusal } as never);
-            return refusal.outcome;
-        }
-    }
-
     const handler = handlers[name] as Handler<CommandName>;
-    const result = await handler(playerId, data as never);
+    let result: CommandResult<CommandName>;
+    try {
+        result = await handler(playerId, data as never);
+    } catch (err) {
+        if (err instanceof PlayerOffline) return 'noReply';
+        throw err;
+    }
     if (reply === null) return 'ok';
-    if (result === undefined) return 'noReply';
     sendEnvelope(playerId, { type: reply.name, outcome: 'ok', ...result } as never);
     return (result as { outcome?: string }).outcome ?? 'ok';
 }

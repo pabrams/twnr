@@ -1,13 +1,12 @@
 import { universeConfig } from '@twnr/shared';
-import { onlinePlayers } from '../state/players.js';
+import { requireOnlinePlayer } from '../state/players.js';
 import { getStarbaseSectorNumber } from '../db/queries/sector.js';
 import { getUniverseStats, getOutWarpDegreeDistribution } from '../db/queries/universe.js';
 import { getStartingShipTypeBySlug } from '../db/queries/ship.js';
 import { type CommandResult } from './command.js';
 
 export async function serveStarbaseInfo(playerId: number): Promise<CommandResult<'StarbaseInfo'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
 
     const universeId = player.universeId;
     const sector = await getStarbaseSectorNumber(universeId);

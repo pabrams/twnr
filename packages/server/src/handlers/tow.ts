@@ -1,6 +1,6 @@
 import { ServerTag } from '@twnr/shared';
 import type { TowableMannedEntry, TowableUnmannedEntry, CommandRequest } from '@twnr/shared';
-import { onlinePlayers } from '../state/players.js';
+import { onlinePlayers, requireOnlinePlayer } from '../state/players.js';
 import { sendEnvelope } from '../state/messaging.js';
 
 import {
@@ -22,8 +22,7 @@ export function combinedTurnsPerWarp(selfTpw: number, towedTpw: number): number 
 export async function serveTowSpacecraft(
     playerId: number,
 ): Promise<CommandResult<'TowSpacecraft'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
 
     const state = await getTowState(playerId);
     if (state) {
@@ -79,7 +78,6 @@ export async function serveTowSpacecraft(
 
     if (mannedEntries.length === 0 && unmannedEntries.length === 0) {
         return { outcome: 'none' };
-        return;
     }
 
     return {
@@ -94,8 +92,7 @@ export async function serveTowAttach(
     playerId: number,
     data: CommandRequest<'TowAttach'>,
 ): Promise<CommandResult<'TowAttach'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
 
     const clanId = await getPlayerClanId(playerId);
 

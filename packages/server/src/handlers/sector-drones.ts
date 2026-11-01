@@ -1,7 +1,7 @@
 import { ServerTag } from '@twnr/shared';
 import type { CommandRequest } from '@twnr/shared';
-import { onlinePlayers } from '../state/players.js';
-import { sendEnvelope } from '../state/messaging.js';
+import { onlinePlayers, requireOnlinePlayer } from '../state/players.js';
+import { sendEnvelope, closeDestroyedSession } from '../state/messaging.js';
 import { broadcastPlayerMoved } from '../services/sector-activity.js';
 import { getSectorDrones, resolveSectorId } from '../services/sector-lookup.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
@@ -41,8 +41,7 @@ import { type CommandResult, commandRefusal, mutateAndReply } from './command.js
 export async function serveListDeployedDrones(
     playerId: number,
 ): Promise<CommandResult<'ListDeployedDrones'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
 
     if (player.docked || player.at_starbase) {
         return commandRefusal('docked');
@@ -62,8 +61,7 @@ export async function serveListDeployedDrones(
 export async function serveDeployDronesInfo(
     playerId: number,
 ): Promise<CommandResult<'DeployDronesInfo'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
 
     if (player.docked) {
         return commandRefusal('docked');
@@ -99,8 +97,7 @@ export async function serveDeployDrones(
     let target = data.quantity;
     const ownership: 'personal' | 'clan' = data.ownership ?? 'personal';
 
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
 
     if (player.docked) {
         return commandRefusal('docked');
@@ -207,8 +204,7 @@ export async function serveAttackSectorDrones(
 ): Promise<CommandResult<'AttackSectorDrones'>> {
     const dronesToAttack = data.drones;
 
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
 
     if (!isInEncounter(playerId)) {
         return commandRefusal('noEncounter');
@@ -370,8 +366,7 @@ export async function serveAttackSectorDrones(
 export async function serveRetreatFromDrones(
     playerId: number,
 ): Promise<CommandResult<'RetreatFromDrones'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
 
     if (!isInEncounter(playerId)) {
         return commandRefusal('noEncounter');
@@ -396,7 +391,10 @@ export async function serveRetreatFromDrones(
     void broadcastPlayerMoved(playerId, currentSector, retreatSector);
 
     const mineOutcome = await resolveMinesOnEntry(playerId);
-    if (mineOutcome.destroyed) return;
+    if (mineOutcome.destroyed) {
+        closeDestroyedSession(playerId, 'Ship destroyed');
+        return { outcome: 'destroyed', reason: 'Destroyed by proximity mine' };
+    }
 
-    return (await buildSectorDisplayData(playerId, retreatSector)) ?? undefined;
+    return { outcome: 'ok', ...(await buildSectorDisplayData(playerId, retreatSector)) };
 }

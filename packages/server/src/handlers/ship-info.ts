@@ -1,5 +1,5 @@
 import type { CommandRequest } from '@twnr/shared';
-import { onlinePlayers, getPlayerUniverseId } from '../state/players.js';
+import { getPlayerUniverseId, requireOnlinePlayer } from '../state/players.js';
 import {
     getShipInfo,
     getPlayerOwnedShips,
@@ -124,8 +124,7 @@ export async function serveGetShipDetail(
 export async function serveListOwnedShips(
     playerId: number,
 ): Promise<CommandResult<'ListOwnedShips'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
 
     const rows = await getPlayerOwnedShips(playerId);
 
@@ -176,8 +175,7 @@ export async function serveTransportToShip(
     data: CommandRequest<'TransportToShip'>,
 ): Promise<CommandResult<'TransportToShip'>> {
     const { shipId } = data;
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
 
     if (player.docked || player.at_starbase) {
         return commandRefusal('docked');
@@ -236,8 +234,7 @@ export async function serveChangeShipOwnership(
     data: CommandRequest<'ChangeShipOwnership'>,
 ): Promise<CommandResult<'ChangeShipOwnership'>> {
     const { ownership } = data;
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
     if (player.shipId === null) {
         return commandRefusal('noShip');
     }

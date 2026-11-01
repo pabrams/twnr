@@ -1,5 +1,5 @@
 import type { CommandRequest } from '@twnr/shared';
-import { onlinePlayers } from '../state/players.js';
+import { requireOnlinePlayer } from '../state/players.js';
 
 import {
     getHardwareItemByName,
@@ -20,8 +20,7 @@ export async function serveReleaseBeacon(
     playerId: number,
     data: CommandRequest<'ReleaseBeacon'>,
 ): Promise<CommandResult<'ReleaseBeacon'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
 
     if (player.docked || player.at_starbase) {
         return commandRefusal('docked');
@@ -61,8 +60,7 @@ export async function serveReleaseBeacon(
 }
 
 export async function serveAttackBeacon(playerId: number): Promise<CommandResult<'AttackBeacon'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
 
     if (player.docked || player.at_starbase) {
         return commandRefusal('docked');

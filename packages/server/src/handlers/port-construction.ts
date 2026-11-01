@@ -9,7 +9,7 @@ import {
     type PriceCommodity,
 } from '@twnr/shared';
 import type { CommandRequest } from '@twnr/shared';
-import { onlinePlayers } from '../state/players.js';
+import { onlinePlayers, type Player, requireOnlinePlayer } from '../state/players.js';
 
 import {
     deductCredits,
@@ -29,23 +29,17 @@ import {
 import { getPlanetIdsInSectorForUpdate } from '../db/queries/planet.js';
 import { getSectorDbId } from '../db/queries/sector.js';
 import { experienceDeltas, reputationDeltas, scalarDelta } from '../game-config.js';
-import { type CommandResult, commandRefusal, mutateAndReply } from './command.js';
+import { type CommandResult, type ReplyBody, commandRefusal, mutateAndReply } from './command.js';
 
 export async function serveConstructPortInfo(
     playerId: number,
 ): Promise<CommandResult<'ConstructPortInfo'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
 
     const port = await getPortAtSector(player.sector, player.universeId);
-    if (port && port.class !== 0 && port.class !== 9) {
-        await serveUpgradePortInfo(playerId);
-        return;
-    }
-    if (port && (port.class === 0 || port.class === 9)) {
-        return {
-            outcome: 'hasPort',
-        };
+    if (port) {
+        if (port.class === 0 || port.class === 9) return commandRefusal('cannotUpgradeSpecialPort');
+        return upgradeInfo(playerId, player, port);
     }
 
     const sectorDbId = await getSectorDbId(player.sector, player.universeId);
@@ -105,8 +99,7 @@ export async function serveBuildPort(
     playerId: number,
     data: CommandRequest<'BuildPort'>,
 ): Promise<CommandResult<'BuildPort'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
     const { portClass, portName } = data;
 
     const cost = PORT_CONSTRUCTION_COSTS[portClass as PortClass];
@@ -184,19 +177,11 @@ export async function serveBuildPort(
     );
 }
 
-export async function serveUpgradePortInfo(
+async function upgradeInfo(
     playerId: number,
-): Promise<CommandResult<'UpgradePortInfo'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
-
-    const port = await getPortAtSector(player.sector, player.universeId);
-    if (!port || port.class === 0 || port.class === 9) {
-        return {
-            outcome: 'noPort',
-        };
-    }
-
+    player: Player,
+    port: NonNullable<Awaited<ReturnType<typeof getPortAtSector>>>,
+): Promise<ReplyBody<'ConstructPortInfo'>> {
     const credits = await getPlayerCredits(playerId);
 
     const actions = PORT_CLASS_ACTIONS[port.class];
@@ -234,7 +219,7 @@ export async function serveUpgradePortInfo(
     }
 
     return {
-        outcome: 'upgrade',
+        outcome: 'upgrade' as const,
         portName: port.name,
         portClass: port.class,
         credits,

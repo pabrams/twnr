@@ -1,5 +1,6 @@
+import { closeDestroyedSession } from '../state/messaging.js';
 import type { CommandRequest } from '@twnr/shared';
-import { onlinePlayers } from '../state/players.js';
+import { requireOnlinePlayer } from '../state/players.js';
 import { getGraph } from '../state/graph-cache.js';
 import { resolveSectorId } from '../services/sector-lookup.js';
 import { getOnPlanetId, moveToSector, markSectorVisited } from '../db/queries/player.js';
@@ -20,8 +21,7 @@ export async function serveHyperspaceJump(
     data: CommandRequest<'HyperspaceJump'>,
 ): Promise<CommandResult<'HyperspaceJump'>> {
     const { targetSector } = data;
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
 
     if (player.docked || player.at_starbase) {
         return commandRefusal('docked');
@@ -109,8 +109,13 @@ export async function serveHyperspaceJump(
     if (turnResult.turnsUsed) {
         notifyTurnChange(playerId, turnResult.turnsUsed, 'hyperspace jump');
     }
-    await resolveMinesOnEntry(playerId);
+    const mineOutcome = await resolveMinesOnEntry(playerId);
+    if (mineOutcome.destroyed) {
+        closeDestroyedSession(playerId, 'Ship destroyed');
+        return { outcome: 'destroyed', reason: 'Destroyed by proximity mine' };
+    }
     return {
+        outcome: 'ok',
         targetSector,
         fuelUsed: fuelCost,
         turnsUsed: turnResult.turnsUsed,

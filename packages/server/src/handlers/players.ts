@@ -1,4 +1,4 @@
-import { onlinePlayers } from '../state/players.js';
+import { onlinePlayers, requireOnlinePlayer } from '../state/players.js';
 import { listPlayersInUniverse } from '../db/queries/player.js';
 import { type CommandResult } from './command.js';
 
@@ -11,8 +11,7 @@ export function servePlayersOnline(playerId: number): CommandResult<'PlayersOnli
 }
 
 export async function serveTraderList(playerId: number): Promise<CommandResult<'TraderList'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
 
     const rows = await listPlayersInUniverse(player.universeId);
     return {

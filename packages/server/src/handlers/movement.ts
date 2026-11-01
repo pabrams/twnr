@@ -1,6 +1,6 @@
 import { ServerTag } from '@twnr/shared';
 import type { CommandRequest } from '@twnr/shared';
-import { onlinePlayers, getPlayerUniverseId } from '../state/players.js';
+import { onlinePlayers, requireOnlinePlayer } from '../state/players.js';
 import { sendEnvelope, closeDestroyedSession } from '../state/messaging.js';
 import { broadcastPlayerMoved } from '../services/sector-activity.js';
 import { getGraph } from '../state/graph-cache.js';
@@ -38,8 +38,7 @@ export async function serveMove(
         return commandRefusal('noSuchSector');
     }
 
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
 
     if (isInEncounter(playerId)) {
         return commandRefusal('inEncounter');
@@ -53,7 +52,6 @@ export async function serveMove(
 
     if (!ctx || !ctx.shipId) {
         return { outcome: 'noShip' };
-        return;
     }
 
     const towerId = await getTowingPlayerForShip(ctx.shipId);
@@ -145,7 +143,6 @@ export async function serveMove(
     }
 
     const sectorData = await buildSectorDisplayData(playerId, targetSector);
-    if (!sectorData) return;
 
     const facingHostileDrones =
         sectorData.sectorDrones != null &&
@@ -221,11 +218,9 @@ export async function serveMoveToPrevious(
 export async function serveSectorDisplay(
     playerId: number,
 ): Promise<CommandResult<'SectorDisplay'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    requireOnlinePlayer(playerId);
 
     const data = await buildSectorDisplayData(playerId);
-    if (!data) return;
     return { ...data };
 }
 
@@ -235,8 +230,7 @@ export async function serveWarpsOut(
 ): Promise<CommandResult<'WarpsOut'>> {
     const { id } = data;
 
-    const universeId = getPlayerUniverseId(playerId);
-    if (universeId === undefined) return;
+    const { universeId } = requireOnlinePlayer(playerId);
 
     const sectorDbId = await getSectorDbId(id, universeId);
     if (!sectorDbId) {
@@ -253,8 +247,7 @@ export async function serveShortestPath(
 ): Promise<CommandResult<'ShortestPath'>> {
     const { from, to } = data;
 
-    const universeId = getPlayerUniverseId(playerId);
-    if (universeId === undefined) return;
+    const { universeId } = requireOnlinePlayer(playerId);
 
     const foundSectors = await findSectorsByNumbers([from, to], universeId);
     if (!foundSectors.has(from) || !foundSectors.has(to)) {

@@ -13,8 +13,12 @@ export const Int = z.number().int();
 export const PositiveInt = Int.min(1);
 export const Id = PositiveInt;
 export const SectorNumber = PositiveInt;
-/** A quantity where -1 means "all" / "the default". */
-export const QuantityOrAll = Int.min(-1);
+/** An amount to move: at least 1, or -1 for "all". */
+export const QuantityOrAll = Int.refine((n) => n === -1 || n >= 1, {
+    message: 'quantity must be at least 1, or -1 for all',
+});
+/** A deployment target: 0 or more (0 recalls everything), or -1 for the default. */
+export const TargetOrDefault = Int.min(-1);
 
 export const MAX_SHIP_NAME_LENGTH = 20;
 export const MAX_PLANET_NAME_LENGTH = 64;

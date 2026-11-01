@@ -1,7 +1,6 @@
-import { ServerTag, ClientTag, type GameEventOwnedRef } from '@twnr/shared';
+import { Commands, type GameEventOwnedRef } from '@twnr/shared';
 import type { CommandRequest } from '@twnr/shared';
-import { onlinePlayers } from '../state/players.js';
-import { sendEnvelope } from '../state/messaging.js';
+import { requireOnlinePlayer } from '../state/players.js';
 import { buildSectorDisplayData } from '../services/sector-display.js';
 import { broadcastSectorActivity } from '../services/sector-activity.js';
 import { isInEncounter } from '../services/encounter.js';
@@ -68,8 +67,7 @@ import { type CommandResult, commandRefusal, mutateAndReply } from './command.js
 export async function serveGetSectorPlanets(
     playerId: number,
 ): Promise<CommandResult<'GetSectorPlanets'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
 
     if (isInEncounter(playerId)) {
         return commandRefusal('inEncounter');
@@ -78,25 +76,17 @@ export async function serveGetSectorPlanets(
     if (player.sector === 1) {
         const earthId = await getEarthId(player.universeId);
         if (earthId) {
-            // Earth is the only planet here: land directly. The client's land routine accepts either reply.
             const landed = await serveLandOnPlanet(playerId, {
-                type: ClientTag.LandOnPlanet,
+                type: Commands.LandOnPlanet.name,
                 planetId: earthId,
             });
-            if (landed?.outcome === 'refused') return landed;
-            if (landed) {
-                sendEnvelope(playerId, {
-                    type: ServerTag.LandOnPlanetResult,
-                    outcome: 'ok',
-                    ...landed,
-                });
-            }
-            return;
+            if (landed === undefined || landed.outcome === 'refused') return landed;
+            return { ...landed, outcome: 'landed' };
         }
     }
 
     const planets = await getPlanetsInSector(player.sector, player.universeId);
-    return { planets };
+    return { outcome: 'list', planets };
 }
 
 export async function serveLandOnPlanet(
@@ -104,8 +94,7 @@ export async function serveLandOnPlanet(
     data: CommandRequest<'LandOnPlanet'>,
 ): Promise<CommandResult<'LandOnPlanet'>> {
     const { planetId } = data;
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
 
     if (isInEncounter(playerId)) {
         return commandRefusal('inEncounter');
@@ -170,8 +159,7 @@ async function getShipPlanetContext(playerId: number): Promise<{
 export async function servePlanetDisplay(
     playerId: number,
 ): Promise<CommandResult<'PlanetDisplay'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    requireOnlinePlayer(playerId);
 
     const onPlanetId = await getOnPlanetId(playerId);
     if (!onPlanetId) {
@@ -196,8 +184,7 @@ export async function servePlanetDisplay(
 }
 
 export async function serveLeavePlanet(playerId: number): Promise<CommandResult<'LeavePlanet'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
 
     const turnResult = await checkAndDeductTurns(playerId, player.universeId, 1);
     if (!turnResult.allowed) {
@@ -226,8 +213,7 @@ export async function serveLeavePlanet(playerId: number): Promise<CommandResult<
 export async function serveDestroyPlanet(
     playerId: number,
 ): Promise<CommandResult<'DestroyPlanet'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
 
     const onPlanetId = await getOnPlanetId(playerId);
     if (!onPlanetId) {
@@ -304,7 +290,6 @@ export async function serveDestroyPlanet(
             }
 
             const sectorData = await buildSectorDisplayData(playerId);
-            if (!sectorData) return undefined;
             return {
                 ...sectorData,
                 destroyed: true,
@@ -320,8 +305,7 @@ export async function serveDestroyPlanet(
 export async function serveTerraformInfo(
     playerId: number,
 ): Promise<CommandResult<'TerraformInfo'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
 
     if (isInEncounter(playerId)) {
         return commandRefusal('inEncounter');
@@ -343,8 +327,7 @@ export async function serveTerraformInfo(
 export async function serveUseTerraformDevice(
     playerId: number,
 ): Promise<CommandResult<'UseTerraformDevice'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
 
     const sectorId = player.sector;
     const universeId = player.universeId;
@@ -491,8 +474,7 @@ export async function serveTakeColonists(
     data: CommandRequest<'TakeColonists'>,
 ): Promise<CommandResult<'TakeColonists'>> {
     const { quantity, commodity } = data;
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
 
     const col = commodity;
 
@@ -546,7 +528,7 @@ export async function serveTakeColonists(
 
             if (onEarth) {
                 const sectorData = await liftoffSectorData(playerId);
-                return sectorData ? { ...result, ...sectorData } : result;
+                return { ...result, ...sectorData };
             }
             return result;
         },
@@ -558,8 +540,7 @@ export async function serveLeaveColonists(
     data: CommandRequest<'LeaveColonists'>,
 ): Promise<CommandResult<'LeaveColonists'>> {
     const { quantity, commodity } = data;
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
 
     const col = commodity;
 
@@ -607,7 +588,7 @@ export async function serveLeaveColonists(
 
             if (onEarth) {
                 const sectorData = await liftoffSectorData(playerId);
-                return sectorData ? { ...result, ...sectorData } : result;
+                return { ...result, ...sectorData };
             }
             return result;
         },
@@ -619,8 +600,7 @@ export async function serveTakeCommodity(
     data: CommandRequest<'TakeCommodity'>,
 ): Promise<CommandResult<'TakeCommodity'>> {
     const { quantity, commodity } = data;
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    requireOnlinePlayer(playerId);
 
     const col = commodity;
 
@@ -688,8 +668,7 @@ export async function serveLeaveCommodity(
     data: CommandRequest<'LeaveCommodity'>,
 ): Promise<CommandResult<'LeaveCommodity'>> {
     const { quantity, commodity } = data;
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    requireOnlinePlayer(playerId);
 
     const col = commodity;
 
@@ -757,8 +736,7 @@ export async function serveChangePopulation(
     data: CommandRequest<'ChangePopulation'>,
 ): Promise<CommandResult<'ChangePopulation'>> {
     const { quantity, from, to } = data;
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    requireOnlinePlayer(playerId);
     if (from === to) {
         return commandRefusal('sameGroup');
     }
@@ -824,8 +802,7 @@ export async function serveClaimPlanet(
     data: CommandRequest<'ClaimPlanet'>,
 ): Promise<CommandResult<'ClaimPlanet'>> {
     const { ownership } = data;
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
 
     const onPlanetId = await getOnPlanetId(playerId);
     if (!onPlanetId) {
@@ -917,8 +894,7 @@ export async function serveClaimPlanet(
 }
 
 export async function serveListPlanets(playerId: number): Promise<CommandResult<'ListPlanets'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
 
     const rows = await listPlayerPlanets(playerId, player.universeId);
 

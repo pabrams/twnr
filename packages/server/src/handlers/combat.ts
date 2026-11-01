@@ -1,7 +1,7 @@
 import { ServerTag } from '@twnr/shared';
 import type { CommandRequest } from '@twnr/shared';
 
-import { onlinePlayers, isVisibleInSector } from '../state/players.js';
+import { onlinePlayers, isVisibleInSector, requireOnlinePlayer } from '../state/players.js';
 import { sendEnvelope, closeDestroyedSession, broadcastEnvelope } from '../state/messaging.js';
 
 import {
@@ -30,8 +30,7 @@ import { type CommandResult, commandRefusal, mutateAndReply } from './command.js
 export async function serveGetAttackTargets(
     playerId: number,
 ): Promise<CommandResult<'GetAttackTargets'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
 
     const rows = await listPlayersInSector(player.sector, player.universeId, playerId);
     const visible = rows.filter((row) => isVisibleInSector(row.id, row.docked, row.on_planet_id));

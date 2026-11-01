@@ -306,7 +306,8 @@ function cachePlanetInteractionState(ctx: PlanetContext, msg: PlanetDisplayMsg):
     ctx.planet.maxDrones = msg.max_drones;
 }
 
-export const landOnPlanet: ReplyHandler<'LandOnPlanet', PlanetContext> = (ctx, msg) => {
+/** Shared by LandOnPlanet and a GetSectorPlanets that landed on Earth directly. */
+export function showLanded(ctx: PlanetContext, msg: PlanetDisplayMsg): void {
     cachePlanetInteractionState(ctx, msg);
     const isEarth = msg.name === 'Earth';
     ctx.world.mode = isEarth ? Menu.PlanetEarth : Menu.Planet;
@@ -318,7 +319,9 @@ export const landOnPlanet: ReplyHandler<'LandOnPlanet', PlanetContext> = (ctx, m
         ctx.io.term.writeln(render(PLANET.landedHeader, { name: msg.name }));
         renderPlanetTable(ctx, msg);
     }
-};
+}
+
+export const landOnPlanet: ReplyHandler<'LandOnPlanet', PlanetContext> = showLanded;
 
 export const planetDisplay: ReplyHandler<'PlanetDisplay', PlanetContext> = (ctx, msg) => {
     cachePlanetInteractionState(ctx, msg);

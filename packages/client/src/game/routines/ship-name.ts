@@ -1,13 +1,11 @@
-import { Commands, command } from '@twnr/shared';
+import { MAX_SHIP_NAME_LENGTH } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { EVENT } from '../messages/index.js';
-import { askLineRaw } from '../routines/prompts.js';
-import { awaitResponse } from '../routines/io.js';
+import { askLineRaw } from './prompts.js';
 
 type ShipNamePromptCtx = Pick<GameContext, 'io' | 'input' | 'player'>;
 
-const MAX_SHIP_NAME_LENGTH = 20;
 const DEFAULT_NAME_SUFFIX = "'s ship";
 
 function defaultShipName(playerName: string): string {
@@ -18,19 +16,18 @@ function defaultShipName(playerName: string): string {
     return stem === '' ? 'Unnamed ship' : `${stem}${DEFAULT_NAME_SUFFIX}`;
 }
 
-/** No cancel path, intentionally: the server gates all other commands until naming completes. */
 export async function promptShipName(
     ctx: ShipNamePromptCtx,
     promptTemplate: string,
     shipTypeDisplayName: string,
-): Promise<void> {
+): Promise<string | null> {
     const fallback = defaultShipName(ctx.player.name);
     while (true) {
         const raw = await askLineRaw(
             ctx,
             render(promptTemplate, { type: shipTypeDisplayName, default: fallback }),
         );
-        if (raw === null) continue;
+        if (raw === null) return null;
         const name = raw.trim() === '' ? fallback : raw.trim();
         if (name.length > MAX_SHIP_NAME_LENGTH) {
             ctx.io.term.writeln(
@@ -40,10 +37,6 @@ export async function promptShipName(
             );
             continue;
         }
-        ctx.io.sendMsg(command(Commands.SetShipName, { name }));
-        const reply = await awaitResponse(ctx, [Commands.SetShipName.reply.name]);
-        if (reply === null) return;
-        if (reply.type !== Commands.SetShipName.reply.name) return;
-        if (reply.outcome === 'ok') return;
+        return name;
     }
 }

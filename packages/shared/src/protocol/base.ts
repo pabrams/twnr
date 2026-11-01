@@ -135,5 +135,6 @@ export const BwarpBeam = defineCommand('bwarpBeam', {
             fuelUsed: Num,
             turnsUsed: Num,
         },
+        destroyed: { reason: Str },
     }),
 });

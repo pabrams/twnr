@@ -1,12 +1,11 @@
-import { onlinePlayers } from '../state/players.js';
+import { requireOnlinePlayer } from '../state/players.js';
 import { listUniverseShipTypes } from '../db/queries/ship.js';
 import { listUniversePlanetTypes } from '../db/queries/planet.js';
 import { listHardwareCatalog, listShipTypeHardwareMaxForUniverse } from '../db/queries/hardware.js';
 import { type CommandResult } from './command.js';
 
 export async function serveShipCatalog(playerId: number): Promise<CommandResult<'ShipCatalog'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
 
     const [shipTypes, hwRows] = await Promise.all([
         listUniverseShipTypes(player.universeId),
@@ -53,8 +52,7 @@ export async function serveShipCatalog(playerId: number): Promise<CommandResult<
 export async function servePlanetCatalog(
     playerId: number,
 ): Promise<CommandResult<'PlanetCatalog'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
 
     const planetTypes = await listUniversePlanetTypes(player.universeId);
     return {

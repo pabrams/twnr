@@ -81,19 +81,23 @@ export const PlanetDestroyedAlert = defineEvent('planetDestroyedAlert', {
     wasOnPlanet: Bool,
 });
 
+/** On Earth's sector the only planet is Earth, so the server lands the player straight away. */
 export const GetSectorPlanets = defineCommand('getSectorPlanets', {
     request: {},
-    reply: {
-        planets: z.array(
-            z.object({
-                id: Int,
-                registryNumber: Int,
-                name: Str,
-                type: Str,
-                displayType: StrOrNull,
-            }),
-        ),
-    },
+    reply: outcomes({
+        list: {
+            planets: z.array(
+                z.object({
+                    id: Int,
+                    registryNumber: Int,
+                    name: Str,
+                    type: Str,
+                    displayType: StrOrNull,
+                }),
+            ),
+        },
+        landed: PlanetDisplayDataSchema,
+    }),
 });
 
 export const LandOnPlanet = defineCommand('landOnPlanet', {

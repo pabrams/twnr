@@ -13,7 +13,7 @@ registerRoutine('take_from_earth', async (ctx) => {
         render(PLANET.takePrompt, { emptyHolds: ctx.ship.planetEmptyHolds }),
         { defaultValue: -1 },
     );
-    if (qty === null) return;
+    if (qty === null || qty === 0) return;
     ctx.io.sendMsg(command(Commands.TakeColonists, { quantity: qty, commodity: 'fuel' }));
 });
 
@@ -24,7 +24,7 @@ registerRoutine('leave_on_earth', async (ctx) => {
         render(PLANET.leavePrompt, { shipColonists: ctx.ship.shipColonists }),
         { defaultValue: -1 },
     );
-    if (qty === null) return;
+    if (qty === null || qty === 0) return;
     ctx.io.sendMsg(command(Commands.LeaveColonists, { quantity: qty, commodity: 'fuel' }));
 });
 

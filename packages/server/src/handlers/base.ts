@@ -4,8 +4,8 @@ import {
     type BaseLevelRequirement,
     type CommandRequest,
 } from '@twnr/shared';
-import { onlinePlayers } from '../state/players.js';
-import { broadcastTo } from '../state/messaging.js';
+import { requireOnlinePlayer } from '../state/players.js';
+import { broadcastTo, closeDestroyedSession } from '../state/messaging.js';
 import { sectorObserverClients } from '../services/sector-activity.js';
 
 import {
@@ -63,8 +63,7 @@ function level1Of(reqs: unknown): BaseLevelRequirement | null {
 }
 
 export async function serveBaseInfo(playerId: number): Promise<CommandResult<'BaseInfo'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    requireOnlinePlayer(playerId);
 
     const onPlanetId = await getOnPlanetId(playerId);
     if (!onPlanetId) {
@@ -123,8 +122,7 @@ export async function serveBaseInfo(playerId: number): Promise<CommandResult<'Ba
 }
 
 export async function serveBuildBase(playerId: number): Promise<CommandResult<'BuildBase'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    requireOnlinePlayer(playerId);
 
     const onPlanetId = await getOnPlanetId(playerId);
     if (!onPlanetId) {
@@ -189,8 +187,7 @@ export function serveExitBase(): CommandResult<'ExitBase'> {
 }
 
 export async function serveTreasuryInfo(playerId: number): Promise<CommandResult<'TreasuryInfo'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    requireOnlinePlayer(playerId);
 
     const onPlanetId = await getOnPlanetId(playerId);
     if (!onPlanetId) {
@@ -213,8 +210,7 @@ export async function serveTreasuryTransfer(
     playerId: number,
     data: CommandRequest<'TreasuryTransfer'>,
 ): Promise<CommandResult<'TreasuryTransfer'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    requireOnlinePlayer(playerId);
 
     const { direction, amount } = data;
 
@@ -278,8 +274,7 @@ function shortestHopCount(warps: Record<number, number[]>, from: number, to: num
 }
 
 export async function serveBwarpInfo(playerId: number): Promise<CommandResult<'BwarpInfo'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    requireOnlinePlayer(playerId);
     const onPlanetId = await getOnPlanetId(playerId);
     if (!onPlanetId) {
         return commandRefusal('notOnPlanet');
@@ -305,8 +300,7 @@ export async function serveBwarpInfo(playerId: number): Promise<CommandResult<'B
 }
 
 export async function serveBwarpInstall(playerId: number): Promise<CommandResult<'BwarpInstall'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    requireOnlinePlayer(playerId);
     const onPlanetId = await getOnPlanetId(playerId);
     if (!onPlanetId) {
         return commandRefusal('notOnPlanet');
@@ -341,8 +335,7 @@ export async function serveBwarpInstall(playerId: number): Promise<CommandResult
 }
 
 export async function serveBwarpUpgrade(playerId: number): Promise<CommandResult<'BwarpUpgrade'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    requireOnlinePlayer(playerId);
     const onPlanetId = await getOnPlanetId(playerId);
     if (!onPlanetId) {
         return commandRefusal('notOnPlanet');
@@ -380,8 +373,7 @@ export async function serveBwarpBeam(
     playerId: number,
     data: CommandRequest<'BwarpBeam'>,
 ): Promise<CommandResult<'BwarpBeam'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
     const { targetSector, commit } = data;
 
     const onPlanetId = await getOnPlanetId(playerId);
@@ -461,7 +453,11 @@ export async function serveBwarpBeam(
             if (result.turnsUsed) {
                 notifyTurnChange(playerId, result.turnsUsed, 'planetary transporter');
             }
-            await resolveMinesOnEntry(playerId);
+            const mineOutcome = await resolveMinesOnEntry(playerId);
+            if (mineOutcome.destroyed) {
+                closeDestroyedSession(playerId, 'Ship destroyed');
+                return { outcome: 'destroyed' as const, reason: 'Destroyed by proximity mine' };
+            }
             return {
                 outcome: 'beamed' as const,
                 targetSector,

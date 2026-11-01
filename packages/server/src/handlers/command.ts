@@ -11,7 +11,6 @@ import { withTransaction, AbortTransaction } from '../db/index.js';
 
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
 
-
 type OptionalOk<V> = V extends { outcome: 'ok' } ? Omit<V, 'outcome'> & { outcome?: 'ok' } : V;
 
 /** A command's reply without the wire `type`, which the router stamps on. Includes the `refused` outcome. */
@@ -19,14 +18,10 @@ export type ReplyBody<K extends CommandName> = OptionalOk<
     DistributiveOmit<CommandReply<K>, 'type'>
 >;
 
-/**
- * What a handler returns. Commands defined with `reply: null` return nothing;
- * for the rest, `undefined` means the player vanished mid-command and there is
- * nobody to answer.
- */
+/** What a handler returns: the reply body, or nothing for commands defined with `reply: null`. */
 export type CommandResult<K extends CommandName> = [CommandReply<K>] extends [never]
     ? void
-    : ReplyBody<K> | undefined;
+    : ReplyBody<K>;
 
 export type Handler<K extends CommandName> = (
     playerId: number,

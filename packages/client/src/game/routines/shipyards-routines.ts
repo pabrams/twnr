@@ -1,4 +1,4 @@
-import { Menu, type ShipCatalogEntry, Commands, Events, command } from '@twnr/shared';
+import { Menu, type ShipCatalogEntry, Commands, command } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { echoCommand } from '../display.js';
@@ -16,7 +16,7 @@ import { registerRoutine } from './types.js';
 import { askChar, askConfirm, askNumber } from './prompts.js';
 import { awaitResponse } from './io.js';
 import { loadShipCatalog } from './catalogs.js';
-import { promptShipName } from '../handlers/ship-name.js';
+import { promptShipName } from './ship-name.js';
 
 function currentShipTradeInCredit(ctx: GameContext, ships: ShipCatalogEntry[]): number {
     if (!ctx.ship.currentShipTypeName) return 0;
@@ -54,18 +54,14 @@ registerRoutine('buy_ship', async (ctx) => {
         const yes = await askConfirm(ctx, render(STARBASE.tradeinConfirm));
         if (yes === null) continue;
         const isTradein = yes;
+        const promptTpl = isTradein ? EVENT.shipNamePromptTradein : EVENT.shipNamePromptBuyNew;
+        const name = await promptShipName(ctx, promptTpl, ship.displayName ?? ship.name);
+        if (name === null) return;
         ctx.io.sendMsg(
             isTradein
-                ? command(Commands.BuyShipTradein, { targetShipName: ship.name })
-                : command(Commands.BuyShipNew, { targetShipName: ship.name }),
+                ? command(Commands.BuyShipTradein, { targetShipName: ship.name, name })
+                : command(Commands.BuyShipNew, { targetShipName: ship.name, name }),
         );
-        // The server only commits the buy after SetShipName completes.
-        const nameReq = await awaitResponse(ctx, [Events.ShipNameRequired.name]);
-        if (nameReq === null) return;
-        if (nameReq.type !== Events.ShipNameRequired.name) return;
-        const typeLabel = nameReq.shipTypeDisplayName ?? nameReq.shipTypeName;
-        const promptTpl = isTradein ? EVENT.shipNamePromptTradein : EVENT.shipNamePromptBuyNew;
-        await promptShipName(ctx, promptTpl, typeLabel);
         // The buy-result handler renders the outcome; await only so the routine owns the paint.
         await awaitResponse(ctx, [
             isTradein ? Commands.BuyShipTradein.reply.name : Commands.BuyShipNew.reply.name,

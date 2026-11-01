@@ -1,7 +1,5 @@
-import { ServerTag } from '@twnr/shared';
 import type { CommandRequest } from '@twnr/shared';
-import { onlinePlayers, getPlayerUniverseId } from '../state/players.js';
-import { sendEnvelope } from '../state/messaging.js';
+import { onlinePlayers, requireOnlinePlayer } from '../state/players.js';
 
 import {
     getShipTypeBySlug,
@@ -12,7 +10,6 @@ import {
     deleteShipById,
     type ShipTypeRow,
 } from '../db/queries/ship.js';
-import { setPendingShipPurchase } from '../state/pending-ship-purchases.js';
 import { type CommandResult, type ReplyBody, commandRefusal, mutateAndReply } from './command.js';
 
 function calculateShipPrice(shipType: {
@@ -34,55 +31,27 @@ export async function serveBuyShipNew(
     playerId: number,
     data: CommandRequest<'BuyShipNew'>,
 ): Promise<CommandResult<'BuyShipNew'>> {
-    if (!onlinePlayers[playerId]?.at_starbase) {
-        return commandRefusal('notAtStarbase');
-    }
-    const universeId = getPlayerUniverseId(playerId);
-    if (universeId === undefined) return;
-    const targetType = await getShipTypeBySlug(universeId, data.targetShipName);
-    if (!targetType) {
-        return commandRefusal('unknownShipType');
-    }
-    setPendingShipPurchase(playerId, { kind: 'new', targetShipName: data.targetShipName });
-    sendEnvelope(playerId, {
-        type: ServerTag.ShipNameRequired,
-        reason: 'buyNew',
-        shipTypeName: targetType.slug,
-        shipTypeDisplayName: targetType.display_name ?? targetType.slug,
-    });
+    if (!onlinePlayers[playerId]?.at_starbase) return commandRefusal('notAtStarbase');
+    const { universeId } = requireOnlinePlayer(playerId);
+    return buyShipNew(playerId, universeId, data.targetShipName, data.name);
 }
 
 export async function serveBuyShipTradein(
     playerId: number,
     data: CommandRequest<'BuyShipTradein'>,
 ): Promise<CommandResult<'BuyShipTradein'>> {
-    if (!onlinePlayers[playerId]?.at_starbase) {
-        return commandRefusal('notAtStarbase');
-    }
-    const universeId = getPlayerUniverseId(playerId);
-    if (universeId === undefined) return;
-    const targetType = await getShipTypeBySlug(universeId, data.targetShipName);
-    if (!targetType) {
-        return commandRefusal('unknownShipType');
-    }
-    setPendingShipPurchase(playerId, { kind: 'tradein', targetShipName: data.targetShipName });
-    sendEnvelope(playerId, {
-        type: ServerTag.ShipNameRequired,
-        reason: 'tradein',
-        shipTypeName: targetType.slug,
-        shipTypeDisplayName: targetType.display_name ?? targetType.slug,
-    });
+    if (!onlinePlayers[playerId]?.at_starbase) return commandRefusal('notAtStarbase');
+    const { universeId } = requireOnlinePlayer(playerId);
+    return buyShipTradein(playerId, universeId, data.targetShipName, data.name);
 }
 
-export async function executeBuyShipNew(
+async function buyShipNew(
     playerId: number,
+    universeId: number,
     targetShipName: string,
     shipName: string,
-): Promise<void> {
-    const universeId = getPlayerUniverseId(playerId);
-    if (universeId === undefined) return;
-
-    const result: ReplyBody<'BuyShipNew'> = await mutateAndReply(
+): Promise<ReplyBody<'BuyShipNew'>> {
+    return mutateAndReply(
         async (client, abort) => {
             const targetType = await getShipTypeBySlug(universeId, targetShipName, client);
             if (!targetType) {
@@ -141,18 +110,15 @@ export async function executeBuyShipNew(
             };
         },
     );
-    sendEnvelope(playerId, { type: ServerTag.BuyShipNewResult, outcome: 'ok', ...result });
 }
 
-export async function executeBuyShipTradein(
+async function buyShipTradein(
     playerId: number,
+    universeId: number,
     targetShipName: string,
     shipName: string,
-): Promise<void> {
-    const universeId = getPlayerUniverseId(playerId);
-    if (universeId === undefined) return;
-
-    const result: ReplyBody<'BuyShipTradein'> = await mutateAndReply(
+): Promise<ReplyBody<'BuyShipTradein'>> {
+    return mutateAndReply(
         async (client, abort) => {
             const targetType: ShipTypeRow | undefined = await getShipTypeBySlug(
                 universeId,
@@ -224,5 +190,4 @@ export async function executeBuyShipTradein(
             };
         },
     );
-    sendEnvelope(playerId, { type: ServerTag.BuyShipTradeinResult, outcome: 'ok', ...result });
 }

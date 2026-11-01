@@ -16,7 +16,7 @@ import {
     PositiveInt,
     Id,
     SectorNumber,
-    QuantityOrAll,
+    TargetOrDefault,
     BeaconMessage,
 } from './common.js';
 
@@ -95,7 +95,7 @@ export const DeployDronesInfo = defineCommand('deployDronesInfo', {
 
 export const DeployDrones = defineCommand('deployDrones', {
     request: {
-        quantity: QuantityOrAll,
+        quantity: TargetOrDefault,
         ownership: Ownership.optional(),
     },
     reply: outcomes({
@@ -127,7 +127,10 @@ export const AttackSectorDrones = defineCommand('attackSectorDrones', {
 /** The sector the player retreated into, as a full sector display. */
 export const RetreatFromDrones = defineCommand('retreatFromDrones', {
     request: {},
-    reply: SectorDisplayDataSchema,
+    reply: outcomes({
+        ok: SectorDisplayDataSchema,
+        destroyed: { reason: Str },
+    }),
 });
 
 export const ListDeployedDrones = defineCommand('listDeployedDrones', {
@@ -159,7 +162,7 @@ export const DeployMineInfo = defineCommand('deployMineInfo', {
 export const DeployMine = defineCommand('deployMine', {
     request: {
         mineType: MineTypeSchema,
-        quantity: QuantityOrAll,
+        quantity: TargetOrDefault,
         ownership: Ownership.optional(),
     },
     reply: {

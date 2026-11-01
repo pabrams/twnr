@@ -178,11 +178,14 @@ export const HyperspaceJump = defineCommand('hyperspaceJump', {
     request: {
         targetSector: SectorNumber,
     },
-    reply: {
-        targetSector: Int,
-        fuelUsed: Num,
-        turnsUsed: Num,
-    },
+    reply: outcomes({
+        ok: {
+            targetSector: Int,
+            fuelUsed: Num,
+            turnsUsed: Num,
+        },
+        destroyed: { reason: Str },
+    }),
 });
 
 // Reply tag predates the `${command}Result` convention (see protocol step 4).

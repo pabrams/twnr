@@ -1,6 +1,6 @@
 import { GameEventSchema, type CommandRequest } from '@twnr/shared';
 import type { GalacticNewsEntry } from '@twnr/shared';
-import { onlinePlayers } from '../state/players.js';
+import { requireOnlinePlayer } from '../state/players.js';
 import {
     getEarliestGalacticNewsAt,
     listGalacticNewsSince,
@@ -22,8 +22,7 @@ function toNewsEntry(row: GalacticNewsRow): GalacticNewsEntry | null {
 export async function serveGalacticNewsRange(
     playerId: number,
 ): Promise<CommandResult<'GalacticNewsRange'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
     const earliest = await getEarliestGalacticNewsAt(player.universeId);
     return {
         earliestCreatedAt: earliest?.toISOString() ?? null,
@@ -34,8 +33,7 @@ export async function serveReadGalacticNews(
     playerId: number,
     data: CommandRequest<'ReadGalacticNews'>,
 ): Promise<CommandResult<'ReadGalacticNews'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
     const since = new Date(data.since);
     const rows = await listGalacticNewsSince(
         player.universeId,

@@ -1,6 +1,6 @@
 import { ServerTag } from '@twnr/shared';
 import type { CommandRequest } from '@twnr/shared';
-import { onlinePlayers, getPlayerUniverseId } from '../state/players.js';
+import { onlinePlayers, requireOnlinePlayer } from '../state/players.js';
 import { sendEnvelope } from '../state/messaging.js';
 import { findPlayersByNamePrefix } from '../db/queries/player.js';
 import { insertMemo } from '../db/queries/message.js';
@@ -10,17 +10,14 @@ export async function serveHailResolve(
     playerId: number,
     data: CommandRequest<'HailResolve'>,
 ): Promise<CommandResult<'HailResolve'>> {
-    const universeId = getPlayerUniverseId(playerId);
-    if (universeId === undefined) return;
+    const { universeId } = requireOnlinePlayer(playerId);
     const prefix = data.name.trim();
     if (prefix.length === 0) {
         return { outcome: 'notFound' };
-        return;
     }
     const matches = await findPlayersByNamePrefix(universeId, prefix);
     if (matches.length === 0) {
         return { outcome: 'notFound' };
-        return;
     }
     if (matches.length > 1) {
         return {
@@ -31,7 +28,6 @@ export async function serveHailResolve(
     const target = matches[0];
     if (target.id === playerId) {
         return { outcome: 'self' };
-        return;
     }
     return {
         outcome: 'found',
@@ -46,8 +42,7 @@ export async function serveHailSend(
     data: CommandRequest<'HailSend'>,
 ): Promise<CommandResult<'HailSend'>> {
     const body = data.body;
-    const sender = onlinePlayers[playerId];
-    if (!sender) return;
+    const sender = requireOnlinePlayer(playerId);
     const recipient = onlinePlayers[data.recipientPlayerId];
     if (recipient) {
         sendEnvelope(data.recipientPlayerId, {

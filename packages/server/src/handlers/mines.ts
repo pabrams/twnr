@@ -1,5 +1,5 @@
 import type { CommandRequest } from '@twnr/shared';
-import { onlinePlayers } from '../state/players.js';
+import { requireOnlinePlayer } from '../state/players.js';
 import { isInEncounter } from '../services/encounter.js';
 import { refreshSectorObservation } from '../services/sector-observations.js';
 import { ownershipFrom } from '../services/owner-format.js';
@@ -39,8 +39,7 @@ export async function serveDeployMineInfo(
     data: CommandRequest<'DeployMineInfo'>,
 ): Promise<CommandResult<'DeployMineInfo'>> {
     const { mineType } = data;
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
     if (player.docked || player.at_starbase) {
         return commandRefusal('docked');
     }
@@ -83,8 +82,7 @@ export async function serveDeployMine(
     const target = data.quantity;
     const ownership: 'personal' | 'clan' = data.ownership ?? 'personal';
 
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
     if (player.docked || player.at_starbase) {
         return commandRefusal('docked');
     }
@@ -179,8 +177,7 @@ export async function serveDeployMine(
 export async function serveListDeployedMines(
     playerId: number,
 ): Promise<CommandResult<'ListDeployedMines'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    requireOnlinePlayer(playerId);
     const rows = await getDeployedMinesByOwner(playerId);
     const { formatOwner, ownershipFrom } = await import('../services/owner-format.js');
     return {
@@ -197,8 +194,7 @@ export async function serveListDeployedMines(
 export async function serveTrackSeekerMines(
     playerId: number,
 ): Promise<CommandResult<'TrackSeekerMines'>> {
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    requireOnlinePlayer(playerId);
     const rows = await getSeekerAttachmentsByOwner(playerId);
     return {
         targets: rows.map((r) => ({
@@ -219,8 +215,7 @@ export async function serveMineDisruptor(
     if (!Number.isInteger(targetSector) || targetSector <= 0) {
         return commandRefusal('noSuchSector');
     }
-    const player = onlinePlayers[playerId];
-    if (!player) return;
+    const player = requireOnlinePlayer(playerId);
     if (player.docked || player.at_starbase) {
         return commandRefusal('docked');
     }
