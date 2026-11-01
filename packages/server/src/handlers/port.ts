@@ -1,9 +1,9 @@
 import {
-    ServerTag,
     PORT_CLASS_ACTIONS,
     computeUnitPriceWithXp,
     tradingDisplayed,
     type PriceCommodity,
+    Events,
 } from '@twnr/shared';
 import type { CommandRequest } from '@twnr/shared';
 import { broadcastSectorActivity } from '../services/sector-activity.js';
@@ -108,7 +108,7 @@ export async function servePortInfo(
         return commandRefusal('noPortHere');
     }
 
-    return buildPortInfoPayload(p, p.sector_id, xp);
+    return { outcome: 'ok', ...buildPortInfoPayload(p, p.sector_id, xp) };
 }
 
 export async function serveDock(playerId: number): Promise<CommandResult<'Dock'>> {
@@ -144,7 +144,7 @@ export async function serveDock(playerId: number): Promise<CommandResult<'Dock'>
             freedFromTow = true;
             if (onlinePlayers[towerId]) {
                 sendEnvelope(towerId, {
-                    type: ServerTag.TowReleasedAlert,
+                    type: Events.TowReleased.name,
                     towedName: player.name,
                 });
             }
@@ -160,6 +160,7 @@ export async function serveDock(playerId: number): Promise<CommandResult<'Dock'>
     if (p.class === 0) {
         const ship = await getShipInfo(playerId);
         return {
+            outcome: 'ok',
             docked: true,
             port: portInfoPayload,
             credits,
@@ -182,6 +183,7 @@ export async function serveDock(playerId: number): Promise<CommandResult<'Dock'>
     }
 
     return {
+        outcome: 'ok',
         docked: true,
         port: portInfoPayload,
         credits,
@@ -346,6 +348,7 @@ export async function servePortTransaction(
             }
 
             return {
+                outcome: 'ok',
                 credits: result.credits,
                 cargo: result.cargo,
                 emptyHolds: result.emptyHolds,
@@ -382,6 +385,7 @@ export async function serveDockStarbase(playerId: number): Promise<CommandResult
         getShipInfo(playerId),
     ]);
     return {
+        outcome: 'ok',
         prices: priceRows.map((r) => ({ name: r.name, label: r.label, price: r.price })),
         class0Prices: currentClass0Prices(),
         credits: ship?.credits,
@@ -417,5 +421,5 @@ export async function serveLeaveStarbase(
     }
 
     const sectorData = await buildSectorDisplayData(playerId);
-    return { ...sectorData };
+    return { outcome: 'ok', ...sectorData };
 }

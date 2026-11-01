@@ -64,9 +64,9 @@ import { recordGameEvent } from '../services/game-events.js';
 import { notifyPlanetDestroyed } from '../services/planet-destruction.js';
 import { type CommandResult, commandRefusal, mutateAndReply } from './command.js';
 
-export async function serveGetSectorPlanets(
+export async function serveSectorPlanets(
     playerId: number,
-): Promise<CommandResult<'GetSectorPlanets'>> {
+): Promise<CommandResult<'SectorPlanets'>> {
     const player = requireOnlinePlayer(playerId);
 
     if (isInEncounter(playerId)) {
@@ -119,6 +119,7 @@ export async function serveLandOnPlanet(
     }
     const ctx = await getShipPlanetContext(playerId);
     return {
+        outcome: 'ok',
         ...display,
         empty_holds: ctx.emptyHolds,
         ship_colonists: ctx.shipColonists,
@@ -172,6 +173,7 @@ export async function servePlanetDisplay(
     }
     const ctx = await getShipPlanetContext(playerId);
     return {
+        outcome: 'ok',
         ...data,
         empty_holds: ctx.emptyHolds,
         ship_colonists: ctx.shipColonists,
@@ -205,9 +207,7 @@ export async function serveLeavePlanet(playerId: number): Promise<CommandResult<
         void broadcastSectorActivity(playerId, 'liftoff', leavingPlanetName);
     }
 
-    return {
-        turnsUsed: turnResult.turnsUsed,
-    };
+    return { outcome: 'ok', turnsUsed: turnResult.turnsUsed };
 }
 
 export async function serveDestroyPlanet(
@@ -291,6 +291,7 @@ export async function serveDestroyPlanet(
 
             const sectorData = await buildSectorDisplayData(playerId);
             return {
+                outcome: 'ok',
                 ...sectorData,
                 destroyed: true,
                 planetId: onPlanetId,
@@ -321,7 +322,7 @@ export async function serveTerraformInfo(
     const devices = await getShipHardwareQuantityByName(playerId, 'terraform_device');
     if (devices < 1) return commandRefusal('noTerraformDevices');
 
-    return { devices };
+    return { outcome: 'ok', devices };
 }
 
 export async function serveUseTerraformDevice(
@@ -411,6 +412,7 @@ export async function serveUseTerraformDevice(
             };
         },
         (result) => ({
+            outcome: 'ok',
             planet: {
                 id: result.newPlanetId,
                 name: result.randomName,
@@ -520,6 +522,7 @@ export async function serveTakeColonists(
             const planetRemaining = await getPlanetColonistsRemaining(onPlanetId, col);
             const shipColonists = await getShipColonists(playerId);
             const result = {
+                outcome: 'ok' as const,
                 quantity: toTake,
                 commodity: col,
                 planetColonists: planetRemaining ?? 0,
@@ -580,6 +583,7 @@ export async function serveLeaveColonists(
             const planetRemaining = await getPlanetColonistsRemaining(onPlanetId, col);
             const shipColonistsNow = await getShipColonists(playerId);
             const result = {
+                outcome: 'ok' as const,
                 quantity: actual,
                 commodity: col,
                 planetColonists: planetRemaining ?? 0,
@@ -654,6 +658,7 @@ export async function serveTakeCommodity(
             const shipCommodity = await readShipCommodity(playerId, col);
 
             return {
+                outcome: 'ok',
                 quantity: toTake,
                 commodity: col,
                 planetCommodity: planetRemaining ?? 0,
@@ -722,6 +727,7 @@ export async function serveLeaveCommodity(
             const shipCommodity = await readShipCommodity(playerId, col);
 
             return {
+                outcome: 'ok',
                 quantity: actual,
                 commodity: col,
                 planetCommodity: planetRemaining ?? 0,
@@ -776,13 +782,7 @@ export async function serveChangePopulation(
         async (moved) => {
             const fromCount = (await getPlanetColonistsRemaining(onPlanetId, from)) ?? 0;
             const toCount = (await getPlanetColonistsRemaining(onPlanetId, to)) ?? 0;
-            return {
-                quantity: moved,
-                from,
-                to,
-                fromCount,
-                toCount,
-            };
+            return { outcome: 'ok', quantity: moved, from, to, fromCount, toCount };
         },
     );
 }
@@ -888,7 +888,7 @@ export async function serveClaimPlanet(
                     });
                 }
             }
-            return { planetId: onPlanetId, planetName, ownership };
+            return { outcome: 'ok', planetId: onPlanetId, planetName, ownership };
         },
     );
 }
@@ -899,6 +899,7 @@ export async function serveListPlanets(playerId: number): Promise<CommandResult<
     const rows = await listPlayerPlanets(playerId, player.universeId);
 
     return {
+        outcome: 'ok',
         planets: rows.map((r) => ({
             id: r.id,
             sectorNumber: r.sector_number,

@@ -54,7 +54,7 @@ export function refreshMinimap(ctx: RefreshMinimapCtx): void {
     if (!ctx.minimap.handle) return;
     const vp = ctx.minimap.handle.getViewport();
     ctx.io.sendMsg(
-        command(Commands.GetNeighborhood, {
+        command(Commands.Neighborhood, {
             halfWidthWorld: vp.halfWidthWorld,
             halfHeightWorld: vp.halfHeightWorld,
             centerXWorld: vp.centerXWorld,

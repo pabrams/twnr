@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 
-import { defineCommand } from './define.js';
+import { defineCommand, outcomes } from './define.js';
 
 import { Int, Num, Bool, Str, NumOrNull, IntOrNull, StrOrNull, HardwareMap } from './common.js';
 
@@ -89,54 +89,66 @@ export type TraderListEntry = z.infer<typeof TraderListEntrySchema>;
 
 export const PlayersOnline = defineCommand('playersOnline', {
     request: {},
-    reply: {
-        players: z.array(z.object({ id: Int, name: Str })),
-    },
+    reply: outcomes({
+        ok: {
+            players: z.array(z.object({ id: Int, name: Str })),
+        },
+    }),
 });
 
 export const StarbaseInfo = defineCommand('starbaseInfo', {
     request: {},
-    reply: {
-        sector: IntOrNull,
-        universeName: Str,
-        sectorCount: Int,
-        portCount: Int,
-        createdAt: Str,
-        daysElapsed: Num,
-        outWarpDistribution: z.array(Num),
-        maxPlanetsPerSector: Int,
-        startingCredits: Num,
-        startingTurns: Num,
-        startingDrones: Num,
-        startingHolds: Num,
-        respawnDelaySeconds: Num,
-    },
+    reply: outcomes({
+        ok: {
+            sector: IntOrNull,
+            universeName: Str,
+            sectorCount: Int,
+            portCount: Int,
+            createdAt: Str,
+            daysElapsed: Num,
+            outWarpDistribution: z.array(Num),
+            maxPlanetsPerSector: Int,
+            startingCredits: Num,
+            startingTurns: Num,
+            startingDrones: Num,
+            startingHolds: Num,
+            respawnDelaySeconds: Num,
+        },
+    }),
 });
 
 export const TraderList = defineCommand('traderList', {
     request: {},
-    reply: {
-        traders: z.array(TraderListEntrySchema),
-    },
+    reply: outcomes({
+        ok: {
+            traders: z.array(TraderListEntrySchema),
+        },
+    }),
 });
 
 export const ShipCatalog = defineCommand('shipCatalog', {
     request: {},
-    reply: {
-        ships: z.array(ShipCatalogEntrySchema),
-    },
+    reply: outcomes({
+        ok: {
+            ships: z.array(ShipCatalogEntrySchema),
+        },
+    }),
 });
 
 export const PlanetCatalog = defineCommand('planetCatalog', {
     request: {},
-    reply: {
-        planets: z.array(PlanetCatalogEntrySchema),
-    },
+    reply: outcomes({
+        ok: {
+            planets: z.array(PlanetCatalogEntrySchema),
+        },
+    }),
 });
 
 export const HardwareCatalog = defineCommand('hardwareCatalog', {
     request: {},
-    reply: {
-        items: z.array(HardwareCatalogItemSchema),
-    },
+    reply: outcomes({
+        ok: {
+            items: z.array(HardwareCatalogItemSchema),
+        },
+    }),
 });

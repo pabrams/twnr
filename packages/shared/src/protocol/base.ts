@@ -50,7 +50,9 @@ export const BuildBase = defineCommand('buildBase', {
 
 export const ExitBase = defineCommand('exitBase', {
     request: {},
-    reply: {},
+    reply: outcomes({
+        ok: {},
+    }),
 });
 
 export const TreasuryInfo = defineCommand('treasuryInfo', {

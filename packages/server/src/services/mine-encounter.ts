@@ -1,4 +1,4 @@
-import { ServerTag } from '@twnr/shared';
+import { Events } from '@twnr/shared';
 import { onlinePlayers } from '../state/players.js';
 import { sendEnvelope, broadcastEnvelope } from '../state/messaging.js';
 import { getClanMembers } from '../db/queries/clan.js';
@@ -105,7 +105,7 @@ export async function resolveProximityMines(playerId: number): Promise<Proximity
 
     if (!result) return null;
     sendEnvelope(playerId, {
-        type: ServerTag.ProximityMineHit,
+        type: Events.ProximityMineHit.name,
         sector: player.sector,
         detonations: result.detonations,
         damage: result.damage,
@@ -168,14 +168,14 @@ export async function resolveSeekerMines(playerId: number): Promise<{
 
     if (rollPercent(settings.seeker_victim_notice_pct)) {
         sendEnvelope(playerId, {
-            type: ServerTag.SeekerMineAttached,
+            type: Events.SeekerMineAttached.name,
             sector: player.sector,
             droppedPrevious: outcome.droppedPrevious,
         });
     }
 
     const alert = {
-        type: ServerTag.SeekerMinePickupAlert,
+        type: Events.SeekerMinePickedUp.name,
         sector: player.sector,
         targetShipName: 'unknown',
         targetOwnerName: player.name,

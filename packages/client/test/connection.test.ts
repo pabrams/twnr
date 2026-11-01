@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { ServerTag, Menu } from '@twnr/shared';
+import { Events, Commands, Menu } from '@twnr/shared';
 import type { MenuName } from '@twnr/shared';
 import type { GameContext } from '../src/game/types.js';
 
@@ -80,7 +80,9 @@ function createMockWS() {
     };
 }
 
-function createMockCtx(overrides: { autopilot?: Partial<GameContext['autopilot']> } = {}): GameContext {
+function createMockCtx(
+    overrides: { autopilot?: Partial<GameContext['autopilot']> } = {},
+): GameContext {
     return {
         io: {
             term: {
@@ -165,7 +167,7 @@ describe('connection message handler', () => {
                 autopilot: { path: [1, 10, 20, 30], step: 3 },
             });
             setupConnection(ws as unknown as WebSocket, ctx, () => {});
-            ws.fire('message', envelope('sector', { type: ServerTag.RateLimited }));
+            ws.fire('message', envelope('sector', { type: Events.RateLimited.name }));
             vi.advanceTimersByTime(500);
             expect(ctx.io.sendMsg).toHaveBeenCalled();
 
@@ -180,13 +182,13 @@ describe('connection message handler', () => {
             });
             setupConnection(ws as unknown as WebSocket, ctx, () => {});
 
-            ws.fire('message', envelope('sector', { type: ServerTag.RateLimited }));
+            ws.fire('message', envelope('sector', { type: Events.RateLimited.name }));
             vi.advanceTimersByTime(500);
 
             ws.fire(
                 'message',
                 envelope('sector', {
-                    type: ServerTag.MoveResult,
+                    type: Commands.Move.reply.name,
                     outcome: 'success',
                     sector: 20,
                     warps: [{ sector: 10, visited: true }],
@@ -203,7 +205,5 @@ describe('connection message handler', () => {
 
             vi.useRealTimers();
         });
-
-
     });
 });

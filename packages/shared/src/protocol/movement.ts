@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 
-import { defineCommand, defineEvent, defineReply, outcomes } from './define.js';
+import { defineCommand, defineEvent, outcomes } from './define.js';
 
 import {
     Int,
@@ -102,7 +102,7 @@ export const SeekerMineAttached = defineEvent('seekerMineAttached', {
     droppedPrevious: Bool,
 });
 
-export const SeekerMinePickupAlert = defineEvent('seekerMinePickupAlert', {
+export const SeekerMinePickedUp = defineEvent('seekerMinePickedUp', {
     sector: Int,
     targetShipName: Str,
     targetOwnerName: Str,
@@ -137,29 +137,32 @@ export const Move = defineCommand('move', {
     }),
 });
 
-// Reply tag predates the `${command}Result` convention (see protocol step 4).
-const PreviousSectorResult = defineReply('previousSectorResult', {
-    sector: IntOrNull,
-});
-
 export const MoveToPrevious = defineCommand('moveToPrevious', {
     request: {},
-    reply: PreviousSectorResult,
+    reply: outcomes({
+        ok: {
+            sector: IntOrNull,
+        },
+    }),
 });
 
 export const SectorDisplay = defineCommand('sectorDisplay', {
     request: {},
-    reply: SectorDisplayDataSchema,
+    reply: outcomes({
+        ok: SectorDisplayDataSchema,
+    }),
 });
 
 export const WarpsOut = defineCommand('warpsOut', {
     request: {
         id: SectorNumber,
     },
-    reply: {
-        id: Int,
-        warps: z.array(SectorRefSchema),
-    },
+    reply: outcomes({
+        ok: {
+            id: Int,
+            warps: z.array(SectorRefSchema),
+        },
+    }),
 });
 
 export const ShortestPath = defineCommand('shortestPath', {
@@ -167,11 +170,13 @@ export const ShortestPath = defineCommand('shortestPath', {
         from: SectorNumber,
         to: SectorNumber,
     },
-    reply: {
-        path: z.array(SectorRefSchema),
-        hops: Int,
-        turns: Num,
-    },
+    reply: outcomes({
+        ok: {
+            path: z.array(SectorRefSchema),
+            hops: Int,
+            turns: Num,
+        },
+    }),
 });
 
 export const HyperspaceJump = defineCommand('hyperspaceJump', {
@@ -188,44 +193,49 @@ export const HyperspaceJump = defineCommand('hyperspaceJump', {
     }),
 });
 
-// Reply tag predates the `${command}Result` convention (see protocol step 4).
-const NeighborhoodResult = defineReply('neighborhoodResult', {
-    topology: z.enum(['random', 'proximal']),
-    current_sector_id: Int,
-    sectors: z.array(NeighborhoodSectorSchema),
-    warps: z.array(NeighborhoodWarpSchema),
-});
-
 // Dimensions and center are floats in world units, not sector ints.
-export const GetNeighborhood = defineCommand('getNeighborhood', {
+export const Neighborhood = defineCommand('neighborhood', {
     request: {
         halfWidthWorld: z.number(),
         halfHeightWorld: z.number(),
         centerXWorld: z.number().optional(),
         centerYWorld: z.number().optional(),
     },
-    reply: NeighborhoodResult,
+    reply: outcomes({
+        ok: {
+            topology: z.enum(['random', 'proximal']),
+            current_sector_id: Int,
+            sectors: z.array(NeighborhoodSectorSchema),
+            warps: z.array(NeighborhoodWarpSchema),
+        },
+    }),
 });
 
 export const VisitedSectors = defineCommand('visitedSectors', {
     request: {},
-    reply: {
-        sectors: z.array(Int),
-        totalSectors: Int,
-    },
+    reply: outcomes({
+        ok: {
+            sectors: z.array(Int),
+            totalSectors: Int,
+        },
+    }),
 });
 
 export const DensityScan = defineCommand('densityScan', {
     request: {},
-    reply: {
-        entries: z.array(DensityScanEntrySchema),
-        hasVisualScanner: Bool,
-    },
+    reply: outcomes({
+        ok: {
+            entries: z.array(DensityScanEntrySchema),
+            hasVisualScanner: Bool,
+        },
+    }),
 });
 
 export const VisualScan = defineCommand('visualScan', {
     request: {},
-    reply: {
-        sectors: z.array(SectorDisplayDataSchema),
-    },
+    reply: outcomes({
+        ok: {
+            sectors: z.array(SectorDisplayDataSchema),
+        },
+    }),
 });

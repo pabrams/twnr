@@ -50,6 +50,7 @@ export async function serveShipInfo(playerId: number): Promise<CommandResult<'Sh
 
     const holdsAvailable = row.holds - cargoUsed(row);
     return {
+        outcome: 'ok',
         playerId,
         shipTypeName: row.ship_type_name,
         coloredShipName: row.ship_display_name,
@@ -75,10 +76,10 @@ export async function serveShipInfo(playerId: number): Promise<CommandResult<'Sh
     };
 }
 
-export async function serveGetShipDetail(
+export async function serveShipDetail(
     playerId: number,
-    data: CommandRequest<'GetShipDetail'>,
-): Promise<CommandResult<'GetShipDetail'>> {
+    data: CommandRequest<'ShipDetail'>,
+): Promise<CommandResult<'ShipDetail'>> {
     const { shipId } = data;
     const row = await getOwnedShipDetail(shipId, playerId);
     if (!row) {
@@ -99,6 +100,7 @@ export async function serveGetShipDetail(
     );
 
     return {
+        outcome: 'ok',
         shipId: row.id,
         shipNumber: row.universe_ship_number,
         typeName: row.type_name,
@@ -146,6 +148,7 @@ export async function serveListOwnedShips(
     const viewerClanId = await getPlayerClanId(playerId);
 
     return {
+        outcome: 'ok',
         currentSector: player.sector,
         currentShipId: player.shipId,
         currentShipTypeName: currentShip?.type_name ?? null,
@@ -222,6 +225,7 @@ export async function serveTransportToShip(
 
     const turnsRemaining = (await getPlayerTurns(playerId)) ?? 0;
     return {
+        outcome: 'ok',
         targetShipId: shipId,
         targetSector: row.target_sector_number,
         turnsUsed: turnResult.turnsUsed,
@@ -266,10 +270,7 @@ export async function serveChangeShipOwnership(
         await setShipOwnership(player.shipId, playerId, null);
     }
 
-    return {
-        shipId: player.shipId,
-        ownership,
-    };
+    return { outcome: 'ok', shipId: player.shipId, ownership };
 }
 
 function bfsHops(warps: Record<number, number[]>, from: number, to: number): number | null {

@@ -87,6 +87,7 @@ export async function serveAttackBeacon(playerId: number): Promise<CommandResult
             return { destroyed: true as const, shipDrones: newDrones };
         },
         (result) => ({
+            outcome: 'ok',
             destroyed: result.destroyed,
             shipDrones: result.shipDrones,
         }),

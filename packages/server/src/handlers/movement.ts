@@ -1,4 +1,4 @@
-import { ServerTag } from '@twnr/shared';
+import { Events } from '@twnr/shared';
 import type { CommandRequest } from '@twnr/shared';
 import { onlinePlayers, requireOnlinePlayer } from '../state/players.js';
 import { sendEnvelope, closeDestroyedSession } from '../state/messaging.js';
@@ -129,7 +129,7 @@ export async function serveMove(
         const towerOnline = onlinePlayers[towerId];
         if (towerOnline) {
             sendEnvelope(towerId, {
-                type: ServerTag.TowReleasedAlert,
+                type: Events.TowReleased.name,
                 towedName: player.name,
             });
         }
@@ -167,7 +167,7 @@ export async function serveMove(
             const owner = onlinePlayers[ownerId];
             if (owner && owner.ws.readyState === 1) {
                 sendEnvelope(ownerId, {
-                    type: ServerTag.SectorDronesAlert,
+                    type: Events.SectorDronesReported.name,
                     event: 'intrusion',
                     sector: targetSector,
                     dronesLost: 0,
@@ -212,7 +212,7 @@ export async function serveMoveToPrevious(
     playerId: number,
 ): Promise<CommandResult<'MoveToPrevious'>> {
     const prev = await getPreviousSectorNumber(playerId);
-    return { sector: prev };
+    return { outcome: 'ok', sector: prev };
 }
 
 export async function serveSectorDisplay(
@@ -221,7 +221,7 @@ export async function serveSectorDisplay(
     requireOnlinePlayer(playerId);
 
     const data = await buildSectorDisplayData(playerId);
-    return { ...data };
+    return { outcome: 'ok', ...data };
 }
 
 export async function serveWarpsOut(
@@ -238,7 +238,7 @@ export async function serveWarpsOut(
     }
 
     const warpRefs = await getWarpRefs(playerId, id, universeId);
-    return { id, warps: warpRefs };
+    return { outcome: 'ok', id, warps: warpRefs };
 }
 
 export async function serveShortestPath(
@@ -255,11 +255,7 @@ export async function serveShortestPath(
     }
 
     if (from === to) {
-        return {
-            path: [{ sector: from, visited: true }],
-            hops: 0,
-            turns: 0,
-        };
+        return { outcome: 'ok', path: [{ sector: from, visited: true }], hops: 0, turns: 0 };
     }
 
     const turnsPerWarp = await getShipTurnsPerWarp(playerId);
@@ -278,6 +274,7 @@ export async function serveShortestPath(
                 const visitedSet = await findVisitedSectorsInSet(playerId, universeId, finalPath);
                 const hops = finalPath.length - 1;
                 return {
+                    outcome: 'ok',
                     path: finalPath.map((s) => ({ sector: s, visited: visitedSet.has(s) })),
                     hops,
                     turns: hops * turnsPerWarp,

@@ -24,7 +24,7 @@ function currentShipTradeInCredit(ctx: GameContext, ships: ShipCatalogEntry[]): 
     return ship?.baseCost ?? 0;
 }
 
-registerRoutine('buy_ship', async (ctx) => {
+registerRoutine('buyShip', async (ctx) => {
     echoCommand(ctx, 'shipyardsBuy');
     const ships = await loadShipCatalog(ctx);
     if (!ships || ships.length === 0) return;
@@ -70,7 +70,7 @@ registerRoutine('buy_ship', async (ctx) => {
     }
 });
 
-registerRoutine('examine_ships', async (ctx) => {
+registerRoutine('examineShips', async (ctx) => {
     echoCommand(ctx, 'shipyardsExamine');
     const ships = await loadShipCatalog(ctx);
     if (!ships || ships.length === 0) return;
@@ -93,7 +93,7 @@ registerRoutine('examine_ships', async (ctx) => {
     }
 });
 
-registerRoutine('shipyards_equipment', (ctx) => {
+registerRoutine('shipyardsEquipment', (ctx) => {
     echoCommand(ctx, 'shipyardsEquipment');
     ctx.world.mode = Menu.ShipyardsClass0;
 });
@@ -113,11 +113,11 @@ async function chooseClass0(
     else ctx.io.sendMsg(command(Commands.BuyHolds, { quantity: qty }));
 }
 
-registerRoutine('choose_holds', (ctx) => chooseClass0(ctx, 'holds', 'buyHolds'));
-registerRoutine('choose_drones', (ctx) => chooseClass0(ctx, 'drones', 'buyDrones'));
-registerRoutine('choose_shields', (ctx) => chooseClass0(ctx, 'shields', 'buyShields'));
+registerRoutine('chooseHolds', (ctx) => chooseClass0(ctx, 'holds', 'buyHolds'));
+registerRoutine('chooseDrones', (ctx) => chooseClass0(ctx, 'drones', 'buyDrones'));
+registerRoutine('chooseShields', (ctx) => chooseClass0(ctx, 'shields', 'buyShields'));
 
-registerRoutine('leave_port', (ctx) => {
+registerRoutine('leavePort', (ctx) => {
     echoCommand(ctx, 'undock');
     ctx.io.sendMsg(command(Commands.Undock, {}));
 });

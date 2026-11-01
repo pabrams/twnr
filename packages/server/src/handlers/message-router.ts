@@ -45,15 +45,15 @@ import {
     serveListOwnedShips,
     serveTransportToShip,
     serveChangeShipOwnership,
-    serveGetShipDetail,
+    serveShipDetail,
 } from './ship-info.js';
 import { serveStarbaseInfo } from './starbase-info.js';
 import { serveBuyDrones, serveBuyShields, serveBuyHolds } from './ship-upgrades.js';
 import { serveBuyShipTradein, serveBuyShipNew } from './ship-exchange.js';
 import { serveJettison } from './ship-cargo.js';
-import { serveGetAttackTargets, serveAttackShip } from './combat.js';
+import { serveAttackTargets, serveAttackShip } from './combat.js';
 import {
-    serveGetSectorPlanets,
+    serveSectorPlanets,
     serveLandOnPlanet,
     servePlanetDisplay,
     serveLeavePlanet,
@@ -78,7 +78,7 @@ import {
 } from './sector-drones.js';
 import { serveHyperspaceJump } from './hyperwarp.js';
 import { serveBuyHardware, serveHardwareStoreInfo } from './hardware-store.js';
-import { serveGetNeighborhood } from './neighborhood.js';
+import { serveNeighborhood } from './neighborhood.js';
 import {
     serveDeployMine,
     serveDeployMineInfo,
@@ -119,7 +119,7 @@ const handlers: HandlerMap = {
     BuyShields: serveBuyShields,
     BuyHolds: serveBuyHolds,
     BuyShipTradein: serveBuyShipTradein,
-    GetAttackTargets: serveGetAttackTargets,
+    AttackTargets: serveAttackTargets,
     StarbaseInfo: serveStarbaseInfo,
     TerraformInfo: serveTerraformInfo,
     HardwareStoreInfo: serveHardwareStoreInfo,
@@ -127,7 +127,7 @@ const handlers: HandlerMap = {
     Dock: serveDock,
     Undock: serveUndock,
     Jettison: serveJettison,
-    GetSectorPlanets: serveGetSectorPlanets,
+    SectorPlanets: serveSectorPlanets,
     LandOnPlanet: serveLandOnPlanet,
     PlanetDisplay: servePlanetDisplay,
     LeavePlanet: serveLeavePlanet,
@@ -144,7 +144,7 @@ const handlers: HandlerMap = {
     ChangePopulation: serveChangePopulation,
     ListPlanets: serveListPlanets,
     ListOwnedShips: serveListOwnedShips,
-    GetShipDetail: serveGetShipDetail,
+    ShipDetail: serveShipDetail,
     TransportToShip: serveTransportToShip,
     ClanCreate: serveClanCreate,
     ClanJoin: serveClanJoin,
@@ -171,7 +171,7 @@ const handlers: HandlerMap = {
     ListDeployedMines: serveListDeployedMines,
     TrackSeekerMines: serveTrackSeekerMines,
     MineDisruptor: serveMineDisruptor,
-    GetNeighborhood: serveGetNeighborhood,
+    Neighborhood: serveNeighborhood,
     ReleaseBeacon: serveReleaseBeacon,
     AttackBeacon: serveAttackBeacon,
     DensityScan: serveDensityScan,
@@ -222,6 +222,6 @@ export async function routeMessage(playerId: number, data: ClientEnvelope): Prom
         throw err;
     }
     if (reply === null) return 'ok';
-    sendEnvelope(playerId, { type: reply.name, outcome: 'ok', ...result } as never);
-    return (result as { outcome?: string }).outcome ?? 'ok';
+    sendEnvelope(playerId, { type: reply.name, ...result } as never);
+    return (result as { outcome: string }).outcome;
 }

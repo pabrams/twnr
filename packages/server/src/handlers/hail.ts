@@ -1,4 +1,4 @@
-import { ServerTag } from '@twnr/shared';
+import { Events } from '@twnr/shared';
 import type { CommandRequest } from '@twnr/shared';
 import { onlinePlayers, requireOnlinePlayer } from '../state/players.js';
 import { sendEnvelope } from '../state/messaging.js';
@@ -46,7 +46,7 @@ export async function serveHailSend(
     const recipient = onlinePlayers[data.recipientPlayerId];
     if (recipient) {
         sendEnvelope(data.recipientPlayerId, {
-            type: ServerTag.HailIncoming,
+            type: Events.HailReceived.name,
             senderName: sender.name,
             body,
         });

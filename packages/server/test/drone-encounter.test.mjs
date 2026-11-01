@@ -2,7 +2,7 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createTestUser, createTestPlayer, connectWS, closeWS, wsRequest } from './helpers.mjs';
 import { ensureServer, createPool } from './global-setup.mjs';
-import { ClientTag, ServerTag } from '@twnr/shared';
+import { Commands, Events } from '@twnr/shared';
 
 const UNIVERSE_ID = 1;
 
@@ -42,7 +42,7 @@ async function clearDrones(sectorNumber) {
 
 /** A warp out of sector 1 that currently has no drones, so tests can stage their own. */
 async function emptyNeighbourOf(ws) {
-  const warps = await wsRequest(ws, { type: ClientTag.WarpsOut, id: 1 }, ServerTag.WarpsOutResult);
+  const warps = await wsRequest(ws, { type: Commands.WarpsOut.name, id: 1 }, Commands.WarpsOut.reply.name);
   for (const w of warps.warps) {
     const drones = await pool.query('SELECT 1 FROM sector_drones WHERE sector_id = $1', [await sectorDbId(w.sector)]);
     if (drones.rows.length === 0) return w.sector;
@@ -59,10 +59,10 @@ describe('Drone encounters', () => {
     await ready;
     try {
       await placeDrones(sector, { playerId: enemy.id }, 5);
-      const shipInfo = await wsRequest(ws, { type: ClientTag.ShipInfo }, ServerTag.ShipInfoResult);
-      assert.equal(shipInfo.type, ServerTag.ShipInfoResult, 'player who was already here must not be stuck');
-      const warps = await wsRequest(ws, { type: ClientTag.WarpsOut, id: sector }, ServerTag.WarpsOutResult);
-      const moved = await wsRequest(ws, { type: ClientTag.Move, sector: warps.warps[0].sector }, ServerTag.MoveResult);
+      const shipInfo = await wsRequest(ws, { type: Commands.ShipInfo.name }, Commands.ShipInfo.reply.name);
+      assert.equal(shipInfo.type, Commands.ShipInfo.reply.name, 'player who was already here must not be stuck');
+      const warps = await wsRequest(ws, { type: Commands.WarpsOut.name, id: sector }, Commands.WarpsOut.reply.name);
+      const moved = await wsRequest(ws, { type: Commands.Move.name, sector: warps.warps[0].sector }, Commands.Move.reply.name);
       assert.notEqual(moved.outcome, 'refused');
     } finally {
       await clearDrones(sector);
@@ -80,17 +80,17 @@ describe('Drone encounters', () => {
       target = await emptyNeighbourOf(ws);
       await placeDrones(target, { playerId: enemy.id }, 3);
 
-      const moved = await wsRequest(ws, { type: ClientTag.Move, sector: target }, ServerTag.MoveResult);
+      const moved = await wsRequest(ws, { type: Commands.Move.name, sector: target }, Commands.Move.reply.name);
       assert.equal(moved.outcome, 'encounter');
 
-      const blocked = await wsRequest(ws, { type: ClientTag.DeployDronesInfo }, ServerTag.DeployDronesInfoResult);
+      const blocked = await wsRequest(ws, { type: Commands.DeployDronesInfo.name }, Commands.DeployDronesInfo.reply.name);
       assert.equal(blocked.outcome, 'refused');
       assert.equal(blocked.reason, 'inEncounter');
 
-      const fought = await wsRequest(ws, { type: ClientTag.AttackSectorDrones, drones: 5 }, ServerTag.AttackSectorDronesResult);
+      const fought = await wsRequest(ws, { type: Commands.AttackSectorDrones.name, drones: 5 }, Commands.AttackSectorDrones.reply.name);
       assert.equal(fought.victory, true);
 
-      const freed = await wsRequest(ws, { type: ClientTag.DeployDronesInfo }, ServerTag.DeployDronesInfoResult);
+      const freed = await wsRequest(ws, { type: Commands.DeployDronesInfo.name }, Commands.DeployDronesInfo.reply.name);
       assert.equal(freed.outcome, 'ok');
     } finally {
       if (target) await clearDrones(target);
@@ -114,7 +114,7 @@ describe('Drone encounters', () => {
     try {
       target = await emptyNeighbourOf(ws);
       await placeDrones(target, { clanId: clan.rows[0].id }, 3);
-      const moved = await wsRequest(ws, { type: ClientTag.Move, sector: target }, ServerTag.MoveResult);
+      const moved = await wsRequest(ws, { type: Commands.Move.name, sector: target }, Commands.Move.reply.name);
       assert.equal(moved.outcome, 'success');
     } finally {
       if (target) await clearDrones(target);
@@ -131,15 +131,15 @@ describe('Drone encounters', () => {
     try {
       target = await emptyNeighbourOf(ws);
       await placeDrones(target, { playerId: enemy.id }, 3);
-      const moved = await wsRequest(ws, { type: ClientTag.Move, sector: target }, ServerTag.MoveResult);
+      const moved = await wsRequest(ws, { type: Commands.Move.name, sector: target }, Commands.Move.reply.name);
       assert.equal(moved.outcome, 'encounter');
 
       await clearDrones(target);
-      const fought = await wsRequest(ws, { type: ClientTag.AttackSectorDrones, drones: 1 }, ServerTag.AttackSectorDronesResult);
+      const fought = await wsRequest(ws, { type: Commands.AttackSectorDrones.name, drones: 1 }, Commands.AttackSectorDrones.reply.name);
       assert.equal(fought.victory, true);
       assert.equal(fought.dronesLost, 0);
 
-      const freed = await wsRequest(ws, { type: ClientTag.DeployDronesInfo }, ServerTag.DeployDronesInfoResult);
+      const freed = await wsRequest(ws, { type: Commands.DeployDronesInfo.name }, Commands.DeployDronesInfo.reply.name);
       assert.equal(freed.outcome, 'ok');
     } finally {
       if (target) await clearDrones(target);

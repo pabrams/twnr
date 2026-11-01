@@ -57,7 +57,7 @@ const handlers: HandlerMap = {
     [Events.SectorActivity.name]: lifecycle.sectorActivity,
     [Events.RateLimited.name]: lifecycle.rateLimited,
     [Commands.PlayersOnline.reply.name]: lifecycle.playersOnline,
-    [Commands.GetNeighborhood.reply.name]: lifecycle.neighborhood,
+    [Commands.Neighborhood.reply.name]: lifecycle.neighborhood,
     [Commands.StarbaseInfo.reply.name]: lifecycle.starbaseInfo,
     [Events.ProtocolError.name]: lifecycle.protocolError,
 
@@ -80,11 +80,11 @@ const handlers: HandlerMap = {
     [Commands.ListDeployedDrones.reply.name]: drones.listDeployedDrones,
 
     [Commands.AttackShip.reply.name]: combat.attackShip,
-    [Commands.GetAttackTargets.reply.name]: combat.getAttackTargets,
+    [Commands.AttackTargets.reply.name]: combat.getAttackTargets,
     [Commands.DeployDrones.reply.name]: combat.deployDrones,
     [Commands.AttackSectorDrones.reply.name]: combat.attackSectorDrones,
     [Commands.RetreatFromDrones.reply.name]: combat.retreatFromDrones,
-    [Events.SectorDronesAlert.name]: combat.sectorDronesAlert,
+    [Events.SectorDronesReported.name]: combat.sectorDronesReported,
 
     [Commands.TakeColonists.reply.name]: planet.takeColonists,
     [Commands.LeaveColonists.reply.name]: planet.leaveColonists,
@@ -94,7 +94,7 @@ const handlers: HandlerMap = {
     [Commands.LandOnPlanet.reply.name]: planet.landOnPlanet,
     [Commands.PlanetDisplay.reply.name]: planet.planetDisplay,
     [Commands.DestroyPlanet.reply.name]: planet.destroyPlanet,
-    [Events.PlanetDestroyedAlert.name]: planet.planetDestroyedAlert,
+    [Events.PlanetDestroyed.name]: planet.planetDestroyed,
     [Commands.LeavePlanet.reply.name]: planet.leavePlanet,
     [Commands.ListPlanets.reply.name]: planet.listPlanets,
 
@@ -108,19 +108,19 @@ const handlers: HandlerMap = {
     [Commands.MineDisruptor.reply.name]: mines.mineDisruptor,
     [Events.ProximityMineHit.name]: mines.proximityMineHit,
     [Events.SeekerMineAttached.name]: mines.seekerMineAttached,
-    [Events.SeekerMinePickupAlert.name]: mines.seekerMinePickupAlert,
+    [Events.SeekerMinePickedUp.name]: mines.seekerMinePickedUp,
 
-    [Events.MemoDelivery.name]: mail.memoDelivery,
-    [Events.ClanMemoNotification.name]: mail.clanMemoNotification,
-    [Events.HailIncoming.name]: mail.hailIncoming,
+    [Events.MailReceived.name]: mail.mailReceived,
+    [Events.ClanMemoReceived.name]: mail.clanMemoReceived,
+    [Events.HailReceived.name]: mail.hailReceived,
     [Events.Notice.name]: mail.notice,
     [Events.ClanMembershipChanged.name]: clan.clanMembershipChanged,
 
     [Commands.DensityScan.reply.name]: longRangeScan.densityScan,
     [Commands.VisualScan.reply.name]: longRangeScan.visualScan,
 
-    [Events.TowReleasedAlert.name]: tow.towReleasedAlert,
-    [Events.TowAttachedAlert.name]: tow.towAttachedAlert,
+    [Events.TowReleased.name]: tow.towReleased,
+    [Events.TowAttached.name]: tow.towAttached,
 
     [Events.StatsSnapshot.name]: (ctx, msg) => {
         ctx.ship.shipDrones = msg.ship.drones;

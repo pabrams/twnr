@@ -8,7 +8,7 @@ import { WebSocket, WebSocketServer } from 'ws';
 import { connectDB } from './db/index.js';
 import { createRoutes } from './routes/index.js';
 import * as auth from './auth/index.js';
-import { ServerTag, ClientEnvelopeSchema, devServerPort } from '@twnr/shared';
+import { ClientEnvelopeSchema, devServerPort, Events } from '@twnr/shared';
 import { worktreeRoot } from './db/pool.js';
 import type { AuthTokenPayload, ClientEnvelope, ServerEnvelope } from '@twnr/shared';
 import { shipConfigs } from './ship-config.js';
@@ -212,7 +212,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
 
         const welcomeLocation = onPlanetId !== null ? 'planet' : 'sector';
         const welcomeMsg: ServerEnvelope = {
-            type: ServerTag.Welcome,
+            type: Events.Welcome.name,
             playerId,
             name: playerRow.name,
             sector,
@@ -247,7 +247,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             );
             lastRefill = now;
             if (tokens < 1) {
-                sendEnvelope(playerId, { type: ServerTag.RateLimited });
+                sendEnvelope(playerId, { type: Events.RateLimited.name });
                 return;
             }
             tokens--;
@@ -326,7 +326,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
                         clientsToNotify.add(p.ws);
                     }
                 }
-                broadcastTo({ type: ServerTag.PlayerLeft, playerId }, clientsToNotify);
+                broadcastTo({ type: Events.PlayerLeft.name, playerId }, clientsToNotify);
             }
         });
     } catch (error) {

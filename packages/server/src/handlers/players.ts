@@ -7,7 +7,7 @@ export function servePlayersOnline(playerId: number): CommandResult<'PlayersOnli
     const online = Object.entries(onlinePlayers)
         .filter(([, p]) => p.universeId === callerUniverse)
         .map(([id, p]) => ({ id: Number(id), name: p.name }));
-    return { players: online };
+    return { outcome: 'ok', players: online };
 }
 
 export async function serveTraderList(playerId: number): Promise<CommandResult<'TraderList'>> {
@@ -15,6 +15,7 @@ export async function serveTraderList(playerId: number): Promise<CommandResult<'
 
     const rows = await listPlayersInUniverse(player.universeId);
     return {
+        outcome: 'ok',
         traders: rows.map((r) => ({
             name: r.name,
             shipTypeName: r.ship_type_name,

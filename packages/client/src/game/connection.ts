@@ -3,17 +3,17 @@ import { Commands, Events, ServerEnvelopeSchema } from '@twnr/shared';
 import type { GameContext } from './types.js';
 
 import { render } from './renderer.js';
-import { NOTIFY, REFUSAL } from './messages/index.js';
+import { NOTIFY, REFUSAL, labelRefusalDetail } from './messages/index.js';
 import { getMenuHandler } from './routines/index.js';
 import { dispatch, dispatchRefusal } from './handlers/index.js';
 import { drainInputQueue } from './input.js';
 
 /** Panel-only refreshes plus interim mid-move events whose concluding result (MoveResult) is the paint point. */
 const PROMPT_SUPPRESSING = new Set<string>([
-    Commands.GetNeighborhood.reply.name,
+    Commands.Neighborhood.reply.name,
     Events.ProximityMineHit.name,
     Events.SeekerMineAttached.name,
-    Events.SeekerMinePickupAlert.name,
+    Events.SeekerMinePickedUp.name,
     Events.StatsSnapshot.name,
 ]);
 
@@ -23,7 +23,7 @@ function isRefusal(msg: ServerEnvelope): msg is ServerEnvelope & Refusal {
 
 /** Every refusal is worded here, from the reason and the server's detail values. */
 function renderRefusal(ctx: GameContext, msg: ServerEnvelope & Refusal): void {
-    ctx.io.term.writeln(render(REFUSAL[msg.reason], msg.detail ?? {}));
+    ctx.io.term.writeln(render(REFUSAL[msg.reason], labelRefusalDetail(msg.detail ?? {})));
     dispatchRefusal(ctx, msg);
 }
 

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
-import { ClientTag, ServerTag, HOLD_COST_INCREMENT } from '@twnr/shared';
+import { Commands, Events, HOLD_COST_INCREMENT } from '@twnr/shared';
 import { createTestUser, createTestPlayer, connectWS, closeWS, wsRequest } from './helpers.mjs';
 import { ensureServer, createPool } from './global-setup.mjs';
 
@@ -48,8 +48,8 @@ describe('ShipCatalog', () => {
     const p = await createPlayer('catalog_ships');
     const { ws } = await connectPlayer(p.token);
     try {
-      const res = await wsRequest(ws, { type: ClientTag.ShipCatalog }, ServerTag.ShipCatalogResult);
-      assert.equal(res.type, ServerTag.ShipCatalogResult);
+      const res = await wsRequest(ws, { type: Commands.ShipCatalog.name }, Commands.ShipCatalog.reply.name);
+      assert.equal(res.type, Commands.ShipCatalog.reply.name);
 
       const dbCount = await pool.query(
         'SELECT COUNT(*)::int AS n FROM universe_ship_types WHERE universe_id = $1',
@@ -79,12 +79,12 @@ describe('ShipCatalog', () => {
     const p = await createPlayer('catalog_ships_buy');
     const { ws } = await connectPlayer(p.token);
     try {
-      const res = await wsRequest(ws, { type: ClientTag.ShipCatalog }, ServerTag.ShipCatalogResult);
+      const res = await wsRequest(ws, { type: Commands.ShipCatalog.name }, Commands.ShipCatalog.reply.name);
       const target = res.ships.find((s) => s.name !== STARTER_SLUG && s.baseCost > 0);
       const buy = await wsRequest(
         ws,
-        { type: ClientTag.BuyShipNew, targetShipName: target.name, name: 'Test Ship' },
-        ServerTag.BuyShipNewResult,
+        { type: Commands.BuyShipNew.name, targetShipName: target.name, name: 'Test Ship' },
+        Commands.BuyShipNew.reply.name,
       );
       assert.equal(buy.outcome, 'refused');
       assert.equal(buy.reason, 'notAtStarbase');
@@ -101,10 +101,10 @@ describe('PlanetCatalog', () => {
     try {
       const res = await wsRequest(
         ws,
-        { type: ClientTag.PlanetCatalog },
-        ServerTag.PlanetCatalogResult,
+        { type: Commands.PlanetCatalog.name },
+        Commands.PlanetCatalog.reply.name,
       );
-      assert.equal(res.type, ServerTag.PlanetCatalogResult);
+      assert.equal(res.type, Commands.PlanetCatalog.reply.name);
 
       const stockFiles = readdirSync(join(STOCK_DIR, 'planets')).filter((f) => f.endsWith('.json'));
       assert.equal(res.planets.length, stockFiles.length);
@@ -131,10 +131,10 @@ describe('HardwareCatalog', () => {
     try {
       const res = await wsRequest(
         ws,
-        { type: ClientTag.HardwareCatalog },
-        ServerTag.HardwareCatalogResult,
+        { type: Commands.HardwareCatalog.name },
+        Commands.HardwareCatalog.reply.name,
       );
-      assert.equal(res.type, ServerTag.HardwareCatalogResult);
+      assert.equal(res.type, Commands.HardwareCatalog.reply.name);
 
       const db = await pool.query('SELECT name, label, kind FROM hardware_item ORDER BY id');
       assert.deepEqual(res.items, db.rows);
@@ -153,8 +153,8 @@ describe('TraderList', () => {
     await createPlayer('trader_offline');
     const { ws } = await connectPlayer(online.token);
     try {
-      const res = await wsRequest(ws, { type: ClientTag.TraderList }, ServerTag.TraderListResult);
-      assert.equal(res.type, ServerTag.TraderListResult);
+      const res = await wsRequest(ws, { type: Commands.TraderList.name }, Commands.TraderList.reply.name);
+      assert.equal(res.type, Commands.TraderList.reply.name);
 
       const names = res.traders.map((t) => t.name);
       assert.ok(names.includes('trader_online'));
@@ -191,10 +191,10 @@ describe('Class-0 price list', () => {
     try {
       const res = await wsRequest(
         ws,
-        { type: ClientTag.DockStarbase },
-        ServerTag.DockStarbaseResult,
+        { type: Commands.DockStarbase.name },
+        Commands.DockStarbase.reply.name,
       );
-      assert.equal(res.type, ServerTag.DockStarbaseResult);
+      assert.equal(res.type, Commands.DockStarbase.reply.name);
 
       const cfg = loadStockJson('class0-prices.json');
       assert.equal(res.class0Prices.dronePrice, cfg.dronePrice);
@@ -217,8 +217,8 @@ describe('Class-0 price list', () => {
     const p = await createPlayer('class0_port', c0.rows[0].sector_number);
     const { ws } = await connectPlayer(p.token);
     try {
-      const res = await wsRequest(ws, { type: ClientTag.Dock }, ServerTag.DockResult);
-      assert.equal(res.type, ServerTag.DockResult);
+      const res = await wsRequest(ws, { type: Commands.Dock.name }, Commands.Dock.reply.name);
+      assert.equal(res.type, Commands.Dock.reply.name);
       assert.equal(res.port.class, 0);
       assert.ok(res.class0Prices, 'class-0 dock includes price list');
       assert.equal(typeof res.class0Prices.holdBaseCost, 'number');

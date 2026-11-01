@@ -1,6 +1,6 @@
 import type { WebSocket } from 'ws';
 import type { ServerEnvelope } from '@twnr/shared';
-import { ServerTag } from '@twnr/shared';
+import { Events } from '@twnr/shared';
 import { onlinePlayers } from './players.js';
 
 function frame(body: ServerEnvelope): string {
@@ -21,7 +21,7 @@ export function sendProtocolError(
 ): void {
     const player = onlinePlayers[playerId];
     if (!player || player.ws.readyState !== 1) return;
-    player.ws.send(frame({ type: ServerTag.ProtocolError, reason, message }));
+    player.ws.send(frame({ type: Events.ProtocolError.name, reason, message }));
 }
 
 /** Deferred a tick so a reply the current handler returns still reaches the player before the socket closes. */

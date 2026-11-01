@@ -61,6 +61,7 @@ export async function serveBuyDrones(
             return { credits: data.credits - cost, drones: data.drones + qty };
         },
         (result) => ({
+            outcome: 'ok',
             credits: result.credits,
             drones: result.drones,
         }),
@@ -101,6 +102,7 @@ export async function serveBuyShields(
             return { credits: data.credits - cost, shields: data.shields + qty };
         },
         (result) => ({
+            outcome: 'ok',
             credits: result.credits,
             shields: result.shields,
         }),
@@ -155,6 +157,7 @@ export async function serveBuyHolds(
                 notifyTurnChange(playerId, result.turnsUsed, 'buying cargo holds');
             }
             return {
+                outcome: 'ok',
                 credits: result.credits,
                 cargoLimit: result.cargoLimit,
                 turnsUsed: result.turnsUsed,

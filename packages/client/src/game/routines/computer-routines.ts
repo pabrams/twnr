@@ -21,7 +21,7 @@ import { request } from './io.js';
 import { loadPlanetCatalog, loadShipCatalog } from './catalogs.js';
 import { showGalacticNews } from './news.js';
 
-registerRoutine('known_universe', async (ctx) => {
+registerRoutine('knownUniverse', async (ctx) => {
     while (true) {
         const ch = await askChar(ctx, render(COMPUTER.knownUniversePrompt), ['e', 'u']);
         if (ch === null) return;
@@ -32,14 +32,14 @@ registerRoutine('known_universe', async (ctx) => {
     }
 });
 
-registerRoutine('trader_list', async (ctx) => {
+registerRoutine('traderList', async (ctx) => {
     ctx.io.term.writeln(render(COMPUTER.traderListLoading));
     const reply = await request(ctx, Commands.TraderList, {});
     if (!reply) return;
     showTraderList(ctx, reply.traders);
 });
 
-registerRoutine('ship_catalog', async (ctx) => {
+registerRoutine('shipCatalog', async (ctx) => {
     const ships = await loadShipCatalog(ctx);
     if (!ships || ships.length === 0) return;
     showShipCatalog(ctx, ships);
@@ -61,7 +61,7 @@ registerRoutine('ship_catalog', async (ctx) => {
     }
 });
 
-registerRoutine('planet_specs', async (ctx) => {
+registerRoutine('planetSpecs', async (ctx) => {
     const planets = await loadPlanetCatalog(ctx);
     if (!planets || planets.length === 0) return;
     showPlanetSpecs(ctx, planets);
@@ -83,13 +83,13 @@ registerRoutine('planet_specs', async (ctx) => {
     }
 });
 
-registerRoutine('current_ship_specs', async (ctx) => {
+registerRoutine('currentShipSpecs', async (ctx) => {
     const ships = await loadShipCatalog(ctx);
     if (!ships) return;
     showCurrentShipSpecs(ctx, ships);
 });
 
-registerRoutine('hyperspace_jump', async (ctx) => {
+registerRoutine('hyperspaceJump', async (ctx) => {
     const sector = await askNumber(ctx, 'Hyperspace jump target sector? (Q to cancel) ', {
         min: 1,
     });
@@ -98,16 +98,16 @@ registerRoutine('hyperspace_jump', async (ctx) => {
     ctx.io.sendMsg(command(Commands.HyperspaceJump, { targetSector: sector }));
 });
 
-registerRoutine('list_planets', (ctx) => {
+registerRoutine('listPlanets', (ctx) => {
     echoCommand(ctx, 'listPlanets');
     ctx.io.sendMsg(command(Commands.ListPlanets, {}));
 });
 
-registerRoutine('track_seeker_mines', (ctx) => {
+registerRoutine('trackSeekerMines', (ctx) => {
     ctx.io.sendMsg(command(Commands.TrackSeekerMines, {}));
 });
 
-registerRoutine('list_deployed_mines', async (ctx) => {
+registerRoutine('listDeployedMines', async (ctx) => {
     ctx.io.term.writeln('');
     ctx.io.term.writeln(render(COMPUTER.mineScanBanner));
     ctx.io.term.writeln('');
@@ -120,14 +120,14 @@ registerRoutine('list_deployed_mines', async (ctx) => {
     ctx.io.sendMsg(command(Commands.ListDeployedMines, {}));
 });
 
-registerRoutine('active_ship_scan', async (ctx) => {
+registerRoutine('activeShipScan', async (ctx) => {
     echoCommand(ctx, 'activeShipScan');
     const response = await request(ctx, Commands.ListOwnedShips, {});
     if (!response) return;
     renderActiveShipScan(ctx, response);
 });
 
-registerRoutine('change_ship_ownership', async (ctx) => {
+registerRoutine('changeShipOwnership', async (ctx) => {
     echoCommand(ctx, 'changeShipOwnership');
     const ch = await askChar(ctx, render(COMPUTER.ownershipPrompt), ['p', 'c']);
     if (ch === null) return;
@@ -143,7 +143,7 @@ registerRoutine('change_ship_ownership', async (ctx) => {
     );
 });
 
-registerRoutine('read_mail', async (ctx) => {
+registerRoutine('readMail', async (ctx) => {
     echoCommand(ctx, 'readMail');
     const reply = await request(ctx, Commands.ReadMail, {});
     if (!reply) return;
@@ -156,7 +156,7 @@ registerRoutine('read_mail', async (ctx) => {
     if (del) ctx.io.sendMsg(command(Commands.DeleteAllMail, {}));
 });
 
-registerRoutine('galactic_news', async (ctx) => {
+registerRoutine('galacticNews', async (ctx) => {
     echoCommand(ctx, 'galacticNews');
     const range = await request(ctx, Commands.GalacticNewsRange, {});
     if (!range) return;

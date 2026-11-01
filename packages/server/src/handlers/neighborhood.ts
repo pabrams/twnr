@@ -20,10 +20,10 @@ function clampHalfExtent(raw: number): number {
     return raw;
 }
 
-export async function serveGetNeighborhood(
+export async function serveNeighborhood(
     playerId: number,
-    data: CommandRequest<'GetNeighborhood'>,
-): Promise<CommandResult<'GetNeighborhood'>> {
+    data: CommandRequest<'Neighborhood'>,
+): Promise<CommandResult<'Neighborhood'>> {
     const { halfWidthWorld, halfHeightWorld, centerXWorld, centerYWorld } = data;
     const player = requireOnlinePlayer(playerId);
     const universeId = player.universeId;
@@ -37,6 +37,7 @@ export async function serveGetNeighborhood(
     // Random-topology universes have NULL positions — no map to render.
     if (topology === 'random') {
         return {
+            outcome: 'ok',
             topology: 'random',
             current_sector_id: currentSectorId,
             sectors: [],
@@ -65,6 +66,7 @@ export async function serveGetNeighborhood(
         cy = currentMeta.y;
     } else {
         return {
+            outcome: 'ok',
             topology: 'proximal',
             current_sector_id: currentSectorId,
             sectors: [],
@@ -198,6 +200,7 @@ export async function serveGetNeighborhood(
     }
 
     return {
+        outcome: 'ok',
         topology: 'proximal',
         current_sector_id: currentSectorId,
         sectors,

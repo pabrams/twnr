@@ -51,11 +51,7 @@ export async function serveHyperspaceJump(
     const currentSector = player.sector;
 
     if (currentSector === targetSector) {
-        return {
-            targetSector,
-            fuelUsed: 0,
-            turnsUsed: 0,
-        };
+        return { outcome: 'ok', targetSector, fuelUsed: 0, turnsUsed: 0 };
     }
 
     const queue: { sector: number; hops: number }[] = [{ sector: currentSector, hops: 0 }];

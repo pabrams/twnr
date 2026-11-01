@@ -1,4 +1,4 @@
-import { ServerTag } from '@twnr/shared';
+import { Events } from '@twnr/shared';
 import type { TowableMannedEntry, TowableUnmannedEntry, CommandRequest } from '@twnr/shared';
 import { onlinePlayers, requireOnlinePlayer } from '../state/players.js';
 import { sendEnvelope } from '../state/messaging.js';
@@ -146,7 +146,7 @@ export async function serveTowAttach(
         (result) => {
             if (result.pilotPlayerId !== null && onlinePlayers[result.pilotPlayerId]) {
                 sendEnvelope(result.pilotPlayerId, {
-                    type: ServerTag.TowAttachedAlert,
+                    type: Events.TowAttached.name,
                     towingName: player.name,
                 });
             }

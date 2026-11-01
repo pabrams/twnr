@@ -31,6 +31,7 @@ export async function serveStarbaseInfo(playerId: number): Promise<CommandResult
     const respawnDelaySeconds = stats?.respawn_delay_seconds ?? universeConfig.respawnDelaySeconds;
 
     return {
+        outcome: 'ok',
         sector,
         universeName: stats?.name ?? '',
         sectorCount: stats?.sector_count ?? 0,

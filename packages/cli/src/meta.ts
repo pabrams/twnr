@@ -2,10 +2,12 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { z } from 'zod';
-import { ClientTag } from '@twnr/shared';
+import { Commands } from '@twnr/shared';
 
 export function listCommands(): string[] {
-    return Object.values(ClientTag).sort();
+    return Object.values(Commands)
+        .map((def) => def.name)
+        .sort();
 }
 const VariantSchema = z
     .object({

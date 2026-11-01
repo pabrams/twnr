@@ -5,7 +5,7 @@ import type { EventHandler } from './index.js';
 
 type ClanContext = Pick<GameContext, 'io'>;
 
-export const memoDelivery: EventHandler<'MemoDelivery', ClanContext> = (ctx, msg) => {
+export const memoDelivery: EventHandler<'MailReceived', ClanContext> = (ctx, msg) => {
     if (msg.memos.length === 0) return;
     ctx.io.term.writeln(render(CLAN.incomingMemoHeader));
     for (const m of msg.memos) {

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
-import { ClientTag, ServerTag, PORT_CLASS_ACTIONS } from '@twnr/shared';
+import { Commands, Events, PORT_CLASS_ACTIONS } from '@twnr/shared';
 import { BASE as BASE_URL, WS_BASE as WS_URL, createTestUserWithToken } from './global-setup.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -126,7 +126,7 @@ export function wsRequest(ws, msg, responseType, timeout = 2000) {
         setTimeout(() => ws.send(JSON.stringify(msg)), 200);
         return;
       }
-      if (parsed.type === responseType || parsed.type === ServerTag.ProtocolError) {
+      if (parsed.type === responseType || parsed.type === Events.ProtocolError.name) {
         clearTimeout(timer);
         ws.removeListener('message', handler);
         resolve(parsed);
@@ -186,16 +186,16 @@ export async function httpPost(path, data, options = {}) {
 
 export async function findPortSector(ws) {
   for (let i = 1; i <= 100; i++) {
-    const res = await wsRequest(ws, { type: ClientTag.PortInfo, sectorId: i }, ServerTag.PortInfoResult);
-    if (res.type === ServerTag.PortInfoResult) return { sectorId: i, port: res };
+    const res = await wsRequest(ws, { type: Commands.PortInfo.name, sectorId: i }, Commands.PortInfo.reply.name);
+    if (res.type === Commands.PortInfo.reply.name) return { sectorId: i, port: res };
   }
   return null;
 }
 
 export async function findPortSelling(ws, good) {
   for (let i = 1; i <= 100; i++) {
-    const res = await wsRequest(ws, { type: ClientTag.PortInfo, sectorId: i }, ServerTag.PortInfoResult);
-    if (res.type === ServerTag.PortInfoResult) {
+    const res = await wsRequest(ws, { type: Commands.PortInfo.name, sectorId: i }, Commands.PortInfo.reply.name);
+    if (res.type === Commands.PortInfo.reply.name) {
       const actions = PORT_CLASS_ACTIONS[res.class];
       if (actions && actions[good] === 'S') return { sectorId: i, port: res };
     }
@@ -205,8 +205,8 @@ export async function findPortSelling(ws, good) {
 
 export async function findPortBuying(ws, good) {
   for (let i = 1; i <= 100; i++) {
-    const res = await wsRequest(ws, { type: ClientTag.PortInfo, sectorId: i }, ServerTag.PortInfoResult);
-    if (res.type === ServerTag.PortInfoResult) {
+    const res = await wsRequest(ws, { type: Commands.PortInfo.name, sectorId: i }, Commands.PortInfo.reply.name);
+    if (res.type === Commands.PortInfo.reply.name) {
       const actions = PORT_CLASS_ACTIONS[res.class];
       if (actions && actions[good] === 'B') return { sectorId: i, port: res };
     }
@@ -215,15 +215,15 @@ export async function findPortBuying(ws, good) {
 }
 
 export async function movePlayerTo(ws, targetSector) {
-  const disp = await wsRequest(ws, { type: ClientTag.SectorDisplay }, ServerTag.SectorDisplayResult);
+  const disp = await wsRequest(ws, { type: Commands.SectorDisplay.name }, Commands.SectorDisplay.reply.name);
   if (disp.sector === targetSector) return true;
 
-  const pathRes = await wsRequest(ws, { type: ClientTag.ShortestPath, from: disp.sector, to: targetSector }, ServerTag.ShortestPathResult);
-  if (pathRes.type === ServerTag.ProtocolError || pathRes.outcome === 'refused') return false;
+  const pathRes = await wsRequest(ws, { type: Commands.ShortestPath.name, from: disp.sector, to: targetSector }, Commands.ShortestPath.reply.name);
+  if (pathRes.type === Events.ProtocolError.name || pathRes.outcome === 'refused') return false;
 
   for (let i = 1; i < pathRes.path.length; i++) {
-    const moveMsg = await wsRequest(ws, { type: ClientTag.Move, sector: pathRes.path[i].sector }, ServerTag.MoveResult);
-    if (moveMsg.type === ServerTag.ProtocolError || moveMsg.outcome === 'refused') return false;
+    const moveMsg = await wsRequest(ws, { type: Commands.Move.name, sector: pathRes.path[i].sector }, Commands.Move.reply.name);
+    if (moveMsg.type === Events.ProtocolError.name || moveMsg.outcome === 'refused') return false;
   }
   return true;
 }

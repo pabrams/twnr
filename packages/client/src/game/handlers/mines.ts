@@ -101,10 +101,7 @@ export const seekerMineAttached: EventHandler<'SeekerMineAttached', MinesContext
     ctx.io.term.writeln(render(EVENT.seekerVictimNotice));
 };
 
-export const seekerMinePickupAlert: EventHandler<'SeekerMinePickupAlert', MinesContext> = (
-    ctx,
-    msg,
-) => {
+export const seekerMinePickedUp: EventHandler<'SeekerMinePickedUp', MinesContext> = (ctx, msg) => {
     ctx.io.term.writeln('');
     ctx.io.term.writeln(
         `[ALERT] One of your limpet mines latched onto ${msg.targetOwnerName} in sector ${msg.sector}.`,

@@ -50,7 +50,7 @@ async function maybeShowPlanet(ctx: GameContext, defaultYes: boolean): Promise<b
     return true;
 }
 
-registerRoutine('load_unload_colonists', async (ctx) => {
+registerRoutine('loadUnloadColonists', async (ctx) => {
     ctx.io.term.writeln('');
     ctx.io.term.writeln(render(PLANET.loadUnloadBanner));
     if (!(await maybeShowPlanet(ctx, false))) return;
@@ -108,7 +108,7 @@ function leaveDefault(ctx: GameContext, commodity: Product3): number {
     return Math.max(0, Math.min(onShip, planetRoom));
 }
 
-registerRoutine('take_leave_product', async (ctx) => {
+registerRoutine('takeLeaveProduct', async (ctx) => {
     ctx.io.term.writeln('');
     ctx.io.term.writeln(render(PLANET.takeLeaveBanner));
     if (!(await maybeShowPlanet(ctx, false))) return;
@@ -155,7 +155,7 @@ registerRoutine('take_leave_product', async (ctx) => {
     }
 });
 
-registerRoutine('change_population', async (ctx) => {
+registerRoutine('changePopulation', async (ctx) => {
     ctx.io.term.writeln('');
     ctx.io.term.writeln(render(PLANET.changePopulationBanner));
     if (!(await maybeShowPlanet(ctx, true))) return;
@@ -172,12 +172,12 @@ registerRoutine('change_population', async (ctx) => {
     ctx.io.sendMsg(command(Commands.ChangePopulation, { quantity: qty, from, to }));
 });
 
-registerRoutine('planet_display', (ctx) => {
+registerRoutine('planetDisplay', (ctx) => {
     echoCommand(ctx, 'planetDisplay');
     ctx.io.sendMsg(command(Commands.PlanetDisplay, {}));
 });
 
-registerRoutine('claim_planet', async (ctx) => {
+registerRoutine('claimPlanet', async (ctx) => {
     echoCommand(ctx, 'claimPlanet');
     const ch = await askChar(ctx, render(PLANET.claimOwnershipPrompt), ['p', 'c']);
     if (ch === null) return;
@@ -192,17 +192,17 @@ registerRoutine('claim_planet', async (ctx) => {
     );
 });
 
-registerRoutine('destroy_planet', (ctx) => {
+registerRoutine('destroyPlanet', (ctx) => {
     echoCommand(ctx, 'destroyPlanet');
     ctx.io.sendMsg(command(Commands.DestroyPlanet, {}));
 });
 
-registerRoutine('leave_planet', (ctx) => {
+registerRoutine('leavePlanet', (ctx) => {
     echoCommand(ctx, 'leavePlanet');
     ctx.io.sendMsg(command(Commands.LeavePlanet, {}));
 });
 
-registerRoutine('planetary_defense_bastion', async (ctx) => {
+registerRoutine('planetaryDefenseBastion', async (ctx) => {
     echoCommand(ctx, 'planetaryDefenseBastion');
     const reply = await request(ctx, Commands.BaseInfo, {});
     if (!reply) return;
@@ -277,12 +277,12 @@ registerRoutine('planetary_defense_bastion', async (ctx) => {
     }
 });
 
-registerRoutine('base_computer', (ctx) => {
+registerRoutine('baseComputer', (ctx) => {
     echoCommand(ctx, 'baseComputer');
     ctx.world.mode = Menu.BaseComputer;
 });
 
-registerRoutine('treasury_transfer', async (ctx) => {
+registerRoutine('treasuryTransfer', async (ctx) => {
     echoCommand(ctx, 'treasuryTransfer');
     const { term } = ctx.io;
 
@@ -330,12 +330,12 @@ registerRoutine('treasury_transfer', async (ctx) => {
     );
 });
 
-registerRoutine('scan_sector', (ctx) => {
+registerRoutine('scanSector', (ctx) => {
     echoCommand(ctx, 'sectorScan');
     ctx.io.sendMsg(command(Commands.SectorDisplay, {}));
 });
 
-registerRoutine('base_transporter', async (ctx) => {
+registerRoutine('baseTransporter', async (ctx) => {
     echoCommand(ctx, 'baseTransporter');
     const { term } = ctx.io;
 
@@ -451,7 +451,7 @@ registerRoutine('base_transporter', async (ctx) => {
     }
 });
 
-registerRoutine('exit_base', (ctx) => {
+registerRoutine('exitBase', (ctx) => {
     echoCommand(ctx, 'exitBase');
     ctx.io.sendMsg(command(Commands.ExitBase, {}));
     ctx.world.mode = Menu.Planet;

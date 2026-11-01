@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { GameEventSchema } from '../game-events.js';
 
-import { defineCommand, defineEvent, defineReply, outcomes } from './define.js';
+import { defineCommand, defineEvent, outcomes } from './define.js';
 
 import { Int, Bool, Str, StrOrNull, DateString, Id, HailBody } from './common.js';
 
@@ -15,20 +15,21 @@ export const GalacticNewsEntrySchema = z.object({
 
 export type GalacticNewsEntry = z.infer<typeof GalacticNewsEntrySchema>;
 
-export const MemoDelivery = defineEvent('memoDelivery', {
-    reason: z.enum(['connect', 'read', 'incoming']),
-    memos: z.array(
-        z.object({
-            id: Int,
-            senderName: StrOrNull,
-            kind: Str,
-            body: Str,
-            createdAt: Str,
-        }),
-    ),
+export const MemoSchema = z.object({
+    id: Int,
+    senderName: StrOrNull,
+    kind: Str,
+    body: Str,
+    createdAt: Str,
+});
+export type Memo = z.infer<typeof MemoSchema>;
+
+/** Mail that arrived while the player is online. */
+export const MailReceived = defineEvent('mailReceived', {
+    memos: z.array(MemoSchema),
 });
 
-export const HailIncoming = defineEvent('hailIncoming', {
+export const HailReceived = defineEvent('hailReceived', {
     senderName: Str,
     body: Str,
 });
@@ -40,12 +41,16 @@ export const Notice = defineEvent('notice', {
 
 export const ReadMail = defineCommand('readMail', {
     request: {},
-    reply: MemoDelivery,
+    reply: outcomes({
+        ok: { memos: z.array(MemoSchema) },
+    }),
 });
 
 export const CheckMailSinceLastLogout = defineCommand('checkMailSinceLastLogout', {
     request: {},
-    reply: MemoDelivery,
+    reply: outcomes({
+        ok: { memos: z.array(MemoSchema) },
+    }),
 });
 
 export const DeleteAllMail = defineCommand('deleteAllMail', {
@@ -85,23 +90,26 @@ export const HailSend = defineCommand('hailSend', {
 /** `earliestCreatedAt` null when the universe has no galactic news yet. */
 export const GalacticNewsRange = defineCommand('galacticNewsRange', {
     request: {},
-    reply: {
-        earliestCreatedAt: DateString.nullable(),
-    },
+    reply: outcomes({
+        ok: {
+            earliestCreatedAt: DateString.nullable(),
+        },
+    }),
 });
 
-/** One chunk, oldest first; when `hasMore`, request again with `afterId` = last entry id. */
-// Reply tag predates the `${command}Result` convention (see protocol step 4).
-const GalacticNewsResult = defineReply('galacticNewsResult', {
-    entries: z.array(GalacticNewsEntrySchema),
-    hasMore: Bool,
-});
-
-/** `since` is an ISO timestamp (UTC day boundary). Pass the last received id as `afterId` to fetch the next chunk. */
+/**
+ * `since` is an ISO timestamp (UTC day boundary). Replies one chunk, oldest
+ * first; when `hasMore`, request again with `afterId` = last entry id.
+ */
 export const ReadGalacticNews = defineCommand('readGalacticNews', {
     request: {
         since: z.iso.datetime(),
         afterId: Id.optional(),
     },
-    reply: GalacticNewsResult,
+    reply: outcomes({
+        ok: {
+            entries: z.array(GalacticNewsEntrySchema),
+            hasMore: Bool,
+        },
+    }),
 });

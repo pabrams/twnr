@@ -306,7 +306,7 @@ function cachePlanetInteractionState(ctx: PlanetContext, msg: PlanetDisplayMsg):
     ctx.planet.maxDrones = msg.max_drones;
 }
 
-/** Shared by LandOnPlanet and a GetSectorPlanets that landed on Earth directly. */
+/** Shared by LandOnPlanet and a SectorPlanets that landed on Earth directly. */
 export function showLanded(ctx: PlanetContext, msg: PlanetDisplayMsg): void {
     cachePlanetInteractionState(ctx, msg);
     const isEarth = msg.name === 'Earth';
@@ -339,10 +339,7 @@ export const destroyPlanet: ReplyHandler<'DestroyPlanet', PlanetContext> = (ctx,
     }
 };
 
-export const planetDestroyedAlert: EventHandler<'PlanetDestroyedAlert', PlanetContext> = (
-    ctx,
-    msg,
-) => {
+export const planetDestroyed: EventHandler<'PlanetDestroyed', PlanetContext> = (ctx, msg) => {
     const fate = render(
         msg.cause === 'buster' ? EVENT.planetFateBuster : EVENT.planetFateCollision,
     );

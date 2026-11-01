@@ -1,9 +1,9 @@
-import { Commands, Events, command } from '@twnr/shared';
+import { Commands, command } from '@twnr/shared';
 import type { GameContext } from '../types.js';
 import { render } from '../renderer.js';
 import { EVENT, NEWS } from '../messages/index.js';
 import { askConfirm } from '../routines/prompts.js';
-import { awaitResponse } from '../routines/io.js';
+import { request } from '../routines/io.js';
 import { renderMailEntries } from '../display-mail.js';
 import { showGalacticNews } from '../routines/news.js';
 
@@ -21,10 +21,8 @@ async function offerTodaysNews(ctx: ConnectFlowCtx): Promise<void> {
 }
 
 async function checkConnectMail(ctx: ConnectFlowCtx): Promise<void> {
-    ctx.io.sendMsg(command(Commands.CheckMailSinceLastLogout, {}));
-    const reply = await awaitResponse(ctx, [Events.MemoDelivery.name]);
+    const reply = await request(ctx, Commands.CheckMailSinceLastLogout, {});
     if (reply === null) return;
-    if (reply.type !== Events.MemoDelivery.name) return;
     ctx.io.term.writeln(render(EVENT.mailConnectHeader));
     if (reply.memos.length === 0) {
         ctx.io.term.writeln(render(EVENT.mailNoneReceived));

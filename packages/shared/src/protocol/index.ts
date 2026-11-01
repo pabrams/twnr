@@ -64,7 +64,12 @@ export {
     type ClanMemberEntry,
     type ClanmateLocationEntry,
 } from './clan.js';
-export { GalacticNewsEntrySchema, type GalacticNewsEntry } from './messaging.js';
+export {
+    GalacticNewsEntrySchema,
+    MemoSchema,
+    type GalacticNewsEntry,
+    type Memo,
+} from './messaging.js';
 export {
     ShipCatalogEntrySchema,
     PlanetCatalogEntrySchema,
@@ -75,7 +80,7 @@ export {
     type HardwareCatalogItem,
     type TraderListEntry,
 } from './catalog.js';
-export { defineCommand, defineEvent, defineReply, outcomes } from './define.js';
+export { defineCommand, defineEvent, defineNamedReply, outcomes } from './define.js';
 export * from './refusal.js';
 export type { CommandDef, MessageDef, ReplyEnvelope, EventEnvelope } from './define.js';
 
@@ -86,7 +91,7 @@ export const Commands = {
     WarpsOut: movement.WarpsOut,
     ShortestPath: movement.ShortestPath,
     HyperspaceJump: movement.HyperspaceJump,
-    GetNeighborhood: movement.GetNeighborhood,
+    Neighborhood: movement.Neighborhood,
     VisitedSectors: movement.VisitedSectors,
     DensityScan: movement.DensityScan,
     VisualScan: movement.VisualScan,
@@ -104,7 +109,7 @@ export const Commands = {
     ConstructPortInfo: port.ConstructPortInfo,
     BuildPort: port.BuildPort,
     UpgradePort: port.UpgradePort,
-    GetSectorPlanets: planet.GetSectorPlanets,
+    SectorPlanets: planet.SectorPlanets,
     LandOnPlanet: planet.LandOnPlanet,
     PlanetDisplay: planet.PlanetDisplay,
     LeavePlanet: planet.LeavePlanet,
@@ -128,7 +133,7 @@ export const Commands = {
     BwarpInstall: base.BwarpInstall,
     BwarpUpgrade: base.BwarpUpgrade,
     BwarpBeam: base.BwarpBeam,
-    GetAttackTargets: combat.GetAttackTargets,
+    AttackTargets: combat.AttackTargets,
     AttackShip: combat.AttackShip,
     DeployDronesInfo: combat.DeployDronesInfo,
     DeployDrones: combat.DeployDrones,
@@ -151,7 +156,7 @@ export const Commands = {
     HardwareStoreInfo: ship.HardwareStoreInfo,
     BuyHardware: ship.BuyHardware,
     ListOwnedShips: ship.ListOwnedShips,
-    GetShipDetail: ship.GetShipDetail,
+    ShipDetail: ship.ShipDetail,
     TransportToShip: ship.TransportToShip,
     ChangeShipOwnership: ship.ChangeShipOwnership,
     TowSpacecraft: ship.TowSpacecraft,
@@ -191,16 +196,16 @@ export const Events = {
     PlayerLeft: movement.PlayerLeft,
     ProximityMineHit: movement.ProximityMineHit,
     SeekerMineAttached: movement.SeekerMineAttached,
-    SeekerMinePickupAlert: movement.SeekerMinePickupAlert,
-    PlanetDestroyedAlert: planet.PlanetDestroyedAlert,
-    SectorDronesAlert: combat.SectorDronesAlert,
+    SeekerMinePickedUp: movement.SeekerMinePickedUp,
+    PlanetDestroyed: planet.PlanetDestroyed,
+    SectorDronesReported: combat.SectorDronesReported,
     ShipAttacked: combat.ShipAttacked,
-    TowReleasedAlert: ship.TowReleasedAlert,
-    TowAttachedAlert: ship.TowAttachedAlert,
+    TowReleased: ship.TowReleased,
+    TowAttached: ship.TowAttached,
     ClanMembershipChanged: clan.ClanMembershipChanged,
-    ClanMemoNotification: clan.ClanMemoNotification,
-    MemoDelivery: messaging.MemoDelivery,
-    HailIncoming: messaging.HailIncoming,
+    ClanMemoReceived: clan.ClanMemoReceived,
+    MailReceived: messaging.MailReceived,
+    HailReceived: messaging.HailReceived,
     Notice: messaging.Notice,
 } as const;
 
@@ -215,7 +220,6 @@ type ReplyDefOf<K extends CommandName> = K extends CommandName
         ? C[K]['reply']
         : never
     : never;
-type ReplyTagOf<K extends CommandName> = ReplyDefOf<K>['name'];
 
 export type AnyCommandDef = C[CommandName];
 export type AnyEventDef = E[EventName];
@@ -240,11 +244,6 @@ export function command<D extends AnyCommandDef>(
     return { type: def.name, ...body } as z.infer<D['Request']>;
 }
 
-/** Wire `type` of each command's request, keyed by command name. */
-export const ClientTag = Object.fromEntries(
-    Object.entries(Commands).map(([key, def]) => [key, def.name]),
-) as { readonly [K in CommandName]: C[K]['name'] };
-
 /** Registry key of the command whose request carries this wire `type`. */
 export const commandNameByType = new Map<string, CommandName>(
     (Object.entries(Commands) as [CommandName, C[CommandName]][]).map(([key, def]) => [
@@ -253,29 +252,13 @@ export const commandNameByType = new Map<string, CommandName>(
     ]),
 );
 
-/** Wire `type` of each reply (keyed `Capitalize<replyTag>`) and event (keyed by event name). */
-export const ServerTag = {
-    ...Object.fromEntries(
-        Object.values(Commands)
-            .filter((def) => def.reply !== null)
-            .map((def) => [capitalize(def.reply!.name), def.reply!.name]),
-    ),
-    ...Object.fromEntries(Object.entries(Events).map(([key, def]) => [key, def.name])),
-} as { readonly [K in CommandName as Capitalize<ReplyTagOf<K>>]: ReplyTagOf<K> } & {
-    readonly [K in EventName]: E[K]['name'];
-};
-
-function capitalize(s: string): string {
-    return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
 type RequestSchemas = C[CommandName]['Request'];
 type ReplySchemas = ReplyDefOf<CommandName>['Schema'];
 type EventSchemas = E[EventName]['Schema'];
 
 const requestSchemas = Object.values(Commands).map((def) => def.Request);
-// A reply definition may be shared by several commands, and an event may double
-// as a reply (MemoDelivery), so the server union is deduplicated by wire type.
+// A reply definition may be shared by several commands (HaggleResponseResult),
+// so the server union is deduplicated by wire type.
 const serverSchemasByType = new Map<string, ReplySchemas | EventSchemas>();
 for (const def of Object.values(Commands)) {
     if (def.reply) serverSchemasByType.set(def.reply.name, def.reply.Schema);

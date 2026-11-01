@@ -1,4 +1,4 @@
-import { ServerTag } from '@twnr/shared';
+import { Events } from '@twnr/shared';
 import type { CommandRequest } from '@twnr/shared';
 import { onlinePlayers, requireOnlinePlayer } from '../state/players.js';
 import { sendEnvelope, closeDestroyedSession } from '../state/messaging.js';
@@ -49,6 +49,7 @@ export async function serveListDeployedDrones(
 
     const rows = await getDeployedDronesByOwner(playerId);
     return {
+        outcome: 'ok',
         drones: rows.map((r) => ({
             sectorId: r.sector_id,
             quantity: r.quantity,
@@ -305,7 +306,7 @@ export async function serveAttackSectorDrones(
                 const owner = onlinePlayers[ownerId];
                 if (owner && owner.ws.readyState === 1) {
                     sendEnvelope(ownerId, {
-                        type: ServerTag.SectorDronesAlert,
+                        type: Events.SectorDronesReported.name,
                         event: victory ? 'destroyed' : 'attacked',
                         sector: sectorId,
                         dronesLost: k,
@@ -325,7 +326,7 @@ export async function serveAttackSectorDrones(
                         const p = onlinePlayers[m.id];
                         if (p && p.ws.readyState === 1) {
                             sendEnvelope(m.id, {
-                                type: ServerTag.SectorDronesAlert,
+                                type: Events.SectorDronesReported.name,
                                 event: victory ? 'destroyed' : 'attacked',
                                 sector: sectorId,
                                 dronesLost: k,

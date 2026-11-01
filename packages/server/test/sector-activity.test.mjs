@@ -10,7 +10,7 @@ import {
   expectNoMsg,
 } from './helpers.mjs';
 import { ensureServer, createPool } from './global-setup.mjs';
-import { ClientTag, ServerTag } from '@twnr/shared';
+import { Commands, Events } from '@twnr/shared';
 
 const UNIVERSE_ID = 1;
 
@@ -41,25 +41,25 @@ describe('Sector activity notifications', () => {
     await readyO;
     try {
       // Dock at the sector-1 port.
-      let evt = waitForMsg(wsO, ServerTag.SectorActivity);
-      await wsRequest(wsA, { type: ClientTag.Dock }, ServerTag.DockResult);
+      let evt = waitForMsg(wsO, Events.SectorActivity.name);
+      await wsRequest(wsA, { type: Commands.Dock.name }, Commands.Dock.reply.name);
       let msg = await evt;
       assert.equal(msg.activity, 'dock');
       assert.equal(msg.playerId, actor.id);
       assert.equal(typeof msg.playerName, 'string');
 
       // Undock: event carries both the port name and the ship name.
-      evt = waitForMsg(wsO, ServerTag.SectorActivity);
-      await wsRequest(wsA, { type: ClientTag.Undock }, ServerTag.UndockResult);
+      evt = waitForMsg(wsO, Events.SectorActivity.name);
+      await wsRequest(wsA, { type: Commands.Undock.name }, Commands.Undock.reply.name);
       msg = await evt;
       assert.equal(msg.activity, 'undock');
       assert.equal(msg.playerId, actor.id);
       assert.ok(msg.targetName, 'undock event should include the port name');
       assert.ok(msg.shipName, 'undock event should include the ship name');
 
-      // Land on Earth (sector 1 auto-lands via GetSectorPlanets).
-      evt = waitForMsg(wsO, ServerTag.SectorActivity);
-      const landed = await wsRequest(wsA, { type: ClientTag.GetSectorPlanets }, ServerTag.GetSectorPlanetsResult);
+      // Land on Earth (sector 1 auto-lands via SectorPlanets).
+      evt = waitForMsg(wsO, Events.SectorActivity.name);
+      const landed = await wsRequest(wsA, { type: Commands.SectorPlanets.name }, Commands.SectorPlanets.reply.name);
       assert.equal(landed.outcome, 'landed');
       msg = await evt;
       assert.equal(msg.activity, 'land');
@@ -67,8 +67,8 @@ describe('Sector activity notifications', () => {
       assert.ok(msg.targetName);
 
       // Lift off.
-      evt = waitForMsg(wsO, ServerTag.SectorActivity);
-      await wsRequest(wsA, { type: ClientTag.LeavePlanet }, ServerTag.LeavePlanetResult);
+      evt = waitForMsg(wsO, Events.SectorActivity.name);
+      await wsRequest(wsA, { type: Commands.LeavePlanet.name }, Commands.LeavePlanet.reply.name);
       msg = await evt;
       assert.equal(msg.activity, 'liftoff');
       assert.equal(msg.playerId, actor.id);
@@ -84,15 +84,15 @@ describe('Sector activity notifications', () => {
     const { ws, ready } = await connectWS({ token: actor.token, universeId: UNIVERSE_ID });
     await ready;
     try {
-      await wsRequest(ws, { type: ClientTag.Dock }, ServerTag.DockResult);
-      const warps = await wsRequest(ws, { type: ClientTag.WarpsOut, id: 1 }, ServerTag.WarpsOutResult);
+      await wsRequest(ws, { type: Commands.Dock.name }, Commands.Dock.reply.name);
+      const warps = await wsRequest(ws, { type: Commands.WarpsOut.name, id: 1 }, Commands.WarpsOut.reply.name);
       const target = warps.warps[0].sector;
-      const res = await wsRequest(ws, { type: ClientTag.Move, sector: target }, ServerTag.MoveResult);
+      const res = await wsRequest(ws, { type: Commands.Move.name, sector: target }, Commands.Move.reply.name);
       assert.equal(res.outcome, 'refused');
       assert.equal(res.reason, 'docked');
       // After undocking the same warp succeeds.
-      await wsRequest(ws, { type: ClientTag.Undock }, ServerTag.UndockResult);
-      const res2 = await wsRequest(ws, { type: ClientTag.Move, sector: target }, ServerTag.MoveResult);
+      await wsRequest(ws, { type: Commands.Undock.name }, Commands.Undock.reply.name);
+      const res2 = await wsRequest(ws, { type: Commands.Move.name, sector: target }, Commands.Move.reply.name);
       assert.notEqual(res2.outcome, 'refused');
     } finally {
       await closeWS(ws);
@@ -106,8 +106,8 @@ describe('Sector activity notifications', () => {
     try {
       const res = await wsRequest(
         ws,
-        { type: ClientTag.PortTransaction, good: 'fuel', quantity: 1, action: 'buy' },
-        ServerTag.PortTransactionResult,
+        { type: Commands.PortTransaction.name, good: 'fuel', quantity: 1, action: 'buy' },
+        Commands.PortTransaction.reply.name,
       );
       assert.equal(res.outcome, 'refused');
       assert.equal(res.reason, 'notDocked');
@@ -130,18 +130,18 @@ describe('Sector activity notifications', () => {
     await readyA;
     await readyO;
     try {
-      let evt = waitForMsg(wsO, ServerTag.SectorActivity);
-      await wsRequest(wsA, { type: ClientTag.DockStarbase }, ServerTag.DockStarbaseResult);
+      let evt = waitForMsg(wsO, Events.SectorActivity.name);
+      await wsRequest(wsA, { type: Commands.DockStarbase.name }, Commands.DockStarbase.reply.name);
       let msg = await evt;
       assert.equal(msg.activity, 'dock');
       assert.equal(msg.playerId, actor.id);
 
       // Docked-at-starbase trader is hidden from the sector display.
-      const disp = await wsRequest(wsO, { type: ClientTag.SectorDisplay }, ServerTag.SectorDisplayResult);
+      const disp = await wsRequest(wsO, { type: Commands.SectorDisplay.name }, Commands.SectorDisplay.reply.name);
       assert.ok(!disp.players.some((p) => p.id === actor.id), 'starbase-docked trader should be hidden');
 
-      evt = waitForMsg(wsO, ServerTag.SectorActivity);
-      await wsRequest(wsA, { type: ClientTag.LeaveStarbase }, ServerTag.LeaveStarbaseResult);
+      evt = waitForMsg(wsO, Events.SectorActivity.name);
+      await wsRequest(wsA, { type: Commands.LeaveStarbase.name }, Commands.LeaveStarbase.reply.name);
       msg = await evt;
       assert.equal(msg.activity, 'undock');
       assert.equal(msg.playerId, actor.id);
@@ -161,12 +161,12 @@ describe('Sector activity notifications', () => {
     const { ws: wsP, ready: rP } = await connectWS({ token: planetObs.token, universeId: UNIVERSE_ID });
     await rA; await rD; await rP;
     try {
-      await wsRequest(wsD, { type: ClientTag.Dock }, ServerTag.DockResult);
-      await wsRequest(wsP, { type: ClientTag.GetSectorPlanets }, ServerTag.GetSectorPlanetsResult);
+      await wsRequest(wsD, { type: Commands.Dock.name }, Commands.Dock.reply.name);
+      await wsRequest(wsP, { type: Commands.SectorPlanets.name }, Commands.SectorPlanets.reply.name);
 
-      const silentD = expectNoMsg(wsD, ServerTag.SectorActivity, 600);
-      const silentP = expectNoMsg(wsP, ServerTag.SectorActivity, 600);
-      await wsRequest(wsA, { type: ClientTag.Dock }, ServerTag.DockResult);
+      const silentD = expectNoMsg(wsD, Events.SectorActivity.name, 600);
+      const silentP = expectNoMsg(wsP, Events.SectorActivity.name, 600);
+      await wsRequest(wsA, { type: Commands.Dock.name }, Commands.Dock.reply.name);
       await Promise.all([silentD, silentP]);
     } finally {
       await closeWS(wsA);
@@ -206,12 +206,12 @@ describe('Sector activity notifications', () => {
     await rB; await rO; await rW;
     try {
       // Both land on the doomed planet.
-      await wsRequest(wsB, { type: ClientTag.LandOnPlanet, planetId }, ServerTag.LandOnPlanetResult);
-      await wsRequest(wsO, { type: ClientTag.LandOnPlanet, planetId }, ServerTag.LandOnPlanetResult);
+      await wsRequest(wsB, { type: Commands.LandOnPlanet.name, planetId }, Commands.LandOnPlanet.reply.name);
+      await wsRequest(wsO, { type: Commands.LandOnPlanet.name, planetId }, Commands.LandOnPlanet.reply.name);
 
-      const occupantAlert = waitForMsg(wsO, ServerTag.PlanetDestroyedAlert);
-      const watcherAlert = waitForMsg(wsW, ServerTag.PlanetDestroyedAlert);
-      const res = await wsRequest(wsB, { type: ClientTag.DestroyPlanet }, ServerTag.DestroyPlanetResult);
+      const occupantAlert = waitForMsg(wsO, Events.PlanetDestroyed.name);
+      const watcherAlert = waitForMsg(wsW, Events.PlanetDestroyed.name);
+      const res = await wsRequest(wsB, { type: Commands.DestroyPlanet.name }, Commands.DestroyPlanet.reply.name);
       assert.equal(res.destroyed, true);
 
       // The bystander on the surface is told they were lifted off; the watcher in space just sees it happen.
@@ -236,8 +236,8 @@ describe('Sector activity notifications', () => {
       }
 
       // In-memory state cleared too: the bystander observes sector activity again.
-      const evt = waitForMsg(wsO, ServerTag.SectorActivity);
-      await wsRequest(wsW, { type: ClientTag.GetSectorPlanets }, ServerTag.GetSectorPlanetsResult);
+      const evt = waitForMsg(wsO, Events.SectorActivity.name);
+      await wsRequest(wsW, { type: Commands.SectorPlanets.name }, Commands.SectorPlanets.reply.name);
       // (no planets left in sector 5 for the watcher to land on; dock instead is not
       // possible here, so have the watcher land/liftoff via a fresh planet)
       const planet2 = await pool.query(
@@ -246,7 +246,7 @@ describe('Sector activity notifications', () => {
          RETURNING id`,
         [sectorRow.rows[0].id, UNIVERSE_ID, `Fresh_${Date.now()}`],
       );
-      await wsRequest(wsW, { type: ClientTag.LandOnPlanet, planetId: planet2.rows[0].id }, ServerTag.LandOnPlanetResult);
+      await wsRequest(wsW, { type: Commands.LandOnPlanet.name, planetId: planet2.rows[0].id }, Commands.LandOnPlanet.reply.name);
       const msg = await evt;
       assert.equal(msg.activity, 'land');
       assert.equal(msg.playerId, watcher.id);
@@ -265,8 +265,8 @@ describe('Sector activity notifications', () => {
     await readyA;
     await readyO;
     try {
-      const silent = expectNoMsg(wsO, ServerTag.SectorActivity, 600);
-      await wsRequest(wsA, { type: ClientTag.Dock }, ServerTag.DockResult);
+      const silent = expectNoMsg(wsO, Events.SectorActivity.name, 600);
+      await wsRequest(wsA, { type: Commands.Dock.name }, Commands.Dock.reply.name);
       await silent;
     } finally {
       await closeWS(wsA);

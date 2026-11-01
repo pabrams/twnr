@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 
-import { defineCommand, defineReply, outcomes } from './define.js';
+import { defineCommand, defineNamedReply, outcomes } from './define.js';
 
 import {
     Commodity3,
@@ -53,8 +53,7 @@ export type HardwarePriceItem = z.infer<typeof HardwarePriceItemSchema>;
 
 export const TradeAction = z.enum(['buy', 'sell']);
 
-/** Shared by HaggleCounter and HaggleAccept. */
-export const HaggleResponseResult = defineReply(
+export const HaggleResponseResult = defineNamedReply(
     'haggleResponseResult',
     outcomes({
         accepted: {
@@ -99,21 +98,25 @@ export const PortInfo = defineCommand('portInfo', {
     request: {
         sectorId: SectorNumber,
     },
-    reply: PortInfoSchema,
+    reply: outcomes({
+        ok: PortInfoSchema,
+    }),
 });
 
 export const Dock = defineCommand('dock', {
     request: {},
-    reply: {
-        docked: Bool,
-        port: PortInfoSchema.optional(),
-        credits: Num.optional(),
-        cargo: CargoSchema.optional(),
-        emptyHolds: Num.optional(),
-        freedFromTow: z.literal(true).optional(),
-        shipInfo: ShipInfoEmbedSchema.optional(),
-        class0Prices: Class0PriceListSchema.optional(),
-    },
+    reply: outcomes({
+        ok: {
+            docked: Bool,
+            port: PortInfoSchema.optional(),
+            credits: Num.optional(),
+            cargo: CargoSchema.optional(),
+            emptyHolds: Num.optional(),
+            freedFromTow: z.literal(true).optional(),
+            shipInfo: ShipInfoEmbedSchema.optional(),
+            class0Prices: Class0PriceListSchema.optional(),
+        },
+    }),
 });
 
 export const Undock = defineCommand('undock', {
@@ -140,29 +143,35 @@ export const PortTransaction = defineCommand('portTransaction', {
         quantity: PositiveInt,
         action: TradeAction,
     },
-    reply: {
-        credits: Num,
-        cargo: CargoSchema,
-        emptyHolds: Num,
-        turnsUsed: Num.optional(),
-        expDelta: Num.optional(),
-        repDelta: Num.optional(),
-    },
+    reply: outcomes({
+        ok: {
+            credits: Num,
+            cargo: CargoSchema,
+            emptyHolds: Num,
+            turnsUsed: Num.optional(),
+            expDelta: Num.optional(),
+            repDelta: Num.optional(),
+        },
+    }),
 });
 
 export const DockStarbase = defineCommand('dockStarbase', {
     request: {},
-    reply: {
-        prices: z.array(HardwarePriceItemSchema),
-        class0Prices: Class0PriceListSchema,
-        credits: Num.optional(),
-        shipInfo: ShipInfoEmbedSchema.optional(),
-    },
+    reply: outcomes({
+        ok: {
+            prices: z.array(HardwarePriceItemSchema),
+            class0Prices: Class0PriceListSchema,
+            credits: Num.optional(),
+            shipInfo: ShipInfoEmbedSchema.optional(),
+        },
+    }),
 });
 
 export const LeaveStarbase = defineCommand('leaveStarbase', {
     request: {},
-    reply: SectorDisplayDataSchema,
+    reply: outcomes({
+        ok: SectorDisplayDataSchema,
+    }),
 });
 
 export const HaggleOpen = defineCommand('haggleOpen', {

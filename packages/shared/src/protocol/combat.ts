@@ -40,7 +40,7 @@ export const TrackedSeekerMineEntrySchema = z.object({
 
 export type TrackedSeekerMineEntry = z.infer<typeof TrackedSeekerMineEntrySchema>;
 
-export const SectorDronesAlert = defineEvent('sectorDronesAlert', {
+export const SectorDronesReported = defineEvent('sectorDronesReported', {
     event: z.enum(['intrusion', 'attacked', 'destroyed']),
     sector: Int,
     dronesLost: Num,
@@ -58,12 +58,14 @@ export const ShipAttacked = defineEvent('shipAttacked', {
     repDelta: Num.optional(),
 });
 
-export const GetAttackTargets = defineCommand('getAttackTargets', {
+export const AttackTargets = defineCommand('attackTargets', {
     request: {},
-    reply: {
-        players: z.array(z.object({ id: Int, name: Str })),
-        beaconPresent: Bool,
-    },
+    reply: outcomes({
+        ok: {
+            players: z.array(z.object({ id: Int, name: Str })),
+            beaconPresent: Bool,
+        },
+    }),
 });
 
 export const AttackShip = defineCommand('attackShip', {
@@ -71,14 +73,16 @@ export const AttackShip = defineCommand('attackShip', {
         targetPlayerId: Id,
         drones: PositiveInt,
     },
-    reply: {
-        destroyed: Bool,
-        attackerDronesLost: Num,
-        defenderShieldsLost: Num,
-        defenderDronesLost: Num,
-        expDelta: Num.optional(),
-        repDelta: Num.optional(),
-    },
+    reply: outcomes({
+        ok: {
+            destroyed: Bool,
+            attackerDronesLost: Num,
+            defenderShieldsLost: Num,
+            defenderDronesLost: Num,
+            expDelta: Num.optional(),
+            repDelta: Num.optional(),
+        },
+    }),
 });
 
 export const DeployDronesInfo = defineCommand('deployDronesInfo', {
@@ -135,28 +139,32 @@ export const RetreatFromDrones = defineCommand('retreatFromDrones', {
 
 export const ListDeployedDrones = defineCommand('listDeployedDrones', {
     request: {},
-    reply: {
-        drones: z.array(
-            z.object({
-                sectorId: Int,
-                quantity: Num,
-                ownerLabel: Str,
-                ownership: OwnershipInfoSchema,
-            }),
-        ),
-    },
+    reply: outcomes({
+        ok: {
+            drones: z.array(
+                z.object({
+                    sectorId: Int,
+                    quantity: Num,
+                    ownerLabel: Str,
+                    ownership: OwnershipInfoSchema,
+                }),
+            ),
+        },
+    }),
 });
 
 export const DeployMineInfo = defineCommand('deployMineInfo', {
     request: {
         mineType: MineTypeSchema,
     },
-    reply: {
-        mineType: MineTypeSchema,
-        sectorMines: Num,
-        shipMines: Num,
-        shipMaxMines: Num,
-    },
+    reply: outcomes({
+        ok: {
+            mineType: MineTypeSchema,
+            sectorMines: Num,
+            shipMines: Num,
+            shipMaxMines: Num,
+        },
+    }),
 });
 
 export const DeployMine = defineCommand('deployMine', {
@@ -165,36 +173,44 @@ export const DeployMine = defineCommand('deployMine', {
         quantity: TargetOrDefault,
         ownership: Ownership.optional(),
     },
-    reply: {
-        mineType: MineTypeSchema,
-        sectorMines: Num,
-        shipMines: Num,
-    },
+    reply: outcomes({
+        ok: {
+            mineType: MineTypeSchema,
+            sectorMines: Num,
+            shipMines: Num,
+        },
+    }),
 });
 
 export const ListDeployedMines = defineCommand('listDeployedMines', {
     request: {},
-    reply: {
-        mines: z.array(DeployedMineEntrySchema),
-    },
+    reply: outcomes({
+        ok: {
+            mines: z.array(DeployedMineEntrySchema),
+        },
+    }),
 });
 
 export const TrackSeekerMines = defineCommand('trackSeekerMines', {
     request: {},
-    reply: {
-        targets: z.array(TrackedSeekerMineEntrySchema),
-    },
+    reply: outcomes({
+        ok: {
+            targets: z.array(TrackedSeekerMineEntrySchema),
+        },
+    }),
 });
 
 export const MineDisruptor = defineCommand('mineDisruptor', {
     request: {
         targetSector: SectorNumber,
     },
-    reply: {
-        targetSector: Int,
-        minesDisrupted: Num,
-        proximityMinesRemaining: Num,
-    },
+    reply: outcomes({
+        ok: {
+            targetSector: Int,
+            minesDisrupted: Num,
+            proximityMinesRemaining: Num,
+        },
+    }),
 });
 
 export const ReleaseBeacon = defineCommand('releaseBeacon', {
@@ -209,8 +225,10 @@ export const ReleaseBeacon = defineCommand('releaseBeacon', {
 
 export const AttackBeacon = defineCommand('attackBeacon', {
     request: {},
-    reply: {
-        destroyed: Bool,
-        shipDrones: Num,
-    },
+    reply: outcomes({
+        ok: {
+            destroyed: Bool,
+            shipDrones: Num,
+        },
+    }),
 });

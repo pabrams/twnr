@@ -32,7 +32,7 @@ registerRoutine('back', (ctx) => {
     }
 });
 
-registerRoutine('help_menu', (ctx) => {
+registerRoutine('helpMenu', (ctx) => {
     const menu = ctx.catalogs.menus.get(ctx.world.mode);
     if (!menu) return;
     const term = ctx.io.term;
@@ -53,7 +53,7 @@ registerRoutine('help_menu', (ctx) => {
     }
 });
 
-registerRoutine('list_deployed_drones', (ctx) => {
+registerRoutine('listDeployedDrones', (ctx) => {
     echoCommand(ctx, 'listDeployedDrones');
     ctx.io.sendMsg(command(Commands.ListDeployedDrones, {}));
 });

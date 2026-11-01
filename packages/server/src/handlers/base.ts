@@ -1,8 +1,8 @@
 import {
-    ServerTag,
     universeConfig,
     type BaseLevelRequirement,
     type CommandRequest,
+    Events,
 } from '@twnr/shared';
 import { requireOnlinePlayer } from '../state/players.js';
 import { broadcastTo, closeDestroyedSession } from '../state/messaging.js';
@@ -183,7 +183,7 @@ export async function serveBuildBase(playerId: number): Promise<CommandResult<'B
 }
 
 export function serveExitBase(): CommandResult<'ExitBase'> {
-    return {};
+    return { outcome: 'ok' };
 }
 
 export async function serveTreasuryInfo(playerId: number): Promise<CommandResult<'TreasuryInfo'>> {
@@ -442,7 +442,7 @@ export async function serveBwarpBeam(
             player.sectorId = result.targetSectorId;
             broadcastTo(
                 {
-                    type: ServerTag.PlayerMoved,
+                    type: Events.PlayerMoved.name,
                     playerId,
                     playerName: player.name,
                     sector: targetSector,

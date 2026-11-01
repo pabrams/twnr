@@ -24,9 +24,7 @@ export async function serveGalacticNewsRange(
 ): Promise<CommandResult<'GalacticNewsRange'>> {
     const player = requireOnlinePlayer(playerId);
     const earliest = await getEarliestGalacticNewsAt(player.universeId);
-    return {
-        earliestCreatedAt: earliest?.toISOString() ?? null,
-    };
+    return { outcome: 'ok', earliestCreatedAt: earliest?.toISOString() ?? null };
 }
 
 export async function serveReadGalacticNews(
@@ -44,6 +42,7 @@ export async function serveReadGalacticNews(
     const hasMore = rows.length > NEWS_CHUNK_SIZE;
     const chunk = hasMore ? rows.slice(0, NEWS_CHUNK_SIZE) : rows;
     return {
+        outcome: 'ok',
         entries: chunk.map(toNewsEntry).filter((entry) => entry !== null),
         hasMore,
     };

@@ -5,7 +5,7 @@ import { echoCommand } from '../display.js';
 import { registerRoutine } from './types.js';
 import { askNumber } from './prompts.js';
 
-registerRoutine('attack_sector_drones', async (ctx) => {
+registerRoutine('attackSectorDrones', async (ctx) => {
     echoCommand(ctx, 'attackSectorDrones');
     const defaultQty = Math.min(ctx.ship.shipDrones, ctx.ship.shipMaxDroneAttack);
     const qty = await askNumber(ctx, render(COMBAT.droneAttackQtyPrompt), {
@@ -16,7 +16,7 @@ registerRoutine('attack_sector_drones', async (ctx) => {
     ctx.io.sendMsg(command(Commands.AttackSectorDrones, { drones: qty }));
 });
 
-registerRoutine('retreat_from_drones', (ctx) => {
+registerRoutine('retreatFromDrones', (ctx) => {
     echoCommand(ctx, 'retreatFromDrones');
     ctx.io.sendMsg(command(Commands.RetreatFromDrones, {}));
 });

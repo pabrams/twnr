@@ -101,6 +101,7 @@ async function buyShipNew(
                 player.shipName = shipName;
             }
             return {
+                outcome: 'ok',
                 shipTypeName: targetShipName,
                 coloredShipName: result.coloredName,
                 credits: result.credits,
@@ -181,6 +182,7 @@ async function buyShipTradein(
                 player.shipName = shipName;
             }
             return {
+                outcome: 'ok',
                 shipTypeName: targetShipName,
                 coloredShipName: result.coloredName,
                 credits: result.credits,

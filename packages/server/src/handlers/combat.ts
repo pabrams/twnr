@@ -1,4 +1,4 @@
-import { ServerTag } from '@twnr/shared';
+import { Events } from '@twnr/shared';
 import type { CommandRequest } from '@twnr/shared';
 
 import { onlinePlayers, isVisibleInSector, requireOnlinePlayer } from '../state/players.js';
@@ -27,9 +27,9 @@ import {
 import { recordGameEvent } from '../services/game-events.js';
 import { type CommandResult, commandRefusal, mutateAndReply } from './command.js';
 
-export async function serveGetAttackTargets(
+export async function serveAttackTargets(
     playerId: number,
-): Promise<CommandResult<'GetAttackTargets'>> {
+): Promise<CommandResult<'AttackTargets'>> {
     const player = requireOnlinePlayer(playerId);
 
     const rows = await listPlayersInSector(player.sector, player.universeId, playerId);
@@ -41,7 +41,7 @@ export async function serveGetAttackTargets(
     if (visible.length > 0) {
         broadcastEnvelope(
             {
-                type: ServerTag.Notice,
+                type: Events.Notice.name,
                 senderLabel: null,
                 body: `[br]${player.name} is powering up their weapon systems![/br]`,
             },
@@ -49,7 +49,7 @@ export async function serveGetAttackTargets(
         );
     }
 
-    return { players: roster, beaconPresent: !!beacon };
+    return { outcome: 'ok', players: roster, beaconPresent: !!beacon };
 }
 
 export async function serveAttackShip(
@@ -194,7 +194,7 @@ export async function serveAttackShip(
 
             if (onlineTarget?.ws && onlineTarget.ws.readyState === 1) {
                 sendEnvelope(targetPlayerId, {
-                    type: ServerTag.ShipAttacked,
+                    type: Events.ShipAttacked.name,
                     attackerName: attacker.name,
                     destroyed,
                     attackerDronesLost,
@@ -209,6 +209,7 @@ export async function serveAttackShip(
             }
 
             return {
+                outcome: 'ok',
                 destroyed,
                 attackerDronesLost,
                 defenderDronesLost,

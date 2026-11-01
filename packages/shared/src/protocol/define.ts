@@ -63,13 +63,12 @@ export type MessageDef<N extends string, S extends z.ZodType> = {
     readonly Schema: S;
 };
 
-function buildReplyEnvelope<N extends string, B extends Body | AnyOutcomes>(
+function buildReplyEnvelope<N extends string, O extends AnyOutcomes>(
     name: N,
-    body: B,
-): ReplyEnvelope<N, B> {
+    outcomes: O,
+): ReplyEnvelope<N, O> {
     const typeLiteral = z.literal(name);
-    const variants = body instanceof Outcomes ? body.variants : { ok: body as Body };
-    const members = Object.entries(variants).map(([value, variant]) =>
+    const members = Object.entries(outcomes.variants).map(([value, variant]) =>
         asObject(variant).extend({ type: typeLiteral, outcome: z.literal(value) }),
     );
     const refused = z.object({
@@ -81,7 +80,7 @@ function buildReplyEnvelope<N extends string, B extends Body | AnyOutcomes>(
     return z.discriminatedUnion('outcome', [...members, refused] as unknown as [
         z.ZodObject<Shape>,
         ...z.ZodObject<Shape>[],
-    ]) as unknown as ReplyEnvelope<N, B>;
+    ]) as unknown as ReplyEnvelope<N, O>;
 }
 
 export function defineEvent<N extends string, B extends Body>(
@@ -91,12 +90,11 @@ export function defineEvent<N extends string, B extends Body>(
     return { name, Schema: stamp(name, body) };
 }
 
-/** A reply shared by several commands, or one whose name doesn't follow `${command}Result`. */
-export function defineReply<N extends string, B extends Body | AnyOutcomes>(
+export function defineNamedReply<N extends string, O extends AnyOutcomes>(
     name: N,
-    body: B,
-): MessageDef<N, ReplyEnvelope<N, B>> {
-    return { name, Schema: buildReplyEnvelope(name, body) };
+    outcomes: O,
+): MessageDef<N, ReplyEnvelope<N, O>> {
+    return { name, Schema: buildReplyEnvelope(name, outcomes) };
 }
 
 type AnyMessageDef = MessageDef<string, z.ZodType>;
@@ -107,11 +105,11 @@ export type CommandDef<N extends string, Req extends z.ZodType, R extends AnyMes
     readonly reply: R;
 };
 
-type ReplyInput = Body | AnyOutcomes | AnyMessageDef | null;
+type ReplyInput = AnyOutcomes | AnyMessageDef | null;
 
 type ResolvedReply<N extends string, R extends ReplyInput> = R extends AnyMessageDef
     ? R
-    : R extends Body | AnyOutcomes
+    : R extends AnyOutcomes
       ? MessageDef<`${N}Result`, ReplyEnvelope<`${N}Result`, R>>
       : null;
 
@@ -127,6 +125,6 @@ export function defineCommand<N extends string, Req extends Body, R extends Repl
     let reply: AnyMessageDef | null;
     if (def.reply === null) reply = null;
     else if (isMessageDef(def.reply)) reply = def.reply;
-    else reply = defineReply(`${name}Result`, def.reply);
+    else reply = defineNamedReply(`${name}Result`, def.reply);
     return { name, Request, reply: reply as ResolvedReply<N, R> };
 }

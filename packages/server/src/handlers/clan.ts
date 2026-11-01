@@ -1,5 +1,5 @@
 import type { PoolClient } from 'pg';
-import { ServerTag, type GameEvent, type GameEventClanRef, type Refusal } from '@twnr/shared';
+import { type GameEvent, type GameEventClanRef, type Refusal, Events } from '@twnr/shared';
 import type { CommandRequest } from '@twnr/shared';
 import { withTransaction } from '../db/index.js';
 
@@ -96,6 +96,7 @@ export async function serveClanCreate(
             return inserted;
         },
         (created) => ({
+            outcome: 'ok',
             clanId: created.id,
             clanNumber: created.universeClanNumber,
             name: trimmedName,
@@ -146,6 +147,7 @@ export async function serveClanJoin(
             return true;
         },
         () => ({
+            outcome: 'ok',
             clanId: clan.id,
             clanNumber: clan.universe_clan_number,
             name: clan.name,
@@ -259,6 +261,7 @@ export async function serveClanList(playerId: number): Promise<CommandResult<'Cl
     const rows = await listClansInUniverse(player.universeId);
     const viewerClanId = await getPlayerClanId(playerId);
     return {
+        outcome: 'ok',
         viewerClanId,
         clans: rows.map((r) => ({
             clanId: r.id,
@@ -276,7 +279,7 @@ export async function serveClanInfo(playerId: number): Promise<CommandResult<'Cl
 
     const clanId = await getPlayerClanId(playerId);
     if (clanId === null) {
-        return { clan: null };
+        return { outcome: 'ok', clan: null };
     }
     const [clan, members, maxSize] = await Promise.all([
         getClanById(clanId),
@@ -284,9 +287,10 @@ export async function serveClanInfo(playerId: number): Promise<CommandResult<'Cl
         getMaxClanSize(player.universeId),
     ]);
     if (!clan) {
-        return { clan: null };
+        return { outcome: 'ok', clan: null };
     }
     return {
+        outcome: 'ok',
         clan: {
             clanId: clan.id,
             clanNumber: clan.universe_clan_number,
@@ -312,6 +316,7 @@ export async function serveClanmateLocations(
     }
     const rows = await getClanmateLocations(clanId);
     return {
+        outcome: 'ok',
         members: rows.map((r) => ({
             playerId: r.id,
             name: r.name,
@@ -464,7 +469,7 @@ export async function serveClanTransfer(
                 body: memoBody,
             });
 
-            return { kind, targetPlayerId, targetName, quantity, delivered };
+            return { outcome: 'ok', kind, targetPlayerId, targetName, quantity, delivered };
         },
     );
 }
@@ -488,13 +493,13 @@ export async function serveClanMemo(
         await insertMemo(m.id, senderId, clanId, 'memo', trimmed);
         if (onlinePlayers[m.id]) {
             sendEnvelope(m.id, {
-                type: ServerTag.ClanMemoNotification,
+                type: Events.ClanMemoReceived.name,
                 senderName,
             });
         }
     }
 
-    return { recipientCount: recipients.length };
+    return { outcome: 'ok', recipientCount: recipients.length };
 }
 
 export async function serveClanSetPassword(
@@ -514,7 +519,7 @@ export async function serveClanSetPassword(
         return commandRefusal('notClanLeader');
     }
     await setClanPasswordHash(clanId, hashPassword(newPassword));
-    return {};
+    return { outcome: 'ok' };
 }
 
 export async function serveClanDropMember(
@@ -566,13 +571,12 @@ export async function serveClanDropMember(
     const online = onlinePlayers[targetPlayerId];
     if (online) {
         sendEnvelope(targetPlayerId, {
-            type: ServerTag.ClanMembershipChanged,
+            type: Events.ClanMembershipChanged.name,
             clanId: null,
             reason: 'dropped',
         });
         sendEnvelope(targetPlayerId, {
-            type: ServerTag.MemoDelivery,
-            reason: 'incoming' as const,
+            type: Events.MailReceived.name,
             memos: [
                 {
                     id: 0,
@@ -585,5 +589,5 @@ export async function serveClanDropMember(
         });
     }
 
-    return { droppedPlayerId: targetPlayerId, droppedName: targetName };
+    return { outcome: 'ok', droppedPlayerId: targetPlayerId, droppedName: targetName };
 }

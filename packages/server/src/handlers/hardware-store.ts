@@ -33,10 +33,7 @@ export async function serveHardwareStoreInfo(
         maxQty: r.max_qty,
     }));
 
-    return {
-        credits,
-        items,
-    };
+    return { outcome: 'ok', credits, items };
 }
 
 export async function serveBuyHardware(

@@ -2,7 +2,7 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createTestUser, createTestPlayer, connectWS, closeWS, wsRequest } from './helpers.mjs';
 import { ensureServer, createPool } from './global-setup.mjs';
-import { ClientTag, ServerTag } from '@twnr/shared';
+import { Commands, Events } from '@twnr/shared';
 
 const UNIVERSE_ID = 1;
 
@@ -37,33 +37,33 @@ describe('command_log outcomes', () => {
     const { ws, ready } = await connectWS({ token, universeId: UNIVERSE_ID });
     await ready;
     try {
-      const moved = await wsRequest(ws, { type: ClientTag.Move, sector: 99 }, ServerTag.MoveResult);
+      const moved = await wsRequest(ws, { type: Commands.Move.name, sector: 99 }, Commands.Move.reply.name);
       assert.equal(moved.outcome, 'nonAdjacent');
-      assert.equal((await waitForLoggedCommand(playerId, ClientTag.Move)).outcome, 'nonAdjacent');
+      assert.equal((await waitForLoggedCommand(playerId, Commands.Move.name)).outcome, 'nonAdjacent');
 
-      await wsRequest(ws, { type: ClientTag.SectorDisplay }, ServerTag.SectorDisplayResult);
-      assert.equal((await waitForLoggedCommand(playerId, ClientTag.SectorDisplay)).outcome, 'ok');
+      await wsRequest(ws, { type: Commands.SectorDisplay.name }, Commands.SectorDisplay.reply.name);
+      assert.equal((await waitForLoggedCommand(playerId, Commands.SectorDisplay.name)).outcome, 'ok');
 
-      const refused = await wsRequest(ws, { type: ClientTag.ClanLeave }, ServerTag.ClanLeaveResult);
+      const refused = await wsRequest(ws, { type: Commands.ClanLeave.name }, Commands.ClanLeave.reply.name);
       assert.equal(refused.outcome, 'refused');
-      assert.equal((await waitForLoggedCommand(playerId, ClientTag.ClanLeave)).outcome, 'refused');
+      assert.equal((await waitForLoggedCommand(playerId, Commands.ClanLeave.name)).outcome, 'refused');
 
       // A one-letter clan name fails the schema: the client's fault, logged as rejected with the password redacted.
-      const rejected = await wsRequest(ws, { type: ClientTag.ClanCreate, name: 'x', password: 'hunter22' }, ServerTag.ClanCreateResult);
-      assert.equal(rejected.type, ServerTag.ProtocolError);
+      const rejected = await wsRequest(ws, { type: Commands.ClanCreate.name, name: 'x', password: 'hunter22' }, Commands.ClanCreate.reply.name);
+      assert.equal(rejected.type, Events.ProtocolError.name);
       assert.equal(rejected.reason, 'rejected');
-      const logged = await waitForLoggedCommand(playerId, ClientTag.ClanCreate);
+      const logged = await waitForLoggedCommand(playerId, Commands.ClanCreate.name);
       assert.equal(logged.outcome, 'rejected');
       assert.equal(logged.payload.password, '[redacted]');
       assert.equal(logged.payload.name, 'x');
 
       // 0 is not an amount to move: -1 means all, anything else must be positive.
-      const zero = await wsRequest(ws, { type: ClientTag.TakeColonists, quantity: 0, commodity: 'fuel' }, ServerTag.TakeColonistsResult);
-      assert.equal(zero.type, ServerTag.ProtocolError);
-      assert.equal((await waitForLoggedCommand(playerId, ClientTag.TakeColonists)).outcome, 'rejected');
+      const zero = await wsRequest(ws, { type: Commands.TakeColonists.name, quantity: 0, commodity: 'fuel' }, Commands.TakeColonists.reply.name);
+      assert.equal(zero.type, Events.ProtocolError.name);
+      assert.equal((await waitForLoggedCommand(playerId, Commands.TakeColonists.name)).outcome, 'rejected');
 
-      ws.send(JSON.stringify({ type: ClientTag.DeleteAllMail }));
-      assert.equal((await waitForLoggedCommand(playerId, ClientTag.DeleteAllMail)).outcome, 'ok');
+      ws.send(JSON.stringify({ type: Commands.DeleteAllMail.name }));
+      assert.equal((await waitForLoggedCommand(playerId, Commands.DeleteAllMail.name)).outcome, 'ok');
     } finally {
       await closeWS(ws);
     }

@@ -31,7 +31,7 @@ import { renderAttributeChange } from '../handlers/utils.js';
 import { runDockFlow } from '../handlers/port.js';
 import { showLanded } from '../handlers/planet.js';
 
-registerRoutine('display_sector', (ctx) => {
+registerRoutine('displaySector', (ctx) => {
     echoCommand(ctx, 'sectorDisplay');
     ctx.io.sendMsg(command(Commands.SectorDisplay, {}));
 });
@@ -43,12 +43,12 @@ registerRoutine('move', (ctx, line) => {
     ctx.io.sendMsg(command(Commands.Move, { sector }));
 });
 
-registerRoutine('move_previous', (ctx) => {
+registerRoutine('movePrevious', (ctx) => {
     echoCommand(ctx, 'moveToPrevious');
     ctx.io.sendMsg(command(Commands.MoveToPrevious, {}));
 });
 
-registerRoutine('move_menu', async (ctx) => {
+registerRoutine('moveMenu', async (ctx) => {
     const warps = ctx.world.currentWarps.slice(0, 6);
     if (warps.length === 0) return;
     echoCommand(ctx, 'moveMenu');
@@ -64,7 +64,7 @@ registerRoutine('move_menu', async (ctx) => {
     ctx.io.sendMsg(command(Commands.Move, { sector: target.sector }));
 });
 
-registerRoutine('port_menu', async (ctx) => {
+registerRoutine('portMenu', async (ctx) => {
     echoCommand(ctx, 'portInfo');
     showPortMenu(ctx);
     if (!ctx.world.currentPort) return;
@@ -82,23 +82,23 @@ registerRoutine('port_menu', async (ctx) => {
     }
 });
 
-registerRoutine('player_info', async (ctx) => {
+registerRoutine('playerInfo', async (ctx) => {
     echoCommand(ctx, 'shipInfo');
     await ensureHardwareCatalog(ctx);
     ctx.io.sendMsg(command(Commands.ShipInfo, {}));
 });
 
-registerRoutine('attack_menu', (ctx) => {
+registerRoutine('attackMenu', (ctx) => {
     echoCommand(ctx, 'attack');
-    ctx.io.sendMsg(command(Commands.GetAttackTargets, {}));
+    ctx.io.sendMsg(command(Commands.AttackTargets, {}));
 });
 
-registerRoutine('computer_menu', (ctx) => {
+registerRoutine('computerMenu', (ctx) => {
     echoCommand(ctx, 'computer');
     ctx.world.mode = Menu.Computer;
 });
 
-registerRoutine('deploy_drones_info', async (ctx) => {
+registerRoutine('deployDronesInfo', async (ctx) => {
     echoCommand(ctx, 'deployDronesInfo');
     const reply = await request(ctx, Commands.DeployDronesInfo, {});
     if (!reply) return;
@@ -126,7 +126,7 @@ registerRoutine('deploy_drones_info', async (ctx) => {
     ctx.io.sendMsg(command(Commands.DeployDrones, { quantity: qty, ownership }));
 });
 
-registerRoutine('order_starport', async (ctx) => {
+registerRoutine('orderStarport', async (ctx) => {
     echoCommand(ctx, 'orderStarport');
     const info = await request(ctx, Commands.ConstructPortInfo, {});
     if (info === null) return;
@@ -294,7 +294,7 @@ async function runUpgradeFlow(
     }
 }
 
-registerRoutine('jettison_menu', async (ctx) => {
+registerRoutine('jettisonMenu', async (ctx) => {
     echoCommand(ctx, 'jettison');
     const ok = await askConfirm(ctx, render(SECTOR.jettisonConfirm), { defaultValue: false });
     if (ok) {
@@ -302,7 +302,7 @@ registerRoutine('jettison_menu', async (ctx) => {
     }
 });
 
-registerRoutine('handle_mines_menu', async (ctx) => {
+registerRoutine('handleMinesMenu', async (ctx) => {
     const typeChar = await askChar(ctx, 'Handle (P)roximity or (L)impet mines? ', ['p', 'l']);
     if (typeChar === null) return;
     const mineType: 'proximity' | 'seeker' = typeChar === 'p' ? 'proximity' : 'seeker';
@@ -333,7 +333,7 @@ registerRoutine('handle_mines_menu', async (ctx) => {
     ctx.io.sendMsg(command(Commands.DeployMine, { mineType, quantity: qty, ownership }));
 });
 
-registerRoutine('mine_disruptor_menu', async (ctx) => {
+registerRoutine('mineDisruptorMenu', async (ctx) => {
     const target = await askNumber(ctx, 'Mine disruptor — adjacent target sector? (Q to cancel) ', {
         min: 1,
     });
@@ -341,7 +341,7 @@ registerRoutine('mine_disruptor_menu', async (ctx) => {
     ctx.io.sendMsg(command(Commands.MineDisruptor, { targetSector: target }));
 });
 
-registerRoutine('long_range_scan', async (ctx) => {
+registerRoutine('longRangeScan', async (ctx) => {
     const reply = await request(ctx, Commands.DensityScan, {});
     if (!reply) return;
     if (!reply.hasVisualScanner) return;
@@ -350,7 +350,7 @@ registerRoutine('long_range_scan', async (ctx) => {
     ctx.io.sendMsg(command(Commands.VisualScan, {}));
 });
 
-registerRoutine('release_beacon', async (ctx) => {
+registerRoutine('releaseBeacon', async (ctx) => {
     ctx.io.term.writeln('');
     ctx.io.term.writeln(render(SECTOR.beaconBanner));
     const ok = await askConfirm(ctx, render(SECTOR.beaconLaunchPrompt), { defaultValue: false });
@@ -368,7 +368,7 @@ registerRoutine('release_beacon', async (ctx) => {
 
 registerRoutine('land', async (ctx) => {
     echoCommand(ctx, 'land');
-    const response = await request(ctx, Commands.GetSectorPlanets, {});
+    const response = await request(ctx, Commands.SectorPlanets, {});
     if (response === null) return;
     if (response.outcome === 'landed') {
         showLanded(ctx, response);
@@ -395,7 +395,7 @@ registerRoutine('land', async (ctx) => {
     ctx.io.sendMsg(command(Commands.LandOnPlanet, { planetId: chosen.id }));
 });
 
-registerRoutine('use_terraform_device', async (ctx) => {
+registerRoutine('useTerraformDevice', async (ctx) => {
     echoCommand(ctx, 'terraformInfo');
     const info = await request(ctx, Commands.TerraformInfo, {});
     if (!info) return;
@@ -432,12 +432,12 @@ registerRoutine('use_terraform_device', async (ctx) => {
     );
 });
 
-registerRoutine('starbase_info', (ctx) => {
+registerRoutine('starbaseInfo', (ctx) => {
     echoCommand(ctx, 'starbaseInfo');
     ctx.io.sendMsg(command(Commands.StarbaseInfo, {}));
 });
 
-registerRoutine('quit_game', async (ctx) => {
+registerRoutine('quitGame', async (ctx) => {
     echoCommand(ctx, 'quit');
     const ok = await askConfirm(ctx, render(NOTIFY.quitConfirm), { defaultValue: false });
     if (ok) {
@@ -446,17 +446,17 @@ registerRoutine('quit_game', async (ctx) => {
     }
 });
 
-registerRoutine('players_online', (ctx) => {
+registerRoutine('playersOnline', (ctx) => {
     echoCommand(ctx, 'playersOnline');
     ctx.io.sendMsg(command(Commands.PlayersOnline, {}));
 });
 
-registerRoutine('clan_menu', (ctx) => {
-    echoMenuCommand(ctx, 'clan_menu');
+registerRoutine('clanMenu', (ctx) => {
+    echoMenuCommand(ctx, 'clanMenu');
     ctx.world.mode = Menu.Clan;
 });
 
-registerRoutine('transporter_pad', async (ctx) => {
+registerRoutine('transporterPad', async (ctx) => {
     echoCommand(ctx, 'transporterPad');
 
     const fetchScan = () => request(ctx, Commands.ListOwnedShips, {});
@@ -495,7 +495,7 @@ registerRoutine('transporter_pad', async (ctx) => {
                 ctx.io.term.writeln(render(COMPUTER.transporterUnknownShip));
                 continue;
             }
-            const detail = await request(ctx, Commands.GetShipDetail, { shipId: target.id });
+            const detail = await request(ctx, Commands.ShipDetail, { shipId: target.id });
             if (!detail) continue;
             await ensureHardwareCatalog(ctx);
             renderShipDetail(ctx, detail);
@@ -534,7 +534,7 @@ registerRoutine('transporter_pad', async (ctx) => {
     }
 });
 
-registerRoutine('tow_spacecraft', async (ctx) => {
+registerRoutine('towSpacecraft', async (ctx) => {
     echoCommand(ctx, 'towSpacecraft');
     const reply = await request(ctx, Commands.TowSpacecraft, {});
     if (!reply) return;

@@ -1,4 +1,4 @@
-import { ServerTag, type EventPayload } from '@twnr/shared';
+import { type EventPayload, Events } from '@twnr/shared';
 import { sendEnvelope } from '../state/messaging.js';
 import { getStatsSnapshotRow } from '../db/queries/player.js';
 import { getPlayerShipHardware } from '../db/queries/hardware.js';
@@ -15,7 +15,7 @@ export async function buildStatsSnapshot(
 
     const used = row.fuel + row.organics + row.equipment + row.colonists;
     return {
-        type: ServerTag.StatsSnapshot,
+        type: Events.StatsSnapshot.name,
         sector: row.sector_number ?? 0,
         turns: row.turns,
         experience: row.experience,

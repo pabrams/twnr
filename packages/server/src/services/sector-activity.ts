@@ -1,5 +1,5 @@
 import type { WebSocket } from 'ws';
-import { ServerTag } from '@twnr/shared';
+import { Events } from '@twnr/shared';
 import type { TowedAlong } from '@twnr/shared';
 import { onlinePlayers } from '../state/players.js';
 import { broadcastTo } from '../state/messaging.js';
@@ -42,7 +42,7 @@ export async function broadcastSectorActivity(
         if (clients.size === 0) return;
         broadcastTo(
             {
-                type: ServerTag.SectorActivity,
+                type: Events.SectorActivity.name,
                 playerId,
                 playerName: player.name,
                 activity,
@@ -72,7 +72,7 @@ export async function broadcastPlayerMoved(
         ]);
         broadcastTo(
             {
-                type: ServerTag.PlayerMoved,
+                type: Events.PlayerMoved.name,
                 playerId,
                 playerName: player.name,
                 sector: toSector,
@@ -83,7 +83,7 @@ export async function broadcastPlayerMoved(
         );
         broadcastTo(
             {
-                type: ServerTag.PlayerMoved,
+                type: Events.PlayerMoved.name,
                 playerId,
                 playerName: player.name,
                 sector: toSector,

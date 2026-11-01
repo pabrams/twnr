@@ -10,7 +10,7 @@ import {
   httpPost,
 } from './helpers.mjs';
 import { ensureServer, createPool } from './global-setup.mjs';
-import { ClientTag, ServerTag } from '@twnr/shared';
+import { Commands, Events } from '@twnr/shared';
 
 const UNIVERSE_ID = 1;
 
@@ -75,11 +75,11 @@ describe('Game events — ship destruction', () => {
     const { ws: wsA } = await connectPlayer(atk.token);
     const { ws: wsD } = await connectPlayer(def.token);
     try {
-      const survived = await wsRequest(wsA, { type: ClientTag.AttackShip, targetPlayerId: def.id, drones: 1 }, ServerTag.AttackShipResult);
+      const survived = await wsRequest(wsA, { type: Commands.AttackShip.name, targetPlayerId: def.id, drones: 1 }, Commands.AttackShip.reply.name);
       assert.equal(survived.destroyed, false);
       assert.equal((await eventsOfKind('player_ship_destroyed_by_ship_combat', (p) => p.victim.playerId === def.id)).length, 0);
 
-      const killed = await wsRequest(wsA, { type: ClientTag.AttackShip, targetPlayerId: def.id, drones: 5 }, ServerTag.AttackShipResult);
+      const killed = await wsRequest(wsA, { type: Commands.AttackShip.name, targetPlayerId: def.id, drones: 5 }, Commands.AttackShip.reply.name);
       assert.equal(killed.destroyed, true);
 
       const events = await eventsOfKind('player_ship_destroyed_by_ship_combat', (p) => p.victim.playerId === def.id);
@@ -100,7 +100,7 @@ describe('Game events — ship destruction', () => {
     const { ws } = await connectPlayer(victim.token);
     let minedSector;
     try {
-      const warps = await wsRequest(ws, { type: ClientTag.WarpsOut, id: 1 }, ServerTag.WarpsOutResult);
+      const warps = await wsRequest(ws, { type: Commands.WarpsOut.name, id: 1 }, Commands.WarpsOut.reply.name);
       minedSector = warps.warps[0].sector;
       // 40 mines at the default 50% detonation chance: a shieldless, droneless ship cannot survive entry.
       await pool.query(
@@ -110,8 +110,8 @@ describe('Game events — ship destruction', () => {
         [await sectorDbId(minedSector), miner.id],
       );
 
-      const hit = waitForMsg(ws, ServerTag.ProximityMineHit);
-      await wsRequest(ws, { type: ClientTag.Move, sector: minedSector }, ServerTag.MoveResult);
+      const hit = waitForMsg(ws, Events.ProximityMineHit.name);
+      await wsRequest(ws, { type: Commands.Move.name, sector: minedSector }, Commands.Move.reply.name);
       assert.equal((await hit).destroyed, true);
 
       const events = await eventsOfKind('player_ship_destroyed_by_sector_defenses', (p) => p.victim.playerId === victim.id);
@@ -166,7 +166,7 @@ describe('Game events — clans', () => {
     const { ws: wsK } = await connectPlayer(kicked.token);
     const clanName = `Clan ${stamp}`;
     try {
-      const created = await wsRequest(wsF, { type: ClientTag.ClanCreate, name: clanName, password: 'secret' }, ServerTag.ClanCreateResult);
+      const created = await wsRequest(wsF, { type: Commands.ClanCreate.name, name: clanName, password: 'secret' }, Commands.ClanCreate.reply.name);
       const clan = { clanId: created.clanId, clanNumber: created.clanNumber, name: clanName };
       const forClan = (p) => p.clan.clanId === clan.clanId;
 
@@ -175,23 +175,23 @@ describe('Game events — clans', () => {
       assert.deepEqual(createdEvents[0].payload.clan, clan);
       assert.equal(createdEvents[0].payload.founder.playerId, founder.id);
 
-      await wsRequest(wsJ, { type: ClientTag.ClanJoin, name: clanName, password: 'secret' }, ServerTag.ClanJoinResult);
-      await wsRequest(wsK, { type: ClientTag.ClanJoin, name: clanName, password: 'secret' }, ServerTag.ClanJoinResult);
+      await wsRequest(wsJ, { type: Commands.ClanJoin.name, name: clanName, password: 'secret' }, Commands.ClanJoin.reply.name);
+      await wsRequest(wsK, { type: Commands.ClanJoin.name, name: clanName, password: 'secret' }, Commands.ClanJoin.reply.name);
       const joinEvents = await eventsOfKind('player_joined_clan', forClan);
       assert.deepEqual(joinEvents.map((e) => e.payload.player.playerId), [joiner.id, kicked.id]);
 
-      await wsRequest(wsF, { type: ClientTag.ClanDropMember, targetPlayerId: kicked.id }, ServerTag.ClanDropMemberResult);
+      await wsRequest(wsF, { type: Commands.ClanDropMember.name, targetPlayerId: kicked.id }, Commands.ClanDropMember.reply.name);
       const kickEvents = await eventsOfKind('player_kicked_from_clan', forClan);
       assert.equal(kickEvents.length, 1);
       assert.equal(kickEvents[0].payload.player.playerId, kicked.id);
       assert.equal(kickEvents[0].payload.kickedBy.playerId, founder.id);
 
-      await wsRequest(wsF, { type: ClientTag.ClanLeave, successorPlayerId: joiner.id }, ServerTag.ClanLeaveResult);
+      await wsRequest(wsF, { type: Commands.ClanLeave.name, successorPlayerId: joiner.id }, Commands.ClanLeave.reply.name);
       const leftEvents = await eventsOfKind('player_left_clan', forClan);
       assert.deepEqual(leftEvents.map((e) => e.payload.player.playerId), [founder.id]);
       assert.equal((await eventsOfKind('clan_disbanded', forClan)).length, 0);
 
-      const dissolved = await wsRequest(wsJ, { type: ClientTag.ClanLeave, confirmDissolve: true }, ServerTag.ClanLeaveResult);
+      const dissolved = await wsRequest(wsJ, { type: Commands.ClanLeave.name, confirmDissolve: true }, Commands.ClanLeave.reply.name);
       assert.equal(dissolved.outcome, 'dissolved');
       assert.deepEqual((await eventsOfKind('player_left_clan', forClan)).map((e) => e.payload.player.playerId), [founder.id, joiner.id]);
       const disbandEvents = await eventsOfKind('clan_disbanded', forClan);
@@ -213,9 +213,9 @@ describe('Game events — planets', () => {
     const planetId = await insertPlanet(sector, `Claimable_${Date.now()}`);
     const { ws } = await connectPlayer(claimant.token);
     try {
-      await wsRequest(ws, { type: ClientTag.LandOnPlanet, planetId }, ServerTag.LandOnPlanetResult);
-      await wsRequest(ws, { type: ClientTag.ClaimPlanet, ownership: 'personal' }, ServerTag.ClaimPlanetResult);
-      await wsRequest(ws, { type: ClientTag.ClaimPlanet, ownership: 'personal' }, ServerTag.ClaimPlanetResult);
+      await wsRequest(ws, { type: Commands.LandOnPlanet.name, planetId }, Commands.LandOnPlanet.reply.name);
+      await wsRequest(ws, { type: Commands.ClaimPlanet.name, ownership: 'personal' }, Commands.ClaimPlanet.reply.name);
+      await wsRequest(ws, { type: Commands.ClaimPlanet.name, ownership: 'personal' }, Commands.ClaimPlanet.reply.name);
 
       const events = await eventsOfKind('planet_claimed', (p) => p.planet.planetId === planetId);
       assert.equal(events.length, 1);
@@ -240,8 +240,8 @@ describe('Game events — planets', () => {
     );
     const { ws } = await connectPlayer(buster.token);
     try {
-      await wsRequest(ws, { type: ClientTag.LandOnPlanet, planetId }, ServerTag.LandOnPlanetResult);
-      const res = await wsRequest(ws, { type: ClientTag.DestroyPlanet }, ServerTag.DestroyPlanetResult);
+      await wsRequest(ws, { type: Commands.LandOnPlanet.name, planetId }, Commands.LandOnPlanet.reply.name);
+      const res = await wsRequest(ws, { type: Commands.DestroyPlanet.name }, Commands.DestroyPlanet.reply.name);
       assert.equal(res.destroyed, true);
 
       const events = await eventsOfKind('planet_destroyed', (p) => p.planet.planetId === planetId);
@@ -367,7 +367,7 @@ describe('Game events — Galactic News reading', () => {
     const reader = await createPlayer(`ge_reader_${Date.now()}`);
     const { ws } = await connectPlayer(reader.token);
     try {
-      const range = await wsRequest(ws, { type: ClientTag.GalacticNewsRange }, ServerTag.GalacticNewsRangeResult);
+      const range = await wsRequest(ws, { type: Commands.GalacticNewsRange.name }, Commands.GalacticNewsRange.reply.name);
       const earliest = await pool.query(
         `SELECT created_at FROM game_events WHERE universe_id = $1 AND visibility = 'galactic' ORDER BY id LIMIT 1`,
         [UNIVERSE_ID],
@@ -375,7 +375,7 @@ describe('Game events — Galactic News reading', () => {
       assert.equal(range.earliestCreatedAt, earliest.rows[0].created_at.toISOString());
 
       const clanName = `News Clan ${Date.now()}`;
-      await wsRequest(ws, { type: ClientTag.ClanCreate, name: clanName, password: 'secret' }, ServerTag.ClanCreateResult);
+      await wsRequest(ws, { type: Commands.ClanCreate.name, name: clanName, password: 'secret' }, Commands.ClanCreate.reply.name);
       const created = await pool.query(
         `SELECT id, created_at FROM game_events WHERE universe_id = $1 AND kind = 'clan_created'
          AND payload->'clan'->>'name' = $2`,
@@ -383,7 +383,7 @@ describe('Game events — Galactic News reading', () => {
       );
       const createdId = Number(created.rows[0].id);
       const since = new Date(created.rows[0].created_at.getTime() - 1000).toISOString();
-      const news = await wsRequest(ws, { type: ClientTag.ReadGalacticNews, since }, ServerTag.GalacticNewsResult);
+      const news = await wsRequest(ws, { type: Commands.ReadGalacticNews.name, since }, Commands.ReadGalacticNews.reply.name);
       const ids = news.entries.map((e) => e.id);
       assert.ok(ids.includes(createdId));
       assert.deepEqual(ids, [...ids].sort((a, b) => a - b));
@@ -399,17 +399,17 @@ describe('Game events — Galactic News reading', () => {
          SELECT $1, 'player_joined_universe', 'galactic', $2::jsonb FROM generate_series(1, 205)`,
         [UNIVERSE_ID, chunkPayload],
       );
-      const first = await wsRequest(ws, { type: ClientTag.ReadGalacticNews, since: sinceChunks }, ServerTag.GalacticNewsResult);
+      const first = await wsRequest(ws, { type: Commands.ReadGalacticNews.name, since: sinceChunks }, Commands.ReadGalacticNews.reply.name);
       assert.equal(first.hasMore, true);
       assert.equal(first.entries.length, 200);
       const lastId = first.entries[first.entries.length - 1].id;
-      const second = await wsRequest(ws, { type: ClientTag.ReadGalacticNews, since: sinceChunks, afterId: lastId }, ServerTag.GalacticNewsResult);
+      const second = await wsRequest(ws, { type: Commands.ReadGalacticNews.name, since: sinceChunks, afterId: lastId }, Commands.ReadGalacticNews.reply.name);
       assert.equal(second.hasMore, false);
       assert.equal(second.entries.length, 5);
       assert.ok(second.entries.every((e) => e.id > lastId));
 
       const future = new Date(Date.now() + 60_000).toISOString();
-      const none = await wsRequest(ws, { type: ClientTag.ReadGalacticNews, since: future }, ServerTag.GalacticNewsResult);
+      const none = await wsRequest(ws, { type: Commands.ReadGalacticNews.name, since: future }, Commands.ReadGalacticNews.reply.name);
       assert.deepEqual(none.entries, []);
     } finally {
       await closeWS(ws);

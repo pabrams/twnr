@@ -67,6 +67,7 @@ export async function serveDeployMineInfo(
     }
 
     return {
+        outcome: 'ok',
         mineType,
         sectorMines: existing?.quantity ?? 0,
         shipMines: cap.current_qty,
@@ -166,6 +167,7 @@ export async function serveDeployMine(
         async (result) => {
             await refreshSectorObservation(playerId, sectorDbId);
             return {
+                outcome: 'ok',
                 mineType,
                 sectorMines: result.sectorMines,
                 shipMines: result.shipMines,
@@ -181,6 +183,7 @@ export async function serveListDeployedMines(
     const rows = await getDeployedMinesByOwner(playerId);
     const { formatOwner, ownershipFrom } = await import('../services/owner-format.js');
     return {
+        outcome: 'ok',
         mines: rows.map((r) => ({
             sectorNumber: r.sector_number,
             mineType: r.mine_type,
@@ -197,6 +200,7 @@ export async function serveTrackSeekerMines(
     requireOnlinePlayer(playerId);
     const rows = await getSeekerAttachmentsByOwner(playerId);
     return {
+        outcome: 'ok',
         targets: rows.map((r) => ({
             targetShipId: r.target_ship_id,
             targetShipName: r.target_ship_type_name,
@@ -265,6 +269,7 @@ export async function serveMineDisruptor(
         async (result) => {
             await refreshSectorObservation(playerId, targetSectorDbId);
             return {
+                outcome: 'ok',
                 targetSector,
                 minesDisrupted: result.removed,
                 proximityMinesRemaining: result.remaining,

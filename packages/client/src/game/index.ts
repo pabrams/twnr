@@ -276,7 +276,7 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
         minimap.onRequestRefresh(() => {
             const vp = minimap.getViewport();
             ctx.io.sendMsg(
-                command(Commands.GetNeighborhood, {
+                command(Commands.Neighborhood, {
                     halfWidthWorld: vp.halfWidthWorld,
                     halfHeightWorld: vp.halfHeightWorld,
                     centerXWorld: vp.centerXWorld,

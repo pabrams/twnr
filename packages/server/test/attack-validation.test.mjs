@@ -2,7 +2,7 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createTestUser, createTestPlayer, connectWS, closeWS, wsRequest } from './helpers.mjs';
 import { ensureServer, createPool } from './global-setup.mjs';
-import { ClientTag, ServerTag } from '@twnr/shared';
+import { Commands, Events } from '@twnr/shared';
 
 const UNIVERSE_ID = 1;
 
@@ -27,17 +27,10 @@ after(async () => {
   if (pool) await pool.end();
 });
 
-describe('Shared types', () => {
-  it('ClientTag should include AttackShip', async () => {
-    const shared = await import('@twnr/shared');
-    assert.ok(shared.ClientTag.AttackShip, 'ClientTag.AttackShip should be defined');
-    assert.equal(typeof shared.ClientTag.AttackShip, 'string');
-  });
-
-  it('ServerTag should include AttackShipResult', async () => {
-    const shared = await import('@twnr/shared');
-    assert.ok(shared.ServerTag.AttackShipResult, 'ServerTag.AttackShipResult should be defined');
-    assert.equal(typeof shared.ServerTag.AttackShipResult, 'string');
+describe('Shared protocol', () => {
+  it('defines the AttackShip command and its reply', () => {
+    assert.equal(Commands.AttackShip.name, 'attackShip');
+    assert.equal(Commands.AttackShip.reply.name, 'attackShipResult');
   });
 });
 
@@ -62,8 +55,8 @@ describe('Attack validation', () => {
     const { ws: ws1 } = await connectPlayer(atk.token);
     const { ws: ws2 } = await connectPlayer(def.token);
     try {
-      const res = await wsRequest(ws1, { type: ClientTag.AttackShip, targetPlayerId: def.id, drones: 0 }, ServerTag.AttackShipResult);
-      assert.equal(res.type, ServerTag.ProtocolError);
+      const res = await wsRequest(ws1, { type: Commands.AttackShip.name, targetPlayerId: def.id, drones: 0 }, Commands.AttackShip.reply.name);
+      assert.equal(res.type, Events.ProtocolError.name);
       assert.equal(res.reason, 'rejected');
     } finally {
       await closeWS(ws1);
@@ -77,8 +70,8 @@ describe('Attack validation', () => {
     const { ws: ws1 } = await connectPlayer(atk.token);
     const { ws: ws2 } = await connectPlayer(def.token);
     try {
-      const res = await wsRequest(ws1, { type: ClientTag.AttackShip, targetPlayerId: def.id, drones: -1 }, ServerTag.AttackShipResult);
-      assert.equal(res.type, ServerTag.ProtocolError);
+      const res = await wsRequest(ws1, { type: Commands.AttackShip.name, targetPlayerId: def.id, drones: -1 }, Commands.AttackShip.reply.name);
+      assert.equal(res.type, Events.ProtocolError.name);
       assert.equal(res.reason, 'rejected');
     } finally {
       await closeWS(ws1);
@@ -92,7 +85,7 @@ describe('Attack validation', () => {
     const { ws: ws1 } = await connectPlayer(atk.token);
     const { ws: ws2 } = await connectPlayer(def.token);
     try {
-      const res = await wsRequest(ws1, { type: ClientTag.AttackShip, targetPlayerId: def.id, drones: 5 }, ServerTag.AttackShipResult);
+      const res = await wsRequest(ws1, { type: Commands.AttackShip.name, targetPlayerId: def.id, drones: 5 }, Commands.AttackShip.reply.name);
       assert.equal(res.outcome, 'refused');
       assert.equal(res.reason, 'notEnoughDrones');
     } finally {
@@ -107,7 +100,7 @@ describe('Attack validation', () => {
     const { ws: ws1 } = await connectPlayer(atk.token);
     const { ws: ws2 } = await connectPlayer(def.token);
     try {
-      const res = await wsRequest(ws1, { type: ClientTag.AttackShip, targetPlayerId: def.id, drones: 1 }, ServerTag.AttackShipResult);
+      const res = await wsRequest(ws1, { type: Commands.AttackShip.name, targetPlayerId: def.id, drones: 1 }, Commands.AttackShip.reply.name);
       assert.equal(res.outcome, 'refused');
       assert.equal(res.reason, 'targetNotHere');
     } finally {

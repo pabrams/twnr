@@ -6,7 +6,7 @@ import { showEarthMenu } from '../display-planet.js';
 import { registerRoutine, registerMenuRoutine } from './types.js';
 import { askNumber } from './prompts.js';
 
-registerRoutine('take_from_earth', async (ctx) => {
+registerRoutine('takeFromEarth', async (ctx) => {
     echoCommand(ctx, 'takeColonists');
     const qty = await askNumber(
         ctx,
@@ -17,7 +17,7 @@ registerRoutine('take_from_earth', async (ctx) => {
     ctx.io.sendMsg(command(Commands.TakeColonists, { quantity: qty, commodity: 'fuel' }));
 });
 
-registerRoutine('leave_on_earth', async (ctx) => {
+registerRoutine('leaveOnEarth', async (ctx) => {
     echoCommand(ctx, 'leaveColonists');
     const qty = await askNumber(
         ctx,
@@ -28,6 +28,6 @@ registerRoutine('leave_on_earth', async (ctx) => {
     ctx.io.sendMsg(command(Commands.LeaveColonists, { quantity: qty, commodity: 'fuel' }));
 });
 
-registerMenuRoutine(Menu.PlanetEarth, 'help_menu', (ctx) => {
+registerMenuRoutine(Menu.PlanetEarth, 'helpMenu', (ctx) => {
     showEarthMenu(ctx, ctx.world.earthColonists);
 });

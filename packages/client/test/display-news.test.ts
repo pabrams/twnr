@@ -71,7 +71,10 @@ describe('renderNewsEvent', () => {
             kind: 'player_ship_destroyed_by_ship_combat',
             attacker: { playerId: 1, name: 'Alice' },
             victim: { playerId: 2, name: 'Bob' },
-            destroyedShipType: { slug: 'Vulpeculan Cruiser', displayName: '[g]Cargo Freighter[/g]' },
+            destroyedShipType: {
+                slug: 'Vulpeculan Cruiser',
+                displayName: '[g]Cargo Freighter[/g]',
+            },
             sectorNumber: 7,
         });
         expect(plain(combat)).toBe("Alice destroyed Bob's Cargo Freighter!");
@@ -84,7 +87,9 @@ describe('renderNewsEvent', () => {
             defenseOwner: { kind: 'clan', clanId: 3, clanNumber: 2, name: 'Raiders' },
             sectorNumber: 7,
         });
-        expect(plain(mined)).toBe("Bob's Hydra Skiff was destroyed by mines belonging to #2 Raiders!");
+        expect(plain(mined)).toBe(
+            "Bob's Hydra Skiff was destroyed by mines belonging to #2 Raiders!",
+        );
 
         const rogue = renderNewsEvent({
             kind: 'port_built',

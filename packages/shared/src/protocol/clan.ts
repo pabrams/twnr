@@ -56,7 +56,7 @@ export const ClanMembershipChanged = defineEvent('clanMembershipChanged', {
     reason: z.enum(['dropped', 'dissolved', 'other']),
 });
 
-export const ClanMemoNotification = defineEvent('clanMemoNotification', {
+export const ClanMemoReceived = defineEvent('clanMemoReceived', {
     senderName: Str,
 });
 
@@ -65,11 +65,13 @@ export const ClanCreate = defineCommand('clanCreate', {
         name: ClanName,
         password: ClanPassword,
     },
-    reply: {
-        clanId: Int,
-        clanNumber: Int,
-        name: Str,
-    },
+    reply: outcomes({
+        ok: {
+            clanId: Int,
+            clanNumber: Int,
+            name: Str,
+        },
+    }),
 });
 
 export const ClanJoin = defineCommand('clanJoin', {
@@ -77,11 +79,13 @@ export const ClanJoin = defineCommand('clanJoin', {
         name: z.string().trim().min(1),
         password: z.string(),
     },
-    reply: {
-        clanId: Int,
-        clanNumber: Int,
-        name: Str,
-    },
+    reply: outcomes({
+        ok: {
+            clanId: Int,
+            clanNumber: Int,
+            name: Str,
+        },
+    }),
 });
 
 export const ClanLeave = defineCommand('clanLeave', {
@@ -100,26 +104,30 @@ export const ClanLeave = defineCommand('clanLeave', {
 
 export const ClanList = defineCommand('clanList', {
     request: {},
-    reply: {
-        viewerClanId: IntOrNull,
-        clans: z.array(ClanListEntrySchema),
-    },
+    reply: outcomes({
+        ok: {
+            viewerClanId: IntOrNull,
+            clans: z.array(ClanListEntrySchema),
+        },
+    }),
 });
 
 export const ClanInfo = defineCommand('clanInfo', {
     request: {},
-    reply: {
-        clan: z
-            .object({
-                clanId: Int,
-                clanNumber: Int,
-                name: Str,
-                leaderPlayerId: Int,
-                members: z.array(ClanMemberEntrySchema),
-                maxSize: Num,
-            })
-            .nullable(),
-    },
+    reply: outcomes({
+        ok: {
+            clan: z
+                .object({
+                    clanId: Int,
+                    clanNumber: Int,
+                    name: Str,
+                    leaderPlayerId: Int,
+                    members: z.array(ClanMemberEntrySchema),
+                    maxSize: Num,
+                })
+                .nullable(),
+        },
+    }),
 });
 
 export const ClanTransfer = defineCommand('clanTransfer', {
@@ -134,44 +142,54 @@ export const ClanTransfer = defineCommand('clanTransfer', {
             message: 'mineType is required when kind is mines',
             path: ['mineType'],
         }),
-    reply: {
-        kind: z.enum(['credits', 'drones', 'shields', 'mines']),
-        targetPlayerId: Int,
-        targetName: Str,
-        quantity: Num,
-        delivered: Num,
-    },
+    reply: outcomes({
+        ok: {
+            kind: z.enum(['credits', 'drones', 'shields', 'mines']),
+            targetPlayerId: Int,
+            targetName: Str,
+            quantity: Num,
+            delivered: Num,
+        },
+    }),
 });
 
 export const ClanMemo = defineCommand('clanMemo', {
     request: {
         body: MemoBody,
     },
-    reply: {
-        recipientCount: Num,
-    },
+    reply: outcomes({
+        ok: {
+            recipientCount: Num,
+        },
+    }),
 });
 
 export const ClanSetPassword = defineCommand('clanSetPassword', {
     request: {
         newPassword: ClanPassword,
     },
-    reply: {},
+    reply: outcomes({
+        ok: {},
+    }),
 });
 
 export const ClanDropMember = defineCommand('clanDropMember', {
     request: {
         targetPlayerId: Id,
     },
-    reply: {
-        droppedPlayerId: Int,
-        droppedName: Str,
-    },
+    reply: outcomes({
+        ok: {
+            droppedPlayerId: Int,
+            droppedName: Str,
+        },
+    }),
 });
 
 export const ClanmateLocations = defineCommand('clanmateLocations', {
     request: {},
-    reply: {
-        members: z.array(ClanmateLocationEntrySchema),
-    },
+    reply: outcomes({
+        ok: {
+            members: z.array(ClanmateLocationEntrySchema),
+        },
+    }),
 });

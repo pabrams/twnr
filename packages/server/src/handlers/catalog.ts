@@ -17,6 +17,7 @@ export async function serveShipCatalog(playerId: number): Promise<CommandResult<
     }
 
     return {
+        outcome: 'ok',
         ships: shipTypes.map((st) => ({
             name: st.slug,
             displayName: st.display_name,
@@ -56,6 +57,7 @@ export async function servePlanetCatalog(
 
     const planetTypes = await listUniversePlanetTypes(player.universeId);
     return {
+        outcome: 'ok',
         planets: planetTypes.map((pt) => ({
             slug: pt.slug,
             displayName: pt.display_name,
@@ -83,6 +85,7 @@ export async function servePlanetCatalog(
 export async function serveHardwareCatalog(): Promise<CommandResult<'HardwareCatalog'>> {
     const items = await listHardwareCatalog();
     return {
+        outcome: 'ok',
         items: items.map((i) => ({ name: i.name, label: i.label, kind: i.kind })),
     };
 }

@@ -242,7 +242,7 @@ export type MinimapKeyInjector = (key: string) => void;
 export type MinimapMenuButton = { label: string; key: string };
 
 export interface Minimap {
-    update(data: AcceptedReply<'GetNeighborhood'>, currentSectorNumber: number): void;
+    update(data: AcceptedReply<'Neighborhood'>, currentSectorNumber: number): void;
     /** centerXWorld/Y are undefined while the viewport follows the current sector. */
     getViewport(): {
         halfWidthWorld: number;
@@ -259,7 +259,7 @@ export interface Minimap {
 
 type MinimapState = {
     zoom: number;
-    data: AcceptedReply<'GetNeighborhood'> | null;
+    data: AcceptedReply<'Neighborhood'> | null;
     currentSectorNumber: number;
     currentSectorId: number;
     quickMoveTargets: number[] | null;

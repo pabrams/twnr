@@ -1,4 +1,4 @@
-import { ServerTag } from '@twnr/shared';
+import { Events } from '@twnr/shared';
 import { onlinePlayers } from '../state/players.js';
 import { sendEnvelope } from '../state/messaging.js';
 import { insertMemo, insertSystemMemo } from '../db/queries/message.js';
@@ -14,7 +14,7 @@ export function notifyTurnChange(playerId: number, turnsDelta: number, reason: s
         turnsDelta > 0
             ? `${turnsDelta} turn(s) deducted for ${reason}.`
             : `${Math.abs(turnsDelta)} turn(s) granted for ${reason}.`;
-    sendEnvelope(playerId, { type: ServerTag.Notice, senderLabel: null, body });
+    sendEnvelope(playerId, { type: Events.Notice.name, senderLabel: null, body });
 }
 
 export async function notifyAndMail(opts: {
@@ -35,7 +35,7 @@ export async function notifyAndMail(opts: {
     }
     if (onlinePlayers[recipientId]) {
         sendEnvelope(recipientId, {
-            type: ServerTag.Notice,
+            type: Events.Notice.name,
             senderLabel: notifyLabel,
             body,
         });

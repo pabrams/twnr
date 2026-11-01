@@ -124,7 +124,7 @@ export const playersOnline: ReplyHandler<'PlayersOnline', LifecycleContext> = (c
     }
 };
 
-export const neighborhood: ReplyHandler<'GetNeighborhood', LifecycleContext> = (ctx, msg) => {
+export const neighborhood: ReplyHandler<'Neighborhood', LifecycleContext> = (ctx, msg) => {
     ctx.minimap.handle?.update(msg, ctx.world.currentSector);
 };
 

@@ -53,10 +53,7 @@ export const attackShip: ReplyHandler<'AttackShip', CombatContext> = (ctx, msg) 
     renderAttributeChange(ctx, msg.expDelta ?? 0, msg.repDelta ?? 0, 'combat');
 };
 
-export const getAttackTargets: ReplyHandler<'GetAttackTargets', CombatContext> = async (
-    ctx,
-    msg,
-) => {
+export const getAttackTargets: ReplyHandler<'AttackTargets', CombatContext> = async (ctx, msg) => {
     ctx.world.sectorPlayers = msg.players;
     if (msg.beaconPresent) {
         const ok = await askConfirm(ctx, render(SECTOR.attackBeaconPrompt), {
@@ -147,7 +144,10 @@ export const retreatFromDrones: ReplyHandler<'RetreatFromDrones', CombatContext>
     ctx.io.term.writeln(render(EVENT.retreated, { sector: msg.sector }));
 };
 
-export const sectorDronesAlert: EventHandler<'SectorDronesAlert', CombatContext> = (ctx, msg) => {
+export const sectorDronesReported: EventHandler<'SectorDronesReported', CombatContext> = (
+    ctx,
+    msg,
+) => {
     ctx.io.term.writeln('');
     const tpl =
         msg.event === 'intrusion'

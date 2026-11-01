@@ -43,10 +43,7 @@ export async function serveDensityScan(playerId: number): Promise<CommandResult<
         anom: r.limpet_qty > 0,
     }));
 
-    return {
-        entries,
-        hasVisualScanner: scannerQty > 0,
-    };
+    return { outcome: 'ok', entries, hasVisualScanner: scannerQty > 0 };
 }
 
 export async function serveVisualScan(playerId: number): Promise<CommandResult<'VisualScan'>> {
@@ -75,5 +72,5 @@ export async function serveVisualScan(playerId: number): Promise<CommandResult<'
         if (data) sectors.push(data);
     }
 
-    return { sectors };
+    return { outcome: 'ok', sectors };
 }

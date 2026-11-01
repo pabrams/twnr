@@ -1,4 +1,4 @@
-import { ServerTag, type EventPayload } from '@twnr/shared';
+import { type EventPayload, Events } from '@twnr/shared';
 import { onlinePlayers } from '../state/players.js';
 import { sendEnvelope, broadcastTo } from '../state/messaging.js';
 import { insertMemo, insertSystemMemo } from '../db/queries/message.js';
@@ -11,7 +11,7 @@ export type PlanetDestructionNotice = {
     universeId: number;
     sectorNumber: number;
     planetName: string;
-    cause: EventPayload<'PlanetDestroyedAlert'>['cause'];
+    cause: EventPayload<'PlanetDestroyed'>['cause'];
     /** Players who were on the surface and have been lifted back to their ships. */
     occupantIds: number[];
     occupantMailBody: string;
@@ -23,7 +23,7 @@ export type PlanetDestructionNotice = {
 /** Call after the deleting transaction commits. */
 export async function notifyPlanetDestroyed(notice: PlanetDestructionNotice): Promise<void> {
     const alert = {
-        type: ServerTag.PlanetDestroyedAlert,
+        type: Events.PlanetDestroyed.name,
         planetName: notice.planetName,
         sector: notice.sectorNumber,
         cause: notice.cause,

@@ -9,8 +9,5 @@ export async function serveVisitedSectors(
     const player = requireOnlinePlayer(playerId);
     const sectors = await getVisitedSectors(playerId);
     const totalSectors = await countSectorsInUniverse(player.universeId);
-    return {
-        sectors,
-        totalSectors,
-    };
+    return { outcome: 'ok', sectors, totalSectors };
 }

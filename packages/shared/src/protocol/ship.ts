@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 
-import { defineCommand, defineEvent, defineReply, outcomes } from './define.js';
+import { defineCommand, defineEvent, outcomes } from './define.js';
 
 import {
     Ownership,
@@ -55,71 +55,79 @@ export const TowableUnmannedEntrySchema = z.object({
 
 export type TowableUnmannedEntry = z.infer<typeof TowableUnmannedEntrySchema>;
 
-export const TowReleasedAlert = defineEvent('towReleasedAlert', {
+export const TowReleased = defineEvent('towReleased', {
     towedName: Str,
 });
 
-export const TowAttachedAlert = defineEvent('towAttachedAlert', {
+export const TowAttached = defineEvent('towAttached', {
     towingName: Str,
 });
 
 export const ShipInfo = defineCommand('shipInfo', {
     request: {},
-    reply: {
-        playerId: Int,
-        shipTypeName: Str,
-        coloredShipName: StrOrNull,
-        drones: Num,
-        shields: Num,
-        maxDrones: Num,
-        maxShields: Num,
-        cargoLimit: Num,
-        maxHolds: Num,
-        cargoFuel: Num,
-        cargoOrganics: Num,
-        cargoEquipment: Num,
-        cargoColonists: Num,
-        holdsAvailable: Num,
-        hardware: HardwareMap,
-        hardwareMax: HardwareMap,
-        turnsPerWarp: Num,
-        hasHyperwarpDrive: Bool,
-        turns: Num,
-        credits: Num,
-        clanNumber: IntOrNull,
-        clanName: StrOrNull,
-    },
+    reply: outcomes({
+        ok: {
+            playerId: Int,
+            shipTypeName: Str,
+            coloredShipName: StrOrNull,
+            drones: Num,
+            shields: Num,
+            maxDrones: Num,
+            maxShields: Num,
+            cargoLimit: Num,
+            maxHolds: Num,
+            cargoFuel: Num,
+            cargoOrganics: Num,
+            cargoEquipment: Num,
+            cargoColonists: Num,
+            holdsAvailable: Num,
+            hardware: HardwareMap,
+            hardwareMax: HardwareMap,
+            turnsPerWarp: Num,
+            hasHyperwarpDrive: Bool,
+            turns: Num,
+            credits: Num,
+            clanNumber: IntOrNull,
+            clanName: StrOrNull,
+        },
+    }),
 });
 
 export const BuyDrones = defineCommand('buyDrones', {
     request: {
         quantity: PositiveInt,
     },
-    reply: {
-        credits: Num,
-        drones: Num,
-    },
+    reply: outcomes({
+        ok: {
+            credits: Num,
+            drones: Num,
+        },
+    }),
 });
 
 export const BuyShields = defineCommand('buyShields', {
     request: {
         quantity: PositiveInt,
     },
-    reply: {
-        credits: Num,
-        shields: Num,
-    },
+    reply: outcomes({
+        ok: {
+            credits: Num,
+            shields: Num,
+        },
+    }),
 });
 
 export const BuyHolds = defineCommand('buyHolds', {
     request: {
         quantity: PositiveInt,
     },
-    reply: {
-        credits: Num,
-        cargoLimit: Num,
-        turnsUsed: Num.optional(),
-    },
+    reply: outcomes({
+        ok: {
+            credits: Num,
+            cargoLimit: Num,
+            turnsUsed: Num.optional(),
+        },
+    }),
 });
 
 export const BuyShipNew = defineCommand('buyShipNew', {
@@ -127,14 +135,16 @@ export const BuyShipNew = defineCommand('buyShipNew', {
         targetShipName: z.string(),
         name: ShipName,
     },
-    reply: {
-        shipTypeName: Str,
-        coloredShipName: StrOrNull,
-        credits: Num,
-        maxDrones: Num,
-        maxShields: Num,
-        cargoLimit: Num,
-    },
+    reply: outcomes({
+        ok: {
+            shipTypeName: Str,
+            coloredShipName: StrOrNull,
+            credits: Num,
+            maxDrones: Num,
+            maxShields: Num,
+            cargoLimit: Num,
+        },
+    }),
 });
 
 export const BuyShipTradein = defineCommand('buyShipTradein', {
@@ -142,22 +152,26 @@ export const BuyShipTradein = defineCommand('buyShipTradein', {
         targetShipName: z.string(),
         name: ShipName,
     },
-    reply: {
-        shipTypeName: Str,
-        coloredShipName: StrOrNull,
-        credits: Num,
-        maxDrones: Num,
-        maxShields: Num,
-        cargoLimit: Num,
-    },
+    reply: outcomes({
+        ok: {
+            shipTypeName: Str,
+            coloredShipName: StrOrNull,
+            credits: Num,
+            maxDrones: Num,
+            maxShields: Num,
+            cargoLimit: Num,
+        },
+    }),
 });
 
 export const HardwareStoreInfo = defineCommand('hardwareStoreInfo', {
     request: {},
-    reply: {
-        credits: Num,
-        items: z.array(HardwareStoreItemSchema),
-    },
+    reply: outcomes({
+        ok: {
+            credits: Num,
+            items: z.array(HardwareStoreItemSchema),
+        },
+    }),
 });
 
 export const BuyHardware = defineCommand('buyHardware', {
@@ -165,96 +179,103 @@ export const BuyHardware = defineCommand('buyHardware', {
         itemName: z.string(),
         quantity: PositiveInt.optional(),
     },
-    reply: {
-        itemName: Str,
-        label: Str,
-        kind: z.enum(['stackable', 'toggle']),
-        quantity: Num.optional(),
-        totalOnShip: Num.optional(),
-        credits: Num,
-        cost: Num,
-    },
+    reply: outcomes({
+        ok: {
+            itemName: Str,
+            label: Str,
+            kind: z.enum(['stackable', 'toggle']),
+            quantity: Num.optional(),
+            totalOnShip: Num.optional(),
+            credits: Num,
+            cost: Num,
+        },
+    }),
 });
 
 export const ListOwnedShips = defineCommand('listOwnedShips', {
     request: {},
-    reply: {
-        currentSector: Int,
-        currentShipId: IntOrNull,
-        currentShipTypeName: StrOrNull,
-        currentShipTypeDisplayName: StrOrNull,
-        currentShipTransporterRange: NumOrNull,
-        viewerClanId: IntOrNull,
-        ships: z.array(
-            z.object({
-                id: Int,
-                shipNumber: Int,
-                sector: IntOrNull,
-                drones: Num,
-                shields: Num,
-                holds: Num,
-                hops: IntOrNull,
-                typeName: Str,
-                typeDisplayName: StrOrNull,
-                transporterRange: Num,
-                ownerPlayerId: IntOrNull,
-                ownerClanId: IntOrNull,
-                ownerLabel: Str,
-            }),
-        ),
-    },
+    reply: outcomes({
+        ok: {
+            currentSector: Int,
+            currentShipId: IntOrNull,
+            currentShipTypeName: StrOrNull,
+            currentShipTypeDisplayName: StrOrNull,
+            currentShipTransporterRange: NumOrNull,
+            viewerClanId: IntOrNull,
+            ships: z.array(
+                z.object({
+                    id: Int,
+                    shipNumber: Int,
+                    sector: IntOrNull,
+                    drones: Num,
+                    shields: Num,
+                    holds: Num,
+                    hops: IntOrNull,
+                    typeName: Str,
+                    typeDisplayName: StrOrNull,
+                    transporterRange: Num,
+                    ownerPlayerId: IntOrNull,
+                    ownerClanId: IntOrNull,
+                    ownerLabel: Str,
+                }),
+            ),
+        },
+    }),
 });
 
-// Reply tag predates the `${command}Result` convention (see protocol step 4).
-const ShipDetailResult = defineReply('shipDetailResult', {
-    shipId: Int,
-    shipNumber: Int,
-    typeName: Str,
-    typeDisplayName: StrOrNull,
-    sector: IntOrNull,
-    drones: Num,
-    maxDrones: Num,
-    shields: Num,
-    maxShields: Num,
-    holds: Num,
-    maxHolds: Num,
-    transporterRange: Num,
-    cargoFuel: Num,
-    cargoOrganics: Num,
-    cargoEquipment: Num,
-    cargoColonists: Num,
-    ownership: OwnershipInfoSchema,
-    hardware: HardwareMap,
-    hardwareMax: HardwareMap,
-});
-
-export const GetShipDetail = defineCommand('getShipDetail', {
+export const ShipDetail = defineCommand('shipDetail', {
     request: {
         shipId: Id,
     },
-    reply: ShipDetailResult,
+    reply: outcomes({
+        ok: {
+            shipId: Int,
+            shipNumber: Int,
+            typeName: Str,
+            typeDisplayName: StrOrNull,
+            sector: IntOrNull,
+            drones: Num,
+            maxDrones: Num,
+            shields: Num,
+            maxShields: Num,
+            holds: Num,
+            maxHolds: Num,
+            transporterRange: Num,
+            cargoFuel: Num,
+            cargoOrganics: Num,
+            cargoEquipment: Num,
+            cargoColonists: Num,
+            ownership: OwnershipInfoSchema,
+            hardware: HardwareMap,
+            hardwareMax: HardwareMap,
+        },
+    }),
 });
 
 export const TransportToShip = defineCommand('transportToShip', {
     request: {
         shipId: Id,
     },
-    reply: {
-        targetShipId: Int,
-        targetSector: Int,
-        turnsUsed: Num,
-        turnsRemaining: Num,
-    },
+    reply: outcomes({
+        ok: {
+            targetShipId: Int,
+            targetSector: Int,
+            turnsUsed: Num,
+            turnsRemaining: Num,
+        },
+    }),
 });
 
 export const ChangeShipOwnership = defineCommand('changeShipOwnership', {
     request: {
         ownership: Ownership,
     },
-    reply: {
-        shipId: Int,
-        ownership: Ownership,
-    },
+    reply: outcomes({
+        ok: {
+            shipId: Int,
+            ownership: Ownership,
+        },
+    }),
 });
 
 export const TowSpacecraft = defineCommand('towSpacecraft', {

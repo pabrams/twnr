@@ -9,7 +9,7 @@ import { type CommandResult } from './command.js';
 export async function serveReadMail(playerId: number): Promise<CommandResult<'ReadMail'>> {
     const rows = await getAllMailForPlayer(playerId);
     return {
-        reason: 'read',
+        outcome: 'ok',
         memos: rows.map((m) => ({
             id: m.id,
             senderName: m.sender_name,
@@ -32,7 +32,7 @@ export async function serveCheckMailSinceLastLogout(
     const lastLogout = await getPlayerLastLogoutAt(playerId);
     const rows = await getMailSince(playerId, lastLogout);
     return {
-        reason: 'connect',
+        outcome: 'ok',
         memos: rows.map((m) => ({
             id: m.id,
             senderName: m.sender_name,
