@@ -138,4 +138,61 @@ describe('Ship destruction', () => {
       await closeWS(ws2);
     }
   });
+
+  it('clears the sector of a destroyed player and omits them from the sector display and attack roster', async () => {
+    const atk = await createPlayer('atk_gone', 1, 5, 0);
+    const def = await createPlayer('def_gone', 1, 0, 0);
+    const observer = await createPlayer('obs_gone', 1, 0, 0);
+    const { ws: ws1 } = await connectPlayer(atk.token);
+    const { ws: ws2 } = await connectPlayer(def.token);
+    const { ws: ws3 } = await connectPlayer(observer.token);
+    try {
+      await wsRequest(ws1, { type: Commands.AttackShip.name, targetPlayerId: def.id, drones: 1 }, Commands.AttackShip.reply.name);
+
+      const display = await wsRequest(ws3, { type: Commands.SectorDisplay.name }, Commands.SectorDisplay.reply.name);
+      assert.ok(!display.players.some((p) => p.id === def.id), 'destroyed player must not be listed in the sector');
+      assert.ok(display.players.some((p) => p.id === atk.id), 'surviving players are still listed');
+
+      const row = await pool.query('SELECT current_sector_id, previous_sector_id FROM players WHERE id = $1', [def.id]);
+      assert.equal(row.rows[0].current_sector_id, null, 'destroyed player should have no sector');
+      assert.equal(row.rows[0].previous_sector_id, null, 'destroyed player should have no previous sector');
+
+      const roster = await wsRequest(ws1, { type: Commands.AttackTargets.name }, Commands.AttackTargets.reply.name);
+      assert.ok(!roster.players.some((p) => p.id === def.id), 'destroyed player must not be an attack target');
+
+      const again = await wsRequest(ws1, { type: Commands.AttackShip.name, targetPlayerId: def.id, drones: 1 }, Commands.AttackShip.reply.name);
+      assert.equal(again.outcome, 'refused');
+      assert.equal(again.reason, 'targetNotHere');
+    } finally {
+      await closeWS(ws1);
+      await closeWS(ws2);
+      await closeWS(ws3);
+    }
+  });
+
+  it('reports a destroyed clanmate with no sector', async () => {
+    const atk = await createPlayer('atk_clan', 1, 5, 0);
+    const def = await createPlayer('def_clan', 1, 0, 0);
+    const clan = await pool.query(
+      `INSERT INTO clans (universe_clan_number, name, password_hash, leader_id, universe_id)
+       VALUES ((SELECT COALESCE(MAX(universe_clan_number), 0) + 1 FROM clans WHERE universe_id = $1), $2, 'x', $3, $1)
+       RETURNING id`,
+      [UNIVERSE_ID, `gone_${Date.now()}`, atk.id],
+    );
+    await pool.query('UPDATE players SET clan_id = $1 WHERE id = ANY($2)', [clan.rows[0].id, [atk.id, def.id]]);
+    const { ws: ws1 } = await connectPlayer(atk.token);
+    const { ws: ws2 } = await connectPlayer(def.token);
+    try {
+      const before = await wsRequest(ws1, { type: Commands.ClanmateLocations.name }, Commands.ClanmateLocations.reply.name);
+      assert.equal(before.members.find((m) => m.playerId === def.id).sector, 1);
+
+      await wsRequest(ws1, { type: Commands.AttackShip.name, targetPlayerId: def.id, drones: 1 }, Commands.AttackShip.reply.name);
+
+      const after = await wsRequest(ws1, { type: Commands.ClanmateLocations.name }, Commands.ClanmateLocations.reply.name);
+      assert.equal(after.members.find((m) => m.playerId === def.id).sector, null);
+    } finally {
+      await closeWS(ws1);
+      await closeWS(ws2);
+    }
+  });
 });

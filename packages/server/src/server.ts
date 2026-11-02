@@ -172,8 +172,11 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
         }
 
         const playerId = playerRow.id;
-        const sectorId: number = playerRow.current_sector_id;
-        const sector: number = playerRow.sector_number;
+        const { current_sector_id: sectorId, sector_number: sector } = playerRow;
+        if (sectorId === null || sector === null) {
+            ws.close(1008, 'Ship destroyed');
+            return;
+        }
 
         if (playerRow.ship_id === null) {
             const granted = await grantStartingShip(playerId, universeId, sectorId, playerRow.name);

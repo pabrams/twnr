@@ -128,9 +128,13 @@ export async function markPlayerShipDestroyed(
     playerId: number,
     db: Queryable = pool,
 ): Promise<void> {
-    await db.query('UPDATE players SET ship_id = NULL, ship_destroyed_date = NOW() WHERE id = $1', [
-        playerId,
-    ]);
+    await db.query(
+        `UPDATE players
+         SET ship_id = NULL, current_sector_id = NULL, previous_sector_id = NULL,
+             ship_destroyed_date = NOW()
+         WHERE id = $1`,
+        [playerId],
+    );
 }
 
 export async function destroyShipRecord(playerId: number, db: Queryable = pool): Promise<void> {

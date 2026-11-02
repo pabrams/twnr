@@ -218,9 +218,9 @@ export async function markSectorVisited(
 export type PlayerConnectRow = {
     id: number;
     name: string;
-    current_sector_id: number;
+    current_sector_id: number | null;
     ship_id: number | null;
-    sector_number: number;
+    sector_number: number | null;
     ship_type_slug: string | null;
     ship_name: string | null;
     ship_display_name: string | null;
@@ -238,7 +238,7 @@ export async function getPlayerConnectInfo(
                 sh.name AS ship_name,
                 p.clan_id
          FROM players p
-         JOIN sectors s ON p.current_sector_id = s.id
+         LEFT JOIN sectors s ON p.current_sector_id = s.id
          LEFT JOIN ships sh ON p.ship_id = sh.id
          LEFT JOIN universe_ship_types st ON st.universe_id = sh.universe_id AND st.slug = sh.ship_type_slug
          WHERE p.user_id = $1 AND p.universe_id = $2`,
