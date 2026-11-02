@@ -68,6 +68,11 @@ export function createStatsPanel(container: HTMLElement): StatsPanel {
 
     function update(snap: EventPayload<'StatsSnapshot'>): void {
         clearSection(trader);
+        const traderHeadline = document.createElement('div');
+        traderHeadline.className = 'stats-headline';
+        traderHeadline.title = snap.traderName;
+        traderHeadline.textContent = snap.traderName;
+        trader.appendChild(traderHeadline);
         row(trader, 'Sector', fmt(snap.sector));
         row(trader, 'Turns', fmt(snap.turns), {
             valueClass: snap.turns < 50 ? 'warn' : '',

@@ -519,6 +519,7 @@ export async function getPlayerCreditsAndUniverse(
 }
 
 export type StatsSnapshotRow = {
+    trader_name: string;
     sector_number: number | null;
     turns: number;
     credits: number;
@@ -541,7 +542,7 @@ export async function getStatsSnapshotRow(
     db: Queryable = pool,
 ): Promise<StatsSnapshotRow | undefined> {
     const res = await db.query<StatsSnapshotRow>(
-        `SELECT sec.sector_number,
+        `SELECT p.name AS trader_name, sec.sector_number,
                 p.turns, p.credits, p.reputation, p.experience,
                 s.ship_type_slug,
                 st.display_name AS ship_type_display_name,

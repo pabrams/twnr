@@ -33,6 +33,7 @@ export const ProtocolError = defineEvent('protocolError', {
 });
 
 export const StatsSnapshot = defineEvent('statsSnapshot', {
+    traderName: Str,
     sector: Int,
     turns: Num,
     experience: Num,

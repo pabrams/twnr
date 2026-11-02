@@ -16,6 +16,7 @@ export async function buildStatsSnapshot(
     const used = row.fuel + row.organics + row.equipment + row.colonists;
     return {
         type: Events.StatsSnapshot.name,
+        traderName: row.trader_name,
         sector: row.sector_number ?? 0,
         turns: row.turns,
         experience: row.experience,
