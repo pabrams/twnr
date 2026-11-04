@@ -1,11 +1,12 @@
 import { Events } from '@twnr/shared';
-import type { CommandRequest } from '@twnr/shared';
+import type { CommandRequest, Refusal } from '@twnr/shared';
 
-import { onlinePlayers, isVisibleInSector, requireOnlinePlayer } from '../state/players.js';
+import { isVisibleInSector, requireOnlinePlayer } from '../state/players.js';
 import { sendEnvelope, closeDestroyedSession, broadcastEnvelope } from '../state/messaging.js';
 
 import {
     getShipDronesForUpdate,
+    getShipMaxDroneAttack,
     getShipDefensesForUpdate,
     setShipDrones,
     setShipDronesAndShields,
@@ -14,9 +15,12 @@ import {
 import {
     adjustReputationAndExperience,
     getAttackTargetInfo,
+    getOnPlanetId,
     getPlayerRepExpForUpdate,
+    getPlayerShipId,
     listPlayersInSector,
 } from '../db/queries/player.js';
+import { insertMemo } from '../db/queries/message.js';
 import { getSectorBeacon } from '../db/queries/beacons.js';
 import {
     pvpAttackerDeltas,
@@ -25,12 +29,42 @@ import {
     shipDestroyDefenderPenalty,
 } from '../services/combat-rewards.js';
 import { recordGameEvent } from '../services/game-events.js';
+import { isInEncounter } from '../services/encounter.js';
+import { sendStatsSnapshot } from '../services/stats-snapshot.js';
 import { type CommandResult, commandRefusal, mutateAndReply } from './command.js';
+
+function defenderAttackMemo(
+    attackerName: string,
+    sector: number,
+    destroyed: boolean,
+    shieldsLost: number,
+    dronesLost: number,
+): string {
+    if (destroyed) return `${attackerName} destroyed your ship in sector ${sector}.`;
+    const prefix = `${attackerName} attacked your ship in sector ${sector}.`;
+    if (shieldsLost > 0 && dronesLost > 0) {
+        return `${prefix} You lost ${shieldsLost} shield(s) and ${dronesLost} drone(s).`;
+    }
+    if (shieldsLost > 0) return `${prefix} You lost ${shieldsLost} shield(s).`;
+    return `${prefix} You lost ${dronesLost} drone(s).`;
+}
+
+async function findAttackerRefusal(playerId: number): Promise<Refusal | null> {
+    const player = requireOnlinePlayer(playerId);
+    if (player.docked || player.at_starbase) return commandRefusal('docked');
+    if (isInEncounter(playerId)) return commandRefusal('inEncounter');
+    if ((await getOnPlanetId(playerId)) !== null) return commandRefusal('onPlanet');
+    if ((await getPlayerShipId(playerId)) === null) return commandRefusal('noShip');
+    return null;
+}
 
 export async function serveAttackTargets(
     playerId: number,
 ): Promise<CommandResult<'AttackTargets'>> {
     const player = requireOnlinePlayer(playerId);
+
+    const refusal = await findAttackerRefusal(playerId);
+    if (refusal) return refusal;
 
     const rows = await listPlayersInSector(player.sector, player.universeId, playerId);
     const visible = rows.filter((row) => isVisibleInSector(row.id, row.docked, row.on_planet_id));
@@ -58,13 +92,13 @@ export async function serveAttackShip(
 ): Promise<CommandResult<'AttackShip'>> {
     const { targetPlayerId, drones } = data;
 
+    const attacker = requireOnlinePlayer(attackerId);
+
+    const refusal = await findAttackerRefusal(attackerId);
+    if (refusal) return refusal;
+
     if (attackerId === targetPlayerId) {
         return commandRefusal('cannotAttackSelf');
-    }
-
-    const attacker = onlinePlayers[attackerId];
-    if (!attacker) {
-        return commandRefusal('targetNotHere');
     }
 
     const targetInfo = await getAttackTargetInfo(targetPlayerId);
@@ -77,8 +111,6 @@ export async function serveAttackShip(
         return commandRefusal('targetNotHere');
     }
 
-    const onlineTarget = onlinePlayers[targetPlayerId];
-
     return mutateAndReply(
         async (client, abort) => {
             const attackerDrones = await getShipDronesForUpdate(attackerId, client);
@@ -89,6 +121,10 @@ export async function serveAttackShip(
 
             if (drones > attackerDrones) {
                 throw abort(commandRefusal('notEnoughDrones'));
+            }
+            const maxDroneAttack = await getShipMaxDroneAttack(attackerId, client);
+            if (drones > maxDroneAttack) {
+                throw abort(commandRefusal('exceedsMaxDroneAttack', { max: maxDroneAttack }));
             }
 
             let targetShields = targetShip.shields;
@@ -129,6 +165,23 @@ export async function serveAttackShip(
                 );
             } else {
                 await setShipDronesAndShields(targetPlayerId, targetDrones, targetShields, client);
+            }
+
+            if (destroyed || shieldsLost > 0 || defenderDronesLost > 0) {
+                await insertMemo(
+                    targetPlayerId,
+                    attackerId,
+                    null,
+                    destroyed ? 'ship_destroyed' : 'ship_attacked',
+                    defenderAttackMemo(
+                        attacker.name,
+                        attacker.sector,
+                        destroyed,
+                        shieldsLost,
+                        defenderDronesLost,
+                    ),
+                    client,
+                );
             }
 
             // Rewards use the defender's pre-penalty rep/exp snapshot.
@@ -191,8 +244,9 @@ export async function serveAttackShip(
         },
         (result) => {
             const { destroyed, attackerDronesLost, defenderDronesLost, shieldsLost } = result;
+            const defenderChanged = destroyed || shieldsLost > 0 || defenderDronesLost > 0;
 
-            if (onlineTarget?.ws && onlineTarget.ws.readyState === 1) {
+            if (defenderChanged) {
                 sendEnvelope(targetPlayerId, {
                     type: Events.ShipAttacked.name,
                     attackerName: attacker.name,
@@ -203,9 +257,13 @@ export async function serveAttackShip(
                     expDelta: result.defenderExpDelta,
                     repDelta: result.defenderRepDelta,
                 });
-                if (destroyed) {
-                    closeDestroyedSession(targetPlayerId, 'Ship destroyed');
-                }
+            }
+            if (destroyed) {
+                closeDestroyedSession(targetPlayerId, 'Ship destroyed');
+            } else if (defenderChanged) {
+                sendStatsSnapshot(targetPlayerId).catch((err) =>
+                    console.error('Stats snapshot error:', err),
+                );
             }
 
             return {

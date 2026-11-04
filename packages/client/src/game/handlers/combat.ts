@@ -144,6 +144,23 @@ export const retreatFromDrones: ReplyHandler<'RetreatFromDrones', CombatContext>
     ctx.io.term.writeln(render(EVENT.retreated, { sector: msg.sector }));
 };
 
+export const shipAttacked: EventHandler<'ShipAttacked', CombatContext> = (ctx, msg) => {
+    const attacker = msg.attackerName;
+    const shields = msg.defenderShieldsLost;
+    const drones = msg.defenderDronesLost;
+    ctx.io.term.writeln('');
+    if (msg.destroyed) {
+        ctx.io.term.writeln(render(EVENT.alertShipDestroyed, { attacker }));
+    } else if (shields > 0 && drones > 0) {
+        ctx.io.term.writeln(render(EVENT.alertShipAttacked, { attacker, shields, drones }));
+    } else if (shields > 0) {
+        ctx.io.term.writeln(render(EVENT.alertShipShieldsLost, { attacker, shields }));
+    } else if (drones > 0) {
+        ctx.io.term.writeln(render(EVENT.alertShipDronesLost, { attacker, drones }));
+    }
+    renderAttributeChange(ctx, msg.expDelta ?? 0, msg.repDelta ?? 0, 'losing your ship');
+};
+
 export const sectorDronesReported: EventHandler<'SectorDronesReported', CombatContext> = (
     ctx,
     msg,

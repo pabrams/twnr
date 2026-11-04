@@ -108,4 +108,62 @@ describe('Attack validation', () => {
       await closeWS(ws2);
     }
   });
+
+  it('refuses an attack from a docked attacker', async () => {
+    const atk = await createPlayer('atk_docked', 1, 5, 0);
+    const def = await createPlayer('def_docked', 1, 5, 0);
+    const { ws: ws1, ready } = await connectPlayer(atk.token);
+    await ready;
+    try {
+      await wsRequest(ws1, { type: Commands.Dock.name }, Commands.Dock.reply.name);
+      const res = await wsRequest(ws1, { type: Commands.AttackShip.name, targetPlayerId: def.id, drones: 1 }, Commands.AttackShip.reply.name);
+      assert.equal(res.outcome, 'refused');
+      assert.equal(res.reason, 'docked');
+      const roster = await wsRequest(ws1, { type: Commands.AttackTargets.name }, Commands.AttackTargets.reply.name);
+      assert.equal(roster.outcome, 'refused');
+      assert.equal(roster.reason, 'docked');
+    } finally {
+      await closeWS(ws1);
+    }
+  });
+
+  it('refuses an attack from an attacker on a planet', async () => {
+    const atk = await createPlayer('atk_planet', 1, 5, 0);
+    const def = await createPlayer('def_planet', 1, 5, 0);
+    const { ws: ws1, ready } = await connectPlayer(atk.token);
+    await ready;
+    try {
+      const planet = await pool.query('SELECT id FROM planets LIMIT 1');
+      await pool.query('UPDATE players SET on_planet_id = $1 WHERE id = $2', [planet.rows[0].id, atk.id]);
+      const res = await wsRequest(ws1, { type: Commands.AttackShip.name, targetPlayerId: def.id, drones: 1 }, Commands.AttackShip.reply.name);
+      assert.equal(res.outcome, 'refused');
+      assert.equal(res.reason, 'onPlanet');
+    } finally {
+      await closeWS(ws1);
+    }
+  });
+
+  it('refuses an attack that exceeds the ship\'s per-attack limit', async () => {
+    const atk = await createPlayer('atk_cap', 1, 1, 0);
+    const def = await createPlayer('def_cap', 1, 5, 0);
+    const typeRow = await pool.query(
+      `SELECT st.max_drone_attack FROM ships s
+       JOIN universe_ship_types st ON st.universe_id = s.universe_id AND st.slug = s.ship_type_slug
+       WHERE s.owner_player_id = $1`,
+      [atk.id],
+    );
+    const maxDroneAttack = typeRow.rows[0].max_drone_attack;
+    await pool.query('UPDATE ships SET drones = $1 WHERE owner_player_id = $2', [maxDroneAttack + 10, atk.id]);
+    const { ws: ws1 } = await connectPlayer(atk.token);
+    const { ws: ws2 } = await connectPlayer(def.token);
+    try {
+      const res = await wsRequest(ws1, { type: Commands.AttackShip.name, targetPlayerId: def.id, drones: maxDroneAttack + 1 }, Commands.AttackShip.reply.name);
+      assert.equal(res.outcome, 'refused');
+      assert.equal(res.reason, 'exceedsMaxDroneAttack');
+      assert.equal(res.detail.max, maxDroneAttack);
+    } finally {
+      await closeWS(ws1);
+      await closeWS(ws2);
+    }
+  });
 });

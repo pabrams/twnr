@@ -85,6 +85,7 @@ const handlers: HandlerMap = {
     [Commands.AttackSectorDrones.reply.name]: combat.attackSectorDrones,
     [Commands.RetreatFromDrones.reply.name]: combat.retreatFromDrones,
     [Events.SectorDronesReported.name]: combat.sectorDronesReported,
+    [Events.ShipAttacked.name]: combat.shipAttacked,
 
     [Commands.TakeColonists.reply.name]: planet.takeColonists,
     [Commands.LeaveColonists.reply.name]: planet.leaveColonists,

@@ -39,6 +39,7 @@ export const RefusalReasonSchema = z.enum([
     'dronesAtCapacity',
     'shipDronesAtMax',
     'exceedsMaximum',
+    'exceedsMaxDroneAttack',
     // movement
     'noSuchSector',
     'noPath',

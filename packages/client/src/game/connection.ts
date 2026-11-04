@@ -15,13 +15,13 @@ const PROMPT_SUPPRESSING = new Set<string>([
     Events.SeekerMineAttached.name,
     Events.SeekerMinePickedUp.name,
     Events.StatsSnapshot.name,
+    Events.PlayerLeft.name,
 ]);
 
 function isRefusal(msg: ServerEnvelope): msg is ServerEnvelope & Refusal {
     return 'outcome' in msg && msg.outcome === 'refused';
 }
 
-/** Every refusal is worded here, from the reason and the server's detail values. */
 function renderRefusal(ctx: GameContext, msg: ServerEnvelope & Refusal): void {
     ctx.io.term.writeln(render(REFUSAL[msg.reason], labelRefusalDetail(msg.detail ?? {})));
     dispatchRefusal(ctx, msg);
@@ -53,7 +53,6 @@ export function setupConnection(
         if (parsed.success) {
             msg = parsed.data;
         } else {
-            // server is the trust root: a mismatch is client/server drift — play on with the raw envelope
             console.error('ServerEnvelope failed schema validation', parsed.error.issues, raw);
             msg = raw as ServerEnvelope;
         }

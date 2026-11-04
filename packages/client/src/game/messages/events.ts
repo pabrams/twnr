@@ -46,6 +46,14 @@ export const EVENT = makeDomain('EVENT', {
     alertDestroyed:
         '[br]Alert:[/br] [bm]{intruder}[/bm] destroyed all your drones in sector [bc]{sector}[/bc]!',
 
+    alertShipAttacked:
+        '[br]Alert:[/br] [bm]{attacker}[/bm] attacked your ship! You lost [by]{shields}[/by] shield(s) and [by]{drones}[/by] drone(s).',
+    alertShipShieldsLost:
+        '[br]Alert:[/br] [bm]{attacker}[/bm] attacked your ship! You lost [by]{shields}[/by] shield(s).',
+    alertShipDronesLost:
+        '[br]Alert:[/br] [bm]{attacker}[/bm] attacked your ship! You lost [by]{drones}[/by] drone(s).',
+    alertShipDestroyed: '[br]*** [bm]{attacker}[/bm] destroyed your ship! ***[/br]',
+
     planetDestroyed: '\r\n[br]Planet {name} destroyed![/br]',
     planetDestroyedBeneathYou:
         '\r\n[br]*** Planet {name} is {fate} beneath you! You scramble back to your ship. ***[/br]',

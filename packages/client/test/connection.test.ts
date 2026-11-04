@@ -159,6 +159,40 @@ function envelope(menu: string, payload: Record<string, unknown>) {
 }
 
 describe('connection message handler', () => {
+    describe('ship attack alerts', () => {
+        function attackedMessage(destroyed: boolean) {
+            return envelope('sector', {
+                type: Events.ShipAttacked.name,
+                attackerName: 'Raider',
+                destroyed,
+                attackerDronesLost: 5,
+                defenderShieldsLost: 3,
+                defenderDronesLost: 2,
+            });
+        }
+
+        function printedText(ctx: GameContext): string {
+            const writeln = ctx.io.term.writeln as ReturnType<typeof vi.fn>;
+            return writeln.mock.calls.map((call) => String(call[0])).join('\n');
+        }
+
+        it('tells the defender who attacked and what was lost', () => {
+            const ws = createMockWS();
+            const ctx = createMockCtx();
+            setupConnection(ws as unknown as WebSocket, ctx, () => {});
+            ws.fire('message', attackedMessage(false));
+            expect(printedText(ctx)).toContain('Raider');
+        });
+
+        it('tells the defender their ship was destroyed', () => {
+            const ws = createMockWS();
+            const ctx = createMockCtx();
+            setupConnection(ws as unknown as WebSocket, ctx, () => {});
+            ws.fire('message', attackedMessage(true));
+            expect(printedText(ctx)).toContain('destroyed your ship');
+        });
+    });
+
     describe('autopilot resilience', () => {
         it('recovers when the server sends unexpected messages during rapid movement', () => {
             vi.useFakeTimers();

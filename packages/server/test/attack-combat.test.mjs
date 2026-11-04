@@ -1,6 +1,6 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { createTestUser, createTestPlayer, connectWS, closeWS, wsRequest } from './helpers.mjs';
+import { createTestUser, createTestPlayer, connectWS, closeWS, wsRequest, waitForMsg } from './helpers.mjs';
 import { ensureServer, createPool } from './global-setup.mjs';
 import { Commands, Events } from '@twnr/shared';
 
@@ -86,6 +86,69 @@ describe('Combat resolution', () => {
     } finally {
       await closeWS(ws1);
       await closeWS(ws2);
+    }
+  });
+});
+
+describe('Defender notification', () => {
+  async function memosFor(playerId) {
+    const res = await pool.query('SELECT kind, body, sender_player_id FROM messages WHERE recipient_player_id = $1 ORDER BY id', [playerId]);
+    return res.rows;
+  }
+
+  it('tells an online defender live and also mails them', async () => {
+    const atk = await createPlayer('atk_alert', 1, 10, 0);
+    const def = await createPlayer('def_alert', 1, 1, 5);
+    const { ws: ws1 } = await connectPlayer(atk.token);
+    const { ws: ws2, ready } = await connectPlayer(def.token);
+    await ready;
+    try {
+      const alert = waitForMsg(ws2, Events.ShipAttacked.name);
+      await wsRequest(ws1, { type: Commands.AttackShip.name, targetPlayerId: def.id, drones: 3 }, Commands.AttackShip.reply.name);
+      const msg = await alert;
+      assert.equal(msg.attackerName, 'atk_alert');
+      assert.equal(msg.destroyed, false);
+      assert.equal(msg.defenderShieldsLost, 3);
+      assert.equal(msg.defenderDronesLost, 0);
+
+      const memos = await memosFor(def.id);
+      assert.equal(memos.length, 1);
+      assert.equal(memos[0].kind, 'ship_attacked');
+      assert.equal(memos[0].sender_player_id, atk.id);
+      assert.match(memos[0].body, /atk_alert attacked your ship in sector 1\. You lost 3 shield\(s\)\./);
+    } finally {
+      await closeWS(ws1);
+      await closeWS(ws2);
+    }
+  });
+
+  it('mails an offline defender', async () => {
+    const atk = await createPlayer('atk_offline', 1, 10, 0);
+    const def = await createPlayer('def_offline', 1, 4, 0);
+    const { ws: ws1 } = await connectPlayer(atk.token);
+    try {
+      await wsRequest(ws1, { type: Commands.AttackShip.name, targetPlayerId: def.id, drones: 2 }, Commands.AttackShip.reply.name);
+      const memos = await memosFor(def.id);
+      assert.equal(memos.length, 1);
+      assert.equal(memos[0].kind, 'ship_attacked');
+      assert.match(memos[0].body, /You lost 2 drone\(s\)\./);
+    } finally {
+      await closeWS(ws1);
+    }
+  });
+
+  it('mails the defender when their ship is destroyed', async () => {
+    const atk = await createPlayer('atk_kill', 1, 10, 0);
+    const def = await createPlayer('def_kill', 1, 1, 0);
+    const { ws: ws1 } = await connectPlayer(atk.token);
+    try {
+      await wsRequest(ws1, { type: Commands.AttackShip.name, targetPlayerId: def.id, drones: 5 }, Commands.AttackShip.reply.name);
+      const memos = await memosFor(def.id);
+      assert.equal(memos.length, 1);
+      assert.equal(memos[0].kind, 'ship_destroyed');
+      assert.match(memos[0].body, /atk_kill destroyed your ship in sector 1\./);
+    } finally {
+      await closeWS(ws1);
     }
   });
 });

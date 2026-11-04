@@ -57,6 +57,20 @@ export async function getShipDronesForUpdate(
     return res.rows[0]?.drones;
 }
 
+export async function getShipMaxDroneAttack(
+    playerId: number,
+    db: Queryable = pool,
+): Promise<number> {
+    const res = await db.query<{ max_drone_attack: number }>(
+        `SELECT st.max_drone_attack
+         FROM ships s
+         JOIN universe_ship_types st ON st.universe_id = s.universe_id AND st.slug = s.ship_type_slug
+         WHERE s.id = ${SHIP_ID_SUBSELECT}`,
+        [playerId],
+    );
+    return res.rows[0]?.max_drone_attack ?? 0;
+}
+
 export async function setShipDrones(
     playerId: number,
     drones: number,

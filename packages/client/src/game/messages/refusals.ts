@@ -37,6 +37,7 @@ export const REFUSAL = makeDomain('REFUSAL', {
     dronesAtCapacity: '[br]Your ship can hold only {room} more drones.[/br]',
     shipDronesAtMax: '[br]Your ship is carrying all the drones it can.[/br]',
     exceedsMaximum: '[br]That exceeds what your ship can carry.[/br]',
+    exceedsMaxDroneAttack: '[br]Your ship can send at most {max} drones in one attack.[/br]',
 
     noSuchSector: '[br]There is no such sector.[/br]',
     noPath: '[br]No path found.[/br]',

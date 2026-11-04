@@ -146,4 +146,26 @@ describe('Drone encounters', () => {
       await closeWS(ws);
     }
   });
+
+  it('refuses a ship attack while in an encounter', async () => {
+    const attacker = await createPlayer(`enc_shipatk_${Date.now()}`, 1, 10);
+    const enemy = await createPlayer(`enc_shipatk_owner_${Date.now()}`, 1);
+    const { ws, ready } = await connectWS({ token: attacker.token, universeId: UNIVERSE_ID });
+    await ready;
+    let target;
+    try {
+      target = await emptyNeighbourOf(ws);
+      const bystander = await createPlayer(`enc_shipatk_target_${Date.now()}`, target);
+      await placeDrones(target, { playerId: enemy.id }, 3);
+      const moved = await wsRequest(ws, { type: Commands.Move.name, sector: target }, Commands.Move.reply.name);
+      assert.equal(moved.outcome, 'encounter');
+
+      const res = await wsRequest(ws, { type: Commands.AttackShip.name, targetPlayerId: bystander.id, drones: 1 }, Commands.AttackShip.reply.name);
+      assert.equal(res.outcome, 'refused');
+      assert.equal(res.reason, 'inEncounter');
+    } finally {
+      if (target) await clearDrones(target);
+      await closeWS(ws);
+    }
+  });
 });
