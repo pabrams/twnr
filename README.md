@@ -80,6 +80,33 @@ The `docs/` folder is generated during `pnpm build` (or directly via `pnpm docs`
 
 Do not edit these files by hand — they are regenerated from the TypeScript source on every build.
 
+### ER diagram
+
+`pnpm erd` generates `docs/twnr.erd.json`, an entity-relationship diagram of the database, for
+[erd-editor](https://github.com/dineug/erd-editor). It is not part of `pnpm build`.
+
+`packages/server/src/db/schema.ts` stays the source of truth. The script runs its `connectDB()` against a
+throwaway database (`twnr_erd_tmp`, dropped before and after each run, so your own databases are
+never touched), dumps the schema with `pg_dump`, imports it into the diagram, then applies the
+layout in `erd/layout.json`: each table's position and colour, plus the group labels. Only
+`erd/layout.json` is tracked; the diagram itself is regenerated each time.
+
+Requirements, beyond the setup above:
+
+- `pg_dump` and `dropdb` on your `PATH` (both come with PostgreSQL).
+- The erd-editor MCP server, [`@dineug/erd-editor-mcp`](https://www.npmjs.com/package/@dineug/erd-editor-mcp).
+  Set `ERD_MCP` to the path of its `erd-editor-mcp.js`, for example in `packages/server/.env`
+  (the script loads that file). If `ERD_MCP` is unset, the script runs `npx -y @dineug/erd-editor-mcp`.
+- To view and edit the diagram: the ERD Editor extension for VS Code (`dineug.vuerd-vscode`), or
+  [erd-editor.io](https://erd-editor.io).
+
+After a schema change:
+
+1. Run `pnpm erd`. Tables that `erd/layout.json` doesn't know about are placed in a row below
+   the diagram, and the script lists them.
+2. Open `docs/twnr.erd.json` in the editor, drag the new tables into place, and save.
+3. Run `pnpm erd:save-layout` to write the positions back to `erd/layout.json`, then commit it.
+
 ## Deployment
 
 Refer to ./DEPLOY.md

@@ -1,0 +1,276 @@
+{
+  "tables": {
+    "clans": {
+      "x": 1408,
+      "y": 2710,
+      "color": "#3b82f6"
+    },
+    "command_log": {
+      "x": 5458,
+      "y": 436,
+      "color": "#ec4899"
+    },
+    "game_events": {
+      "x": 6896,
+      "y": 130,
+      "color": "#ec4899"
+    },
+    "hardware_item": {
+      "x": 1061,
+      "y": 1276,
+      "color": "#64748b"
+    },
+    "hardware_price": {
+      "x": 1860,
+      "y": 1276,
+      "color": "#64748b"
+    },
+    "messages": {
+      "x": 5458,
+      "y": 130,
+      "color": "#ec4899"
+    },
+    "news": {
+      "x": 6197,
+      "y": 130,
+      "color": "#ec4899"
+    },
+    "planet_bases": {
+      "x": 801,
+      "y": 3214,
+      "color": "#22c55e"
+    },
+    "planet_collisions": {
+      "x": 0,
+      "y": 4048,
+      "color": "#22c55e"
+    },
+    "planets": {
+      "x": 0,
+      "y": 3214,
+      "color": "#22c55e"
+    },
+    "player_planet_observations": {
+      "x": 3248,
+      "y": 3400,
+      "color": "#06b6d4"
+    },
+    "player_port_observations": {
+      "x": 3927,
+      "y": 3214,
+      "color": "#06b6d4"
+    },
+    "player_sector_observations": {
+      "x": 3927,
+      "y": 3400,
+      "color": "#06b6d4"
+    },
+    "player_visited_sectors": {
+      "x": 3248,
+      "y": 3214,
+      "color": "#06b6d4"
+    },
+    "players": {
+      "x": 1408,
+      "y": 2116,
+      "color": "#3b82f6"
+    },
+    "port_construction": {
+      "x": 5105,
+      "y": 2116,
+      "color": "#eab308"
+    },
+    "ports": {
+      "x": 4376,
+      "y": 2116,
+      "color": "#eab308"
+    },
+    "row_history": {
+      "x": 6197,
+      "y": 436,
+      "color": "#ec4899"
+    },
+    "sector_beacons": {
+      "x": 1740,
+      "y": 3424,
+      "color": "#ef4444"
+    },
+    "sector_drones": {
+      "x": 1740,
+      "y": 3214,
+      "color": "#ef4444"
+    },
+    "sector_mines": {
+      "x": 2439,
+      "y": 3214,
+      "color": "#ef4444"
+    },
+    "sectors": {
+      "x": 3058,
+      "y": 2116,
+      "color": "#14b8a6"
+    },
+    "seeker_attachments": {
+      "x": 0,
+      "y": 2614,
+      "color": "#f97316"
+    },
+    "ship_hardware": {
+      "x": 729,
+      "y": 2116,
+      "color": "#f97316"
+    },
+    "ships": {
+      "x": 0,
+      "y": 2116,
+      "color": "#f97316"
+    },
+    "template_planet_types": {
+      "x": 1860,
+      "y": 130,
+      "color": "#64748b"
+    },
+    "template_ship_type_hardware": {
+      "x": 0,
+      "y": 1276,
+      "color": "#64748b"
+    },
+    "template_ship_types": {
+      "x": 1061,
+      "y": 130,
+      "color": "#64748b"
+    },
+    "universe_hardware_price": {
+      "x": 4519,
+      "y": 1252,
+      "color": "#8b5cf6"
+    },
+    "universe_planet_types": {
+      "x": 2729,
+      "y": 1252,
+      "color": "#8b5cf6"
+    },
+    "universe_settings": {
+      "x": 3458,
+      "y": 130,
+      "color": "#8b5cf6"
+    },
+    "universe_ship_type_hardware": {
+      "x": 3458,
+      "y": 1252,
+      "color": "#8b5cf6"
+    },
+    "universe_ship_types": {
+      "x": 4519,
+      "y": 130,
+      "color": "#8b5cf6"
+    },
+    "universe_template": {
+      "x": 0,
+      "y": 130,
+      "color": "#64748b"
+    },
+    "universes": {
+      "x": 2729,
+      "y": 130,
+      "color": "#8b5cf6"
+    },
+    "users": {
+      "x": 2177,
+      "y": 2116,
+      "color": "#3b82f6"
+    },
+    "visited_ports": {
+      "x": 4376,
+      "y": 2734,
+      "color": "#eab308"
+    },
+    "warps": {
+      "x": 3717,
+      "y": 2116,
+      "color": "#14b8a6"
+    }
+  },
+  "memos": [
+    {
+      "value": "Templates\nPresets a new universe is created from",
+      "x": 0,
+      "y": 0,
+      "width": 2529,
+      "height": 100,
+      "color": "#64748b"
+    },
+    {
+      "value": "Universe\nPer-universe settings, ship and planet types, prices",
+      "x": 2729,
+      "y": 0,
+      "width": 2529,
+      "height": 100,
+      "color": "#8b5cf6"
+    },
+    {
+      "value": "Comms & logs\nMessages, news, events, command and row history",
+      "x": 5458,
+      "y": 0,
+      "width": 2037,
+      "height": 100,
+      "color": "#ec4899"
+    },
+    {
+      "value": "Ships\nShips and what is fitted or attached to them",
+      "x": 0,
+      "y": 1986,
+      "width": 1208,
+      "height": 100,
+      "color": "#f97316"
+    },
+    {
+      "value": "Accounts\nUsers, their players, clans",
+      "x": 1408,
+      "y": 1986,
+      "width": 1450,
+      "height": 100,
+      "color": "#3b82f6"
+    },
+    {
+      "value": "Map\nSectors and the warps between them",
+      "x": 3058,
+      "y": 1986,
+      "width": 1118,
+      "height": 100,
+      "color": "#14b8a6"
+    },
+    {
+      "value": "Ports\nPorts, construction, player visits",
+      "x": 4376,
+      "y": 1986,
+      "width": 1448,
+      "height": 100,
+      "color": "#eab308"
+    },
+    {
+      "value": "Planets\nPlanets, bases, collisions",
+      "x": 0,
+      "y": 3084,
+      "width": 1540,
+      "height": 100,
+      "color": "#22c55e"
+    },
+    {
+      "value": "Sector deployables\nDrones, mines and beacons placed in sectors",
+      "x": 1740,
+      "y": 3084,
+      "width": 1308,
+      "height": 100,
+      "color": "#ef4444"
+    },
+    {
+      "value": "Player knowledge\nWhat each player has seen of the map",
+      "x": 3248,
+      "y": 3084,
+      "width": 1378,
+      "height": 100,
+      "color": "#06b6d4"
+    }
+  ]
+}
