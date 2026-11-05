@@ -5,23 +5,6 @@ import { type DisplayCtx } from './display.js';
 
 export type DisplayCombatCtx = Pick<GameContext, 'io' | 'world'> & DisplayCtx;
 
-export function showAttackMenu(ctx: DisplayCombatCtx) {
-    if (ctx.world.sectorPlayers.length === 0) {
-        ctx.io.term.writeln(render(COMBAT.attackNoTargets));
-        return;
-    }
-    ctx.io.term.writeln('');
-    ctx.io.term.writeln(render(COMBAT.attackHeader));
-    ctx.world.sectorPlayers.forEach((p, i) => {
-        ctx.io.term.writeln(render(COMBAT.attackTarget, { n: i + 1, name: p.name }));
-    });
-    ctx.io.term.writeln(render(COMMON.menuRow, { key: 'Q', text: 'Cancel' }));
-}
-
-export function showAttackPrompt(ctx: DisplayCombatCtx) {
-    ctx.io.term.write(render(COMBAT.attackPrompt));
-}
-
 export function showDroneEncounter(
     ctx: DisplayCombatCtx,
     sectorDrones: number,

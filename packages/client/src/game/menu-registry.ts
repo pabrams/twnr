@@ -1,7 +1,7 @@
 import { Menu, type MenuEntry, type MenuCommandEntry, type MenuName } from '@twnr/shared';
 import type { GameContext } from './types.js';
 import { showSectorPrompt } from './display.js';
-import { showAttackPrompt, showDroneEncounterPrompt } from './display-combat.js';
+import { showDroneEncounterPrompt } from './display-combat.js';
 import { showComputerPrompt, showBaseComputerPrompt } from './display-computer.js';
 
 function computerCommandsWithBack(backLabel: string): MenuCommandEntry[] {
@@ -517,27 +517,6 @@ export const MENU_REGISTRY: MenuEntry[] = [
         ],
     },
     {
-        name: 'attack',
-        label: 'Attack',
-        parentMenu: 'sector',
-        commands: [
-            {
-                command: 'selectTarget',
-                keyPattern: '<number>',
-                label: 'Select target #',
-                targetMenu: null,
-                sortOrder: 10,
-            },
-            {
-                command: 'back',
-                keyPattern: 'q',
-                label: 'Cancel attack',
-                targetMenu: null,
-                sortOrder: 20,
-            },
-        ],
-    },
-    {
         name: 'droneEncounter',
         label: 'Drone Encounter',
         parentMenu: 'sector',
@@ -913,7 +892,6 @@ export const MENU_REGISTRY: MenuEntry[] = [
 /** Menus not listed here render nothing by themselves — transitional states whose UI is driven by server responses. */
 export const MENU_PROMPTS: Partial<Record<MenuName, (ctx: GameContext) => void>> = {
     [Menu.Sector]: showSectorPrompt,
-    [Menu.Attack]: showAttackPrompt,
     [Menu.Computer]: showComputerPrompt,
     [Menu.Clan]: showClanPrompt,
     [Menu.Planet]: showPlanetMenuOptions,

@@ -20,6 +20,8 @@
     "db:import": "pnpm --filter @twnr/server db:import",
     "db:drop": "pnpm --filter @twnr/server dropDatabase",
     "bigbang": "pnpm --filter @twnr/server bigbang",
+    "erd": "node scripts/erd.mjs generate",
+    "erd:save-layout": "node scripts/erd.mjs save-layout",
     "generate-env": "pnpm --filter @twnr/server generate-env",
     "lint": "eslint packages/*/src",
     "format": "prettier --write \"packages/*/src/**/*.ts\"",

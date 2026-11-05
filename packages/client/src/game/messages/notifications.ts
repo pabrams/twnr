@@ -22,6 +22,10 @@ export const NOTIFY = makeDomain('NOTIFY', {
     playerIn: '\r\n[by][bm]{name}[/bm] warps into the sector.[/by]',
     playerOut: '\r\n[y][bm]{name}[/bm] warps out of the sector.[/y]',
 
+    weaponsPoweringUp: '\r\n[br][bm]{attacker}[/bm] is powering up their weapon systems![/br]',
+    droneWaveLaunched:
+        '\r\n[y][bm]{attacker}[/bm] launches a wave of drones at [bm]{defender}[/bm].[/y]',
+
     playerLandsPlanet: '\r\n[y][bm]{name}[/bm] lands on {planet}.[/y]',
     playerLandsPlanetUnknown: '\r\n[y][bm]{name}[/bm] lands on a planet.[/y]',
     playerLiftsOff: '\r\n[by][bm]{name}[/bm] lifts off {planet}.[/by]',

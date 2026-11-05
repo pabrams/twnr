@@ -22,7 +22,7 @@ registerRoutine('back', (ctx) => {
         ctx.world.mode = Menu.Starbase;
     } else if (ctx.world.mode === Menu.Clan) {
         ctx.world.mode = Menu.Sector;
-    } else if (ctx.world.mode === Menu.Computer || ctx.world.mode === Menu.Attack) {
+    } else if (ctx.world.mode === Menu.Computer) {
         ctx.world.mode = Menu.Sector;
         ctx.io.sendMsg(command(Commands.SectorDisplay, {}));
     } else if (ctx.world.mode === Menu.BaseComputer) {

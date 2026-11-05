@@ -174,7 +174,6 @@ export function startGame(universeId: number, termDiv: HTMLElement, onDisconnect
             paused: false,
         },
         encounter: {
-            attackTarget: null,
             ownerName: '',
         },
         catalogs: {

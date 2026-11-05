@@ -166,4 +166,17 @@ describe('Attack validation', () => {
       await closeWS(ws2);
     }
   });
+
+  it('refuses to power up weapons when the attacker has no drones to send', async () => {
+    const atk = await createPlayer('atk_empty', 1, 0, 0);
+    const def = await createPlayer('def_empty', 1, 5, 0);
+    const { ws: ws1 } = await connectPlayer(atk.token);
+    try {
+      const res = await wsRequest(ws1, { type: Commands.PowerUpWeapons.name, targetPlayerId: def.id }, Commands.PowerUpWeapons.reply.name);
+      assert.equal(res.outcome, 'refused');
+      assert.equal(res.reason, 'noDronesToLaunch');
+    } finally {
+      await closeWS(ws1);
+    }
+  });
 });

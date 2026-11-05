@@ -2,12 +2,14 @@ import { makeDomain } from './_domain.js';
 
 export const COMBAT = makeDomain('COMBAT', {
     attackNoTargets: '\r\n[br]No other players in this sector.[/br]',
-    attackHeader: '[c]Attack — Select target:[/c]',
-    attackTarget: '  [by]{n}[/by]  [g]{name}[/g]',
-    attackPrompt:
-        '\r\n[mg]Target[/mg] [mg]([/mg][by]?[/by][mg],[/mg][by]Q[/by][mg])[/mg] [by]?[/by] ',
-
-    attackQtyPrompt: '\r\n[c]How many drones to attack with?[/c] ',
+    attackTargetPrompt:
+        "[by]Attack {name}'s {ship} ({drones}-{targetDrones})[/by] [mg]([/mg][by]Y[/by]/[by]N[/by][mg])[/mg] [mg][[/mg][by]N[/by][mg]][/mg][by]?[/by] ",
+    attackQtyPrompt:
+        '[by]How many drones do you wish to use (0 to {max})[/by] [mg][[/mg][by]0[/by][mg]][/mg][by]?[/by] ',
+    attackDronesLost: '[g]You lost [by]{lost}[/by] drone(s), [by]{remaining}[/by] remain.[/g]',
+    attackDronesDestroyed:
+        '[g]You destroyed [by]{destroyed}[/by] enemy drones, [by]{remaining}[/by] remain.[/g]',
+    attackShipDestroyed: "[br]You destroyed {name}'s {ship}![/br]",
 
     droneEncounterHeader: '[br]=== HOSTILE DRONES DETECTED ===[/br]',
     droneSectorCount: '  [by]Sector drones[/by]: [br]{count}[/br] [by](belong to {owner})[/by]',

@@ -79,13 +79,13 @@ const handlers: HandlerMap = {
     [Commands.HardwareStoreInfo.reply.name]: hardwareStore.hardwareStoreInfo,
     [Commands.ListDeployedDrones.reply.name]: drones.listDeployedDrones,
 
-    [Commands.AttackShip.reply.name]: combat.attackShip,
-    [Commands.AttackTargets.reply.name]: combat.getAttackTargets,
     [Commands.DeployDrones.reply.name]: combat.deployDrones,
     [Commands.AttackSectorDrones.reply.name]: combat.attackSectorDrones,
     [Commands.RetreatFromDrones.reply.name]: combat.retreatFromDrones,
     [Events.SectorDronesReported.name]: combat.sectorDronesReported,
     [Events.ShipAttacked.name]: combat.shipAttacked,
+    [Events.WeaponsPoweringUp.name]: combat.weaponsPoweringUp,
+    [Events.DroneWaveLaunched.name]: combat.droneWaveLaunched,
 
     [Commands.TakeColonists.reply.name]: planet.takeColonists,
     [Commands.LeaveColonists.reply.name]: planet.leaveColonists,

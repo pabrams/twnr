@@ -1,6 +1,6 @@
 import type { WebSocket } from 'ws';
 import { Events } from '@twnr/shared';
-import type { TowedAlong } from '@twnr/shared';
+import type { ServerEnvelope, TowedAlong } from '@twnr/shared';
 import { onlinePlayers } from '../state/players.js';
 import { broadcastTo } from '../state/messaging.js';
 import { filterPlayersNotOnPlanet } from '../db/queries/player.js';
@@ -29,34 +29,45 @@ export async function sectorObserverClients(
     return clients;
 }
 
-/** Notify the actor's sector of dock/undock/land/liftoff. Errors are logged, never thrown. */
+/** Send any event to everyone observing the actor's sector. */
+export async function broadcastToSectorObservers(
+    actorId: number,
+    event: ServerEnvelope,
+    alsoExcludePlayerIds: number[] = [],
+): Promise<void> {
+    try {
+        const actor = onlinePlayers[actorId];
+        if (!actor) return;
+        const clients = await sectorObserverClients(actor.universeId, actor.sector, actorId);
+        for (const excludedId of alsoExcludePlayerIds) {
+            const ws = onlinePlayers[excludedId]?.ws;
+            if (ws) clients.delete(ws);
+        }
+        broadcastTo(event, clients);
+    } catch (err) {
+        console.error('broadcastToSectorObservers error:', err);
+    }
+}
+
+/** broadcastToSectorObservers specialized for dock/undock/land/liftoff. */
 export async function broadcastSectorActivity(
     playerId: number,
     activity: 'land' | 'liftoff' | 'dock' | 'undock',
     targetName: string | null = null,
 ): Promise<void> {
-    try {
-        const player = onlinePlayers[playerId];
-        if (!player) return;
-        const clients = await sectorObserverClients(player.universeId, player.sector, playerId);
-        if (clients.size === 0) return;
-        broadcastTo(
-            {
-                type: Events.SectorActivity.name,
-                playerId,
-                playerName: player.name,
-                activity,
-                targetName,
-                shipName: player.shipName,
-            },
-            clients,
-        );
-    } catch (err) {
-        console.error('broadcastSectorActivity error:', err);
-    }
+    const player = onlinePlayers[playerId];
+    if (!player) return;
+    await broadcastToSectorObservers(playerId, {
+        type: Events.SectorActivity.name,
+        playerId,
+        playerName: player.name,
+        activity,
+        targetName,
+        shipName: player.shipName,
+    });
 }
 
-/** Notify both sectors of a ship move; call after player.sector is set to the target. Errors are logged, never thrown. */
+/** Notify both sectors of a ship move; call after player.sector is set to the target. */
 export async function broadcastPlayerMoved(
     playerId: number,
     fromSector: number,

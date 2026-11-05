@@ -51,7 +51,7 @@ import { serveStarbaseInfo } from './starbase-info.js';
 import { serveBuyDrones, serveBuyShields, serveBuyHolds } from './ship-upgrades.js';
 import { serveBuyShipTradein, serveBuyShipNew } from './ship-exchange.js';
 import { serveJettison } from './ship-cargo.js';
-import { serveAttackTargets, serveAttackShip } from './combat.js';
+import { serveAttackTargets, servePowerUpWeapons, serveAttackShip } from './combat.js';
 import {
     serveSectorPlanets,
     serveLandOnPlanet,
@@ -120,6 +120,7 @@ const handlers: HandlerMap = {
     BuyHolds: serveBuyHolds,
     BuyShipTradein: serveBuyShipTradein,
     AttackTargets: serveAttackTargets,
+    PowerUpWeapons: servePowerUpWeapons,
     StarbaseInfo: serveStarbaseInfo,
     TerraformInfo: serveTerraformInfo,
     HardwareStoreInfo: serveHardwareStoreInfo,

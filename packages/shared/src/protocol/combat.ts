@@ -11,6 +11,7 @@ import {
     Num,
     Bool,
     Str,
+    StrOrNull,
     OwnershipInfoSchema,
     SectorDisplayDataSchema,
     PositiveInt,
@@ -58,12 +59,41 @@ export const ShipAttacked = defineEvent('shipAttacked', {
     repDelta: Num.optional(),
 });
 
+export const WeaponsPoweringUp = defineEvent('weaponsPoweringUp', {
+    attackerName: Str,
+});
+
+export const DroneWaveLaunched = defineEvent('droneWaveLaunched', {
+    attackerName: Str,
+    defenderName: Str,
+});
+
 export const AttackTargets = defineCommand('attackTargets', {
     request: {},
     reply: outcomes({
         ok: {
-            players: z.array(z.object({ id: Int, name: Str })),
+            players: z.array(
+                z.object({
+                    id: Int,
+                    name: Str,
+                    shipTypeName: Str,
+                    shipTypeDisplayName: StrOrNull,
+                    drones: Num,
+                }),
+            ),
+            shipDrones: Num,
             beaconPresent: Bool,
+        },
+    }),
+});
+
+export const PowerUpWeapons = defineCommand('powerUpWeapons', {
+    request: {
+        targetPlayerId: Id,
+    },
+    reply: outcomes({
+        ok: {
+            maxWaveDrones: Num,
         },
     }),
 });
@@ -77,8 +107,9 @@ export const AttackShip = defineCommand('attackShip', {
         ok: {
             destroyed: Bool,
             attackerDronesLost: Num,
-            defenderShieldsLost: Num,
+            attackerDronesRemaining: Num,
             defenderDronesLost: Num,
+            defenderDronesRemaining: Num,
             expDelta: Num.optional(),
             repDelta: Num.optional(),
         },

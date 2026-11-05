@@ -31,8 +31,6 @@ vi.mock('../src/game/display-planet.js', () => ({
 vi.mock('../src/game/display-combat.js', () => ({
     showDroneEncounter: vi.fn(),
     showDroneEncounterPrompt: vi.fn(),
-    showAttackMenu: vi.fn(),
-    showAttackPrompt: vi.fn(),
     showAttackDronesPrompt: vi.fn(),
     showDroneAttackQtyPrompt: vi.fn(),
 }));
@@ -133,7 +131,6 @@ function createMockCtx(
             ...overrides.autopilot,
         },
         encounter: {
-            attackTarget: null,
             ownerName: '',
         },
         catalogs: {

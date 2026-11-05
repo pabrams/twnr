@@ -112,7 +112,6 @@ export interface AutopilotState {
 }
 
 export interface EncounterState {
-    attackTarget: number | null;
     ownerName: string;
 }
 

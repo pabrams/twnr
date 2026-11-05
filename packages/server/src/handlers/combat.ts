@@ -2,9 +2,10 @@ import { Events } from '@twnr/shared';
 import type { CommandRequest, Refusal } from '@twnr/shared';
 
 import { isVisibleInSector, requireOnlinePlayer } from '../state/players.js';
-import { sendEnvelope, closeDestroyedSession, broadcastEnvelope } from '../state/messaging.js';
+import { sendEnvelope, closeDestroyedSession } from '../state/messaging.js';
 
 import {
+    getShipDrones,
     getShipDronesForUpdate,
     getShipMaxDroneAttack,
     getShipDefensesForUpdate,
@@ -13,6 +14,7 @@ import {
     destroyShipRecord,
 } from '../db/queries/ship.js';
 import {
+    type AttackTargetRow,
     adjustReputationAndExperience,
     getAttackTargetInfo,
     getOnPlanetId,
@@ -30,6 +32,7 @@ import {
 } from '../services/combat-rewards.js';
 import { recordGameEvent } from '../services/game-events.js';
 import { isInEncounter } from '../services/encounter.js';
+import { broadcastToSectorObservers } from '../services/sector-activity.js';
 import { sendStatsSnapshot } from '../services/stats-snapshot.js';
 import { type CommandResult, commandRefusal, mutateAndReply } from './command.js';
 
@@ -58,6 +61,30 @@ async function findAttackerRefusal(playerId: number): Promise<Refusal | null> {
     return null;
 }
 
+async function validateAttack(
+    attackerId: number,
+    targetPlayerId: number,
+): Promise<AttackTargetRow | Refusal> {
+    const refusal = await findAttackerRefusal(attackerId);
+    if (refusal) return refusal;
+
+    if (attackerId === targetPlayerId) {
+        return commandRefusal('cannotAttackSelf');
+    }
+
+    const attacker = requireOnlinePlayer(attackerId);
+    const targetInfo = await getAttackTargetInfo(targetPlayerId);
+    if (
+        !targetInfo ||
+        targetInfo.universe_id !== attacker.universeId ||
+        targetInfo.sector_number !== attacker.sector ||
+        !isVisibleInSector(targetPlayerId, targetInfo.docked, targetInfo.on_planet_id)
+    ) {
+        return commandRefusal('targetNotHere');
+    }
+    return targetInfo;
+}
+
 export async function serveAttackTargets(
     playerId: number,
 ): Promise<CommandResult<'AttackTargets'>> {
@@ -68,22 +95,42 @@ export async function serveAttackTargets(
 
     const rows = await listPlayersInSector(player.sector, player.universeId, playerId);
     const visible = rows.filter((row) => isVisibleInSector(row.id, row.docked, row.on_planet_id));
-    const roster = visible.map((row) => ({ id: row.id, name: row.name }));
-
     const beacon = await getSectorBeacon(player.sectorId);
 
-    if (visible.length > 0) {
-        broadcastEnvelope(
-            {
-                type: Events.Notice.name,
-                senderLabel: null,
-                body: `[br]${player.name} is powering up their weapon systems![/br]`,
-            },
-            visible.map((row) => row.id),
-        );
-    }
+    return {
+        outcome: 'ok',
+        players: visible.map((row) => ({
+            id: row.id,
+            name: row.name,
+            shipTypeName: row.ship_type_name ?? '',
+            shipTypeDisplayName: row.ship_display_name,
+            drones: row.ship_drones,
+        })),
+        shipDrones: (await getShipDrones(playerId)) ?? 0,
+        beaconPresent: !!beacon,
+    };
+}
 
-    return { outcome: 'ok', players: roster, beaconPresent: !!beacon };
+export async function servePowerUpWeapons(
+    attackerId: number,
+    data: CommandRequest<'PowerUpWeapons'>,
+): Promise<CommandResult<'PowerUpWeapons'>> {
+    const target = await validateAttack(attackerId, data.targetPlayerId);
+    if ('outcome' in target) return target;
+
+    const [shipDrones, maxDroneAttack] = await Promise.all([
+        getShipDrones(attackerId),
+        getShipMaxDroneAttack(attackerId),
+    ]);
+    const maxWaveDrones = Math.min(shipDrones ?? 0, maxDroneAttack);
+    if (maxWaveDrones === 0) return commandRefusal('noDronesToLaunch');
+
+    const attacker = requireOnlinePlayer(attackerId);
+    void broadcastToSectorObservers(attackerId, {
+        type: Events.WeaponsPoweringUp.name,
+        attackerName: attacker.name,
+    });
+    return { outcome: 'ok', maxWaveDrones };
 }
 
 export async function serveAttackShip(
@@ -92,24 +139,10 @@ export async function serveAttackShip(
 ): Promise<CommandResult<'AttackShip'>> {
     const { targetPlayerId, drones } = data;
 
+    const targetInfo = await validateAttack(attackerId, targetPlayerId);
+    if ('outcome' in targetInfo) return targetInfo;
+
     const attacker = requireOnlinePlayer(attackerId);
-
-    const refusal = await findAttackerRefusal(attackerId);
-    if (refusal) return refusal;
-
-    if (attackerId === targetPlayerId) {
-        return commandRefusal('cannotAttackSelf');
-    }
-
-    const targetInfo = await getAttackTargetInfo(targetPlayerId);
-    if (
-        !targetInfo ||
-        targetInfo.universe_id !== attacker.universeId ||
-        targetInfo.sector_number !== attacker.sector ||
-        !isVisibleInSector(targetPlayerId, targetInfo.docked, targetInfo.on_planet_id)
-    ) {
-        return commandRefusal('targetNotHere');
-    }
 
     return mutateAndReply(
         async (client, abort) => {
@@ -234,7 +267,9 @@ export async function serveAttackShip(
             return {
                 destroyed,
                 attackerDronesLost,
+                attackerDronesRemaining: attackerDrones - attackerDronesLost,
                 defenderDronesLost,
+                defenderDronesRemaining: destroyed ? 0 : targetDrones,
                 shieldsLost,
                 attackerExpDelta,
                 attackerRepDelta,
@@ -266,12 +301,23 @@ export async function serveAttackShip(
                 );
             }
 
+            void broadcastToSectorObservers(
+                attackerId,
+                {
+                    type: Events.DroneWaveLaunched.name,
+                    attackerName: attacker.name,
+                    defenderName: targetInfo.name,
+                },
+                [targetPlayerId],
+            );
+
             return {
                 outcome: 'ok',
                 destroyed,
                 attackerDronesLost,
+                attackerDronesRemaining: result.attackerDronesRemaining,
                 defenderDronesLost,
-                defenderShieldsLost: shieldsLost,
+                defenderDronesRemaining: result.defenderDronesRemaining,
                 expDelta: result.attackerExpDelta,
                 repDelta: result.attackerRepDelta,
             };

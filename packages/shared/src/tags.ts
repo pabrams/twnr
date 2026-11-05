@@ -4,7 +4,6 @@ export const Menu = {
     Sector: 'sector',
     Port: 'port',
     Class0: 'class0',
-    Attack: 'attack',
     Computer: 'computer',
     AutopilotPrompt: 'autopilotPrompt',
     Autopilot: 'autopilot',

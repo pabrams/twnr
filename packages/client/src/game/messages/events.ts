@@ -12,10 +12,6 @@ export const EVENT = makeDomain('EVENT', {
     noShip: '\r\n[br]You do not have a ship.[/br]',
     shipDestroyed: '\r\n[br]*** Your ship was destroyed: {reason} ***[/br]',
 
-    attackDestroyed: '[br]{message}[/br]',
-    attackCompleted: '[by]{message}[/by]',
-    attackStat: '  [by]{label}[/by]: {value}',
-
     deployDronesInfo:
         '[g]You have [by]{total}[/by] drones available.[/g]\r\n' +
         '[g]Your ship can support a maximum of [by]{max}[/by] drones, so you have to leave at least [by]{minInSector}[/by].[/g]',

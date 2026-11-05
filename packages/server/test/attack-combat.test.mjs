@@ -1,6 +1,6 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { createTestUser, createTestPlayer, connectWS, closeWS, wsRequest, waitForMsg } from './helpers.mjs';
+import { createTestUser, createTestPlayer, connectWS, closeWS, wsRequest, waitForMsg, expectNoMsg } from './helpers.mjs';
 import { ensureServer, createPool } from './global-setup.mjs';
 import { Commands, Events } from '@twnr/shared';
 
@@ -86,6 +86,120 @@ describe('Combat resolution', () => {
     } finally {
       await closeWS(ws1);
       await closeWS(ws2);
+    }
+  });
+});
+
+describe('Attack flow', () => {
+  it('lists targets with their ship and drones, without announcing anything', async () => {
+    const atk = await createPlayer('atk_roster', 1, 10, 0);
+    const def = await createPlayer('def_roster', 1, 4, 2);
+    const observer = await createPlayer('obs_roster', 1, 0, 0);
+    const { ws: ws1 } = await connectPlayer(atk.token);
+    const { ws: ws2 } = await connectPlayer(def.token);
+    const { ws: ws3, ready } = await connectPlayer(observer.token);
+    await ready;
+    try {
+      const quiet = expectNoMsg(ws3, Events.WeaponsPoweringUp.name, 500);
+      const roster = await wsRequest(ws1, { type: Commands.AttackTargets.name }, Commands.AttackTargets.reply.name);
+      assert.equal(roster.outcome, 'ok');
+      assert.equal(roster.shipDrones, 10);
+      const entry = roster.players.find((p) => p.id === def.id);
+      assert.equal(entry.name, 'def_roster');
+      assert.equal(entry.drones, 4);
+      assert.equal(typeof entry.shipTypeName, 'string');
+      assert.ok(!('shields' in entry), 'shield strength must not be revealed');
+      await quiet;
+    } finally {
+      await closeWS(ws1);
+      await closeWS(ws2);
+      await closeWS(ws3);
+    }
+  });
+
+  it('tells everyone but the attacker that weapons are powering up', async () => {
+    const atk = await createPlayer('atk_power', 1, 10, 0);
+    const def = await createPlayer('def_power', 1, 4, 0);
+    const observer = await createPlayer('obs_power', 1, 0, 0);
+    const { ws: ws1, ready: ready1 } = await connectPlayer(atk.token);
+    const { ws: ws2, ready: ready2 } = await connectPlayer(def.token);
+    const { ws: ws3, ready: ready3 } = await connectPlayer(observer.token);
+    await Promise.all([ready1, ready2, ready3]);
+    try {
+      const atDefender = waitForMsg(ws2, Events.WeaponsPoweringUp.name);
+      const atObserver = waitForMsg(ws3, Events.WeaponsPoweringUp.name);
+      const quietAttacker = expectNoMsg(ws1, Events.WeaponsPoweringUp.name, 500);
+      const res = await wsRequest(ws1, { type: Commands.PowerUpWeapons.name, targetPlayerId: def.id }, Commands.PowerUpWeapons.reply.name);
+      assert.equal(res.outcome, 'ok');
+      assert.equal(res.maxWaveDrones, 10);
+      assert.equal((await atDefender).attackerName, 'atk_power');
+      assert.equal((await atObserver).attackerName, 'atk_power');
+      await quietAttacker;
+    } finally {
+      await closeWS(ws1);
+      await closeWS(ws2);
+      await closeWS(ws3);
+    }
+  });
+
+  it('refuses to power up against a player who is not in the sector', async () => {
+    const atk = await createPlayer('atk_power_far', 1, 10, 0);
+    const def = await createPlayer('def_power_far', 2, 4, 0);
+    const { ws: ws1 } = await connectPlayer(atk.token);
+    try {
+      const res = await wsRequest(ws1, { type: Commands.PowerUpWeapons.name, targetPlayerId: def.id }, Commands.PowerUpWeapons.reply.name);
+      assert.equal(res.outcome, 'refused');
+      assert.equal(res.reason, 'targetNotHere');
+    } finally {
+      await closeWS(ws1);
+    }
+  });
+
+  it('reports drones on both sides and announces the wave to bystanders only', async () => {
+    const atk = await createPlayer('atk_wave', 1, 10, 0);
+    const def = await createPlayer('def_wave', 1, 3, 2);
+    const observer = await createPlayer('obs_wave', 1, 0, 0);
+    const { ws: ws1, ready: ready1 } = await connectPlayer(atk.token);
+    const { ws: ws2, ready: ready2 } = await connectPlayer(def.token);
+    const { ws: ws3, ready: ready3 } = await connectPlayer(observer.token);
+    await Promise.all([ready1, ready2, ready3]);
+    try {
+      const atObserver = waitForMsg(ws3, Events.DroneWaveLaunched.name);
+      const quietAttacker = expectNoMsg(ws1, Events.DroneWaveLaunched.name, 500);
+      const quietDefender = expectNoMsg(ws2, Events.DroneWaveLaunched.name, 500);
+      const res = await wsRequest(ws1, { type: Commands.AttackShip.name, targetPlayerId: def.id, drones: 4 }, Commands.AttackShip.reply.name);
+      assert.equal(res.outcome, 'ok');
+      assert.equal(res.destroyed, false);
+      assert.equal(res.attackerDronesLost, 4);
+      assert.equal(res.attackerDronesRemaining, 6);
+      assert.equal(res.defenderDronesLost, 2);
+      assert.equal(res.defenderDronesRemaining, 1);
+      assert.ok(!('defenderShieldsLost' in res), 'shield damage must not be revealed to the attacker');
+
+      const wave = await atObserver;
+      assert.equal(wave.attackerName, 'atk_wave');
+      assert.equal(wave.defenderName, 'def_wave');
+      await quietAttacker;
+      await quietDefender;
+    } finally {
+      await closeWS(ws1);
+      await closeWS(ws2);
+      await closeWS(ws3);
+    }
+  });
+
+  it('reports no drones remaining when the defender is destroyed', async () => {
+    const atk = await createPlayer('atk_wipe', 1, 10, 0);
+    const def = await createPlayer('def_wipe', 1, 2, 0);
+    const { ws: ws1 } = await connectPlayer(atk.token);
+    try {
+      const res = await wsRequest(ws1, { type: Commands.AttackShip.name, targetPlayerId: def.id, drones: 5 }, Commands.AttackShip.reply.name);
+      assert.equal(res.destroyed, true);
+      assert.equal(res.attackerDronesRemaining, 8);
+      assert.equal(res.defenderDronesLost, 2);
+      assert.equal(res.defenderDronesRemaining, 0);
+    } finally {
+      await closeWS(ws1);
     }
   });
 });

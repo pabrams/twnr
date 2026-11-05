@@ -88,11 +88,6 @@ registerRoutine('playerInfo', async (ctx) => {
     ctx.io.sendMsg(command(Commands.ShipInfo, {}));
 });
 
-registerRoutine('attackMenu', (ctx) => {
-    echoCommand(ctx, 'attack');
-    ctx.io.sendMsg(command(Commands.AttackTargets, {}));
-});
-
 registerRoutine('computerMenu', (ctx) => {
     echoCommand(ctx, 'computer');
     ctx.world.mode = Menu.Computer;
